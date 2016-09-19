@@ -2581,7 +2581,7 @@ rpl_make_log_name(PSI_memory_key key,
                   const char *ext)
 {
   DBUG_ENTER("rpl_make_log_name");
-  DBUG_PRINT("enter", ("opt: %s, def: %s, ext: %s", opt, def, ext));
+  DBUG_PRINT("enter", ("opt: %s, def: %s, ext: %s", (opt && opt[0])? opt : "", def, ext));
   char buff[FN_REFLEN];
   /*
     opt[0] needs to be checked to make sure opt name is not an empty
@@ -3952,31 +3952,28 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   DBUG_PRINT("debug",
              ("opt_bin_logname: %s, opt_relay_logname: %s, pidfile_name: %s",
               opt_bin_logname, opt_relay_logname, pidfile_name));
-  if (opt_relay_logname)
+  /*
+    opt_relay_logname[0] needs to be checked to make sure opt relaylog name is
+    not an empty string, incase it is an empty string default file
+    extension will be passed
+   */
+  relay_log_basename=
+    rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_basename,
+                      opt_relay_logname, default_logfile_name,
+                      (opt_relay_logname && opt_relay_logname[0]) ? "" : "-relay-bin");
+
+  if (relay_log_basename != NULL)
+    relay_log_index=
+      rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_index,
+                        opt_relaylog_index_name, relay_log_basename, ".index");
+
+  if (relay_log_basename == NULL || relay_log_index == NULL)
   {
-    /*
-      opt_relay_logname[0] needs to be checked to make sure opt relaylog name is
-      not an empty string, incase it is an empty string default file
-      extension will be passed
-     */
-    relay_log_basename=
-      rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_basename,
-                        opt_relay_logname, default_logfile_name,
-                        (opt_relay_logname && opt_relay_logname[0]) ? "" : "-relay-bin");
-
-    if (relay_log_basename != NULL)
-      relay_log_index=
-        rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_index,
-                          opt_relaylog_index_name, relay_log_basename, ".index");
-
-    if (relay_log_basename == NULL || relay_log_index == NULL)
-    {
-      sql_print_error("Unable to create replication path names:"
-                      " out of memory or path names too long"
-                      " (path name exceeds " STRINGIFY_ARG(FN_REFLEN)
-                      " or file name exceeds " STRINGIFY_ARG(FN_LEN) ").");
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    }
+    sql_print_error("Unable to create replication path names:"
+                    " out of memory or path names too long"
+                    " (path name exceeds " STRINGIFY_ARG(FN_REFLEN)
+                    " or file name exceeds " STRINGIFY_ARG(FN_LEN) ").");
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 #endif /* !EMBEDDED_LIBRARY */
 

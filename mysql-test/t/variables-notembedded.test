@@ -12,6 +12,9 @@ set @my_slave_net_timeout         =@@global.slave_net_timeout;
 --echo ---- Test ----
 set global slave_net_timeout=100;
 set global sql_slave_skip_counter=100;
+# The hostname needs to be stripped off its extensions as even
+# in code we use the stripped hostname as default basename
+--let $HOST_NAME= `SELECT SUBSTRING_INDEX(@@hostname, '.', 1)`
 
 # End of 4.1 tests
 
@@ -59,9 +62,11 @@ SET @@session.relay_log= 'x';
 SET @@global.relay_log= 'x';
 #
 --echo #
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $HOST_NAME hostname
 SHOW VARIABLES like 'relay_log_basename';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@session.relay_log_basename;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $HOST_NAME hostname
 SELECT @@global.relay_log_basename;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@session.relay_log_basename= 'x';
@@ -79,9 +84,11 @@ SET @@session.log_bin_basename= 'x';
 SET @@global.log_bin_basename= 'x';
 #
 --echo #
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $HOST_NAME hostname
 SHOW VARIABLES like 'relay_log_index';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@session.relay_log_index;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $HOST_NAME hostname
 SELECT @@global.relay_log_index;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@session.relay_log_index= 'x';
