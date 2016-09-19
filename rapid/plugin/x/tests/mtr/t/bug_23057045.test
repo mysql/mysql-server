@@ -1,0 +1,50 @@
+## generated
+## Ping
+--source include/have_debug_sync.inc
+--source ../include/xplugin_preamble.inc
+CREATE TABLE x(id int);
+## Test starts here
+--write_file $MYSQL_TMP_DIR/bug_23057045.tmp
+## Test data
+-->newsession con1	root
+-->newsession con2	root
+
+-->setsession con1
+-->sql
+SET DEBUG_SYNC= 'bgc_after_enrolling_for_sync_stage SIGNAL opened WAIT_FOR xxxx_new';
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into x(id) values(2);"
+  namespace: "sql"
+}
+
+
+-->setsession con2
+
+-->sql
+SET DEBUG_SYNC= 'bgc_after_enrolling_for_sync_stage SIGNAL xxxx_new';
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into x(id) values(2);"
+  namespace: "sql"
+}
+
+-->recvresult
+
+
+-->setsession con1
+-->recvresult
+
+-->sleep 2
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --schema=test --file=$MYSQL_TMP_DIR/bug_23057045.tmp 2>&1
+show processlist;
+
+--remove_file $MYSQL_TMP_DIR/bug_23057045.tmp
+
+## Postamble
+drop table x;
+uninstall plugin mysqlx;
