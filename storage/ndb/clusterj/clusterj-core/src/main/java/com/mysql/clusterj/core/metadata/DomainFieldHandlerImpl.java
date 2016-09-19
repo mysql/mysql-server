@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -295,11 +295,12 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
         persistentAnnotation = getMethod.getAnnotation(Persistent.class);
         if (persistentAnnotation != null) {
             nullValue = persistentAnnotation.nullValue();
-            logger.debug("Persistent nullValue annotation for " + name + " is " + nullValue);
+            if (logger.isDebugEnabled())
+                logger.debug("Persistent nullValue annotation for " + name + " is " + nullValue);
         }
         // convert the string default value to type-specific value
         defaultValue = objectOperationHandlerDelegate.getDefaultValueFor(this, columnDefaultValue);
-        logger.debug("Default null value for " + name + " is " + defaultValue);
+        if (logger.isDebugEnabled()) logger.debug("Default null value for " + name + " is " + defaultValue);
 
         // set up the null value handler based on the annotation
         switch (nullValue) {
