@@ -7887,6 +7887,7 @@ dd_open_table(
 	mutex_exit(&dict_sys->mutex);
 
 	mem_heap_t*	heap = mem_heap_create(1000);
+	bool		fail = false;
 
 	/* Now fill the space ID and Root page number for each index */
         dict_index_t* index = m_table->first_index();
@@ -7904,8 +7905,8 @@ dd_open_table(
                            index_space_id, &index_space)) {
 			my_error(ER_TABLESPACE_MISSING, MYF(0),
 				 m_table->name.m_name);
-			mem_heap_free(heap);
-			return(NULL);
+			fail = true;
+			break;
 		}
 		uint32	sid;
 
@@ -7926,8 +7927,8 @@ dd_open_table(
                             dd_index_key_strings[DD_INDEX_ID], &id)
                     || se_private_data.get_uint32(
                             dd_index_key_strings[DD_INDEX_ROOT], &root)) {
-			mem_heap_free(heap);
-			return(NULL);
+			fail = true;
+			break;
                 }
 
                 ut_ad(root > 1);
@@ -7939,18 +7940,28 @@ dd_open_table(
                 index = index->next();
 	}
 
+	if (fail) {
+		for (dict_index_t* index = UT_LIST_GET_LAST(m_table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_LAST(m_table->indexes)) {
+			dict_index_remove_from_cache(m_table, index);
+		}
+		dict_mem_table_free(m_table);
+
+		mem_heap_free(heap);
+		return(NULL);
+	}
+
 	mutex_enter(&dict_sys->mutex);
 
 	/* Re-check if the table has been opened/added by a concurrent
 	thread */
 	dict_table_t*	exist = dict_table_check_if_in_cache_low(norm_name);
 	if (exist != NULL) {
-		for (dict_index_t* index = m_table->first_index();
+		for (dict_index_t* index = UT_LIST_GET_LAST(m_table->indexes);
 		     index != NULL;
-		     index = index->next()) {
-			rw_lock_free(&index->lock);
-			UT_LIST_REMOVE(m_table->indexes, index);
-			dict_mem_index_free(index);
+		     index = UT_LIST_GET_LAST(m_table->indexes)) {
+			dict_index_remove_from_cache(m_table, index);
 		}
 		dict_mem_table_free(m_table);
 
