@@ -117,7 +117,7 @@ namespace ngs
     char* m_msg_buffer;
     size_t m_msg_buffer_size;
 
-    Request_unique_ptr read_one_message(Error_code &ret_error);
+    Request *read_one_message(Error_code &ret_error);
 
     virtual ngs::Capabilities_configurator *capabilities_configurator();
     void get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg);

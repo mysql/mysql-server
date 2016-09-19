@@ -2441,7 +2441,7 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
       if (value_callback)
       {
         value_callback(result);
-        value_callback = NULL;
+        Value_callback().swap(value_callback);
       }
       out << result;
     }
