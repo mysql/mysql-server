@@ -216,7 +216,7 @@ Ndb_cluster_connection_impl::get_next_node(Ndb_cluster_connection_node_iter &ite
   if (cur_pos >= no_db_nodes())
     return 0;
 
-  Ndb_cluster_connection_impl::Node *nodes= m_all_nodes.getBase();
+  Ndb_cluster_connection_impl::Node *nodes= m_nodes_proximity.getBase();
   Ndb_cluster_connection_impl::Node &node=  nodes[cur_pos];
 
   if (iter.scan_state != (Uint8)~0)
@@ -232,9 +232,9 @@ Ndb_cluster_connection_impl::get_next_node(Ndb_cluster_connection_node_iter &ite
 
   cur_pos++;
   Uint32 init_pos= iter.init_pos;
-  if (cur_pos == node.next_group)
+  if (cur_pos == node.next_group_idx)
   {
-    cur_pos= nodes[init_pos].this_group;
+    cur_pos= nodes[init_pos].this_group_idx;
   }
 
   //  fprintf(stderr,"[cur_pos %d]",cur_pos);
@@ -242,8 +242,8 @@ Ndb_cluster_connection_impl::get_next_node(Ndb_cluster_connection_node_iter &ite
     iter.cur_pos= cur_pos;
   else
   {
-    iter.cur_pos= node.next_group;
-    iter.init_pos= node.next_group;
+    iter.cur_pos= node.next_group_idx;
+    iter.init_pos= node.next_group_idx;
   }
   return node.id;
 }
@@ -273,7 +273,9 @@ Ndb_cluster_connection_impl::get_next_alive_node(Ndb_cluster_connection_node_ite
 unsigned
 Ndb_cluster_connection::no_db_nodes()
 {
-  return m_impl.m_all_nodes.size();
+  assert(m_impl.m_db_nodes.count() ==
+           m_impl.m_nodes_proximity.size());
+  return m_impl.m_nodes_proximity.size();
 }
 
 unsigned
@@ -745,52 +747,52 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
     }
     }
     m_db_nodes.set(remoteNodeId);
-    if (m_all_nodes.push_back(Node(group,remoteNodeId)))
+    if (m_nodes_proximity.push_back(Node(group,remoteNodeId)))
     {
       DBUG_RETURN(-1);
     }
     DBUG_PRINT("info",("saved %d %d", group,remoteNodeId));
-    for (int i= m_all_nodes.size()-2;
-	 i >= 0 && m_all_nodes[i].group > m_all_nodes[i+1].group;
+    for (int i= m_nodes_proximity.size()-2;
+	 i >= 0 && m_nodes_proximity[i].group > m_nodes_proximity[i+1].group;
 	 i--)
     {
-      Node tmp= m_all_nodes[i];
-      m_all_nodes[i]= m_all_nodes[i+1];
-      m_all_nodes[i+1]= tmp;
+      Node tmp= m_nodes_proximity[i];
+      m_nodes_proximity[i]= m_nodes_proximity[i+1];
+      m_nodes_proximity[i+1]= tmp;
     }
   }
 
   int i;
-  Uint32 cur_group, i_group= 0;
+  Uint32 cur_group, group_idx= 0;
   cur_group= ~0;
-  for (i= (int)m_all_nodes.size()-1; i >= 0; i--)
+  for (i= (int)m_nodes_proximity.size()-1; i >= 0; i--)
   {
-    if (m_all_nodes[i].group != cur_group)
+    if (m_nodes_proximity[i].group != cur_group)
     {
-      cur_group= m_all_nodes[i].group;
-      i_group= i+1;
+      cur_group= m_nodes_proximity[i].group;
+      group_idx= i+1;
     }
-    m_all_nodes[i].next_group= i_group;
+    m_nodes_proximity[i].next_group_idx= group_idx;
   }
   cur_group= ~0;
-  for (i= 0; i < (int)m_all_nodes.size(); i++)
+  for (i= 0; i < (int)m_nodes_proximity.size(); i++)
   {
-    if (m_all_nodes[i].group != cur_group)
+    if (m_nodes_proximity[i].group != cur_group)
     {
-      cur_group= m_all_nodes[i].group;
-      i_group= i;
+      cur_group= m_nodes_proximity[i].group;
+      group_idx= i;
     }
-    m_all_nodes[i].this_group= i_group;
+    m_nodes_proximity[i].this_group_idx= group_idx;
   }
 #if 0
-  for (i= 0; i < (int)m_all_nodes.size(); i++)
+  for (i= 0; i < (int)m_nodes_proximity.size(); i++)
   {
     fprintf(stderr, "[%d] %d %d %d %d\n",
 	   i,
-	   m_all_nodes[i].id,
-	   m_all_nodes[i].group,
-	   m_all_nodes[i].this_group,
-	   m_all_nodes[i].next_group);
+	   m_nodes_proximity[i].id,
+	   m_nodes_proximity[i].group,
+	   m_nodes_proximity[i].this_group_idx,
+	   m_nodes_proximity[i].next_group_idx);
   }
 
   do_test();
@@ -844,7 +846,9 @@ Ndb_cluster_connection_impl::get_unconnected_nodes() const
     /**
      * No db nodes connected, means all unconnected.
      */
-    return m_all_nodes.size();
+    assert(m_db_nodes.count() ==
+             m_nodes_proximity.size());
+    return m_nodes_proximity.size();
   }
 
   /**
@@ -1245,8 +1249,8 @@ Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
                                          Uint32 cnt)
 {
   NdbNodeBitmask checked;
-  const Node *nodes_arr = m_all_nodes.getBase();
-  const Uint32 nodes_arr_cnt = m_all_nodes.size();
+  const Node *nodes_arr = m_nodes_proximity.getBase();
+  const Uint32 nodes_arr_cnt = m_nodes_proximity.size();
 
   if (m_data_node_neighbour != 0)
   {
