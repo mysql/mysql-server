@@ -289,14 +289,16 @@ Ndb_cluster_connection::max_nodegroup()
   if (tp == 0 || tp->ownId() == 0)
     return 0;
 
-  Bitmask<MAX_NDB_NODES> ng;
+  NdbNodeBitmask ng;
   tp->lock_poll_mutex();
-  for(unsigned i= 0; i < no_db_nodes(); i++)
+  for (Uint32 node_id = m_impl.m_db_nodes.find_first();
+       node_id != NdbNodeBitmask::NotFound;
+       node_id = m_impl.m_db_nodes.find_next(node_id + 1))
   {
     //************************************************
     // If any node is answering, ndb is answering
     //************************************************
-    trp_node n = tp->theClusterMgr->getNodeInfo(m_impl.m_all_nodes[i].id);
+    trp_node n = tp->theClusterMgr->getNodeInfo(node_id);
     if (n.is_confirmed() && n.m_state.nodeGroup <= MAX_NDB_NODES)
       ng.set(n.m_state.nodeGroup);
   }
@@ -323,12 +325,15 @@ int Ndb_cluster_connection::get_no_ready()
 
   unsigned int foundAliveNode = 0;
   tp->lock_poll_mutex();
-  for(unsigned i= 0; i < no_db_nodes(); i++)
+  for (Uint32 node_id = m_impl.m_db_nodes.find_first();
+       node_id != NdbNodeBitmask::NotFound;
+       node_id = m_impl.m_db_nodes.find_next(node_id + 1))
   {
     //************************************************
     // If any node is answering, ndb is answering
     //************************************************
-    if (tp->get_node_alive(m_impl.m_all_nodes[i].id) != 0) {
+    if (tp->get_node_alive(node_id) != 0)
+    {
       foundAliveNode++;
     }
   }
@@ -739,6 +744,7 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
       break;
     }
     }
+    m_db_nodes.set(remoteNodeId);
     if (m_all_nodes.push_back(Node(group,remoteNodeId)))
     {
       DBUG_RETURN(-1);
@@ -795,11 +801,15 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
 Uint32
 Ndb_cluster_connection_impl::get_db_nodes(Uint8 arr[MAX_NDB_NODES]) const
 {
-  Uint32 cnt = (Uint32)m_all_nodes.size();
-  assert(cnt < MAX_NDB_NODES);
-  const Node *nodes = m_all_nodes.getBase();
-  for (Uint32 i = 0; i<cnt; i++)
-    arr[i] = (Uint8)nodes[i].id;
+  require(m_db_nodes.count() < MAX_NDB_NODES);
+  Uint32 cnt = 0;
+  for (Uint32 node_id = m_db_nodes.find_first();
+       node_id != NdbNodeBitmask::NotFound;
+       node_id = m_db_nodes.find_next(node_id + 1))
+  {
+    arr[cnt] = node_id;
+    cnt++;
+  }
   return cnt;
 }
 
@@ -808,22 +818,24 @@ Ndb_cluster_connection_impl::get_unconnected_nodes() const
 {
   TransporterFacade *tp = m_transporter_facade;
 
-  NodeBitmask db_nodes;  // All data nodes known by configuration
-  NodeBitmask connected; // All nodes connected
-  NodeBitmask started;   // All started nodes known by connected db nodes
+  NdbNodeBitmask connected; // All nodes connected
+  NdbNodeBitmask started;   // All started nodes known by connected db nodes
 
   tp->lock_poll_mutex();
-  for(unsigned i= 0; i < m_all_nodes.size(); i++)
+  for (Uint32 node_id = m_db_nodes.find_first();
+       node_id != NdbNodeBitmask::NotFound;
+       node_id = m_db_nodes.find_next(node_id + 1))
   {
-    const Uint32 node_id = m_all_nodes[i].id;
-    db_nodes.set(node_id);
     const trp_node& node = tp->theClusterMgr->getNodeInfo(node_id);
     if (!node.m_alive)
     {
       continue;
     }
     connected.set(node_id);
-    started.bitOR(node.m_state.m_connected_nodes);
+    NdbNodeBitmask nodes;
+    // Truncate NodeBitmask to NdbNodeBitmask, data nodes are in lower bits
+    nodes.assign(nodes.Size, node.m_state.m_connected_nodes.rep.data);
+    started.bitOR(nodes);
   }
   tp->unlock_poll_mutex();
 
@@ -838,7 +850,7 @@ Ndb_cluster_connection_impl::get_unconnected_nodes() const
   /**
    * Return count of started but not connected db nodes
    */
-  started.bitAND(db_nodes);
+  started.bitAND(m_db_nodes);
   return started.bitANDC(connected).count();
 }
 
@@ -1319,15 +1331,17 @@ Ndb_cluster_connection::wait_until_ready(const int * nodes, int cnt,
     dead.clear();
     alive.clear();
     tp->lock_poll_mutex();
-    for(unsigned i= 0; i < no_db_nodes(); i++)
+    for (Uint32 node_id = m_impl.m_db_nodes.find_first();
+         node_id != NdbNodeBitmask::NotFound;
+         node_id = m_impl.m_db_nodes.find_next(node_id + 1))
     {
       //************************************************
       // If any node is answering, ndb is answering
       //************************************************
-      if (tp->get_node_alive(m_impl.m_all_nodes[i].id) != 0)
-        alive.set(m_impl.m_all_nodes[i].id);
+      if (tp->get_node_alive(node_id) != 0)
+        alive.set(node_id);
       else
-        dead.set(m_impl.m_all_nodes[i].id);
+        dead.set(node_id);
     }
     tp->unlock_poll_mutex();
 
