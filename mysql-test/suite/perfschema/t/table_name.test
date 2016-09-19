@@ -32,7 +32,8 @@ INSERT INTO `sql_1` VALUES(1,'one');
 --echo
 SELECT object_type, object_schema, object_name
 FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema="test";
+WHERE object_schema="test"
+ORDER BY object_name;
 --echo
 --echo # Drop the tables, verify that the table objects are removed.
 --echo
@@ -41,7 +42,8 @@ DROP TABLE `sql_1`;
 --echo
 SELECT object_type, object_schema, object_name
 FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema="test";
+WHERE object_schema="test"
+ORDER BY object_name;
 
 --echo
 --echo #
@@ -57,7 +59,8 @@ INSERT INTO sql_temp2_innodb VALUES(1,'one');
 --echo
 SELECT object_type, object_schema, object_name
 FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema="test";
+WHERE object_schema="test"
+ORDER BY object_name;
 --echo
 --echo # Drop the tables, verify that the table objects are not created.
 --echo
@@ -66,7 +69,8 @@ DROP TABLE sql_temp2_innodb;
 --echo
 SELECT object_type, object_schema, object_name
 FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema="test";
+WHERE object_schema="test"
+ORDER BY object_name;
 
 --echo
 --echo #
@@ -84,7 +88,8 @@ INSERT INTO `#sql_temp3_innodb` VALUES(1,'one');
 --echo
 SELECT object_type, object_schema, object_name
 FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema="test";
+WHERE object_schema="test"
+ORDER BY object_name;
 --echo
 --echo # Drop the temporary tables.
 --echo
@@ -95,7 +100,8 @@ DROP TABLE `#sql_temp3_innodb`;
 --echo
 SELECT object_type, object_schema, object_name
 FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema="test";
+WHERE object_schema="test"
+ORDER BY object_name;
 
 --echo
 --echo #
@@ -112,7 +118,8 @@ INSERT INTO `#sql_temp4_myisam` VALUES(1,'one');
 --echo
 SELECT object_type, object_schema, object_name
 FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema="test";
+WHERE object_schema="test"
+ORDER BY object_name;
 --echo
 --echo # Truncate the MyISAM temporary tables, forcing them to be recreated as non-temporary.
 --echo
@@ -123,7 +130,8 @@ TRUNCATE TABLE `#sql_temp4_myisam`;
 --echo
 SELECT object_type, object_schema, object_name
 FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema="test";
+WHERE object_schema="test"
+ORDER BY object_name;
 --echo
 --echo # Drop the recreated MyISAM tables;
 --echo
@@ -134,7 +142,8 @@ DROP TABLE `#sql_temp4_myisam`;
 --echo
 SELECT object_type, object_schema, object_name
 FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema="test";
+WHERE object_schema="test"
+ORDER BY object_name;
 
 --echo
 --echo #
@@ -150,7 +159,8 @@ ALTER TABLE t1 ADD COLUMN (b int);
 --echo
 SELECT object_type, object_schema, object_name
 FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema="test";
+WHERE object_schema="test"
+ORDER BY object_name;
 --echo
 --echo # Drop the MyISAM table
 --echo
@@ -161,4 +171,5 @@ DROP TABLE t1;
 --echo
 SELECT object_type, object_schema, object_name
 FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema="test";
+WHERE object_schema="test"
+ORDER BY object_name;
