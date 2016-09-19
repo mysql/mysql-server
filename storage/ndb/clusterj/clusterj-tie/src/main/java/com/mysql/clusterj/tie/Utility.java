@@ -1155,7 +1155,6 @@ public class Utility {
         int requiredLength = storeColumn.getColumnSpace();
         ByteBuffer result = ByteBuffer.allocateDirect(requiredLength);
         convertValue(result, storeColumn, value);
-        result.flip();
         return result;
     }
 
@@ -1196,6 +1195,7 @@ public class Utility {
                             local.message("ERR_Unknown_Prefix_Length",
                             prefixLength, storeColumn.getName()));
         }
+        buffer.flip();
     }
 
     /** Convert a BigDecimal value to the binary decimal form used by MySQL.
@@ -1327,7 +1327,7 @@ public class Utility {
     }
 
     /** Convert the parameter value to a ByteBuffer that can be passed to ndbjtie.
-     * 
+     *
      * @param storeColumn the column definition
      * @param value the value to be converted
      * @return the ByteBuffer
@@ -1338,6 +1338,19 @@ public class Utility {
         result.putDouble(value);
         result.flip();
         return result;
+    }
+
+    /** Convert the parameter value into a ByteBuffer that can be passed to ndbjtie.
+     *
+     * @param buffer the ByteBuffer
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     */
+    public static void convertValue(ByteBuffer buffer, Column storeColumn, double value) {
+        buffer.order(ByteOrder.nativeOrder());
+        buffer.putDouble(value);
+        buffer.flip();
+        return;
     }
 
     /** Convert the parameter value to a ByteBuffer that can be passed to ndbjtie.
@@ -1352,6 +1365,19 @@ public class Utility {
         result.putFloat(value);
         result.flip();
         return result;
+    }
+
+    /** Convert the parameter value into a ByteBuffer that can be passed to ndbjtie.
+     *
+     * @param buffer the ByteBuffer
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     */
+    public static void convertValue(ByteBuffer buffer, Column storeColumn, float value) {
+        buffer.order(ByteOrder.nativeOrder());
+        buffer.putFloat(value);
+        buffer.flip();
+        return;
     }
 
     /** Convert the parameter value to a ByteBuffer that can be passed to ndbjtie.
@@ -1489,6 +1515,21 @@ public class Utility {
         return byteBuffer;
     }
 
+    /** Encode a byte[] into a ByteBuffer that can be passed to ndbjtie in a COND_LIKE filter.
+     * There is no length information in the beginning of the buffer.
+     * @param buffer the ByteBuffer
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     */
+    protected static void convertValueForLikeFilter(ByteBuffer buffer, Column storeColumn, byte[] value) {
+        if (value == null) {
+            value = EMPTY_BYTE_ARRAY;
+        }
+        buffer.put(value);
+        buffer.flip();
+        return;
+    }
+
     /** Pad the value with blanks on the right.
      * @param value the input value
      * @param storeColumn the store column
@@ -1523,12 +1564,12 @@ public class Utility {
             throw new ClusterJUserException(local.message("ERR_Data_Too_Long",
                     storeColumn.getName(), requiredLength, suppliedLength));
         } else if (suppliedLength < requiredLength) {
-        	//reset buffer's limit
-        	buffer.limit(requiredLength);
-        	//pad to fixed length
-        	buffer.position(suppliedLength);
-        	buffer.put(BLANK_PAD, 0, requiredLength - suppliedLength);
-        	buffer.position(0);
+            //reset buffer's limit
+            buffer.limit(requiredLength);
+            //pad to fixed length
+            buffer.position(suppliedLength);
+            buffer.put(BLANK_PAD, 0, requiredLength - suppliedLength);
+            buffer.position(0);
         }
         return buffer;
     }
