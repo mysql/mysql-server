@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -237,14 +237,23 @@ public class NdbRecordImpl {
         // default values is now immutable and can be used thread-safe
     }
 
-    /** Initialize a new direct buffer with default values for all columns.
+    /** Allocate a new direct buffer and optionally initialize with default values for all columns.
+     * The buffer returned is positioned at 0 with the limit set to the buffer size.
+     * @param initialize true to initialize the buffer with default values
+     * @return a new byte buffer for use with this NdbRecord.
+     */
+    protected ByteBuffer newBuffer(boolean initialize) {
+        ByteBuffer result = bufferPool.borrowBuffer();
+        initializeBuffer(result, initialize);
+        return result;
+    }
+
+    /** Allocate a new direct buffer and initialize with default values for all columns.
      * The buffer returned is positioned at 0 with the limit set to the buffer size.
      * @return a new byte buffer for use with this NdbRecord.
      */
     protected ByteBuffer newBuffer() {
-        ByteBuffer result = bufferPool.borrowBuffer();
-        initializeBuffer(result);
-        return result;
+        return newBuffer(true);
     }
 
     /** Return the buffer to the buffer pool */
@@ -257,15 +266,26 @@ public class NdbRecordImpl {
         bufferPool.checkGuard(buffer, where);
     }
 
-    /** Initialize an already-allocated buffer with default values for all columns.
-     * 
-     * @param buffer
+    /** Make a buffer ready for use and optionally initialize it with default values for all columns.
+     * Set the buffer's position to zero and limit to its capacity.
+     * @param buffer the buffer
+     * @param initialize true to initialize the buffer with default values
      */
-    protected void initializeBuffer(ByteBuffer buffer) {
+    protected void initializeBuffer(ByteBuffer buffer, boolean initialize) {
         buffer.order(ByteOrder.nativeOrder());
         buffer.clear();
-        buffer.put(defaultValues);
-        buffer.clear();
+        if (initialize) {
+            buffer.put(defaultValues);
+            buffer.clear();
+        }
+    }
+
+    /** Make a buffer ready for use and initialize it with default values for all columns.
+     * Set the buffer's position to zero and limit to its capacity.
+     * @param buffer the buffer
+     */
+    protected void initializeBuffer(ByteBuffer buffer) {
+        initializeBuffer(buffer, true);
     }
 
     public int setNull(ByteBuffer buffer, Column storeColumn) {
@@ -991,22 +1011,26 @@ public class NdbRecordImpl {
         switch (autoIncrementColumn.getType()) {
             case Int:
             case Unsigned:
-                logger.debug("chooseAutoIncrementValueSetter autoIncrementValueSetterInt.");
+                if (logger.isDebugEnabled())
+                    logger.debug("chooseAutoIncrementValueSetter autoIncrementValueSetterInt.");
                 autoIncrementValueSetter = autoIncrementValueSetterInt;
                 break;
             case Bigint:
             case Bigunsigned:
-                logger.debug("chooseAutoIncrementValueSetter autoIncrementValueSetterBigint.");
+                if (logger.isDebugEnabled())
+                    logger.debug("chooseAutoIncrementValueSetter autoIncrementValueSetterBigint.");
                 autoIncrementValueSetter = autoIncrementValueSetterLong;
                 break;
             case Smallint:
             case Smallunsigned:
-                logger.debug("chooseAutoIncrementValueSetter autoIncrementValueSetterSmallint.");
+                if (logger.isDebugEnabled())
+                    logger.debug("chooseAutoIncrementValueSetter autoIncrementValueSetterSmallint.");
                 autoIncrementValueSetter = autoIncrementValueSetterShort;
                 break;
             case Tinyint:
             case Tinyunsigned:
-                logger.debug("chooseAutoIncrementValueSetter autoIncrementValueSetterTinyint.");
+                if (logger.isDebugEnabled())
+                    logger.debug("chooseAutoIncrementValueSetter autoIncrementValueSetterTinyint.");
                 autoIncrementValueSetter = autoIncrementValueSetterByte;
                 break;
             default: 
