@@ -7215,7 +7215,7 @@ Create_func_can_access_table::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
-  if (arg_count != 2)
+  if (arg_count != 3)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
     return nullptr;
@@ -7223,9 +7223,10 @@ Create_func_can_access_table::create_native(THD *thd, LEX_STRING name,
 
   Item *param_1= item_list->pop_front();
   Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
 
   return new (thd->mem_root) Item_func_can_access_table(
-                               POS(), param_1, param_2);
+                               POS(), param_1, param_2, param_3);
 }
 
 
@@ -7267,7 +7268,7 @@ Create_func_can_access_column::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
-  if (arg_count != 3)
+  if (arg_count != 4)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
     return NULL;
@@ -7276,9 +7277,10 @@ Create_func_can_access_column::create_native(THD *thd, LEX_STRING name,
   Item *param_1= item_list->pop_front();
   Item *param_2= item_list->pop_front();
   Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
 
   return new (thd->mem_root) Item_func_can_access_column(
-                               POS(), param_1, param_2, param_3);
+                               POS(), param_1, param_2, param_3, param_4);
 }
 
 

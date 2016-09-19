@@ -500,6 +500,7 @@ void LEX::reset()
   max_execution_time= 0;
   opt_hints_global= NULL;
   binlog_need_explicit_defaults_ts= false;
+  extended_show= false;
 }
 
 

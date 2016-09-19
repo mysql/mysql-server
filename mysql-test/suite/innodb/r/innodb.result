@@ -217,14 +217,8 @@ test.t1	optimize	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	id	A	#	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	DB_TRX_ID	A	#	0	NULL		BTREE			YES
-t1	0	PRIMARY	3	DB_ROLL_PTR	A	#	0	NULL		BTREE			YES
-t1	0	PRIMARY	4	parent_id	A	#	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	5	level	A	#	NULL	NULL		BTREE			YES
 t1	1	parent_id	1	parent_id	A	#	NULL	NULL		BTREE			YES
-t1	1	parent_id	2	id	A	#	NULL	NULL		BTREE			YES
 t1	1	level	1	level	A	#	NULL	NULL		BTREE			YES
-t1	1	level	2	id	A	#	NULL	NULL		BTREE			YES
 drop table t1;
 CREATE TABLE t1 (
 gesuchnr int(11) DEFAULT '0' NOT NULL,
@@ -266,13 +260,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	DB_ROW_ID	A	#	0	NULL		BTREE			YES
-t1	0	PRIMARY	2	DB_TRX_ID	A	#	0	NULL		BTREE			YES
-t1	0	PRIMARY	3	DB_ROLL_PTR	A	#	0	NULL		BTREE			YES
-t1	0	PRIMARY	4	a	A	#	NULL	NULL	YES	BTREE			YES
-t1	0	PRIMARY	5	b	A	#	0	NULL	YES	BTREE			YES
 t1	1	skr	1	a	A	#	NULL	NULL	YES	BTREE			YES
-t1	1	skr	2	DB_ROW_ID	A	#	0	NULL		BTREE			YES
 drop table t1;
 create table t1 (a int,b varchar(20),key(a)) engine=innodb;
 insert into t1 values (1,""), (2,"testing");
@@ -808,9 +796,6 @@ test.t1	optimize	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	DB_TRX_ID	A	#	0	NULL		BTREE			YES
-t1	0	PRIMARY	3	DB_ROLL_PTR	A	#	0	NULL		BTREE			YES
-t1	0	PRIMARY	4	b	A	#	NULL	NULL		BTREE			YES
 drop table t1;
 create table t1 (i int, j int ) ENGINE=innodb;
 insert into t1 values (1,2);
@@ -1017,9 +1002,6 @@ create table t1 (t int not null default 1, key (t)) engine=innodb;
 desc t1;
 Field	Type	Null	Key	Default	Extra
 t	int(11)	NO	MUL	1	
-DB_ROW_ID		NO		NULL	
-DB_TRX_ID		NO		NULL	
-DB_ROLL_PTR		NO		NULL	
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
@@ -1837,7 +1819,7 @@ variable_value - @innodb_rows_deleted_orig
 1942
 SELECT variable_value - @innodb_rows_inserted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
-2867
+2864
 SELECT variable_value - @innodb_rows_updated_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
 2643

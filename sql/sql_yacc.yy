@@ -11622,7 +11622,7 @@ show_param:
           }
         | ENGINE_SYM ALL show_engine_param
           { Lex->create_info->db_type= NULL; }
-        | opt_full COLUMNS from_or_in table_ident opt_db opt_wild_or_where_for_show
+        | opt_extended_and_full COLUMNS from_or_in table_ident opt_db opt_wild_or_where_for_show
           {
             LEX *lex= Lex;
             LEX_STRING db;
@@ -11685,39 +11685,40 @@ show_param:
             if ($6 != NULL)
               CONTEXTUALIZE($6);
           }
-        | keys_or_index         /* #1 */
-          from_or_in            /* #2 */
-          table_ident           /* #3 */
-          opt_db                /* #4 */
-          opt_where_clause_expr /* #5 */
+        | opt_extended          /* #1 */
+          keys_or_index         /* #2 */
+          from_or_in            /* #3 */
+          table_ident           /* #4 */
+          opt_db                /* #5 */
+          opt_where_clause_expr /* #6 */
           {
             LEX *lex= Lex;
             LEX_STRING db;
             lex->sql_command= SQLCOM_SHOW_KEYS;
-            if ($4)
-              $3->change_db($4);
+            if ($5)
+              $4->change_db($5);
 
-            if ($3->db.str)
-              db.str= (char *) $3->db.str;
+            if ($4->db.str)
+              db.str= (char *) $4->db.str;
             else if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
 
-            if (find_temporary_table(YYTHD, db.str, $3->table.str) != NULL)
+            if (find_temporary_table(YYTHD, db.str, $4->table.str) != NULL)
             {
-              if ($5 != NULL)
+              if ($6 != NULL)
               {
-                Item *where_context= new PTI_context<CTX_WHERE>(@$, $5);
-                ITEMIZE(where_context, &$5);
+                Item *where_context= new PTI_context<CTX_WHERE>(@$, $6);
+                ITEMIZE(where_context, &$6);
               }
-              Select->set_where_cond($5);
+              Select->set_where_cond($6);
 
-              if (prepare_schema_table(YYTHD, lex, $3, SCH_TMP_TABLE_KEYS))
+              if (prepare_schema_table(YYTHD, lex, $4, SCH_TMP_TABLE_KEYS))
                 MYSQL_YYABORT;
             }
             else
             {
                if (dd::info_schema::build_show_keys_query(
-                                      @$, YYTHD, $3, $5) == nullptr)
+                                      @$, YYTHD, $4, $6) == nullptr)
                   MYSQL_YYABORT;
             }
           }
@@ -12003,6 +12004,34 @@ opt_db:
 opt_full:
           /* empty */ { Lex->verbose=0; }
         | FULL        { Lex->verbose=1; }
+        ;
+
+opt_extended:
+          /* empty */   { Lex->extended_show= 0; }
+        | EXTENDED_SYM  { Lex->extended_show= 1; }
+        ;
+
+opt_extended_and_full:
+          /* empty */
+          {
+            Lex->verbose= 0;
+            Lex->extended_show= 0;
+          }
+        | EXTENDED_SYM
+          {
+            Lex->verbose= 0;
+            Lex->extended_show= 1;
+          }
+        | FULL
+          {
+            Lex->verbose= 1;
+            Lex->extended_show= 0;
+          }
+        | EXTENDED_SYM FULL
+          {
+            Lex->verbose= 1;
+            Lex->extended_show= 1;
+          }
         ;
 
 from_or_in:

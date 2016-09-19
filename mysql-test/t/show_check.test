@@ -1481,5 +1481,48 @@ CREATE TABLE `t1` (
 
 DROP TABLE t1;
 
+--echo #
+--echo # WL#6599 -  New Data Dictionary and I_S integration
+--echo #
+CREATE TABLE t1 (c1 int(11) NOT NULL,
+                 c2 int(11) DEFAULT NULL,
+                 c3 text,
+                 PRIMARY KEY (c1));
+CREATE INDEX c2d ON t1(c2); 
+
+--echo # With fix, following statements should not show the hidden columns.
+--replace_column 3 # 4 # 5 # 6 #
+SHOW COLUMNS FROM t1;
+--replace_column 3 # 4 # 5 # 6 # 7 # 8 # 9 #
+SHOW FULL COLUMNS FROM t1;
+SELECT table_name, column_name, column_type FROM
+       INFORMATION_SCHEMA.COLUMNS WHERE table_name='t1';
+--echo # EXTENDED keyword is introduced to list the hidden columns.
+--echo # Note: Currently no hidden columns are created for the table t1.
+--echo #       WL#7743 introduces few hidden columns. Please verify hidden
+--echo #       columns in following statements output and record result.
+--replace_column 3 # 4 # 5 # 6 #
+SHOW EXTENDED COLUMNS FROM t1;
+--replace_column 3 # 4 # 5 # 6 # 7 # 8 # 9 #
+SHOW EXTENDED FULL COLUMNS FROM t1;
+
+--echo # With fix, following statements should not show the hidden index and
+--echo # index columns.
+SHOW INDEX FROM t1;
+SELECT table_schema, table_name, index_name, column_name FROM
+       INFORMATION_SCHEMA.STATISTICS WHERE table_name='t1';
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
+SELECT constraint_schema, constraint_name, table_name, column_name FROM
+       INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
+
+--echo # EXTENDED keyword is introduced to list the hidden index and index
+--echo # columns.
+--echo # Note: Currently no hidden index or index columns are created for the
+--echo #       table t1.
+--echo #       WL#7743 introduces hidden index columns. Please verify result
+--echo #       of following statement output and record result.
+SHOW EXTENDED INDEX FROM t1;
+DROP TABLE t1;
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

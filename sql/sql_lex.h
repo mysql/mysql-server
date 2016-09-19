@@ -3359,6 +3359,8 @@ public:
   bool drop_if_exists, drop_temporary, local_file;
   bool autocommit;
   bool verbose, no_write_to_binlog;
+  // For show commands to show hidden columns and indexes.
+  bool extended_show;
 
   enum enum_yes_no_unknown tx_chain, tx_release;
   bool safe_to_cache_query;

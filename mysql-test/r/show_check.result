@@ -1683,3 +1683,71 @@ CREATE TABLE `t1` (
 `n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 DROP TABLE t1;
+#
+# WL#6599 -  New Data Dictionary and I_S integration
+#
+CREATE TABLE t1 (c1 int(11) NOT NULL,
+c2 int(11) DEFAULT NULL,
+c3 text,
+PRIMARY KEY (c1));
+CREATE INDEX c2d ON t1(c2);
+# With fix, following statements should not show the hidden columns.
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+c1	int(11)	#	#	#	#
+c2	int(11)	#	#	#	#
+c3	text	#	#	#	#
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c1	int(11)	#	#	#	#	#	#	#
+c2	int(11)	#	#	#	#	#	#	#
+c3	text	#	#	#	#	#	#	#
+SELECT table_name, column_name, column_type FROM
+INFORMATION_SCHEMA.COLUMNS WHERE table_name='t1';
+TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
+t1	c1	int(11)
+t1	c2	int(11)
+t1	c3	text
+# EXTENDED keyword is introduced to list the hidden columns.
+# Note: Currently no hidden columns are created for the table t1.
+#       WL#7743 introduces few hidden columns. Please verify hidden
+#       columns in following statements output and record result.
+SHOW EXTENDED COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+c1	int(11)	#	#	#	#
+c2	int(11)	#	#	#	#
+c3	text	#	#	#	#
+SHOW EXTENDED FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c1	int(11)	#	#	#	#	#	#	#
+c2	int(11)	#	#	#	#	#	#	#
+c3	text	#	#	#	#	#	#	#
+# With fix, following statements should not show the hidden index and
+# index columns.
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	c1	A	NULL	NULL	NULL		BTREE			YES
+t1	1	c2d	1	c2	A	NULL	NULL	NULL	YES	BTREE			YES
+SELECT table_schema, table_name, index_name, column_name FROM
+INFORMATION_SCHEMA.STATISTICS WHERE table_name='t1';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	COLUMN_NAME
+test	t1	c2d	c2
+test	t1	PRIMARY	c1
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+def	test	PRIMARY	test	t1	PRIMARY KEY
+SELECT constraint_schema, constraint_name, table_name, column_name FROM
+INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
+constraint_schema	constraint_name	table_name	column_name
+test	PRIMARY	t1	c1
+# EXTENDED keyword is introduced to list the hidden index and index
+# columns.
+# Note: Currently no hidden index or index columns are created for the
+#       table t1.
+#       WL#7743 introduces hidden index columns. Please verify result
+#       of following statement output and record result.
+SHOW EXTENDED INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	c1	A	NULL	NULL	NULL		BTREE			YES
+t1	1	c2d	1	c2	A	NULL	NULL	NULL	YES	BTREE			YES
+DROP TABLE t1;
