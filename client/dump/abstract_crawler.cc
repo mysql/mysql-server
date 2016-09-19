@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <functional>
+
 #include "abstract_crawler.h"
 #include "dump_end_dump_task.h"
 #include "this_thread.h"
@@ -25,7 +27,7 @@ using namespace Mysql::Tools::Dump;
 my_boost::atomic_uint64_t Abstract_crawler::next_chain_id;
 
 Abstract_crawler::Abstract_crawler(
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
     Mysql::Tools::Base::Abstract_program* program)
   : Abstract_chain_element(message_handler, object_id_generator),

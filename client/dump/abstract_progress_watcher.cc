@@ -16,8 +16,11 @@
 */
 
 #include "abstract_progress_watcher.h"
+
 #include <algorithm>
 #include <chrono>
+#include <functional>
+
 #include "table_rows_dump_task.h"
 #include "table_definition_dump_task.h"
 #include "row_group_dump_task.h"
@@ -59,7 +62,7 @@ void Abstract_progress_watcher::progress_changed()
 }
 
 Abstract_progress_watcher::Abstract_progress_watcher(
-  Mysql::I_callable <bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator)
   : Abstract_chain_element(message_handler, object_id_generator),
   m_step_countdown(1),

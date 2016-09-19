@@ -18,10 +18,12 @@
 #ifndef ABSTRACT_PROGRESS_WATCHER_INCLUDED
 #define ABSTRACT_PROGRESS_WATCHER_INCLUDED
 
+#include <chrono>
+#include <functional>
+
 #include "i_progress_watcher.h"
 #include "abstract_chain_element.h"
 #include "base/atomic.h"
-#include <chrono>
 
 namespace Mysql{
 namespace Tools{
@@ -54,8 +56,8 @@ public:
   { return Abstract_chain_element::get_id(); }
 
 protected:
-  Abstract_progress_watcher(Mysql::I_callable
-    <bool, const Mysql::Tools::Base::Message_data&>*
+  Abstract_progress_watcher(std::function
+    <bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, Simple_id_generator* object_id_generator);
 
   class Progress_data

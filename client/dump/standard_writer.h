@@ -18,9 +18,11 @@
 #ifndef STANDARD_WRITER_INCLUDED
 #define STANDARD_WRITER_INCLUDED
 
+#include <functional>
+#include <string>
+
 #include "i_output_writer.h"
 #include "abstract_chain_element.h"
-#include <string>
 
 namespace Mysql{
 namespace Tools{
@@ -33,7 +35,7 @@ class Standard_writer : public I_output_writer, public Abstract_chain_element
 {
 public:
   Standard_writer(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator);
 
   void append(const std::string& data_to_append);

@@ -18,6 +18,10 @@
 #ifndef MYSQLDUMP_TOOL_CHAIN_MAKER_INCLUDED
 #define MYSQLDUMP_TOOL_CHAIN_MAKER_INCLUDED
 
+#include <functional>
+#include <map>
+#include <vector>
+
 #include "mysql_object_reader.h"
 #include "object_queue.h"
 #include "i_chain_maker.h"
@@ -27,8 +31,6 @@
 #include "abstract_chain_element.h"
 #include "abstract_mysql_chain_element_extension.h"
 #include "mysqldump_tool_chain_maker_options.h"
-#include <map>
-#include <vector>
 
 namespace Mysql{
 namespace Tools{
@@ -45,7 +47,7 @@ class Mysqldump_tool_chain_maker : public I_chain_maker,
 public:
   Mysqldump_tool_chain_maker(
     I_connection_provider* connection_provider,
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
     Mysqldump_tool_chain_maker_options* options,
     Mysql::Tools::Base::Abstract_program* program);

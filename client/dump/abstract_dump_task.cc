@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+#include <functional>
 
 #include "abstract_dump_task.h"
 
@@ -37,7 +39,7 @@ void Abstract_dump_task::check_execution_availability()
   {
     my_boost::mutex::scoped_lock lock(m_task_mutex);
 
-    for (std::vector<Mysql::I_callable<void, const Abstract_dump_task*>*>
+    for (std::vector<std::function<void(const Abstract_dump_task*)>*>
       ::const_iterator it = m_availability_callbacks.begin();
       it != m_availability_callbacks.end(); ++it)
     {
@@ -48,7 +50,7 @@ void Abstract_dump_task::check_execution_availability()
 }
 
 void Abstract_dump_task::register_execution_availability_callback(
-  Mysql::I_callable<void, const Abstract_dump_task*>* availability_callback)
+  std::function<void(const Abstract_dump_task*)>* availability_callback)
 {
   my_boost::mutex::scoped_lock lock(m_task_mutex);
   m_availability_callbacks.push_back(availability_callback);

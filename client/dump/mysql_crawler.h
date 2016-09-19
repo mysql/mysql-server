@@ -18,10 +18,11 @@
 #ifndef MYSQL_CRAWLER_INCLUDED
 #define MYSQL_CRAWLER_INCLUDED
 
+#include <functional>
+
 #include "abstract_crawler.h"
 #include "abstract_mysql_chain_element_extension.h"
 #include "i_connection_provider.h"
-#include "i_callable.h"
 #include "dump_start_dump_task.h"
 #include "abstract_dump_task.h"
 #include "database.h"
@@ -48,7 +49,7 @@ class Mysql_crawler
 public:
   Mysql_crawler(
     I_connection_provider* connection_provider,
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, Simple_id_generator* object_id_generator,
       Mysql_chain_element_options* options,
       Mysql::Tools::Base::Abstract_program* program);
