@@ -212,6 +212,18 @@ Ndb_cluster_connection_impl::init_get_next_node
 Uint32
 Ndb_cluster_connection_impl::get_next_node(Ndb_cluster_connection_node_iter &iter)
 {
+  /**
+   * Note that iter may be out dated by changes to m_nodes_proximity.
+   * m_nodes_proximity can be changed by application calling
+   * set_data_node_neighbour() which in turn calls adjust_node_proximity that
+   * can rearrange the nodes.  This can even happen concurrently by another
+   * thread.
+   *
+   * It is assumed that each fields in the Node struct will at least be updated
+   * atomically.  And the fact that sometimes the next node selected may be the
+   * wrong one is ignored and taken as an glitch choosing a possible non
+   * optimal node once after call to set_data_node_neighbour().
+   */
   Uint32 cur_pos= iter.cur_pos;
   if (cur_pos >= no_db_nodes())
     return 0;
@@ -222,7 +234,7 @@ Ndb_cluster_connection_impl::get_next_node(Ndb_cluster_connection_node_iter &ite
   if (iter.scan_state != (Uint8)~0)
   {
     assert(iter.scan_state < no_db_nodes());
-    if (nodes[iter.scan_state].group == node.group)
+    if (nodes[iter.scan_state].adjusted_group == node.adjusted_group)
       iter.scan_state= ~0;
     else
       return nodes[iter.scan_state++].id;
@@ -454,6 +466,7 @@ Ndb_cluster_connection_impl(const char * connect_string,
   m_event_add_drop_mutex= NdbMutex_Create();
   m_new_delete_ndb_mutex = NdbMutex_Create();
   m_new_delete_ndb_cond = NdbCondition_Create();
+  m_nodes_proximity_mutex = NdbMutex_Create();
 
   m_connect_thread= 0;
   m_connect_callback= 0;
@@ -555,6 +568,12 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
 
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
+
+  if (m_nodes_proximity_mutex != NULL)
+  {
+    NdbMutex_Destroy(m_nodes_proximity_mutex);
+    m_nodes_proximity_mutex = NULL;
+  }
 
   if (m_event_add_drop_mutex)
     NdbMutex_Destroy(m_event_add_drop_mutex);
@@ -687,10 +706,181 @@ Ndb_cluster_connection_impl::set_next_transid(Uint32 reference, Uint32 value)
   unlock_ndb_objects();
 }
 
+/**
+ * adjust_node_proximity
+ *
+ * A negative adjustment means nearer.
+ *
+ * May rearrange m_nodes_proximity and change links and group value.
+ * The vector m_nodes_proximity itself, including size(), is not modified
+ * only the elements within.
+ *
+ * m_nodes_proximity_mutex must be locked and m_nodes_proximity_seqlock
+ * must be locked for write.
+ */
+void
+Ndb_cluster_connection_impl::adjust_node_proximity(Uint32 node_id, Int32 adjustment)
+{
+  assert(m_db_nodes.get(node_id)); // Ensured in set_data_node_neighbour
+
+  if (adjustment == 0)
+    return; // No change
+
+  Uint32 old_idx;
+  for (old_idx = 0; old_idx < m_nodes_proximity.size(); old_idx++)
+  {
+    if (m_nodes_proximity[old_idx].id == node_id)
+      break;
+  }
+  require(old_idx < m_nodes_proximity.size());
+
+  const Int32 old_group = m_nodes_proximity[old_idx].adjusted_group;
+  const Int32 new_group = old_group + adjustment;
+  Node node = m_nodes_proximity[old_idx];
+  node.adjusted_group = new_group;
+
+  Uint32 new_idx;
+  if (adjustment < 0)
+  {
+    /**
+     * Node is moved to be new last in its new group.
+     */
+    for (new_idx = 0; new_idx < old_idx; new_idx ++)
+    {
+      if (m_nodes_proximity[new_idx].adjusted_group > new_group)
+        break;
+    }
+    /**
+     * Move nodes between new_idx (inclusive) and old_idx (exclusive) up,
+     * making room for node in its new group.
+     */
+    for (Uint32 idx = old_idx;
+         idx > new_idx;
+         idx--)
+    {
+      m_nodes_proximity[idx] = m_nodes_proximity[idx-1];
+      m_nodes_proximity[idx].this_group_idx++;
+      if (m_nodes_proximity[idx].next_group_idx > 0 &&
+          m_nodes_proximity[idx].next_group_idx <= old_idx)
+      {
+        m_nodes_proximity[idx].next_group_idx++;
+        if (m_nodes_proximity[idx].next_group_idx == m_nodes_proximity.size())
+        {
+          m_nodes_proximity[idx].next_group_idx = 0;
+        }
+      }
+    }
+    /**
+     * For elements after old place with same group, this_group_idx needs
+     * increase.
+     */
+    for (Uint32 idx = old_idx + 1;
+         idx < m_nodes_proximity.size() &&
+           m_nodes_proximity[idx].adjusted_group == old_group;
+         idx++)
+    {
+      m_nodes_proximity[idx].this_group_idx++;
+    }
+    /**
+     * Update this_group_idx and next_group_idx for node.
+     */
+    if (new_idx == 0)
+    {
+      node.this_group_idx = 0;
+    }
+    else if (m_nodes_proximity[new_idx - 1].adjusted_group == new_group)
+    {
+      node.this_group_idx = m_nodes_proximity[new_idx - 1].this_group_idx;
+    }
+    else
+    {
+      node.this_group_idx = new_idx;
+    }
+    Uint32 next_group_idx = new_idx + 1;
+    if (next_group_idx < m_nodes_proximity.size())
+    {
+      node.next_group_idx = next_group_idx;
+    }
+    else
+    {
+      node.next_group_idx = 0;
+    }
+  }
+  else
+  {
+    /**
+     * Node is moved to be first in its new group.
+     */
+    for (new_idx = old_idx; new_idx + 1 < m_nodes_proximity.size(); new_idx++)
+    {
+      if (m_nodes_proximity[new_idx + 1].adjusted_group >= new_group)
+        break;
+    }
+    /**
+     * Move nodes between old_idx (exclusive) and new_idx (inclusive) down,
+     * making room for node in its new group.
+     */
+    for (Uint32 idx = old_idx;
+         idx < new_idx;
+         idx++)
+    {
+      m_nodes_proximity[idx] = m_nodes_proximity[idx + 1];
+      if (m_nodes_proximity[idx].this_group_idx > old_idx)
+      {
+        m_nodes_proximity[idx].this_group_idx--;
+      }
+      if (m_nodes_proximity[idx].next_group_idx > 0 &&
+          m_nodes_proximity[idx].next_group_idx < new_idx)
+      {
+        m_nodes_proximity[idx].next_group_idx--;
+      }
+      else
+      {
+        m_nodes_proximity[idx].next_group_idx = new_idx;
+      }
+    }
+    /**
+     * Update this_group_idx and next_group_idx for node.
+     */
+    if (old_idx < new_idx)
+    {
+      node.this_group_idx = new_idx;
+    }
+    if (new_idx + 1 == m_nodes_proximity.size())
+    {
+      node.next_group_idx = 0;
+    }
+    else if (m_nodes_proximity[new_idx + 1].adjusted_group == new_group)
+    {
+      node.next_group_idx = m_nodes_proximity[new_idx + 1].next_group_idx;
+    }
+    else
+    {
+      node.next_group_idx = new_idx + 1;
+    }
+  }
+  m_nodes_proximity[new_idx] = node;
+}
+
 void
 Ndb_cluster_connection_impl::set_data_node_neighbour(Uint32 node)
 {
+  Uint32 const old_node = m_data_node_neighbour;
+  if (old_node == node)
+    return; // No change
+
+  NdbMutex_Lock(m_nodes_proximity_mutex);
+  if (old_node != 0 && m_db_nodes.get(old_node))
+  {
+    adjust_node_proximity(old_node,
+                          -DATA_NODE_NEIGHBOUR_PROXIMITY_ADJUSTMENT);
+  }
+  if (node != 0 && m_db_nodes.get(node))
+  {
+    adjust_node_proximity(node, DATA_NODE_NEIGHBOUR_PROXIMITY_ADJUSTMENT);
+  }
   m_data_node_neighbour = node;
+  NdbMutex_Unlock(m_nodes_proximity_mutex);
 }
 
 void
@@ -753,7 +943,9 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
     }
     DBUG_PRINT("info",("saved %d %d", group,remoteNodeId));
     for (int i= m_nodes_proximity.size()-2;
-	 i >= 0 && m_nodes_proximity[i].group > m_nodes_proximity[i+1].group;
+	 i >= 0 &&
+           m_nodes_proximity[i].adjusted_group >
+             m_nodes_proximity[i+1].adjusted_group;
 	 i--)
     {
       Node tmp= m_nodes_proximity[i];
@@ -763,23 +955,23 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
   }
 
   int i;
-  Uint32 cur_group, group_idx= 0;
-  cur_group= ~0;
+  Int32 cur_group= INVALID_PROXIMITY_GROUP;
+  Uint32 group_idx= 0;
   for (i= (int)m_nodes_proximity.size()-1; i >= 0; i--)
   {
-    if (m_nodes_proximity[i].group != cur_group)
+    if (m_nodes_proximity[i].adjusted_group != cur_group)
     {
-      cur_group= m_nodes_proximity[i].group;
+      cur_group= m_nodes_proximity[i].adjusted_group;
       group_idx= i+1;
     }
     m_nodes_proximity[i].next_group_idx= group_idx;
   }
-  cur_group= ~0;
+  cur_group= INVALID_PROXIMITY_GROUP;
   for (i= 0; i < (int)m_nodes_proximity.size(); i++)
   {
-    if (m_nodes_proximity[i].group != cur_group)
+    if (m_nodes_proximity[i].adjusted_group != cur_group)
     {
-      cur_group= m_nodes_proximity[i].group;
+      cur_group= m_nodes_proximity[i].adjusted_group;
       group_idx= i;
     }
     m_nodes_proximity[i].this_group_idx= group_idx;
@@ -790,7 +982,7 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
     fprintf(stderr, "[%d] %d %d %d %d\n",
 	   i,
 	   m_nodes_proximity[i].id,
-	   m_nodes_proximity[i].group,
+	   m_nodes_proximity[i].adjusted_group,
 	   m_nodes_proximity[i].this_group_idx,
 	   m_nodes_proximity[i].next_group_idx);
   }
@@ -1271,7 +1463,7 @@ Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
     }
   }
   Uint32 best_node = nodes[0];
-  Uint32 best_score = ~Uint32(0);
+  Int32 best_score = MAX_PROXIMITY_GROUP; // Lower is better
 
   for (Uint32 j = 0; j < cnt; j++)
   {
@@ -1285,12 +1477,12 @@ Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
     {
       if (nodes_arr[i].id == candidate_node)
       {
-        if (nodes_arr[i].group < best_score)
+        if (nodes_arr[i].adjusted_group < best_score)
         {
           best_node = candidate_node;
-          best_score = nodes_arr[i].group;
+          best_score = nodes_arr[i].adjusted_group;
         }
-        best_score = nodes_arr[i].group;
+        best_score = nodes_arr[i].adjusted_group;
         break;
       }
     }
