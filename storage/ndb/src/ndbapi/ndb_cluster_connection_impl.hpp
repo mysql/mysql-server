@@ -89,18 +89,18 @@ private:
   
   struct Node
   {
-    Node(Uint32 _g= 0, Uint32 _id= 0) : this_group(0),
-					next_group(0),
+    Node(Uint32 _g= 0, Uint32 _id= 0) : this_group_idx(0),
+					next_group_idx(0),
 					group(_g),
 					id(_id) {};
-    Uint32 this_group;
-    Uint32 next_group;
+    Uint32 this_group_idx;
+    Uint32 next_group_idx;
     Uint32 group;
     Uint32 id;
   };
 
   NdbNodeBitmask m_db_nodes;
-  Vector<Node> m_all_nodes;
+  Vector<Node> m_nodes_proximity;
   int init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration &config);
   int configure(Uint32 nodeid, const ndb_mgm_configuration &config);
   void connect_thread();
