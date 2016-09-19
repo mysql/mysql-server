@@ -174,9 +174,7 @@ case "$1" in
 			mkdir ${MYSQLLOG}
 			chown mysql:adm ${MYSQLLOG}
 			chmod 750 ${MYSQLLOG}
-			touch ${MYSQLLOG}/error.log
-			chmod 640 ${MYSQLLOG}/error.log
-			chown mysql:adm ${MYSQLLOG}/error.log
+			install /dev/null -m0640 -omysql -gadm ${MYSQLLOG}/error.log
 		fi
 
 		if [ ! -d "${MYSQLRUN}" -a ! -L "${MYSQLRUN}" ];

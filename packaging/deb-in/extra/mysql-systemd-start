@@ -65,11 +65,8 @@ sanity () {
 
 	if [ ! "$(ls -A ${MYSQLDATA}/mysql)" ];
 	then
-		SQL=$(mktemp --tmpdir=/var/lib/mysql-files/)
-		touch ${SQL}
-		chmod 600 ${SQL}
-		chown mysql:mysql ${SQL}
-
+		SQL=$(mktemp -u ${MYSQLFILES}/XXXXXXXXXX)
+		install /dev/null -m0600 -omysql -gmysql "${SQL}"
 		cat << EOF > ${SQL}
 USE mysql;
 INSTALL PLUGIN auth_socket SONAME 'auth_socket.so';
@@ -91,9 +88,7 @@ EOF
 		mkdir ${MYSQLLOG}
 		chown mysql:adm ${MYSQLLOG}
 		chmod 750 ${MYSQLLOG}
-		touch ${MYSQLLOG}/error.log
-		chmod 640 ${MYSQLLOG}/error.log
-		chown mysql:adm ${MYSQLLOG}/error.log
+		install /dev/null -m0640 -omysql -gadm ${MYSQLLOG}/error.log
 	fi
 
 	@DEB_INIT_APPARMOR@
