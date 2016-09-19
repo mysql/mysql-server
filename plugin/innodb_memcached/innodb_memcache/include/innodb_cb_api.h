@@ -193,7 +193,8 @@ ib_trx_t
 /*==============*/
 	ib_trx_level_t	ib_trx_level,
 	bool		read_write,
-	bool		auto_commit);
+	bool		auto_commit,
+	void*		thd);
 
 typedef
 ib_err_t

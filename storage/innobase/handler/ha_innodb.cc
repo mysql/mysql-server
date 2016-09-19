@@ -8490,7 +8490,7 @@ dd_table_open_on_name(
 	const char*		name)
 {
 	DBUG_ENTER("dd_table_open_on_name");
-	ut_ad(thd == current_thd);
+
 #ifdef UNIV_DEBUG
 	btrsea_sync_check       check(false);
 	ut_ad(!sync_check_iterate(check));
@@ -8502,15 +8502,28 @@ dd_table_open_on_name(
 
 	innobase_parse_tbl_name(name, db_buf, tbl_buf);
 
-	if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
+	if (thd && mdl && dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
 		DBUG_RETURN(nullptr);
+	}
+
+	/* Get pointer to a table object in InnoDB dictionary cache.
+	For intrinsic table, get it from session private data */
+	dict_table_t*	table = thd_to_innodb_session(
+				thd)->lookup_table_handler(name);
+
+	if (table != nullptr) {
+		if (mdl) {
+			if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
+				return(nullptr);
+			}
+		}
+		table->acquire();
+		DBUG_RETURN(table);
 	}
 
 	const dd::Table*		dd_table = nullptr;
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
-
-	dict_table_t*			table;
 
 	if (client->acquire(db_buf, tbl_buf, &dd_table)
 	    || dd_table == nullptr) {

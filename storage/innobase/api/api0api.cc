@@ -48,6 +48,7 @@ InnoDB Native API
 #include <dd/types/tablespace.h>
 #include <dd/properties.h>
 #include "lob0lob.h"
+#include "dict0dd.h"
 
 /** configure variable for binlog option with InnoDB APIs */
 my_bool ib_binlog_enabled = FALSE;
@@ -116,6 +117,8 @@ struct ib_cursor_t {
 	ib_qry_proc_t	q_proc;		/*!< Query processing info */
 
 	ib_match_mode_t	match_mode;	/*!< ib_cursor_moveto match mode */
+
+	MDL_ticket*	mdl;		/*!< meta-data lock on the table */
 
 	row_prebuilt_t*	prebuilt;	/*!< For reading rows */
 
@@ -218,6 +221,7 @@ ib_btr_cursor_is_positioned(
 	           || pcur->pos_state == BTR_PCUR_WAS_POSITIONED));
 }
 
+#if 0
 /********************************************************************//**
 Open a table using the table name, if found then increment table ref count.
 @return table instance if found */
@@ -238,6 +242,7 @@ ib_open_table_by_name(
 
 	return(table);
 }
+#endif
 
 /********************************************************************//**
 Find table using table name.
@@ -583,8 +588,9 @@ ib_trx_begin(
 	ib_trx_level_t	ib_trx_level,	/*!< in: trx isolation level */
 	ib_bool_t	read_write,     /*!< in: true if read write
 					transaction */
-	ib_bool_t	auto_commit)	/*!< in: auto commit after each
+	ib_bool_t	auto_commit,	/*!< in: auto commit after each
 					single DML */
+	void*		thd)		/*!< in,out: MySQL THD */
 {
 	trx_t*		trx;
 	ib_bool_t	started;
@@ -592,7 +598,7 @@ ib_trx_begin(
 	trx = trx_allocate_for_mysql();
 
 	started = ib_trx_start(static_cast<ib_trx_t>(trx), ib_trx_level,
-			       read_write, auto_commit, NULL);
+			       read_write, auto_commit, thd);
 	ut_a(started);
 
 	return(static_cast<ib_trx_t>(trx));
@@ -947,6 +953,8 @@ ib_cursor_open_table(
 	ib_err_t	err;
 	dict_table_t*	table;
 	char*		normalized_name;
+	trx_t*		trx = static_cast<trx_t*>(ib_trx);
+	MDL_ticket*	mdl = NULL;
 
 	normalized_name = static_cast<char*>(ut_malloc_nokey(ut_strlen(name)
 							     + 1));
@@ -954,13 +962,15 @@ ib_cursor_open_table(
 
 	if (ib_trx != NULL) {
 		if (!ib_schema_lock_is_exclusive(ib_trx)) {
-			table = ib_open_table_by_name(normalized_name);
+			table = dd_table_open_on_name(
+				trx->mysql_thd, &mdl, normalized_name);
 		} else {
 			/* NOTE: We do not acquire MySQL metadata lock */
 			table = ib_lookup_table_by_name(normalized_name);
 		}
 	} else {
-		table = ib_open_table_by_name(normalized_name);
+		table = dd_table_open_on_name(
+			trx->mysql_thd, &mdl, normalized_name);
 	}
 
 	ut_free(normalized_name);
@@ -976,6 +986,9 @@ ib_cursor_open_table(
 	if (table != NULL) {
 		err = ib_create_cursor_with_clust_index(ib_crsr, table,
 							(trx_t*) ib_trx);
+		if (mdl) {
+			(*ib_crsr)->mdl = mdl;
+		}
 	} else {
 		err = DB_TABLE_NOT_FOUND;
 	}
@@ -1108,6 +1121,10 @@ ib_cursor_close(
 	if (cursor->valid_trx && trx != NULL
 	    && trx->n_mysql_tables_in_use > 0) {
 		--trx->n_mysql_tables_in_use;
+	}
+
+	if (cursor->mdl) {
+		dd_mdl_release(trx->mysql_thd, &cursor->mdl);
 	}
 
 	row_prebuilt_free(prebuilt, FALSE);

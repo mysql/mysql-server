@@ -595,11 +595,6 @@ innodb_close_mysql_table(
 				     HDL_READ);
                 conn_data->mysql_tbl = NULL;
 	}
-
-	if (conn_data->thd) {
-		handler_close_thd(conn_data->thd);
-		conn_data->thd = NULL;
-	}
 }
 
 #define	NUM_MAX_MEM_SLOT	1024
@@ -677,6 +672,10 @@ innodb_conn_clean_data(
 	UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
 
 	if (free_all) {
+		if (conn_data->thd) {
+			handler_close_thd(conn_data->thd);
+		}
+
 		conn_data->is_stale = false;
 
 		if (conn_data->result) {
@@ -1015,6 +1014,7 @@ innodb_conn_init(
                }
 		conn_data->cmd_buf_len = 1024;
 
+		conn_data->thd = handler_create_thd(engine->enable_binlog);
 #ifdef UNIV_MEMCACHED_SDI
 		conn_data->sdi_buf = NULL;
 #endif /* UNIV_MEMCACHED_SDI */
@@ -1083,7 +1083,8 @@ have_conn:
 	if (lock_mode == IB_LOCK_TABLE_X) {
 		if(!conn_data->crsr_trx) {
 			conn_data->crsr_trx = ib_cb_trx_begin(
-				engine->trx_level, true, false);
+				engine->trx_level, true, false,
+				conn_data->thd);
 		} else {
 			/* Write cursor transaction exists.
 			   Reuse this transaction.*/
@@ -1094,7 +1095,7 @@ have_conn:
 
 			err = ib_cb_trx_start(conn_data->crsr_trx,
 					      engine->trx_level,
-					      true, false, NULL);
+					      true, false, conn_data->thd);
 			assert(err == DB_SUCCESS);
 
 		}
@@ -1131,7 +1132,8 @@ have_conn:
 		if (!crsr) {
 			if (!conn_data->crsr_trx) {
 				conn_data->crsr_trx = ib_cb_trx_begin(
-					engine->trx_level, true, false);
+					engine->trx_level, true, false,
+					conn_data->thd);
 				trx_updated = true;
 			} else {
 				if (ib_cb_trx_read_only(conn_data->crsr_trx)) {
@@ -1141,7 +1143,7 @@ have_conn:
 
 				ib_cb_trx_start(conn_data->crsr_trx,
 						engine->trx_level,
-						true, false, NULL);
+						true, false, conn_data->thd);
 			}
 
 			err = innodb_api_begin(
@@ -1173,7 +1175,8 @@ have_conn:
 			/* There exists a cursor, just need update
 			with a new transaction */
 			conn_data->crsr_trx = ib_cb_trx_begin(
-				engine->trx_level, true, false);
+				engine->trx_level, true, false,
+				conn_data->thd);
 
 			innodb_cb_cursor_new_trx(crsr, conn_data->crsr_trx);
 			trx_updated = true;
@@ -1212,7 +1215,7 @@ have_conn:
 
 			ib_cb_trx_start(conn_data->crsr_trx,
 					engine->trx_level,
-					true, false, NULL);
+					true, false, conn_data->thd);
 			ib_cb_cursor_stmt_begin(crsr);
 			err = innodb_cb_cursor_lock(engine, crsr, lock_mode);
 
@@ -1254,14 +1257,15 @@ have_conn:
 				with "read_write" parameter set to false */
 				conn_data->crsr_trx = ib_cb_trx_begin(
 					engine->trx_level, false,
-					engine->read_batch_size == 1);
+					engine->read_batch_size == 1,
+					conn_data->thd);
 				trx_updated = true;
 			} else {
 				ib_cb_trx_start(conn_data->crsr_trx,
 						engine->trx_level,
 						false,
 						engine->read_batch_size == 1,
-						NULL);
+						conn_data->thd);
 			}
 
 			err = innodb_api_begin(
@@ -1295,7 +1299,8 @@ have_conn:
 			with "read_write" parameter set to false */
 			conn_data->crsr_trx = ib_cb_trx_begin(
 				engine->trx_level, false,
-				engine->read_batch_size == 1);
+				engine->read_batch_size == 1,
+				conn_data->thd);
 
 			trx_updated = true;
 
@@ -1343,7 +1348,7 @@ have_conn:
 					engine->trx_level,
 					false,
 					engine->read_batch_size == 1,
-					NULL);
+					conn_data->thd);
 
 			ib_cb_cursor_stmt_begin(conn_data->read_crsr);
 
