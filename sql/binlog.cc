@@ -805,28 +805,6 @@ public:
     int error= stmt_cache.flush(thd, &stmt_bytes, wrote_xid);
     if (error)
       return error;
-    else
-    {
-      /*
-        If both trx_cache and stmt_cache are nonempty, and
-        gtid_next='AUTOMATIC', we need to release anonymous ownership.
-        (This can only happen for anonymous transactions, since GTID
-        consistency forbids mixing transactional and non-transactional
-        tables in the same statement.)  It is important to release
-        anonymous ownership, because when the transaction cache is
-        flushed, it calls Gtid_state::generate_automatic_gtid, which
-        expects (and asserts) that nothing is owned.
-      */
-      if (trx_cache.is_finalized() &&
-          thd->variables.gtid_next.type == AUTOMATIC_GROUP &&
-          thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
-      {
-        thd->clear_owned_gtids();
-        global_sid_lock->rdlock();
-        gtid_state->release_anonymous_ownership();
-        global_sid_lock->unlock();
-      }
-    }
     DEBUG_SYNC(thd, "after_flush_stm_cache_before_flush_trx_cache");
     if (int error= trx_cache.flush(thd, &trx_bytes, wrote_xid))
       return error;
@@ -1194,6 +1172,58 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
   DBUG_RETURN(0);
 }
 
+bool MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group(THD *first_seen)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group");
+  bool error= false;
+  bool is_global_sid_locked= false;
+  rpl_sidno locked_sidno= 0;
+
+  for (THD *head= first_seen ; head ; head = head->next_to_commit)
+  {
+    DBUG_ASSERT(head->variables.gtid_next.type != UNDEFINED_GROUP);
+
+    /* Generate GTID */
+    if (head->variables.gtid_next.type == AUTOMATIC_GROUP)
+    {
+      if (!is_global_sid_locked)
+      {
+        global_sid_lock->rdlock();
+        is_global_sid_locked= true;
+      }
+      if (gtid_state->generate_automatic_gtid(head,
+              head->get_transaction()->get_rpl_transaction_ctx()->get_sidno(),
+              head->get_transaction()->get_rpl_transaction_ctx()->get_gno(),
+              &locked_sidno)
+              != RETURN_STATUS_OK)
+        head->commit_error= THD::CE_FLUSH_ERROR;
+        error= true;
+    }
+    else
+    {
+      DBUG_PRINT("info", ("thd->variables.gtid_next.type=%d "
+                          "thd->owned_gtid.sidno=%d",
+                          head->variables.gtid_next.type,
+                          head->owned_gtid.sidno));
+      if (head->variables.gtid_next.type == GTID_GROUP)
+        DBUG_ASSERT(head->owned_gtid.sidno > 0);
+      else
+      {
+        DBUG_ASSERT(head->variables.gtid_next.type == ANONYMOUS_GROUP);
+        DBUG_ASSERT(head->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS);
+      }
+    }
+  }
+
+  if (locked_sidno > 0)
+    gtid_state->unlock_sidno(locked_sidno);
+
+  if (is_global_sid_locked)
+    global_sid_lock->unlock();
+
+  DBUG_RETURN(error);
+}
+
 
 /**
   Write the Gtid_log_event to the binary log (prior to writing the
@@ -1211,31 +1241,12 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
 {
   DBUG_ENTER("MYSQL_BIN_LOG::write_gtid");
 
-  DBUG_ASSERT(thd->variables.gtid_next.type != UNDEFINED_GROUP);
-
-  /* Generate GTID */
-  if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
-  {
-    if (gtid_state->generate_automatic_gtid(thd,
-            thd->get_transaction()->get_rpl_transaction_ctx()->get_sidno(),
-            thd->get_transaction()->get_rpl_transaction_ctx()->get_gno())
-            != RETURN_STATUS_OK)
-      DBUG_RETURN(true);
-  }
-  else
-  {
-    DBUG_PRINT("info", ("thd->variables.gtid_next.type=%d "
-                        "thd->owned_gtid.sidno=%d",
-                        thd->variables.gtid_next.type,
-                        thd->owned_gtid.sidno));
-    if (thd->variables.gtid_next.type == GTID_GROUP)
-      DBUG_ASSERT(thd->owned_gtid.sidno > 0);
-    else
-    {
-      DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP);
-      DBUG_ASSERT(thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS);
-    }
-  }
+  /*
+    The GTID for the THD was assigned at
+    assign_automatic_gtids_to_flush_group()
+  */
+  DBUG_ASSERT(thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS ||
+              thd->owned_gtid.sidno > 0);
 
   /* Generate logical timestamps for MTS */
 
@@ -1364,7 +1375,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
            thd->owned_gtid.is_empty())
   {
     DBUG_ASSERT(thd->has_gtid_consistency_violation == false);
-    gtid_state->update_gtids_impl(thd, true);
+    gtid_state->update_on_commit(thd);
   }
 
   DBUG_RETURN(0);
@@ -1492,6 +1503,9 @@ binlog_cache_data::flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid)
       correct.
     */
     Binlog_event_writer writer(mysql_bin_log.get_log_file());
+
+    /* The GTID ownership process might set the commit_error */
+    error= (thd->commit_error == THD::CE_FLUSH_ERROR);
 
     DBUG_EXECUTE_IF("simulate_binlog_flush_error",
                     {
@@ -1945,8 +1959,28 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
     mysql_mutex_unlock(stage_mutex);
 
 #ifndef DBUG_OFF
-  if (stage == Stage_manager::SYNC_STAGE)
+  DBUG_PRINT("info", ("This is a leader thread: %d (0=n 1=y)", leader));
+
+  DEBUG_SYNC(thd, "after_enrolling_for_stage");
+
+  switch (stage)
+  {
+  case Stage_manager::FLUSH_STAGE:
+    DEBUG_SYNC(thd, "bgc_after_enrolling_for_flush_stage");
+    break;
+  case Stage_manager::SYNC_STAGE:
     DEBUG_SYNC(thd, "bgc_after_enrolling_for_sync_stage");
+    break;
+  case Stage_manager::COMMIT_STAGE:
+    DEBUG_SYNC(thd, "bgc_after_enrolling_for_commit_stage");
+    break;
+  default:
+    // not reached
+    DBUG_ASSERT(0);
+  }
+
+  DBUG_EXECUTE_IF("assert_leader", DBUG_ASSERT(leader););
+  DBUG_EXECUTE_IF("assert_follower", DBUG_ASSERT(!leader););
 #endif
 
   /*
@@ -1988,7 +2022,7 @@ THD *Stage_manager::Mutex_queue::fetch_and_empty()
   DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
                        (ulonglong) m_first, (ulonglong) &m_first,
                        (ulonglong) m_last));
-  DBUG_ASSERT(m_first || m_last == &m_first);
+  DBUG_PRINT("info", ("fetched queue of %d transactions", my_atomic_load32(&m_size)));
   DBUG_PRINT("return", ("result: 0x%llx", (ulonglong) result));
   DBUG_ASSERT(my_atomic_load32(&m_size) >= 0);
   my_atomic_store32(&m_size, 0);
@@ -8392,6 +8426,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   */
   ha_flush_logs(NULL, true);
   DBUG_EXECUTE_IF("crash_after_flush_engine_log", DBUG_SUICIDE(););
+  assign_automatic_gtids_to_flush_group(first_seen);
   /* Flush thread caches to binary log. */
   for (THD *head= first_seen ; head ; head = head->next_to_commit)
   {
@@ -8502,17 +8537,17 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
     DBUG_PRINT("debug", ("commit_error: %d, flags.pending: %s",
                          head->commit_error,
                          YESNO(head->get_transaction()->m_flags.pending)));
+  }
 
-    /*
-      Handle the GTID of the thread.
-      gtid_executed table is kept updated even though transactions fail to be
-      logged. That's required  by slave auto positioning.
-    */
-    if (head->commit_error != THD::CE_COMMIT_ERROR)
-      gtid_state->update_on_commit(head);
-    else
-      gtid_state->update_on_rollback(head);
+  /*
+    Handle the GTID of the threads.
+    gtid_executed table is kept updated even though transactions fail to be
+    logged. That's required by slave auto positioning.
+  */
+  gtid_state->update_commit_group(first);
 
+  for (THD *head= first ; head ; head = head->next_to_commit)
+  {
     /*
       Decrement the prepared XID counter after storage engine commit.
       We also need decrement the prepared XID when encountering a
