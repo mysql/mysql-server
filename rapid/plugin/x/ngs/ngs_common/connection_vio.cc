@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -589,7 +589,7 @@ bool Connection_vio::create_lockfile(const std::string &unix_socket_file, std::s
   const pid_t cur_pid= m_system_operations->getpid();
   const std::string lock_filename= get_lockfile_name(unix_socket_file);
 
-  compile_time_assert(sizeof(pid_t) == 4);
+  static_assert(sizeof(pid_t) == 4, "");
   int retries= 3;
   while (true)
   {

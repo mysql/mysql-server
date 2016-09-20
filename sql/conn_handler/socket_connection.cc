@@ -609,7 +609,7 @@ bool Unix_socket::create_lockfile()
   pid_t cur_pid= getpid();
   std::string lock_filename= m_unix_sockname + ".lock";
 
-  compile_time_assert(sizeof(pid_t) == 4);
+  static_assert(sizeof(pid_t) == 4, "");
   int retries= 3;
   while (true)
   {

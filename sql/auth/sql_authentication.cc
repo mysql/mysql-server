@@ -2196,7 +2196,7 @@ acl_authenticate(THD *thd, enum_server_command command)
   Thd_charset_adapter charset_adapter(thd);
 
   DBUG_ENTER("acl_authenticate");
-  compile_time_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH);
+  static_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH, "");
   DBUG_ASSERT(command == COM_CONNECT || command == COM_CHANGE_USER);
 
   server_mpvio_initialize(thd, &mpvio, &charset_adapter);

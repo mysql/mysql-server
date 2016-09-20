@@ -3685,7 +3685,7 @@ bool Query_log_event::write(IO_CACHE* file)
     uchar dbs;
     *start++= Q_UPDATED_DB_NAMES;
 
-    compile_time_assert(MAX_DBS_IN_EVENT_MTS <= OVER_MAX_DBS_IN_EVENT_MTS);
+    static_assert(MAX_DBS_IN_EVENT_MTS <= OVER_MAX_DBS_IN_EVENT_MTS, "");
 
     /* 
        In case of the number of db:s exceeds MAX_DBS_IN_EVENT_MTS
@@ -5314,7 +5314,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
     slave does it via marking the event according to
     FD_queue checksum_alg value.
   */
-  compile_time_assert(sizeof(BINLOG_CHECKSUM_ALG_DESC_LEN == 1));
+  static_assert(BINLOG_CHECKSUM_ALG_DESC_LEN == 1, "");
 #ifndef DBUG_OFF
   common_header->data_written= 0; // to prepare for need_checksum assert
 #endif
@@ -6320,7 +6320,7 @@ int XA_prepare_log_event::pack_info(Protocol *protocol)
   char query[sizeof("XA COMMIT ONE PHASE") + 1 + sizeof(buf)];
 
   /* RHS of the following assert is unknown to client sources */
-  compile_time_assert(ser_buf_size == XID::ser_buf_size);
+  static_assert(ser_buf_size == XID::ser_buf_size, "");
   serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
                 my_xid.bqual_length, my_xid.data);
   sprintf(query,

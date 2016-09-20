@@ -132,13 +132,13 @@ static int get_options(int *argc,char ***argv)
 static const char *get_ha_error_msg(int code)
 {
   /*
-    If you got compilation error here about compile_time_assert array, check
-    that every HA_ERR_xxx constant has a corresponding error message in
-    handler_error_messages[] list (check mysys/my_handler_errors.h and
-    include/my_base.h).
+    If you got compilation error here, check that every HA_ERR_xxx constant
+    has a corresponding error message in handler_error_messages[] list
+    (check mysys/my_handler_errors.h and include/my_base.h).
   */
-  compile_time_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
-                      HA_ERR_LAST + 1);
+  static_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
+                  HA_ERR_LAST + 1,
+                "Wrong number of elements in handler_error_messages.");
   if (code >= HA_ERR_FIRST && code <= HA_ERR_LAST)
     return handler_error_messages[code - HA_ERR_FIRST];
 
@@ -227,13 +227,13 @@ static const char *get_handler_error_message(int nr)
 void my_handler_error_register()
 {
   /*
-    If you got compilation error here about compile_time_assert array, check
-    that every HA_ERR_xxx constant has a corresponding error message in
-    handler_error_messages[] list (check mysys/ma_handler_errors.h and
-    include/my_base.h).
+    If you got compilation error here, check that every HA_ERR_xxx constant has
+    a corresponding error message in handler_error_messages[] list
+    (check mysys/ma_handler_errors.h and include/my_base.h).
   */
-  compile_time_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
-                      HA_ERR_LAST + 1);
+  static_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
+                  HA_ERR_LAST + 1,
+                "Wrong number of elements in handler_error_messages.");
   my_error_register(get_handler_error_message, HA_ERR_FIRST,
                     HA_ERR_FIRST+ array_elements(handler_error_messages)-1);
 }
@@ -277,7 +277,7 @@ int main(int argc,char *argv[])
       Allocate a buffer for unknown_error since strerror always returns
       the same pointer on some platforms such as Windows
     */
-    unknown_error= malloc(strlen(msg)+1);
+    unknown_error= static_cast<char *>(malloc(strlen(msg)+1));
     my_stpcpy(unknown_error, msg);
 
     for ( ; argc-- > 0 ; argv++)

@@ -108,8 +108,8 @@ static const char* get_client_errmsg(int nr)
 
 void init_client_errs(void)
 {
-  compile_time_assert(array_elements(client_errors) ==
-                      (CR_ERROR_LAST - CR_ERROR_FIRST + 2));
+  static_assert(
+    array_elements(client_errors) == (CR_ERROR_LAST - CR_ERROR_FIRST + 2), "");
   (void) my_error_register(get_client_errmsg, CR_ERROR_FIRST, CR_ERROR_LAST);
 }
 

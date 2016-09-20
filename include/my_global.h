@@ -125,13 +125,6 @@ static inline void sleep(unsigned long seconds)
 #define default_shared_memory_base_name "MYSQL"
 #endif /* _WIN32*/
 
-/* an assert that works at compile-time. only for constant expression */
-#define compile_time_assert(X)                                              \
-  do                                                                        \
-  {                                                                         \
-    typedef char compile_time_assert[(X) ? 1 : -1] MY_ATTRIBUTE((unused)); \
-  } while(0)
-
 /*
   Two levels of macros are needed to stringify the
   result of expansion of a macro argument.

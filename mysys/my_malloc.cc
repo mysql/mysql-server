@@ -53,7 +53,8 @@ extern "C" void * my_malloc(PSI_memory_key key, size_t size, myf flags)
 {
   my_memory_header *mh;
   size_t raw_size;
-  compile_time_assert(sizeof(my_memory_header) <= HEADER_SIZE);
+  static_assert(sizeof(my_memory_header) <= HEADER_SIZE,
+                "We must reserve enough memory to hold the header.");
 
   raw_size= HEADER_SIZE + size;
   mh= (my_memory_header*) my_raw_malloc(raw_size, flags);

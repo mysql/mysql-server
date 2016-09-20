@@ -208,7 +208,7 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 
 /*
  Same as MYSQL_XIDDATASIZE but we do not want to include plugin.h here
- See compile_time_assert in .cc file.
+ See static_assert in .cc file.
 */
 #define XIDDATASIZE 128
 

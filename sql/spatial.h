@@ -798,13 +798,11 @@ public:
   public:
     Flags_t(const Flags_t &o)
     {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
       memcpy(this, &o, sizeof(o));
     }
 
     Flags_t()
     {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
       memset(this, 0, sizeof(*this));
       bo= wkb_ndr;
       dim= GEOM_DIM - 1;
@@ -813,7 +811,6 @@ public:
 
     Flags_t(wkbType type, size_t len)
     {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
       memset(this, 0, sizeof(*this));
       geotype= type;
       nbytes= len;
@@ -824,7 +821,6 @@ public:
 
     Flags_t &operator=(const Flags_t &rhs)
     {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
       memcpy(this, &rhs, sizeof(rhs));
       return *this;
     }
@@ -839,6 +835,8 @@ public:
     uint64 zm:2;
     uint64 unused:11;
   };
+  static_assert(sizeof(Flags_t) == sizeof(uint64),
+                "Flags are expected to line up exactly with an uint64.");
 
   Geometry()
   {

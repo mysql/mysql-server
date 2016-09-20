@@ -1160,8 +1160,9 @@ void Opt_trace_context::purge_stmts(bool purge_all)
     DBUG_VOID_RETURN;
   }
   long idx;
-  compile_time_assert(
-    static_cast<long>(static_cast<size_t>(LONG_MAX)) == LONG_MAX);
+  static_assert(
+    static_cast<long>(static_cast<size_t>(LONG_MAX)) == LONG_MAX,
+    "Every positive long must be able to round-trip through size_t.");
   /*
     Start from the newest traces (array's end), scroll back in time. This
     direction is necessary, as we may delete elements from the array (assume

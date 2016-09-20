@@ -180,7 +180,7 @@ void Table_cache::print_tables()
   uint unused= 0;
   uint count=0;
 
-  compile_time_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions));
+  static_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions), "");
 
   for (uint idx= 0; idx < m_cache.records; idx++)
   {

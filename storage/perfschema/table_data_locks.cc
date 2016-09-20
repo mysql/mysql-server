@@ -234,7 +234,8 @@ int table_data_locks::rnd_pos(const void *pos)
     TODO: Multiple engine support.
     Find the proper engine based on column ENGINE.
   */
-  compile_time_assert(COUNT_DATA_LOCK_ENGINES == 1);
+  static_assert(COUNT_DATA_LOCK_ENGINES == 1,
+                "We don't support multiple engines yet.");
   unsigned int index= 0;
 
   if (m_iterator[index] == NULL)

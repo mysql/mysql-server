@@ -3493,7 +3493,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
   using_match= FALSE;
 
   /* Check the max size of the enum to control new enum values definitions. */
-  compile_time_assert(BINLOG_STMT_UNSAFE_COUNT <= 32);
+  static_assert(BINLOG_STMT_UNSAFE_COUNT <= 32, "");
 }
 
 

@@ -955,8 +955,7 @@ void JOIN::set_plan_state(enum_plan_state plan_state_arg)
 
 bool JOIN::alloc_qep(uint n)
 {
-  // Just to be sure that type plan_idx is wide enough:
-  compile_time_assert(MAX_TABLES <= INT_MAX8);
+  static_assert(MAX_TABLES <= INT_MAX8, "plan_idx needs to be wide enough.");
 
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
@@ -6040,8 +6039,9 @@ static void trace_table_dependencies(Opt_trace_context * trace,
       }
     }
     Opt_trace_array depends_on(trace, "depends_on_map_bits");
-    // RAND_TABLE_BIT may be in join_tabs[i].dependent, so we test all 64 bits
-    compile_time_assert(sizeof(table_ref->map()) <= 64);
+    static_assert(
+      sizeof(table_ref->map()) <= 64,
+      "RAND_TABLE_BIT may be in join_tabs[i].dependent, so we test all 64 bits.");
     for (uint j= 0; j < 64; j++)
     {
       if (join_tabs[i].dependent & (1ULL << j))

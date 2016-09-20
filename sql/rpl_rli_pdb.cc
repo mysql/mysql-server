@@ -1601,7 +1601,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
       break; /* gap at i'th */
 
     /* Worker-id domain guard */
-    compile_time_assert(MTS_WORKER_UNDEF > MTS_MAX_WORKERS);
+    static_assert(MTS_WORKER_UNDEF > MTS_MAX_WORKERS, "");
 
     w_i= ws->at(ptr_g->worker_id);
 

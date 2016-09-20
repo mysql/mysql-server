@@ -2060,8 +2060,8 @@ bool Gis_polygon_ring::set_ring_order(bool want_ccw)
   double x1, x2, y1, y2, minx= DBL_MAX, miny= DBL_MAX;
   size_t min_i= 0, prev_i, post_i, rsz= ring.size();
 
-  compile_time_assert(sizeof(double) == POINT_DATA_SIZE / 2 &&
-                      sizeof(double) == SIZEOF_STORED_DOUBLE);
+  static_assert(sizeof(double) == POINT_DATA_SIZE / 2 &&
+                sizeof(double) == SIZEOF_STORED_DOUBLE, "");
 
   /*
     User input WKT/WKB may contain invalid geometry data that has less

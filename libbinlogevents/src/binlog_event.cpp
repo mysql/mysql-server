@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -246,7 +246,7 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
       /*
         Complile time guard to watch over  the max number of alg
       */
-      do_compile_time_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80);
+      static_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80, "");
     }
     memcpy(&incoming,
            event_buf + event_len - BINLOG_CHECKSUM_LEN, sizeof(incoming));

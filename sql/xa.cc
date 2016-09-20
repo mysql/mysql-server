@@ -78,8 +78,8 @@ static bool transaction_cache_insert_recovery(XID *xid);
 
 my_xid xid_t::get_my_xid() const
 {
-  // Verifies that our #define matches the one in plugin.h
-  compile_time_assert(XIDDATASIZE == MYSQL_XIDDATASIZE);
+  static_assert(XIDDATASIZE == MYSQL_XIDDATASIZE,
+                "Our #define needs to match the one in plugin.h.");
 
   if (gtrid_length == static_cast<long>(MYSQL_XID_GTRID_LEN) &&
       bqual_length == 0 &&

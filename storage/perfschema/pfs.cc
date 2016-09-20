@@ -5564,7 +5564,7 @@ void pfs_start_statement_v1(PSI_statement_locker *locker,
     state->m_timer_start= timer_start;
   }
 
-  compile_time_assert(PSI_SCHEMA_NAME_LEN == NAME_LEN);
+  static_assert(PSI_SCHEMA_NAME_LEN == NAME_LEN, "");
   DBUG_ASSERT(db_len <= sizeof(state->m_schema_name));
 
   if (db_len > 0)

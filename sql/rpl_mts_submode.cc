@@ -604,7 +604,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       wait for all ealier that were scheduled to finish. It's marked
       as gap successor now.
     */
-    compile_time_assert(SEQ_UNINIT == 0);
+    static_assert(SEQ_UNINIT == 0, "");
     if (unlikely(sequence_number > last_sequence_number + 1))
     {
       /*

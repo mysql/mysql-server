@@ -1799,8 +1799,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
   DBUG_ENTER("mysql_read_default_options");
   DBUG_PRINT("enter",("file: %s  group: %s",filename,group ? group :"NULL"));
 
-  compile_time_assert(OPT_keep_this_one_last ==
-                      array_elements(default_options));
+  static_assert(OPT_keep_this_one_last == array_elements(default_options),
+                "OPT_keep_this_one_last needs to be the last element.");
 
   argc=1; argv=argv_buff; argv_buff[0]= (char*) "client";
   groups[0]= (char*) "client"; groups[1]= (char*) group; groups[2]=0;
@@ -3758,7 +3758,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
 		     mysql->server_version, mysql->server_capabilities,
 		     mysql->server_status, mysql->client_flag));
 
-  compile_time_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH);
+  static_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH, "");
 
   /* This needs to be changed as it's not useful with big packets */
   if (mysql->user[0])
@@ -4076,8 +4076,8 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
                        res == CR_OK_HANDSHAKE_COMPLETE ? 
                          "CR_OK_HANDSHAKE_COMPLETE" : "error"));
 
-  compile_time_assert(CR_OK == -1);
-  compile_time_assert(CR_ERROR == 0);
+  static_assert(CR_OK == -1, "");
+  static_assert(CR_ERROR == 0, "");
 
   /*
     The connection may be closed. If so: do not try to read from the buffer.
