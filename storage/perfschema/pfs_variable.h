@@ -565,10 +565,7 @@ int PFS_variable_cache<Var_type>::materialize_session(PFS_thread *pfs_thread, ui
 class PFS_system_variable_cache : public PFS_variable_cache<System_variable>
 {
 public:
-  PFS_system_variable_cache(bool external_init) :
-                            PFS_variable_cache<System_variable>(external_init),
-                            m_mem_thd(NULL), m_mem_thd_save(NULL),
-                            m_mem_sysvar_ptr(NULL) { }
+  PFS_system_variable_cache(bool external_init);
   bool match_scope(int scope);
   ulonglong get_sysvar_hash_version(void) { return m_version; }
   ~PFS_system_variable_cache() { free_mem_root(); }
