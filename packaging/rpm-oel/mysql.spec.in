@@ -645,6 +645,9 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
+%if 0%{?rhel} > 5
+           -DWITH_NUMA=ON \
+%endif
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -675,6 +678,9 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
+%if 0%{?rhel} > 5
+           -DWITH_NUMA=ON \
+%endif
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \

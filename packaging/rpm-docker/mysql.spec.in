@@ -150,6 +150,7 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=0 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=0 \
+           -DWITH_NUMA=ON \
            %{?mecab_option} \
            -DWITH_SSL=system \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
