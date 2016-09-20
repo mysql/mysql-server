@@ -34,7 +34,9 @@
 
   For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
 
-  Document generated on: ${DOXYGEN_GENERATION_DATE}, branch: ${DOXYGEN_GENERATION_BRANCH}, revision: ${DOXYGEN_GENERATION_REVISION}
+  Document generated on: ${DOXYGEN_GENERATION_DATE},
+  branch: ${DOXYGEN_GENERATION_BRANCH},
+  revision: ${DOXYGEN_GENERATION_REVISION}
 */
 
 /**
