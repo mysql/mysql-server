@@ -88,14 +88,6 @@ create table test.t2 (a int primary key,
 
 --source ndb_read_local.inc
 
-# Bug#XXX Read backup for fully replicated unique index tables are broken with more
-# than one node group
-let $bug_ui = 1;
-
-# Bug#YYY Read backup for fully replicated blob tables are broken with more than one
-# node group
-let $bug_blob = 1;
-
 --exec $NDB_MGM --verbose=0 -e'create nodegroup 3,4'
 # Tests on table t2 are focused on blobs and not unique index and inplace works
 # good enough.
@@ -138,14 +130,6 @@ create table test.t2 (a int primary key,
    engine=ndb;
 
 --source ndb_read_local.inc
-
-# Bug#XXX Read backup for fully replicated unique index tables are broken with more
-# than one node group
-let $bug_ui = 1;
-
-# Bug#YYY Read backup for fully replicated blob tables are broken with more than one
-# node group
-let $bug_blob = 1;
 
 --exec $NDB_MGM --verbose=0 -e'create nodegroup 3,4'
 # Due to Bug#13714258 UNIQUE INDEXES NOT REORGANISED BY ONLINE TABLE REORG
