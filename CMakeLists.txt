@@ -16,12 +16,19 @@
 IF(WIN32)
   # CMake 3.2.3 is needed for Visual Studio 2015 due to CMake bug 15552.
   CMAKE_MINIMUM_REQUIRED(VERSION 3.2.3)
-ELSEIF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+ELSEIF(UNIX)
   # CMake 3.4.0 is needed for Solaris due to CMake bug 15673.
-  CMAKE_MINIMUM_REQUIRED(VERSION 3.4.0)
-ELSE()
-  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+  # Cannot use CMAKE_SYSTEM_NAME until after PROJECT(), use uname directly.
+  FIND_PROGRAM(MY_UNAME uname /bin /usr/bin /usr/local/bin /sbin)
+  IF(MY_UNAME)
+    EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME)
+    IF(MY_HOST_SYSTEM_NAME MATCHES "SunOS")
+      CMAKE_MINIMUM_REQUIRED(VERSION 3.4.0)
+    ENDIF()
+  ENDIF()
 ENDIF()
+# 2.8.12 as minimum unless higher is checked above.
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 
 # Explicitly set CMP0018 and CMP0022 = NEW since newer versions of
 # CMake has OLD as default even if OLD is deprecated.
@@ -122,9 +129,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
   SET (ENV_CC "$ENV{CC}")
   SET (ENV_CXX "$ENV{CXX}")
   IF (ENV_CC STREQUAL "" AND ENV_CXX STREQUAL "")
-    FIND_PROGRAM(MY_UNAME uname /bin /usr/bin /usr/local/bin )
     IF(MY_UNAME)
-      EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME)
       EXEC_PROGRAM(uname ARGS -r OUTPUT_VARIABLE MY_HOST_SYSTEM_VERSION)
       IF(MY_HOST_SYSTEM_NAME MATCHES "Linux" AND
           MY_HOST_SYSTEM_VERSION MATCHES "\\.el[67](uek)?\\.")
