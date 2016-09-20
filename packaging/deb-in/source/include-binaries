@@ -1,0 +1,73 @@
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+# obscured filename for mysqld-debug, libmysqld-debug.a
+debian/extra/server-binary
+debian/extra/embedded-server
+# obscured filenames for debug plugins
+debian/extra/adt_null-plugin
+debian/extra/auth-plugin
+debian/extra/auth_socket-plugin
+debian/extra/auth_test_plugin-plugin
+debian/extra/component_example_component1-plugin
+debian/extra/component_example_component2-plugin
+debian/extra/component_example_component3-plugin
+debian/extra/connection_control-plugin
+debian/extra/ha_example-plugin
+debian/extra/innodb_engine-plugin
+debian/extra/keyring_file-plugin
+debian/extra/keyring_udf-plugin
+debian/extra/libdaemon_example-plugin
+debian/extra/libmemcached-plugin
+debian/extra/libpluginmecab-plugin
+debian/extra/libtest_framework-plugin
+debian/extra/libtest_services-plugin
+debian/extra/libtest_services_threaded-plugin
+debian/extra/libtest_session_detach-plugin
+debian/extra/libtest_session_info-plugin
+debian/extra/libtest_session_in_thd-plugin
+debian/extra/libtest_sql_2_sessions-plugin
+debian/extra/libtest_sql_all_col_types-plugin
+debian/extra/libtest_sql_cmds_1-plugin
+debian/extra/libtest_sql_commit-plugin
+debian/extra/libtest_sql_complex-plugin
+debian/extra/libtest_sql_errors-plugin
+debian/extra/libtest_sql_lock-plugin
+debian/extra/libtest_sql_processlist-plugin
+debian/extra/libtest_sql_replication-plugin
+debian/extra/libtest_sql_shutdown-plugin
+debian/extra/libtest_sql_sqlmode-plugin
+debian/extra/libtest_sql_stored_procedures_functions-plugin
+debian/extra/libtest_sql_views_triggers-plugin
+debian/extra/libtest_x_sessions_deinit-plugin
+debian/extra/libtest_x_sessions_init-plugin
+debian/extra/locking_service-plugin
+debian/extra/mypluglib-plugin
+debian/extra/mysql_no_login-plugin
+debian/extra/mysqlx-plugin
+debian/extra/qa_auth_client-plugin
+debian/extra/qa_auth_interface-plugin
+debian/extra/qa_auth_server-plugin
+debian/extra/replication_observers_example_plugin-plugin
+debian/extra/rewriter-plugin
+debian/extra/rewrite_example-plugin
+debian/extra/semisync_master-plugin
+debian/extra/semisync_slave-plugin
+debian/extra/test_udf_services-plugin
+debian/extra/test_security_context-plugin
+debian/extra/test_services_plugin_registry-plugin
+debian/extra/validate_password-plugin
+debian/extra/version_token-plugin
+@DEB_INCLUDE_BINARIES_EXTRA@

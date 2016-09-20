@@ -514,6 +514,7 @@ IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
   ADD_SUBDIRECTORY(packaging/rpm-sles)
   ADD_SUBDIRECTORY(packaging/rpm-docker)
+  ADD_SUBDIRECTORY(packaging/deb-in)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)
