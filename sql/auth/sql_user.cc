@@ -1354,14 +1354,21 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
     rlb->mem_free();
     mysql_rewrite_create_alter_user(thd, rlb, &users_not_to_log);
 
-    if (!thd->rewritten_query.length())
-      result|= write_bin_log(thd, false, thd->query().str, thd->query().length,
-                             transactional_tables);
-    else
-      result|= write_bin_log(thd, false,
-                             thd->rewritten_query.c_ptr_safe(),
-                             thd->rewritten_query.length(),
-                             transactional_tables);
+    int ret= commit_owned_gtid_by_partial_command(thd);
+
+    if (ret == 1)
+    {
+      if (!thd->rewritten_query.length())
+        result|= write_bin_log(thd, false, thd->query().str, thd->query().length,
+                               transactional_tables);
+      else
+        result|= write_bin_log(thd, false,
+                               thd->rewritten_query.c_ptr_safe(),
+                               thd->rewritten_query.length(),
+                               transactional_tables);
+    }
+    else if (ret == -1)
+      result|= -1;
   }
 
   lock.unlock();
@@ -1614,8 +1621,14 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
   
   if (some_users_renamed)
-    result |= write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
-                            transactional_tables);
+  {
+    int ret= commit_owned_gtid_by_partial_command(thd);
+    if (ret == 1)
+      result|= write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
+                              transactional_tables);
+    else if (ret == -1)
+      result|= -1;
+  }
 
   lock.unlock();
 
@@ -1829,10 +1842,14 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     rlb->mem_free();
     mysql_rewrite_create_alter_user(thd, rlb, &users_not_to_log);
 
-    result|= (write_bin_log(thd, false,
-                            thd->rewritten_query.c_ptr_safe(),
-                            thd->rewritten_query.length(),
-                            table->file->has_transactions()) != 0);
+    int ret= commit_owned_gtid_by_partial_command(thd);
+    if (ret == 1)
+      result|= (write_bin_log(thd, false,
+                              thd->rewritten_query.c_ptr_safe(),
+                              thd->rewritten_query.length(),
+                              table->file->has_transactions()) != 0);
+    else if (ret == -1)
+      result|= -1;
   }
 
   lock.unlock();
