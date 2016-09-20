@@ -452,7 +452,8 @@ public:
 	m_rec(NULL),
 	m_offsets(NULL),
 	m_block(NULL),
-	m_op(OPCODE_UNKNOWN)
+	m_op(OPCODE_UNKNOWN),
+	m_btr_page_no(FIL_NULL)
 	{}
 
 	/** Constructor **/
@@ -470,7 +471,8 @@ public:
 	m_rec(rec),
 	m_offsets(offsets),
 	m_block(block),
-	m_op(OPCODE_UNKNOWN)
+	m_op(OPCODE_UNKNOWN),
+	m_btr_page_no(FIL_NULL)
 	{
 		ut_ad(m_pcur == NULL || rec_offs_validate());
 		ut_ad(m_block == NULL || m_rec == NULL
@@ -494,7 +496,8 @@ public:
 	m_rec(rec),
 	m_offsets(offsets),
 	m_block(block),
-	m_op(op)
+	m_op(op),
+	m_btr_page_no(FIL_NULL)
 	{
 		ut_ad(m_pcur == NULL || rec_offs_validate());
 		ut_ad(m_block->frame == page_align(m_rec));
