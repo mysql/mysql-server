@@ -6425,6 +6425,10 @@ get_row_format_name(enum row_type row_format)
         return("ROW_FORMAT");
 }
 
+static
+uint
+dd_table_number(const dd::Table&        dd_table);
+
 /** Validate the table format options.
 @param[in]	zip_allowed	whether ROW_FORMAT=COMPRESSED is OK
 @param[in]	strict		whether innodb_strict_mode=ON
@@ -7857,8 +7861,11 @@ dd_open_table(
         bool                            skip_mdl,
 	THD*				thd)
 {
-	table_id_t id = dd_table->se_private_id();
-	bool	implicit = !(id < NUM_HARD_CODED_TABLES);
+//	table_id_t id = dd_table->se_private_id();
+//	bool	implicit = !(id < NUM_HARD_CODED_TABLES);
+
+	uint	dd_table_no = dd_table_number(*dd_table);
+	bool	implicit = dd_table_no == 1000;
 
 	if (implicit) {
 		if (dd_tablespace_is_implicit(
@@ -7868,6 +7875,9 @@ dd_open_table(
 				 dd_table->name().c_str());
 			return(NULL);
 		}
+	} else {
+		/* DD tables, they are now in file-per-table tablespaces */
+		implicit = true;
 	}
 
 	const bool      zip_allowed = srv_page_size <= UNIV_ZIP_SIZE_MAX;
@@ -7899,19 +7909,28 @@ dd_open_table(
                 uint64                  id = 0;
                 uint32                  root = 0;
 
-		dd::Object_id   index_space_id = dd_index->tablespace_id();
-		const dd::Tablespace* index_space = nullptr;
-		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
-                           index_space_id, &index_space)) {
-			my_error(ER_TABLESPACE_MISSING, MYF(0),
-				 m_table->name.m_name);
-			fail = true;
-			break;
-		}
-		uint32	sid;
+		dd::Object_id   index_space_id = 0;
+		uint32		sid;
 
-		if (index_space->se_private_data().get_uint32(
-                            dd_space_key_strings[DD_SPACE_ID], &sid)) {
+		if (dd_table_no == 1000) {
+			const dd::Tablespace* index_space = nullptr;
+			index_space_id = dd_index->tablespace_id();
+
+			if (client->acquire_uncached_uncommitted<
+				dd::Tablespace>(index_space_id, &index_space)) {
+				my_error(ER_TABLESPACE_MISSING, MYF(0),
+					 m_table->name.m_name);
+				fail = true;
+				break;
+			}
+
+			if (index_space->se_private_data().get_uint32(
+				dd_space_key_strings[DD_SPACE_ID], &sid)) {
+			}
+		} else {
+			/* Tablespace mysql, innodb_system and undo
+			tablespaces reside before all DD table tablespaces */
+			sid = dd_table_no + 2 + srv_undo_tablespaces;
 		}
 
 		if (first_index) {
@@ -8641,8 +8660,9 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 	ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
 	if (ib_table == NULL) {
-		if (strstr(name, "mysql") == nullptr
-		    && strstr(name, "sys") == nullptr) {
+//		if (strstr(name, "mysql") == nullptr
+//		    && strstr(name, "sys") == nullptr) {
+		if (strstr(name, "sys") == nullptr) {
 			mutex_enter(&dict_sys->mutex);
 			ib_table = dict_table_check_if_in_cache_low(norm_name);
 			mutex_exit(&dict_sys->mutex);
@@ -13880,6 +13900,8 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("triggers", 1),
 	INNODB_DD_TABLE("db", 1),
 	INNODB_DD_TABLE("user", 1),
+	INNODB_DD_TABLE("default_roles", 1),
+	INNODB_DD_TABLE("role_edges", 1),
 	INNODB_DD_TABLE("func", 1),
 	INNODB_DD_TABLE("plugin", 1),
 	INNODB_DD_TABLE("servers", 1),
@@ -13907,6 +13929,24 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("sys_config", 1),
 };
 
+/** Number of hard-coded data dictionary tables */
+static const uint innodb_dd_table_size
+	= (sizeof innodb_dd_table) / sizeof *innodb_dd_table;
+
+static
+uint
+dd_table_number(
+	const dd::Table&	dd_table)
+{
+	for (uint i = 0; i < innodb_dd_table_size; ++i) {
+                if (dd_table.name() == innodb_dd_table[i].name) {
+                        return(i);
+                }
+        }
+
+	/* Temporarily a number bigger than the size of innodb_dd_table */
+	return(1000);
+}
 
 //FIXME Check whether need to enable this
 #if 0
@@ -14039,9 +14079,6 @@ template bool dd_table_check<dd::Partition>(
 	const dd::Partition&,const dict_table_t&,bool);
 #endif
 
-/** Number of hard-coded data dictionary tables */
-static const uint innodb_dd_table_size
-	= (sizeof innodb_dd_table) / sizeof *innodb_dd_table;
 #endif /* UNIV_DEBUG */
 
 /** Initialize InnoDB for being used to store the DD tables.
@@ -15368,17 +15405,9 @@ create_table_info_t::create_table_update_global_dd(
 		DBUG_RETURN(0);
 	}
 
-	bool	is_dd_table = false;
-        for (uint i = 0; i < innodb_dd_table_size; ++i) {
-                if (dd_table->name() == innodb_dd_table[i].name) {
-                        is_dd_table = true;
-			break;
-                }
-        }
-
 	/* TODO: This is temporarily to make sure all tables in
 	mysql would not have dd::Tablespace */
-	is_dd_table = (strstr(m_table_name, "mysql/") != NULL);
+	bool is_dd_table = (strstr(m_table_name, "mysql/") != NULL);
 
 	if (m_form->found_next_number_field != NULL) {
 		dd_set_autoinc(dd_table->se_private_data(),
@@ -15844,9 +15873,9 @@ ha_innobase::get_se_private_data(
 	dd::Table*	dd_table,
 	uint		dd_version)
 {
-	static uint	n_tables;
-	static uint	n_indexes;
-	static uint	n_pages;
+	static uint	n_tables = 0;
+	static uint	n_indexes = 18;
+//	static uint	n_pages;
 #ifdef UNIV_DEBUG
 	const uint	n_indexes_old = n_indexes;
 #endif
@@ -15858,6 +15887,11 @@ ha_innobase::get_se_private_data(
 		    == (dd_table->name() == innodb_dd_table[0].name));
 	DBUG_ASSERT((dd_version == 0) == (n_tables == 0));
 	DBUG_ASSERT(n_tables < innodb_dd_table_size);
+
+	if ((*dd_table->columns().begin())->is_auto_increment()) {
+		dd_set_autoinc(dd_table->se_private_data(), 0);
+	}
+
 #ifdef UNIV_DEBUG
 	{
 		/* These tables must not be partitioned. */
@@ -15869,22 +15903,27 @@ ha_innobase::get_se_private_data(
 
 	DBUG_ASSERT(dd_table->name() == data.name);
 
-	dd_table->set_se_private_id(++n_tables + DICT_HDR_FIRST_ID);
+	dd_table->set_se_private_id(16 + n_tables++);
 
+	uint	root_page = 5;
 	for (dd::Index *i : *dd_table->indexes()) {
-		uint32	root_page = 270 + n_pages++;
-		n_indexes++;
-		i->se_private_data().set_uint32("root", root_page);
-		i->se_private_data().set_uint64("id", n_indexes
-						+ DICT_HDR_FIRST_ID);
+		dd::Properties& p = i->se_private_data();
+
+		p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], root_page++);
+		p.set_uint64(dd_index_key_strings[DD_INDEX_ID], n_indexes++);
+		p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], 0);
 	}
 
 	DBUG_ASSERT(n_indexes - n_indexes_old == data.n_indexes);
+
+#if 0 /* These should be not necessary for now */
 	/* Reserve space for the FIL_PAGE_INODE */
 	n_pages++;
 	switch (270 + n_pages) {
 	case 304: n_pages++; // TODO: Remove this tweak.
 	}
+#endif
+
 	DBUG_RETURN(false);
 }
 

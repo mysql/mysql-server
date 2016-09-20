@@ -30,6 +30,9 @@ innodb_upd_stats_if_needed_not_inited : WL#9525 disables it, waiting for FK fix
 create_tablespace         : WL#9525 disables it, waiting for FK fix
 create_tablespace_16k     : WL#9525 disables it, waiting for FK fix
 
+log_file_name             : WL#9525 disables it, which will be always timeout, waiting for a server fix
+log_file_system           : WL#9525 disables it, which will be always timeout, waiting for a server fix
+
 (Due to InnoDB issues)
 virtual_fk_restart        : WL#9533 disables it, waiting for FK fix
 
