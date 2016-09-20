@@ -3700,7 +3700,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
        * inform DIH if TreadAny is even relevent...so it does not have to loop
        *   unless really needing to...
        */
-      if (regTcPtr->dirtyOp || regTcPtr->opSimple)
+      if (regTcPtr->dirtyOp || regTcPtr->opSimple ||
+          regCachePtr->m_read_committed_base)
       {
         jam();
         req->anyNode = 1;
@@ -12498,7 +12499,8 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
   scanptr.p->scanNextFragId = 0;
   scanptr.p->m_booked_fragments_count= 0;
   scanptr.p->m_read_any_node =
-    ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo) &&
+    (ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo) ||
+       scanptr.p->m_read_committed_base) &&
     ((tabPtr.p->m_flags & TableRecord::TR_FULLY_REPLICATED) != 0);
   
   /*************************************************
