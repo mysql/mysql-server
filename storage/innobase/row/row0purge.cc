@@ -891,6 +891,9 @@ try_again:
 	/* FIX_ME: NEW_DD, after Sept 10th merge, we cannot call
 	dd_table_open_on_id() before server fully up */
 	while (table_id > 70 && !mysqld_server_started) {
+		if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+                        return(false);
+                }
                 os_thread_sleep(1000000);
         }
 
