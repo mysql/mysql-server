@@ -1412,8 +1412,6 @@ dict_table_add_to_cache(
 	ut_ad(dict_lru_validate());
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	dict_table_add_system_columns(table, heap);
-
 	table->cached = true;
 
 	fold = ut_fold_string(table->name.m_name);

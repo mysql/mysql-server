@@ -466,8 +466,9 @@ ib_trx_begin(
 	ib_trx_level_t	ib_trx_level,	/*!< in: trx isolation level */
 	ib_bool_t	read_write,	/*!< in: true if read write
 					transaction */
-	ib_bool_t	auto_commit);	/*!< in: auto commit after each
+	ib_bool_t	auto_commit,	/*!< in: auto commit after each
 					single DML */
+	void*		thd);		/*!< in,out: MySQL THD */
 
 /*****************************************************************//**
 Check if the transaction is read_only */

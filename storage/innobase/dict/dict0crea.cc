@@ -1356,6 +1356,7 @@ dict_create_table_step(
 	if (node->state == TABLE_ADD_TO_CACHE) {
 		DBUG_EXECUTE_IF("ib_ddl_crash_during_create", DBUG_SUICIDE(););
 
+		dict_table_add_system_columns(node->table, node->heap);
 		dict_table_add_to_cache(node->table, TRUE, node->heap);
 
 		err = DB_SUCCESS;
@@ -2547,6 +2548,7 @@ dict_sdi_create_idx_in_mem(
 	/* Disable persistent statistics on the table */
 	dict_stats_set_persistent(table, false, true);
 
+	dict_table_add_system_columns(table, heap);
 	dict_table_add_to_cache(table, TRUE, heap);
 
 	/* TODO: After WL#7412, we can use a common name for both

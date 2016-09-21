@@ -7797,9 +7797,9 @@ create_table_metadata(
 		}
 	}
 #endif
-	mutex_enter(&dict_sys->mutex);
-	dict_table_add_to_cache(m_table, TRUE, heap);
-	mutex_exit(&dict_sys->mutex);
+
+	/* Add system columns to make adding index work */
+	dict_table_add_system_columns(m_table, heap);
 
 	mem_heap_free(heap);
 
@@ -7945,6 +7945,9 @@ dd_open_table(
 
 	mutex_exit(&dict_sys->mutex);
 
+	mem_heap_t*	heap = mem_heap_create(1000);
+	bool		fail = false;
+
 	/* Now fill the space ID and Root page number for each index */
         dict_index_t* index = m_table->first_index();
         for (const auto dd_index : dd_table->indexes()) {
@@ -7961,10 +7964,8 @@ dd_open_table(
                            index_space_id, &index_space)) {
 			my_error(ER_TABLESPACE_MISSING, MYF(0),
 				 m_table->name.m_name);
-			mutex_enter(&dict_sys->mutex);
-			dict_table_remove_from_cache(m_table);
-			mutex_exit(&dict_sys->mutex);
-			return(NULL);
+			fail = true;
+			break;
 		}
 		uint32	sid;
 
@@ -7976,10 +7977,8 @@ dd_open_table(
 			ut_ad(m_table->space == 0);
 			m_table->space = sid;
 
-			mem_heap_t*	heap = mem_heap_create(200);
 			dict_load_tablespace(m_table, heap,
 					     DICT_ERR_IGNORE_NONE);
-			mem_heap_free(heap);
 			first_index = false;
 		}
 
@@ -7987,10 +7986,8 @@ dd_open_table(
                             dd_index_key_strings[DD_INDEX_ID], &id)
                     || se_private_data.get_uint32(
                             dd_index_key_strings[DD_INDEX_ROOT], &root)) {
-			mutex_enter(&dict_sys->mutex);
-			dict_table_remove_from_cache(m_table);
-			mutex_exit(&dict_sys->mutex);
-			return(NULL);
+			fail = true;
+			break;
                 }
 
                 ut_ad(root > 1);
@@ -8002,18 +7999,46 @@ dd_open_table(
                 index = index->next();
 	}
 
+	if (fail) {
+		for (dict_index_t* index = UT_LIST_GET_LAST(m_table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_LAST(m_table->indexes)) {
+			dict_index_remove_from_cache(m_table, index);
+		}
+		dict_mem_table_free(m_table);
+
+		mem_heap_free(heap);
+		return(NULL);
+	}
+
 	mutex_enter(&dict_sys->mutex);
 
-	dict_table_load_dynamic_metadata(m_table);
+	/* Re-check if the table has been opened/added by a concurrent
+	thread */
+	dict_table_t*	exist = dict_table_check_if_in_cache_low(norm_name);
+	if (exist != NULL) {
+		for (dict_index_t* index = UT_LIST_GET_LAST(m_table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_LAST(m_table->indexes)) {
+			dict_index_remove_from_cache(m_table, index);
+		}
+		dict_mem_table_free(m_table);
+
+		m_table = exist;
+	} else {
+		dict_table_add_to_cache(m_table, TRUE, heap);
+
+		dict_table_load_dynamic_metadata(m_table);
+
+		if (m_table->is_corrupted()) {
+			dict_table_remove_from_cache(m_table);
+			m_table = NULL;
+		}
+	}
 
 	mutex_exit(&dict_sys->mutex);
 
-	if (m_table->is_corrupted()) {
-		mutex_enter(&dict_sys->mutex);
-		dict_table_remove_from_cache(m_table);
-		mutex_exit(&dict_sys->mutex);
-		return(NULL);
-	}
+	mem_heap_free(heap);
 
 	return(m_table);
 }
@@ -8535,7 +8560,7 @@ dd_table_open_on_name(
 	const char*		name)
 {
 	DBUG_ENTER("dd_table_open_on_name");
-	ut_ad(thd == current_thd);
+
 #ifdef UNIV_DEBUG
 	btrsea_sync_check       check(false);
 	ut_ad(!sync_check_iterate(check));
@@ -8547,15 +8572,28 @@ dd_table_open_on_name(
 
 	innobase_parse_tbl_name(name, db_buf, tbl_buf);
 
-	if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
+	if (thd && mdl && dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
 		DBUG_RETURN(nullptr);
+	}
+
+	/* Get pointer to a table object in InnoDB dictionary cache.
+	For intrinsic table, get it from session private data */
+	dict_table_t*	table = thd_to_innodb_session(
+				thd)->lookup_table_handler(name);
+
+	if (table != nullptr) {
+		if (mdl) {
+			if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
+				return(nullptr);
+			}
+		}
+		table->acquire();
+		DBUG_RETURN(table);
 	}
 
 	const dd::Table*		dd_table = nullptr;
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
-
-	dict_table_t*			table;
 
 	if (client->acquire(db_buf, tbl_buf, &dd_table)
 	    || dd_table == nullptr) {
@@ -12932,6 +12970,8 @@ err_col:
 						table, temp_table_heap, m_thd);
 
 				} else {
+					dict_table_add_system_columns(
+						table, temp_table_heap);
 					dict_table_add_to_cache(
 						table, FALSE, temp_table_heap);
 				}
@@ -15369,6 +15409,10 @@ create_table_info_t::create_table_update_global_dd(
                 }
         }
 
+	/* TODO: This is temporarily to make sure all tables in
+	mysql would not have dd::Tablespace */
+	is_dd_table = (strstr(m_table_name, "mysql/") != NULL);
+
 	if (m_form->found_next_number_field != NULL) {
 		dd_set_autoinc(dd_table->se_private_data(),
 			       m_create_info->auto_increment_value);
@@ -16418,7 +16462,8 @@ ha_innobase::delete_table(
 		priv->unregister_table_handler(norm_name);
 	}
 
-	if (err == DB_SUCCESS && !tmp_table && file_per_table) {
+	if (err == DB_SUCCESS && !tmp_table && file_per_table
+	    && strstr(name, "mysql/") == NULL) {
 		dd::Object_id   dd_space_id = (*dd_table->indexes().begin())
 			->tablespace_id();
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
@@ -17030,7 +17075,10 @@ ha_innobase::rename_table_impl(
 
 	log_buffer_flush_to_disk();
 
-	if (rename_dd_filename) {
+	/* TODO: There is some case that DD tables would be renamed, screen
+	them out temporarily. Once they are in the correct tablespace,
+	this checking can be removed */
+	if (rename_dd_filename && strstr(from, "mysql/") == NULL) {
 		ut_ad(new_path != NULL);
 
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
@@ -17061,6 +17109,8 @@ ha_innobase::rename_table_impl(
 
 		ut_free(new_path);
 		delete dd_space;
+	} else if (new_path != NULL) {
+		ut_free(new_path);
 	}
 
 	DBUG_RETURN(error);
