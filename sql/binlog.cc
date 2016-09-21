@@ -1117,8 +1117,10 @@ bool MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group(THD *first_seen)
               head->get_transaction()->get_rpl_transaction_ctx()->get_gno(),
               &locked_sidno)
               != RETURN_STATUS_OK)
+      {
         head->commit_error= THD::CE_FLUSH_ERROR;
         error= true;
+      }
     }
     else
     {
