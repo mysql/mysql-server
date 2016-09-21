@@ -259,8 +259,7 @@ from `ndbinfo`.`operations_per_fragment` o join c
 on o.node_id = c.node_id and o.fragment_num = c.fragment_num
 where fq_name = 'test/def/t1' and o.tot_frag_scans > c.tot_frag_scans;
 node_id
-1
-2
+3
 drop table c;
 set global ndb_data_node_neighbour = 4;
 create table c as select node_id, fragment_num, tot_frag_scans
@@ -297,8 +296,7 @@ from `ndbinfo`.`operations_per_fragment` o join c
 on o.node_id = c.node_id and o.fragment_num = c.fragment_num
 where fq_name = 'test/def/t1' and o.tot_frag_scans > c.tot_frag_scans;
 node_id
-1
-2
+4
 drop table c;
 set global ndb_data_node_neighbour = 0;
 select node_id, fragment_num, fixed_elem_count > 0
