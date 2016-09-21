@@ -3602,12 +3602,14 @@ String *Item_func_conv::val_str(String *str)
   null_value= 0;
   unsigned_flag= !(from_base < 0);
 
-  if (args[0]->field_type() == MYSQL_TYPE_BIT) 
+  if (args[0]->field_type() == MYSQL_TYPE_BIT ||
+      args[0]->type() == VARBIN_ITEM)
   {
     /* 
      Special case: The string representation of BIT doesn't resemble the
      decimal representation, so we shouldn't change it to string and then to
      decimal. 
+     The same is true for hexadecimal and bit literals.
     */
     dec= args[0]->val_int();
   }
