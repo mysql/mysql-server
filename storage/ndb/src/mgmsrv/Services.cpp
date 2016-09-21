@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1914,25 +1914,26 @@ MgmApiSession::list_session(SocketServer::Session *_s, void *data)
   if(s->m_ctx)
   {
     int l= (int)strlen(s->m_ctx->m_tokenBuffer);
-    char *buf= (char*) malloc(2*l+1);
-    char *b= buf;
-    for(int i=0; i<l;i++)
-      if(s->m_ctx->m_tokenBuffer[i]=='\n')
-      {
-        *b++='\\';
-        *b++='n';
-      }
-      else
-      {
-        *b++= s->m_ctx->m_tokenBuffer[i];
-      }
-    *b= '\0';
+    lister->m_output->println("session.%llu.parser.buffer.len: %u", id, l);
+    lister->m_output->print("session.%llu.parser.buffer: ", id);
+    for (int i = 0; i < l; i++)
+    {
 
-    lister->m_output->println("session.%llu.parser.buffer.len: %u",id,l);
-    lister->m_output->println("session.%llu.parser.buffer: %s",id,buf);
+        if (s->m_ctx->m_tokenBuffer[i] == '\n')
+        {
+
+            lister->m_output->print("%s", "\\");
+            lister->m_output->print("%c", 'n');
+
+        }
+        else
+        {
+            lister->m_output->print("%c", s->m_ctx->m_tokenBuffer[i]);
+        }
+    }
+    //listener reads line by line hence we are not using println till we print the complete message.
+    lister->m_output->println("%c","\0");
     lister->m_output->println("session.%llu.parser.status: %d",id,s->m_ctx->m_status);
-
-    free(buf);
   }
 
   if(s!=lister)
