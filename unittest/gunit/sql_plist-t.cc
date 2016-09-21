@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
+#include "my_global.h"
 #include "sql_plist.h"
 #include "test_utils.h"
 
@@ -124,7 +125,7 @@ TEST_F(IPListTest, Iterate)
   I_P_ListTestValue<int> values[]= {3, 2, 1};
   insert_values(values, &m_int_list);
   m_int_list_iter.init(m_int_list);
-  for (int ix= 0; ix < array_size(values); ++ix)
+  for (size_t ix= 0; ix < array_elements(values); ++ix)
   {
     EXPECT_EQ(values[ix], *m_int_list_iter++);
   }

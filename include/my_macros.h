@@ -52,6 +52,21 @@
 #define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
 #define test_all_bits(a,b) (((a) & (b)) == (b))
-#define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
+
+#ifdef __cplusplus
+
+template <class T, size_t N>
+constexpr size_t array_elements(T (&)[N]) noexcept
+{
+  return N;
+}
+
+#else
+
+// Less type-safe version that e.g. allows sending in pointers
+// or STL containers without an error.
+#define array_elements(A) ((size_t) (sizeof(A)/sizeof(A[0])))
+
+#endif
 
 #endif  // MY_MACROS_INCLUDED

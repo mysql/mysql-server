@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,13 +24,13 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#include "sql_list.h"
-
-#include "thr_malloc.h"
-#include "sql_string.h"
+#include "my_global.h"
+#include "my_thread.h"
 #include "sql_error.h"
-#include <my_thread.h>
+#include "sql_list.h"
+#include "sql_string.h"
 #include "test_utils.h"
+#include "thr_malloc.h"
 
 namespace sql_list_unittest {
 
@@ -150,7 +150,7 @@ TEST_F(SqlListTest, Iterate)
 {
   int values[] = {3, 2, 1};
   insert_values(values, &m_int_list);
-  for (int ix= 0; ix < array_size(values); ++ix)
+  for (size_t ix= 0; ix < array_elements(values); ++ix)
   {
     EXPECT_EQ(values[ix], *m_int_list_iter++);
   }
@@ -193,13 +193,13 @@ TEST(SqlIlistTest, PushBackAndIterate)
   I_List_iterator<Linked_node> i_list_iter(i_list);
   int values[] = {11, 22, 33, 42, 5};
   EXPECT_EQ(null_node, i_list.head());
-  for (int ix= 0; ix < array_size(values); ++ix)
+  for (size_t ix= 0; ix < array_elements(values); ++ix)
   {
     i_list.push_back(new Linked_node(values[ix]));
   }
 
   Linked_node *node;
-  int value_number= 0;
+  size_t value_number= 0;
   while ((node= i_list_iter++))
   {
     EXPECT_EQ(values[value_number++], node->get_value());
@@ -209,7 +209,7 @@ TEST(SqlIlistTest, PushBackAndIterate)
     EXPECT_EQ(values[value_number], node->get_value());
     delete node;
   }
-  EXPECT_EQ(array_size(values), value_number);
+  EXPECT_EQ(array_elements(values), value_number);
 }
 
 // Another iteration test over intrusive lists.
@@ -218,13 +218,13 @@ TEST(SqlIlistTest, PushFrontAndIterate)
   I_List<Linked_node> i_list;
   I_List_iterator<Linked_node> i_list_iter(i_list);
   int values[] = {11, 22, 33, 42, 5};
-  for (int ix= 0; ix < array_size(values); ++ix)
+  for (size_t ix= 0; ix < array_elements(values); ++ix)
   {
     i_list.push_front(new Linked_node(values[ix]));
   }
 
   Linked_node *node;
-  int value_number= array_size(values) - 1;
+  int value_number= array_elements(values) - 1;
   while ((node= i_list_iter++))
   {
     EXPECT_EQ(values[value_number--], node->get_value());
