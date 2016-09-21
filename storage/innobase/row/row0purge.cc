@@ -899,7 +899,7 @@ try_again:
 
 	/* FIX_ME: NEW_DD, this is temporary solution as the system
 	tables are not yet coming with InnoDB private data */
-	if (table_id <= 70) {
+	if (table_id < 16) {
 		node->table = dict_table_open_on_id(
 			table_id, FALSE, DICT_TABLE_OP_NORMAL);
 	} else {
@@ -973,7 +973,7 @@ try_again:
 		we do not have an index to call it with. */
 close_exit:
 		/* Purge requires no changes to indexes: we may return */
-		if (node->table->id <= 70) {
+		if (node->table->id < 16) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
@@ -1079,7 +1079,7 @@ row_purge_record_func(
                         node->mysql_table = nullptr;
                 }
 
-		if (node->table->id <= 70) {
+		if (node->table->id < 16) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {

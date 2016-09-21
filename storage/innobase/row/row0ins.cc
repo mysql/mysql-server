@@ -1896,6 +1896,11 @@ row_ins_check_foreign_constraints(
 	trx_t*		trx;
 	ibool		got_s_lock	= FALSE;
 
+	/* Temporarily skip the FK check for DD tables */
+	if (table->id <= 70) {
+		return(DB_SUCCESS);
+	}
+
 	trx = thr_get_trx(thr);
 
 	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
