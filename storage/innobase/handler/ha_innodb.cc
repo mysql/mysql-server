@@ -14027,6 +14027,14 @@ template bool dd_table_check<dd::Partition>(
 
 #endif /* UNIV_DEBUG */
 
+/** Maximum length of a table name from InnoDB point of view, including
+partitions and subpartitions, in number of characters.
+The naming is: "table_name#P#partition_name#SP#subpartition_name",
+where each of the names can be up to NAME_CHAR_LEN (64) characters.
+So the maximum is 64 + strlen(#P#) + 64 + strlen(#SP#) + 64 = 199. */
+
+#define NAME_CHAR_LEN_PARTITIONS_STR	"199"
+
 /** Initialize InnoDB for being used to store the DD tables.
 Create the required files according to the dict_init_mode.
 Create strings representing the required DDSE tables, i.e.,
@@ -14066,7 +14074,8 @@ innobase_dict_init(
 		"innodb_table_stats",
 		/* Definition */
 		"  database_name VARCHAR(64) NOT NULL, \n"
-		"  table_name VARCHAR(64) NOT NULL, \n"
+		"  table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
+		") NOT NULL, \n"
 		"  last_update TIMESTAMP NOT NULL NOT NULL \n"
 		"  DEFAULT CURRENT_TIMESTAMP \n"
 		"  ON UPDATE CURRENT_TIMESTAMP, \n"
@@ -14084,7 +14093,8 @@ innobase_dict_init(
 		"innodb_index_stats",
 		/* Definition */
 		"  database_name VARCHAR(64) NOT NULL, \n"
-		"  table_name VARCHAR(64) NOT NULL, \n"
+		"  table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
+		") NOT NULL, \n"
 		"  index_name VARCHAR(64) NOT NULL, \n"
 		"  last_update TIMESTAMP NOT NULL NOT NULL \n"
 		"  DEFAULT CURRENT_TIMESTAMP \n"
