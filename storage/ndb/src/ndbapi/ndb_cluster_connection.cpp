@@ -417,6 +417,7 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_first_ndb_object(0),
     m_latest_error_msg(),
     m_latest_error(0),
+    m_data_node_neighbour(0),
     m_multi_wait_group(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
