@@ -160,11 +160,6 @@ struct CompressedReader {
   explicit CompressedReader(const ReadContext &ctx)
       : m_rctx(ctx), m_remaining(0), m_bpage(nullptr) {}
 
-  /** Destructor. */
-  ~CompressedReader() {
-    destroy_zstream();
-  }
-
   /** Get the payload size of the page.
   @return payload size in bytes.*/
   ulint getPayloadSize() const {
