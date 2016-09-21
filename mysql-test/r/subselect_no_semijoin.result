@@ -7089,5 +7089,16 @@ a
 0
 DROP TABLE t1;
 SET SESSION big_tables=0;
+#
+# MDEV-10776: Server crash on query
+#
+create table t1 (field1 int);
+insert into t1 values (1);
+select round((select 1 from t1 limit 1))
+from t1
+group by round((select 1 from t1 limit 1));
+round((select 1 from t1 limit 1))
+1
+drop table t1;
 set @optimizer_switch_for_subselect_test=null;
 set @join_cache_level_for_subselect_test=NULL;

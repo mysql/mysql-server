@@ -5974,3 +5974,17 @@ INSERT INTO t1 VALUES(0),(0),(0);
 SELECT * FROM t1 WHERE a IN(SELECT MIN(a) FROM t1);
 DROP TABLE t1;
 SET SESSION big_tables=0;
+
+
+--echo #
+--echo # MDEV-10776: Server crash on query
+--echo #
+create table t1 (field1 int);
+
+insert into t1 values (1);
+
+select round((select 1 from t1 limit 1))
+from t1
+group by round((select 1 from t1 limit 1));
+
+drop table t1;
