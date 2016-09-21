@@ -61,6 +61,7 @@
 #include "ndb_name_util.h"
 #include "ndb_bitmap.h"
 #include <mysql/psi/mysql_thread.h>
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "../storage/ndb/src/common/util/parse_mask.hpp"
 #include "../storage/ndb/include/util/SparseBitmask.hpp"
 #include "m_ctype.h"
@@ -479,8 +480,6 @@ static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
 static ulong multi_range_fixed_size(int num_ranges);
 
 static ulong multi_range_max_entry(NDB_INDEX_TYPE keytype, ulong reclength);
-
-THD *injector_thd= 0;
 
 /* Status variables shown with 'show status like 'Ndb%' */
 
@@ -12711,7 +12710,7 @@ int ha_ndbcluster::delete_table(const char *name)
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
 
-  if (thd == injector_thd)
+  if (get_thd_ndb(thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
   {
     /*
       Table was dropped remotely is already
@@ -13879,11 +13878,12 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     {
       DBUG_PRINT("info", ("NDB says %s does not exists", file_name->str));
       it.remove();
-      if (thd == injector_thd)
+      if (thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
       {
 	/*
-	  Don't delete anything when called from
-	  the binlog thread. This is a kludge to avoid
+	  Don't delete anything when called from a (binlog-) thread
+	  acting as a participant in schema distribution.
+	  This is a kludge to avoid
 	  that something is deleted when "Ndb schema dist"
 	  uses find_files() to check for "local tables in db"
 	*/
@@ -13932,11 +13932,12 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-  if (thd == injector_thd)
+  if (thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
   {
     /*
-      Don't delete anything when called from
-      the binlog thread. This is a kludge to avoid
+      Don't delete anything when called from a (binlog-) thread
+      acting as a participant in schema distribution.
+      This is a kludge to avoid
       that something is deleted when "Ndb schema dist"
       uses find_files() to check for "local tables in db"
     */
@@ -14354,8 +14355,6 @@ get_share_state_string(NDB_SHARE_STATE s)
 }
 #endif
 
-int ndbcluster_binlog_end(THD *thd);
-
 static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 {
   DBUG_ENTER("ndbcluster_end");
@@ -14364,11 +14363,10 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
     DBUG_RETURN(0);
   ndbcluster_inited= 0;
 
-  /* Stop index stat thread */
+  /* Stop threads started by ndbcluster_init() */
   ndb_index_stat_thread.stop();
-
-  /* wait for util and binlog thread to finish */
-  ndbcluster_binlog_end(NULL);
+  ndb_util_thread.stop();
+  ndbcluster_binlog_end();
 
   {
     mysql_mutex_lock(&ndbcluster_mutex);
@@ -17384,11 +17382,6 @@ void Ndb_util_thread::do_wakeup()
 }
 
 
-void ndb_util_thread_stop(void)
-{
-  ndb_util_thread.stop();
-}
-
 #include "ndb_log.h"
 
 void
@@ -17399,6 +17392,7 @@ Ndb_util_thread::do_run()
   Thd_ndb *thd_ndb= NULL;
   uint share_list_size= 0;
   NDB_SHARE **share_list= NULL;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
 
   DBUG_ENTER("ndb_util_thread");
   DBUG_PRINT("enter", ("cache_check_time: %lu", opt_ndb_cache_check_time));
@@ -17415,6 +17409,11 @@ Ndb_util_thread::do_run()
   }
   THD_CHECK_SENTRY(thd);
 
+  /* We need to set thd->thread_id before thd->store_globals, or it will
+     set an invalid value for thd->variables.pseudo_thread_id.
+  */
+  thd->set_new_thread_id();
+
   thd->thread_stack= (char*)&thd; /* remember where our stack is */
   if (thd->store_globals())
     goto ndb_util_thread_fail;
@@ -17422,6 +17421,7 @@ Ndb_util_thread::do_run()
   thd->get_protocol_classic()->set_client_capabilities(0);
   thd->security_context()->skip_grants();
   thd->get_protocol_classic()->init_net((st_vio *) 0);
+  thd_manager->add_thd(thd);
 
   CHARSET_INFO *charset_connection;
   charset_connection= get_charset_by_csname("utf8",
@@ -17463,7 +17463,7 @@ Ndb_util_thread::do_run()
   while (!ndbcluster_is_connected(1))
   {
     /* ndb not connected yet */
-    if (is_stop_requested())
+    if (is_stop_requested() || thd->killed == THD::KILL_CONNECTION)
     {
       /* Terminated with a stop_request */
       mysql_mutex_lock(&LOCK);
@@ -17479,7 +17479,6 @@ Ndb_util_thread::do_run()
     goto ndb_util_thread_end;
   }
   thd_set_thd_ndb(thd, thd_ndb);
-  thd_ndb->set_option(Thd_ndb::NO_LOG_SCHEMA_OP);
 
   if (opt_ndb_extra_logging && ndb_binlog_running)
     sql_print_information("NDB Binlog: Ndb tables initially read only.");
@@ -17496,7 +17495,7 @@ Ndb_util_thread::do_run()
     mysql_cond_timedwait(&COND,
                            &LOCK,
                            &abstime);
-    if (is_stop_requested())
+    if (is_stop_requested() || thd->killed == THD::KILL_CONNECTION)
       goto ndb_util_thread_end;
     mysql_mutex_unlock(&LOCK);
 
@@ -17507,20 +17506,6 @@ Ndb_util_thread::do_run()
     */
     if (!check_ndb_in_thd(thd, false))
     {
-      set_timespec(&abstime, 1);
-      continue;
-    }
-
-    /*
-      Regularly give the ndb_binlog component chance to set it self up
-      i.e at first start it needs to create the ndb_* system tables
-      and setup event operations on those. In case of lost connection
-      to cluster, the ndb_* system tables are hopefully still there
-      but the event operations need to be recreated.
-    */
-    if (!ndb_binlog_setup(thd))
-    {
-      /* Failed to setup binlog, try again in 1 second */
       set_timespec(&abstime, 1);
       continue;
     }
@@ -17658,6 +17643,8 @@ ndb_util_thread_fail:
     Thd_ndb::release(thd_ndb);
     thd_set_thd_ndb(thd, NULL);
   }
+  thd->release_resources();
+  thd_manager->remove_thd(thd);
   delete thd;
   
   mysql_mutex_unlock(&LOCK);
