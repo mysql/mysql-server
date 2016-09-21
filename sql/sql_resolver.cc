@@ -2120,6 +2120,9 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   cond_count+= subq_select->cond_count;
   between_count+= subq_select->between_count;
 
+  if (subq_select->active_options() & OPTION_SCHEMA_TABLE)
+    add_base_options(OPTION_SCHEMA_TABLE);
+
   if (outer_join)
     propagate_nullability(&sj_nest->nested_join->join_list, true);
 
