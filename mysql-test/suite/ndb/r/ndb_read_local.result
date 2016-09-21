@@ -5576,9 +5576,7 @@ drop table hints;
 delete from t1;
 delete from t2;
 Nodegroup 1 created
-alter table t1 algorithm=copy, reorganize partition;
-Warnings:
-Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+alter table t1 algorithm=inplace, reorganize partition;
 alter table t2 algorithm=inplace, reorganize partition;
 select id into @t1_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t1';
 select id into @t1ui_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t1_id and type = 3;
@@ -6581,9 +6579,7 @@ drop table hints;
 delete from t1;
 delete from t2;
 Nodegroup 2 created
-alter table t1 algorithm=copy, reorganize partition;
-Warnings:
-Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+alter table t1 algorithm=inplace, reorganize partition;
 alter table t2 algorithm=inplace, reorganize partition;
 select id into @t1_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t1';
 select id into @t1ui_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t1_id and type = 3;
