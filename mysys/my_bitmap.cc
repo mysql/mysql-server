@@ -35,14 +35,21 @@
   Kindahl.
 */
 
-#include <m_string.h>
-#include <my_bit.h>
-#include <my_bitmap.h>
+#include <string.h>
+#include <sys/types.h>
 
+#include "my_bit.h"
+#include "my_bitmap.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_priv.h"
+#include "thr_mutex.h"
 
 void create_last_word_mask(MY_BITMAP *map)
 {

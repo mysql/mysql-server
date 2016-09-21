@@ -17,10 +17,11 @@
   @file mysys/my_access.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include <m_string.h>
-#include "my_thread_local.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"  // IWYU pragma: keep
 
 #ifdef _WIN32
 

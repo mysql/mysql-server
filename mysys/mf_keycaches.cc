@@ -22,12 +22,18 @@
   the cache.
 */
 
-#include "mysys_priv.h"
-#include <keycache.h>
 #include <hash.h>
-#include <m_string.h>
-#include "mysql/service_mysql_alloc.h"
+#include <keycache.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysys_priv.h"
 #include "template_utils.h"
 
 /*****************************************************************************

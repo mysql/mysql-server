@@ -20,8 +20,17 @@
 
 /* TODO: check for overun of memory for names. */
 
+#include <errno.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <new>
+
 #include "m_string.h"
+#include "my_alloc.h"
+#include "my_dbug.h"
 #include "my_dir.h"	/* Structs used by my_dir,includes sys/types */
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "my_thread_local.h"

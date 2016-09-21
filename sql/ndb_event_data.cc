@@ -17,9 +17,8 @@
 
 #include "ndb_event_data.h"
 
-#include <table.h>
-
 #include "my_pointer_arithmetic.h"
+#include "table.h"
 
 
 Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share) :

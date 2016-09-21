@@ -21,11 +21,21 @@
   rename files and symlinks like they would be one unit.
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "mysys_err.h"
+#include "my_config.h"
+
+#include <errno.h>
 #include <m_string.h>
+#include <string.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysys_err.h"
 
 File my_create_with_symlink(const char *linkname, const char *filename,
 			    int createflags, int access_flags, myf MyFlags)

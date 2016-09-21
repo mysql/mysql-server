@@ -19,7 +19,7 @@
 */
 #include "mf_wcomp.h"
 
-#include "my_dbug.h"   // DBUG_ENTER, DBUG_RETURN
+#include "my_dbug.h"
 
 int wild_compare_full(const char *str, const char *wildstr, bool str_is_pattern,
                       char w_prefix, char w_one, char w_many)

@@ -19,19 +19,30 @@
   If there are many available, any non-zero one can be used.
 */
 
+#include "my_config.h"
+#include <string.h>
+#ifdef SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_inttypes.h"
+#include "my_sys.h"  // IWYU pragma: keep
+#if defined(_WIN32)
 #include "mysys_priv.h"
-#include "my_sys.h"
-#include <m_string.h>
+#endif
 
 #ifndef MAIN
 
 #ifdef __FreeBSD__
 
 #include <net/ethernet.h>
-#include <sys/sysctl.h>
-#include <net/route.h>
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/route.h>
+#include <sys/sysctl.h>
 
 my_bool my_gethwaddr(uchar *to)
 {
@@ -68,9 +79,9 @@ err:
 
 #elif defined(__linux__)
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
-#include <net/ethernet.h>
 
 #define MAX_IFS 64
 

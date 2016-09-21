@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,19 @@
   More functions to be used with IO_CACHE files
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include <m_string.h>
 #include <stdarg.h>
-#include <m_ctype.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
 
 /*
   Copy contents of an IO_CACHE to a file.

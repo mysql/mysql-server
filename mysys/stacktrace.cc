@@ -17,12 +17,28 @@
   @file mysys/stacktrace.cc
 */
 
+#include "my_config.h"
+
+#include <errno.h>
+#include <fcntl.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#ifdef __linux__
+#include <syscall.h>
+#endif
+#include <time.h>
+
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_stacktrace.h"
 
 #ifndef _WIN32
-#include "my_thread.h"
-#include "m_string.h"
 #include <signal.h>
+
+#include "my_thread.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -30,7 +46,6 @@
 
 #ifdef __linux__
 #include <ctype.h>          /* isprint */
-#include <sys/syscall.h>    /* SYS_gettid */
 #endif
 
 #ifdef HAVE_EXECINFO_H
@@ -183,6 +198,7 @@ void my_print_stacktrace(uchar* stack_bottom MY_ATTRIBUTE((unused)),
 #ifdef HAVE_ABI_CXA_DEMANGLE
 
 #include <cxxabi.h>
+
 static char *my_demangle(const char *mangled_name, int *status)
 {
   return abi::__cxa_demangle(mangled_name, NULL, NULL, status);

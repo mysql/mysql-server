@@ -14,6 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <stddef.h>
+#include <sys/types.h>
+
 /**
   @file mysys/lf_alloc-pin.cc
   wait-free concurrent allocator based on pinning addresses.
@@ -97,6 +100,13 @@
   upper 16 bits are used for a version.
 */
 #include "lf.h"
+#include "my_atomic.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysys_priv.h" /* key_memory_lf_node */
 
 #define LF_PINBOX_MAX_PINS 65536

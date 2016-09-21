@@ -17,26 +17,53 @@
   @file mysys/my_init.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "my_static.h"
-#include "mysys_err.h"
+#include "my_config.h"
+
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+
+#include "m_ctype.h"
 #include "m_string.h"
-#include "my_timer.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_static.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_file.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_thread.h"
 #include "mysql/service_my_snprintf.h"
-#include "mysql/psi/mysql_memory.h"
+#include "mysys_err.h"
+#include "mysys_priv.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
 
 #ifdef _WIN32
-#include <locale.h>
 #include <crtdbg.h>
+#include <locale.h>
+
 /* WSAStartup needs winsock library*/
 #pragma comment(lib, "ws2_32")
 my_bool have_tcpip=0;

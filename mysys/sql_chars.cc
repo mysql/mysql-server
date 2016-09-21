@@ -15,7 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_chars.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "m_ctype.h"
+#include "my_dbug.h"
 #include "my_sys.h"
 
 static
