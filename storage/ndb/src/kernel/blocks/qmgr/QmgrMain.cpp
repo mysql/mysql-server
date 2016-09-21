@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3085,7 +3085,7 @@ void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now)
             if (nodePtr.p->failState == WAITING_FOR_API_FAILCONF)
             {
               jam();
-              compile_time_assert(NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks) == 5);
+              static_assert(NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks) == 5, "");
               BaseString::snprintf(buf, sizeof(buf),
                                    "  Waiting for blocks: %u %u %u %u %u",
                                    nodePtr.p->m_failconf_blocks[0],
