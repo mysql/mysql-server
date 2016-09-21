@@ -2018,13 +2018,4 @@ CompressedReader::fetch_page()
 	return(err);
 }
 
-/** Close the zlib inflate stream.  Free the memory heap that was
-used during decompression. */
-void
-CompressedReader::destroy_zstream()
-{
-	inflateEnd(&m_stream);
-	mem_heap_free(m_heap);
-}
-
 } // namespace lob

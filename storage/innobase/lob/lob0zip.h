@@ -158,7 +158,12 @@ private:
 struct CompressedReader {
   /** Constructor. */
   explicit CompressedReader(const ReadContext &ctx)
-      : m_rctx(ctx), m_remaining(0), m_heap(nullptr), m_bpage(nullptr) {}
+      : m_rctx(ctx), m_remaining(0), m_bpage(nullptr) {}
+
+  /** Destructor. */
+  ~CompressedReader() {
+    destroy_zstream();
+  }
 
   /** Get the payload size of the page.
   @return payload size in bytes.*/
@@ -198,7 +203,10 @@ private:
 
   /** Close the zlib inflate stream.  Free the memory heap that was
   used during decompression. */
-  void destroy_zstream();
+  void destroy_zstream() {
+    inflateEnd(&m_stream);
+    m_unfit.destroy();
+  }
 
 #ifdef UNIV_DEBUG
   /** Assert that the local prefix is empty.  For compressed row format,
@@ -215,9 +223,6 @@ private:
 
   /** The zlib stream used to uncompress while fetching blob. */
   z_stream m_stream;
-
-  /** The memory heap that will be used by zlib allocator. */
-  mem_heap_t *m_heap;
 
   /* There is no latch on m_bpage directly.  Instead,
   m_bpage is protected by the B-tree page latch that

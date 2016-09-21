@@ -132,6 +132,14 @@ public:
   @return 0 on success, -1 on failure. */
   int init();
 
+  /** Free the resources. */
+  void destroy() {
+    if (m_heap != nullptr) {
+      mem_heap_free(m_heap);
+      m_heap = nullptr;
+    }
+  }
+
   /** Set the output buffer for the zlib stream.
   @param[in]	output	the output buffer.
   @param[in]	size	size of buffer. */
@@ -162,6 +170,7 @@ public:
   /** The output buffer. */
   byte *m_output;
 
+private:
   /** The memory heap used by the zlib stream */
   mem_heap_t *m_heap;
 };
