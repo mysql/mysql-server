@@ -13949,7 +13949,6 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("triggers", 6),
 	INNODB_DD_TABLE("innodb_table_stats", 1),
 	INNODB_DD_TABLE("innodb_index_stats", 1),
-	INNODB_DD_TABLE("triggers", 1),
 	INNODB_DD_TABLE("db", 1),
 	INNODB_DD_TABLE("user", 1),
 	INNODB_DD_TABLE("default_roles", 1),
