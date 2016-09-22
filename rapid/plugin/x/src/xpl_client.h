@@ -46,6 +46,7 @@ namespace xpl
     virtual void on_row_send();
     virtual void on_send(long bytes_transferred);
     virtual void on_receive(long bytes_transferred);
+    virtual void on_unknown_msg_type();
 
   private:
     Client *m_client;
@@ -78,7 +79,6 @@ namespace xpl
 
     void kill();
     ngs::shared_ptr<xpl::Session> get_session();
-
 
   private:
     bool is_localhost(const char *hostname);

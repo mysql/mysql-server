@@ -200,9 +200,9 @@ void Client::handle_message(Request &request)
 
     default:
       // invalid message at this time
+      m_protocol_monitor.on_unknown_msg_type();
       log_info("%s: Invalid message %i received during client initialization", client_id(), request.get_type());
       m_encoder->send_result(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
-
       m_close_reason = Close_error;
       disconnect_and_trigger_close();
       break;
