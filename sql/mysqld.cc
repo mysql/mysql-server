@@ -2527,6 +2527,7 @@ static void init_sql_statement_names()
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 PSI_statement_info sql_statement_info[(uint) SQLCOM_END + 1];
 PSI_statement_info com_statement_info[(uint) COM_END + 1];
+PSI_statement_info stmt_info_new_packet;
 
 /**
   Initialize the command names array.

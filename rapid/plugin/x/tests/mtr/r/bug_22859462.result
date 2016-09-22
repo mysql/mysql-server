@@ -1,0 +1,33 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+call mtr.add_suppression("Error parsing message of type 12: args");
+call mtr.add_suppression("Error handling message: args");
+call mtr.add_suppression("InnoDB: Compute virtual column values failed");
+RUN select SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR from performance_schema.events_statements_summary_by_digest ORDER BY DIGEST
+SCHEMA_NAME	DIGEST	DIGEST_TEXT	COUNT_STAR
+null	16cbe2fa99c109ca45db93dc09aae3bd	SHOW SLAVE STATUS 	1
+null	17b033322eb54de475ed52a53b19336e	SET SESSION `SQL_LOG_BIN` = @? 	1
+null	1fc1f723dd4d97987c9d0877f22a469e	SET @? = @@`SQL_LOG_BIN` 	1
+test	4b02c9bd9baed480784c18fd4c5e190c	INSTALL PLUGIN `mysqlx` SONAME ? 	1
+null	53a8db2d4da853b59a4a57523f6e261a	SELECT @@`server_id` != ? 	1
+null	6ce1d537d53eb089690a438e860655fe	CREATE SYSTEM_USER IF NOT EXISTS `mysqlxsys` @? IDENTIFIED WITH `mysql_native_password` AS ? ACCOUNT LOCK 	1
+mtr	6f58edd9cee71845f592cf5347f8ecd7	SELECT `performance_schema` . `events_waits_summary_global_by_event_name` . `EVENT_NAME` AS `events` , `performance_schema` . `events_waits_summary_global_by_event_name` . `COUNT_STAR` AS `total` , `performance_schema` . `events_waits_summary_global_by_event_name` . `SUM_TIMER_WAIT` AS `total_latency` , `performance_schema` . `events_waits_summary_global_by_event_name` . `AVG_TIMER_WAIT` AS `avg_latency` , `performance_schema` . `events_waits_summary_global_by_event_name` . `MAX_TIMER_WAIT` AS `max_latency` FROM `performance_schema` . `events_waits_summary_global_by_event_name` WHERE ( ( `performance_schema` . `events_waits_summary_global_by_event_name` . `EVENT_NAME` != ? ) AND ( `performance_schema` . `events_waits_summary_global_by_event_name` . `SUM_TIMER_WAIT` > ? ) ) ORDER BY `performance_schema` . `events_waits_summary_global_by_event_name` . `SUM_TIMER_WAIT` DESC 	1
+test	7026261a2d98e92cf4398272595bd1e4	TRUNCATE TABLE `performance_schema` . `events_waits_history_long` 	1
+null	70745ada44d2d224719366581e058d4f	SET SESSION `SQL_LOG_BIN` = ? 	1
+test	7d211d4b434f22230ffbf119df5b9c0a	CALL `mtr` . `add_suppression` (?) 	5
+null	9364b7398a3abd050ad5495d474ba655	SELECT ? = ? 	1
+null	9b0dc9a1a229ea8635249e3aa06b16fc	GRANT SUPER ON * . * TO `mysqlxsys` @? 	1
+null	c2ac79baa7bdf596bda612216357bb34	FLUSH PRIVILEGES 	1
+null	c4d5cc7cd73a63bddd379c1f3eaf383d	SELECT @@`require_secure_transport` , `authentication_string` , `account_locked` , ( `password_expired` != ? ) AS `is_password_expired` , @@`disconnect_on_expired_password` AS `disconnect_on_expired_password` , @@`offline_mode` AND ( `Super_priv` = ? ) AS `is_offline_mode_and_isnt_super_user` , `host` , `ssl_type` , `ssl_cipher` , `x509_issuer` , `x509_subject` FROM `mysql` . `user` WHERE ( ? LIKE `host` OR ? LIKE `host` OR `host` = ? OR POSITION ( ? IN `host` ) > ? ) AND ( (_charset) ? = CONVERT ( `user` , BINARY ) ) AND PLUGIN = ? ORDER BY `length` ( HOST ) != ? DESC , POSITION ( ? IN `host` ) = ? DESC , `length` ( `user` ) DESC 	1
+null	d8457d65a52b59d5ff609222d52ba1cf	SELECT @@`skip_networking` , @@`skip_name_resolve` , @@`have_ssl` = ? , @@`ssl_key` , @@`ssl_ca` , @@`ssl_capath` , @@`ssl_cert` , @@`ssl_cipher` , @@`ssl_crl` , @@`ssl_crlpath` , @@`tls_version` 	1
+test	e27bc9763cf2b2fe3d4bcdf4319f8181	SELECT `version` ( ) LIKE ? AS ? 	1
+null	e7aeb0a8c59fd6a0a5e9a73059b194bd	GRANT SELECT ON `mysql` . `user` TO `mysqlxsys` @? 	1
+null	feaff321c54a9c8e1e9508628f7a5a05	SHOW WARNINGS 	1
+null	fefa369ce545e7e7c0abd61c71737f66	SELECT `performance_schema` . 	1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+UNINSTALL PLUGIN mysqlx;
