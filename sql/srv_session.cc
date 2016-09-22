@@ -1269,6 +1269,12 @@ int Srv_session::execute_command(enum enum_server_command command,
   if (command != COM_QUERY)
     thd.reset_for_next_command();
 
+  DBUG_ASSERT(thd.m_statement_psi == NULL);
+  thd.m_statement_psi= MYSQL_START_STATEMENT(&thd.m_statement_state,
+                                             stmt_info_new_packet.m_key,
+                                             thd.db().str,
+                                             thd.db().length,
+                                             thd.charset(), NULL);
   int ret= dispatch_command(&thd, data, command);
 
   thd.set_protocol(&protocol_error);
