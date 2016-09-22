@@ -268,7 +268,8 @@ private:
 
 
 /**
-  Helper class to perform a thread excursion.
+  Helper class to switch to a new thread and then go back to the previous one,
+  when the object is destroyed using RAII.
 
   This class is used to temporarily switch to another session (THD
   structure). It will set up thread specific "globals" correctly
@@ -285,30 +286,25 @@ private:
 
   @code
   {
-    Thread_excursion excursion(current_thd);
     for (int i = 0 ; i < count ; ++i)
-      excursion.attach_to(other_thd[i]);
+    {
+      // here we are attached to current_thd
+      // [...]
+      Thd_backup_and_restore switch_thd(current_thd, other_thd[i]);
+      // [...]
+      // here we are attached to other_thd[i]
+      // [...]
+    }
+    // here we are attached to current_thd
   }
   @endcode
 
   @warning The class is not designed to be inherited from.
  */
 
-class Thread_excursion
+class Thd_backup_and_restore
 {
 public:
-  Thread_excursion(THD *thd)
-    : m_original_thd(thd)
-  {
-  }
-
-  ~Thread_excursion() {
-#ifndef EMBEDDED_LIBRARY
-    if (unlikely(setup_thread_globals(m_original_thd)))
-      DBUG_ASSERT(0);                           // Out of memory?!
-#endif
-  }
-
   /**
     Try to attach the POSIX thread to a session.
     - This function attaches the POSIX thread to a session
@@ -316,10 +312,17 @@ public:
     'out of memory' error, and terminates the server after
     failed in MAX_SESSION_ATTACH_TRIES tries.
 
-    @param[in] thd       The thd of a session
+    @param[in] backup_thd    The thd to restore to when object is destructed.
+    @param[in] new_thd       The thd to attach to.
    */
-  void try_to_attach_to(THD *thd)
+
+  Thd_backup_and_restore(THD *backup_thd, THD *new_thd)
+    : m_backup_thd(backup_thd), m_new_thd(new_thd),
+      m_new_thd_old_real_id(new_thd->real_id)
   {
+    DBUG_ASSERT(m_backup_thd != NULL && m_new_thd != NULL);
+    // Reset the state of the current thd.
+    m_backup_thd->restore_globals();
     int i= 0;
     /*
       Attach the POSIX thread to a session in MAX_SESSION_ATTACH_TRIES
@@ -333,7 +336,7 @@ public:
         the ER_OUTOFMEMORY error. Please take care other error
         returned from attach_to(...) in future.
       */
-      if (!attach_to(thd))
+      if (!attach_to(new_thd))
       {
         if (i > 0)
           sql_print_warning("Server overcomes the temporary 'out of memory' "
@@ -360,6 +363,25 @@ public:
     }
   }
 
+  /**
+      Restores to previous thd.
+   */
+  ~Thd_backup_and_restore()
+  {
+#ifndef EMBEDDED_LIBRARY
+    /*
+      Restore the global variables of the thd we previously attached to,
+      to its original state. In other words, detach the m_new_thd.
+    */
+    m_new_thd->restore_globals();
+    m_new_thd->real_id= m_new_thd_old_real_id;
+
+    // Reset the global variables to the original state.
+    if (unlikely(m_backup_thd->store_globals()))
+      DBUG_ASSERT(0);                           // Out of memory?!
+#endif
+  }
+
 private:
 
   /**
@@ -369,7 +391,7 @@ private:
   {
 #ifndef EMBEDDED_LIBRARY
     if (DBUG_EVALUATE_IF("simulate_session_attach_error", 1, 0)
-        || unlikely(setup_thread_globals(thd)))
+        || unlikely(thd->store_globals()))
     {
       /*
         Indirectly uses pthread_setspecific, which can only return
@@ -382,11 +404,9 @@ private:
     return 0;
   }
 
-  int setup_thread_globals(THD *thd) const {
-    return thd->store_globals();
-  }
-
-  THD *m_original_thd;
+  THD *m_backup_thd;
+  THD *m_new_thd;
+  my_thread_t m_new_thd_old_real_id;
 };
 
 
@@ -8556,7 +8576,6 @@ void
 MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
 {
   mysql_mutex_assert_owner(&LOCK_commit);
-  Thread_excursion excursion(thd);
 #ifndef DBUG_OFF
   thd->get_transaction()->m_flags.ready_preempt= 1; // formality by the leader
 #endif
@@ -8584,7 +8603,7 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
       COMMIT_ERROR at this moment.
     */
     DBUG_ASSERT(head->commit_error != THD::CE_COMMIT_ERROR);
-    excursion.try_to_attach_to(head);
+    Thd_backup_and_restore switch_thd(thd, head);
     bool all= head->get_transaction()->m_flags.real_commit;
     if (head->get_transaction()->m_flags.commit_low)
     {
@@ -8631,7 +8650,6 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
 void
 MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
 {
-  Thread_excursion excursion(thd);
   for (THD *head= first; head; head= head->next_to_commit)
   {
     if (head->get_transaction()->m_flags.run_hooks &&
@@ -8643,7 +8661,7 @@ MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
               if and be the only after_commit invocation left in the
               code.
       */
-      excursion.try_to_attach_to(head);
+      Thd_backup_and_restore switch_thd(thd, head);
       bool all= head->get_transaction()->m_flags.real_commit;
       (void) RUN_HOOK(transaction, after_commit, (head, all));
       /*
