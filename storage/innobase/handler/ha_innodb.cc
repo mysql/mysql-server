@@ -15931,11 +15931,16 @@ ha_innobase::get_extra_columns_and_keys(
 bool
 ha_innobase::get_se_private_data(
 	dd::Table*	dd_table,
-	uint		dd_version)
+	uint		dd_version,
+	bool		reset_id)
 {
 	static uint	n_tables = 0;
 	static uint	n_indexes = 18;
 //	static uint	n_pages;
+	if (reset_id) {
+		n_tables = 0;
+		n_indexes = 18;
+	}
 #ifdef UNIV_DEBUG
 	const uint	n_indexes_old = n_indexes;
 #endif

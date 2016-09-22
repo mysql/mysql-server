@@ -2182,28 +2182,14 @@ static std::unique_ptr<dd::Table> create_dd_system_table(THD *thd,
                                      fk_keyinfo, fk_keys, file))
     return nullptr;
 
-  /*
-    Get the se private data for the DD table
-
-    In upgrade scenario, to check the existence of version table,
-    version table is tried to open. This requires dd::Table object
-    for version table. Creation of version table inside Storage Engine
-    should be avoided during the existance check. We skip fetching
-    se_private_id from SE during this process. This is done as
-    a work around to reset variables in InnoDB as it is done for
-    dictionary cache and dictionary object ids.
-
-    TODO: This should be fixed as preparation for InnoDB dictionary upgrade.
-  */
-  if (!dd_upgrade_skip_se)
-  {
-    if (file->ha_get_se_private_data(tab_obj.get(),
-                                     dd_table.default_dd_version(thd)))
-      return nullptr;
-  }
-
   // Reset id if we are creating version DD table.
   bool reset_id= (strcmp(table_name.c_str(), "version") == 0);
+
+
+  if (file->ha_get_se_private_data(tab_obj.get(),
+                                   dd_table.default_dd_version(thd),
+                                   reset_id))
+    return nullptr;
 
   // "Store" the object in the shared cache, and make it sticky.
   // Ownership of dd::Table object is passed to Auto_releaser;

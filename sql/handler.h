@@ -3437,12 +3437,14 @@ public:
     @param dd_table [in,out]    A dd::Table object representing
                                 a core DD table.
     @param dd_version           Actual version of the DD.
+    @param reset_id             Reset hard coded se data.
 
     @retval true                An error occurred.
     @retval false               Success - no errors.
    */
 
-  bool ha_get_se_private_data(dd::Table *dd_table, uint dd_version);
+  bool ha_get_se_private_data(dd::Table *dd_table, uint dd_version,
+                              bool reset_id);
 
   int ha_create_handler_files(const char *name, const char *old_name,
                               int action_flag, HA_CREATE_INFO *info);
@@ -5158,7 +5160,8 @@ public:
                      dd::Table *dd_tab) = 0;
 
   virtual bool get_se_private_data(dd::Table *dd_table MY_ATTRIBUTE((unused)),
-                                   uint dd_version MY_ATTRIBUTE((unused)))
+                                   uint dd_version MY_ATTRIBUTE((unused)),
+                                   bool reset_id MY_ATTRIBUTE((unused)))
   { return false; }
 
   virtual int create_handler_files(const char *name MY_ATTRIBUTE((unused)),

@@ -4931,9 +4931,10 @@ handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
 */
 #include "dd/types/table.h"
 bool
-handler::ha_get_se_private_data(dd::Table *dd_table, uint dd_version)
+handler::ha_get_se_private_data(dd::Table *dd_table, uint dd_version,
+                                bool reset_id)
 {
-  return get_se_private_data(dd_table, dd_version);
+  return get_se_private_data(dd_table, dd_version, reset_id);
 }
 
 
