@@ -126,7 +126,7 @@ private:
 struct UnfitBlock {
 public:
   /** Default constructor */
-  UnfitBlock() : m_total_out(0) {}
+  UnfitBlock() : m_total_out(0), m_heap(nullptr) {}
 
   /** Initialize the zlib streams.
   @return 0 on success, -1 on failure. */

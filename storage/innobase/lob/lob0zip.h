@@ -160,6 +160,11 @@ struct CompressedReader {
   explicit CompressedReader(const ReadContext &ctx)
       : m_rctx(ctx), m_remaining(0), m_bpage(nullptr) {}
 
+  /** Destructor. */
+  ~CompressedReader() {
+    m_unfit.destroy();
+  }
+
   /** Get the payload size of the page.
   @return payload size in bytes.*/
   ulint getPayloadSize() const {
@@ -188,21 +193,6 @@ private:
   @return true if stored as a single stream, false otherwise. */
   bool is_single_zstream();
 
-  /** Do setup of the zlib stream.
-  @return code returned by zlib. */
-  int setup_zstream();
-
-  /** Reset the inflate stream and update the zlib stream information
-  to read the data from the current page. */
-  void update_zstream();
-
-  /** Close the zlib inflate stream.  Free the memory heap that was
-  used during decompression. */
-  void destroy_zstream() {
-    inflateEnd(&m_stream);
-    m_unfit.destroy();
-  }
-
 #ifdef UNIV_DEBUG
   /** Assert that the local prefix is empty.  For compressed row format,
   there is no local prefix stored.  This function doesn't return if the
@@ -215,9 +205,6 @@ private:
 
   /** Bytes yet to be read. */
   ulint m_remaining;
-
-  /** The zlib stream used to uncompress while fetching blob. */
-  z_stream m_stream;
 
   /* There is no latch on m_bpage directly.  Instead,
   m_bpage is protected by the B-tree page latch that
