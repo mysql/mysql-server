@@ -174,7 +174,11 @@
 #endif
 
 #ifndef UINT32_HALF
-#define UINT32_HALF             (0x80000000U)
+#define UINT32_HALF            (0x80000000U)
+#endif
+
+#ifndef INT32_MAX
+#define INT32_MAX              (2147483647U)
 #endif
 
 #endif
