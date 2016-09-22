@@ -116,14 +116,14 @@ ngs::Error_code on_stmt_execute(xpl::Session &session, const Mysqlx::Sql::StmtEx
 
   if (msg.namespace_() == "sql" || !msg.has_namespace_())
   {
-    session.update_status<&xpl::Common_status_variables::inc_stmt_execute_sql>();
+    session.update_status<&xpl::Common_status_variables::m_stmt_execute_sql>();
     return Stmt().execute(session.data_context(), session.proto(), session.options().get_send_warnings(),
                           msg.compact_metadata(), msg.stmt(), msg.args());
   }
 
   if (msg.namespace_() == "xplugin")
   {
-    session.update_status<&xpl::Common_status_variables::inc_stmt_execute_xplugin>();
+    session.update_status<&xpl::Common_status_variables::m_stmt_execute_xplugin>();
     if (session.options().get_send_xplugin_deprecation())
     {
       xpl::notices::send_message(session.proto(), "Namespace 'xplugin' is deprecated, please use 'mysqlx' instead");
@@ -135,7 +135,7 @@ ngs::Error_code on_stmt_execute(xpl::Session &session, const Mysqlx::Sql::StmtEx
 
   if (msg.namespace_() == "mysqlx")
   {
-    session.update_status<&xpl::Common_status_variables::inc_stmt_execute_mysqlx>();
+    session.update_status<&xpl::Common_status_variables::m_stmt_execute_mysqlx>();
     xpl::Admin_command_arguments_object args(msg.args());
     return xpl::Admin_command_handler(session).execute(msg.namespace_(), msg.stmt(), args);
   }
@@ -146,7 +146,7 @@ ngs::Error_code on_stmt_execute(xpl::Session &session, const Mysqlx::Sql::StmtEx
 
 ngs::Error_code on_expect_open(xpl::Session &session, xpl::Expectation_stack &expect, const Mysqlx::Expect::Open &msg)
 {
-  session.update_status<&xpl::Common_status_variables::inc_expect_open>();
+  session.update_status<&xpl::Common_status_variables::m_expect_open>();
 
   ngs::Error_code error = expect.open(msg);
   if (!error)
@@ -157,7 +157,7 @@ ngs::Error_code on_expect_open(xpl::Session &session, xpl::Expectation_stack &ex
 
 ngs::Error_code on_expect_close(xpl::Session &session, xpl::Expectation_stack &expect, const Mysqlx::Expect::Close &msg)
 {
-  session.update_status<&xpl::Common_status_variables::inc_expect_close>();
+  session.update_status<&xpl::Common_status_variables::m_expect_close>();
 
   ngs::Error_code error = expect.close();
   if (!error)
@@ -192,6 +192,8 @@ ngs::Error_code do_dispatch_command(xpl::Session &session, xpl::Crud_command_han
     case Mysqlx::ClientMessages::EXPECT_CLOSE:
       return on_expect_close(session, expect, static_cast<const Mysqlx::Expect::Close&>(*command.message()));
   }
+
+  session.proto().get_protocol_monitor().on_unknown_msg_type();
   return ngs::Error(ER_UNKNOWN_COM_ERROR, "Unexpected message received");
 }
 

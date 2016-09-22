@@ -69,17 +69,14 @@ public:
   template <void (Server::*method)(st_mysql_show_var *)>
   static void global_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
 
-  template <typename ReturnType, ReturnType (xpl::Global_status_variables::*method)()>
+  template <typename ReturnType, xpl::Global_status_variables::Variable xpl::Global_status_variables::*variable>
   static void global_status_variable_server(THD *thd, st_mysql_show_var *var, char *buff);
 
-  template <typename ReturnType, ReturnType (xpl::Common_status_variables::*method)() const>
+  template <typename ReturnType, xpl::Common_status_variables::Variable xpl::Common_status_variables::*variable>
   static void common_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
 
   template <typename ReturnType, ReturnType (ngs::IOptions_context::*method)()>
   static void global_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
-
-  template<void (Common_status_variables::*method)()>
-  static void update_status_variable(xpl::Common_status_variables &status_variables);
 
   ngs::Server &server() { return m_server; }
 
@@ -141,6 +138,7 @@ private:
   static bool is_exiting();
 };
 
+
 template <void (Client::*method)(st_mysql_show_var *)>
 void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
 {
@@ -157,6 +155,7 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
       ((*client).*method)(var);
   }
 }
+
 
 template <typename ReturnType, ReturnType (ngs::IOptions_session::*method)()>
 void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
@@ -178,6 +177,7 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
   }
 }
 
+
 template <void (Server::*method)(st_mysql_show_var *)>
 void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
 {
@@ -191,6 +191,7 @@ void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff
     (server_ptr->*method)(var);
   }
 }
+
 
 template <typename ReturnType, ReturnType (Server::*method)()>
 void Server::global_status_variable_server_with_return(THD *thd, st_mysql_show_var *var, char *buff)
@@ -207,22 +208,23 @@ void Server::global_status_variable_server_with_return(THD *thd, st_mysql_show_v
   }
 }
 
-template <typename ReturnType, ReturnType (xpl::Global_status_variables::*method)()>
+
+template <typename ReturnType, xpl::Global_status_variables::Variable xpl::Global_status_variables::*variable>
 void Server::global_status_variable_server(THD *thd, st_mysql_show_var *var, char *buff)
 {
   var->type= SHOW_UNDEF;
   var->value= buff;
 
-  ReturnType result = (Global_status_variables::instance().*method)();
+  ReturnType result = (Global_status_variables::instance().*variable).load();
   mysqld::xpl_show_var(var).assign(result);
 }
 
-template <typename ReturnType, ReturnType (xpl::Common_status_variables::*method)() const>
+
+template <typename ReturnType, xpl::Common_status_variables::Variable xpl::Common_status_variables::*variable>
 void Server::common_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
 {
   var->type = SHOW_UNDEF;
   var->value = buff;
-
 
   Server_ref server(get_instance());
   if (server)
@@ -236,7 +238,7 @@ void Server::common_status_variable(THD *thd, st_mysql_show_var *var, char *buff
       if (client_session)
       {
         Common_status_variables &common_status = client_session->get_status_variables();
-        ReturnType result = (common_status.*method)();
+        ReturnType result = (common_status.*variable).load();
         mysqld::xpl_show_var(var).assign(result);
       }
       return;
@@ -244,9 +246,10 @@ void Server::common_status_variable(THD *thd, st_mysql_show_var *var, char *buff
   }
 
   Common_status_variables &common_status = Global_status_variables::instance();
-  ReturnType result = (common_status.*method)();
+  ReturnType result = (common_status.*variable).load();
   mysqld::xpl_show_var(var).assign(result);
 }
+
 
 template <typename ReturnType, ReturnType (ngs::IOptions_context::*method)()>
 void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
@@ -265,16 +268,6 @@ void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff
 
   mysqld::xpl_show_var(var).assign(result);
 }
-
-template<void (Common_status_variables::*method)()>
-void Server::update_status_variable(xpl::Common_status_variables &status_variables)
-{
-  (status_variables.*method)();
-
-  Common_status_variables &common_status = Global_status_variables::instance();
-  (common_status.*method)();
-}
-
 
 } // namespace xpl
 

@@ -60,7 +60,7 @@ void Client::on_session_close(ngs::Session_interface &s)
   ngs::Client::on_session_close(s);
   if (s.state_before_close() != ngs::Session_interface::Authenticating)
   {
-    Global_status_variables::instance().increment_closed_sessions_count();
+    ++Global_status_variables::instance().m_closed_sessions_count;
   }
 }
 
@@ -113,7 +113,7 @@ void Client::kill()
   }
 
   m_session->on_kill();
-  Global_status_variables::instance().increment_killed_sessions_count();
+  ++Global_status_variables::instance().m_killed_sessions_count;
 }
 
 
@@ -121,7 +121,7 @@ void Client::on_network_error(int error)
 {
   ngs::Client::on_network_error(error);
   if (error != 0)
-    Global_status_variables::instance().increment_connection_errors_count();
+    ++Global_status_variables::instance().m_connection_errors_count;
 }
 
 
@@ -140,7 +140,7 @@ void Client::on_auth_timeout()
 {
   ngs::Client::on_auth_timeout();
 
-  Global_status_variables::instance().increment_connection_errors_count();
+  ++Global_status_variables::instance().m_connection_errors_count;
 }
 
 
@@ -211,66 +211,74 @@ void Protocol_monitor::init(Client *client)
 
 namespace
 {
-template<void (Common_status_variables::*method)()>
-inline void update_status_variable(ngs::shared_ptr<xpl::Session> session)
+template<xpl::Common_status_variables::Variable xpl::Common_status_variables::*variable>
+inline void update_status(ngs::shared_ptr<xpl::Session> session)
 {
   if (session)
-    xpl::Server::update_status_variable<method>(session->get_status_variables());
+    ++(session->get_status_variables().*variable);
+  ++(Global_status_variables::instance().*variable);
+}
+
+
+template<xpl::Common_status_variables::Variable xpl::Common_status_variables::*variable>
+inline void update_status(ngs::shared_ptr<xpl::Session> session, long param)
+{
+  if (session)
+    (session->get_status_variables().*variable) += param;
+  (Global_status_variables::instance().*variable) += param;
 }
 } // namespace
 
 
 void Protocol_monitor::on_notice_warning_send()
 {
-  update_status_variable<&Common_status_variables::inc_notice_warning_sent>(m_client->get_session());
+  update_status<&Common_status_variables::m_notice_warning_sent>(m_client->get_session());
 }
 
 
 void Protocol_monitor::on_notice_other_send()
 {
-  update_status_variable<&Common_status_variables::inc_notice_other_sent>(m_client->get_session());
+  update_status<&Common_status_variables::m_notice_other_sent>(m_client->get_session());
 }
 
 
 void Protocol_monitor::on_error_send()
 {
-  update_status_variable<&Common_status_variables::inc_errors_sent>(m_client->get_session());
+  update_status<&Common_status_variables::m_errors_sent>(m_client->get_session());
 }
 
 
 void Protocol_monitor::on_fatal_error_send()
 {
-  Global_status_variables::instance().increment_sessions_fatal_errors_count();
+  ++Global_status_variables::instance().m_sessions_fatal_errors_count;
 }
 
 
 void Protocol_monitor::on_init_error_send()
 {
-  Global_status_variables::instance().increment_init_errors_count();
+  ++Global_status_variables::instance().m_init_errors_count;
 }
 
 
 void Protocol_monitor::on_row_send()
 {
-  update_status_variable<&Common_status_variables::inc_rows_sent>(m_client->get_session());
+  update_status<&Common_status_variables::m_rows_sent>(m_client->get_session());
 }
 
 
 void Protocol_monitor::on_send(long bytes_transferred)
 {
-  Global_status_variables::instance().inc_bytes_sent(bytes_transferred);
-
-  ngs::shared_ptr<xpl::Session> session(m_client->get_session());
-  if (session)
-    session->get_status_variables().inc_bytes_sent(bytes_transferred);
+  update_status<&Common_status_variables::m_bytes_sent>(m_client->get_session(), bytes_transferred);
 }
 
 
 void Protocol_monitor::on_receive(long bytes_transferred)
 {
-  Global_status_variables::instance().inc_bytes_received(bytes_transferred);
+  update_status<&Common_status_variables::m_bytes_received>(m_client->get_session(), bytes_transferred);
+}
 
-  ngs::shared_ptr<xpl::Session> session(m_client->get_session());
-  if (session)
-    session->get_status_variables().inc_bytes_received(bytes_transferred);
+
+void Protocol_monitor::on_unknown_msg_type()
+{
+  update_status<&Common_status_variables::m_unknown_message_type>(m_client->get_session());
 }
