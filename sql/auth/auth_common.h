@@ -781,5 +781,10 @@ extern my_bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #endif /* HAVE_OPENSSL && !HAVE_YASSL */
 
+#define DEFAULT_SSL_CA_CERT     "ca.pem"
+#define DEFAULT_SSL_CA_KEY      "ca-key.pem"
+#define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
+#define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
+
 #endif /* AUTH_COMMON_INCLUDED */
 

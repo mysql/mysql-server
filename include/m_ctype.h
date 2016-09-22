@@ -267,7 +267,7 @@ typedef struct my_collation_handler_st
   size_t    (*strnxfrmlen)(const struct charset_info_st *, size_t);
   my_bool (*like_range)(const struct charset_info_st *,
 			const char *s, size_t s_length,
-			pchar w_prefix, pchar w_one, pchar w_many, 
+			char w_prefix, char w_one, char w_many,
 			size_t res_length,
 			char *min_str, char *max_str,
 			size_t *min_len, size_t *max_len);
@@ -669,7 +669,7 @@ int my_wildcmp_unicode(const CHARSET_INFO *cs,
 extern my_bool my_parse_charset_xml(MY_CHARSET_LOADER *loader,
                                     const char *buf, size_t buflen);
 extern char *my_strchr(const CHARSET_INFO *cs, const char *str,
-                       const char *end, pchar c);
+                       const char *end, char c);
 extern size_t my_strcspn(const CHARSET_INFO *cs, const char *str,
                          const char *end, const char *reject,
                          size_t reject_length);

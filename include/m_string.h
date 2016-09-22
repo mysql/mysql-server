@@ -33,6 +33,13 @@
 #define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov
 #define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov
 
+/**
+  Definition of the null string (a null pointer of type char *),
+  used in some of our string handling code. New code should use
+  nullptr instead.
+*/
+#define NullS (char *) 0
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -87,7 +94,7 @@ static inline char *strend(const char *s)
   strcend(s, c) returns a pointer to the  first  place  in  s where  c
   occurs,  or a pointer to the end-null of s if c does not occur in s.
 */
-static inline char *strcend(const char *s, pchar c)
+static inline char *strcend(const char *s, char c)
 {
   for (;;)
   {
@@ -103,7 +110,7 @@ static inline char *strcend(const char *s, pchar c)
   string is of length == len. The des+len character is allways set to NULL.
   strfill() returns pointer to dest+len;
 */
-static inline char *strfill(char *s, size_t len, pchar fill)
+static inline char *strfill(char *s, size_t len, char fill)
 {
   while (len--)
     *s++ = fill;

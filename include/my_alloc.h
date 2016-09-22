@@ -21,6 +21,15 @@
 #ifndef _my_alloc_h
 #define _my_alloc_h
 
+/*
+  How much overhead does malloc have. The code often allocates
+  something like 1024-MALLOC_OVERHEAD bytes
+*/
+#define MALLOC_OVERHEAD 8
+
+/* Typical record cache */
+#define RECORD_CACHE_SIZE      (uint) (64*1024-MALLOC_OVERHEAD)
+
 #define ALLOC_MAX_BLOCK_TO_DROP			4096
 #define ALLOC_MAX_BLOCK_USAGE_BEFORE_DROP	10
 

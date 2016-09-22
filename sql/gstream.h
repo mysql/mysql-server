@@ -20,6 +20,7 @@
 #include <stddef.h>
 
 #include "m_ctype.h"           /* my_charset_latin1, my_charset_bin */
+#include "m_string.h"
 #include "my_global.h"                          /* NULL, NullS */
 #include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
