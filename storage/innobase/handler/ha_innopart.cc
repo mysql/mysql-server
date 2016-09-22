@@ -3645,7 +3645,8 @@ ha_innopart::info_low(
 			    && avail_space != ULINT_UNDEFINED) {
 
 				/* Only count system tablespace once! */
-				if (is_system_tablespace(ib_table->space)) {
+				if (fsp_is_system_or_temp_tablespace(
+						ib_table->space)) {
 					if (checked_sys_tablespace) {
 						continue;
 					}

@@ -3964,7 +3964,7 @@ row_make_new_pathname(
 	char*	new_path;
 	char*	old_path;
 
-	ut_ad(!is_system_tablespace(table->space));
+	ut_ad(dict_table_is_file_per_table(table));
 
 	old_path = fil_space_get_first_path(table->space);
 	ut_a(old_path);

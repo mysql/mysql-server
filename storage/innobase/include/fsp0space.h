@@ -203,9 +203,6 @@ public:
 		return(&m_files.front());
 	}
 
-	/** Check if undo tablespace.
-	@return true if undo tablespace */
-	static bool is_undo_tablespace(ulint id);
 private:
 	/**
 	@param[in]	filename	Name to lookup in the data files.

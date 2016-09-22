@@ -715,6 +715,44 @@ fseg_print(
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 #endif /* UNIV_BTR_PRINT */
 
+/** Check if the space_id is for a system-tablespace (shared + temp).
+@param[in]	space_id	tablespace ID
+@return true if id is a system tablespace, false if not. */
+UNIV_INLINE
+bool
+fsp_is_system_or_temp_tablespace(space_id_t space_id)
+{
+	return(space_id == TRX_SYS_SPACE
+		|| fsp_is_system_temporary(space_id));
+}
+
+/** Determine if the space ID is an IBD tablespace, either file_per_table
+or a general shared tablespace, where user tables exist.
+@param[in]	space_id	tablespace ID
+@return true if it is a user tablespace ID */
+UNIV_INLINE
+bool
+fsp_is_ibd_tablespace(space_id_t space_id)
+{
+	return(space_id != TRX_SYS_SPACE
+		&& !fsp_is_undo_tablespace(space_id)
+		&& !fsp_is_system_temporary(space_id));
+}
+
+/** Check if tablespace is file-per-table.
+@param[in]	space_id	tablespace ID
+@param[in]	fsp_flags	tablespace flags
+@return true if tablespace is file-per-table. */
+UNIV_INLINE
+bool
+fsp_is_file_per_table(
+	space_id_t	space_id,
+	ulint		fsp_flags)
+{
+	return(!fsp_is_shared_tablespace(fsp_flags)
+		&& fsp_is_ibd_tablespace(space_id));
+}
+
 /** Determine if the tablespace is compressed from tablespace flags.
 @param[in]	flags	Tablespace flags
 @return true if compressed, false if not compressed */

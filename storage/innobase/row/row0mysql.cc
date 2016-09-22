@@ -3687,7 +3687,7 @@ row_discard_tablespace_begin(
 
 	if (table) {
 		dict_stats_wait_bg_to_stop_using_table(table, trx);
-		ut_a(!is_system_tablespace(table->space));
+		ut_a(dict_table_is_file_per_table(table));
 		ut_a(table->n_foreign_key_checks_running == 0);
 	}
 
@@ -3952,7 +3952,7 @@ row_discard_tablespace_for_mysql(
 
 		err = DB_ERROR;
 
-	} else if (table->space == srv_sys_space.space_id()) {
+	} else if (table->space == TRX_SYS_SPACE) {
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
@@ -4707,7 +4707,7 @@ row_drop_table_for_mysql(
 		/* Do not attempt to drop known-to-be-missing tablespaces,
 		nor system or shared general tablespaces. */
 		if (is_discarded || ibd_file_missing || is_temp || shared_tablespace
-		    || is_system_tablespace(space_id)) {
+		    || fsp_is_system_or_temp_tablespace(space_id)) {
 			/* For encrypted table, if ibd file can not be decrypt,
 			we also set ibd_file_missing. We still need to try to
 			remove the ibd file for this. */

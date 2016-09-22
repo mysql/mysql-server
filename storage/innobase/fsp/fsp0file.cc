@@ -539,7 +539,7 @@ Datafile::validate_first_page(lsn_t*	flush_lsn,
 
 	/* Check if the whole page is blank. */
 	if (error_txt == NULL
-	    && m_space_id == srv_sys_space.space_id()
+	    && m_space_id == TRX_SYS_SPACE
 	    && !m_flags) {
 		const byte*	b		= m_first_page;
 		ulint		nonzero_bytes	= UNIV_PAGE_SIZE;

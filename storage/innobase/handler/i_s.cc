@@ -5915,7 +5915,7 @@ i_s_dict_fill_sys_tables(
 		row_format = "Dynamic";
 	}
 
-	if (is_system_tablespace(table->space)) {
+	if (fsp_is_system_or_temp_tablespace(table->space)) {
 		space_type = "System";
 	} else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
 		space_type = "General";
@@ -7920,7 +7920,7 @@ i_s_dict_fill_sys_tablespaces(
 
 	DBUG_ENTER("i_s_dict_fill_sys_tablespaces");
 
-	if (is_system_tablespace(space)) {
+	if (fsp_is_system_or_temp_tablespace(space)) {
 		row_format = "Compact or Redundant";
 	} else if (fsp_is_shared_tablespace(flags) && !is_compressed) {
 		row_format = "Any";
@@ -7932,7 +7932,7 @@ i_s_dict_fill_sys_tablespaces(
 		row_format = "Compact or Redundant";
 	}
 
-	if (is_system_tablespace(space)) {
+	if (fsp_is_system_or_temp_tablespace(space)) {
 		space_type = "System";
 	} else if (fsp_is_shared_tablespace(flags)) {
 		space_type = "General";
@@ -8403,7 +8403,7 @@ i_s_files_table_fill(
 			space = NULL;
 			continue;
 		case FIL_TYPE_TABLESPACE:
-			if (srv_is_undo_tablespace(space()->id)) {
+			if (fsp_is_undo_tablespace(space()->id)) {
 				type = "UNDO LOG";
 				break;
 			} /* else fall through for TABLESPACE */
@@ -8418,8 +8418,7 @@ i_s_files_table_fill(
 		page_size_t	page_size(space()->flags);
 
 		/* Single-table tablespaces are assigned to a schema. */
-		if (!is_predefined_tablespace(space()->id)
-		    && !FSP_FLAGS_GET_SHARED(space()->flags)) {
+		if (fsp_is_file_per_table(space()->id, space()->flags)) {
 			/* Their names will be like "test/t1" */
 			ut_ad(NULL != strchr(space()->name, '/'));
 
@@ -8440,7 +8439,7 @@ i_s_files_table_fill(
 			space_name = file_per_table_name;
 		} else {
 			/* Only file-per-table space names contain '/'.
-                        This is not file-per-table . */
+			This is not file-per-table . */
 			ut_ad(NULL == strchr(space()->name, '/'));
 
 			space_name = space()->name;
@@ -8476,9 +8475,9 @@ i_s_files_table_fill(
 			OK(field_store_ulint(fields[IS_FILES_MAXIMUM_SIZE],
 				node->max_size * page_size.physical()));
 		}
-		if (space()->id == srv_sys_space.space_id()) {
+		if (space()->id == TRX_SYS_SPACE) {
 			extend_pages = srv_sys_space.get_increment();
-		} else if (space()->id == srv_tmp_space.space_id()) {
+		} else if (fsp_is_system_temporary(space()->id)) {
 			extend_pages = srv_tmp_space.get_increment();
 		} else {
 			extend_pages = fsp_get_pages_to_extend_ibd(

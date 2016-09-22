@@ -4376,7 +4376,7 @@ buf_page_init(
 	buf_block_set_file_page(block, page_id);
 
 #ifdef UNIV_DEBUG_VALGRIND
-	if (is_system_tablespace(page_id.space())) {
+	if (page_id.space() == TRX_SYS_SPACE) {
 		/* Silence valid Valgrind warnings about uninitialized
 		data being written to data files.  There are some unused
 		bytes on some pages that InnoDB does not initialize. */
@@ -5147,8 +5147,8 @@ corrupt:
 		    && !recv_no_ibuf_operations
 		    && fil_page_get_type(frame) == FIL_PAGE_INDEX
 		    && page_is_leaf(frame)
-		    && bpage->id.space() != srv_tmp_space.space_id()
-		    && !Tablespace::is_undo_tablespace(bpage->id.space())) {
+		    && !fsp_is_system_temporary(bpage->id.space())
+		    && !fsp_is_undo_tablespace(bpage->id.space())) {
 			ibuf_merge_or_delete_for_page(
 				(buf_block_t*) bpage, bpage->id,
 				&bpage->size, TRUE);

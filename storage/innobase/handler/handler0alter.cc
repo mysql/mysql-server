@@ -5403,7 +5403,8 @@ ha_innobase::prepare_inplace_alter_table(
 	(the create options have tablespace=='innodb_system' and the
 	SHARED_SPACE flag is set in the table flags) so it can no longer be
 	implicitly moved to a file-per-table tablespace. */
-	bool	in_system_space = is_system_tablespace(indexed_table->space);
+	bool	in_system_space
+		= fsp_is_system_or_temp_tablespace(indexed_table->space);
 	bool	is_file_per_table = !in_system_space
 			&& !DICT_TF_HAS_SHARED_SPACE(indexed_table->flags);
 #ifdef UNIV_DEBUG
