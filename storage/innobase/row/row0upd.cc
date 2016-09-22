@@ -154,7 +154,7 @@ row_upd_index_is_referenced(
 	}
 
 	if (trx->dict_operation_lock_mode == 0) {
-		row_mysql_freeze_data_dictionary(trx);
+		//row_mysql_freeze_data_dictionary(trx);
 		froze_data_dict = TRUE;
 	}
 
@@ -166,7 +166,7 @@ row_upd_index_is_referenced(
 	is_referenced = (it != table->referenced_set.end());
 
 	if (froze_data_dict) {
-		row_mysql_unfreeze_data_dictionary(trx);
+		//row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	return(is_referenced);
@@ -232,7 +232,7 @@ row_upd_check_references_constraints(
 	if (trx->dict_operation_lock_mode == 0) {
 		got_s_lock = TRUE;
 
-		row_mysql_freeze_data_dictionary(trx);
+		//row_mysql_freeze_data_dictionary(trx);
 	}
 
 	for (dict_foreign_set::iterator it = table->referenced_set.begin();
@@ -285,7 +285,7 @@ row_upd_check_references_constraints(
 
 func_exit:
 	if (got_s_lock) {
-		row_mysql_unfreeze_data_dictionary(trx);
+		//row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	mem_heap_free(heap);

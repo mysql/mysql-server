@@ -117,6 +117,11 @@ bool acquire_shared_table_mdl(THD *thd,
                               bool no_wait,
                               MDL_ticket **out_mdl_ticket);
 
+bool acquire_exclusive_table_mdl(THD *thd,
+                              const char *schema_name,
+                              const char *table_name,
+                              bool no_wait,
+                              MDL_ticket **out_mdl_ticket);
 
 /**
   Predicate to check if we have a shared meta data lock on the

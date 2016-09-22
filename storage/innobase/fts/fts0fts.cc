@@ -1450,6 +1450,11 @@ fts_drop_table(
                         DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT));
 
 	if (table != 0) {
+		bool	file_per_table;
+		char	table_name2[MAX_FULL_NAME_LEN];
+
+		file_per_table = dict_table_is_file_per_table(table);
+		strcpy(table_name2, table_name);
 
 		dict_table_close(table, TRUE, FALSE);
 
@@ -1463,6 +1468,13 @@ fts_drop_table(
 			ib::error() << "Unable to drop FTS index aux table "
 				<< table_name << ": " << ut_strerr(error);
 		}
+
+		mutex_exit(&dict_sys->mutex);
+		if (error == DB_SUCCESS
+		    && !innobase_fts_drop_dd_table(table_name2, file_per_table)) {
+			error = DB_FAIL;
+		}
+		mutex_enter(&dict_sys->mutex);
 	} else {
 		error = DB_FAIL;
 	}
@@ -1830,6 +1842,12 @@ fts_create_one_common_table(
 		trx->dict_operation = op;
 	}
 
+	if (error == DB_SUCCESS
+	    && !innobase_fts_create_one_common_dd_table(
+				table, new_table, is_config)) {
+		error = DB_FAIL;
+	}
+
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
 		dict_mem_table_free(new_table);
@@ -1837,6 +1855,7 @@ fts_create_one_common_table(
 		ib::warn() << "Failed to create FTS common table "
 			<< fts_table_name;
 	}
+
 	return(new_table);
 }
 
@@ -1950,9 +1969,13 @@ func_exit:
 	if (error != DB_SUCCESS) {
 		for (it = common_tables.begin(); it != common_tables.end();
 		     ++it) {
-			row_drop_table_for_mysql(
-				(*it)->name.m_name, trx,
-				SQLCOM_DROP_DB, false, NULL);
+			dberr_t	err;
+			err = fts_drop_table(trx, (*it)->name.m_name);
+
+			/* We only return the status of the last error. */
+			if (err != DB_SUCCESS && err != DB_FAIL) {
+				error = err;
+			}
 		}
 	}
 
@@ -2036,8 +2059,15 @@ fts_create_one_index_table(
 		trx->dict_operation = op;
 	}
 
+	if (error == DB_SUCCESS
+	    && !innobase_fts_create_one_index_dd_table(
+			fts_table->table, new_table, charset)) {
+		error = DB_FAIL;
+	}
+
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
+		//dict_table_remove_from_cache(new_table);
 		dict_mem_table_free(new_table);
 		new_table = NULL;
 		ib::warn() << "Failed to create FTS index table "
@@ -2107,10 +2137,16 @@ fts_create_index_tables_low(
 	if (error != DB_SUCCESS) {
 		for (it = aux_idx_tables.begin(); it != aux_idx_tables.end();
 		     ++it) {
-			row_drop_table_for_mysql(
-				(*it)->name.m_name, trx, false);
+			dberr_t	err;
+			err = fts_drop_table(trx, (*it)->name.m_name);
+
+			/* We only return the status of the last error. */
+			if (err != DB_SUCCESS && err != DB_FAIL) {
+				error = err;
+			}
 		}
 	}
+
 
 	aux_idx_tables.clear();
 	mem_heap_free(heap);
@@ -6787,9 +6823,7 @@ fts_drop_obsolete_aux_table_from_vector(
 		trx_drop->dict_operation_lock_mode = RW_X_LATCH;
 		trx_start_for_ddl(trx_drop, TRX_DICT_OP_TABLE);
 
-		err = row_drop_table_for_mysql(
-			aux_drop_table->name, trx_drop, SQLCOM_DROP_DB,
-			false, NULL);
+		err = fts_drop_table(trx_drop, aux_drop_table->name);
 
 		trx_drop->dict_operation_lock_mode = 0;
 
@@ -6838,6 +6872,7 @@ fts_drop_aux_table_from_vector(
 				<< aux_drop_table->name << " not found.";
 
 			dberr_t err = fts_drop_table(trx, aux_drop_table->name);
+
 			if (err == DB_FAIL) {
 
 				char*	path = fil_make_filepath(

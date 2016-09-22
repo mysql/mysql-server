@@ -2425,9 +2425,9 @@ row_update_for_mysql_using_upd_graph(
 		check protect by the dictionary lock as well.
 		In the future, this can be removed once the Foreign
 		key MDL is implemented */
-		row_mysql_freeze_data_dictionary(trx);
+		//row_mysql_freeze_data_dictionary(trx);
 		init_fts_doc_id_for_ref(table, &fk_depth);
-		row_mysql_unfreeze_data_dictionary(trx);
+		//row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	node = prebuilt->upd_node;

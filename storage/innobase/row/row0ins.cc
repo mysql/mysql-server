@@ -1435,11 +1435,11 @@ row_ins_foreign_check_on_constraint(
 	will prevent other users from dropping or ALTERing the table when we
 	release the latch. */
 
-	row_mysql_unfreeze_data_dictionary(thr_get_trx(thr));
+//	row_mysql_unfreeze_data_dictionary(thr_get_trx(thr));
 
 	DEBUG_SYNC_C("innodb_dml_cascade_dict_unfreeze");
 
-	row_mysql_freeze_data_dictionary(thr_get_trx(thr));
+//	row_mysql_freeze_data_dictionary(thr_get_trx(thr));
 
 	mtr_start(mtr);
 
@@ -1579,7 +1579,7 @@ row_ins_check_foreign_constraint(
 
 	rec_offs_init(offsets_);
 
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
+//	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
 
 	err = DB_SUCCESS;
 
@@ -1925,7 +1925,7 @@ row_ins_check_foreign_constraints(
 			if (0 == trx->dict_operation_lock_mode) {
 				got_s_lock = TRUE;
 
-				row_mysql_freeze_data_dictionary(trx);
+//				row_mysql_freeze_data_dictionary(trx);
 			}
 
 			/* NOTE that if the thread ends up waiting for a lock
@@ -1937,7 +1937,7 @@ row_ins_check_foreign_constraints(
 				TRUE, foreign, table, entry, thr);
 
 			if (got_s_lock) {
-				row_mysql_unfreeze_data_dictionary(trx);
+//				row_mysql_unfreeze_data_dictionary(trx);
 			}
 
 			if (ref_table != NULL) {

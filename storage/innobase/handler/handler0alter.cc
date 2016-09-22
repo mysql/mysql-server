@@ -4430,7 +4430,7 @@ prepare_inplace_alter_table_global_dd(
 		    && strstr(new_table->name.m_name, "mysql/") == NULL) {
 			std::unique_ptr<dd::Tablespace> dd_space(
 				dd::create_object<dd::Tablespace>());
-			if (create_table_info_t::create_dd_tablespace(
+			if (innobase_create_dd_tablespace(
 				    client, thd, dd_space.get(),
 				    new_table->space)) {
 				ut_a(false);
@@ -4447,8 +4447,7 @@ prepare_inplace_alter_table_global_dd(
 		create_table_info_t::set_table_options(
 			new_dd_tab->table(), new_table);
 
-		create_table_info_t::write_dd_table(
-			dd_space_id, new_dd_tab, new_table);
+		innobase_write_dd_table(dd_space_id, new_dd_tab, new_table);
 
 	} else {
 		ut_ad(old_table == new_table);
@@ -4471,7 +4470,7 @@ prepare_inplace_alter_table_global_dd(
 			const dict_index_t*	new_idx = find_index(
 				ha_alter_info, new_table, idx);
 
-			create_table_info_t::write_dd_index(
+			innobase_write_dd_index(
 				dd_space_id, idx, new_idx);
 			new_idx = new_idx->next();
 		}
@@ -5143,6 +5142,9 @@ op_ok:
 					ctx->new_table, FTS_DOC_ID_INDEX_NAME);
 			DBUG_ASSERT(ctx->new_table->fts_doc_id_index != NULL);
 		}
+
+		/* Fixeme: set dd space id in dict_table_t. */
+		thread_local_dd_space_id = new_dd_tab->tablespace_id();
 
 		/* This function will commit the transaction and reset
 		the trx_t::dict_operation flag on success. */

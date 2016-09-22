@@ -62,6 +62,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dd/cache/dictionary_client.h"
 #include "dd/properties.h"
 #include "dd/sdi_tablespace.h"    // dd::sdi_tablespace::store
+#include "dd/dd_table.h"
+#include "dd/dd_schema.h"
 #include "dd/types/table.h"
 #include "dd/types/index.h"
 #include "dd/types/column.h"
@@ -211,6 +213,9 @@ my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
+
+/** dd table space id for creating fts dd table. */
+thread_local dd::Object_id thread_local_dd_space_id = dd::INVALID_OBJECT_ID;
 
 /** Note we cannot use rec_format_enum because we do not allow
 COMPRESSED row format for innodb_default_row_format option. */
@@ -3051,10 +3056,14 @@ ha_innobase::update_thd(
 
 	TrxInInnoDB	trx_in_innodb(trx);
 
+	/*Fixme: comment for wl#9530 InnoDB_New_DD: FTS index support
+	for newDD(i_innodb.fts_rename). */
+	/*
 	ut_ad(m_prebuilt->table->is_intrinsic()
 	      || trx_in_innodb.is_aborted()
 	      || (trx->dict_operation_lock_mode == 0
 		  && trx->dict_operation == TRX_DICT_OP_NONE));
+	*/
 
 	if (m_prebuilt->trx != trx) {
 
@@ -15212,7 +15221,7 @@ create_table_info_t::create_table_update_dict()
 @param[in,out]	dd_space	tablespace metadata
 @param[in]	space		internal space id */
 void
-create_table_info_t::dd_tablespace_set_name(
+innobase_set_dd_tablespace_name(
 	dd::Tablespace*	dd_space,
 	space_id_t	space)
 {
@@ -15226,13 +15235,13 @@ create_table_info_t::dd_tablespace_set_name(
 }
 
 bool
-create_table_info_t::create_dd_tablespace(
+innobase_create_dd_tablespace(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd,
 	dd::Tablespace*			dd_space,
 	space_id_t			space)
 {
-	dd_tablespace_set_name(dd_space, space);
+	innobase_set_dd_tablespace_name(dd_space, space);
 
         if (dd::acquire_exclusive_tablespace_mdl(
                     thd, dd_space->name().c_str(), true)) {
@@ -15303,38 +15312,32 @@ create_table_info_t::set_table_options(
 
 template<typename Table>
 void
-create_table_info_t::write_dd_table(
-	dd::Object_id	dd_space_id,
-	Table*		dd_table,
-	dict_table_t*	table)
+innobase_write_dd_table(
+	dd::Object_id		dd_space_id,
+	Table*			dd_table,
+	const dict_table_t*	table)
 {
 	/* Only set the tablespace id for tables in innodb_system tablespace */
 	if (dd_space_id == 1) {
 		dd_table->set_tablespace_id(dd_space_id);
 	}
 
-        dd_table->set_se_private_id(table->id);
+	dd_table->set_se_private_id(table->id);
 
-        const dict_index_t* index = table->first_index();
+	const dict_index_t* index = table->first_index();
 
-        for (auto dd_index : *dd_table->indexes()) {
-                ut_ad(index != NULL);
+	for (auto dd_index : *dd_table->indexes()) {
+		ut_ad(index != NULL);
 
-		write_dd_index(dd_space_id, dd_index, index);
+		innobase_write_dd_index(dd_space_id, dd_index, index);
 
-                index = index->next();
-        }	
+		index = index->next();
+	}
 }
-
-template void create_table_info_t::write_dd_table<dd::Table>(
-	dd::Object_id, dd::Table*, dict_table_t*);
-
-template void create_table_info_t::write_dd_table<dd::Partition>(
-	dd::Object_id, dd::Partition*, dict_table_t*);
 
 template<typename Index>
 void
-create_table_info_t::write_dd_index(
+innobase_write_dd_index(
 	dd::Object_id		dd_space_id,
 	Index*			dd_index,
 	const dict_index_t*	index)
@@ -15444,7 +15447,7 @@ create_table_info_t::create_table_update_global_dd(
 			dd::create_object<dd::Tablespace>());
 
 		/* This means user table and file_per_table */
-		if (create_dd_tablespace(client, m_thd, dd_space.get(),
+		if (innobase_create_dd_tablespace(client, m_thd, dd_space.get(),
 					 table->space)) {
 			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
@@ -15498,7 +15501,7 @@ create_table_info_t::create_table_update_global_dd(
 		set_table_options(dd_table->table(), table);
 	}
 
-	write_dd_table(dd_space_id, dd_table, table);
+	innobase_write_dd_table(dd_space_id, dd_table, table);
 
 	dict_table_close(table, FALSE, FALSE);
 
@@ -15611,6 +15614,544 @@ dd_add_hidden_column(
 	col->set_collation_id(my_charset_bin.number);
 
 	return(col);
+}
+
+/** Get dd tablespace id for fts table
+@param[in]	parent_table	parent table of fts table
+@param[in]	table		fts table
+@param[in,out]	dd_space_id	dd table space id
+@return true on success, false on failure. */
+bool
+innobase_get_dd_tablespace_id(
+	const dict_table_t*	parent_table,
+	const dict_table_t*	table,
+	dd::Object_id&		dd_space_id)
+{
+	char    db_name[NAME_LEN + 1];
+	char    table_name[NAME_LEN + 1];
+
+	innobase_parse_tbl_name(parent_table->name.m_name, db_name, table_name);
+
+	THD*	thd = current_thd;
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+	const dd::Table*	dd_table = nullptr;
+	if (client->acquire_uncached_uncommitted<dd::Table>(
+			db_name, table_name, &dd_table)) {
+		return(false);
+	}
+
+	dd::Object_id	space_id;
+	if (dd_table == nullptr) {
+		space_id = thread_local_dd_space_id;
+	} else {
+		space_id = dd_table->tablespace_id();
+	}
+
+	/* Refer to create_table_info_t::create_table_update_global_dd() */
+	/* The tablespace id here means:
+	1 for all the data dictionary tables;
+	2 for the tablespace of innodb_system;
+	3 for the tablespace specified with innodb_file_per_table explicitly
+	dd::INVALID_OBJECT_ID for no specified tablespace */
+	dd_space_id = dd::INVALID_OBJECT_ID;
+
+	if (dict_table_is_file_per_table(table)) {
+
+		std::unique_ptr<dd::Tablespace> dd_space(
+			dd::create_object<dd::Tablespace>());
+
+		/* This means user table and file_per_table */
+		bool	ret;
+
+		mutex_exit(&dict_sys->mutex);
+		ret = innobase_create_dd_tablespace(
+				client, thd, dd_space.get(), table->space);
+		mutex_enter(&dict_sys->mutex);
+		if (ret) {
+			return(false);
+		}
+
+		dd_space_id = dd_space.get()->id();
+	} else if (table->space != 0
+		   && table->space != srv_tmp_space.space_id()) {
+		/* This is a user table that resides in shared
+		tablesapce */
+		ut_ad(!dict_table_is_file_per_table(table));
+		ut_ad(DICT_TF_HAS_SHARED_SPACE(table->flags));
+
+		/* Currently the tablespace id is hard coded as 0 */
+		dd_space_id = space_id;
+
+		const dd::Tablespace*	index_space = NULL;
+		if (client->acquire<dd::Tablespace>(space_id, &index_space)) {
+			return(false);
+		}
+
+		uint32	id;
+		if (index_space == NULL) {
+			return(false);
+		} else if (index_space->se_private_data().get_uint32(
+				    dd_space_key_strings[DD_SPACE_ID], &id)
+			   || id != table->space) {
+			ut_ad(!"missing or incorrect tablespace id");
+			return(false);
+		}
+	} else {
+		/* This is a user table that resides in innodb_system
+		tablespace, or it is a temporary table nothing to do now */
+		ut_ad(table->space == 0
+		      || table->space == srv_tmp_space.space_id());
+		ut_ad(!dict_table_is_file_per_table(table));
+		if (table->space !=  srv_tmp_space.space_id()) {
+			dd_space_id = 1;
+		}
+	}
+
+	return(true);
+}
+
+/** Create dd table for fts aux index table
+@param[in]	parent_table	parent table of fts table
+@param[in]	table		fts table
+@param[in]	charset		fts index charset
+@return true on success, false on failure */
+bool
+innobase_fts_create_one_index_dd_table(
+	const dict_table_t*	parent_table,
+	const dict_table_t*	table,
+	const CHARSET_INFO*	charset)
+{
+	ut_ad(charset != nullptr);
+
+	char    db_name[NAME_LEN + 1];
+	char    table_name[NAME_LEN + 1];
+
+	innobase_parse_tbl_name(table->name.m_name, db_name, table_name);
+
+	/* Create dd::Table object */
+	THD*	thd = current_thd;
+	dd::Schema_MDL_locker	mdl_locker(thd);
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+	const dd::Schema*	schema = nullptr;
+	if (mdl_locker.ensure_locked(db_name)
+	    || client->acquire<dd::Schema>(db_name, &schema)) {
+		return(false);
+	}
+
+	/* Check if schema is nullptr? */
+	if (schema == nullptr) {
+		my_error(ER_BAD_DB_ERROR, MYF(0), db_name);
+		return(false);
+	}
+
+	std::unique_ptr<dd::Table>	dd_table_obj(dd::create_object<dd::Table>());
+	dd::Table*			dd_table = dd_table_obj.get();
+
+	dd_table->set_name(table_name);
+	dd_table->set_engine(handler_name);
+	dd_table->set_schema_id(schema->id());
+	//dd_table->set_tablespace_id();
+	dd_table->set_collation_id(charset->number);
+
+	dd::Table::enum_row_format row_format;
+	switch (dict_tf_get_rec_format(table->flags)) {
+	case REC_FORMAT_REDUNDANT:
+		row_format = dd::Table::RF_REDUNDANT;
+		break;
+	case REC_FORMAT_COMPACT:
+		row_format = dd::Table::RF_COMPACT;
+		break;
+	case REC_FORMAT_COMPRESSED:
+		row_format = dd::Table::RF_COMPRESSED;
+		break;
+	case REC_FORMAT_DYNAMIC:
+		row_format = dd::Table::RF_DYNAMIC;
+		break;
+	default:
+		ut_ad(0);
+	}
+
+	dd_table->set_row_format(row_format);
+
+	/* Fixme: set correct fields(get from parent table?) */
+	dd::Properties *table_options= &dd_table->options();
+	table_options->set_bool("pack_record", true);
+	table_options->set_bool("checksum", false);
+	table_options->set_bool("delay_key_write", false);
+	table_options->set_uint32("avg_row_length", 0);
+	table_options->set_uint32("stats_sample_pages", 0);
+	table_options->set_uint32("stats_auto_recalc",
+				  HA_STATS_AUTO_RECALC_DEFAULT);
+	table_options->set_uint32("key_block_size", 0);
+	//table_options->set("compress", );
+	//table_options->set("encrypt_type", );
+	//table_options->set_uint32("storage", ); ?
+
+
+	/* Fill columns */
+	/* 1st column: word */
+	dd::Column*	col = dd_table->add_column();
+	col->set_name("word");
+	col->set_type(dd::enum_column_types::VARCHAR);
+	col->set_char_length(FTS_INDEX_WORD_LEN);
+	col->set_nullable(false);
+	col->set_collation_id(charset->number);
+
+	dd::Column*	key_col1 = col;
+
+	/* 2nd column: first_doc_id */
+	col = dd_table->add_column();
+	col->set_name("first_doc_id");
+	col->set_type(dd::enum_column_types::LONGLONG);
+	col->set_char_length(20);
+	col->set_numeric_scale(0);
+	col->set_nullable(false);
+	col->set_unsigned(true);
+	/* Fixme? set a right one */
+	col->set_collation_id(charset->number);
+
+	dd::Column*	key_col2 = col;
+
+	/* 3rd column: last_doc_id */
+	col = dd_table->add_column();
+	col->set_name("last_doc_id");
+	col->set_type(dd::enum_column_types::LONGLONG);
+	col->set_char_length(20);
+	col->set_numeric_scale(0);
+	col->set_nullable(false);
+	col->set_unsigned(true);
+	col->set_collation_id(charset->number);
+
+	/* 4th column: doc_count */
+	col = dd_table->add_column();
+	col->set_name("doc_count");
+	col->set_type(dd::enum_column_types::LONG);
+	col->set_char_length(4);
+	col->set_numeric_scale(0);
+	col->set_nullable(false);
+	col->set_unsigned(true);
+	col->set_collation_id(charset->number);
+
+	/* 5th column: ilist */
+	col = dd_table->add_column();
+	col->set_name("ilist");
+	col->set_type(dd::enum_column_types::BLOB);
+	col->set_char_length(8);
+	col->set_nullable(false);
+	col->set_collation_id(my_charset_bin.number);
+
+	/* Fill index */
+	dd::Index*	index = dd_table->add_index();
+	index->set_name("FTS_INDEX_TABLE_IND");
+	index->set_algorithm(dd::Index::IA_BTREE);
+	index->set_algorithm_explicit(false);
+	index->set_visible(true);
+	index->set_type(dd::Index::IT_PRIMARY);
+	index->set_ordinal_position(1);
+	index->set_generated(false);
+	index->set_engine(dd_table->engine());
+	//index->->set_uint32("block_size", );
+
+	index->options().set_uint32("flags", 32);
+
+	dd::Index_element*	index_elem;
+	index_elem = index->add_element(key_col1);
+	index_elem->set_length(FTS_INDEX_WORD_LEN);
+
+	index_elem = index->add_element(key_col2);
+	index_elem->set_length(FTS_INDEX_FIRST_DOC_ID_LEN);
+
+	/* Fill table space info, etc */
+	dd::Object_id	dd_space_id;
+	if (!innobase_get_dd_tablespace_id(
+			parent_table, table, dd_space_id)) {
+		return(false);
+	}
+
+	innobase_write_dd_table(dd_space_id, dd_table, table);
+
+	MDL_ticket *mdl_ticket= NULL;
+	if (dd::acquire_exclusive_table_mdl(
+		thd, db_name, table_name, false, &mdl_ticket)) {
+		return(false);
+	}
+
+	/* Store table to dd */
+	mutex_exit(&dict_sys->mutex);
+	bool	fail = client->store(dd_table);
+	mutex_enter(&dict_sys->mutex);
+
+	if (fail) {
+		dd::release_mdl(thd, mdl_ticket);
+		return(false);
+	}
+
+	dd::release_mdl(thd, mdl_ticket);
+
+	return(true);
+}
+
+/** Create dd table for fts aux common table
+@param[in]	parent_table	parent table of fts table
+@param[in]	table		fts table
+@param[in]	is_config	flag whether it's fts aux configure table
+@return true on success, false on failure */
+bool
+innobase_fts_create_one_common_dd_table(
+	const dict_table_t*	parent_table,
+	const dict_table_t*	table,
+	bool			is_config)
+{
+	char    db_name[NAME_LEN + 1];
+	char    table_name[NAME_LEN + 1];
+
+	innobase_parse_tbl_name(table->name.m_name, db_name, table_name);
+
+	/* Create dd::Table object */
+	THD*	thd = current_thd;
+	dd::Schema_MDL_locker	mdl_locker(thd);
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+	const dd::Schema*	schema = nullptr;
+	if (mdl_locker.ensure_locked(db_name)
+	    || client->acquire<dd::Schema>(db_name, &schema)) {
+		return(false);
+	}
+
+	/* Check if schema is nullptr? */
+	if (schema == nullptr) {
+		my_error(ER_BAD_DB_ERROR, MYF(0), db_name);
+		return(false);
+	}
+
+	std::unique_ptr<dd::Table>	dd_table_obj(dd::create_object<dd::Table>());
+	dd::Table*			dd_table = dd_table_obj.get();
+
+	dd_table->set_name(table_name);
+	dd_table->set_engine(handler_name);
+	dd_table->set_schema_id(schema->id());
+	//dd_table->set_tablespace_id();
+	dd_table->set_collation_id(my_charset_bin.number);
+
+	dd::Table::enum_row_format row_format;
+	switch (dict_tf_get_rec_format(table->flags)) {
+	case REC_FORMAT_REDUNDANT:
+		row_format = dd::Table::RF_REDUNDANT;
+		break;
+	case REC_FORMAT_COMPACT:
+		row_format = dd::Table::RF_COMPACT;
+		break;
+	case REC_FORMAT_COMPRESSED:
+		row_format = dd::Table::RF_COMPRESSED;
+		break;
+	case REC_FORMAT_DYNAMIC:
+		row_format = dd::Table::RF_DYNAMIC;
+		break;
+	default:
+		ut_ad(0);
+	}
+
+	dd_table->set_row_format(row_format);
+
+	/* Fixme: set correct fields(get from parent table?) */
+	dd::Properties *table_options= &dd_table->options();
+	table_options->set_bool("pack_record", true);
+	table_options->set_bool("checksum", false);
+	table_options->set_bool("delay_key_write", false);
+	table_options->set_uint32("avg_row_length", 0);
+	table_options->set_uint32("stats_sample_pages", 0);
+	table_options->set_uint32("stats_auto_recalc",
+				  HA_STATS_AUTO_RECALC_DEFAULT);
+	table_options->set_uint32("key_block_size", 0);
+	//table_options->set("compress", );
+	//table_options->set("encrypt_type", );
+	//table_options->set_uint32("storage", ); ?
+
+	/* Fill columns */
+	if (!is_config) {
+		/* 1st column: doc_id */
+		dd::Column*	col = dd_table->add_column();
+		col->set_name("doc_id");
+		col->set_type(dd::enum_column_types::LONGLONG);
+		col->set_char_length(20);
+		col->set_numeric_scale(0);
+		col->set_nullable(false);
+		col->set_unsigned(true);
+		/* Fixme? set a right one */
+		col->set_collation_id(my_charset_bin.number);
+
+		dd::Column*	key_col1 = col;
+
+		/* Fill index */
+		dd::Index*	index = dd_table->add_index();
+		index->set_name("FTS_COMMON_TABLE_IND");
+		index->set_algorithm(dd::Index::IA_BTREE);
+		index->set_algorithm_explicit(false);
+		index->set_visible(true);
+		index->set_type(dd::Index::IT_PRIMARY);
+		index->set_ordinal_position(1);
+		index->set_generated(false);
+		index->set_engine(dd_table->engine());
+		//index->->set_uint32("block_size", );
+
+		index->options().set_uint32("flags", 32);
+
+		dd::Index_element*	index_elem;
+		index_elem = index->add_element(key_col1);
+		index_elem->set_length(FTS_INDEX_FIRST_DOC_ID_LEN);
+	} else {
+		/* Fill columns */
+		/* 1st column: key */
+		dd::Column*	col = dd_table->add_column();
+		col->set_name("key");
+		col->set_type(dd::enum_column_types::VARCHAR);
+		col->set_char_length(FTS_CONFIG_TABLE_KEY_COL_LEN);
+		col->set_nullable(false);
+		col->set_collation_id(my_charset_latin1.number);
+
+		dd::Column*	key_col1 = col;
+
+		/* 2nd column: value */
+		col = dd_table->add_column();
+		col->set_name("value");
+		col->set_type(dd::enum_column_types::VARCHAR);
+		col->set_char_length(FTS_CONFIG_TABLE_VALUE_COL_LEN);
+		col->set_nullable(false);
+		col->set_collation_id(my_charset_latin1.number);
+
+		/* Fill index */
+		dd::Index*	index = dd_table->add_index();
+		index->set_name("FTS_COMMON_TABLE_IND");
+		index->set_algorithm(dd::Index::IA_BTREE);
+		index->set_algorithm_explicit(false);
+		index->set_visible(true);
+		index->set_type(dd::Index::IT_PRIMARY);
+		index->set_ordinal_position(1);
+		index->set_generated(false);
+		index->set_engine(dd_table->engine());
+		//index->->set_uint32("block_size", );
+
+		index->options().set_uint32("flags", 32);
+
+		dd::Index_element*	index_elem;
+		index_elem = index->add_element(key_col1);
+		index_elem->set_length(FTS_CONFIG_TABLE_KEY_COL_LEN);
+	}
+
+	/* Fill table space info, etc */
+	dd::Object_id	dd_space_id;
+	if (!innobase_get_dd_tablespace_id(
+			parent_table, table, dd_space_id)) {
+		return(false);
+	}
+
+	innobase_write_dd_table(dd_space_id, dd_table, table);
+
+	MDL_ticket *mdl_ticket= NULL;
+	if (dd::acquire_exclusive_table_mdl(
+		thd, db_name, table_name, false, &mdl_ticket)) {
+		return(false);
+	}
+
+	/* Store table to dd */
+	/* Store table to dd */
+	mutex_exit(&dict_sys->mutex);
+	bool	fail = client->store(dd_table);
+	mutex_enter(&dict_sys->mutex);
+
+	if (fail) {
+		dd::release_mdl(thd, mdl_ticket);
+		return(false);
+	}
+
+	dd::release_mdl(thd, mdl_ticket);
+
+	return(true);
+}
+
+/** Drop dd table & tablespace for fts aux table
+@param[in]	name		table name
+@param[in]	file_per_table	flag whether use file per table
+@return true on success, false on failure. */
+bool
+innobase_fts_drop_dd_table(
+	const char*	name,
+	bool		file_per_table)
+{
+	/* Get db/schema name and table_name */
+	char    db_name[MAX_DATABASE_NAME_LEN + 1];
+	char    table_name[MAX_TABLE_NAME_LEN + 1];
+	ulint   db_namelen = dict_get_db_name_len(name);
+	ulint   table_namelen = strlen(name) - db_namelen - 1;
+
+	strncpy(db_name, name, db_namelen);
+	db_name[db_namelen] = '\0';
+	strncpy(table_name, name + db_namelen + 1, table_namelen);
+	table_name[table_namelen] = '\0';
+
+	/* Create dd::Table object */
+	THD*	thd = current_thd;
+	dd::Schema_MDL_locker	mdl_locker(thd);
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+	MDL_ticket *mdl_ticket= NULL;
+	if (dd::acquire_exclusive_table_mdl(
+		thd, db_name, table_name, false, &mdl_ticket)) {
+		return(false);
+	}
+
+	const dd::Table*	dd_table = nullptr;
+	if (client->acquire_uncached_uncommitted<dd::Table>(
+			db_name, table_name, &dd_table)) {
+		dd::release_mdl(thd, mdl_ticket);
+		//my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
+		return(false);
+	}
+
+	if (dd_table == nullptr) {
+		dd::release_mdl(thd, mdl_ticket);
+		//my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
+		return(false);
+	}
+
+	/* Drop dd table space */
+	if (file_per_table) {
+		dd::Object_id   dd_space_id = (*dd_table->indexes().begin())
+			->tablespace_id();
+
+		const dd::Tablespace*	dd_space;
+		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+			    dd_space_id, &dd_space)) {
+			ut_a(false);
+		}
+
+		ut_a(dd_space != NULL);
+
+		if (dd::acquire_exclusive_tablespace_mdl(
+			    thd, dd_space->name().c_str(), false)) {
+			ut_a(false);
+		}
+
+		bool fail = client->drop_uncached(dd_space);
+		ut_a(!fail);
+		delete dd_space;
+	}
+
+	if (client->drop_uncached(dd_table)) {
+		dd::release_mdl(thd, mdl_ticket);
+		ut_ad(0);
+		return(false);
+	}
+
+	dd::release_mdl(thd, mdl_ticket);
+
+	return(true);
 }
 
 /** Add hidden columns and indexes to an InnoDB table definition.

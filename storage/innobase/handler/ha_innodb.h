@@ -35,6 +35,8 @@ extern const char reserved_system_space_name[];
 predefined shared temporary tablespace. */
 extern const char reserved_temporary_space_name[];
 
+extern thread_local dd::Object_id thread_local_dd_space_id;
+
 /* Structure defines translation table between mysql index and InnoDB
 index structures */
 struct innodb_idx_translate_t {
@@ -955,18 +957,6 @@ public:
 		dd::Table&	dd_table,
 		dict_table_t*	table);
 
-	template<typename Table>
-	static void write_dd_table(
-		dd::Object_id	dd_space_id,
-		Table*		dd_table,
-		dict_table_t*	table);
-
-	template<typename Index>
-	static void write_dd_index(
-		dd::Object_id		dd_space_id,
-		Index*			dd_index,
-		const dict_index_t*	index);
-
 private:
 	/** Parses the table name into normal name and either temp path or
 	remote path if needed.*/
@@ -1210,3 +1200,29 @@ innobase_build_v_templ_callback(
 /** Callback function definition, used by MySQL server layer to initialized
 the table virtual columns' template */
 typedef void (*my_gcolumn_templatecallback_t)(const TABLE*, void*);
+
+void
+innobase_set_dd_tablespace_name(
+	dd::Tablespace*	dd_space,
+	space_id_t	space);
+
+bool
+innobase_create_dd_tablespace(
+	dd::cache::Dictionary_client*	dd_client,
+	THD*				thd,
+	dd::Tablespace*			dd_space,
+	space_id_t			space);
+
+template<typename Table>
+void
+innobase_write_dd_table(
+	dd::Object_id		dd_space_id,
+	Table*			dd_table,
+	const dict_table_t*	table);
+
+template<typename Index>
+void
+innobase_write_dd_index(
+	dd::Object_id		dd_space_id,
+	Index*			dd_index,
+	const dict_index_t*	index);
