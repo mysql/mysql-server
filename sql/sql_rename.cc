@@ -289,17 +289,6 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   if (exists)
   {
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
-    /*
-      If we are upgrading on old data directory, we execute RENAME statement
-      via bootstrap thread. If the table already exist, the statement will fail.
-      Though my_error() is called for errors, it does not set DA error status
-      for bootstrap thread. Set OK status here to avoid the assert after
-      statement execution due to empty DA error status. Error will be handled
-      by caller function.
-    */
-    if (dd_upgrade_flag)
-      my_ok(thd);
-
     DBUG_RETURN(true);                         // This error cannot be skipped
   }
 

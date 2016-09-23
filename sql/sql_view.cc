@@ -824,17 +824,6 @@ err:
   lex->link_first_table_back(view, link_to_local);
   unit->cleanup(true);
 
-  /*
-    If we are upgrading on old data directory, the view might be
-    broken and ALTER will fail on view. Though my_error() is called
-    for errors, it does not set DA error status for bootstrap thread.
-    Set OK status here to avoid the assert after statement execution due
-    to empty DA error status. Error will be handled by called function.
-    View will be marked invalid from caller function.
-  */
-  if (dd_upgrade_flag)
-    my_ok(thd);
-
   DBUG_RETURN(res || thd->is_error());
 }
 

@@ -2132,13 +2132,10 @@ err:
 
       In this case, DD entry and DD cache will not be cleared here.
       Dictionary system will try to delete all dictionary tables.
-      Set OK status here to avoid the assert after statement execution
-      due to empty DA error status. Error will be handled by caller function.
     */
     if (dd_upgrade_flag &&
         dd::get_dictionary()->is_dd_table_name(db, table_name))
     {
-      my_ok(thd);
       DBUG_RETURN(true);
     }
 

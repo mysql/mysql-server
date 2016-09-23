@@ -49,6 +49,7 @@
 #include "dd/types/tablespace_file.h"         // dd::Tablespace_file
 #include "dd/types/tablespace.h"
 #include "dd/types/view.h"                    // dd::View
+#include "error_handler.h"                    // No_such_table_error_handler
 #include "handler.h"                          // dict_init_mode_t
 #include "log.h"                              // sql_print_warning()
 #include "m_ctype.h"
@@ -1163,10 +1164,64 @@ bool store_plugin_IS_table_metadata(THD *thd)
 }
 
 
+/**
+  Bootstrap thread executes SQL statements.
+  Any error in the execution of SQL statements causes call to my_error().
+  At this moment, error handler hook is set to my_message_stderr.
+  my_message_stderr() prints the error messages to standard error stream but
+  it does not follow the standard error format. Further, the error status is
+  not set in Diagnostics Area.
+
+  This class is to create RAII error handler hooks to be used when executing
+  statements from bootstrap thread.
+
+  It will print the error in the standard error format.
+  Diagnostics Area error status will be set to avoid asserts.
+  Error will be handler by caller function.
+*/
+
+class Bootstrap_error_handler
+{
+private:
+  void (*m_old_error_handler_hook)(uint, const char *, myf);
+
+
+  /**
+    Set the error in DA. Optionally print error in log.
+  */
+  static void my_message_bootstrap(uint error, const char *str, myf MyFlags)
+  {
+    my_message_sql(error, str, MyFlags | (m_log_error ? ME_ERRORLOG : 0));
+  }
+
+public:
+  Bootstrap_error_handler()
+  {
+    m_old_error_handler_hook= error_handler_hook;
+    error_handler_hook= my_message_bootstrap;
+  }
+
+  void set_log_error(bool log_error)
+  {
+    m_log_error= log_error;
+  }
+
+  ~Bootstrap_error_handler()
+  {
+    error_handler_hook= m_old_error_handler_hook;
+  }
+  static bool m_log_error;
+};
+bool Bootstrap_error_handler::m_log_error= true;
+
 // Delete dictionary tables
 static void delete_dictionary_and_cleanup(THD *thd,
               const System_tables::Const_iterator &last_table)
 {
+
+  // RAII to handle error messages.
+  Bootstrap_error_handler bootstrap_error_handler;
+
   // Set flag to delete DD tables only in SE and not from DD cache.
   dd_upgrade_flag= true;
 
@@ -1227,12 +1282,24 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   if (create_tables(thd, dd_upgrade_flag, nullptr))
     return true;
 
-  // Disable InnoDB warning in case it does not find mysql.version table.
+  // RAII to handle error messages.
+  Bootstrap_error_handler bootstrap_error_handler;
+
+  // Disable InnoDB warning in case it does not find mysql.version table, and
+  // ignore error at the SQL layer.
   ulong saved_verbosity= log_error_verbosity;
   log_error_verbosity= 1;
+  No_such_table_error_handler error_handler;
+  thd->push_internal_handler(&error_handler);
+  bootstrap_error_handler.set_log_error(false);
+
   bool exists= false;
   uint dd_version= d->get_actual_dd_version(thd, &exists);
+
+  // Reset log error verbosity and pop internal error handler.
   log_error_verbosity= saved_verbosity;
+  thd->pop_internal_handler();
+  bootstrap_error_handler.set_log_error(true);
 
   if (exists)
   {
@@ -1317,6 +1384,9 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
 bool upgrade_fill_dd_and_finalize(THD *thd)
 {
   bool error= false;
+
+  // RAII to handle error messages.
+  Bootstrap_error_handler bootstrap_error_handler;
 
   std::vector<dd::String_type> db_name;
   std::vector<dd::String_type>::iterator it;

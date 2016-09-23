@@ -247,10 +247,6 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     if (!schema_exists)
     {
       sql_print_error("System schema directory does not exist.");
-      // Must set OK explicitly to avoid send_statement_status() failing.
-      // Calling my_error() does not set the error status this early in the
-      // server startup sequence.
-      my_ok(thd);
       DBUG_RETURN(true);
     }
   }

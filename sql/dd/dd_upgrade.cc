@@ -1138,12 +1138,14 @@ static bool create_unlinked_view(THD *thd,
   @param[out] str       String object to store view definition.
   @param[in]  db_name   database name.
   @param[in]  view_name view name.
+  @param[in]  cs        Charset Information.
 */
 static void create_alter_view_stmt(THD *thd,
                                    TABLE_LIST *view_ref,
                                    String *str,
                                    const String_type &db_name,
-                                   const String_type &view_name)
+                                   const String_type &view_name,
+                                   const CHARSET_INFO *cs)
 {
   str->append(STRING_WITH_LEN("ALTER "));
   view_store_options(thd, view_ref, str);
@@ -1152,7 +1154,7 @@ static void create_alter_view_stmt(THD *thd,
   str->append('.');
   append_identifier(thd, str, view_name.c_str(), view_name.length());
   str->append(STRING_WITH_LEN(" AS "));
-  str->append(view_ref->select_stmt.str, view_ref->select_stmt.length);
+  str->append(view_ref->select_stmt.str, view_ref->select_stmt.length, cs);
   if (view_ref->with_check != VIEW_CHECK_NONE)
   {
     if (view_ref->with_check == VIEW_CHECK_LOCAL)
@@ -1203,6 +1205,7 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
 
   thd->variables.character_set_client= m_client_cs;
   thd->variables.collation_connection= m_connection_cl;
+  thd->update_charset();
 
   MEM_ROOT *m_mem_root= thd->mem_root;
   thd->mem_root= mem_root;
@@ -1212,9 +1215,9 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
   thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
                               MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
 
-  String full_view_definition;
+  String full_view_definition((char *)0, 0, m_connection_cl);
   create_alter_view_stmt(thd, view_ref, &full_view_definition,
-                         db_name, view_name);
+                         db_name, view_name, m_connection_cl);
 
   String db_query;
   db_query.append(STRING_WITH_LEN("USE "));
@@ -1240,8 +1243,11 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
     update_view_status(thd, db_name.c_str(), view_name.c_str(), false);
     error= false;
   }
+
+  // Restore variables
   thd->variables.character_set_client= client_cs;
   thd->variables.collation_connection= cs;
+  thd->update_charset();
   thd->mem_root= m_mem_root;
   thd->variables.sql_mode= saved_mode;
 
@@ -3625,7 +3631,7 @@ void drop_dd_tables_and_sdi_files(THD *thd,
   error|= execute_query(thd, "SET FOREIGN_KEY_CHECKS= 1");
 
   if (error)
-    sql_print_error("Unable to drop the DD unables during clean "
+    sql_print_error("Unable to drop the DD tables during clean "
                      "up after upgrade failure");
 
   // Iterate in data directory and delete all .SDI files
