@@ -2,7 +2,12 @@
 ## Ping
 --source include/have_debug_sync.inc
 --source ../include/xplugin_preamble.inc
-CREATE TABLE x(id int);
+
+##
+## Bug#23057045: CRASH WHEN RUNNING SHOW PROCESSLIST AFTER SYSBENCH RUN
+##
+
+CREATE TABLE x(id INT);
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/bug_23057045.tmp
 ## Test data
@@ -15,7 +20,7 @@ SET DEBUG_SYNC= 'bgc_after_enrolling_for_sync_stage SIGNAL opened WAIT_FOR xxxx_
 -->endsql
 
 Mysqlx.Sql.StmtExecute {
-  stmt: "insert into x(id) values(2);"
+  stmt: "INSERT INTO x(id) VALUES(2);"
   namespace: "sql"
 }
 
@@ -27,7 +32,7 @@ SET DEBUG_SYNC= 'bgc_after_enrolling_for_sync_stage SIGNAL xxxx_new';
 -->endsql
 
 Mysqlx.Sql.StmtExecute {
-  stmt: "insert into x(id) values(2);"
+  stmt: "INSERT INTO x(id) VALUES(2);"
   namespace: "sql"
 }
 
@@ -41,10 +46,13 @@ Mysqlx.Sql.StmtExecute {
 EOF
 
 --exec $MYSQLXTEST -uroot --password='' --schema=test --file=$MYSQL_TMP_DIR/bug_23057045.tmp 2>&1
-show processlist;
+
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
+--replace_result "init" STATE "starting" STATE "cleaning up" STATE
+--sorted_result
+SHOW PROCESSLIST;
 
 --remove_file $MYSQL_TMP_DIR/bug_23057045.tmp
-
 ## Postamble
-drop table x;
-uninstall plugin mysqlx;
+DROP TABLE x;
+UNINSTALL PLUGIN mysqlx;
