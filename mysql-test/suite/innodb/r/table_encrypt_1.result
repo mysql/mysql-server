@@ -250,6 +250,7 @@ DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=OFF;
 CREATE TABLE t1 (c1 int);
 ALTER TABLE t1 COMPRESSION='zlib';
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
 ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
 ERROR HY000: This tablespace can't be encrypted.
 SET GLOBAL innodb_file_per_table=1;
