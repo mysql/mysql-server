@@ -1,7 +1,7 @@
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
-CREATE TABLE x(id int);
+CREATE TABLE x(id INT);
 connecting...
 active session is now 'con1'
 connecting...
@@ -11,7 +11,7 @@ RUN SET DEBUG_SYNC= 'bgc_after_enrolling_for_sync_stage SIGNAL opened WAIT_FOR x
 
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
-  stmt: "insert into x(id) values(2);"
+  stmt: "INSERT INTO x(id) VALUES(2);"
   namespace: "sql"
 }
 
@@ -20,7 +20,7 @@ RUN SET DEBUG_SYNC= 'bgc_after_enrolling_for_sync_stage SIGNAL xxxx_new'
 
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
-  stmt: "insert into x(id) values(2);"
+  stmt: "INSERT INTO x(id) VALUES(2);"
   namespace: "sql"
 }
 
@@ -34,8 +34,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-show processlist;
+SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
-3	root	localhost	test	Query	0	starting	show processlist
-drop table x;
-uninstall plugin mysqlx;
+<ID>	root	<HOST_NAME>	test	Query	<TIME>	STATE	SHOW PROCESSLIST
+DROP TABLE x;
+UNINSTALL PLUGIN mysqlx;
