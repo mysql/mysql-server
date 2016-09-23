@@ -7013,7 +7013,7 @@ create_index_metadata(
 
 	dict_index_t*	index = dict_mem_index_create(
 		table->name.m_name, key.name, 0, type, n_fields);
-	
+
 	index->n_uniq = n_uniq;
 
 	const ulint	max_len	= DICT_MAX_FIELD_LEN_BY_FORMAT(table);
@@ -7444,6 +7444,7 @@ create_table_metadata(
 {
 	mem_heap_t*	heap;
 	bool		is_encrypted = false;
+	bool		is_discard = false;
 
 	ut_ad(m_thd != nullptr);
 	ut_ad(norm_name != nullptr);
@@ -7475,6 +7476,11 @@ create_table_metadata(
 		if (!Encryption::is_none(encrypt.c_str())) {
 			ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0);
 			is_encrypted = true;
+		}
+
+		/* Check discard flag. */
+		if (dd_part->table().options().exists("discard")) {
+			dd_part->table().options().get_bool("discard", &is_discard);
 		}
 	}
 
@@ -7516,6 +7522,11 @@ create_table_metadata(
 
 	if (is_encrypted) {
 		DICT_TF2_FLAG_SET(m_table, DICT_TF2_ENCRYPTION);
+	}
+
+	if (is_discard) {
+		m_table->ibd_file_missing = true;
+		m_table->flags2 |= DICT_TF2_DISCARDED;
 	}
 
 	if (!is_redundant) {
@@ -8324,7 +8335,7 @@ dd_table_open_on_id_low(
 	if (tbl_name) {
 		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf);
 		ut_ad(dd::has_shared_table_mdl(thd, db_buf, tbl_buf));
-	}	
+	}
 #endif /* UNIV_DEBUG */
 
 	const dd::Table*				dd_table;
@@ -8564,6 +8575,63 @@ dd_table_open_on_id(
 	}
 
 	return(ib_table);
+}
+
+/** Set the discard flag for a dd table.
+@param[in,out]	thd	current thread
+@param[in]	name	InnoDB table name
+@param[in]	discard	discard flag
+@retval false if fail. */
+bool
+dd_table_set_discard_flag(
+	THD*			thd,
+	const char*		name,
+	bool			discard)
+{
+	char			db_buf[NAME_LEN + 1];
+	char			tbl_buf[NAME_LEN + 1];
+	MDL_ticket*		mdl;
+	const dd::Table*	dd_table = nullptr;
+	bool			ret = false;
+
+	DBUG_ENTER("dd_table_set_discard_flag");
+	ut_ad(thd == current_thd);
+#ifdef UNIV_DEBUG
+	btrsea_sync_check       check(false);
+	ut_ad(!sync_check_iterate(check));
+#endif
+	ut_ad(!srv_is_being_shutdown);
+
+	innobase_parse_tbl_name(name, db_buf, tbl_buf);
+
+	if (dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
+		DBUG_RETURN(false);
+	}
+
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
+	if (!client->acquire(db_buf, tbl_buf, &dd_table)
+	    && dd_table != nullptr) {
+		if (dd_table->se_private_id() != dd::INVALID_OBJECT_ID) {
+			ut_ad(dd_table->partitions().empty());
+			/* Clone the dd table object. The clone is owned here,
+			and must be deleted eventually. */
+			std::unique_ptr<dd::Table> new_dd_table(dd_table->clone());
+			new_dd_table->table().options().set_bool("discard",
+								 discard);
+			client->update(&dd_table, new_dd_table.get());
+			ret = true;
+		} else {
+			ret = false;
+		}
+	} else {
+		ret = false;
+	}
+
+	dd_mdl_release(thd, &mdl);
+
+	DBUG_RETURN(ret);
 }
 
 /** Open an internal handle to a persistent InnoDB table by name.
@@ -15323,6 +15391,9 @@ create_table_info_t::set_table_options(
         dd::Table::enum_row_format      rf;
         dd::Properties& options = dd_table.options();
 
+	std::string datadir;
+	options.get(data_file_name_key, datadir);
+
         if (auto zip_ssize = DICT_TF_GET_ZIP_SSIZE(table->flags)) {
                 uint32  old_size;
                 if (!options.get_uint32("key_block_size", &old_size)
@@ -15433,7 +15504,7 @@ dd_get_space_id(const dd::Partition& partition)
               == (partition.parent() == nullptr));
 
         dd::Object_id   id = partition.tablespace_id();
-        if (id == dd::INVALID_OBJECT_ID) { 
+        if (id == dd::INVALID_OBJECT_ID) {
                 if (const dd::Partition* parent = partition.parent()) {
                         /* If there is no explicit TABLESPACE for the
                         subpartition, fall back to the TABLESPACE
@@ -15443,10 +15514,10 @@ dd_get_space_id(const dd::Partition& partition)
         }
         if (id == dd::INVALID_OBJECT_ID) {
                 /* If there is no explicit TABLESPACE for the partition,
-                fall back to the TABLESPACE of the table. */ 
+                fall back to the TABLESPACE of the table. */
                 id = partition.table().tablespace_id();
         }
-        return(id);  
+        return(id);
 }
 
 /** Update the global data dictionary.

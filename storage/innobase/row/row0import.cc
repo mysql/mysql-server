@@ -39,6 +39,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "ut0new.h"
 #include "dict0crea.h"
 #include "lob0lob.h"
+#include "dict0dd.h"
 
 #include <vector>
 
@@ -2259,6 +2260,8 @@ row_import_cleanup(
 	trx_t*		trx,		/*!< in/out: transaction for import */
 	dberr_t		err)		/*!< in: error code */
 {
+	THD*	thd = trx->mysql_thd;
+
 	ut_a(prebuilt->trx != trx);
 
 	if (err != DB_SUCCESS) {
@@ -2283,6 +2286,12 @@ row_import_cleanup(
 	DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
 
 	log_make_checkpoint_at(LSN_MAX, TRUE);
+
+	/* Set the TABLESPACE DISCARD flag in the table definition
+	on disk. */
+	dd_table_set_discard_flag(thd,
+				  prebuilt->table->name.m_name,
+				  false);
 
 	return(err);
 }
@@ -4140,13 +4149,14 @@ row_import_for_mysql(
 		return(row_import_error(prebuilt, trx, err));
 	}
 
+#if 0
 	/* Update the table's discarded flag, unset it. */
 	err = row_import_update_discarded_flag(trx, table->id, false, true);
 
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
 	}
-
+#endif
 	table->ibd_file_missing = false;
 	table->flags2 &= ~DICT_TF2_DISCARDED;
 
