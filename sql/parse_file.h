@@ -42,9 +42,9 @@ enum file_opt_type {
 
 struct File_option
 {
-  LEX_STRING name;		/**< Name of the option */
-  int offset;			/**< offset to base address of value */
-  file_opt_type type;		/**< Option type */
+  LEX_STRING name;              /**< Name of the option */
+  my_ptrdiff_t offset;          /**< offset to base address of value */
+  file_opt_type type;           /**< Option type */
 };
 
 

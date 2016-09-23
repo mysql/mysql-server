@@ -857,8 +857,7 @@ typedef long long	my_ptrdiff_t;
   and related routines are refactored.
 */
 
-#define my_offsetof(TYPE, MEMBER) \
-        ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
+#define my_offsetof(TYPE, MEMBER) PTR_BYTE_DIFF(&((TYPE *)0x10)->MEMBER, 0x10)
 
 #define NullS		(char *) 0
 
