@@ -295,6 +295,15 @@ sleep(1)
 command ok
 
 command ok
+
+0 rows affected
+1
+1
+0 rows affected
+SCHEMA_NAME	DIGEST	DIGEST_TEXT	COUNT_STAR
+null	21b6affb55f3e69c598b47257f4d0ec6	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest` 	1
+null	f29eded39dd5fa102f18987679dd0c14	SELECT ? 	1
+0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
