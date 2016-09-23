@@ -2220,6 +2220,12 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   my_free(data);
   my_free(pack_data);
 
+  DBUG_EXECUTE_IF("ndb_get_metadata_fail",
+                  {
+                    fprintf(stderr, "ndb_get_metadata_fail\n");
+                    error= HA_ERR_TABLE_DEF_CHANGED;
+                  });
+
   // Create field to column map when table is opened
   m_table_map = new Ndb_table_map(table, tab);
 
@@ -2777,7 +2783,6 @@ ha_ndbcluster::release_indexes(NdbDictionary::Dictionary *dict,
                                int invalidate)
 {
   DBUG_ENTER("ha_ndbcluster::release_indexes");
-  DBUG_ASSERT(m_table); // Should still be "open" when calling this function
 
   for (uint i= 0; i < MAX_KEY; i++)
   {
