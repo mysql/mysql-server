@@ -7946,8 +7946,10 @@ dd_open_table(
 			ut_ad(m_table->space == 0);
 			m_table->space = sid;
 
+			mutex_enter(&dict_sys->mutex);
 			dict_load_tablespace(m_table, heap,
 					     DICT_ERR_IGNORE_NONE);
+			mutex_exit(&dict_sys->mutex);
 			first_index = false;
 		}
 
