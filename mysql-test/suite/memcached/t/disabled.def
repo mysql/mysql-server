@@ -12,13 +12,4 @@ memc286_sdi_create  @solaris : Server eats up all memory
 
 memc220_fkey_1 : WL#7141 disables FOREIGN KEY until WL#7595
 memc248_fkey_2 : WL#7141 disables FOREIGN KEY until WL#7595
-
-memcached.memc287_sdi_corruption : WL#7881 removed INNODB_SYS_TABLES
-memc286_sdi_create : WL#7053 needs to be re-enabled
-memc288_set_sdi : WL#7053 needs to be re-enabled
-memc289_system_tablespace_sdi : WL#7053 needs to be re-enabled
-memc291_purge_sdi : WL#7053 needs to be re-enabled
-memc293_ibd2sdi : WL#7053 needs to be re-enabled
-memc292_ibd2sdi_system_tablespace : WL#7053 needs to be re-enabled
-
 memcached_alter_column  : Pending for fix. line 88: query 'reap' succeeded - should have failed

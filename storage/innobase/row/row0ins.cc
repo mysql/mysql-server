@@ -2747,6 +2747,17 @@ func_exit:
 
 	btr_pcur_close(&pcur);
 
+	DBUG_EXECUTE_IF("ib_sdi",
+		if (strncmp(index->table->name.m_name, "SDI", strlen("SDI")) == 0) {
+			ib::info() << "ib_sdi :row_ins_clust_index_entry_low: "
+				<< index->name
+				<< " " << index->table->name
+				<< " return status: " << err;
+			ib::info() << "SATYA:row_ins_clust_index_entry_low: entry: ";
+			dtuple_print(stderr, entry);
+		}
+	);
+
 	DBUG_RETURN(err);
 }
 

@@ -3319,6 +3319,14 @@ ib_sdi_set(
 	ut_ad(ib_sdi_key != NULL);
 	ut_ad(sdi != NULL);
 
+	DBUG_EXECUTE_IF("ib_sdi",
+		ib::info() << "ib_sdi: sdi_set: " << tablespace_id
+			<< "Key: " << ib_sdi_key->sdi_key->id
+			<< " " << ib_sdi_key->sdi_key->type
+			<< " copy_num: " << copy_num
+			<< " input_sdi " << (char*)sdi;
+	);
+
 	ib_crsr_t	ib_crsr = NULL;
 	ib_err_t	err = ib_sdi_open_table(
 		tablespace_id, copy_num, trx, &ib_crsr);
@@ -3337,6 +3345,15 @@ ib_sdi_set(
 	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_LE, 0);
 
 	if (err == DB_SUCCESS) {
+
+		DBUG_EXECUTE_IF("ib_sdi",
+			ib::info() << "ib_sdi: sdi_set: " << tablespace_id
+			<< "Key: " << ib_sdi_key->sdi_key->id
+			<< " " << ib_sdi_key->sdi_key->type
+			<< " copy_num: " << copy_num
+			<< " Existing row found";
+		);
+
 		/* Existing row found. We should update it. */
 		ib_tpl_t	old_tuple = ib_clust_read_tuple_create(ib_crsr);
 		ib_cursor_stmt_begin(ib_crsr);
@@ -3345,6 +3362,15 @@ ib_sdi_set(
 		err = ib_cursor_update_row(ib_crsr, old_tuple, new_tuple);
 		ib_tuple_delete(old_tuple);
 	} else {
+
+		DBUG_EXECUTE_IF("ib_sdi",
+			ib::info() << "ib_sdi: sdi_set: " << tablespace_id
+			<< "Key: " << ib_sdi_key->sdi_key->id
+			<< " " << ib_sdi_key->sdi_key->type
+			<< " copy_num: " << copy_num
+			<< "Fresh Insert";
+		);
+
 		/* Row not found. This is fresh insert */
 		err = ib_cursor_insert_row(ib_crsr, new_tuple);
 	}

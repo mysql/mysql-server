@@ -838,11 +838,13 @@ skip_secondaries:
 
 /***********************************************************//**
 Parses the row reference and other info in a modify undo log record.
-@param[in,out]	node		row undo node
-@param[in]	undo_rec	undo record to purge
-@param[out]	updated_extern	whether an externally stored field was updated
-@param[in,out]	thd		current thread
-@param[in,out]	thr		execution thread
+@param[in,out]	node			row undo node
+@param[in]	undo_rec		undo record to purge
+@param[out]	updated_extern		whether an externally stored field was updated
+@param[in,out]	thd			current thread
+@param[in,out]	thr			execution thread
+@param[in,out]	dict_op_lock_acquired	true if dict_operation_lock_acquired (only for
+					SDI tables)
 @return true if purge operation required */
 static
 bool
@@ -851,7 +853,8 @@ row_purge_parse_undo_rec(
 	trx_undo_rec_t*		undo_rec,
 	bool*			updated_extern,
 	THD*			thd,
-	que_thr_t*		thr)
+	que_thr_t*		thr,
+	bool*			dict_op_lock_acquired)
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -865,6 +868,8 @@ row_purge_parse_undo_rec(
 
 	ut_ad(node != NULL);
 	ut_ad(thr != NULL);
+
+	*dict_op_lock_acquired = false;
 
 	ptr = trx_undo_rec_get_pars(
 		undo_rec, &type, &node->cmpl_info,
@@ -900,7 +905,15 @@ try_again:
 
 	/* FIX_ME: NEW_DD, this is temporary solution as the system
 	tables are not yet coming with InnoDB private data */
-	if (table_id < 16) {
+
+	/* SDI tables are hidden tables and are not registered with global
+	dictionary. Open the table internally. Also acquire dict_operation
+	lock for SDI table to prevent concurrent DROP TABLE and purge */
+	if (table_id <= 16 || dict_table_is_sdi(table_id)) {
+		if (dict_table_is_sdi(table_id)) {
+			rw_lock_s_lock_inline(dict_operation_lock, 0, __FILE__, __LINE__);
+			*dict_op_lock_acquired = true;
+		}
 		node->table = dict_table_open_on_id(
 			table_id, FALSE, DICT_TABLE_OP_NORMAL);
 	} else {
@@ -975,13 +988,17 @@ try_again:
 		we do not have an index to call it with. */
 close_exit:
 		/* Purge requires no changes to indexes: we may return */
-		if (node->table->id < 16) {
+		if (node->table->id <= 16 || dict_table_is_sdi(node->table->id)) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
 			dd_table_close(node->table, thd, &node->mdl);
 		}
 err_exit:
+		if (*dict_op_lock_acquired) {
+			rw_lock_s_unlock(dict_operation_lock);
+			*dict_op_lock_acquired = false;
+		}
 		return(false);
 	}
 
@@ -1081,7 +1098,7 @@ row_purge_record_func(
                         node->mysql_table = nullptr;
                 }
 
-		if (node->table->id < 16) {
+		if (node->table->id <= 16 || dict_table_is_sdi(node->table->id)) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
@@ -1114,14 +1131,20 @@ row_purge(
 {
 	bool	updated_extern;
 	THD*	thd = current_thd;
+	bool 	dict_op_lock_acquired = false;
 
 	while (row_purge_parse_undo_rec(
-			node, undo_rec, &updated_extern, thd, thr)) {
+			node, undo_rec, &updated_extern, thd, thr, &dict_op_lock_acquired)) {
 
 		bool purged;
 
 		purged = row_purge_record(
 			node, undo_rec, thr, updated_extern, thd);
+
+		if (dict_op_lock_acquired) {
+			rw_lock_s_unlock(dict_operation_lock);
+			dict_op_lock_acquired = false;
+		}
 
 		if (purged || srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 			return;

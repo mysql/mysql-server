@@ -66,6 +66,9 @@ ENGINE = INNODB;
 # Tables must exist before plugin can be started!
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 
+# Memcached query issued before memcached gets activated
+--sleep 2
+
 let TABLE_NAME = t1;
 let MEMCACHED_TABLE_MAPPING = desc_t1;
 --source ../include/sdi_insert_get_row.inc
