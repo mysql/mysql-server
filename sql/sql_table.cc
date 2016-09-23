@@ -10106,8 +10106,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   // Ensure that triggers are in the same schema as their subject table.
   if (alter_ctx.is_database_changed())
   {
-    bool table_has_trigger;
-    if (dd::table_has_triggers(thd, alter_ctx.db, alter_ctx.table_name,
+    bool table_has_trigger= false;
+    if (table->s->tmp_table == NO_TMP_TABLE &&
+        dd::table_has_triggers(thd, alter_ctx.db, alter_ctx.table_name,
                                &table_has_trigger))
       DBUG_RETURN(true);
 
