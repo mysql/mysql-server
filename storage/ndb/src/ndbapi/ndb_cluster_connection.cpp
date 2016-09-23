@@ -1495,7 +1495,7 @@ Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
             best_score = 0;
             best_usage = usage;
           }
-          else if (best_usage - usage < UINT32_HALF)
+          else if (best_usage - usage < HINT_COUNT_HALF)
           {
             best_idx = i;
             best_node = candidate_node;
@@ -1538,7 +1538,7 @@ Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
           else if (nodes_arr[i].adjusted_group == best_score)
           {
             Uint32 usage = nodes_arr[i].hint_count;
-            if (best_usage - usage < UINT32_HALF)
+            if (best_usage - usage < HINT_COUNT_HALF)
             {
               /**
                * hint_count may wrap, for this calculation it is assummed that
@@ -1555,7 +1555,8 @@ Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
       }
     }
   }
-  nodes_arr[best_idx].hint_count++; 
+  nodes_arr[best_idx].hint_count =
+    (nodes_arr[best_idx].hint_count + 1) & HINT_COUNT_MASK;
   return best_node;
 }
 
