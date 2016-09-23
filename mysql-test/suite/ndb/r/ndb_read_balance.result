@@ -230,7 +230,7 @@ Row with key : 40
 
 Hinted PK read, no lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
-TABLE	PRIMARY	1	0	0	0	0	0
+TABLE	BACKUP	1	0	0	0	0	0
 
 Unhinted PK read, shared lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
@@ -248,7 +248,7 @@ Row with key : 35
 
 Hinted PK read, no lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
-TABLE	PRIMARY	1	0	0	0	0	0
+TABLE	BACKUP	1	0	0	0	0	0
 
 Unhinted PK read, shared lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
@@ -266,7 +266,7 @@ Row with key : 30
 
 Hinted PK read, no lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
-TABLE	PRIMARY	1	0	0	0	0	0
+TABLE	BACKUP	1	0	0	0	0	0
 
 Unhinted PK read, shared lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
@@ -284,7 +284,7 @@ Row with key : 25
 
 Hinted PK read, no lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
-TABLE	PRIMARY	1	0	0	0	0	0
+TABLE	BACKUP	1	0	0	0	0	0
 
 Unhinted PK read, shared lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
@@ -302,7 +302,7 @@ Row with key : 20
 
 Hinted PK read, no lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
-TABLE	PRIMARY	1	0	0	0	0	0
+TABLE	BACKUP	1	0	0	0	0	0
 
 Unhinted PK read, shared lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
@@ -320,7 +320,7 @@ Row with key : 15
 
 Hinted PK read, no lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
-TABLE	PRIMARY	1	0	0	0	0	0
+TABLE	BACKUP	1	0	0	0	0	0
 
 Unhinted PK read, shared lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
@@ -338,7 +338,7 @@ Row with key : 10
 
 Hinted PK read, no lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
-TABLE	PRIMARY	1	0	0	0	0	0
+TABLE	BACKUP	1	0	0	0	0	0
 
 Unhinted PK read, shared lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
@@ -356,7 +356,7 @@ Row with key : 5
 
 Hinted PK read, no lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
-TABLE	PRIMARY	1	0	0	0	0	0
+TABLE	BACKUP	1	0	0	0	0	0
 
 Unhinted PK read, shared lock
 obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
