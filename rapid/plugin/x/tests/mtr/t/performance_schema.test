@@ -932,6 +932,15 @@ Mysqlx.Crud.Find {
 -->recvresult
 -->recvresult
 
+#
+# Bug#22859462: SQL STMT EXECUTED THROUGH PLUGIN SERVICE API DON'T APPEAR IN PERFORMANCE SCHEMA
+#
+-->sql
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT 1;
+SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR from performance_schema.events_statements_summary_by_digest ORDER BY DIGEST;
+-->endsql
+
 EOF
 
 
