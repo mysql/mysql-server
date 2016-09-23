@@ -40,6 +40,9 @@ Extracted and modified from NDB memcached project
 #include "innodb_api.h"
 #include "hash_item_util.h"
 #include "innodb_cb_api.h"
+#include "my_thread.h"
+
+
 
 /** Define also present in daemon/memcached.h */
 #define KEY_MAX_LENGTH	250
@@ -300,19 +303,17 @@ innodb_bk_thread(
 	ENGINE_HANDLE*		handle;
 	struct innodb_engine*	innodb_eng;
 	innodb_conn_data_t*	conn_data;
-	void*			thd = NULL;
 
 	bk_thd_exited = false;
 
 	handle = (ENGINE_HANDLE*) (arg);
 	innodb_eng = innodb_handle(handle);
 
-	if (innodb_eng->enable_binlog) {
-		/* This thread will commit the transactions
-		on behalf of the other threads. It will "pretend"
-		to be each connection thread while doing it. */
-		thd = handler_create_thd(true);
-	}
+	my_thread_init();
+
+	/* While we commit transactions on behalf of the other
+        threads, we will "pretend" to be each connection. */
+        void*		thd = handler_create_thd(innodb_eng->enable_binlog);
 
 	conn_data = UT_LIST_GET_FIRST(innodb_eng->conn_data);
 
@@ -475,11 +476,10 @@ next_item:
 	bk_thd_exited = true;
 
 	/* Change to its original state before close the MySQL THD */
-	if (thd) {
-		handler_thd_attach(thd, NULL);
-		handler_close_thd(thd);
-	}
+	handler_thd_attach(thd, NULL);
+	handler_close_thd(thd);
 
+	my_thread_end();
 	pthread_detach(pthread_self());
         pthread_exit(NULL);
 
@@ -745,8 +745,8 @@ innodb_conn_clean(
 	int			num_freed = 0;
 	void*			thd = NULL;
 
-	if (engine->enable_binlog && clear_all) {
-		thd = handler_create_thd(true);
+	if (clear_all) {
+		thd = handler_create_thd(engine->enable_binlog);
 	}
 
 	LOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
@@ -2236,7 +2236,7 @@ search_done:
 
 			if (col_value->value_len != 0) {
 				if (!col_value->is_str) {
-					int	int_len;
+					ib_ulint_t	int_len;
 					memset(int_buf, 0, sizeof int_buf);
 
 					int_len = convert_to_char(
