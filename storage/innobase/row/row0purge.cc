@@ -909,7 +909,7 @@ try_again:
 	/* SDI tables are hidden tables and are not registered with global
 	dictionary. Open the table internally. Also acquire dict_operation
 	lock for SDI table to prevent concurrent DROP TABLE and purge */
-	if (table_id <= 16 || dict_table_is_sdi(table_id)) {
+	if (table_id < 16 || dict_table_is_sdi(table_id)) {
 		if (dict_table_is_sdi(table_id)) {
 			rw_lock_s_lock_inline(dict_operation_lock, 0, __FILE__, __LINE__);
 			*dict_op_lock_acquired = true;
@@ -988,7 +988,7 @@ try_again:
 		we do not have an index to call it with. */
 close_exit:
 		/* Purge requires no changes to indexes: we may return */
-		if (node->table->id <= 16 || dict_table_is_sdi(node->table->id)) {
+		if (node->table->id < 16 || dict_table_is_sdi(node->table->id)) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
@@ -1098,7 +1098,7 @@ row_purge_record_func(
                         node->mysql_table = nullptr;
                 }
 
-		if (node->table->id <= 16 || dict_table_is_sdi(node->table->id)) {
+		if (node->table->id < 16 || dict_table_is_sdi(node->table->id)) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
