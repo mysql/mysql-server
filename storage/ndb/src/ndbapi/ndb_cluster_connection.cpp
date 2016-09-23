@@ -1461,53 +1461,101 @@ Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
   }
 
   NdbNodeBitmask checked;
-  const Node *nodes_arr = m_nodes_proximity.getBase();
+  Node *nodes_arr = m_nodes_proximity.getBase();
   const Uint32 nodes_arr_cnt = m_nodes_proximity.size();
 
   Uint32 best_node = nodes[0];
-  Int32 best_score = MAX_PROXIMITY_GROUP; // Lower is better
+  Uint32 best_idx;
   Uint32 best_usage;
+  Int32 best_score = MAX_PROXIMITY_GROUP; // Lower is better
 
-  for (Uint32 j = 0; j < cnt; j++)
+  if (!m_impl.m_optimized_node_selection)
   {
-    Uint32 candidate_node = nodes[j];
-    if (checked.get(candidate_node))
-      continue;
-
-    checked.set(candidate_node);
-
-    for (Uint32 i = 0; i < nodes_arr_cnt; i++)
+    /**
+     * optimized_node_selection is off.  Use round robin.
+     * Uses hint_count in m_nodes_proximity but not the group value.
+     */
+    for (Uint32 j = 0; j < cnt; j++)
     {
-      if (nodes_arr[i].id == candidate_node)
+      Uint32 candidate_node = nodes[j];
+      if (checked.get(candidate_node))
+        continue;
+
+      checked.set(candidate_node);
+
+      for (Uint32 i = 0; i < nodes_arr_cnt; i++)
       {
-        if (nodes_arr[i].adjusted_group < best_score)
-        {
-          best_node = candidate_node;
-          best_score = nodes_arr[i].adjusted_group;
-          best_usage = nodes_arr[i].hint_count;
-        }
-        else if (nodes_arr[i].adjusted_group == best_score)
+        if (nodes_arr[i].id == j)
         {
           Uint32 usage = nodes_arr[i].hint_count;
-          if (best_usage - usage < UINT32_HALF)
+          if (best_score == MAX_PROXIMITY_GROUP)
           {
-            /**
-             * hint_count may wrap, for this calculation it is assummed that
-             * the two counts should be near each other, and so if the
-             * difference is small above, best_usage is greater than usage.
-             */
+            best_idx = i;
+            best_node = candidate_node;
+            best_score = 0;
+            best_usage = usage;
+          }
+          else if (best_usage - usage < UINT32_HALF)
+          {
+            best_idx = i;
             best_node = candidate_node;
             best_usage = usage;
           }
-        }
-        else
-        {
-          // All further nodes will have group bigger than best_score
           break;
         }
       }
     }
   }
+  else
+  {
+    /**
+     * optimized_node_selection is on.  Use proximity.
+     */
+    for (Uint32 j = 0; j < cnt; j++)
+    {
+      Uint32 candidate_node = nodes[j];
+      if (checked.get(candidate_node))
+        continue;
+
+      checked.set(candidate_node);
+
+      for (Uint32 i = 0; i < nodes_arr_cnt; i++)
+      {
+        if (nodes_arr[i].adjusted_group > best_score)
+        {
+          // We already got a better match
+          break;
+        }
+        if (nodes_arr[i].id == candidate_node)
+        {
+          if (nodes_arr[i].adjusted_group < best_score)
+          {
+            best_idx = i;
+            best_node = candidate_node;
+            best_score = nodes_arr[i].adjusted_group;
+            best_usage = nodes_arr[i].hint_count;
+          }
+          else if (nodes_arr[i].adjusted_group == best_score)
+          {
+            Uint32 usage = nodes_arr[i].hint_count;
+            if (best_usage - usage < UINT32_HALF)
+            {
+              /**
+               * hint_count may wrap, for this calculation it is assummed that
+               * the two counts should be near each other, and so if the
+               * difference is small above, best_usage is greater than usage.
+               */
+              best_idx = i;
+              best_node = candidate_node;
+              best_usage = usage;
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+  nodes_arr[best_idx].hint_count++; 
   return best_node;
 }
 
