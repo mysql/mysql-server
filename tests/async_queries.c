@@ -425,7 +425,7 @@ main(int argc, char *argv[])
 
   event_dispatch();
 
-  free(sds);
+  my_free(sds);
 
   mysql_library_end();
 
