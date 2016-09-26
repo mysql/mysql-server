@@ -246,7 +246,9 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     */
     if (!schema_exists)
     {
-      sql_print_error("System schema directory does not exist.");
+      my_printf_error(ER_BAD_DB_ERROR,
+                      "System schema directory does not exist.",
+                      MYF(0));
       DBUG_RETURN(true);
     }
   }

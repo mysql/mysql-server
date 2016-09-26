@@ -306,4 +306,23 @@ public:
 };
 
 
+/*
+  Disable ER_TOO_LONG_KEY for creation of system tables.
+  TODO: This is a Workaround due to bug#20629014.
+  Remove this internal error handler when the bug is fixed.
+*/
+class Key_length_error_handler : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *,
+                                uint sql_errno,
+                                const char*,
+                                Sql_condition::enum_severity_level *,
+                                const char*)
+  {
+    return (sql_errno == ER_TOO_LONG_KEY);
+  }
+};
+
+
 #endif // ERROR_HANDLER_INCLUDED

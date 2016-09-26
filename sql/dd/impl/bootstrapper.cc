@@ -1266,6 +1266,11 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
     return true;
   }
 
+  // RAII to handle error messages.
+  Bootstrap_error_handler bootstrap_error_handler;
+
+  Key_length_error_handler key_error_handler;
+
   // This will create dd::Schema object for mysql schema
   if (create_dd_schema(thd))
     return true;
@@ -1278,12 +1283,19 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   /*
     This will create dd::Table objects for DD tables in DD cache.
     Tables will not be created inside SE.
-  */
-  if (create_tables(thd, dd_upgrade_flag, nullptr))
-    return true;
 
-  // RAII to handle error messages.
-  Bootstrap_error_handler bootstrap_error_handler;
+    Ignore ER_TOO_LONG_KEY for dictionary tables. Do not print the error in
+    error log as we are creating only the cached objects and not physical
+    tables.
+    TODO: Workaround due to bug#20629014. Remove when the bug is fixed.
+  */
+  thd->push_internal_handler(&key_error_handler);
+  bootstrap_error_handler.set_log_error(false);
+  bool error =create_tables(thd, dd_upgrade_flag, nullptr);
+  bootstrap_error_handler.set_log_error(true);
+  thd->pop_internal_handler();
+  if (error)
+    return true;
 
   // Disable InnoDB warning in case it does not find mysql.version table, and
   // ignore error at the SQL layer.
@@ -1311,7 +1323,18 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
       */
       dd::cache::Shared_dictionary_cache::instance()->reset_schema_cache();
       opt_initialize= false;
-      return restart(thd);
+      /*
+        Ignore ER_TOO_LONG_KEY for dictionary tables during restart.
+        Do not print the error in error log as we are creating only the
+        cached objects and not physical tables.
+        TODO: Workaround due to bug#20629014. Remove when the bug is fixed.
+      */
+      thd->push_internal_handler(&key_error_handler);
+      bootstrap_error_handler.set_log_error(false);
+      error= restart(thd);
+      bootstrap_error_handler.set_log_error(true);
+      thd->pop_internal_handler();
+      return error;
     }
     else
     {
@@ -1345,15 +1368,23 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
     return true;
   }
 
+  /*
+    Ignore ER_TOO_LONG_KEY for dictionary tables creation.
+    TODO: Workaround due to bug#20629014. Remove when the bug is fixed.
+  */
+  thd->push_internal_handler(&key_error_handler);
+
   bootstrap_stage= bootstrap::BOOTSTRAP_STARTED;
   System_tables::Const_iterator last_table= System_tables::instance()->begin();
   if (initialize_dictionary(thd, dd_upgrade_flag, d, &last_table))
   {
+    thd->pop_internal_handler();
     delete_dictionary_and_cleanup(thd, last_table);
     return true;
   }
+  thd->pop_internal_handler();
 
-  bool error= execute_query(thd, "UPDATE version SET version=0");
+  error= execute_query(thd, "UPDATE version SET version=0");
   // Commit the statement based population.
   error|= end_transaction(thd, error);
 
@@ -1464,16 +1495,23 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
   /*
     ALTER innodb stats table according to new definition.
     We do it after everything else is upgraded as it changes the ibd files.
+
+    Ignore ER_TOO_LONG_KEY for dictionary tables operation.
+    TODO: Workaround due to bug#20629014. Remove when the bug is fixed.
   */
+  Key_length_error_handler key_error_handler;
+  thd->push_internal_handler(&key_error_handler);
   if (execute_query(thd, "ALTER TABLE mysql.innodb_table_stats CHANGE table_name "
                        "table_name VARCHAR(199) COLLATE utf8_bin NOT NULL") ||
       execute_query(thd, "ALTER TABLE mysql.innodb_index_stats CHANGE table_name "
                        "table_name VARCHAR(199) COLLATE utf8_bin NOT NULL"))
   {
     sql_print_error("Error in modifying definition of innodb stats tables");
+    thd->pop_internal_handler();
     delete_dictionary_and_cleanup(thd);
     return true;
   }
+  thd->pop_internal_handler();
 
   // Write the server version to indicate completion of upgrade.
   dd::String_type update_version_query= "UPDATE mysql.version SET version=";

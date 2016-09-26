@@ -111,22 +111,6 @@ void File_command_iterator::end(void)
 Command_iterator *Command_iterator::current_iterator= NULL;
 
 
-// Disable ER_TOO_LONG_KEY for creation of system tables.
-// See Bug#20629014.
-class Key_length_error_handler : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD *,
-                                uint sql_errno,
-                                const char*,
-                                Sql_condition::enum_severity_level *,
-                                const char*)
-  {
-    return (sql_errno == ER_TOO_LONG_KEY);
-  }
-};
-
-
 static bool handle_bootstrap_impl(THD *thd)
 {
   std::string query;
