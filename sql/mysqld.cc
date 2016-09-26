@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -3511,6 +3511,22 @@ static int init_common_variables()
     sql_print_warning("Although a path was specified for the "
                       "--log-slow-queries option, log tables are used. "
                       "To enable logging to files use the --log-output=file option.");
+
+  if (opt_logname &&
+      !is_valid_log_name(opt_logname, strlen(opt_logname)))
+  {
+    sql_print_error("Invalid value for --general_log_file: %s",
+                    opt_logname);
+    return 1;
+  }
+
+  if (opt_slow_logname &&
+      !is_valid_log_name(opt_slow_logname, strlen(opt_slow_logname)))
+  {
+    sql_print_error("Invalid value for --slow_query_log_file: %s",
+                    opt_slow_logname);
+    return 1;
+  }
 
 #define FIX_LOG_VAR(VAR, ALT)                                   \
   if (!VAR || !*VAR)                                            \
