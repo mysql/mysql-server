@@ -32,6 +32,7 @@
 #include "ha_ndbcluster_tables.h"
 #include "ha_ndb_index_stat.h"
 #include "m_ctype.h"
+#include "mf_wcomp.h"
 #include "mysql/plugin.h"
 #include "ndb_anyvalue.h"
 #include "ndbapi/NdbApi.hpp"

@@ -143,7 +143,7 @@
 #include "my_compiler.h"
 #include "my_config.h"
 #include "my_sqlcommand.h"
-//#include "my_sys.h"
+#include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
