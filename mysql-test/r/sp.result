@@ -8016,4 +8016,42 @@ Warnings:
 Error	1329	No data - zero rows fetched, selected, or processed
 DROP PROCEDURE p1;
 DROP TABLE t1;
+#
+# MDEV-10713: signal 11 error on multi-table update - crash in
+# handler::increment_statistics or in make_select or assertion
+# failure pfs_thread == ((PFS_thread*) pthread_getspecific((THR_PFS)))
+#
+CREATE TABLE `t1` (
+`CLOSE_YN` varchar(10) COLLATE utf8_bin DEFAULT NULL
+) DEFAULT CHARSET=utf8 COLLATE=utf8_bin ;
+CREATE TABLE `t2` (
+`ap_close_to` varchar(8) COLLATE utf8_bin DEFAULT NULL
+) DEFAULT CHARSET=utf8 COLLATE=utf8_bin ;
+CREATE  FUNCTION `f1`(`P_DC_CD` VARBINARY(50), `P_SYS_DATE` DATETIME) RETURNS datetime
+DETERMINISTIC
+SQL SECURITY INVOKER
+BEGIN
+DECLARE V_SYS_DATE DATETIME;
+SELECT now() AS LOC_DATE INTO V_SYS_DATE ;
+RETURN v_sys_date ;
+END $$
+update t1 S
+JOIN
+(
+SELECT CASE
+WHEN DATE_FORMAT( f1('F01', NOW()) , '%Y%m%d') <= CLOSE_YMD
+THEN '99991231'
+	     ELSE '' END ACCOUNT_APPLY_YYYYMMDD
+FROM (
+select case
+when 'AP'='AP'
+                   then ap_close_to
+end AS CLOSE_YMD
+from t2
+) A
+) X
+SET S.CLOSE_YN = ''
+where 1=1;
+drop function if exists f1;
+drop table t1,t2;
 # End of 5.5 test

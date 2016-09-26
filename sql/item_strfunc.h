@@ -817,31 +817,26 @@ public:
 
 class Item_func_conv_charset :public Item_str_func
 {
-  bool use_cached_value;
   String tmp_value;
+  enum state_of_cache { NOT_CONST, CONST_WILL_BE_CACHED, CACHED };
+  enum state_of_cache cached_value;
 public:
   bool safe;
   CHARSET_INFO *conv_charset; // keep it public
-  Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a) 
-  { conv_charset= cs; use_cached_value= 0; safe= 0; }
-  Item_func_conv_charset(Item *a, CHARSET_INFO *cs, bool cache_if_const) 
-    :Item_str_func(a) 
+  Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a),
+    cached_value(NOT_CONST), safe(0), conv_charset(cs)
+  {}
+  Item_func_conv_charset(Item *a, CHARSET_INFO *cs, bool cache_if_const)
+    :Item_str_func(a), conv_charset(cs)
   {
-    conv_charset= cs;
-    if (cache_if_const && args[0]->const_item() && !args[0]->is_expensive())
+    if (cache_if_const && args[0]->const_item())
     {
-      uint errors= 0;
-      String tmp, *str= args[0]->val_str(&tmp);
-      if (!str || str_value.copy(str->ptr(), str->length(),
-                                 str->charset(), conv_charset, &errors))
-        null_value= 1;
-      use_cached_value= 1;
-      str_value.mark_as_const();
-      safe= (errors == 0);
+      is_expensive_cache= MY_TEST(args[0]->is_expensive());
+      cached_value= CONST_WILL_BE_CACHED;
     }
     else
     {
-      use_cached_value= 0;
+      cached_value= NOT_CONST;
       /*
         Conversion from and to "binary" is safe.
         Conversion to Unicode is safe.
@@ -892,6 +887,7 @@ public:
   void fix_length_and_dec();
   const char *func_name() const { return "convert"; }
   virtual void print(String *str, enum_query_type query_type);
+  virtual bool const_item() const { return cached_value != NOT_CONST; }
 };
 
 class Item_func_set_collation :public Item_str_func
