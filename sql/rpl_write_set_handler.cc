@@ -44,7 +44,6 @@
 #include "table.h"         // TABLE
 #include "transaction_info.h"
 #include "../extra/lz4/my_xxhash.h"  // IWYU pragma: keep
-#include "xxhash.h"
 
 #define NAME_READ_BUFFER_SIZE 1024
 #define HASH_STRING_SEPARATOR "½"
