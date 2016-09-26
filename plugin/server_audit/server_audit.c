@@ -429,9 +429,8 @@ static MYSQL_SYSVAR_UINT(query_log_limit, query_log_limit,
 char locinfo_ini_value[sizeof(struct connection_info)+4];
 
 static MYSQL_THDVAR_STR(loc_info,
-                        PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
-                        "Auxiliary info.", NULL, NULL,
-                        locinfo_ini_value);
+                        PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_MEMALLOC,
+                        "Internal info", NULL, NULL, locinfo_ini_value);
 
 static const char *syslog_facility_names[]=
 {
