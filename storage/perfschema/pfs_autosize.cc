@@ -18,13 +18,14 @@
   Private interface for the server (implementation).
 */
 
-#include "my_global.h"
-#include "sql_const.h"
-#include "pfs_server.h"
-
 #include <my_thread.h> /* For pthread_t */
-
 #include <algorithm>
+
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "pfs_server.h"
+#include "sql_const.h"
+
 using std::min;
 using std::max;
 

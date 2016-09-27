@@ -30,6 +30,7 @@
 #include "dd_table_share.h"              // dd_get_mysql_charset
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_psi_config.h"
 #include "my_sys.h"                      // my_error, resolve_collation
 #include "mysql/psi/mysql_sp.h"          // MYSQL_DROP_SP
 #include "mysql/psi/mysql_statement.h"

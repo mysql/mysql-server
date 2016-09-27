@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -22,12 +22,12 @@
 #define MYSQL_DYNAMIC_PLUGIN 1
 #endif // WIN32
 
-#include "ngs_common/bind.h"
-#include "ngs/scheduler.h"
-#include "ngs/memory.h"
-#include "ngs/log.h"
-
+#include "my_psi_config.h"
 #include "my_rdtsc.h"
+#include "ngs/log.h"
+#include "ngs/memory.h"
+#include "ngs/scheduler.h"
+#include "ngs_common/bind.h"
 
 
 using namespace ngs;

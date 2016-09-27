@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016 Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -34,50 +34,45 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file ha_innodb.cc */
 
-#include "univ.i"
-
-/* Include necessary SQL headers */
-#include "ha_prototypes.h"
 #include <current_thd.h>
+#include <dd/properties.h>
+#include <dd/types/tablespace.h>
 #include <debug_sync.h>
 #include <derror.h>
 #include <gstream.h>
 #include <log.h>
+#include <my_bitmap.h>
+#include <my_check_opt.h>
+#include <mysql/service_thd_alloc.h>
+#include <mysql/service_thd_wait.h>
+#include <mysql_com.h>
 #include <mysqld.h>
 #include <mysys_err.h>
-#include <strfunc.h>
 #include <sql_acl.h>
 #include <sql_class.h>
 #include <sql_show.h>
 #include <sql_table.h>
 #include <sql_tablespace.h>
 #include <sql_thd_internal_api.h>
-#include <my_check_opt.h>
-#include <my_bitmap.h>
-#include <mysql_com.h>
-#include <mysql/service_thd_alloc.h>
-#include <mysql/service_thd_wait.h>
-#include <dd/types/tablespace.h>
-#include <dd/properties.h>
-
-#include "dd/properties.h"
-#include "dd/sdi_tablespace.h"    // dd::sdi_tablespace::store
-#include "dd/types/table.h"
-#include "dd/types/index.h"
-#include "dd/types/partition.h"
+#include <strfunc.h>
 
 /* Include necessary InnoDB headers */
 #include "api0api.h"
 #include "api0misc.h"
 #include "btr0btr.h"
-#include "btr0cur.h"
 #include "btr0bulk.h"
+#include "btr0cur.h"
 #include "btr0sea.h"
 #include "buf0dblwr.h"
 #include "buf0dump.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
 #include "buf0stats.h"
+#include "dd/properties.h"
+#include "dd/sdi_tablespace.h"    // dd::sdi_tablespace::store
+#include "dd/types/index.h"
+#include "dd/types/partition.h"
+#include "dd/types/table.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dict.h"
@@ -91,11 +86,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0plugin.h"
 #include "fts0priv.h"
 #include "fts0types.h"
+/* Include necessary SQL headers */
+#include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0log.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
+#include "my_psi_config.h"
 #include "os0file.h"
 #include "os0thread.h"
 #include "page0zip.h"
@@ -111,24 +109,24 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "univ.i"
 #ifdef UNIV_DEBUG
 #include "trx0purge.h"
 #endif /* UNIV_DEBUG */
+#include "ha_innodb.h"
+/* for ha_innopart, Native InnoDB Partitioning. */
+#include "ha_innopart.h"
+#include "i_s.h"
+#include "lob0lob.h"
+#include "mysql/psi/mysql_data_lock.h"
+#include "p_s.h"
+#include "row0ext.h"
+#include "sync0sync.h"
 #include "trx0roll.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
 #include "trx0xa.h"
 #include "ut0mem.h"
-#include "row0ext.h"
-#include "lob0lob.h"
-
-#include "ha_innodb.h"
-#include "i_s.h"
-#include "p_s.h"
-#include "mysql/psi/mysql_data_lock.h"
-#include "sync0sync.h"
-/* for ha_innopart, Native InnoDB Partitioning. */
-#include "ha_innopart.h"
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.

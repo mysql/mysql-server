@@ -21,18 +21,19 @@
 #include <my_global.h>
 #include <string.h>
 
+#include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysqld.h" // get_thd_status_var
 #include "pfs.h"
-#include "pfs_stat.h"
-#include "pfs_instr.h"
-#include "pfs_host.h"
-#include "pfs_user.h"
 #include "pfs_account.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
-#include "mysqld.h" // get_thd_status_var
+#include "pfs_global.h"
+#include "pfs_host.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "pfs_stat.h"
+#include "pfs_user.h"
 
 ulong nested_statement_lost= 0;
 

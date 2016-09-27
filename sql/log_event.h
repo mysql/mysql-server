@@ -41,6 +41,7 @@
 #include "my_bitmap.h"               // MY_BITMAP
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"

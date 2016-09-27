@@ -17,7 +17,9 @@
 
 #include <my_global.h>
 #include <mysql/psi/mysql_file.h>
+
 #include "buffered_file_io.h"
+#include "my_psi_config.h"
 
 namespace keyring {
 
