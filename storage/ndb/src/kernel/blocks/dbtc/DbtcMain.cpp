@@ -6096,6 +6096,13 @@ Dbtc::sendCommitLqh(Signal* signal,
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
 
+  if (ERROR_INSERTED(8113))
+  {
+    jam();
+    /* Don't actually send -> timeout */
+    return 0;
+  }
+
   Uint32 Tnode = Thostptr.i;
   Uint32 self = getOwnNodeId();
   Uint32 ret = (Tnode == self) ? 4 : 1;
@@ -6583,6 +6590,13 @@ Dbtc::sendCompleteLqh(Signal* signal,
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
 
+  if (ERROR_INSERTED(8114))
+  {
+    jam();
+    /* Don't send COMPLETE to LQH ---> TIMEOUT */
+    return 0;
+  }
+
   Uint32 Tnode = Thostptr.i;
   Uint32 self = getOwnNodeId();
   Uint32 ret = (Tnode == self) ? 4 : 1;
@@ -7024,6 +7038,63 @@ Dbtc::sendRemoveMarker(Signal* signal,
   memcpy(dataPtr, &Tdata[0], len << 2);
 }
 
+/**
+ * sendApiLateCommitSignal
+ *
+ * This is called at the end of a transaction's 
+ * COMPLETE phase when it has the TF_LATE_COMMIT flag set.
+ * The Commit notification is sent to the API, and
+ * the user ApiConnectRecord is returned to a ready state
+ * for further API interaction.
+ */
+void 
+Dbtc::sendApiLateCommitSignal(Signal* signal,
+                              Ptr<ApiConnectRecord> apiCopy)
+{
+  jam();
+  
+  apiConnectptr.i = apiCopy.p->apiCopyRecord;
+  ptrCheckGuard(apiConnectptr, capiConnectFilesize,
+                apiConnectRecord);
+  /**
+   * CS_COMMITTING on user ApiCon is inferred by 
+   * TF_LATE_COMMIT on user ApiCon
+   */
+  ndbrequire(apiConnectptr.p->apiConnectstate == CS_COMMITTING);
+  ndbrequire(tc_testbit(apiConnectptr.p->m_flags,
+                        ApiConnectRecord::TF_LATE_COMMIT));
+
+  apiCopy.p->apiCopyRecord = RNIL;
+  tc_clearbit(apiCopy.p->m_flags,
+              ApiConnectRecord::TF_LATE_COMMIT);
+  apiConnectptr.p->apiConnectstate = CS_CONNECTED;
+  tc_clearbit(apiConnectptr.p->m_flags,
+              ApiConnectRecord::TF_LATE_COMMIT);
+
+  /* Transiently re-set the commitAckMarker on the user's
+   * connectRecord so that we inform API of the need to 
+   * send a COMMIT_ACK.
+   * 
+   * TODO : Don't actually need the full CommitAckMarker, just a bit
+   */
+  ndbassert(apiConnectptr.p->commitAckMarker == RNIL);
+  apiConnectptr.p->commitAckMarker = apiCopy.p->commitAckMarker;
+  
+  sendApiCommitSignal(signal, apiConnectptr);
+  
+  apiConnectptr.p->commitAckMarker = RNIL;
+  apiCopy.p->commitAckMarker = RNIL;
+  
+  if (apiConnectptr.p->apiFailState == ZTRUE)
+  {
+    jam();
+    /**
+     * handle if API failed while we were running complete phase
+     */
+    handleApiFailState(signal, apiConnectptr.i);
+  }
+}
+
 void Dbtc::execCOMPLETED(Signal* signal) 
 {
   TcConnectRecordPtr localTcConnectptr;
@@ -7102,40 +7173,8 @@ void Dbtc::execCOMPLETED(Signal* signal)
                  ApiConnectRecord::TF_LATE_COMMIT))
   {
     jam();
-
-    apiConnectptr.i = localApiConnectptr.p->apiCopyRecord;
-    ptrCheckGuard(apiConnectptr, TapiConnectFilesize,
-                  localApiConnectRecord);
-    ndbrequire(apiConnectptr.p->apiConnectstate == CS_COMMITTING);
-    ndbrequire(tc_testbit(apiConnectptr.p->m_flags,
-                          ApiConnectRecord::TF_LATE_COMMIT));
-    localApiConnectptr.p->apiCopyRecord = RNIL;
-    tc_clearbit(localApiConnectptr.p->m_flags,
-                ApiConnectRecord::TF_LATE_COMMIT);
-    apiConnectptr.p->apiConnectstate = CS_CONNECTED;
-    tc_clearbit(apiConnectptr.p->m_flags,
-                ApiConnectRecord::TF_LATE_COMMIT);
-
-    /* Transiently re-set the commitAckMarker on the user's
-     * connectRecord so that we set the bits in the CONF
-     * TODO : Don't actually need the full CommitAckMarker, just a bit
-     */
-    ndbassert(apiConnectptr.p->commitAckMarker == RNIL);
-    apiConnectptr.p->commitAckMarker = localApiConnectptr.p->commitAckMarker;
-
-    sendApiCommitSignal(signal, apiConnectptr);
-
-    apiConnectptr.p->commitAckMarker = RNIL;
-    localApiConnectptr.p->commitAckMarker = RNIL;
-
-    if (apiConnectptr.p->apiFailState == ZTRUE)
-    {
-      jam();
-      /**
-       * handle if API failed while we were running complete phase
-       */
-      handleApiFailState(signal, apiConnectptr.i);
-    }
+    
+    sendApiLateCommitSignal(signal, localApiConnectptr);
   }
   apiConnectptr = localApiConnectptr;
   releaseTransResources(signal);
@@ -11370,6 +11409,19 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
           releaseTakeOver(signal);
         } else {
           jam();
+
+          if (tc_testbit(apiConnectptr.p->m_flags,
+                         ApiConnectRecord::TF_LATE_COMMIT))
+          {
+            jam();
+
+            ApiConnectRecordPtr apiCopy = apiConnectptr;
+            
+            sendApiLateCommitSignal(signal, apiCopy);
+            
+            apiConnectptr = apiCopy;
+          }
+
           releaseTransResources(signal);
         }//if
         return;
