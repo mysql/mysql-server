@@ -313,3 +313,10 @@ DROP USER user_name_len_25_01234567@localhost,user_name_len_26_012345678@localho
 ###############################
 # done..
 #### End of test ####
+#
+# Bug #24557925: MYSQL_CONFIG_EDITOR CAN MAKE SERVER UNBOOTABLE
+#
+# Restarting the server. Should work
+# Cleanup
+/home/gkodinov/work/B24557925-5.6/client//mysql_config_editor remove --login-path=mysqld
+# End of 5.6 tests

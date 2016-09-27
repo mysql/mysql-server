@@ -588,6 +588,8 @@ int load_defaults(const char *conf_file, const char **groups,
   return my_load_defaults(conf_file, groups, argc, argv, &default_directories);
 }
 
+/** A global to turn off or on reading the mylogin file. On by default */
+my_bool my_defaults_read_login_file= TRUE;
 /*
   Read options from configurations files
 
@@ -672,16 +674,18 @@ int my_load_defaults(const char *conf_file, const char **groups,
     DBUG_RETURN(error);
   }
 
-  /* Read options from login group. */
-  if (my_default_get_login_file(my_login_file, sizeof(my_login_file)) &&
-      (error= my_search_option_files(my_login_file,argc, argv, &args_used,
+  if (my_defaults_read_login_file)
+  {
+    /* Read options from login group. */
+    if (my_default_get_login_file(my_login_file, sizeof(my_login_file)) &&
+      (error= my_search_option_files(my_login_file, argc, argv, &args_used,
                                      handle_default_option, (void *) &ctx,
                                      dirs, true, found_no_defaults)))
-  {
-    free_root(&alloc,MYF(0));
-    DBUG_RETURN(error);
+    {
+      free_root(&alloc, MYF(0));
+      DBUG_RETURN(error);
+    }
   }
-
   /*
     Here error contains <> 0 only if we have a fully specified conf_file
     or a forced default file
