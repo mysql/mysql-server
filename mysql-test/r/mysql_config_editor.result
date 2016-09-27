@@ -272,5 +272,4 @@ mysqld is alive
 #
 # Restarting the server. Should work
 # Cleanup
-/home/gkodinov/work/B24557925-5.6/client//mysql_config_editor remove --login-path=mysqld
 # End of 5.6 tests
