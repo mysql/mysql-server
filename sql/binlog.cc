@@ -9347,18 +9347,39 @@ commit_stage:
 /**
   MYSQLD server recovers from last crashed binlog.
 
-  @param log           IO_CACHE of the crashed binlog.
-  @param fdle          Format_description_log_event of the crashed binlog.
-  @param valid_pos     The position of the last valid transaction or
-                       event(non-transaction) of the crashed binlog.
+  @param log[in]        IO_CACHE of the crashed binlog.
+  @param fdle[in]       Format_description_log_event of the crashed binlog.
+  @param valid_pos[out] The position of the last valid transaction or
+                        event(non-transaction) of the crashed binlog.
+                        valid_pos must be non-NULL.
 
-  @retval
-    0                  ok
-  @retval
-    1                  error
+  After a crash, storage engines may contain transactions that are
+  prepared but not committed (in theory any engine, in practice
+  InnoDB).  This function uses the binary log as the source of truth
+  to determine which of these transactions should be committed and
+  which should be rolled back.
+
+  The function collects the XIDs of all transactions that are
+  completely written to the binary log into a hash, and passes this
+  hash to the storage engines through the ha_recover function in the
+  handler interface.  This tells the storage engines to commit all
+  prepared transactions that are in the set, and to roll back all
+  prepared transactions that are not in the set.
+
+  To compute the hash, this function iterates over the last binary log
+  only (i.e. it assumes that 'log' is the last binary log).  It
+  instantiates each event.  For XID-events (i.e. commit to InnoDB), it
+  extracts the xid from the event and stores it in the hash.
+
+  It is enough to iterate over only the last binary log because when
+  the binary log is rotated we force engines to commit (and we fsync
+  the old binary log).
+
+  @retval 0 Success
+  @retval 1 Out of memory, or storage engine returns error.
 */
 int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
-                            my_off_t *valid_pos)
+                           my_off_t *valid_pos)
 {
   Log_event  *ev;
   HASH xids;
