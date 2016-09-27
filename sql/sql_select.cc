@@ -43,6 +43,7 @@
 #include "lock.h"                // mysql_unlock_some_tables,
 #include "my_compiler.h"
 #include "my_decimal.h"
+#include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"

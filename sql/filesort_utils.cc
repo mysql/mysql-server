@@ -22,6 +22,7 @@
 #include <memory>
 #include <new>
 
+#include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "opt_costmodel.h"
 #include "sql_sort.h"

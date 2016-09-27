@@ -37,6 +37,7 @@
  ***************************************************************/
 
 #include "my_config.h"
+#include "my_pointer_arithmetic.h"
 
 #ifdef HAVE_ENDIAN_H
 #include <endian.h>
@@ -48,7 +49,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "my_config.h"
 #include "my_dbug.h"
 
 #ifndef EOVERFLOW

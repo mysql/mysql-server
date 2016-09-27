@@ -51,6 +51,7 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_decimal.h"
+#include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "myisampack.h"
 #include "mysql/psi/mysql_file.h"

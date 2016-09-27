@@ -23,6 +23,7 @@
   of blocks.  For the differnet block types, look at _mi_get_block_info()
 */
 
+#include "my_pointer_arithmetic.h"
 #include "myisamdef.h"
 
 /* Enough for comparing if number is zero */

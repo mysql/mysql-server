@@ -18,10 +18,12 @@
   Routines to handle mallocing of results which will be freed the same time.
 */
 
-#include <my_global.h>
-#include "my_alloc.h"
-#include <my_sys.h>
 #include <m_string.h>
+#include <my_global.h>
+#include <my_sys.h>
+
+#include "my_alloc.h"
+#include "my_pointer_arithmetic.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"
 

@@ -46,6 +46,7 @@
 #include "my_decimal.h"
 #include "my_md5.h"                      // compute_md5_hash
 #include "my_md5_size.h"
+#include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"

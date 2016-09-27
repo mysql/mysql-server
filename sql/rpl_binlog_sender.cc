@@ -30,6 +30,7 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_file.h"

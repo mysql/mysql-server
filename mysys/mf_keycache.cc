@@ -104,17 +104,19 @@
   I/O finished.
 */
 
-#include "mysys_priv.h"
-#include "mysys_err.h"
+#include <errno.h>
 #include <keycache.h>
-#include "my_static.h"
 #include <m_string.h>
 #include <my_bit.h>
-#include <errno.h>
 #include <stdarg.h>
-#include "probes_mysql.h"
+
+#include "my_pointer_arithmetic.h"
+#include "my_static.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys_err.h"
+#include "mysys_priv.h"
+#include "probes_mysql.h"
 #include "template_utils.h"
 
 #define STRUCT_PTR(TYPE, MEMBER, a)                                           \

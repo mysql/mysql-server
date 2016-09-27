@@ -42,11 +42,13 @@
   fill_buffer_retaining() is taken from gnu-grep and modified.
 */
 
-#include <my_global.h>
-#include <m_ctype.h>
-#include <my_sys.h>
-#include <m_string.h>
 #include <errno.h>
+#include <m_ctype.h>
+#include <m_string.h>
+#include <my_global.h>
+#include <my_sys.h>
+
+#include "my_pointer_arithmetic.h"
 #include "mysql/service_mysql_alloc.h"
 #include "typelib.h"
 

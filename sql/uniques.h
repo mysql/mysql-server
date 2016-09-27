@@ -21,12 +21,13 @@
 
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "my_tree.h"            // TREE
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql_alloc.h"          // Sql_alloc
-#include "sql_sort.h"           // Merge_chunk, IWYU pragma: keep
 #include "sql_array.h"
+#include "sql_sort.h"           // Merge_chunk, IWYU pragma: keep
 
 class Cost_model_table;
 struct Merge_chunk;

@@ -17,9 +17,10 @@
 
 #include "sql_string.h"
 
-#include "mysql_com.h"    // MAX_BIGINT_WIDTH
-
 #include <algorithm>
+
+#include "my_pointer_arithmetic.h"
+#include "mysql_com.h"    // MAX_BIGINT_WIDTH
 
 using std::min;
 using std::max;

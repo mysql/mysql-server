@@ -30,6 +30,7 @@
 #include "key.h"
 #include "m_string.h"  // _dig_vec_lower
 #include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"

@@ -86,22 +86,23 @@
 */
 
 #define MYSQL_SERVER 1
+#include <m_ctype.h>
+#include <mysql/plugin.h>
+#include <algorithm>
+
+#include "../myisam/ha_myisam.h"
+#include "current_thd.h"
+#include "debug_sync.h"
+#include "ha_myisammrg.h"
+#include "my_pointer_arithmetic.h"
+#include "myrg_def.h"
+#include "mysqld.h"
+#include "probes_mysql.h"
 #include "sql_cache.h"                          // query_cache_*
+#include "sql_class.h"                          // THD
 #include "sql_show.h"                           // append_identifier
 #include "sql_table.h"                         // build_table_filename
-#include "probes_mysql.h"
-#include <mysql/plugin.h>
-#include <m_ctype.h>
-#include "../myisam/ha_myisam.h"
-#include "ha_myisammrg.h"
-#include "myrg_def.h"
 #include "thr_malloc.h"                         // int_sql_alloc
-#include "sql_class.h"                          // THD
-#include "debug_sync.h"
-#include "current_thd.h"
-#include "mysqld.h"
-
-#include <algorithm>
 
 using std::min;
 using std::max;

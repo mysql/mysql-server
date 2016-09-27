@@ -13,23 +13,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <m_ctype.h>
+#include <m_string.h>
 #include <my_global.h>
 #include <my_sys.h>
 #include <my_time.h>
 #include <mysys_err.h>
-#include <m_string.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <violite.h>
+
+#include "errmsg.h"
+#include "my_pointer_arithmetic.h"
+#include "my_thread_local.h"
+#include "mysql.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-#include <m_ctype.h>
-#include "mysql.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include "errmsg.h"
-#include <violite.h>
-#include <sys/stat.h>
-#include <signal.h>
-#include <time.h>
-#include "my_thread_local.h"
 #include "template_utils.h"
 
 #ifdef	 HAVE_PWD_H
@@ -51,9 +53,9 @@
 #define INADDR_NONE	-1
 #endif
 
+#include <sql_common.h>
 #include <memory>
 
-#include <sql_common.h>
 #include "client_settings.h"
 #include "mysql_trace.h"
 

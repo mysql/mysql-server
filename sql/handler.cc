@@ -21,13 +21,6 @@
 
 #include "handler.h"
 
-#include <errno.h>
-#include <limits.h>
-#include <cmath>
-#include <cstring>
-#include <list>
-#include <string>
-
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/foreach.hpp>
 #include <boost/iterator/iterator_facade.hpp>
@@ -35,11 +28,17 @@
 #include <boost/mpl/bool_fwd.hpp>
 #include <boost/token_functions.hpp>
 #include <boost/tokenizer.hpp>
+#include <errno.h>
+#include <limits.h>
+#include <cmath>
+#include <cstring>
+#include <list>
+#include <string>
 
 #include "auth_common.h"              // check_readonly() and SUPER_ACL
 #include "binary_log_types.h"
-#include "binlog_event.h"
 #include "binlog.h"                   // mysql_bin_log
+#include "binlog_event.h"
 #include "check_stack.h"
 #include "current_thd.h"
 #include "dd/dd.h"                    // dd::get_dictionary
@@ -53,19 +52,17 @@
 #include "item.h"
 #include "keycache.h"
 #include "lock.h"                     // MYSQL_LOCK
-#include "log_event.h"                // Write_rows_log_event
 #include "log.h"                      // sql_print_error
+#include "log_event.h"                // Write_rows_log_event
 #include "m_ctype.h"
 #include "mdl.h"
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"                // MY_BITMAP
 #include "my_check_opt.h"
-#include "myisam.h"                   // TT_FOR_UPGRADE
+#include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
-#include "mysql_com.h"
 #include "my_sqlcommand.h"
-#include "mysqld_error.h"
-#include "mysqld.h"                   // global_system_variables heap_hton ..
+#include "myisam.h"                   // TT_FOR_UPGRADE
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -73,7 +70,10 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysql_version.h"            // MYSQL_VERSION_ID
+#include "mysqld.h"                   // global_system_variables heap_hton ..
+#include "mysqld_error.h"
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "opt_costmodel.h"
 #include "opt_hints.h"

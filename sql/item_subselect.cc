@@ -43,6 +43,7 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_config.h"
+#include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysqld.h"              // in_left_expr_name

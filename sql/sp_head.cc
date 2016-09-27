@@ -40,6 +40,7 @@
 #include "mdl.h"
 #include "my_bitmap.h"
 #include "my_config.h"
+#include "my_pointer_arithmetic.h"
 #include "my_user.h"           // parse_user
 #include "mysql/psi/mysql_error.h"
 #include "mysql/psi/mysql_sp.h"

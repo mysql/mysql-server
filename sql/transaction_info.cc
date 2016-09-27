@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "derror.h"             // ER_THD
+#include "my_pointer_arithmetic.h"
 #include "mysqld.h"             // global_system_variables
 #include "mysqld_error.h"       // ER_*
 #include "psi_memory_key.h"     // key_memory_thd_transactions

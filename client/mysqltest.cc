@@ -26,17 +26,19 @@
 
 #define MTEST_VERSION "3.3"
 
-#include "client_priv.h"
-#include "my_default.h"
-#include <mysql_version.h>
-#include <mysqld_error.h>
-#include <sql_common.h>
+#include <hash.h>
 #include <m_ctype.h>
 #include <mf_wcomp.h>   // wild_compare
 #include <my_dir.h>
-#include <hash.h>
+#include <mysql_version.h>
+#include <mysqld_error.h>
+#include <sql_common.h>
 #include <stdarg.h>
 #include <violite.h>
+
+#include "client_priv.h"
+#include "my_default.h"
+#include "my_pointer_arithmetic.h"
 #include "my_regex.h" /* Our own version of regex */
 #include "my_thread_local.h"
 #include "mysql/service_my_snprintf.h"
@@ -46,14 +48,13 @@
 #ifdef _WIN32
 #include <direct.h>
 #endif
-#include <signal.h>
 #include <my_stacktrace.h>
-
+#include <signal.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
-
-#include <string>
 #include <algorithm>
 #include <functional>
+#include <string>
+
 #include "prealloced_array.h"
 #include "template_utils.h"
 
@@ -62,6 +63,7 @@ using std::max;
 
 #ifdef _WIN32
 #include <crtdbg.h>
+
 #define SIGNAL_FMT "exception 0x%x"
 #else
 #define SIGNAL_FMT "signal %d"
@@ -2691,8 +2693,8 @@ static st_error global_error_names[] =
 {
   { "<No error>", (uint)-1, "", "", "", 0 },
 #ifndef IN_DOXYGEN
-#include <mysqld_ername.h>
 #include <mysqlclient_ername.h>
+#include <mysqld_ername.h>
 #endif /* IN_DOXYGEN */
   { 0, 0, 0, 0, 0, 0 }
 };
@@ -7335,6 +7337,7 @@ static struct my_option my_long_options[] =
    &no_skip, &no_skip, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
+
   {"tail-lines", OPT_TAIL_LINES,
    "Number of lines of the result to include in a failure report.",
    &opt_tail_lines, &opt_tail_lines, 0,
@@ -7511,6 +7514,7 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
       tty_password= 1;
     break;
 #include <sslopt-case.h>
+
   case 't':
     my_stpnmov(TMPDIR, argument, sizeof(TMPDIR));
     break;
