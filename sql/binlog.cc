@@ -303,6 +303,8 @@ private:
   @warning The class is not designed to be inherited from.
  */
 
+#ifndef EMBEDDED_LIBRARY
+
 class Thd_backup_and_restore
 {
 public:
@@ -369,7 +371,6 @@ public:
    */
   ~Thd_backup_and_restore()
   {
-#ifndef EMBEDDED_LIBRARY
     /*
       Restore the global variables of the thd we previously attached to,
       to its original state. In other words, detach the m_new_thd.
@@ -380,7 +381,6 @@ public:
     // Reset the global variables to the original state.
     if (unlikely(m_backup_thd->store_globals()))
       DBUG_ASSERT(0);                           // Out of memory?!
-#endif
   }
 
 private:
@@ -390,7 +390,6 @@ private:
    */
   int attach_to(THD *thd)
   {
-#ifndef EMBEDDED_LIBRARY
     if (DBUG_EVALUATE_IF("simulate_session_attach_error", 1, 0)
         || unlikely(thd->store_globals()))
     {
@@ -401,7 +400,6 @@ private:
       */
       return ER_OUTOFMEMORY;
     }
-#endif /* EMBEDDED_LIBRARY */
     return 0;
   }
 
@@ -410,6 +408,7 @@ private:
   my_thread_t m_new_thd_old_real_id;
 };
 
+#endif /* !EMBEDDED_LIBRARY */
 
 /**
   Caches for non-transactional and transactional data before writing
@@ -8604,7 +8603,9 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
       COMMIT_ERROR at this moment.
     */
     DBUG_ASSERT(head->commit_error != THD::CE_COMMIT_ERROR);
+#ifndef EMBEDDED_LIBRARY
     Thd_backup_and_restore switch_thd(thd, head);
+#endif /* !EMBEDDED_LIBRARY */
     bool all= head->get_transaction()->m_flags.real_commit;
     if (head->get_transaction()->m_flags.commit_low)
     {
@@ -8662,7 +8663,9 @@ MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
               if and be the only after_commit invocation left in the
               code.
       */
+#ifndef EMBEDDED_LIBRARY
       Thd_backup_and_restore switch_thd(thd, head);
+#endif /* !EMBEDDED_LIBRARY */
       bool all= head->get_transaction()->m_flags.real_commit;
       (void) RUN_HOOK(transaction, after_commit, (head, all));
       /*
