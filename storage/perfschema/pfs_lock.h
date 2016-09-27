@@ -272,6 +272,20 @@ struct pfs_lock
   }
 
   /**
+    Initialize a lock to dirty.
+  */
+  void set_dirty(pfs_dirty_state *copy_ptr)
+  {
+    /* Do not set the version to 0, read the previous value. */
+    uint32 copy= PFS_atomic::load_u32(&m_version_state);
+    /* Increment the version, set the DIRTY state */
+    uint32 new_val= (copy & VERSION_MASK) + VERSION_INC + PFS_LOCK_DIRTY;
+    PFS_atomic::store_u32(&m_version_state, new_val);
+
+    copy_ptr->m_version_state= new_val;
+  }
+
+  /**
     Execute a dirty to free transition.
     This transition should be executed by the writer that owns the record.
   */
