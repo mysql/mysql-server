@@ -19,7 +19,7 @@
 
 /**
   @file include/my_io.h
-  Common #defines and includes for file and socket I/O.
+  Common \#defines and includes for file and socket I/O.
 */
 
 #include "my_config.h"

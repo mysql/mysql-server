@@ -20,7 +20,7 @@
 /**
   @file include/my_macros.h
   Some common macros. Note that some of these should probably be replaced
-  with code from <algorithm> or similar.
+  with code from \<algorithm\> or similar.
 */
 
 /* Macros to make switching between C and C++ mode easier */
