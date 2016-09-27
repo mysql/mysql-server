@@ -106,13 +106,22 @@ public:
   bool start_result_metadata(uint num_cols, uint flags,
                              const CHARSET_INFO *resultcs)
   { return false; }
+
+  bool store_ps_status(ulong stmt_id, uint column_count,
+                       uint param_count, ulong cond_count) override
+  { return false; }
+  virtual bool send_parameters(List<Item_param> *parameters,
+                               bool is_sql_prepare) override
+  { return false; }
+
   void send_num_fields(uint) {}
   void send_num_rows(uint) {}
   bool send_field_metadata(Send_field *field,
                            const CHARSET_INFO *charset) { return false; }
   virtual bool send_ok(uint server_status, uint statement_warn_count,
                        ulonglong affected_rows, ulonglong last_insert_id,
-                       const char *message) { return false; }
+                       const char *message)
+  { return false; }
 
   virtual bool send_eof(uint server_status,
                         uint statement_warn_count) { return false; }
@@ -140,6 +149,7 @@ public:
   virtual enum enum_vio_type connection_type() { return NO_VIO_TYPE; }
   virtual int get_command(COM_DATA *com_data, enum_server_command *cmd)
   { return -1; }
+  virtual bool flush() { return true; }
 };
 
 

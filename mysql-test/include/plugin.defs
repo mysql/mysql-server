@@ -83,6 +83,7 @@ libtest_sql_lock                        plugin/test_service_sql_api TEST_SQL_LOC
 libtest_sql_sqlmode                     plugin/test_service_sql_api TEST_SQL_SQLMODE
 libtest_sql_replication                 plugin/test_service_sql_api TEST_SQL_REPLICATION
 libtest_sql_errors                      plugin/test_service_sql_api TEST_SQL_ERRORS
+libtest_sql_stmt                        plugin/test_service_sql_api TEST_SQL_STMT
 # Test component
 component_example_component1    components/example  EXAMPLE_COMPONENT_1
 component_example_component2    components/example  EXAMPLE_COMPONENT_2
