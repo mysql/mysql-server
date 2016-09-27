@@ -34,6 +34,13 @@
   g_err.println("ERR: failed on line %u", __LINE__); \
   return -1; } 
 
+#define CHECKE(b,obj) if (!(b)) {                          \
+    g_err.println("ERR:failed on line %u with err %u %s",  \
+                  __LINE__,                                \
+                  obj.getNdbError().code,                 \
+                  obj.getNdbError().message); \
+    return -1; }
+
 static const char* ApiFailTestRun = "ApiFailTestRun";
 static const char* ApiFailTestComplete = "ApiFailTestComplete";
 static const char* ApiFailTestsRunning = "ApiFailTestsRunning";
@@ -7064,14 +7071,21 @@ static int reCreateTableHook(Ndb* ndb,
     NDBT_Context* ctx = (NDBT_Context*) arg;
     
     bool readBackup = (ctx->getProperty("CreateRB", Uint32(0)) != 0);
-    
+    bool fullyReplicated = (ctx->getProperty("CreateFR", Uint32(0)) != 0);
+
     /* Add others as necessary... */
 
     if (readBackup)
     {
       ndbout << "rCTH : Setting ReadBackup property" << endl;
-      table.setReadBackupFlag(true);
     }
+    table.setReadBackupFlag(readBackup);
+
+    if (fullyReplicated)
+    {
+      ndbout << "rCTH : Setting Fully Replicated property" << endl;
+    }
+    table.setFullyReplicated(fullyReplicated);
   }
 
   return 0;
@@ -7184,6 +7198,103 @@ int runCheckLateDisconnect(NDBT_Context* ctx, NDBT_Step* step)
    * if the data nodes failed here
    */
   
+  return NDBT_OK;
+}
+
+int
+runCheckWriteTransaction(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  
+  HugoOperations hugoOps(*pTab);
+  Ndb* pNdb = GETNDB(step);
+  
+  CHECKE((hugoOps.startTransaction(pNdb) == NDBT_OK),
+         hugoOps);
+  
+  CHECKE((hugoOps.pkWriteRecord(pNdb,
+                                0) == NDBT_OK),
+         hugoOps);
+  CHECKE((hugoOps.execute_Commit(pNdb) == NDBT_OK),
+         hugoOps);
+  CHECKE((hugoOps.closeTransaction(pNdb) == NDBT_OK),
+         hugoOps);  
+  
+  return NDBT_OK;
+}
+
+
+int runCheckSlowCommit(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  /* Want to test the 'slow' commit protocol behaves
+   * correctly for various table types
+   */
+  for (int table_type = 0; table_type < 3; table_type++)
+  {
+    switch (table_type)
+    {
+    case 0:
+    {
+      ndbout << "Normal table" << endl;
+      ctx->setProperty("CreateRB", Uint32(0));
+      ctx->setProperty("CreateFR", Uint32(0));
+      break;
+    }
+    case 1:
+    {
+      ndbout << "ReadBackup table" << endl;
+      ctx->setProperty("CreateRB", Uint32(1));
+      ctx->setProperty("CreateFR", Uint32(0));
+      break;
+    }
+    case 2:
+    {
+      ndbout << "FullyReplicated" << endl;
+      /* Need RB set, as can create !RB FR table... */
+      ctx->setProperty("CreateRB", Uint32(1));
+      ctx->setProperty("CreateFR", Uint32(1));
+      break;
+    }
+    }
+    
+    if (runReCreateTable(ctx, step) != NDBT_OK)
+    {
+      return NDBT_FAILED;
+    }
+    
+    for (int test_type=0; test_type < 3; test_type++)
+    {
+      Uint32 errorCode = 0;
+      switch (test_type)
+      {
+      case 0:
+        /* As normal */
+        break;
+      case 1:
+        /* Timeout during commit phase */
+        errorCode = 8113; 
+        break;
+      case 2:
+        /* Timeout during complete phase */
+        errorCode = 8114;
+        break;
+      }
+      ndbout << "Inserting error " << errorCode 
+             << " in all nodes." << endl;
+      
+      restarter.insertErrorInAllNodes(errorCode);
+        
+      int ret = runCheckWriteTransaction(ctx,step);
+      
+      restarter.insertErrorInAllNodes(0);
+      if (ret != NDBT_OK)
+      {
+        return NDBT_FAILED;
+      }
+    }
+  }
+
   return NDBT_OK;
 }
 
@@ -7565,6 +7676,12 @@ TESTCASE("CheckDisconnectComplete",
   STEP(runCheckLateDisconnect);
   FINALIZER(runDropTable);
   FINALIZER(tearDownOtherConnection);
+}
+TESTCASE("CheckSlowCommit",
+         "Check slow commit protocol + table types")
+{
+  STEP(runCheckSlowCommit);
+  FINALIZER(runDropTable);
 }
 
 

@@ -93,3 +93,8 @@ cmd: testNdbApi
 args: -n CheckDisconnectComplete T1
 max-time : 180
 
+cmd: testNdbApi
+args: -n CheckSlowCommit T1
+max-time : 180
+
+

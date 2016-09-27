@@ -1746,6 +1746,7 @@ private:
   void seizeTcConnectFail(Signal* signal);
   Ptr<ApiConnectRecord> sendApiCommitAndCopy(Signal* signal);
   void sendApiCommitSignal(Signal* signal, Ptr<ApiConnectRecord>);
+  void sendApiLateCommitSignal(Signal* signal, Ptr<ApiConnectRecord> apiCopy);
   bool sendAttrInfoTrain(Signal* signal,
                          UintR TBRef,
                          Uint32 connectPtr,
