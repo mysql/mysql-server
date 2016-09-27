@@ -3,6 +3,14 @@
 # So we skip this test in that case
 --source include/have_query_cache_disabled.inc
 
+# For locked reads primary will be used, for unlocked reads primary or
+# backup may be used.
+# But since partitioning hash function is endian dependent results may
+# differ between different platforms with different endian.
+# Until test is made endian independent test is disabled for big endian
+# systems.
+--source suite/ndb/include/have_little_endian.inc
+
 --let $KEYS=40
 --let $TEST_STEP=5
 
@@ -19,9 +27,9 @@
 --source ndb_read_balance.inc
 
 # Fully replicated table
-#--let $comment=NDB_TABLE=FULLY_REPLICATED=1
-#--let $expect=Fully replicated, Mix of Primary + Backup, except where locks are used
-#--source ndb_read_balance.inc
+--let $comment=NDB_TABLE=FULLY_REPLICATED=1
+--let $expect=Fully replicated, Mix of Primary + Backup, except where locks are used
+--source ndb_read_balance.inc
 
 # Potential TODO :
 #   - Extend to cover FR
