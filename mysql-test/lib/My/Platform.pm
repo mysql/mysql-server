@@ -24,7 +24,7 @@ use File::Path;
 use base qw(Exporter);
 our @EXPORT= qw(IS_CYGWIN IS_WINDOWS IS_WIN32PERL
 		native_path posix_path mixed_path
-                check_socket_path_length process_alive);
+                check_socket_path_length process_alive open_for_append);
 
 BEGIN {
   if ($^O eq "cygwin") {
@@ -158,6 +158,53 @@ sub process_alive {
   my @list= split(/,/, `tasklist /FI "PID eq $pid" /NH /FO CSV`);
   my $ret_pid= eval($list[1]);
   return ($ret_pid == $pid);
+}
+
+
+
+use Symbol qw( gensym );
+
+use if $^O eq 'MSWin32', 'Win32API::File', qw( CloseHandle CreateFile GetOsFHandle OsFHandleOpen  OPEN_ALWAYS FILE_APPEND_DATA 
+  FILE_SHARE_READ FILE_SHARE_WRITE FILE_SHARE_DELETE );
+use if $^O eq 'MSWin32', 'Win32::API';
+
+use constant WIN32API_FILE_NULL => [];
+
+# Open a file for append
+# On Windows we use CreateFile with FILE_APPEND_DATA
+# to insure that writes are atomic, not interleaved
+# with writes by another processes. 
+sub open_for_append
+{
+  my ($file) = @_;
+  my $fh = gensym();
+
+  if (IS_WIN32PERL)
+  {
+    my $handle;
+    if (!($handle = CreateFile(
+        $file,
+        FILE_APPEND_DATA(),
+        FILE_SHARE_READ()|FILE_SHARE_WRITE()|FILE_SHARE_DELETE(),
+        WIN32API_FILE_NULL,
+        OPEN_ALWAYS(),# Create if doesn't exist.
+        0,
+        WIN32API_FILE_NULL,
+      )))
+    {
+      return undef;
+    }
+
+    if (!OsFHandleOpen($fh, $handle, 'wat'))
+    {
+      CloseHandle($handle);
+      return undef;
+    }
+    return $fh;
+  }
+  
+  open($fh,">>",$file) or return undef;
+  return $fh;
 }
 
 
