@@ -1179,7 +1179,7 @@ echo "====="                                                       >> $STATUS_HI
 %endif
 
 %attr(755, root, root) %{_libdir}/libndbclient.so
-%attr(755, root, root) %{_libdir}/libndbclient.so.6.0.0
+%attr(755, root, root) %{_libdir}/libndbclient.so.6.1.0
 %if %(test "@MEMCACHED_ROOT_DIR@" '!=' "MEMCACHED_ROOT_DIR-NOTFOUND" && echo 1 || echo 0)
 %attr(755, root, root) %{_libdir}/ndb_engine.so
 %endif

@@ -1314,7 +1314,7 @@ fi
 %files ndbclient
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%attr(755, root, root) %{_libdir}/mysql/libndbclient.so.6.0.0
+%attr(755, root, root) %{_libdir}/mysql/libndbclient.so.6.1.0
 
 %files ndbclient-devel
 %defattr(-, root, root, -)
