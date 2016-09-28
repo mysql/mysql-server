@@ -13985,7 +13985,6 @@ innobase_fts_load_stopword(
 				 THDVAR(thd, ft_enable_stopword), FALSE));
 }
 
-#ifdef UNIV_DEBUG
 /** Hard-coded data dictionary information */
 struct innodb_dd_table_t {
 	/** Data dictionary table name */
@@ -14207,8 +14206,6 @@ template bool dd_table_check<dd::Table>(
 template bool dd_table_check<dd::Partition>(
 	const dd::Partition&,const dict_table_t&,bool);
 #endif
-
-#endif /* UNIV_DEBUG */
 
 /** Maximum length of a table name from InnoDB point of view, including
 partitions and subpartitions, in number of characters.
