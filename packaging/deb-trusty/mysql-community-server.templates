@@ -19,6 +19,7 @@ Type: boolean
 Default: false
 Description: Remove data directory at /var/lib/mysql ?
  This operation will remove the data directory that stores all the databases, tables and related meta-data.
+ Additionally, any import or export files stored at '/var/lib/mysql-files' will be removed along with directory.
  It is highly recommended to take data backup before removing the data directory.
 
 Template: mysql-community-server/data-dir
