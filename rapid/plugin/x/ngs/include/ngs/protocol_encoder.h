@@ -31,7 +31,6 @@
 #include <vector>
 #include <map>
 #include "ngs_common/smart_ptr.h"
-#include <boost/core/noncopyable.hpp>
 
 #include "ngs_common/posix_time.h"
 #include "ngs/protocol/message_builder.h"
@@ -49,7 +48,7 @@ namespace ngs
   typedef uint32_t Prepared_stmt_id;
 
 
-  class Protocol_encoder : private boost::noncopyable
+  class Protocol_encoder
   {
   public:
     typedef ngs::function<void (int error)> Error_handler;
@@ -59,6 +58,9 @@ namespace ngs
                      Protocol_monitor_interface &pmon);
 
     virtual ~Protocol_encoder();
+
+    Protocol_encoder(const Protocol_encoder &) = delete;
+    Protocol_encoder &operator=(const Protocol_encoder &) = delete;
 
     bool send_result(const Error_code &result);
 

@@ -22,7 +22,6 @@
 
 #include <stdint.h>
 #include <list>
-#include <boost/core/noncopyable.hpp>
 
 #include "ngs/thread.h"
 #include "ngs/memory.h"
@@ -112,13 +111,16 @@ namespace ngs
   };
 
 
-  class Page_pool : private boost::noncopyable
+  class Page_pool
   {
   public:
     /* Unlimited allocation, no caching */
     Page_pool(const int32_t page_size = BUFFER_PAGE_SIZE);
     Page_pool(const Pool_config &pool_config);
     ~Page_pool();
+
+    Page_pool(const Page_pool &) = delete;
+    Page_pool &operator=(const Page_pool &) = delete;
 
     Resource<Page> allocate();
 

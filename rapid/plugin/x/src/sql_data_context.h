@@ -52,7 +52,7 @@ typedef Buffering_command_delegate::Field_value Field_value;
 typedef Buffering_command_delegate::Row_data    Row_data;
 
 
-class Sql_data_context : private boost::noncopyable
+class Sql_data_context
 {
 public:
   struct Result_info
@@ -86,6 +86,9 @@ public:
   {}
 
   virtual ~Sql_data_context();
+
+  Sql_data_context(const Sql_data_context &) = delete;
+  Sql_data_context &operator=(const Sql_data_context &) = delete;
 
   ngs::Error_code init();
   void deinit();

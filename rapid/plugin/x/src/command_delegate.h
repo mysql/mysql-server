@@ -28,7 +28,7 @@
 
 namespace xpl
 {
-  class Command_delegate : private boost::noncopyable
+  class Command_delegate
   {
   public:
     struct Field_type
@@ -43,6 +43,9 @@ namespace xpl
       reset();
     }
     virtual ~Command_delegate() {}
+
+    Command_delegate(const Command_delegate &) = delete;
+    Command_delegate &operator=(const Command_delegate &) = delete;
 
     ngs::Error_code get_error() const
     {

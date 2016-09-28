@@ -40,9 +40,8 @@ namespace ngs
 {
   class Server_interface;
 
-  class Client : public Client_interface,
-                 //public Session_interface::Session_delegate,
-                 private boost::noncopyable
+  class Client : public Client_interface
+                 //, public Session_interface::Session_delegate
   {
   public:
     Client(Connection_ptr connection,
@@ -50,6 +49,9 @@ namespace ngs
            Client_id client_id,
            Protocol_monitor_interface &pmon);
     virtual ~Client();
+
+    Client(const Client &) = delete;
+    Client &operator=(const Client &) = delete;
 
     Mutex &get_session_exit_mutex() { return m_session_exit_mutex; }
     ngs::shared_ptr<Session_interface> session() { return m_session; }
