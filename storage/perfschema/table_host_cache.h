@@ -23,6 +23,7 @@
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
+#include "table_helper.h"
 
 class Host_entry;
 
@@ -96,6 +97,55 @@ struct row_host_cache
   ulonglong m_last_error_seen;
 };
 
+class PFS_index_host_cache : public PFS_engine_index
+{
+public:
+  PFS_index_host_cache(PFS_engine_key *key_1)
+    : PFS_engine_index(key_1)
+  {}
+
+  ~PFS_index_host_cache()
+  {}
+
+  virtual bool match(const row_host_cache *row) = 0;
+};
+
+class PFS_index_host_cache_by_ip
+  : public PFS_index_host_cache
+{
+public:
+  PFS_index_host_cache_by_ip()
+    : PFS_index_host_cache(&m_key),
+      m_key("IP")
+  {}
+
+  ~PFS_index_host_cache_by_ip()
+  {}
+
+  bool match(const row_host_cache *row);
+
+private:
+  PFS_key_ip m_key;
+};
+
+class PFS_index_host_cache_by_host
+  : public PFS_index_host_cache
+{
+public:
+  PFS_index_host_cache_by_host()
+    : PFS_index_host_cache(&m_key),
+      m_key("HOST")
+  {}
+
+  ~PFS_index_host_cache_by_host()
+  {}
+
+  bool match(const row_host_cache *row);
+
+private:
+  PFS_key_host m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.HOST_CACHE. */
 class table_host_cache : public PFS_engine_table
 {
@@ -106,16 +156,19 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
-
   table_host_cache();
 
 public:
@@ -139,6 +192,8 @@ private:
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+  PFS_index_host_cache *m_opened_index;
 };
 
 /** @} */

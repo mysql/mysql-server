@@ -2723,6 +2723,9 @@ drop table t3|
 #
 --disable_warnings ONCE
 drop procedure if exists bug4902|
+# The below flag is set in order to allow larger results
+# from SELECT's from SHOW statements in procedure bug4902.
+set SQL_BIG_SELECTS=1|
 create procedure bug4902()
 begin
   show charset like 'foo';
@@ -3968,7 +3971,8 @@ create function bug10055(v char(255)) returns char(255) return lower(v)|
 # This select should not crash server and should return all fields in t1
 select t.column_name, bug10055(t.column_name)
 from information_schema.columns as t
-where t.table_schema = 'test' and t.table_name = 't1'|
+where t.table_schema = 'test' and t.table_name = 't1'
+order by t.column_name|
 drop function bug10055|
 
 #
@@ -7250,7 +7254,7 @@ connection bug29408;
 
 show create view test.v1;      
 select column_name from information_schema.columns
-where table_name='v1' and table_schema='test';
+where table_name='v1' and table_schema='test' order by column_name;
 
 disconnect bug29408;
 --source include/wait_until_disconnected.inc

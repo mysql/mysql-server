@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -178,4 +178,115 @@ int table_all_instr::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_all_instr::index_next(void)
+{
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.has_more_view();
+       m_pos.next_view())
+  {
+    if (!m_opened_index->match_view(m_pos.m_index_1))
+      continue;
+
+    switch (m_pos.m_index_1) {
+    case pos_all_instr::VIEW_MUTEX:
+      {
+        PFS_mutex *mutex;
+        PFS_mutex_iterator it= global_mutex_container.iterate(m_pos.m_index_2);
+        do
+        {
+          mutex= it.scan_next(& m_pos.m_index_2);
+          if (mutex != NULL)
+          {
+            if (m_opened_index->match(mutex))
+            {
+              make_mutex_row(mutex);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+          }
+        } while (mutex != NULL);
+      }
+      break;
+    case pos_all_instr::VIEW_RWLOCK:
+      {
+        PFS_rwlock *rwlock;
+        PFS_rwlock_iterator it= global_rwlock_container.iterate(m_pos.m_index_2);
+        do
+        {
+          rwlock= it.scan_next(& m_pos.m_index_2);
+          if (rwlock != NULL)
+          {
+            if (m_opened_index->match(rwlock))
+            {
+              make_rwlock_row(rwlock);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+          }
+        } while (rwlock != NULL);
+      }
+      break;
+    case pos_all_instr::VIEW_COND:
+      {
+        PFS_cond *cond;
+        PFS_cond_iterator it= global_cond_container.iterate(m_pos.m_index_2);
+        do
+        {
+          cond= it.scan_next(& m_pos.m_index_2);
+          if (cond != NULL)
+          {
+            if (m_opened_index->match(cond))
+            {
+              make_cond_row(cond);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+          }
+        } while (cond != NULL);
+      }
+      break;
+    case pos_all_instr::VIEW_FILE:
+      {
+        PFS_file *file;
+        PFS_file_iterator it= global_file_container.iterate(m_pos.m_index_2);
+        do
+        {
+          file= it.scan_next(& m_pos.m_index_2);
+          if (file != NULL)
+          {
+            if (m_opened_index->match(file))
+            {
+              make_file_row(file);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+          }
+        } while (file != NULL);
+      }
+      break;
+    case pos_all_instr::VIEW_SOCKET:
+      {
+        PFS_socket *socket;
+        PFS_socket_iterator it= global_socket_container.iterate(m_pos.m_index_2);
+        do
+        {
+          socket= it.scan_next(& m_pos.m_index_2);
+          if (socket != NULL)
+          {
+            if (m_opened_index->match(socket))
+            {
+              make_socket_row(socket);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+          }
+        } while (socket != NULL);
+      }
+      break;
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }

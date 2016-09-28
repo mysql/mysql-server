@@ -98,14 +98,18 @@
 */
 
 #include <decimal.h>
-
-#include <my_global.h>
+#include <limits.h>
 #include <m_ctype.h>
-#include <myisampack.h>
-#include <my_sys.h> /* for my_alloca */
 #include <m_string.h>
-
+#include <math.h>
+#include <my_global.h>
+#include <my_sys.h> /* for my_alloca */
+#include <myisampack.h>
+#include <string.h>
 #include <algorithm>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
 
 /*
   Internally decimal numbers are stored base 10^9 (see DIG_BASE below)
@@ -2666,9 +2670,3 @@ int decimal_mod(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
 {
   return do_div_mod(from1, from2, 0, to, 0);
 }
-
-#ifdef MAIN
-/*
-  The main() program has been converted into a unit test.
- */
-#endif

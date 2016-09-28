@@ -39,7 +39,6 @@ struct Ssl_config
   Ssl_config();
 
   bool is_configured() const;
-//  void set_not_null_value();
 
   char *ssl_key;
   char *ssl_ca;
@@ -59,7 +58,7 @@ class Plugin_system_variables
 {
 public:
   static int          max_connections;
-  static unsigned int xport;
+  static unsigned int port;
   static unsigned int min_worker_threads;
   static unsigned int idle_worker_thread_timeout;
   static unsigned int max_allowed_packet;

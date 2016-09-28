@@ -60,7 +60,7 @@ relay_log_info_repository	TABLE
 #
 SET @@GLOBAL.master_info_repository = "TABLE";
 SET @@GLOBAL.relay_log_info_repository = "TABLE";
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL 'channel_3']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.
 RESET SLAVE ALL FOR CHANNEL 'channel_3';

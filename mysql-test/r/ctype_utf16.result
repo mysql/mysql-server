@@ -835,7 +835,7 @@ set names latin1;
 create table t1(a blob, b text charset utf16);
 select data_type, character_octet_length, character_maximum_length
 from information_schema.columns where table_name='t1';
-data_type	character_octet_length	character_maximum_length
+DATA_TYPE	CHARACTER_OCTET_LENGTH	CHARACTER_MAXIMUM_LENGTH
 blob	65535	65535
 text	65535	32767
 drop table t1;

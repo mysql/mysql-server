@@ -44,6 +44,7 @@ Server::Server(boost::shared_ptr<Server_acceptors>  acceptors,
                boost::shared_ptr<Protocol_config> config)
 : m_timer_running(false),
   m_skip_name_resolve(false),
+  m_errors_while_accepting(0),
   m_acceptors(acceptors),
   m_accept_scheduler(accept_scheduler),
   m_worker_scheduler(work_scheduler),
@@ -270,18 +271,21 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
   if (m_state.is(State_terminating))
     return;
 
-  int err = 0;
-  std::string strerr;
   Vio *vio = connection_acceptor.accept();
 
   if (NULL == vio)
   {
     m_delegate->did_reject_client(Server_delegate::AcceptError);
 
-    // error accepting client
-    log_error("Error accepting client: "
-              "Error code: %s (%d)",
-              strerr.c_str(), err);
+    if (0 == (m_errors_while_accepting++ & 255))
+    {
+      // error accepting client
+      log_error("Error accepting client");
+    }
+    const time_t microseconds_to_sleep = 100000;
+
+    my_sleep(microseconds_to_sleep);
+
     return;
   }
 

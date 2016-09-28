@@ -126,7 +126,7 @@ static struct st_mysql_daemon xpl_plugin_info ={
 };
 
 
-static MYSQL_SYSVAR_UINT(port, xpl::Plugin_system_variables::xport,
+static MYSQL_SYSVAR_UINT(port, xpl::Plugin_system_variables::port,
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
     "Port on which xplugin is going to accept incoming connections.",
     NULL, NULL, MYSQLX_TCP_PORT, 1, std::numeric_limits<unsigned short>::max(), 0);

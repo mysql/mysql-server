@@ -9,7 +9,6 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-# For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
 wl6501           : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
 wl6501_1         : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
 wl6501_debug     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY

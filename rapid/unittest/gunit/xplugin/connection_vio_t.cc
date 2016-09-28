@@ -42,10 +42,10 @@ namespace ngs
       {
         m_connection_vio.reset(new Connection_vio(m_ssl_context, NULL));
 
-        m_mock_socket_operations = new Mock_socket_operations();
+        m_mock_socket_operations = new StrictMock<Mock_socket_operations>();
         m_connection_vio->set_socket_operations(m_mock_socket_operations);
 
-        m_mock_system_operations = new Mock_system_operations();
+        m_mock_system_operations = new StrictMock<Mock_system_operations>();
         m_connection_vio->set_system_operations(m_mock_system_operations);
       }
 
@@ -61,6 +61,7 @@ namespace ngs
       Mock_system_operations *m_mock_system_operations;
 
       static const unsigned short PORT = 3030;
+      static const uint32 BACKLOG = 122;
       static const my_socket SOCKET_OK;
       static const int BIND_ERR = -1;
       static const int BIND_OK = 0;
@@ -114,7 +115,7 @@ namespace ngs
 
       EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_err));
 
-      my_socket result = Connection_vio::create_and_bind_socket(PORT, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(PORT, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
     }
@@ -128,7 +129,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_ok));
       EXPECT_CALL(*m_mock_socket_operations, bind(_, _, _)).WillOnce(Return(BIND_ERR));
 
-      my_socket result = Connection_vio::create_and_bind_socket(PORT, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(PORT, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
     }
@@ -141,9 +142,9 @@ namespace ngs
 
       EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_ok));
       EXPECT_CALL(*m_mock_socket_operations, bind(_, _, _)).WillOnce(Return(BIND_OK));
-      EXPECT_CALL(*m_mock_socket_operations, listen(_, _)).WillOnce(Return(LISTEN_ERR));
+      EXPECT_CALL(*m_mock_socket_operations, listen(_, BACKLOG)).WillOnce(Return(LISTEN_ERR));
 
-      my_socket result = Connection_vio::create_and_bind_socket(PORT, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(PORT, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
     }
@@ -156,9 +157,9 @@ namespace ngs
 
       EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_ok));
       EXPECT_CALL(*m_mock_socket_operations, bind(_, _, _)).WillOnce(Return(BIND_OK));
-      EXPECT_CALL(*m_mock_socket_operations, listen(_, _)).WillOnce(Return(LISTEN_OK));
+      EXPECT_CALL(*m_mock_socket_operations, listen(_, BACKLOG)).WillOnce(Return(LISTEN_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(PORT, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(PORT, error_msg, BACKLOG);
 
       ASSERT_EQ(SOCKET_OK, result);
     }
@@ -168,7 +169,7 @@ namespace ngs
 #if defined(HAVE_SYS_UN_H)
       std::string error_msg;
 
-      my_socket result = Connection_vio::create_and_bind_socket("", error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket("", error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif
@@ -180,7 +181,7 @@ namespace ngs
       std::string error_msg;
       std::string long_filename(2000, 'a');
 
-      my_socket result = Connection_vio::create_and_bind_socket(long_filename, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(long_filename, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif
@@ -195,7 +196,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, open(_, _, _)).WillOnce(Return(OPEN_ERR));
       EXPECT_CALL(*m_mock_system_operations, get_errno()).WillOnce(Return(-1));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif
@@ -210,7 +211,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, open(_, _, _)).WillOnce(Return(OPEN_ERR)).WillOnce(Return(OPEN_ERR));
       EXPECT_CALL(*m_mock_system_operations, get_errno()).WillOnce(Return(EEXIST));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif
@@ -227,7 +228,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, read(_, _, _)).WillOnce(Return(READ_ERR));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif
@@ -244,7 +245,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, read(_, _, _)).WillOnce(Return(0));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif
@@ -264,7 +265,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, read(_, _, _)).WillOnce(DoAll(SetArg1ToChar('Y'), Return(1))).WillOnce(Return(0));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif
@@ -283,7 +284,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, getppid()).WillOnce(Return(4));
       EXPECT_CALL(*m_mock_system_operations, kill(_,_)).WillOnce(Return(0));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif
@@ -302,7 +303,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, getppid()).WillOnce(Return(CURRENT_PID));
       EXPECT_CALL(*m_mock_system_operations, unlink(_)).WillOnce(Return(UNLINK_ERR));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif
@@ -318,7 +319,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, write(_, _, _)).WillOnce(Return(WRITE_ERR));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif
@@ -337,7 +338,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, fsync(OPEN_OK)).WillOnce(Return(FSYNC_ERR));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif
@@ -356,7 +357,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, fsync(OPEN_OK)).WillOnce(Return(FSYNC_OK));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_ERR));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif
@@ -379,7 +380,7 @@ namespace ngs
 
       EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_err));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif // defined(HAVE_SYS_UN_H)
@@ -402,7 +403,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_ok));
       EXPECT_CALL(*m_mock_socket_operations, bind(_, _, _)).WillOnce(Return(BIND_ERR));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif // defined(HAVE_SYS_UN_H)
@@ -426,7 +427,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_socket_operations, bind(_, _, _)).WillOnce(Return(BIND_OK));
       EXPECT_CALL(*m_mock_socket_operations, listen(_, _)).WillOnce(Return(LISTEN_ERR));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif // defined(HAVE_SYS_UN_H)
@@ -450,7 +451,7 @@ namespace ngs
       EXPECT_CALL(*m_mock_socket_operations, bind(_, _, _)).WillOnce(Return(BIND_OK));
       EXPECT_CALL(*m_mock_socket_operations, listen(_, _)).WillOnce(Return(LISTEN_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(SOCKET_OK, result);
 #endif // defined(HAVE_SYS_UN_H)
@@ -461,10 +462,39 @@ namespace ngs
 #if !defined(HAVE_SYS_UN_H)
       std::string error_msg;
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg);
+      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif // !defined(HAVE_SYS_UN_H)
+    }
+
+    TEST_F(Connection_vio_test, try_to_unlink_empty_string)
+    {
+      const std::string expected_unix_socket_file = "";
+
+      // Does nothing
+      Connection_vio::unlink_unix_socket_file(expected_unix_socket_file);
+    }
+
+    TEST_F(Connection_vio_test, try_to_unlink_when_system_interfaces_are_not_set)
+    {
+      const std::string expected_unix_socket_file = "existing file";
+
+      m_connection_vio->set_system_operations(NULL);
+
+      // Does nothing
+      Connection_vio::unlink_unix_socket_file(expected_unix_socket_file);
+    }
+
+    TEST_F(Connection_vio_test, try_to_unlink_existing_unix_socket_file)
+    {
+      const std::string expected_unix_socket_file = "expected file";
+      const std::string expected_lockfile = "expected file.lock";
+
+      EXPECT_CALL(*m_mock_system_operations, unlink(StrEq(expected_unix_socket_file)));
+      EXPECT_CALL(*m_mock_system_operations, unlink(StrEq(expected_lockfile)));
+
+      Connection_vio::unlink_unix_socket_file(expected_unix_socket_file);
     }
   }
 }

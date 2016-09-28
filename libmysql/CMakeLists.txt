@@ -95,6 +95,7 @@ mysql_select_db
 mysql_stmt_send_long_data
 # We need to have document for this api
 mysql_send_query
+mysql_shutdown
 mysql_ssl_set
 mysql_stat
 mysql_stmt_affected_rows

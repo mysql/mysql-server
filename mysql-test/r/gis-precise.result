@@ -287,10 +287,10 @@ ERROR 22023: Invalid GIS data provided to function linestring.
 SET sql_mode = default;
 select ST_astext(ST_geomfromwkb(st_intersection(linestring(point(-59,82),point(32,29)), point(2,-5)))) as result;
 result
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_AsText(ST_Symdifference(ST_GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))'),ST_GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))')));
 ST_AsText(ST_Symdifference(ST_GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))'),ST_GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))')))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT st_equals(ST_GeomFromWKB(ST_AsWKB(Polygon(Linestring(Point(0, 0),Point(1, 0),Point(1, 1),Point(0, 1), Point(0, 0))))),
 ST_GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))'));
 st_equals(ST_GeomFromWKB(ST_AsWKB(Polygon(Linestring(Point(0, 0),Point(1, 0),Point(1, 1),Point(0, 1), Point(0, 0))))),
@@ -326,32 +326,32 @@ select ST_astext(st_union(st_intersection(ST_GeomFromText('point(1 1)'), ST_Geom
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))));
 ST_astext(st_union(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 select ST_astext(st_intersection(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))));
 ST_astext(st_intersection(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 select ST_astext(st_difference(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))));
 ST_astext(st_difference(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 select ST_astext(st_symdifference(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))));
 ST_astext(st_symdifference(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 select ST_astext(st_intersection(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_difference(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))));
 ST_astext(st_intersection(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_difference(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 select ST_astext(st_difference(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_difference(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))));
 ST_astext(st_difference(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_difference(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 select ST_astext(st_symdifference(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_difference(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))));
 ST_astext(st_symdifference(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
@@ -362,7 +362,7 @@ ST_astext(st_union(ST_GeomFromText('multipoint(2 2, 3 3)'), st_intersection(ST_G
 MULTIPOINT((2 2),(3 3))
 select ST_astext(st_intersection(ST_GeomFromText('multipoint(2 2, 3 3)'), st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))));
 ST_astext(st_intersection(ST_GeomFromText('multipoint(2 2, 3 3)'), st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 select ST_astext(st_symdifference(ST_GeomFromText('multipoint(2 2, 3 3)'), st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))));
 ST_astext(st_symdifference(ST_GeomFromText('multipoint(2 2, 3 3)'), st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)'))))
 MULTIPOINT((2 2),(3 3))
@@ -374,13 +374,13 @@ ST_astext(st_difference(ST_GeomFromText('multipoint(2 2, 3 3)'), ST_GeomFromText
 MULTIPOINT((2 2),(3 3))
 select ST_astext(st_difference(ST_GeomFromText('multipoint(2 2, 3 3)'), ST_GeomFromText('multipoint(2 2, 3 3)')));
 ST_astext(st_difference(ST_GeomFromText('multipoint(2 2, 3 3)'), ST_GeomFromText('multipoint(2 2, 3 3)')))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 select ST_astext(st_symdifference(ST_GeomFromText('multipoint(2 2, 3 3)'), ST_GeomFromText('multipoint(0 0, 4 4)')));
 ST_astext(st_symdifference(ST_GeomFromText('multipoint(2 2, 3 3)'), ST_GeomFromText('multipoint(0 0, 4 4)')))
 MULTIPOINT((0 0),(2 2),(3 3),(4 4))
 select ST_astext(st_symdifference(ST_GeomFromText('multipoint(2 2, 3 3)'), ST_GeomFromText('multipoint(2 2, 3 3)')));
 ST_astext(st_symdifference(ST_GeomFromText('multipoint(2 2, 3 3)'), ST_GeomFromText('multipoint(2 2, 3 3)')))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 select st_intersects(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')));
 st_intersects(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
@@ -517,10 +517,10 @@ ERROR 22023: Invalid GIS data provided to function polygon.
 #
 SELECT ST_AsText(ST_GeomFromText('GeometryCollection()'));
 ST_AsText(ST_GeomFromText('GeometryCollection()'))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_AsText(ST_GeomFromText('GeometryCollection(GeometryCollection())'));
 ST_AsText(ST_GeomFromText('GeometryCollection(GeometryCollection())'))
-GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())
+GEOMETRYCOLLECTION(GEOMETRYCOLLECTION EMPTY)
 SELECT ST_AsText(ST_GeomFromText('GeometryCollection(,)'));
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AsText(ST_GeomFromText('GeometryCollection(())'));
@@ -535,7 +535,7 @@ SELECT ST_AsText(ST_GeomFromText('GeometryCollection((point(0 0)))'));
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AsText(ST_GeomFromText('GeometryCollection(GeometryCollection())'));
 ST_AsText(ST_GeomFromText('GeometryCollection(GeometryCollection())'))
-GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())
+GEOMETRYCOLLECTION(GEOMETRYCOLLECTION EMPTY)
 SELECT ST_AsText(ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))'));
 ST_AsText(ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))'))
 GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1 1)))
@@ -581,10 +581,10 @@ ERROR 22023: Invalid GIS data provided to function polygon.
 #
 SELECT ST_AsText(ST_GeomFromText('GeometryCollection()'));
 ST_AsText(ST_GeomFromText('GeometryCollection()'))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_AsText(ST_GeomFromText('GeometryCollection(GeometryCollection())'));
 ST_AsText(ST_GeomFromText('GeometryCollection(GeometryCollection())'))
-GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())
+GEOMETRYCOLLECTION(GEOMETRYCOLLECTION EMPTY)
 SELECT ST_AsText(ST_GeomFromText('GeometryCollection(,)'));
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AsText(ST_GeomFromText('GeometryCollection(())'));
@@ -599,7 +599,7 @@ SELECT ST_AsText(ST_GeomFromText('GeometryCollection((point(0 0)))'));
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AsText(ST_GeomFromText('GeometryCollection(GeometryCollection())'));
 ST_AsText(ST_GeomFromText('GeometryCollection(GeometryCollection())'))
-GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())
+GEOMETRYCOLLECTION(GEOMETRYCOLLECTION EMPTY)
 SELECT ST_AsText(ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))'));
 ST_AsText(ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))'))
 GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1 1)))
@@ -631,7 +631,7 @@ ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1), Point(2 2)))'
 LINESTRING(1 1,2 2)
 select ST_astext(st_difference(ST_GeomFromText('polygon((0 0, 1 0, 0 1, 0 0))'), ST_GeomFromText('polygon((0 0, 0 1, 1 1, 1 0, 0 0))'))) as result;
 result
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 select ST_astext(st_symdifference(ST_GeomFromText('polygon((0 0, 1 0, 0 1, 0 0))'), ST_GeomFromText('polygon((0 0, 0 1, 1 1, 1 0, 0 0))'))) as result;
 result
 POLYGON((0 1,1 0,1 1,0 1))
@@ -794,7 +794,7 @@ ST_AsText(ST_ConvexHull(ST_GeomFromText('GEOMETRYCOLLECTION()')))
 NULL
 SELECT ST_AsText(ST_Envelope(ST_GeomFromText('GEOMETRYCOLLECTION()')));
 ST_AsText(ST_Envelope(ST_GeomFromText('GEOMETRYCOLLECTION()')))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION()')));
 ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION()')))
 NULL
@@ -975,10 +975,10 @@ ST_AsText(ST_Envelope(ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10
 POLYGON((0 0,10 0,10 10,0 10,0 0))
 SELECT ST_AsText(ST_Envelope(ST_GeomFromText('GEOMETRYCOLLECTION()')));
 ST_AsText(ST_Envelope(ST_GeomFromText('GEOMETRYCOLLECTION()')))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_AsText(ST_Envelope(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(), GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(), GEOMETRYCOLLECTION(), GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))')));
 ST_AsText(ST_Envelope(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(), GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(), GEOMETRYCOLLECTION(), GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))')))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_intersects(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),ST_GeomFromText('GEOMETRYCOLLECTION()'));
 ST_intersects(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),ST_GeomFromText('GEOMETRYCOLLECTION()'))
 0
@@ -1302,27 +1302,27 @@ SELECT
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))'))) as geom;
 geom
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))'))) as geom;
 geom
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))'))) as geom;
 geom
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT
 ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))'))) as geom;
 geom
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1 1), GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))'))) as geom;
 geom
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1 1), GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))'))) as geom;
@@ -1332,7 +1332,7 @@ SELECT
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1 1), GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))'))) as geom;
 geom
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1 1)))'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))'))) as geom;
@@ -1342,7 +1342,7 @@ SELECT
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1 1)))'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1 1), GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))'))) as geom;
 geom
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT
 ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1 1), GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))'))) as geom;
@@ -1357,7 +1357,7 @@ SELECT
 ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1 1)))'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1 1), GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))'))) as geom;
 geom
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 #
 # Bug#20111542 SET OPERATIONS RETURN GEOMETRYCOLLECTION CONTAINING SINGLE GEOMETRY COMPONENT
 #
@@ -1779,13 +1779,13 @@ MULTIPOINT((19 -4),(-2 -6),(-8 2))
 #
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -10));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -10))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -8));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -8))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -6));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -6))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 #
 # Bug#20510010 ST_BUFFER() : MYSQLD GOT SIGNAL 11
 #
@@ -2006,7 +2006,7 @@ GEOMETRYCOLLECTION(MULTIPOINT((0 14),(-9 -11)),MULTIPOINT((16 1),(-9 -17),(-16 6
 #
 select st_astext(geometrycollection()) as result;
 result
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 set @empty_geom = geometrycollection();
 select 1, @empty_geom = st_geomfromtext('geometrycollection()') as equal;
 1	equal
@@ -2080,7 +2080,7 @@ st_geomfromtext('polygon((0 0, 1 0, 1 1, 0 1, 0 0))'),
 st_geomfromtext('polygon((2 0, 3 0, 3 1, 2 1, 2 0))')))
 as result;
 result
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 select st_astext(st_intersection(
 st_geomfromtext('polygon((0 0, 2 0, 2 1, 0 1, 0 0))'),
 st_geomfromtext('polygon((1 0, 3 0, 3 1, 1 1, 1 0))')))
@@ -2160,7 +2160,7 @@ SELECT ST_AsText(ST_GeomFromWKB(0x0101000000000000000000244000000000000024401111
 ERROR 22023: Invalid GIS data provided to function st_geomfromwkb.
 SELECT ST_AsText(ST_GeomFromWKB(0x01070000000300000001070000000100000001010000000000000000002440000000000000244001020000000200000000000000000000000000000000000000000000000000F03F000000000000F03F010700000000000000)) as result;
 result
-GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10)),LINESTRING(0 0,1 1),GEOMETRYCOLLECTION())
+GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10)),LINESTRING(0 0,1 1),GEOMETRYCOLLECTION EMPTY)
 SELECT ST_AsText(ST_GeomFromWKB(0x01070000000300000001070000000100000001010000000000000000002440000000000000244001020000000200000000000000000000000000000000000000000000000000F03F000000000000F03F01070000000000000011111111)) as result;
 ERROR 22023: Invalid GIS data provided to function st_geomfromwkb.
 #

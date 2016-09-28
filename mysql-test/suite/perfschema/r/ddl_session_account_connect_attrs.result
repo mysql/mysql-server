@@ -7,3 +7,6 @@ ALTER TABLE performance_schema.session_account_connect_attrs ADD INDEX test_inde
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 CREATE UNIQUE INDEX test_index ON performance_schema.session_account_connect_attrs(ATTR_NAME);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+DROP INDEX `PRIMARY`
+  ON performance_schema.session_account_connect_attrs;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

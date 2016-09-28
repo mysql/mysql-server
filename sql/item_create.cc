@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2767,11 +2767,11 @@ protected:
   virtual ~Create_func_simplify() {}
 };
 
-
-class Create_func_srid : public Create_func_arg1
+class Create_func_srid : public Create_native_func
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
 
   static Create_func_srid s_singleton;
 
@@ -3132,10 +3132,11 @@ protected:
 };
 
 
-class Create_func_x : public Create_func_arg1
+class Create_func_x : public Create_native_func
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
 
   static Create_func_x s_singleton;
 
@@ -3171,10 +3172,11 @@ protected:
 };
 
 
-class Create_func_y : public Create_func_arg1
+class Create_func_y : public Create_native_func
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
 
   static Create_func_y s_singleton;
 
@@ -3195,6 +3197,323 @@ public:
 protected:
   Create_func_year_week() {}
   virtual ~Create_func_year_week() {}
+};
+
+
+class Create_func_get_dd_column_privileges : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_get_dd_column_privileges s_singleton;
+
+protected:
+  Create_func_get_dd_column_privileges() {}
+  virtual ~Create_func_get_dd_column_privileges() {}
+};
+
+
+class Create_func_get_dd_index_sub_part_length : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_get_dd_index_sub_part_length s_singleton;
+
+protected:
+  Create_func_get_dd_index_sub_part_length() {}
+  virtual ~Create_func_get_dd_index_sub_part_length() {}
+};
+
+
+class Create_func_get_dd_create_options : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_get_dd_create_options s_singleton;
+
+protected:
+  Create_func_get_dd_create_options() {}
+  virtual ~Create_func_get_dd_create_options() {}
+};
+
+
+class Create_func_internal_dd_char_length : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_internal_dd_char_length s_singleton;
+
+protected:
+  Create_func_internal_dd_char_length() {}
+  virtual ~Create_func_internal_dd_char_length() {}
+};
+
+
+class Create_func_can_access_database : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_can_access_database s_singleton;
+
+protected:
+  Create_func_can_access_database() {}
+  virtual ~Create_func_can_access_database() {}
+};
+
+
+class Create_func_can_access_table : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_can_access_table s_singleton;
+
+protected:
+  Create_func_can_access_table() {}
+  virtual ~Create_func_can_access_table() {}
+};
+
+
+class Create_func_can_access_view : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_can_access_view s_singleton;
+
+protected:
+  Create_func_can_access_view() {}
+  virtual ~Create_func_can_access_view() {}
+};
+
+
+class Create_func_can_access_column : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_can_access_column s_singleton;
+
+protected:
+  Create_func_can_access_column() {}
+  virtual ~Create_func_can_access_column() {}
+};
+
+
+class Create_func_internal_table_rows: public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd,
+                              LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static  Create_func_internal_table_rows s_singleton;
+
+protected:
+ Create_func_internal_table_rows() {}
+ virtual ~Create_func_internal_table_rows() {}
+};
+
+
+class Create_func_internal_avg_row_length: public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd,
+                              LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static  Create_func_internal_avg_row_length s_singleton;
+
+protected:
+ Create_func_internal_avg_row_length() {}
+ virtual ~Create_func_internal_avg_row_length() {}
+};
+
+
+class Create_func_internal_data_length: public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd,
+                              LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static  Create_func_internal_data_length s_singleton;
+
+protected:
+ Create_func_internal_data_length() {}
+ virtual ~Create_func_internal_data_length() {}
+};
+
+
+class Create_func_internal_max_data_length: public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd,
+                              LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static  Create_func_internal_max_data_length s_singleton;
+
+protected:
+ Create_func_internal_max_data_length() {}
+ virtual ~Create_func_internal_max_data_length() {}
+};
+
+
+class Create_func_internal_index_length: public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd,
+                              LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static  Create_func_internal_index_length s_singleton;
+
+protected:
+ Create_func_internal_index_length() {}
+ virtual ~Create_func_internal_index_length() {}
+};
+
+
+class Create_func_internal_data_free: public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd,
+                              LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static  Create_func_internal_data_free s_singleton;
+
+protected:
+ Create_func_internal_data_free() {}
+ virtual ~Create_func_internal_data_free() {}
+};
+
+
+class Create_func_internal_auto_increment: public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd,
+                              LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static  Create_func_internal_auto_increment s_singleton;
+
+protected:
+ Create_func_internal_auto_increment() {}
+ virtual ~Create_func_internal_auto_increment() {}
+};
+
+
+class Create_func_internal_checksum: public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd,
+                              LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static  Create_func_internal_checksum s_singleton;
+
+protected:
+ Create_func_internal_checksum() {}
+ virtual ~Create_func_internal_checksum() {}
+};
+
+
+class Create_func_internal_update_time: public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd,
+                              LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static  Create_func_internal_update_time s_singleton;
+
+protected:
+ Create_func_internal_update_time() {}
+ virtual ~Create_func_internal_update_time() {}
+};
+
+
+class Create_func_internal_check_time: public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd,
+                              LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static  Create_func_internal_check_time s_singleton;
+
+protected:
+ Create_func_internal_check_time() {}
+ virtual ~Create_func_internal_check_time() {}
+};
+
+
+class Create_func_internal_keys_disabled : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_internal_keys_disabled s_singleton;
+
+protected:
+  Create_func_internal_keys_disabled() {}
+  virtual ~Create_func_internal_keys_disabled() {}
+};
+
+
+class Create_func_internal_index_column_cardinality : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_internal_index_column_cardinality s_singleton;
+
+protected:
+  Create_func_internal_index_column_cardinality() {}
+  virtual ~Create_func_internal_index_column_cardinality() {}
+};
+
+
+class Create_func_internal_get_comment_or_error : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_internal_get_comment_or_error s_singleton;
+
+protected:
+  Create_func_internal_get_comment_or_error() {}
+  virtual ~Create_func_internal_get_comment_or_error() {}
+};
+
+class Create_func_internal_get_view_warning_or_error : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_internal_get_view_warning_or_error s_singleton;
+
+protected:
+  Create_func_internal_get_view_warning_or_error() {}
+  virtual ~Create_func_internal_get_view_warning_or_error() {}
 };
 
 
@@ -6316,11 +6635,41 @@ Create_func_sqrt::create(THD *thd, Item *arg1)
 Create_func_srid Create_func_srid::s_singleton;
 
 Item*
-Create_func_srid::create(THD *thd, Item *arg1)
+Create_func_srid::create_native(THD *thd, LEX_STRING name,
+                                PT_item_list *item_list)
 {
-  return new (thd->mem_root) Item_func_srid(POS(), arg1);
-}
+  Item *func= nullptr;
+  int arg_count= 0;
 
+  if (item_list != nullptr)
+  {
+    arg_count= item_list->elements();
+  }
+
+  switch (arg_count)
+  {
+  case 1:
+    {
+      Item *param_1= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_get_srid(POS(), param_1);
+      break;
+    }
+  case 2:
+    {
+      Item *param_1= item_list->pop_front();
+      Item *param_2= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_set_srid(POS(), param_1, param_2);
+      break;
+    }
+  default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
+}
 
 Create_func_startpoint Create_func_startpoint::s_singleton;
 
@@ -6604,9 +6953,36 @@ Create_func_within::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_x Create_func_x::s_singleton;
 
 Item*
-Create_func_x::create(THD *thd, Item *arg1)
+Create_func_x::create_native(THD *thd, LEX_STRING name, PT_item_list *item_list)
 {
-  return new (thd->mem_root) Item_func_x(POS(), arg1);
+  Item* func= nullptr;
+  int arg_count= 0;
+
+  if (item_list != nullptr)
+  {
+    arg_count= item_list->elements();
+  }
+  switch (arg_count)
+  {
+  case 1:
+    {
+      Item *arg1= item_list->pop_front();
+      return new (thd->mem_root) Item_func_get_x(POS(), arg1);
+    }
+  case 2:
+    {
+      Item *arg1= item_list->pop_front();
+      Item *arg2= item_list->pop_front();
+      return new (thd->mem_root) Item_func_set_x(POS(), arg1, arg2);
+    }
+  default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
 }
 
 
@@ -6633,9 +7009,36 @@ Create_func_xml_update::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 Create_func_y Create_func_y::s_singleton;
 
 Item*
-Create_func_y::create(THD *thd, Item *arg1)
+Create_func_y::create_native(THD *thd, LEX_STRING name, PT_item_list *item_list)
 {
-  return new (thd->mem_root) Item_func_y(POS(), arg1);
+  Item* func= nullptr;
+  int arg_count= 0;
+
+  if (item_list != nullptr)
+  {
+    arg_count= item_list->elements();
+  }
+  switch (arg_count)
+  {
+  case 1:
+    {
+      Item *arg1= item_list->pop_front();
+      return new (thd->mem_root) Item_func_get_y(POS(), arg1);
+    }
+  case 2:
+    {
+      Item *arg1= item_list->pop_front();
+      Item *arg2= item_list->pop_front();
+      return new (thd->mem_root) Item_func_set_y(POS(), arg1, arg2);
+    }
+  default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
 }
 
 
@@ -6691,6 +7094,597 @@ Item*
 Create_func_roles_graphml::create(THD *thd)
 {
 	return new (thd->mem_root) Item_func_roles_graphml(POS());
+}
+
+
+Create_func_get_dd_column_privileges Create_func_get_dd_column_privileges::s_singleton;
+
+Item*
+Create_func_get_dd_column_privileges::create_native(THD *thd, LEX_STRING name,
+                                          PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 3)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_get_dd_column_privileges(
+                               POS(), param_1, param_2, param_3);
+}
+
+
+Create_func_get_dd_index_sub_part_length
+  Create_func_get_dd_index_sub_part_length::s_singleton;
+
+Item*
+Create_func_get_dd_index_sub_part_length::create_native(
+  THD *thd,
+  LEX_STRING name,
+  PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 5)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+  Item *param_5= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_get_dd_index_sub_part_length(POS(),
+                               param_1, param_2, param_3, param_4, param_5);
+}
+
+
+Create_func_get_dd_create_options
+  Create_func_get_dd_create_options::s_singleton;
+
+Item*
+Create_func_get_dd_create_options::create_native(THD *thd, LEX_STRING name,
+                                                 PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 2)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_get_dd_create_options(
+                               POS(), param_1, param_2);
+}
+
+
+Create_func_can_access_database Create_func_can_access_database::s_singleton;
+
+Item*
+Create_func_can_access_database::create_native(THD *thd, LEX_STRING name,
+                                                 PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 1)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_can_access_database(
+                               POS(), param_1);
+}
+
+
+Create_func_can_access_table Create_func_can_access_table::s_singleton;
+
+Item*
+Create_func_can_access_table::create_native(THD *thd, LEX_STRING name,
+                                                 PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 3)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_can_access_table(
+                               POS(), param_1, param_2, param_3);
+}
+
+
+Create_func_can_access_view Create_func_can_access_view::s_singleton;
+
+Item*
+Create_func_can_access_view::create_native(THD *thd, LEX_STRING name,
+                                                 PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_can_access_view(
+                               POS(), param_1, param_2, param_3, param_4);
+}
+
+
+Create_func_can_access_column Create_func_can_access_column::s_singleton;
+
+Item*
+Create_func_can_access_column::create_native(THD *thd, LEX_STRING name,
+                                                 PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return NULL;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_can_access_column(
+                               POS(), param_1, param_2, param_3, param_4);
+}
+
+
+Create_func_internal_table_rows
+  Create_func_internal_table_rows::s_singleton;
+
+Item*
+Create_func_internal_table_rows::create_native(THD *thd, LEX_STRING name,
+                                               PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_internal_table_rows(POS(),
+                                                           param_1,
+                                                           param_2,
+                                                           param_3,
+                                                           param_4);
+}
+
+
+Create_func_internal_avg_row_length
+  Create_func_internal_avg_row_length::s_singleton;
+
+Item*
+Create_func_internal_avg_row_length::create_native(THD *thd, LEX_STRING name,
+                                               PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_internal_avg_row_length(POS(),
+                                                               param_1,
+                                                               param_2,
+                                                               param_3,
+                                                               param_4);
+}
+
+
+Create_func_internal_data_length Create_func_internal_data_length::s_singleton;
+
+Item*
+Create_func_internal_data_length::create_native(THD *thd, LEX_STRING name,
+                                               PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_internal_data_length(POS(),
+                                                            param_1,
+                                                            param_2,
+                                                            param_3,
+                                                            param_4);
+}
+
+
+Create_func_internal_max_data_length
+  Create_func_internal_max_data_length::s_singleton;
+
+Item*
+Create_func_internal_max_data_length::create_native(THD *thd, LEX_STRING name,
+                                               PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_internal_max_data_length(POS(),
+                                                                param_1,
+                                                                param_2,
+                                                                param_3,
+                                                                param_4);
+}
+
+
+Create_func_internal_index_length
+  Create_func_internal_index_length::s_singleton;
+
+Item*
+Create_func_internal_index_length::create_native(THD *thd, LEX_STRING name,
+                                               PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_internal_index_length(POS(),
+                                                             param_1,
+                                                             param_2,
+                                                             param_3,
+                                                             param_4);
+}
+
+
+Create_func_internal_data_free Create_func_internal_data_free::s_singleton;
+
+Item*
+Create_func_internal_data_free::create_native(THD *thd, LEX_STRING name,
+                                               PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_internal_data_free(POS(),
+                                                          param_1,
+                                                          param_2,
+                                                          param_3,
+                                                          param_4);
+}
+
+
+Create_func_internal_auto_increment
+  Create_func_internal_auto_increment::s_singleton;
+
+Item*
+Create_func_internal_auto_increment::create_native(THD *thd, LEX_STRING name,
+                                               PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_internal_auto_increment(POS(),
+                                                               param_1,
+                                                               param_2,
+                                                               param_3,
+                                                               param_4);
+}
+
+
+Create_func_internal_checksum
+  Create_func_internal_checksum::s_singleton;
+
+Item*
+Create_func_internal_checksum::create_native(THD *thd, LEX_STRING name,
+                                             PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_internal_checksum(POS(),
+                                                         param_1,
+                                                         param_2,
+                                                         param_3,
+                                                         param_4);
+}
+
+
+Create_func_internal_update_time
+  Create_func_internal_update_time::s_singleton;
+
+Item*
+Create_func_internal_update_time::create_native(THD *thd, LEX_STRING name,
+                                                PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_internal_update_time(POS(),
+                                                            param_1,
+                                                            param_2,
+                                                            param_3,
+                                                            param_4);
+}
+
+
+Create_func_internal_check_time
+  Create_func_internal_check_time::s_singleton;
+
+Item*
+Create_func_internal_check_time::create_native(THD *thd, LEX_STRING name,
+                                               PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_internal_check_time(POS(),
+                                                           param_1,
+                                                           param_2,
+                                                           param_3,
+                                                           param_4);
+}
+
+
+Create_func_internal_keys_disabled
+  Create_func_internal_keys_disabled::s_singleton;
+
+Item*
+Create_func_internal_keys_disabled::create_native(THD *thd, LEX_STRING name,
+                                                  PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 3)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_internal_keys_disabled(
+                               POS(), param_1, param_2, param_3);
+}
+
+
+Create_func_internal_index_column_cardinality
+  Create_func_internal_index_column_cardinality::s_singleton;
+
+Item*
+Create_func_internal_index_column_cardinality::create_native(
+  THD *thd, LEX_STRING name, PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 7)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  return new (thd->mem_root) Item_func_internal_index_column_cardinality(
+                               POS(), item_list);
+}
+
+
+Create_func_internal_get_comment_or_error
+Create_func_internal_get_comment_or_error::s_singleton;
+
+Item*
+Create_func_internal_get_comment_or_error::create_native(
+  THD *thd, LEX_STRING name, PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 5)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  return new (thd->mem_root) Item_func_internal_get_comment_or_error(
+                               POS(), item_list);
+}
+
+Create_func_internal_get_view_warning_or_error
+  Create_func_internal_get_view_warning_or_error::s_singleton;
+
+Item*
+Create_func_internal_get_view_warning_or_error::create_native(
+  THD *thd, LEX_STRING name, PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return NULL;
+  }
+
+  return
+    new (thd->mem_root)Item_func_internal_get_view_warning_or_error(POS(),
+                                                                    item_list);
 }
 
 struct Native_func_registry
@@ -6983,6 +7977,50 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("WEEKDAY") }, BUILDER(Create_func_weekday)},
   { { C_STRING_WITH_LEN("WEEKOFYEAR") }, BUILDER(Create_func_weekofyear)},
   { { C_STRING_WITH_LEN("YEARWEEK") }, BUILDER(Create_func_year_week)},
+  { { C_STRING_WITH_LEN("GET_DD_COLUMN_PRIVILEGES") },
+                BUILDER(Create_func_get_dd_column_privileges)},
+  { { C_STRING_WITH_LEN("GET_DD_INDEX_SUB_PART_LENGTH") },
+                BUILDER(Create_func_get_dd_index_sub_part_length)},
+  { { C_STRING_WITH_LEN("GET_DD_CREATE_OPTIONS") },
+                BUILDER(Create_func_get_dd_create_options)},
+  { { C_STRING_WITH_LEN("internal_dd_char_length") },
+                BUILDER(Create_func_internal_dd_char_length)},
+  { { C_STRING_WITH_LEN("can_access_database") },
+                BUILDER(Create_func_can_access_database)},
+  { { C_STRING_WITH_LEN("can_access_table") },
+                BUILDER(Create_func_can_access_table)},
+  { { C_STRING_WITH_LEN("can_access_column") },
+                BUILDER(Create_func_can_access_column)},
+  { { C_STRING_WITH_LEN("can_access_view") },
+                BUILDER(Create_func_can_access_view)},
+  { { C_STRING_WITH_LEN("internal_table_rows") },
+                BUILDER(Create_func_internal_table_rows)},
+  { { C_STRING_WITH_LEN("internal_avg_row_length") },
+                BUILDER(Create_func_internal_avg_row_length)},
+  { { C_STRING_WITH_LEN("internal_data_length") },
+                BUILDER(Create_func_internal_data_length)},
+  { { C_STRING_WITH_LEN("internal_max_data_length") },
+                BUILDER(Create_func_internal_max_data_length)},
+  { { C_STRING_WITH_LEN("internal_index_length") },
+                BUILDER(Create_func_internal_index_length)},
+  { { C_STRING_WITH_LEN("internal_data_free") },
+                BUILDER(Create_func_internal_data_free)},
+  { { C_STRING_WITH_LEN("internal_auto_increment") },
+                BUILDER(Create_func_internal_auto_increment)},
+  { { C_STRING_WITH_LEN("internal_checksum") },
+                BUILDER(Create_func_internal_checksum)},
+  { { C_STRING_WITH_LEN("internal_update_time") },
+                BUILDER(Create_func_internal_update_time)},
+  { { C_STRING_WITH_LEN("internal_check_time") },
+                BUILDER(Create_func_internal_check_time)},
+  { { C_STRING_WITH_LEN("internal_keys_disabled") },
+                BUILDER(Create_func_internal_keys_disabled)},
+  { { C_STRING_WITH_LEN("internal_index_column_cardinality") },
+                BUILDER(Create_func_internal_index_column_cardinality)},
+  { { C_STRING_WITH_LEN("internal_get_comment_or_error") },
+                BUILDER(Create_func_internal_get_comment_or_error)},
+  { { C_STRING_WITH_LEN("internal_get_view_warning_or_error") },
+    BUILDER(Create_func_internal_get_view_warning_or_error)},
 
   { {0, 0}, NULL}
 };
@@ -7292,6 +8330,38 @@ Item *create_temporal_literal(THD *thd,
   }
   return NULL;
 }
+
+
+Create_func_internal_dd_char_length
+  Create_func_internal_dd_char_length::s_singleton;
+
+Item*
+Create_func_internal_dd_char_length::create_native(THD *thd, LEX_STRING name,
+                                          PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+  Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_internal_dd_char_length(POS(),
+                                                               param_1,
+                                                               param_2,
+                                                               param_3,
+                                                               param_4);
+}
+
 
 /**
   @} (end of group GROUP_PARSER)

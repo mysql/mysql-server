@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@
 #include "pfs_instr.h"
 #include "pfs_timer.h"
 #include "pfs_visitor.h"
-#include "table_esms_by_digest.h"
 #include "pfs_digest.h"
 #include "field.h"
 
@@ -203,6 +202,21 @@ table_esms_by_digest::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_esms_by_digest::match(PFS_statements_digest_stat *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    return m_key_2.match(pfs);
+  }
+  return true;
+}
+
 PFS_engine_table*
 table_esms_by_digest::create(void)
 {
@@ -276,6 +290,41 @@ table_esms_by_digest::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_esms_by_digest::index_init(uint idx, bool sorted)
+{
+  PFS_index_esms_by_digest *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_esms_by_digest);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_esms_by_digest::index_next(void)
+{
+  PFS_statements_digest_stat* digest_stat;
+
+  if (statements_digest_stat_array == NULL)
+    return HA_ERR_END_OF_FILE;
+
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.m_index < digest_max;
+       m_pos.next())
+  {
+    digest_stat= &statements_digest_stat_array[m_pos.m_index];
+    if (digest_stat->m_first_seen != 0)
+    {
+      if (m_opened_index->match(digest_stat))
+      {
+        make_row(digest_stat);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
 
 void table_esms_by_digest::make_row(PFS_statements_digest_stat* digest_stat)
 {
@@ -335,4 +384,3 @@ int table_esms_by_digest
 
   return 0;
 }
-

@@ -20,17 +20,27 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-/**
-  Initialize data dictionary upon server startup or install data
-  dictionary for the first time.
+// enum type to pass to init() function.
+enum class enum_dd_init_type
+{
+  DD_INITIALIZE= 1,
+  DD_RESTART_OR_UPGRADE,
+  DD_POPULATE_UPGRADE,
+  DD_DELETE
+};
 
-  @param install - If true, creates data dictionary tables. Else
-                   it initializes data dictionary.
+
+/**
+  Initialize data dictionary upon server startup, server startup on old
+  data directory or install data dictionary for the first time.
+
+  @param dd_init - Option for initialization, population or deletion
+                   of data dictionary.
 
   @return false - On success
   @return true - On error
 */
-bool init(bool install);
+bool init(enum_dd_init_type dd_init);
 
 
 /**

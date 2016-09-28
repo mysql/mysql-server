@@ -47,6 +47,7 @@ SET(HEADERS
   errmsg.h
   my_global.h
   my_getopt.h
+  my_psi_config.h
   sslopt-longopts.h
   my_dir.h 
   sslopt-vars.h

@@ -33,10 +33,7 @@ create_tablespace_16k     : WL#9525 disables it, waiting for FK fix
 (Due to InnoDB issues)
 virtual_fk_restart        : WL#9533 disables it, waiting for FK fix
 
-table_encrypt_4           : WL#9525 disables it, waiting for IMPORT/EXPORT tablespace fix
-table_encrypt_debug       : WL#9525 disables it, waiting for IMPORT/EXPORT tablespace fix
-innodb-wl5522-debug       : WL#9525 disables it, waiting for IMPORT/EXPORT tablespace fix
-innodb-wl5980-discard     : WL#9525 disables it, waiting for IMPORT/EXPORT tablespace fix
+innodb-wl5980-discard     : WL#9525 disables it, waiting for discard tablespace fix
 
 innodb_bulk_create_index_debug : WL#9525 disables it, tablespaces are not crash-safe for now
 

@@ -21,6 +21,8 @@
   Performance schema instrumentation (declarations).
 */
 
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #ifdef HAVE_PSI_STAGE_INTERFACE
 #ifdef MYSQL_SERVER
 #ifndef EMBEDDED_LIBRARY

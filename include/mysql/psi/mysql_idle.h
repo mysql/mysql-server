@@ -23,6 +23,8 @@
 
 #include "mysql/psi/psi_idle.h"
 
+#include "pfs_idle_provider.h"
+
 #ifndef PSI_IDLE_CALL
 #define PSI_IDLE_CALL(M) psi_idle_service->M
 #endif

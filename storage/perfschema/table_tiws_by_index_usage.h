@@ -69,6 +69,28 @@ struct pos_tiws_by_index_usage : public PFS_double_index
   }
 };
 
+class PFS_index_tiws_by_index_usage : public PFS_engine_index
+{
+public:
+  PFS_index_tiws_by_index_usage()
+    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3, &m_key_4),
+    m_key_1("OBJECT_TYPE"), m_key_2("OBJECT_SCHEMA"),
+    m_key_3("OBJECT_NAME"), m_key_4("INDEX_NAME")
+  {}
+
+  ~PFS_index_tiws_by_index_usage()
+  {}
+
+  virtual bool match(PFS_table_share *table);
+  virtual bool match(PFS_table_share *share, uint index);
+
+private:
+  PFS_key_object_type m_key_1;
+  PFS_key_object_schema m_key_2;
+  PFS_key_object_name m_key_3;
+  PFS_key_object_name m_key_4;  /* index name */
+};
+
 /** Table PERFORMANCE_SCHEMA.TABLE_IO_WAIT_SUMMARY_BY_INDEX. */
 class table_tiws_by_index_usage : public PFS_engine_table
 {
@@ -79,17 +101,20 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
-
   table_tiws_by_index_usage();
 
 public:
@@ -113,6 +138,9 @@ private:
   pos_tiws_by_index_usage m_pos;
   /** Next position. */
   pos_tiws_by_index_usage m_next_pos;
+
+protected:
+  PFS_index_tiws_by_index_usage *m_opened_index;
 };
 
 /** @} */

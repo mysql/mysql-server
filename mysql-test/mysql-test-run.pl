@@ -125,7 +125,6 @@ our $opt_vardir;                # Path to use for var/ dir
 my $path_vardir_trace;          # unix formatted opt_vardir for trace files
 my $opt_tmpdir;                 # Path to use for tmp/ dir
 my $opt_tmpdir_pid;
-my $opt_no_defaults;
 my $opt_start;
 my $opt_start_dirty;
 my $opt_start_exit;
@@ -193,6 +192,7 @@ my $opt_ssl;
 my $opt_skip_ssl;
 my @opt_skip_test_list;
 my $opt_do_test_list= "";
+my $opt_do_suite;
 our $opt_ssl_supported;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
@@ -300,6 +300,8 @@ my $opt_reorder= 1;
 my $opt_force_restart= 0;
 
 our $opt_suite_opt;
+our $opt_no_skip;
+our $excluded_string;
 
 my $opt_strace_client;
 my $opt_strace_server;
@@ -307,6 +309,7 @@ my $opt_strace_server;
 our $opt_user = "root";
 
 our $opt_valgrind= 0;
+my $opt_discover= 0;
 my $opt_sanitize= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_clients= 0;
@@ -399,7 +402,36 @@ sub main {
   if ($opt_skip_sys_schema) {
     $opt_suites =~ s/,sysschema//;
   }
-  mtr_report("Using suites: $opt_suites") unless @opt_cases;
+
+  my $mtr_suites= $opt_suites;
+  # Skip the suites that doesn't match --do-suite filter
+  if ($opt_do_suite)
+  {
+    my $opt_do_suite_reg= init_pattern($opt_do_suite, "--do-suite");
+    for my $suite (split(",", $opt_suites))
+    {
+      if ($opt_do_suite_reg and not $suite =~ /$opt_do_suite_reg/)
+      {
+        $opt_suites =~ s/$suite,?//;
+      }
+    }
+
+    # Removing ',' at the end of $opt_suites if exists
+    $opt_suites =~ s/,$//;
+  }
+
+  if ($opt_suites)
+  {
+    mtr_report("Using suites: $opt_suites") unless @opt_cases;
+  }
+  else
+  {
+    if ($opt_do_suite)
+    {
+      mtr_error("The PREFIX/REGEX '$opt_do_suite' doesn't match any of ".
+                "'$mtr_suites' suite(s)");
+    }
+  }
 
   init_timers();
 
@@ -437,13 +469,16 @@ sub main {
     for my $limit (2000, 1500, 1000, 500){
       $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
     }
-    my $max_par= $ENV{MTR_MAX_PARALLEL} || 8;
-    $opt_parallel= $max_par if ($opt_parallel > $max_par);
-    $opt_parallel= $num_tests if ($opt_parallel > $num_tests);
+    if(defined $ENV{MTR_MAX_PARALLEL}) {
+      my $max_par= $ENV{MTR_MAX_PARALLEL};
+      $opt_parallel= $max_par if ($opt_parallel > $max_par);
+    }
     $opt_parallel= 1 if ($opt_parallel < 1);
-    mtr_report("Using parallel: $opt_parallel");
   }
+  # Limit parallel workers to number of tests to avoid idle workers
+  $opt_parallel= $num_tests if ($num_tests > 0 and $opt_parallel > $num_tests);
   $ENV{MTR_PARALLEL} = $opt_parallel;
+  mtr_report("Using parallel: $opt_parallel");
 
   my $is_option_mysqlx_port_set= $opt_mysqlx_baseport ne "auto";
   if ($opt_parallel > 1 && ($opt_start_exit || $opt_stress || $is_option_mysqlx_port_set)) {
@@ -1069,6 +1104,7 @@ sub print_global_resfile {
   resfile_global("gcov", $opt_gcov ? 1 : 0);
   resfile_global("gprof", $opt_gprof ? 1 : 0);
   resfile_global("valgrind", $opt_valgrind ? 1 : 0);
+  resfile_global("discover", $opt_discover ? 1 : 0);
   resfile_global("sanitize", $opt_sanitize ? 1 : 0);
   resfile_global("callgrind", $opt_callgrind ? 1 : 0);
   resfile_global("helgrind", $opt_helgrind ? 1 : 0);
@@ -1088,6 +1124,7 @@ sub print_global_resfile {
   resfile_global("warnings", $opt_warnings ? 1 : 0);
   resfile_global("test-progress", $opt_test_progress ? 1 : 0);
   resfile_global("max-connections", $opt_max_connections);
+  resfile_global("no-skip", $opt_no_skip ? 1 : 0);
 #  resfile_global("default-myisam", $opt_default_myisam ? 1 : 0);
   resfile_global("product", "MySQL");
   resfile_global("xml-report", $opt_xml_report);
@@ -1143,12 +1180,14 @@ sub command_line_setup {
              'skip-rpl'                 => \&collect_option,
              'skip-test=s'              => \&collect_option,
              'do-test=s'                => \&collect_option,
+             'do-suite=s'               => \$opt_do_suite,
              'start-from=s'             => \&collect_option,
              'big-test'                 => \$opt_big_test,
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
              'experimental=s'           => \@opt_experimentals,
              'skip-sys-schema'          => \$opt_skip_sys_schema,
+             'no-skip'                  => \$opt_no_skip,
 	     # skip-im is deprecated and silently ignored
 	     'skip-im'                  => \&ignore_option,
 
@@ -1209,6 +1248,7 @@ sub command_line_setup {
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
              'gprof'                    => \$opt_gprof,
+             'discover'                 => \$opt_discover,
              'sanitize'                 => \$opt_sanitize,
              'valgrind|valgrind-all'    => \$opt_valgrind,
 	     'valgrind-clients'         => \$opt_valgrind_clients,
@@ -1461,6 +1501,28 @@ sub command_line_setup {
     }
   }
 
+# ---------------------------------------
+# Read the file and store it in a string.
+# ----------------------------------------
+
+  if($opt_no_skip)
+  {
+     $excluded_string = '';
+     my $excludenoskip = 'include/excludenoskip.list';
+     my $i_excludenoskip = '../internal/mysql-test/include/i_excludenoskip.list';
+     foreach my $excludedList ($excludenoskip,$i_excludenoskip)
+     {
+       open(my $fh, '<', $excludedList)
+         or die "no-skip option cannot run without '$excludedList' $!";
+       while(<$fh>)
+       {
+         chomp $_;
+         $excluded_string .= $_."," unless ($_=~ /^\s*$/ or $_=~ /^#/);
+       }
+       close $fh;
+     }
+     chop $excluded_string;
+  }
 
   # --------------------------------------------------------------------------
   # Find out default storage engine being used(if any)
@@ -1939,9 +2001,13 @@ sub set_build_thread_ports($) {
   if ( lc($opt_build_thread) eq 'auto' ) {
     my $found_free = 0;
     $build_thread = 300;	# Start attempts from here
+
+    my $build_thread_upper = $build_thread + ($opt_parallel > 39
+                             ? $opt_parallel + int($opt_parallel / 4)
+                             : 49);
     while (! $found_free)
     {
-      $build_thread= mtr_get_unique_id($build_thread, 349);
+      $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper);
       if ( !defined $build_thread ) {
         mtr_error("Could not get a unique build thread id");
       }
@@ -2428,7 +2494,6 @@ sub find_plugin($$)
     mtr_file_exists(vs_config_dirs($location,$plugin_filename),
                     "$basedir/lib/plugin/".$plugin_filename,
                     "$basedir/lib64/plugin/".$plugin_filename,
-                    "$basedir/$location/.libs/".$plugin_filename,
                     "$basedir/lib/mysql/plugin/".$plugin_filename,
                     "$basedir/lib64/mysql/plugin/".$plugin_filename,
                     );
@@ -2510,21 +2575,6 @@ sub environment_setup {
     # Use the --client-libdir passed on commandline
     push(@ld_library_paths, "$path_client_libdir");
   }
-  else
-  {
-    # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
-    # are used in favor of the system installed ones
-    if ( $source_dist )
-    {
-      push(@ld_library_paths, "$basedir/libmysql/.libs/",
-	   "$basedir/libmysql_r/.libs/",
-	   "$basedir/zlib/.libs/");
-    }
-    else
-    {
-      push(@ld_library_paths, "$basedir/lib", "$basedir/lib/mysql");
-    }
-  }
 
   # --------------------------------------------------------------------------
   # Add the path where libndbclient can be found
@@ -2532,44 +2582,24 @@ sub environment_setup {
   if ( $ndbcluster_enabled )
   {
     push(@ld_library_paths,  
-	 "$basedir/storage/ndb/src/.libs",
 	 "$basedir/storage/ndb/src");
   }
 
   # Plugin settings should no longer be added here, instead
   # place definitions in include/plugin.defs.
   # See comment in that file for details.
-  # --------------------------------------------------------------------------
-  # Valgrind need to be run with debug libraries otherwise it's almost
-  # impossible to add correct supressions, that means if "/usr/lib/debug"
-  # is available, it should be added to
-  # LD_LIBRARY_PATH
-  #
-  # But pthread is broken in libc6-dbg on Debian <= 3.1 (see Debian
-  # bug 399035, http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=399035),
-  # so don't change LD_LIBRARY_PATH on that platform.
-  # --------------------------------------------------------------------------
-  my $debug_libraries_path= "/usr/lib/debug";
-  my $deb_version;
-  if (  $opt_valgrind and -d $debug_libraries_path and
-        (! -e '/etc/debian_version' or
-	 ($deb_version=
-	    mtr_grab_file('/etc/debian_version')) !~ /^[0-9]+\.[0-9]$/ or
-         $deb_version > 3.1 ) )
+  if ( @ld_library_paths )
   {
-    push(@ld_library_paths, $debug_libraries_path);
+    $ENV{'LD_LIBRARY_PATH'}= join(":", @ld_library_paths,
+				  $ENV{'LD_LIBRARY_PATH'} ?
+				  split(':', $ENV{'LD_LIBRARY_PATH'}) : ());
+    mtr_warning("LD_LIBRARY_PATH: $ENV{'LD_LIBRARY_PATH'}");
+
+    $ENV{'DYLD_LIBRARY_PATH'}= join(":", @ld_library_paths,
+				    $ENV{'DYLD_LIBRARY_PATH'} ?
+				    split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
+    mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
   }
-
-  $ENV{'LD_LIBRARY_PATH'}= join(":", @ld_library_paths,
-				$ENV{'LD_LIBRARY_PATH'} ?
-				split(':', $ENV{'LD_LIBRARY_PATH'}) : ());
-  mtr_debug("LD_LIBRARY_PATH: $ENV{'LD_LIBRARY_PATH'}");
-
-  $ENV{'DYLD_LIBRARY_PATH'}= join(":", @ld_library_paths,
-				  $ENV{'DYLD_LIBRARY_PATH'} ?
-				  split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
-  mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
-
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
 
@@ -2853,6 +2883,14 @@ sub environment_setup {
 
   # Make sure LeakSanitizer exits if leaks are found
   $ENV{'LSAN_OPTIONS'}= "exitcode=42" if $opt_sanitize;
+
+  # Make sure discover exits if failures are found
+  # Disabled here for now, the -w option only supports '%p'
+  #   we need another wildcard to substitute the name of the executable.
+  # $ENV{'SUNW_DISCOVER_OPTIONS'}= "-X -f" if $opt_discover;
+  # $ENV{'LD_PRELOAD_64'}=
+  #    "/opt/developerstudio12.5/lib/compilers/sparcv9/libdiscoverADI.so"
+  #      if $opt_discover;
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir= dirname($^X);
@@ -3847,16 +3885,6 @@ sub default_mysqld {
   return $mysqld;
 }
 
-sub mysqld_default_arguments {
-  my ($mysqld, $args, $my_datadir)= @_;
-  mtr_add_arg($args, "--basedir=%s", $mysqld->value('basedir'));
-  mtr_add_arg($args, "--datadir=%s", "$my_datadir");
-  mtr_add_arg($args, "--lc-messages-dir=%s", $mysqld->value('lc-messages-dir'));
-  mtr_add_arg($args, "--secure-file-priv=%s", "$opt_vardir");
-  # overwrite the buffer size to 24M for certain tests to pass
-  mtr_add_arg($args, "--innodb_buffer_pool_size=24M");
-  mtr_add_arg($args, "--innodb-log-file-size=5M");
-}
 
 sub mysql_install_db {
   my ($mysqld, $datadir)= @_;
@@ -3875,7 +3903,13 @@ sub mysql_install_db {
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--core-file");
-  mysqld_default_arguments($mysqld, $args, $install_datadir);
+  mtr_add_arg($args, "--basedir=%s", $mysqld->value('basedir'));
+  mtr_add_arg($args, "--datadir=%s", "$install_datadir");
+  mtr_add_arg($args, "--lc-messages-dir=%s", $mysqld->value('lc-messages-dir'));
+  mtr_add_arg($args, "--secure-file-priv=%s", "$opt_vardir");
+  # overwrite the buffer size to 24M for certain tests to pass
+  mtr_add_arg($args, "--innodb_buffer_pool_size=24M");
+  mtr_add_arg($args, "--innodb-log-file-size=5M");
   # overwrite innodb_autoextend_increment to 8 for reducing the ibdata1 file size
   mtr_add_arg($args, "--innodb_autoextend_increment=8");
   if ( $opt_embedded_server )
@@ -5729,35 +5763,49 @@ sub mysqld_stop {
     );
 }
 
+# This subroutine is added to handle option file options which always
+# have to be passed before any other variables or command line options.
+sub arrange_option_files_options
+{
+  my ($args, $mysqld, $extra_opts, @options)= @_;
+
+  my @optionfile_options;
+  foreach my $arg (@$extra_opts)
+  {
+    if ( grep { $arg =~ $_ } @options )
+    {
+      push (@optionfile_options, $arg );
+    }
+  }
+
+  my $opt_no_defaults= grep(/^--no-defaults/, @optionfile_options);
+  my $opt_defaults_extra= grep(/^--defaults-extra-file/, @optionfile_options);
+  my $opt_defaults= grep(/^--defaults-file/, @optionfile_options);
+
+  if ( !$opt_defaults_extra && !$opt_defaults && !$opt_no_defaults )
+  {
+    mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
+  }
+
+  push(@$args, @optionfile_options);
+
+  # no-defaults has to be the first option provided to mysqld.
+  if ( $opt_no_defaults )
+  {
+    @$args= grep {!/^--defaults-group-suffix/} @$args;
+  }
+}
+
 
 sub mysqld_arguments ($$$) {
   my $args=              shift;
   my $mysqld=            shift;
   my $extra_opts=        shift;
+  my @options= ("--no-defaults", "--defaults-extra-file", "--defaults-file",
+                "--login-path", "--print-defaults");
 
-  $opt_no_defaults = grep(/^--no[-_]defaults/, @$extra_opts);
-  if ($opt_no_defaults)
-  {
-    unshift(@$args, "--no-defaults");
-    mysqld_default_arguments($mysqld, $args, $mysqld->value('datadir'));
-    mtr_add_arg($args, "--socket=%s", $mysqld->value('socket'));
-    mtr_add_arg($args, "--pid-file=%s", $mysqld->value('pid-file'));
-    mtr_add_arg($args, "--port=%s", $mysqld->value('port'));
-    # Add ssl related options to avoid server warnings while restarting
-    mtr_add_arg($args, "--ssl-cert=%s", "$glob_mysql_test_dir/std_data/server-cert.pem");
-    mtr_add_arg($args, "--ssl-key=%s", "$glob_mysql_test_dir/std_data/server-key.pem");
-  }
+  arrange_option_files_options($args, $mysqld, $extra_opts, @options);
 
-  else
-  {
-    my @defaults = grep(/^--defaults[-_]file=/, @$extra_opts);
-    if (@defaults > 0) {
-      mtr_add_arg($args, pop(@defaults))
-    }
-    else {
-    mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
-    }
-  }
   # When mysqld is run by a root user(euid is 0), it will fail
   # to start unless we specify what user to run as, see BUG#30630
   my $euid= $>;
@@ -5817,11 +5865,10 @@ sub mysqld_arguments ($$$) {
 
   foreach my $arg ( @$extra_opts )
   {
-    # Skip --defaults-file and --no-defaults options since they are handled above.
-    next if $arg =~ /^--defaults-file/;
-    next if $arg =~ /^--no-defaults/;
+    # Skip option file options because they are handled above
+    next if ( grep { $arg =~ $_ } @options);
 
-    if ($arg eq "--log[-_]error")
+    if ($arg =~ /--log[-_]error/)
     {
       $found_log_error= 1;
     }
@@ -5974,6 +6021,17 @@ sub mysqld_start ($$) {
 
   if ( defined $exe )
   {
+    if ($opt_discover)
+    {
+      # We do not want to monitor my_safe_process,
+      # but we *do* want to monitor mysqld
+      push(@opt_mysqld_envs,
+	   "SUNW_DISCOVER_OPTIONS=-X -f -w $opt_vardir/log/mysqld.%p.txt");
+      push(@opt_mysqld_envs,
+	   "LD_PRELOAD_64=/opt/developerstudio12.5/lib/compilers/sparcv9/libdiscoverADI.so");
+#      delete $ENV{'SUNW_DISCOVER_OPTIONS'};
+#      delete $ENV{'LD_PRELOAD_64'}
+    }
     $mysqld->{'proc'}= My::SafeProcess->new
       (
        name          => $mysqld->name(),
@@ -6534,7 +6592,8 @@ sub start_check_testcase ($$$) {
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--logdir=%s/tmp", $opt_vardir);
-  if (IS_WINDOWS)
+
+if (IS_WINDOWS)
   {
     mtr_add_arg($args, "--protocol=pipe");
   }
@@ -6603,6 +6662,12 @@ sub start_mysqltest ($) {
   if ( $opt_ps_protocol )
   {
     mtr_add_arg($args, "--ps-protocol");
+  }
+
+  if ( $opt_no_skip )
+  {
+    mtr_add_arg($args, "--no-skip");
+    mtr_add_arg($args,"--no-skip-exclude-list=$excluded_string");
   }
 
   if ( $opt_sp_protocol )
@@ -7308,6 +7373,9 @@ Options to control what test suites or cases to run
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
                         or fulfills REGEX
+  do-suite=PREFIX or REGEX
+                        Run tests from suites whose name is prefixed with
+                        PREFIX or fulfills REGEX
   skip-test=PREFIX or REGEX
                         Skip test cases which name are prefixed with PREFIX
                         or fulfills REGEX
@@ -7481,6 +7549,9 @@ Misc options
   warnings              Scan the log files for warnings. Use --nowarnings
                         to turn off.
 
+  discover              Preload libdiscoverADI.so when starting mysqld.
+                        Reports from discover in <vardir>/log/mysqld.%p.txt
+                        Only supported on SPARC-M7 machines
   sanitize              Scan server log files for warnings from various
                         sanitizers. Assumes that you have built with
                         -DWITH_ASAN or -DWITH_UBSAN
@@ -7504,6 +7575,11 @@ Misc options
                         phases of test execution.
   nounit-tests          Do not run unit tests. Normally run if configured
                         and if not running named tests/suites
+  no-skip               This option is used to run all MTR tests even if the
+                        condition required for running the test as specified
+                        by inc files are not satisfied. The option mandatorily
+                        requires an excluded list at include/excludenoskip.list
+                        which contains inc files which should continue to skip.
   unit-tests            Run unit tests even if they would otherwise not be run
   unit-tests-report     Include report of every test included in unit tests.
   stress=ARGS           Run stress test, providing options to

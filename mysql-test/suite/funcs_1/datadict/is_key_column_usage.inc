@@ -74,7 +74,8 @@ SELECT constraint_catalog, constraint_schema, constraint_name, table_catalog,
        table_schema, table_name, column_name
 FROM information_schema.key_column_usage
 WHERE (constraint_catalog IS NOT NULL OR table_catalog IS NOT NULL) AND
-      table_name != 'ndb_binlog_index';
+      table_name != 'ndb_binlog_index'
+ORDER BY constraint_name, table_name, column_name;
 
 
 --echo ########################################################################################
@@ -175,9 +176,10 @@ DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
 ENGINE = $engine_type;
 # Settings used in CREATE TABLE must be visible
 # in information_schema.key_column_usage.
+--replace_column 8 #
 --vertical_results
 SELECT * FROM information_schema.key_column_usage
-WHERE table_name = 't1_my_table';
+WHERE table_name = 't1_my_table' ORDER BY column_name;
 --horizontal_results
 #
 # Check modification of TABLE_NAME

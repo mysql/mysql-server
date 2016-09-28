@@ -94,9 +94,13 @@ namespace dynamic_loader_unittest {
     virtual void TearDown()
     {
       if (reg)
+      {
         ASSERT_FALSE(reg->release((my_h_service)reg));
+      }
       if (loader)
+      {
         ASSERT_FALSE(reg->release((my_h_service)loader));
+      }
       ASSERT_FALSE(mysql_services_shutdown());
     }
     SERVICE_TYPE(registry)* reg;

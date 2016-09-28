@@ -740,7 +740,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     The rollback variable is used for detecting/accepting NULL objects inside
     collections (a feature with NULL geometry is allowed, and thus we can have
     a geometry collection with a NULL geometry translated into following WKT:
-    GEOMETRYCOLLECTION()).
+    GEOMETRYCOLLECTION EMPTY).
 
     parse_object() does a recursive parsing of the GeoJSON document.
   */
@@ -5401,8 +5401,104 @@ longlong Item_func_numpoints::val_int()
   return (longlong) num;
 }
 
+String *Item_func_set_x::val_str(String *str)
+{
+  DBUG_ASSERT(fixed);
+  String *swkb= args[0]->val_str(str);
+  double x_coordinate= args[1]->val_real();
 
-double Item_func_x::val_real()
+  if ((null_value= (args[0]->null_value || args[1]->null_value)))
+  {
+    return nullptr;
+  }
+
+  if (!swkb)
+  {
+    /*
+    We've already found out that args[0]->null_value is false.
+    Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  if (std::isnan(x_coordinate) || std::isinf(x_coordinate))
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), func_name());
+    return error_str();
+  }
+
+  Geometry_buffer buffer;
+  Geometry *geom;
+  if (!(geom= Geometry::construct(&buffer, swkb)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  if (geom->get_type() != Geometry::wkb_point)
+  {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "POINT",
+             geom->get_class_info()->m_name.str, func_name());
+    return error_str();
+  }
+
+  str->copy(*swkb);
+  float8store(str->c_ptr_safe() + GEOM_HEADER_SIZE, x_coordinate);
+  return str;
+}
+
+String *Item_func_set_y::val_str(String *str)
+{
+  DBUG_ASSERT(fixed);
+  String *swkb= args[0]->val_str(str);
+  double y_coordinate= args[1]->val_real();
+
+  if ((null_value= (args[0]->null_value || args[1]->null_value)))
+  {
+    return nullptr;
+  }
+
+  if (!swkb)
+  {
+    /*
+    We've already found out that args[0]->null_value is false.
+    Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  if (std::isnan(y_coordinate) || std::isinf(y_coordinate))
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), func_name());
+    return error_str();
+  }
+
+  Geometry_buffer buffer;
+  Geometry *geom;
+  if (!(geom= Geometry::construct(&buffer, swkb)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  if (geom->get_type() != Geometry::wkb_point)
+  {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "POINT",
+             geom->get_class_info()->m_name.str, func_name());
+    return error_str();
+  }
+
+  str->copy(*swkb);
+  float8store(str->c_ptr_safe() + GEOM_HEADER_SIZE + SIZEOF_STORED_DOUBLE,
+              y_coordinate);
+  return str;
+}
+
+double Item_func_get_x::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double res= 0.0;				// In case of errors
@@ -5410,11 +5506,32 @@ double Item_func_x::val_real()
   Geometry_buffer buffer;
   Geometry *geom;
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    return res;
+  if ((null_value= (args[0]->null_value)))
+  {
+    return 0.0;
+  }
+
+  if (!swkb)
+  {
+    /* 
+    We've already found out that args[0]->null_value is false.
+    Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_real();
+  }
+
   if (!(geom= Geometry::construct(&buffer, swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_real();
+  }
+
+  if (geom->get_type() != Geometry::wkb_point)
+  {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "POINT",
+             geom->get_class_info()->m_name.str, func_name());
     return error_real();
   }
   null_value= geom->get_x(&res);
@@ -5422,7 +5539,7 @@ double Item_func_x::val_real()
 }
 
 
-double Item_func_y::val_real()
+double Item_func_get_y::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double res= 0;				// In case of errors
@@ -5430,11 +5547,32 @@ double Item_func_y::val_real()
   Geometry_buffer buffer;
   Geometry *geom;
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    return res;
+  if ((null_value= (args[0]->null_value)))
+  {
+    return 0.0;
+  }
+
+  if (!swkb)
+  {
+    /*
+    We've already found out that args[0]->null_value is false.
+    Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_real();
+  }
+
   if (!(geom= Geometry::construct(&buffer, swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_real();
+  }
+
+  if (geom->get_type() != Geometry::wkb_point)
+  {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "POINT",
+             geom->get_class_info()->m_name.str, func_name());
     return error_real();
   }
   null_value= geom->get_y(&res);
@@ -5625,7 +5763,7 @@ double Item_func_glength::val_real()
   return res;
 }
 
-longlong Item_func_srid::val_int()
+longlong Item_func_get_srid::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   String *swkb= args[0]->val_str(&value);
@@ -5641,6 +5779,60 @@ longlong Item_func_srid::val_int()
   }
 
   return (longlong) (uint4korr(swkb->ptr()));
+}
+
+
+String *Item_func_set_srid::val_str(String *str)
+{
+  String *geometry_str= args[0]->val_str(str);
+
+  Geometry::srid_t srid= 0;
+  // Check that the SRID-argument is within range.
+  if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
+  {
+    return error_str();
+  }
+
+  null_value|= args[0]->null_value; 
+
+  // Check if either argument is null.
+  if (null_value)
+  {
+    DBUG_ASSERT(maybe_null);
+    return nullptr;
+  }
+  if (str->copy(*geometry_str))
+  {
+    return error_str();
+  }
+
+  Geometry_buffer buffer1;
+  // Assume invalid geometry if construction fails.
+  if (!(Geometry::construct(&buffer1, str)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  if (srid != 0)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(srid, &srs))
+    {
+      return error_str();
+    }
+
+    if (srs == nullptr)
+    {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return error_str();
+    }
+  }
+
+  str->write_at_position(0, srid);
+
+  return str;
 }
 
 

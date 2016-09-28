@@ -28,6 +28,10 @@ class Object_type;
 class View;
 class View_table_impl;
 
+namespace tables {
+  class View_table_usage;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 class View_table : virtual public Weak_object
@@ -36,6 +40,8 @@ public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
   typedef View_table_impl Impl;
+
+  typedef tables::View_table_usage cache_partition_table_type;
 
 public:
   virtual ~View_table()

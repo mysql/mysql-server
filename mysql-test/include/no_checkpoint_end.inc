@@ -24,8 +24,9 @@ open(OUT, ">$ENV{MYSQLTEST_VARDIR}/log/check.txt") || die;
 if ($cp1 > $cp || $cp2 > $cp) {
    print OUT "--source include/start_mysqld.inc\n";
    print OUT "$ENV{CLEANUP_IF_CHECKPOINT}\n";
-   print OUT "--skip Extra checkpoint 1 after $cp";
-   print OUT " ($no1hi:$no1lo=$cp1,$no2hi:$no2lo=$cp2)\n";
+   print OUT "--echo \"Unexpected checkpoint 1 after $cp";
+   print OUT " ($no1hi:$no1lo=$cp1,$no2hi:$no2lo=$cp2)\"\n";
+   print OUT "--exit\n";
 }
 
 close(OUT);

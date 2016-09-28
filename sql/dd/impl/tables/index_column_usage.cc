@@ -52,7 +52,7 @@ Index_column_usage::Index_column_usage()
   */
   m_target_def.add_field(FIELD_ORDER,
                          "FIELD_ORDER",
-                         "`order` ENUM('ASC', 'DESC') "
+                         "`order` ENUM('UNDEF', 'ASC', 'DESC') "
                          "NOT NULL");
   m_target_def.add_field(FIELD_HIDDEN,
                          "FIELD_HIDDEN",

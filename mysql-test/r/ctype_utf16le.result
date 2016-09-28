@@ -894,7 +894,7 @@ HEX(SOUNDEX(_utf16le 0x00BF00C0))
 CREATE TABLE t1(a BLOB, b TEXT CHARSET utf16le);
 SELECT data_type, character_octet_length, character_maximum_length
 FROM information_schema.columns where table_name='t1';
-data_type	character_octet_length	character_maximum_length
+DATA_TYPE	CHARACTER_OCTET_LENGTH	CHARACTER_MAXIMUM_LENGTH
 blob	65535	65535
 text	65535	32767
 DROP TABLE t1;

@@ -142,6 +142,17 @@ public:
   ~Collection()
   { clear_all_items(); }
 
+  /**
+    Remove elements from m_removed_items.  This is used only in case of
+    dropping triggers for now.  See comments in
+    Table_impl::store_children() for more details.
+
+    @returns void
+  */
+
+  void clear_removed_items();
+
+
   Collection(const Collection &)= delete;
   void operator=(Collection &)= delete;
 
@@ -161,6 +172,52 @@ public:
   }
 
   void remove(impl_type *item);
+
+  /**
+    Remove all items and move it to m_removed_items items.
+
+    @returns void.
+  */
+
+  void remove_all()
+  {
+    m_removed_items= std::move(m_items);
+  }
+
+
+  /**
+    Sort the elements based on the custom comparator supplied.
+
+    @returns void.
+  */
+
+  template<typename Comparator>
+  void sort_items(Comparator c)
+  {
+    std::sort(m_items.begin(), m_items.end(), c);
+    renumerate_items();
+  }
+
+
+  /**
+    Move item at position old_index to the new_index.
+
+    @returns void.
+  */
+
+  void move(int old_index, int new_index)
+  {
+    DBUG_ASSERT(0 <= old_index && old_index < static_cast<int>(size()));
+    DBUG_ASSERT(0 <= new_index && new_index < static_cast<int>(size()));
+
+    impl_type *item= m_items[old_index];
+
+    m_items.erase(m_items.begin() + old_index);
+    m_items.insert(m_items.begin() + new_index, item);
+
+    renumerate_items();
+  }
+
 
   iterator begin()
   { return iterator(&m_items); }
@@ -184,6 +241,16 @@ public:
 
   bool empty() const
   { return m_items.empty() && m_removed_items.empty(); }
+
+  /**
+    Check if some of collection elements are removed.
+
+    @returns void.
+  */
+
+  bool has_removed_items() const
+  { return !m_removed_items.empty(); }
+
 
   size_t size() const
   { return m_items.size(); }

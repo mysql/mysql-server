@@ -67,7 +67,21 @@ static inline CHARSET_INFO *dd_get_mysql_charset(dd::Object_id dd_cs_id)
   return get_charset(static_cast<uint> (dd_cs_id), MYF(0));
 }
 
-//////////////////////////////////////////////////////////////////////////
+class Field;
+class KEY_PART_INFO;
+/*
+  Check if the given key_part is suitable to be promoted as part of
+  primary key.
+
+  @param key_part    - pointer to KEY_PART_INTO which we are checking.
+  @param table_field - Pointer to Field of column used by key_part.
+
+  @returns
+   true  - Is suitable for primary key.
+   false - if not.
+*/
+bool is_suitable_for_primary_key(KEY_PART_INFO *key_part,
+                                 Field *table_field);
 
 bool dd_index_element_is_prefix(const dd::Index_element *idx_el);
 bool dd_index_is_candidate_key(const dd::Index *idx);

@@ -24,7 +24,7 @@
 #include "table.h"         // TABLE
 
 #include "my_murmur3.h"    // murmur3_32
-#include "xxhash.h"        // xxHash
+#include "../extra/lz4/my_xxhash.h" // xxHash
 
 #include <map>
 #include <string>
@@ -62,7 +62,7 @@ template <class type> uint64 calc_hash(ulong algorithm, type T)
   if(algorithm == HASH_ALGORITHM_MURMUR32)
     return (murmur3_32((const uchar*)T, strlen(T), 0));
   else
-    return (XXH64((const uchar*)T, strlen(T), 0));
+    return (MY_XXH64((const uchar*)T, strlen(T), 0));
 }
 
 /**

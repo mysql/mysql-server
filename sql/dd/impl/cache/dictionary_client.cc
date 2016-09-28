@@ -35,6 +35,10 @@
 #include "dd/types/table.h"                  // Table
 #include "dd/types/tablespace.h"             // Tablespace
 #include "dd/types/view.h"                   // View
+#include "dd/types/view_table.h"             // View_table
+#include "dd/types/view_routine.h"           // View_routine
+#include "dd/types/table_stat.h"             // Table_stat
+#include "dd/types/index_stat.h"             // Index_stat
 #include "dd/impl/bootstrapper.h"            // bootstrap_stage
 #include "dd/impl/transaction_impl.h"        // Transaction_ro
 #include "dd/impl/raw/object_keys.h"         // Primary_id_key, ...
@@ -47,8 +51,13 @@
 #include "dd/impl/tables/schemata.h"         // create_name_key()
 #include "dd/impl/tables/spatial_reference_systems.h" // create_name_key()
 #include "dd/impl/tables/tables.h"           // create_name_key()
+#include "dd/impl/tables/table_stats.h"      // dd::Table_stats
+#include "dd/impl/tables/index_stats.h"      // dd::Index_stats
 #include "dd/impl/tables/tablespaces.h"      // create_name_key()
 #include "dd/impl/tables/table_partitions.h" // get_partition_table_id()
+#include "dd/impl/tables/triggers.h"         // dd::tables::Triggers
+#include "dd/impl/tables/view_table_usage.h" // create_name_key
+#include "dd/impl/tables/view_routine_usage.h" // create_name_key
 #include "dd/impl/types/object_table_definition_impl.h" // fs_name_case()
 #include "dd/impl/types/entity_object_impl.h"// Entity_object_impl
 
@@ -156,10 +165,19 @@ private:
     char table_name_buf[NAME_LEN + 1];
 
     if (schema)
-      return is_locked(thd, schema->name().c_str(),
-                       dd::Object_table_definition_impl::fs_name_case(table->name(),
-                                                                      table_name_buf),
-                       MDL_key::TABLE, lock_type);
+    {
+      if (!my_strcasecmp(system_charset_info,
+                         schema->name().c_str(),
+                         "information_schema"))
+        return is_locked(thd, schema->name().c_str(), table->name().c_str(),
+                         MDL_key::TABLE, lock_type);
+      else
+        return is_locked(thd, schema->name().c_str(),
+                         dd::Object_table_definition_impl::fs_name_case(
+                                                             table->name(),
+                                                             table_name_buf),
+                         MDL_key::TABLE, lock_type);
+    }
 
     return false;
   }
@@ -1223,6 +1241,153 @@ public:
   }
 };
 
+
+// Get names of index and column names from index statistics entries.
+static bool get_index_statistics_entries(THD *thd,
+                                  const std::string &schema_name,
+                                  const std::string &table_name,
+                                  std::vector<std::string> &index_names,
+                                  std::vector<std::string> &column_names)
+{
+  dd::Transaction_ro trx(thd, ISO_READ_COMMITTED);
+
+  // Open the DD tables holding dynamic table statistics.
+  trx.otx.register_tables<dd::Table_stat>();
+  trx.otx.register_tables<dd::Index_stat>();
+  if (trx.otx.open_tables())
+  {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    return true;
+  }
+
+  // Create the range key based on schema and table name.
+  std::unique_ptr<Object_key> object_key(
+    dd::tables::Index_stats::create_range_key_by_table_name(
+                               schema_name, table_name));
+
+  Raw_table *table= trx.otx.get_table<dd::Index_stat>();
+  DBUG_ASSERT(table);
+
+  // Start the scan.
+  std::unique_ptr<Raw_record_set> rs;
+  if (table->open_record_set(object_key.get(), rs))
+  {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    return true;
+  }
+
+  // Read each index entry.
+  Raw_record *r= rs->current_record();
+  while (r)
+  {
+    // Read index and column names.
+    index_names.push_back(r->read_str(tables::Index_stats::FIELD_INDEX_NAME));
+    column_names.push_back(r->read_str(tables::Index_stats::FIELD_COLUMN_NAME));
+
+    if (rs->next(r))
+    {
+      DBUG_ASSERT(thd->is_error() || thd->killed);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/*
+  Remove the dynamic statistics stored in mysql.table_stats and
+  mysql.index_stats.
+*/
+bool Dictionary_client::remove_table_dynamic_statistics(
+                                          const std::string &schema_name,
+                                          const std::string &table_name)
+{
+  //
+  // Get list of index statistics entries.
+  //
+
+  std::vector<std::string> index_names, column_names;
+  if (get_index_statistics_entries(m_thd,
+                                   schema_name,
+                                   table_name,
+                                   index_names,
+                                   column_names))
+  {
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
+
+
+  //
+  // Drop index statistics entries for the table.
+  //
+
+  // Iterate and drop each index statistic entry, if exists.
+  if (!index_names.empty())
+  {
+    const Index_stat *idx_stat;
+    std::vector<std::string>::iterator it_idxs= index_names.begin();
+    std::vector<std::string>::iterator it_cols= column_names.begin();
+    while(it_idxs != index_names.end())
+    {
+      // Fetch the entry.
+      std::unique_ptr<Index_stat::name_key_type> key(
+        tables::Index_stats::create_object_key(schema_name,
+                                               table_name,
+                                               *it_idxs,
+                                               *it_cols));
+
+      if (Storage_adapter::get(m_thd, *key, ISO_READ_COMMITTED, &idx_stat))
+      {
+        DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+        return true;
+      }
+
+      // Drop the entry.
+      if (Storage_adapter::drop(m_thd, const_cast<Index_stat*>(idx_stat)))
+      {
+        DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+        return true;
+      }
+
+      delete idx_stat;
+      idx_stat= nullptr;
+
+      it_idxs++;
+      it_cols++;
+    }
+  }
+
+
+  //
+  // Drop the table statistics entry.
+  //
+
+  // Fetch the entry.
+  std::unique_ptr<Table_stat::name_key_type> key(
+    tables::Table_stats::create_object_key(schema_name, table_name));
+
+  const Table_stat *tab_stat;
+  if (Storage_adapter::get(m_thd, *key, ISO_READ_COMMITTED, &tab_stat))
+  {
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
+
+  // Drop the entry.
+  if (tab_stat && Storage_adapter::drop(m_thd, const_cast<Table_stat*>(tab_stat)))
+  {
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
+
+  delete tab_stat;
+
+  return false;
+}
+
+
 // Retrieve a schema- and table name by the se private id of the table.
 bool Dictionary_client::get_table_name_by_se_private_id(
                                     const std::string &engine,
@@ -1326,6 +1491,60 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
   return false;
 }
 /* purecov: end */
+
+bool Dictionary_client::get_table_name_by_trigger_name(
+                          Object_id schema_id,
+                          const std::string &trigger_name,
+                          std::string *table_name)
+{
+  DBUG_ASSERT(table_name != nullptr);
+  *table_name= "";
+
+  // Read record directly from the tables.
+  Object_id table_id;
+  if (tables::Triggers::get_trigger_table_id(m_thd,
+                                             schema_id,
+                                             trigger_name,
+                                             &table_id))
+  {
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
+
+  const Table::id_key_type key(table_id);
+  const Table::cache_partition_type *stored_object= nullptr;
+
+  bool error= Shared_dictionary_cache::instance()->
+                get_uncached(m_thd, key, ISO_READ_COMMITTED, &stored_object);
+
+  if (!error)
+  {
+    // Dynamic cast may legitimately return nullptr if the stored
+    // object was nullptr, i.e., the object did not exist.
+    const Table *table= dynamic_cast<const Table*>(stored_object);
+
+    // Delete the object and report error if dynamic cast fails.
+    if (stored_object != nullptr && table == nullptr)
+    {
+      my_error(ER_INVALID_DD_OBJECT, MYF(0),
+                Table::OBJECT_TABLE().name().c_str(),
+                "Not a table object.");
+      delete stored_object;
+      return true;
+    }
+
+    // Copy the table name to OUT param.
+    if (table != nullptr)
+    {
+      *table_name= table->name();
+      delete stored_object;
+    }
+  }
+  else
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+
+  return error;
+}
 
 
 // Get the highest currently used se private id for the table objects.
@@ -1549,6 +1768,63 @@ bool Dictionary_client::fetch_global_components(
 /* purecov: end */
 
 
+template <typename T>
+bool Dictionary_client::fetch_referencing_views_object_id(
+  const char *schema,
+  const char *tbl_or_sf_name,
+  std::vector<Object_id> *view_ids) const
+{
+  dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
+
+  // Register View_table_usage/View_routine_usage.
+  trx.otx.register_tables<T>();
+  Raw_table *view_usage_table= trx.otx.get_table<T>();
+  DBUG_ASSERT(view_usage_table);
+
+  // Open registered tables.
+  if (trx.otx.open_tables())
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() ||
+                m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  // Create the key based on the base table/ view/ stored function name.
+  std::unique_ptr<Object_key> object_key(
+    T::cache_partition_table_type::create_key_by_name(
+      std::string(Dictionary_impl::default_catalog_name()),
+      std::string(schema),
+      std::string(tbl_or_sf_name)));
+  std::unique_ptr<Raw_record_set> rs;
+  if (view_usage_table->open_record_set(object_key.get(), rs))
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() ||
+                m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  Raw_record *vtr= rs->current_record();
+  while (vtr)
+  {
+    /* READ VIEW ID */
+    Object_id id= vtr->read_int(T::cache_partition_table_type::FIELD_VIEW_ID);
+    view_ids->push_back(id);
+
+    if (rs->next(vtr))
+    {
+      DBUG_ASSERT(m_thd->is_system_thread() ||
+                  m_thd->killed ||
+                  m_thd->is_error());
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 // Mark all objects acquired by this client as not being used anymore.
 size_t Dictionary_client::release()
 { return release(&m_registry); }
@@ -1629,6 +1905,15 @@ bool Dictionary_client::store(T* object)
   DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
   return Storage_adapter::store(m_thd, object);
 }
+
+// Store a new dictionary object.
+template <>
+bool Dictionary_client::store(Table_stat* object)
+{ return Storage_adapter::store<Table_stat>(m_thd, object); }
+
+template <>
+bool Dictionary_client::store(Index_stat* object)
+{ return Storage_adapter::store<Index_stat>(m_thd, object); }
 
 
 // Replace a dictionary object by another and store it.
@@ -1749,6 +2034,14 @@ bool Dictionary_client::update_uncached_and_invalidate(T* object)
 template <typename T>
 void Dictionary_client::add_and_reset_id(T* object)
 {
+  bool reset_id= false;
+  add_and_reset_id(object, reset_id);
+}
+
+// Add a new dictionary object.
+template <typename T>
+void Dictionary_client::add_and_reset_id(T* object, bool reset_id)
+{
   // This may be called only during the initial stages of bootstrapping.
   DBUG_ASSERT(m_thd->is_dd_system_thread() &&
               bootstrap::stage() < bootstrap::BOOTSTRAP_CREATED);
@@ -1765,6 +2058,11 @@ void Dictionary_client::add_and_reset_id(T* object)
 
   // Assign a temporary unique id. This is needed to have unique cache keys.
   static dd::Object_id next_id= 1;
+
+  // Reset id to 1 in the case we have cleared DD objects from Cache
+  if (reset_id)
+    next_id= 1;
+
   dynamic_cast<dd::Entity_object_impl*>(object->impl())->set_id(next_id++);
 
   // Add it to the shared cache.
@@ -1885,6 +2183,16 @@ template bool Dictionary_client::fetch_schema_component_names<Event>(
     const Schema*,
     std::vector<std::string>*) const;
 
+template bool Dictionary_client::fetch_referencing_views_object_id<View_table>(
+    const char *schema,
+    const char *tbl_or_sf_name,
+    std::vector<Object_id> *view_ids) const;
+
+template bool Dictionary_client::fetch_referencing_views_object_id<View_routine>(
+    const char *schema,
+    const char *tbl_or_sf_name,
+    std::vector<Object_id> *view_ids) const;
+
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Abstract_table**);
 template bool Dictionary_client::acquire<Abstract_table>(const std::string&,
@@ -1900,6 +2208,7 @@ template bool Dictionary_client::drop(const Abstract_table*);
 template bool Dictionary_client::drop_uncached(const Abstract_table*);
 template bool Dictionary_client::store(Abstract_table*);
 template void Dictionary_client::add_and_reset_id(Abstract_table*);
+template void Dictionary_client::add_and_reset_id(Abstract_table*, bool);
 template bool Dictionary_client::update(const Abstract_table**,
                                         Abstract_table*, bool);
 template void Dictionary_client::set_sticky(const Abstract_table*, bool);
@@ -1913,6 +2222,7 @@ template bool Dictionary_client::acquire<dd::Charset>(std::string const&,
 template bool Dictionary_client::drop(const Charset*);
 template bool Dictionary_client::store(Charset*);
 template void Dictionary_client::add_and_reset_id(Charset*);
+template void Dictionary_client::add_and_reset_id(Charset*, bool);
 template bool Dictionary_client::update(const Charset**, Charset*, bool);
 template void Dictionary_client::set_sticky(const Charset*, bool);
 template bool Dictionary_client::is_sticky(const Charset*) const;
@@ -1929,6 +2239,7 @@ template bool Dictionary_client::acquire(const std::string &,
 template bool Dictionary_client::drop(const Collation*);
 template bool Dictionary_client::store(Collation*);
 template void Dictionary_client::add_and_reset_id(Collation*);
+template void Dictionary_client::add_and_reset_id(Collation*, bool);
 template bool Dictionary_client::update(const Collation**, Collation*, bool);
 template void Dictionary_client::set_sticky(const Collation*, bool);
 template bool Dictionary_client::is_sticky(const Collation*) const;
@@ -1944,6 +2255,7 @@ template bool Dictionary_client::acquire_uncached(const std::string&,
 template bool Dictionary_client::drop(const Schema*);
 template bool Dictionary_client::store(Schema*);
 template void Dictionary_client::add_and_reset_id(Schema*);
+template void Dictionary_client::add_and_reset_id(Schema*, bool);
 template bool Dictionary_client::update(const Schema**, Schema*, bool);
 template void Dictionary_client::set_sticky(const Schema*, bool);
 template bool Dictionary_client::is_sticky(const Schema*) const;
@@ -1960,6 +2272,8 @@ template bool Dictionary_client::acquire_uncached(
 template bool Dictionary_client::drop(const Spatial_reference_system*);
 template bool Dictionary_client::store(Spatial_reference_system*);
 template void Dictionary_client::add_and_reset_id(Spatial_reference_system*);
+template void Dictionary_client::add_and_reset_id(Spatial_reference_system*,
+                                                  bool);
 template bool Dictionary_client::update(const Spatial_reference_system**,
                                         Spatial_reference_system*, bool);
 template void Dictionary_client::set_sticky(const Spatial_reference_system*,
@@ -1988,6 +2302,7 @@ template bool Dictionary_client::drop_uncached(const Table*);
 template bool Dictionary_client::store(Table*);
 template bool Dictionary_client::update_uncached_and_invalidate(Table*);
 template void Dictionary_client::add_and_reset_id(Table*);
+template void Dictionary_client::add_and_reset_id(Table*, bool);
 template bool Dictionary_client::update(const Table**, Table*, bool);
 template void Dictionary_client::set_sticky(const Table*, bool);
 template bool Dictionary_client::is_sticky(const Table*) const;
@@ -2007,6 +2322,7 @@ template bool Dictionary_client::drop_uncached(const Tablespace*);
 template bool Dictionary_client::store(Tablespace*);
 template bool Dictionary_client::update_uncached_and_invalidate(Tablespace*);
 template void Dictionary_client::add_and_reset_id(Tablespace*);
+template void Dictionary_client::add_and_reset_id(Tablespace*, bool);
 template bool Dictionary_client::update(const Tablespace**, Tablespace*, bool);
 template void Dictionary_client::set_sticky(const Tablespace*, bool);
 template bool Dictionary_client::is_sticky(const Tablespace*) const;
@@ -2030,10 +2346,13 @@ template bool Dictionary_client::drop_uncached(const View*);
 template bool Dictionary_client::store(View*);
 template bool Dictionary_client::update_uncached_and_invalidate(View*);
 template void Dictionary_client::add_and_reset_id(View*);
+template void Dictionary_client::add_and_reset_id(View*, bool);
 template bool Dictionary_client::update(const View**, View*, bool);
 template void Dictionary_client::set_sticky(const View*, bool);
 template bool Dictionary_client::is_sticky(const View*) const;
 
+template bool Dictionary_client::store(Table_stat*);
+template bool Dictionary_client::store(Index_stat*);
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Event**);
@@ -2049,6 +2368,7 @@ template bool Dictionary_client::drop(const Event*);
 template bool Dictionary_client::store(Event*);
 template bool Dictionary_client::update(const Event**, Event*, bool);
 template void Dictionary_client::add_and_reset_id(Event*);
+template void Dictionary_client::add_and_reset_id(Event*, bool);
 template void Dictionary_client::set_sticky(const Event*, bool);
 template bool Dictionary_client::is_sticky(const Event*) const;
 
@@ -2067,6 +2387,7 @@ template bool Dictionary_client::drop(const Function*);
 template bool Dictionary_client::store(Function*);
 template bool Dictionary_client::update(const Function**, Function*,  bool);
 template void Dictionary_client::add_and_reset_id(Function*);
+template void Dictionary_client::add_and_reset_id(Function*, bool);
 template void Dictionary_client::set_sticky(const Function*, bool);
 template bool Dictionary_client::is_sticky(const Function*) const;
 
@@ -2085,6 +2406,7 @@ template bool Dictionary_client::drop(const Procedure*);
 template bool Dictionary_client::store(Procedure*);
 template bool Dictionary_client::update(const Procedure**, Procedure*, bool);
 template void Dictionary_client::add_and_reset_id(Procedure*);
+template void Dictionary_client::add_and_reset_id(Procedure*, bool);
 template void Dictionary_client::set_sticky(const Procedure*, bool);
 template bool Dictionary_client::is_sticky(const Procedure*) const;
 

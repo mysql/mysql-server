@@ -28,6 +28,8 @@
 #include "sql_class.h"
 #include "mysqld.h"
 #include "sql_audit.h"                      // audit_global_variable_get
+#include "derror.h"
+
 
 bool Find_THD_variable::operator()(THD *thd)
 {
@@ -458,6 +460,54 @@ int PFS_system_variable_cache::do_materialize_session(THD *unsafe_thd)
   return ret;
 }
 
+/**
+  CLASS PFS_system_variable_info_cache
+*/
+
+/**
+  Build GLOBAL and SESSION system variable cache.
+*/
+int PFS_system_variable_info_cache::do_materialize_all(THD *unsafe_thd)
+{
+  int ret= 1;
+
+  m_unsafe_thd= unsafe_thd;
+  m_safe_thd= NULL;
+  m_materialized= false;
+  m_cache.clear();
+
+  /* Block plugins from unloading. */
+  mysql_mutex_lock(&LOCK_plugin_delete);
+
+  /*
+     Build array of SHOW_VARs from system variable hash. Do this within
+     LOCK_plugin_delete to ensure that the hash table remains unchanged
+     while this thread is materialized.
+   */
+  if (!m_external_init)
+    init_show_var_array(OPT_SESSION, false);
+
+  /* Get and lock a validated THD from the thread manager. */
+  if ((m_safe_thd= get_THD(unsafe_thd)) != NULL)
+  {
+    for (Show_var_array::iterator show_var= m_show_var_array.begin();
+         show_var->value && (show_var != m_show_var_array.end()); show_var++)
+    {
+      /* Resolve value, convert to text, add to cache. */
+      System_variable system_var(m_safe_thd, show_var);
+      m_cache.push_back(system_var);
+    }
+
+    /* Release lock taken in get_THD(). */
+    mysql_mutex_unlock(&m_safe_thd->LOCK_thd_data);
+
+    m_materialized= true;
+    ret= 0;
+  }
+
+  mysql_mutex_unlock(&LOCK_plugin_delete);
+  return ret;
+}
 
 /**
   CLASS System_variable
@@ -468,9 +518,14 @@ int PFS_system_variable_cache::do_materialize_session(THD *unsafe_thd)
 */
 System_variable::System_variable()
   : m_name(NULL), m_name_length(0), m_value_length(0), m_type(SHOW_UNDEF), m_scope(0),
-    m_charset(NULL), m_initialized(false)
+    m_charset(NULL), m_source(enum_variable_source::COMPILED),
+    m_path_length(0), m_min_value_length(0), m_max_value_length(0),
+    m_initialized(false)
 {
   m_value_str[0]= '\0';
+  m_path_str[0]= '\0';
+  m_min_value_str[0]= '\0';
+  m_max_value_str[0]= '\0';
 }
 
 /**
@@ -479,9 +534,31 @@ System_variable::System_variable()
 System_variable::System_variable(THD *target_thd, const SHOW_VAR *show_var,
                                  enum_var_type query_scope)
   : m_name(NULL), m_name_length(0), m_value_length(0), m_type(SHOW_UNDEF), m_scope(0),
-    m_charset(NULL), m_initialized(false)
+    m_charset(NULL), m_source(enum_variable_source::COMPILED),
+    m_path_length(0), m_min_value_length(0), m_max_value_length(0),
+    m_initialized(false)
 {
+  m_value_str[0]= '\0';
+  m_path_str[0]= '\0';
+  m_min_value_str[0]= '\0';
+  m_max_value_str[0]= '\0';
   init(target_thd, show_var, query_scope);
+}
+
+/**
+  GLOBAL and SESSION system variable.
+*/
+System_variable::System_variable(THD *target_thd, const SHOW_VAR *show_var)
+  : m_name(NULL), m_name_length(0), m_value_length(0), m_type(SHOW_UNDEF), m_scope(0),
+    m_charset(NULL), m_source(enum_variable_source::COMPILED),
+    m_path_length(0), m_min_value_length(0), m_max_value_length(0),
+    m_initialized(false)
+{
+  m_value_str[0]= '\0';
+  m_path_str[0]= '\0';
+  m_min_value_str[0]= '\0';
+  m_max_value_str[0]= '\0';
+  init(target_thd, show_var);
 }
 
 /**
@@ -532,7 +609,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
   if (show_var_type != SHOW_FUNC && query_scope == OPT_GLOBAL &&
       mysql_audit_notify(current_thread,
                          AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
-                         m_name, value, m_value_length))
+                         m_name, value, (uint)m_value_length))
     return;
 #endif
 
@@ -540,6 +617,61 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
   m_initialized= true;
 }
 
+/**
+  Get sys_var value from global/session and then convert to string.
+*/
+void System_variable::init(THD *target_thd, const SHOW_VAR *show_var)
+{
+  if (show_var == NULL || show_var->name == NULL)
+    return;
+
+  THD *current_thread= current_thd;
+
+  m_name= show_var->name;
+  m_name_length= strlen(m_name);
+
+  /* Block remote target thread from updating this system variable. */
+  if (target_thd != current_thread)
+    mysql_mutex_lock(&target_thd->LOCK_thd_sysvar);
+  /* Block system variable additions or deletions. */
+  mysql_mutex_lock(&LOCK_global_system_variables);
+
+  sys_var *system_var= (sys_var *)show_var->value;
+  DBUG_ASSERT(system_var != NULL);
+  m_charset= system_var->charset(target_thd);
+  m_type= system_var->show_type();
+  m_scope= system_var->scope();
+
+  m_value_str[0]='\0';
+  m_value_length= 0;
+
+  memset(m_path_str, 0, sizeof(m_path_str));
+  m_path_length= 0;
+
+  if (system_var->get_source())
+  {
+    if (system_var->get_source_name())
+    {
+      string src_name= system_var->get_source_name();
+      m_path_length= src_name.length();
+      memcpy(m_path_str, src_name.c_str(), m_path_length);
+      m_path_str[m_path_length]= 0;
+    }
+    m_source= system_var->get_source();
+  }
+  my_snprintf(m_min_value_str, sizeof(m_min_value_str),
+      "%ld", system_var->get_min_value());
+  m_min_value_length= strlen(m_min_value_str);
+  my_snprintf(m_max_value_str, sizeof(m_max_value_str),
+      "%llu", system_var->get_max_value());
+  m_max_value_length= strlen(m_max_value_str);
+
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+  if (target_thd != current_thread)
+    mysql_mutex_unlock(&target_thd->LOCK_thd_sysvar);
+
+  m_initialized= true;
+}
 
 /**
   CLASS PFS_status_variable_cache
@@ -1284,4 +1416,31 @@ void reset_pfs_status_stats()
   reset_global_status();
 }
 
+/**
+  Warning issued if the version of the system variable hash table changes
+  during a query. This can happen when a plugin is loaded or unloaded.
+*/
+void system_variable_warning(void)
+{
+  THD *thd= current_thd;
+  DBUG_ASSERT(thd != NULL);
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_TOO_FEW_RECORDS,
+                      ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
+                      "System variable hash changed during query.");
+}
+
+/**
+  Warning issued if the global status variable array changes during a query.
+  This can happen when a plugin is loaded or unloaded.
+*/
+void status_variable_warning(void)
+{
+  THD *thd= current_thd;
+  DBUG_ASSERT(thd != NULL);
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_TOO_FEW_RECORDS,
+                      ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
+                      "Global status variable array changed during query.");
+}
 /** @} */

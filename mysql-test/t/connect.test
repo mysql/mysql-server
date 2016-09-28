@@ -409,8 +409,20 @@ SELECT password_expired FROM mysql.user
   WHERE user='must_change' and host = 'localhost';
 
 --connect(must_change_con, localhost, must_change, aha4)
+SELECT USER();
+
+connection default;
+disconnect must_change_con;
+
+ALTER USER must_change@localhost PASSWORD EXPIRE;
+
+SELECT password_expired FROM mysql.user
+  WHERE user='must_change' and host = 'localhost';
+
+--connect(must_change_con, localhost, must_change, aha4)
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
+
 --disable_ps_protocol
 ALTER USER must_change@localhost IDENTIFIED BY 'aha5';
 --enable_ps_protocol

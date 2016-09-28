@@ -131,7 +131,7 @@ start(){
 	# alarms, per bug #547485
 	$exec   --datadir="$datadir" --socket="$socketfile" \
 		--pid-file="$mypidfile" \
-		--basedir=/usr --user=mysql $extra_opts >/dev/null 2>&1 &
+		--basedir=/usr --user=mysql $extra_opts >/dev/null &
 	safe_pid=$!
 	# Spin for a maximum of N seconds waiting for the server to come up;
 	# exit the loop immediately if mysqld_safe process disappears.

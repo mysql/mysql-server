@@ -140,19 +140,33 @@ DROP DATABASE db1;
 # synchronizes ROW_FORMAT for the table stored in the data dictionary
 # and in the MyISAM files.
 #
+#
+# This test assumes that the table metadata being shown by
+# INFORMATION_SCHEMA.TABLES would internally 'open' the table.
+# However with WL#6599, we do not open the under lying table for every
+# row fetch for INFORMATION_SCHEMA.TABLES by default. This
+# demands following two things,
+# 1. Use of configuration variable 
+#    'information_schema_stats' to be set to 'latest',
+#    which would make INFORMATION_SCHEMA implementation to access
+#    storage engine to open the table and fetch dynamic statistics. 
+# 2. Use a column of INFORMATION_SCHEMA.TABLES which would fetch
+#    dynamic table statistics, which would trigger 1.
+#
+SET SESSION information_schema_stats=latest;
 CREATE TABLE t1(a CHAR(4)) ENGINE=MYISAM;
-SELECT row_format, table_comment FROM information_schema.tables
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
 WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
-row_format	table_comment
-Fixed	
+TABLE_ROWS	ROW_FORMAT	TABLE_COMMENT
+0	Fixed	
 INSERT INTO t1 VALUES('aaaa'),('bbbb'),('cccc');
 FLUSH TABLE t1;
 # Compressing table t1.
 # ROW_FORMAT in DD is invalid/outdated here.
-SELECT row_format, table_comment FROM information_schema.tables
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
 WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
-row_format	table_comment
-NULL	Got error 202 - 'Row format changed in storage engine' from storage engine
+TABLE_ROWS	ROW_FORMAT	TABLE_COMMENT
+0	Fixed	Got error 202 - 'Row format changed in storage engine' from storage engine
 Warnings:
 Warning	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
 # The below statement should cause ROW_FORMAT update.
@@ -161,17 +175,17 @@ COUNT(*)
 3
 Warnings:
 Error	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
-SELECT row_format, table_comment FROM information_schema.tables
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
 WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
-row_format	table_comment
-Compressed	
+TABLE_ROWS	ROW_FORMAT	TABLE_COMMENT
+3	Compressed	
 FLUSH TABLE t1;
 # Uncompressing table t1.
 # ROW_FORMAT in DD is invalid/outdated here.
-SELECT row_format, table_comment FROM information_schema.tables
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
 WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
-row_format	table_comment
-NULL	Got error 202 - 'Row format changed in storage engine' from storage engine
+TABLE_ROWS	ROW_FORMAT	TABLE_COMMENT
+0	Compressed	Got error 202 - 'Row format changed in storage engine' from storage engine
 Warnings:
 Warning	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
 # The below statement should cause ROW_FORMAT update.
@@ -180,8 +194,9 @@ COUNT(*)
 3
 Warnings:
 Error	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
-SELECT row_format, table_comment FROM information_schema.tables
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
 WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
-row_format	table_comment
-Fixed	
+TABLE_ROWS	ROW_FORMAT	TABLE_COMMENT
+3	Fixed	
 DROP TABLE t1;
+SET SESSION information_schema_stats=cached;

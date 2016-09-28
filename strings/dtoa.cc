@@ -36,8 +36,20 @@
 
  ***************************************************************/
 
-#include <my_global.h>
+#include "my_config.h"
+
+#ifdef HAVE_ENDIAN_H
+#include <endian.h>
+#endif
+#include <errno.h>
+#include <float.h>
 #include <m_string.h>  /* for memcpy and NOT_FIXED_DEC */
+#include <my_global.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "my_config.h"
+#include "my_dbug.h"
 
 #ifndef EOVERFLOW
 #define EOVERFLOW 84

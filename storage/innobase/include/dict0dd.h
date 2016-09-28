@@ -135,6 +135,17 @@ dd_table_close(
 	THD*		thd,
 	MDL_ticket**	mdl);
 
+/** Set the discard flag for a dd table.
+@param[in,out]	thd	current thread
+@param[in]	name	InnoDB table name
+@param[in]	discard	discard flag
+@retval false if fail. */
+bool
+dd_table_set_discard_flag(
+	THD*			thd,
+	const char*		name,
+	bool			discard);
+
 /** Open an internal handle to a persistent InnoDB table by name.
 @param[in,out]	thd	current thread
 @param[out]	mdl	metadata lock

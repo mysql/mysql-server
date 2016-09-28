@@ -26,7 +26,6 @@ INCLUDE(CTest)
 INCLUDE(${PROJECT_SOURCE_DIR}/rapid/plugin/x/mysqlx_protobuf.cmake)
 
 INCLUDE(${PROJECT_SOURCE_DIR}/rapid/plugin/x/source_files.cmake)
-LIST(REMOVE_ITEM xplugin_SRC "${MYSQLX_PROJECT_DIR}/src/mysql_variables.cc")
 
 MYSQLX_PROTOBUF_GENERATE_CPP_NAMES(protobuf_SRC ${PROTOBUF_MYSQLX_FILES})
 
@@ -107,7 +106,6 @@ ENDIF(WIN32)
 
 TARGET_LINK_LIBRARIES(
   xplugin_unit_tests
-  xplugin
   gtest
   regex
   gmock

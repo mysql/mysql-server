@@ -234,19 +234,12 @@ ERROR 42000: There is no such grant defined for user 'root' on host 'localhost' 
 SHOW GRANTS FOR 'user49119'@'localhost';
 Grants for user49119@localhost
 GRANT USAGE ON *.* TO `user49119`@`localhost`
+GRANT EXECUTE ON PROCEDURE `test`.`p1` TO `user49119`@`localhost`
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
-SET sql_log_bin= 0;
-call mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the master.*");
-Warnings:
-Note	1049	Unknown database 'bug42217_db'
-SET sql_log_bin= 1;
-include/wait_for_slave_sql_error.inc [errno=1590]
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave_sql.inc
 #############################################################
 ### Showing grants for both users: root and user49119 (slave)
 ### after revoke statement failure (should match 

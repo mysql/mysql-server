@@ -1,3 +1,9 @@
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
 # Running test with show_compatibility_56=ON to retain I_S compatibility until it is permanently removed.
 select @@global.show_compatibility_56 into @show_compatibility_56_save;
 set @@global.show_compatibility_56=ON;
@@ -27,6 +33,7 @@ DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;
 DROP VIEW IF EXISTS v1;
 --enable_warnings
 
+SET SESSION information_schema_stats=latest;
 
 --echo #
 --echo # Bug#11763174 INFORMATION_SCHEMA.PARAMETERS.NUMERIC_PRECISION SHOULD BE BIGINT 
@@ -42,8 +49,8 @@ create user mysqltest_3@localhost;
 create user mysqltest_3;
 
 
-select * from information_schema.SCHEMATA where schema_name > 'm';
-select schema_name from information_schema.schemata;
+select * from information_schema.SCHEMATA where schema_name > 'm' ORDER BY SCHEMA_NAME;
+select schema_name from information_schema.schemata ORDER BY schema_name;
 show databases like 't%';
 show databases;
 show databases where `database` = 't%';
@@ -60,36 +67,41 @@ create table t5 (id int auto_increment primary key);
 insert into t5 values (10);
 create view v1 (c) as
  SELECT table_name FROM information_schema.TABLES
-  WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND
-        table_name not like 'ndb_%' AND table_name not like 'innodb_%';
+  WHERE table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest') AND
+        table_name COLLATE utf8_general_ci not like 'ndb_%' AND
+        table_name COLLATE utf8_general_ci not like 'innodb_%';
+--sorted_result
 select * from v1;
 
 select c,table_name from v1
 inner join information_schema.TABLES v2 on (v1.c=v2.table_name)
-where v1.c like "t%";
+where v1.c rlike "t[1-5]{1}$" order by c;
 
 select c,table_name from v1
 left join information_schema.TABLES v2 on (v1.c=v2.table_name)
-where v1.c like "t%";
+where v1.c rlike "t[1-5]{1}$" order by c;
 
 select c, v2.table_name from v1
 right join information_schema.TABLES v2 on (v1.c=v2.table_name)
-where v1.c like "t%";
+where v1.c rlike "t[1-5]{1}$" order by c;
 
 select table_name from information_schema.TABLES
-where table_schema = "mysqltest" and table_name like "t%";
-
-select * from information_schema.STATISTICS where TABLE_SCHEMA = "mysqltest";
+where table_schema = "mysqltest" and
+table_name rlike "t[1-5]{1}$" order by table_name;
+select * from information_schema.STATISTICS where TABLE_SCHEMA = "mysqltest" order by table_name, index_name;
 show keys from t3 where Key_name = "a_data";
 
+--sorted_result
 show tables like 't%';
+analyze table t2, t3, t5;
 --replace_column 6 # 7 # 8 # 9 # 12 # 13 #
 show table status;
 show full columns from t3 like "a%";
 show full columns from mysql.db like "Insert%";
+--replace_result utf8_tolower_ci utf8_bin
 show full columns from v1;
 select * from information_schema.COLUMNS where table_name="t1"
-and column_name= "a";
+and column_name= "a" order by table_name;
 show columns from mysqltest.t1 where field like "%a%";
 
 create view mysqltest.v1 (c) as select a from mysqltest.t1;
@@ -98,12 +110,12 @@ grant select on mysqltest.v1 to mysqltest_3;
 connect (user3,localhost,mysqltest_2,,);
 connection user3;
 select table_name, column_name, privileges from information_schema.columns
-where table_schema = 'mysqltest' and table_name = 't1';
+where table_schema = 'mysqltest' and table_name = 't1' order by table_name, column_name;
 show columns from mysqltest.t1;
 connect (user4,localhost,mysqltest_3,,mysqltest);
 connection user4;
 select table_name, column_name, privileges from information_schema.columns
-where table_schema = 'mysqltest' and table_name = 'v1';
+where table_schema = 'mysqltest' and table_name = 'v1' order by table_name, column_name;
 --error ER_VIEW_NO_EXPLAIN
 explain select * from v1;
 connection default;
@@ -117,7 +129,7 @@ drop database mysqltest;
 # SHOW CHARACTER SET
 
 select * from information_schema.CHARACTER_SETS
-where CHARACTER_SET_NAME like 'latin1%';
+where CHARACTER_SET_NAME like 'latin1%' order by character_set_name;
 SHOW CHARACTER SET LIKE 'latin1%';
 SHOW CHARACTER SET WHERE charset like 'latin1%';
 
@@ -126,14 +138,14 @@ SHOW CHARACTER SET WHERE charset like 'latin1%';
 
 --replace_column 5 #
 select * from information_schema.COLLATIONS
-where COLLATION_NAME like 'latin1%';
+where COLLATION_NAME like 'latin1%' order by collation_name;
 --replace_column 5 #
 SHOW COLLATION LIKE 'latin1%';
 --replace_column 5 #
 SHOW COLLATION WHERE collation like 'latin1%';
 
 select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY
-where COLLATION_NAME like 'latin1%';
+where COLLATION_NAME like 'latin1%' ORDER BY COLLATION_NAME;
 
 # Test for information_schema.ROUTINES &
 #
@@ -166,11 +178,11 @@ show procedure status where db='test';
 show function status where db='test';
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test';
---replace_column 3 #
+a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8) AND b.SCHEMA_NAME='test';
+--replace_column 3 # 10 # 11 #
 explain select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
+a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8);
 
 select count(*) from information_schema.ROUTINES where routine_schema='test';
 
@@ -208,24 +220,26 @@ show create procedure sel2;
 #
 # Test for views
 #
-create view v0 (c) as select schema_name from information_schema.schemata;
+create view v0 (c) as select schema_name from information_schema.schemata order by schema_name;
 select * from v0;
---replace_column 3 #
+--replace_column 3 # 10 # 11 #
 explain select * from v0;
 create view v1 (c) as select table_name from information_schema.tables
-where table_name="v1";
+where table_name="v1" order by table_name;
 select * from v1;
 create view v2 (c) as select column_name from information_schema.columns
-where table_name="v2";
+where table_name="v2" order by column_name;
 select * from v2;
 create view v3 (c) as select CHARACTER_SET_NAME from information_schema.character_sets
-where CHARACTER_SET_NAME like "latin1%";
+where CHARACTER_SET_NAME like "latin1%" order by character_set_name;
 select * from v3;
 create view v4 (c) as select COLLATION_NAME from information_schema.collations
-where COLLATION_NAME like "latin1%";
+where COLLATION_NAME like "latin1%" order by collation_name;
 select * from v4;
 show keys from v4;
-select * from information_schema.views where TABLE_SCHEMA != 'sys' and TABLE_NAME like "v%";
+--replace_column 4 #
+select * from information_schema.views where TABLE_SCHEMA != 'sys' and
+TABLE_NAME rlike "v[0-4]{1}$" order by table_name;
 drop view v0, v1, v2, v3, v4;
 
 #
@@ -257,13 +271,14 @@ alter table t1 add constraint unique key_1(a);
 alter table t1 add constraint constraint_2 unique key_2(a);
 show create table t1;
 select * from information_schema.TABLE_CONSTRAINTS where
-TABLE_SCHEMA= "test";
+TABLE_SCHEMA= "test" order by constraint_name;
 select * from information_schema.key_column_usage where
-TABLE_SCHEMA= "test";
+TABLE_SCHEMA= "test" order by constraint_name;
 
 connection user2;
-select table_name from information_schema.TABLES where table_schema like "test%";
-select table_name,column_name from information_schema.COLUMNS where table_schema like "test%";
+select table_name from information_schema.TABLES where table_schema like "test%" order by table_name;
+select table_name,column_name from information_schema.COLUMNS
+where table_schema like "test%" order by table_name, column_name;
 select ROUTINE_NAME from information_schema.ROUTINES where ROUTINE_SCHEMA != 'sys';
 disconnect user2;
 connection default;
@@ -276,7 +291,8 @@ create table t1(a int);
 create view v1 (c) as select a from t1 with check option;
 create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
 create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
-select * from information_schema.views where table_schema != 'sys';
+select * from information_schema.views where table_schema !=
+'sys' order by table_name;
 grant select (a) on test.t1 to joe@localhost with grant option;
 select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE table_schema != 'sys';
 select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema != 'sys';
@@ -314,6 +330,7 @@ drop procedure px5;
 
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
+analyze table t1;
 select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
 drop table t1;
 create table t1 (s1 int);
@@ -329,7 +346,7 @@ SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 set names latin1;
 
 create table t1 select * from information_schema.CHARACTER_SETS
-where CHARACTER_SET_NAME like "latin1";
+where CHARACTER_SET_NAME like "latin1" order by character_set_name;
 select * from t1;
 alter table t1 default character set utf8;
 show create table t1;
@@ -354,7 +371,7 @@ delimiter ;//
 drop procedure p108;
 
 create view v1 as select A1.table_name from information_schema.TABLES A1
-where table_name= "user";
+where table_name= "user" order by table_name;
 select * from v1;
 drop view v1;
 
@@ -368,18 +385,22 @@ drop view vo;
 
 select TABLE_NAME,TABLE_TYPE,ENGINE
 from information_schema.tables
-where table_schema='information_schema' limit 2;
+where table_schema='information_schema'
+order by table_name collate utf8_general_ci limit 2;
+--sorted_result
 show tables from information_schema like "T%";
 
 --error ER_DBACCESS_DENIED_ERROR
 create database information_schema;
 use information_schema;
+--sorted_result
 show full tables like "T%";
 --error ER_DBACCESS_DENIED_ERROR
 create table t1(a int);
 use test;
 show tables;
 use information_schema;
+--sorted_result
 show tables like "T%";
 
 #
@@ -387,7 +408,7 @@ show tables like "T%";
 #
 select table_name from tables where table_name='user';
 select column_name, privileges from columns
-where table_name='user' and column_name like '%o%';
+where table_name='user' and column_name like '%o%' order by column_name;
 
 #
 # Bug#7212 information_schema: "Can't find file" errors if storage engine gone
@@ -403,14 +424,15 @@ create table t4(f1 int, KEY f1_key (f1));
 drop table t1;
 drop function sub1;
 select table_name from information_schema.views
-where table_schema='test';
+where table_schema='test' order by table_name;
 select table_name from information_schema.views
-where table_schema='test';
+where table_schema='test' order by table_name;
 select column_name from information_schema.columns
-where table_schema='test';
-select index_name from information_schema.statistics where table_schema='test';
+where table_schema='test' order by column_name;
+select index_name from information_schema.statistics where
+table_schema='test' order by index_name;
 select constraint_name from information_schema.table_constraints
-where table_schema='test';
+where table_schema='test' order by constraint_name;
 show create view v2;
 show create table v3;
 drop view v2;
@@ -498,13 +520,13 @@ drop table t_crashme;
 # Bug#7217 information_schema: columns are varbinary() instead of timestamp
 #
 select table_schema, table_name, column_name from information_schema.columns
-where table_schema not in ('performance_schema', 'sys')
-  and data_type = 'longtext';
+where table_schema not in ('performance_schema', 'sys', 'mysql')
+  and data_type = 'longtext' order by table_name, column_name;
 
 select table_name, column_name, data_type from information_schema.columns
 where table_schema not in ('performance_schema', 'sys')
   and data_type = 'datetime'
-  and table_name not like 'innodb_%';
+  and table_name COLLATE utf8_general_ci not like 'innodb_%' order by table_name, column_name;
 
 #
 # Bug#8164 subquery with INFORMATION_SCHEMA.COLUMNS, 100 % CPU
@@ -530,7 +552,7 @@ create table t1
   x_double_precision DOUBLE PRECISION );
 SELECT COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH
 FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_NAME= 't1';
+WHERE TABLE_NAME= 't1' ORDER BY COLUMN_NAME;
 drop table t1;
 
 #
@@ -541,7 +563,7 @@ grant select on test.* to mysqltest_4@localhost;
 connect (user10261,localhost,mysqltest_4,,);
 connection user10261;
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS
-where COLUMN_NAME='TABLE_NAME' ORDER BY TABLE_NAME;
+where COLUMN_NAME='TABLE_NAME' ORDER BY TABLE_NAME COLLATE UTF8_GENERAL_CI;
 connection default;
 disconnect user10261;
 delete from mysql.user where user='mysqltest_4';
@@ -553,8 +575,8 @@ flush privileges;
 # with SELECT SUM() ... GROUP BY queries
 #
 SELECT table_schema, count(*) FROM information_schema.TABLES WHERE
-table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
-AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
+table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
+AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 
 
@@ -677,13 +699,13 @@ create table t1(f1 LONGBLOB, f2 LONGTEXT);
 select column_name,data_type,CHARACTER_OCTET_LENGTH,
        CHARACTER_MAXIMUM_LENGTH
 from information_schema.columns
-where table_name='t1';
+where table_name='t1' order by column_name;
 drop table t1;
 create table t1(f1 tinyint, f2 SMALLINT, f3 mediumint, f4 int,
                 f5 BIGINT, f6 BIT, f7 bit(64));
 select column_name, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns
-where table_name='t1';
+where table_name='t1' order by column_name;
 drop table t1;
 
 #
@@ -716,6 +738,7 @@ drop table t1;
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (b int);
 
+analyze table t1, t2;
 --replace_column 7 # 8 # 12 # 13 #
 SHOW TABLE STATUS FROM test
   WHERE name IN ( SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
@@ -824,7 +847,8 @@ CREATE FUNCTION func2() RETURNS BIGINT RETURN 1;
 delimiter //;
 CREATE FUNCTION func1() RETURNS BIGINT
 BEGIN
-  RETURN ( SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA != 'sys');
+  RETURN ( SELECT COUNT(*) FROM information_schema.views WHERE TABLE_SCHEMA != 'sys' AND
+           TABLE_SCHEMA != 'information_schema');
 END//
 delimiter ;//
 
@@ -883,7 +907,7 @@ set @a:= '.';
 create table t1(f1 char(5));
 create table t2(f1 char(5));
 select concat(@a, table_name), @a, table_name
-from information_schema.tables where table_schema = 'test';
+from information_schema.tables where table_schema = 'test' order by table_name;
 drop table t1,t2;
 
 
@@ -925,10 +949,15 @@ DROP USER mysql_bug20230@localhost;
 #           INFORMARTION_SCHEMA.TABLES
 #
 
-SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
-SELECT table_name from information_schema.tables
+SELECT MAX(table_name)
+  FROM information_schema.tables
+  WHERE table_schema IN ('mysql', 'information_schema', 'test');
+SELECT table_name FROM information_schema.tables
   WHERE table_name=(SELECT MAX(table_name)
-                      FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
+                      FROM information_schema.tables WHERE
+                      table_schema IN ('mysql',
+                                       'information_schema',
+                                       'test')) order by table_name;
 #
 # Bug#23037 Bug in field "Default" of query "SHOW COLUMNS FROM table"
 #
@@ -961,11 +990,13 @@ let $body=`SELECT REPEAT('A', 65532)`;
 eval CREATE TABLE bug23037(fld1 VARCHAR(65532) CHARACTER SET latin1 DEFAULT "$body");
 --enable_query_log
 
-SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
+SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT)
+  FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037'
+  ORDER BY COLUMN_NAME;
 
 SELECT MD5(get_value());
 
-SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT), COLUMN_DEFAULT=get_value() FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
+SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT), COLUMN_DEFAULT=get_value() FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037' ORDER BY COLUMN_NAME;
 
 DROP TABLE bug23037;
 DROP FUNCTION get_value;
@@ -979,8 +1010,10 @@ select table_schema as object_schema,
        table_type   as object_type
 from information_schema.tables
 order by object_schema;
+--disable_result_log
 explain select * from v1;
 explain select * from (select table_name from information_schema.tables) as a;
+--enable_result_log
 drop view v1;
 
 #
@@ -992,17 +1025,15 @@ create table t2 (f1 int(11), f2 int(11));
 select table_name from information_schema.tables
 where table_schema = 'test' and table_name not in
 (select table_name from information_schema.columns
- where table_schema = 'test' and column_name = 'f3');
+ where table_schema = 'test' and column_name = 'f3') order by table_name;
 drop table t1,t2;
-
 
 #
 # Bug#24630 Subselect query crashes mysqld
 #
-select 1 as f1 from information_schema.tables  where "CHARACTER_SETS"=
+select 1 as f1 from information_schema.tables  where "COLUMN_PRIVILEGES"=
 (select cast(table_name as char)  from information_schema.tables
- where table_schema != 'performance_schema'
- order by table_name limit 1) limit 1;
+ where table_schema != 'performance_schema' order by table_name limit 1) limit 1;
 
 select t.table_name, group_concat(t.table_schema, '.', t.table_name),
        count(*) as num1
@@ -1019,9 +1050,8 @@ where t.table_name not like 'ndb%' and
          c2.table_schema='information_schema' and
          (c2.column_type = 'varchar(7)' or c2.column_type = 'varchar(20)')
           group by c2.column_type order by num limit 1)
-        and t.table_name not like 'innodb_%'
-group by t.table_name order by num1, t.table_name;
-
+        and t.table_name not like 'INNODB_%'
+group by t.table_name order by num1, t.table_name COLLATE utf8_general_ci;
 #
 # Bug#28266 IS_UPDATABLE field on VIEWS table in I_S database is wrong
 #
@@ -1029,7 +1059,7 @@ create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
 create table t2 (f1 int, f2 int);
 create view v2 as select f1+1 as a, f2 as b from t2;
-select table_name, is_updatable from information_schema.views where table_schema != 'sys';
+select table_name, is_updatable from information_schema.views where table_schema != 'sys' order by table_name;
 #
 # Note: we can perform 'delete' for non updatable view.
 #
@@ -1062,7 +1092,7 @@ show triggers from mysqltest;
 
 connect (con27629,localhost,mysqltest_1,,mysqltest);
 show columns from t1;
-select column_name from information_schema.columns where table_name='t1';
+select column_name from information_schema.columns where table_name='t1' order by column_name;
 
 --replace_column 6 #
 show triggers;
@@ -1114,8 +1144,8 @@ CREATE TABLE test.t1( a INT );
 # MyISAM. This and only this triggers the bug.
 SELECT *
 FROM tables ta
-JOIN collations co ON ( co.collation_name = ta.table_catalog )
-JOIN character_sets cs ON ( cs.character_set_name = ta.table_catalog );
+JOIN collations co ON ( co.collation_name = CONVERT(ta.table_catalog using utf8))
+JOIN character_sets cs ON ( cs.character_set_name = CONVERT(ta.table_catalog using utf8));
 
 DROP TABLE test.t1;
 SET max_heap_table_size = DEFAULT;
@@ -1177,26 +1207,6 @@ SELECT variable_name FROM server_status;
 DROP TABLE server_status;
 SET GLOBAL event_scheduler=0;
 
-
-#
-# WL#3732 Information schema optimization
-#
-
-explain select table_name from information_schema.views where
-table_schema='test' and table_name='v1';
-
-explain select * from information_schema.tables;
-explain select * from information_schema.collations;
-
-explain select * from information_schema.tables where
-table_schema='test' and table_name= 't1';
-explain select table_name, table_type from information_schema.tables
-where table_schema='test';
-
-explain select b.table_name
-from information_schema.tables a, information_schema.columns b
-where a.table_name='t1' and a.table_schema='test' and b.table_name=a.table_name;
-
 #
 # Bug#30310 wrong result on SELECT * FROM INFORMATION_SCHEMA.SCHEMATA WHERE ..
 #
@@ -1219,7 +1229,8 @@ select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_N
 #
 CREATE VIEW v1
 AS SELECT *
-FROM information_schema.tables;
+FROM information_schema.TABLES;
+--replace_result `tables` `TABLES`
 SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS where TABLE_NAME = 'v1';
 DROP VIEW v1;
 
@@ -1264,7 +1275,9 @@ select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
 #
 # Bug#31630 debug assert with explain extended select ... from i_s
 #
+--disable_result_log
 explain extended select 1 from information_schema.tables;
+--enable_result_log
 
 #
 # Bug#32775 problems with SHOW EVENTS and Information_Schema
@@ -1341,13 +1354,6 @@ where state='User sleep' and
 info='select * from information_schema.columns where 1=sleep(100000)';
 --source include/wait_condition.inc
 
-
-#
-# Bug#38918 selecting from information_schema.columns is disproportionately slow
-#
-explain select count(*) from information_schema.tables;
-explain select count(*) from information_schema.columns;
-explain select count(*) from information_schema.views;
 
 #
 # Bug#39955 SELECT on INFORMATION_SCHEMA.GLOBAL_VARIABLES takes too long
@@ -1435,9 +1441,8 @@ DROP DATABASE db1;
 --echo
 
 CREATE TABLE variables(f1 INT);
-SELECT COLUMN_DEFAULT, TABLE_NAME
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE INFORMATION_SCHEMA.COLUMNS.TABLE_NAME = 'variables';
+SELECT COLUMN_DEFAULT, TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS
+WHERE information_schema.COLUMNS.TABLE_NAME = 'variables';
 DROP TABLE variables;
 
 --echo #
@@ -1488,6 +1493,7 @@ drop tables if exists t1, t2, t3;
 --enable_warnings
 create table t1 (i int);
 create table t2 (j int primary key auto_increment);
+analyze table t1, t2;
 connect (con3726_1,localhost,root,,test);
 --echo # Switching to connection 'con3726_1'
 connection con3726_1;
@@ -1525,13 +1531,13 @@ drop tables t1, t3;
 #
 # Bug#39270 I_S optimization algorithm does not work properly in some cases
 #
-EXPLAIN SELECT * FROM information_schema.key_column_usage;
-EXPLAIN SELECT * FROM information_schema.partitions WHERE TABLE_NAME='t1';
-EXPLAIN SELECT * FROM information_schema.referential_constraints
+--replace_result partitions PARTITIONS
+EXPLAIN SELECT * FROM information_schema.PARTITIONS WHERE TABLE_NAME='t1';
+--replace_result referential_constraints REFERENTIAL_CONSTRAINTS
+EXPLAIN SELECT * FROM information_schema.REFERENTIAL_CONSTRAINTS
   WHERE CONSTRAINT_SCHEMA='test';
-EXPLAIN SELECT * FROM information_schema.table_constraints
-  WHERE TABLE_NAME='t1' and TABLE_SCHEMA='test';
-EXPLAIN SELECT * FROM information_schema.triggers
+--replace_result triggers TRIGGERS
+EXPLAIN SELECT * FROM information_schema.TRIGGERS
   WHERE EVENT_OBJECT_SCHEMA='test';
 
 #
@@ -1556,20 +1562,20 @@ create table t1 select * from information_schema.t1;
 
 CREATE TABLE t1(f1 char(100));
 --error ER_DBACCESS_DENIED_ERROR
-REPAIR TABLE t1, information_schema.tables;
-CHECKSUM TABLE t1, information_schema.tables;
+REPAIR TABLE t1, information_schema.processlist;
+CHECKSUM TABLE t1, information_schema.processlist;
 --error ER_DBACCESS_DENIED_ERROR
-ANALYZE TABLE t1, information_schema.tables;
-CHECK TABLE t1, information_schema.tables;
+ANALYZE TABLE t1, information_schema.processlist;
+CHECK TABLE t1, information_schema.processlist;
 --error ER_DBACCESS_DENIED_ERROR
-OPTIMIZE TABLE t1, information_schema.tables;
+OPTIMIZE TABLE t1, information_schema.processlist;
 --error ER_DBACCESS_DENIED_ERROR
-RENAME TABLE v1 to v2, information_schema.tables to t2;
+RENAME TABLE v1 to v2, information_schema.processlist to t2;
 --error ER_DBACCESS_DENIED_ERROR
-DROP TABLE t1, information_schema.tables;
+DROP TABLE t1, information_schema.processlist;
 
 --error ER_DBACCESS_DENIED_ERROR
-LOCK TABLES t1 READ, information_schema.tables READ;
+LOCK TABLES t1 READ, information_schema.processlist READ;
 DROP TABLE t1;
 
 #
@@ -1626,7 +1632,8 @@ let $wait_condition=
           info = "flush tables";
 --source include/wait_condition.inc
 --vertical_results
-select * from information_schema.views where table_schema != 'sys';
+select * from information_schema.views
+  where table_schema != 'sys' order by table_schema, table_name;
 --horizontal_results
 unlock tables;
 
@@ -1667,7 +1674,8 @@ create table t2 (k int);
 
 --echo #
 --echo # Test that we don't keep locks in case when we to fill
---echo # I_S table we perform full-blown table open.
+--echo # I_S table we read .TRG file only (this was the case
+--echo # for which problem existed).
 --echo #
 
 --echo # Acquire lock on 't2' so upcoming RENAME is
@@ -1693,82 +1701,7 @@ let $wait_condition=
         info = "rename table t1 to t3, t2 to t1, t3 to t2";
 --source include/wait_condition.inc
 
---echo # Issue query to I_S which will open 't0' and get
---echo # blocked on 't1' because of RENAME.
---send select table_name, auto_increment from information_schema.tables where table_schema='mysqltest'
-
---echo #
---echo # Switching to connection 'con12828477_3'. 
---echo #
-connect (con12828477_3, localhost, root,,mysqltest);
---echo # Wait while the above SELECT is blocked.
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table metadata lock" and
-        info = "select table_name, auto_increment from information_schema.tables where table_schema='mysqltest'";
---source include/wait_condition.inc
-
---echo #
---echo # Check that it holds no lock on 't0' so it can be renamed.
-rename table t0 to t4;
-
---echo #
---echo # Switching to connection 'default'.
---echo #
-connection default;
---echo #
---echo # Unblock the first RENAME.
-unlock tables;
-
---echo #
---echo # Switching to connection 'con12828477_1'. 
---echo #
-connection con12828477_1;
---echo # Reap the first RENAME
---reap
-
---echo #
---echo # Switching to connection 'con12828477_2'. 
---echo #
-connection con12828477_2;
---echo # Reap SELECT to I_S.
---reap
-
---echo #
---echo # Switching to connection 'default'.
---echo #
-connection default;
-
---echo #
---echo # Now test that we don't keep locks in case when we to fill
---echo # I_S table we read .FRM or .TRG file only (this was the case
---echo # for which problem existed).
---echo #
-
-rename table t4 to t0;
---echo # Acquire lock on 't2' so upcoming RENAME is
---echo # blocked.
-lock tables t2 read;
-
---echo #
---echo # Switching to connection 'con12828477_1'. 
---echo #
-connection con12828477_1;
---echo # The below RENAME should wait on 't2' while
---echo # keeping X lock on 't1'.
---send rename table t1 to t3, t2 to t1, t3 to t2
-
---echo #
---echo # Switching to connection 'con12828477_2'. 
---echo #
-connection con12828477_2;
---echo # Wait while the above RENAME is blocked.
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table metadata lock" and
-        info = "rename table t1 to t3, t2 to t1, t3 to t2";
---source include/wait_condition.inc
-
+SET SESSION information_schema_stats=latest;
 --echo # Issue query to I_S which will open 't0' and get
 --echo # blocked on 't1' because of RENAME.
 --send select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest'
@@ -1776,7 +1709,7 @@ let $wait_condition=
 --echo #
 --echo # Switching to connection 'con12828477_3'. 
 --echo #
-connection con12828477_3;
+connect (con12828477_3, localhost, root,,mysqltest);
 --echo # Wait while the above SELECT is blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
@@ -1834,7 +1767,8 @@ create table mysqltest.t3(a int, b date, c time(3), d datetime(3), e timestamp(3
 create table mysqltest.t4(a int, b date, c time(4), d datetime(4), e timestamp(4));
 create table mysqltest.t5(a int, b date, c time(5), d datetime(5), e timestamp(5));
 create table mysqltest.t6(a int, b date, c time(6), d datetime(6), e timestamp(6));
-select TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATETIME_PRECISION from information_schema.columns where TABLE_SCHEMA='mysqltest';
+select TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATETIME_PRECISION from
+information_schema.columns where TABLE_SCHEMA='mysqltest' order by table_name, column_name;
 
 --echo #
 --echo # Clean-up.
@@ -1924,22 +1858,25 @@ WHERE (SELECT 1 FROM information_schema.tables
         WHERE table_schema
         ORDER BY table_name
         LIMIT 1);
+--disable_result_log
 eval EXPLAIN $query;
+--enable_result_log
 --disable_warnings
 eval $query;
 --enable_warnings
 
 let $query=
 SELECT 1 AS F1 FROM information_schema.tables
-WHERE "CHARACTER_SETS"=
+WHERE "COLUMN_PRIVILEGES"=
       (SELECT CAST(TABLE_NAME AS CHAR)
       FROM information_schema.tables
       WHERE table_schema != 'PERFORMANCE_SCHEMA'
-      ORDER BY table_name
-      LIMIT 1)
+      ORDER BY table_name LIMIT 1)
 LIMIT 1;
 
+--disable_result_log
 eval EXPLAIN $query;
+--enable_result_log
 eval $query;
 
 --echo #
@@ -1973,5 +1910,80 @@ DROP USER user_name_len_22_01234@localhost;
 DROP USER очень_очень_очень_длинный_юзер__@localhost;
 set names default;
 
+SET SESSION information_schema_stats=cached;
 set sql_mode= @orig_sql_mode;
 set @@global.show_compatibility_56=@show_compatibility_56_save;
+
+
+--echo #
+--echo # WL#6599: New Data Dictionary and I_S Integration.
+--echo #
+
+CREATE VIEW v1 AS SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME= "users";
+LOCK TABLE v1 READ;
+
+--enable_connect_log
+connect(con1, localhost, root,,);
+send FLUSH TABLES;
+
+connection default;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table flush" AND
+  info = "flush tables";
+--source include/wait_condition.inc
+
+SELECT * FROM v1;
+UNLOCK TABLES;
+
+connection con1;
+reap;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--echo # Clean up.
+connection default;
+DROP VIEW v1;
+--disable_connect_log
+
+
+--echo #
+--echo # WL#6599: New Data Dictionary and I_S Integration.
+--echo #
+--echo # Test case to check if ndbinfo schema is listed by I_S when ndbcluster
+--echo # is not running.
+--echo #
+#'ndbinfo' schema should not be listed when ndbcluster is not running.
+SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'ndbinfo';
+# tables of ndbinfo schema should not be listed.
+SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ndbinfo';
+
+
+--echo #
+--echo # WL#6599: New Data Dictionary and I_S Integration.
+--echo #
+--echo # Test case to check INFORMATION_SCHEMA.COLUMNS.COLUMN_KEY
+--echo # value if reported for FULLTEXT and SPATIAL index.
+--echo #
+CREATE TABLE t1 (
+c1 INT,
+c2 INT,
+c3 CHAR(255),
+c4 CHAR(255),
+c5 CHAR(255),
+c6 POINT NOT NULL,
+c7 GEOMETRY NOT NULL,
+SPATIAL INDEX(c7),
+PRIMARY KEY (c1, c6),
+KEY c2_key (c2),
+FULLTEXT KEY c3_fts (c3),
+FULLTEXT KEY c4_fts (c4, c5));
+
+SELECT COLUMN_NAME, IS_NULLABLE,
+       DATA_TYPE, COLLATION_NAME, COLUMN_KEY
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA='test';
+SHOW COLUMNS FROM t1;
+
+DROP TABLE t1;

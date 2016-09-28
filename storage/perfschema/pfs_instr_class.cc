@@ -31,6 +31,7 @@
 #include "pfs_setup_object.h"
 #include "pfs_atomic.h"
 #include "pfs_program.h"
+#include "pfs_column_values.h"
 #include "pfs_buffer_container.h"
 #include "mysql/psi/mysql_thread.h"
 #include "lf.h"
@@ -234,25 +235,29 @@ void init_event_name_sizing(const PFS_global_param *param)
 void register_global_classes()
 {
   /* Table IO class */
-  init_instr_class(&global_table_io_class, "wait/io/table/sql/handler", 25,
+  init_instr_class(&global_table_io_class,
+                   table_io_class_name.str, (uint)table_io_class_name.length,
                    0, PFS_CLASS_TABLE_IO);
   global_table_io_class.m_event_name_index= GLOBAL_TABLE_IO_EVENT_INDEX;
   configure_instr_class(&global_table_io_class);
 
   /* Table lock class */
-  init_instr_class(&global_table_lock_class, "wait/lock/table/sql/handler", 27,
+  init_instr_class(&global_table_lock_class,
+                   table_lock_class_name.str, (uint)table_lock_class_name.length,
                    0, PFS_CLASS_TABLE_LOCK);
   global_table_lock_class.m_event_name_index= GLOBAL_TABLE_LOCK_EVENT_INDEX;
   configure_instr_class(&global_table_lock_class);
 
   /* Idle class */
-  init_instr_class(&global_idle_class, "idle", 4,
+  init_instr_class(&global_idle_class,
+                   idle_class_name.str, (uint)idle_class_name.length,
                    0, PFS_CLASS_IDLE);
   global_idle_class.m_event_name_index= GLOBAL_IDLE_EVENT_INDEX;
   configure_instr_class(&global_idle_class);
 
   /* Metadata class */
-  init_instr_class(&global_metadata_class, "wait/lock/metadata/sql/mdl", 26,
+  init_instr_class(&global_metadata_class,
+                   metadata_lock_class_name.str, (uint)metadata_lock_class_name.length,
                    0, PFS_CLASS_METADATA);
   global_metadata_class.m_event_name_index= GLOBAL_METADATA_EVENT_INDEX;
   global_metadata_class.m_enabled= false; /* Disabled by default */
@@ -260,7 +265,8 @@ void register_global_classes()
   configure_instr_class(&global_metadata_class);
 
   /* Error class */
-  init_instr_class(&global_error_class, "error", 5,
+  init_instr_class(&global_error_class,
+                   error_class_name.str, (uint)error_class_name.length,
                    0, PFS_CLASS_ERROR);
   global_error_class.m_event_name_index= GLOBAL_ERROR_INDEX;
   global_error_class.m_enabled= true; /* Enabled by default */
@@ -270,7 +276,9 @@ void register_global_classes()
   error_class_max= 1; /* only one error class as of now. */
 
   /* Transaction class */
-  init_instr_class(&global_transaction_class, "transaction", 11,
+  init_instr_class(&global_transaction_class,
+                   transaction_instrument_prefix.str,
+                   (uint)transaction_instrument_prefix.length,
                    0, PFS_CLASS_TRANSACTION);
   global_transaction_class.m_event_name_index= GLOBAL_TRANSACTION_INDEX;
   global_transaction_class.m_enabled= false; /* Disabled by default */
@@ -2004,7 +2012,7 @@ void drop_table_share(PFS_thread *thread,
     pfs->destroy_lock_stat();
     pfs->destroy_index_stats();
 
-    pfs->m_lock.allocated_to_free();
+    global_table_share_container.deallocate(pfs);
   }
 
   lf_hash_search_unpin(pins);

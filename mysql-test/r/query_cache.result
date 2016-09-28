@@ -858,12 +858,12 @@ SET SESSION query_cache_type = 2;
 create table t1(a int);
 select table_name from information_schema.tables
 where table_schema="test";
-table_name
+TABLE_NAME
 t1
 drop table t1;
 select table_name from information_schema.tables
 where table_schema="test";
-table_name
+TABLE_NAME
 SET SESSION query_cache_type = 1;
 set global query_cache_size=1024*1024;
 flush query cache;

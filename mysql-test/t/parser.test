@@ -1925,6 +1925,7 @@ CREATE        INDEX n_index USING btree ON t1( n ) USING btree;
 CREATE        INDEX x_index USING btree ON t1( o ) USING rtree;
 CREATE        INDEX o_index USING rtree ON t1( o ) USING btree;
 
+ANALYZE TABLE t1;
 SHOW INDEXES FROM t1;
 
 DROP TABLE t1;

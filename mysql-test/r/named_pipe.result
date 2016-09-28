@@ -2154,6 +2154,9 @@ fld5	char(35)	latin1_swedish_ci	NO				#
 fld6	char(4)	latin1_swedish_ci	NO				#	
 show full columns from t2 from test like 's%';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 show keys from t2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t2	0	PRIMARY	1	auto	A	#	NULL	NULL		BTREE			YES

@@ -19,6 +19,8 @@
 
 #include "sql_rename.h"
 
+
+#include "dd_sql_view.h"      // View_metadata_updater
 #include "log.h"              // query_logger
 #include "mysqld.h"           // lower_case_table_names
 #include "sql_base.h"         // tdc_remove_table,
@@ -146,7 +148,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
     }
   }
 
-  if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout, 0))
+  if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout, 0)
+      || lock_trigger_names(thd, table_list))
     goto err;
 
   for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
@@ -192,6 +195,20 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 
   if (!error)
     query_cache.invalidate(thd, table_list, FALSE);
+
+  if (!error)
+  {
+    for (ren_table= table_list; ren_table;
+         ren_table= ren_table->next_local->next_local)
+    {
+      TABLE_LIST *new_table= ren_table->next_local;
+      DBUG_ASSERT(new_table);
+      if ((error= update_referencing_views_metadata(thd, ren_table,
+                                                    new_table->db,
+                                                    new_table->table_name)))
+        goto err;
+    }
+  }
 
   if (!error)
   {
@@ -285,6 +302,17 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   {
     delete new_table;
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
+    /*
+      If we are upgrading on old data directory, we execute RENAME statement
+      via bootstrap thread. If the table already exist, the statement will fail.
+      Though my_error() is called for errors, it does not set DA error status
+      for bootstrap thread. Set OK status here to avoid the assert after
+      statement execution due to empty DA error status. Error will be handled
+      by caller function.
+    */
+    if (dd_upgrade_flag)
+      my_ok(thd);
+
     DBUG_RETURN(true);                         // This error cannot be skipped
   }
 
@@ -320,6 +348,13 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
           (hton->post_ddl))
         post_ddl_htons->insert(hton);
 
+      if (check_table_triggers_are_not_in_the_same_schema(
+            thd,
+            ren_table->db,
+            ren_table->table_name,
+            new_db))
+        DBUG_RETURN(!skip_error);
+
       // If renaming fails, my_error() has already been called
       if (mysql_rename_table(thd, hton, ren_table->db, old_alias, new_db,
                              new_alias, (NO_TARGET_CHECK |
@@ -328,18 +363,6 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
       *int_commit_done|= do_commit;
 
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7896
-      // If we fail to update the triggers appropriately, we revert the
-      // changes done and report an error.
-      if (change_trigger_table_name(thd, ren_table->db, old_alias,
-                                         ren_table->table_name,
-                                         new_db, new_alias))
-      {
-        (void) mysql_rename_table(thd, hton, new_db, new_alias,
-                                  ren_table->db, old_alias, NO_FK_CHECKS);
-        DBUG_RETURN(!skip_error);
-      }
-#endif
       break;
     }
   case dd::enum_table_type::SYSTEM_VIEW: // Fall through

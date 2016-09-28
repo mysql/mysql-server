@@ -1425,9 +1425,9 @@ insert into u1 values (4);
 create view v1 (c1) as select * from t1;
 
 # Backup should not fail for Bug#21527. Flush priviliges test begins.
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats
-# See Bug#22655287
---exec $MYSQL_DUMP --skip-comments --add-drop-table --flush-privileges --ignore-table=mysql.general_log --ignore-table=mysql.slow_log --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats --databases mysqldump_myDB mysql > $MYSQLTEST_VARDIR/tmp/bug21527.sql
+# TODO (Bug#22655287): mysqldump should skip the innodb_*_stats tables.
+# Restoring the dump will cause errors (see below).
+--exec $MYSQL_DUMP --skip-comments --add-drop-table --flush-privileges --ignore-table=mysql.general_log --ignore-table=mysql.slow_log --databases mysqldump_myDB mysql > $MYSQLTEST_VARDIR/tmp/bug21527.sql
 
 # Clean up
 connection root;
@@ -1445,7 +1445,11 @@ flush privileges;
 --echo # Restore. Flush Privileges test ends.
 --echo #
 
---exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21527.sql
+# TODO (Bug#22655287): mysqldump should skip the innodb_*_stats tables.
+# Restoring the dump will cause errors. Using '--force' will ignore
+# errors and allow the dump to be restored. Fixing Bug#22655287 should
+# allow the command below to succeed without '--force'.
+--exec $MYSQL --force < $MYSQLTEST_VARDIR/tmp/bug21527.sql
 
 # Do as a user
 connection user1;
@@ -1471,14 +1475,6 @@ disconnect root;
 use test;
 
 --echo #
---echo # Bug #21527 mysqldump incorrectly tries to LOCK TABLES on the 
---echo # information_schema database.
---echo #
---echo # Bug #33762: mysqldump can not dump INFORMATION_SCHEMA
---echo #
---exec $MYSQL_DUMP --compact --opt -d information_schema TABLES
-
---echo #
 --echo # Bug#19745 mysqldump --xml produces invalid xml
 --echo #
 
@@ -1487,7 +1483,7 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 CREATE TABLE t1 (f1 int(10), data MEDIUMBLOB);
-INSERT INTO t1 VALUES(1,0xff00fef0);
+INSERT INTO t1 VALUES(1, 0xff00fef0);
 
 --exec $MYSQL_DUMP --xml --hex-blob --skip-create-options test t1
 

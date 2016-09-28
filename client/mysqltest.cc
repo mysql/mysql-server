@@ -118,7 +118,7 @@ C_MODE_END
 
 enum {
   OPT_PS_PROTOCOL=OPT_MAX_CLIENT_OPTION, OPT_SP_PROTOCOL,
-  OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
+  OPT_NO_SKIP, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
   OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS, OPT_LOG_DIR,
   OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION, OPT_TRACE_PROTOCOL,
   OPT_EXPLAIN_PROTOCOL, OPT_JSON_EXPLAIN_PROTOCOL, OPT_TRACE_EXEC
@@ -127,6 +127,7 @@ enum {
 static int record= 0, opt_sleep= -1;
 static char *opt_db= 0, *opt_pass= 0;
 const char *opt_user= 0, *opt_host= 0, *unix_sock= 0, *opt_basedir= "./";
+const char *excluded_string= 0;
 static char *shared_memory_base_name=0;
 const char *opt_logdir= "";
 const char *opt_include= 0, *opt_charsets_dir;
@@ -140,6 +141,7 @@ static my_bool tty_password= 0;
 static my_bool opt_mark_progress= 0;
 static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
 static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
+static my_bool no_skip=0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
 static my_bool opt_trace_protocol= 0, opt_trace_protocol_enabled= 0;
 static my_bool explain_protocol= 0, explain_protocol_enabled= 0;
@@ -284,6 +286,20 @@ static void init_re(void);
 static int match_re(my_regex_t *, char *);
 static void free_re(void);
 
+/* To retrieve a filename from a filepath */
+const char * get_filename_from_path(const char * path)
+{
+  const char *fname= NULL;
+  if (is_windows)
+    fname = strrchr(path, '\\');
+  else
+    fname = strrchr(path, '/');
+  if (fname == NULL)
+    return path;
+  else
+    return ++fname;
+}
+
 #ifndef EMBEDDED_LIBRARY
 static uint opt_protocol= 0;
 #endif
@@ -400,7 +416,7 @@ enum enum_commands {
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
-  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
+  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR, Q_FORCE_RMDIR,
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
   Q_RESULT_FORMAT_VERSION,
@@ -501,6 +517,7 @@ const char *command_names[]=
   "change_user",
   "mkdir",
   "rmdir",
+  "force-rmdir",
   "list_files",
   "list_files_write_file",
   "list_files_append_file",
@@ -3989,17 +4006,79 @@ static void do_mkdir(struct st_command *command)
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  SYNOPSIS
+  do_force_rmdir
+  command    - command handle
+  ds_dirname - pointer to dynamic string containing directory informtion
+
+  DESCRIPTION
+  force-rmdir <dir_name>
+  Remove the directory <dir_name>
+*/
+
+void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname)
+{
+  DBUG_ENTER("do_force_rmdir");
+
+  char dir_name[FN_REFLEN];
+  strncpy(dir_name, ds_dirname->str, sizeof(dir_name));
+
+  /* Note that my_dir sorts the list if not given any flags */
+  MY_DIR *dir_info= my_dir(ds_dirname->str, MYF(MY_DONT_SORT | MY_WANT_STAT));
+
+  if (dir_info && dir_info->number_off_files > 2)
+  {
+    /* Storing the length of the path to the file, so it can be reused */
+    size_t length= ds_dirname->length;
+
+    /* Delete the directory recursively */
+    for (uint i= 0; i < dir_info->number_off_files; i++)
+    {
+      FILEINFO *file= dir_info->dir_entry + i;
+
+      /* Skip the names "." and ".." */
+      if (!strcmp(file->name, ".") ||
+          !strcmp(file->name, ".."))
+        continue;
+
+      ds_dirname->length= length;
+      char dir_separator[2]= {FN_LIBCHAR, 0};
+      dynstr_append(ds_dirname, dir_separator);
+      dynstr_append(ds_dirname, file->name);
+
+      if (MY_S_ISDIR(file->mystat->st_mode))
+        /* It's a directory */
+        do_force_rmdir(command, ds_dirname);
+      else
+        /* It's a file */
+        my_delete(ds_dirname->str, MYF(0));
+    }
+  }
+
+  my_dirend(dir_info);
+  int error= rmdir(dir_name) != 0;
+  set_my_errno(errno);
+  handle_command_error(command, error);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   SYNOPSIS
   do_rmdir
   command	called command
+  force         Recursively delete a directory if the value is set to true,
+                otherwise delete an empty direcory
 
   DESCRIPTION
   rmdir <dir_name>
   Remove the empty directory <dir_name>
 */
 
-static void do_rmdir(struct st_command *command)
+static void do_rmdir(struct st_command *command, my_bool force)
 {
   int error;
   static DYNAMIC_STRING ds_dirname;
@@ -4013,8 +4092,14 @@ static void do_rmdir(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("removing directory: %s", ds_dirname.str));
-  error= rmdir(ds_dirname.str) != 0;
-  handle_command_error(command, error);
+  if (force)
+    do_force_rmdir(command, &ds_dirname);
+  else
+  {
+    error= rmdir(ds_dirname.str) != 0;
+    set_my_errno(errno);
+    handle_command_error(command, error);
+  }
   dynstr_free(&ds_dirname);
   DBUG_VOID_RETURN;
 }
@@ -6041,7 +6126,8 @@ do_handle_error:
    * COMPRESS - use compression if available
    * SHM - use shared memory if available
    * PIPE - use named pipe if available
-
+   * SOCKET - use socket protocol
+   * TCP - use tcp protocol
 */
 
 static void do_connect(struct st_command *command)
@@ -6064,7 +6150,7 @@ static void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
   static DYNAMIC_STRING ds_default_auth;
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if !defined (EMBEDDED_LIBRARY)
   static DYNAMIC_STRING ds_shm;
 #endif
   const struct command_arg connect_args[] = {
@@ -6095,7 +6181,7 @@ static void do_connect(struct st_command *command)
       die("Illegal argument for port: '%s'", ds_port.str);
   }
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if !defined (EMBEDDED_LIBRARY)
   /* Shared memory */
   init_dynamic_string(&ds_shm, ds_sock.str, 0, 0);
 #endif
@@ -6124,6 +6210,7 @@ static void do_connect(struct st_command *command)
 
   /* Options */
   con_options= ds_options.str;
+  my_bool con_socket=0, con_tcp= 0;
   while (*con_options)
   {
     char* end;
@@ -6144,6 +6231,10 @@ static void do_connect(struct st_command *command)
       con_shm= 1;
     else if (!strncmp(con_options, "CLEARTEXT", 9))
       con_cleartext_enable= 1;
+    else if (!strncmp(con_options, "SOCKET", 6))
+      con_socket= 1;
+    else if (!strncmp(con_options, "TCP", 3))
+      con_tcp= 1;
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);
@@ -6208,33 +6299,53 @@ static void do_connect(struct st_command *command)
 
   if (con_pipe && !con_ssl)
   {
-#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY)
     opt_protocol= MYSQL_PROTOCOL_PIPE;
 #endif
   }
 
 #ifndef EMBEDDED_LIBRARY
   if (opt_protocol)
+  {
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+    /*
+      Resetting the opt_protocol value to 0 to avoid the
+      possible failure in the next connect() command.
+    */
+    opt_protocol= 0;
+  }
 #endif
 
   if (con_shm)
   {
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if !defined (EMBEDDED_LIBRARY)
     uint protocol= MYSQL_PROTOCOL_MEMORY;
     if (!ds_shm.length)
       die("Missing shared memory base name");
+
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
 #endif
   }
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if !defined (EMBEDDED_LIBRARY)
   else if (shared_memory_base_name)
   {
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
                   shared_memory_base_name);
   }
 #endif
+
+  if (con_socket)
+  {
+    uint protocol= MYSQL_PROTOCOL_SOCKET;
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  }
+
+  if (con_tcp)
+  {
+    uint protocol= MYSQL_PROTOCOL_TCP;
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  }
 
   /* Use default db name */
   if (ds_database.length == 0)
@@ -6288,7 +6399,7 @@ static void do_connect(struct st_command *command)
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
   dynstr_free(&ds_default_auth);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if !defined (EMBEDDED_LIBRARY)
   dynstr_free(&ds_shm);
 #endif
   DBUG_VOID_RETURN;
@@ -7254,6 +7365,9 @@ static struct my_option my_long_options[] =
   {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select.",
    &sp_protocol, &sp_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.",
+   &no_skip, &no_skip, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
   {"tail-lines", OPT_TAIL_LINES,
    "Number of lines of the result to include in a failure report.",
@@ -7261,6 +7375,8 @@ static struct my_option my_long_options[] =
    GET_INT, REQUIRED_ARG, 0, 0, 10000, 0, 0, 0},
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-skip-exclude-list", 'n', "Contains comma seperated list of to be excluded inc files.",
+   &excluded_string, &excluded_string, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"timer-file", 'm', "File where the timing in microseconds is stored.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put.",
@@ -8505,6 +8621,13 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
         /* Free normal result set with meta data */
         mysql_free_result(res);
+
+        /*
+          Clear prepare warnings if there are execute warnings,
+          since they are probably duplicated.
+        */
+        if (ds_execute_warnings.length || mysql->warning_count)
+          dynstr_set(&ds_prepare_warnings, NULL);
       }
       else
       {
@@ -8539,14 +8662,6 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
             ds_prepare_warnings.length ||
             ds_warnings->length)
         {
-          /*
-            Clear prepare warnings if there are execute warnings,
-            since they are probably duplicated.
-          */
-          if (ds_execute_warnings.length &&
-              strstr(ds_execute_warnings.str, ds_prepare_warnings.str))
-            dynstr_set(&ds_prepare_warnings, NULL);
-
           dynstr_append_mem(ds, "Warnings:\n", 10);
           if (ds_warnings->length)
             dynstr_append_mem(ds, ds_warnings->str,
@@ -8951,7 +9066,7 @@ static void run_explain(struct st_connection *cn, struct st_command *command,
 static char *re_eprint(int err)
 {
   static char epbuf[100];
-  size_t len= my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
+  size_t len MY_ATTRIBUTE((unused))= my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
   assert(len <= sizeof(epbuf));
   return(epbuf);
 }
@@ -9684,7 +9799,8 @@ int main(int argc, char **argv)
       case Q_REMOVE_FILES_WILDCARD: do_remove_files_wildcard(command); break;
       case Q_COPY_FILES_WILDCARD: do_copy_files_wildcard(command); break;
       case Q_MKDIR: do_mkdir(command); break;
-      case Q_RMDIR: do_rmdir(command); break;
+      case Q_RMDIR: do_rmdir(command, 0); break;
+      case Q_FORCE_RMDIR: do_rmdir(command, 1); break;
       case Q_LIST_FILES: do_list_files(command); break;
       case Q_LIST_FILES_WRITE_FILE:
         do_list_files_write_file_command(command, FALSE);
@@ -9947,7 +10063,20 @@ int main(int argc, char **argv)
         abort_flag= 1;
         break;
       case Q_SKIP:
-        abort_not_supported_test("%s", command->first_argument);
+        if(!no_skip)
+          /*Skip the test-case*/
+          abort_not_supported_test("%s", command->first_argument);
+        else
+        {
+          const char *excluded_list = excluded_string;
+          const char *path = cur_file->file_name;
+          const char *fn = get_filename_from_path(path);
+          if(strstr(excluded_list,fn))
+            abort_not_supported_test("%s", command->first_argument);
+          else
+          /*Ignore the skip and continue running the test-case */
+          command->last_argument= command->end;
+        }
         break;
 
       case Q_RESULT:

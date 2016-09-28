@@ -121,6 +121,7 @@
 #include "table_variables_by_thread.h"
 #include "table_global_variables.h"
 #include "table_session_variables.h"
+#include "table_variables_info.h"
 
 /* For show status */
 #include "pfs_column_values.h"
@@ -481,6 +482,8 @@ bool PFS_table_context::initialize(void)
     m_map= NULL;
     m_word_size= sizeof(ulong) * 8;
 
+    #if 0
+    /* Disabled. */
     /* Allocate a bitmap to record which threads are materialized. */
     if (m_map_size > 0)
     {
@@ -488,6 +491,7 @@ bool PFS_table_context::initialize(void)
       ulong words= m_map_size / m_word_size + (m_map_size % m_word_size > 0);
       m_map= (ulong *)thd->mem_calloc(words * m_word_size);
     }
+    #endif
 
     /* Write to TLS. */
     my_set_thread_local(m_thr_key, static_cast<void *>(context));
@@ -518,7 +522,7 @@ PFS_table_context::PFS_table_context(ulonglong current_version, ulong map_size, 
 
 PFS_table_context::~PFS_table_context(void)
 {
-  /* Clear TLS after final use. */ // TODO: How is that determined?
+  /* Clear TLS after final use. */
 //  if (m_restore)
 //  {
 //    my_set_thread_local(m_thr_key, NULL);
@@ -649,6 +653,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_variables_by_thread::m_share,
   &table_global_variables::m_share,
   &table_session_variables::m_share,
+  &table_variables_info::m_share,
 
   NULL
 };
@@ -1045,6 +1050,13 @@ void PFS_engine_table::set_field_timestamp(Field *f, ulonglong value)
   f2->store_timestamp(& tm);
 }
 
+ulonglong PFS_engine_table::get_field_ulonglong(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
+  Field_longlong *f2= (Field_longlong*) f;
+  return f2->val_int();
+}
+
 void PFS_engine_table::set_field_double(Field *f, double value)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DOUBLE);
@@ -1083,6 +1095,49 @@ int PFS_engine_table::update_row_values(TABLE *,
                                         Field **)
 {
   return HA_ERR_WRONG_COMMAND;
+}
+
+/**
+  Positions an index cursor to the index specified in the handle. Fetches the
+  row if any.
+  @return 0, HA_ERR_KEY_NOT_FOUND, or error
+*/
+int PFS_engine_table::index_read(KEY *key_infos,
+                                 uint index,
+                                 const uchar *key,
+                                 uint key_len,
+                                 enum ha_rkey_function find_flag)
+{
+  //DBUG_ASSERT(m_index != NULL);
+  if (m_index == NULL)
+    return HA_ERR_END_OF_FILE;
+
+  // FIXME: Unclear what to do here
+  DBUG_ASSERT(find_flag != HA_READ_PREFIX_LAST);
+  DBUG_ASSERT(find_flag != HA_READ_PREFIX_LAST_OR_PREV);
+
+  // No GIS here
+  DBUG_ASSERT(find_flag != HA_READ_MBR_CONTAIN);
+  DBUG_ASSERT(find_flag != HA_READ_MBR_INTERSECT);
+  DBUG_ASSERT(find_flag != HA_READ_MBR_WITHIN);
+  DBUG_ASSERT(find_flag != HA_READ_MBR_DISJOINT);
+  DBUG_ASSERT(find_flag != HA_READ_MBR_EQUAL);
+
+  KEY *key_info= key_infos + index;
+  m_index->set_key_info(key_info);
+  m_index->read_key(key, key_len, find_flag);
+  reset_position();
+  return index_next();
+}
+
+/**
+  Reads the next row matching the given key value.
+  @return 0, HA_ERR_END_OF_FILE, or error
+*/
+int PFS_engine_table::index_next_same(const uchar *key,
+                                      uint key_len)
+{
+  return index_next();
 }
 
 /** Implementation of internal ACL checks, for the performance schema. */
@@ -1262,6 +1317,266 @@ PFS_unknown_acl::check(ulong want_access, ulong *save_priv) const
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
 
+enum ha_rkey_function
+PFS_key_reader::read_uchar(enum ha_rkey_function find_flag,
+                           bool & isnull, uchar *value)
+{
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
+  {
+    size_t data_size= 1;
+    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_BINARY);
+    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
+
+    isnull= false;
+    if (m_remaining_key_part_info->field->real_maybe_null())
+    {
+      if (m_remaining_key[0])
+        isnull= true;
+
+      m_remaining_key+= HA_KEY_NULL_LENGTH;
+      m_remaining_key_len-= HA_KEY_NULL_LENGTH;
+    }
+
+    uchar data= mi_uint1korr(m_remaining_key);
+    m_remaining_key+= data_size;
+    m_remaining_key_len-= (uint)data_size;
+    m_parts_found++;
+    m_remaining_key_part_info++;
+
+    *value= data;
+    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
+  }
+
+  DBUG_ASSERT(m_remaining_key_len == 0);
+  return HA_READ_INVALID;
+}
+
+enum ha_rkey_function
+PFS_key_reader::read_long_int(enum ha_rkey_function find_flag,
+                              bool &isnull, int32 *value)
+{
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
+  {
+    size_t data_size= sizeof(int32);
+    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_LONG_INT);
+    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
+
+    isnull= false;
+    if (m_remaining_key_part_info->field->real_maybe_null())
+    {
+      if (m_remaining_key[0])
+        isnull= true;
+
+      m_remaining_key+= HA_KEY_NULL_LENGTH;
+      m_remaining_key_len-= HA_KEY_NULL_LENGTH;
+    }
+
+    int32 data= sint4korr(m_remaining_key);
+    m_remaining_key+= data_size;
+    m_remaining_key_len-= (uint)data_size;
+    m_parts_found++;
+    m_remaining_key_part_info++;
+
+    *value= data;
+    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
+  }
+
+  DBUG_ASSERT(m_remaining_key_len == 0);
+  return HA_READ_INVALID;
+}
+
+enum ha_rkey_function
+PFS_key_reader::read_ulonglong(enum ha_rkey_function find_flag,
+                               bool &isnull, ulonglong *value)
+{
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
+  {
+    size_t data_size= sizeof(ulonglong);
+    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_ULONGLONG);
+    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
+
+    isnull= false;
+    if (m_remaining_key_part_info->field->real_maybe_null())
+    {
+      if (m_remaining_key[0])
+        isnull= true;
+
+      m_remaining_key+= HA_KEY_NULL_LENGTH;
+      m_remaining_key_len-= HA_KEY_NULL_LENGTH;
+    }
+
+    ulonglong data= uint8korr(m_remaining_key);
+    m_remaining_key+= data_size;
+    m_remaining_key_len-= (uint)data_size;
+    m_parts_found++;
+    m_remaining_key_part_info++;
+
+    *value= data;
+    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
+  }
+
+  DBUG_ASSERT(m_remaining_key_len == 0);
+  return HA_READ_INVALID;
+}
+
+enum ha_rkey_function
+PFS_key_reader::read_varchar_utf8(enum ha_rkey_function find_flag,
+                                  bool &isnull,
+                                  char *buffer, uint *buffer_length, uint buffer_capacity)
+{
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
+  {
+    /*
+      Stored as:
+      - 0 or 1 null byte.
+      - a always 2 byte length prefix (storage order), even for HA_KEYTYPE_VARTEXT1
+      - followed by data
+    */
+
+    size_t length_offset= 0;
+    size_t data_offset= 2;
+    isnull= false;
+    if (m_remaining_key_part_info->field->real_maybe_null())
+    {
+      DBUG_ASSERT(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
+
+      length_offset++;
+      data_offset++;
+      if (m_remaining_key[0])
+        isnull= true;
+    }
+
+    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
+                m_remaining_key_part_info->type == HA_KEYTYPE_VARTEXT2);
+
+    DBUG_ASSERT(data_offset <= m_remaining_key_len);
+    size_t string_len= uint2korr(m_remaining_key + length_offset);
+    DBUG_ASSERT(data_offset + string_len <= m_remaining_key_part_info->store_length);
+    DBUG_ASSERT(data_offset + string_len <= m_remaining_key_len);
+
+    //DBUG_ASSERT(string_len <= buffer_capacity);
+    if (string_len > buffer_capacity)
+      string_len= buffer_capacity;
+
+    memcpy(buffer, m_remaining_key + data_offset, string_len);
+    *buffer_length= (uint)string_len;
+
+    uchar *pos= (uchar *)buffer;
+    #if 0
+    const CHARSET_INFO *cs= &my_charset_utf8_bin; // FIXME
+    if (cs->mbmaxlen > 1)
+    {
+     size_t char_length;
+     char_length= my_charpos(cs, pos, pos + string_len, string_len/cs->mbmaxlen);
+     set_if_smaller(string_len, char_length);
+    }
+    #endif
+    const uchar* end= skip_trailing_space(pos, string_len);
+    *buffer_length= (uint)(end - pos);
+
+    m_remaining_key+= m_remaining_key_part_info->store_length;
+    m_remaining_key_len-= m_remaining_key_part_info->store_length;
+    m_parts_found++;
+    m_remaining_key_part_info++;
+    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
+  }
+
+  DBUG_ASSERT(m_remaining_key_len == 0);
+  return HA_READ_INVALID;
+}
+
+enum ha_rkey_function
+PFS_key_reader::read_text_utf8(enum ha_rkey_function find_flag,
+                               bool & isnull,
+                               char *buffer, uint *buffer_length, uint buffer_capacity)
+{
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
+  {
+    /*
+      Stored as:
+      - 0 or 1 null byte
+      - followed by data
+      - Length determined by key definition
+    */
+    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_TEXT);
+
+    size_t length_offset= 0;
+    size_t data_offset= 0;
+    isnull= false;
+    if (m_remaining_key_part_info->field->real_maybe_null())
+    {
+      DBUG_ASSERT(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
+
+      length_offset++;
+      data_offset++;
+      if (m_remaining_key[0])
+        isnull= true;
+    }
+
+    DBUG_ASSERT(data_offset <= m_remaining_key_len);
+    size_t string_len= m_remaining_key_part_info->length;
+    DBUG_ASSERT(data_offset + string_len <= m_remaining_key_part_info->store_length);
+    DBUG_ASSERT(data_offset + string_len <= m_remaining_key_len);
+
+    //DBUG_ASSERT(string_len <= buffer_capacity);
+    if (string_len > buffer_capacity) // FIXME
+      string_len= buffer_capacity;
+
+    memcpy(buffer, m_remaining_key + data_offset, string_len);
+    *buffer_length= (uint)string_len;
+
+    const CHARSET_INFO *cs= &my_charset_utf8_bin; // FIXME
+    uchar *pos= (uchar *)buffer;
+    if (cs->mbmaxlen > 1)
+    {
+     size_t char_length;
+     char_length= my_charpos(cs, pos, pos + string_len, string_len/cs->mbmaxlen);
+     set_if_smaller(string_len, char_length);
+    }
+    const uchar* end= skip_trailing_space(pos, string_len);
+    *buffer_length= (uint)(end - pos);
+
+    m_remaining_key+= m_remaining_key_part_info->store_length;
+    m_remaining_key_len-= m_remaining_key_part_info->store_length;
+    m_parts_found++;
+    m_remaining_key_part_info++;
+    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
+  }
+
+  DBUG_ASSERT(m_remaining_key_len == 0);
+  return HA_READ_INVALID;
+}
+
+void PFS_engine_index::read_key(const uchar *key, uint key_len,
+                                enum ha_rkey_function find_flag)
+{
+  PFS_key_reader reader(m_key_info, key, key_len);
+
+  if (m_key_ptr_1 != NULL)
+  {
+    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[0].field->field_name, m_key_ptr_1->m_name) == 0);
+    m_key_ptr_1->read(reader, find_flag);
+  }
+
+  if (m_key_ptr_2 != NULL)
+  {
+    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[1].field->field_name, m_key_ptr_2->m_name) == 0);
+    m_key_ptr_2->read(reader, find_flag);
+  }
+
+  if (m_key_ptr_3 != NULL)
+  {
+    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[2].field->field_name, m_key_ptr_3->m_name) == 0);
+    m_key_ptr_3->read(reader, find_flag);
+  }
+
+  if (m_key_ptr_4 != NULL)
+  {
+    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[3].field->field_name, m_key_ptr_4->m_name) == 0);
+    m_key_ptr_4->read(reader, find_flag);
+  }
+
+  m_fields= reader.m_parts_found;
+}
 
 /** @} */
-

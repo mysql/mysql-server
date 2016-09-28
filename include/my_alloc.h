@@ -24,7 +24,9 @@
 #define ALLOC_MAX_BLOCK_TO_DROP			4096
 #define ALLOC_MAX_BLOCK_USAGE_BEFORE_DROP	10
 
-/* PSI_memory_key */
+#ifndef MYSQL_ABI_CHECK
+#include "my_global.h"
+#endif
 #include "mysql/psi/psi_memory.h"
 
 #ifdef __cplusplus

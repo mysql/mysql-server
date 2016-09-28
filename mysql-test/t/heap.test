@@ -10,6 +10,7 @@ create table t1 (a int not null,b int not null, primary key (a)) engine=heap com
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a=1 or a=0;
 #show table status like "t1";
+analyze table t1;
 show keys from t1;
 select * from t1;
 select * from t1 where a=4;
@@ -456,6 +457,7 @@ drop table t1;
 #
 create table t1 (c char(10)) engine=memory;
 create table t2 (c varchar(10)) engine=memory;
+analyze table t1, t2;
 --replace_column 8 # 12 #
 show table status like 't_';
 drop table t1, t2;

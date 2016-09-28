@@ -33,7 +33,9 @@ UPDATE t1 SET a=1;
 
 connection default;
 # wait for purge to process the update_undo record.
---source include/wait_innodb_all_purged.inc
+# Note, the alter table would increase trx_sys->rw_max_trx_id
+set global innodb_purge_run_now=ON;
+select sleep(1);
 
 CHECK TABLE t1;
 SELECT b1 FROM t1;
@@ -119,7 +121,8 @@ disconnect con1;
 
 connection default;
 # wait for purge to process the update_undo record.
---source include/wait_innodb_all_purged.inc
+set global innodb_purge_run_now=ON;
+select sleep(1);
 
 CHECK TABLE t1;
 SELECT b1 FROM t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -364,7 +364,9 @@ void element_map_test()
     // Template disambiguator necessary.
     const K *key= (*it)->template get_key<K>();
     if (key)
+    {
       ASSERT_TRUE(element_map.is_present(*key));
+    }
   }
 
   // Remove an element, and make sure the key
@@ -928,6 +930,93 @@ TEST_F(CacheStorageTest, TestCacheLookup)
     EXPECT_EQ(0u, sch_name.size());
     EXPECT_EQ(0u, tab_name.size());
   }
+}
+
+TEST_F(CacheStorageTest, TestTriggers)
+{
+  dd::cache::Dictionary_client &dc= *thd()->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
+
+  std::string obj_name= dd::Table::OBJECT_TABLE().name() +
+    std::string("_trigs");
+  dd::Object_id id MY_ATTRIBUTE((unused));
+
+  //
+  // Create table object
+  //
+  {
+    std::unique_ptr<dd::Table> obj(dd::create_object<dd::Table>());
+    dd_unittest::set_attributes(obj.get(), obj_name, *mysql);
+
+    //
+    // Store table trigger information
+    //
+
+    dd::Trigger *trig_obj=
+      obj->add_trigger(dd::Trigger::enum_action_timing::AT_AFTER,
+                       dd::Trigger::enum_event_type::ET_INSERT);
+    trig_obj->set_name(obj->name() + "trigger1");
+    trig_obj->set_definer("definer_username", "definer_hostname");
+    trig_obj->set_client_collation_id(1);
+    trig_obj->set_connection_collation_id(1);
+    trig_obj->set_schema_collation_id(1);
+
+    dd::Trigger *trig_obj2=
+      obj->add_trigger_preceding(trig_obj,
+                                 dd::Trigger::enum_action_timing::AT_AFTER,
+                                 dd::Trigger::enum_event_type::ET_INSERT);
+    trig_obj2->set_name(obj->name() + "trigger2");
+    trig_obj2->set_definer("definer_username", "definer_hostname");
+    trig_obj2->set_client_collation_id(1);
+    trig_obj2->set_connection_collation_id(1);
+    trig_obj2->set_schema_collation_id(1);
+
+    dd::Trigger *trig_obj3= obj->add_trigger_following(trig_obj2,
+                                                       dd::Trigger::enum_action_timing::AT_AFTER,
+                                                       dd::Trigger::enum_event_type::ET_INSERT);
+    trig_obj3->set_name(obj->name() + "trigger3");
+    trig_obj3->set_definer("definer_username", "definer_hostname");
+    trig_obj3->set_client_collation_id(1);
+    trig_obj3->set_connection_collation_id(1);
+    trig_obj3->set_schema_collation_id(1);
+
+    dd::Trigger *trig_obj1=
+      obj->add_trigger(dd::Trigger::enum_action_timing::AT_BEFORE,
+                       dd::Trigger::enum_event_type::ET_UPDATE);
+    trig_obj1->set_name("newtrigger1");
+    trig_obj1->set_definer("definer_username", "definer_hostname");
+    trig_obj1->set_client_collation_id(1);
+    trig_obj1->set_connection_collation_id(1);
+    trig_obj1->set_schema_collation_id(1);
+
+    lock_object(*obj.get());
+    EXPECT_FALSE(dc.store(obj.get()));
+    id= obj->id();
+  }
+
+
+  //
+  // Test iterator.
+  //
+
+  {
+    const dd::Table *obj= nullptr;
+    EXPECT_FALSE(dc.acquire<dd::Table>(id, &obj));
+    EXPECT_NE(nullp<const dd::Table>(), obj);
+
+    // Validate number of triggers expected.
+    const dd::Table::Trigger_collection &tc= obj->triggers();
+    dd::Table::Trigger_collection::const_iterator it= tc.begin();
+    EXPECT_TRUE((*it)->name() == "newtrigger0"); ++it;
+    EXPECT_TRUE((*it)->name() == "tables_trigstrigger2"); ++it;
+    EXPECT_TRUE((*it)->name() == "tables_trigstrigger3"); ++it;
+    EXPECT_TRUE((*it)->name() == "tables_trigstrigger1"); ++it;
+    EXPECT_TRUE((*it)->name() == "newtrigger1"); ++it;
+    EXPECT_TRUE(it == tc.end());
+
+    EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(obj)));
+  }
+
 }
 #endif /* !DBUG_OFF */
 }

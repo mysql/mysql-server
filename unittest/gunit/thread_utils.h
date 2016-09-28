@@ -20,6 +20,9 @@
 #include <mysql/psi/mysql_cond.h>
 #include <mysql/psi/mysql_thread.h>
 
+#include "my_thread.h"
+#include "mysql/psi/mysql_mutex.h"
+
 namespace thread {
 
 /*

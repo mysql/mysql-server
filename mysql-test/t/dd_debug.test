@@ -105,7 +105,9 @@ DROP SCHEMA s1;
 SET DEBUG= '-d, fail_while_dropping_dd_object';
 --echo # Do it for real.
 DROP SCHEMA s1;
+SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
+SET SESSION debug= '-d,skip_dd_table_access_check';
 
 --echo ###################################################################
 --echo #
@@ -206,7 +208,9 @@ CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 SET DEBUG= '-d, fail_while_storing_dd_object';
 
 --echo # There should be no trace left in the data-dictionary
+SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
+SET SESSION debug= '-d,skip_dd_table_access_check';
 
 --error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE ts1;
@@ -226,6 +230,7 @@ DROP TABLESPACE ts1;
 SET DEBUG= '-d, fail_while_dropping_dd_object';
 
 --echo # Tablespace is still in the data-dictionary.
+SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 
 --echo # Here, the global DD and InnoDB are out of sync. To get
@@ -238,6 +243,7 @@ SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 --error ER_DROP_FILEGROUP_FAILED
 DROP TABLESPACE ts1;
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
+SET SESSION debug= '-d,skip_dd_table_access_check';
 
 --echo ###################################################################
 

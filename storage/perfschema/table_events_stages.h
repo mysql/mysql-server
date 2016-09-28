@@ -24,6 +24,7 @@
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "pfs_events_stages.h"
+#include "table_helper.h"
 
 struct PFS_thread;
 
@@ -31,6 +32,25 @@ struct PFS_thread;
   @addtogroup performance_schema_tables
   @{
 */
+
+class PFS_index_events_stages : public PFS_engine_index
+{
+public:
+  PFS_index_events_stages()
+    : PFS_engine_index(&m_key_1, &m_key_2),
+    m_key_1("THREAD_ID"), m_key_2("EVENT_ID")
+  {}
+
+  ~PFS_index_events_stages()
+  {}
+
+  bool match(PFS_thread *pfs);
+  bool match(PFS_events_stages *pfs);
+
+private:
+  PFS_key_thread_id m_key_1;
+  PFS_key_event_id m_key_2;
+};
 
 /** A row of table_events_stages_common. */
 struct row_events_stages
@@ -121,10 +141,14 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   table_events_stages_current();
@@ -150,6 +174,8 @@ private:
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+  PFS_index_events_stages *m_opened_index;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STAGES_HISTORY. */
@@ -162,10 +188,14 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   table_events_stages_history();
@@ -182,6 +212,8 @@ private:
   pos_events_stages_history m_pos;
   /** Next position. */
   pos_events_stages_history m_next_pos;
+
+  PFS_index_events_stages *m_opened_index;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STAGES_HISTORY_LONG. */

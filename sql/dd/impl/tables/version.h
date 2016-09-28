@@ -60,7 +60,7 @@ public:
   static uint get_target_dd_version()
   { return TARGET_DD_VERSION; }
 
-  uint get_actual_dd_version(THD *thd) const;
+  uint get_actual_dd_version(THD *thd,  bool *exists) const;
 };
 
 ///////////////////////////////////////////////////////////////////////////

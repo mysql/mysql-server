@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2016 Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_thd_internal_api.h>
 #include <my_check_opt.h>
 #include <my_bitmap.h>
+#include <mysql_com.h>
 #include <mysql/service_thd_alloc.h>
 #include <mysql/service_thd_wait.h>
 
@@ -1131,6 +1132,44 @@ innobase_create_handler(
 	bool		partitioned,
 	MEM_ROOT*	mem_root);
 
+
+/** Retrieve table statistics.
+@param[in]	db_name		database name
+@param[in]	table_name	table name
+@param[in]	se_private_id	The internal id of the table
+@param[in]	flags		flags used to retrieve specific stats
+@param[in,out]	stats		structure to save the retrieved statistics
+@return false on success, true on failure */
+static
+bool
+innobase_get_table_statistics(
+	const char*	db_name,
+	const char*	table_name,
+	dd::Object_id	se_private_id,
+	uint		flags,
+	ha_statistics*	stats);
+
+/** Retrieve index column cardinality.
+@param[in]		db_name			name of schema
+@param[in]		table_name		name of table
+@param[in]		index_name		name of index
+@param[in]		index_ordinal_position	position of index
+@param[in]		column_ordinal_position	position of column in index
+@param[in]		se_private_id		the internal id of the table
+@param[in,out]		cardinality		cardinality of index column
+@retval			false			success
+@retval			true			failure */
+static
+bool
+innobase_get_index_column_cardinality(
+	const char*	db_name,
+	const char*	table_name,
+	const char*	index_name,
+	uint		index_ordinal_position,
+	uint		column_ordinal_position,
+	dd::Object_id	se_private_id,
+	ulonglong*	cardinality);
+
 /** Create SDI in a tablespace. This API should be used when
 upgrading a tablespace with no SDI.
 @param[in]	tablespace	tablespace object
@@ -1956,33 +1995,6 @@ add_table_to_thread_cache(
 
 	innodb_session_t*& priv = thd_to_innodb_session(thd);
 	priv->register_table_handler(table->name.m_name, table);
-}
-
-/********************************************************************//**
-Call this function when mysqld passes control to the client. For more
-documentation, see handler.cc.
-@return 0 */
-inline
-int
-innobase_release_temporary_latches(
-/*===============================*/
-	handlerton*	hton,	/*!< in: handlerton */
-	THD*		thd)	/*!< in: MySQL thread */
-{
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-
-	if (!innodb_inited) {
-
-		return(0);
-	}
-
-	trx_t*	trx = thd_to_trx(thd);
-
-	/* The btree search latch used to be held possibly in this case.
-	It's not true now, so no need to release it just assert */
-	ut_a(trx == NULL || !trx->has_search_latch);
-
-	return(0);
 }
 
 /********************************************************************//**
@@ -3734,6 +3746,10 @@ static
 void
 innodb_buffer_pool_size_init()
 {
+#ifdef UNIV_DEBUG
+	ulint	srv_buf_pool_instances_org = srv_buf_pool_instances;
+#endif /* UNIV_DEBUG */
+
 	if (srv_buf_pool_size >= BUF_POOL_SIZE_THRESHOLD) {
 
 		if (srv_buf_pool_instances == srv_buf_pool_instances_default) {
@@ -3772,6 +3788,13 @@ innodb_buffer_pool_size_init()
 
 		srv_buf_pool_instances = 1;
 	}
+
+#ifdef UNIV_DEBUG
+	if (srv_buf_pool_debug
+	    && srv_buf_pool_instances_org != srv_buf_pool_instances_default) {
+		srv_buf_pool_instances = srv_buf_pool_instances_org;
+	};
+#endif /* UNIV_DEBUG */
 
 	if (srv_buf_pool_chunk_unit * srv_buf_pool_instances
 	    > srv_buf_pool_size) {
@@ -4204,8 +4227,6 @@ innodb_init(
 		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
 		HTON_SUPPORTS_ATOMIC_DDL;
 
-	innobase_hton->release_temporary_latches =
-		innobase_release_temporary_latches;
 	innobase_hton->replace_native_transaction_in_thd =
 		innodb_replace_trx_in_thd;
 	innobase_hton->file_extensions = ha_innobase_exts;
@@ -4219,6 +4240,12 @@ innodb_init(
 
 	innobase_hton->is_supported_system_table=
 		innobase_is_supported_system_table;
+
+	innobase_hton->get_table_statistics =
+		innobase_get_table_statistics;
+
+	innobase_hton->get_index_column_cardinality =
+		innobase_get_index_column_cardinality;
 
 	innobase_hton->is_dict_readonly=
 		innobase_is_dict_readonly;
@@ -5477,6 +5504,38 @@ ha_innobase::get_real_row_type(const HA_CREATE_INFO *create_info) const
 			return(ROW_TYPE_DYNAMIC);
 		}
 	}
+}
+
+/*************************************************************************//**
+** InnoDB database tables
+*****************************************************************************/
+
+/** Get the record format from the data dictionary.
+@return one of ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
+ROW_TYPE_COMPRESSED, ROW_TYPE_DYNAMIC.
+This method is added to handle upgrade.
+It will be removed in future. */
+
+enum row_type
+ha_innobase::get_row_type_for_upgrade() const
+{
+	if (m_prebuilt && m_prebuilt->table) {
+		const ulint	flags = m_prebuilt->table->flags;
+
+		switch (dict_tf_get_rec_format(flags)) {
+		case REC_FORMAT_REDUNDANT:
+			return(ROW_TYPE_REDUNDANT);
+		case REC_FORMAT_COMPACT:
+			return(ROW_TYPE_COMPACT);
+		case REC_FORMAT_COMPRESSED:
+			return(ROW_TYPE_COMPRESSED);
+		case REC_FORMAT_DYNAMIC:
+			return(ROW_TYPE_DYNAMIC);
+		}
+	}
+
+	ut_ad(0);
+	return(ROW_TYPE_NOT_USED);
 }
 
 /****************************************************************//**
@@ -6963,7 +7022,7 @@ create_index_metadata(
 
 	dict_index_t*	index = dict_mem_index_create(
 		table->name.m_name, key.name, 0, type, n_fields);
-	
+
 	index->n_uniq = n_uniq;
 
 	const ulint	max_len	= DICT_MAX_FIELD_LEN_BY_FORMAT(table);
@@ -7394,6 +7453,7 @@ create_table_metadata(
 {
 	mem_heap_t*	heap;
 	bool		is_encrypted = false;
+	bool		is_discard = false;
 
 	ut_ad(m_thd != nullptr);
 	ut_ad(norm_name != nullptr);
@@ -7425,6 +7485,11 @@ create_table_metadata(
 		if (!Encryption::is_none(encrypt.c_str())) {
 			ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0);
 			is_encrypted = true;
+		}
+
+		/* Check discard flag. */
+		if (dd_part->table().options().exists("discard")) {
+			dd_part->table().options().get_bool("discard", &is_discard);
 		}
 	}
 
@@ -7466,6 +7531,11 @@ create_table_metadata(
 
 	if (is_encrypted) {
 		DICT_TF2_FLAG_SET(m_table, DICT_TF2_ENCRYPTION);
+	}
+
+	if (is_discard) {
+		m_table->ibd_file_missing = true;
+		m_table->flags2 |= DICT_TF2_DISCARDED;
 	}
 
 	if (!is_redundant) {
@@ -8276,7 +8346,7 @@ dd_table_open_on_id_low(
 	if (tbl_name) {
 		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf);
 		ut_ad(dd::has_shared_table_mdl(thd, db_buf, tbl_buf));
-	}	
+	}
 #endif /* UNIV_DEBUG */
 
 	const dd::Table*				dd_table;
@@ -8460,15 +8530,15 @@ dd_table_open_on_id(
 	} else {
 		char	db_buf[NAME_LEN + 1];
 		char	tbl_buf[NAME_LEN + 1];
-		char	tbl_name[2 * (NAME_LEN + 1)];
+		char	full_name[2 * (NAME_LEN + 1)];
 
 		for (;;) {
-			mutex_exit(&dict_sys->mutex);
-
-			strcpy(tbl_name, ib_table->name.m_name);
-
 			innobase_parse_tbl_name(
 				ib_table->name.m_name, db_buf, tbl_buf);
+			strcpy(full_name, ib_table->name.m_name);
+
+			mutex_exit(&dict_sys->mutex);
+
 			ut_ad(!ib_table->is_temporary());
 
 			if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
@@ -8498,7 +8568,7 @@ dd_table_open_on_id(
 
 		if (ib_table == nullptr) {
 			ib_table = dd_table_open_on_id_low(
-				thd, mdl, tbl_name, table_id);
+				thd, mdl, full_name, table_id);
 
 			if (ib_table == nullptr && *mdl != nullptr) {
 				dd_mdl_release(thd, mdl);
@@ -8516,6 +8586,63 @@ dd_table_open_on_id(
 	}
 
 	return(ib_table);
+}
+
+/** Set the discard flag for a dd table.
+@param[in,out]	thd	current thread
+@param[in]	name	InnoDB table name
+@param[in]	discard	discard flag
+@retval false if fail. */
+bool
+dd_table_set_discard_flag(
+	THD*			thd,
+	const char*		name,
+	bool			discard)
+{
+	char			db_buf[NAME_LEN + 1];
+	char			tbl_buf[NAME_LEN + 1];
+	MDL_ticket*		mdl;
+	const dd::Table*	dd_table = nullptr;
+	bool			ret = false;
+
+	DBUG_ENTER("dd_table_set_discard_flag");
+	ut_ad(thd == current_thd);
+#ifdef UNIV_DEBUG
+	btrsea_sync_check       check(false);
+	ut_ad(!sync_check_iterate(check));
+#endif
+	ut_ad(!srv_is_being_shutdown);
+
+	innobase_parse_tbl_name(name, db_buf, tbl_buf);
+
+	if (dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
+		DBUG_RETURN(false);
+	}
+
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
+	if (!client->acquire(db_buf, tbl_buf, &dd_table)
+	    && dd_table != nullptr) {
+		if (dd_table->se_private_id() != dd::INVALID_OBJECT_ID) {
+			ut_ad(dd_table->partitions().empty());
+			/* Clone the dd table object. The clone is owned here,
+			and must be deleted eventually. */
+			std::unique_ptr<dd::Table> new_dd_table(dd_table->clone());
+			new_dd_table->table().options().set_bool("discard",
+								 discard);
+			client->update(&dd_table, new_dd_table.get());
+			ret = true;
+		} else {
+			ret = false;
+		}
+	} else {
+		ret = false;
+	}
+
+	dd_mdl_release(thd, &mdl);
+
+	DBUG_RETURN(ret);
 }
 
 /** Open an internal handle to a persistent InnoDB table by name.
@@ -8631,13 +8758,6 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 
 	thd = ha_thd();
 
-	/* Under some cases MySQL seems to call this function while
-	holding search latch(es). This breaks the latching order as
-	we acquire dict_sys->mutex below and leads to a deadlock. */
-	if (thd != NULL) {
-		innobase_release_temporary_latches(ht, thd);
-	}
-
 	normalize_table_name(norm_name, name);
 
 	m_user_thd = NULL;
@@ -8681,6 +8801,8 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 			if (ib_table == NULL) {
 				dd::cache::Dictionary_client*	client
 					= dd::get_dd_client(thd);
+				dd::cache::Dictionary_client::Auto_releaser
+					releaser(client);
 
 				if (!(ib_table = dd_open_table(
 					client, table, norm_name,
@@ -9192,12 +9314,6 @@ ha_innobase::close()
 /*================*/
 {
 	DBUG_ENTER("ha_innobase::close");
-
-	THD*	thd = ha_thd();
-
-	if (thd != NULL) {
-		innobase_release_temporary_latches(ht, thd);
-	}
 
 	row_prebuilt_free(m_prebuilt, FALSE);
 
@@ -13893,6 +14009,7 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("st_spatial_reference_systems", 2),
 	INNODB_DD_TABLE("tables", 6),
 	INNODB_DD_TABLE("view_table_usage", 2),
+	INNODB_DD_TABLE("view_routine_usage", 2),
 	INNODB_DD_TABLE("columns", 4),
 	INNODB_DD_TABLE("indexes", 3),
 	INNODB_DD_TABLE("index_column_usage", 3),
@@ -13902,13 +14019,15 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("table_partitions", 6),
 	INNODB_DD_TABLE("table_partition_values", 1),
 	INNODB_DD_TABLE("index_partitions", 3),
+	INNODB_DD_TABLE("table_stats", 1),
+	INNODB_DD_TABLE("index_stats", 1),
         INNODB_DD_TABLE("events", 5),
         INNODB_DD_TABLE("routines", 6),
         INNODB_DD_TABLE("parameters", 3),
         INNODB_DD_TABLE("parameter_type_elements", 1),
+	INNODB_DD_TABLE("triggers", 6),
 	INNODB_DD_TABLE("innodb_table_stats", 1),
 	INNODB_DD_TABLE("innodb_index_stats", 1),
-	INNODB_DD_TABLE("triggers", 1),
 	INNODB_DD_TABLE("db", 1),
 	INNODB_DD_TABLE("user", 1),
 	INNODB_DD_TABLE("default_roles", 1),
@@ -13941,8 +14060,7 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 };
 
 /** Number of hard-coded data dictionary tables */
-static const uint innodb_dd_table_size
-	= (sizeof innodb_dd_table) / sizeof *innodb_dd_table;
+static constexpr size_t innodb_dd_table_size = UT_ARR_SIZE(innodb_dd_table);
 
 static
 uint
@@ -14092,6 +14210,14 @@ template bool dd_table_check<dd::Partition>(
 
 #endif /* UNIV_DEBUG */
 
+/** Maximum length of a table name from InnoDB point of view, including
+partitions and subpartitions, in number of characters.
+The naming is: "table_name#P#partition_name#SP#subpartition_name",
+where each of the names can be up to NAME_CHAR_LEN (64) characters.
+So the maximum is 64 + strlen(#P#) + 64 + strlen(#SP#) + 64 = 199. */
+
+#define NAME_CHAR_LEN_PARTITIONS_STR	"199"
+
 /** Initialize InnoDB for being used to store the DD tables.
 Create the required files according to the dict_init_mode.
 Create strings representing the required DDSE tables, i.e.,
@@ -14131,7 +14257,8 @@ innobase_dict_init(
 		"innodb_table_stats",
 		/* Definition */
 		"  database_name VARCHAR(64) NOT NULL, \n"
-		"  table_name VARCHAR(64) NOT NULL, \n"
+		"  table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
+		") NOT NULL, \n"
 		"  last_update TIMESTAMP NOT NULL NOT NULL \n"
 		"  DEFAULT CURRENT_TIMESTAMP \n"
 		"  ON UPDATE CURRENT_TIMESTAMP, \n"
@@ -14149,7 +14276,8 @@ innobase_dict_init(
 		"innodb_index_stats",
 		/* Definition */
 		"  database_name VARCHAR(64) NOT NULL, \n"
-		"  table_name VARCHAR(64) NOT NULL, \n"
+		"  table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
+		") NOT NULL, \n"
 		"  index_name VARCHAR(64) NOT NULL, \n"
 		"  last_update TIMESTAMP NOT NULL NOT NULL \n"
 		"  DEFAULT CURRENT_TIMESTAMP \n"
@@ -15274,6 +15402,9 @@ create_table_info_t::set_table_options(
         dd::Table::enum_row_format      rf;
         dd::Properties& options = dd_table.options();
 
+	std::string datadir;
+	options.get(data_file_name_key, datadir);
+
         if (auto zip_ssize = DICT_TF_GET_ZIP_SSIZE(table->flags)) {
                 uint32  old_size;
                 if (!options.get_uint32("key_block_size", &old_size)
@@ -15378,7 +15509,7 @@ dd_get_space_id(const dd::Partition& partition)
               == (partition.parent() == nullptr));
 
         dd::Object_id   id = partition.tablespace_id();
-        if (id == dd::INVALID_OBJECT_ID) { 
+        if (id == dd::INVALID_OBJECT_ID) {
                 if (const dd::Partition* parent = partition.parent()) {
                         /* If there is no explicit TABLESPACE for the
                         subpartition, fall back to the TABLESPACE
@@ -15388,10 +15519,10 @@ dd_get_space_id(const dd::Partition& partition)
         }
         if (id == dd::INVALID_OBJECT_ID) {
                 /* If there is no explicit TABLESPACE for the partition,
-                fall back to the TABLESPACE of the table. */ 
+                fall back to the TABLESPACE of the table. */
                 id = partition.table().tablespace_id();
         }
-        return(id);  
+        return(id);
 }
 
 /** Update the global data dictionary.
@@ -16414,11 +16545,16 @@ ha_innobase::get_extra_columns_and_keys(
 bool
 ha_innobase::get_se_private_data(
 	dd::Table*	dd_table,
-	uint		dd_version)
+	uint		dd_version,
+	bool		reset_id)
 {
 	static uint	n_tables = 0;
 	static uint	n_indexes = 18;
 //	static uint	n_pages;
+	if (reset_id) {
+		n_tables = 0;
+		n_indexes = 18;
+	}
 #ifdef UNIV_DEBUG
 	const uint	n_indexes_old = n_indexes;
 #endif
@@ -18258,17 +18394,17 @@ innobase_get_mysql_key_number_for_index(
 	return(-1);
 }
 
-/*********************************************************************//**
-Calculate Record Per Key value. Need to exclude the NULL value if
+/** Calculate Record Per Key value. Excludes the NULL value if
 innodb_stats_method is set to "nulls_ignored"
+@param[in]	index		dict_index_t structure
+@param[in]	i		column we are calculating rec per key
+@param[in]	records		estimated total records
 @return estimated record per key value */
 rec_per_key_t
 innodb_rec_per_key(
-/*===============*/
-	dict_index_t*	index,		/*!< in: dict_index_t structure */
-	ulint		i,		/*!< in: the column we are
-					calculating rec per key */
-	ha_rows		records)	/*!< in: estimated total records */
+	const dict_index_t*	index,
+	ulint			i,
+	ha_rows			records)
 {
 	rec_per_key_t	rec_per_key;
 	ib_uint64_t	n_diff;
@@ -18331,6 +18467,106 @@ innodb_rec_per_key(
 	}
 
 	return(rec_per_key);
+}
+
+/** Read the auto_increment counter of a table, using the AUTOINC lock
+irrespective of innodb_autoinc_lock_mode.
+@param[in,out]	innodb_table	InnoDB table object
+@return the autoinc value */
+static
+ulonglong
+innobase_peek_autoinc(
+	dict_table_t*	innodb_table)
+{
+	ulonglong	auto_inc;
+
+	ut_a(innodb_table != NULL);
+
+	dict_table_autoinc_lock(innodb_table);
+
+	auto_inc = dict_table_autoinc_read(innodb_table);
+
+	if (auto_inc == 0) {
+		ib::info() << "AUTOINC next value generation is disabled for "
+			<< innodb_table->name;
+	}
+
+	dict_table_autoinc_unlock(innodb_table);
+
+	return(auto_inc);
+}
+
+/** Calculate delete length statistic.
+@param[in]	ib_table	table object
+@param[in,out]	stats		stats structure to hold calculated values
+@param[in,out]	thd		user thread handle (for issuing warnings) */
+static
+void
+calculate_delete_length_stat(
+	const dict_table_t*	ib_table,
+	ha_statistics*		stats,
+	THD*			thd)
+{
+	uintmax_t   avail_space;
+
+	avail_space = fsp_get_available_space_in_free_extents(
+		ib_table->space);
+
+	if (avail_space == UINTMAX_MAX) {
+		char			errbuf[MYSYS_STRERROR_SIZE];
+		std::ostringstream	err_msg;
+		err_msg	<< "InnoDB: Trying to get the free space for table "
+			<< ib_table->name << " but its tablespace has been"
+			" discarded or the .ibd file is missing. Setting"
+			" the free space to zero. (errno: " << errno
+			<< " - " << my_strerror(errbuf, sizeof(errbuf), errno)
+			<< ")";
+
+		push_warning(
+			thd,
+			Sql_condition::SL_WARNING,
+			ER_CANT_GET_STAT,
+			err_msg.str().c_str());
+
+		stats->delete_length = 0;
+	} else {
+		stats->delete_length = avail_space * 1024;
+	}
+}
+
+/** Calculate stats based on index size.
+@param[in]	ib_table			table object
+@param[in]	n_rows				number of rows
+@param[in]	stat_clustered_index_size	clustered index size
+@param[in]	stat_sum_of_other_index_sizes	sum of non-clustered indexes
+						size
+@param[in,out]	stats				the stats structure to hold
+						calculated values
+*/
+static
+void
+calculate_index_size_stats(
+	const dict_table_t*	ib_table,
+	ib_uint64_t		n_rows,
+	ulint			stat_clustered_index_size,
+	ulint			stat_sum_of_other_index_sizes,
+	ha_statistics*		stats)
+{
+	const page_size_t&	page_size = dict_table_page_size(ib_table);
+
+	stats->records = static_cast<ha_rows>(n_rows);
+	stats->data_file_length
+		= static_cast<ulonglong>(stat_clustered_index_size)
+		* page_size.physical();
+	stats->index_file_length
+		= static_cast<ulonglong>(stat_sum_of_other_index_sizes)
+		* page_size.physical();
+	if (stats->records == 0) {
+		stats->mean_rec_length = 0;
+	} else {
+		stats->mean_rec_length = static_cast<ulong>(
+			stats->data_file_length / stats->records);
+	}
 }
 
 /** Estimate what percentage of an index's pages are cached in the buffer pool
@@ -18461,17 +18697,12 @@ ha_innobase::info_low(
 			n_rows++;
 		}
 
-		const page_size_t&	page_size
-			= dict_table_page_size(ib_table);
-
 		stats.records = (ha_rows) n_rows;
 		stats.deleted = 0;
-		stats.data_file_length
-			= ((ulonglong) stat_clustered_index_size)
-			* page_size.physical();
-		stats.index_file_length
-			= ((ulonglong) stat_sum_of_other_index_sizes)
-			* page_size.physical();
+
+		calculate_index_size_stats(
+			ib_table, n_rows, stat_clustered_index_size,
+			stat_sum_of_other_index_sizes, &stats);
 
 		/* Since fsp_get_available_space_in_free_extents() is
 		acquiring latches inside InnoDB, we do not call it if we
@@ -18491,46 +18722,12 @@ ha_innobase::info_low(
 			innodb_crash_recovery is set to a high value. */
 			stats.delete_length = 0;
 		} else {
-			uintmax_t   avail_space;
-
-			avail_space = fsp_get_available_space_in_free_extents(
-				ib_table->space);
-
-			if (avail_space == UINTMAX_MAX) {
-				THD*	thd;
-				char	errbuf[MYSYS_STRERROR_SIZE];
-
-				thd = ha_thd();
-
-				push_warning_printf(
-					thd,
-					Sql_condition::SL_WARNING,
-					ER_CANT_GET_STAT,
-					"InnoDB: Trying to get the free"
-					" space for table %s but its"
-					" tablespace has been discarded or"
-					" the .ibd file is missing. Setting"
-					" the free space to zero."
-					" (errno: %d - %s)",
-					ib_table->name.m_name, errno,
-					my_strerror(errbuf, sizeof(errbuf),
-						    errno));
-
-				stats.delete_length = 0;
-			} else {
-				stats.delete_length = avail_space * 1024;
-			}
+			calculate_delete_length_stat(
+				ib_table, &stats, ha_thd());
 		}
 
 		stats.check_time = 0;
 		stats.mrr_length_per_rec = ref_length + sizeof(void*);
-
-		if (stats.records == 0) {
-			stats.mean_rec_length = 0;
-		} else {
-			stats.mean_rec_length = (ulong)
-				(stats.data_file_length / stats.records);
-		}
 	}
 
 	/* Verify the number of indexes in InnoDB and MySQL
@@ -18675,10 +18872,33 @@ ha_innobase::info_low(
 				acceptable. */
 				const rec_per_key_t	rec_per_key
 					= innodb_rec_per_key(
-						index, j,
+						index, (ulint) j,
 						index->table->stat_n_rows);
 
 				key->set_records_per_key(j, rec_per_key);
+
+				/* The code below is legacy and should be
+				removed together with this comment once we
+				are sure the new floating point rec_per_key,
+				set via set_records_per_key(), works fine. */
+
+				ulong	rec_per_key_int = static_cast<ulong>(
+					innodb_rec_per_key(index,
+                                                           (ulint) j,
+							   stats.records));
+
+				/* Since MySQL seems to favor table scans
+				too much over index searches, we pretend
+				index selectivity is 2 times better than
+				our estimate: */
+
+				rec_per_key_int = rec_per_key_int / 2;
+
+				if (rec_per_key_int == 0) {
+					rec_per_key_int = 1;
+				}
+
+				key->rec_per_key[j] = rec_per_key_int;
 			}
 		}
 	}
@@ -18715,8 +18935,7 @@ ha_innobase::info_low(
 	}
 
 	if ((flag & HA_STATUS_AUTO) && table->found_next_number_field) {
-
-		ulonglong auto_inc_val = innobase_peek_autoinc();
+		ulonglong auto_inc_val = innobase_peek_autoinc(ib_table);
 		/* Initialize autoinc value if not set. */
 		if (auto_inc_val == 0) {
 
@@ -18724,7 +18943,7 @@ ha_innobase::info_low(
 			innobase_initialize_autoinc();
 			dict_table_autoinc_unlock(m_prebuilt->table);
 
-			auto_inc_val = innobase_peek_autoinc();
+			auto_inc_val = innobase_peek_autoinc(ib_table);
 		}
 		stats.auto_increment_value = auto_inc_val;
 	}
@@ -18746,6 +18965,154 @@ ha_innobase::info(
 	uint	flag)	/*!< in: what information is requested */
 {
 	return(info_low(flag, false /* not ANALYZE */));
+}
+
+/** Retrieve table satistics.
+@param[in]	db_name		database name
+@param[in]	table_name	table name
+@param[in]	se_private_id	The internal id of the table
+@param[in]	flags		flags used to retrieve specific stats
+@param[in,out]	stats		structure to save the retrieved statistics
+@return false on success, true on failure */
+static
+bool
+innobase_get_table_statistics(
+	const char*	db_name,
+	const char*	table_name,
+	dd::Object_id	se_private_id,
+	uint		flags,
+	ha_statistics*	stats)
+{
+	char		norm_name[FN_REFLEN];
+	dict_table_t*	ib_table;
+
+
+	/* TODO-WL7141: Use se_private_id when server provides it.
+	When se_private_id is available, we can open table by
+	id. dict_table_open_on_id(). */
+	char	buf[2 * NAME_CHAR_LEN * 5 + 2 + 1];
+	bool	truncated;
+	build_table_filename(buf, sizeof(buf), db_name, table_name,
+			      NULL, 0, &truncated);
+	ut_ad(!truncated);
+
+        normalize_table_name(norm_name, buf);
+
+	ib_table = dict_table_open_on_name(
+		norm_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+
+	if (ib_table == NULL) {
+		return(true);
+	}
+
+	if (flags & HA_STATUS_AUTO) {
+		stats->auto_increment_value =
+			innobase_peek_autoinc(ib_table);
+	}
+
+	if (flags & HA_STATUS_TIME) {
+		stats->update_time = static_cast<ulong>(ib_table->update_time);
+	}
+
+	if (flags & HA_STATUS_VARIABLE_EXTRA) {
+		 calculate_delete_length_stat(ib_table, stats, current_thd);
+	}
+
+	if (flags & HA_STATUS_VARIABLE) {
+		dict_stats_init(ib_table);
+
+		ut_a(ib_table->stat_initialized);
+
+		/* Note it may look like ib_table->* arguments are
+		redundant. If you see the usage of this call in info_low(),
+		the stats can be retrieved while holding a latch if
+		!HA_STATUS_NO_LOCK is passed. */
+		calculate_index_size_stats(
+			ib_table, ib_table->stat_n_rows,
+			ib_table->stat_clustered_index_size,
+			ib_table->stat_sum_of_other_index_sizes, stats);
+	}
+
+	dict_table_close(ib_table, FALSE, FALSE);
+
+	return(false);
+}
+
+/** Retrieve index column cardinality.
+@param[in]		db_name			name of schema
+@param[in]		table_name		name of table
+@param[in]		index_name		name of index
+@param[in]		index_ordinal_position	position of index
+@param[in]		column_ordinal_position	position of column in index
+@param[in]		se_private_id		the internal id of the table
+@param[in,out]		cardinality		cardinality of index column
+@retval			false			success
+@retval			true			failure */
+static
+bool
+innobase_get_index_column_cardinality(
+	const char*	db_name,
+	const char*	table_name,
+	const char*	index_name,
+	uint		index_ordinal_position,
+	uint		column_ordinal_position,
+	dd::Object_id	se_private_id,
+	ulonglong*	cardinality)
+{
+	char		norm_name[FN_REFLEN];
+	dict_table_t*	ib_table;
+	bool		failure = true;
+
+	/* TODO-WL7141: Use se_private_id when server provides it.
+	When se_private_id is available, we can open table by
+	id. dict_table_open_on_id(). */
+	char	buf[2 * NAME_CHAR_LEN * 5 + 2 + 1];
+	bool	truncated;
+	build_table_filename(buf, sizeof(buf), db_name, table_name,
+			     NULL, 0, &truncated);
+	ut_ad(!truncated);
+
+	normalize_table_name(norm_name, buf);
+
+	ib_table = dict_table_open_on_name(
+		norm_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+
+	if (ib_table == NULL) {
+		return(failure);
+	}
+
+	for (const dict_index_t* index = UT_LIST_GET_FIRST(ib_table->indexes);
+	     index != NULL;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+		if (index->is_committed()
+		    && ut_strcmp(index_name, index->name) == 0) {
+
+			if (ib_table->stat_initialized == 0) {
+				dict_stats_init(ib_table);
+				ut_a(ib_table->stat_initialized != 0);
+			}
+
+			if (index->type & (DICT_FTS | DICT_SPATIAL)) {
+				/* For these indexes innodb_rec_per_key is
+				fixed as 1.0 */
+				*cardinality = ib_table->stat_n_rows;
+			} else {
+				double records = (ib_table->stat_n_rows
+					/ innodb_rec_per_key(
+						index,
+						(ulint) column_ordinal_position,
+						ib_table->stat_n_rows));
+                                *cardinality=
+                                   static_cast<ulonglong>(round(records));
+			}
+
+			failure = false;
+			break;
+		}
+	}
+
+	dict_table_close(ib_table, FALSE, FALSE);
+	return(failure);
 }
 
 /** Enable indexes.
@@ -20961,37 +21328,6 @@ ha_innobase::innobase_get_autoinc(
 	return(m_prebuilt->autoinc_error);
 }
 
-/*******************************************************************//**
-This function reads the global auto-inc counter. It doesn't use the
-AUTOINC lock even if the lock mode is set to TRADITIONAL.
-@return the autoinc value */
-
-ulonglong
-ha_innobase::innobase_peek_autoinc(void)
-/*====================================*/
-{
-	ulonglong	auto_inc;
-	dict_table_t*	innodb_table;
-
-	ut_a(m_prebuilt != NULL);
-	ut_a(m_prebuilt->table != NULL);
-
-	innodb_table = m_prebuilt->table;
-
-	dict_table_autoinc_lock(innodb_table);
-
-	auto_inc = dict_table_autoinc_read(innodb_table);
-
-	if (auto_inc == 0) {
-		ib::info() << "AUTOINC next value generation is disabled for"
-			" '" << innodb_table->name << "'";
-	}
-
-	dict_table_autoinc_unlock(innodb_table);
-
-	return(auto_inc);
-}
-
 /*********************************************************************//**
 Returns the value of the auto-inc counter in *first_value and ~0 on failure. */
 
@@ -21042,6 +21378,36 @@ ha_innobase::get_auto_increment(
 	whether we update the table autoinc counter or not. */
 	ulonglong	col_max_value =
 		table->next_number_field->get_max_int_value();
+
+	/** The following logic is needed to avoid duplicate key error
+	for autoincrement column.
+
+	(1) InnoDB gives the current autoincrement value with respect
+	to increment and offset value.
+
+	(2) Basically it does compute_next_insert_id() logic inside InnoDB
+	to avoid the current auto increment value changed by handler layer.
+
+	(3) It is restricted only for insert operations. */
+
+	if (increment > 1 && m_prebuilt->table->skip_alter_undo == false
+	    && autoinc < col_max_value) {
+
+		ulonglong	prev_auto_inc = autoinc;
+
+		autoinc = ((autoinc - 1) + increment - offset)/ increment;
+
+		autoinc = autoinc * increment + offset;
+
+		/* If autoinc exceeds the col_max_value then reset
+		to old autoinc value. Because in case of non-strict
+		sql mode, boundary value is not considered as error. */
+		if (autoinc >= col_max_value) {
+			autoinc = prev_auto_inc;
+		}
+
+		ut_ad(autoinc > 0);
+	}
 
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
@@ -23215,6 +23581,12 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   " Disable with --skip-innodb-doublewrite.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(stats_include_delete_marked,
+  srv_stats_include_delete_marked,
+  PLUGIN_VAR_OPCMDARG,
+  "Include delete marked records when calculating persistent statistics",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Number of IOPs the server can do. Tunes the background IO rate",
@@ -24056,6 +24428,11 @@ static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Enable the sync debug checks",
   NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_debug, srv_buf_pool_debug,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Enable buffer pool debug",
+  NULL, NULL, FALSE);
 #endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -24086,6 +24463,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(temp_data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
+  MYSQL_SYSVAR(stats_include_delete_marked),
   MYSQL_SYSVAR(api_enable_binlog),
   MYSQL_SYSVAR(api_enable_mdl),
   MYSQL_SYSVAR(api_disable_rowlock),
@@ -24219,6 +24597,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(dict_stats_disabled_debug),
   MYSQL_SYSVAR(master_thread_disabled_debug),
   MYSQL_SYSVAR(sync_debug),
+  MYSQL_SYSVAR(buffer_pool_debug),
 #endif /* UNIV_DEBUG */
   NULL
 };
@@ -25071,6 +25450,14 @@ innodb_buffer_pool_size_validate(
 	}
 
 	if (srv_buf_pool_instances > 1 && intbuf < BUF_POOL_SIZE_THRESHOLD) {
+#ifdef UNIV_DEBUG
+		/* Ignore 1G constraint to enable mulitple instances
+		for debug and test. */
+		if (srv_buf_pool_debug) {
+			goto debug_set;
+		}
+#endif /* UNIV_DEBUG */
+
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "Cannot update innodb_buffer_pool_size"
@@ -25078,6 +25465,10 @@ innodb_buffer_pool_size_validate(
 				    " innodb_buffer_pool_instances > 1.");
 		return(1);
 	}
+
+#ifdef UNIV_DEBUG
+debug_set:
+#endif /* UNIV_DEBUG */
 
 	if (sizeof(ulint) == 4) {
 		if (intbuf > UINT_MAX32) {

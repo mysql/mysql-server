@@ -106,8 +106,10 @@ SET DEBUG_SYNC= 'now WAIT_FOR uncommitted';
 --echo # enable purge
 COMMIT;
 
+# Note, the alter table would increase trx_sys->rw_max_trx_id
 --echo # wait for purge to process the deleted records.
---source include/wait_innodb_all_purged.inc
+set global innodb_purge_run_now=ON;
+select sleep(1);
 
 SET DEBUG_SYNC= 'now SIGNAL purged';
 
@@ -151,8 +153,10 @@ INSERT INTO t1(a, b) VALUES (8, 8);
 --echo # enable purge
 COMMIT;
 
+# Note, the alter table would increase trx_sys->rw_max_trx_id
 --echo # wait for purge to process the deleted/updated records.
---source include/wait_innodb_all_purged.inc
+set global innodb_purge_run_now=ON;
+select sleep(1);
 
 SET DEBUG_SYNC= 'now SIGNAL purged';
 

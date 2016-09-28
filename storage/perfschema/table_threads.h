@@ -82,6 +82,109 @@ struct row_threads
   my_thread_os_id_t m_thread_os_id;
 };
 
+class PFS_index_threads_by_thread_id : public PFS_index_threads
+{
+public:
+  PFS_index_threads_by_thread_id()
+    : PFS_index_threads(&m_key),
+    m_key("THREAD_ID")
+  {}
+
+  ~PFS_index_threads_by_thread_id()
+  {}
+
+  virtual bool match(PFS_thread *pfs);
+
+private:
+  PFS_key_thread_id m_key;
+};
+
+class PFS_index_threads_by_processlist_id : public PFS_index_threads
+{
+public:
+  PFS_index_threads_by_processlist_id()
+    : PFS_index_threads(&m_key),
+    m_key("PROCESSLIST_ID")
+  {}
+
+  ~PFS_index_threads_by_processlist_id()
+  {}
+
+  virtual bool match(PFS_thread *pfs);
+
+private:
+  PFS_key_processlist_id m_key;
+};
+
+class PFS_index_threads_by_name : public PFS_index_threads
+{
+public:
+  PFS_index_threads_by_name()
+    : PFS_index_threads(&m_key),
+    m_key("NAME")
+  {}
+
+  ~PFS_index_threads_by_name()
+  {}
+
+  virtual bool match(PFS_thread *pfs);
+
+private:
+  PFS_key_thread_name m_key;
+};
+
+class PFS_index_threads_by_user_host : public PFS_index_threads
+{
+public:
+  PFS_index_threads_by_user_host()
+    : PFS_index_threads(&m_key_1, &m_key_2),
+    m_key_1("PROCESSLIST_USER"), m_key_2("PROCESSLIST_HOST")
+  {}
+
+  ~PFS_index_threads_by_user_host()
+  {}
+
+  virtual bool match(PFS_thread *pfs);
+
+private:
+  PFS_key_user m_key_1;
+  PFS_key_host m_key_2;
+};
+
+class PFS_index_threads_by_host : public PFS_index_threads
+{
+public:
+  PFS_index_threads_by_host()
+    : PFS_index_threads(&m_key),
+    m_key("PROCESSLIST_HOST")
+  {}
+
+  ~PFS_index_threads_by_host()
+  {}
+
+  virtual bool match(PFS_thread *pfs);
+
+private:
+  PFS_key_host m_key;
+};
+
+class PFS_index_threads_by_thread_os_id : public PFS_index_threads
+{
+public:
+  PFS_index_threads_by_thread_os_id()
+    : PFS_index_threads(&m_key),
+    m_key("THREAD_OS_ID")
+  {}
+
+  ~PFS_index_threads_by_thread_os_id()
+  {}
+
+  virtual bool match(PFS_thread *pfs);
+
+private:
+  PFS_key_thread_os_id m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.THREADS. */
 class table_threads : public cursor_by_thread
 {
@@ -102,16 +205,16 @@ protected:
                                 const unsigned char *old_buf,
                                 unsigned char *new_buf,
                                 Field **fields);
-
 protected:
   table_threads();
+  virtual int index_init(uint idx, bool sorted);
 
 public:
   ~table_threads()
   {}
 
 private:
-  virtual void make_row(PFS_thread *pfs);
+  virtual int make_row(PFS_thread *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

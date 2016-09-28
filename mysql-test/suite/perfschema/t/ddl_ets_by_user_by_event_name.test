@@ -17,3 +17,6 @@ ALTER TABLE performance_schema.events_transactions_summary_by_user_by_event_name
 CREATE UNIQUE INDEX test_index
   ON performance_schema.events_transactions_summary_by_user_by_event_name(USERNAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `USER`
+  ON performance_schema.events_transactions_summary_by_user_by_event_name;

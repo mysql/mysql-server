@@ -19,11 +19,8 @@
 
 /**
   @file include/my_global.h
-  This include file should be included first in every header file.
-
-  This makes sure my_config.h is included to get platform specific
-  symbols defined and it makes sure a lot of platform/compiler
-  differences are mitigated.
+  This include file used to be included first in every header file.
+  It is no longer the case, and it should be split up.
 */
 
 #include "my_config.h"
@@ -75,6 +72,7 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_psi_config.h"
 
 /* Macros to make switching between C and C++ mode easier */
 #ifdef __cplusplus
@@ -84,279 +82,6 @@
 #define C_MODE_START
 #define C_MODE_END
 #endif
-
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-#ifdef EMBEDDED_LIBRARY
-
-#ifndef DISABLE_PSI_THREAD
-#define DISABLE_PSI_THREAD
-#endif
-
-#ifndef DISABLE_PSI_MUTEX
-#define DISABLE_PSI_MUTEX
-#endif
-
-#ifndef DISABLE_PSI_RWLOCK
-#define DISABLE_PSI_RWLOCK
-#endif
-
-#ifndef DISABLE_PSI_COND
-#define DISABLE_PSI_COND
-#endif
-
-#ifndef DISABLE_PSI_FILE
-#define DISABLE_PSI_FILE
-#endif
-
-#ifndef DISABLE_PSI_TABLE
-#define DISABLE_PSI_TABLE
-#endif
-
-#ifndef DISABLE_PSI_SOCKET
-#define DISABLE_PSI_SOCKET
-#endif
-
-#ifndef DISABLE_PSI_STAGE
-#define DISABLE_PSI_STAGE
-#endif
-
-#ifndef DISABLE_PSI_STATEMENT
-#define DISABLE_PSI_STATEMENT
-#endif
-
-#ifndef DISABLE_PSI_SP
-#define DISABLE_PSI_SP
-#endif
-
-#ifndef DISABLE_PSI_PS
-#define DISABLE_PSI_PS
-#endif
-
-#ifndef DISABLE_PSI_ERROR
-#define DISABLE_PSI_ERROR
-#endif
-
-#ifndef DISABLE_PSI_IDLE
-#define DISABLE_PSI_IDLE
-#endif
-
-#ifndef DISABLE_PSI_STATEMENT_DIGEST
-#define DISABLE_PSI_STATEMENT_DIGEST
-#endif
-
-#ifndef DISABLE_PSI_METADATA
-#define DISABLE_PSI_METADATA
-#endif
-
-#ifndef DISABLE_PSI_MEMORY
-#define DISABLE_PSI_MEMORY
-#endif
-
-#ifndef DISABLE_PSI_TRANSACTION
-#define DISABLE_PSI_TRANSACTION
-#endif
-
-#endif /* EMBEDDED_LIBRARY */
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-#define HAVE_PSI_INTERFACE
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-
-#ifdef HAVE_PSI_INTERFACE
-
- /**
-  @def DISABLE_PSI_MUTEX
-  Compiling option to disable the mutex instrumentation.
-  This option is mostly intended to be used during development,
-  when doing special builds with only a subset of the performance schema instrumentation,
-  for code analysis / profiling / performance tuning of a specific instrumentation alone.
-  @sa DISABLE_PSI_RWLOCK
-  @sa DISABLE_PSI_COND
-  @sa DISABLE_PSI_FILE
-  @sa DISABLE_PSI_THREAD
-  @sa DISABLE_PSI_TABLE
-  @sa DISABLE_PSI_STAGE
-  @sa DISABLE_PSI_STATEMENT
-  @sa DISABLE_PSI_SP
-  @sa DISABLE_PSI_PS
-  @sa DISABLE_PSI_STATEMENT_DIGEST
-  @sa DISABLE_PSI_SOCKET
-  @sa DISABLE_PSI_MEMORY
-  @sa DISABLE_PSI_ERROR
-  @sa DISABLE_PSI_IDLE
-  @sa DISABLE_PSI_METADATA
-  @sa DISABLE_PSI_TRANSACTION
-*/
-
-#ifndef DISABLE_PSI_MUTEX
-#define HAVE_PSI_MUTEX_INTERFACE
-#endif /* DISABLE_PSI_MUTEX */
-
-/**
-  @def DISABLE_PSI_RWLOCK
-  Compiling option to disable the rwlock instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_RWLOCK
-#define HAVE_PSI_RWLOCK_INTERFACE
-#endif /* DISABLE_PSI_RWLOCK */
-
-/**
-  @def DISABLE_PSI_COND
-  Compiling option to disable the cond instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_COND
-#define HAVE_PSI_COND_INTERFACE
-#endif /* DISABLE_PSI_COND */
-
-/**
-  @def DISABLE_PSI_FILE
-  Compiling option to disable the file instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_FILE
-#define HAVE_PSI_FILE_INTERFACE
-#endif /* DISABLE_PSI_FILE */
-
-/**
-  @def DISABLE_PSI_THREAD
-  Compiling option to disable the thread instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_THREAD
-#define HAVE_PSI_THREAD_INTERFACE
-#endif /* DISABLE_PSI_THREAD */
-
-/**
-  @def DISABLE_PSI_TABLE
-  Compiling option to disable the table instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_TABLE
-#define HAVE_PSI_TABLE_INTERFACE
-#endif /* DISABLE_PSI_TABLE */
-
-/**
-  @def DISABLE_PSI_STAGE
-  Compiling option to disable the stage instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_STAGE
-#define HAVE_PSI_STAGE_INTERFACE
-#endif /* DISABLE_PSI_STAGE */
-
-/**
-  @def DISABLE_PSI_STATEMENT
-  Compiling option to disable the statement instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_STATEMENT
-#define HAVE_PSI_STATEMENT_INTERFACE
-#endif /* DISABLE_PSI_STATEMENT */
-
-/**
-  @def DISABLE_PSI_SP
-  Compiling option to disable the stored program instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_SP
-#define HAVE_PSI_SP_INTERFACE
-#endif /* DISABLE_PSI_SP */
-
-/**
-  @def DISABLE_PSI_PS
-  Compiling option to disable the prepared statement instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_STATEMENT
-#ifndef DISABLE_PSI_PS
-#define HAVE_PSI_PS_INTERFACE
-#endif /* DISABLE_PSI_PS */
-#endif /* DISABLE_PSI_STATEMENT */
-
-/**
-  @def DISABLE_PSI_STATEMENT_DIGEST
-  Compiling option to disable the statement digest instrumentation.
-*/
-
-#ifndef DISABLE_PSI_STATEMENT
-#ifndef DISABLE_PSI_STATEMENT_DIGEST
-#define HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-#endif /* DISABLE_PSI_STATEMENT_DIGEST */
-#endif /* DISABLE_PSI_STATEMENT */
-
-/**
-  @def DISABLE_PSI_TRANSACTION
-  Compiling option to disable the transaction instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_TRANSACTION
-#define HAVE_PSI_TRANSACTION_INTERFACE
-#endif /* DISABLE_PSI_TRANSACTION */
-
-/**
-  @def DISABLE_PSI_SOCKET
-  Compiling option to disable the statement instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_SOCKET
-#define HAVE_PSI_SOCKET_INTERFACE
-#endif /* DISABLE_PSI_SOCKET */
-
-/**
-  @def DISABLE_PSI_MEMORY
-  Compiling option to disable the memory instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_MEMORY
-#define HAVE_PSI_MEMORY_INTERFACE
-#endif /* DISABLE_PSI_MEMORY */
-
-/**
-  @def DISABLE_PSI_ERROR
-  Compiling option to disable the error instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_ERROR
-#define HAVE_PSI_ERROR_INTERFACE
-#endif /* DISABLE_PSI_ERROR */
-
-/**
-  @def DISABLE_PSI_IDLE
-  Compiling option to disable the idle instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_IDLE
-#define HAVE_PSI_IDLE_INTERFACE
-#endif /* DISABLE_PSI_IDLE */
-
-/**
-  @def DISABLE_PSI_METADATA
-  Compiling option to disable the metadata instrumentation.
-  @sa DISABLE_PSI_MUTEX
-*/
-
-#ifndef DISABLE_PSI_METADATA
-#define HAVE_PSI_METADATA_INTERFACE
-#endif /* DISABLE_PSI_METADATA */
-
-#endif /* HAVE_PSI_INTERFACE */
 
 /* Make it easier to add conditional code in _expressions_ */
 #ifdef _WIN32
@@ -585,17 +310,6 @@ static inline int is_directory_separator(char c)
 /* Some defines of functions for portability */
 
 #ifdef _WIN32
-#if !defined(_WIN64)
-inline double my_ulonglong2double(unsigned long long value)
-{
-  long long nr=(long long) value;
-  if (nr >= 0)
-    return (double) nr;
-  return (18446744073709551616.0 + (double) nr);
-}
-#define ulonglong2double my_ulonglong2double
-#define my_off_t2double  my_ulonglong2double
-#endif /* _WIN64 */
 inline unsigned long long my_double2ulonglong(double d)
 {
   double t= d - (double) 0x8000000000000000ULL;
@@ -659,21 +373,6 @@ typedef long long	my_ptrdiff_t;
 /* Size to make adressable obj. */
 #define ADD_TO_PTR(ptr,size,type) (type) ((uchar*) (ptr)+size)
 #define PTR_BYTE_DIFF(A,B) (my_ptrdiff_t) ((uchar*) (A) - (uchar*) (B))
-
-/*
-  Custom version of standard offsetof() macro which can be used to get
-  offsets of members in class for non-POD types (according to the current
-  version of C++ standard offsetof() macro can't be used in such cases and
-  attempt to do so causes warnings to be emitted, OTOH in many cases it is
-  still OK to assume that all instances of the class has the same offsets
-  for the same members).
-
-  This is temporary solution which should be removed once File_parser class
-  and related routines are refactored.
-*/
-
-#define my_offsetof(TYPE, MEMBER) \
-        ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
 
 #define NullS		(char *) 0
 

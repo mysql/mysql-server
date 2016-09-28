@@ -16,3 +16,6 @@ ALTER TABLE performance_schema.events_transactions_summary_by_thread_by_event_na
 CREATE UNIQUE INDEX test_index
   ON performance_schema.events_transactions_summary_by_thread_by_event_name(THREAD_ID);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.events_transactions_summary_by_thread_by_event_name;

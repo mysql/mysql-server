@@ -10,4 +10,3 @@ DESC sys.schema_object_overview;
 --disable_result_log
 SELECT * FROM sys.schema_object_overview;
 --enable_result_log
-

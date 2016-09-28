@@ -65,6 +65,10 @@ Schemata::Schemata()
                                 catalogs(id)");
   m_target_def.add_foreign_key("FOREIGN KEY (default_collation_id) \
                                 REFERENCES collations(id)");
+
+  m_target_def.add_populate_statement(
+  "INSERT INTO schemata (catalog_id, name, default_collation_id) VALUES "
+    "(1,'information_schema',33)");
 }
 
 ///////////////////////////////////////////////////////////////////////////

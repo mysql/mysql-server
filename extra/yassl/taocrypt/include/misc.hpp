@@ -398,7 +398,7 @@ inline T RoundUpToMultipleOf(T n, T m)
 }
 
 template <class T>
-inline unsigned int GetAlignment(T* dummy = 0)	// VC60 workaround
+inline unsigned int GetAlignment()
 {
 #if defined(_WIN32) && (_MSC_VER >= 1300)
     return __alignof(T);
@@ -416,7 +416,7 @@ inline bool IsAlignedOn(const void* p, unsigned int alignment)
 }
 
 template <class T>
-inline bool IsAligned(const void* p, T* dummy = 0)	// VC60 workaround
+inline bool IsAligned(const void* p)
 {
     return IsAlignedOn(p, GetAlignment<T>());
 }
@@ -599,7 +599,7 @@ inline void GetUserKey(ByteOrder order, T* out, word32 outlen, const byte* in,
 #endif
 
 
-inline byte UnalignedGetWordNonTemplate(ByteOrder order, const byte *block,
+inline byte UnalignedGetWordNonTemplate(ByteOrder, const byte *block,
                                         byte*)
 {
     return block[0];
@@ -629,7 +629,7 @@ inline T UnalignedGetWord(ByteOrder order, const byte *block, T* dummy = 0)
     return UnalignedGetWordNonTemplate(order, block, dummy);
 }
 
-inline void UnalignedPutWord(ByteOrder order, byte *block, byte value,
+inline void UnalignedPutWord(ByteOrder, byte *block, byte value,
                              const byte *xorBlock = 0)
 {
     block[0] = xorBlock ? (value ^ xorBlock[0]) : value;
@@ -781,13 +781,13 @@ template <bool overflow> struct SafeShifter;
 template<> struct SafeShifter<true>
 {
     template <class T>
-    static inline T RightShift(T value, unsigned int bits)
+    static inline T RightShift(T, unsigned int)
     {
         return 0;
     }
 
     template <class T>
-    static inline T LeftShift(T value, unsigned int bits)
+    static inline T LeftShift(T, unsigned int)
     {
         return 0;
     }

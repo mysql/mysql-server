@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,8 @@
 #include "my_global.h"
 
 #include "dd/types/abstract_table.h"   // dd::Abstract_table
-#include "dd/sdi_fwd.h"                // RJ_Document
+#include "dd/types/trigger.h"          // dd::Trigger::enum_*
+#include "dd/sdi_fwd.h"                // Sdi_wcontext
 
 namespace dd {
 
@@ -29,6 +30,7 @@ class Foreign_key;
 class Index;
 class Object_type;
 class Partition;
+class Trigger;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -39,6 +41,7 @@ public:
   typedef Collection<Index*> Index_collection;
   typedef Collection<Foreign_key*> Foreign_key_collection;
   typedef Collection<Partition*> Partition_collection;
+  typedef Collection<Trigger*> Trigger_collection;
 
   // We need a set of functions to update a preallocated se private id key,
   // which requires special handling for table objects.
@@ -158,8 +161,8 @@ public:
   // se_private_id.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong se_private_id() const = 0;
-  virtual void set_se_private_id(ulonglong se_private_id) = 0;
+  virtual Object_id se_private_id() const = 0;
+  virtual void set_se_private_id(Object_id se_private_id) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Partition related.
@@ -226,6 +229,130 @@ public:
   virtual Partition_collection *partitions() = 0;
 
   virtual void fix_partitions() = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Trigger collection.
+  /////////////////////////////////////////////////////////////////////////
+
+  /**
+    Check if table has any triggers.
+
+    @return true  - if there are triggers on the table installed.
+    @return false - if not.
+  */
+
+  virtual bool has_trigger() const = 0;
+
+
+  /**
+    Get const reference to Trigger_collection.
+
+    @return Trigger_collection& - Const reference to a collection of triggers.
+  */
+
+  virtual const Trigger_collection &triggers() const = 0;
+
+
+  /**
+    Get non-const pointer to Trigger_collection.
+
+    @return Trigger_collection* - Pointer to collection of triggers.
+  */
+
+  virtual Trigger_collection *triggers() = 0;
+
+
+  /**
+    Copy all the triggers from another dd::Table object.
+
+    @param tab_obj* - Pointer to Table from which the triggers
+                      are copied.
+  */
+
+  virtual void copy_triggers(const Table *tab_obj) = 0;
+
+
+  /**
+    Add new trigger to the table.
+
+    @param at      - Action timing of the trigger to be added.
+    @param et      - Event type of the trigger to be added.
+
+    @return Trigger* - Pointer to new Trigger that is added to table.
+  */
+
+  virtual Trigger *add_trigger(Trigger::enum_action_timing at,
+                               Trigger::enum_event_type et) = 0;
+
+
+  /**
+    Get dd::Trigger object for the given trigger name.
+
+    @return Trigger* - Pointer to Trigger.
+  */
+
+  virtual const Trigger *get_trigger(const char *name) const = 0;
+
+
+  /**
+    Add new trigger just after the trigger specified in argument.
+
+    @param trigger - dd::Trigger object after which the new
+                     trigger should be created.
+    @param at      - Action timing of the trigger to be added.
+    @param et      - Event type of the trigger to be added.
+
+    @return Trigger* - Pointer to newly created dd::Trigger object.
+  */
+
+  virtual Trigger *add_trigger_following(const Trigger *trigger,
+                                         Trigger::enum_action_timing at,
+                                         Trigger::enum_event_type et) = 0;
+
+
+  /**
+    Add new trigger just before the trigger specified in argument.
+
+    @param trigger - dd::Trigger object before which the new
+                     trigger should be created.
+    @param at      - Action timing of the trigger to be added.
+    @param et      - Event type of the trigger to be added.
+
+    @return Trigger* - Pointer to newly created dd::Trigger object.
+  */
+
+  virtual Trigger *add_trigger_preceding(const Trigger *trigger,
+                                         Trigger::enum_action_timing at,
+                                         Trigger::enum_event_type et) = 0;
+
+
+  /**
+    Drop the given trigger object.
+
+    The method returns void, as we just remove the trigger from
+    dd::Collection (dd::Table_impl::m_triggers) in memory. The
+    trigger will be removed from mysql.triggers DD table when the
+    dd::Table object is stored/updated.
+
+    @param trigger - dd::Trigger object to be dropped.
+  */
+
+  virtual void drop_trigger(const Trigger *trigger) = 0;
+
+
+  /**
+    Drop all the trigger on this dd::Table object.
+
+    The method returns void, as we just remove the trigger from
+    dd::Collection (dd::Table_impl::m_triggers) in memory. The
+    trigger will be removed from mysql.triggers DD table when the
+    dd::Table object is stored/updated.
+  */
+
+  virtual void drop_all_triggers() = 0;
+
+
+public:
 
   /**
     Allocate a new object graph and invoke the copy contructor for

@@ -845,9 +845,7 @@ bool Srv_session::module_deinit()
 */
 bool Srv_session::is_valid(const Srv_session *session)
 {
-  const THD *thd= session?
-    reinterpret_cast<const THD*>(session + my_offsetof(Srv_session, thd)):
-    NULL;
+  const THD *thd= session ? &session->thd : nullptr;
   return thd? (bool) server_session_list.find(thd) : false;
 }
 

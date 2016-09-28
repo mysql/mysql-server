@@ -567,7 +567,7 @@ drop table t1;
 create table t1 as select to_seconds(null) as to_seconds;
 select data_type from information_schema.columns
 where column_name='to_seconds';
-data_type
+DATA_TYPE
 int
 drop table t1;
 create table t1 (a int, b int)

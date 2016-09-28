@@ -5,3 +5,6 @@ ALTER TABLE performance_schema.socket_summary_by_instance ADD INDEX test_index(F
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 CREATE UNIQUE INDEX test_index ON performance_schema.socket_summary_by_instance(FILE_NAME);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+DROP INDEX `PRIMARY`
+  ON performance_schema.socket_summary_by_event_name;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

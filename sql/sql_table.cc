@@ -24,6 +24,7 @@
 
 #include "auth_common.h"              // check_fk_parent_table_access
 #include "binlog.h"                   // mysql_bin_log
+#include "dd_sql_view.h"              // update_referencing_views_metadata
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
@@ -58,11 +59,12 @@
 
 #include "partitioning/partition_handler.h" // Partition_handler
 
-#include "dd/dd.h"                    // dd::get_dictionary
-#include "dd/dd_schema.h"             // dd::schema_exists
-#include "dd/dd_table.h"              // dd::drop_table
-#include "dd/dictionary.h"            // dd::Dictionary
-#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "dd/dd.h"                        // dd::get_dictionary
+#include "dd/dd_schema.h"                 // dd::schema_exists
+#include "dd/dd_table.h"                  // dd::drop_table, dd::update_keys...
+#include "dd/dd_trigger.h"                // dd::table_has_triggers
+#include "dd/dictionary.h"                // dd::Dictionary
+#include "dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
 #include "dd/types/foreign_key.h"         // dd::Foreign_key
 #include "dd/types/foreign_key_element.h" // dd::Foreign_key_element
 #include "dd/types/schema.h"
@@ -71,6 +73,9 @@
 #include "dd/impl/properties_impl.h"
 #include "dd_table_share.h"
 #include "dd/sdi.h"                   // dd::remove_sdi
+
+#include "trigger.h"
+#include "table_trigger_dispatcher.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -1215,10 +1220,47 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
                                             &table_exists))
               break;
 
-            // Remove table from DD
-            if (table_exists &&
-                dd::drop_table<dd::Table>(thd, db, table_name, true))
-              break;
+            if (table_exists)
+            {
+              if (ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION)
+              {
+                char from_db[NAME_LEN + 1];
+                char from_table_name[NAME_LEN + 1];
+
+                if (path_to_db_and_table_name(ddl_log_entry->from_name,
+                                              from_db,
+                                              from_table_name))
+                  break;
+
+                table_exists= false;
+
+                if (dd::table_exists<dd::Table>(thd->dd_client(),
+                                                from_db,
+                                                from_table_name,
+                                                &table_exists))
+                  break;
+
+                /*
+                  If there are both temporary table and original table
+                  and we are handling ALTER TABLE ... DROP PARTITION then
+                  move triggers from original partitioned table to the
+                  temporary table. Moved triggers will be later restored
+                  for the original table while calling dd::rename_table
+                  in the next alternative DDL_LOG_RENAME_ACTION.
+                */
+                if (table_exists &&
+                    dd::move_triggers(thd, db, table_name,
+                                      from_db, from_table_name,
+                                      true))
+                  break;
+              }
+              else
+              {
+                //  Remove table from DD
+                if (dd::drop_table<dd::Table>(thd, db, table_name, true))
+                  break;
+              }
+            }
           }
         }
         else
@@ -1640,27 +1682,6 @@ bool deactivate_ddl_log_entry(uint entry_no)
 
 
 /**
-  Sync ddl log file.
-
-  @return Operation status
-    @retval TRUE        Error
-    @retval FALSE       Success
-*/
-
-static bool sync_ddl_log()
-{
-  bool error;
-  DBUG_ENTER("sync_ddl_log");
-
-  mysql_mutex_lock(&LOCK_gdl);
-  error= sync_ddl_log_no_lock();
-  mysql_mutex_unlock(&LOCK_gdl);
-
-  DBUG_RETURN(error);
-}
-
-
-/**
   Release a log memory entry.
   @param log_entry                Log memory entry to release
 */
@@ -1864,6 +1885,7 @@ void release_ddl_log()
   @param file          Handler to use
   @param no_ha_table   Indicates that only definitions needs to be created
                        and not a table in the storage engine.
+  @param keys_onoff    Enable or disable keys.
   @param[out] tmp_table_def  Placeholder for data-dictionary object for
                              temporary table which was created. It will
                              contain NULL for regular tables.
@@ -1879,9 +1901,10 @@ static bool rea_create_table(THD *thd, const char *path,
                              const char *db, const char *table_name,
                              HA_CREATE_INFO *create_info,
                              List<Create_field> &create_fields,
-                             uint keys, KEY *key_info, uint fk_keys,
-                             FOREIGN_KEY *fk_key_info, handler *file,
-                             bool no_ha_table,
+                             uint keys, KEY *key_info,
+                             Alter_info::enum_enable_or_disable keys_onoff,
+                             uint fk_keys, FOREIGN_KEY *fk_key_info,
+                             handler *file, bool no_ha_table,
                              dd::Table **tmp_table_def,
                              handlerton **post_ddl_ht)
 {
@@ -1896,7 +1919,7 @@ static bool rea_create_table(THD *thd, const char *path,
   {
     table_ptr= dd::create_tmp_table(thd, db, table_name,
                                     create_info, create_fields,
-                                    key_info, keys, file);
+                                    key_info, keys, keys_onoff, file);
     if (!table_ptr)
       DBUG_RETURN(true);
   }
@@ -1913,6 +1936,7 @@ static bool rea_create_table(THD *thd, const char *path,
                                 create_fields,
                                 key_info,
                                 keys,
+                                keys_onoff,
                                 fk_key_info,
                                 fk_keys,
                                 file,
@@ -2002,7 +2026,6 @@ size_t build_table_shadow_filename(char *buff, size_t bufflen,
     lpt                    Struct carrying many parameters needed for this
                            method
     flags                  Flags as defined below
-      WFRM_INSTALL_SHADOW       If set we should install the new frm
       WFRM_PACK_FRM             If set we should pack the frm file and delete
                                 the frm file
 
@@ -2024,7 +2047,6 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     We set tmp_table to avoid get errors on naming of primary key index.
   */
   int error= 0;
-  char path[FN_REFLEN+1];
   char shadow_path[FN_REFLEN+1];
   char *shadow_name;
   char *part_syntax_buf;
@@ -2093,6 +2115,11 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     if (!dd::get_dictionary()->is_dd_table_name(lpt->db, shadow_name) &&
         !dd::get_dictionary()->is_dd_table_name(lpt->db, lpt->table_name))
     {
+      Alter_info::enum_enable_or_disable keys_onoff=
+        ((lpt->alter_info->keys_onoff == Alter_info::LEAVE_AS_IS &&
+          lpt->table->file->indexes_are_disabled()) ? Alter_info::DISABLE :
+         lpt->alter_info->keys_onoff);
+
       if (!dd::create_table(lpt->thd,
                             lpt->db,
                             shadow_name,
@@ -2100,11 +2127,14 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                             lpt->alter_info->create_list,
                             lpt->key_info_buffer,
                             lpt->key_count,
+                            keys_onoff,
                             not_used1,
                             not_used2,
                             lpt->table->file,
                             true, true))
+      {
         DBUG_RETURN(true);
+      }
     }
   }
   if (flags & WSDI_COMPRESS_SDI)
@@ -2125,63 +2155,6 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       mem_alloc_error(length);
       DBUG_RETURN(true);
     }
-  }
-  if (flags & WSDI_INSTALL_SHADOW)
-  {
-    partition_info *part_info= lpt->part_info;
-    Partition_handler *part_handler= lpt->table->file->get_partition_handler();
-    if (part_handler && part_info)
-    {
-      part_handler->set_part_info(part_info, false);
-    }
-    /*
-      Build the file name
-    */
-    build_table_filename(path, sizeof(path) - 1, lpt->db,
-                         lpt->table_name, "", 0);
-    /*
-      When we are changing to use new definition we need to ensure that we
-      don't collide with another thread in process to open the par file.
-      We start by deleting the possible .par file. Then we
-      write to the DDL log that we have completed the delete phase by
-      increasing the phase of the log entry. Next step is to rename the
-      new new .par file to the real name. After
-      completing this we write a new phase to the log entry that will
-      deactivate it.
-    */
-    if (lpt->table->file->ha_create_handler_files(path, shadow_path,
-                                                  CHF_DELETE_FLAG, NULL) ||
-        deactivate_ddl_log_entry(lpt->part_info->frm_log_entry->entry_pos) ||
-        (sync_ddl_log(), FALSE) ||
-        lpt->table->file->ha_create_handler_files(path, shadow_path,
-                                                  CHF_RENAME_FLAG, NULL))
-    {
-      error= 1;
-      goto err;
-    }
-    // TODO: Should this be here or somewhere else? (and where should the rollback be?)
-    // TODO: Also add this to the ddl_log!!!
-    // Delete table details from new DD
-    if (error == 0 &&
-        !dd::get_dictionary()->is_dd_table_name(lpt->db, shadow_name) &&
-        !dd::get_dictionary()->is_dd_table_name(lpt->db, lpt->table_name))
-    {
-      if (dd::rename_table<dd::Table>(lpt->thd,
-                                      lpt->db,
-                                      shadow_name,
-                                      lpt->db,
-                                      lpt->table_name,
-                                      true /* WL7743/TODO to be removed with partitioning SE. */))
-      {
-        error= 1;
-        goto err;
-      }
-    }
-
-err:
-    deactivate_ddl_log_entry(lpt->part_info->frm_log_entry->entry_pos);
-    lpt->part_info->frm_log_entry= NULL;
-    (void) sync_ddl_log();
   }
 
   if (old_part_info)
@@ -2227,6 +2200,41 @@ int write_bin_log(THD *thd, bool clear_error,
                              errcode);
   }
   return error;
+}
+
+
+bool lock_trigger_names(THD *thd,
+                        TABLE_LIST *tables)
+{
+  for (TABLE_LIST *table= tables; table;
+      table= table->next_global)
+  {
+    List<LEX_CSTRING> trigger_names;
+
+    if (table->open_type == OT_TEMPORARY_ONLY ||
+        (table->open_type == OT_TEMPORARY_OR_BASE &&
+         is_temporary_table(table)))
+      continue;
+
+    if (dd::load_trigger_names(thd,
+                               thd->mem_root,
+                               table->db,
+                               table->table_name,
+                               &trigger_names))
+      return true;
+
+    List_iterator_fast<LEX_CSTRING> it(trigger_names);
+    LEX_CSTRING *trigger_name;
+
+    while ((trigger_name= it++))
+    {
+      if (acquire_exclusive_mdl_for_trigger(thd, table->db,
+                                            trigger_name->str))
+        return true;
+    }
+  }
+
+  return false;
 }
 
 
@@ -2302,8 +2310,10 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     if (!thd->locked_tables_mode)
     {
       if (lock_table_names(thd, tables, NULL,
-                           thd->variables.lock_wait_timeout, 0))
+                           thd->variables.lock_wait_timeout, 0) ||
+          lock_trigger_names(thd, tables))
         DBUG_RETURN(true);
+
       for (table= tables; table; table= table->next_local)
       {
         if (is_temporary_table(table))
@@ -2476,7 +2486,6 @@ static void append_table_name(String *to, const TABLE_LIST *table)
   to->append('.');
   to->append(String(table->table_name, system_charset_info));
 }
-
 
 /**
   Execute the drop of a normal or temporary table.
@@ -3074,27 +3083,39 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         DBUG_RETURN(1);
       }
 
+#ifdef HAVE_PSI_SP_INTERFACE
+      if (remove_all_triggers_from_perfschema(thd, table))
+        DBUG_RETURN(1);
+#endif
       /*
-        Remove table from data-dictionary and immediately commit this change.
-        This way chances of SE and data-dictionary getting out of sync in
-        case of crash are reduced.
-
-        Things will go bad if we will fail to delete table from data-dictionary
-        as table is already gone in SE. But this should be really rare situation
-        (OOM, out of disk space, bugs). Also user can fix it by running DROP TABLE
-        IF EXISTS on the same table again.
-
-        WL7743/TODO/QQ: Should we write incident to binary log in this case?
-                        After all replication might be broken after that...
+         Don't delete entry from DD in case we are dropping
+         DD tables in case of upgrade.
       */
-      error= dd::drop_table<dd::Table>(thd, table->db, table->table_name,
-                                       table_def, true, false);
+      if (!dd_upgrade_flag)
+      {
+        /*
+          Remove table from data-dictionary and immediately commit this change.
+          This way chances of SE and data-dictionary getting out of sync in
+          case of crash are reduced.
+
+          Things will go bad if we will fail to delete table from data-dictionary
+          as table is already gone in SE. But this should be really rare situation
+          (OOM, out of disk space, bugs). Also user can fix it by running DROP TABLE
+          IF EXISTS on the same table again.
+
+          WL7743/TODO/QQ: Should we write incident to binary log in this case?
+                          After all replication might be broken after that...
+        */
+        error= dd::drop_table<dd::Table>(thd, table->db, table->table_name,
+                                         table_def, true, false);
+
+        error|= update_referencing_views_metadata(thd, table);
+      }
 
       /* Invalidate even if we failed fully delete the table. */
       query_cache.invalidate_single(thd, table, FALSE);
 
-      if (error ||
-          drop_all_triggers(thd, table->db, table->table_name))
+      if (error)
         DBUG_RETURN(1);
 
       *dropped_non_atomic= true;
@@ -3361,11 +3382,19 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         DBUG_RETURN(1);
       }
 
-      if (dd::drop_table<dd::Table>(thd, table->db, table->table_name,
-                                    table_def, false, false))
+#ifdef HAVE_PSI_SP_INTERFACE
+      if (remove_all_triggers_from_perfschema(thd, table))
         DBUG_RETURN(1);
+#endif
 
-      if (drop_all_triggers(thd, table->db, table->table_name))
+      /*
+         Don't delete entry from DD in case we are dropping
+         DD tables in case of upgrade.
+      */
+      if (!dd_upgrade_flag &&
+          (dd::drop_table<dd::Table>(thd, table->db, table->table_name,
+                                     table_def, false, false) ||
+           update_referencing_views_metadata(thd, table)))
         DBUG_RETURN(1);
 
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
@@ -3395,7 +3424,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
       if (dd::drop_table<dd::Abstract_table>(thd, table->db,
                                              table->table_name,
-                                             false))
+                                             false) ||
+          update_referencing_views_metadata(thd, table))
         DBUG_RETURN(1);
 
       /*
@@ -4076,8 +4106,8 @@ static bool check_interval_length(const char *col_name,
   @return true if error, false if ok
 */
 
-static bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
-                                      longlong table_flags)
+bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
+                               longlong table_flags)
 {
   unsigned int dup_val_count;
   DBUG_ENTER("prepare_pack_create_field");
@@ -4636,26 +4666,10 @@ static bool prepare_enum_field(THD *thd, Create_field *sql_field)
 }
 
 
-/**
-  Prepares the column definitions for table creation.
-
-  @param thd                       Thread object.
-  @param create_info               Create information.
-  @param[in,out] create_list       List of columns to create.
-  @param[in,out] select_field_pos  Position where the SELECT columns start
-                                   for CREATE TABLE ... SELECT.
-  @param file                      The handler for the new table.
-  @param[in,out] sql_field         Create_field to populate.
-  @param field_no                  Column number.
-
-  @retval false   OK
-  @retval true    error
-*/
-
-static bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
-                                 List<Create_field> *create_list,
-                                 int *select_field_pos, handler *file,
-                                 Create_field *sql_field, int field_no)
+bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
+                          List<Create_field> *create_list,
+                          int *select_field_pos, handler *file,
+                          Create_field *sql_field, int field_no)
 {
   DBUG_ENTER("prepare_create_field");
   DBUG_ASSERT(create_list);
@@ -6275,6 +6289,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
   @param[out] key_info       Array of KEY objects describing keys in table
                              which was created.
   @param[out] key_count      Number of keys in table which was created.
+  @param      keys_onoff     Enable or disable keys.
   @param[out] fk_key_info    Array of FOREIGN_KEY objects describing foreign
                              keys in table which was created.
   @param[out] fk_key_count   Number of foreign keys in table which was created.
@@ -6314,6 +6329,7 @@ bool create_table_impl(THD *thd,
                        bool *is_trans,
                        KEY **key_info,
                        uint *key_count,
+                       Alter_info::enum_enable_or_disable keys_onoff,
                        FOREIGN_KEY **fk_key_info,
                        uint *fk_key_count,
                        FOREIGN_KEY *existing_fk_info,
@@ -6660,7 +6676,7 @@ bool create_table_impl(THD *thd,
   */
   if (rea_create_table(thd, path, db, table_name,
                        create_info, alter_info->create_list,
-                       *key_count, *key_info, *fk_key_count,
+                       *key_count, *key_info, keys_onoff, *fk_key_count,
                        *fk_key_info, file, no_ha_table,
                        tmp_table_def, post_ddl_ht))
     goto err;
@@ -6830,16 +6846,31 @@ bool mysql_create_table_no_lock(THD *thd,
     }
   }
 
-  // Don't create the DD tables in the DDSE unless installing the DD
+  /*
+    Don't create the DD tables in the DDSE unless installing the DD.
+
+    In upgrade scenario, to check the existence of version table,
+    we try to open it. This requires dd::Table object for this table.
+    To create this object we run CREATE TABLE statement for the table
+    but avoid creation of table inside SE. If version table is not
+    found, we create it inside SE on later steps.
+  */
+
+  bool is_stats_table= (!strcmp(db, "mysql")) &&
+                       ((!(strcmp(table_name, "innodb_table_stats")) ||
+                        !(strcmp(table_name, "innodb_index_stats"))));
+
   bool no_ha_table= false;
-  if (!opt_initialize &&
-        dd::get_dictionary()->is_dd_table_name(db, table_name))
+  if ((!opt_initialize || dd_upgrade_skip_se ||
+      (dd_upgrade_flag && is_stats_table)) &&
+      dd::get_dictionary()->is_dd_table_name(db, table_name))
     no_ha_table= true;
 
   return create_table_impl(thd, db, table_name, table_name,
                            path, create_info, alter_info,
                            false, select_field_count, no_ha_table, is_trans,
-                           &not_used_1, &not_used_2, &not_used_3, &not_used_4,
+                           &not_used_1, &not_used_2, Alter_info::ENABLE,
+                           &not_used_3, &not_used_4,
                            NULL, 0,
                            &not_used_5, post_ddl_ht);
 }
@@ -6872,7 +6903,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   */
   if (open_tables(thd, &thd->lex->query_tables, &not_used, 0))
   {
-    result= TRUE;
+    result= true;
     goto end;
   }
 
@@ -6890,6 +6921,11 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                                      create_table->table_name, create_info,
                                      alter_info, 0, &is_trans,
                                      &post_ddl_ht);
+
+  // Update view metadata.
+  if (!result)
+    result= update_referencing_views_metadata(thd, create_table);
+
   /*
     Don't write statement if:
     - Table creation has failed
@@ -7386,6 +7422,10 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
+
+  // Update view metadata.
+  if (update_referencing_views_metadata(thd, table))
+    goto err;
 
   /*
     We have to write the query before we unlock the tables.
@@ -8821,10 +8861,8 @@ static bool is_inplace_alter_impossible(TABLE *table,
     do the operation inplace as indexes or value of stored generated
     columns might become invalid.
   */
-  if ((alter_info->flags &
-       (Alter_info::ALTER_CHANGE_COLUMN_DEFAULT |
-        Alter_info::ALTER_CHANGE_COLUMN)) &&
-       table->has_gcol())
+  if ((alter_info->flags & Alter_info::ALTER_CHANGE_COLUMN_DEFAULT) &&
+      table->has_gcol())
   {
     for (Field **vfield= table->vfield; *vfield; vfield++)
     {
@@ -9200,6 +9238,9 @@ static bool mysql_inplace_alter_table(THD *thd,
     altered_table_def->set_schema_id(old_table_def->schema_id());
     altered_table_def->set_name(alter_ctx->alias);
 
+    // WL7743/TODO: add comment why we can't do this earlier.
+    altered_table_def->copy_triggers(old_table_def);
+
     if (dd::remove_sdi(thd, old_table_def, old_sch) ||
         thd->dd_client()->drop(old_table_def))
       goto cleanup2;
@@ -9313,25 +9354,6 @@ static bool mysql_inplace_alter_table(THD *thd,
         If the rename fails we will still have a working table
         with the old name, but with other changes applied.
       */
-      goto cleanup2;
-    }
-    if (change_trigger_table_name(thd,
-                                  alter_ctx->db,
-                                  alter_ctx->alias,
-                                  alter_ctx->table_name,
-                                  alter_ctx->new_db,
-                                  alter_ctx->new_alias))
-    {
-      /*
-        If the rename of trigger files fails, try to rename the table
-        back so we at least have matching table and trigger files.
-      */
-      (void) mysql_rename_table(thd, db_type,
-                                alter_ctx->new_db, alter_ctx->new_alias,
-                                alter_ctx->db, alter_ctx->alias,
-                                NO_FK_CHECKS | NO_TARGET_CHECK |
-                                ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) ?
-                                 NO_DD_COMMIT : 0));
       goto cleanup2;
     }
   }
@@ -10218,9 +10240,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     }
     if (key_parts.elements)
     {
-      KEY_CREATE_INFO key_create_info=
-        { HA_KEY_ALG_SE_SPECIFIC, false, 0, {NullS, 0}, {NullS, 0},
-          key_info->is_visible };
+      KEY_CREATE_INFO key_create_info(key_info->is_visible);
 
       keytype key_type;
 
@@ -10790,6 +10810,23 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       table->file->print_error(error, MYF(0));
       error= -1;
     }
+    else
+    {
+      /**
+        Update mysql.tables.options with keys_disabled=1/0 based on keys_onoff.
+        This will used by INFORMATION_SCHEMA.STATISTICS system view to display
+        keys were disabled.
+       */
+      if (dd::update_keys_disabled(thd, table_list->db, table_list->table_name,
+                                   keys_onoff))
+      {
+        table->file->print_error(error, MYF(0));
+        ha_rollback_trans(thd, false);
+        error= -1;
+      }
+      else
+        ha_commit_trans(thd, false, true);
+    }
   }
 
   if (!error && alter_ctx->is_table_renamed())
@@ -10812,26 +10849,12 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
                            alter_ctx->new_db, alter_ctx->new_alias,
                            NO_TARGET_CHECK | (atomic_ddl ? NO_DD_COMMIT: 0)))
       error= -1;
-    else if (change_trigger_table_name(thd,
-                                       alter_ctx->db,
-                                       alter_ctx->alias,
-                                       alter_ctx->table_name,
-                                       alter_ctx->new_db,
-                                       alter_ctx->new_alias))
-    {
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016_AND_WL7896
-      if (!atomic_ddl)
-#endif
-      {
-        (void) mysql_rename_table(thd, old_db_type,
-                                  alter_ctx->new_db, alter_ctx->new_alias,
-                                  alter_ctx->db, alter_ctx->table_name,
-                                  NO_FK_CHECKS | NO_TARGET_CHECK);
-      }
-      error= -1;
-    }
   }
 
+  // Update referencing views metadata.
+  if (!error)
+    error= update_referencing_views_metadata(thd, table_list, alter_ctx->new_db,
+                                             alter_ctx->new_alias);
   if (!error)
   {
     error= write_bin_log(thd, true, thd->query().str, thd->query().length,
@@ -11062,6 +11085,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (error)
     DBUG_RETURN(true);
 
+  if (lock_trigger_names(thd, table_list))
+    DBUG_RETURN(true);
+
   // Check if ALTER TABLE ... ENGINE is disallowed by the storage engine.
   if (table_list->table->s->db_type() != create_info->db_type &&
       (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
@@ -11101,6 +11127,21 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   thd->add_to_binlog_accessed_dbs(alter_ctx.db);
   if (alter_ctx.is_database_changed())
     thd->add_to_binlog_accessed_dbs(alter_ctx.new_db);
+
+  // Ensure that triggers are in the same schema as their subject table.
+  if (alter_ctx.is_database_changed())
+  {
+    bool table_has_trigger;
+    if (dd::table_has_triggers(thd, alter_ctx.db, alter_ctx.table_name,
+                               &table_has_trigger))
+      DBUG_RETURN(true);
+
+    if (table_has_trigger)
+    {
+      my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
+      DBUG_RETURN(true);
+    }
+  }
 
   MDL_request target_mdl_request;
 
@@ -11255,8 +11296,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
     }
     DBUG_RETURN(simple_rename_or_index_change(thd, table_list,
-                                              alter_info->keys_onoff,
-                                              &alter_ctx));
+					     alter_info->keys_onoff,
+					     &alter_ctx));
   }
 
   /* We have to do full alter table. */
@@ -11502,6 +11543,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     ownership to the TABLE_SHARE of the temporary table.
   */
   dd::Table *tmp_table_def;
+  Alter_info::enum_enable_or_disable keys_onoff=
+    ((alter_info->keys_onoff == Alter_info::LEAVE_AS_IS &&
+      table->file->indexes_are_disabled()) ? Alter_info::DISABLE :
+     alter_info->keys_onoff);
 
   /*
     Take the X metadata lock on temporary name used for new version of
@@ -11529,7 +11574,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                            alter_ctx.get_tmp_path(),
                            create_info, alter_info,
                            true, 0, true, NULL,
-                           &key_info, &key_count,
+                           &key_info, &key_count, keys_onoff,
                            &fk_key_info, &fk_key_count,
                            alter_ctx.fk_info, alter_ctx.fk_count,
                            &tmp_table_def, nullptr);
@@ -12129,14 +12174,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     goto err_with_mdl;
   }
 
-  // Check if we renamed the table and if so update trigger files.
-  if (alter_ctx.is_table_renamed() &&
-      change_trigger_table_name(thd,
-                                alter_ctx.db,
-                                alter_ctx.alias,
-                                alter_ctx.table_name,
-                                alter_ctx.new_db,
-                                alter_ctx.new_alias))
+  // Move triggers from old table to the new table.
+  if (dd::move_triggers(thd, alter_ctx.db, backup_name,
+                        alter_ctx.new_db, alter_ctx.new_alias,
+                        !atomic_replace))
   {
     if (!atomic_replace)
     {
@@ -12220,6 +12261,9 @@ end_inplace_noop:
     old_db_type->post_ddl(thd);
 
 end_inplace:
+
+  if (update_referencing_views_metadata(thd, table_list, new_db, new_name))
+    goto err_with_mdl;
 
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_mdl;

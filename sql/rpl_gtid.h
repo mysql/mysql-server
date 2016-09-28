@@ -443,7 +443,7 @@ public:
   /// Initialize this Checkable_rwlock.
   Checkable_rwlock(
 #if defined(HAVE_PSI_INTERFACE)
-                   PSI_rwlock_key psi_key= 0
+                   PSI_rwlock_key psi_key MY_ATTRIBUTE((unused))= 0
 #endif
                    )
   {

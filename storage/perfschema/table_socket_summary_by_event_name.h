@@ -45,6 +45,24 @@ struct row_socket_summary_by_event_name
   PFS_socket_io_stat_row m_io_stat;
 };
 
+class PFS_index_socket_summary_by_event_name
+  : public PFS_engine_index
+{
+public:
+  PFS_index_socket_summary_by_event_name()
+    : PFS_engine_index(&m_key),
+      m_key("EVENT_NAME")
+  {}
+
+  ~PFS_index_socket_summary_by_event_name()
+  {}
+
+  bool match(const PFS_socket_class *pfs);
+
+private:
+  PFS_key_event_name m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.SOCKET_SUMMARY_BY_EVENT_NAME. */
 class table_socket_summary_by_event_name : public PFS_engine_table
 {
@@ -55,9 +73,13 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 private:
   virtual int read_row_values(TABLE *table,
@@ -87,6 +109,9 @@ private:
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+protected:
+  PFS_index_socket_summary_by_event_name *m_opened_index;
 };
 
 /** @} */

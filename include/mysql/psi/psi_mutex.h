@@ -26,6 +26,7 @@
 */
 
 #include "my_global.h"
+#include "my_psi_config.h"  // IWYU pragma: keep
 #include "psi_base.h"
 
 /*

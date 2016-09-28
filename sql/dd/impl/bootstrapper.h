@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,21 @@
 #define DD__BOOTSTRAPPER_INCLUDED
 
 #include "my_global.h"
+#include <string>
 
 class THD;
+
+/**
+  Create a lex string for the query from the string supplied
+  and execute the query.
+
+  @param thd     Thread handle.
+  @param q_buf   String containing the query text.
+
+  @retval false  Success.
+  @retval true   Error.
+*/
+bool execute_query(THD *thd, const std::string &q_buf);
 
 
 /**
@@ -188,12 +201,74 @@ bool initialize(THD *thd);
       tables, and we will not be able to handle cache misses or updates to the
       meta data.
 
-  @param thd    Thread context.
+  @param thd            Thread context.
 
   @return       Upon failure, return true, otherwise false.
 */
 
 bool restart(THD *thd);
+
+
+/**
+  Iterate through all the plugins, and store IS table meta data
+  into dictionary, once during MySQL server bootstrap.
+
+  @param thd    Thread context.
+
+  @return       Upon failure, return true, otherwise false.
+*/
+bool store_plugin_IS_table_metadata(THD *thd);
+
+
+/**
+  Check if the server is starting on a data directory without dictionary
+  tables or not.
+
+  If the dictionary tables are present, continue with restart of the server.
+
+  If the dicionary tables are not present, create the dictionary tables in
+  existing data directory.  This function marks dd_upgrade_flag as true to
+  indicate to the server that Data dictionary is being upgraded.
+
+  metadata mysql.plugin table is migrated to the DD tables in case of upgrade.
+  mysql.plugin table is used to initialize all other Storage Engines.
+  This is necessary before migrating other user tables.
+
+  @param thd    Thread context.
+
+  @return       Upon failure, return true, otherwise false.
+*/
+bool upgrade_do_pre_checks_and_initialize_dd(THD *thd);
+
+/**
+  Finalize upgrade to the new data-dictionary by populating
+  Data Dictionary tables with metadata.
+
+  Populate metadata in Data dictionary tables.
+  This will be done for following database objects:
+  - Databases
+  - Tables
+  - Views
+  - Stored Procedures and Stored Functions
+  - Events
+  - Triggers
+
+  @param thd    Thread context.
+
+  @return       Upon failure, return true, otherwise false.
+*/
+bool upgrade_fill_dd_and_finalize(THD *thd);
+
+/**
+  Drop all DD tables in case there is an error while upgrading server.
+  See initialize_dd() and upgrade_dd() for further details.
+
+  @param thd    Thread context.
+
+  @return       Upon failure, return true, otherwise false.
+*/
+bool delete_dictionary_and_cleanup(THD *thd);
+
 }
 }
 

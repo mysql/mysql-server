@@ -54,7 +54,6 @@ class Server_task_interface;
 class Connection_acceptor_interface;
 class Incoming_queue;
 class Scheduler_dynamic;
-class Named_pipe_listener;
 class Server_acceptors;
 
 class Server: public Server_interface
@@ -148,6 +147,7 @@ private:
 
   bool m_timer_running;
   bool m_skip_name_resolve;
+  uint32 m_errors_while_accepting;
 
   boost::shared_ptr<Server_acceptors> m_acceptors;
   boost::shared_ptr<Scheduler_dynamic> m_accept_scheduler;

@@ -30,6 +30,8 @@
 #include <functional>
 #include "mysql/psi/mysql_memory.h"
 
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+
 static PSI_memory_key key_memory_MDL_context_acquire_locks;
 
 #ifdef HAVE_PSI_INTERFACE
@@ -104,7 +106,8 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
   {0, "Waiting for commit lock", 0},
   {0, "User lock", 0}, /* Be compatible with old status. */
   {0, "Waiting for locking service lock", 0},
-  {0, "Waiting for spatial reference system lock", 0}
+  {0, "Waiting for spatial reference system lock", 0},
+  {0, "Waiting for acl cache lock", 0}
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -221,7 +224,8 @@ public:
   bool is_lock_object_singleton(const MDL_key *mdl_key) const
   {
     return (mdl_key->mdl_namespace() == MDL_key::GLOBAL ||
-            mdl_key->mdl_namespace() == MDL_key::COMMIT);
+            mdl_key->mdl_namespace() == MDL_key::COMMIT ||
+            mdl_key->mdl_namespace() == MDL_key::ACL_CACHE);
   }
 
 private:
@@ -234,6 +238,8 @@ private:
   MDL_lock *m_global_lock;
   /** Pre-allocated MDL_lock object for COMMIT namespace. */
   MDL_lock *m_commit_lock;
+  /** Pre-allocated MDL_lock object for ACL_CACHE namespace. */
+  MDL_lock *m_acl_cache_lock;
   /**
     Number of unused MDL_lock objects in the server.
 
@@ -1021,14 +1027,15 @@ public:
   }
 
   /**
-    Check if MDL_lock object represents user-level lock or locking service
-    lock, so threads waiting for it need to check if connection is lost
-    and abort waiting when it is.
+    Check if MDL_lock object represents user-level lock,locking service
+    lock or acl cache lock, so threads waiting for it need to check if
+    connection is lost and abort waiting when it is.
   */
   static bool object_lock_needs_connection_check(const MDL_lock *lock)
   {
     return (lock->key.mdl_namespace() == MDL_key::USER_LEVEL_LOCK ||
-            lock->key.mdl_namespace() == MDL_key::LOCKING_SERVICE);
+            lock->key.mdl_namespace() == MDL_key::LOCKING_SERVICE ||
+            lock->key.mdl_namespace() == MDL_key::ACL_CACHE);
   }
 
   /**
@@ -1151,9 +1158,11 @@ void MDL_map::init()
 {
   MDL_key global_lock_key(MDL_key::GLOBAL, "", "");
   MDL_key commit_lock_key(MDL_key::COMMIT, "", "");
+  MDL_key acl_cache_lock_key(MDL_key::ACL_CACHE, "", "");
 
   m_global_lock= MDL_lock::create(&global_lock_key);
   m_commit_lock= MDL_lock::create(&commit_lock_key);
+  m_acl_cache_lock= MDL_lock::create(&acl_cache_lock_key);
 
   m_unused_lock_objects= 0;
 
@@ -1172,6 +1181,7 @@ void MDL_map::destroy()
 {
   MDL_lock::destroy(m_global_lock);
   MDL_lock::destroy(m_commit_lock);
+  MDL_lock::destroy(m_acl_cache_lock);
 
   lf_hash_destroy(&m_locks);
 }
@@ -1185,8 +1195,8 @@ void MDL_map::destroy()
   @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
   @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
                            FALSE - if MDL_lock object doesn't require pinning
-                                   (i.e. it is an object for GLOBAL or COMMIT
-                                   namespaces).
+                                   (i.e. it is an object for GLOBAL, COMMIT or
+                                   ACL_CACHE namespaces).
 
   @retval MY_LF_ERRPTR   - Failure (OOM)
   @retval other-non-NULL - MDL_lock object found.
@@ -1195,23 +1205,35 @@ void MDL_map::destroy()
 
 MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
 {
-  MDL_lock *lock;
+  MDL_lock *lock= NULL;
 
   if (is_lock_object_singleton(mdl_key))
   {
     /*
-      Avoid look up in m_locks hash when lock for GLOBAL or COMMIT namespace
-      is requested. Return pointer to pre-allocated MDL_lock instance instead.
-      Such an optimization allows us to avoid a few atomic operations for any
-      statement changing data.
+      Avoid look up in m_locks hash when lock for GLOBAL, COMMIT or ACL_CACHE
+      namespace is requested. Return pointer to pre-allocated MDL_lock instance
+      instead. Such an optimization allows us to avoid a few atomic operations
+      for any statement changing data.
 
       It works since these namespaces contain only one element so keys
       for them look like '<namespace-id>\0\0'.
     */
     DBUG_ASSERT(mdl_key->length() == 3);
 
-    lock= (mdl_key->mdl_namespace() == MDL_key::GLOBAL) ? m_global_lock :
-                                                          m_commit_lock;
+    switch (mdl_key->mdl_namespace())
+    {
+    case MDL_key::GLOBAL:
+      lock= m_global_lock;
+      break;
+    case MDL_key::COMMIT:
+      lock= m_commit_lock;
+      break;
+    case MDL_key::ACL_CACHE:
+      lock= m_acl_cache_lock;
+      break;
+    default:
+      DBUG_ASSERT(false);
+    }
 
     *pinned= false;
 
@@ -1243,8 +1265,8 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
   @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
   @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
                            FALSE - if MDL_lock object doesn't require pinning
-                                   (i.e. it is an object for GLOBAL or COMMIT
-                                   namespaces).
+                                   (i.e. it is an object for GLOBAL, COMMIT or
+                                   ACL_CACHE namespaces).
 
   @retval non-NULL - Success. MDL_lock instance for the key with
                      locked MDL_lock::m_rwlock.
@@ -1254,7 +1276,7 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
 MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
                                   bool *pinned)
 {
-  MDL_lock *lock;
+  MDL_lock *lock= NULL;
 
   while ((lock= find(pins, mdl_key, pinned)) == NULL)
   {
@@ -1534,6 +1556,15 @@ void MDL_request::init_with_source(MDL_key::enum_mdl_namespace mdl_namespace,
                        const char *src_file,
                        uint src_line)
 {
+#if !defined(DBUG_OFF)
+  // Make sure all I_S tables (except ndb tables) are in CAPITAL letters.
+  bool is_ndb_table= (name_arg && (strncmp(name_arg, "ndb", 3) == 0));
+  DBUG_ASSERT(mdl_namespace != MDL_key::TABLE ||
+              my_strcasecmp(system_charset_info, "information_schema", db_arg) ||
+              is_ndb_table ||
+              !name_arg || my_isupper(system_charset_info, name_arg[0]));
+#endif
+
   key.mdl_key_init(mdl_namespace, db_arg, name_arg);
   type= mdl_type_arg;
   duration= mdl_duration_arg;
@@ -3066,10 +3097,11 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   {
     mysql_mdl_set_status(ticket->m_psi, MDL_ticket::PRE_ACQUIRE_NOTIFY);
 
-    if (m_owner->notify_hton_pre_acquire_exclusive(key))
+    bool victimized;
+    if (m_owner->notify_hton_pre_acquire_exclusive(key, &victimized))
     {
       MDL_ticket::destroy(ticket);
-      my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+      my_error(victimized ? ER_LOCK_DEADLOCK : ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
       return TRUE;
     }
     ticket->m_hton_notified= true;
@@ -3080,7 +3112,7 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
 retry:
   /*
     The below call pins pointer to returned MDL_lock object (unless
-    it is the singleton object for GLOBAL or COMMIT namespaces).
+    it is the singleton object for GLOBAL, COMMIT or ACL_CACHE namespaces).
   */
   if (!(lock= mdl_locks.find_or_insert(m_pins, key, &pinned)))
   {
@@ -3404,10 +3436,11 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
 
     mysql_mdl_set_status(ticket->m_psi, MDL_ticket::PRE_ACQUIRE_NOTIFY);
 
-    if (m_owner->notify_hton_pre_acquire_exclusive(&mdl_request->key))
+    bool victimized;
+    if (m_owner->notify_hton_pre_acquire_exclusive(&mdl_request->key, &victimized))
     {
       MDL_ticket::destroy(ticket);
-      my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+      my_error(victimized ? ER_LOCK_DEADLOCK : ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
       return TRUE;
     }
     ticket->m_hton_notified= true;
@@ -4595,7 +4628,7 @@ MDL_context::owns_equal_or_stronger_lock(
 bool MDL_context::find_lock_owner(const MDL_key *mdl_key,
                                   MDL_context_visitor *visitor)
 {
-  MDL_lock *lock;
+  MDL_lock *lock= NULL;
   MDL_context *owner;
   bool pinned;
 
@@ -4757,6 +4790,42 @@ bool MDL_context::has_locks(MDL_key::enum_mdl_namespace mdl_namespace) const
   }
   return false;
 }
+
+
+/**
+  Do we hold any locks which are possibly being waited
+  for by another MDL_context?
+
+  @retval TRUE  A lock being 'waited_for' was found.
+  @retval FALSE No one waits for the lock(s) we hold.
+
+  @note Should only be called from the thread which
+        owns the MDL_context
+*/
+
+bool MDL_context::has_locks_waited_for() const
+{
+  MDL_ticket *ticket;
+
+  for (int i=0; i < MDL_DURATION_END; i++)
+  {
+    const enum_mdl_duration duration= static_cast<enum_mdl_duration>(i);
+    Ticket_iterator it(m_tickets[duration]);
+    while ((ticket= it++))
+    {
+      MDL_lock *const lock= ticket->m_lock;
+
+      mysql_prlock_rdlock(&lock->m_rwlock);
+      const bool has_waiters= !lock->m_waiting.is_empty();
+      mysql_prlock_unlock(&lock->m_rwlock);
+
+      if (!has_waiters)
+        return true;
+    }
+  }
+  return false;
+}
+
 
 
 /**

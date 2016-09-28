@@ -753,7 +753,7 @@ buf_read_ibuf_merge_pages(
 
 		buf_read_page_low(&err,
 				  sync && (i + 1 == n_stored),
-				  0,
+				  IORequest::IGNORE_MISSING,
 				  BUF_READ_ANY_PAGE, page_id, page_size,
 				  true);
 

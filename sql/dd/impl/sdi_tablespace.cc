@@ -68,6 +68,12 @@ bool lock_tablespace(THD *thd, const dd::Table *table)
 bool acquire_tablespace(THD *thd, const dd::Table *table,
                         const dd::Tablespace **tablespace)
 {
+  if (table->tablespace_id() == dd::INVALID_OBJECT_ID)
+  {
+    *tablespace= nullptr;
+    return false;
+  }
+
   if (lock_tablespace(thd, table))
   {
     return checked_return(true);

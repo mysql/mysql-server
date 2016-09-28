@@ -144,6 +144,9 @@ public:
   // Shutdown the shared maps.
   static void shutdown();
 
+  // Reset dd::Schema and dd::Table cache
+  static void reset_schema_cache();
+
   /**
     Get an element from the cache, given the key.
 

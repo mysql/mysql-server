@@ -533,7 +533,7 @@ error:
     FALSE       OK
 */
 
-static int federated_done(void *p)
+static int federated_done(void*)
 {
   my_hash_free(&federated_open_tables);
   mysql_mutex_destroy(&federated_mutex);
@@ -597,7 +597,7 @@ err:
 }
 
 
-static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
+static int parse_url_error(TABLE *table, int error_num)
 {
   char buf[FEDERATED_QUERY_BUFFER_SIZE];
   size_t buf_len;
@@ -911,7 +911,7 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
   DBUG_RETURN(0);
 
 error:
-  DBUG_RETURN(parse_url_error(share, table, error_num));
+  DBUG_RETURN(parse_url_error(table, error_num));
 }
 
 /*****************************************************************************
@@ -1620,8 +1620,7 @@ static int free_share(FEDERATED_SHARE *share)
 }
 
 
-ha_rows ha_federated::records_in_range(uint inx, key_range *start_key,
-                                       key_range *end_key)
+ha_rows ha_federated::records_in_range(uint, key_range*, key_range*)
 {
   /*
 
@@ -1646,8 +1645,7 @@ ha_rows ha_federated::records_in_range(uint inx, key_range *start_key,
   specific open().
 */
 
-int ha_federated::open(const char *name, int mode, uint test_if_locked,
-                       const dd::Table *)
+int ha_federated::open(const char *name, int, uint, const dd::Table *)
 {
   DBUG_ENTER("ha_federated::open");
 
@@ -1809,7 +1807,7 @@ bool ha_federated::append_stmt_insert(String *query)
   sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc, and sql_update.cc.
 */
 
-int ha_federated::write_row(uchar *buf)
+int ha_federated::write_row(uchar*)
 {
   char values_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char insert_field_value_buffer[STRING_BUFFER_USUAL_SIZE];
@@ -2047,7 +2045,7 @@ void ha_federated::update_auto_increment(void)
   DBUG_VOID_RETURN;
 }
 
-int ha_federated::optimize(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_federated::optimize(THD*, HA_CHECK_OPT*)
 {
   char query_buffer[STRING_BUFFER_USUAL_SIZE];
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
@@ -2069,7 +2067,7 @@ int ha_federated::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 
-int ha_federated::repair(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_federated::repair(THD*, HA_CHECK_OPT* check_opt)
 {
   char query_buffer[STRING_BUFFER_USUAL_SIZE];
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
@@ -2114,7 +2112,7 @@ int ha_federated::repair(THD* thd, HA_CHECK_OPT* check_opt)
   Called from sql_select.cc, sql_acl.cc, sql_update.cc, and sql_insert.cc.
 */
 
-int ha_federated::update_row(const uchar *old_data, uchar *new_data)
+int ha_federated::update_row(const uchar *old_data, uchar*)
 {
   /*
     This used to control how the query was built. If there was a
@@ -2267,7 +2265,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *new_data)
   calls.
 */
 
-int ha_federated::delete_row(const uchar *buf)
+int ha_federated::delete_row(const uchar*)
 {
   char delete_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char data_buffer[FEDERATED_QUERY_BUFFER_SIZE];
@@ -2498,7 +2496,7 @@ ha_rows ha_federated::estimate_rows_upper_bound()
 
 /* Initialized at each key walk (called multiple times unlike rnd_init()) */
 
-int ha_federated::index_init(uint keynr, bool sorted)
+int ha_federated::index_init(uint keynr, bool)
 {
   DBUG_ENTER("ha_federated::index_init");
   DBUG_PRINT("info", ("table: '%s'  key: %u", table->s->table_name.str, keynr));
@@ -2513,7 +2511,7 @@ int ha_federated::index_init(uint keynr, bool sorted)
 
 int ha_federated::read_range_first(const key_range *start_key,
                                    const key_range *end_key,
-                                   bool eq_range_arg, bool sorted)
+                                   bool eq_range_arg, bool)
 {
   char sql_query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   int retval;
@@ -3152,9 +3150,8 @@ THR_LOCK_DATA **ha_federated::store_lock(THD *thd,
   FUTURE: We should potentially connect to the foreign database and
 */
 
-int ha_federated::create(const char *name, TABLE *table_arg,
-                         HA_CREATE_INFO *create_info,
-                         dd::Table *)
+int ha_federated::create(const char *, TABLE *table_arg,
+                         HA_CREATE_INFO *, dd::Table *)
 {
   int retval;
   THD *thd= current_thd;
@@ -3345,7 +3342,7 @@ void ha_federated::free_result()
 }
 
  
-int ha_federated::external_lock(THD *thd, int lock_type)
+int ha_federated::external_lock(THD*, int)
 {
   int error= 0;
   DBUG_ENTER("ha_federated::external_lock");

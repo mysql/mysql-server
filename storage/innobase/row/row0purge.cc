@@ -815,7 +815,7 @@ skip_secondaries:
 				- BTR_EXTERN_FIELD_REF_SIZE;
 
 			lob::BtrContext	btr_ctx(
-				&mtr, NULL, index, NULL, NULL, NULL);
+				&mtr, NULL, index, NULL, NULL, block);
 
 			lob::DeleteContext ctx(btr_ctx,
 				field_ref, 0, false);
@@ -894,12 +894,11 @@ try_again:
 #endif /* INNODB_DD_VC_SUPPORT */
 
 	/* FIX_ME: NEW_DD, after Sept 10th merge, we cannot call
-        dd_table_open_on_id() before server fully up */
-        while (table_id >=16  && !mysqld_server_started) {
+	dd_table_open_on_id() before server fully up */
+	while (table_id >= 16 && !mysqld_server_started) {
 		if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-			return(false);
-		}
-
+                        return(false);
+                }
                 os_thread_sleep(1000000);
         }
 
@@ -923,7 +922,6 @@ try_again:
 
 			node->table = dd_table_open_on_id(
 				table_id, thd, &node->mdl);
-				//table_id, thd, NULL);
 
 			if (node->table != nullptr) {
 				break;

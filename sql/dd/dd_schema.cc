@@ -50,16 +50,15 @@ bool schema_exists(THD *thd, const char *schema_name, bool *exists)
 
 
 bool create_schema(THD *thd, const char *schema_name,
-                   const HA_CREATE_INFO *create_info)
+                   const CHARSET_INFO *charset_info)
 {
   // Create dd::Schema object.
   dd::Schema *sch_obj= dd::create_object<dd::Schema>();
 
   // Set schema name and collation id.
   sch_obj->set_name(schema_name);
-  DBUG_ASSERT(create_info->default_table_charset);
-  sch_obj->set_default_collation_id(
-    create_info->default_table_charset->number);
+  DBUG_ASSERT(charset_info);
+  sch_obj->set_default_collation_id(charset_info->number);
 
   Disable_gtid_state_update_guard disabler(thd);
 
@@ -67,7 +66,11 @@ bool create_schema(THD *thd, const char *schema_name,
   if (get_dictionary()->is_dd_schema_name(schema_name))
   {
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    thd->dd_client()->add_and_reset_id(sch_obj);
+
+    // Always reset id to 1 if we are creating DD schema from bootstrap thread
+    bool reset_id= thd->is_dd_system_thread();
+
+    thd->dd_client()->add_and_reset_id(sch_obj, reset_id);
     thd->dd_client()->set_sticky(sch_obj, true);
     // Note that the object is now owned by the shared cache, so we cannot
     // delete it here.
@@ -94,7 +97,7 @@ bool create_schema(THD *thd, const char *schema_name,
 
 
 bool alter_schema(THD *thd, const char *schema_name,
-                  const HA_CREATE_INFO *create_info)
+                  const CHARSET_INFO *charset_info)
 {
   dd::cache::Dictionary_client *client= thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
@@ -120,9 +123,7 @@ bool alter_schema(THD *thd, const char *schema_name,
   std::unique_ptr<dd::Schema> new_sch_obj(sch_obj->clone());
 
   // Set new collation ID.
-  DBUG_ASSERT(create_info->default_table_charset);
-  new_sch_obj->set_default_collation_id(
-    create_info->default_table_charset->number);
+  new_sch_obj->set_default_collation_id(charset_info->number);
 
   Disable_gtid_state_update_guard disabler(thd);
 

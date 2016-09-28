@@ -2018,3 +2018,35 @@ SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT_WS('1',''));
 SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT('',''));
 SET NAMES DEFAULT;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#24376444 USING COLLATE IN WHERE CLAUSE PREVENTS OPTIMIZER FROM
+--echo #              CONSIDERING INDEXES
+CREATE TABLE dd_table (name VARCHAR(64) COLLATE utf8_tolower_ci, UNIQUE KEY(name));
+INSERT INTO dd_table VALUES('t1'), ('t2');
+CREATE VIEW view1 AS SELECT name AS table_name FROM dd_table;
+CREATE VIEW view2 AS SELECT name COLLATE utf8_tolower_ci AS table_name FROM dd_table;
+DELIMITER |;
+CREATE PROCEDURE sub1(id CHAR(10) CHARACTER SET utf8)
+BEGIN
+SELECT * FROM view1 WHERE table_name=id COLLATE utf8_tolower_ci;
+EXPLAIN SELECT * FROM view1 WHERE table_name=id COLLATE utf8_tolower_ci;
+SELECT * FROM view2 WHERE table_name=id;
+EXPLAIN SELECT * FROM view2 WHERE table_name=id;
+SELECT * FROM dd_table WHERE name COLLATE utf8_tolower_ci = id;
+EXPLAIN SELECT * FROM dd_table WHERE name COLLATE utf8_tolower_ci = id;
+SELECT * FROM view1 WHERE id COLLATE utf8_tolower_ci=table_name;
+EXPLAIN SELECT * FROM view1 WHERE id COLLATE utf8_tolower_ci=table_name;
+SELECT * FROM view2 WHERE id=table_name;
+EXPLAIN SELECT * FROM view2 WHERE id=table_name;
+SELECT * FROM dd_table WHERE id = name COLLATE utf8_tolower_ci;
+EXPLAIN SELECT * FROM dd_table WHERE id = name COLLATE utf8_tolower_ci;
+SELECT * FROM view1 WHERE table_name COLLATE utf8_tolower_ci = id;
+EXPLAIN SELECT * FROM view1 WHERE table_name COLLATE utf8_tolower_ci = id;
+END |
+DELIMITER ;|
+CALL sub1('t1');
+DROP PROCEDURE sub1;
+DROP VIEW view1;
+DROP VIEW view2;
+DROP TABLE dd_table;

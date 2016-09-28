@@ -150,6 +150,7 @@ public:
       set_group_rpa(false),
       group_sent(false),
       calc_found_rows(false),
+      with_json_agg(select->json_agg_func_used()),
       optimized(false),
       executed(false),
       plan_state(NO_PLAN)
@@ -556,6 +557,15 @@ public:
   bool group_sent;
   /// If true, calculate found rows for this query block
   bool calc_found_rows;
+
+  /**
+    This will force tmp table to NOT use index + update for group
+    operation as it'll cause [de]serialization for each json aggregated
+    value and is very ineffective (times worse).
+    Server should use filesort, or tmp table + filesort to resolve GROUP BY
+    with JSON aggregate functions.
+  */
+  bool with_json_agg;
 
   /// True if plan is const, ie it will return zero or one rows.
   bool plan_is_const() const { return const_tables == primary_tables; }

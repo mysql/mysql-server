@@ -20,6 +20,12 @@
 # privileges.
 --source include/not_embedded.inc
 
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
 --source include/have_innodb.inc
 let $engine_type       = InnoDB;
 let $other_engine_type = InnoDB;
@@ -123,6 +129,7 @@ CREATE TABLE db_datadict.t1
    (f1 CHAR(10), f2 TEXT, f3 DATE, f4 INT AUTO_INCREMENT,
     UNIQUE INDEX MUL_IDX(f1,f3), PRIMARY KEY (f4))
 ENGINE = $other_engine_type;
+ANALYZE TABLE db_datadict.t1;
 CREATE VIEW db_datadict.v1 AS SELECT 1 AS f1, 1 AS f2;
 GRANT SELECT(f1, f2) ON db_datadict.t1 TO 'testuser1'@'localhost';
 GRANT SELECT(f2)     ON db_datadict.v1 TO 'testuser1'@'localhost';
@@ -132,6 +139,7 @@ eval
 CREATE TABLE db_datadict.t2
 (f1 CHAR(10), f2 TEXT, f3 DATE, f4 INT, PRIMARY KEY (f1,f4))
 ENGINE = $other_engine_type;
+ANALYZE TABLE db_datadict.t2;
 GRANT INSERT(f1, f2) ON db_datadict.t2 TO 'testuser2'@'localhost';
 
 let $my_select= SELECT * FROM information_schema.columns
@@ -317,7 +325,8 @@ ALTER TABLE db_datadict.t1_my_tablex
 ADD COLUMN second_col CHAR(10);
 SELECT table_name, column_name
 FROM information_schema.columns
-WHERE table_name = 't1_my_tablex';
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_name, column_name;
 #
 # Check switch ordinal position of column
 SELECT table_name, column_name, ordinal_position
@@ -334,7 +343,8 @@ ORDER BY table_name, column_name;
 # Check DROP COLUMN
 SELECT table_name, column_name
 FROM information_schema.columns
-WHERE table_name = 't1_my_tablex';
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_name, column_name;
 ALTER TABLE db_datadict.t1_my_tablex
 DROP COLUMN first_col;
 SELECT table_name, column_name

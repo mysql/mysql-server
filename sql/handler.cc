@@ -47,11 +47,11 @@
 #include "sql_plugin.h"               // plugin_foreach
 #include "sql_table.h"                // build_table_filename
 #include "transaction.h"              // trans_commit_implicit
-#include "trigger_def.h"              // TRG_EXT
 #include "sql_select.h"               // actual_key_parts
 #include "rpl_write_set_handler.h"    // add_pke
 #include "auth_common.h"              // check_readonly() and SUPER_ACL
 
+#include "dd/dd.h"                    // dd::get_dictionary
 #include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
 #include "dd/sdi_file.h"              // dd::sdi_file::store
 
@@ -111,8 +111,9 @@
           case PSI_BATCH_MODE_NONE:                           \
           {                                                   \
             PSI_table_locker *sub_locker= NULL;               \
+            PSI_table_locker_state reentrant_safe_state;      \
             sub_locker= PSI_TABLE_CALL(start_table_io_wait)   \
-              (& m_psi_locker_state, m_psi, OP, INDEX,        \
+              (& reentrant_safe_state, m_psi, OP, INDEX,      \
                __FILE__, __LINE__);                           \
             PAYLOAD                                           \
             if (sub_locker != NULL)                           \
@@ -265,47 +266,31 @@ const char *tx_isolation_names[] =
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names, NULL};
 
-/**
-  Database name that hold most of mysqld system tables.
-  Current code assumes that, there exists only some
-  specific "database name" designated as system database.
-*/
-static const char* mysqld_system_database= "mysql";
-
-// System tables that belong to mysqld_system_database.
+// System tables that belong to the 'mysql' system database.
+// These are the "dictionary external system tables" (see WL#6391).
 st_handler_tablename mysqld_system_tables[]= {
-  {mysqld_system_database, "db"},
-  {mysqld_system_database, "user"},
-  {mysqld_system_database, "host"},
-  {mysqld_system_database, "func"},
-  {mysqld_system_database, "plugin"},
-  {mysqld_system_database, "servers"},
-  {mysqld_system_database, "procs_priv"},
-  {mysqld_system_database, "tables_priv"},
-  {mysqld_system_database, "proxies_priv"},
-  {mysqld_system_database, "columns_priv"},
-  {mysqld_system_database, "time_zone"},
-  {mysqld_system_database, "time_zone_name"},
-  {mysqld_system_database, "time_zone_leap_second"},
-  {mysqld_system_database, "time_zone_transition"},
-  {mysqld_system_database, "time_zone_transition_type"},
-  {mysqld_system_database, "help_category"},
-  {mysqld_system_database, "help_keyword"},
-  {mysqld_system_database, "help_relation"},
-  {mysqld_system_database, "help_topic"},
+  {MYSQL_SCHEMA_NAME.str, "db"},
+  {MYSQL_SCHEMA_NAME.str, "user"},
+  {MYSQL_SCHEMA_NAME.str, "host"},
+  {MYSQL_SCHEMA_NAME.str, "func"},
+  {MYSQL_SCHEMA_NAME.str, "plugin"},
+  {MYSQL_SCHEMA_NAME.str, "servers"},
+  {MYSQL_SCHEMA_NAME.str, "procs_priv"},
+  {MYSQL_SCHEMA_NAME.str, "tables_priv"},
+  {MYSQL_SCHEMA_NAME.str, "proxies_priv"},
+  {MYSQL_SCHEMA_NAME.str, "columns_priv"},
+  {MYSQL_SCHEMA_NAME.str, "time_zone"},
+  {MYSQL_SCHEMA_NAME.str, "time_zone_name"},
+  {MYSQL_SCHEMA_NAME.str, "time_zone_leap_second"},
+  {MYSQL_SCHEMA_NAME.str, "time_zone_transition"},
+  {MYSQL_SCHEMA_NAME.str, "time_zone_transition_type"},
+  {MYSQL_SCHEMA_NAME.str, "help_category"},
+  {MYSQL_SCHEMA_NAME.str, "help_keyword"},
+  {MYSQL_SCHEMA_NAME.str, "help_relation"},
+  {MYSQL_SCHEMA_NAME.str, "help_topic"},
   {(const char *)NULL, (const char *)NULL} /* This must be at the end */
 };
 
-/**
-  This static pointer holds list of system databases from SQL layer and
-  various SE's. The required memory is allocated once, and never freed.
-*/
-static const char **known_system_databases= NULL;
-static const char **ha_known_system_databases();
-
-// Called for each SE to get SE specific system database.
-static my_bool system_databases_handlerton(THD *unused, plugin_ref plugin,
-                                           void *arg);
 
 // Called for each SE to check if given db.table_name is a system table.
 static my_bool check_engine_system_table_handlerton(THD *unused,
@@ -963,13 +948,6 @@ int ha_init()
   opt_using_transactions=
     se_plugin_array.size() > static_cast<ulong>(opt_bin_log);
   savepoint_alloc_size+= sizeof(SAVEPOINT);
-
-  /*
-    Initialize system database name cache.
-    This cache is used to do a quick check if a given
-    db.tablename is a system table.
-  */
-  known_system_databases= ha_known_system_databases();
 
   DBUG_RETURN(error);
 }
@@ -2172,46 +2150,6 @@ int ha_commit_attachable(THD *thd)
 
 
 /**
-  @details
-  This function should be called when MySQL sends rows of a SELECT result set
-  or the EOF mark to the client. It releases a possible adaptive hash index
-  S-latch held by thd in InnoDB and also releases a possible InnoDB query
-  FIFO ticket to enter InnoDB. To save CPU time, InnoDB allows a thd to
-  keep them over several calls of the InnoDB handler interface when a join
-  is executed. But when we let the control to pass to the client they have
-  to be released because if the application program uses mysql_use_result(),
-  it may deadlock on the S-latch if the application on another connection
-  performs another SQL query. In MySQL-4.1 this is even more important because
-  there a connection can have several SELECT queries open at the same time.
-
-  @param thd           the thread handle of the current connection
-
-  @return
-    always 0
-*/
-
-int ha_release_temporary_latches(THD *thd)
-{
-  const Ha_trx_info *info;
-  Transaction_ctx *trn_ctx= thd->get_transaction();
-
-  /*
-    Note that below we assume that only transactional storage engines
-    may need release_temporary_latches(). If this will ever become false,
-    we could iterate on thd->open_tables instead (and remove duplicates
-    as if (!seen[hton->slot]) { seen[hton->slot]=1; ... }).
-  */
-  for (info= trn_ctx->ha_trx_info(Transaction_ctx::STMT);
-       info; info= info->next())
-  {
-    handlerton *hton= info->ht();
-    if (hton && hton->release_temporary_latches)
-        hton->release_temporary_latches(hton, thd);
-  }
-  return 0;
-}
-
-/**
   Check if all storage engines used in transaction agree that after
   rollback to savepoint it is safe to release MDL locks acquired after
   savepoint creation.
@@ -2903,7 +2841,7 @@ int handler::ha_index_init(uint idx, bool sorted)
 {
   DBUG_EXECUTE_IF("ha_index_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
   int result;
-  DBUG_ENTER("ha_index_init");
+  DBUG_ENTER("handler::ha_index_init");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == NONE);
@@ -2924,7 +2862,7 @@ int handler::ha_index_init(uint idx, bool sorted)
 
 int handler::ha_index_end()
 {
-  DBUG_ENTER("ha_index_end");
+  DBUG_ENTER("handler::ha_index_end");
   /* SQL HANDLER function can call this without having it locked. */
   DBUG_ASSERT(table->open_by_handler ||
               table_share->tmp_table != NO_TMP_TABLE ||
@@ -2952,7 +2890,7 @@ int handler::ha_rnd_init(bool scan)
 {
   DBUG_EXECUTE_IF("ha_rnd_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
   int result;
-  DBUG_ENTER("ha_rnd_init");
+  DBUG_ENTER("handler::ha_rnd_init");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == NONE || (inited == RND && scan));
@@ -2972,7 +2910,7 @@ int handler::ha_rnd_init(bool scan)
 
 int handler::ha_rnd_end()
 {
-  DBUG_ENTER("ha_rnd_end");
+  DBUG_ENTER("handler::ha_rnd_end");
   /* SQL HANDLER function can call this without having it locked. */
   DBUG_ASSERT(table->open_by_handler ||
               table_share->tmp_table != NO_TMP_TABLE ||
@@ -3135,6 +3073,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                    enum ha_rkey_function find_flag)
 {
   int result;
+  DBUG_ENTER("handler::ha_index_read_idx_map");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(end_range == NULL);
@@ -3150,7 +3089,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
     result= update_generated_read_fields(buf, table, index);
     m_update_generated_read_fields= false;
   }
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -4378,7 +4317,8 @@ int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
 }
 
 
-int handler::check_old_types()
+// Function identifies any old data type present in table.
+int check_table_for_old_types(const TABLE *table)
 {
   Field** field;
 
@@ -4548,7 +4488,7 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
 
   if (table->s->mysql_version < MYSQL_VERSION_ID)
   {
-    if ((error= check_old_types()))
+    if ((error= check_table_for_old_types(table)))
       return error;
     error= ha_check_for_upgrade(check_opt);
     if (error && (error != HA_ADMIN_NEEDS_CHECK))
@@ -4991,9 +4931,10 @@ handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
 */
 #include "dd/types/table.h"
 bool
-handler::ha_get_se_private_data(dd::Table *dd_table, uint dd_version)
+handler::ha_get_se_private_data(dd::Table *dd_table, uint dd_version,
+                                bool reset_id)
 {
-  return get_se_private_data(dd_table, dd_version);
+  return get_se_private_data(dd_table, dd_version, reset_id);
 }
 
 
@@ -5370,32 +5311,16 @@ static bool check_if_system_table(const char *db,
                                   bool *is_sql_layer_system_table)
 {
   st_handler_tablename *systab;
-  const char **names;
-  bool is_system_database= false;
-  const char *found_db_name= NULL;
 
-  // Check if we have a system database name in the command.
-  names= known_system_databases;
-  while (names && *names)
-  {
-    if (strcmp(*names, db) == 0)
-    {
-      /* Used to compare later, will be faster */
-      found_db_name= *names;
-      is_system_database= true;
-      break;
-    }
-    names++;
-  }
-  if (!is_system_database)
+  // Check if we have the system database name in the command.
+  if (!dd::get_dictionary()->is_dd_schema_name(db))
     return false;
 
   // Check if this is SQL layer system tables.
   systab= mysqld_system_tables;
   while (systab && systab->db)
   {
-    if (systab->db == found_db_name &&
-        strcmp(systab->tablename, table_name) == 0)
+    if (strcmp(systab->tablename, table_name) == 0)
     {
       *is_sql_layer_system_table= true;
       break;
@@ -5535,62 +5460,6 @@ static my_bool check_engine_system_table_handlerton(THD *unused,
     }
     else
       check_params->status= st_sys_tbl_chk_params::KNOWN_SYSTEM_TABLE;
-  }
-
-  return FALSE;
-}
-
-/*
-  Prepare list of all known system database names
-  current we just have 'mysql' as system database name.
-
-  Later ndbcluster, innodb SE's can define some new database
-  name which can store system tables specific to SE.
-*/
-const char** ha_known_system_databases(void)
-{
-  list<const char*> found_databases;
-  const char **databases, **database;
-
-  // Get mysqld system database name.
-  found_databases.push_back((char*) mysqld_system_database);
-
-  // Get system database names from every specific storage engine.
-  plugin_foreach(NULL, system_databases_handlerton,
-                 MYSQL_STORAGE_ENGINE_PLUGIN, &found_databases);
-
-  databases= (const char **) my_once_alloc(sizeof(char *)*
-                                     (found_databases.size()+1),
-                                     MYF(MY_WME | MY_FAE));
-  DBUG_ASSERT(databases != NULL);
-
-  list<const char*>::iterator it;
-  database= databases;
-  for (it= found_databases.begin(); it != found_databases.end(); it++)
-    *database++= *it;
-  *database= 0; // Last element.
-
-  return databases;
-}
-
-/**
-  @brief Fetch system database name specific to SE.
-
-  @details This function is invoked by plugin_foreach() from
-           ha_known_system_databases(), for each storage engine.
-*/
-static my_bool system_databases_handlerton(THD *unused, plugin_ref plugin,
-                                           void *arg)
-{
-  list<const char*> *found_databases= (list<const char*> *) arg;
-  const char *db;
-
-  handlerton *hton= plugin_data<handlerton*>(plugin);
-  if (hton->system_database)
-  {
-    db= hton->system_database();
-    if (db)
-      found_databases->push_back(db);
   }
 
   return FALSE;
@@ -7827,9 +7696,6 @@ TYPELIB* ha_known_exts()
   List<char> found_exts;
   const char **ext, *old_ext;
 
-  found_exts.push_back((char*) TRG_EXT);
-  found_exts.push_back((char*) TRN_EXT);
-
   plugin_foreach(NULL, exts_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &found_exts);
 
@@ -8756,9 +8622,17 @@ bool handler::my_eval_gcolumn_expr(THD *thd, TABLE *table,
 
 struct HTON_NOTIFY_PARAMS
 {
+  HTON_NOTIFY_PARAMS(const MDL_key *mdl_key,
+                     ha_notification_type mdl_type)
+    : key(mdl_key), notification_type(mdl_type),
+      some_htons_were_notified(false),
+      victimized(false)
+  {}
+
   const MDL_key *key;
   const ha_notification_type notification_type;
   bool some_htons_were_notified;
+  bool victimized;
 };
 
 
@@ -8771,7 +8645,8 @@ notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
     HTON_NOTIFY_PARAMS *params= reinterpret_cast<HTON_NOTIFY_PARAMS*>(arg);
 
     if (hton->notify_exclusive_mdl(thd, params->key,
-                                   params->notification_type))
+                                   params->notification_type,
+                                   &params->victimized))
     {
       // Ignore failures from post event notification.
       if (params->notification_type == HA_NOTIFY_PRE_EVENT)
@@ -8794,6 +8669,8 @@ notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
                             lock is to be acquired/was released.
   @param notification_type  Indicates whether this is pre-acquire or
                             post-release notification.
+  @param victimized        'true' if locking failed as we were selected
+                            as a victim in order to avoid possible deadlocks.
 
   See @sa handlerton::notify_exclusive_mdl for details about
   calling convention and error reporting.
@@ -8803,12 +8680,15 @@ notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
 */
 
 bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
-                             ha_notification_type notification_type)
+                             ha_notification_type notification_type,
+                             bool *victimized)
 {
-  HTON_NOTIFY_PARAMS params = {mdl_key, notification_type, false};
+  HTON_NOTIFY_PARAMS params(mdl_key, notification_type);
+  *victimized = false;
   if (plugin_foreach(thd, notify_exclusive_mdl_helper,
                      MYSQL_STORAGE_ENGINE_PLUGIN, &params))
   {
+    *victimized = params.victimized;
     /*
       If some SE hasn't given its permission to acquire lock and some SEs
       has given their permissions, we need to notify the latter group about
@@ -8818,8 +8698,7 @@ bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
     if (notification_type == HA_NOTIFY_PRE_EVENT &&
         params.some_htons_were_notified)
     {
-      HTON_NOTIFY_PARAMS rollback_params = {mdl_key, HA_NOTIFY_POST_EVENT,
-                                            false};
+      HTON_NOTIFY_PARAMS rollback_params(mdl_key, HA_NOTIFY_POST_EVENT);
       (void) plugin_foreach(thd, notify_exclusive_mdl_helper,
                             MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
     }
@@ -8870,7 +8749,7 @@ notify_alter_table_helper(THD *thd, plugin_ref plugin, void *arg)
 bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                            ha_notification_type notification_type)
 {
-  HTON_NOTIFY_PARAMS params = {mdl_key, notification_type, false};
+  HTON_NOTIFY_PARAMS params(mdl_key, notification_type);
 
   if (plugin_foreach(thd, notify_alter_table_helper,
                      MYSQL_STORAGE_ENGINE_PLUGIN, &params))
@@ -8884,8 +8763,7 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
     if (notification_type == HA_NOTIFY_PRE_EVENT &&
         params.some_htons_were_notified)
     {
-      HTON_NOTIFY_PARAMS rollback_params = {mdl_key, HA_NOTIFY_POST_EVENT,
-                                            false};
+      HTON_NOTIFY_PARAMS rollback_params(mdl_key, HA_NOTIFY_POST_EVENT);
       (void) plugin_foreach(thd, notify_alter_table_helper,
                             MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
     }

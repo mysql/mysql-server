@@ -96,9 +96,12 @@ Columns::Columns()
   m_target_def.add_field(FIELD_DEFAULT_VALUE,
                          "FIELD_DEFAULT_VALUE",
                          "default_value BLOB");
+  m_target_def.add_field(FIELD_DEFAULT_VALUE_UTF8,
+                         "FIELD_DEFAULT_VALUE_UTF8",
+                         "default_value_utf8 TEXT");
   m_target_def.add_field(FIELD_DEFAULT_OPTION,
                          "FIELD_DEFAULT_OPTION",
-                         "default_option VARCHAR(32)");
+                         "default_option BLOB");
   m_target_def.add_field(FIELD_UPDATE_OPTION,
                          "FIELD_UPDATE_OPTION",
                          "update_option VARCHAR(32)");
@@ -126,6 +129,13 @@ Columns::Columns()
   m_target_def.add_field(FIELD_SE_PRIVATE_DATA,
                          "FIELD_SE_PRIVATE_DATA",
                          "se_private_data MEDIUMTEXT");
+  m_target_def.add_field(FIELD_COLUMN_KEY,
+                         "FIELD_COLUMN_KEY",
+                         "column_key ENUM('','PRI','UNI','MUL') NOT NULL");
+  m_target_def.add_field(FIELD_COLUMN_TYPE_UTF8,
+                         "FIELD_COLUMN_TYPE_UTF8",
+                         "column_type_utf8 MEDIUMTEXT NOT NULL");
+
 
   m_target_def.add_index("PRIMARY KEY(id)");
   m_target_def.add_index("UNIQUE KEY(table_id, name)");

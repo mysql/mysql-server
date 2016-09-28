@@ -781,13 +781,3 @@ ERROR_FOR_DIVISION_BY_ZERO
 # Restore sql mode
 #
 SET sql_mode= @org_mode;
-#
-# Check that NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
-# are removed in triggers after upgrading to 5.7.
-#
-CREATE TABLE account (acct_num INT, amount DECIMAL(10,2));
-SHOW CREATE TRIGGER ins_sum;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-ins_sum	STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO	CREATE DEFINER=`root`@`localhost` TRIGGER ins_sum BEFORE INSERT ON account FOR EACH ROW SET @sum = @sum + NEW.amount	utf8	utf8_general_ci	latin1_swedish_ci	NULL
-# Clean-up
-DROP TABLE account;

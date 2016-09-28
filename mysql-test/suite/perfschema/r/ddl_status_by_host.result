@@ -8,3 +8,6 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 CREATE UNIQUE INDEX test_index
 ON performance_schema.status_by_host(VARIABLE_NAME);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+DROP INDEX `HOST`
+  ON performance_schema.status_by_host;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

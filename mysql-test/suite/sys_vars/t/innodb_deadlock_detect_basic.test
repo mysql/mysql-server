@@ -15,10 +15,6 @@ select @@session.innodb_deadlock_detect in (0, 1);
 select @@session.innodb_deadlock_detect;
 show global variables like 'innodb_deadlock_detect';
 show session variables like 'innodb_deadlock_detect';
---disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_deadlock_detect';
-select * from performance_schema.session_variables where variable_name='innodb_deadlock_detect';
---enable_warnings
 
 #
 # show that it's writable
@@ -27,24 +23,12 @@ set global innodb_deadlock_detect='OFF';
 --error ER_GLOBAL_VARIABLE
 set session innodb_deadlock_detect='OFF';
 select @@global.innodb_deadlock_detect;
---disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_deadlock_detect';
---enable_warnings
 set @@global.innodb_deadlock_detect=1;
 select @@global.innodb_deadlock_detect;
---disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_deadlock_detect';
---enable_warnings
 set global innodb_deadlock_detect=0;
 select @@global.innodb_deadlock_detect;
---disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_deadlock_detect';
---enable_warnings
 set @@global.innodb_deadlock_detect='ON';
 select @@global.innodb_deadlock_detect;
---disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_deadlock_detect';
---enable_warnings
 
 #
 # incorrect types
@@ -59,9 +43,6 @@ set global innodb_deadlock_detect=2;
 set global innodb_deadlock_detect='AUTO';
 set global innodb_deadlock_detect=-3;
 select @@global.innodb_deadlock_detect;
---disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_deadlock_detect';
---enable_warnings
 
 #
 # Cleanup

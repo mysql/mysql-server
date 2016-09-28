@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -111,6 +111,16 @@ table_mems_global_by_event_name::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_mems_global_by_event_name::match(PFS_instr_class *instr_class)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(instr_class))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table* table_mems_global_by_event_name::create(void)
 {
   return new table_mems_global_by_event_name();
@@ -215,6 +225,70 @@ int table_mems_global_by_event_name::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_mems_global_by_event_name::index_init(uint idx, bool sorted)
+{
+  PFS_index_mems_global_by_event_name *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_mems_global_by_event_name);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_mems_global_by_event_name::index_next(void)
+{
+  PFS_memory_class *pfs;
+  PFS_builtin_memory_class *pfs_builtin;
+
+  /* Do not advertise hard coded instruments when disabled. */
+  if (!pfs_initialized)
+    return HA_ERR_END_OF_FILE;
+
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.has_more_view();
+       m_pos.next_view())
+  {
+    switch (m_pos.m_index_1)
+    {
+    case pos_mems_global_by_event_name::VIEW_BUILTIN_MEMORY:
+      do
+      {
+        pfs_builtin= find_builtin_memory_class(m_pos.m_index_2);
+        if (pfs_builtin != NULL)
+        {
+          if (m_opened_index->match(&pfs_builtin->m_class))
+          {
+            make_row(pfs_builtin);
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
+          m_pos.m_index_2++;
+        }
+      } while (pfs_builtin != NULL);
+      break;
+
+    case pos_mems_global_by_event_name::VIEW_MEMORY:
+      do
+      {
+        pfs= find_memory_class(m_pos.m_index_2);
+        if (pfs != NULL)
+        {
+          if (m_opened_index->match(pfs))
+          {
+            make_row(pfs);
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
+          m_pos.m_index_2++;
+        }
+      } while (pfs != NULL);
+      break;
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_mems_global_by_event_name::make_row(PFS_memory_class *klass)

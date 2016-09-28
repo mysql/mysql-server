@@ -26,8 +26,8 @@ INSERT INTO db1.t1 VALUES (2);
 INSERT INTO db1.t1 VALUES (1);
 SHOW DATABASES;
 Database
-information_schema
 db1
+information_schema
 mtr
 mysql
 performance_schema
@@ -51,8 +51,8 @@ INSERT INTO db3.t1 VALUES (3*2);
 INSERT INTO db3.t1 VALUES (3*1);
 SHOW DATABASES;
 Database
-information_schema
 db3
+information_schema
 mtr
 mysql
 performance_schema
@@ -62,17 +62,17 @@ test
 # 1.c  sync the slave (server_2) with both masters (server_1 and server_3)
 #
 [connection server_1]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 #
 # 1.d Check that slave has replicated from both masters.
 #  Slave should have databases db1 and db3 and tables.
 SHOW DATABASES;
 Database
-information_schema
 db1
 db3
+information_schema
 mtr
 mysql
 performance_schema
@@ -90,10 +90,10 @@ include/rpl_stop_slaves.inc
 [connection server_1]
 CREATE DATABASE dbcommon;
 [connection server_2]
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_1']
 [connection server_1]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/stop_slave.inc [FOR CHANNEL 'channel_1']
 [connection server_1]
 CREATE TABLE dbcommon.t11(a int);
 INSERT INTO dbcommon.t11 values (11*10);
@@ -128,18 +128,18 @@ include/rpl_start_slaves.inc
 #  2.c sync the slave with both masters
 #
 [connection server_1]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 #
 #  2.d Now check the data
 #
 SHOW DATABASES;
 Database
-information_schema
 db1
 db3
 dbcommon
+information_schema
 mtr
 mysql
 performance_schema
@@ -158,7 +158,7 @@ include/assert.inc [Slave should have 10 rows in dbcommon.t33]
 [connection server_1]
 CREATE TABLE dbcommon.t101(a int, PRIMARY KEY (a));
 [connection server_1]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 #
 # Stop slave (on server_2) for test case 3.
 #
@@ -195,9 +195,9 @@ include/rpl_start_slaves.inc
 # 3.c sync slave server with all the masters.
 #
 [connection server_1]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 #
 #  check that data has been replicated to the slave.
 #
@@ -214,7 +214,7 @@ include/assert.inc [Slave should have 20 rows in dbcommon.t101]
 # 4.a) Do an update on server_1 and sync with the slave.
 [connection server_1]
 INSERT INTO dbcommon.t101 values(1729);
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 # 4.b) Do a conflicting update on server_3 and check for conflicting error
 [connection server_3]
 INSERT INTO dbcommon.t101 values (1729);
@@ -223,24 +223,24 @@ call mtr.add_suppression("Slave SQL.*:.* 'Duplicate entry '1729' for key 'PRIMAR
 call mtr.add_suppression("Slave SQL.*: Could not execute Write_rows event on table dbcommon.t101; Duplicate entry '1729' for key 'PRIMARY'*");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Slave SQL.*:.* Duplicate entry '1729' for key 'PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY.*");
-include/wait_for_slave_sql_error.inc [errno=1062]
+include/wait_for_slave_sql_error.inc [errno=1062 FOR CHANNEL 'channel_3']
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 DELETE FROM dbcommon.t101 where a=1729;
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_3']
 # channel 1
 [connection server_1]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 # channel 3
 [connection server_3]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 connection_server_1
 DROP DATABASE db1;
 DROP DATABASE dbcommon;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 connection_server_3
 DROP DATABASE db3;
 DROP DATABASE IF EXISTS dbcommon;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
-RESET SLAVE ALL FOR CHANNEL  'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

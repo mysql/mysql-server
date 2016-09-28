@@ -42,6 +42,7 @@
 #include "sql_signal.h"               // enum_condition_item_name
 #include "table.h"                    // TABLE_LIST
 #include "trigger_def.h"              // enum_trigger_action_time_type
+#include "dd/info_schema/stats.h"     // dd::info_schema::Statistics_cache
 #include "xa.h"                       // xa_option_words
 #include "select_lex_visitor.h"
 #include "parse_tree_hints.h"
@@ -1314,14 +1315,17 @@ public:
     function.
   */
   bool agg_func_used()      const { return m_agg_func_used; }
+  bool json_agg_func_used() const { return m_json_agg_func_used; }
 
   void set_agg_func_used(bool val)      { m_agg_func_used= val; }
+
+  void set_json_agg_func_used(bool val) { m_json_agg_func_used= val; }
 
   /// Lookup for SELECT_LEX type
   enum_explain_type type();
 
   /// Lookup for a type string
-  const char *get_type_str(const THD *thd)
+  const char *get_type_str()
   { return type_str[static_cast<int>(type())]; }
   static const char *get_type_str(enum_explain_type type)
   { return type_str[static_cast<int>(type)]; }
@@ -1373,6 +1377,7 @@ private:
   void delete_unused_merged_columns(List<TABLE_LIST> *tables);
 
   bool m_agg_func_used;
+  bool m_json_agg_func_used;
 
   /// Helper for fix_prepare_information()
   void fix_prepare_information_for_order(THD *thd,
@@ -1738,7 +1743,7 @@ union YYSTYPE {
   struct
   {
     enum enum_trigger_order_type ordering_clause;
-    LEX_STRING anchor_trigger_name;
+    LEX_CSTRING anchor_trigger_name;
   } trg_characteristics;
   class Index_hint *key_usage_element;
   List<Index_hint> *key_usage_list;
@@ -1958,7 +1963,7 @@ struct st_trg_chistics
     Trigger name referenced in the FOLLOWS/PRECEDES clause of the CREATE TRIGGER
     statement.
   */
-  LEX_STRING anchor_trigger_name;
+  LEX_CSTRING anchor_trigger_name;
 };
 
 extern sys_var *trg_new_row_fake_var;
@@ -3197,16 +3202,6 @@ public:
   /** SELECT of CREATE VIEW statement */
   LEX_STRING create_view_select;
 
-  /** Start of 'ON table', in trigger statements.  */
-  const char* raw_trg_on_table_name_begin;
-  /** End of 'ON table', in trigger statements. */
-  const char* raw_trg_on_table_name_end;
-
-  /** Start of clause FOLLOWS/PRECEDES. */
-  const char* trg_ordering_clause_begin;
-  /** End (a char after the end) of clause FOLLOWS/PRECEDES. */
-  const char* trg_ordering_clause_end;
-
   /* Partition info structure filled in by PARTITION BY parse part */
   partition_info *part_info;
 
@@ -3364,6 +3359,8 @@ public:
   bool drop_if_exists, drop_temporary, local_file;
   bool autocommit;
   bool verbose, no_write_to_binlog;
+  // For show commands to show hidden columns and indexes.
+  bool extended_show;
 
   enum enum_yes_no_unknown tx_chain, tx_release;
   bool safe_to_cache_query;
@@ -3651,6 +3648,13 @@ public:
     return FALSE;
   }
 
+  /**
+    IS schema queries read some dynamic table statistics from SE.
+    These statistics are cached, to avoid opening of table more
+    than once while preparing a single output record buffer.
+  */
+  dd::info_schema::Statistics_cache m_IS_dyn_stat_cache;
+
   bool accept(Select_lex_visitor *visitor);
 
 };
@@ -3870,14 +3874,16 @@ struct st_lex_local: public LEX
     return sql_alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg= std::nothrow) throw ()
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                            = std::nothrow) throw ()
   {
     return alloc_root(mem_root, size);
   }
-  static void operator delete(void *ptr,size_t size)
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
   { TRASH(ptr, size); }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root,
-                              const std::nothrow_t &arg) throw ()
+  static void operator delete(void*, MEM_ROOT*,
+                              const std::nothrow_t&) throw ()
   { /* Never called */ }
 };
 

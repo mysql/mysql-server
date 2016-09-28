@@ -27,12 +27,17 @@ namespace dd {
 void Entity_object_impl::set_primary_key_value(const Raw_new_record &r)
 {
   /*
+    Don't set primary key value if object has one assigned already.
+    Raw_new_record::get_insert_id() doesn't work correctly if value for
+    auto-increment column was explicitly provided.
+
     Delay updating of the m_has_new_primary_key flag until end of store()
     method. This is necessary for children's store() methods to know that
     that parent entity has new ID which was not used before (and hence
     children primary keys based on this ID will be new too).
   */
-  m_id= r.get_insert_id();
+  if (m_id == INVALID_OBJECT_ID)
+    m_id= r.get_insert_id();
 }
 
 ///////////////////////////////////////////////////////////////////////////

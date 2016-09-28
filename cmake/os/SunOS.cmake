@@ -38,7 +38,7 @@ IF(NOT FORCE_UNSUPPORTED_COMPILER)
       RESULT_VARIABLE result
     )
     STRING(REGEX MATCH "CC: Sun C\\+\\+ 5\\.([0-9]+)" VERSION_STRING ${stderr})
-    IF (CMAKE_MATCH_1 STREQUAL "")
+    IF (NOT CMAKE_MATCH_1 OR CMAKE_MATCH_1 STREQUAL "")
       STRING(REGEX MATCH "CC: Studio 12\\.5 Sun C\\+\\+ 5\\.([0-9]+)"
         VERSION_STRING ${stderr})
     ENDIF()

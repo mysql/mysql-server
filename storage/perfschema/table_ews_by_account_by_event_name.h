@@ -33,6 +33,27 @@
   @{
 */
 
+class PFS_index_ews_by_account_by_event_name : public PFS_engine_index
+{
+public:
+  PFS_index_ews_by_account_by_event_name()
+    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+    m_key_1("USER"), m_key_2("HOST"), m_key_3("EVENT_NAME")
+  {}
+
+  ~PFS_index_ews_by_account_by_event_name()
+  {}
+
+  virtual bool match(PFS_account *pfs);
+  virtual bool match_view(uint view);
+  virtual bool match(PFS_instr_class *instr_class);
+
+private:
+  PFS_key_user m_key_1;
+  PFS_key_host m_key_2;
+  PFS_key_event_name m_key_3;
+};
+
 /**
   A row of table
   PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
@@ -95,9 +116,13 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -128,6 +153,8 @@ private:
   pos_ews_by_account_by_event_name m_pos;
   /** Next position. */
   pos_ews_by_account_by_event_name m_next_pos;
+
+  PFS_index_ews_by_account_by_event_name *m_opened_index;
 };
 
 /** @} */

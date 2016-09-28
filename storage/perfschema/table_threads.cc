@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "sql_parse.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_buffer_container.h"
 
 THR_LOCK table_threads::m_table_lock;
 
@@ -144,10 +145,115 @@ PFS_engine_table* table_threads::create()
 
 table_threads::table_threads()
   : cursor_by_thread(& m_share),
-  m_row_exists(false)
+    m_row_exists(false)
 {}
 
-void table_threads::make_row(PFS_thread *pfs)
+bool PFS_index_threads_by_thread_id::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (! m_key.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_threads_by_processlist_id::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (! m_key.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_threads_by_name::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (! m_key.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_threads_by_user_host::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (! m_key_1.match(pfs))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (! m_key_2.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_threads_by_host::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (! m_key.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_threads_by_thread_os_id::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (! m_key.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+int table_threads::index_init(uint idx, bool sorted)
+{
+  PFS_index_threads *result= NULL;
+
+  switch(idx)
+  {
+  case 0:
+    result= PFS_NEW(PFS_index_threads_by_thread_id);
+    break;
+  case 1:
+    result= PFS_NEW(PFS_index_threads_by_processlist_id);
+    break;
+  case 2:
+    result= PFS_NEW(PFS_index_threads_by_thread_os_id);
+    break;
+  case 3:
+    result= PFS_NEW(PFS_index_threads_by_name);
+    break;
+  case 4:
+    result= PFS_NEW(PFS_index_threads_by_user_host);
+    break;
+  case 5:
+    result= PFS_NEW(PFS_index_threads_by_host);
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
+
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_threads::make_row(PFS_thread *pfs)
 {
   pfs_optimistic_state lock;
   pfs_optimistic_state session_lock;
@@ -162,7 +268,7 @@ void table_threads::make_row(PFS_thread *pfs)
 
   safe_class= sanitize_thread_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return;
+    return 1;
 
   m_row.m_thread_internal_id= pfs->m_thread_internal_id;
   m_row.m_parent_thread_internal_id= pfs->m_parent_thread_internal_id;
@@ -176,13 +282,13 @@ void table_threads::make_row(PFS_thread *pfs)
 
   m_row.m_username_length= pfs->m_username_length;
   if (unlikely(m_row.m_username_length > sizeof(m_row.m_username)))
-    return;
+    return 1;
   if (m_row.m_username_length != 0)
     memcpy(m_row.m_username, pfs->m_username, m_row.m_username_length);
 
   m_row.m_hostname_length= pfs->m_hostname_length;
   if (unlikely(m_row.m_hostname_length > sizeof(m_row.m_hostname)))
-    return;
+    return 1;
   if (m_row.m_hostname_length != 0)
     memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
 
@@ -206,7 +312,7 @@ void table_threads::make_row(PFS_thread *pfs)
 
   m_row.m_dbname_length= pfs->m_dbname_length;
   if (unlikely(m_row.m_dbname_length > sizeof(m_row.m_dbname)))
-    return;
+    return 1;
   if (m_row.m_dbname_length != 0)
     memcpy(m_row.m_dbname, pfs->m_dbname, m_row.m_dbname_length);
 
@@ -254,6 +360,8 @@ void table_threads::make_row(PFS_thread *pfs)
 
   if (pfs->m_lock.end_optimistic_lock(& lock))
     m_row_exists= true;
+
+  return 0;
 }
 
 int table_threads::read_row_values(TABLE *table,
@@ -321,7 +429,7 @@ int table_threads::read_row_values(TABLE *table,
       case 7: /* PROCESSLIST_COMMAND */
         if (m_row.m_processlist_id != 0)
           set_field_varchar_utf8(f, command_name[m_row.m_command].str,
-                                 command_name[m_row.m_command].length);
+                                 (uint)command_name[m_row.m_command].length);
         else
           f->set_null();
         break;

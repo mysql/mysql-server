@@ -24,7 +24,7 @@ ok
 Check if mysqlx_socket is empty
 result
 1
-ERROR: Connection refused, while connecting to SOCKET
+ERROR: No such file or directory connecting to SOCKET
 call mtr.add_suppression("Plugin mysqlx reported: .X Plugin failed to setup UNIX socket ./dev/null/mysqlx\.sock., with:");
 call mtr.add_suppression("Plugin mysqlx reported: .could not create UNIX socket lock file /dev/null/mysqlx\.sock\.lock");
 # restart: --loose-mysqlx-socket=/dev/null/mysqlx.sock
@@ -35,7 +35,7 @@ ok
 Check if mysqlx_socket is empty
 result
 1
-ERROR: Connection refused, while connecting to SOCKET
+ERROR: No such file or directory connecting to SOCKET
 ERROR: Not a directory, while connecting to SOCKET
 UNINSTALL PLUGIN mysqlx;
 # restart: --loose-mysqlx-socket=SOCKET

@@ -805,4 +805,48 @@ bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg,
                       bool add_long_crs_urn,
                       uint32 *geometry_srid);
 
+
+/**
+  Convert JSON values or MySQL values to JSON. Converts SQL NULL
+  to the JSON null literal.
+
+  @param[in]     args       arguments to function
+  @param[in]     arg_idx    the index of the argument to process
+  @param[in]     calling_function    name of the calling function
+  @param[in,out] value      working area (if the returned Json_wrapper points
+                            to a binary value rather than a DOM, this string
+                            will end up holding the binary representation, and
+                            it must stay alive until the wrapper is destroyed
+                            or converted from binary to DOM)
+  @param[in,out] tmp        temporary scratch space for converting strings to
+                            the correct charset; only used if accept_string is
+                            true and conversion is needed
+  @param[in,out] wr         the result wrapper
+  @returns false if we found a value or NULL, true otherwise
+*/
+bool get_atom_null_as_null(Item **args, uint arg_idx,
+                           const char *calling_function, String *value,
+                           String *tmp, Json_wrapper *wr);
+
+/**
+  Helper method for Item_func_json_* methods. Check whether an argument
+  can be converted to a utf8mb4 string.
+
+  @param[in]  arg_item    An argument Item
+  @param[out] value       Where to materialize the arg_item's string value
+  @param[out] utf8_res    Buffer for use by ensure_utf8mb4.
+  @param[in]  func_name   Name of the user-invoked JSON_ function
+  @param[out] safep       String pointer after any relevant conversion
+  @param[out] safe_length Corresponding string length
+
+  @returns true if the Item is not a utf8mb4 string
+*/
+bool get_json_string(Item *arg_item,
+                     String *value,
+                     String *utf8_res,
+                     const char *func_name,
+                     const char **safep,
+                     size_t *safe_length);
+
+
 #endif /* ITEM_JSON_FUNC_INCLUDED */

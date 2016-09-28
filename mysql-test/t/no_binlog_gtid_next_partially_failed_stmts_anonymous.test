@@ -59,8 +59,8 @@ SET GTID_NEXT = 'ANONYMOUS';
 DROP USER u1@h, u2@h;
 --echo #
 --echo # When binlog is disabled, verify that we can set
---echo # GTID_NEXT to 'ANONYMOUS' after the partially failed
---echo # DROP USER statement consumed its 'ANONYMOUS' gtid.
+--echo # GTID_NEXT to 'ANONYMOUS' after the failed DROP USER
+--echo # statement  did not consumed its 'ANONYMOUS' gtid.
 --echo #
 SET GTID_NEXT = 'ANONYMOUS';
 
@@ -77,3 +77,4 @@ DROP VIEW v1, v2;
 --echo #
 SET GTID_NEXT = 'ANONYMOUS';
 
+DROP USER u1@h;

@@ -2017,7 +2017,8 @@ public:
 
     @param arg  Keep track of whether an Item_ref refers to an Item_field.
   */
-  virtual bool repoint_const_outer_ref(uchar *arg) { return false; }
+  virtual bool repoint_const_outer_ref(uchar *arg MY_ATTRIBUTE((unused)))
+  { return false; }
 private:
   virtual bool subq_opt_away_processor(uchar*) { return false; }
 

@@ -9,6 +9,7 @@
 # In particular, every table there must be covered by:
 # - a ddl_<table_name>.test file.
 # - a dml_<table_name>.test file.
+# - a idx_<table_name>.test file.
 #
 
 #
@@ -37,6 +38,8 @@ eval load data infile "$MYSQLTEST_VARDIR/tmp/perfschema-all_tests.txt" into tabl
 insert into t2 select concat('ddl_', table_name, '.test') from information_schema.tables
   where table_schema='performance_schema';
 insert into t2 select concat('dml_', table_name, '.test') from information_schema.tables
+  where table_schema='performance_schema';
+insert into t2 select concat('idx_', table_name, '.test') from information_schema.tables
   where table_schema='performance_schema';
 
 # Abbreviations used for naming test files:

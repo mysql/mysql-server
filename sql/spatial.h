@@ -646,10 +646,8 @@ public:
     if (wkt->reserve(len + 2, 512))
       return true;
     wkt->qs_append(get_class_info()->m_name.str, len);
-    wkt->qs_append('(');
     if (get_data_as_wkt(wkt, wkb))
       return true;
-    wkt->qs_append(')');
     return false;
   }
   bool as_wkt(String *wkt) const
@@ -1265,7 +1263,21 @@ class Gis_point: public Geometry
 {
 public:
   uint32 get_data_size() const;
-  bool init_from_wkt(Gis_read_stream *trs, String *wkb);
+  /**
+    Initialize from a partial WKT string (everything following "POINT").
+
+    @param trs Input stream
+    @param wkb Output string
+    @param parens Whether parentheses are expected around the
+    coordinates.
+    @retval true Error
+    @retval false Success
+  */
+  bool init_from_wkt(Gis_read_stream *trs, String *wkb, const bool parens);
+  bool init_from_wkt(Gis_read_stream *trs, String *wkb)
+  {
+    return init_from_wkt(trs, wkb, true);
+  }
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
   bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const;

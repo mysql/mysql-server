@@ -63,6 +63,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "trx0undo.h"
 #include "row0ext.h"
 #include "ut0new.h"
+#include "dict0dd.h"
 
 #include <algorithm>
 #include <deque>
@@ -1702,6 +1703,8 @@ run_again:
 	thr->prev_node = node;
 
 	row_ins_step(thr);
+
+	DEBUG_SYNC_C("ib_after_row_insert_step");
 
 	err = trx->error_state;
 
@@ -3775,6 +3778,12 @@ row_discard_tablespace_end(
 
 	trx->op_info = "";
 
+	/* Set the TABLESPACE DISCARD flag in the table definition
+	on disk. */
+	dd_table_set_discard_flag(trx->mysql_thd,
+				  table->name.m_name,
+				  true);
+
 	return(err);
 }
 
@@ -3818,6 +3827,7 @@ row_discard_tablespace(
 
 	table_id_t	new_id;
 
+#if 0
 	/* Set the TABLESPACE DISCARD flag in the table definition
 	on disk. */
 	err = row_import_update_discarded_flag(
@@ -3826,6 +3836,7 @@ row_discard_tablespace(
 	if (err != DB_SUCCESS) {
 		return(err);
 	}
+#endif
 
 	/* Update the index root pages in the system tables, on disk */
 	err = row_import_update_index_root(trx, table, true, true);

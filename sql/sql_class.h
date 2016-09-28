@@ -1560,6 +1560,11 @@ private:
     bool m_time_zone_used;
   };
 
+
+public:
+  enum enum_reset_lex { RESET_LEX, DO_NOT_RESET_LEX };
+
+private:
   /**
     Class representing read-only attachable transaction, encapsulates
     knowledge how to backup state of current transaction, start
@@ -1571,14 +1576,21 @@ private:
   {
   public:
     Attachable_trx(THD *thd, Attachable_trx *prev_trx);
+    Attachable_trx(THD *thd,
+                   Attachable_trx *prev_trx,
+                   enum_reset_lex reset_lex);
     virtual ~Attachable_trx();
     Attachable_trx *get_prev_attachable_trx() const
     { return m_prev_attachable_trx; };
     virtual bool is_read_only() const { return true; }
 
+    void init();
+
   protected:
     /// THD instance.
     THD *m_thd;
+
+    enum_reset_lex m_reset_lex;
 
     /**
       Attachable_trx which was active for the THD before when this
@@ -2020,25 +2032,34 @@ public:
   enum enum_thread_type system_thread;
 
   // Check if this THD belongs to a system thread.
-  inline bool is_system_thread()
+  bool is_system_thread() const
   { return system_thread != NON_SYSTEM_THREAD; }
 
   // Check if this THD belongs to a dd bootstrap system thread.
   // For now we also count the thread (or rather THD) that is used
   // during DDL log recovery as a DD system thread as we do not
   // need to take MDL locks during this phase either.
-  inline bool is_dd_system_thread()
+  bool is_dd_system_thread() const
   {
     return system_thread == SYSTEM_THREAD_DD_INITIALIZE ||
            system_thread == SYSTEM_THREAD_DD_RESTART ||
            system_thread == SYSTEM_THREAD_DDL_LOG_RECOVERY;
   }
 
-  // Check if this THD belongs to a bootstrap system thread.
-  inline bool is_bootstrap_system_thread()
+  // Check if this THD belongs to the initialize system thread. The
+  // initialize thread executes statements that are compiled into the
+  // server.
+  bool is_initialize_system_thread() const
+  {
+    return system_thread == SYSTEM_THREAD_SERVER_INITIALIZE;
+  }
+
+  // Check if this THD belongs to a bootstrap system thread. Note that
+  // this thread type may execute statements submitted by the user.
+  bool is_bootstrap_system_thread() const
   {
     return is_dd_system_thread() ||
-           system_thread == SYSTEM_THREAD_SERVER_INITIALIZE ||
+           is_initialize_system_thread() ||
            system_thread == SYSTEM_THREAD_INIT_FILE;
   }
 
@@ -2495,14 +2516,17 @@ public:
   virtual void notify_shared_lock(MDL_context_owner *ctx_in_use,
                                   bool needs_thr_lock_abort);
 
-  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key)
+  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
+                                                 bool *victimized)
   {
-    return ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_PRE_EVENT);
+    return ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_PRE_EVENT,
+                                   victimized);
   }
 
   virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key)
   {
-    ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_POST_EVENT);
+    bool unused_arg;
+    ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_POST_EVENT, &unused_arg);
   }
 
   /**
@@ -2892,6 +2916,8 @@ public:
     be only one active attachable transaction at a time).
   */
   void begin_attachable_ro_transaction();
+
+  void begin_attachable_transaction(enum_reset_lex reset_lex);
 
   /**
     Start a read-write attachable transaction.

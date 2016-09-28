@@ -1996,9 +1996,9 @@ THD *Stage_manager::Mutex_queue::fetch_and_empty()
   DBUG_RETURN(result);
 }
 
-time_t Stage_manager::wait_count_or_timeout(ulong count, time_t usec, StageID stage)
+void Stage_manager::wait_count_or_timeout(ulong count, ulong usec, StageID stage)
 {
-  time_t to_wait=
+  ulong to_wait=
     DBUG_EVALUATE_IF("bgc_set_infinite_delay", LONG_MAX, usec);
   /*
     For testing purposes while waiting for inifinity
@@ -2006,9 +2006,9 @@ time_t Stage_manager::wait_count_or_timeout(ulong count, time_t usec, StageID st
     small intervals. Otherwise, waiting 0.1 * infinite
     is too long.
    */
-  time_t delta=
+  ulong delta=
     DBUG_EVALUATE_IF("bgc_set_infinite_delay", 100000,
-                     static_cast<time_t>(to_wait * 0.1));
+                     max<ulong>(1, (to_wait * 0.1)));
 
   while (to_wait > 0 && (count == 0 || static_cast<ulong>(m_queue[stage].get_size()) < count))
   {
@@ -2019,7 +2019,6 @@ time_t Stage_manager::wait_count_or_timeout(ulong count, time_t usec, StageID st
     my_sleep(delta);
     to_wait -= delta;
   }
-  return to_wait;
 }
 
 void Stage_manager::signal_done(THD *queue)
@@ -8210,13 +8209,15 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       XID_STATE *xs= thd->get_transaction()->xid_state();
       XA_prepare_log_event end_evt(thd, xs->get_xid(), one_phase);
 
-      xs->set_binlogged(); // todo: move into ha_prepare()
-
       DBUG_ASSERT(skip_commit);
 
       err= cache_mngr->trx_cache.finalize(thd, &end_evt, xs);
-      if (err)
+      if (err ||
+          (DBUG_EVALUATE_IF("simulate_xa_prepare_failure_in_cache_finalize",
+                            true, false)))
+      {
         DBUG_RETURN(RESULT_ABORTED);
+      }
     }
     else if (real_trans && xid && trn_ctx->rw_ha_count(trx_scope) > 1 &&
              !trn_ctx->no_2pc(trx_scope))
@@ -8259,7 +8260,8 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
                   max<my_off_t>(max_binlog_cache_size,
-                                max_binlog_stmt_cache_size))))
+                                max_binlog_stmt_cache_size))) ||
+        DBUG_EVALUATE_IF("simulate_failure_in_before_commit_hook", true, false))
     {
       ha_rollback_low(thd, all);
       gtid_state->update_on_rollback(thd);
@@ -8274,7 +8276,8 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       Check whether the transaction should commit or abort given the
       plugin feedback.
     */
-    if (thd->get_transaction()->get_rpl_transaction_ctx()->is_transaction_rollback())
+    if (thd->get_transaction()->get_rpl_transaction_ctx()->is_transaction_rollback() ||
+        (DBUG_EVALUATE_IF("simulate_transaction_rollback_request", true, false)))
     {
       ha_rollback_low(thd, all);
       gtid_state->update_on_rollback(thd);
@@ -8287,6 +8290,13 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
 
     if (ordered_commit(thd, all, skip_commit))
       DBUG_RETURN(RESULT_INCONSISTENT);
+
+    /*
+      Mark the flag m_is_binlogged to true only after we are done
+      with checking all the error cases.
+    */
+    if (is_loggable_xa_prepare(thd))
+      thd->get_transaction()->xid_state()->set_binlogged();
   }
   else if (!skip_commit)
   {

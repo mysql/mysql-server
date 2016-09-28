@@ -17,7 +17,6 @@
 
 #include "dd_routine.h"                        // Routine methods
 
-#include "dd_table.h"                          // dd_get_new_field_type
 #include "sp_head.h"                           // sp_head
 #include "sp_pcontext.h"                       // sp_variable
 #include "sql_db.h"                            // get_default_db_collation
@@ -26,6 +25,7 @@
 
 #include "dd/properties.h"                     // dd::Properties
 #include "dd/cache/dictionary_client.h"        // dd::cache::Dictionary_client
+#include "dd/dd_table.h"                       // dd::get_new_field_type
 #include "dd/types/function.h"                 // dd::Function
 #include "dd/types/parameter.h"                // dd::Parameter
 #include "dd/types/parameter_type_element.h"   // dd::Parameter_type_element
@@ -130,7 +130,7 @@ static bool fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf)
   DBUG_ASSERT(return_field != NULL);
 
   // Set result data type.
-  sf->set_result_data_type(dd_get_new_field_type(return_field->sql_type));
+  sf->set_result_data_type(get_new_field_type(return_field->sql_type));
 
   // Set result is_zerofill flag.
   sf->set_result_zerofill(return_field->is_zerofill);
@@ -175,7 +175,7 @@ static bool fill_parameter_info_from_field(Create_field *field,
   DBUG_ENTER("fill_parameter_info_from_field");
 
   // Set data type.
-  param->set_data_type(dd_get_new_field_type(field->sql_type));
+  param->set_data_type(get_new_field_type(field->sql_type));
 
   // Set is_zerofill flag.
   param->set_zerofill(field->is_zerofill);
@@ -306,13 +306,15 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
 
   @param[in]  thd        Thread handle.
   @param[in]  sp         Stored routine object.
+  @param[in]  definer    Definer of the routine.
   @param[out] routine    dd::Routine object to be prepared from the sp_head.
 
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
 */
 
-static bool fill_dd_routine_info(THD *thd, sp_head *sp, Routine *routine)
+static bool fill_dd_routine_info(THD *thd, sp_head *sp, Routine *routine,
+                                 const LEX_USER *definer)
 {
   DBUG_ENTER("fill_dd_routine_info");
 
@@ -376,8 +378,8 @@ static bool fill_dd_routine_info(THD *thd, sp_head *sp, Routine *routine)
   routine->set_security_type(sec_type);
 
   // Set definer.
-  routine->set_definer(thd->lex->definer->user.str,
-                       thd->lex->definer->host.str);
+  routine->set_definer(definer->user.str,
+                       definer->host.str);
 
   // Set sql_mode.
   routine->set_sql_mode(thd->variables.sql_mode);
@@ -411,7 +413,8 @@ static bool fill_dd_routine_info(THD *thd, sp_head *sp, Routine *routine)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp)
+enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp,
+                                   const LEX_USER *definer)
 {
   DBUG_ENTER("dd::create_routine");
 
@@ -426,7 +429,7 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp)
       DBUG_RETURN(SP_STORE_FAILED);
 
     // Fill routine object.
-    if (fill_dd_routine_info(thd, sp, func.get()))
+    if (fill_dd_routine_info(thd, sp, func.get(), definer))
       DBUG_RETURN(SP_STORE_FAILED);
 
     // Store routine metadata in DD table.
@@ -440,7 +443,7 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp)
     std::unique_ptr<Procedure> proc(schema->create_procedure(thd));
 
     // Fill routine object.
-    if (fill_dd_routine_info(thd, sp, proc.get()))
+    if (fill_dd_routine_info(thd, sp, proc.get(), definer))
       DBUG_RETURN(SP_STORE_FAILED);
 
     // Store routine metadata in DD table.

@@ -24,7 +24,9 @@ Adding -DWITH_DEBUG=1 to the cmake command line gives you a debug build.
 
 Building on Windows is slightly different:
 cd <some build directory>
-cmake <path to source directory>
+cmake <path to source directory> -G <generator>
+
+We only support Visual Studio as generator and only 64 bit ("Win64").
 
 cmake --build . --config Debug
 or

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,7 +33,8 @@
 #include "item_strfunc.h"
 
 #include "base64.h"                  // base64_encode_max_arg_length
-#include "current_thd.h"
+#include "current_thd.h"             // current_thd
+#include "dd_sql_view.h"             // push_view_warning_or_error
 #include "my_aes.h"                  // MY_AES_IV_SIZE
 #include "my_md5.h"                  // MD5_HASH_SIZE
 #include "my_rnd.h"                  // my_rand_buffer
@@ -47,11 +48,18 @@
 #include "sql_class.h"               // THD
 #include "sql_locale.h"              // my_locale_by_name
 #include "strfunc.h"                 // hexchar_to_int
-#include "val_int_compare.h"
+#include "dd/types/column.h"         // dd::Column
+#include "dd_table_share.h"          // dd_get_old_field_type
+#include "dd/properties.h"           // dd::Properties
+#include "val_int_compare.h"         // Integer_value
 
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+#include "sql_show.h"  // grant_types
+#endif
 
 #include "template_utils.h"
 
@@ -1816,7 +1824,7 @@ bool Item_func_roles_graphml::fix_fields(THD *thd, Item **ref)
   Item_str_func::fix_fields(thd, ref);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (thd->security_context()->check_access(SUPER_ACL, false))
-    roles_graphml(&m_str);
+    roles_graphml(thd, &m_str);
   else
     m_str.set(STRING_WITH_LEN("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
                               "<graphml />"), system_charset_info);
@@ -5032,6 +5040,377 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
   DBUG_RETURN(NULL);
 }
 
+
+/**
+  @brief
+    This function prepares string with list of column privileges.
+    This is required for IS implementation which uses views on DD tables.
+    In older non-DD model, we use to get this string using get_column_grant().
+    With new IS implementation using DD, we can't call get_column_grant().
+    The following UDF implementation solves the problem,
+
+    Syntax:
+    string get_dd_column_privileges(schema_name,
+                                    table_name,
+                                    field_name);
+
+ */
+String *Item_func_get_dd_column_privileges::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_dd_column_privileges::val_str");
+
+  std::ostringstream oss("");
+
+  //
+  // Retrieve required values to form column type string.
+  //
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  // Read schema_name, table_name, field_name
+  String schema_name;
+  String *schema_name_ptr;
+  String table_name;
+  String *table_name_ptr;
+  String field_name;
+  String *field_name_ptr;
+  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
+      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
+      (field_name_ptr=args[2]->val_str(&field_name)) != nullptr)
+  {
+    if (!is_infoschema_db(schema_name_ptr->c_ptr_safe()))
+    {
+      //
+      // Get privileges
+      //
+
+      THD *thd= current_thd;
+      GRANT_INFO grant_info;
+      memset(&grant_info, 0, sizeof (grant_info));
+      fill_effective_table_privileges(thd,
+                                      &grant_info,
+                                      schema_name_ptr->c_ptr_safe(),
+                                      table_name_ptr->c_ptr_safe());
+
+      // Get column grants
+      uint col_access;
+      col_access= get_column_grant(thd,
+                                   &grant_info,
+                                   schema_name_ptr->c_ptr_safe(),
+                                   table_name_ptr->c_ptr_safe(),
+                                   field_name_ptr->c_ptr_safe()) & COL_ACLS;
+
+      // Prepare user readable output string with column access grants
+      for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
+      {
+        if (col_access & 1)
+        {
+          if (oss.str().length()) oss << ',';
+          oss << grant_types.type_names[bitnr];
+        }
+      }
+    } // INFORMATION SCHEMA Tables have SELECT privileges.
+    else
+      oss << "select";
+  }
+#endif
+
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+
+String *Item_func_get_dd_index_sub_part_length::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_dd_index_sub_part_length::val_str");
+
+  // Read key_part_length from args[0]/
+  uint key_part_length= args[0]->val_int();
+
+  // Read col_type from args[1]
+  enum_field_types col_type=
+    dd_get_old_field_type((dd::enum_column_types) args[1]->val_int());
+
+  if (Field::type_can_have_key_part(col_type))
+  {
+    // Read column length from args[2]
+    uint column_length= args[2]->val_int();
+
+    // Read column charset id from args[3]
+    const CHARSET_INFO *column_charset= &my_charset_latin1;
+    uint csid= args[3]->val_int();
+    if (csid)
+    {
+      column_charset= get_charset(csid, MYF(0));
+      DBUG_ASSERT(column_charset);
+    }
+
+    // Read col_options from args[4]
+    uint idx_flags= 0;
+    String option_buf;
+    String *option_str;
+    if ((option_str= args[4]->val_str(&option_buf)) != nullptr)
+    {
+      // Read required values from properties
+      std::unique_ptr<dd::Properties> p
+        (dd::Properties::parse_properties(option_str->c_ptr_safe()));
+
+      // Read idx_flags from options.
+      p->get_uint32("flags", &idx_flags);
+    }
+
+    if (!(idx_flags & HA_FULLTEXT) &&
+        (key_part_length != column_length))
+    {
+      std::ostringstream oss("");
+
+      uint sub_part_length= key_part_length / column_charset->mbmaxlen;
+      oss << sub_part_length;
+      str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+      null_value= 0;
+      DBUG_RETURN(str);
+    }
+  }
+
+  null_value= 1;
+  DBUG_RETURN(nullptr);
+}
+
+
+/**
+  @brief
+    This function prepares string representing create_options for table.
+    This is required for IS implementation which uses views on DD tables.
+    In older non-DD model, FRM file had only user options specified in
+    CREATE TABLE statement.
+    With new IS implementation using DD, all internal option values are
+    also stored in options field.
+    So, this UDF filters internal options from user defined options
+
+    Syntax:
+      string get_dd_create_options(dd.table.options)
+
+    The arguments accept values from options from 'tables' DD table,
+    as shown above.
+
+ */
+String *Item_func_get_dd_create_options::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_dd_create_options::val_str");
+
+  // Read tables.options
+  String option;
+  String *option_ptr;
+  std::ostringstream oss("");
+  if ((option_ptr=args[0]->val_str(&option)) != nullptr)
+  {
+    bool is_partitioned = args[1]->val_int();
+
+    // Read required values from properties
+    std::unique_ptr<dd::Properties> p
+      (dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
+
+    // Read used_flags
+    uint opt_value= 0;
+    char option_buff[350],*ptr;
+    ptr=option_buff;
+
+    if (p->exists("max_rows"))
+    {
+      p->get_uint32("max_rows", &opt_value);
+      if (opt_value != 0)
+      {
+        ptr=my_stpcpy(ptr," max_rows=");
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (p->exists("min_rows"))
+    {
+      p->get_uint32("min_rows", &opt_value);
+      if (opt_value != 0)
+      {
+        ptr=my_stpcpy(ptr," min_rows=");
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (p->exists("avg_row_length"))
+    {
+      p->get_uint32("avg_row_length", &opt_value);
+      if (opt_value != 0)
+      {
+        ptr=my_stpcpy(ptr," avg_row_length=");
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (p->exists("row_type"))
+    {
+      p->get_uint32("row_type", &opt_value);
+      ptr=strxmov(ptr, " row_format=",
+                  ha_row_type[(uint) opt_value],
+                  NullS);
+    }
+
+    if (p->exists("stats_sample_pages"))
+    {
+      p->get_uint32("stats_sample_pages", &opt_value);
+      if (opt_value != 0 )
+      {
+        ptr=my_stpcpy(ptr," stats_sample_pages=");
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (p->exists("stats_auto_recalc"))
+    {
+      p->get_uint32("stats_auto_recalc", &opt_value);
+      enum_stats_auto_recalc sar= (enum_stats_auto_recalc) opt_value;
+
+      if (sar == HA_STATS_AUTO_RECALC_ON)
+        ptr=my_stpcpy(ptr," stats_auto_recalc=1");
+      else if (sar == HA_STATS_AUTO_RECALC_OFF)
+        ptr=my_stpcpy(ptr," stats_auto_recalc=0");
+    }
+
+    if (p->exists("key_block_size"))
+      p->get_uint32("key_block_size", &opt_value);
+
+    if (opt_value != 0)
+    {
+      ptr=my_stpcpy(ptr," KEY_BLOCK_SIZE=");
+      ptr=longlong10_to_str(opt_value, ptr, 10);
+    }
+
+    if (p->exists("compress"))
+    {
+      std::string opt_value;
+      p->get("compress", opt_value);
+      if (!opt_value.empty())
+      {
+        if (opt_value.size() > 7)
+          opt_value.erase(7, std::string::npos);
+        ptr=my_stpcpy(ptr, " COMPRESSION=\"");
+        ptr=my_stpcpy(ptr, opt_value.c_str());
+        ptr=my_stpcpy(ptr, "\"");
+      }
+    }
+
+    if (p->exists("stats_persistent"))
+    {
+      p->get_uint32("stats_persistent", &opt_value);
+      if (opt_value)
+        ptr=my_stpcpy(ptr," stats_persistent=1");
+      else
+        ptr=my_stpcpy(ptr," stats_persistent=0");
+    }
+
+    if (p->exists("pack_keys"))
+    {
+      p->get_uint32("pack_keys", &opt_value);
+      if (opt_value)
+        ptr=my_stpcpy(ptr," pack_keys=1");
+      else
+        ptr=my_stpcpy(ptr," pack_keys=0");
+    }
+
+    if (p->exists("checksum"))
+    {
+      p->get_uint32("checksum", &opt_value);
+      if (opt_value)
+        ptr=my_stpcpy(ptr," checksum=1");
+    }
+
+    if (p->exists("delay_key_write"))
+    {
+      p->get_uint32("delay_key_write", &opt_value);
+      if (opt_value)
+        ptr=my_stpcpy(ptr," delay_key_write=1");
+    }
+
+    if (is_partitioned)
+      ptr=my_stpcpy(ptr," partitioned");
+
+   if (ptr == option_buff)
+     oss << "";
+   else
+     oss << option_buff+1;
+
+  }
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+String *Item_func_internal_get_comment_or_error::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_internal_get_comment_or_error::val_str");
+
+  std::ostringstream oss("");
+
+  THD *thd= current_thd;
+  String comment;
+  String *comment_ptr;
+  String table_type;
+  String *table_type_ptr;
+  if ((table_type_ptr= args[2]->val_str(&table_type)) != nullptr &&
+      strcmp(table_type_ptr->c_ptr_safe(), "VIEW") == 0)
+  {
+    String schema;
+    String *schema_ptr;
+    String view;
+    String *view_ptr;
+    String options;
+    String *options_ptr;
+
+    if (((schema_ptr= args[0]->val_str(&schema)) != nullptr) &&
+        ((view_ptr= args[1]->val_str(&view)) != nullptr) &&
+        ((options_ptr= args[3]->val_str(&options)) != nullptr))
+    {
+      bool is_view_valid= true;
+      std::unique_ptr<dd::Properties>
+        view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+      if (view_options->get_bool("view_valid", &is_view_valid))
+        DBUG_RETURN(0);
+
+      if (is_view_valid == false &&
+          thd->lex->sql_command != SQLCOM_SHOW_TABLES)
+      {
+        push_view_warning_or_error(current_thd,
+                                   schema_ptr->c_ptr_safe(),
+                                   view_ptr->c_ptr_safe());
+
+        // Append invalid view error message to comment.
+        oss << (thd->get_stmt_da()->sql_conditions()++)->message_text();
+      }
+      else
+        oss << "VIEW";
+    }
+  }
+  else if (!thd->lex->m_IS_dyn_stat_cache.error().empty())
+  {
+    /*
+      There could be error generated due to INTERNAL_*() UDF calls
+      in I_S query. If there was a error found, we show that as
+      part of COMMENT field.
+    */
+    oss << thd->lex->m_IS_dyn_stat_cache.error();
+  }
+  else if (args[0]->type() == Item::NULL_ITEM)
+  {
+    null_value= 1;
+  }
+  else if ((comment_ptr=args[4]->val_str(&comment)) != nullptr)
+  {
+    oss << comment_ptr->c_ptr_safe();
+  }
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
 
 /**
   Get collation by name, send error to client on failure.

@@ -34,19 +34,29 @@ public:
   {
     Vio *vio;
     sockaddr_storage accept_address;
-    socklen_t accept_len = sizeof(accept_address);
     int err = 0;
     std::string strerr;
+    my_socket sock = INVALID_SOCKET;
 
-    my_socket sock = Connection_vio::accept(m_socket_listener, (struct sockaddr*)&accept_address, accept_len, err, strerr);
+    for (int i = 0; i < MAX_ACCEPT_REATTEMPT; ++i)
+    {
+      socklen_t accept_len = sizeof(accept_address);
+      sock = Connection_vio::accept(m_socket_listener, (struct sockaddr*)&accept_address, accept_len, err, strerr);
+
+      if (INVALID_SOCKET != sock)
+        break;
+    }
+
+    if (INVALID_SOCKET == sock)
+      return NULL;
+
     const bool is_tcpip = (accept_address.ss_family == AF_INET || accept_address.ss_family == AF_INET6);
-
     vio = vio_new(sock, is_tcpip ? VIO_TYPE_TCPIP : VIO_TYPE_SOCKET, 0);
     if (!vio)
       throw std::bad_alloc();
+
     // enable TCP_NODELAY
     vio_fastsend(vio);
-
     vio_keepalive(vio, TRUE);
 
     return vio;
@@ -54,6 +64,7 @@ public:
 
 private:
   my_socket m_socket_listener;
+  static const int MAX_ACCEPT_REATTEMPT = 10;
 };
 
 

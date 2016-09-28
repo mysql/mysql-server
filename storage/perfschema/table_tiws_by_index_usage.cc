@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -250,6 +250,51 @@ table_tiws_by_index_usage::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_tiws_by_index_usage::match(PFS_table_share *pfs)
+{
+  PFS_object_row object_row;
+
+  if (object_row.make_row(pfs))
+    return false;
+
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(&object_row))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(&object_row))
+      return false;
+  }
+
+  if (m_fields >= 3)
+  {
+    if (!m_key_3.match(&object_row))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_tiws_by_index_usage::match(PFS_table_share *share, uint index)
+{
+  PFS_index_row index_row;
+  PFS_table_share_index *pfs_index= share->find_index_stat(index);
+
+  if (index_row.make_index_name(pfs_index, index))   /* andles pfs_index == NULL */
+    return false;
+
+  if (m_fields >= 4)
+  {
+    if (!m_key_4.match(&index_row))
+      return false;
+  }
+
+  return true;
+}
+
 PFS_engine_table*
 table_tiws_by_index_usage::create(void)
 {
@@ -349,6 +394,73 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_tiws_by_index_usage::index_init(uint idx, bool sorted)
+{
+  m_normalizer= time_normalizer::get(wait_timer);
+
+  PFS_index_tiws_by_index_usage *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_tiws_by_index_usage);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_tiws_by_index_usage::index_next(void)
+{
+  PFS_table_share *table_share;
+  bool has_more_table= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_table;
+       m_pos.next_table())
+  {
+    table_share= global_table_share_container.get(m_pos.m_index_1, & has_more_table);
+    if (table_share != NULL)
+    {
+      if (table_share->m_enabled)
+      {
+        if (m_opened_index->match(table_share))
+        {
+          uint safe_key_count= sanitize_index_count(table_share->m_key_count);
+          for (;
+               m_pos.m_index_2 <= MAX_INDEXES;
+               m_pos.m_index_2++)
+          {
+            if (m_opened_index->match(table_share, m_pos.m_index_2))
+            {
+              if (m_pos.m_index_2 < safe_key_count)
+              {
+                make_row(table_share, m_pos.m_index_2);
+                if (m_row_exists)
+                {
+                  m_next_pos.set_after(&m_pos);
+                  return 0;
+                }
+              }
+              else
+              {
+                if (m_pos.m_index_2 <= MAX_INDEXES)
+                {
+                  m_pos.m_index_2= MAX_INDEXES;
+                  make_row(table_share, m_pos.m_index_2);
+                  if (m_row_exists)
+                  {
+                    m_next_pos.set_after(&m_pos);
+                    return 0;
+                  }
+                }
+              }
+            }
+          } /* next index */
+        }
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share,

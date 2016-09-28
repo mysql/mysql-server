@@ -41,7 +41,7 @@ public:
   virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const
   { return key_alg == HA_KEY_ALG_BTREE || key_alg == HA_KEY_ALG_HASH; }
   /* Rows also use a fixed-size format */
-  enum row_type get_real_row_type(const HA_CREATE_INFO *create_info) const
+  enum row_type get_real_row_type(const HA_CREATE_INFO*) const
   { return ROW_TYPE_FIXED; }
   ulonglong table_flags() const
   {
@@ -50,7 +50,7 @@ public:
             HA_REC_NOT_IN_SEQ | HA_NO_TRANSACTIONS |
             HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT);
   }
-  ulong index_flags(uint inx, uint part, bool all_parts) const
+  ulong index_flags(uint inx, uint, bool) const
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
             HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE :
@@ -61,7 +61,7 @@ public:
   uint max_supported_key_part_length() const { return MAX_KEY_LENGTH; }
   double scan_time()
   { return (double) (stats.records+stats.deleted) / 20.0+10; }
-  double read_time(uint index, uint ranges, ha_rows rows)
+  double read_time(uint, uint, ha_rows rows)
   { return (double) rows /  20.0+1; }
 
   int open(const char *name, int mode, uint test_if_locked,

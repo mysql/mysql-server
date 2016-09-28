@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -88,6 +88,130 @@ table_events_waits_summary_by_instance::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_events_waits_summary_by_instance::match(PFS_mutex *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_events_waits_summary_by_instance::match(PFS_rwlock *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_events_waits_summary_by_instance::match(PFS_cond *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_events_waits_summary_by_instance::match(PFS_file *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_events_waits_summary_by_instance::match(PFS_socket *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_events_waits_summary_by_event_name::match(PFS_mutex *pfs)
+{
+  if (m_fields >= 1)
+  {
+    PFS_mutex_class *safe_class;
+    safe_class= sanitize_mutex_class(pfs->m_class);
+    if (unlikely(safe_class == NULL))
+      return false;
+    return m_key.match(safe_class);
+  }
+  return true;
+}
+
+bool PFS_index_events_waits_summary_by_event_name::match(PFS_rwlock *pfs)
+{
+  if (m_fields >= 1)
+  {
+    PFS_rwlock_class *safe_class;
+    safe_class= sanitize_rwlock_class(pfs->m_class);
+    if (unlikely(safe_class == NULL))
+      return false;
+    return m_key.match(safe_class);
+  }
+  return true;
+}
+
+bool PFS_index_events_waits_summary_by_event_name::match(PFS_cond *pfs)
+{
+  if (m_fields >= 1)
+  {
+    PFS_cond_class *safe_class;
+    safe_class= sanitize_cond_class(pfs->m_class);
+    if (unlikely(safe_class == NULL))
+      return false;
+    return m_key.match(safe_class);
+  }
+  return true;
+}
+
+bool PFS_index_events_waits_summary_by_event_name::match(PFS_file *pfs)
+{
+  if (m_fields >= 1)
+  {
+    PFS_file_class *safe_class;
+    safe_class= sanitize_file_class(pfs->m_class);
+    if (unlikely(safe_class == NULL))
+      return false;
+    return m_key.match(safe_class);
+  }
+  return true;
+}
+
+bool PFS_index_events_waits_summary_by_event_name::match(PFS_socket *pfs)
+{
+  if (m_fields >= 1)
+  {
+    PFS_socket_class *safe_class;
+    safe_class= sanitize_socket_class(pfs->m_class);
+    if (unlikely(safe_class == NULL))
+      return false;
+    return m_key.match(safe_class);
+  }
+  return true;
+}
+
+bool PFS_index_events_waits_summary_by_event_name::match_view(uint view)
+{
+  if (m_fields >= 1)
+  {
+    return m_key.match_view(view);
+  }
+  return true;
+}
+
 PFS_engine_table* table_events_waits_summary_by_instance::create(void)
 {
   return new table_events_waits_summary_by_instance();
@@ -103,6 +227,26 @@ table_events_waits_summary_by_instance
 ::table_events_waits_summary_by_instance()
   : table_all_instr(&m_share), m_row_exists(false)
 {}
+
+int table_events_waits_summary_by_instance::index_init(uint idx, bool sorted)
+{
+  PFS_index_all_instr *result= NULL;
+  switch(idx)
+  {
+  case 0:
+    result= PFS_NEW(PFS_index_events_waits_summary_by_instance);
+    break;
+  case 1:
+    result= PFS_NEW(PFS_index_events_waits_summary_by_event_name);
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
 
 void table_events_waits_summary_by_instance
 ::make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,

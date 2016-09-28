@@ -9,6 +9,12 @@
 #
 ################################################################################
 
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
 # Test need MyISAM to execute repair
 --source include/have_myisam.inc
 
@@ -46,6 +52,7 @@ check table t1 changed;
 check table t1 medium;
 check table t1 extended;
 analyze table t1;
+--replace_result 4225 # 4097 #
 show index from t1;
 --disable_metadata
 --error ER_DUP_ENTRY
@@ -71,8 +78,11 @@ drop table t1;
 show variables like "wait_timeout%";
 show variables like "WAIT_timeout%";
 show variables like "this_doesn't_exists%";
+--replace_result 4225 # 4097 #
 show table status from test like "this_doesn't_exists%";
+--replace_result 4225 # 4097 #
 show databases;
+--replace_result 4225 # 4097 #
 show databases like "test%";
 --disable_metadata
 
@@ -283,36 +293,43 @@ CREATE TABLE t3 (
 insert into t1 values (1),(2);
 insert into t2 values (1),(2);
 insert into t3 values (1,1),(2,2);
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 insert into t1 values (3),(4);
 insert into t2 values (3),(4);
 insert into t3 values (3,3),(4,4);
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 delete from t1 where a=3;
 delete from t2 where b=3;
 delete from t3 where a=3;
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 10 # 12 #
 show table status;
 truncate table t1;
 truncate table t2;
 truncate table t3;
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 delete from t1 where a=5;
 delete from t2 where b=5;
 delete from t3 where a=5;
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 10 # 12 #
 show table status;
 
@@ -413,6 +430,7 @@ CREATE TABLE t1(
   PRIMARY KEY(field1(750))
 );
 --enable_metadata
+--replace_result 4225 # 4097 #
 show index from t1;
 --disable_metadata
 drop table t1;
@@ -578,14 +596,17 @@ SHOW COLUMNS FROM no_such_table;
 #
 # Bug#19764 SHOW commands end up in the slow log as table scans
 #
+CREATE TABLE t1 (f1 INT, f2 INT);
+INSERT INTO t1 VALUES(10, 20);
 flush status;
 show status like 'slow_queries';
 show tables;
 show status like 'slow_queries';
 # Table scan query, to ensure that slow_queries does still get incremented
 # (mysqld is started with --log-queries-not-using-indexes)
-select 1 from information_schema.tables limit 1;
+select 1 from t1 limit 1;
 show status like 'slow_queries';
+DROP TABLE t1;
 
 create table t1 (a int);
 create trigger tr1 before insert on t1 for each row
@@ -703,6 +724,7 @@ SHOW CREATE DATABASE mysqltest1;
 
 --echo ----------------------------------------------------------------
 
+--replace_result 4225 # 4097 #
 SHOW DATABASES LIKE 'mysqltest1';
 
 --echo ----------------------------------------------------------------
@@ -711,10 +733,12 @@ SHOW CREATE TABLE t1;
 
 --echo ----------------------------------------------------------------
 
+--replace_result 4225 # 4097 #
 SHOW INDEX FROM t1;
 
 --echo ----------------------------------------------------------------
 
+--replace_result 20613 # 20609 # 20485 # 20481 #
 SELECT
   TABLE_CATALOG,
   TABLE_SCHEMA,
@@ -730,6 +754,7 @@ WHERE table_name = 't1';
 
 --echo ----------------------------------------------------------------
 
+--replace_result 20613 # 20609 # 20485 # 20481 #
 SELECT
   TABLE_CATALOG,
   TABLE_SCHEMA,
@@ -750,6 +775,7 @@ WHERE table_name = 't1';
 
 --echo ----------------------------------------------------------------
 
+--replace_result 4225 # 4097 #
 SHOW TABLES LIKE 't1';
 
 --echo ----------------------------------------------------------------
@@ -790,6 +816,7 @@ SHOW CREATE VIEW v1;
 
 --echo ----------------------------------------------------------------
 
+--replace_result 20613 # 20485 # 20609 # 20481 #
 SELECT *
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE table_name = 'v1';
@@ -1048,6 +1075,7 @@ set names latin1;
 SET NAMES latin1;
 CREATE DATABASE `ä`;
 CREATE TABLE `ä`.`ä` (a int) ENGINE=Memory;
+ANALYZE TABLE `ä`.`ä`;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 SHOW TABLE STATUS FROM `ä` LIKE 'ä';
 DROP DATABASE `ä`;
@@ -1451,6 +1479,49 @@ CREATE TABLE `t1` (
   `n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+DROP TABLE t1;
+
+--echo #
+--echo # WL#6599 -  New Data Dictionary and I_S integration
+--echo #
+CREATE TABLE t1 (c1 int(11) NOT NULL,
+                 c2 int(11) DEFAULT NULL,
+                 c3 text,
+                 PRIMARY KEY (c1));
+CREATE INDEX c2d ON t1(c2); 
+
+--echo # With fix, following statements should not show the hidden columns.
+--replace_column 3 # 4 # 5 # 6 #
+SHOW COLUMNS FROM t1;
+--replace_column 3 # 4 # 5 # 6 # 7 # 8 # 9 #
+SHOW FULL COLUMNS FROM t1;
+SELECT table_name, column_name, column_type FROM
+       INFORMATION_SCHEMA.COLUMNS WHERE table_name='t1';
+--echo # EXTENDED keyword is introduced to list the hidden columns.
+--echo # Note: Currently no hidden columns are created for the table t1.
+--echo #       WL#7743 introduces few hidden columns. Please verify hidden
+--echo #       columns in following statements output and record result.
+--replace_column 3 # 4 # 5 # 6 #
+SHOW EXTENDED COLUMNS FROM t1;
+--replace_column 3 # 4 # 5 # 6 # 7 # 8 # 9 #
+SHOW EXTENDED FULL COLUMNS FROM t1;
+
+--echo # With fix, following statements should not show the hidden index and
+--echo # index columns.
+SHOW INDEX FROM t1;
+SELECT table_schema, table_name, index_name, column_name FROM
+       INFORMATION_SCHEMA.STATISTICS WHERE table_name='t1';
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
+SELECT constraint_schema, constraint_name, table_name, column_name FROM
+       INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
+
+--echo # EXTENDED keyword is introduced to list the hidden index and index
+--echo # columns.
+--echo # Note: Currently no hidden index or index columns are created for the
+--echo #       table t1.
+--echo #       WL#7743 introduces hidden index columns. Please verify result
+--echo #       of following statement output and record result.
+SHOW EXTENDED INDEX FROM t1;
 DROP TABLE t1;
 
 # Wait till all disconnects are completed

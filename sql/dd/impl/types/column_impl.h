@@ -196,7 +196,16 @@ public:
   { return m_datetime_precision; }
 
   virtual void set_datetime_precision(uint datetime_precision)
-  { m_datetime_precision= datetime_precision; }
+  {
+    m_datetime_precision_null= false;
+    m_datetime_precision= datetime_precision;
+  }
+
+  virtual void set_datetime_precision_null(bool is_null)
+  { m_datetime_precision_null= is_null; }
+
+  virtual bool is_datetime_precision_null() const
+  { return m_datetime_precision_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // has_no_default.
@@ -226,6 +235,27 @@ public:
 
   virtual bool is_default_value_null() const
   { return m_default_value_null; }
+
+  /////////////////////////////////////////////////////////////////////////
+  // default_value_utf8
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const std::string &default_value_utf8() const
+  { return m_default_value_utf8; }
+
+  virtual void set_default_value_utf8(const std::string &default_value_utf8)
+  {
+    m_default_value_utf8_null= false;
+    m_default_value_utf8= default_value_utf8;
+  }
+
+  virtual void set_default_value_utf8_null(bool is_null)
+  { m_default_value_utf8_null= is_null; }
+
+  /* purecov: begin deadcode */
+  virtual bool is_default_value_utf8_null() const
+  { return m_default_value_utf8_null; }
+  /* purecov: end */
 
   /////////////////////////////////////////////////////////////////////////
   // is virtual ?
@@ -330,6 +360,18 @@ public:
   virtual bool set_se_private_data_raw(const std::string &se_private_data_raw);
 
   /////////////////////////////////////////////////////////////////////////
+  // Column key type.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual void set_column_key(enum_column_key column_key)
+  {
+    m_column_key= column_key;
+  }
+
+  virtual enum_column_key column_key() const
+  { return m_column_key; }
+
+  /////////////////////////////////////////////////////////////////////////
   // Elements.
   /////////////////////////////////////////////////////////////////////////
 
@@ -341,6 +383,16 @@ public:
                 type() == enum_column_types::SET);
     return m_elements;
   }
+
+  /////////////////////////////////////////////////////////////////////////
+  // Column display type
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const std::string &column_type_utf8() const
+  { return m_column_type_utf8; }
+
+  virtual void set_column_type_utf8(const std::string &column_type_utf8)
+  { m_column_type_utf8= column_type_utf8; }
 
   virtual size_t elements_count() const
   { return m_elements.size(); }
@@ -371,6 +423,11 @@ public:
     return new (std::nothrow) Column_impl(other, table);
   }
 
+  Column_impl *clone(Abstract_table_impl *parent) const
+  {
+    return new Column_impl(*this, parent);
+  }
+
 private:
   // Fields.
 
@@ -389,11 +446,14 @@ private:
   uint m_numeric_scale;
   bool m_numeric_scale_null;
   uint m_datetime_precision;
+  uint m_datetime_precision_null;
 
   bool m_has_no_default;
 
   bool m_default_value_null;
   std::string m_default_value;
+  bool m_default_value_utf8_null;
+  std::string m_default_value_utf8;
 
   std::string m_default_option;
   std::string m_update_option;
@@ -411,12 +471,16 @@ private:
 
   Column_type_element_collection m_elements;
 
+  std::string m_column_type_utf8;
+
   // References to loosely-coupled objects.
 
   Object_id m_collation_id;
 
   // TODO-WIKI21 should the columns.name be defined utf8_general_cs ?
   // instead of utf8_general_ci.
+
+  enum_column_key m_column_key;
 };
 
 ///////////////////////////////////////////////////////////////////////////

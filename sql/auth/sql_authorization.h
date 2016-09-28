@@ -25,7 +25,7 @@
 #include "sql_security_ctx.h"
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-void roles_graphml(String *);
+void roles_graphml(THD *thd, String *);
 void flatten_role_acls(ACL_USER *user, Security_context *sctx);
 
 bool check_if_granted_role(LEX_CSTRING user, LEX_CSTRING host,

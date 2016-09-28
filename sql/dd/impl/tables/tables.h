@@ -95,7 +95,7 @@ public:
                              ulonglong se_private_id);
 
   static Object_key *create_se_private_key(const std::string &engine,
-                                           ulonglong se_private_id);
+                                           Object_id se_private_id);
 
   static Object_key *create_key_by_schema_id(Object_id schema_id);
 

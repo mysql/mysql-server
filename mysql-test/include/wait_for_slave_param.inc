@@ -12,7 +12,7 @@
 # [--let $slave_timeout= NUMBER]
 # [--let $slave_error_param= [Slave_SQL_Errno | Slave_IO_Errno]]
 # [--let $slave_io_running_check_disable= 1]
-# [--let $rpl_channel_name= NAME]
+# [--let $rpl_channel_name= 'NAME']
 # [--let $rpl_debug= 1]
 # --source include/wait_for_slave_param.inc
 #
@@ -31,7 +31,7 @@
 #     --let $slave_param_comparison= !=
 #
 # $rpl_channel_name
-#   If this is not '', adds a FOR CHANNEL  '$rpl_channel_name' clause
+#   If this is set, adds a FOR CHANNEL $rpl_channel_name clause
 #   to SHOW SLAVE STATUS.
 #
 # $slave_timeout
@@ -60,12 +60,13 @@
 # FOR CHANNEL  '<channel>'.
 
 
---let $_wait_for_slave_params= $slave_param
-if ($rpl_channel_name != '')
+--let $include_filename= wait_for_slave_param.inc [$slave_param]
+--let $_for_channel_clause=
+if ($rpl_channel_name)
 {
-  --let $_wait_for_slave_params= $_wait_for_slave_params channel=$rpl_channel_name
+  --let $_for_channel_clause= FOR CHANNEL $rpl_channel_name
+  --let $include_filename= wait_for_slave_param.inc [$slave_param FOR CHANNEL $rpl_channel_name]
 }
---let $include_filename= wait_for_slave_param.inc [$_wait_for_slave_params]
 --source include/begin_include_file.inc
 
 --let $default_timeout= 30
@@ -100,11 +101,7 @@ if ($rpl_debug)
   --echo Waiting until '$slave_param' $_slave_param_comparison '$slave_param_value' [timeout='$_slave_timeout', \$slave_error_param='$slave_error_param']
 }
 
---let $slave_param_statement= SHOW SLAVE STATUS
-if ($rpl_channel_name != '')
-{
-  --let $slave_param_statement= $slave_param_statement FOR CHANNEL  '$rpl_channel_name'
-}
+--let $slave_param_statement= SHOW SLAVE STATUS $_for_channel_clause
 
 if (!$slave_io_running_check_disable)
 {

@@ -395,8 +395,13 @@ mysql_com.h if you are to use this macro. */
 
 /** The maximum length in bytes that a table name can occupy when stored in
 UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
-mysql_com.h if you are to use this macro. */
-#define MAX_TABLE_UTF8_LEN	(NAME_LEN)
+mysql_com.h if you are to use this macro. NAME_LEN is multiplied by 3 because
+when partitioning is used a table name from InnoDB point of view could be
+table_name#P#partition_name#SP#subpartition_name where each of the 3 names can
+be up to NAME_LEN. So the maximum is:
+NAME_LEN + strlen(#P#) + NAME_LEN + strlen(#SP#) + NAME_LEN + strlen(\0).
+This macro only applies to table name, without any database name prefixed. */
+#define MAX_TABLE_UTF8_LEN	(NAME_LEN * 3 + sizeof("#P##SP#"))
 
 /*
 			UNIVERSAL TYPE DEFINITIONS

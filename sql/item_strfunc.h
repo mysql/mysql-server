@@ -1382,5 +1382,106 @@ public:
 };
 
 
+class Item_func_get_dd_column_privileges :public Item_str_func
+{
+public:
+  Item_func_get_dd_column_privileges(const POS &pos, Item *a, Item *b, Item *c)
+    :Item_str_func(pos, a, b, c)
+  {}
+
+  virtual bool resolve_type(THD *thd)
+  {
+    /*
+      There are 14 kinds of grants, with a max length
+      per privileges is 11 chars.
+      So, setting max approximate to 200.
+    */
+    max_length= 200;
+    maybe_null= 1;
+
+    return false;
+  }
+
+  const char *func_name() const
+  { return "get_dd_column_privileges"; }
+
+  String *val_str(String *);
+};
+
+
+class Item_func_get_dd_index_sub_part_length :public Item_str_func
+{
+public:
+  Item_func_get_dd_index_sub_part_length(
+    const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
+    :Item_str_func(pos, a, b, c, d, e)
+  {}
+
+  virtual bool resolve_type(THD *thd)
+  {
+    /**
+      maximum number of chars in length of uint value is max 11 so setting
+      max_length to 11+1.
+    */
+    max_length= 12;
+    maybe_null= 1;
+
+    return false;
+  }
+
+  const char *func_name() const
+  { return "get_dd_index_sub_part_length"; }
+
+  String *val_str(String *);
+};
+
+
+class Item_func_get_dd_create_options :public Item_str_func
+{
+public:
+  Item_func_get_dd_create_options(const POS &pos, Item *a, Item *b)
+    :Item_str_func(pos, a, b)
+  {}
+
+  virtual bool resolve_type(THD *thd)
+  {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    max_length= 256;
+    maybe_null= 1;
+
+    return false;
+  }
+
+  const char *func_name() const
+  { return "get_dd_create_options"; }
+
+  String *val_str(String *);
+};
+
+
+class Item_func_internal_get_comment_or_error :public Item_str_func
+{
+public:
+  Item_func_internal_get_comment_or_error(const POS &pos, PT_item_list *list)
+    :Item_str_func(pos, list)
+  {}
+
+  virtual bool resolve_type(THD *thd)
+  {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    max_length= 256;
+    maybe_null= 1;
+
+    return false;
+  }
+
+  const char *func_name() const
+  { return "internal_get_comment_or_error"; }
+
+  String *val_str(String *);
+};
+
 
 #endif /* ITEM_STRFUNC_INCLUDED */

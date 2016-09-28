@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -179,6 +179,49 @@ static enum ha_key_alg dd_get_old_index_algorithm_type(dd::Index::enum_index_alg
 }
 
 
+/*
+  Check if the given key_part is suitable to be promoted as part of
+  primary key.
+*/
+bool is_suitable_for_primary_key(KEY_PART_INFO *key_part,
+                                 Field *table_field)
+{
+  // Index on virtual generated columns is not allowed to be PK
+  // even when the conditions below are true, so this case must be
+  // rejected here.
+  if (table_field->is_virtual_gcol())
+    return false;
+
+  /*
+    If the key column is of NOT NULL BLOB type, then it
+    will definitly have key prefix. And if key part prefix size
+    is equal to the BLOB column max size, then we can promote
+    it to primary key.
+   */
+  if (!table_field->real_maybe_null() &&
+      table_field->type() == MYSQL_TYPE_BLOB &&
+      table_field->field_length == key_part->length)
+    return true;
+
+  /*
+    If the key column is of NOT NULL GEOMETRY type, specifically POINT
+    type whose length is known internally (which is 25). And key part
+    prefix size is equal to the POINT column max size, then we can
+    promote it to primary key.
+   */
+  if (!table_field->real_maybe_null() &&
+      table_field->type() == MYSQL_TYPE_GEOMETRY &&
+      table_field->get_geometry_type() == Field::GEOM_POINT &&
+      key_part->length == MAX_LEN_GEOM_POINT_FIELD)
+    return true;
+
+  if (table_field->real_maybe_null() ||
+      table_field->key_length() != key_part->length)
+    return false;
+
+  return true;
+}
+
 /**
   Prepare TABLE_SHARE from dd::Table object or by reading metadata
   from dd.tables.
@@ -272,42 +315,10 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
             {
               Field *table_field= key_part[i].field;
 
-              // Index on virtual generated columns is not allowed to be PK
-              // even when the conditions below are true, so this case must be
-              // rejected here.
-              if (table_field->is_virtual_gcol())
+              if (is_suitable_for_primary_key(&key_part[i],
+                                              table_field) == false)
               {
-                primary_key= MAX_KEY;              // Can't be used
-                break;
-              }
-
-              /*
-                If the key column is of NOT NULL BLOB type, then it
-                will definitly have key prefix. And if key part prefix size
-                is equal to the BLOB column max size, then we can promote
-                it to primary key.
-               */
-              if (!table_field->real_maybe_null() &&
-                  table_field->type() == MYSQL_TYPE_BLOB &&
-                  table_field->field_length == key_part[i].length)
-                continue;
-
-              /*
-                If the key column is of NOT NULL GEOMETRY type, specifically POINT
-                type whose length is known internally (which is 25). And key part
-                prefix size is equal to the POINT column max size, then we can
-                promote it to primary key.
-               */
-              if (!table_field->real_maybe_null() &&
-                  table_field->type() == MYSQL_TYPE_GEOMETRY &&
-                  table_field->get_geometry_type() == Field::GEOM_POINT &&
-                  key_part[i].length == MAX_LEN_GEOM_POINT_FIELD)
-                continue;
-
-              if (table_field->real_maybe_null() ||
-                  table_field->key_length() != key_part[i].length)
-              {
-                primary_key= MAX_KEY;		// Can't be used
+                primary_key= MAX_KEY;
                 break;
               }
             }
@@ -598,13 +609,19 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
                                             HA_OPTION_NO_PACK_KEYS;
   }
 
-  table_options->get_bool("checksum", &bool_opt);
-  if (bool_opt)
-    share->db_create_options|= HA_OPTION_CHECKSUM;
+  if (table_options->exists("checksum"))
+  {
+    table_options->get_bool("checksum", &bool_opt);
+    if (bool_opt)
+      share->db_create_options|= HA_OPTION_CHECKSUM;
+  }
 
-  table_options->get_bool("delay_key_write", &bool_opt);
-  if (bool_opt)
-    share->db_create_options|= HA_OPTION_DELAY_KEY_WRITE;
+  if (table_options->exists("delay_key_write"))
+  {
+    table_options->get_bool("delay_key_write", &bool_opt);
+    if (bool_opt)
+      share->db_create_options|= HA_OPTION_DELAY_KEY_WRITE;
+  }
 
   if (table_options->exists("stats_persistent"))
   {
@@ -616,8 +633,12 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
   share->db_options_in_use= share->db_create_options;
 
   // Average row length
-  table_options->get_uint64("avg_row_length", &option_value);
-  share->avg_row_length= static_cast<ulong>(option_value);
+
+  if (table_options->exists("avg_row_length"))
+  {
+    table_options->get_uint64("avg_row_length", &option_value);
+    share->avg_row_length= static_cast<ulong>(option_value);
+  }
 
   // Collation ID
   share->table_charset= dd_get_mysql_charset(tab_obj->collation_id());
@@ -650,12 +671,16 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
     share->row_type= ROW_TYPE_DEFAULT;
 
   // Stats_sample_pages
-  table_options->get_uint32("stats_sample_pages",
-                            &share->stats_sample_pages);
+  if (table_options->exists("stats_sample_pages"))
+    table_options->get_uint32("stats_sample_pages",
+                              &share->stats_sample_pages);
 
   // Stats_auto_recalc
-  table_options->get_uint64("stats_auto_recalc", &option_value);
-  share->stats_auto_recalc= (enum_stats_auto_recalc) option_value;
+  if (table_options->exists("stats_auto_recalc"))
+  {
+    table_options->get_uint64("stats_auto_recalc", &option_value);
+    share->stats_auto_recalc= (enum_stats_auto_recalc) option_value;
+  }
 
   // mysql version
   share->mysql_version= tab_obj->mysql_version_id();
@@ -1133,13 +1158,19 @@ static void fill_index_element_from_dd(TABLE_SHARE *share,
                       field->real_type() != MYSQL_TYPE_STRING) ||
                      (field->charset()->state & MY_CS_BINSORT));
 
-  // key part flag (TODO-NOW, set reverse sort?)
-  // dlenev: Currently no SE support descending indexes. However we have an attribute
-  // for index ordering in DD. So maybe we shouls simply set HA_REVERSE_SORT
-  // flag for this bitmap simply on the basis of this attribute, to make code
-  // more future-proof?
-  // Gopal: This task may be relates/combined with Task20 of wl6599 in wiki.
-  keypart->key_part_flag= 0;
+  //
+  // Read index order
+  //
+
+  /*
+    Currently no SE supports descending index. Still we set HA_REVERSE_SORT
+    flag here based on the INDEX_COLUMN_USAGE.ORDER value to be future
+    proof.
+  */
+  if (idx_elem_obj->order() == dd::Index_element::ORDER_DESC)
+    keypart->key_part_flag|= HA_REVERSE_SORT;
+
+  // key_part->field=   (Field*) 0; // Will be fixed later
 }
 
 

@@ -36,9 +36,12 @@
  * .configure. strxfrm_multiply_win1250ch=2
  */
 
-#include "my_global.h"
-#include "m_string.h"
+#include <string.h>
+#include <sys/types.h>
+
 #include "m_ctype.h"
+#include "my_compiler.h"
+#include "my_global.h"
 
 
 

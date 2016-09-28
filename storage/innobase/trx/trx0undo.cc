@@ -135,15 +135,6 @@ trx_undo_insert_header_reuse(
 					header page, x-latched */
 	trx_id_t	trx_id,		/*!< in: transaction id */
 	mtr_t*		mtr);		/*!< in: mtr */
-/**********************************************************************//**
-If an update undo log can be discarded immediately, this function frees the
-space, resetting the page to the proper state for caching. */
-static
-void
-trx_undo_discard_latest_update_undo(
-/*================================*/
-	page_t*	undo_page,	/*!< in: header page of an undo log of size 1 */
-	mtr_t*	mtr);		/*!< in: mtr */
 
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
@@ -813,84 +804,6 @@ trx_undo_insert_header_reuse(
 	trx_undo_insert_header_reuse_log(undo_page, trx_id, mtr);
 
 	return(free);
-}
-
-#ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Writes the redo log entry of an update undo log header discard. */
-UNIV_INLINE
-void
-trx_undo_discard_latest_log(
-/*========================*/
-	page_t* undo_page,	/*!< in: undo log header page */
-	mtr_t*	mtr)		/*!< in: mtr */
-{
-	mlog_write_initial_log_record(undo_page, MLOG_UNDO_HDR_DISCARD, mtr);
-}
-#else /* !UNIV_HOTBACKUP */
-# define trx_undo_discard_latest_log(undo_page, mtr) ((void) 0)
-#endif /* !UNIV_HOTBACKUP */
-
-/***********************************************************//**
-Parses the redo log entry of an undo log page header discard.
-@return end of log record or NULL */
-byte*
-trx_undo_parse_discard_latest(
-/*==========================*/
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
-	page_t*	page,	/*!< in: page or NULL */
-	mtr_t*	mtr)	/*!< in: mtr or NULL */
-{
-	ut_ad(end_ptr);
-
-	if (page) {
-		trx_undo_discard_latest_update_undo(page, mtr);
-	}
-
-	return(ptr);
-}
-
-/**********************************************************************//**
-If an update undo log can be discarded immediately, this function frees the
-space, resetting the page to the proper state for caching. */
-static
-void
-trx_undo_discard_latest_update_undo(
-/*================================*/
-	page_t*	undo_page,	/*!< in: header page of an undo log of size 1 */
-	mtr_t*	mtr)		/*!< in: mtr */
-{
-	trx_usegf_t*	seg_hdr;
-	trx_upagef_t*	page_hdr;
-	trx_ulogf_t*	log_hdr;
-	trx_ulogf_t*	prev_log_hdr;
-	ulint		free;
-	ulint		prev_hdr_offset;
-
-	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
-	page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
-
-	free = mach_read_from_2(seg_hdr + TRX_UNDO_LAST_LOG);
-	log_hdr = undo_page + free;
-
-	prev_hdr_offset = mach_read_from_2(log_hdr + TRX_UNDO_PREV_LOG);
-
-	if (prev_hdr_offset != 0) {
-		prev_log_hdr = undo_page + prev_hdr_offset;
-
-		mach_write_to_2(page_hdr + TRX_UNDO_PAGE_START,
-				mach_read_from_2(prev_log_hdr
-						 + TRX_UNDO_LOG_START));
-		mach_write_to_2(prev_log_hdr + TRX_UNDO_NEXT_LOG, 0);
-	}
-
-	mach_write_to_2(page_hdr + TRX_UNDO_PAGE_FREE, free);
-
-	mach_write_to_2(seg_hdr + TRX_UNDO_STATE, TRX_UNDO_CACHED);
-	mach_write_to_2(seg_hdr + TRX_UNDO_LAST_LOG, prev_hdr_offset);
-
-	trx_undo_discard_latest_log(undo_page, mtr);
 }
 
 #ifndef UNIV_HOTBACKUP

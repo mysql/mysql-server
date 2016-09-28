@@ -17,3 +17,6 @@ ALTER TABLE performance_schema.events_statements_summary_global_by_event_name
 CREATE UNIQUE INDEX test_index
   ON performance_schema.events_statements_summary_global_by_event_name(EVENT_NAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.events_statements_summary_global_by_event_name;

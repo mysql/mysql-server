@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,35 +26,52 @@ LEX_STRING PERFORMANCE_SCHEMA_str=
 { C_STRING_WITH_LEN("performance_schema") };
 
 LEX_STRING mutex_instrument_prefix=
-{ C_STRING_WITH_LEN("wait/synch/mutex/") };
+{ C_STRING_WITH_LEN("wait/synch/mutex") };
 
 LEX_STRING rwlock_instrument_prefix=
-{ C_STRING_WITH_LEN("wait/synch/rwlock/") };
+{ C_STRING_WITH_LEN("wait/synch/rwlock") };
 
 LEX_STRING sxlock_instrument_prefix=
-{ C_STRING_WITH_LEN("wait/synch/sxlock/") };
+{ C_STRING_WITH_LEN("wait/synch/sxlock") };
 
 LEX_STRING cond_instrument_prefix=
-{ C_STRING_WITH_LEN("wait/synch/cond/") };
-
-LEX_STRING thread_instrument_prefix=
-{ C_STRING_WITH_LEN("thread/") };
+{ C_STRING_WITH_LEN("wait/synch/cond") };
 
 LEX_STRING file_instrument_prefix=
-{ C_STRING_WITH_LEN("wait/io/file/") };
+{ C_STRING_WITH_LEN("wait/io/file") };
+
+LEX_STRING table_io_class_name=
+{ C_STRING_WITH_LEN("wait/io/table/sql/handler") };
+
+LEX_STRING table_lock_class_name=
+{ C_STRING_WITH_LEN("wait/lock/table/sql/handler") };
+
+LEX_STRING socket_instrument_prefix=
+{ C_STRING_WITH_LEN("wait/io/socket") };
+
+LEX_STRING idle_class_name=
+{ C_STRING_WITH_LEN("idle") };
+
+LEX_STRING metadata_lock_class_name=
+{ C_STRING_WITH_LEN("wait/lock/metadata/sql/mdl") };
+
+LEX_STRING thread_instrument_prefix=
+{ C_STRING_WITH_LEN("thread") };
 
 LEX_STRING stage_instrument_prefix=
-{ C_STRING_WITH_LEN("stage/") };
+{ C_STRING_WITH_LEN("stage") };
 
 LEX_STRING statement_instrument_prefix=
-{ C_STRING_WITH_LEN("statement/") };
+{ C_STRING_WITH_LEN("statement") };
 
 LEX_STRING transaction_instrument_prefix=
 { C_STRING_WITH_LEN("transaction") };
 
-LEX_STRING socket_instrument_prefix=
-{ C_STRING_WITH_LEN("wait/io/socket/") };
+LEX_STRING builtin_memory_instrument_prefix=
+{ C_STRING_WITH_LEN("memory/performance_schema/") };
 
 LEX_STRING memory_instrument_prefix=
-{ C_STRING_WITH_LEN("memory/") };
+{ C_STRING_WITH_LEN("memory") };
 
+LEX_STRING error_class_name=
+{ C_STRING_WITH_LEN("error") };

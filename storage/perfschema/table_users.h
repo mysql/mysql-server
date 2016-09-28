@@ -43,6 +43,22 @@ struct row_users
   PFS_connection_stat_row m_connection_stat;
 };
 
+class PFS_index_users_by_user : public PFS_index_users
+{
+public:
+  PFS_index_users_by_user()
+    : PFS_index_users(&m_key), m_key("USER")
+  {}
+
+  ~PFS_index_users_by_user()
+  {}
+
+  virtual bool match(PFS_user *pfs);
+
+private:
+  PFS_key_user m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.USERS. */
 class table_users : public cursor_by_user
 {
@@ -66,6 +82,8 @@ protected:
 public:
   ~table_users()
   {}
+
+  int index_init(uint idx, bool sorted);
 
 private:
   virtual void make_row(PFS_user *pfs);

@@ -6,3 +6,6 @@ ALTER TABLE performance_schema.table_lock_waits_summary_by_table ADD INDEX test_
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 CREATE UNIQUE INDEX test_index ON performance_schema.table_lock_waits_summary_by_table(TABLE_NAME);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+DROP INDEX `OBJECT`
+  ON performance_schema.table_lock_waits_summary_by_table;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

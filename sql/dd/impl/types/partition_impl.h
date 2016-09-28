@@ -161,10 +161,10 @@ public:
   // se_private_id.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong se_private_id() const
+  virtual Object_id se_private_id() const
   { return m_se_private_id; }
 
-  virtual void set_se_private_id(ulonglong se_private_id)
+  virtual void set_se_private_id(Object_id se_private_id)
   { m_se_private_id= se_private_id; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -234,7 +234,7 @@ private:
 
   uint m_level;
   uint m_number;
-  ulonglong m_se_private_id;
+  Object_id m_se_private_id;
 
   std::string m_engine;
   std::string m_comment;

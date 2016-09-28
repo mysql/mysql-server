@@ -32,6 +32,7 @@ CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=4
 COMMENT 'Spatial index on Geometry type column';
 
 # Check index type
+ANALYZE TABLE tab;
 SHOW INDEXES FROM tab;
 
 # Populate some spatial data
@@ -416,6 +417,7 @@ CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=8
 COMMENT 'Spatial index on Geometry type column';
 
 # Check index type
+ANALYZE TABLE tab;
 SHOW INDEXES FROM tab;
 
 # Populate some spatial data
@@ -788,6 +790,7 @@ CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=16
 COMMENT 'Spatial index on Geometry type column';
 
 # Check index type
+ANALYZE TABLE tab;
 SHOW INDEXES FROM tab;
 
 # Populate some spatial data
@@ -1127,6 +1130,7 @@ CREATE SPATIAL INDEX idx1 ON tab(c1) ;
 
 SHOW CREATE TABLE tab;
 
+ANALYZE TABLE tab;
 SHOW INDEX FROM tab;
 
 set @g1 = ST_GeomFromText('POINT(-1 -2)');

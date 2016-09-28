@@ -33,6 +33,8 @@
   For the user manual, see http://dev.mysql.com/doc/refman/8.0/en/
 
   For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
+
+  Document generated on: ${DOXYGEN_GENERATION_DATE}, branch: ${DOXYGEN_GENERATION_BRANCH}, revision: ${DOXYGEN_GENERATION_REVISION}
 */
 
 /**
@@ -329,7 +331,9 @@
 #include "mysqld_thd_manager.h"         // Global_THD_manager
 #include "options_mysqld.h"             // OPT_THREAD_CACHE_SIZE
 #include "opt_costconstantcache.h"      // delete_optimizer_cost_module
+#include "opt_range.h"                  // range_optimizer_init
 #include "parse_file.h"                 // File_parser_dummy_hook
+#include "persisted_variable.h"         // Persisted_variables_cache
 #include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
 #include "replication.h"                // thd_enter_cond
 #include "rpl_filter.h"                 // Rpl_filter
@@ -411,6 +415,7 @@
 #endif
 
 #include "dd/dd.h"                      // dd::shutdown
+#include "dd/dictionary.h"              // dd::get_dictionary
 #include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
 
 #include <mysql/components/my_service.h>  // my_service<>
@@ -458,11 +463,7 @@ inline void setup_fpu()
     point, double values will be stored and processed in 64 bits anyway.
   */
 #if defined(__i386__) && !defined(__SSE2_MATH__)
-#if defined(_WIN32)
-#if !defined(_WIN64)
-  _control87(_PC_53, MCW_PC);
-#endif /* !_WIN64 */
-#else /* !_WIN32 */
+#if !defined(_WIN32)
   fpu_control_t cw;
   _FPU_GETCW(cw);
   cw= (cw & ~_FPU_EXTENDED) | _FPU_DOUBLE;
@@ -648,7 +649,7 @@ my_thread_handle shutdown_thr_handle;
 uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 
-#if MYSQL_VERSION_ID >= 80001
+#if MYSQL_VERSION_ID >= 80002
 #error "show_compatibility_56 is to be removed in MySQL 8.0"
 #else
 /*
@@ -656,7 +657,7 @@ ulong log_error_verbosity= 3; // have a non-zero value during early start-up
   default value from Sys_show_compatibility_56 otherwise.
 */
 my_bool show_compatibility_56= TRUE;
-#endif /* MYSQL_VERSION_ID >= 80001 */
+#endif /* MYSQL_VERSION_ID >= 80002 */
 
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 ulong slow_start_timeout;
@@ -832,6 +833,8 @@ ulong stored_program_cache_size= 0;
   during certain ALTER TABLE operations.
 */
 my_bool avoid_temporal_upgrade;
+
+my_bool persisted_globals_load= TRUE;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -1052,6 +1055,9 @@ Checkable_rwlock *global_sid_lock= NULL;
 Sid_map *global_sid_map= NULL;
 Gtid_state *gtid_state= NULL;
 Gtid_table_persistor *gtid_table_persistor= NULL;
+
+/* cache for persisted variables */
+static Persisted_variables_cache persisted_variables_cache;
 
 void set_remaining_args(int argc, char **argv)
 {
@@ -1724,7 +1730,6 @@ void clean_up(bool print_message)
     bitmap_free(&slave_error_mask);
 #endif
   my_tz_free();
-  ignore_db_dirs_free();
   servers_free(1);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   acl_free(1);
@@ -1732,6 +1737,7 @@ void clean_up(bool print_message)
 #endif
   query_cache.destroy(NULL);
   hostname_cache_free();
+  range_optimizer_free();
   item_func_sleep_free();
   lex_free();       /* Free some memory */
   item_create_cleanup();
@@ -1837,6 +1843,9 @@ void clean_up(bool print_message)
 
   log_syslog_exit();
 
+#ifndef EMBEDDED_LIBRARY
+  persisted_variables_cache.cleanup();
+#endif
   /*
     The following lines may never be executed as the main thread may have
     killed us
@@ -3073,8 +3082,6 @@ int init_common_variables()
       mysql_init_variables())
     return 1;
 
-  ignore_db_dirs_init();
-
   {
     struct tm tm_tmp;
     localtime_r(&server_start_time,&tm_tmp);
@@ -3357,6 +3364,7 @@ int init_common_variables()
   if (item_create_init())
     return 1;
   item_init();
+  range_optimizer_init();
 #ifndef EMBEDDED_LIBRARY
   my_regex_init(&my_charset_latin1, check_enough_stack_size);
   my_string_stack_guard= check_enough_stack_size;
@@ -3462,6 +3470,22 @@ int init_common_variables()
                       "--slow-query-log-file option, log tables are used. "
                       "To enable logging to files use the --log-output=file option.");
 
+  if (opt_general_logname &&
+      !is_valid_log_name(opt_general_logname, strlen(opt_general_logname)))
+  {
+    sql_print_error("Invalid value for --general_log_file: %s",
+                    opt_general_logname);
+    return 1;
+  }
+
+  if (opt_slow_logname &&
+      !is_valid_log_name(opt_slow_logname, strlen(opt_slow_logname)))
+  {
+    sql_print_error("Invalid value for --slow_query_log_file: %s",
+                    opt_slow_logname);
+    return 1;
+  }
+
 #define FIX_LOG_VAR(VAR, ALT)                                   \
   if (!VAR || !*VAR)                                            \
     VAR= ALT;
@@ -3483,12 +3507,6 @@ int init_common_variables()
 #else
   use_temp_pool= 0;
 #endif
-
-  if (ignore_db_dirs_process_additions())
-  {
-    sql_print_error("An error occurred while storing ignore_db_dirs to a hash.");
-    return 1;
-  }
 
   /* create the data directory if requested */
   if (unlikely(opt_initialize) &&
@@ -3553,6 +3571,9 @@ int init_common_variables()
                     "and ignore_table rules to hush.");
     return 1;
   }
+  /* Once all options are handled we load persisted config file */
+  if (persisted_variables_cache.load_persist_file())
+    return 1;
 
   return 0;
 }
@@ -4456,11 +4477,32 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   */
   init_update_queries();
 
-  /* Initialize DD, plugin_register_dynamic_and_init_all() needs it */
-  if (!opt_help && dd::init(opt_initialize))
+  /*
+    plugin_register_dynamic_and_init_all() needs DD initialized.
+    Initialize DD to create data directory using current server.
+  */
+  if (opt_initialize)
   {
-    sql_print_error("Data Dictionary initialization failed.");
-    unireg_abort(1);
+    if(!opt_help && dd::init(dd::enum_dd_init_type::DD_INITIALIZE))
+    {
+      sql_print_error("Data Dictionary initialization failed.");
+      unireg_abort(1);
+    }
+  }
+  else
+  {
+    /*
+      Initialize DD in case of upgrade and normal normal server restart.
+      It is detected if we are starting on old data directory or current
+      data directory. If it is old data directory, DD tables are created.
+      If server is starting on data directory with DD tables, DD is initialized.
+    */
+    if (!opt_help &&
+        dd::init(dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE))
+    {
+      sql_print_error("Data Dictionary initialization failed.");
+      unireg_abort(1);
+    }
   }
 
   /*
@@ -4475,10 +4517,28 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                   (opt_help ? (PLUGIN_INIT_SKIP_INITIALIZATION |
                                PLUGIN_INIT_SKIP_PLUGIN_TABLE) : 0)))
   {
+    // Delete all DD tables in case of error in initializing plugins.
+    (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
     sql_print_error("Failed to initialize dynamic plugins.");
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
   dynamic_plugins_are_initialized= true;  /* Don't separate from init function */
+
+  // Store meta data of plugin schema tables into new DD
+  if (!opt_help && (opt_initialize || dd_upgrade_flag) &&
+      dd::get_dictionary()->install_plugin_IS_table_metadata())
+  {
+    sql_print_error("Failed to store plugin metadata into dictionary tables.");
+    unireg_abort(1);
+  }
+
+  // Populate DD tables with meta data from 5.7 in case of upgrade
+  if (!opt_help && dd_upgrade_flag &&
+      dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE))
+  {
+    sql_print_error("Failed to Populate DD tables.");
+    unireg_abort(1);
+  }
 
   Session_tracker session_track_system_variables_check;
   LEX_STRING var_list;
@@ -4831,11 +4891,17 @@ int mysqld_main(int argc, char **argv)
     flush_error_log_messages();
     return 1;
   }
+
+  /* Initialize variables cache for persisted variables */
+  persisted_variables_cache.init();
+
   my_getopt_use_args_separator= FALSE;
   defaults_argc= argc;
   defaults_argv= argv;
   remaining_argc= argc;
   remaining_argv= argv;
+
+  init_variable_default_paths();
 
   /* Must be initialized early for comparison of options name */
   system_charset_info= &my_charset_utf8_general_ci;
@@ -4862,10 +4928,12 @@ int mysqld_main(int argc, char **argv)
     exit(MYSQLD_ABORT_EXIT);
   }
 
-  if (opt_daemonize && (isatty(STDOUT_FILENO) || isatty(STDERR_FILENO)))
+  if (opt_daemonize && log_error_dest == disabled_my_option &&
+      (isatty(STDOUT_FILENO) || isatty(STDERR_FILENO)))
   {
-    fprintf(stderr, "Please set appopriate redirections for "
-                    "standard output and/or standard error in daemon mode.\n");
+    fprintf(stderr, "Please enable --log-error option or set appropriate "
+                    "redirections for standard output and/or standard error "
+                    "in daemon mode.\n");
     exit(MYSQLD_ABORT_EXIT);
   }
 
@@ -5537,6 +5605,13 @@ int mysqld_main(int argc, char **argv)
   //  Start signal handler thread.
   start_signal_handler();
 #endif
+
+  /* set all persistent options */
+  if (persisted_variables_cache.set_persist_options())
+  {
+    sql_print_error("Setting persistent options failed.");
+    return 1;
+  }
 
   if (opt_initialize)
   {
@@ -6241,11 +6316,6 @@ struct my_option my_long_options[]=
    &opt_super_large_pages, &opt_super_large_pages, 0,
    GET_BOOL, OPT_ARG, 0, 0, 1, 0, 1, 0},
 #endif
-  {"ignore-db-dir", OPT_IGNORE_DB_DIRECTORY,
-   "Specifies a directory to add to the ignore list when collecting "
-   "database names from the datadir. Put a blank argument to reset "
-   "the list accumulated so far.", 0, 0, 0, GET_STR, REQUIRED_ARG, 
-   0, 0, 0, 0, 0, 0},
   {"language", 'L',
    "Client error messages in given language. May be given as a full path. "
    "Deprecated. Use --lc-messages-dir instead.",
@@ -7944,21 +8014,6 @@ mysqld_get_one_option(int optid,
       log_error_dest= "";
     break;
 
-  case OPT_IGNORE_DB_DIRECTORY:
-    if (*argument == 0)
-      ignore_db_dirs_reset();
-    else
-    {
-      if (push_ignored_db_dir(argument))
-      {
-        sql_print_error("Can't start server: "
-                        "cannot process --ignore-db-dir=%.*s", 
-                        FN_REFLEN, argument);
-        return 1;
-      }
-    }
-    break;
-
   case OPT_EARLY_PLUGIN_LOAD:
     free_list(opt_early_plugin_load_list_ptr);
     opt_early_plugin_load_list_ptr->push_back(new i_string(argument));
@@ -9137,7 +9192,6 @@ static PSI_mutex_info all_server_mutexes[]=
 };
 #endif // !EMBEDDED_LIBRARY
 
-PSI_rwlock_key key_rwlock_LOCK_grant;
 PSI_rwlock_key key_rwlock_LOCK_logger;
 PSI_rwlock_key key_rwlock_query_cache_query_lock;
 PSI_rwlock_key key_rwlock_channel_map_lock;
@@ -9158,7 +9212,6 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_Binlog_transmit_delegate_lock, "Binlog_transmit_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_relay_IO_delegate_lock, "Binlog_relay_IO_delegate::lock", PSI_FLAG_GLOBAL},
 #endif
-  { &key_rwlock_LOCK_grant, "LOCK_grant", 0},
   { &key_rwlock_LOCK_logger, "LOGGER::LOCK_logger", 0},
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},

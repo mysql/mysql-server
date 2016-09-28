@@ -138,6 +138,28 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
   }
 
   /*
+    INFORMATION_SCHEMA DB content dump is only used to reload the data
+    into another tables for analysis purpose. This feature is not the
+    core responsibility of mysqlpump tool. INFORMATION_SCHEMA DB
+    content can even be dumped using other methods like SELECT INTO
+    OUTFILE... for such purpose.
+    Hence reporting error if INFORMATION_SCHEMA DB is in databases list.
+  */
+  for (auto database : m_object_filter.m_databases_included)
+  {
+    auto db_name= std::get<1>(database);
+
+    if (!my_strcasecmp(&my_charset_latin1, db_name.c_str(),
+                       INFORMATION_SCHEMA_DB_NAME))
+    {
+      m_mysql_chain_element_options->get_program()->error(
+        Mysql::Tools::Base::Message_data(1, "Dumping "
+        "\'INFORMATION_SCHEMA\' DB content is not supported.",
+        Mysql::Tools::Base::Message_type_error));
+    }
+  }
+
+  /*
     We add standard exclusions only if objects are included by default, i.e.
     there are exclusions or there is no exclusions and inclusions.
   */
