@@ -1130,30 +1130,6 @@ cmp_db_names(const char *db1_name,
 
 
 /**
-  Check if there is a file system directory for the schema name.
-
-  @param db_name     Name of the schema to check.
-
-  @return            true if the directory does not exist; otherwise, false
-*/
-
-static bool check_db_dir_existence(const char *db_name)
-{
-  char db_dir_path[FN_REFLEN + 1];
-  size_t db_dir_path_len;
-
-  db_dir_path_len= build_table_filename(db_dir_path, sizeof(db_dir_path) - 1,
-                                        db_name, "", "", 0);
-
-  if (db_dir_path_len && db_dir_path[db_dir_path_len - 1] == FN_LIBCHAR)
-    db_dir_path[db_dir_path_len - 1]= 0;
-
-  /* Check access. */
-  return my_access(db_dir_path, F_OK);
-}
-
-
-/**
   @brief Change the current database and its attributes unconditionally.
 
   @param thd          thread handle
@@ -1224,6 +1200,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   Security_context *sctx= thd->security_context();
   ulong db_access= sctx->current_db_access();
   const CHARSET_INFO *db_default_cl= NULL;
+  bool schema_exists= false;
 
   DBUG_ENTER("mysql_change_db");
   DBUG_PRINT("enter",("name: '%s'", new_db_name.str));
@@ -1335,7 +1312,10 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   }
 #endif
 
-  if (check_db_dir_existence(new_db_file_name.str))
+  if (dd::schema_exists(thd, new_db_file_name.str, &schema_exists))
+    DBUG_RETURN(true);
+
+  if (!schema_exists)
   {
     if (force_switch)
     {

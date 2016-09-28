@@ -3,7 +3,6 @@ SHOW CREATE SCHEMA s;
 Database	Create Database
 s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET latin1 */
 USE s;
-ERROR 42000: Unknown database 's'
 ALTER SCHEMA s DEFAULT COLLATE= utf8_general_ci;
 SHOW CREATE SCHEMA s;
 Database	Create Database
@@ -41,3 +40,9 @@ DROP TABLE s.t_myisam;
 ERROR 42S02: Unknown table 's.t_myisam'
 DROP TABLE s.t_innodb;
 DROP SCHEMA s;
+#
+# Bug#24732194: "USE DB_NAME" AND "SELECT SCHEMA()"
+#               WORK FOR NON-EXISTING DATABASES
+#
+USE s;
+ERROR 42000: Unknown database 's'
