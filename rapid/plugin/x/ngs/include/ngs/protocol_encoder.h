@@ -60,6 +60,7 @@ namespace ngs
 
     bool send_result(const Error_code &result);
 
+    bool send_ok();
     bool send_ok(const std::string &message);
     bool send_init_error(const Error_code& error_code);
 

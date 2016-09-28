@@ -97,6 +97,12 @@ bool Protocol_encoder::send_result(const Error_code &result)
 }
 
 
+bool Protocol_encoder::send_ok()
+{
+  return send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok());
+}
+
+
 bool Protocol_encoder::send_ok(const std::string &message)
 {
   Mysqlx::Ok ok;

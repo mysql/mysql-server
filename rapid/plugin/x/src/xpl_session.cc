@@ -163,3 +163,10 @@ bool xpl::Session::can_see_user(const std::string &user) const
   return false;
 }
 
+
+void xpl::Session::update_status(Common_status_variables::Variable
+                                 Common_status_variables::*variable)
+{
+  ++(m_status_variables.*variable);
+  ++(Global_status_variables::instance().*variable);
+}

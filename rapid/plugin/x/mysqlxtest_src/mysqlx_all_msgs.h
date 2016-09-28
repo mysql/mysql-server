@@ -17,89 +17,65 @@
  * 02110-1301  USA
  */
 
-template<class C>
-mysqlx::Message *create()
-{
-  return new C();
-}
 
 static struct init_message_factory
 {
+  template<class C>
+  static mysqlx::Message *create() { return new C(); }
+
+  template<typename T>
+  void register_message(Message_by_name &msgs_by_name, Message_by_id &msgs_by_id, Message_by_full_name &msgs_by_full_name,
+                        int8_t id, const std::string& name, const std::string &full_name)
+  {
+    msgs_by_name[name] = std::make_pair(&create<T>, id);
+    msgs_by_id[id] = std::make_pair(&create<T>, name);
+    msgs_by_full_name[full_name] = name;
+  }
+
+  template<typename T>
+  void server_message(int8_t id, const std::string& name, const std::string &full_name)
+  {
+    register_message<T>(server_msgs_by_name, server_msgs_by_id, server_msgs_by_full_name,
+                        id, name, full_name);
+  }
+
+  template<typename T>
+  void client_message(int8_t id, const std::string& name, const std::string &full_name)
+  {
+    register_message<T>(client_msgs_by_name, client_msgs_by_id, client_msgs_by_full_name,
+                        id, name, full_name);
+  }
+
   init_message_factory()
   {
-    server_msgs_by_name["NOTICE"] = std::make_pair(&create<Mysqlx::Notice::Frame>, Mysqlx::ServerMessages::NOTICE);
-    server_msgs_by_id[Mysqlx::ServerMessages::NOTICE] = std::make_pair(&create<Mysqlx::Notice::Frame>, "NOTICE");
-    server_msgs_by_full_name["Mysqlx.Notice.Frame"] = "NOTICE";
-    server_msgs_by_name["RESULTSET_FETCH_DONE_MORE_RESULTSETS"] = std::make_pair(&create<Mysqlx::Resultset::FetchDoneMoreResultsets>, Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS);
-    server_msgs_by_id[Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS] = std::make_pair(&create<Mysqlx::Resultset::FetchDoneMoreResultsets>, "RESULTSET_FETCH_DONE_MORE_RESULTSETS");
-    server_msgs_by_full_name["Mysqlx.Resultset.FetchDoneMoreResultsets"] = "RESULTSET_FETCH_DONE_MORE_RESULTSETS";
-    server_msgs_by_name["CONN_CAPABILITIES"] = std::make_pair(&create<Mysqlx::Connection::Capabilities>, Mysqlx::ServerMessages::CONN_CAPABILITIES);
-    server_msgs_by_id[Mysqlx::ServerMessages::CONN_CAPABILITIES] = std::make_pair(&create<Mysqlx::Connection::Capabilities>, "CONN_CAPABILITIES");
-    server_msgs_by_full_name["Mysqlx.Connection.Capabilities"] = "CONN_CAPABILITIES";
-    server_msgs_by_name["RESULTSET_ROW"] = std::make_pair(&create<Mysqlx::Resultset::Row>, Mysqlx::ServerMessages::RESULTSET_ROW);
-    server_msgs_by_id[Mysqlx::ServerMessages::RESULTSET_ROW] = std::make_pair(&create<Mysqlx::Resultset::Row>, "RESULTSET_ROW");
-    server_msgs_by_full_name["Mysqlx.Resultset.Row"] = "RESULTSET_ROW";
-    server_msgs_by_name["RESULTSET_FETCH_DONE"] = std::make_pair(&create<Mysqlx::Resultset::FetchDone>, Mysqlx::ServerMessages::RESULTSET_FETCH_DONE);
-    server_msgs_by_id[Mysqlx::ServerMessages::RESULTSET_FETCH_DONE] = std::make_pair(&create<Mysqlx::Resultset::FetchDone>, "RESULTSET_FETCH_DONE");
-    server_msgs_by_full_name["Mysqlx.Resultset.FetchDone"] = "RESULTSET_FETCH_DONE";
-    server_msgs_by_name["SQL_STMT_EXECUTE_OK"] = std::make_pair(&create<Mysqlx::Sql::StmtExecuteOk>, Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK);
-    server_msgs_by_id[Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK] = std::make_pair(&create<Mysqlx::Sql::StmtExecuteOk>, "SQL_STMT_EXECUTE_OK");
-    server_msgs_by_full_name["Mysqlx.Sql.StmtExecuteOk"] = "SQL_STMT_EXECUTE_OK";
-    server_msgs_by_name["ERROR"] = std::make_pair(&create<Mysqlx::Error>, Mysqlx::ServerMessages::ERROR);
-    server_msgs_by_id[Mysqlx::ServerMessages::ERROR] = std::make_pair(&create<Mysqlx::Error>, "ERROR");
-    server_msgs_by_full_name["Mysqlx.Error"] = "ERROR";
-    server_msgs_by_name["OK"] = std::make_pair(&create<Mysqlx::Ok>, Mysqlx::ServerMessages::OK);
-    server_msgs_by_id[Mysqlx::ServerMessages::OK] = std::make_pair(&create<Mysqlx::Ok>, "OK");
-    server_msgs_by_full_name["Mysqlx.Ok"] = "OK";
-    server_msgs_by_name["RESULTSET_COLUMN_META_DATA"] = std::make_pair(&create<Mysqlx::Resultset::ColumnMetaData>, Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA);
-    server_msgs_by_id[Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA] = std::make_pair(&create<Mysqlx::Resultset::ColumnMetaData>, "RESULTSET_COLUMN_META_DATA");
-    server_msgs_by_full_name["Mysqlx.Resultset.ColumnMetaData"] = "RESULTSET_COLUMN_META_DATA";
-    server_msgs_by_name["SESS_AUTHENTICATE_OK"] = std::make_pair(&create<Mysqlx::Session::AuthenticateOk>, Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK);
-    server_msgs_by_id[Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK] = std::make_pair(&create<Mysqlx::Session::AuthenticateOk>, "SESS_AUTHENTICATE_OK");
-    server_msgs_by_full_name["Mysqlx.Session.AuthenticateOk"] = "SESS_AUTHENTICATE_OK";
-    client_msgs_by_full_name["Mysqlx.Sql.CursorFetchMetaData"] = "SQL_CURSOR_FETCH_META_DATA";
-    client_msgs_by_name["CON_CAPABILITIES_GET"] = std::make_pair(&create<Mysqlx::Connection::CapabilitiesGet>, Mysqlx::ClientMessages::CON_CAPABILITIES_GET);
-    client_msgs_by_id[Mysqlx::ClientMessages::CON_CAPABILITIES_GET] = std::make_pair(&create<Mysqlx::Connection::CapabilitiesGet>, "CON_CAPABILITIES_GET");
-    client_msgs_by_full_name["Mysqlx.Connection.CapabilitiesGet"] = "CON_CAPABILITIES_GET";
-    client_msgs_by_name["CRUD_UPDATE"] = std::make_pair(&create<Mysqlx::Crud::Update>, Mysqlx::ClientMessages::CRUD_UPDATE);
-    client_msgs_by_id[Mysqlx::ClientMessages::CRUD_UPDATE] = std::make_pair(&create<Mysqlx::Crud::Update>, "CRUD_UPDATE");
-    client_msgs_by_full_name["Mysqlx.Crud.Update"] = "CRUD_UPDATE";
-    client_msgs_by_name["SESS_AUTHENTICATE_CONTINUE"] = std::make_pair(&create<Mysqlx::Session::AuthenticateContinue>, Mysqlx::ClientMessages::SESS_AUTHENTICATE_CONTINUE);
-    client_msgs_by_id[Mysqlx::ClientMessages::SESS_AUTHENTICATE_CONTINUE] = std::make_pair(&create<Mysqlx::Session::AuthenticateContinue>, "SESS_AUTHENTICATE_CONTINUE");
-    client_msgs_by_full_name["Mysqlx.Session.AuthenticateContinue"] = "SESS_AUTHENTICATE_CONTINUE";
-    client_msgs_by_name["CON_CAPABILITIES_SET"] = std::make_pair(&create<Mysqlx::Connection::CapabilitiesSet>, Mysqlx::ClientMessages::CON_CAPABILITIES_SET);
-    client_msgs_by_id[Mysqlx::ClientMessages::CON_CAPABILITIES_SET] = std::make_pair(&create<Mysqlx::Connection::CapabilitiesSet>, "CON_CAPABILITIES_SET");
-    client_msgs_by_full_name["Mysqlx.Connection.CapabilitiesSet"] = "CON_CAPABILITIES_SET";
-    client_msgs_by_name["CRUD_DELETE"] = std::make_pair(&create<Mysqlx::Crud::Delete>, Mysqlx::ClientMessages::CRUD_DELETE);
-    client_msgs_by_id[Mysqlx::ClientMessages::CRUD_DELETE] = std::make_pair(&create<Mysqlx::Crud::Delete>, "CRUD_DELETE");
-    client_msgs_by_full_name["Mysqlx.Crud.Delete"] = "CRUD_DELETE";
-    client_msgs_by_name["EXPECT_CLOSE"] = std::make_pair(&create<Mysqlx::Expect::Close>, Mysqlx::ClientMessages::EXPECT_CLOSE);
-    client_msgs_by_id[Mysqlx::ClientMessages::EXPECT_CLOSE] = std::make_pair(&create<Mysqlx::Expect::Close>, "EXPECT_CLOSE");
-    client_msgs_by_full_name["Mysqlx.Expect.Close"] = "EXPECT_CLOSE";
-    client_msgs_by_name["CRUD_INSERT"] = std::make_pair(&create<Mysqlx::Crud::Insert>, Mysqlx::ClientMessages::CRUD_INSERT);
-    client_msgs_by_id[Mysqlx::ClientMessages::CRUD_INSERT] = std::make_pair(&create<Mysqlx::Crud::Insert>, "CRUD_INSERT");
-    client_msgs_by_full_name["Mysqlx.Crud.Insert"] = "CRUD_INSERT";
-    client_msgs_by_name["SESS_CLOSE"] = std::make_pair(&create<Mysqlx::Session::Close>, Mysqlx::ClientMessages::SESS_CLOSE);
-    client_msgs_by_id[Mysqlx::ClientMessages::SESS_CLOSE] = std::make_pair(&create<Mysqlx::Session::Close>, "SESS_CLOSE");
-    client_msgs_by_full_name["Mysqlx.Session.Close"] = "SESS_CLOSE";
-    client_msgs_by_name["SQL_STMT_EXECUTE"] = std::make_pair(&create<Mysqlx::Sql::StmtExecute>, Mysqlx::ClientMessages::SQL_STMT_EXECUTE);
-    client_msgs_by_id[Mysqlx::ClientMessages::SQL_STMT_EXECUTE] = std::make_pair(&create<Mysqlx::Sql::StmtExecute>, "SQL_STMT_EXECUTE");
-    client_msgs_by_full_name["Mysqlx.Sql.StmtExecute"] = "SQL_STMT_EXECUTE";
-    client_msgs_by_name["SESS_RESET"] = std::make_pair(&create<Mysqlx::Session::Reset>, Mysqlx::ClientMessages::SESS_RESET);
-    client_msgs_by_id[Mysqlx::ClientMessages::SESS_RESET] = std::make_pair(&create<Mysqlx::Session::Reset>, "SESS_RESET");
-    client_msgs_by_full_name["Mysqlx.Session.Reset"] = "SESS_RESET";
-    client_msgs_by_name["CON_CLOSE"] = std::make_pair(&create<Mysqlx::Connection::Close>, Mysqlx::ClientMessages::CON_CLOSE);
-    client_msgs_by_id[Mysqlx::ClientMessages::CON_CLOSE] = std::make_pair(&create<Mysqlx::Connection::Close>, "CON_CLOSE");
-    client_msgs_by_full_name["Mysqlx.Connection.Close"] = "CON_CLOSE";
-    client_msgs_by_name["EXPECT_OPEN"] = std::make_pair(&create<Mysqlx::Expect::Open>, Mysqlx::ClientMessages::EXPECT_OPEN);
-    client_msgs_by_id[Mysqlx::ClientMessages::EXPECT_OPEN] = std::make_pair(&create<Mysqlx::Expect::Open>, "EXPECT_OPEN");
-    client_msgs_by_full_name["Mysqlx.Expect.Open"] = "EXPECT_OPEN";
-    client_msgs_by_name["CRUD_FIND"] = std::make_pair(&create<Mysqlx::Crud::Find>, Mysqlx::ClientMessages::CRUD_FIND);
-    client_msgs_by_id[Mysqlx::ClientMessages::CRUD_FIND] = std::make_pair(&create<Mysqlx::Crud::Find>, "CRUD_FIND");
-    client_msgs_by_full_name["Mysqlx.Crud.Find"] = "CRUD_FIND";
-    client_msgs_by_name["SESS_AUTHENTICATE_START"] = std::make_pair(&create<Mysqlx::Session::AuthenticateStart>, Mysqlx::ClientMessages::SESS_AUTHENTICATE_START);
-    client_msgs_by_id[Mysqlx::ClientMessages::SESS_AUTHENTICATE_START] = std::make_pair(&create<Mysqlx::Session::AuthenticateStart>, "SESS_AUTHENTICATE_START");
-    client_msgs_by_full_name["Mysqlx.Session.AuthenticateStart"] = "SESS_AUTHENTICATE_START";
+    server_message<Mysqlx::Connection::Capabilities>(Mysqlx::ServerMessages::CONN_CAPABILITIES, "CONN_CAPABILITIES", "Mysqlx.Connection.Capabilities");
+    server_message<Mysqlx::Error>(Mysqlx::ServerMessages::ERROR, "ERROR", "Mysqlx.Error");
+    server_message<Mysqlx::Notice::Frame>(Mysqlx::ServerMessages::NOTICE, "NOTICE", "Mysqlx.Notice.Frame");
+    server_message<Mysqlx::Ok>(Mysqlx::ServerMessages::OK, "OK", "Mysqlx.Ok");
+    server_message<Mysqlx::Resultset::ColumnMetaData>(Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA, "RESULTSET_COLUMN_META_DATA", "Mysqlx.Resultset.ColumnMetaData");
+    server_message<Mysqlx::Resultset::FetchDone>(Mysqlx::ServerMessages::RESULTSET_FETCH_DONE, "RESULTSET_FETCH_DONE", "Mysqlx.Resultset.FetchDone");
+    server_message<Mysqlx::Resultset::FetchDoneMoreResultsets>(Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS, "RESULTSET_FETCH_DONE_MORE_RESULTSETS", "Mysqlx.Resultset.FetchDoneMoreResultsets");
+    server_message<Mysqlx::Resultset::Row>(Mysqlx::ServerMessages::RESULTSET_ROW, "RESULTSET_ROW", "Mysqlx.Resultset.Row");
+    server_message<Mysqlx::Session::AuthenticateOk>(Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK, "SESS_AUTHENTICATE_OK", "Mysqlx.Session.AuthenticateOk");
+    server_message<Mysqlx::Sql::StmtExecuteOk>(Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK, "SQL_STMT_EXECUTE_OK", "Mysqlx.Sql.StmtExecuteOk");
+
+    client_message<Mysqlx::Connection::CapabilitiesGet>(Mysqlx::ClientMessages::CON_CAPABILITIES_GET, "CON_CAPABILITIES_GET", "Mysqlx.Connection.CapabilitiesGet");
+    client_message<Mysqlx::Connection::CapabilitiesSet>(Mysqlx::ClientMessages::CON_CAPABILITIES_SET, "CON_CAPABILITIES_SET", "Mysqlx.Connection.CapabilitiesSet");
+    client_message<Mysqlx::Connection::Close>(Mysqlx::ClientMessages::CON_CLOSE, "CON_CLOSE", "Mysqlx.Connection.Close");
+    client_message<Mysqlx::Crud::Delete>(Mysqlx::ClientMessages::CRUD_DELETE, "CRUD_DELETE", "Mysqlx.Crud.Delete");
+    client_message<Mysqlx::Crud::Find>(Mysqlx::ClientMessages::CRUD_FIND, "CRUD_FIND", "Mysqlx.Crud.Find");
+    client_message<Mysqlx::Crud::Insert>(Mysqlx::ClientMessages::CRUD_INSERT, "CRUD_INSERT", "Mysqlx.Crud.Insert");
+    client_message<Mysqlx::Crud::Update>(Mysqlx::ClientMessages::CRUD_UPDATE, "CRUD_UPDATE", "Mysqlx.Crud.Update");
+    client_message<Mysqlx::Crud::CreateView>(Mysqlx::ClientMessages::CRUD_CREATE_VIEW, "CRUD_CREATE_VIEW", "Mysqlx.Crud.CreateView");
+    client_message<Mysqlx::Crud::ModifyView>(Mysqlx::ClientMessages::CRUD_MODIFY_VIEW, "CRUD_MODIFY_VIEW", "Mysqlx.Crud.ModifyView");
+    client_message<Mysqlx::Crud::DropView>(Mysqlx::ClientMessages::CRUD_DROP_VIEW, "CRUD_DROP_VIEW", "Mysqlx.Crud.DropView");
+    client_message<Mysqlx::Expect::Close>(Mysqlx::ClientMessages::EXPECT_CLOSE, "EXPECT_CLOSE", "Mysqlx.Expect.Close");
+    client_message<Mysqlx::Expect::Open>(Mysqlx::ClientMessages::EXPECT_OPEN, "EXPECT_OPEN", "Mysqlx.Expect.Open");
+    client_message<Mysqlx::Session::AuthenticateContinue>(Mysqlx::ClientMessages::SESS_AUTHENTICATE_CONTINUE, "SESS_AUTHENTICATE_CONTINUE", "Mysqlx.Session.AuthenticateContinue");
+    client_message<Mysqlx::Session::AuthenticateStart>(Mysqlx::ClientMessages::SESS_AUTHENTICATE_START, "SESS_AUTHENTICATE_START", "Mysqlx.Session.AuthenticateStart");
+    client_message<Mysqlx::Session::Close>(Mysqlx::ClientMessages::SESS_CLOSE, "SESS_CLOSE", "Mysqlx.Session.Close");
+    client_message<Mysqlx::Session::Reset>(Mysqlx::ClientMessages::SESS_RESET, "SESS_RESET", "Mysqlx.Session.Reset");
+    client_message<Mysqlx::Sql::StmtExecute>(Mysqlx::ClientMessages::SQL_STMT_EXECUTE, "SQL_STMT_EXECUTE", "Mysqlx.Sql.StmtExecute");
   }
 } init_message_factory;
 
