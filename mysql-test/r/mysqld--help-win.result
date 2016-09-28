@@ -931,7 +931,6 @@ report-user (No default value)
 rpl-recovery-rank 0
 safe-user-create FALSE
 secure-auth FALSE
-secure-file-priv (No default value)
 server-id 0
 shared-memory FALSE
 shared-memory-base-name MYSQL
