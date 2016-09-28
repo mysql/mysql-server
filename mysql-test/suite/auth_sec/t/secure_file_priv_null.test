@@ -1,0 +1,42 @@
+--source include/no_valgrind_without_big.inc
+--source include/not_embedded.inc
+
+--echo #-----------------------------------------------------------------------
+--echo # Setup
+let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_FILE= $server_log;
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--echo #-----------------------------------------------------------------------
+
+--echo # Search for : --secure-file-priv is set to NULL. Operations
+--echo #              related to importing and exporting data are
+--echo #              disabled
+let SEARCH_PATTERN= --secure-file-priv is set to NULL. Operations related to importing and exporting data are disabled;
+--source include/search_pattern_in_file.inc
+
+connect(test4_con,localhost,root,,,,,);
+show variables like 'secure_file_priv';
+
+use test;
+--disable_warnings
+drop table if exists secure_file_priv_test_null;
+--enable_warnings
+create table secure_file_priv_test_null(c1 int);
+insert into secure_file_priv_test_null values (1), (2), (3), (4);
+--error 1290
+select * from secure_file_priv_test_null into outfile 'blah';
+--error 1290
+select * from secure_file_priv_test_null into outfile 'null/blah';
+drop table secure_file_priv_test_null;
+
+connection default;
+disconnect test4_con;
+
+--echo #-----------------------------------------------------------------------
+
+--echo # Clean-up
+--disable_warnings
+--source include/force_restart.inc
+--enable_warnings
+
+--echo #-----------------------------------------------------------------------
