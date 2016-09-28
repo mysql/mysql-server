@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -203,6 +203,11 @@ INSERT INTO global_suppressions VALUES
    fixed properly. See bug page for more information.
   */
  ("Found lock of type 6 that is write and read locked"),
+
+ /*
+  Warnings related to --secure-file-priv
+ */
+ ("Insecure configuration for --secure-file-priv:*"),
 
  ("THE_LAST_SUPPRESSION")||
 
