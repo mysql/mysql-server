@@ -30,6 +30,12 @@ install_db () {
     if [ -x /usr/sbin/restorecon ]; then
         /usr/sbin/restorecon "$datadir"
         /usr/sbin/restorecon $log
+        for dir in /var/lib/mysql-files ; do
+            if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
+		/usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
+		/sbin/restorecon $dir
+	    fi
+	done
     fi
 
     # If special mysql dir is in place, skip db install 

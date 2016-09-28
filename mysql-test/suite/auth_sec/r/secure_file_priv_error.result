@@ -1,0 +1,8 @@
+#-----------------------------------------------------------------------
+# Setup
+# Try to restart server with invalid value for --secure-file-priv
+# Search for : Failed to access directory for --secure-file-priv.
+# Search for : No such file or directory
+# Restart completed.
+# Restart
+#-----------------------------------------------------------------------

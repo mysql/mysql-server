@@ -434,6 +434,7 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 install -d -m 0755 %{buildroot}/var/lib/mysql
 install -d -m 0755 %{buildroot}/var/run/mysql
 install -d -m 0750 %{buildroot}/var/log/mysql
+install -d -m 0750 %{buildroot}/var/lib/mysql-files
 
 # Install all binaries
 cd $MBD/release
@@ -672,6 +673,7 @@ fi
 %dir %attr(755, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysql
 %dir %attr(750, mysql, mysql) /var/log/mysql
+%dir %attr(750, mysql, mysql) /var/lib/mysql-files
 
 %files common
 %defattr(-, root, root, -)
@@ -822,6 +824,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Mon Sep 26 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.34-1
+- Include mysql-files directory
+
 * Mon Mar 14 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.6.31-1
 - Add test_udf_services.so plugin
 

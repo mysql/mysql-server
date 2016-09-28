@@ -1276,7 +1276,6 @@ report-user (No default value)
 rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 secure-auth TRUE
-secure-file-priv (No default value)
 server-id 0
 server-id-bits 32
 shared-memory FALSE
