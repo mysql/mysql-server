@@ -8070,11 +8070,13 @@ dd_open_table(
 		dict_table_add_to_cache(m_table, TRUE, heap);
 
 		dict_table_load_dynamic_metadata(m_table);
+	}
 
-		if (m_table->is_corrupted()) {
-			dict_table_remove_from_cache(m_table);
-			m_table = NULL;
-		}
+	if (m_table->is_corrupted()) {
+		dict_table_remove_from_cache(m_table);
+		m_table = NULL;
+	} else {
+		m_table->acquire();
 	}
 
 	mutex_exit(&dict_sys->mutex);
@@ -8295,9 +8297,6 @@ dd_table_open_on_dd_obj(
 			table = dd_open_table(
 				client, &td, tab_namep, uncached, table,
 				&dd_table, skip_mdl, thd);
-			mutex_enter(&dict_sys->mutex);
-			table->acquire();
-			mutex_exit(&dict_sys->mutex);
 			dict_stats_init(table);
 		}
 
@@ -8794,11 +8793,22 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 //		if (strstr(name, "mysql") == nullptr
 //		    && strstr(name, "sys") == nullptr) {
 		if (strstr(name, "sys") == nullptr) {
+			bool	open_from_dd;
+
 			mutex_enter(&dict_sys->mutex);
 			ib_table = dict_table_check_if_in_cache_low(norm_name);
+			open_from_dd = ib_table == NULL;
+			if (ib_table != NULL) {
+				if (ib_table->is_corrupted()) {
+					dict_table_remove_from_cache(ib_table);
+					ib_table = NULL;
+				} else {
+					ib_table->acquire();
+				}
+			}
 			mutex_exit(&dict_sys->mutex);
 
-			if (ib_table == NULL) {
+			if (open_from_dd) {
 				dd::cache::Dictionary_client*	client
 					= dd::get_dd_client(thd);
 				dd::cache::Dictionary_client::Auto_releaser
@@ -8808,19 +8818,9 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 					client, table, norm_name,
 					nullptr, ib_table, dd_tab, false,
 					thd))) {
-						set_my_errno(ENOENT);
-						DBUG_RETURN(
-							HA_ERR_NO_SUCH_TABLE);
+					set_my_errno(ENOENT);
+					DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 				}
-			} else if (ib_table->is_corrupted()) {
-				mutex_enter(&dict_sys->mutex);
-				dict_table_remove_from_cache(ib_table);
-				mutex_exit(&dict_sys->mutex);
-				ib_table = NULL;
-			}
-
-			if (ib_table != NULL) {
-				ib_table->n_ref_count++;
 			}
 		} else {
 			ib_table = open_dict_table(name, norm_name, is_part,
