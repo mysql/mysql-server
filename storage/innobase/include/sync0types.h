@@ -1129,7 +1129,7 @@ struct btrsea_sync_check : public sync_check_functor_t {
 
 	/** Called for every latch owned by the calling thread.
 	@param[in]	level		Level of the existing latch
-	@return true if the predicate check is successful */
+	@return true if the predicate check fails */
 	virtual bool operator()(const latch_level_t level)
 	{
 		/* If calling thread doesn't hold search latch then
@@ -1151,6 +1151,8 @@ struct btrsea_sync_check : public sync_check_functor_t {
 		if (!m_has_search_latch
 		    && (level != SYNC_SEARCH_SYS
 			&& level != SYNC_FTS_CACHE
+			&& level != SYNC_DICT
+			&& level != SYNC_DICT_OPERATION
 			&& level != SYNC_TRX_I_S_RWLOCK
 			&& level != SYNC_TRX_I_S_LAST_READ)) {
 
