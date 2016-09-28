@@ -1,0 +1,207 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (first INT, second JSON);
+CREATE USER xuser;
+
+Create view (bad select)
+------------------------
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5120
+  msg: "Invalid projection target name"
+  sql_state: "HY000"
+}
+
+
+Create view (default)
+---------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+xview	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`first` AS `one` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Create view (collection)
+------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+xdoc	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xdoc` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+List objects
+------------
+name	type
+xdoc	COLLECTION_VIEW
+xtable	TABLE
+xview	VIEW
+command ok
+
+Create view (algorithm=undefined)
+---------------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+au	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`au` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Create view (algorithm=merge)
+-----------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+am	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`am` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Create view (algorithm=temptable)
+---------------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+at	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`at` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Create view (definer=xuser)
+---------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+du	CREATE ALGORITHM=UNDEFINED DEFINER=`xuser`@`%` SQL SECURITY DEFINER VIEW `xtest`.`du` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Create view (security=invoker)
+------------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+si	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `xtest`.`si` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Create view (security=definer)
+------------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+sd	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`sd` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Create view (check=local)
+-------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+cl	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`cl` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable` WITH LOCAL CHECK OPTION	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Create view (check=cascaded)
+----------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+cc	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`cc` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable` WITH CASCADED CHECK OPTION	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Create view (column)
+--------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+co	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` AS select `xtest`.`xtable`.`second` AS `third` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Create view (too many columns)
+------------------------------
+Mysqlx.Error {
+  severity: ERROR
+  code: 1353
+  msg: "View\'s SELECT and view\'s field list have different column counts"
+  sql_state: "HY000"
+}
+
+
+Replace view (already exists)
+-----------------------------
+Mysqlx.Error {
+  severity: ERROR
+  code: 1050
+  msg: "Table \'co\' already exists"
+  sql_state: "42S01"
+}
+
+View	Create View	character_set_client	collation_connection
+co	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` AS select `xtest`.`xtable`.`second` AS `third` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Replace view
+------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+co	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` AS select `xtest`.`xtable`.`second` AS `fifth` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Inserting data to collection_view
+---------------------------------
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+
+Selecting all data from collection_view
+---------------------------------------
+doc
+{"_id": "one", "name": "Adam"}
+{"_id": "two", "name": "Barnaba"}
+command ok
+
+Updating one member of collection_view
+--------------------------------------
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+doc
+{"_id": "one", "name": "Charles"}
+{"_id": "two", "name": "Barnaba"}
+0 rows affected
+
+Deleting one row of collection_view
+-----------------------------------
+
+1 rows affected
+doc
+{"_id": "one", "name": "Charles"}
+0 rows affected
+
+Updating whole doc of collection_view
+-------------------------------------
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+doc
+"{\"_id\":\"three\", \"name\":\"David\"}"
+0 rows affected
+Variable_name	Value
+Mysqlx_crud_create_view	15
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+include/assert.inc [Global status of 'Mysqlx_crud_create_view']
+DROP SCHEMA IF EXISTS xtest;
+DROP USER xuser;
+UNINSTALL PLUGIN mysqlx;

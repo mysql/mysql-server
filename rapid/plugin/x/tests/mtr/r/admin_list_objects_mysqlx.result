@@ -9,12 +9,18 @@ CREATE VIEW xtest.myview AS SELECT 1;
 command ok
 
 0 rows affected
+
+0 rows affected
+
+0 rows affected
 name	type
 books	COLLECTION
 fakecoll	VIEW
+fakexview	VIEW
 mytable	TABLE
 mytable2	TABLE
 myview	VIEW
+xdoc	COLLECTION_VIEW
 command ok
 Got expected error: Unknown database 'invalid' (code 1049)
 name	type
@@ -29,12 +35,15 @@ Got expected error: No database selected (code 1046)
 name	type
 books	COLLECTION
 fakecoll	VIEW
+fakexview	VIEW
 mytable	TABLE
 mytable2	TABLE
 myview	VIEW
+xdoc	COLLECTION_VIEW
 command ok
 name	type
 fakecoll	VIEW
+fakexview	VIEW
 command ok
 
 0 rows affected
@@ -50,17 +59,21 @@ command ok
 name	type
 books	TABLE
 fakecoll	VIEW
+fakexview	VIEW
 mytable	TABLE
 mytable2	TABLE
 myview	VIEW
+xdoc	COLLECTION_VIEW
 command ok
 
 0 rows affected
 name	type
 fakecoll	VIEW
+fakexview	VIEW
 mytable	TABLE
 mytable2	TABLE
 myview	VIEW
+xdoc	COLLECTION_VIEW
 command ok
 name	type
 processlist	VIEW

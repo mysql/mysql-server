@@ -20,9 +20,11 @@
 #ifndef _XPL_CRUD_CMD_HANDLER_H_
 #define _XPL_CRUD_CMD_HANDLER_H_
 
-#include "ngs/protocol_fwd.h"
 #include "ngs/error_code.h"
+#include "ngs/protocol_fwd.h"
 #include "query_string_builder.h"
+#include "sql_data_context.h"
+#include "xpl_session_status_variables.h"
 
 
 namespace xpl
@@ -34,15 +36,49 @@ class Crud_command_handler
 public:
   Crud_command_handler() : m_qb(1024) {}
 
-  ngs::Error_code execute_crud_insert(Session &session, const Mysqlx::Crud::Insert &msg);
-  ngs::Error_code execute_crud_update(Session &session, const Mysqlx::Crud::Update &msg);
-  ngs::Error_code execute_crud_find(Session &session, const Mysqlx::Crud::Find &msg);
-  ngs::Error_code execute_crud_delete(Session &session, const Mysqlx::Crud::Delete &msg);
+  ngs::Error_code execute_crud_insert(Session &session,
+                                      const Mysqlx::Crud::Insert &msg);
+  ngs::Error_code execute_crud_update(Session &session,
+                                      const Mysqlx::Crud::Update &msg);
+  ngs::Error_code execute_crud_find(Session &session,
+                                    const Mysqlx::Crud::Find &msg);
+  ngs::Error_code execute_crud_delete(Session &session,
+                                      const Mysqlx::Crud::Delete &msg);
+
+  ngs::Error_code execute_create_view(Session &session,
+                                      const Mysqlx::Crud::CreateView &msg);
+  ngs::Error_code execute_modify_view(Session &session,
+                                      const Mysqlx::Crud::ModifyView &msg);
+  ngs::Error_code execute_drop_view(Session &session,
+                                    const Mysqlx::Crud::DropView &msg);
 
 private:
-  ngs::Error_code error_handling_insert(const ngs::Error_code &error, const Mysqlx::Crud::Insert &msg) const;
-  ngs::Error_code error_handling_update(const ngs::Error_code &error, const Mysqlx::Crud::Update &msg) const;
-  ngs::Error_code error_handling_find(const ngs::Error_code &error, const Mysqlx::Crud::Find &msg) const;
+ typedef Common_status_variables::Variable
+     Common_status_variables::*Status_variable;
+
+  template <typename B, typename M>
+  ngs::Error_code execute(Session &session, const B &builder, const M &msg,
+                          Status_variable variable,
+                          bool (ngs::Protocol_encoder::*send_ok)());
+
+  template <typename M>
+  ngs::Error_code error_handling(const ngs::Error_code &error,
+                                 const M & /*msg*/) const
+  {
+    return error;
+  }
+
+  template <typename M>
+  void notice_handling(Session &session,
+                       const Sql_data_context::Result_info &info,
+                       const M &msg) const;
+
+  void notice_handling_common(Session &session,
+                              const Sql_data_context::Result_info &info) const;
+
+  template <typename M>
+  ngs::Error_code sql_execute(Session &session,
+                              Sql_data_context::Result_info &info) const;
 
   Query_string_builder m_qb;
 };
