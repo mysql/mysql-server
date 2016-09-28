@@ -186,7 +186,7 @@ int table_replication_applier_status::rnd_pos(const void *pos)
   return res;
 }
 
-int table_replication_applier_status::index_init(uint idx, bool sorted)
+int table_replication_applier_status::index_init(uint idx, bool)
 {
 #ifdef HAVE_REPLICATION
   PFS_index_rpl_applier_status *result= NULL;

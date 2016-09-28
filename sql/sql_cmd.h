@@ -71,7 +71,7 @@ public:
 
     @returns false if success, true if error
   */
-  virtual bool prepare(THD *thd)
+  virtual bool prepare(THD *thd MY_ATTRIBUTE((unused)))
   {
     // Default behavior for a statement is to have no preparation code.
     /* purecov: begin inspected */
@@ -116,7 +116,7 @@ public:
     preparation, so that a subsequent execute statement will reprepare it.
     This is done because UNIT::cleanup() will un-resolve all resolved QBs.
   */
-  virtual void unprepare(THD *thd)
+  virtual void unprepare(THD *thd MY_ATTRIBUTE((unused)))
   {
     DBUG_ASSERT(is_prepared());
     m_prepared= false;

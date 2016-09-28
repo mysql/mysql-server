@@ -220,7 +220,7 @@ bool PFS_index_threads_by_thread_os_id::match(PFS_thread *pfs)
   return true;
 }
 
-int table_threads::index_init(uint idx, bool sorted)
+int table_threads::index_init(uint idx, bool)
 {
   PFS_index_threads *result= NULL;
 
@@ -501,8 +501,8 @@ int table_threads::read_row_values(TABLE *table,
 }
 
 int table_threads::update_row_values(TABLE *table,
-                                     const unsigned char *old_buf,
-                                     unsigned char *new_buf,
+                                     const unsigned char*,
+                                     unsigned char*,
                                      Field **fields)
 {
   Field *f;

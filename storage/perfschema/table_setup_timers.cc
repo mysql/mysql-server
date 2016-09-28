@@ -150,7 +150,7 @@ int table_setup_timers::rnd_pos(const void *pos)
   return 0;
 }
 
-int table_setup_timers::index_init(uint idx, bool sorted)
+int table_setup_timers::index_init(uint idx, bool)
 {
   PFS_index_setup_timers *result= NULL;
   DBUG_ASSERT(idx == 0);

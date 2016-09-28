@@ -108,7 +108,7 @@ PFS_engine_table* table_setup_actors::create()
   return new table_setup_actors();
 }
 
-int table_setup_actors::write_row(TABLE *table, unsigned char *buf,
+int table_setup_actors::write_row(TABLE *table, unsigned char*,
                                   Field **fields)
 {
   Field *f;
@@ -222,7 +222,7 @@ int table_setup_actors::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_setup_actors::index_init(uint idx, bool sorted)
+int table_setup_actors::index_init(uint idx, bool)
 {
   PFS_index_setup_actors *result= NULL;
   DBUG_ASSERT(idx == 0);
@@ -293,7 +293,7 @@ void table_setup_actors::make_row(PFS_setup_actor *pfs)
 }
 
 int table_setup_actors::read_row_values(TABLE *table,
-                                        unsigned char *buf,
+                                        unsigned char*,
                                         Field **fields,
                                         bool read_all)
 {
@@ -336,8 +336,8 @@ int table_setup_actors::read_row_values(TABLE *table,
 }
 
 int table_setup_actors::update_row_values(TABLE *table,
-                                          const unsigned char *old_buf,
-                                          unsigned char *new_buf,
+                                          const unsigned char*,
+                                          unsigned char*,
                                           Field **fields)
 {
   int result;
@@ -378,9 +378,9 @@ int table_setup_actors::update_row_values(TABLE *table,
   return result;
 }
 
-int table_setup_actors::delete_row_values(TABLE *table,
-                                          const unsigned char *buf,
-                                          Field **fields)
+int table_setup_actors::delete_row_values(TABLE*,
+                                          const unsigned char*,
+                                          Field**)
 {
   DBUG_ASSERT(m_row_exists);
 

@@ -290,7 +290,7 @@ end:
   return res;
 }
 
-int table_replication_applier_status_by_worker::index_init(uint idx, bool sorted)
+int table_replication_applier_status_by_worker::index_init(uint idx, bool)
 {
 #ifdef HAVE_REPLICATION
   PFS_index_rpl_applier_status_by_worker *result= NULL;

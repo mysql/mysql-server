@@ -2119,8 +2119,7 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
     if (ev != NULL)
     {
       /* It is a event belongs to the transaction */
-      if (!ev->is_mts_sequential_exec(rli->current_mts_submode->get_type() ==
-                                      MTS_PARALLEL_TYPE_DB_NAME))
+      if (!ev->is_mts_sequential_exec())
       {
         int ret= 0;
 

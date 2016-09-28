@@ -449,7 +449,7 @@ void table_tlws_by_table::reset_position(void)
   m_next_pos.m_index= 0;
 }
 
-int table_tlws_by_table::rnd_init(bool scan)
+int table_tlws_by_table::rnd_init(bool)
 {
   m_normalizer= time_normalizer::get(wait_timer);
   return 0;
@@ -498,7 +498,7 @@ table_tlws_by_table::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_tlws_by_table::index_init(uint idx, bool sorted)
+int table_tlws_by_table::index_init(uint idx, bool)
 {
   m_normalizer= time_normalizer::get(wait_timer);
 

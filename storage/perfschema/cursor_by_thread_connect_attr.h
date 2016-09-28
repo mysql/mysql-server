@@ -64,7 +64,7 @@ public:
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
 
-  virtual int index_init(uint idx, bool sorted) { return 1; }
+  virtual int index_init(uint, bool) { return 1; }
   virtual int index_next()  { return 1; }
 
 protected:

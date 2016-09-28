@@ -118,7 +118,7 @@ table_users::table_users()
   m_row_exists(false)
 {}
 
-int table_users::index_init(uint idx, bool sorted)
+int table_users::index_init(uint, bool)
 {
   PFS_index_users *result= NULL;
   result= PFS_NEW(PFS_index_users_by_user);

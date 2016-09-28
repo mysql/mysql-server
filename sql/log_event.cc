@@ -3260,11 +3260,8 @@ int Log_event::apply_event(Relay_log_info *rli)
   {
     bool skip=
       bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index) &&
-      (get_mts_execution_mode(::server_id,
-                              rli->mts_group_status ==
-                              Relay_log_info::MTS_IN_GROUP,
-                              rli->current_mts_submode->get_type() ==
-                              MTS_PARALLEL_TYPE_DB_NAME)
+      (get_mts_execution_mode(rli->mts_group_status ==
+                              Relay_log_info::MTS_IN_GROUP)
        == EVENT_EXEC_PARALLEL);
     if (skip)
     {
@@ -3278,11 +3275,8 @@ int Log_event::apply_event(Relay_log_info *rli)
 
   if (!(parallel= rli->is_parallel_exec()) ||
       ((actual_exec_mode=
-        get_mts_execution_mode(::server_id,
-                               rli->mts_group_status ==
-                               Relay_log_info::MTS_IN_GROUP,
-                               rli->current_mts_submode->get_type() ==
-                               MTS_PARALLEL_TYPE_DB_NAME))
+        get_mts_execution_mode(rli->mts_group_status ==
+                               Relay_log_info::MTS_IN_GROUP))
        != EVENT_EXEC_PARALLEL))
   {
     if (parallel)
@@ -5984,7 +5978,7 @@ Xid_log_event::
 Xid_log_event(const char* buf,
               const Format_description_event *description_event)
   : binary_log::Xid_event(buf, description_event),
-    Xid_apply_log_event(buf, description_event, header(), footer())
+    Xid_apply_log_event(header(), footer())
 {
   is_valid_param= true;
 }

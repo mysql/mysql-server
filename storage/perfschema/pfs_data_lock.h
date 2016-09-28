@@ -153,34 +153,38 @@ public:
   ~PFS_index_data_locks()
   {}
 
-  virtual bool match_engine(const char* engine, size_t engine_length)
+  virtual bool match_engine(const char* engine MY_ATTRIBUTE((unused)),
+                            size_t engine_length MY_ATTRIBUTE((unused)))
   {
     return true;
   }
 
-  virtual bool match_lock_id(const char* engine_lock_id, size_t engine_lock_id_length)
+  virtual bool match_lock_id(const char* engine_lock_id MY_ATTRIBUTE((unused)),
+                            size_t engine_lock_id_length MY_ATTRIBUTE((unused)))
   {
     return true;
   }
 
-  virtual bool match_transaction_id(ulonglong engine_transaction_id)
+  virtual bool match_transaction_id(ulonglong engine_transaction_id
+                                    MY_ATTRIBUTE((unused)))
   {
     return true;
   }
 
-  virtual bool match_thread_id_event_id(ulonglong thread_id, ulonglong event_id)
+  virtual bool match_thread_id_event_id(ulonglong thread_id MY_ATTRIBUTE((unused)),
+                                        ulonglong event_id MY_ATTRIBUTE((unused)))
   {
     return true;
   }
 
-  virtual bool match_object(const char *table_schema,
-                            size_t table_schema_length,
-                            const char *table_name,
-                            size_t table_name_length,
-                            const char *partition_name,
-                            size_t partition_name_length,
-                            const char *sub_partition_name,
-                            size_t sub_partition_name_length)
+  virtual bool match_object(const char *table_schema MY_ATTRIBUTE((unused)),
+                            size_t table_schema_length MY_ATTRIBUTE((unused)),
+                            const char *table_name MY_ATTRIBUTE((unused)),
+                            size_t table_name_length MY_ATTRIBUTE((unused)),
+                            const char *partition_name MY_ATTRIBUTE((unused)),
+                            size_t partition_name_length MY_ATTRIBUTE((unused)),
+                            const char *sub_partition_name MY_ATTRIBUTE((unused)),
+                            size_t sub_partition_name_length MY_ATTRIBUTE((unused)))
   {
     return true;
   }
@@ -361,37 +365,48 @@ public:
   ~PFS_index_data_lock_waits()
   {}
 
-  virtual bool match_engine(const char* engine, size_t engine_length)
+  virtual bool match_engine(const char* engine MY_ATTRIBUTE((unused)),
+                            size_t engine_length MY_ATTRIBUTE((unused)))
   {
     return true;
   }
 
-  virtual bool match_requesting_lock_id(const char* engine_lock_id, size_t engine_lock_id_length)
+  virtual bool
+    match_requesting_lock_id(const char* engine_lock_id MY_ATTRIBUTE((unused)),
+                            size_t engine_lock_id_length MY_ATTRIBUTE((unused)))
   {
     return true;
   }
 
-  virtual bool match_blocking_lock_id(const char* engine_lock_id, size_t engine_lock_id_length)
+  virtual bool
+    match_blocking_lock_id(const char* engine_lock_id MY_ATTRIBUTE((unused)),
+                           size_t engine_lock_id_length MY_ATTRIBUTE((unused)))
   {
     return true;
   }
 
-  virtual bool match_requesting_transaction_id(ulonglong engine_transaction_id)
+  virtual bool match_requesting_transaction_id(ulonglong engine_transaction_id
+                                               MY_ATTRIBUTE((unused)))
   {
     return true;
   }
 
-  virtual bool match_blocking_transaction_id(ulonglong engine_transaction_id)
+  virtual bool match_blocking_transaction_id(ulonglong engine_transaction_id
+                                             MY_ATTRIBUTE((unused)))
   {
     return true;
   }
 
-  virtual bool match_requesting_thread_id_event_id(ulonglong thread_id, ulonglong event_id)
+  virtual bool
+    match_requesting_thread_id_event_id(ulonglong thread_id MY_ATTRIBUTE((unused)),
+                                        ulonglong event_id MY_ATTRIBUTE((unused)))
   {
     return true;
   }
 
-  virtual bool match_blocking_thread_id_event_id(ulonglong thread_id, ulonglong event_id)
+  virtual bool
+    match_blocking_thread_id_event_id(ulonglong thread_id MY_ATTRIBUTE((unused)),
+                                      ulonglong event_id MY_ATTRIBUTE((unused)))
   {
     return true;
   }

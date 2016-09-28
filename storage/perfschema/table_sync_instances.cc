@@ -155,7 +155,7 @@ int table_mutex_instances::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_mutex_instances::index_init(uint idx, bool sorted)
+int table_mutex_instances::index_init(uint idx, bool)
 {
   PFS_index_mutex_instances *result= NULL;
 
@@ -407,7 +407,7 @@ int table_rwlock_instances::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_rwlock_instances::index_init(uint idx, bool sorted)
+int table_rwlock_instances::index_init(uint idx, bool)
 {
   PFS_index_rwlock_instances *result= NULL;
 
@@ -647,7 +647,7 @@ int table_cond_instances::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_cond_instances::index_init(uint idx, bool sorted)
+int table_cond_instances::index_init(uint idx, bool)
 {
   PFS_index_cond_instances *result= NULL;
 

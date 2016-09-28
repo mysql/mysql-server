@@ -131,7 +131,7 @@ class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
 {
 public:
   TC_LOG_DUMMY() {}
-  int open(const char *opt_name)        { return 0; }
+  int open(const char*)                 { return 0; }
   void close()                          { }
   enum_result commit(THD *thd, bool all);
   int rollback(THD *thd, bool all);

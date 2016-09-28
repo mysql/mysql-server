@@ -166,7 +166,7 @@ int table_session_variables::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_session_variables::index_init(uint idx, bool sorted)
+int table_session_variables::index_init(uint idx, bool)
 {
   /*
     Build a list of system variables from the global system variable hash.

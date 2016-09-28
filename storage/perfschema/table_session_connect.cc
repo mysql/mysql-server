@@ -92,7 +92,7 @@ table_session_connect::~table_session_connect()
   my_free(m_copy_session_connect_attrs);
 }
 
-int table_session_connect::index_init(uint idx, bool sorted)
+int table_session_connect::index_init(uint idx, bool)
 {
   DBUG_ASSERT(idx == 0);
   m_opened_index= PFS_NEW(PFS_index_session_connect);
@@ -149,7 +149,6 @@ int table_session_connect::index_next(void)
   @arg copied_len       the actual length of the data copied
   @arg start_ptr        pointer to the start of input
   @arg input_length     the length of the incoming data
-  @arg copy_data        copy the data or just skip the input
   @arg from_cs          character set in which @c ptr is encoded
   @arg nchars_max       maximum number of characters to read
   @return status
@@ -160,7 +159,6 @@ static bool parse_length_encoded_string(const char **ptr,
                  char *dest, uint dest_size,
                  uint *copied_len,
                  const char *start_ptr, uint input_length,
-                 bool copy_data,
                  const CHARSET_INFO *from_cs,
                  uint nchars_max)
 {
@@ -229,16 +227,12 @@ bool read_nth_attr(const char *connect_attrs,
       idx++)
   {
     uint copy_length;
-    /* do the copying only if we absolutely have to */
-    bool fill_in_attr_name= idx == ordinal;
-    bool fill_in_attr_value= idx == ordinal;
 
     /* read the key */
     if (parse_length_encoded_string(&ptr,
                                     attr_name, max_attr_name, &copy_length,
                                     connect_attrs,
                                     connect_attrs_length,
-                                    fill_in_attr_name,
                                     connect_attrs_cs, 32) ||
         !copy_length
         )
@@ -252,7 +246,6 @@ bool read_nth_attr(const char *connect_attrs,
                                     attr_value, max_attr_value, &copy_length,
                                     connect_attrs,
                                     connect_attrs_length,
-                                    fill_in_attr_value,
                                     connect_attrs_cs, 1024))
       return false;
 
@@ -387,7 +380,7 @@ int table_session_connect::read_row_values(TABLE *table,
 }
 
 bool
-table_session_connect::thread_fits(PFS_thread *thread)
+table_session_connect::thread_fits(PFS_thread*)
 {
   return true;
 }

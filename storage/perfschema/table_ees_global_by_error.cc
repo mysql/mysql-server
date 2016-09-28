@@ -135,7 +135,7 @@ void table_ees_global_by_error::reset_position(void)
   m_next_pos.reset();
 }
 
-int table_ees_global_by_error::rnd_init(bool scan)
+int table_ees_global_by_error::rnd_init(bool)
 {
   return 0;
 }
@@ -172,7 +172,7 @@ table_ees_global_by_error::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_ees_global_by_error::index_init(uint idx, bool sorted)
+int table_ees_global_by_error::index_init(uint idx, bool)
 {
   PFS_index_ees_global_by_error *result= NULL;
   DBUG_ASSERT(idx == 0);

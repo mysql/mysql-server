@@ -206,7 +206,7 @@ table_status_by_thread::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_status_by_thread::index_init(uint idx, bool sorted)
+int table_status_by_thread::index_init(uint idx, bool)
 {
   if (show_compatibility_56)
     return 0;

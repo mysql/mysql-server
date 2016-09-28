@@ -296,7 +296,7 @@ table_esms_by_digest::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esms_by_digest::index_init(uint idx, bool sorted)
+int table_esms_by_digest::index_init(uint idx, bool)
 {
   PFS_index_esms_by_digest *result= NULL;
   DBUG_ASSERT(idx == 0);
