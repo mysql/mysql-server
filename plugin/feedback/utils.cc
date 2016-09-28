@@ -43,7 +43,11 @@ static const char *get_os_version_name(OSVERSIONINFOEX *ver)
 {
   DWORD major = ver->dwMajorVersion;
   DWORD minor = ver->dwMinorVersion;
-
+  if (major == 10 && minor == 0)
+  {
+    return (ver->wProductType == VER_NT_WORKSTATION) ?
+      "Windows 10" : "Windows Server 2016";
+  }
   if (major == 6 && minor == 3)
   {
     return (ver->wProductType == VER_NT_WORKSTATION)?
@@ -102,7 +106,12 @@ static int uname(struct utsname *buf)
   if(version_str && version_str[0])
     sprintf(buf->version, "%s %s",version_str, ver.szCSDVersion);
   else
-    sprintf(buf->version, "%s", ver.szCSDVersion);
+  {
+    /* Fallback for unknown versions, e.g "Windows <major_ver>.<minor_ver>" */
+    sprintf(buf->version, "Windows %d.%d%s",
+      ver.dwMajorVersion, ver.dwMinorVersion,
+      (ver.wProductType == VER_NT_WORKSTATION ? "" : " Server"));
+  }
 
 #ifdef _WIN64
   strcpy(buf->machine, "x64");
