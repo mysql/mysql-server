@@ -73,6 +73,10 @@ SET DEBUG_SYNC= 'now WAIT_FOR uncommitted';
 # enable purge
 COMMIT;
 # wait for purge to process the deleted records.
+set global innodb_purge_run_now=ON;
+select sleep(1);
+sleep(1)
+0
 SET DEBUG_SYNC= 'now SIGNAL purged';
 /* connection default */ ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=SHARED;
 SHOW CREATE TABLE t1;
@@ -107,6 +111,10 @@ INSERT INTO t1(a, b) VALUES (8, 8);
 # enable purge
 COMMIT;
 # wait for purge to process the deleted/updated records.
+set global innodb_purge_run_now=ON;
+select sleep(1);
+sleep(1)
+0
 SET DEBUG_SYNC= 'now SIGNAL purged';
 /* connection default */ ALTER TABLE t1 ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=NONE;
 SHOW CREATE TABLE t1;

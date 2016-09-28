@@ -8519,11 +8519,15 @@ dd_table_open_on_id(
 	} else {
 		char	db_buf[NAME_LEN + 1];
 		char	tbl_buf[NAME_LEN + 1];
+		char	full_name[2 * (NAME_LEN + 1)];
 
 		for (;;) {
-			mutex_exit(&dict_sys->mutex);
 			innobase_parse_tbl_name(
 				ib_table->name.m_name, db_buf, tbl_buf);
+			strcpy(full_name, ib_table->name.m_name);
+
+			mutex_exit(&dict_sys->mutex);
+
 			ut_ad(!ib_table->is_temporary());
 
 			if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
@@ -8552,12 +8556,8 @@ dd_table_open_on_id(
 		ut_ad(*mdl != nullptr);
 
 		if (ib_table == nullptr) {
-			char	tbl_name[2 * (NAME_LEN + 1)];
-			snprintf(tbl_name, sizeof tbl_name,
-				 "%s/%s", db_buf, tbl_buf);
-
 			ib_table = dd_table_open_on_id_low(
-				thd, mdl, tbl_name, table_id);
+				thd, mdl, full_name, table_id);
 
 			if (ib_table == nullptr && *mdl != nullptr) {
 				dd_mdl_release(thd, mdl);
