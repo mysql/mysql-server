@@ -6922,10 +6922,6 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                                      alter_info, 0, &is_trans,
                                      &post_ddl_ht);
 
-  // Update view metadata.
-  if (!result)
-    result= update_referencing_views_metadata(thd, create_table);
-
   /*
     Don't write statement if:
     - Table creation has failed
@@ -6961,6 +6957,10 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     */
     if (!result)
       result= trans_commit_stmt(thd) || trans_commit_implicit(thd);
+
+    // Update view metadata.
+    if (!result)
+      result= update_referencing_views_metadata(thd, create_table);
 
     if (result)
       trans_rollback_stmt(thd);
@@ -7423,10 +7423,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
-  // Update view metadata.
-  if (update_referencing_views_metadata(thd, table))
-    goto err;
-
   /*
     We have to write the query before we unlock the tables.
   */
@@ -7549,6 +7545,10 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+      goto err;
+
+    // Update view metadata.
+    if (update_referencing_views_metadata(thd, table))
       goto err;
 
     if (post_ddl_ht)
@@ -10851,10 +10851,6 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       error= -1;
   }
 
-  // Update referencing views metadata.
-  if (!error)
-    error= update_referencing_views_metadata(thd, table_list, alter_ctx->new_db,
-                                             alter_ctx->new_alias);
   if (!error)
   {
     error= write_bin_log(thd, true, thd->query().str, thd->query().length,
@@ -10870,6 +10866,11 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     if (!error)
       my_ok(thd);
   }
+
+  // Update referencing views metadata.
+  if (!error)
+    error= update_referencing_views_metadata(thd, table_list, alter_ctx->new_db,
+                                             alter_ctx->new_alias);
 
   if (error)
   {

@@ -198,6 +198,16 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 
   if (!error)
   {
+    error= write_bin_log(thd, true,
+                         thd->query().str, thd->query().length,
+                         !int_commit_done);
+  }
+
+  if (!error && !int_commit_done)
+    error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+
+  if (!error)
+  {
     for (ren_table= table_list; ren_table;
          ren_table= ren_table->next_local->next_local)
     {
@@ -209,16 +219,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
         goto err;
     }
   }
-
-  if (!error)
-  {
-    error= write_bin_log(thd, true,
-                         thd->query().str, thd->query().length,
-                         !int_commit_done);
-  }
-
-  if (!error && !int_commit_done)
-    error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 
   if (error)
     trans_rollback_stmt(thd);

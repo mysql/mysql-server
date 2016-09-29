@@ -1380,10 +1380,6 @@ AS SELECT v1_firstview.f59, v1_firstview.f60
 FROM v1_firstview INNER JOIN test.tb2 ON v1_firstview.f59 = test.tb2.f59 ;
 SELECT * FROM v1 order by f59,f60 limit 0,10;
 
-SET SESSION debug= '+d,skip_dd_table_access_check';
-SELECT * FROM mysql.schemata;
-SELECT * FROM mysql.tables where schema_id=14;
-SET SESSION debug= '-d,skip_dd_table_access_check';
 Drop database test2 ;
 
 

@@ -1774,7 +1774,11 @@ bool Dictionary_client::fetch_referencing_views_object_id(
   const char *tbl_or_sf_name,
   std::vector<Object_id> *view_ids) const
 {
-  dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
+  /*
+    Use READ UNCOMMITTED isolation, so this method works correctly when
+    called from the middle of atomic DROP TABLE/DATABASE statement.
+  */
+  dd::Transaction_ro trx(m_thd, ISO_READ_UNCOMMITTED);
 
   // Register View_table_usage/View_routine_usage.
   trx.otx.register_tables<T>();
