@@ -620,6 +620,10 @@ else
   logging=syslog
 fi
 
+# close stdout and stderr, everything goes to $logging now
+exec 1>&-
+exec 2>&-
+
 USER_OPTION=""
 if test -w / -o "$USER" = "root"
 then
@@ -650,7 +654,7 @@ if [ ! -d $mysql_unix_port_dir ]
 then
   if ! `mkdir -p $mysql_unix_port_dir`
   then
-    echo "Fatal error Can't create database directory '$mysql_unix_port'"
+    log_error "Fatal error Can't create database directory '$mysql_unix_port'"
     exit 1
   fi
   chown $user $mysql_unix_port_dir
