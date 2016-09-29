@@ -622,8 +622,10 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     share->error= true; // Allow waiters to detect the error
     share->ref_count--;
     (void) my_hash_delete(&table_def_cache, (uchar*) share);
+#ifndef DBUG_OFF
     if (!thd->is_attachable_ro_transaction_active())
       DEBUG_SYNC(thd, "get_share_after_destroy");
+#endif
     DBUG_RETURN(NULL);
   }
 
@@ -646,8 +648,10 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   DBUG_RETURN(share);
 
 found:
+#ifndef DBUG_OFF
   if (!thd->is_attachable_ro_transaction_active())
     DEBUG_SYNC(thd, "get_share_found_share");
+#endif
   /*
      We found an existing table definition. Return it if we didn't get
      an error when reading the table definition from file.

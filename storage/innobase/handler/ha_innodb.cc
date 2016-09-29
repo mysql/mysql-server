@@ -6888,7 +6888,7 @@ create_index_metadata(
 	uint			key_num)
 {
 	const KEY&		key		= form->key_info[key_num];
-	ulint			type;
+	ulint			type = 0;
 	unsigned		n_fields	= key.user_defined_key_parts;
 	unsigned		n_uniq		= n_fields;
 	std::bitset<REC_MAX_N_FIELDS>	indexed;
@@ -7097,7 +7097,11 @@ create_index_metadata(
 	index->n_user_defined_cols = key.user_defined_key_parts;
 
 	int err = dict_index_add_to_cache(table, index, 0, FALSE);
-	ut_ad(err == DB_SUCCESS);
+
+	if (err != DB_SUCCESS) {
+		ut_ad(0);
+		return(HA_ERR_GENERIC);
+	}
 
 	if (index->type & DICT_FTS) {
 		ut_ad(n_uniq == 0);
@@ -8184,7 +8188,7 @@ dd_table_open_on_dd_obj(
 	      || dd_part->parent() == nullptr
 	      || dd_part->parent()->level() == 0);
 	ut_ad(!skip_mdl || tbl_name == nullptr);
-#if UNIV_DEBUG
+#ifdef UNIV_DEBUG
 	if (tbl_name) {
 		char	db_buf[NAME_LEN + 1];
 		char	tbl_buf[NAME_LEN + 1];
@@ -8200,9 +8204,11 @@ dd_table_open_on_dd_obj(
 		? dd_table.se_private_id()
 		: dd_part->se_private_id();
 	const ulint		fold		= ut_fold_ull(table_id);
+#ifdef UNIV_DEBUG
 	const bool		is_temp
 		= (table_id > NUM_HARD_CODED_TABLES)
 		&& !dd_table.is_persistent();
+#endif
 
 	ut_ad(table_id != dd::INVALID_OBJECT_ID);
 
@@ -8338,7 +8344,7 @@ dd_table_open_on_id_low(
 		thd = current_thd;
 	}
 
-#if UNIV_DEBUG
+#ifdef UNIV_DEBUG
 	char	db_buf[NAME_LEN + 1];
 	char	tbl_buf[NAME_LEN + 1];
 
@@ -17333,6 +17339,8 @@ validate_create_tablespace_info(
 	return(error);
 }
 
+#ifdef UNIV_DEBUG
+
 /** Get the file name of a tablespace.
 @param[in]	dd_space	tablespace metadata
 @return file name */
@@ -17344,6 +17352,7 @@ dd_tablespace_get_filename(const dd::Tablespace* dd_space)
 	ut_ad(dd_space->files().size() == 1);
 	return((*dd_space->files().begin())->filename().c_str());
 }
+#endif
 
 /** CREATE a tablespace.
 @param[in]	hton		Handlerton of InnoDB
