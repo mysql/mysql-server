@@ -16594,6 +16594,11 @@ ha_innobase::get_se_private_data(
 		p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], root_page++);
 		p.set_uint64(dd_index_key_strings[DD_INDEX_ID], n_indexes++);
 		p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], 0);
+
+		if (srv_page_size == 4096
+		    && (root_page == 7 || root_page == 11)) {
+			++root_page;
+		}
 	}
 
 	DBUG_ASSERT(n_indexes - n_indexes_old == data.n_indexes);
