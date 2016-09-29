@@ -23,6 +23,7 @@
 #include "dd/impl/bootstrapper.h"            // bootstrap_stage
 #include "dd/impl/dictionary_impl.h"
 #include "dd/impl/object_key.h"
+#include "dd/impl/sdi.h"                     // dd::sdi::drop_after_update
 #include "dd/impl/raw/object_keys.h"         // Primary_id_key, ...
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/raw/raw_record_set.h"      // Raw_record_set
@@ -1840,6 +1841,20 @@ bool Dictionary_client::update(const T** old_object, T* new_object,
     */
     if (store(new_object))
       return true;
+
+    /*
+      Remove the old sdi after store() has successfully written the
+      new one. Note that this is a noop unless we are writing the SDI
+      to file and the name of the new object is different. (If the
+      names are identical the old file will be over-written by
+      store(). If we are storing the SDI in a tablespace the key
+      does not depend on the name and the store is a transactional
+      update).
+    */
+    if (sdi::drop_after_update(m_thd, *old_object, new_object))
+    {
+      return true;
+    }
   }
 
   // If we succeed in storing the new object, we must update the shared

@@ -23,6 +23,7 @@
 #include "dd/impl/raw/object_keys.h"          // Primary_id_key
 #include "dd/impl/raw/raw_record.h"           // Raw_record
 #include "dd/impl/raw/raw_table.h"            // Raw_table
+#include "dd/impl/sdi.h"                      // sdi::store() sdi::drop()
 #include "dd/impl/transaction_impl.h"         // Transaction_ro
 #include "dd/impl/types/weak_object_impl.h"   // Weak_object_impl
 #include "dd/types/abstract_table.h"          // Abstract_table
@@ -169,6 +170,11 @@ bool Storage_adapter::drop(THD *thd, const T *object)
     return true;
   }
 
+  if (sdi::drop(thd, object))
+  {
+    return true;
+  }
+
   // Drop the object from the dd tables. We need to switch transaction ctx to do this.
   Update_dictionary_tables_ctx ctx(thd);
   ctx.otx.register_tables<T>();
@@ -214,7 +220,7 @@ bool Storage_adapter::store(THD *thd, T *object)
     return true;
   }
 
-  return false;
+  return sdi::store(thd, object);
 }
 
 

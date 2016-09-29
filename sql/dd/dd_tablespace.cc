@@ -25,7 +25,6 @@
 #include "dd/impl/system_registry.h"          // dd::System_tablespaces
 #include "dd/object_id.h"
 #include "dd/properties.h"                    // dd::Properties
-#include "dd/sdi.h"                           // dd::store_sdi
 #include "dd/types/partition.h"               // dd::Partition
 #include "dd/types/table.h"                   // dd::Table
 #include "dd/types/tablespace.h"              // dd::Tablespace
@@ -216,8 +215,7 @@ bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Write changes to dictionary.
-  if (thd->dd_client()->store(tablespace.get()) ||
-      dd::store_sdi(thd, tablespace.get()))
+  if (thd->dd_client()->store(tablespace.get()))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -253,8 +251,7 @@ bool drop_tablespace(THD *thd, st_alter_tablespace *ts_info,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop tablespace
-  if (remove_sdi(thd, tablespace) ||
-      thd->dd_client()->drop(tablespace))
+  if (thd->dd_client()->drop(tablespace))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -320,8 +317,7 @@ bool alter_tablespace(THD *thd, st_alter_tablespace *ts_info,
 
   // Write changes to dictionary.
   if (thd->dd_client()->store(
-             const_cast<dd::Tablespace*>(tablespace)) ||
-      dd::store_sdi(thd, tablespace))
+             const_cast<dd::Tablespace*>(tablespace)))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.

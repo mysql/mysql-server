@@ -24,7 +24,6 @@
 #include "dd/impl/dictionary_impl.h"          // default_catalog_name
 #include "dd/impl/utils.h"                    // dd::escape
 #include "dd/properties.h"                    // dd::Properties
-#include "dd/sdi.h"                           // dd::store_sdi
 #include "dd_table_share.h"                   // is_suitable_for_primary_key
 #include "dd/types/abstract_table.h"
 #include "dd/types/column.h"                  // dd::Column
@@ -2225,8 +2224,7 @@ bool create_dd_user_table(THD *thd,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Store info in DD tables.
-  if (thd->dd_client()->store(tab_obj.get()) ||
-      dd::store_sdi(thd, tab_obj.get(), sch_obj))
+  if (thd->dd_client()->store(tab_obj.get()))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -2375,8 +2373,7 @@ bool drop_table(THD *thd, const char *schema_name, const char *name)
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop the table/view and related dynamic statistics too.
-  if (dd::remove_sdi(thd, at, sch) ||
-      client->drop(at) ||
+  if (client->drop(at) ||
       client->remove_table_dynamic_statistics(schema_name, name))
   {
     trans_rollback_stmt(thd);
@@ -2499,8 +2496,7 @@ bool rename_table(THD *thd,
     if (is_sticky)
       thd->dd_client()->set_sticky(to_tab, false);
 
-    if (dd::remove_sdi(thd, to_tab, to_sch) ||
-        thd->dd_client()->drop(to_tab))
+    if (thd->dd_client()->drop(to_tab))
     {
       // Error is reported by the dictionary subsystem.
       trans_rollback_stmt(thd);
@@ -2514,8 +2510,6 @@ bool rename_table(THD *thd,
   // was sticky, and update the changes.
   if (is_sticky)
     thd->dd_client()->set_sticky(from_tab, true);
-
-  Sdi_updater update_sdi= make_sdi_updater(thd, from_tab, from_sch);
 
   // Clone the object to be modified, and make sure the clone is deleted
   // by wrapping it in a unique_ptr.
@@ -2537,44 +2531,9 @@ bool rename_table(THD *thd,
     return true;
   }
 
-  bool abort= false;
-  DBUG_EXECUTE_IF("abort_rename_after_update",
-                  abort= true;);
-
-  if (update_sdi(thd, new_tab.get(), to_sch) || abort)
-  {
-    // At this point the cache already contains the new value, and
-    // aborting the transaction will not undo this automatically. To
-    // remedy this the table is dropped to remove it from the
-    // cache. This will obviously also remove it from the DD
-    // tables, but this is ok since the removal will be rolled back
-    // when the transaction aborts. Since there is exclusive MDL on
-    // the table, other threads will not see the removal, but will
-    // have to reload the table into the cache when they get MDL.
-#ifndef DBUG_OFF
-    bool drop_error=
-#endif /* !DBUG_OFF */
-      thd->dd_client()->drop(from_tab);
-    DBUG_ASSERT(drop_error == false);
-
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-
-#ifndef DBUG_OFF
-    if (abort)
-    {
-      my_error(ER_ERROR_ON_WRITE, MYF(0), "error inject", 42,
-               "simulated write error");
-    }
-#endif /* !DBUG_OFF */
-    return true;
-  }
-
   DBUG_EXECUTE_IF("alter_table_after_rename_1",
-                   DBUG_SET("-d,alter_table_after_rename_1");
-                   DEBUG_SYNC(thd, "after_rename_in_dd"););
-
+                  DBUG_SET("-d,alter_table_after_rename_1");
+                  DEBUG_SYNC(thd, "after_rename_in_dd"););
 
   return trans_commit_stmt(thd) ||
          trans_commit(thd);
@@ -2900,8 +2859,7 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
 
   new_table_def->set_row_format(dd_get_new_row_format(correct_row_type));
 
-  if (thd->dd_client()->update(&old_table_def, new_table_def.get()) ||
-      store_sdi(thd, new_table_def.get(), sch))
+  if (thd->dd_client()->update(&old_table_def, new_table_def.get()))
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);

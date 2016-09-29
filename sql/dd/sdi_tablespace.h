@@ -22,15 +22,36 @@ struct st_mysql_const_lex_string;
 
 namespace dd {
 namespace sdi_tablespace {
+/**
+  See handlerton::store_schema_sdi_t.
+*/
 bool store(THD *thd, handlerton *hton, const st_mysql_const_lex_string &sdi, const Schema *schema,
            const Table *table);
+
+/**
+  See handlerton::store_table_sdi_t.
+*/
 bool store(THD *thd, handlerton*, const st_mysql_const_lex_string &sdi, const Table *table,
            const dd::Schema *schema);
+
+/**
+  See handlerton::store_tablespace_sdi_t.
+*/
 bool store(handlerton *hton, const st_mysql_const_lex_string &sdi, const Tablespace *tablespace);
 
+/**
+  See handlerton::remove_schema_sdi_t.
+*/
 bool remove(THD *thd, handlerton *hton, const Schema *schema,
             const Table *table);
+/**
+  See handlerton::remove_table_sdi_t.
+*/
 bool remove(THD *thd, handlerton*, const Table *table, const Schema *schema);
+
+/**
+  See handlerton::remove_tablespace_sdi_t.
+*/
 bool remove(handlerton *hton, const Tablespace *tablespace);
 }
 }
