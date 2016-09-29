@@ -73,7 +73,6 @@
 #include "parse_location.h"
 #include "parse_tree_node_base.h"
 #include "prealloced_array.h"
-#include "probes_mysql.h"
 #include "protocol.h"
 #include "protocol_classic.h"
 #include "psi_memory_key.h"
@@ -1225,11 +1224,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   thd->profiling.start_new_query();
 #endif
 
-  /* DTRACE instrumentation, begin */
-  MYSQL_COMMAND_START(thd->thread_id(), command,
-                      (char *) thd->security_context()->priv_user().str,
-                      (char *) thd->security_context()->host_or_ip().str);
-
   /* Performance Schema Interface instrumentation, begin */
   thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
                                                com_statement_info[command].m_key);
@@ -1495,10 +1489,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     if (alloc_query(thd, com_data->com_query.query,
                     com_data->com_query.length))
       break;					// fatal error is set
-    MYSQL_QUERY_START(const_cast<char*>(thd->query().str), thd->thread_id(),
-                      (char *) (thd->db().str ? thd->db().str : ""),
-                      (char *) thd->security_context()->priv_user().str,
-                      (char *) thd->security_context()->host_or_ip().str);
 
     const char *packet_end= thd->query().str + thd->query().length;
 
@@ -1558,12 +1548,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->m_statement_psi= NULL;
       thd->m_digest= NULL;
 
-/* DTRACE end */
-      if (MYSQL_QUERY_DONE_ENABLED())
-      {
-        MYSQL_QUERY_DONE(thd->is_error());
-      }
-
 /* SHOW PROFILE end */
 #if defined(ENABLED_PROFILING)
       thd->profiling.finish_current_query();
@@ -1574,13 +1558,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->profiling.start_new_query("continuing");
       thd->profiling.set_query_source(beginning_of_next_stmt, length);
 #endif
-
-/* DTRACE begin */
-      MYSQL_QUERY_START(const_cast<char*>(beginning_of_next_stmt),
-                        thd->thread_id(),
-                        (char *) (thd->db().str ? thd->db().str : ""),
-                        (char *) thd->security_context()->priv_user().str,
-                        (char *) thd->security_context()->host_or_ip().str);
 
 /* PSI begin */
       thd->m_digest= & thd->m_digest_state;
@@ -1951,16 +1928,6 @@ done:
 
   thd_manager->dec_thread_running();
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-
-  /* DTRACE instrumentation, end */
-  if (MYSQL_QUERY_DONE_ENABLED() && command == COM_QUERY)
-  {
-    MYSQL_QUERY_DONE(thd->is_error());
-  }
-  if (MYSQL_COMMAND_DONE_ENABLED())
-  {
-    MYSQL_COMMAND_DONE(thd->is_error());
-  }
 
   /* SHOW PROFILE instrumentation, end */
 #if defined(ENABLED_PROFILING)
@@ -4911,7 +4878,6 @@ static bool execute_show(THD *thd, TABLE_LIST *all_tables)
 
   if (!(res= open_tables_for_query(thd, all_tables, false)))
   {
-    MYSQL_SELECT_START(const_cast<char*>(thd->query().str));
     if (lex->is_explain())
     {
       /*
@@ -4943,7 +4909,6 @@ static bool execute_show(THD *thd, TABLE_LIST *all_tables)
       if (save_result != lex->result)
         delete save_result;
     }
-    MYSQL_SELECT_DONE((int) res, (ulong) thd->current_found_rows);
   }
 
   if (statement_timer_armed && thd->timer)
@@ -5286,13 +5251,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
             thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           }
           lex->set_trg_event_type_for_tables();
-          MYSQL_QUERY_EXEC_START(
-            const_cast<char*>(thd->query().str),
-            thd->thread_id(),
-            (char *) (thd->db().str ? thd->db().str : ""),
-            (char *) thd->security_context()->priv_user().str,
-            (char *) thd->security_context()->host_or_ip().str,
-            0);
 
           int error MY_ATTRIBUTE((unused));
           if (unlikely(thd->security_context()->password_expired() &&
@@ -5305,8 +5263,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           }
           else
             error= mysql_execute_command(thd, true);
-
-          MYSQL_QUERY_EXEC_DONE(error);
 	}
       }
     }
@@ -6879,7 +6835,6 @@ bool parse_sql(THD *thd,
   // TODO fix to allow parsing gcol exprs after main query.
 //  DBUG_ASSERT(thd->lex->m_sql_cmd == NULL);
 
-  MYSQL_QUERY_PARSE_START(const_cast<char*>(thd->query().str));
   /* Backup creation context. */
 
   Object_creation_ctx *backup_ctx= NULL;
@@ -7029,7 +6984,6 @@ bool parse_sql(THD *thd,
                      & thd->m_digest->m_digest_storage);
   }
 
-  MYSQL_QUERY_PARSE_DONE(ret_value);
   DBUG_RETURN(ret_value);
 }
 

@@ -466,10 +466,6 @@ IF (MERGE_UNITTESTS)
     LIST(APPEND SRC_FILES $<TARGET_OBJECTS:my_nt_servc>)
   ENDIF()
   LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
-  ADD_COMPILE_FLAGS(
-    ../../storage/example/ha_example.cc
-    COMPILE_FLAGS "-DDISABLE_DTRACE"
-  )
   ADD_EXECUTABLE(merge_large_tests-t ${SRC_FILES})
 
   TARGET_LINK_LIBRARIES(merge_small_tests-t
@@ -541,10 +537,6 @@ ENDIF(MERGE_UNITTESTS)
     ENDIF()
     IF(test MATCHES "table_cache")
       LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
-      ADD_COMPILE_FLAGS(
-        ../../storage/example/ha_example.cc
-        COMPILE_FLAGS "-DDISABLE_DTRACE"
-      )
     ENDIF()
     ADD_EXECUTABLE(${test}-t ${SRC_FILES})
     TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)

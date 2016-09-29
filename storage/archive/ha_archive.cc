@@ -27,7 +27,6 @@
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
-#include "probes_mysql.h"
 #include "sql_class.h"
 #include "sql_table.h"
 #include "system_variables.h"
@@ -953,9 +952,7 @@ int ha_archive::index_read(uchar *buf, const uchar *key,
 {
   int rc;
   DBUG_ENTER("ha_archive::index_read");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= index_read_idx(buf, active_index, key, key_len, find_flag);
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -1005,7 +1002,6 @@ int ha_archive::index_next(uchar * buf)
   int rc;
 
   DBUG_ENTER("ha_archive::index_next");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
 
   while (!(get_row(&archive, buf)))
   {
@@ -1017,7 +1013,6 @@ int ha_archive::index_next(uchar * buf)
   }
 
   rc= found ? 0 : HA_ERR_END_OF_FILE;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -1254,8 +1249,6 @@ int ha_archive::rnd_next(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_archive::rnd_next");
-  MYSQL_READ_ROW_START(table_share->db.str,
-                       table_share->table_name.str, TRUE);
 
   if (share->crashed)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
@@ -1274,7 +1267,6 @@ int ha_archive::rnd_next(uchar *buf)
   table->status=rc ? STATUS_NOT_FOUND: 0;
 
 end:
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -1304,8 +1296,6 @@ int ha_archive::rnd_pos(uchar * buf, uchar *pos)
 {
   int rc;
   DBUG_ENTER("ha_archive::rnd_pos");
-  MYSQL_READ_ROW_START(table_share->db.str,
-                       table_share->table_name.str, FALSE);
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   current_position= (my_off_t)my_get_ptr(pos, ref_length);
   if (azseek(&archive, current_position, SEEK_SET) == (my_off_t)(-1L))
@@ -1315,7 +1305,6 @@ int ha_archive::rnd_pos(uchar * buf, uchar *pos)
   }
   rc= get_row(&archive, buf);
 end:
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 

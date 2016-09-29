@@ -576,8 +576,6 @@ ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
-DTRACE_INSTRUMENT(sql_main)
-
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
   ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio regex
   binlogevents_static  ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
@@ -630,7 +628,7 @@ ADD_DEPENDENCIES(slave GenError)
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
 ELSE()
-  SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
+  SET(MYSQLD_SOURCE main.cc)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqld

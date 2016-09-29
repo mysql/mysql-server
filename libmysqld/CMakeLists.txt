@@ -267,7 +267,6 @@ SET_SOURCE_FILES_PROPERTIES(
 ADD_CUSTOM_TARGET(GenYaccEmbeddedSource DEPENDS ${GEN_YACC_SOURCES})
 
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
-DTRACE_INSTRUMENT(sql_embedded)
 ADD_DEPENDENCIES(sql_embedded GenError GenServerSource GenYaccEmbeddedSource)
 
 # On Windows, static embedded server library is called mysqlserver.lib

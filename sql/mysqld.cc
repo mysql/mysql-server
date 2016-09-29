@@ -381,7 +381,6 @@
 #include "partitioning/partition_handler.h" // partitioning_init
 #include "persisted_variable.h"         // Persisted_variables_cache
 #include "pfs_thread_provider.h"
-#include "probes_mysql.h"               // IWYU pragma: keep
 #include "protocol.h"
 #include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
 #include "query_options.h"

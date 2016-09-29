@@ -22,7 +22,6 @@
 #include "my_base.h"
 #include "my_global.h"
 #include "my_sqlcommand.h"
-#include "probes_mysql.h"    // IWYU pragma: keep
 #include "query_result.h"    // Query_result_interceptor
 #include "sql_cmd_dml.h"     // Sql_cmd_dml
 #include "sql_lex.h"
@@ -144,23 +143,6 @@ protected:
   bool prepare_inner(THD *thd) override;
 
   bool execute_inner(THD *thd) override;
-
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  void start_stmt_dtrace(char *query) override
-  {
-    if (multitable)
-      MYSQL_MULTI_UPDATE_START(query);
-    else
-      MYSQL_UPDATE_START(query);
-  }
-  void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed) override
-  {
-    if (multitable)
-      MYSQL_UPDATE_DONE(status, rows, changed);
-    else
-      MYSQL_MULTI_UPDATE_DONE(status, rows, changed);
-  }
-#endif
 
 private:
   bool update_single_table(THD *thd);

@@ -23,7 +23,6 @@
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_sqlcommand.h"
-#include "probes_mysql.h"         // IWYU pragma: keep
 #include "query_result.h"         // Query_result_interceptor
 #include "sql_cmd_dml.h"          // Sql_cmd_dml
 #include "sql_data_change.h"      // enum_duplicates
@@ -291,17 +290,6 @@ public:
 
 protected:
   virtual bool execute_inner(THD *thd);
-
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  virtual void start_stmt_dtrace(char *query)
-  {
-    MYSQL_INSERT_START(query);
-  }
-  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed)
-  {
-    MYSQL_INSERT_DONE(status, rows);
-  }
-#endif
 };
 
 
@@ -321,18 +309,6 @@ public:
   {
     return is_replace ? SQLCOM_REPLACE_SELECT : SQLCOM_INSERT_SELECT;
   }
-
-protected:
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  virtual void start_stmt_dtrace(char *query)
-  {
-    MYSQL_INSERT_SELECT_START(query);
-  }
-  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed)
-  {
-    MYSQL_INSERT_SELECT_DONE(status, rows);
-  }
-#endif
 };
 
 #endif /* SQL_INSERT_INCLUDED */

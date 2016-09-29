@@ -36,7 +36,6 @@
 #include "mysqld.h"                             // sql_statement_names
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "probes_mysql.h"                       // IWYU pragma: keep
 #include "sql_chars.h"
 #include "sql_class.h"                          // THD
 #include "sql_const.h"

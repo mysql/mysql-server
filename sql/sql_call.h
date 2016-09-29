@@ -45,13 +45,6 @@ protected:
 
   virtual bool execute_inner(THD *thd);
 
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  virtual void start_stmt_dtrace(char *query)
-  {}
-  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed)
-  {}
-#endif
-
 private:
   sp_name *proc_name;
   List<Item> *proc_args;

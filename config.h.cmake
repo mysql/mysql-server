@@ -278,11 +278,6 @@
 #cmakedefine HAVE_DECL_TGOTO 1
 
 /*
- * DTrace
- */
-#cmakedefine HAVE_DTRACE 1
-
-/*
  * Character sets
  */
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"

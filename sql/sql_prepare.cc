@@ -119,7 +119,6 @@ When one supplies long data for a placeholder:
 #include "mysqld.h"             // opt_general_log
 #include "mysqld_error.h"
 #include "opt_trace.h"          // Opt_trace_array
-#include "probes_mysql.h"
 #include "protocol.h"
 #include "psi_memory_key.h"
 #include "set_var.h"            // set_var_base
@@ -3498,14 +3497,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       */
       if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
       {
-        MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                               thd->thread_id(),
-                               (char *) (thd->db().str != NULL ?
-                                         thd->db().str : ""),
-                               (char *) thd->security_context()->priv_user().str,
-                               (char *) thd->security_context()->host_or_ip().str,
-                               1);
-
         /*
           Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
           prepared statements this causes two records to be output:
@@ -3529,7 +3520,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
         log_execute_line(thd);
         thd->binlog_need_explicit_defaults_ts= lex->binlog_need_explicit_defaults_ts;
         error= mysql_execute_command(thd, true);
-        MYSQL_QUERY_EXEC_DONE(error);
       }
     }
   }

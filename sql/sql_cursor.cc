@@ -28,7 +28,6 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"
-#include "probes_mysql.h"
 #include "protocol.h"
 #include "query_options.h"
 #include "query_result.h"
@@ -136,12 +135,6 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
 
   lex->result= result_materialize;
 
-  MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                         thd->thread_id(),
-                         (char *) (thd->db().str ? thd->db().str : ""),
-                         (char *) thd->security_context()->priv_user().str,
-                         (char *) thd->security_context()->host_or_ip().str,
-                         2);
   parent_digest= thd->m_digest;
   parent_locker= thd->m_statement_psi;
   thd->m_digest= NULL;
@@ -150,7 +143,6 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   thd->m_digest= parent_digest;
   DEBUG_SYNC(thd, "after_table_close");
   thd->m_statement_psi= parent_locker;
-  MYSQL_QUERY_EXEC_DONE(rc);
 
   lex->result= save_result;
   /*

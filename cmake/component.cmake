@@ -92,8 +92,6 @@ MACRO(MYSQL_ADD_COMPONENT)
     ADD_VERSION_INFO(${target} ${kind} SOURCES)
     ADD_LIBRARY(${target} ${kind} ${SOURCES})
 
-    DTRACE_INSTRUMENT(${target})
-
     # For internal testing in PB2, append collections files
     IF(DEFINED ENV{PB2WORKDIR})
       COMPONENT_APPEND_COLLECTIONS()

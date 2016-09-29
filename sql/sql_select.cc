@@ -54,7 +54,6 @@
 #include "opt_hints.h"           // hint_key_state()
 #include "opt_range.h"           // QUICK_SELECT_I
 #include "opt_trace.h"
-#include "probes_mysql.h"        // IWYU pragma: keep
 #include "query_options.h"
 #include "query_result.h"
 #include "records.h"             // init_read_record, end_read_record
@@ -408,19 +407,6 @@ err:
 }
 
 
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-void Sql_cmd_select::start_stmt_dtrace(char *query)
-{
-  MYSQL_SELECT_START(query);
-}
-void Sql_cmd_select::end_stmt_dtrace(int status,
-                                     ulonglong rows, ulonglong changed)
-{
-  MYSQL_SELECT_DONE(status, rows);
-}
-#endif
-
-
 /**
   Prepare a SELECT statement.
 */
@@ -552,10 +538,6 @@ bool Sql_cmd_dml::execute(THD *thd)
   // @todo - enable when needs_explicit_preparation is changed
   // DBUG_ASSERT(!needs_explicit_preparation() || is_prepared());
 
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  start_stmt_dtrace(const_cast<char *>(thd->query().str));
-#endif
-
   // If a timer is applicable to statement, then set it.
   if (is_timer_applicable_to_statement(thd))
     statement_timer_armed= set_statement_timer(thd);
@@ -675,10 +657,6 @@ bool Sql_cmd_dml::execute(THD *thd)
   // "unprepare" this object since unit->cleanup actually unprepares.
   unprepare(thd);
 
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  end_stmt_dtrace(0, thd->current_found_rows, thd->current_changed_rows);
-#endif
-
   DBUG_RETURN(res);
 
 err:
@@ -712,10 +690,6 @@ err:
 
   if (is_prepared())
     unprepare(thd);
-
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  end_stmt_dtrace(1, 0ULL, 0ULL);
-#endif
 
   DBUG_RETURN(thd->is_error());
 }
