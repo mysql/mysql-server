@@ -32,6 +32,7 @@ public:
     m_nodegroup_map_len= ng_map_len;
     m_print = false;
     m_print_log = false;
+    m_print_sql_log = false;
     m_print_data = false;
     m_print_meta = false;
     m_logCount = 0;
