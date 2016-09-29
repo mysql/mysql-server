@@ -53,7 +53,8 @@
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
 #define test_all_bits(a,b) (((a) & (b)) == (b))
 
-#ifdef __cplusplus
+/* Bug in developerstudio: use the C version */
+#if defined(__cplusplus) && !defined(__SUNPRO_CC)
 
 template <class T, size_t N>
 constexpr size_t array_elements(T (&)[N]) noexcept
