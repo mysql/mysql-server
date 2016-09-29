@@ -9347,9 +9347,9 @@ commit_stage:
 /**
   MYSQLD server recovers from last crashed binlog.
 
-  @param log[in]        IO_CACHE of the crashed binlog.
-  @param fdle[in]       Format_description_log_event of the crashed binlog.
-  @param valid_pos[out] The position of the last valid transaction or
+  @param[in] log        IO_CACHE of the crashed binlog.
+  @param[in] fdle       Format_description_log_event of the crashed binlog.
+  @param[out] valid_pos The position of the last valid transaction or
                         event(non-transaction) of the crashed binlog.
                         valid_pos must be non-NULL.
 
