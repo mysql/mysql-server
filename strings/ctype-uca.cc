@@ -734,6 +734,8 @@ struct my_uca_scanner_handler
     my_uca_scanner_init_any(scanner, cs, level, str, length, max_char_toscan);
   }
   virtual int next(my_uca_scanner *scanner) = 0;
+
+  virtual ~my_uca_scanner_handler() { }
 };
 
 struct uca_scanner_handler_any : public my_uca_scanner_handler
