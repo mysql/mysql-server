@@ -22,6 +22,11 @@
   Cyrillic group of characters. May add more in future.
 */
 #define UCA_MAX_CHAR_GRP 4
+enum enum_uca_ver
+{
+  UCA_V400, UCA_V520, UCA_V900
+};
+
 enum enum_char_grp
 {
   CHARGRP_NONE,
@@ -51,11 +56,19 @@ struct Reorder_param
   uint16                 max_weight;
 };
 
+enum enum_case_first
+{
+  CASE_FIRST_OFF,
+  CASE_FIRST_UPPER,
+  CASE_FIRST_LOWER
+};
+
 struct Coll_param
 {
   struct Reorder_param *reorder_param;
   my_bool               norm_enabled; // false = normalization off, default;
                                       // true = on
+  enum enum_case_first  case_first;
 };
 
 #endif

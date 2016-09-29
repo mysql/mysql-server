@@ -116,6 +116,7 @@ typedef struct my_uca_level_info_st
 
 typedef struct uca_info_st
 {
+  enum enum_uca_ver   version;
   MY_UCA_WEIGHT_LEVEL level[MY_UCA_WEIGHT_LEVELS];
 
   /* Logical positions */
@@ -180,7 +181,6 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_NONASCII  8192   /* if not ASCII-compatible        */
 #define MY_CS_UNICODE_SUPPLEMENT 16384 /* Non-BMP Unicode characters */
 #define MY_CS_LOWER_SORT 32768 /* If use lower case as weight   */
-#define MY_CS_UCA_900   65536  /* If use UCA 9.0.0   */
 #define MY_CHARSET_UNDEFINED 0
 
 /* Character repertoire flags */
