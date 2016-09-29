@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <memory>
+
 #include <my_global.h>
 #include <mysql/plugin_keyring.h>
 #include "keyring.h"
@@ -63,7 +65,7 @@ static int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
   char            buff[FN_REFLEN+1];
   const char      *keyring_filename;
   int             len = sizeof(buff);
-  boost::movelib::unique_ptr<IKeys_container> new_keys(new Keys_container(logger.get()));
+  std::unique_ptr<IKeys_container> new_keys(new Keys_container(logger.get()));
 
   (*(const char **) save)= NULL;
   keyring_filename= value->val_str(value, buff, &len);
@@ -188,9 +190,9 @@ static my_bool mysql_key_generate(const char *key_id, const char *key_type,
 {
   try
   {
-    boost::movelib::unique_ptr<IKey> key_candidate(new Key(key_id, key_type, user_id, NULL, 0));
+    std::unique_ptr<IKey> key_candidate(new Key(key_id, key_type, user_id, NULL, 0));
 
-    boost::movelib::unique_ptr<uchar[]> key(new uchar[key_len]);
+    std::unique_ptr<uchar[]> key(new uchar[key_len]);
     if (key.get() == NULL)
       return TRUE;
     memset(key.get(), 0, key_len);
