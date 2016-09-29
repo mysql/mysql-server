@@ -2940,7 +2940,7 @@ String *Item_func_bit::val_str(String *str)
 template<bool to_left> longlong Item_func_shift::eval_int_op()
 {
   DBUG_ASSERT(fixed);
-  null_value= true;
+  null_value= maybe_null;
   ulonglong res= args[0]->val_int();
   if (args[0]->null_value)
     return 0;
@@ -2969,7 +2969,7 @@ template longlong Item_func_shift::eval_int_op<false>();
 template<bool to_left> String *Item_func_shift::eval_str_op(String *str)
 {
   DBUG_ASSERT(fixed);
-  null_value= true;
+  null_value= maybe_null;
 
   String tmp_str;
   String *arg= args[0]->val_str(&tmp_str);
@@ -3053,7 +3053,7 @@ longlong Item_func_bit_neg::int_op()
 String *Item_func_bit_neg::str_op(String *str)
 {
   DBUG_ASSERT(fixed);
-  null_value= true;
+  null_value= maybe_null;
   String *res= args[0]->val_str(str);
   if (!res || args[0]->null_value || tmp_value.alloc(res->length()))
     return nullptr;
@@ -3089,7 +3089,7 @@ template<class Int_func> longlong
 Item_func_bit_two_param::eval_int_op(Int_func int_func)
 {
   DBUG_ASSERT(fixed);
-  null_value= true;
+  null_value= maybe_null;
   ulonglong arg0= args[0]->val_uint();
   if (args[0]->null_value)
     return 0;
@@ -3122,7 +3122,7 @@ Item_func_bit_two_param::eval_str_op(String *str, Char_func char_func,
                                      Int_func int_func)
 {
   DBUG_ASSERT(fixed);
-  null_value= true;
+  null_value= maybe_null;
 
   String arg0_buff;
   String *s1= args[0]->val_str(&arg0_buff);

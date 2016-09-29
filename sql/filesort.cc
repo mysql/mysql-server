@@ -34,6 +34,7 @@
 #include "binary_log_types.h"
 #include "binlog_config.h"
 #include "bounded_queue.h"
+#include "current_thd.h"                // current_thd
 #include "debug_sync.h"
 #include "decimal.h"
 #include "derror.h"
@@ -1369,19 +1370,22 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
         {
           if (maybe_null)
             memset(to-1, 0, sort_field->length+1);
-          else
+          else      // The return value is null but the result may NOT be null.
           {
-            /* purecov: begin deadcode */
             /*
-              This should only happen during extreme conditions if we run out
-              of memory or have an item marked not null when it can be null.
-              This code is here mainly to avoid a hard crash in this case.
+              This assert should only trigger if we have an item marked
+              as null when in fact it cannot be null.
+              (ret_value == nullptr, null_value == true
+              and maybe_null == false).
             */
-            DBUG_ASSERT(0);
-            DBUG_PRINT("warning",
-                       ("Got null on something that shouldn't be null"));
-            memset(to, 0, sort_field->length);	// Avoid crash
-            /* purecov: end */
+            DBUG_ASSERT(!item->null_value);
+            DBUG_ASSERT(current_thd->is_error());
+            /*
+               If the assert did not trigger it means we raised an error during
+               item evaluation. Avoid a crash by filling the field with zeroes
+               and break as the error will be reported later in find_all_keys.
+            */
+            memset(to, 0, sort_field->length);
           }
           break;
         }
