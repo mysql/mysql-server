@@ -6903,7 +6903,7 @@ create_index_metadata(
 	ut_ad(n_fields > 0);
 
 	if (key.flags & (HA_SPATIAL | HA_FULLTEXT)) {
-		ut_ad(!dict_table_is_intrinsic(table));
+		ut_ad(!table->is_intrinsic());
 
 		switch (key.flags & HA_KEYFLAG_MASK) {
 		case HA_SPATIAL:
