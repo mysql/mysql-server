@@ -35,6 +35,7 @@ var stats = {
 };
 
 var conf             = require("./path_config"),
+    jones            = require("database-jones"),
     adapter          = require(conf.binary),
     udebug           = unified_debug.getLogger("NdbConnection.js"),
     stats_module     = require(jones.api.stats),

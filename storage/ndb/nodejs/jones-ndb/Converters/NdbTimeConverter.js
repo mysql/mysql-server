@@ -40,7 +40,8 @@
       
 ************************/
 
-var MySQLTime = require(jones.common.MySQLTime),
+var jones = require("database-jones"),
+    MySQLTime = require(jones.common.MySQLTime),
     udebug = unified_debug.getLogger("NdbTimeConverter.js");
 
 exports.toDB = function(jsValue) {

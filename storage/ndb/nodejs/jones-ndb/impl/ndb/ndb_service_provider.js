@@ -29,6 +29,8 @@ var DatetimeConverter = require(path.join(conf.converters_dir, "NdbDatetimeConve
 var TimeConverter = require(path.join(conf.converters_dir, "NdbTimeConverter"));
 var DateConverter = require(path.join(conf.converters_dir, "NdbDateConverter"));
 var propertiesDocFile = path.join(conf.root_dir, "DefaultConnectionProperties");
+var unified_debug = require("unified_debug");
+var jones = require("database-jones");
 var udebug  = unified_debug.getLogger("ndb_service_provider.js");
 var gypConfigFile = path.join(conf.root_dir, "config.gypi");
 

@@ -35,6 +35,8 @@ var conf            = require("./path_config"),
     ndbconnpool     = require("./NdbConnectionPool.js"),
     util            = require("util"),
     assert          = require("assert"),
+    jones           = require("database-jones"),
+    unified_debug   = require("unified_debug"),
     udebug          = unified_debug.getLogger("NdbSession.js"),
     QueuedAsyncCall = require(jones.common.QueuedAsyncCall).QueuedAsyncCall,
     NdbSession;
