@@ -8299,8 +8299,16 @@ dd_table_open_on_id_low(
 #ifdef UNIV_DEBUG
 			if (*mdl != nullptr) {
 
-				ut_ad (strcmp(schema.c_str(), db_buf) == 0);
-				ut_ad(strcmp(tablename.c_str(), tbl_buf) == 0);
+				ut_ad(strcmp(schema.c_str(), db_buf) == 0);
+				if (not_table) {
+					ut_ad(strncmp(tablename.c_str(),
+						      tbl_buf,
+						      strlen(tablename.c_str()))
+					      == 0);
+				} else {
+					ut_ad(strcmp(tablename.c_str(),
+						     tbl_buf) == 0);
+				}
 			}
 #endif
 
