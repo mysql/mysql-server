@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -562,6 +562,7 @@ install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
+install -d $RBR/var/lib/mysql-files
 
 mkdir -p $RBR%{_sysconfdir}/my.cnf.d
 
@@ -1198,6 +1199,7 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
 %attr(755, root, root) %{_datadir}/mysql/
 %dir %attr(755, mysql, mysql) /var/lib/mysql
+%dir %attr(750, mysql, mysql) /var/lib/mysql-files
 
 # ----------------------------------------------------------------------------
 %files -n MySQL-Cluster-client%{product_suffix}
