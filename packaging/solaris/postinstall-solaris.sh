@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@ mygroup=mysql
 myuser=mysql
 mydatadir=/var/lib/mysql
 basedir=@@basedir@@
+mysecurefiledir=/var/lib/mysql-files
 
 if [ -n "$BASEDIR" ] ; then
   basedir="$BASEDIR"
@@ -57,6 +58,10 @@ fi
 # Set the data directory to the right user/group
 
 chown -R $myuser:$mygroup $mydatadir
+
+# Create securefile directory
+[ -d "$mysecurefiledir"  ] || mkdir -p -m 770 "$mysecurefiledir"      || exit 1
+chown -R $myuser:$mygroup $mysecurefiledir
 
 # Solaris patch 119255 (somewhere around revision 42) changes the behaviour
 # of pkgadd to set TMPDIR internally to a root-owned install directory.  This
