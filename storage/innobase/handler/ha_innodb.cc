@@ -16471,8 +16471,8 @@ ha_innobase::get_extra_columns_and_keys(
 	1. all PRIMARY KEY column prefixes
 	2. full PRIMARY KEY columns which don't exist in the secondary index */
 
-	std::vector<const dd::Index_element*, ut_allocator<dd::Index_element*>>
-		pk_elements;
+	std::vector<const dd::Index_element*,
+		    ut_allocator<const dd::Index_element*>> pk_elements;
 
 	for (dd::Index* index : *dd_table->indexes()) {
 		if (index == primary) {
