@@ -975,4 +975,21 @@ bool channel_is_stopping(const char* channel,
 
   DBUG_RETURN(is_stopping);
 }
+
+bool is_partial_transaction_on_channel_relay_log(const char *channel)
+{
+  DBUG_ENTER("is_partial_transaction_on_channel_relay_log(channel)");
+  channel_map.rdlock();
+  Master_info *mi= channel_map.get_mi(channel);
+  if (mi == NULL)
+  {
+    channel_map.unlock();
+    DBUG_RETURN(false);
+  }
+  mi->channel_rdlock();
+  bool ret= mi->transaction_parser.is_inside_transaction();
+  mi->channel_unlock();
+  channel_map.unlock();
+  DBUG_RETURN(ret);
+}
 #endif /* HAVE_REPLICATION */
