@@ -67,7 +67,7 @@ trp_client::open(TransporterFacade* tf, int blockNo,
     }
     else
     {
-      m_poll.m_lock_array_size = 16;
+      m_poll.m_lock_array_size = 128;
     }
     m_poll.m_locked_clients =
       (trp_client**) malloc(sizeof(trp_client**) * m_poll.m_lock_array_size);

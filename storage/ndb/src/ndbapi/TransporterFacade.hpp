@@ -164,9 +164,8 @@ public:
   be the last to complete its reception.
 */
   void start_poll(trp_client*);
-  bool do_poll(trp_client* clnt,
+  void do_poll(trp_client* clnt,
                Uint32 wait_time,
-               bool is_poll_owner = false,
                bool stay_poll_owner = false);
   void complete_poll(trp_client*);
   void wakeup(trp_client*);
@@ -177,7 +176,6 @@ public:
   void unlock_and_signal(trp_client* const *, Uint32 cnt);
 
   trp_client* get_poll_owner(bool) const { return m_poll_owner;}
-  trp_client* remove_last_from_poll_queue();
   void add_to_poll_queue(trp_client* clnt);
   void remove_from_poll_queue(trp_client* clnt);
 
@@ -207,6 +205,7 @@ public:
   int lock_recv_thread_cpu();
   int unlock_recv_thread_cpu();
 
+  /* All 3 poll_owner and poll_queue members below need thePollMutex */
   trp_client * m_poll_owner;
   trp_client * m_poll_queue_head; // First in queue
   trp_client * m_poll_queue_tail; // Last in queue
@@ -258,15 +257,12 @@ private:
   friend class Ndb_cluster_connection;
   friend class Ndb_cluster_connection_impl;
 
+  void propose_poll_owner(); 
   bool try_become_poll_owner(trp_client* clnt, Uint32 wait_time);
   static void finish_poll(trp_client* clnt,
                           Uint32 cnt,
                           Uint32& cnt_woken,
                           trp_client** arr);
-  void try_lock_last_client(trp_client* clnt,
-                            bool &new_owner_locked,
-                            trp_client** new_owner_ptr,
-                            Uint32 first_check);
 
   Uint32 m_num_active_clients;
   volatile bool m_check_connections;
@@ -293,6 +289,7 @@ private:
   NdbThread* theSendThread;
   void threadMainReceive(void);
   NdbThread* theReceiveThread;
+  trp_client* recv_client;
 
   friend void* runSendRequest_C(void*);
   friend void* runReceiveResponse_C(void*);
@@ -703,12 +700,4 @@ public :
   }
 };
 
-class ReceiveThreadClient : public trp_client
-{
-  public :
-  explicit ReceiveThreadClient(TransporterFacade *facade);
-  ~ReceiveThreadClient();
-  void trp_deliver_signal(const NdbApiSignal *,
-                          const LinearSectionPtr ptr[3]);
-};
 #endif // TransporterFacade_H
