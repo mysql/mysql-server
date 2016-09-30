@@ -23,5 +23,4 @@ no_binlog_gtid_next_partially_failed_stmts_anonymous : WL#7743 DROP TABLES seman
 no_binlog_gtid_next_partially_failed_stmts_error     : WL#7743 DROP TABLES semantics change issue
 dd_table_access           : WL7743 Need help from Sivert to implement INPLACE ALTER for sticky tables
 dd_upgrade_test           : WL7743 Problem with stickiness
-alter_table_myisam        : WL7743 Problem with stats
 index_merge_delete        :Bug#21373532 2016-07-29 Anitha Test fails very frequently on PB2

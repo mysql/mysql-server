@@ -1249,7 +1249,7 @@ static bool get_index_statistics_entries(THD *thd,
                                   std::vector<std::string> &index_names,
                                   std::vector<std::string> &column_names)
 {
-  dd::Transaction_ro trx(thd, ISO_READ_COMMITTED);
+  dd::Transaction_ro trx(thd, ISO_READ_UNCOMMITTED);
 
   // Open the DD tables holding dynamic table statistics.
   trx.otx.register_tables<dd::Table_stat>();
@@ -1338,7 +1338,7 @@ bool Dictionary_client::remove_table_dynamic_statistics(
                                                *it_idxs,
                                                *it_cols));
 
-      if (Storage_adapter::get(m_thd, *key, ISO_READ_COMMITTED, &idx_stat))
+      if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, &idx_stat))
       {
         DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
         return true;
@@ -1369,7 +1369,7 @@ bool Dictionary_client::remove_table_dynamic_statistics(
     tables::Table_stats::create_object_key(schema_name, table_name));
 
   const Table_stat *tab_stat;
-  if (Storage_adapter::get(m_thd, *key, ISO_READ_COMMITTED, &tab_stat))
+  if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, &tab_stat))
   {
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;

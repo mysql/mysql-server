@@ -660,7 +660,7 @@ drop table t2;
 set sql_mode=no_engine_substitution;
 create temporary table t2 (a int);
 --disable_warnings
-call p_verify_status_increment(4, 0, 0, 0);
+call p_verify_status_increment(6, 0, 0, 0);
 --enable_warnings
 set sql_mode=default;
 --echo # 19. A function changes temp-trans-table.

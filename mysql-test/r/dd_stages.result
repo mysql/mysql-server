@@ -43,6 +43,10 @@ stage/sql/Opening system tables
 stage/sql/Locking system tables
 stage/sql/Opening system tables
 stage/sql/Locking system tables
+stage/sql/Opening system tables
+stage/sql/Locking system tables
+stage/sql/Opening system tables
+stage/sql/Locking system tables
 connection con1;
 disconnect con1;
 connection default;

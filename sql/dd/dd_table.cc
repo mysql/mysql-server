@@ -2479,7 +2479,8 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
   // Drop the table/view
   if (dd::remove_sdi(thd, table_def, sch) ||
       (uncached ? thd->dd_client()->drop_uncached(table_def) :
-                  thd->dd_client()->drop(table_def)))
+                  thd->dd_client()->drop(table_def)) ||
+      thd->dd_client()->remove_table_dynamic_statistics(schema_name, name))
   {
     if (commit_dd_changes)
     {
