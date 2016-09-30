@@ -16917,6 +16917,11 @@ ha_innobase::truncate(dd::Table *dd_tab)
 	Purge might be holding a reference to the table. */
 	DBUG_ASSERT(m_prebuilt->table->n_ref_count >= 1);
 
+	/* TODO: Remove this hack */
+	if (m_prebuilt->table->id < 70) {
+		DBUG_RETURN(0);
+	}
+
 	/* Truncate of intrinsic table is not allowed truncate for now. */
 	if (m_prebuilt->table->is_intrinsic()) {
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
