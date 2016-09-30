@@ -15389,6 +15389,11 @@ innobase_write_dd_table(
 	}
 }
 
+template void innobase_write_dd_table<dd::Table>(
+	dd::Object_id, dd::Table*, const dict_table_t*);
+template void innobase_write_dd_table<dd::Partition>(
+	dd::Object_id, dd::Partition*, const dict_table_t*);
+
 template<typename Index>
 void
 innobase_write_dd_index(
@@ -15403,6 +15408,11 @@ innobase_write_dd_index(
 	p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], index->page);
 	p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], index->trx_id);
 }
+
+template void innobase_write_dd_index<dd::Index>(
+	dd::Object_id, dd::Index*, const dict_index_t*);
+template void innobase_write_dd_index<dd::Partition_index>(
+	dd::Object_id, dd::Partition_index*, const dict_index_t*);
 
 /** Get the explicit dd::Tablespace::id of a partition.
 @param[in]      table   non-partitioned table
