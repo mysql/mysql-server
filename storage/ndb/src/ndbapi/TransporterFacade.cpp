@@ -816,6 +816,52 @@ TransporterFacade::get_recv_thread_activation_threshold() const
   return min_active_clients_recv_thread;
 }
 
+/**
+ * At very high loads the normal OS scheduler handling isn't sufficient to
+ * maintain high throughput through the NDB API. If the poll ownership isn't
+ * getting sufficient attention from the OS scheduler then the performance of
+ * the NDB API will suffer.
+ *
+ * What will happen at high load is the following. The OS scheduler tries to
+ * maintain fairness between the various user threads AND the thread handling
+ * the poll ownership (either a user thread or a receive thread).
+ * This means that when the poll owner has executed its share of time it will
+ * be descheduled to handle user threads. These threads will work on the
+ * received data and will possibly also start new transactions. After all of
+ * those user activities have completed, then the OS will reschedule the
+ * poll owner again. At this time it will continue receiving and again start
+ * up new threads. The problem is that in a machine with many CPUs available
+ * this means that the CPUs won't have anything to do for a short time while
+ * waiting for the rescheduled poll owner to receive data from the data nodes
+ * to resume the transaction processing in the user part of the API process.
+ *
+ * Simply put the receiver handling of the NDB API is of such importance that
+ * it must execute at a higher thread priority than normal user threads. We
+ * handle this by raising thread priority of the receiver thread. If the
+ * API goes into a mode where the receiver thread becomes active and we were
+ * successful in raising the thread prio, then we will also retain the poll
+ * ownership until the receiver thread is stopped or until the activity slows
+ * down such that the receiver thread no longer needs to be active.
+ *
+ * On Linux raising thread prio means that we decrease the nice level of the
+ * thread. This means that it will get a higher quota compared to the other
+ * threads in the machine. In order to set this the binary needs CAP_NICE
+ * capability or the user must have the permission to set niceness which can
+ * be set using RLIMIT_NICE and ulimit -e.
+ *
+ * On Solaris it means setting a high fixed thread priority that will ensure
+ * that it stays active unless the OS or some other higher prio threads becomes
+ * executable.
+ *
+ * On Windows it sets the thread priority to THREAD_PRIORITY_HIGHEST.
+ */
+bool
+TransporterFacade::raise_thread_prio()
+{
+  int ret_code = NdbThread_SetThreadPrio(theReceiveThread, 9);
+  return (ret_code == 0) ? true : false;
+}
+
 static const int DEFAULT_MIN_ACTIVE_CLIENTS_RECV_THREAD = 8;
 /*
   ::threadMainReceive() serves two purposes:
@@ -852,6 +898,7 @@ void TransporterFacade::threadMainReceive(void)
 #endif
   recv_client = new ReceiveThreadClient(this);
   lock_recv_thread_cpu();
+  const bool raised_thread_prio = raise_thread_prio();
   while(!theStopReceive)
   {
     const NDB_TICKS currTime = NdbTick_getCurrentTicks();
@@ -930,9 +977,14 @@ void TransporterFacade::threadMainReceive(void)
      * concurrently executing in the window where the receiver
      * thread does not hold the poll-right - That is not something
      * we want to happen.
+     *
+     * If we managed to raise thread prio we will stay as poll owner
+     * as this means that we have a better chance of handling the
+     * offered load than any other thread has.
      */
     const bool stay_poll_owner = stay_active &&
-                                 (min_active_clients_recv_thread == 0);
+                                 ((min_active_clients_recv_thread == 0) ||
+                                  raised_thread_prio);
 
     /* Don't poll for 10ms if receive thread is deactivating */
     const Uint32 max_wait = (stay_active) ? 10 : 0;

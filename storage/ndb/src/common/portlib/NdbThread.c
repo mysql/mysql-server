@@ -801,16 +801,16 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
         nice_prio = 0;
         break;
       case 6:
-        nice_prio = -4;
+        nice_prio = -5;
         break;
       case 7:
-        nice_prio = -8;
+        nice_prio = -10;
         break;
       case 8:
-        nice_prio = -12;
+        nice_prio = -15;
         break;
       case 9:
-        nice_prio = -16;
+        nice_prio = -20;
         break;
       case 10:
         nice_prio = -20;
