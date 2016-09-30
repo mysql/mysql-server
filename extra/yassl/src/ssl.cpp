@@ -161,7 +161,7 @@ int read_file(SSL_CTX* ctx, const char* file, int format, CertType type)
             TaoCrypt::DSA_PrivateKey dsaKey;
             dsaKey.Initialize(dsaSource);
 
-            if (rsaSource.GetError().What()) {
+            if (dsaSource.GetError().What()) {
                 // neither worked
                 ret = SSL_FAILURE;
             }
