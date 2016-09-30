@@ -269,6 +269,7 @@ my $build_thread= 0;
 
 my $ports_per_thread= 10;
 our $group_replication= 0;
+our $xplugin= 0;
 
 my $opt_record;
 my $opt_report_features;
@@ -533,6 +534,11 @@ sub main {
   }
 
   if ($group_replication)
+  {
+    $ports_per_thread= $ports_per_thread + 10;
+  }
+
+  if ($xplugin)
   {
     $ports_per_thread= $ports_per_thread + 10;
   }
@@ -2060,11 +2066,17 @@ sub set_build_thread_ports($) {
   # Calculate baseport
   $baseport= $build_thread * 10 + 10000;
 
-  my $should_generate_value= $opt_mysqlx_baseport eq "auto";
+  if (lc($opt_mysqlx_baseport) eq "auto")
+  {
+    # Reserving last 10 ports in the current port range for X plugin.
+    $mysqlx_baseport= $baseport + $ports_per_thread - 10;
+  }
+  else
+  {
+    $mysqlx_baseport= $opt_mysqlx_baseport;
+  }
 
-  $mysqlx_baseport= $should_generate_value ? $baseport + 9 : $opt_mysqlx_baseport;
-  
-  if ( $baseport < 5001 or $baseport + $ports_per_thread - 1 >= 32767)
+  if ($baseport < 5001 or $baseport + $ports_per_thread - 1 >= 32767)
   {
     mtr_error("MTR_BUILD_THREAD number results in a port",
               "outside 5001 - 32767",
@@ -4622,6 +4634,7 @@ sub run_testcase ($) {
 	   vardir          => $opt_vardir,
 	   tmpdir          => $opt_tmpdir,
 	   baseport        => $baseport,
+           mysqlxbaseport  => $mysqlx_baseport,
 	   #hosts          => [ 'host1', 'host2' ],
 	   user            => $opt_user,
 	   password        => '',
@@ -5937,17 +5950,18 @@ sub mysqld_arguments ($$$) {
       mtr_add_arg($args, "%s", $arg);
     }
   }
+
   $opt_skip_core = $found_skip_core;
   if (IS_WINDOWS && !$found_no_console && !$found_log_error)
   {
     # Trick the server to send output to stderr, with --console
     mtr_add_arg($args, "--console");
   }
+
   if ( !$found_skip_core && !$opt_user_args )
   {
     mtr_add_arg($args, "%s", "--core-file");
   }
-  mtr_add_arg($args, "--loose-mysqlx-port=%d",$mysqlx_baseport);
 
   return $args;
 }
