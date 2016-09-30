@@ -7011,6 +7011,8 @@ create_index_metadata(
 		return(HA_ERR_GENERIC);
 	}
 
+	index = UT_LIST_GET_LAST(table->indexes);
+
 	if (index->type & DICT_FTS) {
 		ut_ad((key.flags & HA_FULLTEXT) == HA_FULLTEXT);
 		ut_ad(index->n_uniq == 0);
