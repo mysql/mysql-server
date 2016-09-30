@@ -25,9 +25,10 @@
 #include "ngs/server_acceptors.h"
 #include "ngs_common/connection_vio.h"
 #include "ngs/log.h"
-#include <boost/bind.hpp>
+#include "ngs_common/bind.h"
 #include <iterator>
 #include <stdlib.h>
+#include <algorithm>
 
 
 using namespace ngs;
@@ -126,7 +127,7 @@ Server_acceptors::Server_acceptors(
   m_unix_socket(listener_factory.create_unix_socket_listener(unix_socket_file_or_named_pipe, m_event, backlog)),
 #endif
   m_time_and_event_state(State_listener_initializing),
-  m_time_and_event_task(new Server_task_time_and_event(m_event, m_time_and_event_state))
+  m_time_and_event_task(ngs::allocate_shared<Server_task_time_and_event>(ngs::ref(m_event), ngs::ref(m_time_and_event_state)))
 {
 }
 
@@ -150,7 +151,7 @@ bool Server_acceptors::prepare_impl(On_connection on_connection, const bool skip
   const size_t number_of_prepared_listeners = std::count_if(
       listeners.begin(),
       listeners.end(),
-      boost::bind(&Listener_interface::setup_listener, _1, on_connection));
+      ngs::bind(&Listener_interface::setup_listener, ngs::placeholders::_1, on_connection));
 
   if (0 == number_of_prepared_listeners)
   {
@@ -227,7 +228,7 @@ bool Server_acceptors::was_unix_socket_or_named_pipe_configured()
   return listener->get_state().is(allowed_states);
 }
 
-void Server_acceptors::add_timer(const std::size_t delay_ms, boost::function<bool ()> callback)
+void Server_acceptors::add_timer(const std::size_t delay_ms, ngs::function<bool ()> callback)
 {
   m_event.add_timer(delay_ms, callback);
 }
@@ -254,7 +255,7 @@ Server_tasks_interfaces Server_acceptors::create_server_tasks_for_listeners()
       continue;
     }
 
-    boost::shared_ptr<Server_task_interface> handler(new details::Server_task_listener(*listener));
+    ngs::shared_ptr<Server_task_interface> handler(ngs::allocate_shared<details::Server_task_listener>(ngs::ref(*listener)));
     handlers.push_back(handler);
   }
 

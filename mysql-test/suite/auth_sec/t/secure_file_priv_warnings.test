@@ -24,7 +24,15 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server
 --source include/wait_until_disconnected.inc
---remove_file $server_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
 --exec echo "restart:--plugin-dir=$PLUGIN_DIR --secure-file-priv=$PLUGIN_DIR" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc

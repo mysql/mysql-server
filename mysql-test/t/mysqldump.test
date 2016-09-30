@@ -2087,11 +2087,9 @@ INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
 
 --error 2
 --exec $MYSQL_DUMP --tab=$MYSQLTEST_VARDIR/tmp/ --fields-enclosed-by='12345' test t1
---remove_file $file
 
 --error 2
 --exec $MYSQL_DUMP --tab=$MYSQLTEST_VARDIR/tmp/ --fields-escaped-by='12345' test t1
---remove_file $file
 
 --echo # default '--default-charset' (binary):
 

@@ -22,8 +22,6 @@
 #define _NGS_CONNECTION_VIO_H_
 
 
-#include <boost/function.hpp>
-#include <boost/scoped_ptr.hpp>
 #include "ngs/memory.h"
 #include "ngs/thread.h"
 #include "my_global.h"
@@ -47,22 +45,22 @@ class Ssl_context;
 class Socket_operations_interface
 {
 public:
-  typedef boost::scoped_ptr<Socket_operations_interface> Unique_ptr;
+  typedef ngs::Memory_instrumented<Socket_operations_interface>::Unique_ptr Unique_ptr;
 
   virtual ~Socket_operations_interface() {}
 
-  virtual int bind(const my_socket &socket, const struct sockaddr *addr, socklen_t len) = 0;
-  virtual my_socket accept(const my_socket &socket_listen,
+  virtual int bind(const MYSQL_SOCKET &socket, const struct sockaddr *addr, socklen_t len) = 0;
+  virtual MYSQL_SOCKET accept(PSI_socket_key key, const MYSQL_SOCKET &socket_listen,
                       struct sockaddr *addr, socklen_t *addr_len) = 0;
-  virtual my_socket socket(int domain, int type, int protocol) = 0;
-  virtual int listen(const my_socket &socket, int backlog) = 0;
+  virtual MYSQL_SOCKET socket(PSI_socket_key key, int domain, int type, int protocol) = 0;
+  virtual int listen(const MYSQL_SOCKET &socket, int backlog) = 0;
   virtual int get_socket_errno() = 0;
 };
 
 class System_operations_interface
 {
 public:
-  typedef boost::scoped_ptr<System_operations_interface> Unique_ptr;
+  typedef ngs::Memory_instrumented<System_operations_interface>::Unique_ptr Unique_ptr;
 
   virtual ~System_operations_interface() {}
 
@@ -106,13 +104,18 @@ public:
   int shutdown(Shutdown_type how_to_shutdown);
   void close();
 
-  static void close_socket(my_socket &fd);
+  /* psf-related methods */
+  MYSQL_SOCKET get_mysql_socket();
+  void mark_idle();
+  void mark_active();
+  void set_socket_thread_owner();
+
+  static void close_socket(MYSQL_SOCKET &sock);
   static void unlink_unix_socket_file(const std::string &unix_socket_file);
+  static MYSQL_SOCKET accept(const MYSQL_SOCKET &sock, struct sockaddr* addr, socklen_t& len, int& err, std::string& strerr);
 
-  static my_socket accept(my_socket sock, struct sockaddr* addr, socklen_t& len, int& err, std::string& strerr);
-
-  static my_socket create_and_bind_socket(const unsigned short port, std::string &error_message, const uint32 backlog);
-  static my_socket create_and_bind_socket(const std::string &unix_socket_file, std::string &error_message, const uint32 backlog);
+  static MYSQL_SOCKET create_and_bind_socket(const unsigned short port, std::string &error_message, const uint32 backlog);
+  static MYSQL_SOCKET create_and_bind_socket(const std::string &unix_socket_file, std::string &error_message, const uint32 backlog);
 
   static void get_error(int& err, std::string& strerr);
 
@@ -162,9 +165,8 @@ private:
 };
 
 
-typedef boost::shared_ptr<Connection_vio>      Connection_ptr;
-typedef Memory_new<Connection_vio>::Unique_ptr Connection_unique_ptr;
-typedef Memory_new<Ssl_context>::Unique_ptr    Ssl_context_unique_ptr;
+typedef ngs::shared_ptr<Connection_vio> Connection_ptr;
+typedef ngs::Memory_instrumented<Ssl_context>::Unique_ptr Ssl_context_unique_ptr;
 
 } // namespace ngs
 

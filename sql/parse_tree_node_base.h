@@ -16,18 +16,24 @@
 #ifndef PARSE_TREE_NODE_BASE_INCLUDED
 #define PARSE_TREE_NODE_BASE_INCLUDED
 
-#include "my_config.h"
-#include "parse_error.h"
-#include "check_stack.h"
+#include <stdarg.h>
 #include <cstdlib>
-#include <cstring>
-#include "my_sys.h"
-#include "sql_const.h"
-#include "mem_root_array.h"
-#include "sql_alloc.h"
+#include <new>
 
-class THD;
+#include "check_stack.h"
+#include "mem_root_array.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "parse_error.h"
+#include "parse_location.h"
+#include "sql_const.h"
+#include "thr_malloc.h"
+
 class SELECT_LEX;
+class Sql_alloc;
+class THD;
 
 /**
   Sql_alloc-ed version of Mem_root_array with a trivial destructor of elements

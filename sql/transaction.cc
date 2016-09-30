@@ -16,16 +16,35 @@
 
 #include "transaction.h"
 
+#include <stddef.h>
+
 #include "auth_common.h"      // SUPER_ACL
-#include "binlog.h"           // mysql_bin_log
 #include "debug_sync.h"       // DEBUG_SYNC
+#include "handler.h"
 #include "log.h"              // sql_print_warning
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql_com.h"
 #include "mysqld.h"           // opt_readonly
+#include "mysqld_error.h"
+#include "query_options.h"
+#include "rpl_context.h"
+#include "rpl_gtid.h"
+#include "session_tracker.h"
 #include "sql_class.h"        // THD
+#include "sql_lex.h"
+#include "system_variables.h"
+#include "tc_log.h"
+#include "transaction_info.h"
+#include "xa.h"
 
-#include "pfs_transaction_provider.h"
+#include "pfs_transaction_provider.h"  // IWYU pragma: keep
 #include "mysql/psi/mysql_transaction.h"
-
 
 /**
   Helper: Tell tracker (if any) that transaction ended.

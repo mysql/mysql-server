@@ -15,24 +15,38 @@
 
 #include "dd/impl/types/foreign_key_element_impl.h"
 
-#include "mysqld_error.h"                            // ER_*
-
-#include "dd/properties.h"                           // Needed for destructor
-#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
-#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
-#include "dd/impl/raw/raw_record.h"                  // Raw_record
-#include "dd/impl/tables/foreign_key_column_usage.h" // Foreign_key_column_usage
-#include "dd/impl/types/foreign_key_impl.h"          // Foreign_key_impl
-#include "dd/impl/types/table_impl.h"                // Table_impl
-#include "dd/types/column.h"                         // Column
-
 #include <memory>
 #include <sstream>
 
+#include "dd/properties.h"                           // Needed for destructor
+#include "dd/string_type.h"                          // dd::String_type
+#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
+#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
+#include "dd/impl/raw/raw_record.h"                  // Raw_record
+#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
+#include "dd/impl/tables/foreign_key_column_usage.h" // Foreign_key_column_usage
+#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
+#include "dd/impl/types/entity_object_impl.h"
+#include "dd/impl/types/foreign_key_impl.h"          // Foreign_key_impl
+#include "dd/impl/types/table_impl.h"                // Table_impl
+#include "dd/types/column.h"                         // Column
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                            // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 
 using dd::tables::Foreign_key_column_usage;
 
 namespace dd {
+
+class Foreign_key;
+class Object_key;
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 // Foreign_key_element implementation.
@@ -163,9 +177,9 @@ Foreign_key_element_impl::deserialize(Sdi_rcontext *rctx,
 
 ///////////////////////////////////////////////////////////////////////////
 /* purecov: begin inspected */
-void Foreign_key_element_impl::debug_print(std::string &outb) const
+void Foreign_key_element_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "FOREIGN_KEY_ELEMENT OBJECT: { "
     << "m_foreign_key: {OID: " << m_foreign_key->id() << "}; "

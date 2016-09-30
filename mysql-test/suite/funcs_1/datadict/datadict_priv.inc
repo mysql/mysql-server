@@ -52,7 +52,7 @@ eval CREATE VIEW test.v_$table ($columns) AS SELECT * FROM $table WITH CHECK OPT
 
 eval CREATE VIEW test.v_$table ($columns) AS SELECT * FROM $table;
 
---error ER_NON_UPDATABLE_TABLE
+--error ER_DBACCESS_DENIED_ERROR
 eval UPDATE test.v_$TABLE SET TIME=NOW() WHERE id = 1;
 
 eval DROP VIEW test.v_$table;

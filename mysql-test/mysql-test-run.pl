@@ -267,6 +267,9 @@ my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
 my $build_thread= 0;
 
+my $ports_per_thread= 10;
+our $group_replication= 0;
+
 my $opt_record;
 my $opt_report_features;
 
@@ -527,6 +530,11 @@ sub main {
   }
   else {
     $ENV{'PLUGIN_SUFFIX'}= "so";
+  }
+
+  if ($group_replication)
+  {
+    $ports_per_thread= $ports_per_thread + 10;
   }
 
   # Create child processes
@@ -1998,22 +2006,37 @@ sub command_line_setup {
 sub set_build_thread_ports($) {
   my $thread= shift || 0;
 
-  if ( lc($opt_build_thread) eq 'auto' ) {
+  # Number of unique build threads needed per MTR thread.
+  my $build_threads_per_thread= int($ports_per_thread / 10);
+
+  if ( lc($opt_build_thread) eq 'auto' )
+  {
     my $found_free = 0;
-    $build_thread = 300;	# Start attempts from here
+    # Start attempts from here
+    $build_thread = 300;
 
     my $build_thread_upper = $build_thread + ($opt_parallel > 39
                              ? $opt_parallel + int($opt_parallel / 4)
                              : 49);
-    while (! $found_free)
+    while (!$found_free)
     {
-      $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper);
-      if ( !defined $build_thread ) {
+      $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper,
+                                       $build_threads_per_thread);
+
+      if (!defined $build_thread)
+      {
         mtr_error("Could not get a unique build thread id");
       }
-      $found_free= check_ports_free($build_thread);
+
+      for(my $i= 0; $i < $build_threads_per_thread; $i++)
+      {
+        $found_free= check_ports_free($build_thread + $i);
+        last if !$found_free;
+      }
+
       # If not free, release and try from next number
-      if (! $found_free) {
+      if (!$found_free)
+      {
         mtr_release_unique_id();
         $build_thread++;
       }
@@ -2021,12 +2044,17 @@ sub set_build_thread_ports($) {
   }
   else
   {
-    $build_thread = $opt_build_thread + $thread - 1;
-    if (! check_ports_free($build_thread)) {
-      # Some port was not free(which one has already been printed)
-      mtr_error("Some port(s) was not free")
+    $build_thread = $opt_build_thread + ($thread - 1) * $build_threads_per_thread;
+    for (my $i= 0; $i < $build_threads_per_thread; $i++)
+    {
+      if (!check_ports_free($build_thread + $i))
+      {
+        # Some port was not free(which one has already been printed)
+        mtr_error("Some port(s) was not free")
+      }
     }
   }
+
   $ENV{MTR_BUILD_THREAD}= $build_thread;
 
   # Calculate baseport
@@ -2036,15 +2064,15 @@ sub set_build_thread_ports($) {
 
   $mysqlx_baseport= $should_generate_value ? $baseport + 9 : $opt_mysqlx_baseport;
   
-  if ( $baseport < 5001 or $baseport + 9 >= 32767)
+  if ( $baseport < 5001 or $baseport + $ports_per_thread - 1 >= 32767)
   {
     mtr_error("MTR_BUILD_THREAD number results in a port",
               "outside 5001 - 32767",
-              "($baseport - $baseport + 9)");
+              "($baseport - $baseport + $ports_per_thread - 1)");
   }
 
   mtr_report("Using MTR_BUILD_THREAD $build_thread,",
-	     "with reserved ports $baseport..".($baseport+9));
+	     "with reserved ports $baseport..".($baseport + $ports_per_thread - 1));
 }
 
 
@@ -2891,6 +2919,8 @@ sub environment_setup {
   # $ENV{'LD_PRELOAD_64'}=
   #    "/opt/developerstudio12.5/lib/compilers/sparcv9/libdiscoverADI.so"
   #      if $opt_discover;
+  # Tell tests that we are running --discover
+  $ENV{'RUNNING_SUNW_DISCOVER'} = 1 if $opt_discover;
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir= dirname($^X);
@@ -3773,14 +3803,19 @@ sub check_ports_free ($)
 {
   my $bthread= shift;
   my $portbase = $bthread * 10 + 10000;
-  for ($portbase..$portbase+9){
-    if (mtr_ping_port($_)){
+
+  for ($portbase..$portbase + 9)
+  {
+    if (mtr_ping_port($_))
+    {
       mtr_report(" - 'localhost:$_' was not free");
-      return 0; # One port was not free
+      # One port was not free
+      return 0;
     }
   }
 
-  return 1; # All ports free
+  # All ports free
+  return 1;
 }
 
 
@@ -6401,9 +6436,31 @@ sub start_servers($) {
     ndbcluster_start($cluster);
   }
 
+  my $server_id= 0;
+
   # Start mysqlds
   foreach my $mysqld ( mysqlds() )
   {
+    # Group Replication requires a local port to be open on
+    # each server in order to receive messages from the group,
+    # Store the reserved port in an environment variable
+    # SERVER_GR_PORT_X(where X is the server number).
+    $server_id++;
+    my $xcom_server= "SERVER_GR_PORT_".$server_id;
+
+    if (!$group_replication)
+    {
+      # Assigning error value '-1' to SERVER_GR_PORT_X environment variable,
+      # since the number of ports reserved per thread is not enough for
+      # allocating extra Group replication ports.
+      $ENV{$xcom_server}= -1;
+    }
+    else
+    {
+      my $xcom_port= $baseport + 9 + $server_id;
+      $ENV{$xcom_server}= $xcom_port;
+    }
+
     if ( $mysqld->{proc} )
     {
       # Already started

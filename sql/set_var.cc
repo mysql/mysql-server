@@ -17,20 +17,46 @@
 
 #include "set_var.h"
 
-#include "hash.h"                // HASH
+#include <string.h>
+#include <cstdlib>
+
+#include "auth_acls.h"
 #include "auth_common.h"         // SUPER_ACL
 #include "derror.h"              // ER_THD
+#include "enum_query_type.h"
+#include "handler.h"
+#include "hash.h"                // HASH
+#include "item.h"
+#include "item_func.h"
+#include "key.h"
 #include "log.h"                 // sql_print_warning
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
 #include "mysqld.h"              // system_charset_info
-#include "sql_class.h"           // THD
+#include "mysqld_error.h"
+#include "persisted_variable.h"
+#include "protocol_classic.h"
+#include "session_tracker.h"
+#include "sql_audit.h"           // mysql_audit
 #include "sql_base.h"            // lock_tables
+#include "sql_class.h"           // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"           // is_supported_parser_charset
 #include "sql_select.h"          // free_underlaid_joins
 #include "sql_show.h"            // append_identifier
+#include "sql_string.h"
+#include "strfunc.h"
 #include "sys_vars_shared.h"     // PolyLock_mutex
-#include "sql_audit.h"           // mysql_audit
+#include "system_variables.h"
+#include "table.h"
 #include "template_utils.h"
-#include "persisted_variable.h"
 
 static HASH system_variable_hash;
 static PolyLock_mutex PLock_global_system_variables(&LOCK_global_system_variables);

@@ -15,17 +15,27 @@
 
 #include "dd/impl/raw/raw_table.h"
 
+#include <stddef.h>
+#include <algorithm>
+#include <new>
+
 #include "dd/impl/object_key.h"              // dd::Object_key
 #include "dd/impl/raw/raw_key.h"             // dd::Raw_key
 #include "dd/impl/raw/raw_record.h"          // dd::Raw_record
 #include "dd/impl/raw/raw_record_set.h"      // dd::Raw_record_set
+#include "handler.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
 Raw_table::Raw_table(thr_lock_type lock_type,
-                     const std::string &name)
+                     const String_type &name)
 {
   m_table_list.init_one_table(STRING_WITH_LEN("mysql"),
                               name.c_str(),

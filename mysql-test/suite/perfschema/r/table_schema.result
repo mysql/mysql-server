@@ -7,6 +7,32 @@ def	performance_schema	accounts	CURRENT_CONNECTIONS	3	NULL	NO	bigint	NULL	NULL	1
 def	performance_schema	accounts	TOTAL_CONNECTIONS	4	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
 def	performance_schema	cond_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)	MUL		select,insert,update,references		
 def	performance_schema	cond_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
+def	performance_schema	data_locks	ENGINE	1	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)	PRI		select,insert,update,references		
+def	performance_schema	data_locks	ENGINE_LOCK_ID	2	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)	PRI		select,insert,update,references		
+def	performance_schema	data_locks	ENGINE_TRANSACTION_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
+def	performance_schema	data_locks	THREAD_ID	4	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
+def	performance_schema	data_locks	EVENT_ID	5	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	data_locks	OBJECT_SCHEMA	6	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	MUL		select,insert,update,references		
+def	performance_schema	data_locks	OBJECT_NAME	7	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	data_locks	PARTITION_NAME	8	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	data_locks	SUBPARTITION_NAME	9	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	data_locks	INDEX_NAME	10	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	data_locks	OBJECT_INSTANCE_BEGIN	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	data_locks	LOCK_TYPE	12	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references		
+def	performance_schema	data_locks	LOCK_MODE	13	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references		
+def	performance_schema	data_locks	LOCK_STATUS	14	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references		
+def	performance_schema	data_locks	LOCK_DATA	15	NULL	YES	varchar	8192	32768	NULL	NULL	NULL	utf8mb4	utf8mb4_general_ci	varchar(8192)			select,insert,update,references		
+def	performance_schema	data_lock_waits	ENGINE	1	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references		
+def	performance_schema	data_lock_waits	REQUESTING_ENGINE_LOCK_ID	2	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)	MUL		select,insert,update,references		
+def	performance_schema	data_lock_waits	REQUESTING_ENGINE_TRANSACTION_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
+def	performance_schema	data_lock_waits	REQUESTING_THREAD_ID	4	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
+def	performance_schema	data_lock_waits	REQUESTING_EVENT_ID	5	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	data_lock_waits	REQUESTING_OBJECT_INSTANCE_BEGIN	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	data_lock_waits	BLOCKING_ENGINE_LOCK_ID	7	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)	MUL		select,insert,update,references		
+def	performance_schema	data_lock_waits	BLOCKING_ENGINE_TRANSACTION_ID	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
+def	performance_schema	data_lock_waits	BLOCKING_THREAD_ID	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
+def	performance_schema	data_lock_waits	BLOCKING_EVENT_ID	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	data_lock_waits	BLOCKING_OBJECT_INSTANCE_BEGIN	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_errors_summary_by_account_by_error	USER	1	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	MUL		select,insert,update,references		
 def	performance_schema	events_errors_summary_by_account_by_error	HOST	2	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references		
 def	performance_schema	events_errors_summary_by_account_by_error	ERROR_NUMBER	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		

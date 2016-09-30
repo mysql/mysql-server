@@ -16,19 +16,31 @@
 #ifndef DD__FOREIGN_KEY_ELEMENT_IMPL_INCLUDED
 #define DD__FOREIGN_KEY_ELEMENT_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
+#include <string>
 
 #include "dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
+#include "dd/sdi_fwd.h"
 #include "dd/types/foreign_key_element.h"    // dd::Foreign_key_element
 #include "dd/types/object_type.h"            // dd::Object_id
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Foreign_key_impl;
-class Raw_record;
 class Open_dictionary_tables_ctx;
+class Raw_record;
+class Column;
+class Foreign_key;
+class Object_key;
+class Object_table;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -68,7 +80,7 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  void debug_print(std::string &outb) const;
+  void debug_print(String_type &outb) const;
 
   void set_ordinal_position(uint ordinal_position)
   { m_ordinal_position= ordinal_position; }
@@ -106,10 +118,10 @@ public:
   // referenced column name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_column_name() const
+  virtual const String_type &referenced_column_name() const
   { return m_referenced_column_name; }
 
-  virtual void referenced_column_name(const std::string &name)
+  virtual void referenced_column_name(const String_type &name)
   { m_referenced_column_name= name; }
 
   // Fix "inherits ... via dominance" warnings
@@ -135,7 +147,7 @@ private:
   Foreign_key_impl *m_foreign_key;
   const Column *m_column;
   uint m_ordinal_position;
-  std::string m_referenced_column_name;
+  String_type m_referenced_column_name;
 };
 
 ///////////////////////////////////////////////////////////////////////////

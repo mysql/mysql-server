@@ -16,14 +16,15 @@
 #ifndef DD_SCHEMA_INCLUDED
 #define DD_SCHEMA_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <string>
 
 #include "dd/object_id.h"     // Object_id
-
-#include <string>
+#include "my_global.h"
 
 class MDL_ticket;
 class THD;
+
 typedef struct st_ha_create_information HA_CREATE_INFO;
 typedef struct charset_info_st CHARSET_INFO;
 

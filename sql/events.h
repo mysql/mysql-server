@@ -25,12 +25,16 @@
   A public interface of Events_Scheduler module.
 */
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_global.h"
-#include "mysql/mysql_lex_string.h"             // LEX_STRING
-#include "mysql/psi/mysql_thread.h"             // PSI_mutex_key
-#include "mysql/psi/psi_stage.h"                // PSI_stage_info
-#include "mysql/psi/psi_memory.h"               // PSI_memory_key
+#include "my_psi_config.h"
 #include "my_time.h"                            /* interval_type */
+#include "mysql/mysql_lex_string.h"             // LEX_STRING
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"               // PSI_memory_key
+#include "mysql/psi/psi_stage.h"                // PSI_stage_info
 
 class Event_db_repository;
 class Event_parse_data;
@@ -38,8 +42,9 @@ class Event_queue;
 class Event_scheduler;
 class Item;
 class String;
-struct TABLE_LIST;
 class THD;
+struct TABLE_LIST;
+
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
 

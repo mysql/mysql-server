@@ -15,16 +15,20 @@
 
 #include "dd/impl/types/function_impl.h"
 
-#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
-#include "dd/impl/raw/raw_record.h"              // Raw_record
-#include "dd/impl/tables/parameters.h"           // Parameters
-#include "dd/impl/tables/routines.h"             // Routines
-#include "dd/types/parameter.h"                  // Parameter
-
 #include <sstream>
 
+#include "dd/string_type.h"                      // dd::String_type
+#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include "dd/impl/raw/raw_record.h"              // Raw_record
+#include "dd/impl/tables/routines.h"             // Routines
+#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include "dd/types/dictionary_object_table.h"
+#include "dd/types/parameter.h"                  // Parameter
+#include "dd/types/weak_object.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+
 using dd::tables::Routines;
-using dd::tables::Parameters;
 
 namespace dd {
 
@@ -129,7 +133,7 @@ bool Function_impl::store_attributes(Raw_record *r)
 
 bool Function_impl::update_routine_name_key(name_key_type *key,
                                             Object_id schema_id,
-                                            const std::string &name) const
+                                            const String_type &name) const
 {
   return Function::update_name_key(key, schema_id, name);
 }
@@ -138,7 +142,7 @@ bool Function_impl::update_routine_name_key(name_key_type *key,
 
 bool Function::update_name_key(name_key_type *key,
                                Object_id schema_id,
-                               const std::string &name)
+                               const String_type &name)
 {
   return Routines::update_object_key(key,
                                      schema_id,
@@ -149,11 +153,11 @@ bool Function::update_name_key(name_key_type *key,
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin deadcode */
-void Function_impl::debug_print(std::string &outb) const
+void Function_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
 
-  std::string s;
+  String_type s;
   Routine_impl::debug_print(s);
 
   ss

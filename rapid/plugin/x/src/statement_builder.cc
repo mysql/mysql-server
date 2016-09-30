@@ -18,7 +18,7 @@
 #include "statement_builder.h"
 #include "ngs_common/protocol_protobuf.h"
 #include "xpl_error.h"
-#include <boost/bind.hpp>
+#include "ngs_common/bind.h"
 
 
 ngs::Error_code xpl::Statement_builder::build() const
@@ -71,7 +71,7 @@ void xpl::Statement_builder::add_order(const Order_list &order) const
   if (order.size() == 0)
     return;
 
-  m_builder.put(" ORDER BY ").put_list(order, boost::bind(&Statement_builder::add_order_item, this, _1));
+  m_builder.put(" ORDER BY ").put_list(order, ngs::bind(&Statement_builder::add_order_item, this, ngs::placeholders::_1));
 }
 
 

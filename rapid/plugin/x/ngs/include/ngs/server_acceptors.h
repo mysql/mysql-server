@@ -26,13 +26,12 @@
 #include "ngs/time_socket_events.h"
 #include <string>
 #include <vector>
-#include <boost/scoped_ptr.hpp>
-#include <boost/shared_ptr.hpp>
+#include "ngs_common/smart_ptr.h"
 
 
 namespace ngs
 {
-typedef std::vector< boost::shared_ptr<Server_task_interface> > Server_tasks_interfaces;
+typedef std::vector< ngs::shared_ptr<Server_task_interface> > Server_tasks_interfaces;
 
 class Server_acceptors
 {
@@ -51,7 +50,7 @@ public:
   bool was_unix_socket_or_named_pipe_configured();
 
   Server_tasks_interfaces create_server_tasks_for_listeners();
-  void add_timer(const std::size_t delay_ms, boost::function<bool ()> callback);
+  void add_timer(const std::size_t delay_ms, ngs::function<bool ()> callback);
 
 private:
   typedef std::vector<Listener_interface *> Listener_interfaces;
@@ -69,7 +68,7 @@ private:
   Listener_interface_ptr m_unix_socket;
 
   Listener_interface::Sync_variable_state m_time_and_event_state;
-  boost::shared_ptr<Server_task_time_and_event> m_time_and_event_task;
+  ngs::shared_ptr<Server_task_time_and_event> m_time_and_event_task;
   Time_and_socket_events m_event;
 };
 

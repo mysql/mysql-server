@@ -16,12 +16,12 @@
 #ifndef _sql_component_h
 #define _sql_component_h
 
-#include <my_global.h>
-
-#include <mysql/mysql_lex_string.h>         // LEX_STRING
-#include "my_alloc.h"                       /* MEM_ROOT */
-#include "sql_cmd.h"
 #include "mem_root_array.h"
+#include "my_sqlcommand.h"
+#include "mysql/mysql_lex_string.h"         // LEX_STRING
+#include "sql_cmd.h"
+
+class THD;
 
 typedef struct st_mysql_lex_string LEX_STRING;
 

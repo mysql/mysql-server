@@ -19,25 +19,34 @@
 
 #include "sql_rename.h"
 
+#include <string.h>
 
+#include "dd/dd_table.h"      // dd::table_exists
+#include "dd/types/abstract_table.h" // dd::Abstract_table
 #include "dd_sql_view.h"      // View_metadata_updater
 #include "log.h"              // query_logger
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
 #include "mysqld.h"           // lower_case_table_names
+#include "mysqld_error.h"
 #include "sql_base.h"         // tdc_remove_table,
                               // lock_table_names,
 #include "sql_cache.h"        // query_cache
 #include "sql_class.h"        // THD
 #include "sql_handler.h"      // mysql_ha_rm_tables
+#include "sql_plugin.h"
 #include "sql_table.h"        // write_bin_log,
                               // build_table_filename
 #include "sql_trigger.h"      // change_trigger_table_name
 #include "sql_view.h"         // mysql_rename_view
+#include "system_variables.h"
+#include "table.h"
 #include "transaction.h"      // trans_commit_stmt
 
-#include "dd/dd_table.h"      // dd::table_exists
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
-#include "dd/types/abstract_table.h" // dd::Abstract_table
 
+struct handlerton;
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
                                  bool skip_error, bool *int_commit_done,
@@ -302,17 +311,6 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   {
     delete new_table;
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
-    /*
-      If we are upgrading on old data directory, we execute RENAME statement
-      via bootstrap thread. If the table already exist, the statement will fail.
-      Though my_error() is called for errors, it does not set DA error status
-      for bootstrap thread. Set OK status here to avoid the assert after
-      statement execution due to empty DA error status. Error will be handled
-      by caller function.
-    */
-    if (dd_upgrade_flag)
-      my_ok(thd);
-
     DBUG_RETURN(true);                         // This error cannot be skipped
   }
 

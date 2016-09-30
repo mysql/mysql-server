@@ -90,8 +90,8 @@ static int safe_print_str(const char *addr, int max_len)
   if ((fd= open(buf, O_RDONLY)) < 0)
     return -1;
 
-  /* Ensure that off_t can hold a pointer. */
-  compile_time_assert(sizeof(off_t) >= sizeof(intptr));
+  static_assert(sizeof(off_t) >= sizeof(intptr),
+                "off_t needs to be able to hold a pointer.");
 
   total= max_len;
   offset= (intptr) addr;

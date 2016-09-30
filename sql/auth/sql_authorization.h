@@ -16,13 +16,12 @@
 #ifndef SQL_AUTHORIZATION_INCLUDED
 #define SQL_AUTHORIZATION_INCLUDED
 
-#include <cstdlib>
-#include <utility>
-#include <map>
-#include <list>
-
+#include "mysqld.h"
 #include "sql_auth_cache.h"
-#include "sql_security_ctx.h"
+
+class Security_context;
+class String;
+class THD;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 void roles_graphml(THD *thd, String *);

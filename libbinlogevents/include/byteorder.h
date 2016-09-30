@@ -121,12 +121,4 @@ uint64_t inline le64toh(uint64_t x)
 }
 #endif
 
-#if defined(_WIN32)
-#define MY_ATTRIBUTE(x)
-#endif
-#define do_compile_time_assert(X)                                              \
-  do                                                                        \
-  {                                                                         \
-    typedef char do_compile_time_assert[(X) ? 1 : -1] MY_ATTRIBUTE((unused)); \
-  } while(0)
 #endif // BYTEORDER_INCLUDED

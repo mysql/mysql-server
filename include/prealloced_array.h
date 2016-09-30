@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,8 +86,7 @@ public:
     : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
       m_psi_key(psi_key)
   {
-    // We do not want a zero-size array.
-    compile_time_assert(Prealloc != 0);
+    static_assert(Prealloc != 0, "We do not want a zero-size array.");
   }
 
   /**
@@ -98,8 +97,7 @@ public:
     : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
       m_psi_key(psi_key)
   {
-    // We do not want a zero-size array.
-    compile_time_assert(Prealloc != 0);
+    static_assert(Prealloc != 0, "We do not want a zero-size array.");
 
     if (initial_size > Prealloc)
     {

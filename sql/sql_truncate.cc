@@ -15,23 +15,45 @@
 
 #include "sql_truncate.h"
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"    // DROP_ACL
+#include "dd/dd_table.h"    // dd::recreate_table
+#include "dd/types/abstract_table.h" // dd::enum_table_type
 #include "debug_sync.h"     // DEBUG_SYNC
+#include "handler.h"
 #include "lock.h"           // MYSQL_OPEN_* flags
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
+#include "query_options.h"
+#include "sql_audit.h"      // mysql_audit_table_access_notify
 #include "sql_base.h"       // open_and_lock_tables
 #include "sql_cache.h"      // query_cache
 #include "sql_class.h"      // THD
-#include "sql_parse.h"      // check_one_table_access()
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
 #include "sql_show.h"       // append_identifier()
+#include "sql_string.h"
 #include "sql_table.h"      // write_bin_log
+#include "system_variables.h"
 #include "table.h"          // TABLE, FOREIGN_KEY_INFO
-#include "sql_audit.h"      // mysql_audit_table_access_notify
+#include "thr_lock.h"
+#include "transaction_info.h"
 
 #include "dd/dd.h"
 #include "dd/dictionary.h"
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
-#include "dd/dd_table.h"    // dd::recreate_table
-#include "dd/types/abstract_table.h" // dd::enum_table_type
 #include "dd/dd_schema.h"   // dd::Schema_MDL_locker
 #include "dd/sdi.h"         // dd::store_sdi
 #include "transaction.h"    // trans_commit_stmt()

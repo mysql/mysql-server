@@ -22,6 +22,7 @@
 #include "bounded_queue.h"
 #include "fake_costmodel.h"
 #include "filesort_utils.h"
+#include "my_global.h"
 #include "my_sys.h"
 #include "opt_costmodel.h"
 #include "test_utils.h"
@@ -49,10 +50,16 @@ struct Test_element
   Test_element()      { *this= -1; }
   Test_element(int i) { *this= i; }
 
+  // To silence some narrowing warnings on MSVC.
+  Test_element &operator=(size_t i)
+  {
+    return *this= static_cast<int>(i);
+  }
+
   Test_element &operator=(int i)
   {
-    val= i;
-    my_snprintf(text, array_size(text), "%4d", i);
+    val= static_cast<int>(i);
+    my_snprintf(text, array_elements(text), "%4d", i);
     return *this;
   }
 
@@ -144,21 +151,20 @@ protected:
 
   virtual void SetUp()
   {
-    int ix;
-    for (ix=0; ix < array_size(m_test_data); ++ix)
+    for (size_t ix=0; ix < array_elements(m_test_data); ++ix)
       m_test_data[ix]= ix;
-    std::random_shuffle(&m_test_data[0], &m_test_data[array_size(m_test_data)]);
+    std::random_shuffle(&m_test_data[0], &m_test_data[array_elements(m_test_data)]);
   }
 
   void insert_test_data()
   {
-    for (int ix= 0; ix < array_size(m_test_data); ++ix)
+    for (size_t ix= 0; ix < array_elements(m_test_data); ++ix)
       m_queue.push(&m_test_data[ix]);
   }
 
   void insert_test_data_heap()
   {
-    for (int ix= 0; ix < array_size(m_test_data); ++ix)
+    for (size_t ix= 0; ix < array_elements(m_test_data); ++ix)
     {
       m_heap.push(&m_test_data[ix]);
     }
@@ -255,7 +261,7 @@ TEST_F(BoundedQueueTest, PushAndPopKeepLargest)
                             &m_keymaker, m_keys.key_ptrs));
   insert_test_data();
   // We expect the queue to contain [7 .. 13]
-  const int max_key_val= array_size(m_test_data) - 1;
+  const int max_key_val= array_elements(m_test_data) - 1;
   EXPECT_EQ(static_cast<uint>(num_elements / 2 + 1), m_queue.num_elements());
   while (m_queue.num_elements() > 0)
   {
@@ -326,14 +332,14 @@ TEST_F(BoundedQueueTest, InsertAndSort)
   uchar *base=  (uchar*) &m_keys.key_ptrs[0];
   size_t size=  sizeof(Test_key);
   // We sort our keys as strings, so erase all the element pointers first.
-  for (int ii= 0; ii < array_size(m_keys.key_data); ++ii)
+  for (size_t ii= 0; ii < array_elements(m_keys.key_data); ++ii)
     m_keys.key_data[ii].element= NULL;
 
-  my_string_ptr_sort(base, array_size(m_keys.key_ptrs), size);
-  for (int ii= 0; ii < num_elements/2; ++ii)
+  my_string_ptr_sort(base, array_elements(m_keys.key_ptrs), size);
+  for (size_t ii= 0; ii < num_elements/2; ++ii)
   {
     Test_key *sorted_key= m_keys.key_ptrs[ii];
-    EXPECT_EQ(ii, sorted_key->key);
+    EXPECT_EQ(static_cast<int>(ii), sorted_key->key);
   }
 }
 

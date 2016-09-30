@@ -30,7 +30,7 @@
 
 #if !defined(_WIN32)
 #include <pthread.h>                // IWYU pragma: export
-#include <sched.h>                  // sched_yield
+#include <sched.h>                  // IWYU pragma: export
 #endif
 
 #ifndef ETIME
@@ -56,6 +56,14 @@
 #else
 #define EXTERNC
 #endif
+
+static inline int is_timeout(int e) {
+#if ETIMEDOUT == ETIME
+  return e == ETIMEDOUT;
+#else
+  return e == ETIMEDOUT || e == ETIME;
+#endif
+}
 
 C_MODE_START
 

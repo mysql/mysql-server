@@ -88,11 +88,11 @@ public:
   // definition/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definition() const = 0;
-  virtual void set_definition(const std::string &definition) = 0;
+  virtual const String_type &definition() const = 0;
+  virtual void set_definition(const String_type &definition) = 0;
 
-  virtual const std::string &definition_utf8() const = 0;
-  virtual void set_definition_utf8(const std::string &definition_utf8) = 0;
+  virtual const String_type &definition_utf8() const = 0;
+  virtual void set_definition_utf8(const String_type &definition_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // check_option.
@@ -126,10 +126,10 @@ public:
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definer_user() const = 0;
-  virtual const std::string &definer_host() const = 0;
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname) = 0;
+  virtual const String_type &definer_user() const = 0;
+  virtual const String_type &definer_host() const = 0;
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // View-table collection.

@@ -16,12 +16,25 @@
 #ifndef PARSE_TREE_HELPERS_INCLUDED
 #define PARSE_TREE_HELPERS_INCLUDED
 
-#include "item_func.h"      // Item etc.
-#include "set_var.h"        // enum_var_type
-#include "mem_root_array.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
 
-class SELECT_LEX;
-class Table_ident;
+#include "item.h"
+#include "item_func.h"      // Item etc.
+#include "mem_root_array.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "parse_tree_node_base.h"
+#include "set_var.h"        // enum_var_type
+#include "sql_list.h"
+#include "sql_udf.h"
+#include "typelib.h"
+
+class String;
+class THD;
+struct handlerton;
 
 /**
   Base class for parse-time Item objects

@@ -16,7 +16,11 @@
 #ifndef STRFUNC_INCLUDED
 #define STRFUNC_INCLUDED
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_global.h"                          /* ulonglong, uint */
+#include "mysql/mysql_lex_string.h"             // MYSQL_LEX_CSTRING
 
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
@@ -53,6 +57,24 @@ inline int hexchar_to_int(char c)
   if (c <= 'f' && c >= 'a')
     return c-'a'+10;
   return -1;
+}
+
+
+/**
+  Return a LEX_CSTRING handle to a std::string like (meaning someting
+  which has the c_str() and length() member functions). Note that the
+  std::string-like object retains ownership of the character array,
+  and consquently the returned LEX_CSTRING is only valid as long as the
+  std::string-like object is valid.
+
+  @param s std::string-like object
+
+  @return LEX_CSTRING handle to string
+*/
+template <class STDSTRINGLIKE_TYPE>
+MYSQL_LEX_CSTRING lex_cstring_handle(const STDSTRINGLIKE_TYPE &s)
+{
+  return { s.c_str(), s.length() };
 }
 
 #endif /* STRFUNC_INCLUDED */

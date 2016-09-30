@@ -28,40 +28,74 @@
 #ifndef _log_event_h
 #define _log_event_h
 
-#include "my_global.h"
+#include <atomic>
+#include <list>
+#include <map>
+#include <string>
+#include <vector>
+
+#include "binlog_event.h"
+#include "control_events.h"
+#include "load_data_events.h"
 #include "m_string.h"                // native_strncasecmp
 #include "my_bitmap.h"               // MY_BITMAP
-#include "binary_log.h"              // binary_log
-#include "rpl_utility.h"             // Hash_slave_rows
-#include "query_options.h"           // OPTION_AUTO_IS_NULL
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"               // SERVER_VERSION_LENGTH
-#include "atomic_class.h"            // Atomic_int32
-#include "typelib.h"                 // TYPELIB
+#include "query_options.h"           // OPTION_AUTO_IS_NULL
+#include "rows_event.h"
 #include "rpl_gtid.h"                // enum_group_type
+#include "rpl_utility.h"             // Hash_slave_rows
+#include "sql_const.h"
+#include "sql_string.h"
+#include "statement_events.h"
+#include "thr_malloc.h"
+#include "typelib.h"                 // TYPELIB
+
+class THD;
+class Table_id;
 
 #ifdef MYSQL_SERVER
+#include "field.h"
+#include "key.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_my_snprintf.h"
 #include "rpl_filter.h"              // rpl_filter
 #include "rpl_record.h"              // unpack_row
 #include "sql_class.h"               // THD
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_profile.h"
+#include "table.h"
+#include "xa.h"
 #endif
 
 #ifdef MYSQL_CLIENT
 #include "rpl_tblmap.h"              // table_mapping
-#include "sql_const.h"               // MAX_TIME_ZONE_NAME_LENGTH
-#include "sql_list.h"                // I_List
 #endif
 
-#include <list>
-#include <map>
-#include <set>
-#include <string>
+#include <limits.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <time.h>
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-#include <mysql/psi/mysql_stage.h>
+#include "mysql/psi/mysql_stage.h"
 #endif
 
 #ifdef MYSQL_CLIENT
 class Format_description_log_event;
+
 typedef bool (*read_log_event_filter_function)(char** buf,
                                                ulong*,
                                                const Format_description_log_event*);
@@ -82,8 +116,6 @@ using binary_log::Log_event_footer;
 using binary_log::Binary_log_event;
 using binary_log::Format_description_event;
 
-class Slave_reporting_capability;
-class String;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
@@ -323,15 +355,19 @@ int ignored_error_code(int err_code);
 const int64 SEQ_MAX_TIMESTAMP= LLONG_MAX;
 
 #ifdef MYSQL_SERVER
-class String;
+class Format_description_log_event;
+class Item;
 class MYSQL_BIN_LOG;
+class Protocol;
+class Slave_reporting_capability;
+class Slave_worker;
+class String;
 class THD;
+class sql_exchange;
+template <class T> class List;
 #endif
 
-class Format_description_log_event;
 class Relay_log_info;
-class Slave_worker;
-class Slave_committed_queue;
 
 #ifdef MYSQL_CLIENT
 enum enum_base64_output_mode {
@@ -1594,7 +1630,7 @@ public:
     Notice the counter is processed even in the single-thread mode where
     decrement and increment are done by the single SQL thread.
   */
-  Atomic_int32 usage_counter;
+  std::atomic<int32> atomic_usage_counter{0};
   Format_description_log_event(uint8_t binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_event

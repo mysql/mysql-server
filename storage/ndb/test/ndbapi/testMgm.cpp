@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2378,7 +2378,7 @@ check_set_ports_mgmapi(NdbMgmd& mgmd)
   int nodeid = 1;
   unsigned num_ports = 1;
   ndb_mgm_dynamic_port ports[MAX_NODES * 10];
-  compile_time_assert(MAX_NODES < NDB_ARRAY_SIZE(ports));
+  static_assert(MAX_NODES < NDB_ARRAY_SIZE(ports), "");
   ports[0].nodeid = 1;
   ports[0].port = -1;
 

@@ -17,7 +17,13 @@
 
 #include "dynamic_ids.h"
 
+#include <stdlib.h>
+
+#include "m_ctype.h"
 #include "m_string.h"        // my_strtok_r
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysql/psi/psi_base.h"
 #include "sql_string.h"      // String
 
 Server_ids::Server_ids()

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,78 +18,145 @@
 
 #include "sql_show.h"
 
-#include "mutex_lock.h"                     // Mutex_lock
-#include "my_dir.h"                         // MY_DIR
-#include "keycache.h"                       // dflt_key_cache
-#include "prealloced_array.h"               // Prealloced_array
-#include "template_utils.h"                 // delete_container_pointers
+#include <errno.h>
+#include <limits.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+#include <time.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"                    // check_grant_db
+#include "binary_log_types.h"
+#include "binlog_event.h"
+#include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
+#include "dd/dd.h"                          // dd::get_dictionary()
+#include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
+#include "dd/dd_trigger.h"                  // dd::table_has_triggers
+#include "dd/dictionary.h"                  // dd::Dictionary
+#include "dd/string_type.h"
+#include "dd/types/event.h"
+#include "dd/types/object_table.h"          // dd:Object_table
+#include "dd/types/routine.h"
+#include "dd/types/schema.h"
+#include "dd/types/view.h"
 #include "dd_sp.h"                          // is_dd_routine_type_function
 #include "dd_table_share.h"                 // dd_get_mysql_charset
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "derror.h"                         // ER_THD
+#include "enum_query_type.h"
 #include "error_handler.h"                  // Internal_error_handler
 #include "field.h"                          // Field
 #include "filesort.h"                       // filesort_free_buffers
+#include "hash.h"
 #include "item.h"                           // Item_empty_string
 #include "item_cmpfunc.h"                   // Item_cond
+#include "item_create.h"
+#include "item_func.h"
+#include "key.h"
+#include "keycache.h"                       // dflt_key_cache
 #include "log.h"                            // sql_print_warning
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "mem_root_array.h"
+#include "mutex_lock.h"                     // Mutex_lock
+#include "mf_wcomp.h"                       // wild_compare,wild_one,wild_many
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_dir.h"                         // MY_DIR
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "my_time.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"                         // lower_case_table_names
+#include "mysqld_error.h"
 #include "mysqld_thd_manager.h"             // Global_THD_manager
 #include "opt_trace.h"                      // fill_optimizer_trace_info
+#include "partition_element.h"
 #include "protocol.h"                       // Protocol
 #include "psi_memory_key.h"
+#include "query_options.h"
+#include "session_tracker.h"
 #include "sp.h"                             // MYSQL_PROC_FIELD_DB
 #include "sp_head.h"                        // sp_head
 #include "sp_pcontext.h"                    // sp_pcontext
+#include "sql_alloc.h"
 #include "sql_audit.h"                      // audit_global_variable_get
 #include "sql_base.h"                       // close_thread_tables
+#include "sql_bitmap.h"
 #include "sql_class.h"                      // THD
+#include "sql_const.h"
 #include "sql_db.h"                         // get_default_db_collation
+#include "sql_error.h"
+#include "sql_executor.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_optimizer.h"                  // JOIN
 #include "sql_parse.h"                      // command_name
-#include "sql_plugin.h"                     // PLUGIN_IS_DELTED
+#include "sql_partition.h"
+#include "sql_plugin.h"                     // PLUGIN_IS_DELETED, LOCK_plugin
+#include "sql_plugin_ref.h"
+#include "sql_profile.h"
+#include "sql_security_ctx.h"
 #include "sql_table.h"                      // filename_to_tablename
 #include "sql_time.h"                       // interval_type_to_name
 #include "sql_tmp_table.h"                  // create_tmp_table
 #include "sql_trigger.h"                    // acquire_mdl_for_trigger
 #include "sql_view.h"                       // open_and_read_view
+#include "stateless_allocator.h"
+#include "system_variables.h"
 #include "table_trigger_dispatcher.h"       // Table_trigger_dispatcher
+#include "temp_table_param.h"
+#include "template_utils.h"                 // delete_container_pointers
+#include "thr_lock.h"
+#include "thr_malloc.h"
 #include "trigger.h"                        // Trigger
 #include "trigger_chain.h"                  // Trigger_chain
+#include "trigger_def.h"
 #include "tztime.h"                         // Time_zone
 
-#include "dd/dd.h"                          // dd::get_dictionary()
-#include "dd/dd_table.h"                    // dd::abstract_table_type
-#include "dd/dd_trigger.h"                  // dd::table_has_triggers
-#include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
-#include "dd/dictionary.h"                  // dd::Dictionary
-#include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
-#include "dd/types/object_table.h"          // dd:Object_table
-#include "dd/types/object_type.h"           // dd:Object_type
-#include "dd/types/abstract_table.h"        // dd::enum_table_type
-#include "dd/types/table_stat.h"            // dd::Table_stat
-#include "dd/types/index_stat.h"            // dd::Index_stat
-#include "dd/types/function.h"              // dd::Function
-#include "dd/types/procedure.h"             // dd::Procedure
-
 #ifndef EMBEDDED_LIBRARY
-#include "events.h"                         // Events
 #include "event_data_objects.h"             // Event_timed
 #include "event_parse_data.h"               // Event_parse_data
+#include "events.h"                         // Events
 #endif
 
 #include "partition_info.h"                 // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
 
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
+namespace dd {
+class Abstract_table;
+}  // namespace dd
 #ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"
 #endif
 
 #include <algorithm>
 #include <functional>
+#include <memory>
+#include <new>
+#include <string>
+
 using std::max;
 using std::min;
 
@@ -273,6 +340,19 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
 
   restore_record(table, s->default_values);
 
+  DBUG_EXECUTE_IF("set_uninstall_sync_point",
+                  {
+                    if (strcmp(plugin_name(plugin)->str, "EXAMPLE") == 0)
+                      DEBUG_SYNC(thd, "before_store_plugin_name");
+                  });
+
+  mysql_mutex_lock(&LOCK_plugin);
+  if (plugin == nullptr || plugin_state(plugin) == PLUGIN_IS_FREED)
+  {
+    mysql_mutex_unlock(&LOCK_plugin);
+    return FALSE;
+  }
+
   table->field[0]->store(plugin_name(plugin)->str,
                          plugin_name(plugin)->length, cs);
 
@@ -359,6 +439,7 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
     global_plugin_typelib_names[plugin_load_option(plugin)],
     strlen(global_plugin_typelib_names[plugin_load_option(plugin)]),
     cs);
+  mysql_mutex_unlock(&LOCK_plugin);
 
   return schema_table_store_record(thd, table);
 }
@@ -1903,7 +1984,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
     }
 
     if (!key_info->is_visible)
-      packet->append(STRING_WITH_LEN(" /*!50800 INVISIBLE */"));
+      packet->append(STRING_WITH_LEN(" /*!80000 INVISIBLE */"));
   }
 }
 
@@ -3697,12 +3778,12 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
       return 2;
     }
 
-    std::vector<std::string> component_names;
+    std::vector<dd::String_type> component_names;
     if (thd->dd_client()->fetch_schema_component_names<dd::Abstract_table>(sch_obj,
       &component_names))
       return 1;
 
-    for(std::vector<std::string>::const_iterator name= component_names.begin();
+    for(std::vector<dd::String_type>::const_iterator name= component_names.begin();
         name != component_names.end(); ++name)
     {
       if (lookup_field_vals->table_value.str)
@@ -8379,7 +8460,7 @@ TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
     return nullptr;
   }
 
-  std::string table_name;
+  dd::String_type table_name;
   if (dd_client->get_table_name_by_trigger_name(sch_obj->id(),
                                                 trg_name->m_name.str,
                                                 &table_name))

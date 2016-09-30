@@ -16,26 +16,52 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
-#include "my_global.h"
-
-#include "binlog.h"            // MYSQL_BIN_LOG
-#include "prealloced_array.h"  // Prealloced_array
-#include "rpl_gtid.h"          // Gtid_set
-#include "rpl_info.h"          // Rpl_info
-#include "rpl_mts_submode.h"   // enum_mts_parallel_type
-#include "rpl_tblmap.h"        // table_mapping
-#include "rpl_utility.h"       // Deferred_log_events
-#include "sql_class.h"         // THD
-#include "rpl_slave_until_options.h"
-
+#include <atomic>
 #include <string>
 #include <vector>
 
+#include <sys/types.h>
+#include <time.h>
+
+#include "binlog.h"            // MYSQL_BIN_LOG
+#include "handler.h"
+#include "m_string.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/thread_type.h"
+#include "prealloced_array.h"  // Prealloced_array
+#include "query_options.h"
+#include "rpl_gtid.h"          // Gtid_set
+#include "rpl_info.h"          // Rpl_info
+#include "rpl_mts_submode.h"   // enum_mts_parallel_type
+#include "rpl_record.h"
+#include "rpl_slave_until_options.h"
+#include "rpl_tblmap.h"        // table_mapping
+#include "rpl_utility.h"       // Deferred_log_events
+#include "sql_class.h"         // THD
+#include "sql_lex.h"
+#include "sql_plugin_ref.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+
 struct RPL_TABLE_LIST;
-class Master_info;
-class Mts_submode;
 class Commit_order_manager;
+class Format_description_log_event;
+class Log_event;
+class Master_info;
+class Master_info;
+class Rows_query_log_event;
+class Rpl_info_handler;
 class Slave_committed_queue;
+class Slave_worker;
+
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 extern uint sql_slave_skip_counter;
 
@@ -223,7 +249,7 @@ public:
   Master_info *mi;
 
   /* number of temporary tables open in this channel */
-  Atomic_int32 channel_open_temp_tables;
+  std::atomic<int32> atomic_channel_open_temp_tables{0};
 
   /*
     Needed to deal properly with cur_log getting closed and re-opened with

@@ -23,23 +23,44 @@
 
 #include "item_sum.h"
 
+#include <algorithm>
+#include <cstring>
+#include <functional>
+#include <string>
+
 #include "aggregate_check.h"               // Distinct_check
 #include "current_thd.h"                   // current_thd
+#include "decimal.h"
 #include "derror.h"                        // ER_THD
+#include "field.h"
+#include "handler.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
+#include "item_json_func.h"
+#include "item_subselect.h"
+#include "json_dom.h"
+#include "my_base.h"
+#include "my_byteorder.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
 #include "mysqld.h"                        // my_thread_get_THR_MALLOC
+#include "mysqld_error.h"
 #include "parse_tree_helpers.h"            // PT_item_list
 #include "parse_tree_nodes.h"              // PT_order_list
+#include "sql_array.h"
 #include "sql_class.h"                     // THD
+#include "sql_error.h"
 #include "sql_executor.h"                  // copy_fields
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_resolver.h"                  // setup_order
+#include "sql_security_ctx.h"
 #include "sql_select.h"                    // count_field_types
 #include "sql_tmp_table.h"                 // create_tmp_table
 #include "temp_table_param.h"              // Temp_table_param
+#include "thr_malloc.h"
 #include "uniques.h"                       // Unique
-#include "item_json_func.h"
-#include "json_dom.h"
 
-#include <algorithm>
 using std::min;
 using std::max;
 

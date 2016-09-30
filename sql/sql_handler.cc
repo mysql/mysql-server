@@ -53,20 +53,49 @@
 
 #include "sql_handler.h"
 
-#include "auth_common.h"                        // check_table_access
-#include "sql_base.h"                           // close_thread_tables
-#include "lock.h"                               // mysql_unlock_tables
-#include "key.h"                                // key_copy
-#include "psi_memory_key.h"
-#include "sql_base.h"                           // insert_fields
-#include "sql_select.h"
-#include "sql_audit.h"                          // mysql_audit_table_access_notify
-#include "transaction.h"
-#include "log.h"
-#include "template_utils.h"
-#include "error_handler.h"
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
 
+#include "auth_acls.h"
+#include "auth_common.h"                        // check_table_access
 #include "dd/types/abstract_table.h"            // dd::enum_table_type
+#include "error_handler.h"
+#include "field.h"
+#include "handler.h"
+#include "hash.h"
+#include "item.h"
+#include "key.h"                                // key_copy
+#include "lock.h"                               // mysql_unlock_tables
+#include "log.h"
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
+#include "protocol.h"
+#include "psi_memory_key.h"
+#include "sql_audit.h"                          // mysql_audit_table_access_notify
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
+#include "transaction.h"
+#include "transaction_info.h"
+#include "typelib.h"
+#include "xa.h"
 
 #define HANDLER_TABLES_HASH_SIZE 120
 
@@ -507,7 +536,8 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   */
 
   /* Get limit counters from SELECT_LEX. */
-  unit->set_limit(select_lex);
+  unit->prepare_limit(thd, select_lex);
+  unit->set_limit(thd, select_lex);
   select_limit_cnt= unit->select_limit_cnt;
   offset_limit_cnt= unit->offset_limit_cnt;
 

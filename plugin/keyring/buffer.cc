@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <memory>
+
 #include "buffer.h"
 #include "keyring_key.h"
 
@@ -33,7 +35,7 @@ namespace keyring
   {
     *key= NULL;
 
-    boost::movelib::unique_ptr<Key> key_ptr(new Key());
+    std::unique_ptr<Key> key_ptr(new Key());
     size_t number_of_bytes_read_from_buffer = 0;
     if (data == NULL)
     {

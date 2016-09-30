@@ -15,19 +15,43 @@
 
 #include "bootstrap.h"
 
-#include "log.h"                 // sql_print_warning
-#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <string>
+
 #include "bootstrap_impl.h"
 #include "error_handler.h"       // Internal_error_handler
+#include "log.h"                 // sql_print_warning
+#include "m_string.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql_com.h"
 #include "mysqld.h"              // key_file_init
-#include "sql_initialize.h"
+#include "mysqld_error.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "protocol_classic.h"
+#include "query_options.h"
+#include "set_var.h"
+#include "sql_bootstrap.h"
 #include "sql_class.h"           // THD
 #include "sql_connect.h"         // close_connection
+#include "sql_error.h"
+#include "sql_initialize.h"
+#include "sql_lex.h"
 #include "sql_parse.h"           // mysql_parse
+#include "sql_plugin.h"
+#include "sql_profile.h"
+#include "sql_security_ctx.h"
 #include "sys_vars_shared.h"     // intern_find_sys_var
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
+#include "system_variables.h"
+#include "transaction_info.h"
 
 namespace bootstrap {
 
@@ -85,22 +109,6 @@ void File_command_iterator::end(void)
 }
 
 Command_iterator *Command_iterator::current_iterator= NULL;
-
-
-// Disable ER_TOO_LONG_KEY for creation of system tables.
-// See Bug#20629014.
-class Key_length_error_handler : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD *,
-                                uint sql_errno,
-                                const char*,
-                                Sql_condition::enum_severity_level *,
-                                const char*)
-  {
-    return (sql_errno == ER_TOO_LONG_KEY);
-  }
-};
 
 
 static bool handle_bootstrap_impl(THD *thd)

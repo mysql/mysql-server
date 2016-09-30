@@ -41,13 +41,6 @@ extern mysql_mutex_t LOCK_open;
 extern uint    opt_debug_sync_timeout;
 extern "C" void sql_alloc_error_handler(void);
 
-// A simple helper function to determine array size.
-template <class T, int size>
-int array_size(const T (&)[size])
-{
-  return size;
-}
-
 namespace my_testing {
 
 inline int native_compare(size_t *length, unsigned char **a, unsigned char **b)

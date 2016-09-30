@@ -5461,7 +5461,7 @@ CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`),
-  KEY `b` (`b`) /*!50800 INVISIBLE */,
+  KEY `b` (`b`) /*!80000 INVISIBLE */,
   KEY `c` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

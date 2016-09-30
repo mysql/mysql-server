@@ -16,6 +16,8 @@
 #ifndef DD__DD_INCLUDED
 #define DD__DD_INCLUDED
 
+#include "dd/types/object_type.h"  // IWYU pragma: keep
+
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,15 @@
 
 #include "item_create.h"
 
-#include "current_thd.h"
+#include <errno.h>
+#include <limits.h>
+#include <math.h>
+#include <stdlib.h>
+#include <sys/types.h>
+
+#include "handler.h"
+#include "hash.h"
+#include "item.h"
 #include "item_cmpfunc.h"        // Item_func_any_value
 #include "item_func.h"           // Item_func_udf_str
 #include "item_geofunc.h"        // Item_func_area
@@ -32,10 +40,28 @@
 #include "item_sum.h"            // Item_sum_udf_str
 #include "item_timefunc.h"       // Item_func_add_time
 #include "item_xmlfunc.h"        // Item_func_xml_extractvalue
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
+#include "mysql_time.h"
+#include "mysqld_error.h"
+#include "parse_location.h"
 #include "parse_tree_helpers.h"  // PT_item_list
-#include "sql_class.h"           // THD
-#include "sql_time.h"            // str_to_datetime
 #include "psi_memory_key.h"
+#include "sql_class.h"           // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_time.h"            // str_to_datetime
+#include "sql_udf.h"
+#include "system_variables.h"
 
 /**
   @addtogroup GROUP_PARSER

@@ -16,6 +16,7 @@
 #ifndef CURRENT_THD_INCLUDED
 #define CURRENT_THD_INCLUDED
 
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread_local.h"
 

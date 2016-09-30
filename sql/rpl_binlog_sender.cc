@@ -16,20 +16,37 @@
 #ifdef HAVE_REPLICATION
 #include "rpl_binlog_sender.h"
 
+#include <stdio.h>
+#include <algorithm>
+
 #include "debug_sync.h"              // debug_sync_set_action
 #include "derror.h"                  // ER_THD
+#include "hash.h"
 #include "item_func.h"               // user_var_entry
 #include "log.h"                     // sql_print_information
 #include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
+#include "m_string.h"
+#include "mdl.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_my_snprintf.h"
 #include "mysqld.h"                  // global_system_variables ...
+#include "protocol_classic.h"
 #include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK
+#include "rpl_gtid.h"
 #include "rpl_handler.h"             // RUN_HOOK
 #include "rpl_master.h"              // opt_sporadic_binlog_dump_fail
 #include "rpl_reporting.h"           // MAX_SLAVE_ERRMSG
 #include "sql_class.h"               // THD
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
+#include "system_variables.h"
+#include "typelib.h"
 
 #ifndef DBUG_OFF
   static uint binlog_dump_count= 0;
@@ -624,7 +641,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
   {
     set_timespec_nsec(&ts, m_heartbeat_period);
     ret= mysql_bin_log.wait_for_update_bin_log(m_thd, &ts);
-    if (ret != ETIMEDOUT && ret != ETIME)
+    if (!is_timeout(ret))
       break;
 
 #ifndef DBUG_OFF

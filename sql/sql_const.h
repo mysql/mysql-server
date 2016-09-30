@@ -23,6 +23,8 @@
 #ifndef SQL_CONST_INCLUDED
 #define SQL_CONST_INCLUDED
 
+#include "my_global.h"
+
 #define LIBLEN FN_REFLEN-FN_LEN			/* Max l{ngd p} dev */
 /* extra 4+4 bytes for slave tmp tables */
 #define MAX_DBKEY_LENGTH (NAME_LEN*2+1+1+4+4)

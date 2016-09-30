@@ -2531,9 +2531,9 @@ DROP TABLE t1;
 #57
 CREATE TABLE t1(f1 INT);
 EXPLAIN EXTENDED UPDATE t1 SET f2=1 ORDER BY f2;
-ERROR 42S22: Unknown column 'f2' in 'order clause'
+ERROR 42S22: Unknown column 'f2' in 'field list'
 UPDATE t1 SET f2=1 ORDER BY f2;
-ERROR 42S22: Unknown column 'f2' in 'order clause'
+ERROR 42S22: Unknown column 'f2' in 'field list'
 DROP TABLE t1;
 #59
 CREATE TABLE t1 ( a INT, KEY( a ) );

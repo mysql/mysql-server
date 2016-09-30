@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define HA_NDB_INDEX_STAT_H
 
 #include "ndb_component.h"
+
+struct NDB_SHARE;
+class Ndb_cluster_connection;
 
 class Ndb_index_stat_thread : public Ndb_component
 {

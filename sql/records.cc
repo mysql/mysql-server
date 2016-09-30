@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,13 +21,30 @@
 */
 
 #include "records.h"
-#include "sql_list.h"
+
+#include <string.h>
+
+#include "field.h"
 #include "filesort.h"            // filesort_free_buffers
+#include "handler.h"
+#include "item.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/service_mysql_alloc.h"
 #include "opt_range.h"           // QUICK_SELECT_I
-#include "sql_class.h"           // THD
-#include "sql_executor.h"        // QEP_TAB
-#include "sql_select.h"          // JOIN_TAB
 #include "psi_memory_key.h"
+#include "sql_class.h"           // THD
+#include "sql_const.h"
+#include "sql_executor.h"        // QEP_TAB
+#include "sql_sort.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "thr_lock.h"
 
 static int rr_quick(READ_RECORD *info);
 static int rr_from_tempfile(READ_RECORD *info);

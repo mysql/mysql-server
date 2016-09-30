@@ -47,7 +47,7 @@ protected:
     return m_table->add_column();
   }
 
-  const dd::Column *get_column(std::string name)
+  const dd::Column *get_column(dd::String_type name)
   {
     return m_table->get_column(name);
   }

@@ -59,6 +59,7 @@
 #include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
 #include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
 #include "mysql/psi/psi_error.h"        /* PSI_error_service_t */
+#include "mysql/psi/psi_data_lock.h"    /* PSI_data_lock_service_t */
 
 C_MODE_START
 
@@ -283,7 +284,7 @@ extern int my_umask_dir;
 extern ulong	my_default_record_cache_size;
 extern my_bool  my_disable_locking,
                 my_enable_symlinks;
-extern char	wild_many,wild_one,wild_prefix;
+
 extern const char *charsets_dir;
 
 enum cache_type
@@ -701,8 +702,6 @@ extern char * my_path(char * to,const char *progname,
 			 const char *own_pathname_part);
 extern char * my_load_path(char * to, const char *path,
 			      const char *own_path_prefix);
-extern int wild_compare(const char *str,const char *wildstr,
-                        pbool str_is_pattern);
 extern my_bool array_append_string_unique(const char *str,
                                           const char **array, size_t size);
 extern void get_date(char * to,int timeflag,time_t use_time);
@@ -1022,6 +1021,8 @@ extern MYSQL_PLUGIN_IMPORT struct PSI_memory_bootstrap *psi_memory_hook;
 extern void set_psi_memory_service(PSI_memory_service_t *psi);
 extern MYSQL_PLUGIN_IMPORT struct PSI_error_bootstrap *psi_error_hook;
 extern void set_psi_error_service(PSI_error_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_data_lock_bootstrap *psi_data_lock_hook;
+extern void set_psi_data_lock_service(PSI_data_lock_service_t *psi);
 #endif /* HAVE_PSI_INTERFACE */
 
 struct st_mysql_file;

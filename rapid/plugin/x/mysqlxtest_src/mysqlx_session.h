@@ -24,10 +24,10 @@
 #define _MYSQLX_SESSION_H_
 
 #include <vector>
+#include <string>
 #include <map>
 
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/shared_ptr.hpp>
+#include "ngs_common/smart_ptr.h"
 
 namespace Mysqlx
 {
@@ -45,26 +45,26 @@ namespace mysqlx
   class ArgumentValue;
   struct Ssl_config;
 
-  class Session : public boost::enable_shared_from_this < Session >
+  class Session : public ngs::enable_shared_from_this < Session >
   {
   public:
     Session(const mysqlx::Ssl_config &ssl_config, const std::size_t timeout);
     ~Session();
-    boost::shared_ptr<Result> executeSql(const std::string &sql);
+    ngs::shared_ptr<Result> executeSql(const std::string &sql);
 
-    boost::shared_ptr<Result> executeStmt(const std::string &ns, const std::string &stmt,
+    ngs::shared_ptr<Result> executeStmt(const std::string &ns, const std::string &stmt,
                                           const std::vector<ArgumentValue> &args);
 
-    boost::shared_ptr<Schema> getSchema(const std::string &name);
+    ngs::shared_ptr<Schema> getSchema(const std::string &name);
 
-    boost::shared_ptr<XProtocol> protocol() { return m_connection; }
+    ngs::shared_ptr<XProtocol> protocol() { return m_connection; }
 
     void close();
   private:
-    boost::shared_ptr<XProtocol> m_connection;
-    std::map<std::string, boost::shared_ptr<Schema> > m_schemas;
+    ngs::shared_ptr<XProtocol> m_connection;
+    std::map<std::string, ngs::shared_ptr<Schema> > m_schemas;
   };
-  typedef boost::shared_ptr<Session> SessionRef;
+  typedef ngs::shared_ptr<Session> SessionRef;
 
   SessionRef openSession(const std::string &uri, const std::string &pass, const mysqlx::Ssl_config &ssl_config,
                          const bool cap_expired_password, const std::size_t timeout, const bool get_caps = false);

@@ -26,21 +26,55 @@
 
 #include "sql_resolver.h"
 
-#include "auth_common.h"         // check_single_table_access
+#include <stddef.h>
+#include <sys/types.h>
+#include <algorithm>
+
 #include "aggregate_check.h"     // Group_check
+#include "auth_acls.h"
+#include "auth_common.h"         // check_single_table_access
+#include "binary_log_types.h"
 #include "derror.h"              // ER_THD
+#include "enum_query_type.h"
 #include "error_handler.h"       // View_error_handler
+#include "field.h"
+#include "item.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
+#include "item_row.h"
+#include "item_subselect.h"
 #include "item_sum.h"            // Item_sum
+#include "mem_root_array.h"
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysqld_error.h"
+#include "opt_hints.h"
 #include "opt_range.h"           // prune_partitions
 #include "opt_trace.h"           // Opt_trace_object
+#include "opt_trace_context.h"
+#include "parse_tree_node_base.h"
+#include "query_options.h"
 #include "query_result.h"        // Query_result
 #include "sql_base.h"            // setup_fields
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_optimizer.h"       // Prepare_error_tracker
+#include "sql_plugin_ref.h"
+#include "sql_select.h"
+#include "sql_servers.h"
 #include "sql_test.h"            // print_where
+#include "system_variables.h"
+#include "table.h"
 #include "template_utils.h"
-
-
-static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);
+#include "thr_malloc.h"
 
 static const Item::enum_walk walk_subquery=
   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
@@ -161,7 +195,7 @@ bool SELECT_LEX::prepare(THD *thd)
 
   Mem_root_array<Item_exists_subselect *, true>
     sj_candidates_local(thd->mem_root);
-  sj_candidates= &sj_candidates_local;
+  set_sj_candidates(&sj_candidates_local);
 
   /*
     Item and Item_field CTORs will both increment some counters
@@ -362,10 +396,10 @@ bool SELECT_LEX::prepare(THD *thd)
   if (olap == ROLLUP_TYPE && resolve_rollup(thd))
     DBUG_RETURN(true); /* purecov: inspected */
 
-  if (!sj_candidates->empty() && flatten_subqueries())
+  if (has_sj_candidates() && flatten_subqueries())
     DBUG_RETURN(true);
 
-  sj_candidates= NULL;
+  set_sj_candidates(NULL);
 
   if (outer_select() == NULL ||
       (parent_lex->sql_command == SQLCOM_SET_OPTION &&
@@ -507,6 +541,10 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
                            tbl->join_cond() ? tbl->join_cond() :
                                               m_where_cond))
         DBUG_RETURN(true); /* purecov: inspected */
+
+      if (tbl->table->all_partitions_pruned_away &&
+          !tbl->is_inner_table_of_outer_join())
+        set_empty_query();
     }
   }
 
@@ -650,6 +688,7 @@ bool subquery_allows_materialization(Item_in_subselect *predicate,
   Make list of leaf tables of join table tree
 
   @param list    pointer to pointer on list first element
+                 Must be set to NULL before first (recursive) call
   @param tables  table list
 
   @returns pointer on pointer to next_leaf of last element
@@ -743,7 +782,8 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
                !tables || 
                (context.table_list && context.first_name_resolution_table));
 
-  make_leaf_tables(&leaf_tables, tables);
+  leaf_tables= NULL;
+  (void)make_leaf_tables(&leaf_tables, tables);
 
   TABLE_LIST *first_select_table= NULL;
   if (select_insert)
@@ -803,7 +843,12 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
       partitioned_table_count++;
   }
 
-  if (opt_hints_qb)
+  /*
+    @todo - consider calling this from SELECT::prepare() instead.
+    It might save the test on select_insert to prevent check_unresolved()
+    from being called twice for INSERT ... SELECT.
+  */
+  if (opt_hints_qb && !select_insert)
     opt_hints_qb->check_unresolved(thd);
  
   DBUG_RETURN(false);
@@ -2075,6 +2120,9 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   cond_count+= subq_select->cond_count;
   between_count+= subq_select->between_count;
 
+  if (subq_select->active_options() & OPTION_SCHEMA_TABLE)
+    add_base_options(OPTION_SCHEMA_TABLE);
+
   if (outer_join)
     propagate_nullability(&sj_nest->nested_join->join_list, true);
 
@@ -2602,7 +2650,7 @@ bool SELECT_LEX::flatten_subqueries()
 {
   DBUG_ENTER("flatten_subqueries");
 
-  DBUG_ASSERT(!sj_candidates->empty());
+  DBUG_ASSERT(has_sj_candidates());
 
   Item_exists_subselect **subq,
     **subq_begin= sj_candidates->begin(),
@@ -2751,7 +2799,7 @@ bool SELECT_LEX::flatten_subqueries()
   @param tables  List of tables and join nests, start at top_join_list
   @param nullable  true: Set all underlying tables as nullable
 */
-static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable)
+void propagate_nullability(List<TABLE_LIST> *tables, bool nullable)
 {
   List_iterator<TABLE_LIST> li(*tables);
   TABLE_LIST *tr;

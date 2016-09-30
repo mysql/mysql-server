@@ -201,6 +201,25 @@ public:
   */
   static void set_field_varchar_utf8(Field *f, const char *str, uint len);
   /**
+    Helper, assign a value to a varchar utf8mb4 field.
+    @param f the field to set
+    @param str the string to assign
+    @param len the length of the string to assign
+  */
+  static void set_field_varchar_utf8mb4(Field *f, const char *str, uint len);
+  /**
+    Helper, assign a value to a varchar utf8 field.
+    @param f the field to set
+    @param str the string to assign
+  */
+  static void set_field_varchar_utf8(Field *f, const char *str);
+  /**
+    Helper, assign a value to a varchar utf8mb4 field.
+    @param f the field to set
+    @param str the string to assign
+  */
+  static void set_field_varchar_utf8mb4(Field *f, const char *str);
+  /**
     Helper, assign a value to a longtext utf8 field.
     @param f the field to set
     @param str the string to assign

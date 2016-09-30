@@ -27,7 +27,6 @@
 #include "ngs/capabilities/configurator.h"
 #include "ngs/capabilities/handler_readonly_value.h"
 
-#include <boost/make_shared.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include "mysqlx_version.h"
 #include "mysql_variables.h"
@@ -52,7 +51,7 @@ Client::Client(ngs::Connection_ptr connection, ngs::Server_interface &server, Cl
 
 Client::~Client()
 {
-  delete m_protocol_monitor;
+  ngs::free_object(m_protocol_monitor);
 }
 
 
@@ -87,16 +86,16 @@ ngs::Capabilities_configurator *Client::capabilities_configurator()
   ngs::Capabilities_configurator *caps = ngs::Client::capabilities_configurator();
 
   // add our capabilities
-  caps->add_handler(boost::make_shared<ngs::Capability_readonly_value>("node_type", "mysql"));
-  caps->add_handler(boost::make_shared<ngs::Capability_readonly_value>("plugin.version", MYSQLX_PLUGIN_VERSION_STRING));
-  caps->add_handler(boost::make_shared<Cap_handles_expired_passwords>(boost::ref(*this)));
+  caps->add_handler(ngs::allocate_shared<ngs::Capability_readonly_value>("node_type", "mysql"));
+  caps->add_handler(ngs::allocate_shared<ngs::Capability_readonly_value>("plugin.version", MYSQLX_PLUGIN_VERSION_STRING));
+  caps->add_handler(ngs::allocate_shared<Cap_handles_expired_passwords>(ngs::ref(*this)));
 
   return caps;
 }
 
-boost::shared_ptr<xpl::Session> Client::get_session()
+ngs::shared_ptr<xpl::Session> Client::get_session()
 {
-  return boost::static_pointer_cast<xpl::Session>(session());
+  return ngs::static_pointer_cast<xpl::Session>(session());
 }
 
 
@@ -128,7 +127,7 @@ void Client::on_network_error(int error)
 
 void Client::on_server_shutdown()
 {
-  boost::shared_ptr<ngs::Session_interface> local_copy = m_session;
+  ngs::shared_ptr<ngs::Session_interface> local_copy = m_session;
 
   if (local_copy)
     local_copy->on_kill();
@@ -147,7 +146,7 @@ void Client::on_auth_timeout()
 
 bool Client::is_handler_thd(THD *thd)
 {
-  boost::shared_ptr<ngs::Session_interface> session = this->session();
+  ngs::shared_ptr<ngs::Session_interface> session = this->session();
 
   return thd && session && (session->is_handled_by(thd));
 }
@@ -213,7 +212,7 @@ void Protocol_monitor::init(Client *client)
 namespace
 {
 template<void (Common_status_variables::*method)()>
-inline void update_status_variable(boost::shared_ptr<xpl::Session> session)
+inline void update_status_variable(ngs::shared_ptr<xpl::Session> session)
 {
   if (session)
     xpl::Server::update_status_variable<method>(session->get_status_variables());
@@ -261,7 +260,7 @@ void Protocol_monitor::on_send(long bytes_transferred)
 {
   Global_status_variables::instance().inc_bytes_sent(bytes_transferred);
 
-  boost::shared_ptr<xpl::Session> session(m_client->get_session());
+  ngs::shared_ptr<xpl::Session> session(m_client->get_session());
   if (session)
     session->get_status_variables().inc_bytes_sent(bytes_transferred);
 }
@@ -271,7 +270,7 @@ void Protocol_monitor::on_receive(long bytes_transferred)
 {
   Global_status_variables::instance().inc_bytes_received(bytes_transferred);
 
-  boost::shared_ptr<xpl::Session> session(m_client->get_session());
+  ngs::shared_ptr<xpl::Session> session(m_client->get_session());
   if (session)
     session->get_status_variables().inc_bytes_received(bytes_transferred);
 }

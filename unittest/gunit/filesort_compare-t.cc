@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include "filesort_utils.h"
+#include "my_global.h"
 #include "test_utils.h"
 
 #include <algorithm>
@@ -48,13 +49,6 @@ namespace filesort_compare_unittest {
   Below we test different variants, including memcmp() itself.
 */
 
-// A simple helper function to determine array size.
-template <class T, int size>
-int array_size(const T (&)[size])
-{
-  return size;
-}
-
 inline int bytes_to_int(const uchar *s)
 {
   int val;
@@ -76,7 +70,7 @@ TEST(BufferAlignmentTest, IntsToBytesToInt)
   for (int ix= 0; ix < 6; ++ix)
   {
     int test_data[]= { INT_MIN32, -42, -1, 0, 1, 42, INT_MAX32 };
-    for (int iy= 0; iy < array_size(test_data); ++iy)
+    for (size_t iy= 0; iy < array_elements(test_data); ++iy)
     {
       int val= test_data[iy];
       int_to_bytes(buf+ix, val);

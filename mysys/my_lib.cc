@@ -20,15 +20,16 @@
 
 /* TODO: check for overun of memory for names. */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
 #include "m_string.h"
 #include "my_dir.h"	/* Structs used by my_dir,includes sys/types */
-#include "mysys_err.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
-#include "template_utils.h"
+#include "mysys_err.h"
+#include "mysys_priv.h"
 #include "prealloced_array.h"
+#include "template_utils.h"
 #if !defined(_WIN32)
 # include <dirent.h>
 #endif

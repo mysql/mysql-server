@@ -16,13 +16,15 @@
 #ifndef DD_TABLES__INDEX_PARTITION_VALUES_INCLUDED
 #define DD_TABLES__INDEX_PARTITION_VALUES_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
-#include "dd/object_id.h"                    // dd::Object_id
 #include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "dd/object_id.h"                    // dd::Object_id
+#include "my_global.h"
 
 namespace dd {
   class Object_key;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -32,9 +34,9 @@ class Table_partition_values : public Object_table_impl
 public:
   static const Table_partition_values &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("table_partition_values");
+    static String_type s_table_name("table_partition_values");
     return s_table_name;
   }
 
@@ -51,7 +53,7 @@ public:
 public:
   Table_partition_values();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Table_partition_values::table_name(); }
 
 public:

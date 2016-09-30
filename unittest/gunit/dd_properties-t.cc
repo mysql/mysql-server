@@ -131,7 +131,7 @@ TEST_F(PropertiesTest, FailingStringParsing)
 TEST_F(PropertiesTest, EmptyValue)
 {
   dd::Properties *p= dd::Properties_impl::parse_properties("k=;");
-  std::string string_value("");
+  dd::String_type string_value("");
 
   EXPECT_TRUE(p->value("k") == "");
   EXPECT_TRUE(!p->get("k", string_value) && string_value == "");
@@ -142,12 +142,12 @@ TEST_F(PropertiesTest, EmptyValue)
 // Tests utf-8 behavior
 TEST_F(PropertiesTest, UTF8)
 {
-  const std::string EUR("\xE2\x82\xAC");
-  const std::string CNY("\xe5\x85\x83");
-  const std::string JPY("\xe5\x86\x86");
-  const std::string GBP("\xc2\xa3");
-  const std::string USD("\x24");
-  const std::string CNT("\xC2\xA2");
+  const dd::String_type EUR("\xE2\x82\xAC");
+  const dd::String_type CNY("\xe5\x85\x83");
+  const dd::String_type JPY("\xe5\x86\x86");
+  const dd::String_type GBP("\xc2\xa3");
+  const dd::String_type USD("\x24");
+  const dd::String_type CNT("\xC2\xA2");
 
   // Parse a utf-8 string and add more key=value pairs
   dd::Properties *p= dd::Properties_impl::parse_properties("EUR=" + EUR);
@@ -186,7 +186,7 @@ TEST_F(PropertiesTest, UTF8)
 TEST_F(PropertiesTest, SetGetStrings)
 {
   dd::Properties *p= new dd::Properties_impl();
-  std::string str("");
+  dd::String_type str("");
   const char *value= NULL;
 
   p->set("a", "b");

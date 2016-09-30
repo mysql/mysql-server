@@ -15,12 +15,19 @@
 
 #include "dd/impl/tables/triggers.h"
 
+#include <memory>
+#include <new>
+
+#include "dd/impl/object_key.h"
 #include "dd/impl/raw/object_keys.h"   // dd::Global_name_key
 #include "dd/impl/raw/raw_record.h"    // dd::Raw_record
 #include "dd/impl/raw/raw_table.h"     // dd::Raw_table
 #include "dd/impl/transaction_impl.h"  // Transaction_ro
-#include "dd/properties.h"             // Needed for destructor
-#include "dd/types/trigger.h"          // name_key_type
+#include "dd/types/table.h"
+#include "handler.h"
+#include "my_dbug.h"
+
+class THD;
 
 namespace dd {
 namespace tables {
@@ -65,7 +72,7 @@ Object_id Triggers::read_table_id(const Raw_record &r)
 
 bool Triggers::get_trigger_table_id(THD *thd,
                                     Object_id schema_id,
-                                    const std::string &trigger_name,
+                                    const String_type &trigger_name,
                                     Object_id *oid)
 {
   DBUG_ENTER("Triggers::get_trigger_table_id");

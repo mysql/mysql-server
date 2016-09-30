@@ -23,9 +23,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
                     ${SSL_INCLUDE_DIRS})
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
-IF (SSL_DEFINES)
-  ADD_DEFINITIONS(${SSL_DEFINES})
-ENDIF()
 
 #
 # Maintainer: keep this list sorted, to avoid merge collisions.
@@ -108,6 +105,8 @@ table_ews_by_user_by_event_name.h
 table_ews_global_by_event_name.h
 table_file_instances.h
 table_md_locks.h
+table_data_locks.h
+table_data_lock_waits.h
 table_mems_global_by_event_name.h
 table_mems_by_account_by_event_name.h
 table_mems_by_host_by_event_name.h
@@ -172,6 +171,7 @@ pfs_check.cc
 pfs_column_types.cc
 pfs_column_values.cc
 pfs_con_slice.cc
+pfs_data_lock.cc
 pfs_defaults.cc
 pfs_digest.cc
 pfs_engine_table.cc
@@ -232,6 +232,8 @@ table_ews_by_user_by_event_name.cc
 table_ews_global_by_event_name.cc
 table_file_instances.cc
 table_md_locks.cc
+table_data_locks.cc
+table_data_lock_waits.cc
 table_mems_global_by_event_name.cc
 table_mems_by_account_by_event_name.cc
 table_mems_by_host_by_event_name.cc
@@ -309,6 +311,7 @@ OPTION(DISABLE_PSI_STATEMENT_DIGEST "Exclude the performance schema statement di
 OPTION(DISABLE_PSI_METADATA "Exclude the performance schema metadata instrumentation" OFF)
 OPTION(DISABLE_PSI_MEMORY "Exclude the performance schema memory instrumentation" OFF)
 OPTION(DISABLE_PSI_TRANSACTION "Exclude the performance schema transaction instrumentation" OFF)
+OPTION(DISABLE_PSI_DATA_LOCK "Exclude the performance schema data lock instrumentation" OFF)
 
 MARK_AS_ADVANCED(DISABLE_PSI_THREAD)
 
@@ -327,4 +330,5 @@ MARK_AS_ADVANCED(DISABLE_PSI_STATEMENT_DIGEST)
 MARK_AS_ADVANCED(DISABLE_PSI_METADATA)
 MARK_AS_ADVANCED(DISABLE_PSI_MEMORY)
 MARK_AS_ADVANCED(DISABLE_PSI_TRANSACTION)
+MARK_AS_ADVANCED(DISABLE_PSI_DATA_LOCK)
 

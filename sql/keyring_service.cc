@@ -14,13 +14,16 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
-#include "m_ctype.h"  /* my_charset_utf8_bin */
-#include <mysql/plugin_keyring.h> /* keyring plugin */
+#include <stddef.h>
 
-#include "strfunc.h"
-#include "sql_string.h"
-#include "sql_plugin.h"
 #include "current_thd.h"
+#include "my_global.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_keyring.h" /* keyring plugin */
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+
+class THD;
 
 struct Key_data
 {

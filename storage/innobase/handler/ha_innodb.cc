@@ -124,6 +124,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ha_innodb.h"
 #include "i_s.h"
+#include "p_s.h"
+#include "mysql/psi/mysql_data_lock.h"
 #include "sync0sync.h"
 /* for ha_innopart, Native InnoDB Partitioning. */
 #include "ha_innopart.h"
@@ -195,6 +197,8 @@ my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
+
+static Innodb_data_lock_inspector innodb_data_lock_inspector;
 
 /** Note we cannot use rec_format_enum because we do not allow
 COMPRESSED row format for innodb_default_row_format option. */
@@ -498,15 +502,19 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(fts_delete_mutex, 0, 0),
 	PSI_MUTEX_KEY(fts_optimize_mutex, 0, 0),
 	PSI_MUTEX_KEY(fts_doc_id_mutex, 0, 0),
+	PSI_MUTEX_KEY(fts_pll_tokenize_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_flush_order_mutex, 0, 0),
 	PSI_MUTEX_KEY(hash_table_mutex, 0, 0),
 	PSI_MUTEX_KEY(ibuf_bitmap_mutex, 0, 0),
 	PSI_MUTEX_KEY(ibuf_mutex, 0, 0),
 	PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0),
+	PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_sys_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_sys_write_mutex, 0, 0),
+	PSI_MUTEX_KEY(log_cmdq_mutex, 0, 0),
 	PSI_MUTEX_KEY(mutex_list_mutex, 0, 0),
 	PSI_MUTEX_KEY(page_zip_stat_per_index_mutex, 0, 0),
+	PSI_MUTEX_KEY(page_cleaner_mutex, 0, 0),
 	PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0),
 	PSI_MUTEX_KEY(recv_sys_mutex, 0, 0),
 	PSI_MUTEX_KEY(recv_writer_mutex, 0, 0),
@@ -535,6 +543,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(srv_threads_mutex, 0, 0),
 #  ifndef PFS_SKIP_EVENT_MUTEX
 	PSI_MUTEX_KEY(event_mutex, 0, 0),
+	PSI_MUTEX_KEY(event_manager_mutex, 0, 0),
 #  endif /* PFS_SKIP_EVENT_MUTEX */
 	PSI_MUTEX_KEY(rtr_active_mutex, 0, 0),
 	PSI_MUTEX_KEY(rtr_match_mutex, 0, 0),
@@ -543,6 +552,9 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(trx_sys_mutex, 0, 0),
 	PSI_MUTEX_KEY(zip_pad_mutex, 0, 0),
 	PSI_MUTEX_KEY(master_key_id_mutex, 0, 0),
+	PSI_MUTEX_KEY(sync_array_mutex, 0, 0),
+	PSI_MUTEX_KEY(thread_mutex, 0, 0),
+	PSI_MUTEX_KEY(row_drop_list_mutex, 0, 0)
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -559,6 +571,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	PSI_RWLOCK_KEY(buf_block_debug_latch),
 #  endif /* UNIV_DEBUG */
 	PSI_RWLOCK_KEY(dict_operation_lock),
+	PSI_RWLOCK_KEY(dict_persist_checkpoint),
 	PSI_RWLOCK_KEY(fil_space_latch),
 	PSI_RWLOCK_KEY(checkpoint_lock),
 	PSI_RWLOCK_KEY(fts_cache_rw_lock),
@@ -4217,6 +4230,9 @@ innodb_init(
 
 	count = array_elements(all_innodb_conds);
 	mysql_cond_register("innodb", all_innodb_conds, count);
+
+	mysql_data_lock_register(& innodb_data_lock_inspector);
+
 #endif /* HAVE_PSI_INTERFACE */
 
 	if (int error = innodb_init_params()) {
@@ -17871,7 +17887,8 @@ innobase_xa_prepare(
 
 	TrxInInnoDB	trx_in_innodb(trx);
 
-	if (trx_in_innodb.is_aborted()) {
+	if (trx_in_innodb.is_aborted() ||
+	    DBUG_EVALUATE_IF("simulate_xa_failure_prepare_in_engine", 1, 0)) {
 
 		innobase_rollback(hton, thd, prepare_trx);
 
@@ -20732,8 +20749,6 @@ mysql_declare_plugin(innobase)
   0,    /* flags */
 },
 i_s_innodb_trx,
-i_s_innodb_locks,
-i_s_innodb_lock_waits,
 i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,

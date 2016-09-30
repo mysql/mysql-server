@@ -16,10 +16,9 @@
 #ifndef DD_CACHE__SHARED_DICTIONARY_CACHE_INCLUDED
 #define DD_CACHE__SHARED_DICTIONARY_CACHE_INCLUDED
 
-#include "my_global.h"                      // DBUG_ASSERT() etc.
-#include "handler.h"                        // enum_tx_isolation
-#include "shared_multi_map.h"               // Shared_multi_map
+#include <stdio.h>
 
+#include "dd/types/abstract_table.h"
 #include "dd/types/charset.h"               // Charset
 #include "dd/types/collation.h"             // Collation
 #include "dd/types/event.h"                 // Event
@@ -28,6 +27,11 @@
 #include "dd/types/spatial_reference_system.h" // Spatial_reference_system
 #include "dd/types/table.h"                 // Table
 #include "dd/types/tablespace.h"            // Tablespace
+#include "handler.h"                        // enum_tx_isolation
+#include "my_global.h"                      // DBUG_ASSERT() etc.
+#include "shared_multi_map.h"               // Shared_multi_map
+
+class THD;
 
 namespace dd {
 namespace cache {
@@ -45,6 +49,8 @@ namespace cache {
   outer layer. Concurrency is handled by the various instances of the
   shared multi map.
 */
+
+template <typename T> class Cache_element;
 
 class Shared_dictionary_cache
 {

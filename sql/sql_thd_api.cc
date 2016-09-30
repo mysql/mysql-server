@@ -15,26 +15,53 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
-#include "mysql/plugin.h"
-#include "mysql/service_thd_alloc.h"
-#include "mysql/service_thd_engine_lock.h"
-#include "mysql/service_thd_wait.h"
-#include "mysql/thread_pool_priv.h"
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
 
+#include "binlog_event.h"
+#include "channel_info.h"
+#include "connection_handler_manager.h"
 #include "current_thd.h"                // current_thd
-#include "mysqld_thd_manager.h"         // Global_THD_manager
+#include "handler.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "my_thread.h"
+#include "my_thread_local.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_thread.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld.h"                     // key_thread_one_connection
+#include "protocol_classic.h"
+#include "query_options.h"
 #include "rpl_rli.h"                    // is_mts_worker
 #include "rpl_slave_commit_order_manager.h"
+#include "session_tracker.h"
+#include "sql_alter.h"
                                         // commit_order_manager_check_deadlock
 #include "sql_cache.h"                  // query_cache
 #include "sql_callback.h"               // MYSQL_CALLBACK
 #include "sql_class.h"                  // THD
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_plugin.h"                 // plugin_unlock
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 #include "sql_table.h"                  // filename_to_tablename
-#include "mysqld.h"                     // key_thread_one_connection
+#include "sql_thd_internal_api.h"
+#include "system_variables.h"
+#include "transaction_info.h"
+#include "violite.h"
+#include "xa.h"
 
-#include <algorithm>
 using std::min;
 
 

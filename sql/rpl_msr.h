@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,14 +18,21 @@
 
 #ifdef HAVE_REPLICATION
 
-#include "my_global.h"
-#include "rpl_channel_service_interface.h" // enum_channel_type
-#include "rpl_mi.h"                        // Master_info
-#include "mysqld.h"                        // key_rwlock_channel_map_lock
-
+#include <stddef.h>
+#include <sys/types.h>
 #include <map>
 #include <string>
+#include <utility>
 
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "mysqld.h"                        // key_rwlock_channel_map_lock
+#include "rpl_channel_service_interface.h" // enum_channel_type
+#include "rpl_gtid.h"
+
+class Master_info;
 
 /**
    Maps a channel name to it's Master_info.

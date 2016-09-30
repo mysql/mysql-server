@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "item_geofunc_internal.h"
+#include <stddef.h>
+#include <utility>
+#include <vector>
 
-// adaptors
+#include <boost/concept/usage.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+#include <boost/move/utility_core.hpp>
+#include <boost/range/adaptor/argument_fwd.hpp>
+#include <boost/range/adaptor/filtered.hpp>
 #include <boost/range/adaptor/indexed.hpp>
 #include <boost/range/adaptor/transformed.hpp>
-#include <boost/range/adaptor/filtered.hpp>
+
+#include "item_geofunc.h"
+#include "item_geofunc_internal.h"
 
 
 struct Rtree_value_maker

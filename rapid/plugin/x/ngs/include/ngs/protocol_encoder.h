@@ -26,15 +26,13 @@
 #include "ngs/protocol/output_buffer.h"
 #include "ngs/error_code.h"
 #include "ngs/memory.h"
-#include "ngs/ngs_types.h"
 #include "protocol_fwd.h"
 
 #include <vector>
 #include <map>
-#include <boost/shared_ptr.hpp>
-#include <boost/ref.hpp>
-#include <boost/function.hpp>
-#include <boost/core/noncopyable.hpp>
+#include "ngs_common/smart_ptr.h"
+
+#include "ngs_common/posix_time.h"
 #include "ngs/protocol/message_builder.h"
 #include "ngs/protocol/notice_builder.h"
 #include "ngs/protocol/row_builder.h"
@@ -50,16 +48,19 @@ namespace ngs
   typedef uint32_t Prepared_stmt_id;
 
 
-  class Protocol_encoder : private boost::noncopyable
+  class Protocol_encoder
   {
   public:
-    typedef boost::function<void (int error)> Error_handler;
+    typedef ngs::function<void (int error)> Error_handler;
 
-    Protocol_encoder(const boost::shared_ptr<Connection_vio> &socket,
+    Protocol_encoder(const ngs::shared_ptr<Connection_vio> &socket,
                      Error_handler ehandler,
                      Protocol_monitor_interface &pmon);
 
     virtual ~Protocol_encoder();
+
+    Protocol_encoder(const Protocol_encoder &) = delete;
+    Protocol_encoder &operator=(const Protocol_encoder &) = delete;
 
     bool send_result(const Error_code &result);
 
@@ -124,7 +125,7 @@ namespace ngs
     // Temporary solution for all io
     static const Pool_config m_default_pool_config;
     ngs::Page_pool m_pool;
-    boost::shared_ptr<Connection_vio> m_socket;
+    ngs::shared_ptr<Connection_vio> m_socket;
     Error_handler m_error_handler;
     Protocol_monitor_interface *m_protocol_monitor;
 

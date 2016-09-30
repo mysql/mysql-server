@@ -3849,3 +3849,292 @@ a	MIN(b)
 1	2001
 DROP TABLE t1;
 # End of test for Bug#22661012
+#
+# Bug#24484060 INCORRECT EVALUATION OF MIN/MAX REFERRING
+# TO AN OUTER QUERY BLOCK
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, nk INT, k INT UNIQUE);
+INSERT INTO t1 VALUES (1,1,1),(2,2,2),(4,4,4);
+CREATE TABLE t2 (k INT);
+INSERT INTO t2 VALUES (1),(2),(4);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk<>3 AND out1.nk = (SELECT MAX(out1.k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	out1	NULL	ref	PRIMARY,k	k	5	test.t2.k	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` <> 3) and (`test`.`out1`.`nk` = (/* select#2 */ select max(`test`.`out1`.`k`) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk<>3 AND out1.nk = (SELECT MAX(out1.k) FROM t1);
+k
+1
+2
+4
+# Repeat the test with PRIMARY KEY instead of the non-indexed column.
+ALTER TABLE t1 DROP COLUMN nk;
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MAX(out1.k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select max(`test`.`out1`.`k`) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MAX(out1.k) FROM t1);
+k
+1
+2
+4
+# Inner reference should be optimized.
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MAX(k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	out1	NULL	const	PRIMARY,k	PRIMARY	4	const	1	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`t2`.`k` = '4'))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MAX(k) FROM t1);
+k
+4
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT 2*MIN(k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	out1	NULL	const	PRIMARY,k	PRIMARY	4	const	1	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`t2`.`k` = '2'))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT 2*MIN(k) FROM t1);
+k
+2
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(k) - COUNT(k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	out1	NULL	const	PRIMARY,k	PRIMARY	4	const	1	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+2	SUBQUERY	t1	NULL	index	NULL	k	5	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`t2`.`k` = '4') and ('4' = (/* select#2 */ select (sum(`test`.`t1`.`k`) - count(`test`.`t1`.`k`)) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(k) - COUNT(k) FROM t1);
+k
+4
+# Combinations of outer and inner references should not be optimized.
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MIN(out1.k + k) - 1 FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	k	5	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select (min((`test`.`out1`.`k` + `test`.`t1`.`k`)) - 1) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MIN(out1.k + k) - 1 FROM t1);
+k
+1
+2
+4
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT out1.k + MIN(k) - 1 FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	k	5	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select ((`test`.`out1`.`k` + min(`test`.`t1`.`k`)) - 1) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT out1.k + MIN(k) - 1 FROM t1);
+k
+1
+2
+4
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MIN(out1.k) + MIN(k) - 1 FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	k	5	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select ((min(`test`.`out1`.`k`) + min(`test`.`t1`.`k`)) - 1) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MIN(out1.k) + MIN(k) - 1 FROM t1);
+k
+1
+2
+4
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(out1.k) / COUNT(k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	k	5	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select (sum(`test`.`out1`.`k`) / count(`test`.`t1`.`k`)) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(out1.k) / COUNT(k) FROM t1);
+k
+1
+2
+4
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(out1.k) / COUNT(*) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select (sum(`test`.`out1`.`k`) / count(0)) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(out1.k) / COUNT(*) FROM t1);
+k
+1
+2
+4
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT AVG(out1.k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select avg(`test`.`out1`.`k`) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT AVG(out1.k) FROM t1);
+k
+1
+2
+4
+DROP TABLE t1, t2;
+# End of test for Bug#24484060
+#
+# Bug#24657798 HANDLER::HA_INDEX_INIT() TRIES TO USE
+# AN UNLOCKED CONST TABLE IN OPT_SUM_QUERY()
+#
+CREATE TABLE t1 (k INT, KEY(k)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (h INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3);
+explain SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `k` from dual where (/* select#2 */ select min('1') from dual)
+SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
+k
+1
+explain SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	s1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `k` from dual where exists(/* select#2 */ select min('1') from dual)
+SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
+k
+1
+explain SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `k` from dual where exists(/* select#2 */ select min('1') from dual)
+SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
+k
+1
+UPDATE t1 SET k=0;
+explain SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `k` from dual where (/* select#2 */ select min('0') from dual)
+SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
+k
+explain SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	s1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `k` from dual where exists(/* select#2 */ select min('0') from dual)
+SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
+k
+0
+explain SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `k` from dual where exists(/* select#2 */ select min('0') from dual)
+SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
+k
+0
+DROP TABLE t1;
+CREATE TABLE t1 (nk INT, k INT, KEY(k)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1);
+explain SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	s1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `nk`,'1' AS `k` from dual where ('1' = (/* select#2 */ select min('1') from dual))
+SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
+nk	k
+1	1
+explain SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `nk`,'1' AS `k` from dual where ('1' = (/* select#2 */ select min('1') from dual))
+SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
+nk	k
+1	1
+UPDATE t1 SET nk=0, k=0;
+explain SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	s1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `nk`,'0' AS `k` from dual where ('0' = (/* select#2 */ select min('0') from dual))
+SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
+nk	k
+0	0
+explain SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `nk`,'0' AS `k` from dual where ('0' = (/* select#2 */ select min('0') from dual))
+SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
+nk	k
+0	0
+DROP TABLE t1;
+DROP TABLE t2;
+# End of test for Bug#24657798

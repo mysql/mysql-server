@@ -24,23 +24,25 @@
   Temporary table handling functions.
 */
 
-#include "my_global.h"
-#include "my_base.h"        // ha_rows
+#include <sys/types.h>
+
 #include "item.h"           // Item
 #include "mem_root_array.h"
+#include "my_base.h"        // ha_rows
+#include "my_global.h"
+#include "table.h"
 
 class Create_field;
 class Field;
 class Opt_trace_context;
 class SJ_TMP_TABLE;
-class Temp_table_param;
 class THD;
-struct TABLE;
-template<typename Element_type, bool has_trivial_destructor, typename Parent>
-  class Mem_root_array;
+class Temp_table_param;
 template <class T> class List;
+
 typedef struct st_columndef MI_COLUMNDEF;
 class KEY;
+
 typedef struct st_order ORDER;
 
 

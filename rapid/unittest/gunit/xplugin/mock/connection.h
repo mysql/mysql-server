@@ -18,8 +18,6 @@
  */
 
 
-#include <boost/move/move.hpp>
-
 #include "ngs_common/connection_vio.h"
 
 namespace ngs
@@ -71,10 +69,10 @@ class Mock_socket_operations: public Socket_operations_interface
 {
 public:
 
-  MOCK_METHOD3(bind, int (const my_socket&, const struct sockaddr*, socklen_t));
-  MOCK_METHOD3(accept, my_socket(const my_socket&, struct sockaddr*, socklen_t*));
-  MOCK_METHOD3(socket, my_socket(int, int, int));
-  MOCK_METHOD2(listen, int(const my_socket&, int));
+  MOCK_METHOD3(bind, int (const MYSQL_SOCKET&, const struct sockaddr*, socklen_t));
+  MOCK_METHOD4(accept, MYSQL_SOCKET(PSI_socket_key, const MYSQL_SOCKET&, struct sockaddr*, socklen_t*));
+  MOCK_METHOD4(socket, MYSQL_SOCKET(PSI_socket_key, int, int, int));
+  MOCK_METHOD2(listen, int(const MYSQL_SOCKET&, int));
   MOCK_METHOD0(get_socket_errno, int());
 };
 

@@ -39,7 +39,7 @@
 namespace ngs
 {
   class IOptions_session;
-  typedef boost::shared_ptr<IOptions_session> IOptions_session_ptr;
+  typedef ngs::shared_ptr<IOptions_session> IOptions_session_ptr;
   class Protocol_encoder;
 }  // namespace ngs
 
@@ -47,12 +47,12 @@ namespace ngs
 namespace xpl
 {
 
-typedef boost::function<bool (const std::string &password_hash)> On_user_password_hash;
+typedef ngs::function<bool (const std::string &password_hash)> On_user_password_hash;
 typedef Buffering_command_delegate::Field_value Field_value;
 typedef Buffering_command_delegate::Row_data    Row_data;
 
 
-class Sql_data_context : private boost::noncopyable
+class Sql_data_context
 {
 public:
   struct Result_info
@@ -87,6 +87,9 @@ public:
 
   virtual ~Sql_data_context();
 
+  Sql_data_context(const Sql_data_context &) = delete;
+  Sql_data_context &operator=(const Sql_data_context &) = delete;
+
   ngs::Error_code init();
   void deinit();
 
@@ -110,7 +113,7 @@ public:
   bool is_killed();
   bool is_acl_disabled();
   bool is_api_ready();
-  bool wait_api_ready(boost::function<bool()> exiting);
+  bool wait_api_ready(ngs::function<bool()> exiting);
   bool password_expired() const { return m_password_expired; }
 
   const char* authenticated_user() const { return m_user; }
@@ -120,17 +123,17 @@ public:
   ngs::Error_code execute_kill_sql_session(uint64_t mysql_session_id);
 
   // can only be executed once authenticated
-  virtual ngs::Error_code execute_sql_no_result(const std::string &sql, Result_info &r_info);
-  virtual ngs::Error_code execute_sql_and_collect_results(const std::string &sql,
+  virtual ngs::Error_code execute_sql_no_result(const char *sql, std::size_t sql_len, Result_info &r_info);
+  virtual ngs::Error_code execute_sql_and_collect_results(const char *sql, std::size_t sql_len,
                                                           std::vector<Command_delegate::Field_type> &r_types,
                                                           Buffering_command_delegate::Resultset &r_rows,
                                                           Result_info &r_info);
-  virtual ngs::Error_code execute_sql_and_process_results(const std::string &sql,
+  virtual ngs::Error_code execute_sql_and_process_results(const char *sql, std::size_t sql_len,
                                                           const Callback_command_delegate::Start_row_callback &start_row,
                                                           const Callback_command_delegate::End_row_callback &end_row,
                                                           Result_info &r_info);
-  virtual ngs::Error_code execute_sql_and_stream_results(const std::string &sql, bool compact_metadata,
-                                                         Result_info &r_info);
+  virtual ngs::Error_code execute_sql_and_stream_results(const char *sql, std::size_t sql_len,
+                                                         bool compact_metadata, Result_info &r_info);
 
 private:
 

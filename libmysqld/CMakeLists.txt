@@ -13,8 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY
- ${SSL_DEFINES})
+ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY -DNO_EMBEDDED_ACCESS_CHECKS)
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
@@ -64,8 +63,8 @@ SET(SQL_EMBEDDED_SOURCES
   ${GEN_YACC_SOURCES}
   ../extra/lz4/xxhash.c
   ../client/get_password.c
-  ../libmysql/errmsg.c
-  ../libmysql/libmysql.c
+  ../libmysql/errmsg.cc
+  ../libmysql/libmysql.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
   ../sql-common/my_time.c 
@@ -303,7 +302,7 @@ OPTION(WITH_EMBEDDED_SHARED_LIBRARY
   OFF)
 IF(WITH_EMBEDDED_SHARED_LIBRARY)
   MERGE_LIBRARIES(libmysqld SHARED
-    mysqlserver
+    ${EMBEDDED_LIBS} ${EMBEDDED_LIBS}
     EXPORTS ${CLIENT_API_FUNCTIONS}
     OUTPUT_NAME "mysqld"
     COMPONENT Embedded)
@@ -311,15 +310,6 @@ IF(WITH_EMBEDDED_SHARED_LIBRARY)
     VERSION "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.0"
     SOVERSION "${SHARED_LIB_MAJOR_VERSION}"
     )
-
-  GET_TARGET_PROPERTY(libmysqld_link_flags libmysqld LINK_FLAGS)
-  IF(NOT libmysqld_link_flag)
-    SET(libmysqld_link_flags)
-  ENDIF()
-  SET(libmysqld_link_flags
-    "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${libmysqld_link_flags}")
-  SET_TARGET_PROPERTIES(libmysqld
-    PROPERTIES LINK_FLAGS "${libmysqld_link_flags}")
 
   IF(LINK_FLAG_NO_UNDEFINED)
     SET(libmysqld_link_flags
@@ -329,5 +319,4 @@ IF(WITH_EMBEDDED_SHARED_LIBRARY)
   ENDIF()
 
   SET_TARGET_PROPERTIES(libmysqld PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-  SET_TARGET_PROPERTIES(mysqlserver PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 ENDIF()

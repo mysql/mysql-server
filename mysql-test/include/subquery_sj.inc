@@ -7154,3 +7154,15 @@ eval EXPLAIN extended $query;
 eval $query;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#24287772 SUBQUERY RETURNS EMPTY LIST WHILE IDENTICAL QUERY
+--echo #              WITH JOIN RETURNS RESULT
+--echo #
+
+CREATE TABLE t SELECT 4096 c;
+
+SELECT c FROM t WHERE 1 IN
+(SELECT t.c = page_size FROM information_schema.innodb_cmpmem);
+
+DROP TABLE t;

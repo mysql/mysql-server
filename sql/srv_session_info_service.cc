@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -14,8 +14,14 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
-#include "mysql/service_srv_session_info.h"
+#include <stddef.h>
+#include <stdint.h>
+
+#include "key.h"
+#include "my_thread_local.h"
+#include "sql_class.h"
 #include "srv_session.h"
+#include "violite.h"
 
 /**
   @file

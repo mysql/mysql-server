@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,9 +47,33 @@
   (assuming a index for column d of table t2 is defined)
 */
 
-#include "key.h"                                // key_cmp_if_same
-#include "sql_select.h"
+#include <limits.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "field.h"
+#include "ft_global.h"
+#include "handler.h"
+#include "item.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
 #include "item_sum.h"                           // Item_sum
+#include "key.h"                                // key_cmp_if_same
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "sql_bitmap.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
+#include "sql_select.h"
+#include "table.h"
 
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 Item_field *item_field, Item *cond,
@@ -322,6 +346,11 @@ int opt_sum_query(THD *thd,
   {
     if (item->type() == Item::SUM_FUNC_ITEM)
     {
+      if (item->used_tables() & OUTER_REF_TABLE_BIT)
+      {
+        const_result= 0;
+        continue;
+      }
       Item_sum *item_sum= (((Item_sum*) item));
       switch (item_sum->sum_func()) {
       case Item_sum::COUNT_FUNC:
@@ -409,6 +438,18 @@ int opt_sum_query(THD *thd,
           Item_field *item_field= (Item_field*) (expr->real_item());
           TABLE *table= item_field->field->table;
 
+          /*
+            We must not have accessed this table instance yet, because
+            it must be private to this subquery, as we already ensured
+            that OUTER_REF_TABLE_BIT is not set.
+          */
+          DBUG_ASSERT(!table->file->inited);
+          /*
+            Because the table handle has not been opened yet, we cannot have
+            determined yet if the table contains 1 record.
+           */
+          DBUG_ASSERT(!table->const_table);
+
           /* 
             Look for a partial key that can be used for optimization.
             If we succeed, ref.key_length will contain the length of
@@ -417,8 +458,7 @@ int opt_sum_query(THD *thd,
             Type of range for the key part for this field will be
             returned in range_fl.
           */
-          if (table->file->inited ||
-              (outer_tables & item_field->table_ref->map()) ||
+          if ((outer_tables & item_field->table_ref->map()) ||
               !find_key_for_maxmin(is_max, &ref, item_field, conds,
                                    &range_fl, &prefix_len))
           {

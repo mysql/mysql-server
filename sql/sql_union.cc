@@ -29,15 +29,33 @@
 
 #include "sql_union.h"
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "current_thd.h"
-#include "sql_select.h"
-#include "sql_cursor.h"
-#include "sql_base.h"                           // fill_record
+#include "field.h"
 #include "filesort.h"                           // filesort_free_buffers
-#include "sql_tmp_table.h"                      // tmp tables
-#include "sql_optimizer.h"                      // JOIN
+#include "handler.h"
+#include "item.h"
+#include "item_subselect.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
 #include "opt_explain.h"                        // explain_no_table
 #include "opt_explain_format.h"
+#include "parse_tree_node_base.h"
+#include "query_options.h"
+#include "sql_base.h"                           // fill_record
+#include "sql_class.h"
+#include "sql_executor.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_optimizer.h"                      // JOIN
+#include "sql_select.h"
+#include "sql_tmp_table.h"                      // tmp tables
 
 
 int Query_result_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
@@ -409,17 +427,6 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg)
   }
   fake_select_lex->set_query_result(query_result());
 
-  /*
-    For subqueries in form "a IN (SELECT .. UNION SELECT ..):
-    when optimizing the fake_select_lex that reads the results of the union
-    from a temporary table, do not mark the temp. table as constant because
-    the contents in it may vary from one subquery execution to another.
-  */
-  fake_select_lex->make_active_options(
-     (first_select()->active_options() & OPTION_FOUND_ROWS) |
-     OPTION_NO_CONST_TABLES |
-     SELECT_NO_UNLOCK,
-     0);
   fake_select_lex->fields_list= item_list;
 
   /*
@@ -516,6 +523,28 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     tmp_result= sel_result;
   }
 
+  if (fake_select_lex != NULL)
+  {
+    /*
+      There exists a query block that consolidates the UNION result.
+      Prepare the active options for this query block. If these options
+      contain OPTION_BUFFER_RESULT, the query block will perform a buffering
+      operation, which means that an underlying query block does not need to
+      buffer its result, and the buffer option for the underlying query blocks
+      can be cleared.
+      For subqueries in form "a IN (SELECT .. UNION SELECT ..):
+      when optimizing the fake_select_lex that reads the results of the union
+      from a temporary table, do not mark the temp. table as constant because
+      the contents in it may vary from one subquery execution to another, by
+      adding OPTION_NO_CONST_TABLES.
+    */
+    fake_select_lex->make_active_options(
+      (added_options & (OPTION_FOUND_ROWS | OPTION_BUFFER_RESULT)) |
+      OPTION_NO_CONST_TABLES |
+      SELECT_NO_UNLOCK,
+      0);
+    added_options&= ~OPTION_BUFFER_RESULT;
+  }
   first_select()->context.resolve_in_select_list= true;
 
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
@@ -686,7 +715,8 @@ bool SELECT_LEX_UNIT::optimize(THD *thd)
     thd->lex->set_current_select(sl);
 
     // LIMIT is required for optimization
-    set_limit(sl);
+    if (set_limit(thd, sl))
+      DBUG_RETURN(true);                      /* purecov: inspected */
 
     if (sl->optimize(thd))
       DBUG_RETURN(true);
@@ -708,7 +738,8 @@ bool SELECT_LEX_UNIT::optimize(THD *thd)
   {
     thd->lex->set_current_select(fake_select_lex);
 
-    set_limit(fake_select_lex);
+    if (set_limit(thd, fake_select_lex))
+      DBUG_RETURN(true);                      /* purecov: inspected */
 
     /*
       In EXPLAIN command, constant subqueries that do not use any
@@ -839,7 +870,8 @@ bool SELECT_LEX_UNIT::execute(THD *thd)
       sl->join->reset();
 
     // Set limit and offset for each execution:
-    set_limit(sl);
+    if (set_limit(thd, sl))
+      DBUG_RETURN(true);                      /* purecov: inspected */
 
     // Execute this query block
     sl->join->exec();
@@ -872,7 +904,8 @@ bool SELECT_LEX_UNIT::execute(THD *thd)
     }
     // Index might have been used to weedout duplicates for UNION DISTINCT
     table->file->ha_index_or_rnd_end();
-    set_limit(fake_select_lex);
+    if (set_limit(thd, fake_select_lex))
+      DBUG_RETURN(status);                     /* purecov: inspected */
     JOIN *join= fake_select_lex->join;
     join->reset();
     join->exec();

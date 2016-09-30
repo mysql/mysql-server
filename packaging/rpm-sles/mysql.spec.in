@@ -525,6 +525,7 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
+           -DWITH_NUMA=ON \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -557,6 +558,7 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
+           -DWITH_NUMA=ON \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
@@ -647,7 +649,7 @@ rm -r $(readlink var) var
 %endif
 
 %post server
-datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p | tail -n 1')
+datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 /bin/chmod 0751 "$datadir"
 /bin/touch /var/log/mysql/mysqld.log
 /bin/chown mysql:mysql /var/log/mysql/mysqld.log >/dev/null 2>&1 || :
@@ -1029,6 +1031,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_security_context.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_services_plugin_registry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
@@ -1062,6 +1065,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_plugin_registry.so
 
 %attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
 %attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*
@@ -1139,6 +1143,9 @@ fi
 %endif # cluster
 
 %changelog
+* Wed Sep 07 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 8.0.1-0.1
+- Add test_services_plugin_registry.so plugin
+
 * Sun Jun 05 2016 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.0-0.1
 - Change the version number to 8.0.0
 - Add manual page for ibd2sdi utility

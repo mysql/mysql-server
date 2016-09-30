@@ -16,12 +16,17 @@
 #ifndef RPL_INFO_TABLE_H
 #define RPL_INFO_TABLE_H
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_global.h"
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
 #include "rpl_info_handler.h"        // Rpl_info_handler
-#include "table.h"                   // TABLE
 
 class Rpl_info_table_access;
+class Server_ids;
+struct TABLE;
+
 typedef struct st_mysql_lex_string LEX_STRING;
 
 

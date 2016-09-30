@@ -12,15 +12,33 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-#include "sql_auth_cache.h"
+#include <string.h>
+#include <utility>
+
 #include "auth_internal.h"
-#include "sql_class.h"
+#include "field.h"
+#include "handler.h"
+#include "key.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
-#include "sql_base.h"
-#include "table.h"
-#include "sql_parse.h"
-#include "role_tables.h"
 #include "records.h"
+#include "role_tables.h"
+#include "sql_auth_cache.h"
+#include "sql_base.h"
+#include "sql_const.h"
+#include "sql_plugin_ref.h"
+#include "sql_servers.h"
+#include "table.h"
+#include "thr_lock.h"
+
+class THD;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool trans_commit_stmt(THD *thd);
 void grant_role(THD *thd, ACL_USER *role, ACL_USER *user, bool with_admin_opt);
@@ -217,8 +235,8 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
   Assumes that tables are opened and requried locks are taken.
   Assumes that caller will close the tables.
 
-  @param thd [in] Handle to THD object
-  @param tablelst [in] Roles tables
+  @param [in] thd      Handle to THD object
+  @param [in] tablelst Roles tables
 
   @returns status of cache update
     @retval false Success

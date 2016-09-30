@@ -16,10 +16,11 @@
 #ifndef KEYRING_KEY_INCLUDED
 #define KEYRING_KEY_INCLUDED
 
+#include <memory>
+
 #include <my_global.h>
 #include "i_keyring_key.h"
 #include "keyring_memory.h"
-#include <boost/move/unique_ptr.hpp>
 
 namespace keyring {
 
@@ -63,7 +64,7 @@ protected:
   std::string key_id;
   std::string key_type;
   std::string user_id;
-  boost::movelib::unique_ptr<uchar[]> key;
+  std::unique_ptr<uchar[]> key;
   size_t key_len;
   mutable std::string key_signature;
 };

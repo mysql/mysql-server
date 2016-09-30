@@ -15,20 +15,34 @@
 
 
 #include "mdl.h"
-#include "debug_sync.h"
-#include "prealloced_array.h"
-#include <lf.h>
-#include <mysqld_error.h>
-#include <mysql/plugin.h>
-#include <mysql/service_thd_wait.h>
-#include <pfs_metadata_provider.h>
-#include <mysql/psi/mysql_mdl.h>
-#include <pfs_stage_provider.h>
-#include <mysql/psi/mysql_stage.h>
-#include <my_murmur3.h>
+
+#include <time.h>
 #include <algorithm>
 #include <functional>
+
+#include "pfs_metadata_provider.h"  // IWYU pragma: keep
+#include "mysql/psi/mysql_mdl.h"
+
+#include "pfs_stage_provider.h"  // IWYU pragma: keep
+#include "mysql/psi/mysql_stage.h"
+
+#include "debug_sync.h"
+#include "lf.h"
+#include "m_ctype.h"
+#include "my_atomic.h"
+#include "my_murmur3.h"
+#include "mysqld_error.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysql/service_thd_wait.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "prealloced_array.h"
+#include "thr_malloc.h"
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
@@ -1890,8 +1904,7 @@ MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
   owner->ENTER_COND(&m_COND_wait_status, &m_LOCK_wait_status,
                     wait_state_name, & old_stage);
   thd_wait_begin(NULL, THD_WAIT_META_DATA_LOCK);
-  while (!m_wait_status && !owner->is_killed() &&
-         wait_result != ETIMEDOUT && wait_result != ETIME)
+  while (!m_wait_status && !owner->is_killed() && !is_timeout(wait_result))
   {
     wait_result= mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status,
                                       abs_timeout);

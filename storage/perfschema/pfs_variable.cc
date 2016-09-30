@@ -63,14 +63,15 @@ PFS_variable_cache<Var_type>::PFS_variable_cache(bool external_init)
 { }
 
 
-// Explicit template instantiation
-template
-PFS_variable_cache<System_variable>::PFS_variable_cache(bool external_init);
-
-
 /**
   CLASS PFS_system_variable_cache
 */
+
+PFS_system_variable_cache::
+PFS_system_variable_cache(bool external_init)
+  : PFS_variable_cache<System_variable>(external_init),
+    m_mem_thd(NULL), m_mem_thd_save(NULL), m_mem_sysvar_ptr(NULL)
+{}
 
 /**
   Build a sorted list of all system variables from the system variable hash.

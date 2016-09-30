@@ -19,17 +19,70 @@
 
 /**
   @file sql/sql_select.h
-
-  Classes to use when handling where clause
 */
 
 
-#include "my_global.h"
-#include "item_cmpfunc.h"             // Item_cond_and
-#include "sql_class.h"                // THD
-#include "sql_opt_exec_shared.h"      // join_type
-
+#include <limits.h>
+#include <stddef.h>
+#include <sys/types.h>
 #include <functional>
+
+#include "binary_log_types.h"
+#include "field.h"
+#include "item.h"
+#include "item_cmpfunc.h"             // Item_cond_and
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "opt_costmodel.h"
+#include "set_var.h"
+#include "sql_alloc.h"
+#include "sql_bitmap.h"
+#include "sql_class.h"                // THD
+#include "sql_cmd_dml.h"              // Sql_cmd_dml
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_opt_exec_shared.h"      // join_type
+#include "system_variables.h"
+#include "table.h"
+
+class Item_func;
+class JOIN_TAB;
+class KEY;
+class QEP_TAB;
+class Query_result;
+class Temp_table_param;
+template <class T> class List;
+
+class Sql_cmd_select : public Sql_cmd_dml
+{
+public:
+  explicit Sql_cmd_select(Query_result *result_arg) : Sql_cmd_dml()
+  {
+    result= result_arg;
+  }
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_SELECT;
+  }
+
+  virtual bool is_data_change_stmt() const { return false; }
+
+protected:
+  virtual bool precheck(THD *thd);
+
+  virtual bool prepare_inner(THD *thd);
+
+#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
+  virtual void start_stmt_dtrace(char *query);
+  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed);
+#endif
+
+};
+
 /**
    Returns a constant of type 'type' with the 'A' lowest-weight bits set.
    Example: LOWER_BITS(uint, 3) == 7.
@@ -236,9 +289,6 @@ public:
 join_type calc_join_type(int quick_type);
 
 class JOIN;
-
-class JOIN_CACHE;
-class SJ_TMP_TABLE;
 
 #define SJ_OPT_NONE 0
 #define SJ_OPT_DUPS_WEEDOUT 1
@@ -512,10 +562,6 @@ typedef struct st_position : public Sql_alloc
     prefix_rowcount*= filter_effect;
   }
 } POSITION;
-
-struct st_cache_field;
-class QEP_operation;
-class Filesort;
 
 /**
    Use this in a function which depends on best_ref listing tables in the
@@ -1077,6 +1123,10 @@ protected:
 bool error_if_full_join(JOIN *join);
 bool handle_query(THD *thd, LEX *lex, Query_result *result,
                   ulonglong added_options, ulonglong removed_options);
+
+// Statement timeout function(s)
+bool set_statement_timer(THD *thd);
+void reset_statement_timer(THD *thd);
 
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 

@@ -24,12 +24,11 @@
   attached to WL#7909.
  */
 
-#include "my_global.h"
-#include "prealloced_array.h"                   // Prealloced_array
-
+#include <stddef.h>
 #include <string>
 
-class Json_string;
+#include "prealloced_array.h"                   // Prealloced_array
+
 class String;
 
 enum enum_json_path_leg_type

@@ -16,19 +16,41 @@
 #ifndef DD__TABLE_IMPL_INCLUDED
 #define DD__TABLE_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <memory>
+#include <new>
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/abstract_table_impl.h" // dd::Abstract_table_impl
+#include "dd/impl/types/entity_object_impl.h"
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/sdi_fwd.h"
+#include "dd/types/abstract_table.h"
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
 #include "dd/types/foreign_key.h"              // dd::Foreign_key
 #include "dd/types/index.h"                    // dd::Index
+#include "dd/types/object_type.h"
 #include "dd/types/partition.h"                // dd::Partition
 #include "dd/types/table.h"                    // dd:Table
 #include "dd/types/trigger.h"                  // dd::Trigger
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Column;
+class Foreign_key;
+class Index;
+class Open_dictionary_tables_ctx;
+class Partition;
+class Properties;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Trigger_impl;
+class Weak_object;
 
 class Table_impl : public Abstract_table_impl,
                    public Table
@@ -66,7 +88,7 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 private:
   /**
@@ -105,10 +127,10 @@ public:
   // engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &engine() const
+  virtual const String_type &engine() const
   { return m_engine; }
 
-  virtual void set_engine(const std::string &engine)
+  virtual void set_engine(const String_type &engine)
   { m_engine= engine; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -125,10 +147,10 @@ public:
   // comment
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const
+  virtual const String_type &comment() const
   { return m_comment; }
 
-  virtual void set_comment(const std::string &comment)
+  virtual void set_comment(const String_type &comment)
   { m_comment= comment; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -151,7 +173,7 @@ public:
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
 
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw);
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
   virtual void set_se_private_data(const Properties &se_private_data);
 
   /////////////////////////////////////////////////////////////////////////
@@ -190,11 +212,11 @@ public:
   // partition_expression
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &partition_expression() const
+  virtual const String_type &partition_expression() const
   { return m_partition_expression; }
 
   virtual void set_partition_expression(
-    const std::string &partition_expression)
+    const String_type &partition_expression)
   { m_partition_expression= partition_expression; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -223,11 +245,11 @@ public:
   // subpartition_expression
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &subpartition_expression() const
+  virtual const String_type &subpartition_expression() const
   { return m_subpartition_expression; }
 
   virtual void set_subpartition_expression(
-    const std::string &subpartition_expression)
+    const String_type &subpartition_expression)
   { m_subpartition_expression= subpartition_expression; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -272,7 +294,7 @@ public:
 
   Partition *get_partition(Object_id partition_id);
 
-  Partition *get_partition(std::string name);
+  Partition *get_partition(const String_type &name);
 
   /** Find and set parent partitions for subpartitions. */
   virtual void fix_partitions();
@@ -287,9 +309,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
   virtual Object_id schema_id() const
   { return Abstract_table_impl::schema_id(); }
@@ -301,7 +323,7 @@ public:
   { return Abstract_table_impl::options(); }
   virtual Properties &options()
   { return Abstract_table_impl::options(); }
-  virtual bool set_options_raw(const std::string &options_raw)
+  virtual bool set_options_raw(const String_type &options_raw)
   { return Abstract_table_impl::set_options_raw(options_raw); }
   virtual ulonglong created() const
   { return Abstract_table_impl::created(); }
@@ -319,9 +341,9 @@ public:
   { return Abstract_table_impl::get_column(column_id); }
   Column *get_column(Object_id column_id)
   { return Abstract_table_impl::get_column(column_id); }
-  const Column *get_column(const std::string name) const
+  const Column *get_column(const String_type name) const
   { return Abstract_table_impl::get_column(name); }
-  Column *get_column(const std::string name)
+  Column *get_column(const String_type name)
   { return Abstract_table_impl::get_column(name); }
   virtual bool update_aux_key(aux_key_type *key) const
   { return Table::update_aux_key(key); }
@@ -377,19 +399,19 @@ private:
 
   Object_id m_se_private_id;
 
-  std::string m_engine;
-  std::string m_comment;
+  String_type m_engine;
+  String_type m_comment;
   std::unique_ptr<Properties> m_se_private_data;
   enum_row_format m_row_format;
 
   // - Partitioning related fields.
 
   enum_partition_type           m_partition_type;
-  std::string                   m_partition_expression;
+  String_type                   m_partition_expression;
   enum_default_partitioning     m_default_partitioning;
 
   enum_subpartition_type        m_subpartition_type;
-  std::string                   m_subpartition_expression;
+  String_type                   m_subpartition_expression;
   enum_default_partitioning     m_default_subpartitioning;
 
   // References to tightly-coupled objects.

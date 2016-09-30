@@ -16,18 +16,31 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "my_command.h"
+#include "my_decimal.h"
 #include "my_global.h"
-#include "mysql_time.h"          // MYSQL_TIME
+#include "mysql_com.h"
 #include "protocol.h"            // Protocol
+#include "sql_string.h"
+#include "violite.h"
+
+class Proto_field;
+class Send_field;
+union COM_DATA;
 
 typedef struct st_mysql_field MYSQL_FIELD;
-class i_string;
 class Item_param;
-template <class T> class List;
+class i_string;
 template <class T> class I_List;
+template <class T> class List;
 
 #ifdef __cplusplus
 class THD;
+
 #define MYSQL_THD THD*
 #else
 #define MYSQL_THD void*

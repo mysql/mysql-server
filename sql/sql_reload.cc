@@ -14,25 +14,40 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_reload.h"
-#include "mysqld.h"      // select_errors
-#include "sql_class.h"   // THD
+
+#include <stddef.h>
+
 #include "auth_common.h" // acl_reload, grant_reload
-#include "sql_servers.h" // servers_reload
-#include "sql_connect.h" // reset_mqh
-#include "sql_base.h"    // close_cached_tables
+#include "binlog.h"
+#include "connection_handler_impl.h"
+#include "current_thd.h" // my_thread_set_THR_THD
+#include "debug_sync.h"
+#include "des_key_file.h"
+#include "handler.h"
 #include "hostname.h"    // hostname_cache_refresh
+#include "log.h"         // query_logger
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld.h"      // select_errors
+#include "mysqld_error.h"
+#include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
+#include "query_options.h"
 #include "rpl_master.h"  // reset_master
 #include "rpl_slave.h"   // reset_slave
-#include "rpl_rli.h"     // rotate_relay_log
-#include "rpl_mi.h"
-#include "rpl_msr.h"     /* multisource replication */
-#include "debug_sync.h"
-#include "connection_handler_impl.h"
-#include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
-#include "current_thd.h" // my_thread_set_THR_THD
+#include "sql_admin.h"
+#include "sql_base.h"    // close_cached_tables
 #include "sql_cache.h"   // query_cache
-#include "log.h"         // query_logger
-#include "des_key_file.h"
+#include "sql_class.h"   // THD
+#include "sql_connect.h" // reset_mqh
+#include "sql_const.h"
+#include "sql_plugin_ref.h"
+#include "sql_servers.h" // servers_reload
+#include "system_variables.h"
+#include "table.h"
 
 /**
   Reload/resets privileges and the different caches.

@@ -15,11 +15,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
-#include "trigger_creation_ctx.h"
-#include "sql_db.h" // get_default_db_collation()
-#include "log.h"
+#include <stddef.h>
+
 #include "derror.h"
+#include "log.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sql_class.h"
+#include "sql_db.h" // get_default_db_collation()
+#include "sql_error.h"
+#include "system_variables.h"
+#include "trigger_creation_ctx.h"
 
 Trigger_creation_ctx *
 Trigger_creation_ctx::create(THD *thd,

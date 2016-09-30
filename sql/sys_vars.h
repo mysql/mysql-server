@@ -23,21 +23,65 @@
   of sys_var variables (sys_vars.cc).
 */
 
-#include "my_global.h"
-
-#include "keycache.h"             // dflt_key_cache
-#include "my_bit.h"               // my_count_bits
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
 
 #include "debug_sync.h"           // debug_sync_update
+#include "handler.h"
 #include "item.h"                 // Item
+#include "keycache.h"             // dflt_key_cache
 #include "keycaches.h"            // default_key_cache_base
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_bit.h"               // my_count_bits
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_getopt.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"               // max_system_variables
+#include "mysqld_error.h"
+#include "rpl_gtid.h"
+#include "session_tracker.h"
 #include "set_var.h"              // sys_var_chain
+#include "sql_admin.h"
 #include "sql_class.h"            // THD
+#include "sql_connect.h"
+#include "sql_const.h"
+#include "sql_error.h"
 #include "sql_plugin.h"           // my_plugin_lock_by_name
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 #include "strfunc.h"              // find_type
+#include "sys_vars_resource_mgr.h"
 #include "sys_vars_shared.h"      // throw_bounds_warning
+#include "system_variables.h"
+#include "typelib.h"
 #include "tztime.h"               // Time_zone
+
+class Sys_var_bit;
+class Sys_var_charptr;
+class Sys_var_double;
+class Sys_var_enforce_gtid_consistency;
+class Sys_var_enum;
+class Sys_var_flagset;
+class Sys_var_gtid_mode;
+class Sys_var_have;
+class Sys_var_lexstring;
+class Sys_var_multi_enum;
+class Sys_var_mybool;
+class Sys_var_plugin;
+class Sys_var_set;
+class Sys_var_tz;
+struct CMD_LINE;
+template <typename Struct_type, typename Name_getter> class Sys_var_struct;
+template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT, bool SIGNED> class Sys_var_integer;
 
 
 /*

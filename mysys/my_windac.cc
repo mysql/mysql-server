@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,11 @@
   @file mysys/my_windac.cc
 */
 
-#include "mysys_priv.h"
-#include "m_string.h"
 #ifdef _WIN32
+
+#include "m_string.h"
+#include "my_pointer_arithmetic.h"
+#include "mysys_priv.h"
 
 /* Windows NT/2000 discretionary access control utility functions. */
 

@@ -22,34 +22,69 @@
 
 #include "filesort.h"
 
-#include "derror.h"
-#include <m_ctype.h>
-#include "sql_sort.h"
-#include "probes_mysql.h"
-#include "opt_range.h"                          // QUICK
-#include "bounded_queue.h"
-#include "filesort_utils.h"
-#include "sql_select.h"
-#include "debug_sync.h"
-#include "mysqld.h"                             // mysql_tmpdir
-#include "opt_trace.h"
-#include "sql_optimizer.h"              // JOIN
-#include "sql_executor.h"               // QEP_TAB
-#include "sql_base.h"
-#include "opt_costmodel.h"
-#include "priority_queue.h"
-#include "log.h"
-#include "item_sum.h"                   // Item_sum
-#include "json_dom.h"                   // Json_wrapper
-#include "psi_memory_key.h"
-#include "template_utils.h"
-#include "error_handler.h"
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
+#include <float.h>
+#include <limits.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
 #include <algorithm>
-#include <utility>
+#include <new>
+#include <vector>
+
+#include "binary_log_types.h"
+#include "binlog_config.h"
+#include "bounded_queue.h"
+#include "debug_sync.h"
+#include "decimal.h"
+#include "derror.h"
+#include "error_handler.h"
+#include "field.h"
+#include "filesort_utils.h"
+#include "handler.h"
+#include "item.h"
+#include "item_subselect.h"
+#include "json_dom.h"                   // Json_wrapper
+#include "log.h"
+#include "m_ctype.h"
+#include "malloc_allocator.h"
+#include "my_bitmap.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_decimal.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "myisampack.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld.h"                             // mysql_tmpdir
+#include "mysqld_error.h"
+#include "opt_costmodel.h"
+#include "opt_range.h"                          // QUICK
+#include "opt_trace.h"
+#include "opt_trace_context.h"
+#include "priority_queue.h"
+#include "probes_mysql.h"                       // IWYU pragma: keep
+#include "psi_memory_key.h"
+#include "session_tracker.h"
+#include "sql_array.h"
+#include "sql_base.h"
+#include "sql_bitmap.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_executor.h"               // QEP_TAB
+#include "sql_lex.h"
+#include "sql_optimizer.h"              // JOIN
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_sort.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
+#include "thr_malloc.h"
+
 using std::max;
 using std::min;
 

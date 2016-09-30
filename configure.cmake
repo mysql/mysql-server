@@ -25,24 +25,6 @@ INCLUDE (CheckCXXSourceRuns)
 INCLUDE (CheckSymbolExists)
 
 
-# WITH_PIC options.Not of much use, PIC is taken care of on platforms
-# where it makes sense anyway.
-IF(UNIX)
-  IF(APPLE)  
-    # OSX  executable are always PIC
-    SET(WITH_PIC ON)
-  ELSE()
-    OPTION(WITH_PIC "Generate PIC objects" OFF)
-    IF(WITH_PIC)
-      SET(CMAKE_C_FLAGS 
-        "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS}")
-      SET(CMAKE_CXX_FLAGS 
-        "${CMAKE_CXX_FLAGS} ${CMAKE_SHARED_LIBRARY_CXX_FLAGS}")
-    ENDIF()
-  ENDIF()
-ENDIF()
-
-
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCXX)
   ## We will be using gcc to generate .so files
   ## Add C flags (e.g. -m64) to CMAKE_SHARED_LIBRARY_C_FLAGS
@@ -205,17 +187,6 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
     "${QUOTED_CMAKE_CXX_LINK_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc ")
 ENDIF()
 
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  IF (CMAKE_EXE_LINKER_FLAGS MATCHES " -static " 
-     OR CMAKE_EXE_LINKER_FLAGS MATCHES " -static$")
-     SET(WITHOUT_DYNAMIC_PLUGINS TRUE)
-  ENDIF()
-ENDIF()
-
-IF(WITHOUT_DYNAMIC_PLUGINS)
-  MESSAGE("Dynamic plugins are disabled.")
-ENDIF(WITHOUT_DYNAMIC_PLUGINS)
-
 # Same for structs, setting HAVE_STRUCT_<name> instead
 FUNCTION(MY_CHECK_STRUCT_SIZE type defbase)
   CHECK_TYPE_SIZE("struct ${type}" SIZEOF_${defbase})
@@ -364,7 +335,6 @@ CHECK_FUNCTION_EXISTS (_aligned_malloc HAVE_ALIGNED_MALLOC)
 CHECK_FUNCTION_EXISTS (backtrace HAVE_BACKTRACE)
 CHECK_FUNCTION_EXISTS (printstack HAVE_PRINTSTACK)
 CHECK_FUNCTION_EXISTS (index HAVE_INDEX)
-CHECK_FUNCTION_EXISTS (clock_gettime HAVE_CLOCK_GETTIME)
 CHECK_FUNCTION_EXISTS (chown HAVE_CHOWN)
 CHECK_FUNCTION_EXISTS (cuserid HAVE_CUSERID)
 CHECK_FUNCTION_EXISTS (directio HAVE_DIRECTIO)
@@ -421,7 +391,6 @@ CHECK_FUNCTION_EXISTS (memalign HAVE_MEMALIGN)
 CHECK_FUNCTION_EXISTS (nl_langinfo HAVE_NL_LANGINFO)
 CHECK_FUNCTION_EXISTS (ntohll HAVE_HTONLL)
 
-CHECK_FUNCTION_EXISTS (clock_gettime DNS_USE_CPU_CLOCK_FOR_ID)
 CHECK_FUNCTION_EXISTS (epoll_create HAVE_EPOLL)
 # Temperarily  Quote event port out as we encounter error in port_getn
 # on solaris x86
@@ -528,6 +497,8 @@ ENDFUNCTION()
 MY_CHECK_TYPE_SIZE(uint UINT)
 MY_CHECK_TYPE_SIZE(ulong ULONG)
 MY_CHECK_TYPE_SIZE(u_int32_t U_INT32_T)
+SET(CMAKE_EXTRA_INCLUDE_FILES sys/socket.h)
+MY_CHECK_TYPE_SIZE(socklen_t SOCKLEN_T) # needed for libevent
 
 IF(HAVE_IEEEFP_H)
   SET(CMAKE_EXTRA_INCLUDE_FILES ieeefp.h)
@@ -542,6 +513,16 @@ MY_CHECK_CXX_COMPILER_FLAG("-fvisibility=hidden" HAVE_VISIBILITY_HIDDEN)
 #
 # Code tests
 #
+
+CHECK_C_SOURCE_RUNS("
+#include <time.h>
+int main()
+{
+  struct timespec ts;
+  return clock_gettime(CLOCK_MONOTONIC, &ts);
+}" HAVE_CLOCK_GETTIME)
+# For libevent
+SET(DNS_USE_CPU_CLOCK_FOR_ID CACHE ${HAVE_CLOCK_GETTIME} INTERNAL "")
 
 IF(NOT STACK_DIRECTION)
   IF(CMAKE_CROSSCOMPILING)
@@ -825,12 +806,6 @@ CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_len
   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN6_SIN6_LEN)
 
 SET(CMAKE_EXTRA_INCLUDE_FILES)
-
-# needed for libevent
-CHECK_TYPE_SIZE("socklen_t" SIZEOF_SOCKLEN_T)
-IF(SIZEOF_SOCKLEN_T)
-  SET(HAVE_SOCKLEN_T 1)
-ENDIF()
 
 CHECK_INCLUDE_FILES(numa.h HAVE_NUMA_H)
 CHECK_INCLUDE_FILES(numaif.h HAVE_NUMAIF_H)

@@ -15,20 +15,47 @@
 
 #include "sql_partition_admin.h"
 
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"                    // check_access
-#include "mysqld.h"                         // opt_log_slow_admin_statements
-#include "sql_table.h"                      // mysql_alter_table, etc.
-#include "partition_info.h"                 // class partition_info etc.
-#include "sql_base.h"                       // open_and_lock_tables, etc
-#include "debug_sync.h"                     // DEBUG_SYNC
-#include "log.h"
-#include "partitioning/partition_handler.h" // Partition_handler
-#include "sql_class.h"                      // THD
-#include "sql_cache.h"                      // query_cache
 #include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
-#include "dd/dd_schema.h"   // dd::Schema_MDL_locker
-#include "dd/sdi.h"         // dd::store_sdi
+#include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
+#include "dd/sdi.h"                         // dd::store_sdi
+#include "debug_sync.h"                     // DEBUG_SYNC
+#include "handler.h"
+#include "log.h"
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld.h"                         // opt_log_slow_admin_statements
+#include "mysqld_error.h"
+#include "partition_info.h"                 // class partition_info etc.
+#include "partitioning/partition_handler.h" // Partition_handler
+#include "sql_base.h"                       // open_and_lock_tables, etc
+#include "sql_cache.h"                      // query_cache
+#include "sql_class.h"                      // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_partition.h"
+#include "sql_plugin.h"
+#include "sql_string.h"
+#include "sql_table.h"                      // mysql_alter_table, etc.
+#include "system_variables.h"
+#include "table.h"
+#include "thr_lock.h"
 #include "transaction.h"    // trans_commit_stmt
+
+class partition_element;
 
 
 bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)

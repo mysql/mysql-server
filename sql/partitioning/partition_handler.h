@@ -19,15 +19,30 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"            // uint etc.
-#include "hash.h"                 // HASH
-#include "my_base.h"              // ha_rows.
+#include <string.h>
+#include <sys/types.h>
+#include <new>
+#include <vector>
+
 #include "handler.h"              // Handler_share
-#include "sql_partition.h"        // part_id_range
+#include "key.h"                  // key_rec_cmp
+#include "my_alloc.h"
+#include "my_base.h"              // ha_rows.
+#include "my_dbug.h"
+#include "my_global.h"            // uint etc.
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"         // ER_ILLEGAL_HA
 #include "priority_queue.h"
-#include "key.h"                  // key_rec_cmp
-#include <vector>
+#include "sql_alloc.h"
+#include "sql_partition.h"        // part_id_range
+
+class Field;
+class THD;
+class partition_element;
+class partition_info;
+struct TABLE;
+struct TABLE_SHARE;
 
 #define PARTITION_BYTES_IN_POS 2
 

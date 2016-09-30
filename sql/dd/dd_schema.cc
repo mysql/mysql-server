@@ -15,20 +15,27 @@
 
 #include "dd_schema.h"
 
-#include "debug_sync.h"                       // DEBUG_SYNC
-#include "handler.h"                          // HA_CREATE_INFO
-#include "mysqld.h"                           // lower_case_table_names
-#include "sql_class.h"                        // THD
-#include "transaction.h"                      // trans_commit
+#include <memory>                             // unique_ptr
 
+#include "auth_common.h"
+#include "binlog_event.h"
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::get_dictionary
 #include "dd/dictionary.h"                    // dd::Dictionary
 #include "dd/sdi.h"                           // dd::store_sdi
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/schema.h"                  // dd::Schema
-
-#include <memory>                             // unique_ptr
+#include "debug_sync.h"                       // DEBUG_SYNC
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld.h"                           // lower_case_table_names
+#include "mysqld_error.h"
+#include "sql_class.h"                        // THD
+#include "system_variables.h"
+#include "transaction.h"                      // trans_commit
 
 namespace dd {
 

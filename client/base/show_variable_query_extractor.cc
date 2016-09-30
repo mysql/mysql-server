@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <functional>
+
 #include "show_variable_query_extractor.h"
-#include "instance_callback.h"
 
 using namespace Mysql::Tools::Base;
+using std::placeholders::_1;
 using std::string;
 using std::vector;
 
@@ -42,9 +44,8 @@ int64 Show_variable_query_extractor::get_variable_value(
   Show_variable_query_extractor extractor;
   Mysql_query_runner query_runner_to_use(*query_runner_to_copy);
 
-  Instance_callback<int64, const Mysql_query_runner::Row&,
-                    Show_variable_query_extractor>
-    result_cb(&extractor, &Show_variable_query_extractor::extract_variable);
+  std::function<int64(const Mysql_query_runner::Row&)> result_cb=
+    std::bind(&Show_variable_query_extractor::extract_variable, &extractor, _1);
 
   query_runner_to_use.add_result_callback(&result_cb);
 

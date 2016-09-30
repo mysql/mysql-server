@@ -14,12 +14,25 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "json_binary.h"
-#include "current_thd.h"        // current_thd
-#include "json_dom.h"           // Json_dom
-#include "sql_class.h"          // THD
-#include "sql_parse.h"          // check_stack_overrun
-#include "template_utils.h"     // down_cast
+
+#include <string.h>
 #include <algorithm>            // std::min
+#include <map>
+#include <string>
+#include <utility>
+
+#include "check_stack.h"
+#include "json_dom.h"           // Json_dom
+#include "m_ctype.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sql_class.h"          // THD
+#include "sql_const.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "template_utils.h"     // down_cast
 
 #define JSONB_TYPE_SMALL_OBJECT   0x0
 #define JSONB_TYPE_LARGE_OBJECT   0x1

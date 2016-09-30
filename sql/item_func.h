@@ -16,16 +16,50 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "item.h"       // Item_result_field
-#include "my_decimal.h" // string2my_decimal
-#include "set_var.h"    // enum_var_type
-#include "sql_udf.h"    // udf_handler
+#include <limits.h>
+#include <stddef.h>
+#include <sys/types.h>
+#include <cmath>        // isfinite
 #include <functional>
 
-#include <cmath>        // isfinite
+#include "binary_log_types.h"
+#include "decimal.h"
+#include "enum_query_type.h"
+#include "field.h"
+#include "ft_global.h"
+#include "handler.h"
+#include "item.h"       // Item_result_field
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h" // string2my_decimal
+#include "my_global.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "my_time.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "parse_tree_node_base.h"
+#include "set_var.h"    // enum_var_type
+#include "sql_const.h"
+#include "sql_string.h"
+#include "sql_udf.h"    // udf_handler
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
+#include "thr_malloc.h"
 
+class Json_wrapper;
 class PT_item_list;
+class Protocol;
+class SELECT_LEX;
+class THD;
+class sp_rcontext;
+template <class T> class List;
 
 /* Function items used by mysql */
 
@@ -2378,7 +2412,6 @@ public:
 
 /* Handling of user definable variables */
 
-class user_var_entry;
 // this is needed for user_vars hash
 class user_var_entry
 {
@@ -3141,7 +3174,6 @@ public:
 
 class sp_head;
 class sp_name;
-struct st_sp_security_context;
 
 class Item_func_sp :public Item_func
 {

@@ -130,6 +130,7 @@ COMMIT;
 SELECT COUNT(*) FROM testdb_wl6445.t1;
 COUNT(*)
 50
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 USE testdb_wl6445;
 INSERT INTO t1 VALUES (211,repeat('a',200)),(212,repeat('b',200)),(213,repeat('c',200));
@@ -1143,6 +1144,7 @@ CALL proc2(1,'test1');
 SELECT * FROM t3;
 i	j
 1	test1
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 SET GLOBAL innodb_file_per_table = 1;
 USE testdb_wl6445;
@@ -1205,6 +1207,7 @@ SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN
 i	j
 4	mysql database
 5	mysql database innodb support
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only --innodb_purge_threads=5 --innodb_buffer_pool_size=16M
 SET GLOBAL innodb_max_purge_lag = 10;
 SET GLOBAL innodb_max_purge_lag_delay = 10;
@@ -1258,6 +1261,7 @@ SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
 i	j
 5	mysql database innodb support
 6	innodb engine
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only --read-only
 USE testdb_wl6445;
 show tables;
@@ -1323,6 +1327,7 @@ i
 2
 3
 # Creating a temp sql file to be loaded.
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 USE testdb_wl6445;
 : 1036, Table 't1' is read only, when using table: t1
@@ -1358,6 +1363,7 @@ commit;
 check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 check table t1 extended;
 Table	Op	Msg_type	Msg_text

@@ -19,38 +19,74 @@
 
 #include "sql_db.h"
 
-#include "mysys_err.h"       // EE_*
+#include "my_config.h"
+
+#include <errno.h>
+#ifdef _WIN32
+#include <direct.h>
+#endif
+#include <string.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <vector>
+
+#include "auth_acls.h"
 #include "auth_common.h"     // SELECT_ACL
 #include "binlog.h"          // mysql_bin_log
-#include "current_thd.h"
+#include "dd/cache/dictionary_client.h" // Dictionary_client
+#include "dd/dd.h"                      // dd::get_dictionary()
+#include "dd/dd_schema.h"               // dd::create_schema
+#include "dd/dictionary.h"              // dd::Dictionary
+#include "dd/string_type.h"
+#include "dd/types/abstract_table.h"
+#include "dd/types/schema.h"
 #include "debug_sync.h"      // DEBUG_SYNC
 #include "derror.h"          // ER_THD
 #include "error_handler.h"   // Drop_table_error_handler
 #include "events.h"          // Events
+#include "handler.h"
 #include "lock.h"            // lock_schema_name
 #include "log.h"             // sql_print_error
 #include "log_event.h"       // Query_log_event
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_command.h"
+#include "my_dbug.h"
+#include "my_dir.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"          // key_file_misc
+#include "mysqld_error.h"
+#include "mysys_err.h"       // EE_*
 #include "psi_memory_key.h"  // key_memory_THD_db
+#include "rpl_gtid.h"
+#include "session_tracker.h"
 #include "sp.h"              // lock_db_routines
 #include "sql_base.h"        // lock_table_names
 #include "sql_cache.h"       // query_cache
 #include "sql_class.h"       // THD
+#include "sql_const.h"
+#include "sql_error.h"
 #include "sql_handler.h"     // mysql_ha_rm_tables
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 #include "sql_table.h"       // build_table_filename
+#include "system_variables.h"
 #include "table.h"           // TABLE_LIST
+#include "template_utils.h"
 #include "transaction.h"     // trans_rollback_stmt
+#include "typelib.h"
 
-#include "dd/dd.h"                      // dd::get_dictionary()
-#include "dd/dd_schema.h"               // dd::create_schema
-#include "dd/dictionary.h"              // dd::Dictionary
-#include "dd/cache/dictionary_client.h" // Dictionary_client
-
-#ifdef _WIN32
-#include <direct.h>
-#endif
-
-#include "pfs_file_provider.h"
+#include "pfs_file_provider.h"  // IWYU pragma:keep
 #include "mysql/psi/mysql_file.h"
 
 static const size_t MAX_DROP_TABLE_Q_LEN= 1024;
@@ -210,11 +246,9 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     */
     if (!schema_exists)
     {
-      sql_print_error("System schema directory does not exist.");
-      // Must set OK explicitly to avoid send_statement_status() failing.
-      // Calling my_error() does not set the error status this early in the
-      // server startup sequence.
-      my_ok(thd);
+      my_printf_error(ER_BAD_DB_ERROR,
+                      "System schema directory does not exist.",
+                      MYF(0));
       DBUG_RETURN(true);
     }
   }
@@ -459,7 +493,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
   // Reject dropping the system schema except for system threads.
   if (!thd->is_dd_system_thread() &&
-      dd::get_dictionary()->is_dd_schema_name(std::string(db.str)))
+      dd::get_dictionary()->is_dd_schema_name(dd::String_type(db.str)))
   {
     my_error(ER_NO_SYSTEM_SCHEMA_ACCESS, MYF(0), db.str);
     DBUG_RETURN(true);

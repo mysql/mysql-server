@@ -18,19 +18,38 @@
 
 #include "sql_class.h"
 
-#include "mysys_err.h"                       // EE_OUTOFMEMORY
+#include <assert.h>
+#include <errno.h>
+#include <stdarg.h>
+#include <algorithm>
+
+#include "binary_log_types.h"
+#include "binlog.h"
 #include "connection_handler_manager.h"      // Connection_handler_manager
 #include "current_thd.h"
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "derror.h"                          // ER_THD
 #include "error_handler.h"                   // Internal_error_handler
+#include "hash.h"
 #include "item_func.h"                       // user_var_entry
+#include "key.h"
 #include "lock.h"                            // mysql_lock_abort_for_thread
 #include "locking_service.h"                 // release_all_locking_service_locks
+#include "log_event.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_atomic.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_error.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"                          // global_system_variables ...
 #include "mysqld_thd_manager.h"              // Global_THD_manager
+#include "mysys_err.h"                       // EE_OUTOFMEMORY
+#include "pfs_statement_provider.h"
 #include "psi_memory_key.h"
-#include "rpl_filter.h"                      // rpl_filter
+#include "query_result.h"
 #include "rpl_rli.h"                         // Relay_log_info
 #include "sp_cache.h"                        // sp_cache_clear
 #include "sql_audit.h"                       // mysql_audit_free_thd
@@ -41,10 +60,15 @@
 #include "sql_parse.h"                       // is_update_query
 #include "sql_plugin.h"                      // plugin_thdvar_init
 #include "sql_prepare.h"                     // Prepared_statement
+#include "sql_security_ctx.h"
 #include "sql_time.h"                        // my_timeval_trunc
 #include "sql_timer.h"                       // thd_timer_destroy
-#include "transaction.h"                     // trans_rollback
+#include "tc_log.h"
 #include "template_utils.h"
+#include "thr_malloc.h"
+#include "thr_mutex.h"
+#include "transaction.h"                     // trans_rollback
+#include "xa.h"
 
 #ifdef HAVE_REPLICATION
 #include "rpl_slave.h"                       // rpl_master_erroneous_autoinc
@@ -52,16 +76,8 @@
 
 #include "dd/cache/dictionary_client.h"      // Dictionary_client
 #include "dd/dd_kill_immunizer.h"            // dd:DD_kill_immunizer
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include "pfs_idle_provider.h"
-#include "mysql/psi/mysql_idle.h"
-
-#include "mysql/psi/mysql_ps.h"
-
 #include "mysql/psi/mysql_error.h"
+#include "mysql/psi/mysql_ps.h"
 
 using std::min;
 using std::max;
@@ -455,6 +471,7 @@ THD::THD(bool enable_plugins)
   m_sent_row_count= 0L;
   current_found_rows= 0;
   previous_found_rows= 0;
+  current_changed_rows= 0;
   is_operating_gtid_table_implicitly= false;
   is_operating_substatement_implicitly= false;
   m_row_count_func= -1;
@@ -1538,6 +1555,8 @@ void THD::cleanup_after_query()
   if (rli_slave)
     rli_slave->cleanup_after_query();
 #endif
+  // Set the default "cute" mode for the execution environment:
+  count_cuted_fields= CHECK_FIELD_IGNORE;
 }
 
 LEX_CSTRING *
@@ -1867,8 +1886,9 @@ void THD::end_statement()
   DBUG_ENTER("end_statement");
   /* Cleanup SQL processing state to reuse this statement in next query. */
   lex_end(lex);
-  delete lex->result;
-  lex->result= 0;
+  //@todo Check lifetime of Query_result objects.
+  //delete lex->result;
+  lex->result= NULL;           // Prepare for next statement
   /* Note that free_list is freed in cleanup_after_query() */
 
   /*

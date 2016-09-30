@@ -16,14 +16,18 @@
 #ifndef KEY_SPEC_INCLUDED
 #define KEY_SPEC_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+
 #include "m_string.h"
-#include "my_base.h"
 #include "mem_root_array.h"
+#include "my_base.h"
+#include "my_global.h"
 #include "sql_alloc.h"
 #include "sql_list.h"
+#include "thr_malloc.h"
 
 class Create_field;
+class THD;
 
 
 enum keytype {

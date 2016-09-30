@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,10 +15,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_gtid.h"
+#include <stddef.h>
 
+#include "hash.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"      // ER_*
+#include "prealloced_array.h"
 #include "psi_memory_key.h"
+#include "rpl_gtid.h"
 
 Owned_gtids::Owned_gtids(Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock), sidno_to_hash(key_memory_Owned_gtids_sidno_to_hash)

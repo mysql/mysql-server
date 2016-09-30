@@ -16,17 +16,36 @@
 #ifndef DD_CACHE__SHARED_MULTI_MAP_INCLUDED
 #define DD_CACHE__SHARED_MULTI_MAP_INCLUDED
 
-#include "my_global.h"
-#include "malloc_allocator.h"                // Malloc_allocator.
-#include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
-#include "mysqld.h"                          // max_connections
+#include <stdio.h>
+#include <vector>                            // std::vector
 
 #include "cache_element.h"                   // Cache_element
-#include "free_list.h"                       // Free_list
 #include "dd/cache/multi_map_base.h"         // Multi_map_base
+#include "dd/types/abstract_table.h"
+#include "dd/types/charset.h"
+#include "dd/types/collation.h"
 #include "dd/types/dictionary_object_table.h"
+#include "dd/types/event.h"
+#include "dd/types/routine.h"
+#include "dd/types/schema.h"
+#include "dd/types/spatial_reference_system.h"
+#include "dd/types/tablespace.h"
+#include "free_list.h"                       // Free_list
+#include "malloc_allocator.h"                // Malloc_allocator.
+#include "my_global.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
+#include "mysql/psi/psi_base.h"
+#include "mysqld.h"                          // max_connections
+#include "thr_mutex.h"
 
-#include <vector>                            // std::vector
+namespace dd {
+namespace cache {
+template <typename K, typename E> class Element_map;
+template <typename T> class Cache_element;
+}  // namespace cache
+}  // namespace dd
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_object_cache_mutex;

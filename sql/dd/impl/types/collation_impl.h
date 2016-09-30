@@ -16,18 +16,27 @@
 #ifndef DD__COLLATION_IMPL_INCLUDED
 #define DD__COLLATION_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stdio.h>
+#include <sys/types.h>
+#include <new>
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
 #include "dd/types/collation.h"               // dd::Collation
+#include "dd/types/dictionary_object.h"
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Transaction;
+class Open_dictionary_tables_ctx;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -94,20 +103,20 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 public:
-  virtual void debug_print(std::string &outb) const
+  virtual void debug_print(String_type &outb) const
   {
     char outbuf[1024];
     sprintf(outbuf, "COLLATION OBJECT: id= {OID: %lld}, name= %s,"
       "charset_id= {OID: %lld}, is_compiled= %d, sort_length= %u",
       id(), name().c_str(), m_charset_id,
       m_is_compiled, m_sort_length);
-    outb= std::string(outbuf);
+    outb= String_type(outbuf);
   }
 
 private:

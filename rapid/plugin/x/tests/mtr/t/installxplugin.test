@@ -32,7 +32,7 @@ show variables like 'mysqlx_idle_worker_thread_timeout%';
 show variables like 'mysqlx_max_allowed_packet%';
 show variables like 'mysqlx_max_connections%';
 show variables like 'mysqlx_min_worker_threads%';
-SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_LIBRARY_VERSION,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%';
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%';
 -->endsql
 EOF
 
@@ -134,7 +134,7 @@ show variables like 'mysqlx_max_allowed_packet%';
 show variables like 'mysqlx_max_connections%';
 show variables like 'mysqlx_min_worker_threads%';
 --replace_regex /\.dll/.so/
-SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_LIBRARY_VERSION,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%';
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%';
 
 ##uninstall mysqlx plugin with old protocol session when server started with mysqlx plugin variables with other than default values
 uninstall plugin mysqlx;
@@ -150,7 +150,7 @@ show variables like 'mysqlx_idle_worker_thread_timeout%';
 show variables like 'mysqlx_max_allowed_packet%';
 show variables like 'mysqlx_max_connections%';
 show variables like 'mysqlx_min_worker_threads%';
-SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_LIBRARY_VERSION,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%';
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%';
 --replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN mysqlx soname "$MYSQLXPLUGIN"
 

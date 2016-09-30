@@ -126,61 +126,13 @@ FUNCTION(DTRACE_INSTRUMENT target)
         SET_TARGET_PROPERTIES(${target} PROPERTIES LINK_FLAGS "${outfile}")
       ELSE()
         # For static library flags, add the object to the library.
-        # Note: DTrace probes in static libraries are  unusable currently 
-        # (see explanation for DTRACE_INSTRUMENT_STATIC_LIBS below)
-        # but maybe one day this will be fixed.
         GET_TARGET_PROPERTY(target_location ${target} LOCATION)
         ADD_CUSTOM_COMMAND(
           TARGET ${target} POST_BUILD
           COMMAND ${CMAKE_AR} r  ${target_location} ${outfile}
 	  COMMAND ${CMAKE_RANLIB} ${target_location}
           )
-        # Used in DTRACE_INSTRUMENT_WITH_STATIC_LIBS
-        SET(TARGET_OBJECT_DIRECTORY_${target}  ${objdir} CACHE INTERNAL "")
       ENDIF()
     ENDIF()
   ENDIF()
 ENDFUNCTION()
-
-
-# Ugly workaround for Solaris' DTrace inability to use probes
-# from static libraries, discussed e.g in this thread
-# (http://opensolaris.org/jive/thread.jspa?messageID=432454)
-# We have to collect all object files that may be instrumented
-# and go into the mysqld (also those that come from in static libs)
-# run them again through dtrace -G to generate an ELF file that links
-# to mysqld.
-MACRO (DTRACE_INSTRUMENT_STATIC_LIBS target libs)
-IF(HAVE_REAL_DTRACE_INSTRUMENTING AND ENABLE_DTRACE)
-  # Filter out non-static libraries in the list, if any
-  SET(static_libs)
-  FOREACH(lib ${libs})
-    GET_TARGET_PROPERTY(libtype ${lib} TYPE)
-    IF(libtype MATCHES STATIC_LIBRARY)
-      SET(static_libs ${static_libs} ${lib})
-    ENDIF()
-  ENDFOREACH()
-
-  FOREACH(lib ${static_libs})
-    SET(dirs ${dirs} ${TARGET_OBJECT_DIRECTORY_${lib}})
-  ENDFOREACH()
-
-  SET (obj ${CMAKE_CURRENT_BINARY_DIR}/${target}_dtrace_all.o)
-  ADD_CUSTOM_COMMAND(
-  OUTPUT ${obj}
-  DEPENDS ${static_libs}
-  COMMAND ${CMAKE_COMMAND}
-   -DDTRACE=${DTRACE}	  
-   -DOUTFILE=${obj} 
-   -DDFILE=${CMAKE_BINARY_DIR}/include/probes_mysql.d
-   -DDTRACE_FLAGS=${DTRACE_FLAGS}
-   "-DDIRS=${dirs}"
-   -DTYPE=MERGE
-   -P ${CMAKE_SOURCE_DIR}/cmake/dtrace_prelink.cmake
-   VERBATIM
-  )
-  ADD_CUSTOM_TARGET(${target}_dtrace_all  DEPENDS ${obj})
-  ADD_DEPENDENCIES(${target} ${target}_dtrace_all)
-  TARGET_LINK_LIBRARIES(${target} ${obj})
-ENDIF()
-ENDMACRO()

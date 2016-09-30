@@ -17,20 +17,27 @@
 #ifndef TRIGGER_H_INCLUDED
 #define TRIGGER_H_INCLUDED
 
-///////////////////////////////////////////////////////////////////////////
+#include "my_config.h"
+
+#include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
 
 #include "my_global.h"
-#include "m_string.h"                 // LEX_CSTRING
 #include "mysql/mysql_lex_string.h"   // LEX_STRING
+#include "mysql_com.h"
 #include "sql_alloc.h"                // Sql_alloc
-#include "sql_string.h"
 #include "table.h"                    // GRANT_INFO
 #include "trigger_def.h"              // enum_trigger_event_type
+#include "typelib.h"
 
 class Query_tables_list;
-class sp_head;
-class Stored_program_creation_ctx;
 class String;
+class THD;
+class sp_head;
+
 typedef ulonglong sql_mode_t;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;

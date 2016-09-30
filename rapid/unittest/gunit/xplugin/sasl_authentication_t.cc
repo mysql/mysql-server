@@ -25,7 +25,6 @@
 #include "mock/connection.h"
 
 #include <stdexcept>
-#include <boost/scoped_ptr.hpp>
 #include "my_config.h"
 
 
@@ -36,7 +35,6 @@ namespace test
 {
 
 using namespace ::testing;
-using namespace ::xpl::test;
 
 
 template<typename Auth_type>
@@ -50,7 +48,9 @@ public:
     sut = Auth_type::create(mock_session.get());
 
     ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _, _)).WillByDefault(Return(default_error));
-    EXPECT_CALL(mock_connection, options()).WillRepeatedly(Return(ngs::IOptions_session_ptr(mock_options_session.get(), Custom_allocator_with_check<ngs::IOptions_session>(boost::none))));
+    EXPECT_CALL(mock_connection,
+                options()).WillRepeatedly(Return(ngs::IOptions_session_ptr(mock_options_session.get(),
+                                                                           ngs::Custom_allocator_with_check<ngs::IOptions_session>(boost::none))));
     EXPECT_CALL(mock_connection, connection_type()).WillRepeatedly(Return(ngs::Connection_tls));
     EXPECT_CALL(mock_client, connection()).WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(*mock_session, data_context()).WillRepeatedly(ReturnRef(mock_data_context));
@@ -71,8 +71,8 @@ public:
   StrictMock<Mock_sql_data_context>      mock_data_context;
   StrictMock<xpl::test::Mock_client>     mock_client;
   StrictMock<ngs::test::Mock_connection> mock_connection;
-  boost::scoped_ptr<Mock_session>        mock_session;
-  boost::shared_ptr<ngs::test::Mock_options_session> mock_options_session;
+  ngs::unique_ptr<Mock_session>          mock_session;
+  ngs::shared_ptr<ngs::test::Mock_options_session> mock_options_session;
   ngs::Authentication_handler_ptr        sut;
 };
 

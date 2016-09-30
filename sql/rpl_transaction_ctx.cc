@@ -15,10 +15,17 @@
 
 #include "rpl_transaction_ctx.h"
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysqld_error.h"
 #include "mysqld_thd_manager.h" // Global_THD_manager
 #include "rpl_gtid.h"           // rpl_sidno
 #include "sql_class.h"          // THD
-#include "mysqld_thd_manager.h" // Find_thd_with_id
+#include "transaction_info.h"
 
 
 Rpl_transaction_ctx::Rpl_transaction_ctx()

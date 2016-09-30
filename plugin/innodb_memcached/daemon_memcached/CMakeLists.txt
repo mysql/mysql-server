@@ -28,7 +28,7 @@ INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}
 
 		)
 
-SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")
+SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")
 
 # If current CMAKE_C_FLAGS is with Werror, turn it off to compile successfully
 IF(CMAKE_C_FLAGS MATCHES "-Werror")
@@ -39,8 +39,7 @@ ENDIF(CMAKE_C_FLAGS MATCHES "-Werror")
 
 # Set extra flags for the C compiler
 IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_C_FLAGS
-    "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -std=gnu99")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 ENDIF()
 
 
@@ -58,7 +57,7 @@ SET(LIBMEMCACHED_UTILITIES_SOURCES
 
 ADD_CONVENIENCE_LIBRARY(memcached_utilities ${LIBMEMCACHED_UTILITIES_SOURCES})
 
-SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/daemon")
+SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/daemon")
 
 SET(MEMCACHED_SOURCES
 		daemon/memcached_mysql.h

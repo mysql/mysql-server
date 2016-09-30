@@ -15,8 +15,14 @@
 
 #include "rpl_trx_boundary_parser.h"
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "binlog_event.h"
 #include "log.h"           // sql_print_warning
 #include "log_event.h"     // Log_event
+#include "m_string.h"
+#include "my_byteorder.h"
 
 
 #ifndef DBUG_OFF

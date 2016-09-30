@@ -14,16 +14,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "filesort_utils.h"
-#include "opt_costmodel.h"
-#include "psi_memory_key.h"
-#include "sql_const.h"
-#include "sql_sort.h"
-#include "table.h"
 
+#include <string.h>
 #include <algorithm>
 #include <cmath>
 #include <functional>
-#include <vector>
+#include <memory>
+#include <new>
+
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "opt_costmodel.h"
+#include "sql_sort.h"
+#include "thr_malloc.h"
 
 extern "C" {
 PSI_memory_key key_memory_Filesort_buffer_sort_keys;

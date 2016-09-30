@@ -119,7 +119,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_include_master_host_port= 0,
                 opt_events= 0, opt_comments_used= 0,
                 opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
-                opt_secure_auth= TRUE;
+                opt_secure_auth= TRUE, opt_network_timeout= 0;
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -567,6 +567,11 @@ static struct my_option my_long_options[] =
    "Enable/disable the clear text authentication plugin.",
    &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin,
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"network_timeout", 'M',
+   "Allows huge tables to be dumped by setting max_allowed_packet to maximum "
+   "value and net_read_timeout/net_write_timeout to large value.",
+   &opt_network_timeout, &opt_network_timeout, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0,
+   0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1674,6 +1679,19 @@ static int connect_to_db(char *host, char *user,char *passwd)
   mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqldump");
+
+  if (opt_network_timeout)
+  {
+    uint timeout= 700;
+    ulong max_packet_allowed= 1024L*1024L*1024L;
+
+    mysql_options(&mysql_connection,MYSQL_OPT_READ_TIMEOUT,(char*)&timeout);
+    mysql_options(&mysql_connection,MYSQL_OPT_WRITE_TIMEOUT,(char*)&timeout);
+    /* set to maximum value which is 1GB */
+    mysql_options(&mysql_connection,MYSQL_OPT_MAX_ALLOWED_PACKET,
+                  (char*)&max_packet_allowed);
+  }
+
   if (!(mysql= mysql_real_connect(&mysql_connection,host,user,passwd,
                                   NULL,opt_mysql_port,opt_mysql_unix_port,
                                   0)))
@@ -1742,7 +1760,18 @@ static int connect_to_db(char *host, char *user,char *passwd)
               "/*!80000 SET SESSION INFORMATION_SCHEMA_STATS=latest */");
   if (mysql_query_with_error_report(mysql, 0, buff))
     DBUG_RETURN(1);
-
+  /*
+    set network read/write timeout value to a larger value to allow tables with
+    large data to be sent on network without causing connection lost error due
+    to timeout
+  */
+  if (opt_network_timeout)
+  {
+    my_snprintf(buff, sizeof(buff), "SET SESSION NET_READ_TIMEOUT= 700, "
+                "SESSION NET_WRITE_TIMEOUT= 700 ");
+    if (mysql_query_with_error_report(mysql, 0, buff))
+      DBUG_RETURN(1);
+  }
   DBUG_RETURN(0);
 } /* connect_to_db */
 

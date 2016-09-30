@@ -22,23 +22,19 @@
   @file event_data_objects.h
 */
 
-#include "my_global.h"
+#include <sys/types.h>
+
 #include "my_alloc.h"                   // MEM_ROOT
+#include "my_global.h"
+#include "my_psi_config.h"
 #include "my_time.h"                    // interval_type
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
+#include "mysql/psi/psi_statement.h"
 
-#include "my_thread.h"                  // Needed for psi.h
-#include "pfs_stage_provider.h"
-#include "mysql/psi/mysql_stage.h"
-
-#include "pfs_statement_provider.h"
-#include "mysql/psi/mysql_statement.h"
-
-class Field;
 class String;
 class THD;
 class Time_zone;
-struct TABLE;
+
 typedef ulonglong sql_mode_t;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;

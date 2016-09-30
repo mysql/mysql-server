@@ -142,9 +142,143 @@ CREATE OR REPLACE ALGORITHM = TEMPTABLE DEFINER = 'mysql.sys'@'localhost' SQL SE
 
 CREATE OR REPLACE ALGORITHM = TEMPTABLE DEFINER = 'mysql.sys'@'localhost' SQL SECURITY INVOKER  VIEW x$innodb_buffer_stats_by_table ( object_schema, object_name, allocated, data, pages, pages_hashed, pages_old, rows_cached ) AS SELECT IF(LOCATE('.', ibp.table_name) = 0, 'InnoDB System', REPLACE(SUBSTRING_INDEX(ibp.table_name, '.', 1), '`', '')) AS object_schema, REPLACE(SUBSTRING_INDEX(ibp.table_name, '.', -1), '`', '') AS object_name, SUM(IF(ibp.compressed_size = 0, 16384, compressed_size)) AS allocated, SUM(ibp.data_size) AS data, COUNT(ibp.page_number) AS pages, COUNT(IF(ibp.is_hashed = 'YES', 1, NULL)) AS pages_hashed, COUNT(IF(ibp.is_old = 'YES', 1, NULL)) AS pages_old, ROUND(IFNULL(SUM(ibp.number_records)/NULLIF(COUNT(DISTINCT ibp.index_name), 0), 0)) AS rows_cached  FROM information_schema.innodb_buffer_page ibp  WHERE table_name IS NOT NULL GROUP BY object_schema, object_name ORDER BY SUM(IF(ibp.compressed_size = 0, 16384, compressed_size)) DESC;
 
-CREATE OR REPLACE ALGORITHM = TEMPTABLE DEFINER = 'mysql.sys'@'localhost' SQL SECURITY INVOKER  VIEW innodb_lock_waits ( wait_started, wait_age, wait_age_secs, locked_table, locked_index, locked_type, waiting_trx_id, waiting_trx_started, waiting_trx_age, waiting_trx_rows_locked, waiting_trx_rows_modified, waiting_pid, waiting_query, waiting_lock_id, waiting_lock_mode, blocking_trx_id, blocking_pid, blocking_query, blocking_lock_id, blocking_lock_mode, blocking_trx_started, blocking_trx_age, blocking_trx_rows_locked, blocking_trx_rows_modified, sql_kill_blocking_query, sql_kill_blocking_connection ) AS SELECT r.trx_wait_started AS wait_started, TIMEDIFF(NOW(), r.trx_wait_started) AS wait_age, TIMESTAMPDIFF(SECOND, r.trx_wait_started, NOW()) AS wait_age_secs, rl.lock_table AS locked_table, rl.lock_index AS locked_index, rl.lock_type AS locked_type, r.trx_id AS waiting_trx_id, r.trx_started as waiting_trx_started, TIMEDIFF(NOW(), r.trx_started) AS waiting_trx_age, r.trx_rows_locked AS waiting_trx_rows_locked, r.trx_rows_modified AS waiting_trx_rows_modified, r.trx_mysql_thread_id AS waiting_pid, sys.format_statement(r.trx_query) AS waiting_query, rl.lock_id AS waiting_lock_id, rl.lock_mode AS waiting_lock_mode, b.trx_id AS blocking_trx_id, b.trx_mysql_thread_id AS blocking_pid, sys.format_statement(b.trx_query) AS blocking_query, bl.lock_id AS blocking_lock_id, bl.lock_mode AS blocking_lock_mode, b.trx_started AS blocking_trx_started, TIMEDIFF(NOW(), b.trx_started) AS blocking_trx_age, b.trx_rows_locked AS blocking_trx_rows_locked, b.trx_rows_modified AS blocking_trx_rows_modified, CONCAT('KILL QUERY ', b.trx_mysql_thread_id) AS sql_kill_blocking_query, CONCAT('KILL ', b.trx_mysql_thread_id) AS sql_kill_blocking_connection FROM information_schema.innodb_lock_waits w INNER JOIN information_schema.innodb_trx b    ON b.trx_id = w.blocking_trx_id INNER JOIN information_schema.innodb_trx r    ON r.trx_id = w.requesting_trx_id INNER JOIN information_schema.innodb_locks bl ON bl.lock_id = w.blocking_lock_id INNER JOIN information_schema.innodb_locks rl ON rl.lock_id = w.requested_lock_id ORDER BY r.trx_wait_started;
+CREATE OR REPLACE ALGORITHM = TEMPTABLE DEFINER = 'mysql.sys'@'localhost' SQL SECURITY INVOKER  VIEW innodb_lock_waits
+(
+  wait_started,
+  wait_age,
+  wait_age_secs,
+  locked_table_schema,
+  locked_table_name,
+  locked_table_partition,
+  locked_table_subpartition,
+  locked_index,
+  locked_type,
+  waiting_trx_id,
+  waiting_trx_started,
+  waiting_trx_age,
+  waiting_trx_rows_locked,
+  waiting_trx_rows_modified,
+  waiting_pid,
+  waiting_query,
+  waiting_lock_id,
+  waiting_lock_mode,
+  blocking_trx_id,
+  blocking_pid,
+  blocking_query,
+  blocking_lock_id,
+  blocking_lock_mode,
+  blocking_trx_started,
+  blocking_trx_age,
+  blocking_trx_rows_locked,
+  blocking_trx_rows_modified,
+  sql_kill_blocking_query,
+  sql_kill_blocking_connection
+)
+AS SELECT
+  r.trx_wait_started AS wait_started,
+  TIMEDIFF(NOW(), r.trx_wait_started) AS wait_age,
+  TIMESTAMPDIFF(SECOND, r.trx_wait_started, NOW()) AS wait_age_secs,
+  rl.object_schema AS locked_table_schema,
+  rl.object_name AS locked_table_name,
+  rl.partition_name AS locked_table_partition,
+  rl.subpartition_name AS locked_table_subpartition,
+  rl.index_name AS locked_index,
+  rl.lock_type AS locked_type,
+  r.trx_id AS waiting_trx_id,
+  r.trx_started as waiting_trx_started,
+  TIMEDIFF(NOW(), r.trx_started) AS waiting_trx_age,
+  r.trx_rows_locked AS waiting_trx_rows_locked,
+  r.trx_rows_modified AS waiting_trx_rows_modified,
+  r.trx_mysql_thread_id AS waiting_pid,
+  sys.format_statement(r.trx_query) AS waiting_query,
+  rl.engine_lock_id AS waiting_lock_id,
+  rl.lock_mode AS waiting_lock_mode,
+  b.trx_id AS blocking_trx_id,
+  b.trx_mysql_thread_id AS blocking_pid,
+  sys.format_statement(b.trx_query) AS blocking_query,
+  bl.engine_lock_id AS blocking_lock_id,
+  bl.lock_mode AS blocking_lock_mode,
+  b.trx_started AS blocking_trx_started,
+  TIMEDIFF(NOW(), b.trx_started) AS blocking_trx_age,
+  b.trx_rows_locked AS blocking_trx_rows_locked,
+  b.trx_rows_modified AS blocking_trx_rows_modified,
+  CONCAT('KILL QUERY ', b.trx_mysql_thread_id) AS sql_kill_blocking_query,
+  CONCAT('KILL ', b.trx_mysql_thread_id) AS sql_kill_blocking_connection
+FROM performance_schema.data_lock_waits w
+  INNER JOIN information_schema.innodb_trx b  ON b.trx_id = w.blocking_engine_transaction_id
+  INNER JOIN information_schema.innodb_trx r  ON r.trx_id = w.requesting_engine_transaction_id
+  INNER JOIN performance_schema.data_locks bl ON bl.engine_lock_id = w.blocking_engine_lock_id
+  INNER JOIN performance_schema.data_locks rl ON rl.engine_lock_id = w.requesting_engine_lock_id
+  ORDER BY r.trx_wait_started;
 
-CREATE OR REPLACE ALGORITHM = TEMPTABLE DEFINER = 'mysql.sys'@'localhost' SQL SECURITY INVOKER  VIEW x$innodb_lock_waits ( wait_started, wait_age, wait_age_secs, locked_table, locked_index, locked_type, waiting_trx_id, waiting_trx_started, waiting_trx_age, waiting_trx_rows_locked, waiting_trx_rows_modified, waiting_pid, waiting_query, waiting_lock_id, waiting_lock_mode, blocking_trx_id, blocking_pid, blocking_query, blocking_lock_id, blocking_lock_mode, blocking_trx_started, blocking_trx_age, blocking_trx_rows_locked, blocking_trx_rows_modified, sql_kill_blocking_query, sql_kill_blocking_connection ) AS SELECT r.trx_wait_started AS wait_started, TIMEDIFF(NOW(), r.trx_wait_started) AS wait_age, TIMESTAMPDIFF(SECOND, r.trx_wait_started, NOW()) AS wait_age_secs, rl.lock_table AS locked_table, rl.lock_index AS locked_index, rl.lock_type AS locked_type, r.trx_id AS waiting_trx_id, r.trx_started as waiting_trx_started, TIMEDIFF(NOW(), r.trx_started) AS waiting_trx_age, r.trx_rows_locked AS waiting_trx_rows_locked, r.trx_rows_modified AS waiting_trx_rows_modified, r.trx_mysql_thread_id AS waiting_pid, r.trx_query AS waiting_query, rl.lock_id AS waiting_lock_id, rl.lock_mode AS waiting_lock_mode, b.trx_id AS blocking_trx_id, b.trx_mysql_thread_id AS blocking_pid, b.trx_query AS blocking_query, bl.lock_id AS blocking_lock_id, bl.lock_mode AS blocking_lock_mode, b.trx_started AS blocking_trx_started, TIMEDIFF(NOW(), b.trx_started) AS blocking_trx_age, b.trx_rows_locked AS blocking_trx_rows_locked, b.trx_rows_modified AS blocking_trx_rows_modified, CONCAT('KILL QUERY ', b.trx_mysql_thread_id) AS sql_kill_blocking_query, CONCAT('KILL ', b.trx_mysql_thread_id) AS sql_kill_blocking_connection FROM information_schema.innodb_lock_waits w INNER JOIN information_schema.innodb_trx b    ON b.trx_id = w.blocking_trx_id INNER JOIN information_schema.innodb_trx r    ON r.trx_id = w.requesting_trx_id INNER JOIN information_schema.innodb_locks bl ON bl.lock_id = w.blocking_lock_id INNER JOIN information_schema.innodb_locks rl ON rl.lock_id = w.requested_lock_id ORDER BY r.trx_wait_started;
+CREATE OR REPLACE ALGORITHM = TEMPTABLE DEFINER = 'mysql.sys'@'localhost' SQL SECURITY INVOKER  VIEW x$innodb_lock_waits
+(
+  wait_started,
+  wait_age,
+  wait_age_secs,
+  locked_table_schema,
+  locked_table_name,
+  locked_table_partition,
+  locked_table_subpartition,
+  locked_index,
+  locked_type,
+  waiting_trx_id,
+  waiting_trx_started,
+  waiting_trx_age,
+  waiting_trx_rows_locked,
+  waiting_trx_rows_modified,
+  waiting_pid,
+  waiting_query,
+  waiting_lock_id,
+  waiting_lock_mode,
+  blocking_trx_id,
+  blocking_pid,
+  blocking_query,
+  blocking_lock_id,
+  blocking_lock_mode,
+  blocking_trx_started,
+  blocking_trx_age,
+  blocking_trx_rows_locked,
+  blocking_trx_rows_modified,
+  sql_kill_blocking_query,
+  sql_kill_blocking_connection
+)
+AS SELECT
+  r.trx_wait_started AS wait_started,
+  TIMEDIFF(NOW(), r.trx_wait_started) AS wait_age,
+  TIMESTAMPDIFF(SECOND, r.trx_wait_started, NOW()) AS wait_age_secs,
+  rl.object_schema AS locked_table_schema,
+  rl.object_name AS locked_table_name,
+  rl.partition_name AS locked_table_partition,
+  rl.subpartition_name AS locked_table_subpartition,
+  rl.index_name AS locked_index,
+  rl.lock_type AS locked_type,
+  r.trx_id AS waiting_trx_id,
+  r.trx_started as waiting_trx_started,
+  TIMEDIFF(NOW(), r.trx_started) AS waiting_trx_age,
+  r.trx_rows_locked AS waiting_trx_rows_locked,
+  r.trx_rows_modified AS waiting_trx_rows_modified,
+  r.trx_mysql_thread_id AS waiting_pid,
+  r.trx_query AS waiting_query,
+  rl.engine_lock_id AS waiting_lock_id,
+  rl.lock_mode AS waiting_lock_mode,
+  b.trx_id AS blocking_trx_id,
+  b.trx_mysql_thread_id AS blocking_pid,
+  b.trx_query AS blocking_query,
+  bl.engine_lock_id AS blocking_lock_id,
+  bl.lock_mode AS blocking_lock_mode,
+  b.trx_started AS blocking_trx_started,
+  TIMEDIFF(NOW(), b.trx_started) AS blocking_trx_age,
+  b.trx_rows_locked AS blocking_trx_rows_locked,
+  b.trx_rows_modified AS blocking_trx_rows_modified,
+  CONCAT('KILL QUERY ', b.trx_mysql_thread_id) AS sql_kill_blocking_query,
+  CONCAT('KILL ', b.trx_mysql_thread_id) AS sql_kill_blocking_connection
+FROM performance_schema.data_lock_waits w
+  INNER JOIN information_schema.innodb_trx b  ON b.trx_id = w.blocking_engine_transaction_id
+  INNER JOIN information_schema.innodb_trx r  ON r.trx_id = w.requesting_engine_transaction_id
+  INNER JOIN performance_schema.data_locks bl ON bl.engine_lock_id = w.blocking_engine_lock_id
+  INNER JOIN performance_schema.data_locks rl ON rl.engine_lock_id = w.requesting_engine_lock_id
+  ORDER BY r.trx_wait_started;
 
 --  ROUTINE_SCHEMA COLLATE UTF8_GENERAL_CI AS db
 

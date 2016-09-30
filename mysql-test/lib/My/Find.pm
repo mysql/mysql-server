@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -236,8 +236,8 @@ sub find_error {
   push(@names, ref $names eq "ARRAY" ? @$names : $names);
   push(@paths, ref $paths eq "ARRAY" ? @$paths : $paths);
 
-  croak "** ERROR: Could not find ",
-    commify(fnuttify(@names)), " in ",
+  croak "mysql-test-run: *** ERROR: Could not find",
+    commify(fnuttify(@names)), " in ...\n",
       commify(fnuttify(my_find_paths($base, $paths, $names))), "\n";
 }
 

@@ -57,7 +57,7 @@ public:
   }
 
   StrictMock<Mock_connection>        mock_connection;
-  boost::shared_ptr<Mock_options_session>    mock_options;
+  ngs::shared_ptr<Mock_options_session>    mock_options;
   StrictMock<xpl::test::Mock_client> mock_client;
 
   Capability_tls                     sut;
@@ -272,13 +272,13 @@ public:
   CapabilityHanderAuthMechTestSuite()
   : sut(mock_client)
   {
-    mock_server = boost::make_shared< StrictMock<Mock_server> >();
+    mock_server = ngs::make_shared< StrictMock<Mock_server> >();
 
     EXPECT_CALL(mock_client, connection()).WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(mock_client, server()).WillRepeatedly(ReturnRef(*mock_server));
   }
 
-  boost::shared_ptr<StrictMock<Mock_server> > mock_server;
+  ngs::shared_ptr<StrictMock<Mock_server> > mock_server;
 
   StrictMock<Mock_connection>        mock_connection;
   StrictMock<xpl::test::Mock_client> mock_client;

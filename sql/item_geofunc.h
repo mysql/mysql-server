@@ -17,19 +17,39 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-/* This file defines all spatial functions */
-#include "inplace_vector.h"
-#include "item_cmpfunc.h"      // Item_bool_func2
-#include "prealloced_array.h"
-#include "spatial.h"           // gis_wkb_raw_free
-#include "item_strfunc.h"      // Item_str_func
-#include "item_json_func.h"    // Item_json_func
-
+#include <stddef.h>
+#include <sys/types.h>
 #include <vector>
 
-class Json_dom;
+#include "binary_log_types.h"
+#include "enum_query_type.h"
+#include "field.h"
+/* This file defines all spatial functions */
+#include "inplace_vector.h"
+#include "item.h"
+#include "item_cmpfunc.h"      // Item_bool_func2
+#include "item_func.h"
+#include "item_json_func.h"    // Item_json_func
+#include "item_strfunc.h"      // Item_str_func
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "parse_tree_node_base.h"
+#include "prealloced_array.h"
+#include "spatial.h"           // gis_wkb_raw_free
+#include "sql_string.h"
+
 class Json_array;
+class Json_dom;
 class Json_object;
+class Json_wrapper;
+class PT_item_list;
+class THD;
+struct TABLE;
+
 enum class enum_json_type;
 
 /**

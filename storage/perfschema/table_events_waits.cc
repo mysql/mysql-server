@@ -735,8 +735,8 @@ int table_events_waits_common::read_row_values(TABLE *table,
   Field *f;
   const LEX_STRING *operation;
 
-  compile_time_assert(COUNT_OPERATION_TYPE ==
-                      array_elements(operation_names_map));
+  static_assert(COUNT_OPERATION_TYPE == array_elements(operation_names_map),
+                "COUNT_OPERATION_TYPE needs to be the last element.");
 
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;

@@ -16,18 +16,25 @@
 #ifndef OPT_TRACE_INCLUDED
 #define OPT_TRACE_INCLUDED
 
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "my_compiler.h"
+#include "my_config.h"
 #include "my_global.h"
 #include "my_sqlcommand.h"     // enum_sql_command
 #include "opt_trace_context.h" // Opt_trace_context
 
-struct st_schema_table;
-struct TABLE_LIST;
-struct TABLE;
-class sp_head;
-class sp_printable;
-class set_var_base;
 class Cost_estimate;
 class Item;
+class THD;
+class set_var_base;
+class sp_head;
+class sp_printable;
+struct TABLE_LIST;
+
 typedef struct charset_info_st CHARSET_INFO;
 template <class T> class List;
 
@@ -358,7 +365,6 @@ template <class T> class List;
   and then @ref opt_trace.h as a whole.
 */
 
-class Opt_trace_struct;
 class Opt_trace_stmt;           // implementation detail local to opt_trace.cc
 
 
@@ -1038,6 +1044,7 @@ private:
 
 
 class SELECT_LEX;
+
 /**
    Prints SELECT query to optimizer trace. It is not the original query (as in
    @c Opt_trace_context::set_query()) but a printout of the parse tree

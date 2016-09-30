@@ -35,6 +35,7 @@
 #include "mysql/psi/psi_transaction.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/psi/psi_error.h"
+#include "mysql/psi/psi_data_lock.h"
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -69,7 +70,7 @@
   #define PFS_STATEMENTS_STACK_SIZE 10
 #endif
 #ifndef PFS_MAX_MEMORY_CLASS
-  #define PFS_MAX_MEMORY_CLASS 350
+  #define PFS_MAX_MEMORY_CLASS 450
 #endif
 
 #ifndef PFS_MAX_SERVER_ERRORS
@@ -307,6 +308,7 @@ void set_embedded_performance_schema_param(PFS_global_param *param);
   @param [out] transaction_bootstrap Transaction instrumentation service bootstrap
   @param [out] memory_bootstrap Memory instrumentation service bootstrap
   @param [out] error_bootstrap Error instrumentation service bootstrap
+  @param [out] data_lock_bootstrap Data Lock instrumentation service bootstrap
   @returns
     @retval 0 success
 */
@@ -325,7 +327,8 @@ initialize_performance_schema(PFS_global_param *param,
   PSI_statement_bootstrap ** statement_bootstrap,
   PSI_transaction_bootstrap ** transaction_bootstrap,
   PSI_memory_bootstrap ** memory_bootstrap,
-  PSI_error_bootstrap ** error_bootstrap);
+  PSI_error_bootstrap ** error_bootstrap,
+  PSI_data_lock_bootstrap ** data_lock_bootstrap);
 
 void pfs_automated_sizing(PFS_global_param *param);
 

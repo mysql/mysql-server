@@ -33,7 +33,7 @@ namespace ngs
 {
 
 class Output_buffer;
-typedef Memory_new<Output_buffer>::Unique_ptr Output_buffer_unique_ptr;
+typedef ngs::Memory_instrumented<Output_buffer>::Unique_ptr Output_buffer_unique_ptr;
 
 class Output_buffer : public Buffer, public google::protobuf::io::ZeroCopyOutputStream
 {

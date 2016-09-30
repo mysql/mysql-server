@@ -117,7 +117,7 @@ void generate_expression(Query_string_builder &qb, const T &expr,
 
 
 template<typename T>
-std::string generate_expression(const T &expr,
+ngs::PFS_string generate_expression(const T &expr,
                                 const Expression_generator::Args &args,
                                 const std::string &default_schema,
                                 bool is_relational)
@@ -136,7 +136,7 @@ void generate_expression(Query_string_builder &qb, const T &expr, const std::str
 
 
 template<typename T>
-std::string generate_expression(const T &expr, const std::string &default_schema, bool is_relational)
+ngs::PFS_string generate_expression(const T &expr, const std::string &default_schema, bool is_relational)
 {
   return generate_expression(expr, Expression_generator::Args(), default_schema, is_relational);
 }

@@ -17,16 +17,26 @@
 
 #include "connection_handler_manager.h"
 
-#include "mysql/thread_pool_priv.h"    // create_thd
-#include "mysql/service_thd_wait.h"
-#include "mysqld_error.h"              // ER_*
+#include <new>
+
 #include "channel_info.h"              // Channel_info
 #include "connection_handler_impl.h"   // Per_thread_connection_handler
+#include "current_thd.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_thd_wait.h"
 #include "mysqld.h"                    // max_connections
+#include "mysqld_error.h"              // ER_*
 #include "plugin_connection_handler.h" // Plugin_connection_handler
 #include "sql_callback.h"              // MYSQL_CALLBACK
-#include "sql_class.h"                 // THD
-#include "current_thd.h"
+#include "thr_lock.h"
+#include "thr_mutex.h"
+
+struct Connection_handler_functions;
 
 
 // Initialize static members

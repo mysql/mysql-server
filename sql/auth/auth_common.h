@@ -16,27 +16,35 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "auth_acls.h"                          /* ACL information */
-#include "sql_string.h"                         /* String */
-#include "mysql_com.h"                          /* enum_server_command */
-#include "sql_list.h"                           /* List */
-#include "template_utils.h"
+#include <stddef.h>
+#include <sys/types.h>
 #include <set>
-#include <vector>
-#include <list>
 #include <utility>
+#include <vector>
+
+#include "auth_acls.h"                          /* ACL information */
+#include "m_string.h"
+#include "my_command.h"
+#include "my_dbug.h"
+#include "my_config.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_string.h"                         /* String */
+#include "template_utils.h"
+#include "thr_malloc.h"
+
 /* Forward Declarations */
 class Alter_info;
 class Field_iterator_table_ref;
 class LEX_COLUMN;
 class THD;
+template <class T> class List;
+
 typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
 typedef struct st_lex_user LEX_USER;
 typedef struct st_ha_create_information HA_CREATE_INFO;
-struct GRANT_INFO;
 class Item;
-struct LEX;
+struct GRANT_INFO;
+
 typedef struct user_conn USER_CONN;
 class Security_context;
 struct TABLE;
@@ -595,11 +603,6 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists);
 bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists);
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 
-bool set_and_validate_user_attributes(THD *thd,
-                                      LEX_USER *Str,
-                                      ulong &what_to_set,
-                                      bool is_privileged_user);
-
 /* sql_auth_cache */
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
@@ -676,12 +679,6 @@ const ACL_internal_schema_access *
 get_cached_schema_access(GRANT_INTERNAL_INFO *grant_internal_info,
                          const char *schema_name);
 
-bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
-                     TABLE_LIST *first_table);
-bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
-                     TABLE_LIST *first_table, bool in_prepare_stage);
-bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
-bool delete_precheck(THD *thd, TABLE_LIST *tables);
 bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
@@ -756,6 +753,7 @@ check_table_access(THD*, ulong, TABLE_LIST*, bool, uint, bool)
 { return false; }
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 
+bool check_show_access(THD *thd, TABLE_LIST *table);
 bool check_global_access(THD *thd, ulong want_access);
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
@@ -782,6 +780,11 @@ ulong get_global_acl_cache_size();
 extern my_bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #endif /* HAVE_OPENSSL && !HAVE_YASSL */
+
+#define DEFAULT_SSL_CA_CERT     "ca.pem"
+#define DEFAULT_SSL_CA_KEY      "ca-key.pem"
+#define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
+#define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
 
 #endif /* AUTH_COMMON_INCLUDED */
 

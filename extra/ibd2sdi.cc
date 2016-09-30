@@ -2145,17 +2145,17 @@ ibd2sdi::copy_uncompressed_blob(
 		}
 
 		part_len = mach_read_from_4(page_buf + FIL_PAGE_DATA
-					    + BTR_BLOB_HDR_PART_LEN);
+					    + lob::LOB_HDR_PART_LEN);
 
 		memcpy(dest_buf + calc_length,
-		       page_buf + FIL_PAGE_DATA + BTR_BLOB_HDR_SIZE,
+		       page_buf + FIL_PAGE_DATA + lob::LOB_HDR_SIZE,
 		       static_cast<size_t>(part_len));
 
 		calc_length += part_len;
 
 		next_page_num = mach_read_from_4(
 			page_buf + FIL_PAGE_DATA
-			+ BTR_BLOB_HDR_NEXT_PAGE_NO);
+			+ lob::LOB_HDR_NEXT_PAGE_NO);
 
 		if (next_page_num <= SDI_BLOB_ALLOWED) {
 			ib::error() << "Unexpected next BLOB page number. "
@@ -2233,7 +2233,7 @@ ibd2sdi::copy_compressed_blob(
 		}
 
 		part_len = mach_read_from_4(page_buf + FIL_PAGE_DATA
-					    + BTR_BLOB_HDR_PART_LEN);
+					    + lob::LOB_HDR_PART_LEN);
 
 		page_no_t	next_page_num = mach_read_from_4(
 			page_buf + FIL_PAGE_NEXT);

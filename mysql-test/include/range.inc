@@ -1714,7 +1714,10 @@ CREATE TABLE t1 (
  PRIMARY KEY (c,a), KEY (a),KEY (a)
 ) ENGINE=INNODB PARTITION BY KEY () PARTITIONS 2;
 INSERT INTO t1 VALUES (1,5,1),(2,4,1),(3,3,1),(4,2,1),(5,1,1);
+# Disabled by WL#5094
+--disable_warnings
 UPDATE t1 SET b = 0, c=1 WHERE a <=>0;
+--enable_warnings
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -2502,3 +2505,59 @@ WHERE id IN (66136539, 68983258, 89628210, 77869520, 82543198, 67538272,
 
 DROP PROCEDURE p;
 DROP TABLE giant_table, t1;
+
+--echo #
+--echo # Bug#22671573: SIG11 IN SEL_ARG::RB_INSERT |SQL/OPT_RANGE.CC
+--echo #
+--echo # Tests creating an empty tree (impossible condition) and then ANDing with it.
+--echo #
+
+CREATE TABLE t1 (
+ a INT,
+ b INT,
+ KEY test_idx (b, a)
+);
+
+SELECT * FROM t1 WHERE b BETWEEN 8 AND 8 AND a > 8 AND a <= 8;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Indirectly tests inserting a node into an empty (impossible) tree.
+--echo #
+
+CREATE TABLE t1 (
+ pk INT,
+ PRIMARY KEY ( pk )
+);
+
+SELECT * FROM t1 WHERE pk = 6 OR pk > 6;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Indirectly tests ORing with an empty (impossible) tree.
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT,
+  KEY (col_int_key)
+);
+
+SELECT * FROM t1 WHERE col_int_key IS NULL OR col_int_key < 9 OR col_int_key = 9;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Indirectly tests deleting the last node from a tree
+--echo # (which makes it IMPOSSIBLE) and then inserting more than one node.
+--echo #
+
+CREATE TABLE t1 (
+  a VARCHAR(64),
+  KEY a (a)
+);
+
+SELECT * FROM t1 WHERE a IS NULL OR a NOT IN ( 'foo', 'bar' );
+
+DROP TABLE t1;

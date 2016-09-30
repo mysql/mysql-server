@@ -22,45 +22,86 @@
 
 #include "item_func.h"
 
-#include "my_bit.h"              // my_count_bits
-#include "my_user.h"             // parse_user
-#include "auth_common.h"         // check_password_strength
-#include "binlog.h"              // mysql_bin_log
-#include "current_thd.h"         // current_thd
-#include "dd_sql_view.h"         // push_view_warning_or_error
-#include "debug_sync.h"          // DEBUG_SYNC
-#include "derror.h"              // ER_THD
-#include "error_handler.h"       // Internal_error_handler
-#include "item_cmpfunc.h"        // get_datetime_value
-#include "item_strfunc.h"        // Item_func_concat_ws
-#include <mysql/service_thd_wait.h>
-#include "mysqld.h"              // log_10 stage_user_sleep
-#include "parse_tree_helpers.h"  // PT_item_list
-#include "psi_memory_key.h"
-#include "query_result.h"        // sql_exchange
-#include "rpl_mi.h"              // Master_info
-#include "rpl_msr.h"             // channel_map
-#include "rpl_rli.h"             // Relay_log_info
-#include "sp.h"                  // sp_find_routine
-#include "sp_head.h"             // sp_name
-#include "sql_audit.h"           // audit_global_variable
-#include "sql_base.h"            // Internal_error_handler_holder
-#include "sql_class.h"           // THD
-#include "sql_optimizer.h"       // JOIN
-#include "sql_parse.h"           // check_stack_overrun
-#include "sql_show.h"            // append_identifier
-#include "sql_time.h"            // TIME_from_longlong_packed
-#include "strfunc.h"             // find_type
-#include "dd/properties.h"       // dd::Properties
-#include "dd_table_share.h"      // dd_get_old_field_type
-#include "dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
-#include "val_int_compare.h"     // Integer_value
-#include "json_dom.h"            // Json_wrapper
-
+#include <string.h>
+#include <time.h>
+#include <algorithm>
 #include <cfloat>                // DBL_DIG
 #include <cmath>                 // std::log2
 #include <exception>             // std::exception subclasses
-#include <functional>
+#include <iosfwd>
+#include <memory>
+#include <new>
+#include <stdexcept>
+#include <string>
+
+#include "auth_acls.h"
+#include "auth_common.h"         // check_password_strength
+#include "binlog.h"              // mysql_bin_log
+#include "check_stack.h"
+#include "current_thd.h"         // current_thd
+#include "dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
+#include "dd/object_id.h"
+#include "dd/properties.h"       // dd::Properties
+#include "dd_sql_view.h"         // push_view_warning_or_error
+#include "dd_table_share.h"      // dd_get_old_field_type
+#include "debug_sync.h"          // DEBUG_SYNC
+#include "derror.h"              // ER_THD
+#include "error_handler.h"       // Internal_error_handler
+#include "hash.h"
+#include "item_cmpfunc.h"        // get_datetime_value
+#include "item_create.h"
+#include "item_strfunc.h"        // Item_func_concat_ws
+#include "json_dom.h"            // Json_wrapper
+#include "key.h"
+#include "log_event.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_bit.h"              // my_count_bits
+#include "my_bitmap.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_thread.h"
+#include "my_user.h"             // parse_user
+#include "mysql/plugin.h"
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_mysql_password_policy.h"
+#include "mysql/service_thd_wait.h"
+#include "mysqld.h"              // log_10 stage_user_sleep
+#include "parse_tree_helpers.h"  // PT_item_list
+#include "prealloced_array.h"
+#include "psi_memory_key.h"
+#include "query_result.h"        // sql_exchange
+#include "rpl_gtid.h"
+#include "rpl_mi.h"              // Master_info
+#include "rpl_msr.h"             // channel_map
+#include "rpl_rli.h"             // Relay_log_info
+#include "session_tracker.h"
+#include "sp.h"                  // sp_setup_routine
+#include "sp_head.h"             // sp_name
+#include "sql_audit.h"           // audit_global_variable
+#include "sql_base.h"            // Internal_error_handler_holder
+#include "sql_bitmap.h"
+#include "sql_class.h"           // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_optimizer.h"       // JOIN
+#include "sql_parse.h"           // check_stack_overrun
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_show.h"            // append_identifier
+#include "sql_time.h"            // TIME_from_longlong_packed
+#include "strfunc.h"             // find_type
+#include "thr_mutex.h"
+#include "val_int_compare.h"     // Integer_value
+
+class Protocol;
+class sp_rcontext;
 
 using std::min;
 using std::max;
@@ -379,26 +420,18 @@ void Item_func::traverse_cond(Cond_traverser traverser,
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_func object. 
-  @param transformer   the transformer callback function to be applied to
-                       the nodes of the tree of the object
-  @param argument      parameter to be passed to the transformer
-
-  @return
-    Item returned as the result of transformation of the root node
 */
 
 Item *Item_func::transform(Item_transformer transformer, uchar *argument)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
-
   if (arg_count)
   {
     Item **arg,**arg_end;
     for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
     {
       Item *new_item= (*arg)->transform(transformer, argument);
-      if (!new_item)
-	return 0;
+      if (new_item == NULL)
+        return NULL;                 /* purecov: inspected */
 
       /*
         THD::change_item_tree() should be called only if the tree was
@@ -419,24 +452,13 @@ Item *Item_func::transform(Item_transformer transformer, uchar *argument)
   callback functions.
 
     First the function applies the analyzer to the root node of
-    the Item_func object. Then if the analizer succeeeds (returns TRUE)
+    the Item_func object. Then if the analyzer succeeeds (returns TRUE)
     the function recursively applies the compile method to each argument
     of the Item_func node.
     If the call of the method for an argument item returns a new item
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_func object. 
-
-  @param analyzer      the analyzer callback function to be applied to the
-                       nodes of the tree of the object
-  @param[in,out] arg_p parameter to be passed to the processor
-  @param transformer   the transformer callback function to be applied to the
-                       nodes of the tree of the object
-  @param arg_t         parameter to be passed to the transformer
-
-  @return              Item returned as result of transformation of the node,
-                       the same item if no transformation applied, or NULL if
-                       transformation caused an error.
 */
 
 Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
@@ -5401,7 +5423,7 @@ int Interruptible_wait::wait(mysql_cond_t *cond, mysql_mutex_t *mutex)
       timeout= m_abs_timeout;
 
     error= mysql_cond_timedwait(cond, mutex, &timeout);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
     {
       /* Return error if timed out or connection is broken. */
       if (!cmp_timespec(&timeout, &m_abs_timeout) || !m_thd->is_connected())
@@ -6202,7 +6224,7 @@ longlong Item_func_sleep::val_int()
   while (!thd->killed)
   {
     error= timed_cond.wait(&cond, &LOCK_item_func_sleep);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
       break;
     error= 0;
   }
@@ -8209,7 +8231,7 @@ bool Item_func_match::fix_index()
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
         (flags & FT_BOOL ? table->keys_in_use_for_query.is_set(keynr) :
-                           table->s->keys_in_use.is_set(keynr)))
+         table->s->usable_indexes().is_set(keynr)))
 
     {
       ft_to_key[fts]=keynr;
@@ -8660,8 +8682,8 @@ Item_func_sp::init_result_field(THD *thd)
   Internal_error_handler_holder<View_error_handler, TABLE_LIST>
     view_handler(thd, context->view_error_handler,
                  context->view_error_handler_arg);
-  if (!(m_sp= sp_find_routine(thd, enum_sp_type::FUNCTION, m_name,
-                               &thd->sp_func_cache, TRUE)))
+  if (!(m_sp= sp_setup_routine(thd, enum_sp_type::FUNCTION, m_name,
+                               &thd->sp_func_cache)))
   {
     my_missing_function_error (m_name->m_name, m_name->m_qname.str);
     DBUG_RETURN(TRUE);

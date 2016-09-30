@@ -366,5 +366,37 @@ SET PERSIST join_buffer_size= 262144;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
+--echo #
+--echo # Bug24569624: "SET PERSIST GENERAL_LOG=1" DOES NOT RESUME ON RESTART.
+--echo #
+
+SET PERSIST general_log=ON;
+SET PERSIST autocommit= 0, innodb_deadlock_detect= OFF;
+SET PERSIST enforce_gtid_consistency=ON;
+
+SELECT @@global.general_log, @@global.autocommit,
+       @@global.innodb_deadlock_detect, @@global.enforce_gtid_consistency;
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT @@global.general_log, @@global.autocommit,
+       @@global.innodb_deadlock_detect, @@global.enforce_gtid_consistency;
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo # Restart server with all defaults
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
 SELECT 'END OF TEST';
 

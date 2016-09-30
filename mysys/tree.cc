@@ -56,12 +56,14 @@
   ft_boolean_search.c (at least) relies on that.
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
 #include <m_string.h>
 #include <my_tree.h>
+
 #include "my_base.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys_priv.h"
 
 #define BLACK		1
 #define RED		0

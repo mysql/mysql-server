@@ -15,10 +15,17 @@
 
 #include "dd/impl/transaction_impl.h"
 
-#include "sql_base.h"                        // MYSQL_LOCK_IGNORE_TIMEOUT
+#include <stddef.h>
+#include <new>
+#include <utility>
 
-#include "dd/properties.h"                   // Needed for destructor
 #include "dd/impl/raw/raw_table.h"           // dd::Raw_table
+#include "my_dbug.h"
+#include "query_options.h"
+#include "sql_base.h"                        // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "sql_lex.h"
+#include "system_variables.h"
+#include "table.h"
 
 namespace dd {
 
@@ -35,7 +42,7 @@ Open_dictionary_tables_ctx::~Open_dictionary_tables_ctx()
 }
 
 
-void Open_dictionary_tables_ctx::add_table(const std::string &name)
+void Open_dictionary_tables_ctx::add_table(const String_type &name)
 {
   if (!m_tables[name])
     m_tables[name]= new (std::nothrow) Raw_table(m_lock_type, name);
@@ -119,7 +126,7 @@ bool Open_dictionary_tables_ctx::open_tables()
 }
 
 
-Raw_table *Open_dictionary_tables_ctx::get_table(const std::string &name) const
+Raw_table *Open_dictionary_tables_ctx::get_table(const String_type &name) const
 {
   Object_table_map::const_iterator it= m_tables.find(name);
 

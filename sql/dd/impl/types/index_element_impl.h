@@ -16,12 +16,17 @@
 #ifndef DD__INDEX_ELEMENT_IMPL_INCLUDED
 #define DD__INDEX_ELEMENT_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
+#include <string>
 
 #include "dd/impl/types/index_impl.h"       // dd::Index_impl
 #include "dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "dd/sdi_fwd.h"
 #include "dd/types/index_element.h"         // dd::Index_element
 #include "dd/types/object_type.h"           // dd::Object_type
+#include "my_global.h"
 
 namespace dd {
 
@@ -29,8 +34,14 @@ namespace dd {
 
 class Index;
 class Index_impl;
-class Raw_record;
 class Open_dictionary_tables_ctx;
+class Raw_record;
+class Column;
+class Object_key;
+class Object_table;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -159,7 +170,7 @@ public:
                                    Index_impl *index);
 
 public:
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   virtual Object_key *create_primary_key() const;

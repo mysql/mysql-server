@@ -16,11 +16,16 @@
 #ifndef MYSQLD_THD_MANAGER_INCLUDED
 #define MYSQLD_THD_MANAGER_INCLUDED
 
+#include <stddef.h>
+#include <sys/types.h>
+#include <atomic>
+
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread_local.h"   // my_thread_id
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "prealloced_array.h"
-
-#include <atomic>
 
 class THD;
 

@@ -15,15 +15,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <functional>
+#include <sstream>
+
 #include "client_priv.h"
 #include "my_default.h"
-#include <sstream>
 #include "help_options.h"
 #include "abstract_program.h"
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 using namespace Mysql::Tools::Base::Options;
+using std::placeholders::_1;
 using Mysql::Tools::Base::Abstract_program;
 using std::string;
 
@@ -37,13 +40,13 @@ void Help_options::create_options()
 {
   this->create_new_option("help", "Display this help message and exit.")
     ->set_short_character('?')
-    ->add_callback(new Instance_callback<void, char*, Help_options>(
-    this, &Help_options::help_callback));
+    ->add_callback(new std::function<void(char*)>(
+     std::bind(&Help_options::help_callback, this, _1)));
 
   this->create_new_option("version", "Output version information and exit.")
     ->set_short_character('V')
-    ->add_callback(new Instance_callback<void, char*, Help_options>(
-    this, &Help_options::version_callback));
+    ->add_callback(new std::function<void(char*)>(
+    std::bind(&Help_options::version_callback, this, _1)));
 }
 
 void Help_options::help_callback(char* argument MY_ATTRIBUTE((unused)))

@@ -16,7 +16,6 @@
 #ifndef BOOTSTRAP_H
 #define BOOTSTRAP_H
 
-#include "my_global.h"
 #include "mysql/thread_type.h"              // enum_thread_type
 
 typedef struct st_mysql_file MYSQL_FILE;

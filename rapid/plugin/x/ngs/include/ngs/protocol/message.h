@@ -45,38 +45,48 @@ namespace ngs
   {
   public:
     Request(int8_t type)
-    : m_type(type), m_message(NULL), m_owns_message(false) {}
+    : m_raw_data(NULL), m_raw_data_size(0),
+      m_type(type), m_message(NULL), m_owns_message(false) {}
 
     ~Request()
     {
       if (m_owns_message)
-        delete m_message;
+        ngs::free_object(m_message);
     }
 
     void set_parsed_message(Message *message, bool free_on_delete)
     {
-      if (m_message && m_owns_message)
-        delete m_message;
+      if (m_owns_message)
+        ngs::free_object(m_message);
+
       m_message = message;
       m_owns_message = free_on_delete;
 
-      // if we have the parsed version of the message, we don't need the raw version
-      m_raw_data.clear();
+      // we do not own this buffer, it is managed elsewhere
+      m_raw_data = NULL;
+      m_raw_data_size = 0;
     }
 
     int8_t get_type() const { return m_type; }
     const Message *message() const { return m_message; }
-    std::string &buffer() { return m_raw_data; }
+    void buffer(char* ptr, std::size_t size)
+    {
+      m_raw_data = ptr;
+      m_raw_data_size = size;
+    }
+
+    char* buffer() {return m_raw_data;}
+    std::size_t buffer_size() {return m_raw_data_size;}
 
   private:
-    std::string m_raw_data;
+    char* m_raw_data;
+    std::size_t m_raw_data_size;
     int8_t m_type;
     Message *m_message;
     bool m_owns_message;
   };
 
-  typedef Memory_new<Request>::Unique_ptr Request_unique_ptr;
-
+  typedef ngs::Memory_instrumented<Request>::Unique_ptr Request_unique_ptr;
 } // namespace ngs
 
 #endif // _NGS_MESSAGE_H_

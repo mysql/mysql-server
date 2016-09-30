@@ -15,16 +15,36 @@
 
 #include "parse_tree_nodes.h"
 
-#include "sp_instr.h"       // sp_instr_set
-#include "sql_delete.h"     // Sql_cmd_delete_multi, Sql_cmd_delete
-#include "sql_insert.h"     // Sql_cmd_insert...
-#include "mysqld.h"         // global_system_variables
-#include "sp_pcontext.h"
-#include "key_spec.h"
-#include "derror.h"         // ER_THD
-#include "parse_tree_column_attrs.h" // PT_field_def_base
-#include "parse_tree_partitions.h" // PT_partition
+#include <string.h>
+
 #include "dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
+#include "derror.h"         // ER_THD
+#include "key_spec.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "mysqld.h"         // global_system_variables
+#include "parse_tree_column_attrs.h" // PT_field_def_base
+#include "parse_tree_hints.h"
+#include "parse_tree_partitions.h" // PT_partition
+#include "prealloced_array.h"
+#include "query_options.h"
+#include "session_tracker.h"
+#include "sp.h"             // sp_add_used_routine
+#include "sp_instr.h"       // sp_instr_set
+#include "sp_pcontext.h"
+#include "sql_call.h"       // Sql_cmd_call...
+#include "sql_data_change.h"
+#include "sql_delete.h"     // Sql_cmd_delete...
+#include "sql_do.h"         // Sql_cmd_do...
+#include "sql_error.h"
+#include "sql_insert.h"     // Sql_cmd_insert...
+#include "sql_select.h"     // Sql_cmd_select...
+#include "sql_string.h"
+#include "sql_update.h"     // Sql_cmd_update...
+#include "system_variables.h"
+#include "trigger_def.h"
+
+class Sql_cmd;
 
 
 PT_joined_table *PT_table_reference::add_cross_join(PT_cross_join* cj)
@@ -504,12 +524,24 @@ bool PT_select_sp_var::contextualize(Parse_context *pc)
 }
 
 
+Sql_cmd *PT_select_stmt::make_cmd(THD *thd)
+{
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize(&pc))
+    return NULL;
+
+  if (thd->lex->sql_command == SQLCOM_SELECT)
+    return new (thd->mem_root) Sql_cmd_select(thd->lex->result);
+  else // (thd->lex->sql_command == SQLCOM_DO)
+    return new (thd->mem_root) Sql_cmd_do(NULL);
+}
+
 /*
   Given a table in the source list, find a correspondent table in the
-  table references list.
+  list of table references.
 
-  @param src Source table to match.
-  @param ref Table references list.
+  @param tbl    Source table to match.
+  @param tables Table references list.
 
   @remark The source table list (tables listed before the FROM clause
   or tables listed in the FROM clause before the USING clause) may
@@ -517,7 +549,7 @@ bool PT_select_sp_var::contextualize(Parse_context *pc)
   and only one, table in the target table list (table references list,
   after FROM/USING clause).
 
-  @return Matching table, NULL otherwise.
+  @return Matching table, NULL if error.
 */
 
 static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl, TABLE_LIST *tables)
@@ -560,31 +592,29 @@ static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl, TABLE_LIST *tables)
 
 
 /**
-  Link tables in auxilary table list of multi-delete with corresponding
+  Link tables in auxiliary table list of multi-delete with corresponding
   elements in main table list, and set proper locks for them.
 
   @param pc   Parse context
+  @param delete_tables  List of tables to delete from
 
-  @retval
-    FALSE   success
-  @retval
-    TRUE    error
+  @returns false if success, true if error
 */
 
-static bool multi_delete_set_locks_and_link_aux_tables(Parse_context *pc)
+static bool multi_delete_link_tables(Parse_context *pc,
+                                     SQL_I_List<TABLE_LIST> *delete_tables)
 {
-  LEX * const lex= pc->thd->lex;
-  TABLE_LIST *tables= pc->select->table_list.first;
-  TABLE_LIST *target_tbl;
-  DBUG_ENTER("multi_delete_set_locks_and_link_aux_tables");
+  DBUG_ENTER("multi_delete_link_tables");
 
-  for (target_tbl= lex->auxiliary_table_list.first;
+  TABLE_LIST *tables= pc->select->table_list.first;
+
+  for (TABLE_LIST *target_tbl= delete_tables->first;
        target_tbl; target_tbl= target_tbl->next_local)
   {
     /* All tables in aux_tables must be found in FROM PART */
     TABLE_LIST *walk= multi_delete_table_match(target_tbl, tables);
     if (!walk)
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     if (!walk->is_derived())
     {
       target_tbl->table_name= walk->table_name;
@@ -597,7 +627,7 @@ static bool multi_delete_set_locks_and_link_aux_tables(Parse_context *pc)
     walk->mdl_request.set_type(mdl_type_for_dml(walk->lock_type));
     target_tbl->correspondent_table= walk;	// Remember corresponding table
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -622,12 +652,14 @@ bool PT_delete::contextualize(Parse_context *pc)
     return true;
 
   LEX * const lex= pc->thd->lex;
+  SELECT_LEX *const select= pc->select;
 
+  DBUG_ASSERT(lex->select_lex == select);
   lex->sql_command= is_multitable() ? SQLCOM_DELETE_MULTI : SQLCOM_DELETE;
   lex->set_ignore(MY_TEST(opt_delete_options & DELETE_IGNORE));
-  lex->select_lex->init_order();
+  select->init_order();
   if (opt_delete_options & DELETE_QUICK)
-    pc->select->add_base_options(OPTION_QUICK);
+    select->add_base_options(OPTION_QUICK);
 
   if (is_multitable())
   {
@@ -641,10 +673,15 @@ bool PT_delete::contextualize(Parse_context *pc)
     return true;
 
   if (is_multitable())
-    mysql_init_multi_delete(lex);
+  {
+    select->table_list.save_and_clear(&delete_tables);
+    lex->query_tables= NULL;
+    lex->query_tables_last= &lex->query_tables;
+  }
   else
-    pc->select->top_join_list.push_back(pc->select->get_table_list());
-
+  {
+    select->top_join_list.push_back(select->get_table_list());
+  }
   Yacc_state * const yyps= &pc->thd->m_parser_state->m_yacc;
   yyps->m_lock_type= TL_READ_DEFAULT;
   yyps->m_mdl_type= MDL_SHARED_READ;
@@ -661,22 +698,22 @@ bool PT_delete::contextualize(Parse_context *pc)
   if (opt_where_clause != NULL &&
       opt_where_clause->itemize(pc, &opt_where_clause))
     return true;
-  pc->select->set_where_cond(opt_where_clause);
+  select->set_where_cond(opt_where_clause);
 
   if (opt_order_clause != NULL && opt_order_clause->contextualize(pc))
     return true;
 
-  DBUG_ASSERT(pc->select->select_limit == NULL);
+  DBUG_ASSERT(select->select_limit == NULL);
   if (opt_delete_limit_clause != NULL)
   {
     if (opt_delete_limit_clause->itemize(pc, &opt_delete_limit_clause))
       return true;
-    pc->select->select_limit= opt_delete_limit_clause;
+    select->select_limit= opt_delete_limit_clause;
     lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
-    pc->select->explicit_limit= 1;
+    select->explicit_limit= true;
   }
 
-  if (is_multitable() && multi_delete_set_locks_and_link_aux_tables(pc))
+  if (is_multitable() && multi_delete_link_tables(pc, &delete_tables))
     return true;
 
   if (opt_hints != NULL && opt_hints->contextualize(pc))
@@ -691,10 +728,7 @@ Sql_cmd *PT_delete::make_cmd(THD *thd)
   Parse_context pc(thd, thd->lex->current_select());
   if (contextualize(&pc))
     return NULL;
-  if (is_multitable())
-    return new (thd->mem_root) Sql_cmd_delete_multi;
-  else
-    return new (thd->mem_root) Sql_cmd_delete;
+  return new (thd->mem_root) Sql_cmd_delete(is_multitable(), &delete_tables);
 }
 
 
@@ -704,6 +738,9 @@ bool PT_update::contextualize(Parse_context *pc)
     return true;
 
   LEX *lex= pc->thd->lex;
+  SELECT_LEX *const select= pc->select;
+  DBUG_ASSERT(select == lex->select_lex);
+
   lex->sql_command= SQLCOM_UPDATE;
   lex->duplicates= DUP_ERROR;
 
@@ -711,25 +748,26 @@ bool PT_update::contextualize(Parse_context *pc)
 
   if (contextualize_array(pc, &join_table_list))
     return true;
-  pc->select->parsing_place= CTX_UPDATE_VALUE_LIST;
+  select->parsing_place= CTX_UPDATE_VALUE_LIST;
 
   if (column_list->contextualize(pc) ||
       value_list->contextualize(pc))
   {
     return true;
   }
-  pc->select->item_list= column_list->value;
+  select->item_list= column_list->value;
 
   // Ensure we're resetting parsing context of the right select
-  DBUG_ASSERT(pc->select->parsing_place == CTX_UPDATE_VALUE_LIST);
-  pc->select->parsing_place= CTX_NONE;
-  if (lex->select_lex->table_list.elements > 1)
-    lex->sql_command= SQLCOM_UPDATE_MULTI;
-  else if (lex->select_lex->get_table_list()->is_derived())
+  DBUG_ASSERT(select->parsing_place == CTX_UPDATE_VALUE_LIST);
+  select->parsing_place= CTX_NONE;
+  multitable= select->table_list.elements > 1;
+  lex->sql_command= multitable ? SQLCOM_UPDATE_MULTI : SQLCOM_UPDATE;
+
+  if (!multitable && select->get_table_list()->is_derived())
   {
     /* it is single table update and it is update of derived table */
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
-             lex->select_lex->get_table_list()->alias, "UPDATE");
+             select->get_table_list()->alias, "UPDATE");
     return true;
   }
 
@@ -738,26 +776,26 @@ bool PT_update::contextualize(Parse_context *pc)
     be too pessimistic. We will decrease lock level if possible in
     mysql_multi_update().
   */
-  pc->select->set_lock_for_tables(opt_low_priority);
+  select->set_lock_for_tables(opt_low_priority);
 
   if (opt_where_clause != NULL &&
       opt_where_clause->itemize(pc, &opt_where_clause))
   {
     return true;
   }
-  pc->select->set_where_cond(opt_where_clause);
+  select->set_where_cond(opt_where_clause);
 
   if (opt_order_clause != NULL && opt_order_clause->contextualize(pc))
     return true;
 
-  DBUG_ASSERT(pc->select->select_limit == NULL);
+  DBUG_ASSERT(select->select_limit == NULL);
   if (opt_limit_clause != NULL)
   {
     if (opt_limit_clause->itemize(pc, &opt_limit_clause))
       return true;
-    pc->select->select_limit= opt_limit_clause;
+    select->select_limit= opt_limit_clause;
     lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
-    pc->select->explicit_limit= 1;
+    select->explicit_limit= true;
   }
 
   if (opt_hints != NULL && opt_hints->contextualize(pc))
@@ -772,10 +810,9 @@ Sql_cmd *PT_update::make_cmd(THD *thd)
   Parse_context pc(thd, thd->lex->current_select());
   if (contextualize(&pc))
     return NULL;
-  sql_cmd.update_value_list= value_list->value;
-  sql_cmd.sql_command= thd->lex->sql_command;
 
-  return &sql_cmd;
+  return new (thd->mem_root) Sql_cmd_update(is_multitable(),
+                                            &value_list->value);
 }
 
 
@@ -874,6 +911,11 @@ bool PT_insert::contextualize(Parse_context *pc)
     lex->bulk_insert_row_cnt= row_value_list->get_many_values().elements;
   }
 
+  if (lex->proc_analyse)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
+    return true;
+  }
 
   if (opt_on_duplicate_column_list != NULL)
   {
@@ -917,7 +959,8 @@ Sql_cmd *PT_insert::make_cmd(THD *thd)
     sql_cmd= new (thd->mem_root) Sql_cmd_insert_select(is_replace,
                                                        thd->lex->duplicates);
   else
-    sql_cmd= new (thd->mem_root) Sql_cmd_insert(is_replace, thd->lex->duplicates);
+    sql_cmd= new (thd->mem_root) Sql_cmd_insert_values(is_replace,
+                                                       thd->lex->duplicates);
   if (sql_cmd == NULL)
     return NULL;
 
@@ -928,11 +971,43 @@ Sql_cmd *PT_insert::make_cmd(THD *thd)
   if (opt_on_duplicate_column_list != NULL)
   {
     DBUG_ASSERT(!is_replace);
-    sql_cmd->insert_update_list= opt_on_duplicate_column_list->value;
-    sql_cmd->insert_value_list= opt_on_duplicate_value_list->value;
+    sql_cmd->update_field_list= opt_on_duplicate_column_list->value;
+    sql_cmd->update_value_list= opt_on_duplicate_value_list->value;
   }
 
   return sql_cmd;
+}
+
+
+bool PT_call::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;                 /* purecov: inspected */
+
+  THD *const thd= pc->thd;
+  LEX *const lex= thd->lex;
+
+  if (opt_expr_list != NULL && opt_expr_list->contextualize(pc))
+    return true;                 /* purecov: inspected */
+
+  lex->sql_command= SQLCOM_CALL;
+
+  sp_add_used_routine(lex, thd, proc_name, enum_sp_type::PROCEDURE);
+
+  return false;
+}
+
+
+Sql_cmd *PT_call::make_cmd(THD *thd)
+{
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize(&pc))
+    return NULL;
+  List<Item> *proc_args= NULL;
+  if (opt_expr_list != NULL)
+    proc_args= &opt_expr_list->value;
+
+  return new (thd->mem_root) Sql_cmd_call(proc_name, proc_args);
 }
 
 
@@ -1434,6 +1509,7 @@ bool PT_create_table_stmt::contextualize(Parse_context *pc)
 
   THD *thd= pc->thd;
   LEX *lex= thd->lex;
+
   TABLE_LIST *table= pc->select->add_table_to_list(thd, table_name, NULL,
                                                    TL_OPTION_UPDATING,
                                                    TL_WRITE, MDL_SHARED);
@@ -1542,6 +1618,12 @@ bool PT_create_table_stmt::contextualize(Parse_context *pc)
 
       if (opt_query_expression->contextualize(pc))
         return true;
+
+      if (opt_query_expression->has_procedure())
+      {
+        my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
+        return true;
+      }
 
       /*
         The following work only with the local list, the global list

@@ -16,11 +16,25 @@
 #ifdef HAVE_REPLICATION
 #include "rpl_mi.h"
 
+#include <stdlib.h>
+#include <string.h>
+#include <algorithm>
+
 #include "dynamic_ids.h"        // Server_ids
 #include "log.h"                // sql_print_error
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_version.h"
 #include "mysqld.h"             // sync_masterinfo_period
+#include "prealloced_array.h"
+#include "rpl_info_handler.h"
 #include "rpl_msr.h"            // channel_map
 #include "rpl_slave.h"          // master_retry_count
+#include "sql_class.h"
+
+class Relay_log_info;
 
 
 enum {
@@ -621,7 +635,7 @@ void Master_info::wait_until_no_reference(THD *thd)
   thd->enter_stage(&stage_waiting_for_no_channel_reference,
                    old_stage, __func__, __FILE__, __LINE__);
 
-  while (references.atomic_get() != 0)
+  while (atomic_references != 0)
     my_sleep(10000);
 
   THD_STAGE_INFO(thd, *old_stage);

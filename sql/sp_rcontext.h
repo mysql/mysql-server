@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,32 @@
 #ifndef _SP_RCONTEXT_H_
 #define _SP_RCONTEXT_H_
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "item.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "prealloced_array.h"             // Prealloced_array
 #include "query_result.h"                 // Query_result_interceptor
+#include "sql_alloc.h"
+#include "sql_array.h"
+#include "sql_error.h"
+#include "table.h"
 
+class Field;
+class Query_arena;
+class SELECT_LEX_UNIT;
+class Server_side_cursor;
+class THD;
 class sp_cursor;
 class sp_handler;
 class sp_head;
+class sp_instr;
 class sp_instr_cpush;
+class sp_pcontext;
 class sp_variable;
-class Query_arena;
-class Item_cache;
-class Server_side_cursor;
+template <class T> class List;
 
 ///////////////////////////////////////////////////////////////////////////
 // sp_rcontext declaration.

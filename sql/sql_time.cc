@@ -17,13 +17,27 @@
 /* Functions to handle date and time */
 
 #include "sql_time.h"
-#include "tztime.h"                             // struct Time_zone
-#include "sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
-#include <m_ctype.h>
-#include "item_timefunc.h"   // INTERNAL_FORMAT
+
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
 #include "current_thd.h"
-#include "psi_memory_key.h"
+#include "decimal.h"
 #include "derror.h"
+#include "field.h"
+#include "item_timefunc.h"   // INTERNAL_FORMAT
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_decimal.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
+#include "sql_const.h"
+#include "system_variables.h"
+#include "table.h"
+#include "tztime.h"                             // struct Time_zone
 
 
 	/* Some functions to calculate dates */

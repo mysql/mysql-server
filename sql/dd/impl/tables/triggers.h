@@ -16,11 +16,20 @@
 #ifndef DD_TABLES__TRIGGERS_INCLUDED
 #define DD_TABLES__TRIGGERS_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/impl/types/object_table_impl.h"            // dd::Object_table_i...
 #include "dd/impl/types/trigger_impl.h"                 // dd::Trigger_impl
+#include "dd/object_id.h"
+#include "my_global.h"
+
+class THD;
+namespace dd {
+class Object_key;
+}  // namespace dd
 
 
 namespace dd {
@@ -37,9 +46,9 @@ public:
     return *s_instance;
   }
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("triggers");
+    static String_type s_table_name("triggers");
     return s_table_name;
   }
 
@@ -173,7 +182,7 @@ public:
                                  "REFERENCES collations(id)");
   }
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Triggers::table_name(); }
 
 public:
@@ -215,7 +224,7 @@ public:
 
   static bool get_trigger_table_id(THD *thd,
                                    Object_id schema_id,
-                                   const std::string &trigger_name,
+                                   const String_type &trigger_name,
                                    Object_id *oid);
 
 

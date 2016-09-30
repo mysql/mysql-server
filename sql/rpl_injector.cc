@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #include "binlog.h"                             // mysql_bin_log
 #include "log_event.h"                          // Incident_log_event
+#include "mdl.h"
+#include "my_compiler.h"
+#include "mysql/service_mysql_alloc.h"
 #include "psi_memory_key.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_class.h"                          // THD

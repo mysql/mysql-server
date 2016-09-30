@@ -19,22 +19,31 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
+#include <string.h>
+
+#include "my_dbug.h"
 #include "my_global.h"
-#include "mysql_com.h"                    // MYSQL_ERRMSG_SIZE
+#include "my_sys.h"
 #include "mysql/mysql_lex_string.h"       // LEX_STRING
-#include "sql_alloc.h"                    // Sql_alloc
-#include "sql_list.h"                     // List
-#include "table.h"                        // TABLE
-#include "trigger_def.h"                  // enum_trigger_action_time_type
-#include "table_trigger_field_support.h"  // Table_trigger_field_support
+#include "mysql_com.h"                    // MYSQL_ERRMSG_SIZE
 #include "mysqld_error.h"                 // ER_PARSE_ERROR
+#include "sql_alloc.h"                    // Sql_alloc
+#include "table.h"                        // TABLE
+#include "table_trigger_field_support.h"  // Table_trigger_field_support
+#include "trigger_def.h"                  // enum_trigger_action_time_type
+#include "typelib.h"
+
+class Field;
+class THD;
+template <class T> class List;
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Query_tables_list;
 class String;
-class Trigger_chain;
 class Trigger;
+class Trigger_chain;
+
 typedef struct st_mysql_lex_string LEX_STRING;
 
 ///////////////////////////////////////////////////////////////////////////

@@ -28,9 +28,10 @@
     - Number of distinct values in this bucket.
 */
 
-#include "my_global.h"
-
 #include "my_base.h"      // ha_rows
+#include "my_decimal.h"
+#include "my_global.h"
+#include "sql_string.h"
 
 class Json_array;
 

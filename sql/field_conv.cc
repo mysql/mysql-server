@@ -24,10 +24,31 @@
     gives much more speed.
 */
 
-#include "sql_class.h"                          // THD
-#include "sql_time.h"
-#include <m_ctype.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "field.h"
 #include "item_timefunc.h"               // Item_func_now_local
+#include "m_ctype.h"
+#include "my_byteorder.h"
+#include "my_compare.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "sql_class.h"                          // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_string.h"
+#include "sql_time.h"
+#include "system_variables.h"
+#include "table.h"
 #include "template_utils.h"              // down_cast
 
 

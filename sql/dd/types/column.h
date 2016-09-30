@@ -190,8 +190,8 @@ public:
   // default_value (binary).
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &default_value() const = 0;
-  virtual void set_default_value(const std::string &default_value) = 0;
+  virtual const String_type &default_value() const = 0;
+  virtual void set_default_value(const String_type &default_value) = 0;
   virtual void set_default_value_null(bool is_null) = 0;
   virtual bool is_default_value_null() const = 0;
 
@@ -199,9 +199,9 @@ public:
   // default_value_utf8
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &default_value_utf8() const = 0;
+  virtual const String_type &default_value_utf8() const = 0;
   virtual void set_default_value_utf8(
-                 const std::string &default_value_utf8) = 0;
+                 const String_type &default_value_utf8) = 0;
   virtual void set_default_value_utf8_null(bool is_null) = 0;
   virtual bool is_default_value_utf8_null() const = 0;
 
@@ -217,9 +217,9 @@ public:
   // generation_expression (binary).
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &generation_expression() const = 0;
+  virtual const String_type &generation_expression() const = 0;
 
-  virtual void set_generation_expression(const std::string
+  virtual void set_generation_expression(const String_type
                                          &generation_expression) = 0;
 
   virtual bool is_generation_expression_null() const = 0;
@@ -228,9 +228,9 @@ public:
   // generation_expression_utf8
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &generation_expression_utf8() const = 0;
+  virtual const String_type &generation_expression_utf8() const = 0;
 
-  virtual void set_generation_expression_utf8(const std::string
+  virtual void set_generation_expression_utf8(const String_type
                                               &generation_expression_utf8) = 0;
 
   virtual bool is_generation_expression_utf8_null() const = 0;
@@ -239,22 +239,22 @@ public:
   // default_option.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &default_option() const = 0;
-  virtual void set_default_option(const std::string &default_option) = 0;
+  virtual const String_type &default_option() const = 0;
+  virtual void set_default_option(const String_type &default_option) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // update_option.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &update_option() const = 0;
-  virtual void set_update_option(const std::string &update_option) = 0;
+  virtual const String_type &update_option() const = 0;
+  virtual void set_update_option(const String_type &update_option) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const = 0;
-  virtual void set_comment(const std::string &comment) = 0;
+  virtual const String_type &comment() const = 0;
+  virtual void set_comment(const String_type &comment) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // hidden.
@@ -270,7 +270,7 @@ public:
   virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
-  virtual bool set_options_raw(const std::string &options_raw) = 0;
+  virtual bool set_options_raw(const String_type &options_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -279,7 +279,7 @@ public:
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Column key type.
@@ -293,9 +293,9 @@ public:
   // Column display type.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &column_type_utf8() const = 0;
+  virtual const String_type &column_type_utf8() const = 0;
 
-  virtual void set_column_type_utf8(const std::string &column_type_utf8) = 0;
+  virtual void set_column_type_utf8(const String_type &column_type_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Elements.

@@ -59,14 +59,14 @@
 
 *****************************************************************************/
 
-#include <password.h>
-#include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <sha1.h>
-#include <my_rnd.h>
-#include "mysql.h"
+#include <string.h>
+
 #include "crypt_genhash_impl.h"
+#include "m_string.h"
+#include "my_global.h"
+#include "mysql_com.h"
+#include "password.h"
+#include "sha1.h"
 
 void randominit(struct rand_struct *rand_st, ulong seed1, ulong seed2)
 {                                               /* For mysql 3.21.# */

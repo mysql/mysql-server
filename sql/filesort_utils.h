@@ -16,13 +16,15 @@
 #ifndef FILESORT_UTILS_INCLUDED
 #define FILESORT_UTILS_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <utility>
 
 #include "my_base.h"                   // ha_rows
+#include "my_dbug.h"
+#include "my_global.h"
 #include "mysql/service_mysql_alloc.h" // my_free
 #include "sql_array.h"                 // Bounds_checked_array
-
-#include <utility>
 
 class Cost_model_table;
 class Sort_param;

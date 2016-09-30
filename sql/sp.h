@@ -16,32 +16,42 @@
 #ifndef _SP_H_
 #define _SP_H_
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "binary_log_types.h"
+#include "hash.h"
 #include "item.h"            // Item::Type
 #include "mdl.h"             // MDL_request
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
 #include "sp_head.h"         // Stored_program_creation_ctx
+#include "sql_admin.h"
+#include "sql_alloc.h"
+#include "sql_class.h"
+#include "sql_lex.h"
+#include "sql_plugin.h"
+#include "sql_servers.h"
+
+class Object_creation_ctx;
 
 namespace dd {
   class Routine;
 }
 
 class Field;
-class Query_arena;
-class Query_tables_list;
 class Sroutine_hash_entry;
 class String;
-class THD;
 class sp_cache;
-class sp_head;
-class sp_name;
-struct st_sp_chistics;
-struct LEX;
 struct TABLE;
 struct TABLE_LIST;
+
 typedef struct st_hash HASH;
 typedef ulonglong sql_mode_t;
 template <typename T> class SQL_I_List;
+
 enum class enum_sp_type;
 
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */
@@ -184,6 +194,9 @@ bool lock_db_routines(THD *thd, const char *db);
 
 sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                          sp_cache **cp, bool cache_only);
+
+sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
+                         sp_cache **cp);
 
 enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
                                      bool lookup_only, sp_head **sp);

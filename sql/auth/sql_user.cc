@@ -12,29 +12,58 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_parse.h"                  /* check_access */
-#include "rpl_filter.h"                 /* rpl_filter */
-#include "sql_base.h"                   /* MYSQL_LOCK_IGNORE_TIMEOUT */
-#include "sql_table.h"                  /* write_bin_log */
-#include "sql_plugin.h"                 /* lock_plugin_data etc. */
-#include "password.h"                   /* my_make_scrambled_password */
+#include <string.h>
+#include <sys/types.h>
+#include <set>
+
+#include "auth_acls.h"
+#include "auth_common.h"
+#include "handler.h"
+#include "hash.h"
+#include "item.h"
 #include "log_event.h"                  /* append_query_string */
-#include "key.h"                        /* key_copy, key_cmp_if_same */
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_auth.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "password.h"                   /* my_make_scrambled_password */
+#include "protocol.h"
+#include "session_tracker.h"
+#include "sql_admin.h"
+#include "sql_class.h"
+#include "sql_connect.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"                  /* check_access */
+#include "sql_plugin.h"                 /* lock_plugin_data etc. */
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "violite.h"
                                         /* key_restore */
 
 #include "auth_internal.h"
+#include "current_thd.h"
+#include "derror.h"                     /* ER_THD */
+#include "log.h"                        /* sql_print_warning */
+#include "mysqld.h"
+#include "prealloced_array.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
-#include "role_tables.h"
 #include "sql_user_table.h"
-#include "prealloced_array.h"
-#include "tztime.h"
-#include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
-#include "derror.h"                     /* ER_THD */
-#include "mysqld.h"
-#include "log.h"                        /* sql_print_warning */
-
-#include "current_thd.h"
 
 /**
   Auxiliary function for constructing a  user list string.
@@ -365,11 +394,14 @@ err:
    3. Identify what all fields needs to be updated in mysql.user
       table based on user definition.
 
+   If the is_role flag is set, the password validation is not used.
+
   @param thd          Thread context
   @param Str          user on which attributes has to be applied
   @param what_to_set  User attributes
   @param is_privileged_user     Whether caller has CREATE_USER_ACL
                                 or UPDATE_ACL over mysql.*
+  @param is_role      CREATE ROLE was used to create the authid.
 
   @retval 0 ok
   @retval 1 ERROR;
@@ -378,7 +410,8 @@ err:
 bool set_and_validate_user_attributes(THD *thd,
                                       LEX_USER *Str,
                                       ulong &what_to_set,
-                                      bool is_privileged_user)
+                                      bool is_privileged_user,
+                                      bool is_role)
 {
   bool user_exists= false;
   ACL_USER *acl_user;
@@ -572,9 +605,12 @@ bool set_and_validate_user_attributes(THD *thd,
   /*
     If auth string is specified, change it to hash.
     Validate empty credentials for new user ex: CREATE USER u1;
+    We skip authentication string generation if the issued statement was
+    CREATE ROLE.
   */
-  if (Str->uses_identified_by_clause ||
-      (Str->auth.length == 0 && !user_exists))
+  if (!is_role &&
+      (Str->uses_identified_by_clause ||
+       (Str->auth.length == 0 && !user_exists)))
   {
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
     inbuf= Str->auth.str;
@@ -604,9 +640,18 @@ bool set_and_validate_user_attributes(THD *thd,
   }
 
   /* Validate hash string */
-  if(Str->uses_identified_by_password_clause ||
-     Str->uses_authentication_string_clause)
+  if((Str->uses_identified_by_password_clause ||
+      Str->uses_authentication_string_clause))
   {
+    /*
+      The statement CREATE ROLE calls mysql_create_user() with a set of 
+      lexicographic parameters: users_identified_by_password_caluse= false etc
+      It also sets is_role= true. We don't have to check this parameter here
+      since we're already know that the above parameters will be false
+      but we place an extra assert here to remind us about the complex
+      interdependencies if mysql_create_user() is refactored.
+    */
+    DBUG_ASSERT(!is_role);
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
     if (auth->validate_authentication_string((char*)Str->auth.str,
                                              Str->auth.length))
@@ -731,7 +776,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       thd->slave_thread)
     combo->uses_identified_by_clause= false;
 
-  if (set_and_validate_user_attributes(thd, combo, what_to_set, true))
+  if (set_and_validate_user_attributes(thd, combo, what_to_set, true, false))
   {
     result= 1;
     goto end;
@@ -1294,7 +1339,8 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
       continue;
     }
 
-    if (set_and_validate_user_attributes(thd, user_name, what_to_update, true))
+    if (set_and_validate_user_attributes(thd, user_name, what_to_update, true,
+                                         is_role))
     {
       result= 1;
       append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
@@ -1691,7 +1737,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     user_from->alter_status= thd->lex->alter_password;
 
     if (set_and_validate_user_attributes(thd, user_from, what_to_alter,
-                                         is_privileged_user))
+                                         is_privileged_user, false))
     {
       result= 1;
       continue;

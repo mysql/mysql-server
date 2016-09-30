@@ -16,11 +16,18 @@
 #ifndef PERSISTED_VARIABLE_H_INCLUDED
 #define PERSISTED_VARIABLE_H_INCLUDED
 
-#include "my_global.h"
-#include "sys_vars.h"
-#include <mysql/psi/mysql_file.h>
-#include <string>
+#include <stddef.h>
 #include <map>
+#include <string>
+
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+
+class THD;
+class set_var;
+class sys_var;
 
 using std::string;
 using std::map;

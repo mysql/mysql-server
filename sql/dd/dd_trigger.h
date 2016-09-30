@@ -16,10 +16,10 @@
 #ifndef DD_TRIGGER_INCLUDED
 #define DD_TRIGGER_INCLUDED
 
-#include <string>
+#include "m_string.h"        // LEX_CSTRING
+#include "trigger_def.h"     // enum_trigger_order_type
 
-#include "m_string.h"     // LEX_CSTRING
-#include "trigger_def.h"  // enum_trigger_order_type
+#include "dd/string_type.h"  // dd::String_type
 
 class THD;
 class Trigger;
@@ -213,7 +213,7 @@ bool drop_all_triggers(THD *thd,
 bool get_table_name_for_trigger(THD *thd,
                                 const char *schema_name,
                                 const char *trigger_name,
-                                std::string *table_name,
+                                dd::String_type *table_name,
                                 bool *trigger_found,
                                 bool push_warning_if_not_exist);
 

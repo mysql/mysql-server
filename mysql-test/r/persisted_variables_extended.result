@@ -218,11 +218,6 @@ innodb_flush_sync	COMPILED	0	0
 max_connections	PERSISTED	1	100000
 max_digest_length	COMPILED	0	1048576
 sql_mode	PERSISTED	0	0
-CREATE USER test_user1@localhost;
-GRANT ALL PRIVILEGES ON *.* TO test_user1@localhost;
-SHOW VARIABLES LIKE 'port';
-Variable_name	Value
-port	30000
 SELECT VARIABLE_NAME,VARIABLE_SOURCE
 FROM performance_schema.variables_info
 WHERE VARIABLE_SOURCE = 'LOGIN';

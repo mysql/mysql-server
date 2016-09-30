@@ -88,7 +88,7 @@ RUN SHOW CREATE TABLE table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
+  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   PRIMARY KEY (`_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 0 rows affected
@@ -96,7 +96,7 @@ RUN SHOW CREATE TABLE xplugintest_1.table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
+  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   PRIMARY KEY (`_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 0 rows affected
@@ -126,7 +126,7 @@ RUN SHOW CREATE TABLE table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
+  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `col1` int(11) DEFAULT NULL,
   PRIMARY KEY (`_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -252,7 +252,7 @@ RUN SHOW CREATE TABLE table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
+  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   PRIMARY KEY (`_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 0 rows affected

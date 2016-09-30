@@ -105,8 +105,6 @@ Database: information_schema
 | INNODB_FT_DELETED                     |
 | INNODB_FT_INDEX_CACHE                 |
 | INNODB_FT_INDEX_TABLE                 |
-| INNODB_LOCK_WAITS                     |
-| INNODB_LOCKS                          |
 | INNODB_METRICS                        |
 | INNODB_SYS_COLUMNS                    |
 | INNODB_SYS_DATAFILES                  |
@@ -177,8 +175,6 @@ Database: INFORMATION_SCHEMA
 | INNODB_FT_DELETED                     |
 | INNODB_FT_INDEX_CACHE                 |
 | INNODB_FT_INDEX_TABLE                 |
-| INNODB_LOCK_WAITS                     |
-| INNODB_LOCKS                          |
 | INNODB_METRICS                        |
 | INNODB_SYS_COLUMNS                    |
 | INNODB_SYS_DATAFILES                  |

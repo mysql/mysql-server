@@ -4,5 +4,5 @@ CREATE TABLE pct_cached_evict (a TEXT) ENGINE=INNODB;
 # Buffer pool size: 10485760 bytes
 # Creating and dropping a table with size: 20971520 bytes
 # Emptying InnoDB buffer pool: end
-Descreased
+OK
 DROP TABLE pct_cached_evict;

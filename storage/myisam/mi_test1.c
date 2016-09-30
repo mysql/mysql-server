@@ -51,7 +51,7 @@ static void update_record(uchar *record);
   the result length == len. If the string is longer than len it's
   trunked. The des+len character is allways set to NULL.
 */
-static inline void strappend(char *s, size_t len, pchar fill)
+static inline void strappend(char *s, size_t len, char fill)
 {
   char *endpos;
 

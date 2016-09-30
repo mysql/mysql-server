@@ -23,26 +23,53 @@
 
 #include "item_cmpfunc.h"
 
+#include <limits.h>
+#include <math.h>
+#include <algorithm>
+#include <functional>
+#include <type_traits>
+
 #include "aggregate_check.h"    // Distinct_check
+#include "check_stack.h"
 #include "current_thd.h"        // current_thd
+#include "decimal.h"
+#include "field.h"
+#include "item_json_func.h"     // json_value, get_json_atom_wrapper
 #include "item_subselect.h"     // Item_subselect
 #include "item_sum.h"           // Item_sum_hybrid
-#include "item_json_func.h"     // json_value, get_json_atom_wrapper
 #include "json_dom.h"           // Json_scalar_holder
+#include "key.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mf_wcomp.h"           // wild_one, wild_many
+#include "my_bitmap.h"
+#include "my_sqlcommand.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_time.h"
 #include "mysqld.h"             // log_10
+#include "mysqld_error.h"
 #include "opt_trace.h"          // Opt_trace_object
 #include "parse_tree_helpers.h" // PT_item_list
+#include "set_var.h"
+#include "sql_bitmap.h"
 #include "sql_class.h"          // THD
+#include "sql_error.h"
+#include "sql_executor.h"
+#include "sql_lex.h"
+#include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"      // JOIN
-#include "sql_parse.h"          // check_stack_overrun
+#include "sql_select.h"
+#include "sql_servers.h"
 #include "sql_time.h"           // str_to_datetime
-
-#include <algorithm>
-#include <type_traits>
+#include "thr_malloc.h"
 
 using std::min;
 using std::max;
 
+static void fix_num_type_shared_for_case(Item_func *item_func,
+                                         Item_result result_type,
+                                         Item **item,
+                                         uint nitems);
 static bool convert_constant_item(THD *, Item_field *, Item **, bool *);
 static longlong
 get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
@@ -2428,10 +2455,6 @@ bool Item_in_optimizer::is_null()
 /**
   Transform an Item_in_optimizer and its arguments with a callback function.
 
-  @param transformer the transformer callback function to be applied to the
-         nodes of the tree of the object
-  @param argument to be passed to the transformer
-
   @details
     Recursively transform the left and the right operand of this Item. The
     Right operand is an Item_in_subselect or its subclass. To avoid the
@@ -2441,23 +2464,17 @@ bool Item_in_optimizer::is_null()
     Item_in_subselect to be equal to the left operand of 'this'.
     The transformation is not applied further to the subquery operand
     if the IN predicate.
-
-  @returns
-    @retval pointer to the transformed item
-    @retval NULL if an error occurred
 */
 
-Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument)
+Item *Item_in_optimizer::transform(Item_transformer transformer,
+                                   uchar *argument)
 {
-  Item *new_item;
-
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
   DBUG_ASSERT(arg_count == 2);
 
   /* Transform the left IN operand. */
-  new_item= args[0]->transform(transformer, argument);
-  if (!new_item)
-    return 0;
+  Item *new_item= args[0]->transform(transformer, argument);
+  if (new_item == NULL)
+    return NULL;                 /* purecov: inspected */
   /*
     THD::change_item_tree() should be called only if the tree was
     really transformed, i.e. when a new item has been created.
@@ -3583,27 +3600,15 @@ bool Item_func_if::resolve_type(THD *thd)
   {
     if (count_string_result_length(cached_field_type, args + 1, 2))
       return true;
+    uint32 char_length=
+      max(args[1]->max_char_length(), args[2]->max_char_length());
+    fix_char_length(char_length);
   }
   else
   {
     collation.set_numeric(); // Number
+    fix_num_type_shared_for_case(this, cached_result_type, args + 1, 2);
   }
-
-  uint32 char_length;
-  if ((cached_result_type == DECIMAL_RESULT )
-      || (cached_result_type == INT_RESULT))
-  {
-    int len1= args[1]->max_length - args[1]->decimals
-      - (args[1]->unsigned_flag ? 0 : 1);
-
-    int len2= args[2]->max_length - args[2]->decimals
-      - (args[2]->unsigned_flag ? 0 : 1);
-
-    char_length= max(len1, len2) + decimals + (unsigned_flag ? 0 : 1);
-  }
-  else
-    char_length= max(args[1]->max_char_length(), args[2]->max_char_length());
-  fix_char_length(char_length);
   return false;
 }
 
@@ -3968,7 +3973,11 @@ bool Item_func_case::val_json(Json_wrapper *wr)
   }
 
   Item *args[]= {item};
-  return json_value(args, 0, wr);
+  if (json_value(args, 0, wr))
+    return error_json();
+
+  null_value= item->null_value;
+  return false;
 }
 
 
@@ -4036,13 +4045,13 @@ static void change_item_tree_if_needed(THD *thd,
 
 /**
   This function is a shared part to resolve_type() for numeric result
-  type of CASE and COALESCE.
+  type of CASE, COALESCE and IF.
   COALESCE is a CASE abbreviation according to the standard.
  */
 static void fix_num_type_shared_for_case(Item_func *item_func,
-                                            Item_result result_type,
-                                            Item **item,
-                                            uint nitems)
+                                         Item_result result_type,
+                                         Item **item,
+                                         uint nitems)
 {
   switch (result_type)
   {
@@ -5906,31 +5915,22 @@ bool Item_cond::walk(Item_processor processor, enum_walk walk, uchar *arg)
   Transform an Item_cond object with a transformer callback function.
   
     The function recursively applies the transform method to each
-     member item of the condition list.
+    member item of the condition list.
     If the call of the method for a member item returns a new item
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_cond object. 
-     
-  @param transformer   the transformer callback function to be applied to
-                       the nodes of the tree of the object
-  @param arg           parameter to be passed to the transformer
-
-  @return
-    Item returned as the result of transformation of the root node 
 */
 
 Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
-
   List_iterator<Item> li(list);
   Item *item;
   while ((item= li++))
   {
     Item *new_item= item->transform(transformer, arg);
-    if (!new_item)
-      return 0;
+    if (new_item == NULL)
+      return NULL;                 /* purecov: inspected */
 
     /*
       THD::change_item_tree() should be called only if the tree was
@@ -5957,17 +5957,6 @@ Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_cond object. 
-     
-  @param analyzer      the analyzer callback function to be applied to the
-                       nodes of the tree of the object
-  @param[in,out] arg_p parameter to be passed to the analyzer
-  @param transformer   the transformer callback function to be applied to the
-                       nodes of the tree of the object
-  @param arg_t         parameter to be passed to the transformer
-
-  @return              Item returned as result of transformation of the node,
-                       the same item if no transformation applied, or NULL if
-                       transformation caused an error.
 */
 
 Item *Item_cond::compile(Item_analyzer analyzer, uchar **arg_p,
@@ -7577,15 +7566,13 @@ bool Item_equal::walk(Item_processor processor, enum_walk walk, uchar *arg)
 
 Item *Item_equal::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
-
   List_iterator<Item_field> it(fields);
   Item *item;
   while ((item= it++))
   {
     Item *new_item= item->transform(transformer, arg);
-    if (!new_item)
-      return 0;
+    if (new_item == NULL)
+      return NULL;
 
     /*
       THD::change_item_tree() should be called only if the tree was

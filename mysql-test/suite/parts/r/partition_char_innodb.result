@@ -733,7 +733,7 @@ ERROR HY000: A BLOB field is not allowed in partition function
 create table t2 (a blob not null, primary key(a(767))) engine='InnoDB' 
 partition by key (a) partitions 30;
 ERROR HY000: A BLOB field is not allowed in partition function
-create table t2 (a tinyblob not null, primary key(a(767))) engine='InnoDB' 
+create table t2 (a tinyblob not null, primary key(a(255))) engine='InnoDB' 
 partition by key (a) partitions 30;
 ERROR HY000: A BLOB field is not allowed in partition function
 create table t2 (a mediumblob not null, primary key(a(767))) engine='InnoDB' 
@@ -750,7 +750,7 @@ partition pa2 max_rows=30 min_rows=3,
 partition pa3 max_rows=30 min_rows=4,
 partition pa4 max_rows=40 min_rows=2);
 ERROR HY000: A BLOB field is not allowed in partition function
-create table t2 (a tinytext not null, primary key(a(767))) engine='InnoDB' 
+create table t2 (a tinytext not null, primary key(a(255))) engine='InnoDB' 
 partition by key (a) partitions 30;
 ERROR HY000: A BLOB field is not allowed in partition function
 create table t2 (a mediumtext not null, primary key(a(767))) engine='InnoDB' 

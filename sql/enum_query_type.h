@@ -24,33 +24,49 @@ enum enum_query_type
 {
   /// Nothing specific, ordinary SQL query.
   QT_ORDINARY= 0,
+
   /// In utf8.
   QT_TO_SYSTEM_CHARSET= (1 << 0),
+
   /// Without character set introducers.
   QT_WITHOUT_INTRODUCERS= (1 << 1),
-  /// When printing a SELECT, add its number (select_lex->number)
-  QT_SHOW_SELECT_NUMBER= (1 << 2),
-  /// Don't print a database if it's equal to the connection's database
-  QT_NO_DEFAULT_DB= (1 << 3),
-  /// When printing a derived table, don't print its expression, only alias
-  QT_DERIVED_TABLE_ONLY_ALIAS= (1 << 4),
+
+  /**
+    Causes string literals to always be printed with character set
+    introducers. Takes precedence over QT_WITHOUT_INTRODUCERS.
+  */
+  QT_FORCE_INTRODUCERS= (1 << 2),
+
+  /// When printing a SELECT, add its number (select_lex->number).
+  QT_SHOW_SELECT_NUMBER= (1 << 3),
+
+  /// Don't print a database if it's equal to the connection's database.
+  QT_NO_DEFAULT_DB= (1 << 4),
+
+  /// When printing a derived table, don't print its expression, only alias.
+  QT_DERIVED_TABLE_ONLY_ALIAS= (1 << 5),
+
   /// Print in charset of Item::print() argument (typically thd->charset()).
-  QT_TO_ARGUMENT_CHARSET= (1 << 5),
-  /// Print identifiers without database's name
-  QT_NO_DB= (1 << 6),
-  /// Print identifiers without table's name
-  QT_NO_TABLE= (1 << 7),
+  QT_TO_ARGUMENT_CHARSET= (1 << 6),
+
+  /// Print identifiers without database's name.
+  QT_NO_DB= (1 << 7),
+
+  /// Print identifiers without table's name.
+  QT_NO_TABLE= (1 << 8),
+
   /**
     Change all Item_basic_constant to ? (used by query rewrite to compute
     digest.) Un-resolved hints will also be printed in this format.
   */
-  QT_NORMALIZED_FORMAT= (1 << 8),
+  QT_NORMALIZED_FORMAT= (1 << 9),
+
   /**
     If an expression is constant, print the expression, not the value
     it evaluates to. Should be used for error messages, so that they
     don't reveal values.
   */
-  QT_NO_DATA_EXPANSION= (1 << 9),
+  QT_NO_DATA_EXPANSION= (1 << 10),
 };
 
 

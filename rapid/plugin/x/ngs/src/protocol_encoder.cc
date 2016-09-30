@@ -28,15 +28,13 @@
 #include "ngs/log.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
-#include "ngs_common/protocol_protobuf.h"
-#include <boost/make_shared.hpp>
 
 
 using namespace ngs;
 
 const Pool_config Protocol_encoder::m_default_pool_config = { 0, 5, BUFFER_PAGE_SIZE };
 
-Protocol_encoder::Protocol_encoder(const boost::shared_ptr<Connection_vio> &socket,
+Protocol_encoder::Protocol_encoder(const ngs::shared_ptr<Connection_vio> &socket,
                                    Error_handler ehandler,
                                    Protocol_monitor_interface &pmon)
 : m_pool(m_default_pool_config),
@@ -44,7 +42,7 @@ Protocol_encoder::Protocol_encoder(const boost::shared_ptr<Connection_vio> &sock
   m_error_handler(ehandler),
   m_protocol_monitor(&pmon)
 {
-  m_buffer.reset(new Output_buffer(m_pool));
+  m_buffer.reset(ngs::allocate_object<Output_buffer>(ngs::ref(m_pool)));
 }
 
 Protocol_encoder::~Protocol_encoder()
@@ -66,9 +64,7 @@ bool Protocol_encoder::send_row()
   m_row_builder.end_row();
   get_protocol_monitor().on_row_send();
 
-  bool res = send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_ROW);
-
-  return res;
+  return send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_ROW);
 }
 
 bool Protocol_encoder::send_result(const Error_code &result)

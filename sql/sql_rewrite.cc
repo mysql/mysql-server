@@ -67,15 +67,36 @@
 
 #include "sql_rewrite.h"
 
+#include <string.h>
+#include <sys/types.h>
+#include <set>
+
+#include "auth_acls.h"
 #include "auth_common.h"    // GRANT_ACL
+#include "handler.h"
+#include "key.h"
+#include "log_event.h"      // append_query_string
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "mysql/service_my_snprintf.h"
 #include "mysqld.h"         // opt_log_builtin_as_identified_by_password
+#include "prealloced_array.h"
 #include "rpl_slave.h"      // SLAVE_SQL, SLAVE_IO
+#include "set_var.h"
 #include "sql_class.h"      // THD
+#include "sql_connect.h"
 #include "sql_lex.h"        // LEX
+#include "sql_list.h"
 #include "sql_parse.h"      // get_current_user
+#include "sql_plugin.h"
+#include "sql_servers.h"
 #include "sql_show.h"       // append_identifier
 #include "sql_string.h"     // String
-#include "log_event.h"      // append_query_string
+#include "table.h"
+#include "violite.h"
 
 
 /**

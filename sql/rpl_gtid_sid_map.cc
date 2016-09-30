@@ -15,9 +15,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_gtid.h"
+#include <string.h>
 
+#include "control_events.h"
+#include "hash.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"    // ER_*
+#include "prealloced_array.h"
+#include "rpl_gtid.h"
 
 #ifdef MYSQL_CLIENT
 #include "mysqlbinlog.h"

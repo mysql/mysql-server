@@ -15,34 +15,65 @@
 
 #include "sql_admin.h"
 
-#include "sql_class.h"                       // THD
-#include "keycaches.h"                       // get_key_cache
-#include "sql_base.h"                        // Open_table_context
-#include "lock.h"                            // MYSQL_OPEN_*
-#include "partition_element.h"               // PART_ADMIN
-#include "sql_partition.h"                   // set_part_state
-#include "transaction.h"                     // trans_rollback_stmt
-#include "sql_view.h"                        // view_checksum
-#include "sql_table.h"                       // mysql_recreate_table
-#include "debug_sync.h"                      // DEBUG_SYNC
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+#include <utility>
+
+#include "auth_acls.h"
 #include "auth_common.h"                     // *_ACL
+#include "dd/dd_table.h"                     // dd::recreate_table
+#include "dd/info_schema/stats.h"            // dd::info_schema::update_*
+#include "dd/types/abstract_table.h"         // dd::enum_table_type
+#include "debug_sync.h"                      // DEBUG_SYNC
+#include "derror.h"                          // ER_THD
+#include "handler.h"
+#include "hash.h"
+#include "item.h"
+#include "key.h"
+#include "keycache.h"
+#include "keycaches.h"                       // get_key_cache
+#include "log.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dir.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "myisam.h"                          // TT_USEFRM
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld.h"                          // key_file_misc
+#include "mysqld_error.h"
+#include "partition_element.h"               // PART_ADMIN
+#include "protocol.h"
+#include "rpl_gtid.h"
 #include "sp.h"                              // Sroutine_hash_entry
 #include "sp_rcontext.h"                     // sp_rcontext
-#include "sql_parse.h"                       // check_table_access
-#include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
-#include "dd/info_schema/stats.h"            // dd::info_schema::update_*
-#include "log.h"
-#include "myisam.h"                          // TT_USEFRM
-#include "mysqld.h"                          // key_file_misc
-#include "derror.h"                          // ER_THD
-#include "sql_cache.h"                       // query_cache
-
-#include "dd/dd_table.h"                     // dd::recreate_table
-#include "dd/types/abstract_table.h"         // dd::enum_table_type
+#include "sql_alter.h"
 #include "sql_alter_instance.h"              // Alter_instance
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
+#include "sql_base.h"                        // Open_table_context
+#include "sql_cache.h"                       // query_cache
+#include "sql_class.h"                       // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"                       // check_table_access
+#include "sql_partition.h"                   // set_part_state
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_table.h"                       // mysql_recreate_table
+#include "sql_view.h"                        // view_checksum
+#include "system_variables.h"
+#include "table.h"
+#include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
+#include "thr_lock.h"
+#include "transaction.h"                     // trans_rollback_stmt
+#include "violite.h"
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
@@ -1356,6 +1387,8 @@ bool Sql_cmd_create_role::execute(THD *thd)
     role->alter_status.update_password_expired_fields= true;
     role->alter_status.use_default_password_lifetime= true;
     role->alter_status.update_password_expired_column= true;
+    role->auth.str= 0;
+    role->auth.length= 0;
   }
   if (!(mysql_create_user(thd, *const_cast<List<LEX_USER > * >(roles),
                           if_not_exists, true)))

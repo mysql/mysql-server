@@ -16,33 +16,66 @@
 
 #include "events.h"
 
-#include "m_ctype.h"               // CHARSET_INFO
+#include <stdio.h>
+#include <string.h>
+#include <new>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "auth_acls.h"
 #include "auth_common.h"           // EVENT_ACL
+#include "dd/cache/dictionary_client.h"
+#include "dd/dd_event.h"
+#include "dd/dd_schema.h"               // dd::Schema_MDL_locker
+#include "dd/string_type.h"
+#include "dd/types/event.h"
+#include "dd/types/schema.h"
 #include "event_data_objects.h"    // Event_queue_element
 #include "event_db_repository.h"   // Event_db_repository
 #include "event_parse_data.h"      // Event_parse_data
 #include "event_queue.h"           // Event_queue
 #include "event_scheduler.h"       // Event_scheduler
+#include "item.h"
+#include "item_create.h"
 #include "lock.h"                  // lock_object_name
 #include "log.h"                   // sql_print_error
+#include "m_ctype.h"               // CHARSET_INFO
+#include "m_string.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_sp.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_thread.h"
+#include "mysql_com.h"
 #include "mysqld.h"                // LOCK_global_system_variables
 #include "mysqld_error.h"          // ER_*
-#include "records.h"               // READ_RECORD
+#include "protocol.h"
+#include "set_var.h"
 #include "sp_head.h"               // Stored_program_creation_ctx
-#include "sql_base.h"              // close_mysql_tables
+#include "sql_admin.h"
 #include "sql_class.h"             // THD
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin.h"
 #include "sql_show.h"              // append_definer
 #include "sql_string.h"            // String
 #include "sql_table.h"             // write_bin_log
-#include "tztime.h"                // Time_zone
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
+#include "thr_malloc.h"
 #include "transaction.h"
-
-#include "dd/dd_schema.h"               // dd::Schema_MDL_locker
-#include "dd/dd_event.h"
-#include "dd/cache/dictionary_client.h"
-
-#include "mysql/psi/mysql_sp.h"
-#include "mysql/psi/mysql_memory.h"
+#include "tztime.h"                // Time_zone
 
 
 /**
@@ -593,12 +626,12 @@ bool Events::lock_schema_events(THD *thd, const char *db)
     DBUG_RETURN(true);
   }
 
-  std::vector<std::string> event_names;
+  std::vector<dd::String_type> event_names;
   if (thd->dd_client()->fetch_schema_component_names<dd::Event>(sch_obj, &event_names))
     DBUG_RETURN(true);
 
   MDL_request_list mdl_requests;
-  for (std::vector<std::string>::const_iterator name= event_names.begin();
+  for (std::vector<dd::String_type>::const_iterator name= event_names.begin();
        name != event_names.end(); ++name)
   {
     // Event names are case insensitive, so convert to lower case.

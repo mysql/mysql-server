@@ -446,18 +446,24 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 
 */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "item.h"
 #include "item_cmpfunc.h"        // Item_func_any_value
 #include "item_sum.h"            // Item_sum
 #include "mem_root_array.h"      // Mem_root_array
+#include "my_dbug.h"
+#include "my_global.h"
 #include "sql_alloc.h"           // Sql_alloc
 
-struct st_mem_root;
 class Opt_trace_context;
 class Opt_trace_object;
 class SELECT_LEX;
+class THD;
 struct TABLE_LIST;
+struct st_mem_root;
+template <class T> class List;
 
 /**
    Re-usable shortcut, when it does not make sense to do copy objects of a

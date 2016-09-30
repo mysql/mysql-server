@@ -37,7 +37,6 @@
 
 #include "field.h"
 #include "handler.h"
-#include "key.h"
 #include "m_ctype.h"
 #include "m_string.h"          // strmake
 #include "my_base.h"
@@ -46,6 +45,8 @@
 #include "my_decimal.h"
 #include "my_dir.h"
 #include "my_global.h"
+#include "my_pointer_arithmetic.h"
+#include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"           // MY_TIME_T_MIN
 #include "mysql/psi/mysql_file.h"
@@ -57,6 +58,7 @@
 #include "mysql/service_my_snprintf.h"
 #include "sql_const.h"
 #include "sql_error.h"
+#include "sql_plugin.h"
 #include "sql_servers.h"
 #include "system_variables.h"
 #include "template_utils.h"

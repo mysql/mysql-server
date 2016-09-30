@@ -73,13 +73,13 @@ public:
   }
 
   MOCK_METHOD2(get_auth_handler2, Authentication_handler_ptr::element_type *(const std::string &, Session_interface *));
-  MOCK_CONST_METHOD0(get_config, boost::shared_ptr<Protocol_config> ());
+  MOCK_CONST_METHOD0(get_config, ngs::shared_ptr<Protocol_config> ());
   MOCK_METHOD0(is_running, bool ());
-  MOCK_CONST_METHOD0(get_worker_scheduler, boost::shared_ptr<Scheduler_dynamic> ());
+  MOCK_CONST_METHOD0(get_worker_scheduler, ngs::shared_ptr<Scheduler_dynamic> ());
   MOCK_CONST_METHOD0(ssl_context, Ssl_context *());
   MOCK_METHOD1(on_client_closed, void (const Client_interface &));
   MOCK_METHOD0(restart_client_supervision_timer, void());
-  MOCK_METHOD3(create_session, boost::shared_ptr<Session_interface> (Client_interface &, Protocol_encoder &, int));
+  MOCK_METHOD3(create_session, ngs::shared_ptr<Session_interface> (Client_interface &, Protocol_encoder &, int));
   MOCK_METHOD0(get_client_exit_mutex, Mutex &());
 
 
@@ -119,7 +119,7 @@ public:
   MOCK_CONST_METHOD0(get_accept_time, ngs::ptime ());
   MOCK_CONST_METHOD0(get_state, Client_state ());
 
-  MOCK_METHOD0(session, boost::shared_ptr<ngs::Session_interface> ());
+  MOCK_METHOD0(session, ngs::shared_ptr<ngs::Session_interface> ());
   MOCK_METHOD0(supports_expired_passwords, bool ());
 
 public:

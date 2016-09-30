@@ -81,7 +81,7 @@ public:
 
   bool setup_listener(On_connection on_connection)
   {
-    if (INVALID_SOCKET == m_tcp_socket)
+    if (INVALID_SOCKET == mysql_socket_getfd(m_tcp_socket))
       return false;
 
     if (m_event.listen(m_tcp_socket, on_connection))
@@ -110,7 +110,7 @@ public:
 private:
   Sync_variable_state m_state;
   const unsigned short m_port;
-  my_socket m_tcp_socket;
+  MYSQL_SOCKET m_tcp_socket;
   ngs::Time_and_socket_events &m_event;
   std::string m_last_error;
 };
@@ -122,7 +122,6 @@ public:
   Unix_socket_listener(const std::string &unix_socket_path, ngs::Time_and_socket_events &event, const uint32 backlog)
   : m_state(ngs::State_listener_initializing),
     m_unix_socket_path(unix_socket_path),
-    m_unix_socket(INVALID_SOCKET),
     m_event(event)
   {
 #if !defined(HAVE_SYS_UN_H)
@@ -173,7 +172,7 @@ public:
     if (!m_state.is(ngs::State_listener_initializing))
       return false;
 
-    if (INVALID_SOCKET == m_unix_socket)
+    if (INVALID_SOCKET == mysql_socket_getfd(m_unix_socket))
       return false;
 
     if (m_event.listen(m_unix_socket, on_connection))
@@ -187,7 +186,7 @@ public:
 
   void close_listener()
   {
-    const bool should_unlink_unix_socket = INVALID_SOCKET != m_unix_socket;
+    const bool should_unlink_unix_socket = INVALID_SOCKET != mysql_socket_getfd(m_unix_socket);
     ngs::Connection_vio::close_socket(m_unix_socket);
 
     if (should_unlink_unix_socket)
@@ -201,7 +200,7 @@ public:
 private:
   Sync_variable_state m_state;
   const std::string m_unix_socket_path;
-  my_socket m_unix_socket;
+  MYSQL_SOCKET m_unix_socket;
   ::ngs::Time_and_socket_events &m_event;
   std::string m_last_error;
   bool m_unlink_unix_socket;
@@ -213,11 +212,11 @@ private:
 ngs::Listener_interface_ptr Listener_factory::create_unix_socket_listener(const std::string &unix_socket_path, ngs::Time_and_socket_events &event, const uint32 backlog)
 {
   return ngs::Listener_interface_ptr(
-      new details::Unix_socket_listener(unix_socket_path, event, backlog));
+      ngs::allocate_object<details::Unix_socket_listener>(unix_socket_path, ngs::ref(event), backlog));
 }
 
 ngs::Listener_interface_ptr Listener_factory::create_tcp_socket_listener(const unsigned short port, ngs::Time_and_socket_events &event, const uint32 backlog)
 {
   return ngs::Listener_interface_ptr(
-      new details::Tcp_listener(port, event, backlog));
+      ngs::allocate_object<details::Tcp_listener>(port, ngs::ref(event), backlog));
 }

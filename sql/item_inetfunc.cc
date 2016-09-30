@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "item_inetfunc.h"
-#include "derror.h"         //THD
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+
 #include "current_thd.h"    //current_thd
+#include "derror.h"         //THD
+#include "enum_query_type.h"
+#include "item.h"
+#include "my_byteorder.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "sql_error.h"
+#include "sql_string.h"
+#include "table.h"
 
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>

@@ -22,8 +22,19 @@
 
 #include "sql_manager.h"
 
-#include "my_thread.h"         // my_thread_t
+#include <errno.h>
+#include <sys/types.h>
+#include <time.h>
+
 #include "log.h"               // sql_print_warning
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_thread.h"         // my_thread_t
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql_com.h"
 #include "mysqld.h"            // flush_time
 #include "sql_base.h"          // tdc_flush_unused_tables
 
@@ -71,7 +82,7 @@ static void *handle_manager(void *arg MY_ATTRIBUTE((unused)))
     if (abort_manager)
       break;
 
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
     {
       tdc_flush_unused_tables();
       error = 0;

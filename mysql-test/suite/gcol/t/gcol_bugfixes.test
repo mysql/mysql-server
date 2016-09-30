@@ -700,3 +700,39 @@ SELECT * FROM t1;
 SELECT gc1 FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#22991924 GCOLS: UTF16 STRING OPERATIONS GIVE DOUBLED \0\0 STRINGS
+--echo # ON EACH TABLE REBUILD
+--echo #
+CREATE TABLE t1 (
+  a TEXT CHARSET utf16,
+  b BLOB GENERATED ALWAYS AS ( concat( 'ABC', a ) ) VIRTUAL
+);
+
+--echo # Results change due to bug fix.
+INSERT INTO t1 ( a ) VALUES ( 'abc' );
+
+SHOW CREATE TABLE t1;
+SELECT HEX(b) FROM t1;
+OPTIMIZE TABLE t1;
+SELECT HEX(b) FROM t1;
+SHOW CREATE TABLE t1;
+
+
+SELECT
+  length( convert( b USING utf8 ) ),
+  char_length ( convert( b USING utf8 ) )
+FROM t1;
+
+SELECT
+  length( convert( b USING utf16 ) ),
+  char_length ( convert( b USING utf16 ) )
+FROM t1;
+
+SELECT
+  length( convert( b USING latin1 ) ),
+  char_length ( convert( b USING latin1 ) )
+FROM t1;
+
+DROP TABLE t1;

@@ -14,7 +14,8 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* support for Services */
-#include <service_versions.h>
+#include "service_versions.h"
+#include "my_global.h"
 #include "mysql/services.h"
 
 /**
@@ -356,6 +357,11 @@ static struct mysql_keyring_service_st mysql_keyring_handler= {
   my_key_generate
 };
 
+static struct plugin_registry_service_st plugin_registry_handler={
+  mysql_plugin_registry_acquire,
+  mysql_plugin_registry_release
+};
+
 static struct st_service_ref list_of_services[]=
 {
 #ifndef EMBEDDED_LIBRARY
@@ -385,6 +391,7 @@ static struct st_service_ref list_of_services[]=
     VERSION_security_context_service, &security_context_handler },
 #endif
   { "mysql_locking_service", VERSION_locking_service, &locking_service_handler },
-  { "mysql_keyring_service", VERSION_mysql_keyring_service, &mysql_keyring_handler}
+  { "mysql_keyring_service", VERSION_mysql_keyring_service, &mysql_keyring_handler},
+  { "plugin_registry_service", VERSION_plugin_registry_service, &plugin_registry_handler}
 };
 

@@ -15,27 +15,39 @@
 
 #include "dd/impl/types/tablespace_impl.h"
 
-#include "mysqld_error.h"                        // ER_*
+#include <memory>
+#include <string.h>
+#include <sstream>
 
+#include "dd/string_type.h"                      // dd::String_type
 #include "dd/impl/properties_impl.h"             // Properties_impl
-#include "dd/impl/sdi_impl.h"                    // sdi read/write functions
-#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/raw/raw_record.h"              // Raw_record
 #include "dd/impl/raw/raw_record_set.h"          // Raw_record_set
 #include "dd/impl/raw/raw_table.h"               // Raw_table
+#include "dd/impl/sdi_impl.h"                    // sdi read/write functions
 #include "dd/impl/tables/tables.h"               // create_key_by_tablespace_id
-#include "dd/impl/tables/tablespaces.h"          // Tablespaces
 #include "dd/impl/tables/tablespace_files.h"     // Tablespace_files
+#include "dd/impl/tables/tablespaces.h"          // Tablespaces
+#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/types/tablespace_file_impl.h"  // Tablespace_file_impl
-
-#include <memory>
-#include <sstream>
+#include "dd/properties.h"
+#include "dd/types/tablespace_file.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                        // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 
 using dd::tables::Tablespaces;
 using dd::tables::Tablespace_files;
 
 namespace dd {
+
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 // Tablespace implementation.
@@ -69,7 +81,7 @@ Tablespace_impl::~Tablespace_impl()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Tablespace_impl::set_options_raw(const std::string &options_raw)
+bool Tablespace_impl::set_options_raw(const String_type &options_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(options_raw);
@@ -84,7 +96,7 @@ bool Tablespace_impl::set_options_raw(const std::string &options_raw)
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tablespace_impl::set_se_private_data_raw(
-  const std::string &se_private_data_raw)
+  const String_type &se_private_data_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(se_private_data_raw);
@@ -226,7 +238,7 @@ bool Tablespace::update_id_key(id_key_type *key, Object_id id)
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tablespace::update_name_key(name_key_type *key,
-                                      const std::string &name)
+                                      const String_type &name)
 { return Tablespaces::update_object_key(key, name); }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -261,9 +273,9 @@ bool Tablespace_impl::is_empty(THD *thd, bool *empty) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Tablespace_impl::debug_print(std::string &outb) const
+void Tablespace_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "TABLESPACE OBJECT: { "
     << "id: {OID: " << id() << "}; "
@@ -276,7 +288,7 @@ void Tablespace_impl::debug_print(std::string &outb) const
 
   for (const Tablespace_file *f : files())
   {
-    std::string ob;
+    String_type ob;
     f->debug_print(ob);
     ss << ob;
   }
@@ -297,7 +309,7 @@ Tablespace_file *Tablespace_impl::add_file()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Tablespace_impl::remove_file(std::string data_file)
+bool Tablespace_impl::remove_file(String_type data_file)
 {
   for (Tablespace_file *tsf : m_files)
   {

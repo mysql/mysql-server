@@ -20,7 +20,6 @@
   NDB Cluster
 */
 
-
 /* DDL names have to fit in system table ndb_schema */
 #define NDB_MAX_DDL_NAME_BYTESIZE 63
 #define NDB_MAX_DDL_NAME_BYTESIZE_STR "63"
@@ -31,8 +30,11 @@
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/ndbapi_limits.h>
 #include <kernel/ndb_limits.h>
+
+#include "my_global.h"
 #include "ndb_conflict.h"
 #include "partitioning/partition_handler.h"
+#include "table.h"
 
 #define NDB_IGNORE_VALUE(x) (void)x
 

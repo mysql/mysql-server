@@ -28,6 +28,7 @@ extern const char *my_defaults_extra_file;
 extern const char *my_defaults_group_suffix;
 extern const char *my_defaults_file;
 extern my_bool my_getopt_use_args_separator;
+extern my_bool my_defaults_read_login_file;
 extern my_bool no_defaults;
 
 /* Define the type of function to be passed to process_default_option_files */

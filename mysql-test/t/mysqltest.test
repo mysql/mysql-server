@@ -3360,3 +3360,13 @@ if ($os_version)
 
 --enable_result_log
 --enable_query_log
+
+--echo #
+--echo # Bug#24466969 : MTR CONNECT() ACCEPTS CONNECTION OPTIONS WITH ADDITIONAL TRAILING CHARACTERS
+--echo #
+
+--error 1
+--exec echo "connect(invalid_con,localhost,root,,,,,SOCKETNEW);" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "connect(tcp_ssl_con,localhost,root,,,,,TCP SSL3 COMPRESS);" | $MYSQL_TEST 2>&1

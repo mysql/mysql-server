@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
   This file defines the data structures used by engine condition pushdown in
   the NDB Cluster handler
 */
+
+#include "my_global.h"
 
 typedef enum ndb_item_type {
   NDB_VALUE = 0,   // Qualified more with Item::Type

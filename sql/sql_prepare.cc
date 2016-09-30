@@ -84,45 +84,84 @@ When one supplies long data for a placeholder:
 */
 
 #include "sql_prepare.h"
-#include "auth_common.h"        // insert_precheck
+
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "auth_acls.h"
+#include "auth_common.h"        // check_table_access
+#include "binary_log_types.h"
+#include "binlog.h"
+#include "decimal.h"
 #include "derror.h"             // ER_THD
+#include "field.h"
+#include "handler.h"
+#include "hash.h"
+#include "item.h"
 #include "item_func.h"          // user_var_entry
 #include "log.h"                // query_logger
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_byteorder.h"
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_decimal.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
+#include "mysql_time.h"
 #include "mysqld.h"             // opt_general_log
+#include "mysqld_error.h"
 #include "opt_trace.h"          // Opt_trace_array
-#include "probes_mysql.h"       // MYSQL_QUERY_EXEC_START
+#include "probes_mysql.h"
+#include "protocol.h"
 #include "psi_memory_key.h"
 #include "set_var.h"            // set_var_base
 #include "sp.h"                 // Sroutine_hash_entry
 #include "sp_cache.h"           // sp_cache_enforce_limit
 #include "sql_analyse.h"        // Query_result_analyse
+#include "sql_audit.h"          // mysql_global_audit_mask
 #include "sql_base.h"           // open_tables_for_query, open_temporary_table
 #include "sql_cache.h"          // query_cache
+#include "sql_cmd.h"
+#include "sql_const.h"
 #include "sql_cursor.h"         // Server_side_cursor
 #include "sql_db.h"             // mysql_change_db
-#include "sql_delete.h"         // mysql_prepare_delete
+#include "sql_digest_stream.h"
 #include "sql_handler.h"        // mysql_ha_rm_tables
-#include "sql_insert.h"         // mysql_prepare_insert
+#include "sql_lex.h"
 #include "sql_parse.h"          // sql_command_flags
+#include "sql_profile.h"
 #include "sql_rewrite.h"        // mysql_rewrite_query
-#include "sql_update.h"         // mysql_prepare_update
-#include "sql_do.h"             // Query_result_do
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_udf.h"
 #include "sql_view.h"           // create_view_precheck
+#include "system_variables.h"
+#include "table.h"
+#include "thr_malloc.h"
 #include "transaction.h"        // trans_rollback_implicit
-#include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
-#include "binlog.h"
-#include "sql_audit.h"          // mysql_global_audit_mask
-#include "sql_plugin.h"
+#include "violite.h"
 
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
-#include <mysql.h>
+#include "mysql.h"
 #else
-#include <mysql_com.h>
+#include "mysql_com.h"
 #endif
+#include <algorithm>
+
 #include "sql_query_rewrite.h"
 
-#include <algorithm>
+struct PSI_statement_locker;
+union COM_DATA;
+
 using std::max;
 using std::min;
 
@@ -141,8 +180,6 @@ private:
   LEX_STRING m_sql_text;
 };
 
-
-class Ed_connection;
 
 /**
   Protocol_local: a helper class to intercept the result
@@ -1175,180 +1212,9 @@ error:
 
 }
 
-/**
-  Validate INSERT statement.
-
-  @param thd                    thread handle
-  @param table_list             global/local table list
-
-  @retval
-    FALSE             success
-  @retval
-    TRUE              error, error message is set in THD
-*/
-
-bool Sql_cmd_insert::mysql_test_insert(THD *thd, TABLE_LIST *table_list)
-{
-  List_iterator_fast<List_item> its(insert_many_values);
-  List_item *values;
-  DBUG_ENTER("mysql_test_insert");
-
-  if (open_temporary_tables(thd, table_list))
-    goto error;
-
-  if (insert_precheck(thd, table_list))
-    goto error;
-
-  /*
-    Open temporary memory pool for temporary data allocated by derived
-    tables & preparation procedure
-    Note that this is done without locks (should not be needed as we will not
-    access any data here)
-  */
-  DBUG_EXECUTE_IF("mysql_test_insert__out_of_memory",
-                  DBUG_SET("+d,simulate_out_of_memory"););
-
-  if (open_tables_for_query(thd, table_list, MYSQL_OPEN_FORCE_SHARED_MDL))
-    goto error;
-
-  if ((values= its++))
-  {
-    uint value_count;
-    ulong counter= 0;
-
-    if (table_list->table)
-    {
-      // don't allocate insert_values
-      table_list->table->insert_values=(uchar *)1;
-    }
-
-    if (mysql_prepare_insert(thd, table_list, values, false))
-      goto error;
-
-    value_count= values->elements;
-    its.rewind();
-
-    while ((values= its++))
-    {
-      counter++;
-      if (values->elements != value_count)
-      {
-        my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
-        goto error;
-      }
-      if (setup_fields(thd, Ref_item_array(), *values, 0, NULL, false, false))
-        goto error;
-    }
-  }
-  DBUG_RETURN(FALSE);
-
-error:
-  /* insert_values is cleared in open_table */
-  DBUG_RETURN(TRUE);
-}
-
 
 /**
-  Validate UPDATE statement.
-
-  @param thd                current thread
-
-  @todo
-    - here we should send types of placeholders to the client.
-
-  @retval
-    0                 success
-  @retval
-    1                 error, error message is set in THD
-  @retval
-    2                 convert to multi_update
-*/
-
-int Sql_cmd_update::mysql_test_update(THD *thd)
-{
-  DBUG_ENTER("mysql_test_update");
-
-  SELECT_LEX *const select= thd->lex->select_lex;
-  TABLE_LIST *const table_list= select->get_table_list();
-
-  if (update_precheck(thd, table_list))
-    DBUG_RETURN(1);
-  if (open_tables_for_query(thd, table_list, MYSQL_OPEN_FORCE_SHARED_MDL))
-    DBUG_RETURN(1);
-
-  if (select->setup_tables(thd, table_list, false))
-    DBUG_RETURN(true);                  /* purecov: inspected */
-
-  if (table_list->is_view())
-  {
-    if (table_list->resolve_derived(thd, false))
-      DBUG_RETURN(true);                /* purecov: inspected */
-
-    if (select->merge_derived(thd, table_list))
-      DBUG_RETURN(true);                /* purecov: inspected */
-  }
-
-  if (!table_list->is_updatable())
-  {
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
-    DBUG_RETURN(1);
-  }
-
-  if (table_list->is_multiple_tables())
-  {
-    DBUG_ASSERT(table_list->is_view());
-    DBUG_PRINT("info", ("Switch to multi-update"));
-    /* convert to multiupdate */
-    DBUG_RETURN(2);
-  }
-
-  TABLE_LIST *const update_table_ref= table_list->updatable_base_table();
-
-  Key_map covering_keys_for_cond;
-  if (mysql_prepare_update(thd, update_table_ref, &covering_keys_for_cond,
-                           update_value_list))
-    DBUG_RETURN(1);
-
-  /* TODO: here we should send types of placeholders to the client. */
-  DBUG_RETURN(0);
-}
-
-
-/**
-  Validate DELETE statement.
-
-  @param thd               current thread
-
-  @retval
-    FALSE             success
-  @retval
-    TRUE              error, error message is set in THD
-*/
-
-bool Sql_cmd_delete::prepared_statement_test(THD *thd)
-{
-  DBUG_ENTER("Sql_cmd_delete::prepare_test");
-
-  SELECT_LEX *const select= thd->lex->select_lex;
-
-  DBUG_ASSERT(thd->lex->query_tables ==
-              thd->lex->select_lex->get_table_list());
-  TABLE_LIST *const table_list= select->get_table_list();
-
-  if (delete_precheck(thd, table_list))
-    DBUG_RETURN(true);
-  if (open_tables_for_query(thd, table_list, MYSQL_OPEN_FORCE_SHARED_MDL))
-    DBUG_RETURN(true);
-
-  if (mysql_prepare_delete(thd))
-    DBUG_RETURN(true);
-
-  DBUG_RETURN(false);
-}
-
-
-/**
-  Validate SELECT statement.
+  Validate SHOW statement.
 
     In case of success, if this query is not EXPLAIN, send column list info
     back to the client.
@@ -1364,43 +1230,27 @@ bool Sql_cmd_delete::prepared_statement_test(THD *thd)
     2                 success, and statement metadata has been sent
 */
 
-static int mysql_test_select(Prepared_statement *stmt,
-                             TABLE_LIST *tables)
+static int mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX_UNIT *unit= lex->unit;
-  DBUG_ENTER("mysql_test_select");
+  DBUG_ENTER("mysql_test_show");
 
   DBUG_ASSERT(!thd->is_error());
 
   lex->select_lex->context.resolve_in_select_list= true;
 
-  if (select_precheck(thd, lex, tables,
-                      lex->select_lex->table_list.first,
-                      stmt->is_sql_prepare()))
+  if (show_precheck(thd, lex, false))
     goto error;
+
+  DBUG_ASSERT(lex->result == NULL);
+  DBUG_ASSERT(lex->sql_command != SQLCOM_DO);
 
   if (!lex->result)
   {
-    if (lex->sql_command == SQLCOM_DO)
-    {
-      if (!(lex->result= new (stmt->mem_root) Query_result_do(thd)))
-      {
-        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
-                 static_cast<int>(sizeof(Query_result_do)));
-        goto error;
-      }
-    }
-    else
-    {
-      if (!(lex->result= new (stmt->mem_root) Query_result_send(thd)))
-      {
-        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
-                 static_cast<int>(sizeof(Query_result_send)));
-        goto error;
-      }
-    }
+    if (!(lex->result= new (stmt->mem_root) Query_result_send(thd)))
+      goto error;                 /* purecov: inspected */
   }
 
   if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
@@ -1492,84 +1342,6 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
 
 
 /**
-  Validate and prepare for execution CALL statement expressions.
-
-  @param stmt               prepared statement
-  @param tables             list of tables used in this query
-  @param value_list         list of expressions
-
-  @retval FALSE             success
-  @retval TRUE              error, error message is set in THD
-*/
-
-static bool mysql_test_call_fields(Prepared_statement *stmt,
-                                   TABLE_LIST *tables,
-                                   List<Item> *value_list)
-{
-  List_iterator<Item> it(*value_list);
-  THD *thd= stmt->thd;
-  Item *item;
-  DBUG_ENTER("mysql_test_call_fields");
-  DBUG_ASSERT(stmt->is_stmt_prepare());
-
-  if (tables &&
-      check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
-    DBUG_RETURN(true);                /* purecov: inspected */
-
-  if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
-    DBUG_RETURN(true);                /* purecov: inspected */
-
-  while ((item= it++))
-  {
-    if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
-        item->check_cols(1))
-      DBUG_RETURN(true);              /* purecov: inspected */
-  }
-
-  DBUG_RETURN(false);
-}
-
-
-/**
-  Check internal SELECT of the prepared command.
-
-  @param thd                       current thread
-  @param cmd
-  @param setup_tables_done_option  options to be passed to LEX::unit->prepare()
-
-  @note
-    This function won't directly open tables used in select. They should
-    be opened either by calling function (and in this case you probably
-    should use select_like_stmt_test_with_open()) or by
-    "specific_prepare" call (like this happens in case of multi-update).
-
-  @retval
-    FALSE                success
-  @retval
-    TRUE                 error, error message is set in THD
-*/
-
-bool select_like_stmt_cmd_test(THD *thd,
-                               Sql_cmd_dml *cmd,
-                               ulong setup_tables_done_option)
-{
-  DBUG_ENTER("select_like_stmt_test");
-  LEX *lex= thd->lex;
-
-  lex->select_lex->context.resolve_in_select_list= true;
-
-  if (cmd != NULL && cmd->prepare(thd))
-    DBUG_RETURN(TRUE);
-
-  thd->lex->used_tables= 0;                        // Updated by setup_fields
-
-  /* Calls SELECT_LEX::prepare */
-  const bool ret= lex->unit->prepare(thd, 0, setup_tables_done_option, 0);
-  DBUG_RETURN(ret);
-}
-
-
-/**
   Check internal SELECT of the prepared command.
 
   @note Old version. Will be replaced with select_like_stmt_cmd_test() after
@@ -1609,40 +1381,6 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   /* Calls SELECT_LEX::prepare */
   const bool ret= lex->unit->prepare(thd, 0, setup_tables_done_option, 0);
   DBUG_RETURN(ret);
-}
-
-
-/**
-  Check internal SELECT of the prepared command (with opening of used
-  tables).
-
-  @param thd                       current thread
-  @param tables                    list of tables to be opened
-                                   before calling specific_prepare function
-  @param cmd                       Sql_cmd to call Sql_cmd::prepare()
-  @param setup_tables_done_option  options to be passed to LEX::unit->prepare()
-
-  @retval
-    FALSE                success
-  @retval
-    TRUE                 error
-*/
-
-static bool
-select_like_stmt_cmd_test_with_open(THD *thd,
-                                    TABLE_LIST *tables,
-                                    Sql_cmd_dml *cmd,
-                                    ulong setup_tables_done_option)
-{
-  DBUG_ENTER("select_like_stmt_test_with_open");
-
-  if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
-    DBUG_RETURN(true);
-
-  if (select_like_stmt_cmd_test(thd, cmd, setup_tables_done_option))
-    DBUG_RETURN(true);
-
-  DBUG_RETURN(false);
 }
 
 
@@ -1754,107 +1492,6 @@ err:
 
 
 /**
-  Validate and prepare for execution a multi delete statement.
-
-  @param thd                current thread
-
-  @retval
-    FALSE             success
-  @retval
-    TRUE              error, error message in THD is set.
-*/
-
-bool Sql_cmd_delete_multi::prepared_statement_test(THD *thd)
-{
-  LEX *lex= thd->lex;
-  TABLE_LIST * const tables= lex->query_tables;
-  lex->set_current_select(lex->select_lex);
-  if (add_item_to_list(thd, new Item_null()))
-  {
-    /* purecov: begin inspected */
-    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
-    return true;
-    /* purecov: end */
-  }
-
-  if (multi_delete_precheck(thd, tables))
-    return true;
-  if (select_like_stmt_cmd_test_with_open(thd, tables,
-                                          this,
-                                          OPTION_SETUP_TABLES_DONE))
-    return true;
-
-  return false;
-}
-
-
-/**
-  Wrapper for mysql_insert_select_prepare, to make change of local tables
-  after open_tables_for_query() call.
-
-  @param thd                thread handle
-
-    We need to remove the first local table after
-    open_tables_for_query(), because mysql_insert_select_prepare()
-    uses local tables lists.
-*/
-
-bool Sql_cmd_insert_select::prepare(THD *thd)
-{
-  SELECT_LEX *const first_select= thd->lex->select_lex;
-  TABLE_LIST *const second_table= first_select->table_list.first->next_local;
-
-  /* Skip first table, which is the table we are inserting in */
-  first_select->table_list.first= second_table;
-  thd->lex->select_lex->context.table_list=
-    thd->lex->select_lex->context.first_name_resolution_table= second_table;
-
-  return mysql_insert_select_prepare(thd);
-}
-
-
-/**
-  Validate and prepare for execution INSERT ... SELECT statement.
-
-  @param thd         current thread
-
-  @retval
-    FALSE             success
-  @retval
-    TRUE              error, error message is set in THD
-*/
-
-bool Sql_cmd_insert_select::prepared_statement_test(THD *thd)
-{
-  TABLE_LIST * const tables= thd->lex->query_tables;
-  int res;
-  LEX *lex= thd->lex;
-  TABLE_LIST *first_local_table;
-
-  if (tables->table)
-  {
-    // don't allocate insert_values
-    tables->table->insert_values=(uchar *)1;
-  }
-
-  if (insert_precheck(thd, tables))
-    return 1;
-
-  /* store it, because Sql_cmd_insert_select::prepare() change it */
-  first_local_table= lex->select_lex->table_list.first;
-  DBUG_ASSERT(first_local_table != 0);
-
-  res=
-    select_like_stmt_cmd_test_with_open(thd, tables,
-                                        this,
-                                        OPTION_SETUP_TABLES_DONE);
-  /* revert changes  made by Sql_cmd_insert_select::prepare() */
-  lex->select_lex->table_list.first= first_local_table;
-  return res;
-}
-
-
-/**
   Perform semantic analysis of the parsed tree and send a response packet
   to the client.
 
@@ -1905,7 +1542,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
       (thd->lex->keep_diagnostics == DA_KEEP_DIAGNOSTICS))
   {
     my_error(ER_UNSUPPORTED_PS, MYF(0));
-    goto error;
+    DBUG_RETURN(true);
   }
 
   if (sql_command_flags[sql_command] & CF_HA_CLOSE)
@@ -1918,22 +1555,10 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   if (sql_command_flags[sql_command] & CF_PREOPEN_TMP_TABLES)
   {
     if (open_temporary_tables(thd, tables))
-      goto error;
+      DBUG_RETURN(true);
   }
 
   switch (sql_command) {
-  case SQLCOM_INSERT:
-  case SQLCOM_INSERT_SELECT:
-  case SQLCOM_REPLACE:
-  case SQLCOM_REPLACE_SELECT:
-  case SQLCOM_UPDATE:
-  case SQLCOM_UPDATE_MULTI:
-  case SQLCOM_DELETE:
-  case SQLCOM_DELETE_MULTI:
-    DBUG_ASSERT(thd->lex == stmt->lex);
-    res=
-      static_cast<Sql_cmd_dml *>(lex->m_sql_cmd)->prepared_statement_test(thd);
-    break;
   /* The following allow WHERE clause, so they must be tested like SELECT */
   case SQLCOM_SHOW_DATABASES:
   case SQLCOM_SHOW_TABLES:
@@ -1949,13 +1574,11 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
-  case SQLCOM_SELECT:
-  case SQLCOM_DO:
-    res= mysql_test_select(stmt, tables);
+    res= mysql_test_show(stmt, tables);
     if (res == 2)
     {
       /* Statement and field info has already been sent */
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
     }
     break;
   case SQLCOM_CREATE_TABLE:
@@ -1966,14 +1589,11 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     if (lex->create_view_mode == enum_view_create_mode::VIEW_ALTER)
     {
       my_error(ER_UNSUPPORTED_PS, MYF(0));
-      goto error;
+      DBUG_RETURN(true);
     }
     res= mysql_test_create_view(stmt);
     break;
 
-  case SQLCOM_CALL:
-    res= mysql_test_call_fields(stmt, tables, &lex->call_value_list);
-    break;
   case SQLCOM_SET_OPTION:
     res= mysql_test_set_fields(stmt, tables, &lex->var_list);
     break;
@@ -2021,6 +1641,24 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_ALTER_USER_DEFAULT_ROLE:
     break;
 
+  case SQLCOM_SELECT:
+  case SQLCOM_DO:
+  case SQLCOM_DELETE:
+  case SQLCOM_DELETE_MULTI:
+  case SQLCOM_UPDATE:
+  case SQLCOM_UPDATE_MULTI:
+  case SQLCOM_INSERT:
+  case SQLCOM_INSERT_SELECT:
+  case SQLCOM_REPLACE:
+  case SQLCOM_REPLACE_SELECT:
+  case SQLCOM_CALL:
+    res= lex->m_sql_cmd->prepare(thd);
+    // @todo Temporary solution: Unprepare after preparation to preserve
+    //       old behaviour
+    if (!res)
+      lex->m_sql_cmd->unprepare(thd);
+    break;
+
   case SQLCOM_PREPARE:
   case SQLCOM_EXECUTE:
   case SQLCOM_DEALLOCATE_PREPARE:
@@ -2036,17 +1674,38 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     {
       /* All other statements are not supported yet. */
       my_error(ER_UNSUPPORTED_PS, MYF(0));
-      goto error;
+      DBUG_RETURN(true);
     }
     break;
   }
-  if (res == 0)
+  if (res)
+    DBUG_RETURN(true);
+
+  if (stmt->is_sql_prepare())
+    DBUG_RETURN(false);
+
+  if (lex->sql_command == SQLCOM_SELECT && !lex->describe)
   {
-    DBUG_RETURN(stmt->is_sql_prepare() ? FALSE : (send_prep_stmt(stmt, 0) ||
-                thd->get_protocol_classic()->flush()));
+    SELECT_LEX_UNIT *unit= lex->unit;
+    Query_result *result= unit->query_result();
+    if (result == NULL)
+      result= unit->first_select()->query_result();
+    List<Item> *types= unit->get_unit_column_types();
+    if (send_prep_stmt(stmt, result->field_count(*types)))
+      DBUG_RETURN(true);                      /* purecov: inspected */
+
+    if (result->send_result_set_metadata(*types, Protocol::SEND_EOF))
+      DBUG_RETURN(true);                      /* purecov: inspected */
   }
-error:
-  DBUG_RETURN(TRUE);
+  else
+  {
+    if (send_prep_stmt(stmt, 0))
+      DBUG_RETURN(true);                      /* purecov: inspected */
+  }
+  if (thd->get_protocol_classic()->flush())
+    DBUG_RETURN(true);                        /* purecov: inspected */
+
+  DBUG_RETURN(false);
 }
 
 /**
@@ -2471,28 +2130,11 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
        rt; rt= rt->next)
     rt->mdl_request.ticket= NULL;
 
-  /*
-    Cleanup of the special case of DELETE t1, t2 FROM t1, t2, t3 ...
-    (multi-delete).  We do a full clean up, although at the moment all we
-    need to clean in the tables of MULTI-DELETE list is 'table' member.
-  */
-  for (TABLE_LIST *tables= lex->auxiliary_table_list.first;
-       tables;
-       tables= tables->next_global)
-  {
-    tables->reinit_before_use(thd);
-  }
   lex->set_current_select(lex->select_lex);
 
-  // restore leaf tables used in INSERT ... SELECT
-  if (lex->insert_table)
-    lex->select_lex->leaf_tables= lex->insert_table->first_leaf_table();
-
   if (lex->result)
-  {
-    lex->result->cleanup();
     lex->result->set_thd(thd);
-  }
+
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
 
@@ -3289,12 +2931,11 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
     error = parse_sql(thd, &parser_state, NULL) ||
             thd->is_error() ||
             init_param_array(this);
-
-    if (!error)
-    { // We've just created the statement maybe there is a rewrite
-      invoke_post_parse_rewrite_plugins(thd, true);
-      error = init_param_array(this);
-    }
+  }
+  if (!error)
+  { // We've just created the statement maybe there is a rewrite
+    invoke_post_parse_rewrite_plugins(thd, true);
+    error = init_param_array(this);
   }
 
   lex->set_trg_event_type_for_tables();
@@ -4037,10 +3678,10 @@ void Ed_result_set::operator delete(void *ptr, size_t size) throw ()
   if (ptr)
   {
     /*
-      Make a stack copy, otherwise free_root() will attempt to
+      Move into the stack, otherwise free_root() will attempt to
       write to freed memory.
     */
-    MEM_ROOT own_root= ((Ed_result_set*) ptr)->m_mem_root;
+    MEM_ROOT own_root= std::move(((Ed_result_set*) ptr)->m_mem_root);
     free_root(&own_root, MYF(0));
   }
 }
@@ -4060,7 +3701,7 @@ void Ed_result_set::operator delete(void *ptr, size_t size) throw ()
 Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg,
                              size_t column_count_arg,
                              MEM_ROOT *mem_root_arg)
-  :m_mem_root(*mem_root_arg),
+  :m_mem_root(std::move(*mem_root_arg)),
   m_column_count(column_count_arg),
   m_rows(rows_arg),
   m_next_rset(NULL)

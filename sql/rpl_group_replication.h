@@ -16,12 +16,10 @@
 #ifndef RPL_GROUP_REPLICATION_INCLUDED
 #define RPL_GROUP_REPLICATION_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
 #include "mysql/plugin_group_replication.h"
 #include "sql_plugin_ref.h"    // plugin_ref
-
-#include <string>
 
 class View_change_log_event;
 

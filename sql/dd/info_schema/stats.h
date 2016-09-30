@@ -16,8 +16,14 @@
 #ifndef DD_INFO_SCHEMA_INCLUDED
 #define DD_INFO_SCHEMA_INCLUDED
 
+#include <sys/types.h>
+#include <string>
+
+#include "dd/object_id.h"
 #include "handler.h"                        // ha_statistics
+#include "my_global.h"
 #include "sql_string.h"                     // String
+#include "dd/string_type.h"                 // dd::String_type
 
 class THD;
 struct TABLE_LIST;
@@ -220,7 +226,7 @@ public:
 
 
   // Get error string. Its empty if a error is not reported.
-  inline std::string error()
+  inline String_type error()
   { return m_error; }
 
 
@@ -295,13 +301,13 @@ private:
     @param db_name     Database name.
     @param table_name  Table name.
 
-    @returns std::string representing the key.
+    @returns String_type representing the key.
   */
-  std::string form_key(const String &db_name,
+  String_type form_key(const String &db_name,
                        const String &table_name)
   {
-    return std::string(db_name.ptr()) + "." +
-           std::string(table_name.ptr());
+    return String_type(db_name.ptr()) + "." +
+           String_type(table_name.ptr());
   }
 
 
@@ -340,10 +346,10 @@ private:
 private:
 
   // The cache key
-  std::string m_key; // Format '<db_name>.<table_name>'
+  String_type m_key; // Format '<db_name>.<table_name>'
 
   // Error found when reading statistics.
-  std::string m_error;
+  String_type m_error;
 
 
 public:

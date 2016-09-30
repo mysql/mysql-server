@@ -16,8 +16,10 @@
 #ifndef SQL_CMD_CREATE_TABLE_INCLUDED
 #define SQL_CMD_CREATE_TABLE_INCLUDED
 
-#include "my_global.h"
+#include "my_sqlcommand.h"
 #include "sql_cmd.h"
+
+class THD;
 
 class Sql_cmd_create_table : public Sql_cmd
 {

@@ -54,8 +54,8 @@ public:
   // filename.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &filename() const = 0;
-  virtual void set_filename(const std::string &filename) = 0;
+  virtual const String_type &filename() const = 0;
+  virtual void set_filename(const String_type &filename) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -64,7 +64,7 @@ public:
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // tablespace.

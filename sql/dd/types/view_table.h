@@ -52,22 +52,22 @@ public:
   // XXX: do we need it now?
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_catalog() const = 0;
-  virtual void set_table_catalog(const std::string &table_catalog) = 0;
+  virtual const String_type &table_catalog() const = 0;
+  virtual void set_table_catalog(const String_type &table_catalog) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // View table schema name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_schema() const = 0;
-  virtual void set_table_schema(const std::string &table_schema) = 0;
+  virtual const String_type &table_schema() const = 0;
+  virtual void set_table_schema(const String_type &table_schema) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // View table name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_name() const = 0;
-  virtual void set_table_name(const std::string &table_name) = 0;
+  virtual const String_type &table_name() const = 0;
+  virtual void set_table_name(const String_type &table_name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Parent view.

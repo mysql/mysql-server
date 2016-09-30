@@ -22,7 +22,8 @@
 
 #include <stdint.h>
 #include <list>
-#include "ngs/ngs_types.h"
+
+#include "ngs_common/posix_time.h"
 
 
 namespace ngs

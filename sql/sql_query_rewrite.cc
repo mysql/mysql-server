@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,18 +13,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <stddef.h>
+
+#include "my_dbug.h"
 #include "my_global.h"
+#include "my_sqlcommand.h"
 #include "mysql/plugin_audit.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysql/service_rules_table.h"
 #include "mysql/service_ssl_wrapper.h"
-#include "sql_error.h"
-#include "sql_parse.h"
-#include "sql_plugin.h"
-#include "sql_query_rewrite.h"
-#include "log.h"
-#include "sql_base.h"
-#include "sql_class.h"
+#include "mysqld_error.h"
+#include "session_tracker.h"
 #include "sql_audit.h"
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_parse.h"
+#include "sql_query_rewrite.h"
+
+class Parser_state;
+class THD;
 
 #ifndef EMBEDDED_LIBRARY
 static void raise_query_rewritten_note(THD *thd,

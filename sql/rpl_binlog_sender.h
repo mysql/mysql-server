@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,18 @@
 #ifndef DEFINED_RPL_BINLOG_SENDER
 #define DEFINED_RPL_BINLOG_SENDER
 
+#include <string.h>
+#include <sys/types.h>
+#include <time.h>
+
+// Hack needed due to mysql_com.h not including my_global.h.
+#include "my_global.h"  // IWYU pragma: keep
+#include "mysql_com.h"
+#include "sql_string.h"
+
+class Gtid_set;
+class THD;
 #ifdef HAVE_REPLICATION
-#include "my_global.h"
 #include "binlog.h"           // LOG_INFO
 #include "binlog_event.h"     // enum_binlog_checksum_alg, Log_event_type
 #include "mysqld_error.h"     // ER_*

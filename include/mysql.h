@@ -70,7 +70,7 @@ typedef int my_socket;
 
 #include "typelib.h"
 
-#include "my_alloc.h"
+typedef struct st_mem_root MEM_ROOT;
 
 #ifdef	__cplusplus
 extern "C" {
@@ -138,7 +138,7 @@ typedef struct embedded_query_result EMBEDDED_QUERY_RESULT;
 typedef struct st_mysql_data {
   MYSQL_ROWS *data;
   struct embedded_query_result *embedded_info;
-  MEM_ROOT alloc;
+  MEM_ROOT *alloc;
   my_ulonglong rows;
   unsigned int fields;
   /* extra info for embedded library */
@@ -266,7 +266,7 @@ typedef struct st_mysql
   char          *info, *db;
   struct charset_info_st *charset;
   MYSQL_FIELD	*fields;
-  MEM_ROOT	field_alloc;
+  MEM_ROOT	*field_alloc;
   my_ulonglong affected_rows;
   my_ulonglong insert_id;		/* id if insert on table with NEXTNR */
   my_ulonglong extra_info;		/* Not used */
@@ -313,7 +313,7 @@ typedef struct st_mysql_res {
   const struct st_mysql_methods *methods;
   MYSQL_ROW	row;			/* If unbuffered read */
   MYSQL_ROW	current_row;		/* buffer to current row */
-  MEM_ROOT	field_alloc;
+  MEM_ROOT	*field_alloc;
   unsigned int	field_count, current_field;
   my_bool	eof;			/* Used by mysql_fetch_row */
   /* mysql_stmt_close() had to cancel this result */
@@ -598,7 +598,7 @@ struct st_mysql_stmt_extension;
 /* statement handler */
 typedef struct st_mysql_stmt
 {
-  MEM_ROOT       mem_root;             /* root allocations */
+  MEM_ROOT       *mem_root;             /* root allocations */
   LIST           list;                 /* list to keep track of all stmts */
   MYSQL          *mysql;               /* connection handle */
   MYSQL_BIND     *params;              /* input parameters */

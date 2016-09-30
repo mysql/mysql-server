@@ -15,29 +15,47 @@
 
 #include "dd/sdi.h"
 
-#include "handler.h"              // ha_resolve_by_name_raw
-#include "m_string.h"             // STRING_WITH_LEN
-#include "sql_class.h"            // THD
+#include <rapidjson/document.h>     // rapidjson::GenericValue
+#include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <vector>
 
-#include "dd/dd.h"                      // dd::create_object
-#include "dd/dd_tablespace.h"           // dd::get_tablespace_name
-#include "dd/sdi_file.h"                // dd::sdi_file::store
-#include "dd/sdi_tablespace.h"          // dd::sdi_tablespace::store
 #include "dd/cache/dictionary_client.h" // dd::Dictionary_client
 #include "dd/impl/dictionary_impl.h"    // dd::Dictionary_impl::get_target_dd_version
 #include "dd/impl/sdi_impl.h"           // sdi read/write functions
 #include "dd/impl/sdi_utils.h"          // dd::checked_return
+#include "dd/object_id.h"
+#include "dd/sdi_file.h"                // dd::sdi_file::store
+#include "dd/sdi_fwd.h"
+#include "dd/sdi_tablespace.h"          // dd::sdi_tablespace::store
+#include "dd/types/abstract_table.h"
 #include "dd/types/column.h"            // dd::Column
 #include "dd/types/index.h"             // dd::Index
-#include "dd/types/object_type.h"       // dd::create_object needs this
 #include "dd/types/schema.h"            // dd::Schema
 #include "dd/types/table.h"             // dd::Table
 #include "dd/types/tablespace.h"        // dd::Tablespace
+#include "handler.h"              // ha_resolve_by_name_raw
+#include "handler.h"              // ha_resolve_by_name_raw
+#include "m_string.h"             // STRING_WITH_LEN
+#include "m_string.h"             // STRING_WITH_LEN
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "rapidjson/stringbuffer.h"
+#include "sql_class.h"            // THD
+#include "sql_class.h"            // THD
+#include "sql_plugin_ref.h"
+#include "strfunc.h"              // lex_cstring_handle
+#include "template_utils.h"
 
-#include <rapidjson/document.h>     // rapidjson::GenericValue
-#include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
-
-#include <iostream>
+namespace dd {
+class Weak_object;
+}  // namespace dd
 
 /**
   @defgroup sdi Serialized Dictionary Information
@@ -71,7 +89,7 @@
 using namespace dd::sdi_utils;
 
 namespace {
-const std::string empty_= "";
+const dd::String_type empty_= "";
 
 char *generic_buf_handle(Byte_buffer *buf, size_t sz)
 {
@@ -108,20 +126,20 @@ class Sdi_wcontext
   /** Thread context */
   THD *m_thd;
   /** Pointer to schema name to use for schema references in SDI */
-  const std::string *m_schema_name;
+  const String_type *m_schema_name;
 
   /** Flag indicating that an error has occured */
   bool m_error;
 
   friend char *buf_handle(Sdi_wcontext *wctx, size_t sz);
 
-  friend const std::string &lookup_schema_name(Sdi_wcontext *wctx);
+  friend const String_type &lookup_schema_name(Sdi_wcontext *wctx);
 
-  friend const std::string &lookup_tablespace_name(Sdi_wcontext *wctx,
+  friend const String_type &lookup_tablespace_name(Sdi_wcontext *wctx,
                                                    dd::Object_id id);
 
 public:
-  Sdi_wcontext(THD *thd, const std::string *schema_name) :
+  Sdi_wcontext(THD *thd, const String_type *schema_name) :
     m_thd(thd), m_schema_name(schema_name), m_error(false) {}
 
   bool error() const
@@ -137,16 +155,16 @@ char *buf_handle(Sdi_wcontext *wctx, size_t sz)
 }
 
 
-const std::string &lookup_schema_name(Sdi_wcontext *wctx)
+const String_type &lookup_schema_name(Sdi_wcontext *wctx)
 {
   return *wctx->m_schema_name;
 }
 
 static constexpr std::uint64_t sdi_version= 1;
 template <typename T>
-std::string generic_serialize(THD *thd, const char *dd_object_type,
+String_type generic_serialize(THD *thd, const char *dd_object_type,
                               size_t dd_object_type_size, const T &dd_obj,
-                              const std::string *schema_name)
+                              const String_type *schema_name)
 {
   dd::Sdi_wcontext wctx(thd, schema_name);
   dd::RJ_StringBuffer buf;
@@ -163,11 +181,11 @@ std::string generic_serialize(THD *thd, const char *dd_object_type,
   dd_obj.serialize(&wctx, &w);
   w.EndObject();
 
-  return (wctx.error() ? empty_ : std::string(buf.GetString(), buf.GetSize()));
+  return (wctx.error() ? empty_ : String_type(buf.GetString(), buf.GetSize()));
 }
 
 
-const std::string &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id)
+const String_type &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id)
 {
   if (wctx->m_thd == nullptr || id == INVALID_OBJECT_ID)
   {
@@ -229,9 +247,9 @@ class Sdi_rcontext
   friend char *buf_handle(Sdi_rcontext *rctx, size_t sz);
 
   friend bool lookup_schema_ref(Sdi_rcontext *rctx,
-                                const std::string &name, dd::Object_id *idp);
+                                const String_type &name, dd::Object_id *idp);
   friend bool lookup_tablespace_ref(Sdi_rcontext *rctx,
-                                    const std::string &name, Object_id *idp);
+                                    const String_type &name, Object_id *idp);
 
 public:
   Sdi_rcontext(THD *thd, uint target_dd_version, std::uint64_t sdi_version) :
@@ -294,7 +312,7 @@ char *buf_handle(Sdi_rcontext *rctx, size_t sz)
 
 template <typename T>
 bool generic_lookup_ref(THD *thd, MDL_key::enum_mdl_namespace mdlns,
-                        const std::string &name, dd::Object_id *idp)
+                        const String_type &name, dd::Object_id *idp)
 {
   if (thd == nullptr)
   {
@@ -322,13 +340,13 @@ bool generic_lookup_ref(THD *thd, MDL_key::enum_mdl_namespace mdlns,
 }
 
 
-bool lookup_schema_ref(Sdi_rcontext *sdictx, const std::string &name,
+bool lookup_schema_ref(Sdi_rcontext *sdictx, const String_type &name,
                        dd::Object_id *idp)
 {
   return generic_lookup_ref<Schema>(sdictx->m_thd, MDL_key::SCHEMA, name, idp);
 }
 
-bool lookup_tablespace_ref(Sdi_rcontext *sdictx, const std::string &name,
+bool lookup_tablespace_ref(Sdi_rcontext *sdictx, const String_type &name,
                            Object_id *idp)
 {
   return generic_lookup_ref<Tablespace>(sdictx->m_thd, MDL_key::TABLESPACE,
@@ -352,7 +370,7 @@ sdi_t serialize(const Schema &schema)
 }
 
 
-sdi_t serialize(THD *thd, const Table &table, const std::string &schema_name)
+sdi_t serialize(THD *thd, const Table &table, const String_type &schema_name)
 {
   return generic_serialize(thd, STRING_WITH_LEN("Table"), table, &schema_name);
 }
@@ -366,7 +384,7 @@ sdi_t serialize(const Tablespace &tablespace)
 
 template <class Dd_type>
 bool generic_deserialize(THD *thd, const sdi_t &sdi,
-                         const std::string &object_type_name, Dd_type *dst)
+                         const String_type &object_type_name, Dd_type *dst)
 {
   RJ_Document doc;
   doc.Parse<0>(sdi.c_str());
@@ -392,7 +410,7 @@ bool generic_deserialize(THD *thd, const sdi_t &sdi,
   DBUG_ASSERT(doc.HasMember("dd_object_type"));
   RJ_Value &dd_object_type_val= doc["dd_object_type"];
   DBUG_ASSERT(dd_object_type_val.IsString());
-  std::string dd_object_type(dd_object_type_val.GetString());
+  String_type dd_object_type(dd_object_type_val.GetString());
   DBUG_ASSERT(dd_object_type == object_type_name);
 
   DBUG_ASSERT(doc.HasMember("dd_object"));
@@ -437,7 +455,8 @@ bool deserialize(THD *thd, const sdi_t &sdi, Tablespace *dst_tablespace)
 template <typename DDT>
 static handlerton *resolve_hton(THD *thd, const DDT &ddt)
 {
-  plugin_ref pr= ha_resolve_by_name_raw(thd, ddt.engine());
+  plugin_ref pr=
+    ha_resolve_by_name_raw(thd, lex_cstring_handle(ddt.engine()));
   if (pr)
   {
     return plugin_data<handlerton*>(pr);
@@ -450,7 +469,7 @@ Sdi_updater::Sdi_updater(const Schema *schema)
 {}
 
 
-Sdi_updater::Sdi_updater(const Table *table, const std::string &old_schema_name)
+Sdi_updater::Sdi_updater(const Table *table, const String_type &old_schema_name)
   : m_prev_sdi_fname(sdi_file::sdi_filename(table, old_schema_name))
 {}
 
@@ -506,7 +525,7 @@ bool store_sdi(THD *thd, const dd::Schema *s)
   // contain any tables, so it is not possible to locate a handlerton
   // which the operation can be delegated to. Consequently, we store the
   // SDI as a file in this case.
-  return checked_return(sdi_file::store(thd, sdi, s));
+  return checked_return(sdi_file::store(thd, lex_cstring_handle(sdi), s));
 }
 
 
@@ -542,7 +561,7 @@ static bool update_sdi(THD *thd, const dd::Schema *s)
     // modified schema SDI for?
     handlerton *hton= resolve_hton(thd, *tbl);
     if (hton->store_schema_sdi &&
-        hton->store_schema_sdi(thd, hton, sdi, s, tbl))
+        hton->store_schema_sdi(thd, hton, lex_cstring_handle(sdi), s, tbl))
     {
       return checked_return(true);
     }
@@ -551,7 +570,7 @@ static bool update_sdi(THD *thd, const dd::Schema *s)
   delete_container_pointers(tables);
 
   // Finally, update SDI file
-  return checked_return(sdi_file::store(thd, sdi, s));
+  return checked_return(sdi_file::store(thd, lex_cstring_handle(sdi), s));
 }
 
 
@@ -563,7 +582,8 @@ bool store_sdi(THD *thd, const dd::Table *t, const dd::Schema *s)
     return checked_return(true);
   }
   handlerton *hton= resolve_hton(thd, *t);
-  return checked_return(hton->store_table_sdi(thd, hton, sdi, t, s));
+  return checked_return(hton->store_table_sdi(thd, hton,
+                                              lex_cstring_handle(sdi), t, s));
 }
 
 
@@ -575,7 +595,8 @@ bool store_sdi(THD *thd, const dd::Tablespace *ts)
     return checked_return(true);
   }
   handlerton *hton= resolve_hton(thd, *ts);
-  return checked_return(sdi_tablespace::store(hton, sdi, ts));
+  return checked_return(sdi_tablespace::store(hton, lex_cstring_handle(sdi),
+                                              ts));
 }
 
 bool remove_sdi(THD *thd, const dd::Schema *s)
@@ -699,7 +720,7 @@ namespace sdi_unittest {
 typedef void (*cb)(dd::Sdi_wcontext*, const dd::Weak_object*, dd::Sdi_writer*);
 void setup_wctx(cb fp, const dd::Weak_object *wo, dd::Sdi_writer *w)
 {
-  std::string s("driver_schema");
+  dd::String_type s("driver_schema");
   dd::Sdi_wcontext wctx(nullptr, &s);
 
   fp(&wctx, wo, w);

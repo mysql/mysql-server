@@ -14,8 +14,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "table_cache.h"
+
+#include <stdio.h>
+#include <string.h>
+
+#include "m_ctype.h"
 #include "sql_test.h" // lock_descriptions[]
 #include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_mutex.h"
 
 
 /**
@@ -173,7 +180,7 @@ void Table_cache::print_tables()
   uint unused= 0;
   uint count=0;
 
-  compile_time_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions));
+  static_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions), "");
 
   for (uint idx= 0; idx < m_cache.records; idx++)
   {

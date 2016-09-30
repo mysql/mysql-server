@@ -13,16 +13,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-# We want gmock-1.7.0.zip in order to build these unit tests.
+# We want release-1.8.0.zip in order to build these unit tests.
 # If you have already downloaded it,
-# invoke cmake with -DWITH_GMOCK=/path/to/gmock-1.7.0.zip
+# invoke cmake with -DWITH_GMOCK=/path/to/release-1.8.0.zip
 #                or -DWITH_GMOCK=/path/to
 #
 # Alternatively, set an environment variable
-# export WITH_GMOCK=/path/to/gmock-1.7.0.zip
+# export WITH_GMOCK=/path/to/release-1.8.0.zip
 #
 # You can also do cmake -DENABLE_DOWNLOADS=1 
-# and we will download it from http://googlemock.googlecode.com
+# and we will download it from https://github.com/google/googletest/archive/
 #
 # Either way: we will unpack the zip, compile gmock-all.cc and gtest-all.cc
 # and link them into the executables.
@@ -32,8 +32,8 @@ IF(NOT DOWNLOAD_ROOT)
   SET(DOWNLOAD_ROOT ${CMAKE_SOURCE_DIR}/source_downloads)
 ENDIF()
 
-# We want googlemock version 1.7, which also contains googletest.
-SET(GMOCK_PACKAGE_NAME "gmock-1.7.0")
+# We want googletest version 1.8, which also contains googlemock.
+SET(GMOCK_PACKAGE_NAME "release-1.8.0")
 
 IF (DEFINED ENV{WITH_GMOCK} AND NOT DEFINED WITH_GMOCK)
   FILE(TO_CMAKE_PATH "$ENV{WITH_GMOCK}" WITH_GMOCK)
@@ -56,8 +56,9 @@ IF (WITH_GMOCK)
              )
   ELSE()
     ## Did we get a path name to the directory of the .zip file?
+    ## Check for both release-x.y.z.zip and googletest-release-x.y.z.zip
     FIND_FILE(LOCAL_GMOCK_ZIP
-              NAMES "${GMOCK_PACKAGE_NAME}.zip"
+              NAMES "${GMOCK_PACKAGE_NAME}.zip" "googletest-${GMOCK_PACKAGE_NAME}.zip"
               PATHS ${WITH_GMOCK}
               NO_DEFAULT_PATH
               )
@@ -70,8 +71,8 @@ ENDIF()
 IF(NOT EXISTS DOWNLOAD_ROOT)
   MAKE_DIRECTORY(${DOWNLOAD_ROOT})
 ENDIF()
-SET(GMOCK_SOURCE_DIR ${DOWNLOAD_ROOT}/${GMOCK_PACKAGE_NAME})
-SET(GTEST_SOURCE_DIR ${DOWNLOAD_ROOT}/${GMOCK_PACKAGE_NAME}/gtest)
+SET(GMOCK_SOURCE_DIR ${DOWNLOAD_ROOT}/googletest-${GMOCK_PACKAGE_NAME}/googlemock)
+SET(GTEST_SOURCE_DIR ${DOWNLOAD_ROOT}/googletest-${GMOCK_PACKAGE_NAME}/googletest)
 
 # We may have downloaded gmock/gtest already, building in a different directory.
 IF(EXISTS ${GMOCK_SOURCE_DIR} OR EXISTS ${LOCAL_GMOCK_ZIP})
@@ -101,37 +102,34 @@ ENDIF()
 
 
 OPTION(ENABLE_DOWNLOADS
-  "Download and build 3rd party source code components, e.g. google mock"
+  "Download and build 3rd party source code components, e.g. googletest"
   OFF)
 
 # While experimenting, use local URL rather than google.
-SET(GMOCK_TARBALL "${GMOCK_PACKAGE_NAME}.zip")
+SET(GMOCK_TARBALL "googletest-${GMOCK_PACKAGE_NAME}.zip")
 SET(GMOCK_DOWNLOAD_URL 
-  "http://googlemock.googlecode.com/files/${GMOCK_TARBALL}"
+  "https://github.com/google/googletest/archive/${GMOCK_PACKAGE_NAME}.zip"
   )
   
 MACRO(HTTP_PROXY_HINT)
   MESSAGE(STATUS
-    "If you are inside a firewall, you may need to use an http proxy: "
-    "export http_proxy=http://example.com:80")
+    "If you are inside a firewall, you may need to use an https proxy: "
+    "export https_proxy=http://example.com:80")
 ENDMACRO()
 
 
 IF(NOT GMOCK_FOUND)
   IF(NOT ENABLE_DOWNLOADS)
-    # Give one-time warning
-    IF(NOT ONETIME_GTEST_WARNING)
-      MESSAGE(STATUS 
-        "Googlemock was not found. gtest-based unit tests will be disabled. "
-        "You can run cmake . -DENABLE_DOWNLOADS=1 to automatically download "
-        "and build required components from source.")
-      HTTP_PROXY_HINT()
-      SET(ONETIME_GTEST_WARNING 1 CACHE INTERNAL "")
-    ENDIF()
+    # Give warning
+    MESSAGE(STATUS
+      "Googletest was not found. gtest-based unit tests will be disabled. "
+      "You can run cmake . -DENABLE_DOWNLOADS=1 to automatically download "
+      "and build required components from source.")
+    HTTP_PROXY_HINT()
     RETURN()
   ENDIF()
   
-  # Download gmock source
+  # Download googletest source
   IF(NOT EXISTS ${GMOCK_SOURCE_DIR})
     IF(NOT EXISTS ${DOWNLOAD_ROOT}/${GMOCK_TARBALL})
       # Download the tarball
@@ -151,7 +149,7 @@ IF(NOT GMOCK_FOUND)
           "Successfully downloaded ${GMOCK_DOWNLOAD_URL} to ${DOWNLOAD_ROOT}")
       ELSE()
         MESSAGE(STATUS 
-          "To enable google test, please download ${GMOCK_DOWNLOAD_URL} "
+          "To enable googletest, please download ${GMOCK_DOWNLOAD_URL} "
           "to the directory ${DOWNLOAD_ROOT}")
         HTTP_PROXY_HINT()
         RETURN()
@@ -208,6 +206,23 @@ ADD_LIBRARY(gmock STATIC ${GMOCK_SOURCE_DIR}/src/gmock-all.cc)
 ADD_LIBRARY(gtest STATIC ${GTEST_SOURCE_DIR}/src/gtest-all.cc)
 SET(GTEST_LIBRARIES gmock gtest)
 
+SET(DISABLE_PSI_DEFINITIONS
+  "DISABLE_PSI_COND"
+  "DISABLE_PSI_FILE"
+  "DISABLE_PSI_METADATA"
+  "DISABLE_PSI_MUTEX"
+  "DISABLE_PSI_RWLOCK"
+  "DISABLE_PSI_STAGE"
+  )
+SET(DISABLE_PSI_OPTIONS
+  "-DDISABLE_PSI_COND"
+  "-DDISABLE_PSI_FILE"
+  "-DDISABLE_PSI_METADATA"
+  "-DDISABLE_PSI_MUTEX"
+  "-DDISABLE_PSI_RWLOCK"
+  "-DDISABLE_PSI_STAGE"
+  )
+
 IF (WITH_SSL STREQUAL "bundled")
   ADD_SUBDIRECTORY(yassl)
 ENDIF()
@@ -232,6 +247,10 @@ ADD_LIBRARY(gunit_small STATIC
   thread_utils.cc
   fake_table.cc
 )
+SET_TARGET_PROPERTIES(gunit_small
+  PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
+)
+
 ADD_LIBRARY(gunit_large STATIC
   gunit_test_main_server.cc
   tap_event_listener.cc
@@ -392,6 +411,9 @@ IF(WIN32)
 ENDIF()
 ADD_CONVENIENCE_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
 ADD_DEPENDENCIES(sqlgunitlib GenError)
+SET_TARGET_PROPERTIES(sqlgunitlib
+  PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
+)
 
 ## Merging tests into fewer executables saves *a lot* of
 ## link time and disk space ...
@@ -435,6 +457,8 @@ IF (MERGE_UNITTESTS)
   ENDFOREACH()
 
   ADD_EXECUTABLE(merge_small_tests-t ${MERGE_SMALL_TESTS})
+  ADD_COMPILE_FLAGS(${MERGE_SMALL_TESTS} COMPILE_FLAGS ${DISABLE_PSI_OPTIONS})
+
   SET(SRC_FILES ${MERGE_LARGE_TESTS})
   IF(WIN32)
     LIST(APPEND SRC_FILES $<TARGET_OBJECTS:my_nt_servc>)
@@ -465,10 +489,8 @@ ENDIF(MERGE_UNITTESTS)
 
   FOREACH(test ${TESTS})
     ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+    ADD_COMPILE_FLAGS(${test}-t.cc COMPILE_FLAGS ${DISABLE_PSI_OPTIONS})
     TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
-    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-      TARGET_LINK_LIBRARIES(${test}-t perfschema pfs_server_stubs)
-    ENDIF()
     IF(MERGE_UNITTESTS)
       SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
       IF(WIN32)

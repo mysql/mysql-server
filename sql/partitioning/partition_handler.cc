@@ -16,17 +16,55 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "table.h"                           // TABLE_SHARE
-#include "partition_info.h"                  // NOT_A_PARTITION_ID
-#include "sql_partition.h"          // LIST_PART_ENTRY, part_id_range
-#include "partition_handler.h"
-#include "log.h"                             // sql_print_error
-#include "key.h"                             // key_rec_cmp
-#include "sql_class.h"                       // THD
-#include "myisam.h"                          // MI_MAX_MSG_BUF
+#include <fcntl.h>
+#include <limits.h>
+#include <stdarg.h>
+
+#include "auth_common.h"
+#include "binary_log_types.h"
+#include "binlog_event.h"
 #include "derror.h"
+#include "discrete_interval.h"
+#include "field.h"
+#include "hash.h"
+#include "key.h"                             // key_rec_cmp
+#include "log.h"                             // sql_print_error
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_bitmap.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "myisam.h"                          // MI_MAX_MSG_BUF
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_locking.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "partition_element.h"
+#include "partition_handler.h"
+#include "partition_info.h"                  // NOT_A_PARTITION_ID
+#include "protocol.h"
+#include "set_var.h"
+#include "sql_alter.h"
+#include "sql_class.h"                       // THD
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_partition.h"          // LIST_PART_ENTRY, part_id_range
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"                           // TABLE_SHARE
 #include "template_utils.h"
+#include "thr_malloc.h"
+#include "thr_mutex.h"
 
 // In sql_class.cc:
 int thd_binlog_format(const MYSQL_THD thd);

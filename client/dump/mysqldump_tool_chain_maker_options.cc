@@ -15,10 +15,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <functional>
+
 #include "mysqldump_tool_chain_maker_options.h"
 #include <boost/algorithm/string.hpp>
 
 using namespace Mysql::Tools::Dump;
+using std::placeholders::_1;
 
 void Mysqldump_tool_chain_maker_options::parallel_schemas_callback(char*)
 {
@@ -222,9 +225,9 @@ void Mysqldump_tool_chain_maker_options::create_options()
     "specified schemas using separate queue handled by "
     "--default-parallelism threads or N threads, if N is specified. Can be "
     "used multiple times to specify more parallel processes.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Mysqldump_tool_chain_maker_options>(
-    this, &Mysqldump_tool_chain_maker_options::parallel_schemas_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Mysqldump_tool_chain_maker_options::parallel_schemas_callback,
+                this, _1)));
   this->create_new_option(&m_default_parallelism, "default-parallelism",
     "Specifies number of threads to process each parallel queue for values "
     "N > 0. if N is 0 then no queue will be used. Default value is 2. "

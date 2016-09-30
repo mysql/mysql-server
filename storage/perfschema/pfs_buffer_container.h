@@ -1287,10 +1287,9 @@ public:
 private:
   static void pack_index(uint partition_index, uint sub_index, uint *user_index)
   {
-    /* 2^8 = 256 partitions max */
-    compile_time_assert(PFS_PARTITION_COUNT <= (1 << 8));
-    /* 2^24 = 16777216 max per partitioned buffer. */
-    compile_time_assert((B::MAX_SIZE) <= (1 << 24));
+    static_assert(PFS_PARTITION_COUNT <= (1 << 8), "2^8 = 256 partitions max.");
+    static_assert((B::MAX_SIZE) <= (1 << 24),
+                  "2^24 = 16777216 max per partitioned buffer.");
 
     *user_index= (partition_index << 24) + sub_index;
   }

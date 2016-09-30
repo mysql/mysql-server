@@ -16,24 +16,31 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "malloc_allocator.h"   // Malloc_allocator
-#include "my_decimal.h"         // my_decimal
-#include "binary_log_types.h"   // enum_field_types
-#include "mysql_time.h"         // MYSQL_TIME
-#include "json_binary.h"        // json_binary::Value
-#include "sql_alloc.h"          // Sql_alloc
-#include "prealloced_array.h"   // Prealloced_array
-
+#include <stddef.h>
+#include <functional>
 #include <map>
+#include <new>
 #include <string>
 #include <type_traits>          // is_base_of
+#include <utility>
+
+#include "binary_log_types.h"   // enum_field_types
+#include "json_binary.h"        // json_binary::Value
+#include "malloc_allocator.h"   // Malloc_allocator
+#include "my_dbug.h"
+#include "my_decimal.h"         // my_decimal
+#include "my_global.h"
+#include "mysql_time.h"         // MYSQL_TIME
+#include "prealloced_array.h"   // Prealloced_array
+#include "sql_alloc.h"          // Sql_alloc
 
 class Json_dom;
 class Json_path;
 class Json_path_leg;
 class Json_seekable_path;
 class Json_wrapper;
+class String;
+class THD;
 
 typedef Prealloced_array<Json_wrapper, 16, false> Json_wrapper_vector;
 typedef Prealloced_array<Json_dom *, 16> Json_dom_vector;

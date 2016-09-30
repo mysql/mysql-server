@@ -16,12 +16,17 @@
 #ifndef SQL_TABLE_MAINTENANCE_H
 #define SQL_TABLE_MAINTENANCE_H
 
-#include "my_global.h"
+#include <stddef.h>
+
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "mysql/mysql_lex_string.h"
 #include "sql_cmd.h"       // Sql_cmd
-#include "sql_list.h"
 
 class THD;
 struct TABLE_LIST;
+template <class T> class List;
+
 typedef struct st_key_cache KEY_CACHE;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_lex_user LEX_USER;

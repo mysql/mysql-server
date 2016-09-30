@@ -16,11 +16,25 @@
 #ifndef QUERY_RESULT_INCLUDED
 #define QUERY_RESULT_INCLUDED
 
-#include "my_global.h"
-#include "mysqld_error.h"       // ER_*
-#include "sql_lex.h"            // SELECT_LEX_UNIT
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "item_create.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"       // ER_*
+#include "sql_alloc.h"
+#include "sql_lex.h"            // SELECT_LEX_UNIT
+#include "sql_list.h"
+#include "sql_string.h"
+
+class Item;
+class Item_subselect;
 class JOIN;
+class PT_select_var;
 class THD;
 
 
@@ -43,7 +57,7 @@ public:
   Query_result(THD *thd_arg)
     : thd(thd_arg), unit(NULL), estimated_rowcount(0)
   {}
-  virtual ~Query_result() {};
+  virtual ~Query_result() {}
 
   /**
     Change wrapped Query_result.
@@ -99,9 +113,11 @@ public:
     return true;
   }
   virtual void abort_result_set() {}
-  /*
-    Cleanup instance of this class for next execution of a prepared
-    statement/stored procedure.
+  /**
+    Cleanup after this execution. Completes the execution and resets object
+    before next execution of a prepared statement/stored procedure.
+
+    @todo add thd argument
   */
   virtual void cleanup()
   {
@@ -148,11 +164,6 @@ public:
   bool send_eof();
   virtual bool check_simple_select() const { return false; }
   void abort_result_set();
-  /**
-    Cleanup an instance of this class for re-use
-    at next execution of a prepared statement/
-    stored procedure statement.
-  */
   virtual void cleanup()
   {
     is_result_set_started= false;
@@ -194,7 +205,10 @@ public:
   Query_result_to_file(THD *thd, sql_exchange *ex)
     : Query_result_interceptor(thd), exchange(ex), file(-1),row_count(0L)
   { path[0]=0; }
-  ~Query_result_to_file();
+  ~Query_result_to_file()
+  {
+    DBUG_ASSERT(file < 0);
+  }
   void send_error(uint errcode,const char *err);
   bool send_eof();
   void cleanup();
@@ -237,9 +251,12 @@ class Query_result_export :public Query_result_to_file {
 public:
   Query_result_export(THD *thd, sql_exchange *ex)
     : Query_result_to_file(thd, ex) {}
-  ~Query_result_export();
+  ~Query_result_export()
+  {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  virtual int prepare2(void);
   bool send_data(List<Item> &items);
+  void cleanup();
 };
 
 
@@ -248,6 +265,7 @@ public:
   Query_result_dump(THD *thd, sql_exchange *ex)
     : Query_result_to_file(thd, ex) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  virtual int prepare2(void);
   bool send_data(List<Item> &items);
 };
 

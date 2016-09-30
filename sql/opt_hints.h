@@ -21,17 +21,28 @@
 #ifndef OPT_HINTS_INCLUDED
 #define OPT_HINTS_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "enum_query_type.h"
 #include "item_subselect.h" // Item_exists_subselect
+#include "m_string.h"
 #include "mem_root_array.h" // Mem_root_array
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
 #include "sql_alloc.h"      // Sql_alloc
 #include "sql_bitmap.h"     // Bitmap
+#include "sql_plugin.h"
 #include "sql_show.h"       // append_identifier
 #include "sql_string.h"     // String
+#include "system_variables.h"
+#include "typelib.h"
 
+class JOIN;
 class Opt_hints_table;
-struct LEX;
-struct TABLE;
+class THD;
+struct TABLE_LIST;
 
 
 /**
@@ -51,6 +62,10 @@ enum opt_hints_enum
   SEMIJOIN_HINT_ENUM,
   SUBQUERY_HINT_ENUM,
   DERIVED_MERGE_HINT_ENUM,
+  JOIN_PREFIX_HINT_ENUM,
+  JOIN_SUFFIX_HINT_ENUM,
+  JOIN_ORDER_HINT_ENUM,
+  JOIN_FIXED_ORDER_HINT_ENUM,
   MAX_HINT_ENUM
 };
 
@@ -61,6 +76,9 @@ struct st_opt_hint_info
   bool check_upper_lvl;   // true if upper level hint check is needed (for hints
                           // which can be specified on more than one level).
   bool switch_hint;       // true if hint is not complex.
+  bool irregular_hint;    ///< true if hint requires some special handling.
+                          ///< Currently it's used only for join order hints
+                          ///< since they need special printing procedure.
 };
 
 
@@ -115,9 +133,9 @@ public:
 };
 
 
+class Opt_hints_key;
 class PT_hint;
 class PT_hint_max_execution_time;
-class Opt_hints_key;
 
 
 /**
@@ -285,6 +303,14 @@ private:
     @param thd             Pointer to THD object
   */
   void print_warn_unresolved(THD *thd);
+  /**
+    Function prints hints which are non-standard and don't
+    fit into existing hint infrastructure.
+
+    @param thd             pointer to THD object
+    @param str             pointer to String object
+  */
+  virtual void print_irregular_hints(THD *thd, String *str) { }
 };
 
 
@@ -322,7 +348,16 @@ class Opt_hints_qb : public Opt_hints
   char buff[32];          // Buffer to hold sys name
 
   PT_qb_level_hint *subquery_hint, *semijoin_hint;
-  // PT_qb_level_hint::contextualize sets subquery/semijoin_hint during parsing.
+
+  /// Array of join order hints
+  Mem_root_array<PT_qb_level_hint*, true> join_order_hints;
+  /// Bit map of which hints are ignored.
+  ulonglong join_order_hints_ignored;
+
+  /*
+    PT_qb_level_hint::contextualize sets subquery/semijoin_hint during parsing.
+    it also registers join order hints during parsing.
+  */
   friend class PT_qb_level_hint;
 
 public:
@@ -414,6 +449,22 @@ public:
     @retval EXEC_UNSPECIFIED No SUBQUERY hint for this query block
   */
   Item_exists_subselect::enum_exec_method subquery_strategy() const;
+
+  virtual void print_irregular_hints(THD *thd, String *str);
+
+  /**
+    Checks if join order hints are applicable and
+    applies table dependencies if possible.
+
+    @param join JOIN object
+  */
+  void apply_join_order_hints(JOIN *join);
+
+private:
+  void register_join_order_hint(PT_qb_level_hint* hint_arg)
+  {
+    join_order_hints.push_back(hint_arg);
+  }
 };
 
 
@@ -515,5 +566,16 @@ bool hint_key_state(const THD *thd, const TABLE_LIST *table,
 bool hint_table_state(const THD *thd, const TABLE_LIST *table,
                       opt_hints_enum type_arg,
                       uint optimizer_switch);
+/**
+   Append table and query block name.
+
+  @param thd        pointer to THD object
+  @param str        pointer to String object
+  @param qb_name    pointer to query block name, may be null
+  @param table_name pointer to table name
+*/
+void append_table_name(THD *thd, String *str,
+                       const LEX_CSTRING *qb_name,
+                       const LEX_CSTRING *table_name);
 
 #endif /* OPT_HINTS_INCLUDED */

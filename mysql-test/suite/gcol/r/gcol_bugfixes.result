@@ -729,3 +729,54 @@ SELECT gc1 FROM t1;
 gc1
 7
 DROP TABLE t1;
+#
+# Bug#22991924 GCOLS: UTF16 STRING OPERATIONS GIVE DOUBLED \0\0 STRINGS
+# ON EACH TABLE REBUILD
+#
+CREATE TABLE t1 (
+a TEXT CHARSET utf16,
+b BLOB GENERATED ALWAYS AS ( concat( 'ABC', a ) ) VIRTUAL
+);
+# Results change due to bug fix.
+INSERT INTO t1 ( a ) VALUES ( 'abc' );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text CHARACTER SET utf16,
+  `b` blob GENERATED ALWAYS AS (concat(_utf16'\0A\0B\0C',`a`)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT HEX(b) FROM t1;
+HEX(b)
+004100420043006100620063
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SELECT HEX(b) FROM t1;
+HEX(b)
+004100420043006100620063
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text CHARACTER SET utf16,
+  `b` blob GENERATED ALWAYS AS (concat(_utf16'\0A\0B\0C',`a`)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+length( convert( b USING utf8 ) ),
+char_length ( convert( b USING utf8 ) )
+FROM t1;
+length( convert( b USING utf8 ) )	char_length ( convert( b USING utf8 ) )
+12	12
+SELECT
+length( convert( b USING utf16 ) ),
+char_length ( convert( b USING utf16 ) )
+FROM t1;
+length( convert( b USING utf16 ) )	char_length ( convert( b USING utf16 ) )
+12	6
+SELECT
+length( convert( b USING latin1 ) ),
+char_length ( convert( b USING latin1 ) )
+FROM t1;
+length( convert( b USING latin1 ) )	char_length ( convert( b USING latin1 ) )
+12	12
+DROP TABLE t1;

@@ -16,9 +16,9 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include <my_global.h>
-
 #include <algorithm>
+
+#include "my_global.h"
 
 template <typename T, typename L>
 class I_P_List_iterator;

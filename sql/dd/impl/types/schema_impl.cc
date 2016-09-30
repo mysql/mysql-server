@@ -15,25 +15,43 @@
 
 #include "dd/impl/types/schema_impl.h"
 
-#include "mysql_time.h"                    // MYSQL_TIME
-#include "mysqld_error.h"                  // ER_*
-#include "sql_class.h"                     // THD
-#include "tztime.h"                        // Time_zone
+#include <memory>
 
 #include "dd/dd.h"                         // create_object
 #include "dd/impl/dictionary_impl.h"       // Dictionary_impl
-#include "dd/impl/sdi_impl.h"              // sdi read/write functions
-#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"       // Primary_id_key
 #include "dd/impl/raw/raw_record.h"        // Raw_record
+#include "dd/impl/sdi_impl.h"              // sdi read/write functions
 #include "dd/impl/tables/schemata.h"       // Schemata
-#include "dd/impl/tables/tables.h"         // Tables
+#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
+#include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/types/event.h"                // Event
 #include "dd/types/function.h"             // Function
 #include "dd/types/procedure.h"            // Procedure
+#include "dd/types/table.h"
 #include "dd/types/view.h"                 // View
+#include "m_string.h"
+#include "mdl.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"                  // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+#include "sql_class.h"                     // THD
+#include "system_variables.h"
+#include "tztime.h"                        // Time_zone
 
-#include <memory>
+namespace dd {
+class Sdi_rcontext;
+class Sdi_wcontext;
+namespace tables {
+class Tables;
+}  // namespace tables
+}  // namespace dd
 
 
 using dd::tables::Schemata;
@@ -145,7 +163,7 @@ bool Schema::update_id_key(id_key_type *key, Object_id id)
 ///////////////////////////////////////////////////////////////////////////
 
 bool Schema::update_name_key(name_key_type *key,
-                             const std::string &name)
+                             const String_type &name)
 {
   return Schemata::update_object_key(key,
                       Dictionary_impl::instance()->default_catalog_id(),

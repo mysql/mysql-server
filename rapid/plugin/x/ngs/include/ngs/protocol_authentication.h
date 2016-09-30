@@ -21,8 +21,7 @@
 #define _NGS_PROTOCOL_AUTHENTICATION_H_
 
 
-#include <boost/bind.hpp>
-
+#include "ngs_common/bind.h"
 #include "ngs/error_code.h"
 #include "ngs/memory.h"
 
@@ -66,7 +65,7 @@ namespace ngs
 
     static ngs::Authentication_handler_ptr wrap_ptr(Authentication_handler *auth)
     {
-      return ngs::Authentication_handler_ptr(auth, boost::bind(&ngs::Authentication_handler::done, _1));
+      return ngs::Authentication_handler_ptr(auth, ngs::bind(&ngs::Authentication_handler::done, ngs::placeholders::_1));
     }
 
   protected:

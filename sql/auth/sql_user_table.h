@@ -15,8 +15,10 @@
 #ifndef SQL_USER_TABLE_INCLUDED
 #define SQL_USER_TABLE_INCLUDED
 
-#include "my_global.h"
+#include "sql_connect.h"
 #include "table.h"
+
+class THD;
 
 extern const TABLE_FIELD_DEF mysql_db_table_def;
 

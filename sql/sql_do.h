@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,28 @@
 #ifndef SQL_DO_INCLUDED
 #define SQL_DO_INCLUDED
 
+#include <sys/types.h>
+
 #include "my_global.h"
+#include "my_sqlcommand.h"
 #include "query_result.h"
- 
+#include "sql_select.h"
+
+class Item;
 class THD;
-struct LEX;
+template <class T> class List;
+
+class Sql_cmd_do : public Sql_cmd_select
+{
+public:
+  explicit Sql_cmd_do(Query_result *result_arg) : Sql_cmd_select(result_arg)
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_DO;
+  }
+};
 
 class Query_result_do :public Query_result
 {
@@ -33,7 +50,5 @@ public:
   void abort_result_set() {}
   virtual void cleanup() {}
 };
-
-bool mysql_do(THD *thd, LEX *lex);
 
 #endif /* SQL_DO_INCLUDED */

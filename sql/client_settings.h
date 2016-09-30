@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #error You have already included an client_settings.h and it should not be included twice
 #endif /* CLIENT_SETTINGS_INCLUDED */
 
-#include <sql_common.h>
+#include "sql_common.h"
 
 /*
  Note: CLIENT_CAPABILITIES is also defined in libmysql/client_settings.h.

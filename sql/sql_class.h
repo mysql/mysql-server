@@ -24,44 +24,92 @@
   Historically this file contained "Classes in mysql". 
 */
 
-#include "my_global.h"
-
-#include "dur_prop.h"                     // durability_properties
-#include "mysql/mysql_lex_string.h"       // LEX_STRING
-#include "mysql_com_server.h"             // NET_SERVER
-#include "auth/sql_security_ctx.h"        // Security_context
-#include "discrete_interval.h"            // Discrete_interval
-#include "opt_trace_context.h"            // Opt_trace_context
-#include "protocol.h"                     // Protocol
-#include "protocol_classic.h"             // Protocol_text
-#include "rpl_context.h"                  // Rpl_thd_context
-#include "session_tracker.h"              // Session_tracker
-#include "sql_digest_stream.h"            // sql_digest_state
-#include "sql_lex.h"                      // LEX
-#include "sql_profile.h"                  // PROFILING
-#include "sys_vars_resource_mgr.h"        // Session_sysvar_resource_manager
-#include "system_variables.h"             // system_variables
-#include "transaction_info.h"             // Ha_trx_info
-
-#include <pfs_stage_provider.h>
-#include <mysql/psi/mysql_stage.h>
-
-#include <pfs_statement_provider.h>
-#include <mysql/psi/mysql_statement.h>
-
-#include <pfs_transaction_provider.h>
-#include <mysql/psi/mysql_transaction.h>
-
-#include <pfs_idle_provider.h>
-#include <mysql/psi/mysql_idle.h>
-
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+#include <time.h>
 #include <atomic>
 #include <memory>
-#include "mysql/thread_type.h"
+#include <new>
 
+#include "auth/sql_security_ctx.h"        // Security_context
+#include "discrete_interval.h"            // Discrete_interval
+#include "dur_prop.h"                     // durability_properties
+#include "enum_query_type.h"
+#include "field.h"
+#include "handler.h"
+#include "item.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_command.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "my_thread_local.h"
+#include "mysql/mysql_lex_string.h"       // LEX_STRING
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_idle.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_statement.h"
+#include "mysql/psi/psi_thread.h"
+#include "mysql/psi/psi_transaction.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
+#include "mysql_com_server.h"             // NET_SERVER
+#include "mysqld_error.h"
+#include "opt_costmodel.h"
+#include "opt_trace_context.h"            // Opt_trace_context
+#include "parse_location.h"
+#include "pfs_thread_provider.h"
+#include "prealloced_array.h"
+#include "protocol.h"                     // Protocol
+#include "protocol_classic.h"             // Protocol_text
+#include "query_options.h"
+#include "rpl_context.h"                  // Rpl_thd_context
+#include "rpl_gtid.h"
+#include "session_tracker.h"              // Session_tracker
+#include "set_var.h"
+#include "sql_admin.h"
+#include "sql_cmd.h"
+#include "sql_connect.h"
+#include "sql_const.h"
+#include "sql_digest_stream.h"            // sql_digest_state
+#include "sql_error.h"
+#include "sql_lex.h"                      // LEX
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_profile.h"                  // PROFILING
+#include "sql_servers.h"
+#include "sql_string.h"
+#include "sys_vars_resource_mgr.h"        // Session_sysvar_resource_manager
+#include "system_variables.h"             // system_variables
+#include "table.h"
+#include "thr_lock.h"
+#include "transaction_info.h"             // Ha_trx_info
+#include "violite.h"
+
+#include "pfs_statement_provider.h"       // IWYU pragma: keep
+#include "mysql/psi/mysql_statement.h"
+
+class Query_arena;
+class Relay_log_info;
+class THD;
+class partition_info;
+class sp_rcontext;
+struct PSI_idle_locker;
 struct PSI_statement_locker;
 struct PSI_transaction_locker;
-struct PSI_idle_locker;
 
 namespace dd {
   namespace cache {
@@ -72,15 +120,15 @@ namespace dd {
 }
 
 class Internal_error_handler;
-class Reprepare_observer;
-class sp_cache;
-class Rows_log_event;
-class Query_result;
-class Time_zone;
 class Modification_plan;
-struct st_thd_timer;
+class Query_result;
+class Reprepare_observer;
+class Rows_log_event;
+class Time_zone;
+class sp_cache;
 struct Binlog_user_var_event;
 struct Query_cache_block;
+
 typedef struct st_log_info LOG_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct user_conn USER_CONN;
@@ -1149,7 +1197,11 @@ public:
       assert_plan_is_locked_if_other();
       return is_ps;
     }
-
+    bool is_single_table_plan() const
+    {
+      assert_plan_is_locked_if_other();
+      return lex->m_sql_cmd->is_single_table_plan();
+    }
     void set_modification_plan(Modification_plan *plan_arg);
 
   } query_plan;
@@ -1826,6 +1878,11 @@ public:
   */
   ulonglong  current_found_rows;
 
+  /**
+    Number of rows changed in currently executing statement.
+    Applicable for UPDATE statements only.
+  */
+  ulonglong  current_changed_rows;
   /*
     Indicate if the gtid_executed table is being operated implicitly
     within current transaction. This happens because we are inserting

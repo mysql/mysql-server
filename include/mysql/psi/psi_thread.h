@@ -283,6 +283,14 @@ typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer, uint length,
                                              const void *from_cs);
 
 /**
+  Get the current event.
+  @param [out] thread_internal_id The thread internal id
+  @param [out] event_id The per thread event id.
+*/
+typedef void (*get_thread_event_id_v1_t)(ulonglong *thread_internal_id,
+                                         ulonglong *event_id);
+
+/**
   Performance Schema Thread Interface, version 1.
   @since PSI_IDLE_VERSION_1
 */
@@ -326,6 +334,8 @@ struct PSI_thread_service_v1
   delete_thread_v1_t delete_thread;
   /** @sa set_thread_connect_attrs_v1_t. */
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
+  /** @sa get_thread_event_id_v1_t. */
+  get_thread_event_id_v1_t get_thread_event_id;
 };
 
 #endif /* HAVE_PSI_THREAD_1 */

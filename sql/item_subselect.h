@@ -18,22 +18,38 @@
 
 /* subselect Item */
 
-#include "item.h"   // Item_result_field
+#include <stddef.h>
+#include <sys/types.h>
 
-class SELECT_LEX;
-class SELECT_LEX_UNIT;
+#include "binary_log_types.h"
+#include "enum_query_type.h"
+#include "item.h"   // Item_result_field
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "my_time.h"
+#include "mysql_com.h"
+#include "parse_tree_node_base.h"
+#include "sql_alloc.h"
+
+class Comp_creator;
+class Field;
+class Item_func_not_all;
+class Item_in_optimizer;
 class JOIN;
+class Json_wrapper;
+class PT_subquery;
+class QEP_TAB;
 class Query_result_interceptor;
 class Query_result_subquery;
+class SELECT_LEX;
+class SELECT_LEX_UNIT;
+class String;
+class THD;
+class Temp_table_param;
 class subselect_engine;
-class subselect_hash_sj_engine;
-class Item_bool_func2;
-class Cached_item;
-class Comp_creator;
-class PT_subquery;
-class PT_query_expression;
-class Item_in_optimizer;
-class Item_func_not_all;
+struct TABLE_LIST;
+template <class T> class List;
 
 /**
   Convenience typedef used in this file, and further used by any files
@@ -195,7 +211,6 @@ private:
 
 /* single value subselect */
 
-class Item_cache;
 class Item_singlerow_subselect :public Item_subselect
 {
 protected:
@@ -688,9 +703,6 @@ public:
 private:
   SELECT_LEX_UNIT *unit;  /* corresponding unit structure */
 };
-
-
-struct st_join_table;
 
 
 /**

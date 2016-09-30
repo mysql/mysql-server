@@ -134,6 +134,8 @@ def	mysql	PRIMARY	def	mysql	columns_priv	Table_name
 def	mysql	PRIMARY	def	mysql	columns_priv	User
 def	mysql	PRIMARY	def	mysql	component	component_id
 def	performance_schema	PRIMARY	def	performance_schema	cond_instances	OBJECT_INSTANCE_BEGIN
+def	performance_schema	PRIMARY	def	performance_schema	data_locks	ENGINE
+def	performance_schema	PRIMARY	def	performance_schema	data_locks	ENGINE_LOCK_ID
 def	mysql	PRIMARY	def	mysql	db	Db
 def	mysql	PRIMARY	def	mysql	db	Host
 def	mysql	PRIMARY	def	mysql	db	User

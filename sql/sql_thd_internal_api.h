@@ -22,14 +22,19 @@
   guarantees.
 */
 
-#include "my_global.h"
-#include "my_thread.h"
-#include "mysql/psi/psi_base.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "dur_prop.h"      // durability_properties
 #include "handler.h"       // enum_tx_isolation
+#include "key.h"
+#include "m_ctype.h"
+#include "my_global.h"
+#include "mysql/psi/psi_base.h"
 
-class partition_info;
 class THD;
+class partition_info;
+
 typedef struct charset_info_st CHARSET_INFO;
 
 /**

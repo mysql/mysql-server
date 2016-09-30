@@ -30,11 +30,32 @@
    Only such indexes are involved in range analysis.
 */
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "field.h"
+#include "item.h"
+#include "item_subselect.h"
+#include "mem_root_array.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "opt_explain_format.h"                 // Explain_sort_clause
-#include "mem_root_array.h"
-#include "sql_select.h"                         // Key_use
+#include "sql_alloc.h"
+#include "sql_array.h"
+#include "sql_class.h"
 #include "sql_executor.h"                       // Next_select_func
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
+#include "sql_select.h"                         // Key_use
+#include "table.h"
+#include "temp_table_param.h"
+#include "template_utils.h"
+
+class COND_EQUAL;
+class Item_sum;
 
 typedef Bounds_checked_array<Item_null_result*> Item_null_array;
 
@@ -530,7 +551,15 @@ public:
   */
   uint current_ref_item_slice;
 
-  const char *zero_result_cause; ///< not 0 if exec must return zero result
+  /**
+    <> NULL if optimization has determined that execution will produce an
+    empty result before aggregation, contains a textual explanation on why
+    result is empty. Implicitly grouped queries may still produce an
+    aggregation row.
+    @todo - suggest to set to "Preparation determined that query is empty"
+            when SELECT_LEX::is_empty_query() is true.
+  */
+  const char *zero_result_cause;
 
   /**
      True if, at this stage of processing, subquery materialization is allowed
@@ -716,6 +745,12 @@ public:
   bool fts_index_access(JOIN_TAB *tab);
 
   Next_select_func get_end_select_func();
+  /**
+     Propagate dependencies between tables due to outer join relations.
+
+     @returns false if success, true if error
+  */
+  bool propagate_dependencies();
 
 private:
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
@@ -758,6 +793,18 @@ private:
   bool optimize_fts_query();
 
   bool prune_table_partitions();
+  /**
+    Initialize key dependencies for join tables.
+
+    TODO figure out necessity of this method. Current test
+         suite passed without this intialization.
+  */
+  void init_key_dependencies()
+  {
+    JOIN_TAB *const tab_end= join_tab + tables;
+    for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
+      tab->key_dependent= tab->dependent;
+  }
 
 private:
   void set_prefix_tables();
@@ -765,7 +812,6 @@ private:
   void set_semijoin_embedding();
   bool make_join_plan();
   bool init_planner_arrays();
-  bool propagate_dependencies();
   bool extract_const_tables();
   bool extract_func_dependent_tables();
   void update_sargable_from_const(SARGABLE_PARAM *sargables);
@@ -883,7 +929,10 @@ private:
   void test_skip_sort();
 };
 
-/// RAII class to ease the call of LEX::mark_broken() if error.
+/**
+  RAII class to ease the call of LEX::mark_broken() if error.
+  Used during preparation and optimization of DML queries.
+*/
 class Prepare_error_tracker
 {
 public:

@@ -15,10 +15,26 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
-#include "query_result.h" // Query_result_send
-#include "sql_class.h"    // Query_arena
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
 
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "mysql_com.h"
+#include "protocol_classic.h"
+#include "query_result.h" // Query_result_send
+#include "session_tracker.h"
+#include "sql_alloc.h"
+#include "sql_class.h"    // Query_arena
+#include "sql_error.h"
+#include "sql_list.h"
+#include "sql_servers.h"
+
+class Item;
+class Item_param;
+class String;
 struct LEX;
 struct PSI_prepared_stmt;
 

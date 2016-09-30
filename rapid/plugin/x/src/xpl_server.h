@@ -22,12 +22,12 @@
 
 #include <string>
 #include <vector>
-#include <boost/atomic.hpp>
 
 #include "ngs/server.h"
 #include "ngs/memory.h"
 #include "ngs/scheduler.h"
 #include "ngs_common/connection_vio.h"
+#include "ngs_common/atomic.h"
 #include "xpl_session.h"
 #include "mysql_show_variable_wrapper.h"
 #include "xpl_global_status_variables.h"
@@ -44,14 +44,14 @@ class Sql_data_context;
 class Server;
 struct Ssl_config;
 
-typedef boost::shared_ptr<Server> Server_ptr;
+typedef ngs::shared_ptr<Server> Server_ptr;
 
 class Server : public ngs::Server_delegate
 {
 public:
-  Server(boost::shared_ptr<ngs::Server_acceptors> acceptors,
-         boost::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-         boost::shared_ptr<ngs::Protocol_config> config,
+  Server(ngs::shared_ptr<ngs::Server_acceptors> acceptors,
+         ngs::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
+         ngs::shared_ptr<ngs::Protocol_config> config,
          const std::string &unix_socket_or_named_pipe);
 
   static int main(MYSQL_PLUGIN p);
@@ -87,12 +87,12 @@ public:
   std::string get_socket_file();
 
   typedef ngs::Locked_container<Server, ngs::RWLock_readlock, ngs::RWLock> Server_with_lock;
-  typedef Memory_new<Server_with_lock>::Unique_ptr Server_ref;
+  typedef ngs::Memory_instrumented<Server_with_lock>::Unique_ptr Server_ref;
 
   static Server_ref get_instance()
   {
     //TODO: ngs::Locked_container add container that supports shared_ptrs
-    return instance ? Server_ref(new Server_with_lock(*instance, instance_rwl)) : Server_ref();
+    return instance ? Server_ref(ngs::allocate_object<Server_with_lock>(ngs::ref(*instance), ngs::ref(instance_rwl))) : Server_ref();
   }
 
 private:
@@ -111,8 +111,8 @@ private:
 
   void plugin_system_variables_changed();
 
-  virtual boost::shared_ptr<ngs::Client_interface>  create_client(ngs::Connection_ptr connection);
-  virtual boost::shared_ptr<ngs::Session_interface> create_session(ngs::Client_interface &client,
+  virtual ngs::shared_ptr<ngs::Client_interface>  create_client(ngs::Connection_ptr connection);
+  virtual ngs::shared_ptr<ngs::Session_interface> create_session(ngs::Client_interface &client,
                                                                    ngs::Protocol_encoder &proto,
                                                                    ngs::Session_interface::Session_id session_id);
 
@@ -127,12 +127,12 @@ private:
   static ngs::RWLock  instance_rwl;
   static MYSQL_PLUGIN plugin_ref;
 
-  ngs::Client_interface::Client_id          m_client_id;
-  boost::atomics::atomic<int>               m_num_of_connections;
-  boost::shared_ptr<ngs::Protocol_config>   m_config;
-  boost::shared_ptr<ngs::Server_acceptors>  m_acceptors;
-  boost::shared_ptr<ngs::Scheduler_dynamic> m_wscheduler;
-  boost::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
+  ngs::Client_interface::Client_id        m_client_id;
+  ngs::atomic<int>                        m_num_of_connections;
+  ngs::shared_ptr<ngs::Protocol_config>   m_config;
+  ngs::shared_ptr<ngs::Server_acceptors>  m_acceptors;
+  ngs::shared_ptr<ngs::Scheduler_dynamic> m_wscheduler;
+  ngs::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
   ngs::Mutex  m_accepting_mutex;
   ngs::Server m_server;
   std::string m_unix_socket_or_named_pipe;
@@ -150,7 +150,7 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
   Server_ref server(get_instance());
   if (server)
   {
-    boost::scoped_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
+    ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client)
@@ -167,7 +167,7 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
   Server_ref server(get_instance());
   if (server)
   {
-    boost::scoped_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
+    ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client)
@@ -227,12 +227,12 @@ void Server::common_status_variable(THD *thd, st_mysql_show_var *var, char *buff
   Server_ref server(get_instance());
   if (server)
   {
-    boost::scoped_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
+    ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client)
     {
-      boost::shared_ptr<xpl::Session> client_session(client->get_session());
+      ngs::shared_ptr<xpl::Session> client_session(client->get_session());
       if (client_session)
       {
         Common_status_variables &common_status = client_session->get_status_variables();

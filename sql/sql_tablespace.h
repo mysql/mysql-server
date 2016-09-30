@@ -16,8 +16,6 @@
 #ifndef SQL_TABLESPACE_INCLUDED
 #define SQL_TABLESPACE_INCLUDED
 
-#include "my_global.h"                          // Always first include file.
-
 enum class Ident_name_check;
 class THD;
 class st_alter_tablespace;

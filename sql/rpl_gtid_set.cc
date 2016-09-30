@@ -15,20 +15,40 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_gtid.h"
+#include "my_config.h"
 
-#include "my_stacktrace.h"             // my_safe_printf_stderr
-#include "mysql/service_my_snprintf.h" // my_snprintf
-#include "mysqld_error.h"              // ER_*
-#include "sql_const.h"
-#include "m_string.h"                  // my_strtoll
-
-#ifdef MYSQL_CLIENT
-#include "mysqlbinlog.h"
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #endif
+#include <algorithm>
+#include <list>
+
+#include "control_events.h"
+#include "m_string.h"                  // my_strtoll
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_stacktrace.h"             // my_safe_printf_stderr
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h" // my_snprintf
+#include "mysql/service_mysql_alloc.h"
+#include "prealloced_array.h"
+#include "rpl_gtid.h"
+#include "sql_const.h"
+#include "thr_malloc.h"
 
 #ifndef MYSQL_CLIENT
 #include "log.h"                 // sql_print_warning
+#include "mysql/psi/psi_memory.h"
+#include "mysqld_error.h"              // ER_*
+#endif
+
+#ifdef MYSQL_CLIENT
+#include "mysqlbinlog.h"
 #endif
 
 extern "C" {

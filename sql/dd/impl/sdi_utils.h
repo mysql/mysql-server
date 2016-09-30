@@ -21,7 +21,7 @@
 #include "mdl.h"                     // MDL_request
 #include "sql_class.h"               // THD
 
-#include <string>
+#include "dd/string_type.h"          // dd::String_type
 
 /**
   @file
@@ -65,8 +65,8 @@ inline bool checked_return(bool ret)
   @return value from Mdl_context::acquire_lock
  */
 inline bool mdl_lock(THD *thd, MDL_key::enum_mdl_namespace ns,
-                     const std::string &schema_name,
-                     const std::string &object_name,
+                     const String_type &schema_name,
+                     const String_type &object_name,
                      enum_mdl_type mt = MDL_EXCLUSIVE,
                      enum_mdl_duration md = MDL_TRANSACTION)
 {

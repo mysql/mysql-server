@@ -49,7 +49,7 @@ public:
   { return update_aux_key(key, engine(), se_private_id()); }
 
   static bool update_aux_key(aux_key_type *key,
-                             const std::string &engine,
+                             const String_type &engine,
                              Object_id se_private_id);
 
 public:
@@ -124,8 +124,8 @@ public:
   // engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &engine() const = 0;
-  virtual void set_engine(const std::string &engine) = 0;
+  virtual const String_type &engine() const = 0;
+  virtual void set_engine(const String_type &engine) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // row_format
@@ -137,8 +137,8 @@ public:
   // comment
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const = 0;
-  virtual void set_comment(const std::string &comment) = 0;
+  virtual const String_type &comment() const = 0;
+  virtual void set_comment(const String_type &comment) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // hidden.
@@ -154,7 +154,7 @@ public:
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw) = 0;
   virtual void set_se_private_data(const Properties &se_private_data)= 0;
 
   /////////////////////////////////////////////////////////////////////////
@@ -175,9 +175,9 @@ public:
   virtual void set_default_partitioning(
     enum_default_partitioning default_partitioning) = 0;
 
-  virtual const std::string &partition_expression() const = 0;
+  virtual const String_type &partition_expression() const = 0;
   virtual void set_partition_expression(
-    const std::string &partition_expression) = 0;
+    const String_type &partition_expression) = 0;
 
   virtual enum_subpartition_type subpartition_type() const = 0;
   virtual void set_subpartition_type(
@@ -187,9 +187,9 @@ public:
   virtual void set_default_subpartitioning(
     enum_default_partitioning default_subpartitioning) = 0;
 
-  virtual const std::string &subpartition_expression() const = 0;
+  virtual const String_type &subpartition_expression() const = 0;
   virtual void set_subpartition_expression(
-    const std::string &subpartition_expression) = 0;
+    const String_type &subpartition_expression) = 0;
 
   /** Dummy method to be able to use Partition and Table interchangeably
   in templates. */

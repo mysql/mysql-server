@@ -28,7 +28,7 @@
 namespace ngs
 {
 
-typedef boost::shared_ptr<Client_interface> Client_ptr;
+typedef ngs::shared_ptr<Client_interface> Client_ptr;
 
 class Client_list
 {

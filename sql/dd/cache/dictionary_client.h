@@ -16,13 +16,21 @@
 #ifndef DD_CACHE__DICTIONARY_CLIENT_INCLUDED
 #define DD_CACHE__DICTIONARY_CLIENT_INCLUDED
 
+#include <stddef.h>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "dd/object_id.h"
+#include "my_dbug.h"
 #include "my_global.h"                        // DBUG_ASSERT() etc.
 #include "object_registry.h"                  // Object_registry
 
-#include <memory>
-#include <vector>
-
 class THD;
+namespace dd {
+class Schema;
+class Table;
+}  // namespace dd
 
 namespace dd {
 namespace cache {
@@ -77,6 +85,8 @@ namespace cache {
         error has occurred, the error has been reported, either by the
         client itself, or by the dictionary subsystem.
 */
+
+template <typename T> class Cache_element;
 
 class Dictionary_client
 {
@@ -358,7 +368,7 @@ public:
   */
 
   template <typename T>
-  bool acquire(const std::string &object_name, const T** object);
+  bool acquire(const String_type &object_name, const T** object);
 
 
   /**
@@ -382,7 +392,7 @@ public:
    */
 
   template <typename T>
-  bool acquire_uncached(const std::string &object_name, const T** object);
+  bool acquire_uncached(const String_type &object_name, const T** object);
 
 
   /**
@@ -408,7 +418,7 @@ public:
   */
 
   template <typename T>
-  bool acquire(const std::string &schema_name, const std::string &object_name,
+  bool acquire(const String_type &schema_name, const String_type &object_name,
                const T** object);
 
 
@@ -441,7 +451,7 @@ public:
   */
 
   template <typename T>
-  bool acquire(const std::string &schema_name, const std::string &object_name,
+  bool acquire(const String_type &schema_name, const String_type &object_name,
                const typename T::cache_partition_type** object);
 
 
@@ -473,8 +483,8 @@ public:
   */
 
   template <typename T>
-  bool acquire_uncached(const std::string &schema_name,
-                        const std::string &object_name,
+  bool acquire_uncached(const String_type &schema_name,
+                        const String_type &object_name,
                         const T** object);
 
 
@@ -503,8 +513,8 @@ public:
   */
 
   template <typename T>
-  bool acquire_uncached_uncommitted(const std::string &schema_name,
-                                    const std::string &object_name,
+  bool acquire_uncached_uncommitted(const String_type &schema_name,
+                                    const String_type &object_name,
                                     const T** object);
 
 
@@ -525,7 +535,7 @@ public:
                                  object of a wrong type was found).
   */
 
-  bool acquire_uncached_table_by_se_private_id(const std::string &engine,
+  bool acquire_uncached_table_by_se_private_id(const String_type &engine,
                                                Object_id se_private_id,
                                                const Table **table);
 
@@ -542,7 +552,7 @@ public:
   */
 
   bool acquire_uncached_table_by_partition_se_private_id(
-         const std::string &engine,
+         const String_type &engine,
          Object_id se_partition_id,
          const Table **table);
 
@@ -561,10 +571,10 @@ public:
     @retval      true     Error.
   */
 
-  bool get_table_name_by_se_private_id(const std::string &engine,
+  bool get_table_name_by_se_private_id(const String_type &engine,
                                        Object_id se_private_id,
-                                       std::string *schema_name,
-                                       std::string *table_name);
+                                       String_type *schema_name,
+                                       String_type *table_name);
 
 
   /**
@@ -581,10 +591,10 @@ public:
     @retval      true     Error.
   */
 
-  bool get_table_name_by_partition_se_private_id(const std::string &engine,
+  bool get_table_name_by_partition_se_private_id(const String_type &engine,
                                                  Object_id se_partition_id,
-                                                 std::string *schema_name,
-                                                 std::string *table_name);
+                                                 String_type *schema_name,
+                                                 String_type *table_name);
 
 
   /**
@@ -601,8 +611,8 @@ public:
   */
 
   bool get_table_name_by_trigger_name(Object_id schema_id,
-                                      const std::string &trigger_name,
-                                      std::string *table_name);
+                                      const String_type &trigger_name,
+                                      String_type *table_name);
 
 
   /**
@@ -615,7 +625,7 @@ public:
     @return      false  Success.
   */
 
-  bool get_tables_max_se_private_id(const std::string &engine,
+  bool get_tables_max_se_private_id(const String_type &engine,
                                     Object_id *max_id);
 
 
@@ -636,7 +646,7 @@ public:
   template <typename T>
   bool fetch_schema_component_names(
     const Schema *schema,
-    std::vector<std::string> *names) const;
+    std::vector<String_type> *names) const;
 
 
   /**
@@ -889,8 +899,8 @@ public:
     @return true  - on failure
     @return false - on success
   */
-  bool remove_table_dynamic_statistics(const std::string &schema_name,
-                                       const std::string &table_name);
+  bool remove_table_dynamic_statistics(const String_type &schema_name,
+                                       const String_type &table_name);
 
   /**
     Make a dictionary object sticky or not in the cache.

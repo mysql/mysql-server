@@ -14,11 +14,34 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_cursor.h"
+
+#include <algorithm>
+
+#include "debug_sync.h"
+#include "field.h"
+#include "handler.h"
+#include "item.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "parse_tree_node_base.h"
 #include "probes_mysql.h"
+#include "protocol.h"
+#include "query_options.h"
+#include "query_result.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"                        // mysql_execute_command
 #include "sql_tmp_table.h"                   // tmp tables
-#include "debug_sync.h"
 #include "sql_union.h"                       // Query_result_union
+#include "system_variables.h"
+#include "table.h"
+
+struct PSI_statement_locker;
+struct sql_digest_state;
 
 /****************************************************************************
   Declarations.
@@ -71,6 +94,10 @@ public:
     :Query_result_union(thd),
      result(result_arg), materialized_cursor(0) {}
   virtual bool send_result_set_metadata(List<Item> &list, uint flags);
+  virtual void cleanup()
+  {
+    table= NULL;  // Pass table object to Materialized_cursor
+  }
 };
 
 
@@ -189,7 +216,7 @@ Server_side_cursor::~Server_side_cursor()
 void Server_side_cursor::operator delete(void *ptr, size_t size)
 {
   Server_side_cursor *cursor= (Server_side_cursor*) ptr;
-  MEM_ROOT own_root= *cursor->mem_root;
+  MEM_ROOT own_root= std::move(*cursor->mem_root);
 
   DBUG_ENTER("Server_side_cursor::operator delete");
   TRASH(ptr, size);
@@ -372,9 +399,8 @@ void Materialized_cursor::close()
     We need to grab table->mem_root to prevent free_tmp_table from freeing:
     the cursor object was allocated in this memory.
   */
-  main_mem_root= table->mem_root;
+  main_mem_root= std::move(table->mem_root);
   mem_root= &main_mem_root;
-  clear_alloc_root(&table->mem_root);
   free_tmp_table(table->in_use, table);
   table= 0;
 }

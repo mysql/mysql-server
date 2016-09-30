@@ -15,16 +15,36 @@
 
 #include "rpl_filter.h"
 
+#include <string.h>
+#include <map>
+#include <utility>
+
+#include "auth_acls.h"
 #include "auth_common.h"                // SUPER_ACL
+#include "handler.h"
 #include "item.h"                       // Item
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mf_wcomp.h"                   // wild_one, wild_many
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"                     // table_alias_charset
+#include "mysqld_error.h"
 #include "psi_memory_key.h"
 #include "rpl_mi.h"                     // Master_info
 #include "rpl_msr.h"                    // channel_map
 #include "rpl_rli.h"                    // Relay_log_info
 #include "rpl_slave.h"                  // SLAVE_SQL
+#include "sql_class.h"
+#include "sql_string.h"
 #include "table.h"                      // TABLE_LIST
 #include "template_utils.h"             // my_free_container_pointers
+
+class THD;
 
 
 #define TABLE_RULE_HASH_SIZE   16

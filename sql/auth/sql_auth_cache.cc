@@ -15,36 +15,66 @@
 
 #include "sql_auth_cache.h"
 
-#include "m_string.h"           // LEX_CSTRING
-#include "mysql/plugin_auth.h"  // st_mysql_auth
+#include <stdarg.h>
+#include <stdlib.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"        // ACL_internal_schema_access
 #include "auth_internal.h"      // auth_plugin_is_built_in
+#include "current_thd.h"        // current_thd
+#include "debug_sync.h"
+#include "error_handler.h"      // Internal_error_handler
 #include "field.h"              // Field
 #include "item_func.h"          // mqh_used
 #include "log.h"                // sql_print_warning
+#include "m_ctype.h"
+#include "m_string.h"           // LEX_CSTRING
+#include "mdl.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_auth.h"  // st_mysql_auth
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"             // my_localhost
+#include "mysqld_error.h"
 #include "psi_memory_key.h"     // key_memory_acl_mem
 #include "records.h"            // READ_RECORD
+#include "session_tracker.h"
+#include "set_var.h"
 #include "sql_authentication.h" // sha256_password_plugin_name
 #include "sql_base.h"           // open_and_lock_tables
 #include "sql_class.h"          // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_plugin.h"         // my_plugin_lock_by_name
-#include "sql_time.h"           // str_to_time_with_warn
-#include "table.h"              // TABLE
-#include "derror.h"
-#include "sql_table.h"
-#include "role_tables.h"
-#include "debug_sync.h"
-#include "template_utils.h"
-#include "current_thd.h"        // current_thd
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_string.h"
 #include "sql_thd_internal_api.h"  // create_thd
-#include "error_handler.h"      // Internal_error_handler
+#include "sql_time.h"           // str_to_time_with_warn
 #include "sql_user_table.h"
+#include "system_variables.h"
+#include "table.h"              // TABLE
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "thr_mutex.h"
+#include "xa.h"
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
 #include <algorithm>
 #include <functional>
+#include <utility>
+#include <vector>
+
 using std::min;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -57,6 +87,7 @@ ulong get_global_acl_cache_size() { return g_acl_cache->size(); }
 void init_acl_cache();
 extern Role_index_map *g_authid_to_vertex;
 extern Granted_roles_graph *g_granted_roles;
+#include <boost/property_map/property_map.hpp>
 #endif
 
 struct ACL_internal_schema_registry_entry
@@ -1028,8 +1059,8 @@ void clear_and_init_db_cache()
 /**
   Insert a new entry in db_cache
 
-  @param thd [in]    Handle to THD object
-  @param entry [in]  Entry to be inserted in db_cache
+  @param [in] thd    Handle to THD object
+  @param [in] entry  Entry to be inserted in db_cache
 */
 
 static void
@@ -1475,7 +1506,7 @@ validate_user_plugin_records()
   initialize role structures if role_edges and/or
   default_roles are not present.
 
-  @param thd [in] Handle to THD
+  @param [in] thd Handle to THD
 */
 
 static
@@ -2379,7 +2410,10 @@ my_bool acl_reload(THD *thd)
     new Prealloced_array<ACL_PROXY_USER,
                          ACL_PREALLOC_SIZE>(key_memory_acl_mem);
 
-  old_mem= global_acl_memory;
+  // acl_load() overwrites global_acl_memory, so we need to free it.
+  // However, we can't do that immediately, because acl_load() might fail,
+  // and then we'd need to keep it.
+  old_mem= std::move(global_acl_memory);
   delete acl_wild_hosts;
   acl_wild_hosts= NULL;
   my_hash_free(&acl_check_hosts);
@@ -2391,7 +2425,7 @@ my_bool acl_reload(THD *thd)
     acl_users= old_acl_users;
     acl_dbs= old_acl_dbs;
     acl_proxy_users= old_acl_proxy_users;
-    global_acl_memory= old_mem;
+    global_acl_memory= std::move(old_mem);
     init_check_host();
   }
   else
@@ -2895,7 +2929,7 @@ my_bool grant_reload(THD *thd)
     Create a new memory pool but save the current memory pool to make an undo
     opertion possible in case of failure.
   */
-  old_mem= memex;
+  old_mem= std::move(memex);
   init_sql_alloc(key_memory_acl_memex,
                  &memex, ACL_ALLOC_BLOCK_SIZE, 0);
   /*
@@ -2910,7 +2944,7 @@ my_bool grant_reload(THD *thd)
     my_hash_free(&column_priv_hash);
     free_root(&memex,MYF(0));
     column_priv_hash= old_column_priv_hash;     /* purecov: deadcode */
-    memex= old_mem;                             /* purecov: deadcode */
+    memex= std::move(old_mem);                  /* purecov: deadcode */
   }
   else
   {                                             //Reload successful
@@ -3286,8 +3320,8 @@ const uchar *hash_key(const uchar *el, size_t *length)
   Allocate a new cache key based on active roles, current user and
   global cache version
  
-  @param out_key [out] The resulting key
-  @param key_len [out] Key length
+  @param [out] out_key The resulting key
+  @param [out] key_len Key length
   @param version Global Acl_cache version
   @param uid The authorization ID of the current user
   @param active_roles The active roles of the current user
@@ -3767,7 +3801,7 @@ Acl_cache_lock_guard::Acl_cache_lock_guard(THD *thd,
   Explicitly take lock on Acl_cache_lock_cache object.
   If cache was already locked, just return.
 
-  @param raise_error [in]  Whether to raise error if we fail to acquire lock
+  @param [in] raise_error  Whether to raise error if we fail to acquire lock
 
   @returns status of lock
     @retval true Lock was acquired/already acquired.
@@ -3856,7 +3890,7 @@ Acl_cache_lock_guard::already_locked()
 /**
   Assert that thread owns MDL_SHARED on partition specific to the thread
 
-  @param thd [in]    Thread for which lock is to be checked
+  @param [in] thd    Thread for which lock is to be checked
 
   @returns thread owns required lock or not
     @retval true    Thread owns lock
@@ -3874,7 +3908,7 @@ bool assert_acl_cache_read_lock(THD *thd)
 /**
   Assert that thread owns MDL_EXCLUSIVE on all partitions
 
-  @param thd [in]    Thread for which lock is to be checked
+  @param [in] thd    Thread for which lock is to be checked
 
   @returns thread owns required lock or not
     @retval true    Thread owns lock

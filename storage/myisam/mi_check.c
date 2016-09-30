@@ -41,10 +41,12 @@
   only. And it is sufficient to calculate the checksum once only.
 */
 
-#include "ftdefs.h"
 #include <m_ctype.h>
-#include <stdarg.h>
 #include <my_getopt.h>
+#include <stdarg.h>
+
+#include "ftdefs.h"
+#include "my_pointer_arithmetic.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif

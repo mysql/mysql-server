@@ -3,7 +3,7 @@ call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: 
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysqlxsys'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch security context to root'");
-call mtr.add_suppression("Plugin mysqlx reported: 'DROP USER mysqlxsys@localhost: Operation DROP USER failed for 'mysqlxsys'@'localhost''");
+call mtr.add_suppression("Plugin mysqlx reported: 'Operation DROP USER failed for 'mysqlxsys'@'localhost''");
 call mtr.add_suppression("Plugin mysqlx reported: 'mysqlxsys@localhost account already exists but does not have the expected grants'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Authentication account could not be created, mysqlx plugin will be inaccessible.'");
 call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt");

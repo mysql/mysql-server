@@ -13,12 +13,19 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "dd/string_type.h"           // dd::String_type, dd::Stringstream_type
 #include "dd/impl/tables/version.h"
 
-#include "dd/impl/dictionary_impl.h"
-#include "dd/impl/transaction_impl.h"
+#include <ostream>
+
 #include "dd/impl/raw/raw_table.h"
+#include "dd/impl/transaction_impl.h"
+#include "dd/impl/types/object_table_definition_impl.h"
 #include "field.h"
+#include "handler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "table.h"
 
 namespace dd {
 namespace tables {
@@ -43,7 +50,7 @@ Version::Version()
   m_target_def.add_index("PRIMARY KEY(version)");
 
   // Insert the target dictionary version
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << get_target_dd_version();
   m_target_def.add_populate_statement("INSERT INTO version (version)"
                                       "VALUES (" + ss.str() + ")");

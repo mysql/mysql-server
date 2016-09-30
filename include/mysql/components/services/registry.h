@@ -124,7 +124,7 @@ BEGIN_SERVICE_DEFINITION(registry_registration)
   */
   DECLARE_BOOL_METHOD(set_default,
     (const char* service_implementation_name));
-END_SERVICE_DEFINITION(registry_registration);
+END_SERVICE_DEFINITION(registry_registration)
 
 /**
   Service for listing all Service Implementations by iterator.

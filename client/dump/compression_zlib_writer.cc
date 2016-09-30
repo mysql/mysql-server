@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,6 +16,8 @@
 */
 
 #include "compression_zlib_writer.h"
+
+#include <functional>
 
 using namespace Mysql::Tools::Dump;
 
@@ -58,7 +60,7 @@ Compression_zlib_writer::~Compression_zlib_writer()
 }
 
 Compression_zlib_writer::Compression_zlib_writer(
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
     uint compression_level)
   : Abstract_output_writer_wrapper(message_handler, object_id_generator)

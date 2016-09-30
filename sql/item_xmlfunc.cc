@@ -15,13 +15,30 @@
 
 #include "item_xmlfunc.h"
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "check_stack.h"
 #include "current_thd.h"
 #include "derror.h"             // ER_THD
-#include "my_xml.h"             // my_xml_node_type
+#include "item.h"
 #include "item_cmpfunc.h"       // Item_bool_func
+#include "item_func.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "my_xml.h"             // my_xml_node_type
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
 #include "sp_pcontext.h"        // sp_variable
 #include "sql_class.h"          // THD
-#include "sql_parse.h"          // check_stack_overrun
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "system_variables.h"
 
 /*
   TODO: future development directions:

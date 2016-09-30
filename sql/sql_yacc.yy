@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,58 +35,59 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
 #define Lex (YYTHD->lex)
 #define Select Lex->current_select()
-#include "sql_parse.h"                        /* comp_*_creator */
-#include "sql_table.h"                        /* primary_key_name */
-#include "partition_info.h"                   /* partition_info */
-#include "sql_partition.h"                    /* mem_alloc_error */
 #include "auth_common.h"                      /* *_ACL */
-#include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
-#include "sql_class.h"      /* Key_part_spec, enum_filetype */
-#include "rpl_slave.h"
-#include "rpl_msr.h"       /* multisource replication */
-#include "rpl_filter.h"
-#include "mysqld.h"        // slave_net_timeout national_charset_info ...
-#include "log_event.h"
-#include "lex_symbol.h"
+#include "dd/info_schema/show.h"             // build_show_...
+#include "dd/types/abstract_table.h"         // TT_BASE_TABLE
+#include "derror.h"
+#include "event_parse_data.h"
+#include "item_cmpfunc.h"
 #include "item_create.h"
+#include "item_geofunc.h"
+#include "item_json_func.h"
+#include "keycaches.h"
 #include "key_spec.h"
+#include "lex_symbol.h"
+#include "lex_token.h"
+#include "log_event.h"
+#include "myisam.h"
+#include "myisammrg.h"
+#include "mysqld.h"        // slave_net_timeout national_charset_info ...
+#include "opt_explain_json.h"
+#include "opt_explain_traditional.h"
+#include "parse_location.h"
+#include "parse_tree_helpers.h"
+#include "parse_tree_hints.h"
+#include "partition_info.h"                   /* partition_info */
+#include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
+#include "rpl_filter.h"
+#include "rpl_msr.h"       /* multisource replication */
+#include "rpl_slave.h"
+#include "rpl_slave.h"                       // Sql_cmd_change_repl_filter
+#include "set_var.h"
+#include "sp.h"
 #include "sp_head.h"
 #include "sp_instr.h"
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
-#include "sp.h"
-#include "sql_alter.h"                         // Sql_cmd_alter_table*
-#include "sql_truncate.h"                      // Sql_cmd_truncate_table
 #include "sql_admin.h"                         // Sql_cmd_analyze/Check..._table
-#include "sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
-#include "sql_handler.h"                       // Sql_cmd_handler_*
-#include "sql_signal.h"
-#include "sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
-#include "sql_servers.h"
-#include "event_parse_data.h"
-#include <myisam.h>
-#include <myisammrg.h>
-#include "keycaches.h"
-#include "set_var.h"
-#include "opt_explain_traditional.h"
-#include "opt_explain_json.h"
-#include "rpl_slave.h"                       // Sql_cmd_change_repl_filter
-#include "sql_show_status.h"                 // build_show_session_status, ...
-#include "parse_location.h"
-#include "parse_tree_helpers.h"
-#include "lex_token.h"
-#include "dd/info_schema/show.h"             // build_show_...
-#include "dd/types/abstract_table.h"         // TT_BASE_TABLE
+#include "sql_alter.h"                         // Sql_cmd_alter_table*
 #include "sql_base.h"                        // find_temporary_table
-#include "item_cmpfunc.h"
-#include "item_geofunc.h"
-#include "item_json_func.h"
-#include "sql_plugin.h"                      // plugin_is_ready
+#include "sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "sql_component.h"
-#include "parse_tree_hints.h"
-#include "derror.h"
+#include "sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
+#include "sql_handler.h"                       // Sql_cmd_handler_*
+#include "sql_parse.h"                        /* comp_*_creator */
+#include "sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
+#include "sql_partition.h"                    /* mem_alloc_error */
+#include "sql_plugin.h"                      // plugin_is_ready
+#include "sql_select.h"                        // Sql_cmd_select...
+#include "sql_servers.h"
+#include "sql_show_status.h"                 // build_show_session_status, ...
+#include "sql_signal.h"
+#include "sql_table.h"                        /* primary_key_name */
 #include "sql_trigger.h"                     // Sql_cmd_create_trigger,
                                              // Sql_cmd_create_trigger
+#include "sql_truncate.h"                      // Sql_cmd_truncate_table
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -173,9 +174,9 @@ int yylex(void *yylval, void *yythd);
 #define MAKE_CMD(x)                                     \
   do                                                    \
   {                                                     \
-    if (YYTHD->is_error())                              \
+    if (YYTHD->is_error() ||                            \
+        (Lex->m_sql_cmd= (x)->make_cmd(YYTHD)) == NULL) \
       MYSQL_YYABORT;                                    \
-    Lex->m_sql_cmd= (x)->make_cmd(YYTHD);               \
   } while(0)
 
 
@@ -1270,7 +1271,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <item_list2>
         expr_list udf_expr_list opt_udf_expr_list opt_expr_list select_item_list
-        ident_list ident_list_arg
+        opt_paren_expr_list ident_list ident_list_arg
 
 %type <var_type>
         option_type opt_var_type opt_var_ident_type opt_set_var_ident_type
@@ -1368,7 +1369,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         group_replication
 END_OF_INPUT
 
-%type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
+%type <NONE> sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
 %type <NONE> sp_proc_stmt_statement sp_proc_stmt_return
 %type <NONE> sp_proc_stmt_if
 %type <NONE> sp_labeled_control sp_proc_stmt_unlabeled
@@ -1530,6 +1531,7 @@ END_OF_INPUT
         delete_stmt
         update_stmt
         insert_stmt
+        call_stmt
         replace_stmt
         shutdown_stmt
 	alter_instance_stmt
@@ -1802,16 +1804,16 @@ simple_statement:
           alter
         | analyze
         | binlog_base64_event
-        | call
+        | call_stmt             { MAKE_CMD($1); }
         | change
         | check
         | checksum
         | commit
         | create
         | deallocate
-        | delete_stmt           {  MAKE_CMD($1); }
+        | delete_stmt           { MAKE_CMD($1); }
         | describe
-        | do_stmt               { CONTEXTUALIZE($1); }
+        | do_stmt               { MAKE_CMD($1); }
         | drop
         | execute
         | flush
@@ -1839,7 +1841,7 @@ simple_statement:
         | revoke
         | rollback
         | savepoint
-        | select_stmt           { CONTEXTUALIZE($1); }
+        | select_stmt           { MAKE_CMD($1); }
         | set                   { CONTEXTUALIZE($1); }
         | set_role_stmt         { MAKE_CMD($1); } // TODO: merge with "set"
         | signal_stmt
@@ -2865,44 +2867,20 @@ sp_suid:
           }
         ;
 
-call:
-          CALL_SYM sp_name
+call_stmt:
+          CALL_SYM sp_name opt_paren_expr_list
           {
-            LEX *lex = Lex;
-
-            lex->sql_command= SQLCOM_CALL;
-            lex->spname= $2;
-            lex->call_value_list.empty();
-            sp_add_used_routine(lex, YYTHD, $2, enum_sp_type::PROCEDURE);
-          }
-          opt_sp_cparam_list {}
-        ;
-
-/* CALL parameters */
-opt_sp_cparam_list:
-          /* Empty */
-        | '(' opt_sp_cparams ')'
-        ;
-
-opt_sp_cparams:
-          /* Empty */
-        | sp_cparams
-        ;
-
-sp_cparams:
-          sp_cparams ',' expr
-          {
-            ITEMIZE($3, &$3);
-
-           Lex->call_value_list.push_back($3);
-          }
-        | expr
-          {
-            ITEMIZE($1, &$1);
-
-            Lex->call_value_list.push_back($1);
+            $$= NEW_PTN PT_call($2, $3);
           }
         ;
+
+opt_paren_expr_list:
+            /* Empty */ { $$= NULL; }
+          | '(' opt_expr_list ')'
+            {
+              $$= $2;
+            }
+          ;
 
 /* Stored FUNCTION parameter declaration list */
 sp_fdparam_list:
@@ -3274,7 +3252,7 @@ sp_decl:
           }
           select_stmt   /*$6*/
           {             /*$7*/
-            CONTEXTUALIZE($6);
+            MAKE_CMD($6);
 
             THD *thd= YYTHD;
             LEX *cursor_lex= Lex;
@@ -11732,13 +11710,17 @@ show_param:
           {
             Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
             Parse_context pc(YYTHD, Select);
-            create_select_for_variable(&pc, "warning_count");
+            if (create_select_for_variable(&pc, "warning_count"))
+              YYABORT;
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_select(NULL);
           }
         | COUNT_SYM '(' '*' ')' ERRORS
           {
             Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
             Parse_context pc(YYTHD, Select);
-            create_select_for_variable(&pc, "error_count");
+            if (create_select_for_variable(&pc, "error_count"))
+              YYABORT;
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_select(NULL);
           }
         | WARNINGS opt_limit_clause
           {
@@ -12113,7 +12095,7 @@ describe:
         ;
 
 explainable_command:
-          select_stmt { CONTEXTUALIZE($1); }
+          select_stmt                           { MAKE_CMD($1); }
         | insert_stmt                           { MAKE_CMD($1); }
         | replace_stmt                          { MAKE_CMD($1); }
         | update_stmt                           { MAKE_CMD($1); }

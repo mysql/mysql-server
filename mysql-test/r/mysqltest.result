@@ -1275,3 +1275,8 @@ words2.dat
 #
 # Bug#21046241 : MTR CONNECT() NOT WORKING FOR TCP AND SOCKET PROTOCOL OPTIONS
 #
+#
+# Bug#24466969 : MTR CONNECT() ACCEPTS CONNECTION OPTIONS WITH ADDITIONAL TRAILING CHARACTERS
+#
+mysqltest: At line 1: Illegal option to connect: SOCKETNEW
+mysqltest: At line 1: Illegal option to connect: SSL3

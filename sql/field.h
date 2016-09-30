@@ -18,12 +18,14 @@
 
 #include "my_global.h"
 
+#include "binary_log_funcs.h"                   // my_time_binary_length
 #include "decimal.h"                            // E_DEC_OOM
 #include "my_base.h"                            // ha_storage_media
 #include "my_compare.h"                         // portable_sizeof_char_ptr
+#include "my_pointer_arithmetic.h"
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
-#include "binary_log_funcs.h"                   // my_time_binary_length
 #include "mysqld_error.h"                       // ER_*
+#include "sql_bitmap.h"
 #include "sql_error.h"                          // Sql_condition
 #include "sql_string.h"                         // String
 #include "table.h"                              // TABLE

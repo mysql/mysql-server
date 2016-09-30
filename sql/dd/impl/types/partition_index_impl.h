@@ -16,21 +16,34 @@
 #ifndef DD__PARTITION_INDEX_IMPL_INCLUDED
 #define DD__PARTITION_INDEX_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <memory>
+#include <new>
+#include <string>
 
 #include "dd/impl/types/weak_object_impl.h"     // dd::Weak_object_impl
+#include "dd/object_id.h"
+#include "dd/properties.h"
+#include "dd/sdi_fwd.h"
 #include "dd/types/object_type.h"               // dd::Object_type
 #include "dd/types/partition_index.h"           // dd::Partition_index
-
-#include <memory>
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Open_dictionary_tables_ctx;
 class Partition_impl;
 class Raw_record;
-class Open_dictionary_tables_ctx;
+class Index;
+class Object_key;
+class Object_table;
+class Partition;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -62,7 +75,7 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  void debug_print(std::string &outb) const;
+  void debug_print(String_type &outb) const;
 
   void set_ordinal_position(uint ordinal_position)
   { }
@@ -100,7 +113,7 @@ public:
   virtual Properties &options()
   { return *m_options; }
 
-  virtual bool set_options_raw(const std::string &options_raw);
+  virtual bool set_options_raw(const String_type &options_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -112,7 +125,7 @@ public:
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
 
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw);
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
 
   virtual void set_se_private_data(const Properties &se_private_data);
 

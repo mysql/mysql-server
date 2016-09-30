@@ -16,25 +16,35 @@
 #ifndef DD_TABLE_INCLUDED
 #define DD_TABLE_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <string>
 
 #include "binary_log_types.h"        // enum_field_types
-#include "handler.h"                 // legacy_db_type
-
-#include "sql_alter.h"               // Alter_info::enum_enable_or_disable
-#include "table.h"                   // ST_FIELD_INFO
 #include "dd/types/column.h"         // dd::enum_column_types
+#include "handler.h"                 // legacy_db_type
+#include "my_global.h"
+#include "sql_alter.h"               // Alter_info::enum_enable_or_disable
+#include "system_variables.h"
+#include "table.h"                   // ST_FIELD_INFO
 
 #include <memory>                    // std:unique_ptr
 
 class Create_field;
+class FOREIGN_KEY;
 class THD;
+namespace dd {
+class Abstract_table;
+}  // namespace dd
+struct TABLE_LIST;
+struct TABLE_SHARE;
+
 typedef struct st_ha_create_information HA_CREATE_INFO;
 class KEY;
 template <class T> class List;
 
 namespace dd {
   class Table;
+
   enum class enum_table_type;
   namespace cache {
     class Dictionary_client;
@@ -63,8 +73,8 @@ static const char FIELD_NAME_SEPARATOR_CHAR = ';';
   @retval 1 on failure.
 */
 std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
-                             const std::string &schema_name,
-                             const std::string &table_name,
+                             const dd::String_type &schema_name,
+                             const dd::String_type &table_name,
                              HA_CREATE_INFO *create_info,
                              const List<Create_field> &create_fields,
                              const KEY *keyinfo,
@@ -101,8 +111,8 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
            case of failure).
 */
 std::unique_ptr<Table> create_table(THD *thd,
-                         const std::string &schema_name,
-                         const std::string &table_name,
+                         const dd::String_type &schema_name,
+                         const dd::String_type &table_name,
                          HA_CREATE_INFO *create_info,
                          const List<Create_field> &create_fields,
                          const KEY *keyinfo, uint keys,
@@ -131,8 +141,8 @@ std::unique_ptr<Table> create_table(THD *thd,
   @returns Constructed dd::Table object, or nullptr in case of an error.
 */
 std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
-                             const std::string &schema_name,
-                             const std::string &table_name,
+                             const dd::String_type &schema_name,
+                             const dd::String_type &table_name,
                              HA_CREATE_INFO *create_info,
                              const List<Create_field> &create_fields,
                              const KEY *keyinfo, uint keys,
@@ -156,8 +166,8 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
   @retval true on failure
 */
 bool add_foreign_keys(THD *thd,
-                      const char *schema_name,
-                      const char *table_name,
+                      const dd::String_type &schema_name,
+                      const dd::String_type &table_name,
                       const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
                       bool commit_dd_changes);
 
@@ -370,7 +380,7 @@ bool update_keys_disabled(THD *thd,
   Function prepares string representing columns data type.
   This is required for IS implementation which uses views on DD tables
 */
-std::string get_sql_type_by_field_info(THD *thd,
+String_type get_sql_type_by_field_info(THD *thd,
                                        enum_field_types field_type,
                                        uint32 field_length,
                                        const CHARSET_INFO *field_charset);

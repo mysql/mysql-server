@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,15 @@
 #ifndef SQL_SIGNAL_H
 #define SQL_SIGNAL_H
 
-#include "my_global.h"
+#include <string.h>
+
+#include "my_sqlcommand.h"
 #include "sql_alloc.h"       // Sql_alloc
 #include "sql_cmd.h"         // Sql_cmd
 #include "sql_error.h"       // Sql_condition
 
 class Item;
+class THD;
 class sp_condition_value;
 
 

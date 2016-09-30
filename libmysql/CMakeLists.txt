@@ -165,9 +165,9 @@ CACHE INTERNAL "Undocumented functions exported by client API"
 )
 
 SET(CLIENT_SOURCES
-  get_password.c 
-  libmysql.c
-  errmsg.c
+  get_password.cc
+  libmysql.cc
+  errmsg.cc
   ../sql-common/client.cc
   ../sql-common/my_time.c 
   ../sql-common/client_plugin.c 
@@ -272,15 +272,6 @@ IF(NOT DISABLE_SHARED)
         INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}"
       )
     ENDIF()
-
-    GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-    IF(NOT libmysql_link_flag)
-      SET(libmysql_link_flags)
-    ENDIF()
-    SET(libmysql_link_flags
-      "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${libmysql_link_flags}")
-    SET_TARGET_PROPERTIES(libmysql
-      PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
 
     IF(LINK_FLAG_NO_UNDEFINED)
       SET(libmysql_link_flags

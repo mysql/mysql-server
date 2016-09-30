@@ -15,31 +15,37 @@
 
 #include "storage_adapter.h"
 
-#include "debug_sync.h"                       // DEBUG_SYNC
-#include "sql_class.h"                        // THD
+#include <memory>
+#include <string>
 
+#include "dd/cache/dictionary_client.h"       // Dictionary_client
+#include "dd/impl/bootstrapper.h"             // bootstrap::stage
+#include "dd/impl/raw/object_keys.h"          // Primary_id_key
+#include "dd/impl/raw/raw_record.h"           // Raw_record
+#include "dd/impl/raw/raw_table.h"            // Raw_table
+#include "dd/impl/transaction_impl.h"         // Transaction_ro
+#include "dd/impl/types/weak_object_impl.h"   // Weak_object_impl
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation
+#include "dd/types/dictionary_object.h"       // Dictionary_object
+#include "dd/types/dictionary_object_table.h" // Dictionary_object_table
 #include "dd/types/event.h"                   // Event
 #include "dd/types/function.h"                // Routine, Function
+#include "dd/types/index_stat.h"              // Index_stat
 #include "dd/types/procedure.h"               // Procedure
 #include "dd/types/schema.h"                  // Schema
 #include "dd/types/spatial_reference_system.h"// Spatial_reference_system
 #include "dd/types/table.h"                   // Table
 #include "dd/types/tablespace.h"              // Tablespace
-#include "dd/types/view.h"                    // View
 #include "dd/types/table_stat.h"              // Table_stat
-#include "dd/types/index_stat.h"              // Index_stat
-#include "dd/types/dictionary_object.h"       // Dictionary_object
-#include "dd/types/dictionary_object_table.h" // Dictionary_object_table
-#include "dd/impl/bootstrapper.h"             // bootstrap::stage
-#include "dd/impl/transaction_impl.h"         // Transaction_ro
-#include "dd/impl/raw/raw_table.h"            // Raw_table
-#include "dd/impl/raw/raw_record.h"           // Raw_record
-#include "dd/impl/raw/object_keys.h"          // Primary_id_key
-#include "dd/impl/types/weak_object_impl.h"   // Weak_object_impl
-#include "dd/cache/dictionary_client.h"       // Dictionary_client
+#include "dd/types/view.h"                    // View
+#include "debug_sync.h"                       // DEBUG_SYNC
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "sql_class.h"                        // THD
 
 namespace dd {
 namespace cache {

@@ -15,20 +15,28 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_gtid.h"
+#include <stdio.h>
+#include <sys/types.h>
 
+#include "control_events.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "rpl_gtid.h"
+#include "typelib.h"
+
+#ifndef MYSQL_CLIENT
+#include "binlog.h"
+#include "current_thd.h"
+#include "mysql/thread_type.h"
 #include "mysqld_error.h"     // ER_*
+#include "rpl_msr.h"
+#include "sql_class.h"        // THD
+#include "sql_error.h"
+#endif // ifndef MYSQL_CLIENT
 
 #ifdef MYSQL_CLIENT
 #include "mysqlbinlog.h"
 #endif
-
-#ifndef MYSQL_CLIENT
-#include "rpl_msr.h"
-#include "sql_class.h"        // THD
-#include "current_thd.h"
-#include "binlog.h"
-#endif // ifndef MYSQL_CLIENT
 
 
 // Todo: move other global gtid variable declarations here.

@@ -15,8 +15,11 @@
 
 #include "opt_explain_format.h"
 
+#include <stddef.h>
+
 #include "current_thd.h"
 #include "sql_class.h"
+#include "table.h"
 
 bool qep_row::mem_root_str::is_empty()
 {

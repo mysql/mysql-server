@@ -146,7 +146,7 @@ ngs::Error_code Sql_data_context::set_connection_type(const ngs::Connection_type
   return ngs::Error_code();
 }
 
-bool Sql_data_context::wait_api_ready(boost::function<bool()> exiting)
+bool Sql_data_context::wait_api_ready(ngs::function<bool()> exiting)
 {
   bool result = is_api_ready();
 
@@ -198,7 +198,7 @@ ngs::Error_code Sql_data_context::query_user(const char *user, const char *host,
 
   User_verification_helper user_verification(hash_verification_cb, m_buffering_delegate.get_field_types(), ip, options_session, type);
 
-  std::string query = user_verification.get_sql(user, host);
+  ngs::PFS_string query = user_verification.get_sql(user, host);
 
   data.com_query.query = (char*)query.c_str();
   data.com_query.length = static_cast<unsigned int>(query.length());
@@ -356,7 +356,7 @@ ngs::Error_code Sql_data_context::execute_kill_sql_session(uint64_t mysql_sessio
   qb.put("KILL ").put(mysql_session_id);
   Sql_data_context::Result_info r_info;
 
-  return execute_sql_no_result(qb.get(), r_info);
+  return execute_sql_no_result(qb.get().data(), qb.get().length(), r_info);
 }
 
 
@@ -407,20 +407,21 @@ ngs::Error_code Sql_data_context::execute_sql(Command_delegate &deleg,
 }
 
 
-ngs::Error_code Sql_data_context::execute_sql_no_result(const std::string &sql, Sql_data_context::Result_info &r_info)
+ngs::Error_code Sql_data_context::execute_sql_no_result(const char *sql, std::size_t sql_len,
+                                                        Sql_data_context::Result_info &r_info)
 {
   m_callback_delegate.set_callbacks(Callback_command_delegate::Start_row_callback(),
                                     Callback_command_delegate::End_row_callback());
-  return execute_sql(m_callback_delegate, sql.data(), sql.length(), r_info);
+  return execute_sql(m_callback_delegate, sql, sql_len, r_info);
 }
 
 
-ngs::Error_code Sql_data_context::execute_sql_and_collect_results(const std::string &sql,
+ngs::Error_code Sql_data_context::execute_sql_and_collect_results(const char *sql, std::size_t sql_len,
                                                                   std::vector<Command_delegate::Field_type> &r_types,
                                                                   Buffering_command_delegate::Resultset &r_rows,
                                                                   Result_info &r_info)
 {
-  ngs::Error_code error = execute_sql(m_buffering_delegate, sql.data(), sql.length(), r_info);
+  ngs::Error_code error = execute_sql(m_buffering_delegate, sql, sql_len, r_info);
   if (!error)
   {
     r_types = m_buffering_delegate.get_field_types();
@@ -429,21 +430,21 @@ ngs::Error_code Sql_data_context::execute_sql_and_collect_results(const std::str
   return error;
 }
 
-ngs::Error_code Sql_data_context::execute_sql_and_process_results(const std::string &sql,
+ngs::Error_code Sql_data_context::execute_sql_and_process_results(const char *sql, std::size_t sql_len,
                                                                   const Callback_command_delegate::Start_row_callback &start_row,
                                                                   const Callback_command_delegate::End_row_callback &end_row,
                                                                   Sql_data_context::Result_info &r_info)
 {
   m_callback_delegate.set_callbacks(start_row, end_row);
-  return execute_sql(m_callback_delegate, sql.data(), sql.length(), r_info);
+  return execute_sql(m_callback_delegate, sql, sql_len, r_info);
 }
 
 
-ngs::Error_code Sql_data_context::execute_sql_and_stream_results(const std::string &sql,
+ngs::Error_code Sql_data_context::execute_sql_and_stream_results(const char *sql, std::size_t sql_len,
                                                                  bool compact_metadata, Result_info &r_info)
 {
   m_streaming_delegate.set_compact_metadata(compact_metadata);
-  return execute_sql(m_streaming_delegate, sql.data(), sql.length(), r_info);
+  return execute_sql(m_streaming_delegate, sql, sql_len, r_info);
 }
 
 

@@ -16,26 +16,39 @@
 #ifndef SQL_DELETE_INCLUDED
 #define SQL_DELETE_INCLUDED
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_base.h"        // ha_rows
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "probes_mysql.h"   // IWYU pragma: keep
 #include "query_result.h"   // Query_result_interceptor
 #include "sql_cmd_dml.h"    // Sql_cmd_dml
+#include "sql_lex.h"
 
+class Item;
+class JOIN;
 class THD;
 class Unique;
+struct TABLE;
 struct TABLE_LIST;
-
-bool mysql_prepare_delete(THD *thd);
-int mysql_multi_delete_prepare(THD *thd, uint *table_count);
+template <class T> class List;
+template <typename T> class SQL_I_List;
 
 class Query_result_delete :public Query_result_interceptor
 {
-  TABLE_LIST *delete_tables;
   /// Pointers to temporary files used for delayed deletion of rows
   Unique **tempfiles;
   /// Pointers to table objects matching tempfiles
   TABLE **tables;
-  ha_rows deleted, found;
-  uint num_of_tables;
+  /// Number of tables being deleted from
+  uint delete_table_count;
+  /// Number of rows produced by the join
+  ha_rows found_rows;
+  /// Number of rows deleted
+  ha_rows deleted_rows;
+  /// Handler error status for the operation.
   int error;
   /// Map of all tables to delete rows from
   table_map delete_table_map;
@@ -56,15 +69,16 @@ class Query_result_delete :public Query_result_interceptor
   bool error_handled;
 
 public:
-  Query_result_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables_arg)
+  Query_result_delete(THD *thd)
   : Query_result_interceptor(thd),
-    delete_tables(dt), tempfiles(NULL), tables(NULL), deleted(0), found(0),
-    num_of_tables(num_of_tables_arg), error(0),
+    tempfiles(NULL), tables(NULL),
+    delete_table_count(0), found_rows(0), deleted_rows(0), error(0),
     delete_table_map(0), delete_immediate(0),
     transactional_table_map(0), non_transactional_table_map(0),
-    do_delete(0), non_transactional_deleted(false), error_handled(false)
+    do_delete(false), non_transactional_deleted(false), error_handled(false)
   {}
-  ~Query_result_delete();
+  ~Query_result_delete()
+  {}
   virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -75,52 +89,59 @@ public:
   bool send_eof();
   inline ha_rows num_deleted()
   {
-    return deleted;
+    return deleted_rows;
   }
   virtual void abort_result_set();
+  virtual void cleanup();
 };
 
 
 class Sql_cmd_delete : public Sql_cmd_dml
 {
 public:
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_DELETE; }
+  explicit Sql_cmd_delete(bool multitable_arg,
+                          SQL_I_List<TABLE_LIST> *delete_tables_arg)
+  : multitable(multitable_arg), delete_tables(delete_tables_arg)
+  {}
 
-  virtual bool execute(THD *thd);
+  virtual enum_sql_command sql_command_code() const { return lex->sql_command; }
 
-  virtual bool prepared_statement_test(THD *thd);
-  virtual bool prepare(THD *thd)
+  virtual bool is_single_table_plan() const { return !multitable; }
+
+protected:
+  virtual bool precheck(THD *thd);
+
+  virtual bool prepare_inner(THD *thd);
+
+  virtual bool execute_inner(THD *thd);
+
+#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
+  virtual void start_stmt_dtrace(char *query)
   {
-    // TODO: move the mysql_prepare_delete() call there
-    return false;
+    if (multitable)
+      MYSQL_MULTI_DELETE_START(query);
+    else
+      MYSQL_DELETE_START(query);
   }
+  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed)
+  {
+    if (multitable)
+      MYSQL_DELETE_DONE(status, rows);
+    else
+      MYSQL_MULTI_DELETE_DONE(status, rows);
+  }
+#endif
 
 private:
-  bool mysql_prepare_delete(THD *thd);
-  bool mysql_delete(THD *thd, ha_rows rows);
+  bool delete_from_single_table(THD *thd);
+
+  bool multitable;
+  /**
+    References to tables that are deleted from in a multitable delete statement.
+    Only used to track such tables from the parser. In preparation and
+    optimization, use the TABLE_LIST::updating property instead.
+  */
+  SQL_I_List<TABLE_LIST> *delete_tables;
 };
-
-
-class Sql_cmd_delete_multi : public Sql_cmd_dml
-{
-public:
-  virtual enum_sql_command sql_command_code() const
-  {
-    return SQLCOM_DELETE_MULTI;
-  }
-
-  virtual bool execute(THD *thd);
-
-  virtual bool prepared_statement_test(THD *thd);
-  virtual bool prepare(THD *thd)
-  {
-    uint table_count;
-    return mysql_multi_delete_prepare(thd, &table_count);
-  }
-
-private:
-  int mysql_multi_delete_prepare(THD *thd, uint *table_count);
-};
-
 
 #endif /* SQL_DELETE_INCLUDED */

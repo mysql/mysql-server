@@ -16,14 +16,20 @@
 #ifndef DD__RAW_RECORD_INCLUDED
 #define DD__RAW_RECORD_INCLUDED
 
-#include "my_global.h"
+#include "my_config.h"
 
-#include "dd/object_id.h"      // dd::Object_id
-
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
 #include <string>
 
-struct TABLE;
+#include "dd/object_id.h"      // dd::Object_id
+#include "dd/string_type.h"    // dd::String_type
+
 class Field;
+struct TABLE;
+
 typedef long my_time_t;
 
 namespace dd {
@@ -47,7 +53,7 @@ public:
 public:
   bool store_pk_id(int field_no, Object_id id);
   bool store_ref_id(int field_no, Object_id id);
-  bool store(int field_no, const std::string &s, bool is_null= false);
+  bool store(int field_no, const String_type &s, bool is_null= false);
   bool store(int field_no, ulonglong ull, bool is_null= false);
   bool store(int field_no, longlong ll, bool is_null= false);
 
@@ -89,8 +95,8 @@ public:
   ulonglong read_uint(int field_no, ulonglong null_value) const
   { return is_null(field_no) ? null_value : read_uint(field_no); }
 
-  std::string read_str(int field_no) const;
-  std::string read_str(int field_no, const std::string &null_value) const
+  String_type read_str(int field_no) const;
+  String_type read_str(int field_no, const String_type &null_value) const
   { return is_null(field_no) ? null_value : read_str(field_no); }
 
   Object_id read_ref_id(int field_no) const;

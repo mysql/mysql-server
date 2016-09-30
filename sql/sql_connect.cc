@@ -21,24 +21,63 @@
 
 #include "sql_connect.h"
 
-#include "hash.h"                       // HASH
-#include "m_string.h"                   // my_stpcpy
-#include "probes_mysql.h"               // MYSQL_CONNECTION_START
+#include "my_config.h"
+
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#include <stdint.h>
+#include <string.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+
+#include "auth_acls.h"
 #include "auth_common.h"                // SUPER_ACL
 #include "derror.h"                     // ER_THD
+#include "handler.h"
+#include "hash.h"                       // HASH
 #include "hostname.h"                   // Host_errors
 #include "item_func.h"                  // mqh_used
+#include "key.h"
 #include "log.h"                        // sql_print_information
-#include "psi_memory_key.h"
+#include "m_ctype.h"
+#include "m_string.h"                   // my_stpcpy
+#include "my_command.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"                     // LOCK_user_conn
+#include "mysqld_error.h"
+#include "probes_mysql.h"
+#include "protocol.h"
+#include "protocol_classic.h"
+#include "psi_memory_key.h"
+#include "session_tracker.h"
 #include "sql_audit.h"                  // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
 #include "sql_class.h"                  // THD
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_parse.h"                  // sql_command_flags
 #include "sql_plugin.h"                 // plugin_thdvar_cleanup
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "system_variables.h"
 #include "template_utils.h"
-
-#include <algorithm>
-#include <string.h>
+#include "violite.h"
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>

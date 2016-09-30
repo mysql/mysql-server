@@ -801,6 +801,7 @@ public:
   ~PFS_key_event_id()
   {}
 
+  bool match(ulonglong event_id);
   bool match(const PFS_events *pfs);
   bool match(const PFS_events_waits *pfs);
   bool match_owner(const PFS_table *pfs);
@@ -819,6 +820,19 @@ public:
   {}
 
   bool match(const PFS_thread *pfs);
+};
+
+class PFS_key_engine_transaction_id : public PFS_key_ulonglong
+{
+public:
+  PFS_key_engine_transaction_id(const char* name)
+  : PFS_key_ulonglong(name)
+  {}
+
+  ~PFS_key_engine_transaction_id()
+  {}
+
+  bool match(ulonglong engine_transaction_id);
 };
 
 class PFS_key_processlist_id_int : public PFS_key_long_int
@@ -1066,6 +1080,34 @@ public:
   bool match(const System_variable *pfs);
   bool match(const Status_variable *pfs);
   bool match(const PFS_variable_name_row *pfs);
+};
+
+// FIXME: 32
+class PFS_key_engine_name : public PFS_key_string<32>
+{
+public:
+  PFS_key_engine_name(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_engine_name()
+  {}
+
+  bool match(const char* engine_name, size_t length);
+};
+
+// FIXME: 128
+class PFS_key_engine_lock_id : public PFS_key_string<128>
+{
+public:
+  PFS_key_engine_lock_id(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_engine_lock_id()
+  {}
+
+  bool match(const char* engine_lock_id, size_t length);
 };
 
 class PFS_key_ip : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH> // FIXME <INET6_ADDRSTRLEN+1> fails on freebsd

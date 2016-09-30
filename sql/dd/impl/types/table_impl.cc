@@ -15,26 +15,38 @@
 
 #include "dd/impl/types/table_impl.h"
 
-#include "mysqld_error.h"                            // ER_*
-#include "current_thd.h"                             // current_thd
+#include <string.h>
+#include <sstream>
 
+#include "current_thd.h"                             // current_thd
 #include "dd/impl/object_key.h"                      // Needed for destructor
 #include "dd/impl/properties_impl.h"                 // Properties_impl
-#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
-#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
+#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
 #include "dd/impl/tables/indexes.h"                  // Indexes
-#include "dd/impl/tables/tables.h"                   // Tables
 #include "dd/impl/tables/table_partitions.h"         // Table_partitions
+#include "dd/impl/tables/tables.h"                   // Tables
 #include "dd/impl/tables/triggers.h"                 // Triggers
+#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/types/foreign_key_impl.h"          // Foreign_key_impl
 #include "dd/impl/types/index_impl.h"                // Index_impl
 #include "dd/impl/types/partition_impl.h"            // Partition_impl
 #include "dd/impl/types/trigger_impl.h"              // Trigger_impl
+#include "dd/properties.h"
+#include "dd/string_type.h"                          // dd::String_type
 #include "dd/types/column.h"                         // Column
-
-#include <sstream>
+#include "dd/types/foreign_key.h"
+#include "dd/types/index.h"
+#include "dd/types/partition.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "mysqld_error.h"                            // ER_*
+#include "my_sys.h"
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+#include "sql_class.h"
 
 using dd::tables::Foreign_keys;
 using dd::tables::Indexes;
@@ -43,6 +55,9 @@ using dd::tables::Table_partitions;
 using dd::tables::Triggers;
 
 namespace dd {
+
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 // Table implementation.
@@ -81,7 +96,7 @@ Table_impl::~Table_impl()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Table_impl::set_se_private_data_raw(const std::string &se_private_data_raw)
+bool Table_impl::set_se_private_data_raw(const String_type &se_private_data_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(se_private_data_raw);
@@ -483,12 +498,12 @@ Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Table_impl::debug_print(std::string &outb) const
+void Table_impl::debug_print(String_type &outb) const
 {
-  std::string s;
+  String_type s;
   Abstract_table_impl::debug_print(s);
 
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "TABLE OBJECT: { "
     << s
@@ -511,7 +526,7 @@ void Table_impl::debug_print(std::string &outb) const
   {
     for (const Partition *i : partitions())
     {
-      std::string s;
+      String_type s;
       i->debug_print(s);
       ss << s << " | ";
     }
@@ -522,7 +537,7 @@ void Table_impl::debug_print(std::string &outb) const
   {
     for (const Index *i : indexes())
     {
-      std::string s;
+      String_type s;
       i->debug_print(s);
       ss << s << " | ";
     }
@@ -533,7 +548,7 @@ void Table_impl::debug_print(std::string &outb) const
   {
     for (const Foreign_key *fk : foreign_keys())
     {
-      std::string s;
+      String_type s;
       fk->debug_print(s);
       ss << s << " | ";
     }
@@ -544,7 +559,7 @@ void Table_impl::debug_print(std::string &outb) const
   {
     for (const Trigger *trig : triggers())
     {
-      std::string s;
+      String_type s;
       trig->debug_print(s);
       ss << s << " | ";
     }
@@ -832,7 +847,7 @@ void Table_impl::drop_trigger(const Trigger *trigger)
 
 ///////////////////////////////////////////////////////////////////////////
 
-Partition *Table_impl::get_partition(std::string name)
+Partition *Table_impl::get_partition(const String_type &name)
 {
   for (Partition *i : m_partitions)
   {
@@ -874,7 +889,7 @@ void Table_impl::fix_partitions()
 ///////////////////////////////////////////////////////////////////////////
 
 bool Table::update_aux_key(aux_key_type *key,
-                           const std::string &engine,
+                           const String_type &engine,
                            Object_id se_private_id)
 {
   if (se_private_id != INVALID_OBJECT_ID)

@@ -18,7 +18,12 @@
 #ifndef MYSQL_CLIENT
 #include "table.h"       // TABLE
 #endif
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
 #include "psi_memory_key.h"
+#include "sql_plugin_ref.h"
 
 #ifdef MYSQL_CLIENT
 #define MAYBE_TABLE_NAME(T) ("")

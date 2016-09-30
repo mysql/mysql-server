@@ -395,7 +395,7 @@ update t1 set `*f2`=1;
 drop table t1;
 create table t1(f1 int);
 update t1 set f2=1 order by f2;
-ERROR 42S22: Unknown column 'f2' in 'order clause'
+ERROR 42S22: Unknown column 'f2' in 'field list'
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:

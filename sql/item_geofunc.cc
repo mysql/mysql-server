@@ -22,21 +22,50 @@
 */
 #include "item_geofunc.h"
 
-#include "current_thd.h"
-#include "gstream.h"      // Gis_read_stream
-#include "psi_memory_key.h"
-#include "sql_class.h"    // THD
-#include "gis_bg_traits.h"
-#include "derror.h"       // ER_THD
+#include <float.h>
+#include <string.h>
+#include <algorithm>
+#include <cmath>          // isfinite
+#include <map>
+#include <new>
+#include <stack>
+#include <string>
+#include <utility>
 
-#include "parse_tree_helpers.h"
+#include <boost/concept/usage.hpp>
+#include <boost/geometry/algorithms/area.hpp>
+#include <boost/geometry/algorithms/centroid.hpp>
+#include <boost/geometry/algorithms/convex_hull.hpp>
+#include <boost/geometry/algorithms/is_simple.hpp>
+#include <boost/geometry/algorithms/is_valid.hpp>
+#include <boost/geometry/algorithms/simplify.hpp>
+#include <boost/geometry/core/cs.hpp>
+#include <boost/geometry/strategies/spherical/distance_haversine.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+#include <boost/math/special_functions/fpclassify.hpp>
+#include <boost/move/utility_core.hpp>
+
+#include "binlog_config.h"
+#include "current_thd.h"
+#include "dd/types/spatial_reference_system.h"
+#include "derror.h"       // ER_THD
+#include "gis_bg_traits.h"
+#include "gstream.h"      // Gis_read_stream
 #include "item_geofunc_internal.h"
 #include "json_dom.h"     // Json_wrapper
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "psi_memory_key.h"
+#include "sql_class.h"    // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_udf.h"
+#include "system_variables.h"
+#include "template_utils.h"
 
-#include "dd/types/spatial_reference_system.h"
-
-#include <cmath>          // isfinite
-#include <stack>
+class PT_item_list;
+struct TABLE;
 
 
 static int check_geometry_valid(Geometry *geom);

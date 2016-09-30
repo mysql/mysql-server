@@ -435,7 +435,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
       DBUG_PRINT("thr_lock", ("lock granted/aborted"));
       break;
     }
-    if (rc == ETIMEDOUT || rc == ETIME)
+    if (is_timeout(rc))
     {
       /* purecov: begin inspected */
       DBUG_PRINT("thr_lock", ("lock timed out"));

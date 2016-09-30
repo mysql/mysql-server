@@ -629,15 +629,20 @@ struct big_rec_field_t {
 	@param[in]	field_no_	the field number
 	@param[in]	len_		the data length
 	@param[in]	data_		the data */
-	big_rec_field_t(ulint field_no_, ulint len_, const void* data_)
+	big_rec_field_t(ulint field_no_, ulint len_, void* data_)
 		: field_no(field_no_),
 		  len(len_),
 		  data(data_)
 	{}
 
+	byte*	ptr() const
+	{
+		return(static_cast<byte*>(data));
+	}
+
 	ulint		field_no;	/*!< field number in record */
 	ulint		len;		/*!< stored data length, in bytes */
-	const void*	data;		/*!< stored data */
+	void*		data;		/*!< stored data */
 };
 
 /** Storage format for overflow data in a big record, that is, a

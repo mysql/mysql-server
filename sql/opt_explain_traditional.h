@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,15 @@
 #ifndef OPT_EXPLAIN_FORMAT_TRADITIONAL_INCLUDED
 #define OPT_EXPLAIN_FORMAT_TRADITIONAL_INCLUDED
 
+#include <stddef.h>
+
 #include "opt_explain_format.h"
+#include "parse_tree_node_base.h"
+
+class Item;
+class Query_result;
+class SELECT_LEX_UNIT;
+template <class T> class List;
 
 /**
   Formatter for the traditional EXPLAIN output

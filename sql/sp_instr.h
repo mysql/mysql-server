@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,34 @@
 #ifndef _SP_INSTR_H_
 #define _SP_INSTR_H_
 
-#include "my_global.h"
-#include "sql_class.h"   // Query_arena
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
 
+#include "binary_log_types.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_statement.h"
+#include "sql_alloc.h"
+#include "sql_class.h"   // Query_arena
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_servers.h"
+#include "sql_string.h"
+
+class Item;
+class Item_case_expr;
+class Item_trigger_field;
+class sp_condition_value;
 class sp_handler;
+class sp_head;
+class sp_pcontext;
 class sp_variable;
+struct TABLE_LIST;
 
 ///////////////////////////////////////////////////////////////////////////
 // This file contains SP-instruction classes.

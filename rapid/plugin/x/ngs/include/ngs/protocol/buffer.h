@@ -23,7 +23,6 @@
 #include <stdint.h>
 #include <list>
 #include <vector>
-#include <boost/core/noncopyable.hpp>
 #include "ngs/protocol/page_pool.h"
 #include "ngs_common/types.h"
 
@@ -32,7 +31,7 @@ namespace ngs
 
   enum Alloc_result{ Memory_allocated, Memory_error, Memory_no_free_pages };
 
-  class Buffer : private boost::noncopyable
+  class Buffer
   {
   public:
     typedef Resource<Page>           Buffer_page;
@@ -41,6 +40,9 @@ namespace ngs
     Buffer(Page_pool& page_pool);
 
     virtual ~Buffer();
+
+    Buffer(const Buffer &) = delete;
+    Buffer &operator=(const Buffer &) = delete;
 
     Alloc_result reserve(size_t space);
     Alloc_result add_pages(unsigned int npages);

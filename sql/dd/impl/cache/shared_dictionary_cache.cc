@@ -15,13 +15,19 @@
 
 #include "shared_dictionary_cache.h"
 
-#include "sql_class.h"                      // THD::is_error()
+#include <stddef.h>
 
+#include "dd/impl/cache/shared_multi_map.h"
+#include "my_dbug.h"
+#include "mysqld.h"
+#include "sql_class.h"                      // THD::is_error()
 #include "storage_adapter.h"                // Storage_adapter
 
 namespace dd {
 namespace cache {
 
+
+template <typename T> class Cache_element;
 
 Shared_dictionary_cache *Shared_dictionary_cache::instance()
 {

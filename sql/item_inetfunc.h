@@ -16,9 +16,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
 #include "item_cmpfunc.h"  // Item_bool_func
+#include "item_func.h"
 #include "item_strfunc.h"  // Item_str_func
+#include "m_ctype.h"
+#include "my_global.h"
+#include "parse_tree_node_base.h"
+
+class Item;
+class String;
+class THD;
 
 /*************************************************************************
   Item_func_inet_aton implements INET_ATON() SQL-function.

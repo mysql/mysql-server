@@ -13,17 +13,37 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "debug_sync.h"
-#include "rpl_mts_submode.h"
+#include <limits.h>
+#include <string.h>
+#include <time.h>
 
+#include "debug_sync.h"
+#include "handler.h"
 #include "hash.h"                           // HASH
 #include "log.h"                            // sql_print_information
 #include "log_event.h"                      // Query_log_event
+#include "m_string.h"
+#include "mdl.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_stage.h"
 #include "mysqld.h"                         // stage_worker_....
+#include "mysqld_error.h"
+#include "query_options.h"
+#include "rpl_filter.h"
+#include "rpl_mts_submode.h"
 #include "rpl_rli.h"                        // Relay_log_info
 #include "rpl_rli_pdb.h"                    // db_worker_hash_entry
+#include "rpl_slave.h"
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 #include "sql_class.h"                      // THD
+#include "sql_plugin_ref.h"
+#include "system_variables.h"
+#include "table.h"
 
 
 /**
@@ -584,7 +604,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       wait for all ealier that were scheduled to finish. It's marked
       as gap successor now.
     */
-    compile_time_assert(SEQ_UNINIT == 0);
+    static_assert(SEQ_UNINIT == 0, "");
     if (unlikely(sequence_number > last_sequence_number + 1))
     {
       /*

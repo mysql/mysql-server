@@ -22,6 +22,9 @@
 #include "mysys_priv.h"
 #include "my_static.h"
 
+/* get memory in hunks */
+constexpr uint ONCE_ALLOC_INIT= 4096 - MALLOC_OVERHEAD;
+
 PSI_memory_key key_memory_charset_file;
 PSI_memory_key key_memory_charset_loader;
 PSI_memory_key key_memory_lf_node;

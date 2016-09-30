@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,13 +18,14 @@
 #ifndef NDB_CONFLICT_H
 #define NDB_CONFLICT_H
 
+#include "my_bitmap.h"
+#include "my_global.h"
+#include "mysql_com.h"       // NAME_CHAR_LEN
+#include "mysql/plugin.h"    // SHOW_VAR
+#include "ndbapi/NdbDictionary.hpp"
+#include "ndbapi/NdbTransaction.hpp"
 #include "ndb_conflict_trans.h"
-#include <ndbapi/NdbDictionary.hpp>
-#include <ndbapi/NdbTransaction.hpp>
-
-#include <mysql_com.h>       // NAME_CHAR_LEN
-#include <sql_const.h>       // MAX_REF_PARTS
-#include <mysql/plugin.h>    // SHOW_VAR
+#include "sql_const.h"       // MAX_REF_PARTS
 
 enum enum_conflict_fn_type
 {

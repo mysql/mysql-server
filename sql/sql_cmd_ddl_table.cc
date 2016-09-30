@@ -14,19 +14,38 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_cmd_ddl_table.h"
-#include "sql_lex.h"
-#include "sql_class.h"
+
+#include <string.h>
+#include <sys/types.h>
+
 #include "auth/auth_common.h"   // create_table_precheck()
-#include "sql_tablespace.h"     // check_tablespace_name()
-#include "partition_info.h"     // check_partition_tablespace_names()
-#include "sql_parse.h"          // prepare_index_and_data_dir_path()
 #include "binlog.h"             // mysql_bin_log
-#include "sql_base.h"           // open_tables_for_query()
 #include "derror.h"             // ER_THD
-#include "sql_insert.h"         // Query_result_create
 #include "error_handler.h"      // Ignore_error_handler
+#include "handler.h"
+#include "item.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "partition_info.h"     // check_partition_tablespace_names()
+#include "query_options.h"
+#include "query_result.h"
+#include "session_tracker.h"
+#include "sql_alter.h"
+#include "sql_base.h"           // open_tables_for_query()
+#include "sql_class.h"
+#include "sql_data_change.h"
+#include "sql_error.h"
+#include "sql_insert.h"         // Query_result_create
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"          // prepare_index_and_data_dir_path()
 #include "sql_select.h"         // handle_query()
 #include "sql_table.h"          // mysql_create_like_table()
+#include "sql_tablespace.h"     // check_tablespace_name()
+#include "system_variables.h"
+#include "table.h"
+#include "thr_lock.h"
 
 
 bool Sql_cmd_create_table::execute(THD *thd)
@@ -177,7 +196,8 @@ bool Sql_cmd_create_table::execute(THD *thd)
 "section of the manual.");
     }
     
-    unit->set_limit(select_lex);
+    if (unit->set_limit(thd, select_lex))
+      return true;
 
     /*
       Disable non-empty MERGE tables with CREATE...SELECT. Too

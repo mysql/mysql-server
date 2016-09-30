@@ -16,15 +16,20 @@
 #ifndef KEY_INCLUDED
 #define KEY_INCLUDED
 
-#include "my_global.h"                          /* uchar */
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "key_spec.h"                  /* fk_option */
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
+#include "my_dbug.h"
+#include "my_global.h"                          /* uchar */
 #include "mysql/mysql_lex_string.h"    /* LEX_CSTRING */
 #include "sql_plugin_ref.h"            /* plugin_ref */
-#include "key_spec.h"                  /* fk_option */
 
 class Field;
 class String;
 struct TABLE;
+
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 

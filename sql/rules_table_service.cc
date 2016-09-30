@@ -18,18 +18,24 @@
   Implementation of the service for accessing the rewrite rules table.
 */
 
-#include <mysql/service_rules_table.h>
+#include <string.h>
+#include <sys/types.h>
 
-#include "thr_lock.h"
-#include "table.h"
+#include "field.h"
 #include "handler.h"
+#include "m_ctype.h"
 #include "my_base.h"
 #include "my_bitmap.h"
-#include "field.h"
-#include "sql_string.h"
-#include "transaction.h"
-#include "sql_base.h"
+#include "my_compiler.h"
+#include "my_global.h"
 #include "mysql/service_rules_table.h"
+#include "sql_base.h"
+#include "sql_string.h"
+#include "table.h"
+#include "thr_lock.h"
+#include "transaction.h"
+
+class THD;
 
 namespace rules_table_service
 {

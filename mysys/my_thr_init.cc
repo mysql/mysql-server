@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -232,7 +232,7 @@ void my_thread_global_end()
   {
     int error= mysql_cond_timedwait(&THR_COND_threads, &THR_LOCK_threads,
                                     &abstime);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
     {
 #ifndef _WIN32
       /*

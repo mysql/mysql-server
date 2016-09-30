@@ -7848,7 +7848,16 @@ ER_NO_SYSTEM_TABLESPACE_ACCESS
   eng "Access to system tablespace '%.64s' is rejected."
 
 ER_NO_SYSTEM_TABLE_ACCESS
-  eng "Access to system table '%.64s.%.64s' is rejected."
+  eng "Access to %.64s '%.64s.%.64s' is rejected."
+
+ER_NO_SYSTEM_TABLE_ACCESS_FOR_DICTIONARY_TABLE
+  eng "data dictionary table"
+
+ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE
+  eng "system table"
+
+ER_NO_SYSTEM_TABLE_ACCESS_FOR_TABLE
+  eng "table"
 
 ER_TOO_LONG_TABLESPACE_COMMENT
   eng "Comment for tablespace '%-.64s' is too long (max = %lu)"

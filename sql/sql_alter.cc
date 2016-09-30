@@ -15,14 +15,31 @@
 
 #include "sql_alter.h"
 
+#include <limits.h>
+#include <string.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"                     // check_access
 #include "derror.h"                          // ER_THD
 #include "error_handler.h"                   // Strict_error_handler
-#include "sql_table.h"                       // mysql_alter_table,
+#include "field.h"
+#include "handler.h"
                                              // mysql_exchange_partition
 #include "log.h"
-#include "sql_class.h"                       // THD
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/service_my_snprintf.h"
 #include "mysqld.h"                          // lower_case_table_names
+#include "mysqld_error.h"
+#include "sql_class.h"                       // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_servers.h"
+#include "sql_table.h"                       // mysql_alter_table,
+#include "sql_udf.h"
+#include "table.h"
 
 
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)

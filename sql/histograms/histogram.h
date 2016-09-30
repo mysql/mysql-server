@@ -33,8 +33,6 @@
   name conflicts etc.
 */
 
-#include "my_global.h"
-
 #include <cstddef>               // size_t
 #include <map>                   // std::map
 #include <string>                // std::string
@@ -42,10 +40,10 @@
 
 #include "m_string.h"            // LEX_CSTRING
 #include "memroot_allocator.h"   // Memroot_allocator
-#include "my_alloc.h"            // MEM_ROOT
 #include "my_base.h"             // ha_rows
 #include "mysql_time.h"          // MYSQL_TIME
 #include "sql_alloc.h"           // Sql_alloc
+#include "thr_malloc.h"
 
 class Json_object;
 class String;

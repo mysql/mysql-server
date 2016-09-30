@@ -17,9 +17,10 @@
 
 #include "sql_string.h"
 
-#include "mysql_com.h"    // MAX_BIGINT_WIDTH
-
 #include <algorithm>
+
+#include "my_pointer_arithmetic.h"
+#include "mysql_com.h"    // MAX_BIGINT_WIDTH
 
 using std::min;
 using std::max;
@@ -574,7 +575,7 @@ bool String::append_ulonglong(ulonglong val)
 */
 bool String::append_longlong(longlong val)
 {
-  if (mem_realloc(m_length + MAX_BIGINT_WIDTH + 2))
+  if (mem_realloc_exp(m_length + MAX_BIGINT_WIDTH + 2))
     return true;                              /* purecov: inspected */
   char *end= longlong10_to_str(val, m_ptr + m_length, -10);
   m_length= end - m_ptr;

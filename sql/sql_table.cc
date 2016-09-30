@@ -19,71 +19,128 @@
 
 #include "sql_table.h"
 
-#include "m_string.h"                 // my_stpncpy
-#include "my_check_opt.h"             // T_EXTEND
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <algorithm>
+#include <memory>
 
+#include "auth_acls.h"
 #include "auth_common.h"              // check_fk_parent_table_access
 #include "binlog.h"                   // mysql_bin_log
-#include "dd_sql_view.h"              // update_referencing_views_metadata
-#include "dd_table_share.h"           // open_table_def
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "derror.h"                   // ER_THD
-#include "error_handler.h"            // Drop_table_error_handler
-#include "filesort.h"                 // Filesort
-#include "item_timefunc.h"            // Item_func_now_local
-#include "key.h"                      // KEY
-#include "key_spec.h"                 // Key_part_spec
-#include "lock.h"                     // mysql_lock_remove, lock_tablespace_names
-#include "log.h"                      // sql_print_error
-#include "mysqld.h"                   // lower_case_table_names
-#include "mysqld_error.h"             // ER_*
-#include "partition_info.h"           // partition_info
-#include "psi_memory_key.h"           // key_memory_gdl
-#include "records.h"                  // READ_RECORD
-#include "sdi_utils.h"                // create_serialized_meta_data
-#include "sp_head.h"                  // sp_head
-#include "sql_base.h"                 // lock_table_names
-#include "sql_cache.h"                // query_cache
-#include "sql_class.h"                // THD
-#include "sql_db.h"                   // get_default_db_collation
-#include "sql_executor.h"             // QEP_TAB_standalone
-#include "sql_parse.h"                // test_if_data_home_dir
-#include "sql_partition.h"            // ALTER_PARTITION_PARAM_TYPE
-#include "sql_resolver.h"             // setup_order
-#include "sql_tablespace.h"           // check_tablespace_name
-#include "sql_time.h"                 // make_truncated_value_warning
-#include "sql_trigger.h"              // change_trigger_table_name
-#include "strfunc.h"                  // find_type2
-#include "transaction.h"              // trans_commit_stmt
-#include "log_event.h"                // Query_log_event
-
-#include "partitioning/partition_handler.h" // Partition_handler
-
+#include "binlog_event.h"
+#include "dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
 #include "dd/dd.h"                        // dd::get_dictionary
 #include "dd/dd_schema.h"                 // dd::schema_exists
 #include "dd/dd_table.h"                  // dd::drop_table, dd::update_keys...
 #include "dd/dd_trigger.h"                // dd::table_has_triggers
 #include "dd/dictionary.h"                // dd::Dictionary
-#include "dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "dd/string_type.h"
+#include "dd/types/abstract_table.h"
+#include "dd/types/column.h"
 #include "dd/types/foreign_key.h"         // dd::Foreign_key
 #include "dd/types/foreign_key_element.h" // dd::Foreign_key_element
-#include "dd/types/schema.h"
-#include "dd/types/table.h"           // dd::Table
-#include "dd/impl/types/table_impl.h"
-#include "dd/impl/properties_impl.h"
-#include "dd_table_share.h"
-#include "dd/sdi.h"                   // dd::remove_sdi
-
-#include "trigger.h"
+#include "dd/types/table.h"               // dd::Table
+#include "dd_sql_view.h"              // update_referencing_views_metadata
+#include "dd_table_share.h"           // open_table_def
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "derror.h"                   // ER_THD
+#include "error_handler.h"            // Drop_table_error_handler
+#include "field.h"
+#include "filesort.h"                 // Filesort
+#include "handler.h"
+#include "item.h"
+#include "item_timefunc.h"            // Item_func_now_local
+#include "key.h"                      // KEY
+#include "key_spec.h"                 // Key_part_spec
+#include "lock.h"                     // mysql_lock_remove, lock_tablespace_names
+#include "log.h"                      // sql_print_error
+#include "m_ctype.h"
+#include "m_string.h"                 // my_stpncpy
+#include "mdl.h"
+#include "mem_root_array.h"
+#include "my_base.h"
+#include "my_byteorder.h"
+#include "my_check_opt.h"             // T_EXTEND
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "my_time.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
+#include "mysql_time.h"
+#include "mysqld.h"                   // lower_case_table_names
+#include "mysqld_error.h"             // ER_*
+#include "partition_element.h"
+#include "partition_info.h"           // partition_info
+#include "partitioning/partition_handler.h" // Partition_handler
+#include "pfs_table_provider.h"
+#include "prealloced_array.h"
+#include "protocol.h"
+#include "psi_memory_key.h"           // key_memory_gdl
+#include "query_options.h"
+#include "records.h"                  // READ_RECORD
+#include "rpl_gtid.h"
+#include "sdi_utils.h"                // create_serialized_meta_data
+#include "session_tracker.h"
+#include "sql_alter.h"
+#include "sql_base.h"                 // lock_table_names
+#include "sql_cache.h"                // query_cache
+#include "sql_class.h"                // THD
+#include "sql_const.h"
+#include "sql_db.h"                   // get_default_db_collation
+#include "sql_error.h"
+#include "sql_executor.h"             // QEP_TAB_standalone
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"                // test_if_data_home_dir
+#include "sql_partition.h"            // ALTER_PARTITION_PARAM_TYPE
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_resolver.h"             // setup_order
+#include "sql_show.h"
+#include "sql_sort.h"
+#include "sql_string.h"
+#include "sql_tablespace.h"           // check_tablespace_name
+#include "sql_time.h"                 // make_truncated_value_warning
+#include "sql_trigger.h"              // change_trigger_table_name
+#include "strfunc.h"                  // find_type2
+#include "system_variables.h"
+#include "table.h"
 #include "table_trigger_dispatcher.h"
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "thr_mutex.h"
+#include "transaction.h"              // trans_commit_stmt
+#include "transaction_info.h"
+#include "trigger.h"
+#include "typelib.h"
+#include "xa.h"
 
-#include "pfs_file_provider.h"
+#include "pfs_file_provider.h"  // IWYU pragma: keep
 #include "mysql/psi/mysql_file.h"
 
-#include "pfs_table_provider.h"
+#include "pfs_stage_provider.h"  // IWYU pragma: keep
+#include "mysql/psi/mysql_stage.h"
+
+#include "pfs_table_provider.h"  // IWYU pragma: keep
 #include "mysql/psi/mysql_table.h"
 
-#include <algorithm>
+#include "log_event.h"                // Query_log_event
+#include "partitioning/partition_handler.h" // Partition_handler
+#include "dd/types/schema.h"
+#include "dd/impl/types/table_impl.h"
+#include "dd/impl/properties_impl.h"
+#include "dd/sdi.h"                   // dd::remove_sdi
+
 using std::max;
 using std::min;
 using binary_log::checksum_crc32;
@@ -119,6 +176,8 @@ mysql_prepare_create_table(THD *thd, const char *error_table_name,
                            uint *key_count, FOREIGN_KEY **fk_key_info_buffer,
                            uint *fk_key_count, FOREIGN_KEY *existing_fks,
                            uint existing_fk_count, int select_field_count);
+
+static uint blob_length_by_type(enum_field_types type);
 
 
 /**
@@ -393,6 +452,120 @@ size_t explain_filename(THD* thd,
   DBUG_RETURN(static_cast<size_t>(to_p - to));
 }
 
+void parse_filename(const char *filename, size_t filename_length,
+                    const char ** schema_name, size_t *schema_name_length,
+                    const char ** table_name, size_t *table_name_length,
+                    const char ** partition_name, size_t *partition_name_length,
+                    const char ** subpartition_name, size_t *subpartition_name_length)
+{
+  const char *parse_ptr;
+  size_t parse_length;
+  const char *id_ptr= NULL;
+  size_t id_length= 0;
+  const char *ptr= NULL;
+
+  parse_ptr= filename;
+  parse_length= filename_length;
+
+  while ((ptr= strchr(parse_ptr, '/')))
+  {
+    id_ptr= parse_ptr;
+    id_length= (ptr - parse_ptr);
+
+    parse_ptr += (id_length + 1);
+    parse_length -= (id_length + 1);
+  }
+
+  *schema_name= id_ptr;
+  *schema_name_length= id_length;
+
+  ptr= strchr(parse_ptr, '#');
+
+  if (ptr != NULL)
+  {
+    id_ptr= parse_ptr;
+    id_length= (ptr - parse_ptr);
+
+    parse_ptr += (id_length);
+    parse_length -= (id_length);
+  }
+  else
+  {
+    id_ptr= parse_ptr;
+    id_length= parse_length;
+
+    parse_ptr= NULL;
+    parse_length= 0;
+  }
+
+  *table_name= id_ptr;
+  *table_name_length= id_length;
+
+  if ((parse_length >= 4) && (native_strncasecmp(parse_ptr, "#TMP", 4) == 0))
+  {
+    parse_ptr += 4;
+    parse_length -= 4;
+  }
+
+  if ((parse_length >= 4) && (native_strncasecmp(parse_ptr, "#REN", 4) == 0))
+  {
+    parse_ptr += 4;
+    parse_length -= 4;
+  }
+
+  if ((parse_length >= 3) && (native_strncasecmp(parse_ptr, "#P#", 3) == 0))
+  {
+    parse_ptr += 3;
+    parse_length -= 3;
+
+    ptr= strchr(parse_ptr, '#');
+
+    if (ptr != NULL)
+    {
+      id_ptr= parse_ptr;
+      id_length= (ptr - parse_ptr);
+
+      parse_ptr += (id_length);
+      parse_length -= (id_length);
+    }
+    else
+    {
+      id_ptr= parse_ptr;
+      id_length= parse_length;
+
+      parse_ptr= NULL;
+      parse_length= 0;
+    }
+  }
+  else
+  {
+    id_ptr= NULL;
+    id_length= 0;
+  }
+
+  *partition_name= id_ptr;
+  *partition_name_length= id_length;
+
+  if ((parse_length >= 4) && (native_strncasecmp(parse_ptr, "#SP#", 4) == 0))
+  {
+    parse_ptr += 4;
+    parse_length -= 4;
+
+    id_ptr= parse_ptr;
+    id_length= parse_length;
+
+    parse_ptr= NULL;
+    parse_length= 0;
+  }
+  else
+  {
+    id_ptr= NULL;
+    id_length= 0;
+  }
+
+  *subpartition_name= id_ptr;
+  *subpartition_name_length= id_length;
+}
 
 /*
   Translate a file name to a table name (WL #1324).
@@ -1983,6 +2156,21 @@ err:
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE ||
         create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
   {
+    /*
+      Creation of Dictionary tables may fail inside SE if there is
+      already an entry for the table with the same name as dictionary
+      table in InnoDB dictionary. This might happen during upgrade from
+      5.7 or debug scenarios in current server.
+
+      In this case, DD entry and DD cache will not be cleared here.
+      Dictionary system will try to delete all dictionary tables.
+    */
+    if (dd_upgrade_flag &&
+        dd::get_dictionary()->is_dd_table_name(db, table_name))
+    {
+      DBUG_RETURN(true);
+    }
+
     /*
       We ignore error from dd_drop_table() as we anyway
       return 'true' failure below.
@@ -5206,8 +5394,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         than the BLOB field max size. We handle this case
         using the max_field_size variable below.
       */
-      size_t max_field_size= sql_field->key_length * sql_field->charset->mbmaxlen;
-      if ((max_field_size && key_part_length > max_field_size) ||
+      size_t max_field_size= blob_length_by_type(sql_field->sql_type);
+      if (key_part_length > max_field_size ||
           key_part_length > file->max_key_length() ||
           key_part_length > file->max_key_part_length())
       {
@@ -9655,7 +9843,7 @@ static fk_match_opt to_fk_match_opt(dd::Foreign_key::enum_match_option match)
 
 static void to_lex_cstring(MEM_ROOT *mem_root,
                            LEX_CSTRING *target,
-                           const std::string &source)
+                           const dd::String_type &source)
 {
   target->str= strmake_root(mem_root, source.c_str(), source.length() + 1);
   target->length= source.length();
@@ -11132,8 +11320,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   // Ensure that triggers are in the same schema as their subject table.
   if (alter_ctx.is_database_changed())
   {
-    bool table_has_trigger;
-    if (dd::table_has_triggers(thd, alter_ctx.db, alter_ctx.table_name,
+    bool table_has_trigger= false;
+    if (table->s->tmp_table == NO_TMP_TABLE &&
+        dd::table_has_triggers(thd, alter_ctx.db, alter_ctx.table_name,
                                &table_has_trigger))
       DBUG_RETURN(true);
 

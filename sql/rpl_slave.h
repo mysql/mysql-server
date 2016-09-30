@@ -16,16 +16,22 @@
 #ifndef RPL_SLAVE_H
 #define RPL_SLAVE_H
 
+#include <limits.h>
+#include <sys/types.h>
+
+#include "my_bitmap.h"
 #include "my_global.h"
+#include "my_psi_config.h"
 #include "my_thread.h"                     // my_start_routine
 #include "mysql/psi/mysql_cond.h"          // mysql_cond_t
-#include "mysql/psi/mysql_thread.h"        // mysql_mutex_t
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
 #include "rpl_channel_service_interface.h" // enum_channel_type
 
-class Log_event;
 class Master_info;
 class Relay_log_info;
 class THD;
+
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_lex_master_info LEX_MASTER_INFO;
 typedef struct st_list LIST;

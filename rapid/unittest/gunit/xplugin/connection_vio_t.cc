@@ -19,8 +19,6 @@
 
 #include <string>
 
-#include <boost/scoped_ptr.hpp>
-
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "mock/connection.h"
@@ -42,10 +40,10 @@ namespace ngs
       {
         m_connection_vio.reset(new Connection_vio(m_ssl_context, NULL));
 
-        m_mock_socket_operations = new StrictMock<Mock_socket_operations>();
+        m_mock_socket_operations = allocate_object< StrictMock<Mock_socket_operations> >();
         m_connection_vio->set_socket_operations(m_mock_socket_operations);
 
-        m_mock_system_operations = new StrictMock<Mock_system_operations>();
+        m_mock_system_operations = allocate_object< StrictMock<Mock_system_operations> >();
         m_connection_vio->set_system_operations(m_mock_system_operations);
       }
 
@@ -55,7 +53,7 @@ namespace ngs
         m_connection_vio->set_system_operations(NULL);
       }
 
-      boost::scoped_ptr<Connection_vio> m_connection_vio;
+      ngs::unique_ptr<Connection_vio> m_connection_vio;
       Ssl_context m_ssl_context;
       Mock_socket_operations *m_mock_socket_operations;
       Mock_system_operations *m_mock_system_operations;
@@ -89,13 +87,13 @@ namespace ngs
     TEST_F(Connection_vio_test, accept_error)
     {
       std::string error_msg;
-      my_socket sock_ok = SOCKET_OK;
-      my_socket result_err = INVALID_SOCKET;
+      MYSQL_SOCKET sock_ok = { SOCKET_OK, NULL };
+      MYSQL_SOCKET result_err = { INVALID_SOCKET, NULL };
       struct sockaddr addr;
       socklen_t sock_len;
       int err = 0;
 
-      EXPECT_CALL(*m_mock_socket_operations, accept(_, _, _)).WillOnce(Return(result_err))
+      EXPECT_CALL(*m_mock_socket_operations, accept(_, _, _, _)).WillOnce(Return(result_err))
                                                                 .WillOnce(Return(result_err))
                                                                 .WillOnce(Return(result_err));
 
@@ -103,65 +101,65 @@ namespace ngs
                                                                 .WillOnce(Return(SOCKET_EAGAIN)).WillOnce(Return(SOCKET_EAGAIN))
                                                                 .WillOnce(Return(-1)).WillOnce(Return(-1));
 
-      my_socket result = Connection_vio::accept(sock_ok, &addr, sock_len, err, error_msg);
+      MYSQL_SOCKET result = Connection_vio::accept(sock_ok, &addr, sock_len, err, error_msg);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
     }
 
     TEST_F(Connection_vio_test, create_and_bind_socket_socket_error)
     {
       std::string error_msg;
-      my_socket result_err = INVALID_SOCKET;
+      MYSQL_SOCKET result_err = { INVALID_SOCKET, NULL };
 
-      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_err));
+      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _, _)).WillOnce(Return(result_err));
 
-      my_socket result = Connection_vio::create_and_bind_socket(PORT, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(PORT, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
     }
 
     TEST_F(Connection_vio_test, create_and_bind_socket_bind_error)
     {
       std::string error_msg;
 
-      my_socket result_ok = SOCKET_OK;
+      MYSQL_SOCKET result_ok = { SOCKET_OK, NULL };
 
-      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_ok));
+      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _, _)).WillOnce(Return(result_ok));
       EXPECT_CALL(*m_mock_socket_operations, bind(_, _, _)).WillOnce(Return(BIND_ERR));
 
-      my_socket result = Connection_vio::create_and_bind_socket(PORT, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(PORT, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
     }
 
     TEST_F(Connection_vio_test, create_and_bind_socket_listen_error)
     {
       std::string error_msg;
 
-      my_socket result_ok = SOCKET_OK;
+      MYSQL_SOCKET result_ok = { SOCKET_OK, NULL };
 
-      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_ok));
+      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _, _)).WillOnce(Return(result_ok));
       EXPECT_CALL(*m_mock_socket_operations, bind(_, _, _)).WillOnce(Return(BIND_OK));
       EXPECT_CALL(*m_mock_socket_operations, listen(_, BACKLOG)).WillOnce(Return(LISTEN_ERR));
 
-      my_socket result = Connection_vio::create_and_bind_socket(PORT, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(PORT, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
     }
 
     TEST_F(Connection_vio_test, create_and_bind_socket_ok)
     {
       std::string error_msg;
 
-      my_socket result_ok = SOCKET_OK;
+      MYSQL_SOCKET result_ok = { SOCKET_OK, NULL };
 
-      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_ok));
+      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _, _)).WillOnce(Return(result_ok));
       EXPECT_CALL(*m_mock_socket_operations, bind(_, _, _)).WillOnce(Return(BIND_OK));
       EXPECT_CALL(*m_mock_socket_operations, listen(_, BACKLOG)).WillOnce(Return(LISTEN_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(PORT, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(PORT, error_msg, BACKLOG);
 
-      ASSERT_EQ(SOCKET_OK, result);
+      ASSERT_EQ(SOCKET_OK, result.fd);
     }
 
     TEST_F(Connection_vio_test, unix_socket_create_and_bind_socket_empty_lock_filename)
@@ -169,9 +167,9 @@ namespace ngs
 #if defined(HAVE_SYS_UN_H)
       std::string error_msg;
 
-      my_socket result = Connection_vio::create_and_bind_socket("", error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket("", error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif
     }
 
@@ -181,9 +179,9 @@ namespace ngs
       std::string error_msg;
       std::string long_filename(2000, 'a');
 
-      my_socket result = Connection_vio::create_and_bind_socket(long_filename, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(long_filename, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif
     }
 
@@ -196,9 +194,9 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, open(_, _, _)).WillOnce(Return(OPEN_ERR));
       EXPECT_CALL(*m_mock_system_operations, get_errno()).WillOnce(Return(-1));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif
     }
 
@@ -211,9 +209,9 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, open(_, _, _)).WillOnce(Return(OPEN_ERR)).WillOnce(Return(OPEN_ERR));
       EXPECT_CALL(*m_mock_system_operations, get_errno()).WillOnce(Return(EEXIST));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif
     }
 
@@ -228,9 +226,9 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, read(_, _, _)).WillOnce(Return(READ_ERR));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif
     }
 
@@ -245,9 +243,9 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, read(_, _, _)).WillOnce(Return(0));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif
     }
 
@@ -265,9 +263,9 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, read(_, _, _)).WillOnce(DoAll(SetArg1ToChar('Y'), Return(1))).WillOnce(Return(0));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif
     }
 
@@ -284,9 +282,9 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, getppid()).WillOnce(Return(4));
       EXPECT_CALL(*m_mock_system_operations, kill(_,_)).WillOnce(Return(0));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif
     }
 
@@ -303,9 +301,9 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, getppid()).WillOnce(Return(CURRENT_PID));
       EXPECT_CALL(*m_mock_system_operations, unlink(_)).WillOnce(Return(UNLINK_ERR));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif
     }
 
@@ -319,9 +317,9 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, write(_, _, _)).WillOnce(Return(WRITE_ERR));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif
     }
 
@@ -338,9 +336,9 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, fsync(OPEN_OK)).WillOnce(Return(FSYNC_ERR));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif
     }
 
@@ -357,9 +355,9 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, fsync(OPEN_OK)).WillOnce(Return(FSYNC_OK));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_ERR));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif
     }
 
@@ -369,7 +367,7 @@ namespace ngs
 #if defined(HAVE_SYS_UN_H)
       std::string error_msg;
 
-      my_socket result_err = INVALID_SOCKET;
+      MYSQL_SOCKET result_err = { INVALID_SOCKET, NULL };
       snprintf(m_buffer, sizeof(m_buffer), "%c%d\n", 'X', static_cast<int>(CURRENT_PID));
 
       EXPECT_CALL(*m_mock_system_operations, getpid()).WillOnce(Return(CURRENT_PID));
@@ -378,12 +376,12 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, fsync(OPEN_OK)).WillOnce(Return(FSYNC_OK));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_err));
+      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _, _)).WillOnce(Return(result_err));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
-#endif // defined(HAVE_SYS_UN_H)
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
+#endif  // defined(HAVE_SYS_UN_H)
     }
 
     TEST_F(Connection_vio_test, unix_socket_create_and_bind_socket_bind_error)
@@ -391,7 +389,7 @@ namespace ngs
 #if defined(HAVE_SYS_UN_H)
       std::string error_msg;
 
-      my_socket result_ok = SOCKET_OK;
+      MYSQL_SOCKET result_ok = { SOCKET_OK, NULL };
       snprintf(m_buffer, sizeof(m_buffer), "%c%d\n", 'X', static_cast<int>(CURRENT_PID));
 
       EXPECT_CALL(*m_mock_system_operations, getpid()).WillOnce(Return(CURRENT_PID));
@@ -400,13 +398,13 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, fsync(OPEN_OK)).WillOnce(Return(FSYNC_OK));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_ok));
+      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _, _)).WillOnce(Return(result_ok));
       EXPECT_CALL(*m_mock_socket_operations, bind(_, _, _)).WillOnce(Return(BIND_ERR));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
-#endif // defined(HAVE_SYS_UN_H)
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
+#endif  // defined(HAVE_SYS_UN_H)
     }
 
     TEST_F(Connection_vio_test, unix_socket_create_and_bind_socket_listen_error)
@@ -414,7 +412,7 @@ namespace ngs
 #if defined(HAVE_SYS_UN_H)
       std::string error_msg;
 
-      my_socket result_ok = SOCKET_OK;
+      MYSQL_SOCKET result_ok = { SOCKET_OK, NULL };
       snprintf(m_buffer, sizeof(m_buffer), "%c%d\n", 'X', static_cast<int>(CURRENT_PID));
 
       EXPECT_CALL(*m_mock_system_operations, getpid()).WillOnce(Return(CURRENT_PID));
@@ -423,13 +421,13 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, fsync(OPEN_OK)).WillOnce(Return(FSYNC_OK));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_ok));
+      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _, _)).WillOnce(Return(result_ok));
       EXPECT_CALL(*m_mock_socket_operations, bind(_, _, _)).WillOnce(Return(BIND_OK));
       EXPECT_CALL(*m_mock_socket_operations, listen(_, _)).WillOnce(Return(LISTEN_ERR));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
 #endif // defined(HAVE_SYS_UN_H)
     }
 
@@ -438,7 +436,7 @@ namespace ngs
 #if defined(HAVE_SYS_UN_H)
       std::string error_msg;
 
-      my_socket result_ok = SOCKET_OK;
+      MYSQL_SOCKET result_ok = { SOCKET_OK, NULL };
       snprintf(m_buffer, sizeof(m_buffer), "%c%d\n", 'X', static_cast<int>(CURRENT_PID));
 
       EXPECT_CALL(*m_mock_system_operations, getpid()).WillOnce(Return(CURRENT_PID));
@@ -447,13 +445,13 @@ namespace ngs
       EXPECT_CALL(*m_mock_system_operations, fsync(OPEN_OK)).WillOnce(Return(FSYNC_OK));
       EXPECT_CALL(*m_mock_system_operations, close(OPEN_OK)).WillOnce(Return(CLOSE_OK));
 
-      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _)).WillOnce(Return(result_ok));
+      EXPECT_CALL(*m_mock_socket_operations, socket(_, _, _, _)).WillOnce(Return(result_ok));
       EXPECT_CALL(*m_mock_socket_operations, bind(_, _, _)).WillOnce(Return(BIND_OK));
       EXPECT_CALL(*m_mock_socket_operations, listen(_, _)).WillOnce(Return(LISTEN_OK));
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(SOCKET_OK, result);
+      ASSERT_EQ(SOCKET_OK, result.fd);
 #endif // defined(HAVE_SYS_UN_H)
     }
 
@@ -462,10 +460,10 @@ namespace ngs
 #if !defined(HAVE_SYS_UN_H)
       std::string error_msg;
 
-      my_socket result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
+      MYSQL_SOCKET result = Connection_vio::create_and_bind_socket(UNIX_SOCKET_FILE, error_msg, BACKLOG);
 
-      ASSERT_EQ(INVALID_SOCKET, result);
-#endif // !defined(HAVE_SYS_UN_H)
+      ASSERT_EQ(INVALID_SOCKET, result.fd);
+#endif // defined(HAVE_SYS_UN_H)
     }
 
     TEST_F(Connection_vio_test, try_to_unlink_empty_string)

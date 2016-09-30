@@ -16,13 +16,15 @@
 #ifndef DD_TABLES__FOREIGN_KEYS_INCLUDED
 #define DD_TABLES__FOREIGN_KEYS_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
-#include "dd/object_id.h"                    // dd::Object_id
 #include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "dd/object_id.h"                    // dd::Object_id
+#include "my_global.h"
 
 namespace dd {
   class Object_key;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -32,9 +34,9 @@ class Foreign_keys : public Object_table_impl
 public:
   static const Foreign_keys &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("foreign_keys");
+    static String_type s_table_name("foreign_keys");
     return s_table_name;
   }
 
@@ -57,7 +59,7 @@ public:
 public:
   Foreign_keys();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Foreign_keys::table_name(); }
 
 public:

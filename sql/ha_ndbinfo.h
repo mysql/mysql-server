@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,8 @@
 #ifndef HA_NDBINFO_H
 #define HA_NDBINFO_H
 
-#include <handler.h>
+#include "handler.h"
+#include "my_global.h"
 
 class ha_ndbinfo: public handler
 {

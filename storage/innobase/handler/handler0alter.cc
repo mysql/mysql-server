@@ -1163,7 +1163,6 @@ innobase_find_fk_index(
 
 	while (index != NULL) {
 		if (!(index->type & DICT_FTS)
-		    && !dict_index_has_virtual(index)
 		    && dict_foreign_qualify_index(
 			    table, col_names, columns, n_cols,
 			    index, NULL, true, 0)) {

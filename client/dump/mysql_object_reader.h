@@ -18,6 +18,8 @@
 #ifndef MYSQL_OBJECT_READER_INCLUDED
 #define MYSQL_OBJECT_READER_INCLUDED
 
+#include <functional>
+
 #include "i_object_reader.h"
 #include "abstract_data_formatter_wrapper.h"
 #include "abstract_mysql_chain_element_extension.h"
@@ -41,7 +43,7 @@ class Mysql_object_reader
 public:
   Mysql_object_reader(
     I_connection_provider* connection_provider,
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
     const Mysql_object_reader_options* options);
 

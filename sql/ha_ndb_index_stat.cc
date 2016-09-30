@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_ndbcluster_glue.h"
-#include "ha_ndbcluster.h"
-#include "ha_ndb_index_stat.h"
-#include <mysql/plugin.h>
 #include <ctype.h>
+
+#include "ha_ndb_index_stat.h"
+#include "ha_ndbcluster.h"
+#include "ha_ndbcluster_glue.h"
+#include "mysql/plugin.h"
 
 /* from other files */
 extern struct st_ndb_status g_ndb_status;

@@ -18,14 +18,12 @@
 #ifndef NDB_THD_NDB_H
 #define NDB_THD_NDB_H
 
-#include <my_global.h>
-#include <my_base.h>          // ha_rows
-#include <sql_list.h>         // List<>
-#include <hash.h>             // HASH
-
+#include "hash.h"             // HASH
+#include "kernel/ndb_limits.h" // MAX_NDB_NODES
+#include "my_base.h"          // ha_rows
+#include "my_global.h"
 #include "ndb_share.h"
-
-#include <kernel/ndb_limits.h> // MAX_NDB_NODES
+#include "sql_list.h"         // List<>
 
 /*
   Place holder for ha_ndbcluster thread specific data

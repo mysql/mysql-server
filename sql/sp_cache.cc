@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,16 @@
 
 #include "sp_cache.h"
 
-#include "sp_head.h"
-#include "psi_memory_key.h"
-
+#include <stddef.h>
 #include <atomic>
+
+#include "handler.h"
+#include "hash.h"
+#include "my_dbug.h"
+#include "psi_memory_key.h"
+#include "sp_head.h"
+#include "sql_class.h"
+#include "table.h"
 
 
 /*

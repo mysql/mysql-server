@@ -16,9 +16,10 @@
 #ifndef DD__SDI_INCLUDED
 #define DD__SDI_INCLUDED
 
-#include "my_global.h"
-
 #include <string>
+
+#include "my_global.h"
+#include "dd/string_type.h"                    // dd::String_type
 
 class THD;
 struct handlerton;
@@ -32,11 +33,12 @@ struct handlerton;
 */
 
 namespace dd {
+
 class Schema;
 class Table;
 class Tablespace;
 class View;
-typedef std::string sdi_t;
+typedef String_type sdi_t;
 
 /**
   Serialize a Schema object.
@@ -58,7 +60,7 @@ sdi_t serialize(const Schema &schema);
   @return sdi (as json string).
 
 */
-sdi_t serialize(THD *thd, const Table &table, const std::string &schema_name);
+sdi_t serialize(THD *thd, const Table &table, const String_type &schema_name);
 
 
 /**
@@ -170,7 +172,7 @@ struct Sdi_updater
     @param table object which will be updated.
     @param old_schema_name schema object for old version of object.
     */
-  Sdi_updater(const Table *table, const std::string &old_schema_name);
+  Sdi_updater(const Table *table, const String_type &old_schema_name);
 
 
   /**
@@ -204,7 +206,7 @@ struct Sdi_updater
   }
 
 private:
-  std::string m_prev_sdi_fname;
+  String_type m_prev_sdi_fname;
 };
 
 

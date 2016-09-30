@@ -15,12 +15,29 @@
 
 #include "dd/impl/tables/collations.h"
 
-#include "sql_class.h"                            // THD
+#include <stddef.h>
+#include <new>
+#include <set>
+#include <vector>
 
-#include "dd/dd.h"                                // dd::create_object
 #include "dd/cache/dictionary_client.h"           // dd::cache::Dictionary_...
+#include "dd/dd.h"                                // dd::create_object
 #include "dd/impl/raw/object_keys.h"              // Global_name_key
 #include "dd/impl/types/collation_impl.h"         // dd::Collation_impl
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "dd/object_id.h"
+#include "dd/types/collation.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "sql_class.h"                            // THD
+#include "template_utils.h"
+
+namespace dd {
+class Dictionary_object;
+class Raw_record;
+}  // namespace dd
 
 namespace dd {
 namespace tables {
@@ -170,7 +187,7 @@ Collations::create_dictionary_object(const Raw_record &) const
 
 bool Collations::update_object_key(
   Global_name_key *key,
-  const std::string &collation_name)
+  const String_type &collation_name)
 {
   key->update(FIELD_NAME, collation_name);
   return false;

@@ -34,7 +34,9 @@
 
   For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
 
-  Document generated on: ${DOXYGEN_GENERATION_DATE}, branch: ${DOXYGEN_GENERATION_BRANCH}, revision: ${DOXYGEN_GENERATION_REVISION}
+  Document generated on: ${DOXYGEN_GENERATION_DATE},
+  branch: ${DOXYGEN_GENERATION_BRANCH},
+  revision: ${DOXYGEN_GENERATION_REVISION}
 */
 
 /**
@@ -176,6 +178,7 @@
 
   See #ha_innobase.
 
+  @subpage PAGE_INNODB_PFS
 */
 
 
@@ -297,105 +300,191 @@
 */
 
 #include "mysqld.h"
-#include "mysqld_embedded.h"
-#include "mysqld_daemon.h"
 
-#include "errmsg.h"                     // init_client_errs
-#include "keycache.h"                   // KEY_CACHE
-#include "my_bitmap.h"                  // MY_BITMAP
-#include "my_default.h"                 // print_defaults
-#include "my_stacktrace.h"              // my_set_exception_pointers
-#include "my_timer.h"                   // my_timer_initialize
-#include "mysys_err.h"                  // EXIT_OUT_OF_MEMORY
-#include "sql_common.h"                 // mysql_client_plugin_init
-
+#include "../storage/myisam/ha_myisam.h"    // HA_RECOVER_OFF
 #include "auth_common.h"                // grant_init
 #include "auto_thd.h"                   // Auto_THD
 #include "binlog.h"                     // mysql_bin_log
+#include "binlog_event.h"
 #include "bootstrap.h"                  // bootstrap
+#include "check_stack.h"
 #include "connection_acceptor.h"        // Connection_acceptor
 #include "connection_handler_impl.h"    // Per_thread_connection_handler
 #include "connection_handler_manager.h" // Connection_handler_manager
+#include "control_events.h"
 #include "current_thd.h"                // current_thd
 #include "debug_sync.h"                 // debug_sync_end
+#include "derror.h"
 #include "des_key_file.h"               // load_des_key_file
-#include "events.h"                     // Events
+#include "errmsg.h"                     // init_client_errs
 #include "event_data_objects.h"         // init_scheduler_psi_keys
+#include "events.h"                     // Events
+#include "ft_global.h"
+#include "handler.h"
 #include "hostname.h"                   // hostname_cache_init
 #include "init.h"                       // unireg_init
+#include "item.h"
 #include "item_cmpfunc.h"               // Arg_comparator
+#include "item_create.h"
+#include "item_func.h"
 #include "item_strfunc.h"               // Item_func_uuid
+#include "keycache.h"                   // KEY_CACHE
 #include "keycaches.h"                  // get_or_create_key_cache
 #include "log.h"                        // sql_print_error
 #include "log_event.h"                  // Rows_log_event
+#include "m_string.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_bitmap.h"                  // MY_BITMAP
+#include "my_command.h"
+#include "my_config.h"
+#include "my_decimal.h"
+#include "my_default.h"                 // print_defaults
+#include "my_dir.h"
+#include "my_regex.h"
+#include "my_stacktrace.h"              // my_set_exception_pointers
+#include "my_time.h"
+#include "my_timer.h"                   // my_timer_initialize
+#include "myisam.h"
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_socket.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_error.h"
+#include "mysql/psi/psi_file.h"
+#include "mysql/psi/psi_idle.h"
+#include "mysql/psi/psi_mdl.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysql/psi/psi_socket.h"
+#include "mysql/psi/psi_table.h"
+#include "mysql/psi/psi_thread.h"
+#include "mysql/psi/psi_transaction.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/thread_type.h"
+#include "mysql_time.h"
+#include "mysql_version.h"
+#include "mysqld_daemon.h"
+#include "mysqld_error.h"
+#include "mysqld_embedded.h"            // IWYU pragma: keep
 #include "mysqld_thd_manager.h"         // Global_THD_manager
-#include "options_mysqld.h"             // OPT_THREAD_CACHE_SIZE
+#include "mysys_err.h"                  // EXIT_OUT_OF_MEMORY
 #include "opt_costconstantcache.h"      // delete_optimizer_cost_module
 #include "opt_range.h"                  // range_optimizer_init
-#include "parse_file.h"                 // File_parser_dummy_hook
+#include "options_mysqld.h"             // OPT_THREAD_CACHE_SIZE
+#include "partitioning/partition_handler.h" // partitioning_init
 #include "persisted_variable.h"         // Persisted_variables_cache
+#include "pfs_thread_provider.h"
+#include "probes_mysql.h"               // IWYU pragma: keep
+#include "protocol.h"
 #include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
+#include "query_options.h"
 #include "replication.h"                // thd_enter_cond
 #include "rpl_filter.h"                 // Rpl_filter
+#include "rpl_gtid.h"
 #include "rpl_gtid_persist.h"           // Gtid_table_persistor
 #include "rpl_handler.h"                // RUN_HOOK
 #include "rpl_injector.h"               // injector
 #include "rpl_master.h"                 // max_binlog_dump_events
+#include "rpl_mi.h"
 #include "rpl_msr.h"                    // Multisource_info
 #include "rpl_rli.h"                    // Relay_log_info
 #include "rpl_slave.h"                  // slave_load_tmpdir
+#include "session_tracker.h"
+#include "set_var.h"
 #include "socket_connection.h"          // stmt_info_new_packet
 #include "sp_head.h"                    // init_sp_psi_keys
+#include "sql_admin.h"
 #include "sql_audit.h"                  // mysql_audit_general
 #include "sql_authentication.h"         // init_rsa_keys
+#include "sql_base.h"
 #include "sql_cache.h"                  // Query_cache
 #include "sql_callback.h"               // MUSQL_CALLBACK
 #include "sql_class.h"                  // THD
+#include "sql_common.h"                 // mysql_client_plugin_init
+#include "sql_connect.h"
 #include "sql_db.h"                     // my_dboptions_cache_init
+#include "sql_error.h"
 #include "sql_initialize.h"             // opt_initialize_insecure
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_locale.h"                 // MY_LOCALE
 #include "sql_manager.h"                // start_handle_manager
 #include "sql_parse.h"                  // check_stack_overrun
+#include "sql_partition.h"
 #include "sql_plugin.h"                 // opt_plugin_dir
+#include "sql_plugin_ref.h"
 #include "sql_reload.h"                 // reload_acl_and_cache
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_show.h"
+#include "sql_string.h"
 #include "sql_table.h"                  // execute_ddl_log_recovery
 #include "sql_test.h"                   // mysql_print_status
 #include "sql_time.h"                   // Date_time_format
+#include "sql_udf.h"
 #include "sys_vars.h"                   // fixup_enforce_gtid_consistency_...
 #include "sys_vars_shared.h"            // intern_find_sys_var
 #include "table_cache.h"                // table_cache_manager
 #include "tc_log.h"                     // tc_log
+#include "thr_lock.h"
+#include "thr_mutex.h"
 #include "tztime.h"                     // Time_zone
-
-#include "../storage/myisam/ha_myisam.h"    // HA_RECOVER_OFF
-#include "partitioning/partition_handler.h" // partitioning_init
-#include "mysql/psi/mysql_file.h"
+#include "violite.h"
+#include "xa.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
-#include <pfs_idle_provider.h>
-#include "mysql/psi/mysql_error.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 #ifdef _WIN32
 #include "named_pipe.h"
 #include "named_pipe_connection.h"
-#include "shared_memory_connection.h"
 #include "nt_servc.h"
+#include "shared_memory_connection.h"
 #endif
 
-#include <vector>
 #include <algorithm>
+#include <atomic>
 #include <functional>
 #include <list>
 #include <set>
 #include <string>
+#include <vector>
 
+#include <errno.h>
+#include <fcntl.h>
 #include <fenv.h>
-#include <signal.h>
-#ifdef HAVE_SYS_WAIT_H
-#include <sys/wait.h>
+#include <limits.h>
+#ifndef _WIN32
+#include <netdb.h>
 #endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#include <signal.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#ifdef HAVE_SYS_MMAN_H
+#include <sys/mman.h>
+#endif
+#include <sys/stat.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+#include <functional>
+#include <new>
+#include <string>
+#include <vector>
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -414,12 +503,10 @@
 #include "srv_session.h"
 #endif
 
-#include "dd/dd.h"                      // dd::shutdown
-#include "dd/dictionary.h"              // dd::get_dictionary
-#include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
-
-#include <mysql/components/my_service.h>  // my_service<>
 #include "../components/mysql_server/server_component.h"
+#include "dd/dd.h"                      // dd::shutdown
+#include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
+#include "dd/dictionary.h"              // dd::get_dictionary
 
 using std::min;
 using std::max;
@@ -433,7 +520,7 @@ extern "C" int memcntl(caddr_t, size_t, int, caddr_t, int, int);
 #endif
 
 #ifdef HAVE_FPU_CONTROL_H
-# include <fpu_control.h>
+# include <fpu_control.h>  // IWYU pragma: keep
 #elif defined(__i386__)
 # define fpu_control_t unsigned int
 # define _FPU_EXTENDED 0x300
@@ -479,7 +566,7 @@ extern "C" void handle_fatal_signal(int sig);
 
 /* Constants */
 
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 
@@ -758,7 +845,7 @@ ulong table_def_size;
 ulong tablespace_def_size;
 ulong what_to_log;
 ulong slow_launch_time;
-Atomic_int32 slave_open_temp_tables;
+std::atomic<int32> atomic_slave_open_temp_tables{0};
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_trans_retries;
 uint  slave_net_timeout;
@@ -3028,7 +3115,7 @@ rpl_make_log_name(PSI_memory_key key,
                   const char *ext)
 {
   DBUG_ENTER("rpl_make_log_name");
-  DBUG_PRINT("enter", ("opt: %s, def: %s, ext: %s", opt, def, ext));
+  DBUG_PRINT("enter", ("opt: %s, def: %s, ext: %s", (opt && opt[0])? opt : "", def, ext));
   char buff[FN_REFLEN];
   /*
     opt[0] needs to be checked to make sure opt name is not an empty
@@ -3211,8 +3298,8 @@ int init_common_variables()
     the array, excluding the last element - terminator) must match the number
     of SQLCOM_ constants.
   */
-  compile_time_assert(sizeof(com_status_vars)/sizeof(com_status_vars[0]) - 1 ==
-                     SQLCOM_END + 7);
+  static_assert(sizeof(com_status_vars) / sizeof(com_status_vars[0]) - 1 ==
+                  SQLCOM_END + 7, "");
 #endif
 
   if (get_options(&remaining_argc, &remaining_argv))
@@ -4402,31 +4489,28 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   DBUG_PRINT("debug",
              ("opt_bin_logname: %s, opt_relay_logname: %s, pidfile_name: %s",
               opt_bin_logname, opt_relay_logname, pidfile_name));
-  if (opt_relay_logname)
+  /*
+    opt_relay_logname[0] needs to be checked to make sure opt relaylog name is
+    not an empty string, incase it is an empty string default file
+    extension will be passed
+   */
+  relay_log_basename=
+    rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_basename,
+                      opt_relay_logname, default_logfile_name,
+                      (opt_relay_logname && opt_relay_logname[0]) ? "" : "-relay-bin");
+
+  if (relay_log_basename != NULL)
+    relay_log_index=
+      rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_index,
+                        opt_relaylog_index_name, relay_log_basename, ".index");
+
+  if (relay_log_basename == NULL || relay_log_index == NULL)
   {
-    /*
-      opt_relay_logname[0] needs to be checked to make sure opt relaylog name is
-      not an empty string, incase it is an empty string default file
-      extension will be passed
-     */
-    relay_log_basename=
-      rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_basename,
-                        opt_relay_logname, default_logfile_name,
-                        (opt_relay_logname && opt_relay_logname[0]) ? "" : "-relay-bin");
-
-    if (relay_log_basename != NULL)
-      relay_log_index=
-        rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_index,
-                          opt_relaylog_index_name, relay_log_basename, ".index");
-
-    if (relay_log_basename == NULL || relay_log_index == NULL)
-    {
-      sql_print_error("Unable to create replication path names:"
-                      " out of memory or path names too long"
-                      " (path name exceeds " STRINGIFY_ARG(FN_REFLEN)
-                      " or file name exceeds " STRINGIFY_ARG(FN_LEN) ").");
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    }
+    sql_print_error("Unable to create replication path names:"
+                    " out of memory or path names too long"
+                    " (path name exceeds " STRINGIFY_ARG(FN_REFLEN)
+                    " or file name exceeds " STRINGIFY_ARG(FN_LEN) ").");
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 #endif /* !EMBEDDED_LIBRARY */
 
@@ -4886,6 +4970,7 @@ int mysqld_main(int argc, char **argv)
   orig_argc= argc;
   orig_argv= argv;
   my_getopt_use_args_separator= TRUE;
+  my_defaults_read_login_file= FALSE;
   if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv))
   {
     flush_error_log_messages();
@@ -4986,7 +5071,8 @@ int mysqld_main(int argc, char **argv)
                                             & psi_statement_hook,
                                             & psi_transaction_hook,
                                             & psi_memory_hook,
-                                            & psi_error_hook);
+                                            & psi_error_hook,
+                                            & psi_data_lock_hook);
       if ((pfs_rc != 0) && pfs_param.m_enabled)
       {
         pfs_param.m_enabled= false;
@@ -5149,6 +5235,16 @@ int mysqld_main(int argc, char **argv)
     if (service != NULL)
     {
       set_psi_error_service(service);
+    }
+  }
+
+  if (psi_data_lock_hook != NULL)
+  {
+    PSI_data_lock_service_t *service;
+    service= (PSI_data_lock_service_t*) psi_data_lock_hook->get_interface(PSI_CURRENT_DATA_LOCK_VERSION);
+    if (service != NULL)
+    {
+      set_psi_data_lock_service(service);
     }
   }
 
@@ -5362,7 +5458,7 @@ int mysqld_main(int argc, char **argv)
     regardless to avoid possible future bugs if gtid_state ever
     needs to do anything else.
   */
-  global_sid_lock->rdlock();
+  global_sid_lock->wrlock();
   int gtid_ret= gtid_state->init();
   global_sid_lock->unlock();
 
@@ -7298,7 +7394,7 @@ static int show_slave_open_temp_tables(THD *thd, SHOW_VAR *var, char *buf)
 {
   var->type= SHOW_INT;
   var->value= buf;
-  *((int *) buf)= slave_open_temp_tables.atomic_get();
+  *((int *) buf)= atomic_slave_open_temp_tables;
   return 0;
 }
 
@@ -7628,7 +7724,7 @@ static int mysql_init_variables(void)
   cleanup_done= 0;
   server_id_supplied= false;
   test_flags= select_errors= dropping_tables= ha_open_options=0;
-  slave_open_temp_tables.atomic_set(0);
+  atomic_slave_open_temp_tables= 0;
   opt_endinfo= using_udf_functions= 0;
   opt_using_transactions= 0;
   set_connection_events_loop_aborted(false);

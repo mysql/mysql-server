@@ -22,10 +22,10 @@
 
 #include <stdint.h>
 #include <list>
-#include <boost/core/noncopyable.hpp>
 
 #include "ngs/thread.h"
 #include "ngs/memory.h"
+#include "ngs_common/atomic.h"
 
 #define BUFFER_PAGE_SIZE 4096
 
@@ -53,13 +53,13 @@ namespace ngs
     Page(uint32_t pcapacity = BUFFER_PAGE_SIZE)
     {
       capacity = pcapacity;
-      data = new char[capacity];
+      ngs::allocate_array(data, capacity, KEY_memory_x_recv_buffer);
       length = 0;
       references = 0;
       saved_length = 0;
     }
 
-    virtual ~Page() { Memory_delete_array(data); }
+    virtual ~Page() { ngs::free_array(data); }
 
     void aquire() {  ++references; }
     void release() { if (0 == --references) destroy(); }
@@ -111,13 +111,16 @@ namespace ngs
   };
 
 
-  class Page_pool : private boost::noncopyable
+  class Page_pool
   {
   public:
     /* Unlimited allocation, no caching */
     Page_pool(const int32_t page_size = BUFFER_PAGE_SIZE);
     Page_pool(const Pool_config &pool_config);
     ~Page_pool();
+
+    Page_pool(const Page_pool &) = delete;
+    Page_pool &operator=(const Page_pool &) = delete;
 
     Resource<Page> allocate();
 
@@ -154,10 +157,10 @@ namespace ngs
     std::list<char *> m_pages_list;
     int32_t       m_pages_max;
     int32_t       m_pages_cache_max;
-    int32_t       m_pages_allocated;
     int32_t       m_pages_cached;
     const int32_t m_page_size;
     Mutex         m_mutex;
+    ngs::atomic<int32_t> m_pages_allocated;
   };
 
 

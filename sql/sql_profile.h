@@ -16,11 +16,17 @@
 #ifndef _SQL_PROFILE_H
 #define _SQL_PROFILE_H
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_config.h"
+#include "my_dbug.h"
 #include "my_global.h"
 
 class Item;
 struct TABLE_LIST;
 class THD;
+
 typedef struct st_field_info ST_FIELD_INFO;
 typedef struct st_schema_table ST_SCHEMA_TABLE;
 typedef int64 query_id_t;
@@ -44,6 +50,7 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 #if defined(ENABLED_PROFILING)
 #include "mysql/mysql_lex_string.h"         // LEX_STRING
+
 typedef struct st_mysql_lex_string LEX_STRING;
 
 #ifdef HAVE_SYS_RESOURCE_H
@@ -57,9 +64,8 @@ extern "C" {
 extern PSI_memory_key key_memory_queue_item;
 }
 
-class PROF_MEASUREMENT;
-class QUERY_PROFILE;
 class PROFILING;
+class QUERY_PROFILE;
 
 
 /**

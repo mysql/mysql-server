@@ -15,7 +15,11 @@
 
 #include "dd/impl/tables/view_table_usage.h"
 
+#include <new>
+
 #include "dd/impl/raw/object_keys.h"      // dd::Parent_id_range_key
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "system_variables.h"
 
 namespace dd {
 namespace tables {
@@ -41,17 +45,17 @@ View_table_usage::View_table_usage()
   m_target_def.add_field(FIELD_TABLE_CATALOG,
                          "FIELD_TABLE_CATALOG",
                          "table_catalog VARCHAR(64) NOT NULL COLLATE " +
-                         std::string(Object_table_definition_impl::
+                         String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
   m_target_def.add_field(FIELD_TABLE_SCHEMA,
                          "FIELD_TABLE_SCHEMA",
                          "table_schema VARCHAR(64) NOT NULL COLLATE " +
-                         std::string(Object_table_definition_impl::
+                         String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
   m_target_def.add_field(FIELD_TABLE_NAME,
                          "FIELD_TABLE_NAME",
                          "table_name VARCHAR(64) NOT NULL COLLATE " +
-                         std::string(Object_table_definition_impl::
+                         String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
 
   m_target_def.add_index("PRIMARY KEY(view_id, table_catalog, "
@@ -74,9 +78,9 @@ Object_key *View_table_usage::create_key_by_view_id(
 
 Object_key *View_table_usage::create_primary_key(
   Object_id view_id,
-  const std::string &table_catalog,
-  const std::string &table_schema,
-  const std::string &table_name)
+  const String_type &table_catalog,
+  const String_type &table_schema,
+  const String_type &table_name)
 {
   const int index_no= 0;
 
@@ -94,9 +98,9 @@ Object_key *View_table_usage::create_primary_key(
 ///////////////////////////////////////////////////////////////////////////
 
 Object_key *View_table_usage::create_key_by_name(
-  const std::string &table_catalog,
-  const std::string &table_schema,
-  const std::string &table_name)
+  const String_type &table_catalog,
+  const String_type &table_schema,
+  const String_type &table_name)
 {
   const int index_no= 1;
 

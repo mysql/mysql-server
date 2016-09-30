@@ -18,16 +18,21 @@
 /* A lexical scanner for optimizer hints pseudo-commentary syntax */
 
 #include "sql_lex_hints.h"
-#include "lex_hash.h"
-#include "parse_tree_helpers.h"
-#include "sql_class.h"
-#include "derror.h"
 
+#include <limits.h>
+
+#include "derror.h"
+#include "lex_token.h"
+#include "mysqld_error.h"
+#include "sql_class.h"
+#include "sql_error.h"
 /*
   Generated sources:
 */
 #include "sql_yacc.h"
-#include "lex_token.h"
+#include "system_variables.h"
+
+class PT_hint_list;
 
 
 /**
@@ -157,6 +162,10 @@ void Hint_scanner::add_hint_token_digest()
       case SUBQUERY_HINT:
       case DERIVED_MERGE_HINT:
       case NO_DERIVED_MERGE_HINT:
+      case JOIN_PREFIX_HINT:
+      case JOIN_SUFFIX_HINT:
+      case JOIN_ORDER_HINT:
+      case JOIN_FIXED_ORDER_HINT:
         break;
       default:
         DBUG_ASSERT(false);

@@ -110,7 +110,8 @@ initialize_performance_schema(PFS_global_param *param,
   PSI_statement_bootstrap ** statement_bootstrap,
   PSI_transaction_bootstrap ** transaction_bootstrap,
   PSI_memory_bootstrap ** memory_bootstrap,
-  PSI_error_bootstrap ** error_bootstrap)
+  PSI_error_bootstrap ** error_bootstrap,
+  PSI_data_lock_bootstrap ** data_lock_bootstrap)
 {
   *thread_bootstrap= NULL;
   *mutex_bootstrap= NULL;
@@ -126,6 +127,7 @@ initialize_performance_schema(PFS_global_param *param,
   *transaction_bootstrap= NULL;
   *memory_bootstrap= NULL;
   *error_bootstrap= NULL;
+  *data_lock_bootstrap= NULL;
 
   if (!THR_PFS_initialized)
   {
@@ -245,6 +247,7 @@ initialize_performance_schema(PFS_global_param *param,
     *transaction_bootstrap= & pfs_transaction_bootstrap;
     *memory_bootstrap= & pfs_memory_bootstrap;
     *error_bootstrap= & pfs_error_bootstrap;
+    *data_lock_bootstrap= & pfs_data_lock_bootstrap;
   }
 
   return 0;

@@ -20,24 +20,59 @@
 
 #include "sql_tmp_table.h"
 
-#include "myisam.h"               // MI_COLUMNDEF
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <algorithm>
+#include <new>
+
+#include "auth_common.h"
+#include "binary_log_types.h"
+#include "current_thd.h"
 #include "debug_sync.h"           // DEBUG_SYNC
+#include "field.h"
 #include "filesort.h"             // filesort_free_buffers
+#include "handler.h"
 #include "item_func.h"            // Item_func
 #include "item_sum.h"             // Item_sum
+#include "key.h"
+#include "m_ctype.h"
+#include "m_string.h"
 #include "mem_root_array.h"       // Mem_root_array
+#include "my_bitmap.h"
+#include "my_compare.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "myisam.h"               // MI_COLUMNDEF
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld.h"               // heap_hton use_temp_pool
+#include "mysqld_error.h"
 #include "opt_range.h"            // QUICK_SELECT_I
 #include "opt_trace.h"            // Opt_trace_object
 #include "opt_trace_context.h"    // Opt_trace_context
 #include "psi_memory_key.h"
+#include "query_options.h"
 #include "sql_base.h"             // free_io_cache
+#include "sql_bitmap.h"
 #include "sql_class.h"            // THD
+#include "sql_const.h"
 #include "sql_executor.h"         // SJ_TMP_TABLE
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_plugin.h"           // plugin_unlock
-#include "current_thd.h"
-#include "mysqld.h"               // heap_hton use_temp_pool
-
-#include <algorithm>
+#include "sql_plugin_ref.h"
+#include "sql_servers.h"
+#include "system_variables.h"
+#include "temp_table_param.h"
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "typelib.h"
 
 using std::max;
 using std::min;
@@ -833,8 +868,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   memset(default_field, 0, sizeof(Field*) * (field_count + 1));
   memset(from_field, 0, sizeof(Field*)*(field_count + 1));
 
-  // This invokes (the synthesized) st_mem_root &operator=(const st_mem_root&)
-  table->mem_root= own_root;
+  table->mem_root= std::move(own_root);
   mem_root_save= thd->mem_root;
   thd->mem_root= &table->mem_root;
   copy_func->set_mem_root(&table->mem_root);
@@ -1677,7 +1711,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   memset(table, 0, sizeof(*table));
   memset(reg_field, 0, sizeof(Field*) * 3);
 
-  table->mem_root= own_root;
+  table->mem_root= std::move(own_root);
   mem_root_save= thd->mem_root;
   thd->mem_root= &table->mem_root;
 
@@ -2424,7 +2458,7 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
 void
 free_tmp_table(THD *thd, TABLE *entry)
 {
-  MEM_ROOT own_root= entry->mem_root;
+  MEM_ROOT own_root= std::move(entry->mem_root);
   const char *save_proc_info;
   DBUG_ENTER("free_tmp_table");
   DBUG_PRINT("enter",("table: %s",entry->alias));
@@ -2519,8 +2553,11 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
     DBUG_RETURN(1);
   }
 
-  new_table= *table;
-  share= *table->s;
+  // TODO: Figure out if we can do this with a move constructor instead.
+  memcpy(&new_table, table, sizeof(*table));
+  clear_alloc_root(&table->mem_root);
+  memcpy(&share, table->s, sizeof(*table->s));
+  clear_alloc_root(&table->s->mem_root);
   share.ha_share= NULL;
   new_table.s= &share;
   switch (internal_tmp_disk_storage_engine)
@@ -2633,8 +2670,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
   plugin_unlock(0, table->s->db_plugin);
   share.db_plugin= my_plugin_lock(0, &share.db_plugin);
   new_table.s= table->s;                       // Keep old share
-  *table= new_table;
-  *table->s= share;
+  *table= std::move(new_table);
+  *table->s= std::move(share);
   /* Update quick select, if any. */
   {
     QEP_TAB *tab= table->reginfo.qep_tab;
@@ -2671,6 +2708,6 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
  err2:
   delete new_table.file;
   thd_proc_info(thd, save_proc_info);
-  table->mem_root= new_table.mem_root;
+  table->mem_root= std::move(new_table.mem_root);
   DBUG_RETURN(1);
 }

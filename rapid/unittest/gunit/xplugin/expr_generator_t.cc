@@ -15,9 +15,9 @@
 
 #include "expr_generator.h"
 #include "ngs_common/protocol_protobuf.h"
+#include "ngs_common/smart_ptr.h"
 #include "mysqlx_pb_wrapper.h"
 #include <gtest/gtest.h>
-#include <boost/scoped_ptr.hpp>
 
 namespace xpl
 {
@@ -166,7 +166,7 @@ TEST(xpl_expr_generator, identifier)
 
 TEST(xpl_expr_generator, variable)
 {
-  boost::scoped_ptr<Expr> var(Expr::make_variable("'variable`\""));
+  ngs::unique_ptr<Expr> var(Expr::make_variable("'variable`\""));
 
   //EXPECT_EQ("@`'variable``\"`", generate_expression(*var));
   EXPECT_THROW(generate_expression(*var, EMPTY_SCHEMA, DM_TABLE), Expression_generator::Error);
@@ -503,7 +503,7 @@ TEST(xpl_expr_generator, document_path_double_asterisk)
 
 TEST(xpl_expr_generator, placeholder_not_found)
 {
-  boost::scoped_ptr<Expr> expr(Expr::make_placeholder(10));
+  ngs::unique_ptr<Expr> expr(Expr::make_placeholder(10));
   Expression_generator::Args args;
   EXPECT_THROW(generate_expression(*expr, args, EMPTY_SCHEMA, DM_TABLE), xpl::Expression_generator::Error);
 }
@@ -511,7 +511,7 @@ TEST(xpl_expr_generator, placeholder_not_found)
 
 TEST(xpl_expr_generator, placeholder_found)
 {
-  boost::scoped_ptr<Expr> expr(Expr::make_placeholder(0));
+  ngs::unique_ptr<Expr> expr(Expr::make_placeholder(0));
   Expression_generator::Args args;
   args.AddAllocated(new Scalar(2));
   EXPECT_EQ("2", generate_expression(*expr, args, EMPTY_SCHEMA, DM_TABLE));

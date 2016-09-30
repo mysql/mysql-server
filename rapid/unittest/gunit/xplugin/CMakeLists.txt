@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-IF(NOT GMOCK_FOUND)
+IF(NOT GMOCK_FOUND OR DISABLE_SHARED OR NOT PROTOBUF_FOUND)
   RETURN()
 ENDIF()
 
@@ -112,6 +112,7 @@ TARGET_LINK_LIBRARIES(
   mysqlservices
   mysqlclient
   ${LIBEVENT_LIBRARY}
+  ${LIBEVENT_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARY}
   ${GCOV_LDFLAGS}

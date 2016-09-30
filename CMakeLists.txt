@@ -16,21 +16,25 @@
 IF(WIN32)
   # CMake 3.2.3 is needed for Visual Studio 2015 due to CMake bug 15552.
   CMAKE_MINIMUM_REQUIRED(VERSION 3.2.3)
-ELSE()
-  # There's a bug in unzipping prior to 2.8.2
-  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2)
+ELSEIF(UNIX)
+  # CMake 3.4.0 is needed for Solaris due to CMake bug 15673.
+  # Cannot use CMAKE_SYSTEM_NAME until after PROJECT(), use uname directly.
+  FIND_PROGRAM(MY_UNAME uname /bin /usr/bin /usr/local/bin /sbin)
+  IF(MY_UNAME)
+    EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME)
+    IF(MY_HOST_SYSTEM_NAME MATCHES "SunOS")
+      CMAKE_MINIMUM_REQUIRED(VERSION 3.4.0)
+    ENDIF()
+  ENDIF()
 ENDIF()
+# 2.8.12 as minimum unless higher is checked above.
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 
-# We use CMAKE_SHARED_LIBRARY_<Lang>_FLAGS. See cmake --help-policy CMP0018
-IF(CMAKE_VERSION VERSION_GREATER "2.8.8")
-  CMAKE_POLICY(SET CMP0018 OLD)
-ENDIF()
-
-# We use PROPERTIES LINK_INTERFACE_LIBRARIES. See cmake --help-policy CMP0022
-IF(CMAKE_VERSION VERSION_EQUAL "2.8.12" OR
-   CMAKE_VERSION VERSION_GREATER "2.8.12")
- CMAKE_POLICY(SET CMP0022 OLD)
-ENDIF()
+# Explicitly set CMP0018 and CMP0022 = NEW since newer versions of
+# CMake has OLD as default even if OLD is deprecated.
+# See cmake --help-policy CMP0018 / CMP0022
+CMAKE_POLICY(SET CMP0018 NEW)
+CMAKE_POLICY(SET CMP0022 NEW)
 
 # We use the LOCATION target property (CMP0026)
 # and get_target_property() for non-existent targets (CMP0045)
@@ -97,11 +101,6 @@ SET(BUILDTYPE_DOCSTRING
 
 IF(WITH_DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
-  IF(UNIX AND NOT APPLE)
-    # Compiling with PIC speeds up embedded build, on PIC sensitive systems 
-    # Predefine it to ON, in case user chooses to build embedded. 
-    SET(WITH_PIC ON CACHE BOOL "Compile with PIC")
-  ENDIF()
   SET(OLD_WITH_DEBUG 1 CACHE INTERNAL "" FORCE)
 ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   IF(CMAKE_BUILD_TYPE MATCHES "Debug" OR NOT HAVE_CMAKE_BUILD_TYPE)
@@ -130,9 +129,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
   SET (ENV_CC "$ENV{CC}")
   SET (ENV_CXX "$ENV{CXX}")
   IF (ENV_CC STREQUAL "" AND ENV_CXX STREQUAL "")
-    FIND_PROGRAM(MY_UNAME uname /bin /usr/bin /usr/local/bin )
     IF(MY_UNAME)
-      EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME)
       EXEC_PROGRAM(uname ARGS -r OUTPUT_VARIABLE MY_HOST_SYSTEM_VERSION)
       IF(MY_HOST_SYSTEM_NAME MATCHES "Linux" AND
           MY_HOST_SYSTEM_VERSION MATCHES "\\.el[67](uek)?\\.")
@@ -277,7 +274,7 @@ ENDIF()
 OPTION(DISABLE_SHARED 
  "Don't build shared libraries, compile code as position-dependent" OFF)
 IF(DISABLE_SHARED)
-  SET(WITHOUT_DYNAMIC_PLUGINS 1)
+  MESSAGE("Dynamic plugins are disabled.")
 ENDIF()
 OPTION(ENABLED_PROFILING "Enable profiling" ON)
 OPTION(WITHOUT_SERVER OFF)
@@ -338,13 +335,13 @@ MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
   ENDIF()
   IF(C_RESULT AND CXX_RESULT)
     SET(CMAKE_C_FLAGS_DEBUG
-      "${CMAKE_C_FLAGS_DEBUG} ${SAN_OPT} ${OPT_FLAG} -Wno-error -fPIC")
+      "${CMAKE_C_FLAGS_DEBUG} ${SAN_OPT} ${OPT_FLAG} -Wno-error")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-      "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${SAN_OPT} -fPIC")
+      "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${SAN_OPT}")
     SET(CMAKE_CXX_FLAGS_DEBUG
-      "${CMAKE_CXX_FLAGS_DEBUG} ${SAN_OPT} ${OPT_FLAG} -Wno-error -fPIC")
+      "${CMAKE_CXX_FLAGS_DEBUG} ${SAN_OPT} ${OPT_FLAG} -Wno-error")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${SAN_OPT} -fPIC")
+      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${SAN_OPT}")
     SET(${RESULT} 1)
   ELSE()
     SET(${RESULT} 0)
@@ -442,9 +439,9 @@ IF (USE_LD_GOLD)
   # CheckCXXSourceCompiles tends to compile and link in two steps
   # (which causes warning output about unused flags, which we interpret
   # as the flag not existing).
-  MY_CHECK_C_COMPILER_FLAG("-fuse-ld=gold" C_RESULT)
-  MY_CHECK_CXX_COMPILER_FLAG("-fuse-ld=gold" CXX_RESULT)
-  IF (C_RESULT AND CXX_RESULT)
+  MY_CHECK_C_COMPILER_FLAG("-fuse-ld=gold" C_LD_GOLD_RESULT)
+  MY_CHECK_CXX_COMPILER_FLAG("-fuse-ld=gold" CXX_LD_GOLD_RESULT)
+  IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT)
     IF (HAVE_REAL_DTRACE_INSTRUMENTING)
       MESSAGE(WARNING " gold is not compatible with DTrace - using regular ld")
     ELSE()
@@ -570,6 +567,10 @@ INCLUDE(configure.cmake)
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 ADD_DEFINITIONS(-DRAPIDJSON_NO_SIZETYPEDEFINE)
+ADD_DEFINITIONS(-D__STDC_LIMIT_MACROS)     # Enable C99 limit macros
+ADD_DEFINITIONS(-D__STDC_FORMAT_MACROS)    # Enable C99 printf format macros
+ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in math.h
+
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
@@ -663,6 +664,7 @@ ENDIF()
 
 IF(NOT WITHOUT_SERVER)
   SET (MYSQLD_STATIC_COMPONENT_LIBS "" CACHE INTERNAL "")
+  SET (MYSQLD_STATIC_EMBEDDED_COMPONENT_LIBS "" CACHE INTERNAL "")
   CONFIGURE_COMPONENTS()
 ENDIF()
 

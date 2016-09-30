@@ -16,25 +16,43 @@
 #ifndef MYSQLD_INCLUDED
 #define MYSQLD_INCLUDED
 
+#include <atomic>
+
+#include <signal.h>
+#include <sys/types.h>
+#include <time.h>
+
+#include "m_ctype.h"
+#include "my_alloc.h"
+#include "my_atomic.h"
+#include "my_bitmap.h"
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_getopt.h"
 #include "my_global.h"
-#include "mysql_com.h"                     // SERVER_VERSION_LENGTH
-#include "my_atomic.h"                     // my_atomic_load32
+#include "my_psi_config.h"
 #include "my_sqlcommand.h"                 // SQLCOM_END
 #include "my_sys.h"                        // MY_TMPDIR
 #include "my_thread.h"                     // my_thread_attr_t
 #include "my_thread_local.h"               // my_get_thread_local
-#include "sql_const.h"                     // UUID_LENGTH
-#include "atomic_class.h"                  /* Atomic_int32 */
+#include "mysql/mysql_lex_string.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"        /* mysql_rwlock_t */
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_statement.h"       /* PSI_statement_info */
+#include "mysql_com.h"                     // SERVER_VERSION_LENGTH
+#include "sql_bitmap.h"
+#include "sql_const.h"                     // UUID_LENGTH
+#include "system_variables.h"
 
-#include <atomic>
-
-class my_decimal;
 class THD;
 class Time_zone;
 struct handlerton;
-template <uint default_width> class Bitmap;
 
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
@@ -211,7 +229,7 @@ extern ulong binlog_stmt_cache_use, binlog_stmt_cache_disk_use;
 extern ulong aborted_threads;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
-extern Atomic_int32 slave_open_temp_tables;
+extern std::atomic<int32> atomic_slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_time;
 extern ulong table_cache_size;

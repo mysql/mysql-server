@@ -16,12 +16,17 @@
 #ifndef SQL_BASE_INCLUDED
 #define SQL_BASE_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "hash.h"                   // my_hash_value_type
-#include "my_base.h"                // ha_extra_function
-#include "thr_lock.h"               // thr_lock_type
+#include "m_string.h"
 #include "mdl.h"                    // MDL_savepoint
+#include "my_base.h"                // ha_extra_function
+#include "my_global.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "sql_array.h"              // Bounds_checked_array
+#include "thr_lock.h"               // thr_lock_type
 #include "trigger_def.h"            // enum_trigger_event_type
 
 class Field;
@@ -31,21 +36,26 @@ class Open_table_context;
 class Open_tables_backup;
 class Prelocking_strategy;
 class Query_tables_list;
-class sp_head;
 class Sroutine_hash_entry;
-struct handlerton;
-struct Name_resolution_context;
+class THD;
+class sp_head;
 struct LEX;
+struct Name_resolution_context;
 struct TABLE;
-struct TABLE_SHARE;
 struct TABLE_LIST;
+struct TABLE_SHARE;
+struct handlerton;
 template <class T> class List;
 template <class T> class List_iterator;
+
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_open_table_list OPEN_TABLE_LIST;
 class SELECT_LEX;
+
 typedef Bounds_checked_array<Item *> Ref_item_array;
-namespace dd { class Table; }
+namespace dd {
+class Table;
+}  // namespace dd
 
 
 #define TEMP_PREFIX	"MY"

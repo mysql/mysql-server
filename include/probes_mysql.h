@@ -1,4 +1,4 @@
-/* Copyright (c) 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2008, 2016, Sun Microsystems, Inc.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -21,9 +21,9 @@
 #include <my_global.h>
 
 #if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-#include "probes_mysql_dtrace.h"
+#include "probes_mysql_dtrace.h"  // IWYU pragma: export
 #else
-#include "probes_mysql_nodtrace.h"
+#include "probes_mysql_nodtrace.h"  // IWYU pragma: export
 #endif
 
 #endif /* PROBES_MYSQL_H */
