@@ -6903,9 +6903,12 @@ create_index_metadata(
 	ut_ad(n_fields > 0);
 
 	if (key.flags & (HA_SPATIAL | HA_FULLTEXT)) {
+		ut_ad(!dict_table_is_intrinsic(table));
+
 		switch (key.flags & HA_KEYFLAG_MASK) {
 		case HA_SPATIAL:
 			type = DICT_SPATIAL;
+			ut_ad(n_fields == 1);
 			break;
 		case HA_FULLTEXT:
 			type = DICT_FTS;
@@ -6922,103 +6925,8 @@ create_index_metadata(
 			? DICT_UNIQUE 
 			: 0;
 	}
-#if 0
-	if (key.flags & (HA_SPATIAL | HA_FULLTEXT)) {
-		ut_ad(!dict_table_is_intrinsic(table));
 
-		switch (key.flags & HA_KEYFLAG_MASK) {
-		case HA_SPATIAL:
-			type = DICT_SPATIAL;
-			ut_ad(n_fields == 1);
-			/* Add all PRIMARY KEY columns. */
-			n_fields += table->first_index()->n_uniq;
-			break;
-		case HA_FULLTEXT:
-			type = DICT_FTS;
-			n_uniq = 0;
-#if 1//WL#9099 TODO
-			return(HA_ERR_UNSUPPORTED);
-#endif
-			break;
-		default:
-			ut_ad(0);
-		}
-
-		for (uint i = 0; i < key.user_defined_key_parts; i++) {
-			/* FULLTEXT or SPATIAL index are not supported
-			on generated virtual columns. */
-			if (key.key_part[i].field->is_virtual_gcol()) {
-				ut_ad(0);
-				return(HA_ERR_UNSUPPORTED);
-			}
-		}
-	} else if (key_num == form->primary_key) {
-		ut_ad(key.flags & HA_NOSAME);
-		ut_ad(n_uniq > 0);
-		type = DICT_CLUSTERED;
-		/* Add all non-virtual columns except DB_ROW_ID. */
-		n_fields += table->n_cols - table->n_v_cols - 1;
-
-		/* Subtract those columns that are already part of the
-		PRIMARY KEY, not counting prefix indexes. */
-		for (unsigned i = 0; i < key.user_defined_key_parts; i++) {
-			const KEY_PART_INFO& key_part = key.key_part[i];
-
-			if (!(key_part.key_part_flag & HA_PART_KEY_SEG)) {
-				unsigned f = key_part.fieldnr - 1;
-				ut_ad(f < form->fields);
-
-				if (indexed.test(f)) {
-					continue;
-				}
-				indexed.set(f);
-				n_fields--;
-			}
-		}
-	} else {
-		const dict_index_t*	clust_index = table->first_index();
-
-		type = (key.flags & HA_NOSAME)
-			? DICT_UNIQUE 
-			: 0;
-		/* An ordinary secondary index should contain a hidden
-		index element for each full-column PRIMARY KEY element,
-		except if the full-column element is in the secondary KEY. */
-		for (unsigned i = 0; i < clust_index->n_uniq; i++) {
-			const dict_field_t* field = &clust_index->fields[i];
-			if (!field->prefix_len != 0) {
-				indexed.set(field->col->ind);
-			}
-		}
-		for (unsigned i = 0; i < key.user_defined_key_parts; i++) {
-			const KEY_PART_INFO& key_part = key.key_part[i];
-			if (!(key_part.key_part_flag & HA_PART_KEY_SEG)) {
-				unsigned f = key_part.fieldnr - 1;
-				ut_ad(f < form->fields);
-				indexed.reset(f);
-			}
-		}
-
-		/* Count the columns necessary to determine the
-		clustered index entry uniquely. */
-		for (unsigned i = 0; i < clust_index->n_uniq; i++) {
-			const dict_field_t* field = &clust_index->fields[i];
-			if (field->prefix_len != 0
-			    || indexed.test(field->col->ind)) {
-				n_fields++;
-			}
-		}
-
-		if (type != DICT_CLUSTERED) {
-			n_uniq = n_fields;
-		}
-	}
-#endif
-
-	/* dict_index_t*	index = dict_index_t::create(
-		table, type, key.name, 0, n_fields, n_uniq,
-		type == dict_index_t::SPATIAL || dict_table_is_intrinsic(table),
-		key.flags & HA_NULL_ARE_EQUAL); */
+	ut_ad(!!(type & DICT_FTS) == (n_uniq == 0));
 
 	dict_index_t*	index = dict_mem_index_create(
 		table->name.m_name, key.name, 0, type, n_fields);
@@ -7104,6 +7012,8 @@ create_index_metadata(
 	}
 
 	if (index->type & DICT_FTS) {
+		ut_ad((key.flags & HA_FULLTEXT) == HA_FULLTEXT);
+		ut_ad(index->n_uniq == 0);
 		ut_ad(n_uniq == 0);
 
 		if (table->fts->cache == nullptr) {
