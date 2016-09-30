@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -74,6 +74,7 @@ case "$1" in
 	MYSQLDATA=/var/lib/mysql
 	MYSQLLOG=/var/log/mysql
 	MYSQLRUN=/var/run/mysqld
+	MYSQLFILES=/var/lib/mysql-files
 
 	server_stop
 
@@ -95,6 +96,11 @@ case "$1" in
 		if [ -d ${MYSQLDATA} ] || [ -L ${MYSQLDATA} ];
 		then
 			rm -rf ${MYSQLDATA}
+		fi
+
+		if [ -d ${MYSQLFILES} ] || [ -L ${MYSQLFILES} ];
+		then
+			rm -rf ${MYSQLFILES}
 		fi
 
 		if getent passwd mysql >/dev/null;
@@ -129,6 +135,11 @@ case "$1" in
 		if [ -d ${MYSQLDATA} ] || [ -L ${MYSQLDATA} ];
 		then
 			rm -rf ${MYSQLDATA}
+		fi
+
+		if [ -d ${MYSQLFILES} ] || [ -L ${MYSQLFILES} ];
+		then
+			rm -rf ${MYSQLFILES}
 		fi
 
 		if getent passwd mysql >/dev/null;
