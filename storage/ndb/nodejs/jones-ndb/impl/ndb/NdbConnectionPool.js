@@ -38,6 +38,7 @@ var conf             = require("./path_config"),
     ndbsession       = require("./NdbSession.js"),
     NdbConnection    = require("./NdbConnection.js"),
     MetadataManager  = require("./NdbMetadataManager.js"),
+    jones            = require("database-jones"),
     SQLBuilder       = require(jones.common.SQLBuilder),
     sqlBuilder       = new SQLBuilder(),
     dbtablehandler   = require(jones.common.DBTableHandler),
@@ -431,6 +432,8 @@ DBConnectionPool.prototype.makeMasterCallback = function(key) {
         cause    : err
       };
     } else {
+      table.invalidate = function() {};   // stub!
+      table.registerInvalidateCallback = function() {};   // stub!
       autoincrement.getCacheForTable(table);  // get AutoIncrementCache
       table.columns.forEach(drColumn);
       ndbConnectionPool.openTables.push(table);

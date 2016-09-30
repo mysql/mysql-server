@@ -22,6 +22,7 @@
 
 
 var conf            = require("./path_config"),
+    jones           = require("database-jones"),
     adapter         = require(conf.binary).ndb,
     stats_module    = require(jones.api.stats),
     QueuedAsyncCall = require(jones.common.QueuedAsyncCall).QueuedAsyncCall,

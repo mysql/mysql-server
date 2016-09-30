@@ -22,6 +22,7 @@
 
 var util = require("util"),
     assert = require("assert"),
+    jones = require("database-jones"),
     conf = require("./path_config"),
     adapter = require(conf.binary).ndb,
     udebug = unified_debug.getLogger("NdbProjection.js"),
