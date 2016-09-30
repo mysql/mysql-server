@@ -1022,7 +1022,7 @@ btr_create(
 
 	page_no = block->page.id.page_no();
 	frame = buf_block_get_frame(block);
-ib::warn() << "[btr_create] table: " << index->table->name << " table id: " << index->table->id << " space: " << index->table->space << " index name: " << index->name << " index id: " << index->id << " root: " << page_no;
+
 	if (type & DICT_IBUF) {
 		/* It is an insert buffer tree: initialize the free list */
 		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE_NEW);
