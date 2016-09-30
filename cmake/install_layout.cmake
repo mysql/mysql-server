@@ -137,18 +137,16 @@ FILE(GLOB plugin_tests
 #
 IF(INSTALL_LAYOUT MATCHES "STANDALONE" OR
    INSTALL_LAYOUT MATCHES "WIN")
-  SET(secure_file_priv_path "")
-  SET(secure_file_priv_embedded_path "NULL")
+  SET(secure_file_priv_path "NULL")
 ELSEIF(INSTALL_LAYOUT MATCHES "RPM" OR
        INSTALL_LAYOUT MATCHES "SLES" OR
        INSTALL_LAYOUT MATCHES "SVR4" OR
        INSTALL_LAYOUT MATCHES "DEB")
   SET(secure_file_priv_path "/var/lib/mysql-files")
-  SET(secure_file_priv_embedded_path "NULL")
 ELSE()
   SET(secure_file_priv_path "${default_prefix}/mysql-files")
-  SET(secure_file_priv_embedded_path "NULL")
 ENDIF()
+SET(secure_file_priv_embedded_path "NULL")
 
 #
 # STANDALONE layout
