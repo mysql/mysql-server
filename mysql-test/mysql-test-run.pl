@@ -318,7 +318,6 @@ my $opt_sanitize= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_clients= 0;
 my $opt_valgrind_mysqltest= 0;
-my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
 my $opt_valgrind_path;
 my $valgrind_reports= 0;
@@ -1882,6 +1881,16 @@ sub command_line_setup {
     if ($opt_suite_timeout <= 0);
 
   # --------------------------------------------------------------------------
+  # Check trace protocol option
+  # --------------------------------------------------------------------------
+  if ( $opt_trace_protocol )
+  {
+    push(@opt_extra_mysqld_opt, "--optimizer_trace=enabled=on,one_line=off");
+    # Some queries yield big traces:
+    push(@opt_extra_mysqld_opt, "--optimizer-trace-max-mem-size=1000000");
+  }
+
+  # --------------------------------------------------------------------------
   # Check valgrind arguments
   # --------------------------------------------------------------------------
   if ( $opt_valgrind or $opt_valgrind_path or @valgrind_args)
@@ -1921,33 +1930,13 @@ sub command_line_setup {
     $opt_valgrind= 1;
     $opt_valgrind_mysqld= 1;
 
-    # Set special valgrind options unless options passed on command line
-    push(@valgrind_args, "--trace-children=yes")
-      unless @valgrind_args;
-  }
+    push(@valgrind_args, "--tool=callgrind", "--trace-children=yes");
 
-  if ( $opt_trace_protocol )
-  {
-    push(@opt_extra_mysqld_opt, "--optimizer_trace=enabled=on,one_line=off");
-    # some queries yield big traces:
-    push(@opt_extra_mysqld_opt, "--optimizer-trace-max-mem-size=1000000");
-  }
-
-  if ( $opt_valgrind )
-  {
-    # Set valgrind_options to default unless already defined
-    push(@valgrind_args, @default_valgrind_args)
-      unless @valgrind_args;
-
-    # Don't add --quiet; you will loose the summary reports.
-
-    mtr_report("Running valgrind with options \"",
-	       join(" ", @valgrind_args), "\"");
-    
-    # Turn off check testcases to save time
-    mtr_report("Turning off --check-testcases to save time when valgrinding");
-    $opt_check_testcases = 0; 
-    $opt_fail_check_testcases= 0;
+    # Increase the timeouts when running with callgrind
+    $opt_testcase_timeout*= 10;
+    $opt_suite_timeout*= 6;
+    $opt_start_timeout*= 10;
+    $opt_debug_sync_timeout*= 10;
   }
 
   if ( $opt_helgrind )
@@ -1956,11 +1945,37 @@ sub command_line_setup {
     $opt_valgrind= 1;
     $opt_valgrind_mysqld= 1;
 
+    push(@valgrind_args, "--tool=helgrind");
+
     # Checking for warnings takes too long time currently.
     mtr_report("Turning off --warnings to save time when helgrinding");
     $opt_warnings = 0;
-    # Turn off check testcases to save time.
-    mtr_report("Turning off --check-testcases to save time when helgrinding");
+  }
+
+  if ($opt_valgrind)
+  {
+    # Default to --tool=memcheck if no other tool has been explicitly
+    # specified. From >= 2.1.2, this option is needed
+    if (!@valgrind_args or !grep(/^--tool=/, @valgrind_args))
+    {
+      # Set default valgrind options for memcheck, can be overriden by user
+      unshift(@valgrind_args, ("--tool=memcheck", "--num-callers=16",
+                               "--show-reachable=yes"));
+    }
+
+    # Add suppression file if not specified
+    if (!grep(/^--suppressions=/, @valgrind_args))
+    {
+      push(@valgrind_args,"--suppressions=${glob_mysql_test_dir}/valgrind.supp")
+           if -f "$glob_mysql_test_dir/valgrind.supp";
+    }
+
+    # Don't add --quiet; you will loose the summary reports.
+    mtr_report("Running valgrind with options \"",
+               join(" ", @valgrind_args), "\"");
+
+    # Turn off check testcases to save time
+    mtr_report("Turning off --check-testcases to save time when valgrinding");
     $opt_check_testcases = 0;
     $opt_fail_check_testcases= 0;
   }
@@ -5998,7 +6013,7 @@ sub mysqld_start ($$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    valgrind_arguments($args, \$exe);
+    valgrind_arguments($args, \$exe, $mysqld->name());
   }
 
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
@@ -7170,30 +7185,24 @@ sub valgrind_client_arguments {
 sub valgrind_arguments {
   my $args= shift;
   my $exe=  shift;
+  my $report_prefix= shift;
 
-  if ( $opt_callgrind)
+  if (my @tool_list= grep(/^--tool=(memcheck|callgrind|massif)/, @valgrind_args))
   {
-    mtr_add_arg($args, "--tool=callgrind");
-    mtr_add_arg($args, "--base=$opt_vardir/log");
-  }
-  elsif ( $opt_helgrind)
-  {
-    mtr_add_arg($args, "--tool=helgrind");
-  }
-  else
-  {
-    mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    if($daemonize_mysqld)
+    # Get the value of the last specified --tool=<> argument to valgrind
+    my ($tool_name)= $tool_list[-1] =~ /(memcheck|callgrind|massif)$/;
+    if ($tool_name=~ /memcheck/)
     {
-      mtr_add_arg($args, "--leak-check=no");
+      $daemonize_mysqld ? mtr_add_arg($args, "--leak-check=no") :
+                          mtr_add_arg($args, "--leak-check=yes") ;
     }
     else
     {
-      mtr_add_arg($args, "--leak-check=yes");
+      $$exe=~ /.*[\/](.*)$/;
+      my $report_prefix= defined $report_prefix ? $report_prefix : $1;
+      mtr_add_arg($args, "--$tool_name-out-file=$opt_vardir/log/".
+                         "$report_prefix"."_$tool_name.out.%%p");
     }
-    mtr_add_arg($args, "--num-callers=16");
-    mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
-      if -f "$glob_mysql_test_dir/valgrind.supp";
   }
 
   # Add valgrind options, can be overriden by user
