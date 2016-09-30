@@ -4670,6 +4670,12 @@ String *Item_func_spatial_collection::val_str(String *str)
 	are of specific type, let's do this checking now
       */
 
+      if (!Geometry::is_valid_opengis_geotype(uint4korr(data)))
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+        return error_str();
+      }
+
       wkb_type= get_wkb_geotype(data);
       data+= 4;
       len-= 5 + 4/*SRID*/;

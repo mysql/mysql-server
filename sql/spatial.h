@@ -902,6 +902,33 @@ public:
     m_flags.dim= dim - 1;
   }
 
+  /**
+    Check if a given geometry type is a valid geometry type according
+    to OpenGIS.
+
+    Internal geometry types of MySQL are regarded as invalid.
+
+    @param gtype geometry type to check
+
+    @retval true valid geometry type
+    @retval false invalid geometry type
+  */
+  static bool is_valid_opengis_geotype(uint32 gtype)
+  {
+    return gtype >= wkb_first && gtype <= wkb_geometrycollection;
+  }
+
+  /**
+    Check if a given geometry type is a valid internal geometry type.
+
+    Both OpenGIS standard geometry types and internal geometry types
+    of MySQL are regarded as valid.
+
+    @param gtype geometry type to check
+
+    @retval true valid geometry type
+    @retval false invalid geometry type
+  */
   static bool is_valid_geotype(uint32 gtype)
   {
     wkbType gt= static_cast<wkbType>(gtype);
@@ -914,6 +941,17 @@ public:
             gt == wkb_polygon_inner_rings);
   }
 
+  /**
+    Check if a given geometry type is a valid internal geometry type.
+
+    Both OpenGIS standard geometry types and internal geometry types
+    of MySQL are regarded as valid.
+
+    @param gt geometry type to check
+
+    @retval true valid geometry type
+    @retval false invalid geometry type
+  */
   static bool is_valid_geotype(Geometry::wkbType gt)
   {
     /*
