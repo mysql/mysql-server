@@ -217,6 +217,14 @@ public:
    * user threads are used to receive signals. If we set the level to
    * 16 or higher we will never use receive threads as receivers.
    *
+   * Note that level 0 is a special value which will always keep the
+   * receive thread active, *and* allow it to keep the poll right
+   * for its own exclusive usage. Thus user threads will effectively
+   * be blocked from being receiver. For this setting care should be
+   * taken to ensure that the receive thread will not compete with the
+   * user thread for CPU resources. It should preferably be locked
+   * to a CPU for its own exclusive usage.
+   *
    * By default we have one receiver thread, this thread is not locked to
    * any specific CPU and the level is 8.
    * 
