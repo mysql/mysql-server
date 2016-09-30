@@ -566,38 +566,6 @@ longlong Item_func_json_valid::val_int()
 }
 
 
-/// Base class for predicates that compare elements in a JSON array.
-class Array_comparator
-{
-  const Json_wrapper &m_wrapper;
-protected:
-  Array_comparator(const Json_wrapper &wrapper) : m_wrapper(wrapper) {}
-  int cmp(size_t idx1, size_t idx2) const
-  {
-    return m_wrapper[idx1].compare(m_wrapper[idx2]);
-  }
-};
-
-/// Predicate that checks if one array element is less than another.
-struct Array_less : public Array_comparator
-{
-  Array_less(const Json_wrapper &wrapper) : Array_comparator(wrapper) {}
-  bool operator() (size_t idx1, size_t idx2) const
-  {
-    return cmp(idx1, idx2) < 0;
-  }
-};
-
-/// Predicate that checks if two array elements are equal.
-struct Array_equal : public Array_comparator
-{
-  Array_equal(const Json_wrapper &wrapper) : Array_comparator(wrapper) {}
-  bool operator() (size_t idx1, size_t idx2) const
-  {
-    return cmp(idx1, idx2) == 0;
-  }
-};
-
 typedef Prealloced_array<size_t, 16> Sorted_index_array;
 
 /**
@@ -617,9 +585,16 @@ static bool sort_array(const Json_wrapper &orig, Sorted_index_array *v)
     v->push_back(i);
 
   // Sort the array...
-  std::sort(v->begin(), v->end(), Array_less(orig));
+  const auto less= [&orig] (size_t idx1, size_t idx2) {
+    return orig[idx1].compare(orig[idx2]) < 0;
+  };
+  std::sort(v->begin(), v->end(), less);
+
   // ... and remove duplicates.
-  v->erase(std::unique(v->begin(), v->end(), Array_equal(orig)), v->end());
+  const auto equal= [&orig] (size_t idx1, size_t idx2) {
+    return orig[idx1].compare(orig[idx2]) == 0;
+  };
+  v->erase(std::unique(v->begin(), v->end(), equal), v->end());
 
   return false;
 }
