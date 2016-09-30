@@ -63,4 +63,3 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: A transaction id in a record of 
 
 SELECT * FROM t1;
 DROP TABLE t1;
-

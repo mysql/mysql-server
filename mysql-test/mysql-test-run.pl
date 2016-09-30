@@ -278,7 +278,7 @@ our $opt_resfile= $ENV{'MTR_RESULT_FILE'} || 0;
 my $opt_skip_core;
 
 our $opt_check_testcases= 1;
-our $opt_fail_check_testcases= 0;
+our $opt_fail_check_testcases= 1;
 my $opt_mark_progress;
 our $opt_test_progress;
 my $opt_max_connections;

@@ -1,8 +1,4 @@
 
-# Test is temporarily run with show_compatibility_56=ON until Bug#21789221 is fixed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
 # Test is skipped with log-bin enabled as the count of commit and prepare handlers
 # increase when binary logging is enabled.
 --source include/not_log_bin.inc
@@ -11,6 +7,10 @@ set @@global.show_compatibility_56=ON;
 # Different page sizes gives different query plans
 # results based on default 16k.
 --source include/have_innodb_16k.inc
+
+# Test is temporarily run with show_compatibility_56=ON until Bug#21789221 is fixed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 --echo # The results where created without innodb persistent stats.
 SET @old_innodb_stats_persistent= @@global.innodb_stats_persistent;

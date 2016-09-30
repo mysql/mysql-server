@@ -2656,3 +2656,6 @@ CREATE TABLE test.t1 (
 --exec $MYSQL_DUMP --compact test t1
 
 DROP TABLE test.t1;
+
+# Needs to be removed after Bug#24619634 is fixed.
+--source include/force_restart.inc
