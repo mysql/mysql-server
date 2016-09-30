@@ -360,4 +360,16 @@ int channel_get_retrieved_gtid_set(const char* channel,
     @retval false   No, no type was specified or the channel does not exist.
 */
 bool channel_is_stopping(const char* channel, enum_channel_thread_types type);
+
+/**
+  Checks if the given channel's relaylog contains a partial transaction.
+
+  @param channel  The channel name
+
+  @return
+    @retval true    If relaylog contains partial transcation.
+    @retval false   If relaylog does not contain partial transaction.
+*/
+bool is_partial_transaction_on_channel_relay_log(const char* channel);
+
 #endif //RPL_SERVICE_INTERFACE_INCLUDE
