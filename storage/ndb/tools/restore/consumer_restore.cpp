@@ -3688,6 +3688,8 @@ retry:
     exitHandler();
   } // if
 
+  op->set_disable_fk();
+
   if (table->getFragmentType() == NdbDictionary::Object::UserDefined)
   {
     if (table->getDefaultNoPartitionsFlag())
