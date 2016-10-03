@@ -78,7 +78,8 @@ public:
 
   bool can_see_user(const char *user) const;
 
-  template<void (Common_status_variables::*method)()> void update_status();
+  template<Common_status_variables::Variable Common_status_variables::*variable> void update_status();
+  template<Common_status_variables::Variable Common_status_variables::*variable> void update_status(long param);
 
 private: // reimpl ngs::Session
   virtual void on_kill();
@@ -96,6 +97,20 @@ private:
 };
 
 
+template<Common_status_variables::Variable Common_status_variables::*variable>
+void Session::update_status()
+{
+  ++(m_status_variables.*variable);
+  ++(Global_status_variables::instance().*variable);
+}
+
+
+template<Common_status_variables::Variable Common_status_variables::*variable>
+void Session::update_status(long param)
+{
+  (m_status_variables.*variable) += param;
+  (Global_status_variables::instance().*variable) += param;
+}
 } // namespace xpl
 
 #endif  // _XPL_SESSION_H_

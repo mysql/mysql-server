@@ -47,7 +47,7 @@ inline bool is_table_data_model(const T& msg)
 
 ngs::Error_code xpl::Crud_command_handler::execute_crud_insert(Session &session, const Mysqlx::Crud::Insert &msg)
 {
-  session.update_status<&Common_status_variables::inc_crud_insert>();
+  session.update_status<&Common_status_variables::m_crud_insert>();
 
   m_qb.clear();
   ngs::Error_code error = Insert_statement_builder(msg, m_qb).build();
@@ -98,7 +98,7 @@ ngs::Error_code xpl::Crud_command_handler::error_handling_insert(const ngs::Erro
 
 ngs::Error_code xpl::Crud_command_handler::execute_crud_update(Session &session, const Mysqlx::Crud::Update &msg)
 {
-  session.update_status<&Common_status_variables::inc_crud_update>();
+  session.update_status<&Common_status_variables::m_crud_update>();
 
   m_qb.clear();
   ngs::Error_code error = Update_statement_builder(msg, m_qb).build();
@@ -138,7 +138,7 @@ ngs::Error_code xpl::Crud_command_handler::error_handling_update(const ngs::Erro
 
 ngs::Error_code xpl::Crud_command_handler::execute_crud_delete(Session &session, const Mysqlx::Crud::Delete &msg)
 {
-  session.update_status<&Common_status_variables::inc_crud_delete>();
+  session.update_status<&Common_status_variables::m_crud_delete>();
 
   m_qb.clear();
   ngs::Error_code error = Delete_statement_builder(msg, m_qb).build();
@@ -162,7 +162,7 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_delete(Session &session,
 
 ngs::Error_code xpl::Crud_command_handler::execute_crud_find(Session &session, const Mysqlx::Crud::Find &msg)
 {
-  session.update_status<&Common_status_variables::inc_crud_find>();
+  session.update_status<&Common_status_variables::m_crud_find>();
 
   m_qb.clear();
   ngs::Error_code error = Find_statement_builder(msg, m_qb).build();

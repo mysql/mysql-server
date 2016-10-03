@@ -150,7 +150,7 @@ ngs::Error_code xpl::Admin_command_handler::execute(const std::string &namespace
  */
 ngs::Error_code xpl::Admin_command_handler::ping(Command_arguments &args)
 {
-  m_session.update_status<&Common_status_variables::inc_stmt_ping>();
+  m_session.update_status<&Common_status_variables::m_stmt_ping>();
 
   ngs::Error_code error = args.end();
   if (error)
@@ -216,7 +216,7 @@ void get_client_data(std::vector<Client_data_> &clients_data, xpl::Session &requ
  */
 ngs::Error_code xpl::Admin_command_handler::list_clients(Command_arguments &args)
 {
-  m_session.update_status<&Common_status_variables::inc_stmt_list_clients>();
+  m_session.update_status<&Common_status_variables::m_stmt_list_clients>();
 
   ngs::Error_code error = args.end();
   if (error)
@@ -281,7 +281,7 @@ ngs::Error_code xpl::Admin_command_handler::list_clients(Command_arguments &args
  */
 ngs::Error_code xpl::Admin_command_handler::kill_client(Command_arguments &args)
 {
-  m_session.update_status<&Common_status_variables::inc_stmt_kill_client>();
+  m_session.update_status<&Common_status_variables::m_stmt_kill_client>();
 
   uint64_t cid = 0;
 
@@ -332,7 +332,7 @@ ngs::Error_code create_collection_impl(xpl::Sql_data_context &da, const std::str
  */
 ngs::Error_code xpl::Admin_command_handler::create_collection(Command_arguments &args)
 {
-  m_session.update_status<&Common_status_variables::inc_stmt_create_collection>();
+  m_session.update_status<&Common_status_variables::m_stmt_create_collection>();
 
   std::string schema;
   std::string collection;
@@ -632,7 +632,7 @@ std::string hash_column_name(const std::string &name)
  */
 ngs::Error_code xpl::Admin_command_handler::create_collection_index(Command_arguments &args)
 {
-  m_session.update_status<&Common_status_variables::inc_stmt_create_collection_index>();
+  m_session.update_status<&Common_status_variables::m_stmt_create_collection_index>();
 
   Query_string_builder qb;
   bool required = false;
@@ -836,7 +836,7 @@ ngs::Error_code xpl::Admin_command_handler::create_collection_index(Command_argu
  */
 ngs::Error_code xpl::Admin_command_handler::drop_collection(Command_arguments &args)
 {
-  m_session.update_status<&Common_status_variables::inc_stmt_drop_collection>();
+  m_session.update_status<&Common_status_variables::m_stmt_drop_collection>();
 
   Query_string_builder qb;
   std::string schema;
@@ -934,7 +934,7 @@ ngs::Error_code get_index_virtual_column_names(const std::string &schema_name, c
  */
 ngs::Error_code xpl::Admin_command_handler::drop_collection_index(Command_arguments &args)
 {
-  m_session.update_status<&Common_status_variables::inc_stmt_drop_collection_index>();
+  m_session.update_status<&Common_status_variables::m_stmt_drop_collection_index>();
 
   Query_string_builder qb;
   std::string schema;
@@ -1026,7 +1026,7 @@ inline void add_notice_row(xpl::Sql_data_context &da, const std::string &notice,
  */
 ngs::Error_code xpl::Admin_command_handler::enable_notices(Command_arguments &args)
 {
-  m_session.update_status<&Common_status_variables::inc_stmt_enable_notices>();
+  m_session.update_status<&Common_status_variables::m_stmt_enable_notices>();
 
   std::vector<std::string> notices;
   ngs::Error_code error = args.string_list("notice", notices).end();
@@ -1056,7 +1056,7 @@ ngs::Error_code xpl::Admin_command_handler::enable_notices(Command_arguments &ar
  */
 ngs::Error_code xpl::Admin_command_handler::disable_notices(Command_arguments &args)
 {
-  m_session.update_status<&Common_status_variables::inc_stmt_disable_notices>();
+  m_session.update_status<&Common_status_variables::m_stmt_disable_notices>();
 
   std::vector<std::string> notices;
   ngs::Error_code error = args.string_list("notice", notices).end();
@@ -1087,7 +1087,7 @@ ngs::Error_code xpl::Admin_command_handler::disable_notices(Command_arguments &a
  */
 ngs::Error_code xpl::Admin_command_handler::list_notices(Command_arguments &args)
 {
-  m_session.update_status<&Common_status_variables::inc_stmt_list_notices>();
+  m_session.update_status<&Common_status_variables::m_stmt_list_notices>();
 
   ngs::Error_code error = args.end();
   if (error)
@@ -1145,7 +1145,7 @@ const char* const COUNT_GEN = "COUNT(CASE WHEN (column_name != '_id' "
  */
 ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args)
 {
-  m_session.update_status<&Common_status_variables::inc_stmt_list_objects>();
+  m_session.update_status<&Common_status_variables::m_stmt_list_objects>();
 
   std::string schema, pattern;
   ngs::Error_code error = args
@@ -1229,7 +1229,7 @@ bool is_collection(xpl::Sql_data_context &da, const std::string &schema, const s
  */
 ngs::Error_code xpl::Admin_command_handler::ensure_collection(Command_arguments &args)
 {
-  m_session.update_status<&Common_status_variables::inc_stmt_ensure_collection>();
+  m_session.update_status<&Common_status_variables::m_stmt_ensure_collection>();
   std::string schema;
   std::string collection;
 
