@@ -2083,8 +2083,16 @@ sub set_build_thread_ports($) {
 
   if (lc($opt_mysqlx_baseport) eq "auto")
   {
-    # Reserving last 10 ports in the current port range for X plugin.
-    $mysqlx_baseport= $baseport + $ports_per_thread - 10;
+    if ($ports_per_thread > 10)
+    {
+      # Reserving last 10 ports in the current port range for X plugin.
+      $mysqlx_baseport= $baseport + $ports_per_thread - 10;
+    }
+    else
+    {
+      # Reserving the last port in the range for X plugin
+      $mysqlx_baseport= $baseport + 9;
+    }
   }
   else
   {
