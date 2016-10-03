@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -360,6 +360,9 @@ bool add_table_for_trigger(THD *thd,
 
   if (Trigger_loader::load_trn_file(thd, trigger_name, trn_path, &tbl_name))
     DBUG_RETURN(TRUE);
+
+  if (lower_case_table_names == 2)
+    tbl_name.length= my_casedn_str(files_charset_info, tbl_name.str);
 
   *table= sp_add_to_query_tables(thd, lex, db_name.str, tbl_name.str);
 
