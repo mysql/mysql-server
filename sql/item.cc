@@ -9250,7 +9250,7 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     new_item= (null_value ?
                (Item*) new Item_null(item->item_name) :
                (Item*) new Item_decimal(item->item_name, result,
-                                        item->max_length, item->decimals));
+                                        item->decimals, item->max_length));
     break;
   }
   default:
