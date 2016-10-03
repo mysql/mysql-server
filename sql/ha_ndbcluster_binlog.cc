@@ -140,10 +140,29 @@ bool
 ndb_binlog_is_read_only(void)
 {
   /*
-    Could be called from any client thread. Need injector_mutex to 
+    Could be called from any client thread. Need a mutex to 
     protect ndb_binlog_tables_inited and ndb_binlog_is_ready.
+
+    TODO:
+    However, current 'injector_mutex' can't be used here as it
+    is locked for 10ms intervals when waiting for nextEvents().
+    As ha_ndbcluster::open() calls this method, that would have 
+    slowed down open'ing of tables too much.
+
+    As for now we just read this without lock.
+    As a longer term solution we should consider to split 
+    injector_mutex into a:
+      - injector_event_mutex, protecting nextEvent() and
+        concurrent create and drop of events.
+      - injector_data_mutex protecting global data maintained
+        by the injector thread and accessed by any client thread.
+
+    Also see:
+     - BUG#24715897: Showstopper for 7.5 GA
+     - caused by: 
+        Bug#24496910 REMOVE DEPENDENCIES BETWEEN BINLOG INJECTOR ...
   */
-  Mutex_guard injector_g(injector_mutex);
+  //Mutex_guard injector_g(injector_mutex);
   if (!ndb_binlog_tables_inited)
   {
     /* the ndb_* system tables not setup yet */
