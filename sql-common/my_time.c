@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -64,8 +64,8 @@ uint calc_days_in_year(uint year)
    @param tm[OUT]    The value to set.
    @param time_type  Timestasmp type
 */
-inline void set_zero_time(MYSQL_TIME *tm,
-                          enum enum_mysql_timestamp_type time_type)
+void set_zero_time(MYSQL_TIME *tm,
+                   enum enum_mysql_timestamp_type time_type)
 {
   memset(tm, 0, sizeof(*tm));
   tm->time_type= time_type;
@@ -76,7 +76,7 @@ inline void set_zero_time(MYSQL_TIME *tm,
   Set hour, minute and second of a MYSQL_TIME variable to maximum time value.
   Unlike set_max_time(), does not touch the other structure members.
 */
-inline void set_max_hhmmss(MYSQL_TIME *tm)
+void set_max_hhmmss(MYSQL_TIME *tm)
 {
   tm->hour= TIME_MAX_HOUR;
   tm->minute= TIME_MAX_MINUTE;
@@ -152,7 +152,7 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
   @retval  TRUE   if the value is fatally bad.
   @retval  FALSE  if the value is Ok.
 */
-inline my_bool check_time_mmssff_range(const MYSQL_TIME *ltime)
+my_bool check_time_mmssff_range(const MYSQL_TIME *ltime)
 {
   return ltime->minute >= 60 || ltime->second >= 60 ||
          ltime->second_part > 999999;
@@ -171,7 +171,7 @@ inline my_bool check_time_mmssff_range(const MYSQL_TIME *ltime)
   @retval        FALSE if value is Ok.
   @retval        TRUE if value is out of range. 
 */
-inline my_bool check_time_range_quick(const MYSQL_TIME *ltime)
+my_bool check_time_range_quick(const MYSQL_TIME *ltime)
 {
   longlong hour= (longlong) ltime->hour + 24LL * ltime->day;
   /* The input value should not be fatally bad */
