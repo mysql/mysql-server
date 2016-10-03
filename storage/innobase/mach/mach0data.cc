@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -53,7 +53,22 @@ mach_parse_compressed(
 		/* 0nnnnnnn (7 bits) */
 		++*ptr;
 		return(static_cast<ib_uint32_t>(val));
-	} else if (val < 0xC0) {
+	}
+
+	/* Workaround GCC bug
+	https://gcc.gnu.org/bugzilla/show_bug.cgi?id=77673:
+	the compiler moves mach_read_from_4 right to the beginning of the
+	function, causing and out-of-bounds read if we are reading a short
+	integer close to the end of buffer. */
+#if defined(__GNUC__) && (__GNUC__ >= 5) && !defined(__clang__)
+#define DEPLOY_FENCE
+#endif
+
+#ifdef DEPLOY_FENCE
+	__atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+	if (val < 0xC0) {
 		/* 10nnnnnn nnnnnnnn (14 bits) */
 		if (end_ptr >= *ptr + 2) {
 			val = mach_read_from_2(*ptr) & 0x3FFF;
@@ -61,7 +76,15 @@ mach_parse_compressed(
 			*ptr += 2;
 			return(static_cast<ib_uint32_t>(val));
 		}
-	} else if (val < 0xE0) {
+		*ptr = NULL;
+		return(0);
+	}
+
+#ifdef DEPLOY_FENCE
+	__atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+	if (val < 0xE0) {
 		/* 110nnnnn nnnnnnnn nnnnnnnn (21 bits) */
 		if (end_ptr >= *ptr + 3) {
 			val = mach_read_from_3(*ptr) & 0x1FFFFF;
@@ -69,7 +92,15 @@ mach_parse_compressed(
 			*ptr += 3;
 			return(static_cast<ib_uint32_t>(val));
 		}
-	} else if (val < 0xF0) {
+		*ptr = NULL;
+		return(0);
+	}
+
+#ifdef DEPLOY_FENCE
+	__atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+	if (val < 0xF0) {
 		/* 1110nnnn nnnnnnnn nnnnnnnn nnnnnnnn (28 bits) */
 		if (end_ptr >= *ptr + 4) {
 			val = mach_read_from_4(*ptr) & 0xFFFFFFF;
@@ -77,16 +108,24 @@ mach_parse_compressed(
 			*ptr += 4;
 			return(static_cast<ib_uint32_t>(val));
 		}
-	} else {
-		ut_ad(val == 0xF0);
+		*ptr = NULL;
+		return(0);
+	}
 
-		/* 11110000 nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn (32 bits) */
-		if (end_ptr >= *ptr + 5) {
-			val = mach_read_from_4(*ptr + 1);
-			ut_ad(val > 0xFFFFFFF);
-			*ptr += 5;
-			return(static_cast<ib_uint32_t>(val));
-		}
+#ifdef DEPLOY_FENCE
+	__atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+#undef DEPLOY_FENCE
+
+	ut_ad(val == 0xF0);
+
+	/* 11110000 nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn (32 bits) */
+	if (end_ptr >= *ptr + 5) {
+		val = mach_read_from_4(*ptr + 1);
+		ut_ad(val > 0xFFFFFFF);
+		*ptr += 5;
+		return(static_cast<ib_uint32_t>(val));
 	}
 
 	*ptr = NULL;
