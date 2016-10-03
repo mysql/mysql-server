@@ -197,7 +197,7 @@ void Query_result_union::cleanup()
   This Query_result is used when a UNION is not DISTINCT and doesn't
   have a global ORDER BY clause. @see SELECT_LEX_UNIT::prepare().
 */
-class Query_result_union_direct :public Query_result_union
+class Query_result_union_direct final : public Query_result_union
 {
 private:
   /// Result object that receives all rows
@@ -225,34 +225,34 @@ public:
     done_send_result_set_metadata(false), done_initialize_tables(false),
     current_found_rows(0)
   {}
-  bool change_query_result(Query_result *new_result);
-  uint field_count(List<Item> &fields) const
+  bool change_query_result(Query_result *new_result) override;
+  uint field_count(List<Item> &) const override
   {
     // Only called for top-level Query_results, usually Query_result_send
     DBUG_ASSERT(false); /* purecov: inspected */
     return 0; /* purecov: inspected */
   }
-  bool postponed_prepare(List<Item> &types);
-  bool send_result_set_metadata(List<Item> &list, uint flags);
-  bool send_data(List<Item> &items);
-  bool initialize_tables (JOIN *join= NULL);
-  void send_error(uint errcode, const char *err)
+  bool postponed_prepare(List<Item> &types) override;
+  bool send_result_set_metadata(List<Item> &list, uint flags) override;
+  bool send_data(List<Item> &items) override;
+  bool initialize_tables (JOIN *join= NULL) override;
+  void send_error(uint errcode, const char *err) override
   {
     result->send_error(errcode, err); /* purecov: inspected */
   }
-  bool send_eof();
-  bool flush() { return false; }
-  bool check_simple_select() const
+  bool send_eof() override;
+  bool flush() override { return false; }
+  bool check_simple_select() const override
   {
     // Only called for top-level Query_results, usually Query_result_send
     DBUG_ASSERT(false); /* purecov: inspected */
     return false; /* purecov: inspected */
   }
-  void abort_result_set()
+  void abort_result_set() override
   {
     result->abort_result_set(); /* purecov: inspected */
   }
-  void cleanup() {}
+  void cleanup() override {}
   void set_thd(THD *thd_arg)
   {
     /*
@@ -262,11 +262,13 @@ public:
     */
     DBUG_ASSERT(false); /* purecov: inspected */
   }
-  void begin_dataset()
+#ifdef EMBEDDED_LIBRARY
+  void begin_dataset() override
   {
     // Only called for sp_cursor::Select_fetch_into_spvars
     DBUG_ASSERT(false); /* purecov: inspected */
   }
+#endif
 };
 
 

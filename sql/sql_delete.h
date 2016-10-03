@@ -36,7 +36,7 @@ struct TABLE_LIST;
 template <class T> class List;
 template <typename T> class SQL_I_List;
 
-class Query_result_delete :public Query_result_interceptor
+class Query_result_delete final : public Query_result_interceptor
 {
   /// Pointers to temporary files used for delayed deletion of rows
   Unique **tempfiles;
@@ -79,51 +79,52 @@ public:
   {}
   ~Query_result_delete()
   {}
-  virtual bool need_explain_interceptor() const { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
-  bool initialize_tables (JOIN *join);
-  void send_error(uint errcode,const char *err);
+  bool need_explain_interceptor() const override { return true; }
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool send_data(List<Item> &items) override;
+  bool initialize_tables (JOIN *join) override;
+  void send_error(uint errcode, const char *err) override;
   int do_deletes();
   int do_table_deletes(TABLE *table);
-  bool send_eof();
+  bool send_eof() override;
   inline ha_rows num_deleted()
   {
     return deleted_rows;
   }
-  virtual void abort_result_set();
-  virtual void cleanup();
+  void abort_result_set() override;
+  void cleanup() override;
 };
 
 
-class Sql_cmd_delete : public Sql_cmd_dml
+class Sql_cmd_delete final : public Sql_cmd_dml
 {
 public:
-  explicit Sql_cmd_delete(bool multitable_arg,
-                          SQL_I_List<TABLE_LIST> *delete_tables_arg)
+  Sql_cmd_delete(bool multitable_arg,
+                 SQL_I_List<TABLE_LIST> *delete_tables_arg)
   : multitable(multitable_arg), delete_tables(delete_tables_arg)
   {}
 
-  virtual enum_sql_command sql_command_code() const { return lex->sql_command; }
+  enum_sql_command sql_command_code() const override
+  { return lex->sql_command; }
 
-  virtual bool is_single_table_plan() const { return !multitable; }
+  bool is_single_table_plan() const override { return !multitable; }
 
 protected:
-  virtual bool precheck(THD *thd);
+  bool precheck(THD *thd) override;
 
-  virtual bool prepare_inner(THD *thd);
+  bool prepare_inner(THD *thd) override;
 
-  virtual bool execute_inner(THD *thd);
+  bool execute_inner(THD *thd) override;
 
 #if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  virtual void start_stmt_dtrace(char *query)
+  void start_stmt_dtrace(char *query) override
   {
     if (multitable)
       MYSQL_MULTI_DELETE_START(query);
     else
       MYSQL_DELETE_START(query);
   }
-  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed)
+  void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed) override
   {
     if (multitable)
       MYSQL_DELETE_DONE(status, rows);

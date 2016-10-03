@@ -344,26 +344,29 @@ protected:
   /* Write record fields and their required offsets into the join buffer */ 
   uint write_record_data(uchar *link, bool *is_full);
 
-  /* 
-    This method must determine for how much the auxiliary buffer should be
-    incremented when a new record is added to the join buffer.
-    If no auxiliary buffer is needed the function should return 0.
+  /**
+    @return how much the auxiliary buffer should be
+    incremented when a new record is added to the join buffer
+    @retval 0 if no auxiliary buffer is needed
   */
   virtual uint aux_buffer_incr() { return 0; }
 
   /**
-    This method must determine the minimum size for the auxiliary buffer.
-    If no auxiliary buffer is needed the function should return 0.
+    @return the minimum size for the auxiliary buffer
+    @retval 0 if no auxiliary buffer is needed
   */
   virtual uint aux_buffer_min_size() const { return 0; }
 
-  /* Shall calculate how much space is remaining in the join buffer */ 
-  virtual ulong rem_space() 
-  { 
+  /// @return how much space is remaining in the join buffer
+  virtual ulong rem_space()
+  {
     return std::max(static_cast<ulong>(buff_size-(end_pos-buff)-aux_buff_size), 0UL);
   }
 
-  /* Shall skip record from the join buffer if its match flag is on */
+  /**
+    Skip record from the join buffer if it was flagged as matched.
+    @return whether the record was skipped
+  */
   virtual bool skip_record_if_match();
 
   /* Read some flag and data fields of a record from the join buffer */
@@ -390,7 +393,12 @@ protected:
     return rec_ptr == last_rec_pos && last_rec_blob_data_is_in_rec_buff;
   }
 
-  /* Find matches from the next table for records from the join buffer */   
+  /**
+    Find matches from the next table for records from the join buffer.
+    @param skip_last  whether to ignore any matches for the
+                      last partial join record
+    @return nested loop state
+   */
   virtual enum_nested_loop_state join_matching_records(bool skip_last)=0;
 
   /* Add null complements for unmatched outer records from buffer */
@@ -404,16 +412,32 @@ protected:
 
   enum_nested_loop_state generate_full_extensions(uchar *rec_ptr);
 
-  /* Check matching to a partial join record from the join buffer */
+  /**
+    Check matching to a partial join record from the join buffer.
+
+    @param rec_ptr pointer to the record from join buffer to check matching to
+    @return whether there is a match
+
+    @details
+    The function checks whether the current record of 'join_tab' matches
+    the partial join record from join buffer located at 'rec_ptr'. If this is
+    the case and 'join_tab' is the last inner table of a semi-join or an outer
+    join the function turns on the match flag for the 'rec_ptr' record unless
+    it has been already set.
+
+    @note
+    Setting the match flag on can trigger re-evaluation of pushdown conditions
+    for the record when join_tab is the last inner table of an outer join.
+  */
   virtual bool check_match(uchar *rec_ptr);
 
   /** @returns whether we should check only the first match for this table */
   bool calc_check_only_first_match(const QEP_TAB *t) const;
 
-  /* 
-    This function shall add a record into the join buffer and return TRUE
-    if it has been decided that it should be the last record in the buffer.
-  */ 
+  /**
+    Add a record into the join buffer.
+    @return whether it should be the last record in the buffer
+  */
   virtual bool put_record_in_cache();
 
 public:
@@ -422,23 +446,27 @@ public:
   /* Pointer to the next join cache if there is any */
   JOIN_CACHE *next_cache;
 
-  /* Shall initialize the join cache structure */ 
-  virtual int init()=0;  
+  /**
+    Initialize the join cache.
+    @retval 0 on success
+    @retval 1 on failure
+  */
+  virtual int init()= 0;
 
-  /* Shall reset the join buffer for reading/writing */
+  /// Reset the join buffer for reading/writing.
   virtual void reset_cache(bool for_writing);
 
-  /* Add a record into join buffer and call join_records() if it's full */
+  /// Add a record into join buffer and call join_records() if it's full.
   virtual enum_nested_loop_state put_record()
   {
     if (put_record_in_cache())
       return join_records(false);
     return NESTED_LOOP_OK;
   }
-  /* 
-    This function shall read the next record into the join buffer and return
-    TRUE if there is no more next records.
-  */ 
+  /**
+    Read the next record into the join buffer.
+    @return whether there are no more records
+  */
   virtual bool get_record();
 
   /* 
@@ -517,23 +545,22 @@ public:
   friend class JOIN_CACHE_BKA_UNIQUE;
 };
 
-class JOIN_CACHE_BNL :public JOIN_CACHE
+class JOIN_CACHE_BNL final :public JOIN_CACHE
 {
 
 protected:
 
-  /* Using BNL find matches from the next table for records from join buffer */
-  enum_nested_loop_state join_matching_records(bool skip_last);
+  enum_nested_loop_state join_matching_records(bool skip_last)
+    override;
 
 public:
   JOIN_CACHE_BNL(JOIN *j, QEP_TAB *qep_tab_arg, JOIN_CACHE *prev)
     : JOIN_CACHE(j, qep_tab_arg, prev), const_cond(NULL)
   {}
 
-  /* Initialize the BNL cache */       
-  int init();
+  int init() override;
 
-  enum_join_cache_type cache_type() const { return ALG_BNL; }
+  enum_join_cache_type cache_type() const override { return ALG_BNL; }
 
 private:
   Item *const_cond;
@@ -549,7 +576,7 @@ protected:
   /* MRR buffer assotiated with this join cache */
   HANDLER_BUFFER mrr_buff;
 
-  /* Shall initialize the MRR buffer */
+  /** Initialize the MRR buffer. */
   virtual void init_mrr_buff()
   {
     mrr_buff.buffer= end_pos;
@@ -572,41 +599,39 @@ protected:
     buffer. It will save us building key values in the key buffer.
   */
   bool use_emb_key;
-  /* The length of an embedded key value */ 
+  /// The length of an embedded key value.
   uint emb_key_length;
 
-  /* Check the possibility to read the access keys directly from join buffer */  
+  /// @return whether access keys can be read directly from the join buffer
   bool check_emb_key_usage();
 
-  /** Calculate the increment of the MRR buffer for a record write */
-  uint aux_buffer_incr();
+  /// @return the increment of the MRR buffer for a record write
+  uint aux_buffer_incr() override;
 
-  /** Calculate the minimume size for the MRR buffer */
-  uint aux_buffer_min_size() const;
+  /// @return the minimum size for the MRR buffer
+  uint aux_buffer_min_size() const override;
 
-  /* Using BKA find matches from the next table for records from join buffer */
-  enum_nested_loop_state join_matching_records(bool skip_last);
+  enum_nested_loop_state join_matching_records(bool skip_last) override;
 
-  /* Prepare to search for records that match records from the join buffer */
+  /// Prepare to search for records that match records from the join buffer.
   bool init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges);
 
 public:
-  
+
   /// The MRR mode initially is set to 'flags'
   JOIN_CACHE_BKA(JOIN *j, QEP_TAB *qep_tab_arg, uint flags, JOIN_CACHE* prev)
     : JOIN_CACHE(j, qep_tab_arg, prev), mrr_mode(flags)
   {}
 
-  /* Initialize the BKA cache */       
-  int init();
+  int init() override;
 
-  /* Shall get the key built over the next record from the join buffer */
+  /// @return the key built over the next record from the join buffer
   virtual uint get_next_key(uchar **key);
 
-  /* Check if the record combination matches the index condition */
+  /// @return whether the record combination does not match the index condition
   bool skip_index_tuple(range_seq_t rseq, char *range_info);
 
-  enum_join_cache_type cache_type() const { return ALG_BKA; }
+  enum_join_cache_type cache_type() const override { return ALG_BKA; }
 };
 
 /*
@@ -688,7 +713,7 @@ public:
 
 */
 
-class JOIN_CACHE_BKA_UNIQUE :public JOIN_CACHE_BKA
+class JOIN_CACHE_BKA_UNIQUE final :public JOIN_CACHE_BKA
 {
 
 private:
@@ -821,41 +846,56 @@ protected:
   {
     store_offset(get_size_of_rec_offset(), ref_ptr, (ulong) (ref-buff));
   }
-  
-  /* 
-    Calculate how much space in the buffer would not be occupied by
-    records, key entries and additional memory for the MMR buffer.
-  */ 
-  ulong rem_space() 
-  { 
+
+  /**
+    @return how much space in the buffer would not be occupied by
+    records, key entries and additional memory for the MRR buffer
+  */
+  ulong rem_space() override
+  {
     return std::max(static_cast<ulong>(last_key_entry - end_pos-aux_buff_size),
                     0UL);
   }
 
-  /* 
+  /**
     Initialize the MRR buffer allocating some space within the join buffer.
     The entire space between the last record put into the join buffer and the
     last key entry added to the hash table is used for the MRR buffer.
   */
-  void init_mrr_buff()
+  void init_mrr_buff() override
   {
     mrr_buff.buffer= end_pos;
     mrr_buff.buffer_end= last_key_entry;
   }
 
-  /* Skip record from JOIN_CACHE_BKA_UNIQUE buffer if its match flag is on */
-  bool skip_record_if_match();
+  bool skip_record_if_match() override;
 
-  /* Using BKA_UNIQUE find matches for records from join buffer */
-  enum_nested_loop_state join_matching_records(bool skip_last);
+  enum_nested_loop_state join_matching_records(bool skip_last) override;
 
-  /* Search for a key in the hash table of the join buffer */
+  /**
+    Search for a key in the hash table of the join buffer.
+
+    @param key              pointer to the key value
+    @param key_len          key value length
+    @param[out] key_ref_ptr position of the reference to the next key from
+                            the hash element for the found key, or a
+                            position where the reference to the the hash
+                            element for the key is to be added in the
+                            case when the key has not been found
+    @details
+    The function looks for a key in the hash table of the join buffer.
+    If the key is found the functionreturns the position of the reference
+    to the next key from  to the hash element for the given key.
+    Otherwise the function returns the position where the reference to the
+    newly created hash element for the given key is to be added.
+
+    @return whether the key is found in the hash table
+  */
   bool key_search(uchar *key, uint key_len, uchar **key_ref_ptr);
 
-  virtual bool check_match(uchar *rec_ptr);
+  bool check_match(uchar *rec_ptr) override;
 
-  /* Add a record into the JOIN_CACHE_BKA_UNIQUE buffer */
-  bool put_record_in_cache();
+  bool put_record_in_cache() override;
 
 public:
 
@@ -863,34 +903,33 @@ public:
     : JOIN_CACHE_BKA(j, qep_tab_arg, flags, prev)
   {}
 
-  /* Initialize the BKA_UNIQUE cache */       
-  int init();
+  int init() override;
 
-  /* Reset the JOIN_CACHE_BKA_UNIQUE  buffer for reading/writing */
-  void reset_cache(bool for_writing);
+  void reset_cache(bool for_writing) override;
 
-  /* Read the next record from the JOIN_CACHE_BKA_UNIQUE buffer */
-  bool get_record();
+  bool get_record() override;
 
-  /*
-    Shall check whether all records in a key chain have 
-    their match flags set on
-  */   
-  virtual bool check_all_match_flags_for_key(uchar *key_chain_ptr);
+  /**
+    Check whether all records in a key chain are flagged as matches.
 
-  uint get_next_key(uchar **key); 
-  
-  /* Get the head of the record chain attached to the current key entry */ 
+    @param key_chain_ptr key chain
+    @return whether each record in the key chain has been flagged as a match
+  */
+  bool check_all_match_flags_for_key(uchar *key_chain_ptr);
+
+  uint get_next_key(uchar **key) override;
+
+  /// @return the head of the record chain attached to the current key entry
   uchar *get_curr_key_chain()
   {
     return get_next_rec_ref(curr_key_entry+key_entry_length-
                             get_size_of_rec_offset());
   }
-  
-  /* Check if the record combination matches the index condition */
+
+  /// @return whether the record combination does not match the index condition
   bool skip_index_tuple(range_seq_t rseq, char *range_info);
 
-  enum_join_cache_type cache_type() const { return ALG_BKA_UNIQUE; }
+  enum_join_cache_type cache_type() const override { return ALG_BKA_UNIQUE; }
 };
 
 

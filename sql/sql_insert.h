@@ -146,15 +146,15 @@ public:
 
 
 public:
-  virtual bool need_explain_interceptor() const { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  virtual int prepare2(void);
-  bool send_data(List<Item> &items);
+  bool need_explain_interceptor() const override { return true; }
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  int prepare2() override;
+  bool send_data(List<Item> &items) override;
   virtual void store_values(List<Item> &values);
-  void send_error(uint errcode,const char *err);
-  bool send_eof();
-  virtual void abort_result_set();
-  void cleanup();
+  void send_error(uint errcode, const char *err) override;
+  bool send_eof() override;
+  void abort_result_set() override;
+  void cleanup() override;
 };
 
 
@@ -163,7 +163,7 @@ public:
    line with good programming practices and the inheritance should be broken
    up.
 */
-class Query_result_create: public Query_result_insert {
+class Query_result_create final : public Query_result_insert {
   TABLE_LIST *create_table;
   HA_CREATE_INFO *create_info;
   TABLE_LIST *select_tables;
@@ -182,16 +182,16 @@ public:
                       enum_duplicates duplic,
                       TABLE_LIST *select_tables_arg);
 
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   int binlog_show_create_table(TABLE **tables, uint count);
-  void store_values(List<Item> &values);
-  void send_error(uint errcode,const char *err);
-  bool send_eof();
-  virtual void abort_result_set();
+  void store_values(List<Item> &values) override;
+  void send_error(uint errcode, const char *err) override;
+  bool send_eof() override;
+  void abort_result_set() override;
 
   // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
   const THD *get_thd(void) { return thd; }
-  int prepare2(void);
+  int prepare2() override;
 };
 
 

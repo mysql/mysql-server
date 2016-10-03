@@ -351,7 +351,7 @@ int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
-int Query_result_export::prepare2(void)
+int Query_result_export::prepare2()
 {
   if ((file= create_file(thd, path, exchange, &cache)) < 0)
     return 1;
@@ -705,14 +705,13 @@ void Query_result_export::cleanup()
 ***************************************************************************/
 
 
-int Query_result_dump::prepare(List<Item> &list MY_ATTRIBUTE((unused)),
-                               SELECT_LEX_UNIT *u)
+int Query_result_dump::prepare(List<Item> &, SELECT_LEX_UNIT *u)
 {
   unit= u;
   return 0;
 }
 
-int Query_result_dump::prepare2(void)
+int Query_result_dump::prepare2()
 {
   if ((file= create_file(thd, path, exchange, &cache)) < 0)
     return true;

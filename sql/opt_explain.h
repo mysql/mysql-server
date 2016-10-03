@@ -121,7 +121,7 @@ private:
 
 */
 
-class Query_result_explain : public Query_result_send {
+class Query_result_explain final : public Query_result_send {
 protected:
   /*
     As far as we use Query_result_explain object in a place of Query_result_send,
@@ -152,7 +152,7 @@ public:
   { unit= unit_arg; }
 
 protected:
-  virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override
   {
     if (prepared)
       return false;
@@ -160,7 +160,7 @@ protected:
     return Query_result_send::prepare(list, u) || interceptor->prepare(list, u);
   }
 
-  virtual int prepare2(void)
+  int prepare2() override
   {
     if (prepared2)
       return false;
@@ -168,7 +168,7 @@ protected:
     return Query_result_send::prepare2() || interceptor->prepare2();
   }
 
-  virtual bool initialize_tables(JOIN *join)
+  bool initialize_tables(JOIN *join) override
   {
     if (initialized)
       return false;
@@ -177,7 +177,7 @@ protected:
            interceptor->initialize_tables(join);
   }
 
-  virtual void cleanup()
+  void cleanup() override
   {
     Query_result_send::cleanup();
     interceptor->cleanup();

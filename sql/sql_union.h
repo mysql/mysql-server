@@ -26,7 +26,7 @@ class SELECT_LEX_UNIT;
 class THD;
 template <class T> class List;
 
-class Query_result_union :public Query_result_interceptor
+class Query_result_union : public Query_result_interceptor
 {
   Temp_table_param tmp_table_param;
 public:
@@ -36,7 +36,7 @@ public:
   Query_result_union(THD *thd)
     : Query_result_interceptor(thd), table(0),
     is_union_mixed_with_union_all(false) {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   /**
     Do prepare() and prepare2() if they have been postponed until
     column type information is computed (used by Query_result_union_direct).
@@ -45,12 +45,12 @@ public:
 
     @return false on success, true on failure
   */
-  virtual bool postponed_prepare(List<Item> &types)
+  virtual bool postponed_prepare(List<Item> &types MY_ATTRIBUTE((unused)))
   { return false; }
-  bool send_data(List<Item> &items);
-  bool send_eof();
+  bool send_data(List<Item> &items) override;
+  bool send_eof() override;
   virtual bool flush();
-  void cleanup();
+  void cleanup() override;
   bool create_result_table(THD *thd, List<Item> *column_types,
                            bool is_distinct, ulonglong options,
                            const char *alias, bool bit_fields_as_long,

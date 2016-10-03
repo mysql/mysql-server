@@ -67,13 +67,10 @@ public:
 
     This base class implementation doesn't wrap other Query_results.
 
-    @param new_result The new query result object to wrap around
-
     @retval false Success
     @retval true  Error
   */
-  virtual bool
-  change_query_result(Query_result *new_result MY_ATTRIBUTE((unused)))
+  virtual bool change_query_result(Query_result *)
   {
     return false;
   }
@@ -85,7 +82,7 @@ public:
     unit= u;
     return 0;
   }
-  virtual int prepare2(void) { return 0; }
+  virtual int prepare2() { return 0; }
   /*
     Because of peculiarities of prepared statements protocol
     we need to know number of columns in the result set (if
@@ -143,13 +140,13 @@ class Query_result_interceptor: public Query_result
 {
 public:
   Query_result_interceptor(THD *thd) : Query_result(thd) {}
-  uint field_count(List<Item>&) const { return 0; }
-  bool send_result_set_metadata(List<Item>&, uint flag MY_ATTRIBUTE((unused)))
+  uint field_count(List<Item>&) const override { return 0; }
+  bool send_result_set_metadata(List<Item>&, uint) override
   { return false; }
 };
 
 
-class Query_result_send :public Query_result {
+class Query_result_send : public Query_result {
   /**
     True if we have sent result set metadata to the client.
     In this case the client always expects us to end the result
@@ -159,12 +156,12 @@ class Query_result_send :public Query_result {
 public:
   Query_result_send(THD *thd)
     : Query_result(thd), is_result_set_started(false) {}
-  bool send_result_set_metadata(List<Item> &list, uint flags);
-  bool send_data(List<Item> &items);
-  bool send_eof();
-  virtual bool check_simple_select() const { return false; }
-  void abort_result_set();
-  virtual void cleanup()
+  bool send_result_set_metadata(List<Item> &list, uint flags) override;
+  bool send_data(List<Item> &items) override;
+  bool send_eof() override;
+  bool check_simple_select() const override { return false; }
+  void abort_result_set() override;
+  void cleanup() override
   {
     is_result_set_started= false;
   }
@@ -177,7 +174,7 @@ public:
   XXX: We never call destructor for objects of this class.
 */
 
-class sql_exchange :public Sql_alloc
+class sql_exchange final : public Sql_alloc
 {
 public:
   Field_separators field;
@@ -193,7 +190,7 @@ public:
 };
 
 
-class Query_result_to_file :public Query_result_interceptor {
+class Query_result_to_file : public Query_result_interceptor {
 protected:
   sql_exchange *exchange;
   File file;
@@ -209,9 +206,9 @@ public:
   {
     DBUG_ASSERT(file < 0);
   }
-  void send_error(uint errcode,const char *err);
-  bool send_eof();
-  void cleanup();
+  void send_error(uint errcode, const char *err) override;
+  bool send_eof() override;
+  void cleanup() override;
 };
 
 
@@ -224,7 +221,7 @@ public:
 #define NUMERIC_CHARS ".0123456789e+-"
 
 
-class Query_result_export :public Query_result_to_file {
+class Query_result_export final : public Query_result_to_file {
   size_t field_term_length;
   int field_sep_char,escape_char,line_sep_char;
   int field_term_char; // first char of FIELDS TERMINATED BY or MAX_INT
@@ -253,35 +250,35 @@ public:
     : Query_result_to_file(thd, ex) {}
   ~Query_result_export()
   {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  virtual int prepare2(void);
-  bool send_data(List<Item> &items);
-  void cleanup();
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  int prepare2() override;
+  bool send_data(List<Item> &items) override;
+  void cleanup() override;
 };
 
 
-class Query_result_dump :public Query_result_to_file {
+class Query_result_dump : public Query_result_to_file {
 public:
   Query_result_dump(THD *thd, sql_exchange *ex)
     : Query_result_to_file(thd, ex) {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  virtual int prepare2(void);
-  bool send_data(List<Item> &items);
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  int prepare2() override;
+  bool send_data(List<Item> &items) override;
 };
 
 
-class Query_dumpvar :public Query_result_interceptor {
+class Query_dumpvar final : public Query_result_interceptor {
   ha_rows row_count;
 public:
   List<PT_select_var> var_list;
   Query_dumpvar(THD *thd)
     : Query_result_interceptor(thd), row_count(0) { var_list.empty(); }
   ~Query_dumpvar() {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
-  bool send_eof();
-  virtual bool check_simple_select() const;
-  void cleanup()
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool send_data(List<Item> &items) override;
+  bool send_eof() override;
+  bool check_simple_select() const override;
+  void cleanup() override
   {
     row_count= 0;
   }
@@ -292,15 +289,15 @@ public:
   Base class for result from a subquery.
 */
 
-class Query_result_subquery :public Query_result_interceptor
+class Query_result_subquery : public Query_result_interceptor
 {
 protected:
   Item_subselect *item;
 public:
   Query_result_subquery(THD *thd, Item_subselect *item_arg)
     : Query_result_interceptor(thd), item(item_arg) { }
-  bool send_data(List<Item> &items)=0;
-  bool send_eof() { return false; };
+  bool send_data(List<Item> &items) override= 0;
+  bool send_eof() override { return false; };
 };
 
 #endif // QUERY_RESULT_INCLUDED
