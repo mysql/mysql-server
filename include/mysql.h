@@ -59,6 +59,7 @@ typedef int my_socket;
 #endif /* my_socket_defined */
 #endif /* MY_GLOBAL_INCLUDED */
 
+#include "mem_root_fwd.h"
 #include "mysql_version.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
@@ -69,8 +70,6 @@ typedef int my_socket;
 #include "mysql/client_plugin.h"
 
 #include "typelib.h"
-
-typedef struct st_mem_root MEM_ROOT;
 
 #ifdef	__cplusplus
 extern "C" {
