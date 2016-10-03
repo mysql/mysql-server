@@ -524,6 +524,7 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid)
 {
   char path[MAX_PATH];
   MINIDUMP_EXCEPTION_INFORMATION info;
+  PMINIDUMP_EXCEPTION_INFORMATION info_ptr= NULL;
   HANDLE hFile;
 
   if (process == 0)
@@ -534,6 +535,7 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid)
     info.ExceptionPointers= exception_ptrs;
     info.ClientPointers= FALSE;
     info.ThreadId= GetCurrentThreadId();
+    info_ptr= &info;
   }
 
   hFile= CreateFile(name, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,
@@ -545,7 +547,7 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid)
                                         MiniDumpWithProcessThreadData);
     /* Create minidump, use info only if same process. */
     if(MiniDumpWriteDump(process, pid, hFile, mdt,
-                         process ? &info : NULL, 0, 0))
+                         info_ptr, 0, 0))
     {
       my_safe_printf_stderr("Minidump written to %s\n",
                             _fullpath(path, name, sizeof(path)) ?
