@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,8 +71,8 @@ TEST_F(GuessRecPerKeyTest, GuessRecPerKeyMultiColumn)
   table.file->stats.records= large_table_size;
 
   // Rec per key for first key part should be 1 percent of table size
-  EXPECT_EQ(guess_rec_per_key(&table, &key, 1),
-            rec_per_key_t(large_table_size / 100));
+  EXPECT_FLOAT_EQ(guess_rec_per_key(&table, &key, 1),
+                  rec_per_key_t(large_table_size / 100));
 
   // Rec per key for last key part should be 10 for a non-unique key
   EXPECT_EQ(guess_rec_per_key(&table, &key, 3), 10.0f);
@@ -88,8 +88,8 @@ TEST_F(GuessRecPerKeyTest, GuessRecPerKeyMultiColumn)
   */
 
   // Rec per key for first key part should be 1 percent of table size
-  EXPECT_EQ(guess_rec_per_key(&table, &unique_key, 1),
-            rec_per_key_t(large_table_size / 100));
+  EXPECT_FLOAT_EQ(guess_rec_per_key(&table, &unique_key, 1),
+                  rec_per_key_t(large_table_size / 100));
 
   // Rec per key for last key part should be 1 for a unique key
   EXPECT_EQ(guess_rec_per_key(&table, &unique_key, 3), 1.0f);
@@ -124,8 +124,8 @@ TEST_F(GuessRecPerKeyTest, GuessRecPerKeyMultiColumn)
   */
 
   // Rec per key for first key part should be 1 percent of table size
-  EXPECT_EQ(guess_rec_per_key(&table, &unique_key, 1),
-            rec_per_key_t(small_table_size) / 100);
+  EXPECT_FLOAT_EQ(guess_rec_per_key(&table, &unique_key, 1),
+                  rec_per_key_t(small_table_size) / 100);
 
   // Rec per key for last key part should be 1 for a unique key
   EXPECT_EQ(guess_rec_per_key(&table, &unique_key, 3), 1.0f);
@@ -146,18 +146,18 @@ TEST_F(GuessRecPerKeyTest, GuessRecPerKeyMultiColumn)
 
   // Rec per key for first key part should be 1 percent of table size, but
   // not smaller than rec per key for the last key
-  EXPECT_EQ(guess_rec_per_key(&table, &key, 1),
-            rec_per_key_t(tiny_table_size) / 10);
+  EXPECT_FLOAT_EQ(guess_rec_per_key(&table, &key, 1),
+                  rec_per_key_t(tiny_table_size) / 10);
 
   // Rec per key for last key part should be 10 for a non-unique key, but
   // there should be at least then unique values in the table
-  EXPECT_EQ(guess_rec_per_key(&table, &key, 3),
-            rec_per_key_t(tiny_table_size) / 10);
+  EXPECT_FLOAT_EQ(guess_rec_per_key(&table, &key, 3),
+                  rec_per_key_t(tiny_table_size) / 10);
 
   // Rec per key for the second key part should be somewhere between first
   // and last key part, but in this case they are identical
-  EXPECT_EQ(guess_rec_per_key(&table, &key, 2),
-            rec_per_key_t(tiny_table_size) / 10);
+  EXPECT_FLOAT_EQ(guess_rec_per_key(&table, &key, 2),
+                  rec_per_key_t(tiny_table_size) / 10);
 
   /*
     Test with a tiny table and a unique key.
@@ -214,8 +214,8 @@ TEST_F(GuessRecPerKeyTest, GuessRecPerKeySingleColumn)
   table.file->stats.records= large_table_size;
 
   // Rec per key for first key part should be 1 percent of table size
-  EXPECT_EQ(guess_rec_per_key(&table, &key, 1),
-            rec_per_key_t(large_table_size / 100));
+  EXPECT_FLOAT_EQ(guess_rec_per_key(&table, &key, 1),
+                  rec_per_key_t(large_table_size / 100));
   /*
     Test with a large table and a unique key.
   */
@@ -253,8 +253,8 @@ TEST_F(GuessRecPerKeyTest, GuessRecPerKeySingleColumn)
 
   // Rec per key for first key part should be 1 percent of table size, but
   // not smaller than 10% of the table
-  EXPECT_EQ(guess_rec_per_key(&table, &key, 1),
-            rec_per_key_t(tiny_table_size) / 10);
+  EXPECT_FLOAT_EQ(guess_rec_per_key(&table, &key, 1),
+                  rec_per_key_t(tiny_table_size) / 10);
 
   /*
     Test with a tiny table and a unique key.
