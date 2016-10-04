@@ -115,10 +115,17 @@ ELSE()
     "-I${xplugin_PROTOBUF_DIR}"
     "-I${CMAKE_CURRENT_BINARY_DIR}/generated/")
 
+  # assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
+  IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+    ADD_COMPILE_FLAGS(
+      ${MYSQLX_PROJECT_DIR}/ngs/src/client.cc
+      COMPILE_FLAGS "-xO2")
+  ENDIF()
+
   MYSQL_ADD_PLUGIN(mysqlx
     src/xpl_plugin.cc
     src/xpl_performance_schema.cc
-    ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC} ${BOOST_LIB_SOURCES}
+    ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC}
     LINK_LIBRARIES ${xplugin_PROTOBUF_LIB} ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
     MODULE_ONLY MODULE_OUTPUT_NAME "mysqlx")
 

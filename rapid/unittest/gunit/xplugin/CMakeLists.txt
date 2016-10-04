@@ -82,17 +82,8 @@ FILE(
   "${PROJECT_SOURCE_DIR}/rapid/plugin/x/mysqlxtest_src/mysqlx_row.cc"
 )
 
-# boost::shared_ptr depends on scoped_lock
-# Prevent missing symbols scoped_lock() CTOR/DTOR in sasl_authentication_t.cc
-#   boost::atomics::detail::lockpool::scoped_lock::~scoped_lock()
-UNSET(BOOST_LIB_SOURCES)
-IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-  SET(BOOST_LIB_SOURCES
-    ${BOOST_SOURCES_DIR}/libs/atomic/src/lockpool.cpp)
-ENDIF()
-
 ADD_EXECUTABLE(xplugin_unit_tests
-  ${unit_tests_SRC} ${xplugin_SRC} ${protobuf_SRC} ${BOOST_LIB_SOURCES}
+  ${unit_tests_SRC} ${xplugin_SRC} ${protobuf_SRC}
 )
 
 ADD_DEPENDENCIES(xplugin_unit_tests mysqlxtest)
@@ -103,6 +94,15 @@ ADD_DEPENDENCIES(xplugin_unit_tests mysqlxtest)
 IF(WIN32)
   SET_TARGET_PROPERTIES(xplugin_unit_tests PROPERTIES COMPILE_FLAGS "/wd4373")
 ENDIF(WIN32)
+
+# assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
+# Segfault in the unit test, so lower optimization level there as well
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_SOURCE_DIR}/callback_command_delegate_t.cc
+    ${MYSQLX_PROJECT_DIR}/ngs/src/client.cc
+    COMPILE_FLAGS "-xO2")
+ENDIF()
 
 TARGET_LINK_LIBRARIES(
   xplugin_unit_tests

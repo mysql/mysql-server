@@ -37,19 +37,6 @@ IF(USING_LOCAL_BOOST)
     -DBOOST_SYSTEM_NO_DEPRECATED)
 ENDIF()
 
-IF(WIN32)
-  LIST(APPEND BOOST_THREAD_SOURCES
-    ${BOOST_SOURCES_DIR}/libs/thread/src/win32/thread.cpp
-    ${BOOST_SOURCES_DIR}/libs/thread/src/win32/tss_dll.cpp
-    ${BOOST_SOURCES_DIR}/libs/thread/src/win32/tss_pe.cpp
-  )
-ELSE()
-  LIST(APPEND BOOST_THREAD_SOURCES
-    ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/once.cpp
-    ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/thread.cpp
-  )
-ENDIF()
-
 SET(MYSQLPUMP_LIB_SOURCES
   abstract_chain_element.cc
   abstract_connection_provider.cc
@@ -160,8 +147,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
   # Boost source use undefined symbols in #if checks
   ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
-                    COMPILE_FLAGS "-Wno-undef")
-  ADD_COMPILE_FLAGS(${BOOST_LIB_SOURCES}
                     COMPILE_FLAGS "-Wno-undef")
   # Boost source use auto_ptr, deprecated in C++11
   ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
