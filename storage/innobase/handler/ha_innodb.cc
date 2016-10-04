@@ -5236,11 +5236,6 @@ innobase_sdi_set(
 	const void*		sdi,
 	uint64			sdi_len)
 {
-#if 1
-	// TODO
-	return(false);
-#endif
-
 	uint32	space_id;
 	if (innobase_sdi_check_existence(tablespace, &space_id)
 	    != DB_SUCCESS) {
@@ -5279,10 +5274,6 @@ innobase_sdi_delete(
 	const dd::Tablespace&	tablespace,
 	const dd::sdi_key_t*	sdi_key)
 {
-#if 1
-	// TODO
-	return(false);
-#endif
 	uint32	space_id;
 	if (innobase_sdi_check_existence(tablespace, &space_id)
 	    != DB_SUCCESS) {
@@ -5319,10 +5310,6 @@ bool
 innobase_sdi_flush(
 	const dd::Tablespace&	tablespace)
 {
-#if 1
-	// TODO
-	return(false);
-#endif
 	uint32	space_id;
 	if (innobase_sdi_check_existence(tablespace, &space_id)
 	    != DB_SUCCESS) {
