@@ -1313,7 +1313,10 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
 #endif
 
   if (dd::schema_exists(thd, new_db_file_name.str, &schema_exists))
+  {
+    my_free(new_db_file_name.str);
     DBUG_RETURN(true);
+  }
 
   if (!schema_exists)
   {
