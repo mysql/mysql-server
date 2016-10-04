@@ -2711,7 +2711,7 @@ fil_prepare_for_truncate(
 	fil_space_t*	space = 0;
 
 	ut_ad(!fsp_is_system_or_temp_tablespace(id));
-	ut_ad(!fsp_is_undo_tablespace(id));
+	ut_ad(fsp_is_undo_tablespace(id));
 
 	dberr_t err = fil_check_pending_operations(
 		id, FIL_OPERATION_CLOSE, &space, &path);
