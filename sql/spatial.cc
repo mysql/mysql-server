@@ -5267,4 +5267,6 @@ Gis_wkb_vector<Gis_point>&
 Gis_wkb_vector<Gis_point>::operator=(Gis_wkb_vector<Gis_point> const&);
 
 template
+Gis_wkb_vector<Gis_point>::Gis_wkb_vector(Gis_wkb_vector<Gis_point> const&);
+template
 Gis_wkb_vector<Gis_polygon>::Gis_wkb_vector(const Gis_wkb_vector<Gis_polygon> &);
