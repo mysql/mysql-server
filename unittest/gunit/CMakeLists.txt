@@ -239,6 +239,7 @@ INCLUDE_DIRECTORIES(
 
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
+  benchmark.cc
   fake_costmodel.cc
   gunit_test_main.cc
   skip_trailing.cc

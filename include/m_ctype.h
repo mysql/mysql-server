@@ -47,7 +47,7 @@ extern "C" {
   to copy two bytes at onces.
   This gives some performance improvement.
 */
-#ifdef __i386__
+#if defined(__i386__) || defined(__x86_64__)
 #define MB2(x)                (((x) >> 8) + (((x) & 0xFF) << 8))
 #define MY_PUT_MB2(s, code)   { *((uint16*)(s))= (code); }
 #else

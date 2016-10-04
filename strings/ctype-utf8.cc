@@ -21,10 +21,12 @@
 #include <my_global.h>
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_byteorder.h"
 #include "my_uctype.h"  // IWYU pragma: keep
 
 #ifndef EILSEQ
@@ -37,7 +39,9 @@
 #define MY_UTF8MB4_BIN        MY_UTF8MB4 "_bin"
 
 
-
+static inline int my_utf8_uni(my_wc_t *pwc, const uchar *s, const uchar *e);
+static int my_utf8_uni_thunk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                             my_wc_t *pwc, const uchar *s, const uchar *e);
 
 
 static inline
@@ -5058,15 +5062,22 @@ my_wildcmp_unicode(const CHARSET_INFO *cs,
 static size_t
 my_strxfrm_pad_nweights_unicode(uchar *str, uchar *strend, size_t nweights)
 {
-  uchar *str0;
-  DBUG_ASSERT(str && str <= strend); 
-  for (str0= str; str < strend && nweights; nweights--)
-  {
-    *str++= 0x00;
-    if (str < strend)
-      *str++= 0x20;
+  DBUG_ASSERT(str && str <= strend);
+  strend= std::min(strend, str + nweights * 2);
+
+  uchar *str0= str;
+  // Write 16 bytes of padding at a time. (Constant-sized memcpy
+  // usually gets optimized to large, unaligned writes.)
+  static constexpr char pattern[16]= {
+    0, 0x20, 0, 0x20, 0, 0x20, 0, 0x20, 0, 0x20, 0, 0x20, 0, 0x20, 0, 0x20
+  };
+  const size_t blocks_fast_path= (strend - str) / sizeof(pattern);
+  for (size_t i= 0; i < blocks_fast_path; ++i) {
+    memcpy(str, pattern, sizeof(pattern));
+    str+= sizeof(pattern);
   }
-  return str - str0;
+  memcpy(str, pattern, strend - str);
+  return strend - str0;
 }
 
 
@@ -5100,6 +5111,113 @@ my_strxfrm_pad_unicode(uchar *str, uchar *strend)
 
 
 /*
+  Actual implementation of my_strnxfrm_unicode, specialized by the mbwc
+  function (ie., the function that converts multibyte characters to
+  one wide character). This is inlined because the call overhead of
+  mbwc() would otherwise be quite large.
+*/
+template<class MbWc>
+static inline size_t
+my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs, const MbWc &mbwc,
+                         uchar *dst, size_t dstlen, uint nweights,
+                         const uchar *src, size_t srclen, uint flags)
+{
+  uchar *dst0= dst;
+  uchar *de= dst + dstlen;
+  const uchar *se= src + srclen;
+  DBUG_ASSERT(src);
+
+  // We manually hoist this if test out of the loop; seemingly GCC
+  // (at least 6.1.1) isn't smart enough to do it on its own.
+  if (cs->state & MY_CS_BINSORT)
+  {
+    // Do as many whole characters as we can.
+    const size_t nweights_fast_path= std::min<size_t>((de - dst) / 2, nweights);
+    for (size_t i= 0; i < nweights_fast_path; ++i, --nweights)
+    {
+      my_wc_t wc;
+      int res= mbwc(&wc, src, se);
+      if (res <= 0)  // End of string, or invalid character.
+        goto pad;
+      src+= res;
+
+      int2store(dst, htons(wc));
+      dst+= 2;
+    }
+
+    // Leftover single byte, if any.
+    if (dst < de && nweights)
+    {
+      my_wc_t wc;
+      int res= mbwc(&wc, src, se);
+      if (res > 0) {
+        src+= res;
+        *dst++= (uchar) (wc >> 8);
+      }
+    }
+  } else {
+    const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+
+    // Do as many whole characters as we can.
+    const size_t nweights_fast_path= std::min<size_t>((de - dst) / 2, nweights);
+    for (size_t i= 0; i < nweights_fast_path; ++i, --nweights)
+    {
+      my_wc_t wc;
+      int res= mbwc(&wc, src, se);
+      if (res <= 0)  // End of string, or invalid character.
+        goto pad;
+      src+= res;
+
+      my_tosort_unicode(uni_plane, &wc, cs->state);
+
+      int2store(dst, htons(wc));
+      dst+= 2;
+    }
+
+    // Leftover single byte, if any.
+    if (dst < de && nweights)
+    {
+      my_wc_t wc;
+      int res= mbwc(&wc, src, se);
+      if (res > 0) {
+        my_tosort_unicode(uni_plane, &wc, cs->state);
+        src+= res;
+        *dst++= (uchar) (wc >> 8);
+      }
+    }
+  }
+
+pad:
+  if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
+    dst+= my_strxfrm_pad_nweights_unicode(dst, de, nweights);
+
+  my_strxfrm_desc_and_reverse(dst0, dst, flags, 0);
+
+  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && dst < de)
+    dst+= my_strxfrm_pad_unicode(dst, de);
+  return dst - dst0;
+}
+
+
+struct MbWcThroughFunctionPointer {
+public:
+  MbWcThroughFunctionPointer(const CHARSET_INFO *cs)
+    : m_funcptr(cs->cset->mb_wc), m_cs(cs)
+  {}
+
+  int operator() (my_wc_t *pwc, const uchar *s, const uchar *e) const
+  {
+    return m_funcptr(m_cs, pwc, s, e);
+  }
+
+private:
+  typedef int (*mbwc_func_t)(const CHARSET_INFO *, my_wc_t *, const uchar *, const uchar *);
+
+  const mbwc_func_t m_funcptr;
+  const CHARSET_INFO * const m_cs;
+};
+
+/*
   Store sorting weights using 2 bytes per character.
 
   This function is shared between
@@ -5113,37 +5231,16 @@ my_strnxfrm_unicode(const CHARSET_INFO *cs,
                     uchar *dst, size_t dstlen, uint nweights,
                     const uchar *src, size_t srclen, uint flags)
 {
-  my_wc_t wc= 0;
-  int res;
-  uchar *dst0= dst;
-  uchar *de= dst + dstlen;
-  const uchar *se= src + srclen;
-  const MY_UNICASE_INFO *uni_plane= (cs->state & MY_CS_BINSORT) ?
-                                     NULL : cs->caseinfo;
-  DBUG_ASSERT(src);
-
-  for (; dst < de && nweights; nweights--)
-  {
-    if ((res= cs->cset->mb_wc(cs, &wc, src, se)) <= 0)
-      break;
-    src+= res;
-
-    if (uni_plane)
-      my_tosort_unicode(uni_plane, &wc, cs->state);
-    
-    *dst++= (uchar) (wc >> 8);
-    if (dst < de)
-      *dst++= (uchar) (wc & 0xFF);
+  // my_utf8_uni is so common that we special-case it; short-circuit away
+  // the thunk, and get it inlined.
+  if (cs->cset->mb_wc == my_utf8_uni_thunk) {
+    return my_strnxfrm_unicode_tmpl(cs, my_utf8_uni, dst, dstlen, nweights, src, srclen, flags);
+  } else {
+    // Fallback using a function pointer (which the compiler is unlikely
+    // to be able to optimize away).
+    MbWcThroughFunctionPointer mbwc(cs);
+    return my_strnxfrm_unicode_tmpl(cs, mbwc, dst, dstlen, nweights, src, srclen, flags);
   }
-
-  if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
-    dst+= my_strxfrm_pad_nweights_unicode(dst, de, nweights);
-
-  my_strxfrm_desc_and_reverse(dst0, dst, flags, 0);
-
-  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && dst < de)
-    dst+= my_strxfrm_pad_unicode(dst, de);
-  return dst - dst0;
 }
 
 
@@ -5295,10 +5392,17 @@ static inline int bincmp(const uchar *s, const uchar *se,
   return cmp ? cmp : slen-tlen;
 }
 
+/**
+  Parses a single UTF-8 character from a byte string.
 
-extern "C" {
-static int my_utf8_uni(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                       my_wc_t * pwc, const uchar *s, const uchar *e)
+  @param pwc [output] The parsed character, if any.
+  @param s The string to read from.
+  @param e The end of the string; will not read past this.
+
+  @return The number of bytes read from s, or a value <= 0 for failure
+    (see m_ctype.h).
+*/
+static inline int my_utf8_uni(my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   uchar c;
 
@@ -5341,16 +5445,30 @@ static int my_utf8_uni(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   }
   return MY_CS_ILSEQ;
 }
-} // extern "C"
+
+/**
+  A thunk to be able to use my_utf8_uni in MY_CHARSET_HANDLER structs.
+
+  @param cs Unused.
+  @param pwc [output] The parsed character, if any.
+  @param s The string to read from.
+  @param e The end of the string; will not read past this.
+
+  @return The number of bytes read from s, or a value <= 0 for failure
+    (see m_ctype.h).
+*/
+static int my_utf8_uni_thunk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                             my_wc_t *pwc, const uchar *s, const uchar *e)
+{
+  return my_utf8_uni(pwc, s, e);
+}
 
 
 /*
   The same as above, but without range check
   for example, for a null-terminated string
 */
-static int my_utf8_uni_no_range(const CHARSET_INFO *cs
-                                MY_ATTRIBUTE((unused)),
-                                my_wc_t * pwc, const uchar *s)
+static int my_utf8_uni_no_range(my_wc_t *pwc, const uchar *s)
 {
   uchar c;
 
@@ -5424,7 +5542,6 @@ static int my_uni_utf8 (const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 }
 } // extern "C"
 
-
 /*
   The same as above, but without range check.
 */
@@ -5484,7 +5601,7 @@ my_caseup_utf8(const CHARSET_INFO *cs, char *src, size_t srclen,
   DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
 
   while ((src < srcend) &&
-         (srcres= my_utf8_uni(cs, &wc, (uchar *) src, (uchar*) srcend)) > 0)
+         (srcres= my_utf8_uni(&wc, (uchar *) src, (uchar*) srcend)) > 0)
   {
     my_toupper_utf8mb3(uni_plane, &wc);
     if ((dstres= my_uni_utf8(cs, wc, (uchar*) dst, (uchar*) dstend)) <= 0)
@@ -5516,7 +5633,7 @@ static void my_hash_sort_utf8(const CHARSET_INFO *cs, const uchar *s,
   tmp1= *n1;
   tmp2= *n2;
 
-  while ((s < e) && (res=my_utf8_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
+  while ((s < e) && (res=my_utf8_uni(&wc, (uchar *)s, (uchar*)e))>0 )
   {
     my_tosort_unicode(uni_plane, &wc, cs->state);
     tmp1^= (((tmp1 & 63) + tmp2) * (wc & 0xFF)) + (tmp1 << 8);
@@ -5540,7 +5657,7 @@ static size_t my_caseup_str_utf8(const CHARSET_INFO *cs, char *src)
   DBUG_ASSERT(cs->caseup_multiply == 1);
 
   while (*src &&
-         (srcres= my_utf8_uni_no_range(cs, &wc, (uchar *) src)) > 0)
+         (srcres= my_utf8_uni_no_range(&wc, (uchar *) src)) > 0)
   {
     my_toupper_utf8mb3(uni_plane, &wc);
     if ((dstres= my_uni_utf8_no_range(cs, wc, (uchar*) dst)) <= 0)
@@ -5563,7 +5680,7 @@ static size_t my_casedn_utf8(const CHARSET_INFO *cs, char *src, size_t srclen,
   DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
 
   while ((src < srcend) &&
-         (srcres= my_utf8_uni(cs, &wc, (uchar*) src, (uchar*)srcend)) > 0)
+         (srcres= my_utf8_uni(&wc, (uchar*) src, (uchar*)srcend)) > 0)
   {
     my_tolower_utf8mb3(uni_plane, &wc);
     if ((dstres= my_uni_utf8(cs, wc, (uchar*) dst, (uchar*) dstend)) <= 0)
@@ -5584,7 +5701,7 @@ static size_t my_casedn_str_utf8(const CHARSET_INFO *cs, char *src)
   DBUG_ASSERT(cs->casedn_multiply == 1);
 
   while (*src &&
-         (srcres= my_utf8_uni_no_range(cs, &wc, (uchar *) src)) > 0)
+         (srcres= my_utf8_uni_no_range(&wc, (uchar *) src)) > 0)
   {
     my_tolower_utf8mb3(uni_plane, &wc);
     if ((dstres= my_uni_utf8_no_range(cs, wc, (uchar*) dst)) <= 0)
@@ -5626,8 +5743,8 @@ static int my_strnncoll_utf8(const CHARSET_INFO *cs,
 
   while ( s < se && t < te )
   {
-    s_res=my_utf8_uni(cs,&s_wc, s, se);
-    t_res=my_utf8_uni(cs,&t_wc, t, te);
+    s_res=my_utf8_uni(&s_wc, s, se);
+    t_res=my_utf8_uni(&t_wc, t, te);
 
     if ( s_res <= 0 || t_res <= 0 )
     {
@@ -5689,8 +5806,8 @@ static int my_strnncollsp_utf8(const CHARSET_INFO *cs,
 
   while ( s < se && t < te )
   {
-    s_res=my_utf8_uni(cs,&s_wc, s, se);
-    t_res=my_utf8_uni(cs,&t_wc, t, te);
+    s_res=my_utf8_uni(&s_wc, s, se);
+    t_res=my_utf8_uni(&t_wc, t, te);
 
     if ( s_res <= 0 || t_res <= 0 )
     {
@@ -5799,7 +5916,7 @@ int my_strcasecmp_utf8(const CHARSET_INFO *cs, const char *s, const char *t)
         loop with finish.
       */
       
-      res= my_utf8_uni(cs,&s_wc, (const uchar*)s, (const uchar*) s + 3);
+      res= my_utf8_uni(&s_wc, (const uchar*)s, (const uchar*) s + 3);
       
       /* 
          In the case of wrong multibyte sequence we will
@@ -5824,7 +5941,7 @@ int my_strcasecmp_utf8(const CHARSET_INFO *cs, const char *s, const char *t)
     }
     else
     {
-      int res=my_utf8_uni(cs,&t_wc, (const uchar*)t, (const uchar*) t + 3);
+      int res=my_utf8_uni(&t_wc, (const uchar*)t, (const uchar*) t + 3);
       if (res <= 0)
         return strcmp(s, t);
       t+= res;
@@ -6008,7 +6125,7 @@ MY_CHARSET_HANDLER my_charset_utf8_handler=
     my_well_formed_len_utf8,
     my_lengthsp_8bit,
     my_numcells_mb,
-    my_utf8_uni,
+    my_utf8_uni_thunk,
     my_uni_utf8,
     my_mb_ctype_mb,
     my_caseup_str_utf8,
@@ -7621,7 +7738,7 @@ bincmp_utf8mb4(const uchar *s, const uchar *se,
 extern "C" {
 static int
 my_mb_wc_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                 my_wc_t * pwc, const uchar *s, const uchar *e)
+                 my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   uchar c;
 
