@@ -478,6 +478,8 @@ int channel_stop(const char* channel,
 
   int thread_mask= 0;
   int server_thd_mask= 0;
+  int error= 0;
+  bool thd_init= false;
   lock_slave_threads(mi);
 
   init_thread_mask(&server_thd_mask, mi, 0 /* not inverse*/);
@@ -495,16 +497,15 @@ int channel_stop(const char* channel,
 
   if (thread_mask == 0)
   {
-    mi->channel_unlock();
-    channel_map.unlock();
-    DBUG_RETURN(0);
+    goto end;
   }
 
-  bool thd_init= init_thread_context();
+  thd_init= init_thread_context();
 
-  int error= terminate_slave_threads(mi, thread_mask, timeout, false);
+  error= terminate_slave_threads(mi, thread_mask, timeout, false);
+
+end:
   unlock_slave_threads(mi);
-
   mi->channel_unlock();
   channel_map.unlock();
 
