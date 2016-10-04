@@ -1213,7 +1213,7 @@ public:
     @retval 0     Event applied successfully
     @retval errno Error code if event application failed
   */
-  virtual int do_apply_event(Relay_log_info const *)
+  virtual int do_apply_event(Relay_log_info const *rli MY_ATTRIBUTE((unused)))
   {
     return 0;                /* Default implementation does nothing */
   }
