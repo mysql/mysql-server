@@ -3230,8 +3230,7 @@ end:
   @param base        The handlerton handle.
   @param db          The database name.
   @param table_name  The table name.
-  @param flags       Flags for build_table_filename() as well as describing
-                     if handler files should be deleted as well.
+  @param flags       Flags for build_table_filename().
 
   @return False in case of success, True otherwise.
 */
@@ -3246,12 +3245,8 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   (void) build_table_filename(path, sizeof(path) - 1,
                               db, table_name, "", flags);
 
-  // Invoke the handler as appropriate, depending on the NO_HA_TABLE flag.
-  int error= 0;
-  if (!(flags & NO_HA_TABLE))
-    error= ha_delete_table(thd, base, path, db, table_name, 0);
-
-  if (error)
+  // Invoke the handler.
+  if (ha_delete_table(thd, base, path, db, table_name, 0))
     DBUG_RETURN(true);
 
   // Remove the table object from the data dictionary. If this fails, the
@@ -8070,7 +8065,6 @@ static bool mysql_inplace_alter_table(THD *thd,
   Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
   handlerton *db_type= table->s->db_type();
   MDL_ticket *mdl_ticket= table->mdl_ticket;
-  HA_CREATE_INFO *create_info= ha_alter_info->create_info;
   const Alter_info *alter_info= ha_alter_info->alter_info;
   bool reopen_tables= false;
 
@@ -8329,7 +8323,8 @@ static bool mysql_inplace_alter_table(THD *thd,
   close_temporary_table(thd, altered_table, true, false);
 
   /*
-    Replace the old .FRM with the new .FRM, but keep the old name for now.
+    Replace the old table definition with the new table definition,
+    but keep the old name for now.
     Rename to the new name (if needed) will be handled separately below.
   */
   if (mysql_rename_table(thd, db_type, alter_ctx->new_db, alter_ctx->tmp_name,
@@ -8337,14 +8332,14 @@ static bool mysql_inplace_alter_table(THD *thd,
                          FN_FROM_IS_TMP | NO_HA_TABLE))
   {
     // Catch situations where the SE has requested rollback. This will make
-    // quick_rm_table() fail anyway when the DD starts an attachable
+    // dd::drop_table() fail anyway when the DD starts an attachable
     // transaction. This situation will be fixed in WL#7785.
     DBUG_ASSERT(!thd->transaction_rollback_request);
 
     // Since changes were done in-place, we can't revert them.
-    (void) quick_rm_table(thd, db_type,
-                          alter_ctx->new_db, alter_ctx->tmp_name,
-                          FN_IS_TMP | NO_HA_TABLE);
+    (void) dd::drop_table<dd::Table>(thd, alter_ctx->new_db,
+                                     alter_ctx->tmp_name);
+
     DBUG_RETURN(true);
   }
   DBUG_EXECUTE_IF("crash_after_index_create",
@@ -8429,9 +8424,11 @@ static bool mysql_inplace_alter_table(THD *thd,
     /* QQ; do something about metadata locks ? */
   }
   close_temporary_table(thd, altered_table, true, false);
-  // Delete temporary .frm/.par
-  (void) quick_rm_table(thd, create_info->db_type, alter_ctx->new_db,
-                        alter_ctx->tmp_name, FN_IS_TMP | NO_HA_TABLE);
+
+  // Delete temporary table object from data dictionary.
+  (void) dd::drop_table<dd::Table>(thd, alter_ctx->new_db,
+                                   alter_ctx->tmp_name);
+
   DBUG_RETURN(true);
 }
 
@@ -10603,9 +10600,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       */
       close_temporary_table(thd, altered_table, true, false);
 
-      // NewDD - Delete temporary .frm/.par
-      (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                            alter_ctx.tmp_name, FN_IS_TMP | NO_HA_TABLE);
+      // Delete temporary table object from data dictionary.
+      (void) dd::drop_table<dd::Table>(thd, alter_ctx.new_db,
+                                       alter_ctx.tmp_name);
+
       goto end_inplace;
     }
 
@@ -11104,10 +11102,12 @@ err_new_table_cleanup:
                                        alter_ctx.tmp_name);
     }
   }
-  else
-    (void) quick_rm_table(thd, new_db_type,
-                          alter_ctx.new_db, alter_ctx.tmp_name,
-                          (FN_IS_TMP | (no_ha_table ? NO_HA_TABLE : 0)));
+  else if (no_ha_table) // Only remove from DD.
+    (void) dd::drop_table<dd::Table>(thd, alter_ctx.new_db,
+                                     alter_ctx.tmp_name);
+  else // Remove from both DD and SE.
+    (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                          alter_ctx.tmp_name, FN_IS_TMP);
 
   if (alter_ctx.error_if_not_empty & Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
   {
