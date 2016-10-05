@@ -124,6 +124,13 @@ IF(WIN32)
   SET_TARGET_PROPERTIES(xplugin_unit_tests PROPERTIES COMPILE_FLAGS "/wd4373")
 ENDIF(WIN32)
 
+# Segfault in the unit test with -xO3, so lower optimization level
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_SOURCE_DIR}/callback_command_delegate_t.cc
+    COMPILE_FLAGS "-xO2")
+ENDIF()
+
 TARGET_LINK_LIBRARIES(
   xplugin_unit_tests
   gtest
