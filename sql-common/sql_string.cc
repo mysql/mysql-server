@@ -45,7 +45,7 @@ bool String::real_alloc(size_t length)
   if (m_alloced_length < arg_length)
   {
     mem_free();
-    if (!(m_ptr= static_cast<char*>(my_malloc(STRING_PSI_MEMORY_KEY,
+    if (!(m_ptr= static_cast<char*>(my_malloc(m_psi_memory_key,
                                               arg_length, MYF(MY_WME)))))
       return true;
     m_alloced_length= static_cast<uint32>(arg_length);
@@ -111,11 +111,11 @@ bool String::mem_realloc(size_t alloc_length, bool force_on_heap)
     char *new_ptr;
     if (m_is_alloced)
     {
-      if (!(new_ptr= static_cast<char*>(my_realloc(STRING_PSI_MEMORY_KEY,
+      if (!(new_ptr= static_cast<char*>(my_realloc(m_psi_memory_key,
                                                    m_ptr, len, MYF(MY_WME)))))
         return true;				// Signal error
     }
-    else if ((new_ptr= static_cast<char*>(my_malloc(STRING_PSI_MEMORY_KEY,
+    else if ((new_ptr= static_cast<char*>(my_malloc(m_psi_memory_key,
                                                     len, MYF(MY_WME)))))
     {
       if (m_length > len - 1)
@@ -1347,5 +1347,37 @@ bool validate_string(const CHARSET_INFO *cs, const char *str, uint32 length,
     from+= cnvres;
   }
   *valid_length= length;
+  return false;
+}
+
+bool String::set_psi_memory_key(PSI_memory_key psi_memory_key)
+{
+  /* Nothing to do if already using the specified PSI memory key. */
+  if (m_psi_memory_key == psi_memory_key)
+    return false;
+
+  char *old_m_ptr= m_ptr;
+
+  /*
+    If the String is using any already allocated memory, we need to take
+    care of "changing" its buffer PSI memory key in order to avoid problems
+    when growing/shrinking the buffer.
+  */
+  if (m_alloced_length)
+  {
+    if (!(m_ptr= static_cast<char*>(my_malloc(psi_memory_key,
+                                              m_alloced_length,
+                                              MYF(MY_WME)))))
+      return true;
+
+    memcpy(m_ptr, old_m_ptr, m_length);
+
+    if (m_is_alloced)
+      my_free(old_m_ptr);
+    else
+      m_is_alloced= true;
+  }
+
+  m_psi_memory_key= psi_memory_key;
   return false;
 }

@@ -394,7 +394,7 @@ public:
     if (arg_length < m_alloced_length)
     {
       char *new_ptr;
-      if (!(new_ptr= static_cast<char*>(my_realloc(STRING_PSI_MEMORY_KEY,
+      if (!(new_ptr= static_cast<char*>(my_realloc(m_psi_memory_key,
                                                    m_ptr, arg_length, MYF(0)))))
       {
         m_alloced_length= 0;
@@ -651,6 +651,17 @@ public:
     }
     return ret;
   }
+  /**
+    Change the PSI_memory_key used by the String.
+
+    @param psi_memory_key The PSI_memory_key to be used on future memory
+                          allocations for this string.
+
+    @return true if my_alloc() returned an error, false otherwise.
+  */
+  bool set_psi_memory_key(PSI_memory_key psi_memory_key);
+private:
+  PSI_memory_key m_psi_memory_key= STRING_PSI_MEMORY_KEY;
 };
 
 
