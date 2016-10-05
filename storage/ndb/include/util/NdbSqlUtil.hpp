@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,13 +134,6 @@ public:
    * Temporary workaround for bug#7284.
    */
   static int strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstLen, const unsigned char*src, unsigned srcLen);
-
-  /**
-   * Wrapper for 'strnxfrm' who change prototype in 5.6
-   */
-  static size_t ndb_strnxfrm(struct charset_info_st * cs,
-                             uchar *dst, size_t dstlen,
-                             const uchar *src, size_t srclen);
 
   /**
    * Convert attribute data to/from network byte order
