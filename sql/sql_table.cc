@@ -2105,16 +2105,10 @@ static bool rea_create_table(THD *thd, const char *path,
   if (thd->variables.keep_files_on_create)
     create_info->options|= HA_CREATE_KEEP_FILES;
 
-  if (file->ha_create_handler_files(path, NULL, CHF_CREATE_FLAG,
-                                    create_info))
-    goto err;
-
   if (!no_ha_table &&
       ha_create_table(thd, path, db, table_name, create_info,
                       false, false, *tmp_table_def))
   {
-    (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG,
-                                         create_info);
     goto err;
   }
 
@@ -2265,13 +2259,7 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
         part_handler->set_part_info(part_info, false);
       }
     }
-    /* Write shadow frm file */
-    if (lpt->table->file->ha_create_handler_files(shadow_path, NULL,
-                                                  CHF_CREATE_FLAG,
-                                                  lpt->create_info))
-    {
-      DBUG_RETURN(true);
-    }
+
     // Add table details into new DD
     if (!dd::get_dictionary()->is_dd_table_name(lpt->db, shadow_name) &&
         !dd::get_dictionary()->is_dd_table_name(lpt->db, lpt->table_name))
@@ -3260,29 +3248,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
 
   // Invoke the handler as appropriate, depending on the NO_HA_TABLE flag.
   int error= 0;
-  if (flags & NO_HA_TABLE)
-  {
-    handler *file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base);
-    if (!file)
-      DBUG_RETURN(true);
-
-    // This is relevant for deleting the partition files from the partition
-    // engine. In this case, we will not take an error into account, i.e.,
-    // even if the operation against the SE fails, we will go ahead and
-    // remove the table from the data dictionary. This is necessary due to
-    // the following behavior: In 'ha_partition::create()', there is a call
-    // to 'handler::delete_table()' at the end that does cleanup if create
-    // failed. In the context of a table being created during ALTER, this
-    // means that if creation fails, the .par file will be removed already
-    // at that stage, and when we get here, it will not be present. Thus, the
-    // ENOENT while deleting the file is to be expected. This might be
-    // refactored to avoid deleting the .par file at the end of 'create()', and
-    // instead expect it to be present when calling 'ha_create_handler_files()'
-    // below, and consequently take any error returned into account.
-    (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, NULL);
-    delete file;
-  }
-  else
+  if (!(flags & NO_HA_TABLE))
     error= ha_delete_table(thd, base, path, db, table_name, 0);
 
   if (error)
@@ -6098,13 +6064,10 @@ bool create_table_impl(THD *thd,
     if (result)
     {
       /*
-        Remove table from DD and SE. We ignore the errors
-        returned from there functions as we anyway report error.
+        Remove table from DD. We ignore the errors
+        returned as we anyway report error.
       */
       (void) dd::drop_table<dd::Table>(thd, db, table_name);
-
-      file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info);
-
       goto err;
     }
   }
@@ -6444,15 +6407,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   if (flags & NO_FK_CHECKS)
     thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
 
-  /*
-    Invoke the storage engine as appropriate, depending on the flags.
-    If the function ha_create_handler_files() fails, it also calls
-    my_error() when CHF_RENAME_FLAG is set.
-  */
   int error= 0;
-  if (flags & NO_HA_TABLE)
-    error= file->ha_create_handler_files(to, from, CHF_RENAME_FLAG, NULL);
-  else
+  if (!(flags & NO_HA_TABLE))
     error= file->ha_rename_table(from_base, to_base);
 
   thd->variables.option_bits= save_bits;
@@ -6468,7 +6424,6 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     (void) dd::rename_table<dd::Table>(thd, new_db, new_name,
                                        old_db, old_name, true);
 
-    // ha_create_handler_files() has already reported error.
     if (!(flags & NO_HA_TABLE))
     {
       if (error == HA_ERR_WRONG_COMMAND)
