@@ -133,6 +133,8 @@ sub mtr_get_unique_id($$$) {
         return $id - $build_thread + 1;
       }
     }
+
+    return undef if ($min > $max);
   }
 
   return undef;
