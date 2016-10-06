@@ -170,8 +170,6 @@ bool Collations::populate(THD *thd) const
       return true;
   }
 
-  delete_container_pointers(prev_coll);
-
   return error;
 }
 

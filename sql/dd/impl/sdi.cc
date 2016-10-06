@@ -567,8 +567,6 @@ static bool update_sdi(THD *thd, const dd::Schema *s)
     }
   }
 
-  delete_container_pointers(tables);
-
   // Finally, update SDI file
   return checked_return(sdi_file::store(thd, lex_cstring_handle(sdi), s));
 }
@@ -625,8 +623,6 @@ bool remove_sdi(THD *thd, const dd::Schema *s)
       return checked_return(true);
     }
   }
-
-  delete_container_pointers(tables);
 
   // Finally, remove SDI file
   return checked_return(sdi_file::remove(thd, s));

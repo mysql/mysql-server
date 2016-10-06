@@ -137,7 +137,7 @@ bool get_tablespace_name(THD *thd, const T *obj,
       lock on tablespace (similarly to how it happens for schemas).
     */
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Tablespace* tablespace= NULL;
+    dd::Tablespace* tablespace= NULL;
     if (thd->dd_client()->acquire_uncached<dd::Tablespace>(
                             obj->tablespace_id(), &tablespace))
     {
@@ -153,7 +153,6 @@ bool get_tablespace_name(THD *thd, const T *obj,
     }
 
     name= tablespace->name();
-    delete tablespace;
   }
   else
   {
