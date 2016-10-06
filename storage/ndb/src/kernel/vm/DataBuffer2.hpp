@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,10 +29,8 @@
  *
  * @note   The buffer is divided into segments (of size sz)
  */
-template <Uint32 sz, typename Pool>
-class DataBuffer2 {
-public:
-  struct Segment {
+template<Uint32 sz>
+  struct DataBuffer2Segment {
     Uint32 magic;
     Uint32 nextPool;
     Uint32 data[sz];
@@ -42,10 +40,6 @@ public:
 	  << nextPool << " ]";
       return out;
     }
-  };
-public:
-  typedef Pool DataBufferPool;
-
   /**
    * Head/anchor for data buffer
    */
@@ -79,6 +73,17 @@ public:
       return *this;
     }
   };
+
+  };
+
+template <Uint32 sz, typename Pool>
+class DataBuffer2 {
+public:
+  typedef DataBuffer2Segment<sz> Segment;
+  typedef typename DataBuffer2Segment<sz>::HeadPOD HeadPOD;
+  typedef typename DataBuffer2Segment<sz>::Head Head;
+public:
+  typedef Pool DataBufferPool;
 
   /** Constructor */
   DataBuffer2(DataBufferPool &);
@@ -207,9 +212,9 @@ private:
   typename DataBuffer2<sz, Pool>::HeadPOD & src;
 };
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz>
 inline
-DataBuffer2<sz, Pool>::Head::Head(){
+DataBuffer2Segment<sz>::Head::Head(){
   this->init();
 }
 
