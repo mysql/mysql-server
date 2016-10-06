@@ -5202,6 +5202,113 @@ int runCreateDropEventOperation_NF(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+int
+runBlockingRead(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* table = ctx->getTab();
+  Ndb* ndb = GETNDB(step);
+
+  /* Next do some NdbApi task that blocks */
+  {
+    HugoTransactions hugoTrans(*table);
+
+    /* Load one record into the table */
+    CHK(hugoTrans.loadTable(ndb, 1) == 0, "Failed to insert row");
+  }
+
+  /* Setup a read */
+  HugoOperations read1(*table);
+  CHK(read1.startTransaction(ndb) == 0, "Failed to start transaction");
+  CHK(read1.pkReadRecord(ndb, 0, 1, NdbOperation::LM_Exclusive) == 0,
+      "Failed to define locking row read");
+  CHK(read1.execute_NoCommit(ndb) == 0, "Failed to obtain row lock");
+
+  /* Setup a competing read */
+  HugoOperations read2(*table);
+  CHK(read2.startTransaction(ndb) == 0, "Failed to start transaction");
+  CHK(read2.pkReadRecord(ndb, 0, 1, NdbOperation::LM_Exclusive) == 0,
+      "Failed to define competing locking read");
+
+  const Uint32 startCCCount =
+    ndb->get_ndb_cluster_connection().get_connect_count();
+
+  ndbout_c("Cluster connection count : %u",
+           startCCCount);
+
+  /* Executing this read will fail, and it will timeout
+   * after at least the specified TDDT with error 266.
+   * The interesting part of the TC is whether we are
+   * still connected to the cluster at this time!
+   */
+  ndbout_c("Executing competing read, will block...");
+  int rc = read2.execute_NoCommit(ndb);
+
+  const Uint32 postCCCount =
+    ndb->get_ndb_cluster_connection().get_connect_count();
+
+  ndbout_c("Execute rc = %u", rc);
+  ndbout_c("Cluster connection count : %u",
+           postCCCount);
+
+  CHK(rc == 266, "Got unexpected read return code");
+
+  ndbout_c("Success");
+
+  read1.execute_Rollback(ndb);
+  read1.closeTransaction(ndb);
+  read2.closeTransaction(ndb);
+
+  return NDBT_OK;
+}
+
+int
+runSlowGCPCompleteAck(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Bug #18753341 NDB : SLOW NDBAPI OPERATIONS CAN CAUSE
+   * MAXBUFFEREDEPOCHS TO BE EXCEEDED
+   *
+   * ClusterMgr was buffering SUB_GCP_COMMIT_ACK to be
+   * sent by the receiver thread.
+   * In some cases the receiver is the same thread for
+   * a long time, and if it does not regularly flush
+   * its send buffers then the ACKs don't get sent.
+   */
+
+  NdbRestarter restarter;
+
+  /* We chose a value larger than the normal
+   * MaxBufferedEpochs * TimeBetweenEpochs
+   * to test for interaction between the two
+   */
+  const int TransactionDeadlockTimeout = 50000;
+
+  /* First increase TDDT */
+  int dumpCode[] = {DumpStateOrd::TcSetTransactionTimeout,
+                    TransactionDeadlockTimeout};
+  ndbout_c("Setting TDDT to %u millis",
+           TransactionDeadlockTimeout);
+  restarter.dumpStateAllNodes(dumpCode, 2);
+
+  /* Next setup event operation so that we are a
+   * subscriber
+   */
+  const NdbDictionary::Table* table = ctx->getTab();
+  Ndb* ndb = GETNDB(step);
+  NdbEventOperation* eventOp = createEventOperation(ndb, *table);
+  CHK(eventOp != NULL, "Failed to create and execute EventOp");
+
+  int result = runBlockingRead(ctx, step);
+
+  ndb->dropEventOperation(eventOp);
+
+  /* Restore TDDT from config setting */
+  restarter.restartAll();
+
+  return result;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -5582,6 +5689,14 @@ TESTCASE("createDropEvent_NF",
   INITIALIZER(runCreateEvent);
   STEP(runCreateDropEventOperation_NF);
 }
+TESTCASE("SlowGCP_COMPLETE_ACK",
+         "Show problem where GCP_COMPLETE_ACK is not flushed")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runSlowGCPCompleteAck);
+  FINALIZER(runDropEvent);
+}
+
 #if 0
 TESTCASE("BackwardCompatiblePollCOverflowEB",
          "Check whether backward compatibility of pollEvents  manually"

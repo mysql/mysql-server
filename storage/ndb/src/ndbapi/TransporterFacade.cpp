@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1286,6 +1286,7 @@ TransporterFacade::connected()
 void
 TransporterFacade::perform_close_clnt(trp_client* clnt)
 {
+  Guard g(m_open_close_mutex);
   m_threads.close(clnt->m_blockNo);
   dbg("perform_close_clnt: poll_owner: %p", m_poll_owner);
   dbg("perform_close_clnt: clnt: %p", clnt);
@@ -1305,7 +1306,7 @@ TransporterFacade::close_clnt(trp_client* clnt)
 
   if (clnt)
   {
-    Guard g(m_open_close_mutex);
+    NdbMutex_Lock(m_open_close_mutex);
     signal.theReceiversBlockNumber = clnt->m_blockNo;
     signal.theData[0] = clnt->m_blockNo;
     dbg("close(%p)", clnt);
@@ -1334,11 +1335,20 @@ TransporterFacade::close_clnt(trp_client* clnt)
         send signal to poll waiter to close.
       */
       m_threads.close(clnt->m_blockNo);
+      NdbMutex_Unlock(m_open_close_mutex);
       return 0;
     }
     bool not_finished;
     do
     {
+      /**
+       * Obey lock order of trp_c_client::m_mutex vs. open_close_mutex:
+       * deliver_signal(CLOSE_COMREQ) will lock the client, then
+       * perform_close_clnt() which takes the m_open_close_mutex.
+       * That would deadlock if we didn't release open_close_mutex now.
+       */
+      NdbMutex_Unlock(m_open_close_mutex);
+
       clnt->start_poll();
       if (first)
       {
@@ -1347,9 +1357,12 @@ TransporterFacade::close_clnt(trp_client* clnt)
         first = false;
       }
       clnt->do_poll(10);
+
+      NdbMutex_Lock(m_open_close_mutex);
       not_finished = (m_threads.get(clnt->m_blockNo) == clnt);
       clnt->complete_poll();
     } while (not_finished);
+    NdbMutex_Unlock(m_open_close_mutex);
   }
   return 0;
 }
@@ -1357,6 +1370,7 @@ TransporterFacade::close_clnt(trp_client* clnt)
 void
 TransporterFacade::expand_clnt()  //Handle EXPAND_CLNT signal
 {
+  Guard g(m_open_close_mutex);
   m_threads.expand(64);
 }
 
@@ -1364,16 +1378,26 @@ Uint32
 TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
 {
   DBUG_ENTER("TransporterFacade::open");
-
-  bool first = true;
-  Guard g(m_open_close_mutex);
   dbg("open(%p)", clnt);
 
-  while (m_threads.freeCnt() == 0)
+  NdbMutex_Lock(m_open_close_mutex);
+  while (unlikely(m_threads.freeCnt() == 0))
   {
+    // First ::open_clnt seeing 'freeCnt) == 0' will expand
+    const bool do_expand = !m_threads.m_expanding;
+    m_threads.m_expanding = true;
+
+    /**
+     * Obey lock order of trp_c_client::m_mutex vs. open_close_mutex:
+     * deliver_signal(EXPAND_CLNT) will lock the client, then call
+     * expand_clnt() which takes the m_open_close_mutex.
+     * That would deadlock if we didn't release open_close_mutex now.
+     */
+    NdbMutex_Unlock(m_open_close_mutex);
+
     /* Ask ClusterMgr to do m_thread.expand() (Need poll rights)*/
     clnt->start_poll();
-    if (first)
+    if (do_expand)
     {
       NdbApiSignal signal(numberToRef(0, theOwnId));
       signal.theVerId_signalNumber = GSN_EXPAND_CLNT;
@@ -1384,13 +1408,15 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
 
       clnt->raw_sendSignal(&signal, theOwnId);
       clnt->do_forceSend(1);
-      first = false;
     }
+
     clnt->do_poll(10);
     clnt->complete_poll();
+    NdbMutex_Lock(m_open_close_mutex);
   }
 
   const int r= m_threads.open(clnt);
+  NdbMutex_Unlock(m_open_close_mutex);
   if (r < 0)
   {
     DBUG_RETURN(0);
@@ -2117,7 +2143,8 @@ TransporterFacade::get_an_alive_node()
 
 TransporterFacade::ThreadData::ThreadData(Uint32 size)
   : m_use_cnt(0), 
-    m_firstFree(END_OF_LIST)
+    m_firstFree(END_OF_LIST),
+    m_expanding(false)
 {
   expand(size);
 }
@@ -2142,6 +2169,7 @@ TransporterFacade::ThreadData::expand(Uint32 size){
 
   m_clients.back().m_next =  m_firstFree;
   m_firstFree = m_clients.size() - size;
+  m_expanding = false;
 }
 
 
@@ -2183,7 +2211,14 @@ int
 TransporterFacade::ThreadData::close(int number){
   const Uint32 nextFree = m_firstFree;
   const int index= numberToIndex(number);
-  assert(m_clients[index].m_clnt != NULL);
+
+  /**
+   * Guard against race between close from multiple threads.
+   * Couldn't detect this for sure until we now have the poll right.
+   */
+  if (m_clients[index].m_clnt == NULL)
+    return 0;
+
   assert(m_use_cnt);
   m_use_cnt--;
   m_firstFree = index;

@@ -43,14 +43,16 @@
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
+#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 479
 
+extern EventLogger* g_eventLogger;
 
 #ifdef VM_TRACE
 
 /**
- * DEBUG options for different parts od SPJ block
+ * DEBUG options for different parts of SPJ block
  * Comment out those part you don't want DEBUG'ed.
  */
 //#define DEBUG(x) ndbout << "DBSPJ: "<< x << endl;
@@ -2563,6 +2565,72 @@ Dbspj::cleanup_common(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
   }
 }
 
+static
+bool 
+spjCheckFailFunc(const char* predicate,
+                 const char* file,
+                 const unsigned line,
+                 const Uint32 instance)
+{
+  g_eventLogger->info("DBSPJ %u : Failed spjCheck (%s) "
+                      "at line %u of %s.",
+                      instance,
+                      predicate,
+                      line,
+                      file);
+  return false;
+}
+
+#define spjCheck(check)                                      \
+  ((check)?true:                                             \
+   spjCheckFailFunc(#check, __FILE__, __LINE__, instance())) \
+
+
+bool
+Dbspj::checkRequest(const Ptr<Request> requestPtr)
+{
+  jam();
+  
+  /**
+   * We check the request, with individual assertions
+   * affecting the overall result code
+   * We attempt to dump the request if there's a problem
+   * Dumping is done last to avoid problems with iterating
+   * lists concurrently + IntrusiveList.
+   * So checks should record the problem type etc, but not
+   * ndbrequire(false) immediately.  See spjCheck() above.
+   */
+  
+  bool result = true;
+
+  {
+    Ptr<TreeNode> treeNodePtr;
+    Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+    for (list.first(treeNodePtr); 
+         !treeNodePtr.isNull(); 
+         list.next(treeNodePtr))
+    {
+      jam();
+      ndbrequire(treeNodePtr.p->m_info != NULL);
+      if (treeNodePtr.p->m_info->m_checkNode != NULL)
+      {
+        jam();
+        result &= (this->*(treeNodePtr.p->m_info->m_checkNode))
+          (requestPtr, treeNodePtr);
+      }
+    }
+  }
+
+  if (!result)
+  {
+    dumpRequest("failed checkRequest()",
+                requestPtr);
+    ndbrequire(false);
+  }
+
+  return result;
+}
+
 /**
  * Processing of signals from LQH
  */
@@ -2579,6 +2647,8 @@ Dbspj::execLQHKEYREF(Signal* signal)
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
   ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
+
+  ndbassert(checkRequest(requestPtr));
 
   DEBUG("execLQHKEYREF"
      << ", node: " << treeNodePtr.p->m_node_no
@@ -2629,6 +2699,8 @@ Dbspj::execSCAN_FRAGREF(Signal* signal)
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
   ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
+
+  ndbassert(checkRequest(requestPtr));
 
   DEBUG("execSCAN_FRAGREF"
      << ", node: " << treeNodePtr.p->m_node_no
@@ -2687,6 +2759,9 @@ Dbspj::execSCAN_FRAGCONF(Signal* signal)
   m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI);
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  
+  ndbassert(checkRequest(requestPtr));
+
   ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no) ||
             requestPtr.p->m_state & Request::RS_ABORTING);
 
@@ -2735,6 +2810,8 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
   requestPtr.p->m_sum_waiting += Uint32(diff);
   requestPtr.p->m_save_time = now;
 #endif
+
+  ndbassert(checkRequest(requestPtr));
 
   Uint32 state = requestPtr.p->m_state;
   requestPtr.p->m_state = state & ~Uint32(Request::RS_WAITING);
@@ -2834,6 +2911,9 @@ Dbspj::execTRANSID_AI(Signal* signal)
   m_treenode_pool.getPtr(treeNodePtr, ptrI);
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  
+  ndbassert(checkRequest(requestPtr));
+  
   ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
 
   DEBUG("execTRANSID_AI"
@@ -3383,6 +3463,109 @@ Dbspj::checkTableError(Ptr<TreeNode> treeNodePtr) const
   return err;
 }
 
+void 
+Dbspj::dumpScanFragHandle(Ptr<ScanFragHandle> fragPtr) const
+{
+  jam();
+  
+  g_eventLogger->info("DBSPJ %u :         SFH fragid %u state %u ref 0x%x "
+                      "range_sz %u range_cnt %u rangePtr 0x%x",
+                      instance(),
+                      fragPtr.p->m_fragId,
+                      fragPtr.p->m_state,
+                      fragPtr.p->m_ref,
+                      fragPtr.p->m_range_builder.m_range_size,
+                      fragPtr.p->m_range_builder.m_range_cnt,
+                      fragPtr.p->m_rangePtrI);
+}
+
+
+void
+Dbspj::dumpNodeCommon(const Ptr<TreeNode> treeNodePtr) const
+{
+  jam();
+
+  g_eventLogger->info("DBSPJ %u :     TreeNode (%u) (0x%x:%p) state %u bits 0x%x "
+                      "tableid %u schVer 0x%x",
+                      instance(),
+                      treeNodePtr.p->m_node_no,
+                      treeNodePtr.i,
+                      treeNodePtr.p,
+                      treeNodePtr.p->m_state,
+                      treeNodePtr.p->m_bits,
+                      treeNodePtr.p->m_tableOrIndexId,
+                      treeNodePtr.p->m_schemaVersion);
+  g_eventLogger->info("DBSPJ %u :     TreeNode (%u) ptableId %u ref 0x%x "
+                      "correlation %u parentPtrI 0x%x",
+                      instance(),
+                      treeNodePtr.p->m_node_no,
+                      treeNodePtr.p->m_primaryTableId,
+                      treeNodePtr.p->m_send.m_ref,
+                      treeNodePtr.p->m_send.m_correlation,
+                      treeNodePtr.p->m_parentPtrI);
+
+}
+
+void
+Dbspj::dumpRequest(const char* reason,
+                   const Ptr<Request> requestPtr)
+{
+  jam();
+
+  /* TODO Add to DUMP_STATE_ORD */
+  
+  g_eventLogger->info("DBSPJ %u : Dumping request (0x%x:%p) due to %s.",
+                      instance(),
+                      requestPtr.i,
+                      requestPtr.p,
+                      reason);
+
+  g_eventLogger->info("DBSPJ %u :   Request state %u bits 0x%x errCode %u "
+                      "senderRef 0x%x rootFragId %u",
+                      instance(),
+                      requestPtr.p->m_state,
+                      requestPtr.p->m_bits,
+                      requestPtr.p->m_errCode,
+                      requestPtr.p->m_senderRef,
+                      requestPtr.p->m_rootFragId);
+  
+  g_eventLogger->info("DBSPJ %u :   Request transid (0x%x 0x%x) node_cnt %u "
+                      "active_cnt %u m_outstanding %u",
+                      instance(),
+                      requestPtr.p->m_transId[0],
+                      requestPtr.p->m_transId[1],
+                      requestPtr.p->m_node_cnt,
+                      requestPtr.p->m_cnt_active,
+                      requestPtr.p->m_outstanding);
+  
+  /* Iterate over request's nodes */
+  {
+    Ptr<TreeNode> treeNodePtr;
+    Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+    for (list.first(treeNodePtr); 
+         !treeNodePtr.isNull(); 
+         list.next(treeNodePtr))
+    {
+      jam();
+      ndbrequire(treeNodePtr.p->m_info != NULL);
+      
+      dumpNodeCommon(treeNodePtr);
+      
+      if (treeNodePtr.p->m_info->m_dumpNode != NULL)
+      {
+        jam();
+        (this->*(treeNodePtr.p->m_info->m_dumpNode))
+          (requestPtr, treeNodePtr);
+      }
+    }
+  }
+
+  g_eventLogger->info("DBSPJ %u : Finished dumping request (%u:%p)",
+                      instance(),
+                      requestPtr.i,
+                      requestPtr.p);
+}
+
 /**
  * END - MODULE GENERIC
  */
@@ -3483,7 +3666,9 @@ Dbspj::g_LookupOpInfo =
   0, // Dbspj::lookup_complete
   &Dbspj::lookup_abort,
   &Dbspj::lookup_execNODE_FAILREP,
-  &Dbspj::lookup_cleanup
+  &Dbspj::lookup_cleanup,
+  &Dbspj::lookup_checkNode,
+  &Dbspj::lookup_dumpNode
 };
 
 Uint32
@@ -4753,6 +4938,35 @@ error:
   return err;
 }
 
+bool
+Dbspj::lookup_checkNode(const Ptr<Request> requestPtr,
+                        const Ptr<TreeNode> treeNodePtr)
+{
+  jam();
+
+  /* TODO */
+ 
+  return true;
+}
+
+void
+Dbspj::lookup_dumpNode(const Ptr<Request> requestPtr,
+                       const Ptr<TreeNode> treeNodePtr)
+{
+  jam();
+
+  const LookupData& data = treeNodePtr.p->m_lookup_data;
+
+  g_eventLogger->info("DBSPJ %u :       LOOKUP api_resultRef 0x%x "
+                      "resultData %u outstanding %u",
+                      instance(),
+                      data.m_api_resultRef,
+                      data.m_api_resultData,
+                      data.m_outstanding);
+
+  /* TODO : Dump LQHKEYREQ */
+}
+
 /**
  * END - MODULE LOOKUP
  */
@@ -4781,7 +4995,9 @@ Dbspj::g_ScanFragOpInfo =
   0, // Dbspj::scanFrag_complete
   &Dbspj::scanFrag_abort,
   0, // execNODE_FAILREP,
-  &Dbspj::scanFrag_cleanup
+  &Dbspj::scanFrag_cleanup,
+  &Dbspj::scanFrag_checkNode,
+  &Dbspj::scanFrag_dumpNode
 };
 
 Uint32
@@ -5337,6 +5553,42 @@ Dbspj::scanFrag_cleanup(Ptr<Request> requestPtr,
   cleanup_common(requestPtr, treeNodePtr);
 }
 
+bool
+Dbspj::scanFrag_checkNode(const Ptr<Request> requestPtr,
+                          const Ptr<TreeNode> treeNodePtr)
+{
+  jam();
+
+  /* TODO */
+
+  return true;
+}
+
+void
+Dbspj::scanFrag_dumpNode(const Ptr<Request> requestPtr,
+                         const Ptr<TreeNode> treeNodePtr)
+{
+  jam();
+
+  const ScanFragData& data = treeNodePtr.p->m_scanfrag_data;
+
+  g_eventLogger->info("DBSPJ %u :       ScanFrag : rows_expecting %u "
+                      "rows_received %u SFHPtrI %u",
+                      instance(),
+                      data.m_rows_expecting,
+                      data.m_rows_received,
+                      data.m_scanFragHandlePtrI);
+
+  /* TODO SCANFRAGREQ */
+
+  if (data.m_scanFragHandlePtrI != RNIL)
+  {
+    Ptr<ScanFragHandle> fragPtr;
+    m_scanfraghandle_pool.getPtr(fragPtr, data.m_scanFragHandlePtrI);
+    dumpScanFragHandle(fragPtr);
+  }
+}
+
 /**
  * END - MODULE SCAN FRAG
  */
@@ -5365,7 +5617,9 @@ Dbspj::g_ScanIndexOpInfo =
   &Dbspj::scanIndex_complete,
   &Dbspj::scanIndex_abort,
   &Dbspj::scanIndex_execNODE_FAILREP,
-  &Dbspj::scanIndex_cleanup
+  &Dbspj::scanIndex_cleanup,
+  &Dbspj::scanIndex_checkNode,
+  &Dbspj::scanIndex_dumpNode
 };
 
 Uint32
@@ -6192,31 +6446,57 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
   data.m_rows_expecting = 0;
   ndbassert(data.m_frags_outstanding == 0);
   ndbassert(data.m_frags_complete == data.m_fragCount);
-  data.m_frags_complete = 0;
+  ndbassert(treeNodePtr.p->m_state == TreeNode::TN_INACTIVE);
 
-  Ptr<ScanFragHandle> fragPtr;
+  /**
+   * Update the fragments 'm_state' and the aggregated TreeNode::m_frag_*
+   * counters to reflect which fragments we should now start scanning.
+   * NOTE: 'm_state' is not maintained if all 'complete' - node becomes
+   * inactive
+   */
   {
     Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+    Ptr<ScanFragHandle> fragPtr;
     list.first(fragPtr);
+    data.m_frags_complete = 0;
 
     if ((treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN) == 0)
     {
-      if (fragPtr.p->m_rangePtrI == RNIL)
+      /* No pruning, first fragment in list contains any range info */
+      if (fragPtr.p->m_rangePtrI != RNIL)
       {
-        // No keys found
+        /* All fragments to be scanned with range info */
+        while(!fragPtr.isNull())
+        {
+          ndbassert(fragPtr.p->m_state == ScanFragHandle::SFH_NOT_STARTED ||
+                    fragPtr.p->m_state == ScanFragHandle::SFH_COMPLETE);
+          fragPtr.p->m_state = ScanFragHandle::SFH_NOT_STARTED;
+          list.next(fragPtr);
+        }
+      }
+      else
+      {
+        /* No range info therefore empty result set.  Will 
+         * transition to TN_INACTIVE state below.  Note
+         * fragment states not updated here.
+         */
         jam();
         data.m_frags_complete = data.m_fragCount;
       }
     }
     else
     {
+      /* Per fragment pruning, mark and count pruned-out 
+       * (rangeless) fragments as completed 
+       */
       while(!fragPtr.isNull())
       {
+        fragPtr.p->m_state = ScanFragHandle::SFH_NOT_STARTED;
         if (fragPtr.p->m_rangePtrI == RNIL)
         {
           jam();
           /**
-           * This is a pruned scan, so we must scan those fragments that
+           * This is a pruned scan, so we only scan those fragments that
            * some distribution key hashed to.
            */
           fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
@@ -6225,8 +6505,8 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
         list.next(fragPtr);
       }
     }
+    data.m_frags_not_started = data.m_fragCount - data.m_frags_complete;
   }
-  data.m_frags_not_started = data.m_fragCount - data.m_frags_complete;
 
   if (data.m_frags_complete == data.m_fragCount)
   {
@@ -6318,20 +6598,6 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
   data.m_largestBatchBytes = 0;
   data.m_totalRows = 0;
   data.m_totalBytes = 0;
-
-  {
-    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
-    Ptr<ScanFragHandle> fragPtr;
-    list.first(fragPtr);
-
-    while(!fragPtr.isNull())
-    {
-      ndbassert(fragPtr.p->m_state == ScanFragHandle::SFH_NOT_STARTED ||
-                fragPtr.p->m_state == ScanFragHandle::SFH_COMPLETE);
-      fragPtr.p->m_state = ScanFragHandle::SFH_NOT_STARTED;
-      list.next(fragPtr);
-    }
-  }
 
   Uint32 batchRange = 0;
   Uint32 frags_started = 
@@ -6507,17 +6773,9 @@ Dbspj::scanIndex_send(Signal* signal,
       {
         jam();
         keyInfoPtrI = fragPtr.p->m_rangePtrI;
-        if (keyInfoPtrI == RNIL)
-        {
-          /**
-           * Since we use pruning, we can see that no parent rows would hash
-           * to this fragment.
-           */
-          jam();
-          fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
-          list.next(fragPtr);
-          continue;
-        }
+        
+        /* Pruning out of rangeless fragments done above */
+        ndbassert(keyInfoPtrI != RNIL);
 
         if (!repeatable)
         {
@@ -7390,6 +7648,122 @@ Dbspj::scanIndex_cleanup(Ptr<Request> requestPtr,
 
   cleanup_common(requestPtr, treeNodePtr);
 }
+                      
+
+bool
+Dbspj::scanIndex_checkNode(const Ptr<Request> requestPtr,
+                           const Ptr<TreeNode> treeNodePtr)
+{
+  jam();
+  
+  jamLine(treeNodePtr.p->m_state);
+
+  if (treeNodePtr.p->m_state != TreeNode::TN_ACTIVE)
+  {
+    return true;
+  }
+
+  bool checkResult = true;
+
+  {
+    ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+    Ptr<ScanFragHandle> fragPtr;
+    
+    Uint32 frags_not_started = 0;
+    Uint32 frags_outstanding_scan = 0;
+    Uint32 frags_outstanding_close = 0;
+    Uint32 frags_waiting = 0;
+    Uint32 frags_completed = 0;
+
+    Uint32 fragCount = 0;
+    
+    for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
+    {
+      fragCount++;
+      switch(fragPtr.p->m_state){
+      case ScanFragHandle::SFH_NOT_STARTED:
+        jam();
+        frags_not_started++;
+        break;
+      case ScanFragHandle::SFH_SCANNING:
+        jam();
+        frags_outstanding_scan++;
+        break;
+      case ScanFragHandle::SFH_WAIT_CLOSE:
+        jam();
+        frags_outstanding_close++;
+        break;
+      case ScanFragHandle::SFH_WAIT_NEXTREQ:
+        jam();
+        frags_waiting++;
+        break;
+      case ScanFragHandle::SFH_COMPLETE:
+        jam();
+        frags_completed++;
+        break;
+      default:
+        checkResult &= spjCheck(false);
+        break;
+      }
+    }
+
+    /**
+     * Compare counters to state, state must be valid
+     * at all stable points in time for execNODE_FAILREP
+     * handling
+     */
+    checkResult &= spjCheck(data.m_frags_not_started == frags_not_started);
+    checkResult &= spjCheck(data.m_frags_outstanding == 
+                            (frags_outstanding_scan + 
+                             frags_outstanding_close));
+    checkResult &= spjCheck(data.m_frags_complete == frags_completed);
+  }
+ 
+  return checkResult;
+}
+
+
+void
+Dbspj::scanIndex_dumpNode(const Ptr<Request> requestPtr,
+                          const Ptr<TreeNode> treeNodePtr)
+{
+  jam();
+
+  /* Non const ref due to list iteration below */
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+  
+  g_eventLogger->info("DBSPJ %u :       ScanIndex fragCount %u frags_complete %u "
+                      "frags_outstanding %u frags_not_started %u ",
+                      instance(),
+                      data.m_fragCount,
+                      data.m_frags_complete,
+                      data.m_frags_outstanding,
+                      data.m_frags_not_started);
+  g_eventLogger->info("DBSPJ %u :       parallelism %u rows_expecting %u "
+                      "rows_received %u firstBatch %u firstExec %u",
+                      instance(),
+                      data.m_parallelism,
+                      data.m_rows_expecting,
+                      data.m_rows_received,
+                      data.m_firstBatch,
+                      data.m_firstExecution);
+  g_eventLogger->info("DBSPJ %u :       totalRows %u totalBytes %u "
+                      "constPrunePtrI %u",
+                      instance(),
+                      data.m_totalRows,
+                      data.m_totalBytes,
+                      data.m_constPrunePtrI);
+  {
+    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+    Ptr<ScanFragHandle> fragPtr;
+    for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
+    {
+      dumpScanFragHandle(fragPtr);
+    }
+  }
+}
+
 
 /**
  * END - MODULE SCAN INDEX
