@@ -297,9 +297,8 @@ private:
       Uses RAII.
 
       @param sess Session to backup
-      @param is_close_session
     */
-    Session_backup_and_attach(Srv_session *sess, bool is_close_session);
+    Session_backup_and_attach(Srv_session *sess);
 
     /**
       Destructs the session state object. In other words it restores to
@@ -311,7 +310,6 @@ private:
     Srv_session *session;
     Srv_session *old_session; /* used in srv_session threads */
     THD *backup_thd;
-    bool in_close_session;
   public:
     bool attach_error;
   };
