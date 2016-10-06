@@ -488,7 +488,6 @@ INSERT INTO t1 VALUES ('a',1),('a',2),('a',3),('b',1),('b',4),('c',1),('d',1),
 
 SET @optimizer_switch_saved=@@session.optimizer_switch;
 SET @@session.optimizer_switch=default;
-SET optimizer_trace="enabled=on";
 
 SELECT COUNT(*) FROM t1;
 # Uses "access_type_changed" to use range over ref despite b_idx not being the
@@ -497,7 +496,26 @@ EXPLAIN SELECT * FROM t1 WHERE a IN ('a', 'b') AND b = 2;
 --replace_regex /"rows": 12/"rows": 11/ /"cost": 5.5/"cost": 5.3/
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
-SET optimizer_trace="enabled=off";
 SET @@session.optimizer_switch=@optimizer_switch_saved;
 
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #23227428: SQL PLAN IS NOT ACCORDING WITH OPTIMIZER_TRACE
+--echo #
+
+CREATE TABLE t1(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                c2 CHAR(12)) ENGINE=INNODB;
+disable_query_log;
+let $1 = 1000;
+while ($1)
+{
+ eval INSERT INTO t1(c2) VALUES ('$1');
+ dec $1;
+}
+enable_query_log;
+
+EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1;
+--replace_regex /"cost": 3/"cost": 1/ /"cost": 4/"cost": 1/ /"cost": 203/"cost": 201/ /"cost": 204/"cost": 201/ /"cost_for_plan": 203/"cost_for_plan": 201/ /"cost_for_plan": 204/"cost_for_plan": 201/
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 DROP TABLE t1;
