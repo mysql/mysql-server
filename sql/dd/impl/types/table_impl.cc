@@ -192,9 +192,12 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
       inline bool operator() (const Trigger *t1,
                               const Trigger *t2) const
       {
-        return t1->action_timing() < t2->action_timing() &&
-               t1->event_type() < t2->event_type() &&
-               t1->action_order() < t2->action_order();
+        return (t1->action_timing() < t2->action_timing()) ||
+                (t1->action_timing() == t2->action_timing() &&
+                 t1->event_type() < t2->event_type()) ||
+                (t1->action_timing() == t2->action_timing() &&
+                 t1->event_type() == t2->event_type() &&
+                 t1->action_order() < t2->action_order());
       }
     };
 
