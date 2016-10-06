@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -125,7 +125,13 @@ STRING(REPLACE       "-grecord-gcc-switches"         "" CXXFLAGS "${CXXFLAGS}")
 STRING(REPLACE       "-pipe"                         "" CXXFLAGS "${CXXFLAGS}")
 
 IF(UNIX)
-  # FIND_PROC and CHECK_PID are used by mysqld_safe
+  # SHELL_PATH, FIND_PROC, CHECK_PID are used by mysqld_safe
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  SET (SHELL_PATH "/bin/bash")
+ELSE()
+  SET (SHELL_PATH "/bin/sh")
+ENDIF()
+
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   SET (FIND_PROC 
     "ps wwwp $PID | grep -v mysqld_safe | grep -- $MYSQLD > /dev/null")
