@@ -3090,6 +3090,9 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
 {
   if (thd)
   {
+    /* Block the Performance Schema from accessing THD::variables. */
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    
     plugin_var_memalloc_free(&thd->variables);
     thd->session_sysvar_res_mgr.deinit();
   }
@@ -3100,6 +3103,9 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
   vars->dynamic_variables_ptr= NULL;
   vars->dynamic_variables_size= 0;
   vars->dynamic_variables_version= 0;
+
+  if (thd)
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
 }
 
 
