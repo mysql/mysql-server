@@ -99,12 +99,12 @@ protected:
 
 public:
   struct ScanFragHandle;
-  typedef DataBuffer2<14, LocalArenaPoolImpl> Correlation_list;
-  typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_correlation_list;
-  typedef DataBuffer2<14, LocalArenaPoolImpl> Dependency_map;
-  typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_dependency_map;
-  typedef DataBuffer2<14, LocalArenaPoolImpl> PatternStore;
-  typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_pattern_store;
+  typedef DataBuffer2<14, LocalArenaPoolImpl<DataBuffer2Segment<14> > > Correlation_list;
+  typedef LocalDataBuffer2<14, LocalArenaPoolImpl<DataBuffer2Segment<14> > > Local_correlation_list;
+  typedef DataBuffer2<14, LocalArenaPoolImpl<DataBuffer2Segment<14> > > Dependency_map;
+  typedef LocalDataBuffer2<14, LocalArenaPoolImpl<DataBuffer2Segment<14> > > Local_dependency_map;
+  typedef DataBuffer2<14, LocalArenaPoolImpl<DataBuffer2Segment<14> > > PatternStore;
+  typedef LocalDataBuffer2<14, LocalArenaPoolImpl<DataBuffer2Segment<14> > > Local_pattern_store;
   typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> TreeNodeBitMask;
 
   /* *********** TABLE RECORD ********************************************* */
@@ -710,7 +710,7 @@ public:
     };
   };
 
-  typedef RecordPool<ScanFragHandle, ArenaPool> ScanFragHandle_pool;
+  typedef RecordPool<ScanFragHandle, ArenaPool<ScanFragHandle> > ScanFragHandle_pool;
   typedef SLFifoListImpl<ScanFragHandle_pool, ScanFragHandle> ScanFragHandle_list;
   typedef LocalSLFifoListImpl<ScanFragHandle_pool, ScanFragHandle> Local_ScanFragHandle_list;
 
@@ -1066,7 +1066,7 @@ public:
 
   static const Ptr<TreeNode> NullTreeNodePtr;
 
-  typedef RecordPool<TreeNode, ArenaPool> TreeNode_pool;
+  typedef RecordPool<TreeNode, ArenaPool<TreeNode> > TreeNode_pool;
   typedef DLFifoListImpl<TreeNode_pool, TreeNode> TreeNode_list;
   typedef LocalDLFifoListImpl<TreeNode_pool, TreeNode> Local_TreeNode_list;
 
@@ -1275,7 +1275,7 @@ private:
 
   } c_Counters;
 
-  typedef RecordPool<Request, ArenaPool> Request_pool;
+  typedef RecordPool<Request, ArenaPool<Request> > Request_pool;
   typedef DLListImpl<Request_pool, Request> Request_list;
   typedef LocalDLListImpl<Request_pool, Request> Local_Request_list;
   typedef DLHashTableImpl<Request_pool, Request> Request_hash;
@@ -1285,7 +1285,7 @@ private:
   Request_pool m_request_pool;
   Request_hash m_scan_request_hash;
   Request_hash m_lookup_request_hash;
-  ArenaPool m_dependency_map_pool;
+  ArenaPool<DataBuffer2Segment<14> > m_dependency_map_pool;
   TreeNode_pool m_treenode_pool;
   ScanFragHandle_pool m_scanfraghandle_pool;
 
