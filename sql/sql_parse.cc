@@ -669,8 +669,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_RELEASE_SAVEPOINT]|=       CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SLAVE_START]|=             CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SLAVE_STOP]|=              CF_ALLOW_PROTOCOL_PLUGIN;
-  sql_command_flags[SQLCOM_START_GROUP_REPLICATION]|= CF_ALLOW_PROTOCOL_PLUGIN;
-  sql_command_flags[SQLCOM_STOP_GROUP_REPLICATION]|=  CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_BEGIN]|=                   CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_CHANGE_MASTER]|=           CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_CHANGE_REPLICATION_FILTER]|= CF_ALLOW_PROTOCOL_PLUGIN;
