@@ -15,21 +15,24 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#if 0
 #include "WOPool.hpp"
 #include <ndbd_exit_codes.h>
 #include <NdbOut.hpp>
 
 #define JAM_FILE_ID 294
+#endif
 
-
-WOPool::WOPool() 
+template<typename T>
+WOPool<T>::WOPool() 
 {
   memset(this, 0, sizeof(* this));
   m_current_pos = WOPage::WOPAGE_WORDS;
 }
 
+template<typename T>
 void
-WOPool::init(const Record_info& ri, const Pool_context& pc)
+WOPool<T>::init(const Record_info& ri, const Pool_context& pc)
 {
   m_ctx = pc;
   m_record_info = ri;
@@ -37,12 +40,13 @@ WOPool::init(const Record_info& ri, const Pool_context& pc)
   m_record_info.m_offset_magic = ((ri.m_offset_magic + 3) >> 2);
   m_memroot = (WOPage*)m_ctx.get_memroot();
 #ifdef VM_TRACE
-  ndbout_c("WOPool::init(%x, %d)",ri.m_type_id, m_record_info.m_size);
+  ndbout_c("WOPool<T>::init(%x, %d)",ri.m_type_id, m_record_info.m_size);
 #endif
 }
 
+template<typename T>
 bool
-WOPool::seize_new_page(Ptr<void>& ptr)
+WOPool<T>::seize_new_page(Ptr<T>& ptr)
 {
   WOPage* page;
   Uint32 page_no = RNIL;
@@ -64,8 +68,9 @@ WOPool::seize_new_page(Ptr<void>& ptr)
   return false;
 }
 
+template<typename T>
 void
-WOPool::release_not_current(Ptr<void> ptr)
+WOPool<T>::release_not_current(Ptr<T> ptr)
 {
   WOPage* page = (WOPage*)(UintPtr(ptr.p) & ~(GLOBAL_PAGE_SIZE - 1));
   Uint32 cnt = page->m_ref_count;
@@ -85,8 +90,9 @@ WOPool::release_not_current(Ptr<void> ptr)
   handle_inconsistent_release(ptr);
 }
 
+template<typename T>
 void
-WOPool::handle_invalid_release(Ptr<void> ptr)
+WOPool<T>::handle_invalid_release(Ptr<T> ptr)
 {
   char buf[255];
 
@@ -105,8 +111,9 @@ WOPool::handle_invalid_release(Ptr<void> ptr)
   m_ctx.handleAbort(NDBD_EXIT_PRGERR, buf);
 }
 
+template<typename T>
 void
-WOPool::handle_invalid_get_ptr(Uint32 ptrI) const
+WOPool<T>::handle_invalid_get_ptr(Uint32 ptrI) const
 {
   char buf[255];
 
@@ -124,8 +131,9 @@ WOPool::handle_invalid_get_ptr(Uint32 ptrI) const
   m_ctx.handleAbort(NDBD_EXIT_PRGERR, buf);
 }
 
+template<typename T>
 void
-WOPool::handle_inconsistent_release(Ptr<void> ptr)
+WOPool<T>::handle_inconsistent_release(Ptr<T> ptr)
 {
   WOPage* page = (WOPage*)(UintPtr(ptr.p) & ~(GLOBAL_PAGE_SIZE - 1));
   Uint32 cnt = page->m_ref_count;

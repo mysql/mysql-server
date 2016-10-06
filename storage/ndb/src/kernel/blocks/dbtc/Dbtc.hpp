@@ -715,7 +715,7 @@ public:
     }
   };
 
-  typedef RecordPool<TcFKData, RWPool> FK_pool;
+  typedef RecordPool<TcFKData, RWPool<TcFKData> > FK_pool;
   typedef KeyTableImpl<FK_pool, TcFKData> FK_hash;
 
   FK_pool c_fk_pool;

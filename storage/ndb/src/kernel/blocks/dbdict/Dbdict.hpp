@@ -646,7 +646,7 @@ public:
     };
   };
   typedef Ptr<File> FilePtr;
-  typedef RecordPool<File, RWPool> File_pool;
+  typedef RecordPool<File, RWPool<File> > File_pool;
   typedef DLListImpl<File_pool, File> File_list;
   typedef LocalDLListImpl<File_pool, File> Local_file_list;
 
@@ -680,7 +680,7 @@ public:
     };
   };
   typedef Ptr<Filegroup> FilegroupPtr;
-  typedef RecordPool<Filegroup, RWPool> Filegroup_pool;
+  typedef RecordPool<Filegroup, RWPool<Filegroup> > Filegroup_pool;
 
   File_pool c_file_pool;
   Filegroup_pool c_filegroup_pool;
@@ -4349,7 +4349,7 @@ private:
   };
 
   typedef Ptr<ForeignKeyRec> ForeignKeyRecPtr;
-  typedef RecordPool<ForeignKeyRec, RWPool> ForeignKeyRec_pool;
+  typedef RecordPool<ForeignKeyRec, RWPool<ForeignKeyRec> > ForeignKeyRec_pool;
 
   ForeignKeyRec_pool c_fk_pool;
 

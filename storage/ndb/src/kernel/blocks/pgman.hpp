@@ -277,7 +277,7 @@ private:
     Uint32 m_magic;
   };
 
-  typedef RecordPool<Page_request, WOPool> Page_request_pool;
+  typedef RecordPool<Page_request, WOPool<Page_request> > Page_request_pool;
   typedef SLFifoListImpl<Page_request_pool, Page_request> Page_request_list;
   typedef LocalSLFifoListImpl<Page_request_pool, Page_request> Local_page_request_list;
   

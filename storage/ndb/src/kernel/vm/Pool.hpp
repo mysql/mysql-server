@@ -379,7 +379,7 @@ inline
 bool
 RecordPool<T, P>::seize(Ptr<T> & ptr)
 {
-  Ptr<void> tmp;
+  Ptr<T> tmp;
   bool ret = m_pool.seize(tmp);
   if(likely(ret))
   {
@@ -394,7 +394,7 @@ inline
 bool
 RecordPool<T, P>::seize(ArenaHead & ah, Ptr<T> & ptr)
 {
-  Ptr<void> tmp;
+  Ptr<T> tmp;
   bool ret = m_pool.seize(ah, tmp);
   if(likely(ret))
   {
@@ -409,7 +409,7 @@ inline
 void
 RecordPool<T, P>::release(Uint32 i)
 {
-  Ptr<void> ptr;
+  Ptr<T> ptr;
   ptr.i = i;
   ptr.p = m_pool.getPtr(i);
   m_pool.release(ptr);
@@ -420,7 +420,7 @@ inline
 void
 RecordPool<T, P>::release(Ptr<T> ptr)
 {
-  Ptr<void> tmp;
+  Ptr<T> tmp;
   tmp.i = ptr.i;
   tmp.p = ptr.p;
   m_pool.release(tmp);

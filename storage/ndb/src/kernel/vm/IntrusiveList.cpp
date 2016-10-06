@@ -417,7 +417,7 @@ main(int argc, char **argv)
   pool.setSize(10 * scale);
 #else
   Pool_context pc = test_context(1 * scale);
-  RecordPool<T, RWPool> pool;
+  RecordPool<T, RWPool<T> > pool;
   pool.init(1, pc);
 #endif
 

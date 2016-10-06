@@ -369,7 +369,7 @@ DataBuffer2<sz, Pool>::seize(Uint32 n){
 
   while (n >= sz)
   {
-    Ptr<void> tmp;
+    Ptr<Segment> tmp;
     if (thePool.seize(tmp))
     {
       currPtr.p->nextPool = tmp.i;
@@ -385,7 +385,7 @@ DataBuffer2<sz, Pool>::seize(Uint32 n){
 
   if(n > rest)
   {
-    Ptr<void> tmp;
+    Ptr<Segment> tmp;
     if (thePool.seize(tmp))
     {
       currPtr.p->nextPool = tmp.i;
@@ -418,7 +418,7 @@ error:
   while (currPtr.i != RNIL)
   {
     currPtr.p = static_cast<Segment*>(thePool.getPtr(currPtr.i));
-    Ptr<void> tmp;
+    Ptr<Segment> tmp;
     tmp.i = currPtr.i;
     tmp.p = currPtr.p;
     currPtr.i = currPtr.p->nextPool;
@@ -431,7 +431,7 @@ template<Uint32 sz, typename Pool>
 inline
 void
 DataBuffer2<sz, Pool>::release(){
-  Ptr<void> tmp;
+  Ptr<Segment> tmp;
   tmp.i = head.firstItem;
   while (tmp.i != RNIL)
   {
