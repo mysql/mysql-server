@@ -510,7 +510,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Uint32 m_magic;
   }; // 32 bytes
   
-  typedef RecordPool<Page_request, WOPool> Page_request_pool;
+  typedef RecordPool<Page_request, WOPool<Page_request> > Page_request_pool;
   typedef DLFifoListImpl<Page_request_pool, Page_request> Page_request_list;
   typedef LocalDLFifoListImpl<Page_request_pool, Page_request> Local_page_request_list;
 
@@ -550,7 +550,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     }
   }; // 40 bytes
 
-  typedef RecordPool<Extent_info, RWPool> Extent_info_pool;
+  typedef RecordPool<Extent_info, RWPool<Extent_info> > Extent_info_pool;
   typedef DLListImpl<Extent_info_pool, Extent_info> Extent_info_list;
   typedef LocalDLListImpl<Extent_info_pool, Extent_info> Local_extent_info_list;
   typedef DLHashTableImpl<Extent_info_pool, Extent_info> Extent_info_hash;

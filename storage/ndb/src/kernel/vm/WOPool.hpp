@@ -35,6 +35,7 @@ struct WOPage
 /**
  * Write Once Pool
  */
+template<typename T>
 struct WOPool
 {
   Record_info m_record_info;
@@ -45,26 +46,28 @@ struct WOPool
   Uint16 m_current_pos;
   Uint16 m_current_ref_count;
 public:
+  typedef T Type;
   WOPool();
   
   void init(const Record_info& ri, const Pool_context& pc);
-  bool seize(Ptr<void>&);
-  void release(Ptr<void>);
+  bool seize(Ptr<T>&);
+  void release(Ptr<T>);
   void * getPtr(Uint32 i) const;
   
 private:  
-  void seize_in_page(Ptr<void>&);
-  bool seize_new_page(Ptr<void>&);
-  void release_not_current(Ptr<void>);
+  void seize_in_page(Ptr<T>&);
+  bool seize_new_page(Ptr<T>&);
+  void release_not_current(Ptr<T>);
 
-  void handle_invalid_release(Ptr<void>) ATTRIBUTE_NORETURN;
+  void handle_invalid_release(Ptr<T>) ATTRIBUTE_NORETURN;
   void handle_invalid_get_ptr(Uint32 i) const ATTRIBUTE_NORETURN;
-  void handle_inconsistent_release(Ptr<void>) ATTRIBUTE_NORETURN;
+  void handle_inconsistent_release(Ptr<T>) ATTRIBUTE_NORETURN;
 };
 
+template<typename T>
 inline
 void
-WOPool::seize_in_page(Ptr<void>& ptr)
+WOPool<T>::seize_in_page(Ptr<T>& ptr)
 {
   Uint32 pos = m_current_pos;
   WOPage *pageP = m_current_page;
@@ -75,15 +78,17 @@ WOPool::seize_in_page(Ptr<void>& ptr)
 
   assert(pos + size < WOPage::WOPAGE_WORDS);
   ptr.i = (m_current_page_no << POOL_RECORD_BITS) + pos;
-  ptr.p = (pageP->m_data + pos);
+  Uint32* const p = (pageP->m_data + pos);
+  ptr.p = reinterpret_cast<T*>(p); // TODO dynamic_cast?
   pageP->m_data[magic_pos] = type_id;
   m_current_pos = pos + size;
   m_current_ref_count = ref_count + 1;
 }
 
+template<typename T>
 inline
 bool
-WOPool::seize(Ptr<void>& ptr)
+WOPool<T>::seize(Ptr<T>& ptr)
 {
   if (likely(m_current_pos + m_record_info.m_size < WOPage::WOPAGE_WORDS))
   {
@@ -93,9 +98,10 @@ WOPool::seize(Ptr<void>& ptr)
   return seize_new_page(ptr);
 }
 
+template<typename T>
 inline
 void
-WOPool::release(Ptr<void> ptr)
+WOPool<T>::release(Ptr<T> ptr)
 {
   Uint32 cur_page = m_current_page_no;
   Uint32 ptr_page = ptr.i >> POOL_RECORD_BITS;
@@ -119,9 +125,10 @@ WOPool::release(Ptr<void> ptr)
   handle_invalid_release(ptr);
 }
 
+template<typename T>
 inline
 void*
-WOPool::getPtr(Uint32 i) const
+WOPool<T>::getPtr(Uint32 i) const
 {
   Uint32 page_no = i >> POOL_RECORD_BITS;
   Uint32 page_idx = i & POOL_RECORD_MASK;
@@ -136,6 +143,7 @@ WOPool::getPtr(Uint32 i) const
   return 0;                                     /* purify: deadcode */
 }
 
+#include "WOPool.cpp"
 
 #undef JAM_FILE_ID
 

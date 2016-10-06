@@ -63,7 +63,7 @@ class ArenaPool; // forward
 
 class ArenaAllocator
 {
-  RWPool m_pool;
+  RWPool<void> m_pool;
   Uint32 m_block_size;
   template<typename T> friend class ArenaPool;
 public:
@@ -82,14 +82,14 @@ public:
 
   void init(ArenaAllocator*, const Record_info& ri, const Pool_context& pc);
 
-  bool seize(Ptr<void>&) { assert(false); return false; } // Not implemented...
+  bool seize(Ptr<T>&) { assert(false); return false; } // Not implemented...
 
-  bool seize(ArenaHead&, Ptr<void>&);
-  void release(Ptr<void>);
-  void * getPtr(Uint32 i) const;
+  bool seize(ArenaHead&, Ptr<T>&);
+  void release(Ptr<T>);
+  T * getPtr(Uint32 i) const;
 
 private:
-  void handle_invalid_release(Ptr<void>) ATTRIBUTE_NORETURN;
+  void handle_invalid_release(Ptr<T>) ATTRIBUTE_NORETURN;
 
   Record_info m_record_info;
   ArenaAllocator * m_allocator;
@@ -104,25 +104,27 @@ public:
   LocalArenaPoolImpl(ArenaHead& head, ArenaPool<T> & pool)
     : m_head(head), m_pool(pool) {}
 
-  bool seize(Ptr<void> & ptr) { return m_pool.seize(m_head, ptr); }
-  void release(Ptr<void> ptr) { m_pool.release(ptr); }
-  void * getPtr(Uint32 i) const { return m_pool.getPtr(i); }
+  bool seize(Ptr<T> & ptr) { return m_pool.seize(m_head, ptr); }
+  void release(Ptr<T> ptr) { m_pool.release(ptr); }
+  T * getPtr(Uint32 i) const { return m_pool.getPtr(i); }
 };
 
 template<typename T>
 inline
-void*
+T*
 ArenaPool<T>::getPtr(Uint32 i) const
 {
-  return m_allocator->m_pool.getPtr(m_record_info, i);
+  void* const p = m_allocator->m_pool.getPtr(m_record_info, i);
+  return static_cast<T*>(p);
 }
 
 template<typename T>
 inline
 void
-ArenaPool<T>::release(Ptr<void> ptr)
+ArenaPool<T>::release(Ptr<T> ptr)
 {
-  Uint32 * record_ptr = static_cast<Uint32*>(ptr.p);
+  // TODO add trait extracting magic for type T
+  Uint32 * record_ptr = reinterpret_cast<Uint32*>(ptr.p);
   Uint32 off = m_record_info.m_offset_magic;
   Uint32 type_id = m_record_info.m_type_id;
   Uint32 magic_val = * (record_ptr + off);
@@ -156,7 +158,7 @@ require(ri.m_size == sizeof(T));
 
 template<typename T>
 bool
-ArenaPool<T>::seize(ArenaHead & ah, Ptr<void>& ptr)
+ArenaPool<T>::seize(ArenaHead & ah, Ptr<T>& ptr)
 {
   Uint32 pos = ah.m_first_free;
   Uint32 bs = ah.m_block_size;
@@ -179,7 +181,8 @@ require(sizeof(T) <= sz*sizeof(Uint32));
     ptr.i =
       ((ptrI >> POOL_RECORD_BITS) << POOL_RECORD_BITS) +
       (ptrI & POOL_RECORD_MASK) + pos + ArenaBlock::HeaderSize;
-    ptr.p = block->m_data + pos;
+    Uint32* const p = block->m_data + pos;
+    ptr.p = reinterpret_cast<T*>(p); // TODO dynamic_cast?
     block->m_data[pos+off] = ~(Uint32)m_record_info.m_type_id;
 
     ah.m_first_free = pos + sz;
@@ -206,7 +209,7 @@ require(sizeof(T) <= sz*sizeof(Uint32));
 
 template<typename T>
 void
-ArenaPool<T>::handle_invalid_release(Ptr<void> ptr)
+ArenaPool<T>::handle_invalid_release(Ptr<T> ptr)
 {
   char buf[255];
 

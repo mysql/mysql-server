@@ -96,7 +96,7 @@ public:
     Uint32 m_magic;
   };
 
-  typedef RecordPool<Log_waiter, WOPool> Log_waiter_pool;
+  typedef RecordPool<Log_waiter, WOPool<Log_waiter> > Log_waiter_pool;
   typedef SLFifoListImpl<Log_waiter_pool, Log_waiter> Log_waiter_list;
   typedef LocalSLFifoListImpl<Log_waiter_pool, Log_waiter> Local_log_waiter_list;
   
@@ -153,7 +153,7 @@ public:
     };
   };
 
-  typedef RecordPool<Undofile, RWPool> Undofile_pool;
+  typedef RecordPool<Undofile, RWPool<Undofile> > Undofile_pool;
   typedef DLFifoListImpl<Undofile_pool, Undofile> Undofile_list;
   typedef LocalDLFifoListImpl<Undofile_pool, Undofile> Local_undofile_list;
   typedef LocalDataBuffer<15> Page_map;
@@ -250,7 +250,7 @@ public:
     }
   };
 
-  typedef RecordPool<Logfile_group, RWPool> Logfile_group_pool;
+  typedef RecordPool<Logfile_group, RWPool<Logfile_group> > Logfile_group_pool;
   typedef DLFifoListImpl<Logfile_group_pool, Logfile_group> Logfile_group_list;
   typedef LocalDLFifoListImpl<Logfile_group_pool, Logfile_group> Local_logfile_group_list;
   typedef KeyTableImpl<Logfile_group_pool, Logfile_group> Logfile_group_hash;
