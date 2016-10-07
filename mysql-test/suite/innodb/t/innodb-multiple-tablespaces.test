@@ -3,6 +3,7 @@
 #
 
 --source include/have_innodb.inc
+--source include/have_debug.inc
 
 # Embedded server does not support crashing
 --source include/not_embedded.inc
@@ -335,6 +336,10 @@ INSERT INTO yy VALUES (1, 'yy');
 --echo #
 --echo # Crash the server, copy and remove files.
 --echo #
+
+#Ensure that master thread doesnt do a checkpoint
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+
 BEGIN;
 INSERT INTO ny VALUES (2, 'ny');
 INSERT INTO wy VALUES (2, 'wy');
