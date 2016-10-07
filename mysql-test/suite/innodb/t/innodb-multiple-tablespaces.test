@@ -365,6 +365,8 @@ INSERT INTO yy VALUES (1, 'yy');
 --echo #
 --echo # Crash the server, copy and remove files.
 --echo #
+--source include/no_checkpoint_start.inc
+
 BEGIN;
 INSERT INTO ny VALUES (2, 'ny');
 INSERT INTO wy VALUES (2, 'wy');
@@ -378,7 +380,11 @@ SELECT * FROM yn;
 SELECT * FROM yw;
 SELECT * FROM yy;
 
---source include/kill_mysqld.inc
+--let CLEANUP_IF_CHECKPOINT=drop table ny,wy,yn,yw,yy;
+--let CLEANUP_FILES_IF_CHECKPOINT=--source suite/innodb/include/innodb-multiple-tablespaces-cleanup.inc
+
+#This will kill the server
+--source include/no_checkpoint_end.inc
 
 --echo #
 --echo # Now that the engine is not running, move files around to test various scenarios.
