@@ -13,7 +13,7 @@
 #   NUMBER_OF_OBJECTS = 2 * NUMBER_OF_OBJECTS_TO_NEST
 #
 -->macro Send_crud_find_with_repeated_nested_objects	%OBJECTS_TO_NEST%
--->varlet %NESTED_OBJECTS% 
+-->varlet %NESTED_OBJECTS%
 
 -->varlet %OBJECTS_TO_REPEAT% %OBJECTS_TO_NEST%
 -->varinc %OBJECTS_TO_REPEAT% -3
@@ -21,11 +21,11 @@
 -->repeat %OBJECTS_TO_REPEAT%	%ITERATION%
 -->varlet %OBJECT_NUMBER% %ITERATION%
 -->varinc %OBJECT_NUMBER% 4
--->varlet %NESTED_OBJECTS% %NESTED_OBJECTS%  value { type: ARRAY array { value { type: LITERAL literal { type: V_SINT v_signed_int: %OBJECT_NUMBER% } } 
+-->varlet %NESTED_OBJECTS% %NESTED_OBJECTS%  value { type: ARRAY array { value { type: LITERAL literal { type: V_SINT v_signed_int: %OBJECT_NUMBER% } }
 -->endrepeat
 
 -->repeat %OBJECTS_TO_REPEAT%
--->varlet %NESTED_OBJECTS% %NESTED_OBJECTS%  } } 
+-->varlet %NESTED_OBJECTS% %NESTED_OBJECTS%  } }
 -->endrepeat
 
 -->quiet
@@ -58,12 +58,8 @@ Mysqlx.Crud.Find {
               v_signed_int: 3
             }
           }
-          
           %NESTED_OBJECTS%
-          
-          
         }
-        
       }
     }
   }
@@ -79,7 +75,7 @@ Mysqlx.Crud.Find {
 -->callmacro Send_crud_find_with_repeated_nested_objects	25
 -->recvresult
 
--->echo Try to send number of objects equal to the X Protocol limit, 100 (2 * 50) 
+-->echo Try to send number of objects equal to the X Protocol limit, 100 (2 * 50)
 -->callmacro Send_crud_find_with_repeated_nested_objects	50
 -->recvresult
 
