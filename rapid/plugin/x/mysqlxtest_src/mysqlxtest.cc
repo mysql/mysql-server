@@ -892,9 +892,9 @@ public:
     m_commands["assert_eq "]      = &Command::cmd_assert_eq;
     m_commands["assert_gt "]      = &Command::cmd_assert_gt;
     m_commands["assert_ge "]      = &Command::cmd_assert_ge;
-    m_commands["query_result"]      = &Command::cmd_query;
-    m_commands["noquery_result"]      = &Command::cmd_noquery;
-    m_commands["wait_for "]      = &Command::cmd_wait_for;
+    m_commands["query_result"]    = &Command::cmd_query;
+    m_commands["noquery_result"]  = &Command::cmd_noquery;
+    m_commands["wait_for "]       = &Command::cmd_wait_for;
   }
 
   bool is_command_syntax(const std::string &cmd) const
@@ -1056,7 +1056,21 @@ private:
   {
     bool was_set = false;
 
-    cmd_recvresult(context, CMD_ARG_BE_QUIET, ngs::bind(&Command::set_variable, ngs::ref(was_set), args, ngs::placeholders::_1));
+    std::string args_cmd = args;
+    std::vector<std::string> args_array;
+    boost::algorithm::trim(args_cmd);
+
+    boost::split(args_array, args_cmd, boost::is_any_of(" "), boost::token_compress_off);
+
+    args_cmd = CMD_ARG_BE_QUIET;
+
+    if (args_array.size() > 1)
+    {
+      args_cmd += " ";
+      args_cmd += args_array.at(1);
+    }
+
+    cmd_recvresult(context, args_cmd, ngs::bind(&Command::set_variable, ngs::ref(was_set), args_array.at(0), ngs::placeholders::_1));
 
     if (!was_set)
     {
@@ -1560,10 +1574,11 @@ private:
       return Stop_with_failure;
     }
 
+    context.m_cm->active()->set_closed();
+
     if (context.m_cm->is_default_active())
       return Stop_with_success;
 
-    context.m_cm->active()->set_closed();
     context.m_cm->close_active(false);
 
     return Continue;
@@ -1817,12 +1832,7 @@ private:
     std::string::size_type p = args.find(' ');
     if (p == std::string::npos)
     {
-      if (variables.find(args) == variables.end())
-      {
-        std::cerr << "Invalid variable " << args << "\n";
-        return Stop_with_failure;
-      }
-      variables.erase(args);
+      variables[args] = "";
     }
     else
     {
@@ -2998,8 +3008,9 @@ public:
     std::cout << "  Read and print (if not quiet) one message from the server\n";
     std::cout << "-->recvresult [print-columnsinfo] [" << CMD_ARG_BE_QUIET << "]\n";
     std::cout << "  Read and print one resultset from the server; if print-columnsinfo is present also print short columns status\n";
-    std::cout << "-->recvtovar <varname>\n";
-    std::cout << "  Read and print one resultset from the server and sets the variable from first row\n";
+    std::cout << "-->recvtovar <varname> [COLUMN_NAME]\n";
+    std::cout << "  Read first row and first column (or column with name COLUMN_NAME) of resultset\n";
+    std::cout << "  and set the variable <varname>\n";
     std::cout << "-->recverror <errno>\n";
     std::cout << "  Read a message and ensure that it's an error of the expected type\n";
     std::cout << "-->recvtype <msgtype>\n";

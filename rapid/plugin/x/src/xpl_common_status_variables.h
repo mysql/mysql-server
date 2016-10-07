@@ -70,7 +70,7 @@ public:
   Variable m_rows_sent;
   Variable m_notice_warning_sent;
   Variable m_notice_other_sent;
-  Variable m_unknown_message_type;
+  Variable m_errors_unknown_message_type;
 
 private:
   Common_status_variables(const Common_status_variables &);
