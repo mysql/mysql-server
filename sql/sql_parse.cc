@@ -1497,10 +1497,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       query_cache.end_of_result(thd);
 
 #ifndef EMBEDDED_LIBRARY
-      mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
-                          thd->get_stmt_da()->is_error() ?
-                          thd->get_stmt_da()->mysql_errno() : 0,
-                          command_name[command].str);
+      mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
+                         thd->get_stmt_da()->is_error() ?
+                         thd->get_stmt_da()->mysql_errno() : 0,
+                         command_name[command].str,
+                         command_name[command].length);
 #endif
 
       size_t length= static_cast<size_t>(packet_end - beginning_of_next_stmt);
@@ -1882,17 +1883,19 @@ done:
 
 #ifndef EMBEDDED_LIBRARY
   if (!thd->is_error() && !thd->killed)
-    mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
+    mysql_audit_notify(thd,
+                       AUDIT_EVENT(MYSQL_AUDIT_GENERAL_RESULT), 0, NULL, 0);
 
-  mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
-                      thd->get_stmt_da()->is_error() ?
-                      thd->get_stmt_da()->mysql_errno() : 0,
-                      command_name[command].str);
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
+                     thd->get_stmt_da()->is_error() ?
+                     thd->get_stmt_da()->mysql_errno() : 0,
+                     command_name[command].str,
+                     command_name[command].length);
 
   /* command_end is informational only. The plugin cannot abort
      execution of the command at thie point. */
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END),
-                     command, command_name[command].str);
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END), command,
+                     command_name[command].str);
 #endif
 
   log_slow_statement(thd);
