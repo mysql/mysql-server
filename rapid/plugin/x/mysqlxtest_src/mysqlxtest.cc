@@ -17,41 +17,40 @@
  * 02110-1301  USA
  */
 
-#include "my_global.h"
-#include "mysqlx_version.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "mysqlx_crud.h"
-#include "ngs_common/protocol_const.h"
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
-#include <boost/algorithm/string.hpp>
 #include <boost/algorithm/hex.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
-#include <string.h>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
-#include <boost/format.hpp>
-
-#include "ngs_common/bind.h"
-#include "expr_parser.h"
-#include "utils_mysql_parsing.h"
-
-#include "violite.h"
-#include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
 #include <rapidjson/writer.h>
-
+#include <string.h>
+#include <algorithm>
+#include <fstream>
 #include <ios>
 #include <iostream>
-#include <fstream>
 #include <iterator>
 #include <sstream>
 #include <stdexcept>
-#include <algorithm>
-#include "mysqlx_protocol.h"
-#include "mysqlx_session.h"
-#include "mysqlx_resultset.h"
-#include "mysqlx_error.h"
+
 #include "dummy_stream.h"
+#include "expr_parser.h"
+#include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
+#include "my_global.h"
+#include "mysqlx_crud.h"
+#include "mysqlx_error.h"
+#include "mysqlx_protocol.h"
+#include "mysqlx_resultset.h"
+#include "mysqlx_session.h"
+#include "mysqlx_version.h"
+#include "ngs_common/bind.h"
 #include "ngs_common/posix_time.h"
+#include "ngs_common/protocol_const.h"
+#include "ngs_common/protocol_protobuf.h"
+#include "utils_mysql_parsing.h"
+#include "violite.h"
 
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
@@ -61,8 +60,8 @@ const char *CMD_ARG_BE_QUIET = "be-quiet";
 const char CMD_ARG_SEPARATOR = '\t';
 const char * const MYSQLXTEST_VERSION = "1.0";
 const unsigned short MYSQLX_PORT = 33060;
-#include <mysql/service_my_snprintf.h>
 #include <mysql.h>
+#include <mysql/service_my_snprintf.h>
 
 #ifdef _MSC_VER
 #  pragma push_macro("ERROR")

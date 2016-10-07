@@ -15,6 +15,8 @@
 
 #include "dd/sdi.h"
 
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+
 #include <rapidjson/document.h>     // rapidjson::GenericValue
 #include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
 #include <stddef.h>
