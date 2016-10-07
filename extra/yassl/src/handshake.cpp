@@ -760,7 +760,9 @@ int DoProcessReply(SSL& ssl)
     if (read == static_cast<uint>(-1)) {
         ssl.SetError(receive_error);
         return 0;
-    }
+    } else if (read == 0)
+        return 1;
+
     buffer.add_size(read);
     uint offset = 0;
     const MessageFactory& mf = ssl.getFactory().getMessage();
