@@ -76,6 +76,7 @@ SET(HEADERS
   thr_cond.h
   thr_mutex.h
   thr_rwlock.h
+  mem_root_fwd.h
   ${HEADERS_GEN_CONFIGURE}
 )
 
