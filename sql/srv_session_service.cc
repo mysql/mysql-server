@@ -108,10 +108,26 @@ Srv_session* srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx)
     if (error_cb)
       error_cb(plugin_ctx, ER_OUT_OF_RESOURCES, ER_DEFAULT(ER_OUT_OF_RESOURCES));
   }
-  else if (session->open())
+  else
   {
-    delete session;
-    session= NULL;
+    THD *current= current_thd;
+    THD *stack_thd= session->get_thd();
+
+    session->get_thd()->thread_stack= reinterpret_cast<char *>(&stack_thd);
+    session->get_thd()->store_globals();
+
+    bool result= session->open();
+
+    session->get_thd()->restore_globals();
+
+    if (result)
+    {
+      delete session;
+      session= NULL;
+    }
+
+    if (current)
+      current->store_globals();
   }
   DBUG_RETURN(session);
 }
