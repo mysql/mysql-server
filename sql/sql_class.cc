@@ -1406,7 +1406,8 @@ struct timeval THD::query_start_timeval_trunc(uint decimals)
 Sql_condition* THD::raise_condition(uint sql_errno,
                                     const char* sqlstate,
                                     Sql_condition::enum_severity_level level,
-                                    const char* msg)
+                                    const char* msg,
+                                    bool use_condition_handler)
 {
   DBUG_ENTER("THD::raise_condition");
 
@@ -1422,7 +1423,8 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (sqlstate == NULL)
    sqlstate= mysql_errno_to_sqlstate(sql_errno);
 
-  if (handle_condition(sql_errno, sqlstate, &level, msg))
+  if (use_condition_handler &&
+      handle_condition(sql_errno, sqlstate, &level, msg))
     DBUG_RETURN(NULL);
 
   if (level == Sql_condition::SL_NOTE || level == Sql_condition::SL_WARNING)

@@ -1,3 +1,4 @@
+call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_ERROR' cannot be aborted.");
 #
 # Bug #22142209: MY_MESSAGE FAILS TO ABORT MYSQL_AUDIT_SERVER_STARTUP_CLASS EVENT
 #
@@ -13,21 +14,33 @@
 INSTALL PLUGIN null_audit SONAME 'adt_null.so';
 SET @@GLOBAL.null_audit_event_order_check= "MYSQL_AUDIT_GENERAL_ERROR;;ABORT_RET";
 SET @@GLOBAL.null_audit_abort_message= "Abort message.";
+# Try to enter error state recursively 2 times.
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 2;
 connect(localhost,wrong_root,,test,MASTER_PORT,MASTER_SOCKET);
-ERROR HY000: Abort message.
+ERROR 28000: Access denied for user 'wrong_root'@'localhost' (using password: NO)
+SELECT @@null_audit_event_order_check_consume_ignore_count;
+@@null_audit_event_order_check_consume_ignore_count
+0
+# Try to enter error state infinitely. my_message calls cause stack overrun.
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 10000;
 connect(localhost,wrong_root,,test,MASTER_PORT,MASTER_SOCKET);
+SELECT @@null_audit_event_order_check_consume_ignore_count;
+@@null_audit_event_order_check_consume_ignore_count
+0
 SET @@GLOBAL.null_audit_event_order_check= NULL;
 SET @@GLOBAL.null_audit_abort_message= NULL;
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 0;
 # test
 SET @@null_audit_event_order_check= "MYSQL_AUDIT_GENERAL_ERROR;;ABORT_RET";
 SET @@null_audit_abort_message= "Abort message.";
+# Try to enter error state infinitely. my_message calls will overrun the stack frame.
 SET @@null_audit_event_order_check_consume_ignore_count= 10000;
 # Must not crash
 SELECT 1 FROM mysql.fictional_table;
-ERROR HY000: Thread stack overrun:  <NUMBER> used of a <NUMBER> stack, and <NUMBER> needed.  Use 'mysqld --thread_stack=#' to specify a bigger stack.
+ERROR 42S02: Table 'mysql.fictional_table' doesn't exist
+SELECT @@null_audit_event_order_check_consume_ignore_count;
+@@null_audit_event_order_check_consume_ignore_count
+9998
 # Clean up
 End of 5.7 tests
 # cleanup
