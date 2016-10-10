@@ -4112,7 +4112,6 @@ public:
   */
   void push_internal_handler(Internal_error_handler *handler);
 
-private:
   /**
     Handle a sql condition.
     @param sql_errno the condition error number
@@ -4126,7 +4125,6 @@ private:
                         Sql_condition::enum_severity_level *level,
                         const char* msg);
 
-public:
   /**
     Remove the error handler last pushed.
   */
@@ -4190,13 +4188,15 @@ private:
     @param sqlstate the condition SQLSTATE
     @param level the condition level
     @param msg the condition message text
+    @param use_condition_handler Invoke the handle_condition.
     @return The condition raised, or NULL
   */
   Sql_condition*
   raise_condition(uint sql_errno,
                   const char* sqlstate,
                   Sql_condition::enum_severity_level level,
-                  const char* msg);
+                  const char* msg,
+                  bool use_condition_handler= true);
 
 public:
   void set_command(enum enum_server_command command);
