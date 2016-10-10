@@ -7,15 +7,13 @@
 # Tests
 --write_file $MYSQL_TMP_DIR/performance_schema_socket_num.tmp
 -->macro check_xconnection_count %EXPECTED_NUM_OF_CONNECTIONS%
--->echo Checking if X Plugin reports %EXPECTED_NUM_OF_CONNECTIONS% connections
+-->echo Verify [Checking if X Plugin reports %EXPECTED_NUM_OF_CONNECTIONS% connections]
 -->stmtsql SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection'
 -->recvtovar %NUM%
 -->assert_eq %EXPECTED_NUM_OF_CONNECTIONS%	%NUM%
--->echo  success
 -->endmacro
 
 
--->noquery_result
 -->varlet %CON_COUNTER% 1
 -->callmacro check_xconnection_count	%CON_COUNTER%
 
@@ -25,12 +23,12 @@
 -->callmacro check_xconnection_count	%CON_COUNTER%
 -->endrepeat
 
--->echo Peer addresses of all sockets should be set to 127.0.0.1
+-->echo Verify [Peer addresses of all sockets should be set to 127.0.0.1]
 -->stmtsql SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection' AND IP='127.0.0.1'
 -->recvtovar %NUM%
 -->assert_eq %CON_COUNTER%	%NUM%
 
--->echo Peer ports should be unique
+-->echo Verify [Peer ports should be unique]
 -->stmtsql SELECT COUNT(*) FROM (SELECT `PORT` FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection' AND IP='127.0.0.1' GROUP BY `PORT`) as `temp_table`
 -->recvtovar %NUM%
 -->assert_eq %CON_COUNTER%	%NUM%
@@ -39,10 +37,8 @@
 -->wait_for 1	SELECT 1 FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection' AND `STATE` = 'IDLE'
 
 -->echo Check if we have connection ACTIVE and IDLE state
--->query_result
 -->stmtsql SELECT `STATE` FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection' GROUP BY `STATE` ORDER BY `STATE`
 -->recvresult
--->noquery_result
 
 -->repeat 10
 -->setsession NAME_%CON_COUNTER%
@@ -57,35 +53,29 @@ EOF
 
 --write_file $MYSQL_TMP_DIR/performance_schema_socket_io_stats.tmp
 -->macro Verify_increase %VARI% %COLUMN% %EVENT_NAME%
--->noquery_result
-# Kick client socket counters 
+# Kick client socket counters
 -->stmtsql SELECT 1
--->recvresult
-# Check 
+-->recvresult be-quiet
+# Check
 # Get %COLUMN% counter at latest created connection (`OBJECT_INSTANCE_BEGIN`)
 -->stmtsql SELECT %COLUMN% FROM `performance_schema`.`socket_summary_by_instance` WHERE  `EVENT_NAME` LIKE %EVENT_NAME% and OBJECT_INSTANCE_BEGIN IN  (SELECT MAX(OBJECT_INSTANCE_BEGIN) FROM `performance_schema`.`socket_summary_by_instance` WHERE  `EVENT_NAME` LIKE %EVENT_NAME%);
 -->recvtovar %TMP%
--->echo Checking if data in column %COLUMN% had increased
+-->echo Verify [Checking if data in column %COLUMN% had increased]
 -->assert_gt %TMP%	%VARI%
--->echo  success
 -->varlet %VARI% %TMP%
--->query_result
 -->endmacro
 
 # This function doesn't get latest entry !
 -->macro Verify_greater_or_equal %VARI% %COLUMN% %TABLE% %EVENT_NAME%
--->noquery_result
-#Kick client socket counters 
+#Kick client socket counters
 -->stmtsql SELECT 1
--->recvresult
+-->recvresult be-quiet
 #MAKE THE CHECK
 -->stmtsql SELECT %COLUMN% FROM `performance_schema`.%TABLE% WHERE  `EVENT_NAME` LIKE %EVENT_NAME%
 -->recvtovar %TMP%
--->echo Checking if data in column %COLUMN% had increased
+-->echo Verify [Checking if data in column %COLUMN% had increased]
 -->assert_ge %TMP%	%VARI%
--->echo  success
 -->varlet %VARI% %TMP%
--->query_result
 -->endmacro
 
 -->varlet %READ_CNT% 0
@@ -146,7 +136,7 @@ EOF
 -->callmacro Verify_greater_or_equal	%READ_BYTES%	`SUM_NUMBER_OF_BYTES_READ`	`socket_summary_by_event_name`	'wait/io/socket/mysqlx/client_connection'
 EOF
 
---echo No socket from X Plugin should be reported
+--echo Verify [No socket from X Plugin should be reported]
 --let $XPlugin_socket_count_when_no_Xconnection= query_get_value(SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection', Num, 1)
 
 if ( $XPlugin_socket_count_when_no_Xconnection != 0) {
@@ -155,20 +145,20 @@ if ( $XPlugin_socket_count_when_no_Xconnection != 0) {
 }
 
 
---echo Check the IP and PORT of TCP socket
+--echo Verify [Check the IP and PORT of TCP socket]
 --let $XPlugin_ip=   query_get_value(SELECT * FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/tcpip_socket' and STATE='ACTIVE', IP, 1)
 --let $XPlugin_port= query_get_value(SELECT * FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/tcpip_socket', PORT, 1)
 
 if ($XPlugin_ip != "0.0.0.0") {
 --echo X Plugin IP is set to $XPlugin_ip
---die X Plugins TCP server IP should be set to 0.0.0.0 
+--die X Plugins TCP server IP should be set to 0.0.0.0
 }
 
 --let $XPlugin_port_expected= query_get_value(SELECT @@mysqlx_port as value, value, 1)
 
 if ( $XPlugin_port != $XPlugin_port_expected) {
 --echo X Plugin tcp-port is set to $XPlugin_port, was expecting $XPlugin_port_expected
---die X Plugins TCP server port has a wrong value 
+--die X Plugins TCP server port has a wrong value
 }
 
 --echo Check if clinet_socket are reported in proper way in PFS

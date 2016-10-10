@@ -57,6 +57,7 @@
 #include <sys/un.h>
 #endif
 
+const char *CMD_ARG_BE_QUIET = "be-quiet";
 const char CMD_ARG_SEPARATOR = '\t';
 const char * const MYSQLXTEST_VERSION = "1.0";
 const unsigned short MYSQLX_PORT = 33060;
@@ -1055,7 +1056,7 @@ private:
   {
     bool was_set = false;
 
-    cmd_recvresult(context, "", ngs::bind(&Command::set_variable, ngs::ref(was_set), args, ngs::placeholders::_1));
+    cmd_recvresult(context, CMD_ARG_BE_QUIET, ngs::bind(&Command::set_variable, ngs::ref(was_set), args, ngs::placeholders::_1));
 
     if (!was_set)
     {
@@ -1088,7 +1089,7 @@ private:
       const bool print_colinfo = i != columns.end();
       if (print_colinfo) columns.erase(i);
 
-      i = std::find(columns.begin(), columns.end(), "be-quiet");
+      i = std::find(columns.begin(), columns.end(), CMD_ARG_BE_QUIET);
       const bool quiet = i != columns.end();
       if (quiet) columns.erase(i);
 
@@ -1292,6 +1293,8 @@ private:
     else
     {
       std::string s = args;
+      replace_variables(s);
+
       std::string::size_type p = s.find(CMD_ARG_SEPARATOR);
       if (p != std::string::npos)
       {
@@ -1463,7 +1466,6 @@ private:
 
   Result cmd_system(Execution_context &context, const std::string &args)
   {
-    // XXX - remove command
     // command used only at dev level
     // example of usage
     // -->system (sleep 3; echo "Killing"; ps aux | grep mysqld | egrep -v "gdb .+mysqld" | grep -v  "kdeinit4"| awk '{print($2)}' | xargs kill -s SIGQUIT)&
@@ -2920,6 +2922,7 @@ public:
   std::string schema;
   mysqlx::Ssl_config ssl;
   bool        daemon;
+  std::string sql;
 
   void print_version()
   {
@@ -2932,6 +2935,7 @@ public:
     std::cout << "mysqlxtest <options>\n";
     std::cout << "Options:\n";
     std::cout << "-f, --file=<file>     Reads input from file\n";
+    std::cout << "--sql=<SQL>           Use SQL as input and execute it like in -->sql block\n";
     std::cout << "-n, --no-auth         Skip authentication which is required by -->sql block (run mode)\n";
     std::cout << "--plain-auth          Use PLAIN text authentication mechanism\n";
     std::cout << "-u, --user=<user>a    Connection user\n";
@@ -2992,7 +2996,7 @@ public:
     std::cout << "  Encodes the text format protobuf message and sends it to the server (allows variables).\n";
     std::cout << "-->recv [quiet]\n";
     std::cout << "  Read and print (if not quiet) one message from the server\n";
-    std::cout << "-->recvresult [print-columnsinfo] [be-quiet]\n";
+    std::cout << "-->recvresult [print-columnsinfo] [" << CMD_ARG_BE_QUIET << "]\n";
     std::cout << "  Read and print one resultset from the server; if print-columnsinfo is present also print short columns status\n";
     std::cout << "-->recvtovar <varname>\n";
     std::cout << "  Read and print one resultset from the server and sets the variable from first row\n";
@@ -3117,6 +3121,10 @@ public:
       else if (check_arg(argv, i, "--plain-auth", NULL))
       {
         use_plain_auth = true;
+      }
+      else if (check_arg_with_value(argv, i, "--sql", NULL, value))
+      {
+        sql = value;
       }
       else if (check_arg_with_value(argv, i, "--password", "-p", value))
         password = value;
@@ -3491,10 +3499,16 @@ Command::Result Command::cmd_import(Execution_context &context, const std::strin
 
 typedef int (*Program_mode)(const My_command_line_options &, std::istream &input);
 
-static std::istream &get_input(My_command_line_options &opt, std::ifstream &file)
+static std::istream &get_input(My_command_line_options &opt, std::ifstream &file, std::stringstream &string)
 {
   if (opt.has_file)
   {
+    if (!opt.sql.empty())
+    {
+      std::cerr << "ERROR: specified file and sql to execute, please enter only one of those\n";
+      opt.exit_code = 1;
+    }
+
     file.open(opt.run_file.c_str());
     file.rdbuf()->pubsetbuf(NULL, 0);
 
@@ -3505,6 +3519,18 @@ static std::istream &get_input(My_command_line_options &opt, std::ifstream &file
     }
 
     return file;
+  }
+
+  if (!opt.sql.empty())
+  {
+    std::streampos position = string.tellp();
+
+    string << "-->sql\n";
+    string << opt.sql << "\n";
+    string << "-->endsql\n";
+    string.seekp(position, std::ios::beg);
+
+    return string;
   }
 
   return std::cin;
@@ -3566,7 +3592,8 @@ int main(int argc, char **argv)
 
   std::cout << std::unitbuf;
   std::ifstream fs;
-  std::istream &input = get_input(options, fs);
+  std::stringstream ss;
+  std::istream &input = get_input(options, fs, ss);
   Program_mode  mode  = get_mode_function(options);
 
 #ifdef WIN32
