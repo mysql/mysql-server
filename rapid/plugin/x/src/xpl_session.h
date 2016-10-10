@@ -76,7 +76,7 @@ public:
   Session_options &options() { return m_options; }
   Session_status_variables &get_status_variables() { return m_status_variables; }
 
-  bool can_see_user(const char *user) const;
+  bool can_see_user(const std::string &user) const;
 
   template<Common_status_variables::Variable Common_status_variables::*variable> void update_status();
   template<Common_status_variables::Variable Common_status_variables::*variable> void update_status(long param);

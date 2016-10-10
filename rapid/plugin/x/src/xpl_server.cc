@@ -62,6 +62,14 @@ public:
       log_error("srv_session_init_thread returned error");
       return false;
     }
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    // Reset user name and hostname stored in PFS_thread
+    // which were copied from parent thread
+    PSI_THREAD_CALL(set_thread_account) (
+        "", 0, "", 0);
+#endif // HAVE_PSI_THREAD_INTERFACE
+
     ngs::Scheduler_dynamic::thread_init();
 
 #if defined(__APPLE__) || defined(HAVE_PTHREAD_SETNAME_NP)
