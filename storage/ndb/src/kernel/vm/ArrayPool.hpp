@@ -185,48 +185,6 @@ public:
   }
 #endif
 
-  /**
-   * Cache+LockFun is used to make thread-local caches for ndbmtd
-   *   I.e each thread has one cache-instance, and can seize/release on this
-   *       wo/ locks
-   */
-  struct Cache
-  {
-    Cache(Uint32 a0 = 512, Uint32 a1 = 256)
-    { m_first_free = RNIL; m_free_cnt = 0; m_alloc_cnt = a0; m_max_free_cnt = a1; }
-    void init_cache(Uint32 a0, Uint32 a1)
-    {
-      m_alloc_cnt = a0;
-      m_max_free_cnt = a1;
-    }
-    Uint32 m_first_free;
-    Uint32 m_free_cnt;
-    Uint32 m_alloc_cnt;
-    Uint32 m_max_free_cnt;
-  };
-
-  struct LockFun
-  {
-    void (* lock)(void);
-    void (* unlock)(void);
-  };
-
-  bool seize(LockFun, Cache&, Ptr<T> &);
-  void release(LockFun, Cache&, Uint32 i);
-  void release(LockFun, Cache&, Ptr<T> &);
-  void releaseList(LockFun, Cache&, Uint32 n, Uint32 first, Uint32 last);
-
-  void setChunkSize(Uint32 sz);
-#ifdef ARRAY_CHUNK_GUARD
-  void checkChunks();
-#endif
-
-protected:
-  void releaseChunk(LockFun, Cache&, Uint32 n);
-
-  bool seizeChunk(Uint32 & n, Ptr<T> &);
-  void releaseChunk(Uint32 n, Uint32 first, Uint32 last);
-
 protected:
   friend class Array<T>;
 
@@ -431,32 +389,6 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
 
   ErrorReporter::handleAssert("ArrayPool<T>::setSize called twice", __FILE__, __LINE__);
   return false; // not reached
-}
-
-template <class T>
-inline
-void
-ArrayPool<T>::setChunkSize(Uint32 sz)
-{
-  Uint32 i;
-  for (i = 0; i + sz < size; i += sz)
-  {
-    theArray[i].chunkSize = sz;
-    theArray[i].lastChunk = i + sz - 1;
-    theArray[i].nextChunk = i + sz;
-  }
-
-  theArray[i].chunkSize = size - i;
-  theArray[i].lastChunk = size - 1;
-  theArray[i].nextChunk = RNIL;
-
-#ifdef ARRAY_GUARD
-  chunk = true;
-#endif
-
-#ifdef ARRAY_CHUNK_GUARD
-  checkChunks();
-#endif
 }
 
 template <class T>
@@ -1255,13 +1187,107 @@ error:
 #define DUMP(a,b)
 #endif
 
+
+template <class T>
+class CachedArrayPool : public ArrayPool<T>
+{
+public:
+//  typedef typename ArrayPool<T>::Cache Cache;
+  // typedef typename ArrayPool<T>::CallBack CallBack;
+  typedef void (CallBack)(CachedArrayPool<T>& pool);
+//  typedef typename ArrayPool<T>::LockFun LockFun;
+//  CachedArrayPool():ArrayPool<T>(NULL){}
+  explicit CachedArrayPool(CallBack* seizeErrorHandler=NULL)
+              : ArrayPool<T>(reinterpret_cast<typename ArrayPool<T>::CallBack*>(seizeErrorHandler)) { }
+
+  void setChunkSize(Uint32 sz);
+#ifdef ARRAY_CHUNK_GUARD
+  void checkChunks();
+#endif
+
+/***/
+  bool seize(Ptr<T> &p) { return ArrayPool<T>::seize(p); }
+  void release(Uint32 i) { return ArrayPool<T>::release(i); }
+  void releaseList(Uint32 n, Uint32 first, Uint32 last) { ArrayPool<T>::releaseList(n,first,last); }
+
+  /**
+   * Cache+LockFun is used to make thread-local caches for ndbmtd
+   *   I.e each thread has one cache-instance, and can seize/release on this
+   *       wo/ locks
+   */
+  struct Cache
+  {
+    Cache(Uint32 a0 = 512, Uint32 a1 = 256)
+    { m_first_free = RNIL; m_free_cnt = 0; m_alloc_cnt = a0; m_max_free_cnt = a1; }
+    void init_cache(Uint32 a0, Uint32 a1)
+    {
+      m_alloc_cnt = a0;
+      m_max_free_cnt = a1;
+    }
+    Uint32 m_first_free;
+    Uint32 m_free_cnt;
+    Uint32 m_alloc_cnt;
+    Uint32 m_max_free_cnt;
+  };
+
+  struct LockFun
+  {
+    void (* lock)(void);
+    void (* unlock)(void);
+  };
+
+  bool seize(LockFun, Cache&, Ptr<T> &);
+  void release(LockFun, Cache&, Uint32 i);
+  void release(LockFun, Cache&, Ptr<T> &);
+  void releaseList(LockFun, Cache&, Uint32 n, Uint32 first, Uint32 last);
+
+protected:
+  void releaseChunk(LockFun, Cache&, Uint32 n);
+
+  bool seizeChunk(Uint32 & n, Ptr<T> &);
+  void releaseChunk(Uint32 n, Uint32 first, Uint32 last);
+};
+
+template <class T>
+inline
+void
+CachedArrayPool<T>::setChunkSize(Uint32 sz)
+{
+  Uint32 const& size = this->size;
+  T * const& theArray = this->theArray;
+#ifdef ARRAY_GUARD
+  bool& chunk = this->chunk;
+#endif
+
+  Uint32 i;
+  for (i = 0; i + sz < size; i += sz)
+  {
+    theArray[i].chunkSize = sz;
+    theArray[i].lastChunk = i + sz - 1;
+    theArray[i].nextChunk = i + sz;
+  }
+
+  theArray[i].chunkSize = size - i;
+  theArray[i].lastChunk = size - 1;
+  theArray[i].nextChunk = RNIL;
+
+#ifdef ARRAY_GUARD
+  chunk = true;
+#endif
+
+#ifdef ARRAY_CHUNK_GUARD
+  checkChunks();
+#endif
+}
+
 #ifdef ARRAY_CHUNK_GUARD
 template <class T>
 inline
 void
-ArrayPool<T>::checkChunks()
+CachedArrayPool<T>::checkChunks()
 {
 #ifdef ARRAY_GUARD
+  bool const& chunk = this->chunk;
   assert(chunk == true);
 #endif
 
@@ -1292,9 +1318,17 @@ ArrayPool<T>::checkChunks()
 template <class T>
 inline
 bool
-ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
+CachedArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
 {
+  Uint32 & firstFree = this->firstFree;
+  T* const& theArray = this->theArray;
 #ifdef ARRAY_GUARD
+  Uint32 & bitmaskSz = this->bitmaskSz;
+  Uint32 * const& theAllocatedBitmask = this->theAllocatedBitmask;
+#endif
+typename ArrayPool<T>::  CallBack const* const& seizeErrHand = this->seizeErrHand;
+#ifdef ARRAY_GUARD
+  bool const& chunk = this->chunk;
   assert(chunk == true);
 #endif
 
@@ -1327,7 +1361,7 @@ ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
     } while (tmp > 0 && ff != RNIL);
     
     cnt = (save - tmp);
-    decNoFree(save - tmp);
+this->    decNoFree(save - tmp);
     firstFree = ff;
     theArray[prev].nextPool = RNIL;
     
@@ -1368,9 +1402,17 @@ ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
 template <class T>
 inline
 void
-ArrayPool<T>::releaseChunk(Uint32 cnt, Uint32 first, Uint32 last)
+CachedArrayPool<T>::releaseChunk(Uint32 cnt, Uint32 first, Uint32 last)
 {
+  Uint32 & firstFree = this->firstFree;
+  T * const& theArray = this->theArray;
+  Uint32 & noOfFree = this->noOfFree;
 #ifdef ARRAY_GUARD
+  Uint32 & bitmaskSz = this->bitmaskSz;
+  Uint32 * const& theAllocatedBitmask = this->theAllocatedBitmask;
+#endif
+#ifdef ARRAY_GUARD
+  bool const& chunk = this->chunk;
   assert(chunk == true);
 #endif
 
@@ -1412,21 +1454,20 @@ ArrayPool<T>::releaseChunk(Uint32 cnt, Uint32 first, Uint32 last)
 #endif
 }
 
-
 template <class T>
 inline
 bool
-ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
+CachedArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
 {
   DUMP("seize", "-> ");
 
   Uint32 ff = c.m_first_free;
   if (ff != RNIL)
   {
-    c.m_first_free = theArray[ff].nextPool;
+    c.m_first_free = this->theArray[ff].nextPool;
     c.m_free_cnt--;
     p.i = ff;
-    p.p = theArray + ff;
+    p.p = this->theArray + ff;
     DUMP("LOCAL ", "\n");
     return true;
   }
@@ -1438,14 +1479,14 @@ ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
 
   if (ret)
   {
-    c.m_first_free = theArray[p.i].nextPool;
+    c.m_first_free = this->theArray[p.i].nextPool;
     c.m_free_cnt = tmp - 1;
     DUMP("LOCKED", "\n");
     return true;
   }
-  if (seizeErrHand != NULL)
+  if (this->seizeErrHand != NULL)
   {
-    (*seizeErrHand)(*this);
+    (*this->seizeErrHand)(*this);
   }
   return false;
 }
@@ -1453,17 +1494,17 @@ ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
 template <class T>
 inline
 void
-ArrayPool<T>::release(LockFun l, Cache& c, Uint32 i)
+CachedArrayPool<T>::release(LockFun l, Cache& c, Uint32 i)
 {
   Ptr<T> tmp;
-  getPtr(tmp, i);
+this->  getPtr(tmp, i);
   release(l, c, tmp);
 }
 
 template <class T>
 inline
 void
-ArrayPool<T>::release(LockFun l, Cache& c, Ptr<T> & p)
+CachedArrayPool<T>::release(LockFun l, Cache& c, Ptr<T> & p)
 {
   p.p->nextPool = c.m_first_free;
   c.m_first_free = p.i;
@@ -1478,10 +1519,10 @@ ArrayPool<T>::release(LockFun l, Cache& c, Ptr<T> & p)
 template <class T>
 inline
 void
-ArrayPool<T>::releaseList(LockFun l, Cache& c,
+CachedArrayPool<T>::releaseList(LockFun l, Cache& c,
                           Uint32 n, Uint32 first, Uint32 last)
 {
-  theArray[last].nextPool = c.m_first_free;
+  this->theArray[last].nextPool = c.m_first_free;
   c.m_first_free = first;
   c.m_free_cnt += n;
 
@@ -1494,8 +1535,9 @@ ArrayPool<T>::releaseList(LockFun l, Cache& c,
 template <class T>
 inline
 void
-ArrayPool<T>::releaseChunk(LockFun l, Cache& c, Uint32 n)
+CachedArrayPool<T>::releaseChunk(LockFun l, Cache& c, Uint32 n)
 {
+  T * const& theArray = this->theArray;
   DUMP("releaseListImpl", "-> ");
   Uint32 ff = c.m_first_free;
   Uint32 prev = ff;

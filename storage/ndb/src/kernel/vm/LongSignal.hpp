@@ -70,7 +70,7 @@ struct SectionSegment {
   };
   Uint32 theData[DataLength];
 };
-typedef ArrayPool<SectionSegment> SectionSegment_basepool;
+typedef CachedArrayPool<SectionSegment> SectionSegment_basepool;
 
 /**
  * Pool for SectionSegments
