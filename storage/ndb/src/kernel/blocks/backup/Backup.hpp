@@ -188,12 +188,7 @@ public:
 
 #define BACKUP_WORDS_PER_PAGE 8191
   struct Page32 {
-    union {
-      Uint32 data[BACKUP_WORDS_PER_PAGE];
-      Uint32 chunkSize;
-      Uint32 nextChunk;
-      Uint32 lastChunk;
-    };
+    Uint32 data[BACKUP_WORDS_PER_PAGE];
     Uint32 nextPool;
   };
   typedef Ptr<Page32> Page32Ptr;
@@ -208,12 +203,7 @@ public:
     Uint8 scanned;  // 0 = not scanned x = scanned by node x
     Uint8 scanning; // 0 = not scanning x = scanning on node x
     Uint8 lcp_no;
-    union {
-      Uint32 nextPool;
-      Uint32 chunkSize;
-      Uint32 nextChunk;
-      Uint32 lastChunk;
-    };
+    Uint32 nextPool;
   };
   typedef Ptr<Fragment> FragmentPtr;
   typedef ArrayPool<Fragment> Fragment_pool;
