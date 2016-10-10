@@ -717,8 +717,8 @@ my_uca_scanner_init_any(my_uca_scanner *scanner,
                         const uchar *str, size_t length,
                         uint max_char_toscan);
 
-static int my_uca_scanner_next_any(my_uca_scanner *scanner);
-static int my_uca_scanner_next_900(my_uca_scanner *scanner);
+static inline int my_uca_scanner_next_any(my_uca_scanner *scanner);
+static inline int my_uca_scanner_next_900(my_uca_scanner *scanner);
 
 /*
   Charset dependent scanner part, to optimize
@@ -1309,7 +1309,7 @@ my_uca_scanner_init_any(my_uca_scanner *scanner,
   scanner->max_char_toscan= max_char_toscan;
 }
 
-static int my_uca_scanner_next_any(my_uca_scanner *scanner)
+static inline int my_uca_scanner_next_any(my_uca_scanner *scanner)
 {
   /* 
     Check if the weights for the previous character have been
@@ -1576,7 +1576,7 @@ static uint16 my_apply_case_first(my_uca_scanner *scanner, uint16 weight)
   return weight;
 }
 
-static int my_uca_scanner_next_900(my_uca_scanner *scanner)
+static inline int my_uca_scanner_next_900(my_uca_scanner *scanner)
 {
   int res= my_uca_scanner_next_raw_900(scanner);
   Coll_param *param= scanner->cs->coll_param;
