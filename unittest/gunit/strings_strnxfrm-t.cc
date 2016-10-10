@@ -172,15 +172,15 @@ TEST(StrXfrmTest, SimpleUTF8Correctness)
 // Note: This benchmark does not exercise any real multibyte characters;
 // it is mostly exercising padding. If we change the test string to contain
 // e.g. Japanese characters, performance goes down by ~20%.
-static void BM_SimpleUTF8Benchmark(size_t num_iterations)
+static void BM_SimpleUTF8(size_t num_iterations)
 {
   StopBenchmarkTiming();
 
   static constexpr int key_cols = 12;
   static constexpr int set_key_cols = 6;  // Only the first half is set.
   static constexpr int key_col_chars = 80;
-  static constexpr int bytes_Per_char = 3;
-  static constexpr int key_bytes = key_col_chars * bytes_Per_char;
+  static constexpr int bytes_per_char = 3;
+  static constexpr int key_bytes = key_col_chars * bytes_per_char;
   static constexpr int buffer_bytes = key_cols * key_bytes;
 
   unsigned char source[buffer_bytes];
@@ -211,6 +211,33 @@ static void BM_SimpleUTF8Benchmark(size_t num_iterations)
   }
   StopBenchmarkTiming();
 }
-BENCHMARK(BM_SimpleUTF8Benchmark);
+BENCHMARK(BM_SimpleUTF8);
+
+// Verifies using my_charpos to find the length of a string.
+// hp_hash.c does this extensively. Not really a strnxfrm benchmark,
+// but belongs to the same optimization effort.
+static void BM_UTF8MB4StringLength(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  CHARSET_INFO *cs = &my_charset_utf8mb4_0900_ai_ci;
+
+  // Some English text, then some Norwegian text, then some Japanese,
+  // and then a few emoji (the last with skin tone modifiers).
+  const char *content= "Premature optimization is the root of all evil. "
+    "Våre norske tegn bør æres. 日本語が少しわかります。 ✌️🐶👩🏽";
+  const int len= strlen(content);
+  int tot_len= 0;
+
+  StartBenchmarkTiming();
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    tot_len+= my_charpos(cs, content, content + len, len / cs->mbmaxlen);
+  }
+  StopBenchmarkTiming();
+
+  EXPECT_NE(0, tot_len);
+}
+BENCHMARK(BM_UTF8MB4StringLength);
 
 }  // namespace

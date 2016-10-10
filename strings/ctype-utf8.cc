@@ -8452,6 +8452,21 @@ my_ismbchar_utf8mb4(const CHARSET_INFO *cs, const char *b, const char *e)
 }
 
 
+size_t my_charpos_mb4(const CHARSET_INFO *cs,
+                      const char *pos, const char *end, size_t length)
+{
+  const char *start= pos;
+
+  while (length && pos < end)
+  {
+    uint mb_len;
+    pos+= (mb_len= my_ismbchar_utf8mb4(cs, pos, end)) ? mb_len : 1;
+    length--;
+  }
+  return (size_t) (length ? end+2-start : pos-start);
+}
+
+
 static uint
 my_mbcharlen_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), uint c)
 {
@@ -8508,7 +8523,7 @@ MY_CHARSET_HANDLER my_charset_utf8mb4_handler=
   my_ismbchar_utf8mb4,
   my_mbcharlen_utf8mb4,
   my_numchars_mb,
-  my_charpos_mb,
+  my_charpos_mb4,
   my_well_formed_len_utf8mb4,
   my_lengthsp_8bit,
   my_numcells_mb,
