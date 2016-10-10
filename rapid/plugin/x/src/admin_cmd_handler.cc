@@ -184,14 +184,14 @@ void get_client_data(std::vector<Client_data_> &clients_data, xpl::Session &requ
 
   if (session)
   {
-    const char *user = session->is_ready() ? session->data_context().authenticated_user() : NULL;
+    const std::string user = session->is_ready() ? session->data_context().get_authenticated_user_name() : "";
     if (requesting_session.can_see_user(user))
     {
       c.id = static_cast<long>(client->client_id_num());
       c.host = client->client_hostname();
-      if (user)
+      if (!user.empty())
       {
-        c.user = std::string(user);
+        c.user = user;
         c.session = session->data_context().mysql_session_id();
         c.has_session = true;
       }
@@ -199,7 +199,7 @@ void get_client_data(std::vector<Client_data_> &clients_data, xpl::Session &requ
       clients_data.push_back(c);
     }
   }
-  else if (da.authenticated_user_is_super())
+  else if (da.has_authenticated_user_a_super_priv())
   {
     c.id = static_cast<long>(client->client_id_num());
     c.host = client->client_hostname();

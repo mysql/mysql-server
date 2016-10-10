@@ -150,13 +150,14 @@ bool xpl::Session::is_handled_by(const void *handler) const
  Returns true if we're SUPER or the same user as the given one.
  If user is NULL, then it's only visible for SUPER users.
  */
-bool xpl::Session::can_see_user(const char *user) const
+bool xpl::Session::can_see_user(const std::string &user) const
 {
-  const char *owner;
-  if (is_ready() && (owner = m_sql.authenticated_user()))
+  const std::string owner = m_sql.get_authenticated_user_name();
+
+  if (is_ready() && !owner.empty())
   {
-    if (m_sql.authenticated_user_is_super()
-        || (user && owner && strcmp(owner, user) == 0))
+    if (m_sql.has_authenticated_user_a_super_priv()
+        || (owner == user))
       return true;
   }
   return false;
