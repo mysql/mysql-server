@@ -145,7 +145,7 @@ ST_astext(ST_intersection(ST_geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), ST_g
 POLYGON((0 1,0 0,0.5 0.5,0 1))
 select ST_astext(ST_symdifference(ST_geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), ST_geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')));
 ST_astext(ST_symdifference(ST_geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), ST_geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')))
-MULTIPOLYGON(((0.5 0.5,0 0,1 0,0.5 0.5)),((0 1,0.5 0.5,1 1,0 2,0 1)))
+MULTIPOLYGON(((0.5 0.5,0 0,1 0,0.5 0.5)),((0.5 0.5,1 1,0 2,0 1,0.5 0.5)))
 select ST_astext(ST_UNION(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), ST_GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
 ST_astext(ST_UNION(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), ST_GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')))
 GEOMETRYCOLLECTION(POLYGON((0 0,50 45,40 50,0 0)),MULTILINESTRING((-10 -10,0 0),(46.666666666666664 46.666666666666664,200 200,199 201,45.333333333333336 47.333333333333336),(8 10,-11 -9)))
@@ -280,10 +280,12 @@ dist	buffer	buf_area
 MultiLineString((0 0,0 1),(3 0,3 1))
 dist	buffer	buf_area
 1	MULTIPOLYGON	10.24
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
 1	POLYGON	73.16
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
@@ -367,10 +369,12 @@ dist	buffer	buf_area
 MultiLineString((2 2,2 8,-2 8),(-6 -6, 6 6),(10 10, 14 14))
 dist	buffer	buf_area
 0	MULTILINESTRING	0.00
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
 0	MULTIPOLYGON	66.00
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
@@ -444,14 +448,15 @@ ERROR HY000: Incorrect arguments to st_buffer
 -----
 MultiLineString((2 2,2 8,-2 8),(-6 -6, 6 6),(10 10, 14 14))
 ERROR HY000: Incorrect arguments to st_buffer
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
 -1	POLYGON	8.00
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))
-dist	buffer	buf_area
--1	MULTIPOLYGON	0.30
+ERROR HY000: Inconsistent intersection points.
 -----
 GeometryCollection(Point(0 0))
 ERROR HY000: Incorrect arguments to st_buffer
