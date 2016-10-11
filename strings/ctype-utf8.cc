@@ -23,6 +23,11 @@
 #include <sys/types.h>
 #include <algorithm>
 
+#include "my_config.h"
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>                          // htons
+#endif
+
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

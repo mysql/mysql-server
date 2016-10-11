@@ -75,7 +75,7 @@ void internal_do_microbenchmark(const char *name, void (*func)(size_t))
   StopBenchmarkTiming();
 
   printf("%-40s %10ld iterations %10.0f ns/iter\n",
-    name,
-    num_iterations,
-    1e9 * seconds_used / double(num_iterations));
+         name,
+         static_cast<long>(num_iterations),
+         1e9 * seconds_used / double(num_iterations));
 }
