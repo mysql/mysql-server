@@ -11,9 +11,7 @@
 --write_file $MYSQL_TMP_DIR/performance_schema_socket_num.tmp
 -->macro check_xconnection_count %EXPECTED_NUM_OF_CONNECTIONS%
 -->echo Verify [Checking if X Plugin reports %EXPECTED_NUM_OF_CONNECTIONS% connections]
--->stmtsql SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection'
--->recvtovar %NUM%
--->assert_eq %EXPECTED_NUM_OF_CONNECTIONS%	%NUM%
+-->wait_for %EXPECTED_NUM_OF_CONNECTIONS%	SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection'
 -->echo  success
 -->endmacro
 

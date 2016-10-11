@@ -11,8 +11,12 @@
 --echo #
 --echo # Get actual number of worker threads
 --echo #
-let $thread_entries=`SELECT COUNT(*) FROM performance_schema.threads
-                       WHERE name LIKE "thread/mysqlx/worker"`;
+
+let $wait_condition= SELECT COUNT(*)>=@@mysqlx_min_worker_threads FROM performance_schema.threads
+                       WHERE name LIKE "thread/mysqlx/worker";
+source include/wait_condition_or_abort.inc;
+
+let $thread_entries=`SELECT @@mysqlx_min_worker_threads`;
 
 let $assert_text= X Plugin must have idle worker threads;
 let $assert_cond= [SELECT $thread_entries as `Result`, Result, 1] > 0;

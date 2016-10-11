@@ -2107,12 +2107,9 @@ private:
     return Continue;
   }
 
-  static void compare_variable_to(bool &match, std::string expected_value, std::string value)
+  static void put_variable_to(std::string &result, const std::string &value)
   {
-    if (expected_value == value)
-    {
-      match = true;
-    }
+    result = value;
   }
 
   static void try_result(Result result)
@@ -2147,9 +2144,11 @@ private:
     const int countdown_start_value = 30;
     int  countdown_retries = countdown_start_value;
 
+    std::string args_variables_replaced = args;
     std::vector<std::string> vargs;
 
-    boost::split(vargs, args, boost::is_any_of("\t"), boost::token_compress_on);
+    replace_variables(args_variables_replaced);
+    boost::split(vargs, args_variables_replaced, boost::is_any_of("\t"), boost::token_compress_on);
 
     if (2 != vargs.size())
     {
@@ -2157,18 +2156,24 @@ private:
       return Stop_with_failure;
     }
 
+    const std::string &expected_value = vargs[0];
+    std::string value;
+
     try
     {
-      while(!match && countdown_retries--)
+      do
       {
         Backup_and_restore<bool>        backup_and_restore_fatal_errors(OPT_fatal_errors, true);
         Backup_and_restore<bool>        backup_and_restore_query(OPT_query, false);
         Backup_and_restore<std::string> backup_and_restore_command_name(context.m_command_name, "sql");
 
         try_result(cmd_stmtsql(context, vargs[1]));
-        try_result(cmd_recvresult(context, "", ngs::bind(&Command::compare_variable_to, ngs::ref(match), vargs[0], ngs::placeholders::_1)));
+        try_result(cmd_recvresult(context, "", ngs::bind(&Command::put_variable_to, ngs::ref(value), ngs::placeholders::_1)));
         try_result(cmd_sleep(context,"1"));
+
+        match = (value == expected_value);
       }
+      while(!match && --countdown_retries);
     }
     catch(const Result result)
     {
@@ -2178,7 +2183,8 @@ private:
 
     if (!match)
     {
-      std::cerr << "Query didn't return expected value, tried " << countdown_start_value << " retries\n";
+      std::cerr << "Query didn't return expected value, tried " << countdown_start_value << " times\n";
+      std::cerr << "Expected '" << expected_value << "', received '" << value << "'\n";
       return Stop_with_failure;
     }
 
