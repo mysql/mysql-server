@@ -278,7 +278,7 @@ void Protocol_monitor::on_receive(long bytes_transferred)
 }
 
 
-void Protocol_monitor::on_unknown_msg_type()
+void Protocol_monitor::on_error_unknown_msg_type()
 {
-  update_status<&Common_status_variables::m_unknown_message_type>(m_client->get_session());
+  update_status<&Common_status_variables::m_errors_unknown_message_type>(m_client->get_session());
 }
