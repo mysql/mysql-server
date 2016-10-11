@@ -814,7 +814,16 @@ public:
                             const char *lock_status,
                             const char *lock_data);
 
+  /**
+    Clear the container.
+    New rows added will start at index 0.
+  */
   void clear();
+  /**
+    Shrink the container.
+    New rows added will continue to use the current index.
+  */
+  void shrink();
   row_data_lock *get_row(unsigned int index);
 
   void
@@ -824,6 +833,7 @@ public:
   }
 
 private:
+  unsigned int m_logical_row_index;
   std::vector<row_data_lock> m_rows;
   PFS_data_cache m_cache;
   PFS_index_data_locks *m_filter;
@@ -865,7 +875,16 @@ public:
                                  ulonglong blocking_event_id,
                                  const void *blocking_identity);
 
+  /**
+    Clear the container.
+    New rows added will start at index 0.
+  */
   void clear();
+  /**
+    Shrink the container.
+    New rows added will continue to use the current index.
+  */
+  void shrink();
   row_data_lock_wait *get_row(unsigned int index);
 
   void
@@ -875,6 +894,7 @@ public:
   }
 
 private:
+  unsigned int m_logical_row_index;
   std::vector<row_data_lock_wait> m_rows;
   PFS_data_cache m_cache;
   PFS_index_data_lock_waits *m_filter;

@@ -21,7 +21,8 @@ select * from t1_x_gap where id<5 for update;
 --connection con3
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
   from performance_schema.data_locks
-  where object_name="t1_x_gap";
+  where object_name="t1_x_gap"
+  order by lock_type, lock_mode, lock_status, lock_data;
 
 --connection con2
 start transaction;
@@ -34,9 +35,12 @@ let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.data_locks
 --source include/wait_condition.inc
 
 --connection con3
-select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
+# Do not display LOCK_DATA, it can be NULL,
+# upon eviction from the innodb buffer pool
+select object_schema, object_name, lock_type, lock_mode, lock_status
   from performance_schema.data_locks
-  where object_name="t1_x_gap";
+  where object_name="t1_x_gap"
+  order by lock_type, lock_mode, lock_status;
 
 --connection con1
 commit;
@@ -48,7 +52,7 @@ let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.data_locks
 --source include/wait_condition.inc
 
 --connection con3
-select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
+select object_schema, object_name, lock_type, lock_mode, lock_status
   from performance_schema.data_locks
   where object_name="t1_x_gap";
 
@@ -59,6 +63,10 @@ commit;
 --connection con1
 drop table t1_x_gap;
 
+--connection default
 --disconnect con1
 --disconnect con2
 --disconnect con3
+
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc
