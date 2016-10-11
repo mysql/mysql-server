@@ -1292,7 +1292,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
             debug_event_buf_c[EVENT_TYPE_OFFSET] != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
             debug_event_buf_c[EVENT_TYPE_OFFSET] != binary_log::GTID_LOG_EVENT)
         {
-          int debug_cor_pos = rand() % (data_len + sizeof(buf) -
+          int debug_cor_pos = rand() % (data_len + LOG_EVENT_MINIMAL_HEADER_LEN -
                               BINLOG_CHECKSUM_LEN);
           debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
           DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event: byte on position %d", debug_cor_pos));
@@ -1304,9 +1304,10 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
       binary_log_debug::debug_checksum_test=
         DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
 
+      DBUG_PRINT("info",("JAG checksum_alg_arg= %d", checksum_alg_arg));
       if (opt_master_verify_checksum &&
         Log_event_footer::event_checksum_test((uchar*)packet->ptr() + ev_offset,
-                                              data_len + sizeof(buf),
+                                              data_len + LOG_EVENT_MINIMAL_HEADER_LEN,
                                               checksum_alg_arg))
       {
         DBUG_PRINT("info", ("checksum test failed"));
