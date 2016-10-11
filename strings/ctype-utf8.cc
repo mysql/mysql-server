@@ -5146,8 +5146,8 @@ my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs, const MbWc &mbwc,
         goto pad;
       src+= res;
 
-      int2store(dst, htons(wc));
-      dst+= 2;
+      *dst++= (uchar) (wc >> 8);
+      *dst++= (uchar) (wc & 0xFF);
     }
 
     // Leftover single byte, if any.
@@ -5175,8 +5175,8 @@ my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs, const MbWc &mbwc,
 
       my_tosort_unicode(uni_plane, &wc, cs->state);
 
-      int2store(dst, htons(wc));
-      dst+= 2;
+      *dst++= (uchar) (wc >> 8);
+      *dst++= (uchar) (wc & 0xFF);
     }
 
     // Leftover single byte, if any.
