@@ -385,7 +385,8 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
       pos=empty;
       do
       {
-	if (! hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec))
+	if (hash1 == pos->hash &&
+            ! hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec))
 	{
           set_my_errno(HA_ERR_FOUND_DUPP_KEY);
 	  DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
