@@ -553,7 +553,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   typedef RecordPool<Extent_info, RWPool<Extent_info> > Extent_info_pool;
   typedef DLList<Extent_info, Extent_info_pool> Extent_info_list;
   typedef LocalDLList<Extent_info, Extent_info_pool> Local_extent_info_list;
-  typedef DLHashTableImpl<Extent_info_pool, Extent_info> Extent_info_hash;
+  typedef DLHashTable<Extent_info_pool, Extent_info> Extent_info_hash;
   typedef SLList<Extent_info, Extent_info_pool, Extent_list_t> Fragment_extent_list;
   typedef LocalSLList<Extent_info, Extent_info_pool, Extent_list_t> Local_fragment_extent_list;
   struct Tablerec;

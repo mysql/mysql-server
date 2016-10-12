@@ -553,16 +553,6 @@ DLMHashTable<P, T, M>::find(Ptr<T> & ptr, const T & key) const
 // Specializations
 
 template <typename P, typename T, typename U = T >
-class DLHashTableImpl: public DLMHashTable<P, T, DLHashTableDefaultMethods<T, U> >
-{
-public:
-  explicit DLHashTableImpl(P & p): DLMHashTable<P, T, DLHashTableDefaultMethods<T, U> >(p) { }
-private:
-  DLHashTableImpl(const DLHashTableImpl&);
-  DLHashTableImpl&  operator=(const DLHashTableImpl&);
-};
-
-template <typename P, typename T, typename U = T >
 class DLHashTable: public DLMHashTable<P, T, DLHashTableDefaultMethods<T, U> >
 {
 public:

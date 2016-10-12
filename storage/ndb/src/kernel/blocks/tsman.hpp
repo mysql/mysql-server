@@ -150,7 +150,7 @@ public:
   typedef RecordPool<Datafile, RWPool<Datafile> > Datafile_pool;
   typedef DLList<Datafile, Datafile_pool> Datafile_list;
   typedef LocalDLList<Datafile, Datafile_pool> Local_datafile_list;
-  typedef DLHashTableImpl<Datafile_pool, Datafile> Datafile_hash;
+  typedef DLHashTable<Datafile_pool, Datafile> Datafile_hash;
 
   struct Tablespace
   {
