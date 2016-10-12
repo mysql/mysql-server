@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "pfs_instr.h"
 #include "pfs_program.h"
 #include "field.h"
+#include "pfs_variable.h"
 
 int PFS_host_row::make_row(PFS_host *pfs)
 {
@@ -801,14 +802,31 @@ void PFS_variable_name_row::make_row(const char* str, size_t length)
   m_str[m_length]= '\0';
 }
 
-void PFS_variable_value_row::make_row(const char* str, size_t length)
+void PFS_variable_value_row::make_row(const Status_variable *var)
 {
+  make_row(var->m_charset, var->m_value_str, var->m_value_length);
+}
+
+void PFS_variable_value_row::make_row(const System_variable *var)
+{
+  make_row(var->m_charset, var->m_value_str, var->m_value_length);
+}
+
+void PFS_variable_value_row::make_row(const CHARSET_INFO *cs, const char* str, size_t length)
+{
+  DBUG_ASSERT(cs != NULL);
   DBUG_ASSERT(length <= sizeof(m_str));
   if (length > 0)
   {
     memcpy(m_str, str, length);
   }
   m_length= length;
+  m_charset= cs;
+}
+
+void PFS_variable_value_row::set_field(Field *f)
+{
+  PFS_engine_table::set_field_varchar(f, m_charset, m_str, m_length);
 }
 
 void PFS_user_variable_value_row::clear()
