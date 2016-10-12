@@ -2785,3 +2785,23 @@ FOUND_ROWS()
 2
 DROP TABLE t1;
 #End of test for Bug#22602381
+#
+# Bug#24808970 CREATED_TMP_TABLES STATISTIC IS WRONG
+#
+FLUSH STATUS;
+SELECT 1 UNION ALL SELECT 2;
+1
+1
+2
+SHOW STATUS LIKE 'Created_tmp_%tables';
+Variable_name	Value
+Created_tmp_disk_tables	0
+Created_tmp_tables	0
+FLUSH STATUS;
+SELECT 1 UNION DISTINCT SELECT 2;
+1
+1
+2
+variable_name	tweaked_value
+Created_tmp_disk_tables	0
+Created_tmp_tables	1

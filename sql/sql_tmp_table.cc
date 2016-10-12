@@ -759,8 +759,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
               (int) distinct, (int) save_sum_fields,
               (ulong) rows_limit, MY_TEST(group)));
 
-  thd->inc_status_created_tmp_tables();
-
   if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
     temp_pool_slot = bitmap_lock_set_next(&temp_pool);
 
@@ -1581,9 +1579,9 @@ update_hidden:
 
   if (!param->skip_create_table)
   {
-    if (instantiate_tmp_table(table, param->keyinfo, param->start_recinfo,
+    if (instantiate_tmp_table(thd, table, param->keyinfo, param->start_recinfo,
                               &param->recinfo, select_options,
-                              thd->variables.big_tables, &thd->opt_trace))
+                              thd->variables.big_tables))
       goto err;
   }
 
@@ -1662,7 +1660,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   /*
     STEP 1: Get temporary table name
   */
-  thd->inc_status_created_tmp_tables();
   if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
     temp_pool_slot = bitmap_lock_set_next(&temp_pool);
 
@@ -1966,8 +1963,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
 
   set_real_row_type(table);
 
-  if (instantiate_tmp_table(table, table->key_info, start_recinfo, &recinfo,
-                            0, 0, &thd->opt_trace))
+  if (instantiate_tmp_table(thd, table, table->key_info, start_recinfo, &recinfo,
+                            0, 0))
     goto err;
 
   sjtbl->start_recinfo= start_recinfo;
@@ -2390,6 +2387,7 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
   @brief
   Instantiates temporary table
 
+  @param  thd             Thread handler
   @param  table           Table object that describes the table to be
                           instantiated
   @param  keyinfo         Description of the index (there is always one index)
@@ -2397,7 +2395,6 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
   @param[in,out]  recinfo End of column descriptions
   @param  options         Option bits
   @param  big_tables
-  @param  trace           Optimizer trace to write info to
 
   @details
     Creates tmp table and opens it.
@@ -2407,16 +2404,17 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
      TRUE  - Error
 */
 
-bool instantiate_tmp_table(TABLE *table, KEY *keyinfo, 
+bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
                            MI_COLUMNDEF *start_recinfo,
                            MI_COLUMNDEF **recinfo, 
-                           ulonglong options, my_bool big_tables,
-                           Opt_trace_context *trace)
+                           ulonglong options, my_bool big_tables)
 {
 #ifndef DBUG_OFF
   for (uint i= 0; i < table->s->fields; i++)
     DBUG_ASSERT(table->field[i]->gcol_info== NULL && table->field[i]->stored_in_db);
 #endif
+
+  thd->inc_status_created_tmp_tables();
 
   if (table->s->db_type() == innodb_hton)
   {
@@ -2440,6 +2438,7 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
     return TRUE;
   }
 
+  Opt_trace_context *const trace= &thd->opt_trace;
   if (unlikely(trace->is_started()))
   {
     Opt_trace_object wrapper(trace);
