@@ -69,6 +69,9 @@ bitmap */
 
 #define LOCK_PAGE_BITMAP_MARGIN		64
 
+/** Lock scheduling algorithm */
+ulong innodb_lock_schedule_algorithm = INNODB_LOCK_SCHEDULE_ALGORITHM_FCFS;
+
 /* An explicit record lock affects both the record and the gap before it.
 An implicit x-lock does not affect the gap, it only locks the index
 record from read or update.
@@ -1774,6 +1777,72 @@ lock_number_of_rows_locked(
 /*============== RECORD LOCK CREATION AND QUEUE MANAGEMENT =============*/
 
 /*********************************************************************//**
+Check if lock1 has higher priority than lock2.
+NULL has lowest priority.
+If neither of them is wait lock, the first one has higher priority.
+If only one of them is a wait lock, it has lower priority.
+Otherwise, the one with an older transaction has higher priority.
+@returns true if lock1 has higher priority, false otherwise. */
+bool
+has_higher_priority(
+	lock_t *lock1,
+	lock_t *lock2)
+{
+	if (lock1 == NULL) {
+		return false;
+	} else if (lock2 == NULL) {
+		return true;
+	}
+	if (!lock_get_wait(lock1)) {
+		return true;
+	} else if (!lock_get_wait(lock2)) {
+		return false;
+	}
+	return lock1->trx->start_time < lock2->trx->start_time;
+}
+
+/*********************************************************************//**
+Insert a lock to the hash list according to the mode (whether it is a wait lock)
+and the age of the transaction the it is associated with.
+If the lock is not a wait lock, insert it to the head of the hash list.
+Otherwise, insert it to the middle of the wait locks according to the age of the
+transaciton.
+*/
+static
+void
+lock_rec_insert_by_trx_age(
+	lock_t *in_lock, /*!< in: lock to be insert */
+	bool wait)		 	/*!< in: whether it's a wait lock */
+{
+	ulint					space;
+	ulint					page_no;
+	ulint					rec_fold;
+	hash_cell_t*	cell;
+	lock_t*				node;
+	lock_t*				next;
+
+	space = in_lock->un_member.rec_lock.space;
+	page_no = in_lock->un_member.rec_lock.page_no;
+	rec_fold = lock_rec_fold(space, page_no);
+	cell = hash_get_nth_cell(lock_sys->rec_hash,
+					hash_calc_hash(rec_fold, lock_sys->rec_hash));
+
+	node = (lock_t *) cell->node;
+	// If in_lock is not a wait lock, we insert it to the head of the list.
+	if (node == NULL || !wait || has_higher_priority(in_lock, node)) {
+		cell->node = in_lock;
+		in_lock->hash = node;
+		return;
+	}
+	while (node != NULL && has_higher_priority((lock_t *) node->hash, in_lock)) {
+		node = (lock_t *) node->hash;
+	}
+	next = (lock_t *) node->hash;
+	node->hash = in_lock;
+	in_lock->hash = next;
+}
+
+/*********************************************************************//**
 Creates a new record lock and inserts it to the lock queue. Does NOT check
 for deadlocks or lock compatibility!
 @return	created lock */
@@ -1852,8 +1921,12 @@ lock_rec_create(
 
 	ut_ad(index->table->n_ref_count > 0 || !index->table->can_be_evicted);
 
-	HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
-		    lock_rec_fold(space, page_no), lock);
+	if (innodb_lock_schedule_algorithm == INNODB_LOCK_SCHEDULE_ALGORITHM_VATS) {
+		lock_rec_insert_by_trx_age(lock, type_mode & LOCK_WAIT);
+	} else {
+		HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
+					lock_rec_fold(space, page_no), lock);
+	}
 
 	if (!caller_owns_trx_mutex) {
 		trx_mutex_enter(trx);
@@ -2471,7 +2544,9 @@ lock_rec_dequeue_from_page(
 {
 	ulint		space;
 	ulint		page_no;
+	ulint 		rec_fold;
 	lock_t*		lock;
+	lock_t*		previous = NULL;
 	trx_lock_t*	trx_lock;
 
 	ut_ad(lock_mutex_own());
@@ -2482,6 +2557,7 @@ lock_rec_dequeue_from_page(
 
 	space = in_lock->un_member.rec_lock.space;
 	page_no = in_lock->un_member.rec_lock.page_no;
+	rec_fold = lock_rec_fold(space, page_no);
 
 	in_lock->index->table->n_rec_locks--;
 
@@ -2493,20 +2569,51 @@ lock_rec_dequeue_from_page(
 	MONITOR_INC(MONITOR_RECLOCK_REMOVED);
 	MONITOR_DEC(MONITOR_NUM_RECLOCK);
 
-	/* Check if waiting locks in the queue can now be granted: grant
-	locks if there are no conflicting locks ahead. Stop at the first
-	X lock that is waiting or has been granted. */
+	if (innodb_lock_schedule_algorithm == INNODB_LOCK_SCHEDULE_ALGORITHM_FCFS) {
+		/* Check if waiting locks in the queue can now be granted: grant
+		locks if there are no conflicting locks ahead. Stop at the first
+		X lock that is waiting or has been granted. */
 
-	for (lock = lock_rec_get_first_on_page_addr(space, page_no);
-	     lock != NULL;
-	     lock = lock_rec_get_next_on_page(lock)) {
+		for (lock = lock_rec_get_first_on_page_addr(space, page_no);
+		     lock != NULL;
+		     lock = lock_rec_get_next_on_page(lock)) {
 
-		if (lock_get_wait(lock)
-		    && !lock_rec_has_to_wait_in_queue(lock)) {
+			if (lock_get_wait(lock)
+			    && !lock_rec_has_to_wait_in_queue(lock)) {
 
-			/* Grant the lock */
-			ut_ad(lock->trx != in_lock->trx);
-			lock_grant(lock);
+				/* Grant the lock */
+				ut_ad(lock->trx != in_lock->trx);
+				lock_grant(lock);
+			}
+		}
+	} else {
+		/* Grant locks if there are no conflicting locks ahead.
+		   Move granted locks to the head of the list. */
+		for (lock = lock_rec_get_first_on_page_addr(space, page_no);
+			 lock != NULL;) {
+
+			/* If the lock is a wait lock on this page, and it does not need to wait. */
+			if ((lock->un_member.rec_lock.space == space)
+					&& (lock->un_member.rec_lock.page_no == page_no)
+					&& lock_get_wait(lock)
+					&& !lock_rec_has_to_wait_in_queue(lock)) {
+
+				lock_grant(lock);
+
+				if (previous != NULL) {
+					/* Move the lock to the head of the list. */
+					HASH_GET_NEXT(hash, previous) = HASH_GET_NEXT(hash, lock);
+					lock_rec_move_to_front(lock, rec_fold);
+				} else {
+					/* Already at the head of the list. */
+					previous = lock;
+				}
+				/* Move on to the next lock. */
+				lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, previous));
+			} else {
+				previous = lock;
+				lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock));
+			}
 		}
 	}
 }
