@@ -27,20 +27,20 @@
  * KeyTable2 is DLHashTable2 with hardcoded Uint32 key named "key".
  */
 template <typename P, typename T>
-class KeyTableImpl : public DLHashTableImpl<P, T> {
+class KeyTableImpl : public DLHashTable<P, T> {
 public:
   KeyTableImpl(P & pool) :
-    DLHashTableImpl<P, T>(pool) {
+    DLHashTable<P, T>(pool) {
   }
 
   bool find(Ptr<T>& ptr, const T& rec) const {
-    return DLHashTableImpl<P, T>::find(ptr, rec);
+    return DLHashTable<P, T>::find(ptr, rec);
   }
 
   bool find(Ptr<T>& ptr, Uint32 key) const {
     T rec;
     rec.key = key;
-    return DLHashTableImpl<P, T>::find(ptr, rec);
+    return DLHashTable<P, T>::find(ptr, rec);
   }
 };
 
