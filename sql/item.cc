@@ -728,19 +728,6 @@ void Item::cleanup()
 }
 
 
-/**
-  cleanup() item if it is 'fixed'.
-
-  @param arg   a dummy parameter, is not used here
-*/
-
-bool Item::cleanup_processor(uchar *arg)
-{
-  if (fixed)
-    cleanup();
-  return FALSE;
-}
-
 bool Item::visitor_processor(uchar *arg)
 {
   Select_lex_visitor *visitor= pointer_cast<Select_lex_visitor*>(arg);

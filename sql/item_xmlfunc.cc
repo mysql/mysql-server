@@ -397,7 +397,6 @@ class Item_bool :public Item_int
 {
 public:
   Item_bool(int32 i): Item_int(i) {}
-  const char *func_name() const { return "xpath_bool"; }
   bool is_bool_func() { return 1; }
 };
 
