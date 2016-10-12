@@ -711,8 +711,8 @@ public:
   };
 
   typedef RecordPool<ScanFragHandle, ArenaPool<ScanFragHandle> > ScanFragHandle_pool;
-  typedef SLFifoListImpl<ScanFragHandle_pool, ScanFragHandle> ScanFragHandle_list;
-  typedef LocalSLFifoListImpl<ScanFragHandle_pool, ScanFragHandle> Local_ScanFragHandle_list;
+  typedef SLFifoList<ScanFragHandle, ScanFragHandle_pool> ScanFragHandle_list;
+  typedef LocalSLFifoList<ScanFragHandle, ScanFragHandle_pool> Local_ScanFragHandle_list;
 
   /**
    * This class computes mean and standard deviation incrementally for a series
@@ -1067,12 +1067,12 @@ public:
   static const Ptr<TreeNode> NullTreeNodePtr;
 
   typedef RecordPool<TreeNode, ArenaPool<TreeNode> > TreeNode_pool;
-  typedef DLFifoListImpl<TreeNode_pool, TreeNode> TreeNode_list;
-  typedef LocalDLFifoListImpl<TreeNode_pool, TreeNode> Local_TreeNode_list;
+  typedef DLFifoList<TreeNode, TreeNode_pool> TreeNode_list;
+  typedef LocalDLFifoList<TreeNode, TreeNode_pool> Local_TreeNode_list;
 
-  typedef SLListImpl<TreeNode_pool, TreeNode, TreeNode_cursor_ptr>
+  typedef SLList<TreeNode, TreeNode_pool, TreeNode_cursor_ptr>
   TreeNodeCursor_list;
-  typedef LocalSLListImpl<TreeNode_pool, TreeNode, TreeNode_cursor_ptr>
+  typedef LocalSLList<TreeNode, TreeNode_pool, TreeNode_cursor_ptr>
   Local_TreeNodeCursor_list;
 
   /**
@@ -1276,8 +1276,8 @@ private:
   } c_Counters;
 
   typedef RecordPool<Request, ArenaPool<Request> > Request_pool;
-  typedef DLListImpl<Request_pool, Request> Request_list;
-  typedef LocalDLListImpl<Request_pool, Request> Local_Request_list;
+  typedef DLList<Request, Request_pool> Request_list;
+  typedef LocalDLList<Request, Request_pool> Local_Request_list;
   typedef DLHashTableImpl<Request_pool, Request> Request_hash;
   typedef DLHashTableImpl<Request_pool, Request>::Iterator Request_iterator;
 

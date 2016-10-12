@@ -278,8 +278,8 @@ private:
   };
 
   typedef RecordPool<Page_request, WOPool<Page_request> > Page_request_pool;
-  typedef SLFifoListImpl<Page_request_pool, Page_request> Page_request_list;
-  typedef LocalSLFifoListImpl<Page_request_pool, Page_request> Local_page_request_list;
+  typedef SLFifoList<Page_request, Page_request_pool> Page_request_list;
+  typedef LocalSLFifoList<Page_request, Page_request_pool> Local_page_request_list;
   
   struct Page_entry_stack_ptr {
     Uint32 nextList;

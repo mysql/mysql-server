@@ -33,8 +33,6 @@
  * DLCFifoList - double linked list with first and last and count in head
  *
  * For each XXList there are also
- * XXListImpl
- * LocalXXListImpl
  * LocalXXList
  * XXHead - XXList::Head
  *
@@ -46,7 +44,7 @@
  * local object!
  *
  * Recommended use is to define list type alias:
- *   typedef LocalXXListImpl<PoolClass, NodeClass> YourList;
+ *   typedef LocalXXList<NodeClass, PoolClass> YourList;
  * and declare the head as:
  *   YourList::Head head; or
  *   YourList::Head::POD head;
@@ -319,16 +317,6 @@ private:
 /* Specialisations */
 
 #define INTRUSIVE_LIST_COMPAT(prefix, links) \
-template <typename P, typename T, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
-class prefix##ListImpl : public IntrusiveList<T, P, prefix##Head, LM> { \
-public: prefix##ListImpl(P& pool): IntrusiveList<T, P, prefix##Head, LM>(pool) { } \
-}; \
- \
-template <typename P, typename T, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
-class Local##prefix##ListImpl : public IntrusiveList<T, P, prefix##Head::POD&, LM> { \
-public: Local##prefix##ListImpl(P& pool, prefix##Head::POD& head): IntrusiveList<T, P, prefix##Head::POD&, LM>(pool, head) { } \
-}; \
- \
 template <typename T, typename P, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
 class prefix##List : public IntrusiveList<T, P, prefix##Head, LM> { \
 public: prefix##List(P& pool): IntrusiveList<T, P, prefix##Head, LM>(pool) { } \

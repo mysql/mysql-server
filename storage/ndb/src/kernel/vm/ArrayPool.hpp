@@ -1538,7 +1538,7 @@ void
 CachedArrayPool<T>::releaseChunk(LockFun l, Cache& c, Uint32 n)
 {
   T * const& theArray = this->theArray;
-  DUMP("releaseListImpl", "-> ");
+  DUMP("releaseList", "-> ");
   Uint32 ff = c.m_first_free;
   Uint32 prev = ff;
   Uint32 curr = ff;

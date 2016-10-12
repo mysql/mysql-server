@@ -97,8 +97,8 @@ public:
   };
 
   typedef RecordPool<Log_waiter, WOPool<Log_waiter> > Log_waiter_pool;
-  typedef SLFifoListImpl<Log_waiter_pool, Log_waiter> Log_waiter_list;
-  typedef LocalSLFifoListImpl<Log_waiter_pool, Log_waiter> Local_log_waiter_list;
+  typedef SLFifoList<Log_waiter, Log_waiter_pool> Log_waiter_list;
+  typedef LocalSLFifoList<Log_waiter, Log_waiter_pool> Local_log_waiter_list;
   
   struct Undofile
   {
@@ -154,8 +154,8 @@ public:
   };
 
   typedef RecordPool<Undofile, RWPool<Undofile> > Undofile_pool;
-  typedef DLFifoListImpl<Undofile_pool, Undofile> Undofile_list;
-  typedef LocalDLFifoListImpl<Undofile_pool, Undofile> Local_undofile_list;
+  typedef DLFifoList<Undofile, Undofile_pool> Undofile_list;
+  typedef LocalDLFifoList<Undofile, Undofile_pool> Local_undofile_list;
   typedef LocalDataBuffer<15,ArrayPool<DataBufferSegment<15> > > Page_map;
 
   struct Buffer_idx 
@@ -251,8 +251,8 @@ public:
   };
 
   typedef RecordPool<Logfile_group, RWPool<Logfile_group> > Logfile_group_pool;
-  typedef DLFifoListImpl<Logfile_group_pool, Logfile_group> Logfile_group_list;
-  typedef LocalDLFifoListImpl<Logfile_group_pool, Logfile_group> Local_logfile_group_list;
+  typedef DLFifoList<Logfile_group, Logfile_group_pool> Logfile_group_list;
+  typedef LocalDLFifoList<Logfile_group, Logfile_group_pool> Local_logfile_group_list;
   typedef KeyTableImpl<Logfile_group_pool, Logfile_group> Logfile_group_hash;
   typedef KeyTableImpl<Logfile_group_pool, Logfile_group>::Iterator Logfile_group_hash_iterator;
   enum CallbackIndex {
