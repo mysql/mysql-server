@@ -1030,7 +1030,7 @@ static void  fill_create_info_for_upgrade(HA_CREATE_INFO *create_info,
 }
 
 
-static const int REQUIRED_VIEW_PARAMETERS= 14;
+static const int REQUIRED_VIEW_PARAMETERS= 12;
 
 /*
   Table of VIEW .frm field descriptors
@@ -1042,9 +1042,6 @@ static File_option view_parameters[]=
 {{{ C_STRING_WITH_LEN("query")},
   my_offsetof_upgrade(TABLE_LIST, select_stmt),
   FILE_OPTIONS_ESTRING},
- {{ C_STRING_WITH_LEN("md5")},
-  my_offsetof_upgrade(TABLE_LIST, md5),
-  FILE_OPTIONS_STRING},
  {{ C_STRING_WITH_LEN("updatable")},
   my_offsetof_upgrade(TABLE_LIST, updatable_view),
   FILE_OPTIONS_ULONGLONG},
@@ -1066,9 +1063,6 @@ static File_option view_parameters[]=
  {{ C_STRING_WITH_LEN("timestamp")},
   my_offsetof_upgrade(TABLE_LIST, timestamp),
   FILE_OPTIONS_TIMESTAMP},
- {{ C_STRING_WITH_LEN("create-version")},
-  my_offsetof_upgrade(TABLE_LIST, file_version),
- FILE_OPTIONS_ULONGLONG},
  {{ C_STRING_WITH_LEN("source")},
   my_offsetof_upgrade(TABLE_LIST, source),
   FILE_OPTIONS_ESTRING},
