@@ -200,7 +200,7 @@ public:
   typedef RecordPool<Tablespace, RWPool<Tablespace> > Tablespace_pool;
   typedef DLList<Tablespace, Tablespace_pool> Tablespace_list;
   typedef LocalDLList<Tablespace, Tablespace_pool> Local_tablespace_list;
-  typedef KeyTableImpl<Tablespace_pool, Tablespace> Tablespace_hash;
+  typedef KeyTable<Tablespace_pool, Tablespace> Tablespace_hash;
 
 private:
   friend class Tablespace_client;

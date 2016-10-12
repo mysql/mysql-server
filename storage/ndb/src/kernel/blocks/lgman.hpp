@@ -253,8 +253,8 @@ public:
   typedef RecordPool<Logfile_group, RWPool<Logfile_group> > Logfile_group_pool;
   typedef DLFifoList<Logfile_group, Logfile_group_pool> Logfile_group_list;
   typedef LocalDLFifoList<Logfile_group, Logfile_group_pool> Local_logfile_group_list;
-  typedef KeyTableImpl<Logfile_group_pool, Logfile_group> Logfile_group_hash;
-  typedef KeyTableImpl<Logfile_group_pool, Logfile_group>::Iterator Logfile_group_hash_iterator;
+  typedef KeyTable<Logfile_group_pool, Logfile_group> Logfile_group_hash;
+  typedef KeyTable<Logfile_group_pool, Logfile_group>::Iterator Logfile_group_hash_iterator;
   enum CallbackIndex {
     // lgman
     ENDLCP_CALLBACK = 1,
