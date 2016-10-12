@@ -2528,6 +2528,27 @@ lock_rec_cancel(
 }
 
 /*************************************************************//**
+Move the lock to the head of the hash list. */
+static
+void
+lock_rec_move_to_front(
+	lock_t *lock_to_move,	/*!< in: lock to be moved */
+	ulint rec_fold)			 /*!< in: rec fold of the lock */
+{
+	if (lock_to_move != NULL)
+	{
+		// Move the target lock to the head of the list
+		hash_cell_t* cell = hash_get_nth_cell(lock_sys->rec_hash,
+								hash_calc_hash(rec_fold, lock_sys->rec_hash));
+		if (lock_to_move != cell->node) {
+			lock_t *next = (lock_t *) cell->node;
+			cell->node = lock_to_move;
+			lock_to_move->hash = next;
+		}
+	}
+}
+
+/*************************************************************//**
 Removes a record lock request, waiting or granted, from the queue and
 grants locks to other transactions in the queue if they now are entitled
 to a lock. NOTE: all record locks contained in in_lock are removed. */
