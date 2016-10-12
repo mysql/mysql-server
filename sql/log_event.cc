@@ -1217,7 +1217,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   /* If the event header wasn't passed, we need to read it. */
   if (buf == local_buf)
   {
-    if (my_b_read(file, (uchar*) buf, sizeof(buf)))
+    if (my_b_read(file, (uchar*) buf, LOG_EVENT_MINIMAL_HEADER_LEN))
     {
       /*
         If the read hits eof, we must report it as eof so the caller
@@ -1304,7 +1304,6 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
       binary_log_debug::debug_checksum_test=
         DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
 
-      DBUG_PRINT("info",("JAG checksum_alg_arg= %d", checksum_alg_arg));
       if (opt_master_verify_checksum &&
         Log_event_footer::event_checksum_test((uchar*)packet->ptr() + ev_offset,
                                               data_len + LOG_EVENT_MINIMAL_HEADER_LEN,
