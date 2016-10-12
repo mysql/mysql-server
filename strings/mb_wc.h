@@ -55,7 +55,7 @@ static inline int my_mb_wc_utf8mb4(my_wc_t *pwc, const uchar *s, const uchar *e)
 */
 struct Mb_wc_utf8
 {
-  explicit Mb_wc_utf8(const CHARSET_INFO *cs) {}
+  Mb_wc_utf8() {}
 
   int operator() (my_wc_t *pwc, const uchar *s, const uchar *e) const
   {
@@ -69,7 +69,7 @@ struct Mb_wc_utf8
 */
 struct Mb_wc_utf8mb4
 {
-  explicit Mb_wc_utf8mb4(const CHARSET_INFO *cs) {}
+  Mb_wc_utf8mb4() {}
 
   int operator() (my_wc_t *pwc, const uchar *s, const uchar *e) const
   {

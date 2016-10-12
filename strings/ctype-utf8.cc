@@ -5215,7 +5215,7 @@ my_strnxfrm_unicode(const CHARSET_INFO *cs,
   // my_mb_wc_utf8 is so common that we special-case it; short-circuit away
   // the thunk, and get it inlined.
   if (cs->cset->mb_wc == my_mb_wc_utf8_thunk) {
-    return my_strnxfrm_unicode_tmpl(cs, Mb_wc_utf8(cs), dst, dstlen, nweights, src, srclen, flags);
+    return my_strnxfrm_unicode_tmpl(cs, Mb_wc_utf8(), dst, dstlen, nweights, src, srclen, flags);
   } else {
     // Fallback using a function pointer (which the compiler is unlikely
     // to be able to optimize away).
