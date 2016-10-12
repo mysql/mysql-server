@@ -4376,14 +4376,14 @@ private:
   OpRecordUnion_pool c_opRecordPool;
 
   // Operation records
-  typedef KeyTable2C<OpRecordUnion_pool, OpCreateEvent, OpRecordUnion> OpCreateEvent_pool;
-  typedef KeyTable2C<OpRecordUnion_pool, OpSubEvent, OpRecordUnion> OpSubEvent_pool;
-  typedef KeyTable2C<OpRecordUnion_pool, OpDropEvent, OpRecordUnion> OpDropEvent_pool;
-  typedef KeyTable2C<OpRecordUnion_pool, OpSignalUtil, OpRecordUnion> OpSignalUtil_pool;
-  OpCreateEvent_pool c_opCreateEvent;
-  OpSubEvent_pool c_opSubEvent;
-  OpDropEvent_pool c_opDropEvent;
-  OpSignalUtil_pool c_opSignalUtil;
+  typedef KeyTable2C<OpRecordUnion_pool, OpCreateEvent, OpRecordUnion> OpCreateEvent_keyhash;
+  typedef KeyTable2C<OpRecordUnion_pool, OpSubEvent, OpRecordUnion> OpSubEvent_keyhash;
+  typedef KeyTable2C<OpRecordUnion_pool, OpDropEvent, OpRecordUnion> OpDropEvent_keyhash;
+  typedef KeyTable2C<OpRecordUnion_pool, OpSignalUtil, OpRecordUnion> OpSignalUtil_keyhash;
+  OpCreateEvent_keyhash c_opCreateEvent;
+  OpSubEvent_keyhash c_opSubEvent;
+  OpDropEvent_keyhash c_opDropEvent;
+  OpSignalUtil_keyhash c_opSignalUtil;
 
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;
