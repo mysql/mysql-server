@@ -28,7 +28,7 @@
 #include "ngs/capabilities/configurator.h"
 
 #include "ngs_common/atomic.h"
-#include "ngs_common/posix_time.h"
+#include "ngs_common/chrono.h"
 #include "ngs_common/connection_vio.h"
 
 #ifndef WIN32
@@ -40,9 +40,7 @@ namespace ngs
 {
   class Server_interface;
 
-  class Client : public Client_interface,
-                 //public Session_interface::Session_delegate,
-                 private boost::noncopyable
+  class Client : public Client_interface
   {
   public:
     Client(Connection_ptr connection,
@@ -80,7 +78,7 @@ namespace ngs
     virtual int       client_port() const { return m_client_port; }
 
     virtual Client_state  get_state() const { return m_state.load(); };
-    virtual ptime         get_accept_time() const;
+    virtual chrono::time_point get_accept_time() const;
 
   protected:
     char m_id[2+sizeof(Client_id)*2+1]; // 64bits in hex, plus 0x plus \0
@@ -90,7 +88,7 @@ namespace ngs
 
     Message_decoder m_decoder;
 
-    ngs::ptime m_accept_time;
+    ngs::chrono::time_point m_accept_time;
 
     ngs::Memory_instrumented<Protocol_encoder>::Unique_ptr m_encoder;
     std::string m_client_addr;
@@ -132,6 +130,9 @@ namespace ngs
     Protocol_monitor_interface &get_protocol_monitor();
 
   private:
+    Client(const Client &);
+    Client &operator=(const Client &);
+
     void get_last_error(int &error_code, std::string &message);
     void shutdown_connection();
 

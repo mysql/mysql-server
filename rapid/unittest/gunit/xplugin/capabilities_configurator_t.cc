@@ -13,10 +13,6 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-
-#include <boost/range/begin.hpp>
-#include <boost/range/end.hpp>
-
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -63,7 +59,7 @@ public:
 
     std::vector<Capability_handler_ptr> handlers(mock_handlers.begin(), mock_handlers.end());
 
-    std::for_each(boost::begin(mock_handlers), boost::end(mock_handlers), default_is_supported<false>);
+    std::for_each(mock_handlers.begin(), mock_handlers.end(), default_is_supported<false>);
 
     sut.reset(new Capabilities_configurator(handlers));
   }

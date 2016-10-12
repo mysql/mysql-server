@@ -52,7 +52,7 @@ typedef Buffering_command_delegate::Field_value Field_value;
 typedef Buffering_command_delegate::Row_data    Row_data;
 
 
-class Sql_data_context : private boost::noncopyable
+class Sql_data_context
 {
 public:
   struct Result_info
@@ -131,6 +131,9 @@ public:
                                                          bool compact_metadata, Result_info &r_info);
 
 private:
+  Sql_data_context(const Sql_data_context &);
+  Sql_data_context &operator=(const Sql_data_context &);
+
   ngs::Error_code execute_sql(Command_delegate &deleg, const char *sql, size_t length, Result_info &r_info);
 
   ngs::Error_code switch_to_user(const char *username, const char *hostname, const char *address, const char *db);

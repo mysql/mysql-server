@@ -215,7 +215,7 @@ void free_array(ArrayType *array_ptr)
 }
 
 
-// wrapper for boost unique ptr with instrumented default deallocator
+// wrapper for ngs unique ptr with instrumented default deallocator
 template<typename Type>
 struct Memory_instrumented
 {
