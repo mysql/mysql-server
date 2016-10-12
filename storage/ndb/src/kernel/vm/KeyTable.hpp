@@ -27,9 +27,9 @@
  * KeyTable2 is DLHashTable2 with hardcoded Uint32 key named "key".
  */
 template <typename P, typename T>
-class KeyTableImpl : public DLHashTable<P, T> {
+class KeyTable : public DLHashTable<P, T> {
 public:
-  KeyTableImpl(P & pool) :
+  KeyTable(P & pool) :
     DLHashTable<P, T>(pool) {
   }
 
@@ -43,16 +43,6 @@ public:
     return DLHashTable<P, T>::find(ptr, rec);
   }
 };
-
-// Specializations
-
-template <typename P, typename T>
-class KeyTable : public KeyTableImpl<P, T>
-{
-public:
-  KeyTable(P & p) : KeyTableImpl<P, T>(p) {}
-};
-
 
 #undef JAM_FILE_ID
 
