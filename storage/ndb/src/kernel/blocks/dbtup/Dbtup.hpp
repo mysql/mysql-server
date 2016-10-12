@@ -511,8 +511,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   }; // 32 bytes
   
   typedef RecordPool<Page_request, WOPool<Page_request> > Page_request_pool;
-  typedef DLFifoListImpl<Page_request_pool, Page_request> Page_request_list;
-  typedef LocalDLFifoListImpl<Page_request_pool, Page_request> Local_page_request_list;
+  typedef DLFifoList<Page_request, Page_request_pool> Page_request_list;
+  typedef LocalDLFifoList<Page_request, Page_request_pool> Local_page_request_list;
 
   STATIC_CONST( EXTENT_SEARCH_MATRIX_COLS = 4 ); // Guarantee size
   STATIC_CONST( EXTENT_SEARCH_MATRIX_ROWS = 5 ); // Total size
@@ -551,11 +551,11 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   }; // 40 bytes
 
   typedef RecordPool<Extent_info, RWPool<Extent_info> > Extent_info_pool;
-  typedef DLListImpl<Extent_info_pool, Extent_info> Extent_info_list;
-  typedef LocalDLListImpl<Extent_info_pool, Extent_info> Local_extent_info_list;
+  typedef DLList<Extent_info, Extent_info_pool> Extent_info_list;
+  typedef LocalDLList<Extent_info, Extent_info_pool> Local_extent_info_list;
   typedef DLHashTableImpl<Extent_info_pool, Extent_info> Extent_info_hash;
-  typedef SLListImpl<Extent_info_pool, Extent_info, Extent_list_t> Fragment_extent_list;
-  typedef LocalSLListImpl<Extent_info_pool, Extent_info, Extent_list_t> Local_fragment_extent_list;
+  typedef SLList<Extent_info, Extent_info_pool, Extent_list_t> Fragment_extent_list;
+  typedef LocalSLList<Extent_info, Extent_info_pool, Extent_list_t> Local_fragment_extent_list;
   struct Tablerec;
   struct Disk_alloc_info 
   {

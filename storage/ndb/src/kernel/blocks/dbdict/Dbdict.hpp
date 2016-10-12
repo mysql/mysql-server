@@ -239,8 +239,8 @@ public:
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
   typedef ArrayPool<AttributeRecord> AttributeRecord_pool;
   typedef DLMHashTable<AttributeRecord_pool, AttributeRecord> AttributeRecord_hash;
-  typedef DLFifoListImpl<AttributeRecord_pool, AttributeRecord, AttributeRecord> AttributeRecord_list;
-  typedef LocalDLFifoListImpl<AttributeRecord_pool, AttributeRecord, AttributeRecord> LocalAttributeRecord_list;
+  typedef DLFifoList<AttributeRecord, AttributeRecord_pool, AttributeRecord> AttributeRecord_list;
+  typedef LocalDLFifoList<AttributeRecord, AttributeRecord_pool, AttributeRecord> LocalAttributeRecord_list;
 
   AttributeRecord_pool c_attributeRecordPool;
   AttributeRecord_hash c_attributeRecordHash;
@@ -253,8 +253,8 @@ public:
   struct TableRecord;
   typedef Ptr<TableRecord> TableRecordPtr;
   typedef ArrayPool<TableRecord> TableRecord_pool;
-  typedef DLFifoListImpl<TableRecord_pool, TableRecord, TableRecord> TableRecord_list;
-  typedef LocalDLFifoListImpl<TableRecord_pool, TableRecord, TableRecord> LocalTableRecord_list;
+  typedef DLFifoList<TableRecord, TableRecord_pool, TableRecord> TableRecord_list;
+  typedef LocalDLFifoList<TableRecord, TableRecord_pool, TableRecord> LocalTableRecord_list;
 
   struct TableRecord {
     TableRecord(){
@@ -647,8 +647,8 @@ public:
   };
   typedef Ptr<File> FilePtr;
   typedef RecordPool<File, RWPool<File> > File_pool;
-  typedef DLListImpl<File_pool, File> File_list;
-  typedef LocalDLListImpl<File_pool, File> Local_file_list;
+  typedef DLList<File, File_pool> File_list;
+  typedef LocalDLList<File, File_pool> Local_file_list;
 
   struct Filegroup {
     Filegroup(){}
@@ -2053,8 +2053,8 @@ private:
 
   typedef RecordPool<SchemaOp,ArenaPool<SchemaOp> > SchemaOp_pool;
   typedef DLMHashTable<SchemaOp_pool, SchemaOp> SchemaOp_hash;
-  typedef DLFifoListImpl<SchemaOp_pool, SchemaOp, SchemaOp>::Head  SchemaOp_head;
-  typedef LocalDLFifoListImpl<SchemaOp_pool, SchemaOp, SchemaOp> LocalSchemaOp_list;
+  typedef DLFifoList<SchemaOp, SchemaOp_pool>::Head  SchemaOp_head;
+  typedef LocalDLFifoList<SchemaOp, SchemaOp_pool> LocalSchemaOp_list;
 
   SchemaOp_pool c_schemaOpPool;
   SchemaOp_hash c_schemaOpHash;
@@ -2420,7 +2420,7 @@ private:
 
   typedef RecordPool<SchemaTrans,ArenaPool<SchemaTrans> > SchemaTrans_pool;
   typedef DLMHashTable<SchemaTrans_pool, SchemaTrans> SchemaTrans_hash;
-  typedef DLFifoListImpl<SchemaTrans_pool, SchemaTrans, SchemaTrans> SchemaTrans_list;
+  typedef DLFifoList<SchemaTrans, SchemaTrans_pool> SchemaTrans_list;
 
   SchemaTrans_pool c_schemaTransPool;
   SchemaTrans_hash c_schemaTransHash;
