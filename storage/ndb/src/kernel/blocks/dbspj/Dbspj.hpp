@@ -99,12 +99,12 @@ protected:
 
 public:
   struct ScanFragHandle;
-  typedef DataBuffer<14, LocalArenaPoolImpl<DataBufferSegment<14> > > Correlation_list;
-  typedef LocalDataBuffer<14, LocalArenaPoolImpl<DataBufferSegment<14> > > Local_correlation_list;
-  typedef DataBuffer<14, LocalArenaPoolImpl<DataBufferSegment<14> > > Dependency_map;
-  typedef LocalDataBuffer<14, LocalArenaPoolImpl<DataBufferSegment<14> > > Local_dependency_map;
-  typedef DataBuffer<14, LocalArenaPoolImpl<DataBufferSegment<14> > > PatternStore;
-  typedef LocalDataBuffer<14, LocalArenaPoolImpl<DataBufferSegment<14> > > Local_pattern_store;
+  typedef DataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Correlation_list;
+  typedef LocalDataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Local_correlation_list;
+  typedef DataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Dependency_map;
+  typedef LocalDataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Local_dependency_map;
+  typedef DataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > PatternStore;
+  typedef LocalDataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Local_pattern_store;
   typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> TreeNodeBitMask;
 
   /* *********** TABLE RECORD ********************************************* */

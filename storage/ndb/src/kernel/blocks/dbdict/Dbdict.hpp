@@ -1879,16 +1879,16 @@ private:
   typedef
     DataBufferSegment<OpSectionSegmentSize> OpSectionSegment;
   typedef
-    LocalDataBuffer<OpSectionSegmentSize, LocalArenaPoolImpl<OpSectionSegment> >
+    LocalDataBuffer<OpSectionSegmentSize, LocalArenaPool<OpSectionSegment> >
     OpSectionBuffer;
   typedef
-    DataBuffer<OpSectionSegmentSize, LocalArenaPoolImpl<OpSectionSegment> >::Head
+    DataBuffer<OpSectionSegmentSize, LocalArenaPool<OpSectionSegment> >::Head
     OpSectionBufferHead;
   typedef
     OpSectionBuffer::DataBufferPool
     OpSectionBufferPool;
   typedef
-    DataBuffer<OpSectionSegmentSize, LocalArenaPoolImpl<OpSectionSegment> >::ConstDataBufferIterator
+    DataBuffer<OpSectionSegmentSize, LocalArenaPool<OpSectionSegment> >::ConstDataBufferIterator
     OpSectionBufferConstIterator;
 
   ArenaPool<OpSectionSegment> c_opSectionBufferPool;

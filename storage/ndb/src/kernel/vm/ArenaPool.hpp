@@ -96,12 +96,12 @@ private:
 };
 
 template<typename T>
-class LocalArenaPoolImpl
+class LocalArenaPool
 {
   ArenaHead & m_head;
   ArenaPool<T> & m_pool;
 public:
-  LocalArenaPoolImpl(ArenaHead& head, ArenaPool<T> & pool)
+  LocalArenaPool(ArenaHead& head, ArenaPool<T> & pool)
     : m_head(head), m_pool(pool) {}
 
   bool seize(Ptr<T> & ptr) { return m_pool.seize(m_head, ptr); }
