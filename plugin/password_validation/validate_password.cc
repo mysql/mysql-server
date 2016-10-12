@@ -29,6 +29,7 @@
 
 #include "my_compiler.h"
 #include "my_global.h"
+#include "my_psi_config.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_rwlock.h"

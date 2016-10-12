@@ -615,8 +615,13 @@ class Json_string : public Json_scalar
 private:
   std::string m_str; //!< holds the string
 public:
-  explicit Json_string(const std::string &value)
-    : Json_scalar(), m_str(value)
+  /*
+    Construct a Json_string object.
+    @param args any arguments accepted by std::string's constructors
+  */
+  template <typename... Args>
+  explicit Json_string(Args&&... args)
+    : Json_scalar(), m_str(std::forward<Args>(args)...)
   {}
   ~Json_string() {}
 
@@ -1509,6 +1514,23 @@ public:
 
     @param[out] to      a buffer to which the sort key is written
     @param[in]  length  the length of the sort key
+
+    @details Key storage format is following:
+    @verbatim
+      |<key len><json type><   sort key    >|
+      / 4 bytes/   1 byte /key len bytes - 5/
+    @endverbatim
+
+    JSON is assumed to be non-sql-null and valid (checked by caller).
+    Key length contains full length - the len prefix itself, json type and the
+    sort key.
+    All numeric types are stored as a number, without distinction to
+    double/decimal/int/etc. See @c make_json_numeric_sort_key().
+    Same is done to DATETIME and TIMESTAMP types.
+    For string and opaque types only the prefix that fits into the output buffer
+    is stored.
+    For JSON objects and arrays only their length (number of elements) is
+    stored, this is a limitation of current implementation.
   */
   void make_sort_key(uchar *to, size_t length) const;
 

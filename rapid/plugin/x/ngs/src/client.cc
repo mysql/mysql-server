@@ -200,7 +200,7 @@ void Client::handle_message(Request &request)
 
     default:
       // invalid message at this time
-      m_protocol_monitor.on_unknown_msg_type();
+      m_protocol_monitor.on_error_unknown_msg_type();
       log_info("%s: Invalid message %i received during client initialization", client_id(), request.get_type());
       m_encoder->send_result(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
       m_close_reason = Close_error;
@@ -417,7 +417,7 @@ Request *Client::read_one_message(Error_code &ret_error)
 {
   union
   {
-    char buffer[5];                             // Must be properly aligned
+    char buffer[4];                             // Must be properly aligned
     longlong dummy;
   };
   uint32_t msg_size;
@@ -425,7 +425,7 @@ Request *Client::read_one_message(Error_code &ret_error)
   // untill we get another message to process we mark the connection as idle (for PSF)
   m_connection->mark_idle();
   // read the frame
-  ssize_t nread = m_connection->read(buffer, 5);
+  ssize_t nread = m_connection->read(buffer, 4);
   m_connection->mark_active();
 
   if (nread == 0) // EOF
@@ -454,7 +454,6 @@ Request *Client::read_one_message(Error_code &ret_error)
 #endif
   const uint32_t* pdata = (uint32_t*)(buffer);
   msg_size = *pdata;
-  int8_t type = (int8_t)buffer[4];
 
   if (msg_size > m_server.get_config()->max_message_size)
   {
@@ -465,49 +464,47 @@ Request *Client::read_one_message(Error_code &ret_error)
     return NULL;
   }
 
+  if (0 == msg_size)
+  {
+    ret_error = Error(ER_X_BAD_MESSAGE, "Messages without payload are not supported");
+    return NULL;
+  }
+
+  if (m_msg_buffer_size < msg_size)
+  {
+    m_msg_buffer_size = msg_size;
+    ngs::reallocate_array(m_msg_buffer, m_msg_buffer_size, KEY_memory_x_recv_buffer);
+  }
+
+  nread = m_connection->read(&m_msg_buffer[0], msg_size);
+  if (nread == 0) // EOF
+  {
+    log_info("%s: peer disconnected while reading message body", client_id());
+    on_network_error(0);
+    return NULL;
+  }
+
+  if (nread < 0)
+  {
+    int err;
+    std::string strerr;
+    Connection_vio::get_error(err, strerr);
+    log_info("%s: ERROR reading from socket %s (%i)", client_id(), strerr.c_str(), err);
+    on_network_error(err);
+    return NULL;
+  }
+
+  m_protocol_monitor.on_receive(static_cast<long>(nread));
+
+  int8_t type = (int8_t)m_msg_buffer[0];
   Request_unique_ptr request(ngs::allocate_object<Request>(type));
 
   if (msg_size > 1)
-  {
-    if (m_msg_buffer_size < msg_size-1)
-    {
-      m_msg_buffer_size = msg_size - 1;
-      ngs::reallocate_array(m_msg_buffer, m_msg_buffer_size, KEY_memory_x_recv_buffer);
-    }
+    request->buffer(&m_msg_buffer[1], msg_size - 1);
 
-    nread = m_connection->read(&m_msg_buffer[0], msg_size-1);
-    if (nread == 0) // EOF
-    {
-      log_info("%s: peer disconnected while reading message body", client_id());
-      on_network_error(0);
-      return NULL;
-    }
-    if (nread < 0)
-    {
-      int err;
-      std::string strerr;
-      Connection_vio::get_error(err, strerr);
-      log_info("%s: ERROR reading from socket %s (%i)", client_id(), strerr.c_str(), err);
-      on_network_error(err);
-      return NULL;
-    }
-    m_protocol_monitor.on_receive(static_cast<long>(nread));
+  ret_error = m_decoder.parse(*request);
 
-    request->buffer(m_msg_buffer, msg_size-1);
-
-    ret_error = m_decoder.parse(*request);
-    return request.release();
-  }
-  else if (msg_size == 1)
-  {
-    ret_error = m_decoder.parse(*request);
-    return request.release();
-  }
-  else
-  {
-    ret_error = Error_code(ER_X_BAD_MESSAGE, "Invalid message");
-    return NULL;
-  }
+  return request.release();
 }
 
 

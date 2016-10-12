@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ int Bounded_queue_boost<Element_type, Key_type, Key_generator, Key_compare>
          Key_type *sort_keys)
 {
   m_sort_keys=      sort_keys;
-  m_compare_length= sort_param->compare_length();
+  m_compare_length= sort_param->max_compare_length();
   m_sort_param=     sort_param;
 
   m_max_elements= max_elements + 1;

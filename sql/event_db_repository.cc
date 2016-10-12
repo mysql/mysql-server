@@ -118,8 +118,6 @@ static bool index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
     }
   }
 
-  delete_container_pointers(events);
-
   DBUG_RETURN(false);
 }
 
@@ -138,6 +136,8 @@ static bool index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
 static bool table_scan_all_for_i_s(THD *thd, TABLE *schema_table)
 {
   DBUG_ENTER("table_scan_all_for_i_s");
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Fetch all Schemas
   std::vector<const dd::Schema*> schemas;
@@ -170,10 +170,7 @@ static bool table_scan_all_for_i_s(THD *thd, TABLE *schema_table)
       }
     }
 
-    delete_container_pointers(events);
   }
-
-  delete_container_pointers(schemas);
 
   DBUG_RETURN(false);
 }
@@ -444,8 +441,6 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
       DBUG_RETURN(true);
     }
   }
-
-  delete_container_pointers(events);
 
   DBUG_RETURN(false);
 }

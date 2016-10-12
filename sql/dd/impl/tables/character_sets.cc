@@ -153,8 +153,6 @@ bool Character_sets::populate(THD *thd) const
       return true;
   }
 
-  delete_container_pointers(prev_cset);
-
   return error;
 }
 

@@ -74,13 +74,8 @@ public:
   Sql_data_context(ngs::Protocol_encoder *proto, const bool query_without_authentication = false)
   : m_proto(proto), m_mysql_session(NULL),
     m_streaming_delegate(m_proto),
-    m_user(NULL),
-    m_host(NULL),
-    m_ip(NULL),
-    m_db(NULL),
     m_last_sql_errno(0),
     m_auth_ok(false),
-    m_is_super(false),
     m_query_without_authentication(query_without_authentication),
     m_password_expired(false)
   {}
@@ -113,11 +108,14 @@ public:
   bool is_killed();
   bool is_acl_disabled();
   bool is_api_ready();
+
   bool wait_api_ready(ngs::function<bool()> exiting);
   bool password_expired() const { return m_password_expired; }
 
-  const char* authenticated_user() const { return m_user; }
-  bool authenticated_user_is_super() const { return m_is_super; }
+  std::string get_authenticated_user_name() const;
+  std::string get_authenticated_user_host() const;
+  bool        has_authenticated_user_a_super_priv() const;
+
   void switch_to_local_user(const std::string &username);
 
   ngs::Error_code execute_kill_sql_session(uint64_t mysql_session_id);
@@ -136,13 +134,17 @@ public:
                                                          bool compact_metadata, Result_info &r_info);
 
 private:
-
   ngs::Error_code execute_sql(Command_delegate &deleg, const char *sql, size_t length, Result_info &r_info);
 
   ngs::Error_code switch_to_user(const char *username, const char *hostname, const char *address, const char *db);
   ngs::Error_code query_user(const char *user, const char *host, const char *ip, On_user_password_hash &hash_verification_cb, ngs::IOptions_session_ptr &options_session, const ngs::Connection_type type);
 
   static void default_completion_handler(void *ctx, unsigned int sql_errno, const char *err_msg);
+
+  std::string m_username;
+  std::string m_hostname;
+  std::string m_address;
+  std::string m_db;
 
   ngs::Protocol_encoder *m_proto;
   MYSQL_SESSION          m_mysql_session;
@@ -151,16 +153,10 @@ private:
   Buffering_command_delegate m_buffering_delegate;
   Streaming_command_delegate m_streaming_delegate;
 
-  char *m_user;
-  char *m_host;
-  char *m_ip;
-  char *m_db;
-
   int m_last_sql_errno;
   std::string m_last_sql_error;
 
   bool m_auth_ok;
-  bool m_is_super;
   bool m_query_without_authentication;
   bool m_password_expired;
 };

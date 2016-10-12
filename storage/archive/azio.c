@@ -8,16 +8,17 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  *
  * This file was modified by Oracle on 2015-01-23.
- * Modifications copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Modifications copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 
 /* @(#) $Id$ */
 
-#include "azlib.h"
-
 #include <stdio.h>
 #include <string.h>
+
+#include "azlib.h"
 #include "my_byteorder.h"
+#include "my_psi_config.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
 

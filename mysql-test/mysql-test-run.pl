@@ -2036,9 +2036,11 @@ sub set_build_thread_ports($) {
     # Start attempts from here
     $build_thread = 300;
 
-    my $build_thread_upper = $build_thread + ($opt_parallel > 39
-                             ? $opt_parallel + int($opt_parallel / 4)
+    my $max_parallel= $opt_parallel * $build_threads_per_thread;
+    my $build_thread_upper = $build_thread + ($max_parallel > 39
+                             ? $max_parallel + int($max_parallel / 4)
                              : 49);
+
     while (!$found_free)
     {
       $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper,

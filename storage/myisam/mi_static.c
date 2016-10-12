@@ -21,6 +21,7 @@
 #ifndef MY_GLOBAL_INCLUDED
 #include "myisamdef.h"
 #endif
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 
 LIST	*myisam_open_list=0;

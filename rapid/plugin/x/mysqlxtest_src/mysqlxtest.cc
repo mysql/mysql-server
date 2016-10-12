@@ -17,51 +17,51 @@
  * 02110-1301  USA
  */
 
-#include "my_global.h"
-#include "mysqlx_version.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "mysqlx_crud.h"
-#include "ngs_common/protocol_const.h"
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
-#include <boost/algorithm/string.hpp>
 #include <boost/algorithm/hex.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
-#include <string.h>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
-#include <boost/format.hpp>
-
-#include "ngs_common/bind.h"
-#include "expr_parser.h"
-#include "utils_mysql_parsing.h"
-
-#include "violite.h"
-#include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
 #include <rapidjson/writer.h>
-
+#include <string.h>
+#include <algorithm>
+#include <fstream>
 #include <ios>
 #include <iostream>
-#include <fstream>
 #include <iterator>
 #include <sstream>
 #include <stdexcept>
-#include <algorithm>
-#include "mysqlx_protocol.h"
-#include "mysqlx_session.h"
-#include "mysqlx_resultset.h"
-#include "mysqlx_error.h"
+
 #include "dummy_stream.h"
+#include "expr_parser.h"
+#include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
+#include "my_global.h"
+#include "mysqlx_crud.h"
+#include "mysqlx_error.h"
+#include "mysqlx_protocol.h"
+#include "mysqlx_resultset.h"
+#include "mysqlx_session.h"
+#include "mysqlx_version.h"
+#include "ngs_common/bind.h"
 #include "ngs_common/posix_time.h"
+#include "ngs_common/protocol_const.h"
+#include "ngs_common/protocol_protobuf.h"
+#include "utils_mysql_parsing.h"
+#include "violite.h"
 
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
 
+const char *CMD_ARG_BE_QUIET = "be-quiet";
 const char CMD_ARG_SEPARATOR = '\t';
 const char * const MYSQLXTEST_VERSION = "1.0";
 const unsigned short MYSQLX_PORT = 33060;
-#include <mysql/service_my_snprintf.h>
 #include <mysql.h>
+#include <mysql/service_my_snprintf.h>
 
 #ifdef _MSC_VER
 #  pragma push_macro("ERROR")
@@ -891,9 +891,9 @@ public:
     m_commands["assert_eq "]      = &Command::cmd_assert_eq;
     m_commands["assert_gt "]      = &Command::cmd_assert_gt;
     m_commands["assert_ge "]      = &Command::cmd_assert_ge;
-    m_commands["query_result"]      = &Command::cmd_query;
-    m_commands["noquery_result"]      = &Command::cmd_noquery;
-    m_commands["wait_for "]      = &Command::cmd_wait_for;
+    m_commands["query_result"]    = &Command::cmd_query;
+    m_commands["noquery_result"]  = &Command::cmd_noquery;
+    m_commands["wait_for "]       = &Command::cmd_wait_for;
   }
 
   bool is_command_syntax(const std::string &cmd) const
@@ -1055,7 +1055,21 @@ private:
   {
     bool was_set = false;
 
-    cmd_recvresult(context, "", ngs::bind(&Command::set_variable, ngs::ref(was_set), args, ngs::placeholders::_1));
+    std::string args_cmd = args;
+    std::vector<std::string> args_array;
+    boost::algorithm::trim(args_cmd);
+
+    boost::split(args_array, args_cmd, boost::is_any_of(" "), boost::token_compress_off);
+
+    args_cmd = CMD_ARG_BE_QUIET;
+
+    if (args_array.size() > 1)
+    {
+      args_cmd += " ";
+      args_cmd += args_array.at(1);
+    }
+
+    cmd_recvresult(context, args_cmd, ngs::bind(&Command::set_variable, ngs::ref(was_set), args_array.at(0), ngs::placeholders::_1));
 
     if (!was_set)
     {
@@ -1088,7 +1102,7 @@ private:
       const bool print_colinfo = i != columns.end();
       if (print_colinfo) columns.erase(i);
 
-      i = std::find(columns.begin(), columns.end(), "be-quiet");
+      i = std::find(columns.begin(), columns.end(), CMD_ARG_BE_QUIET);
       const bool quiet = i != columns.end();
       if (quiet) columns.erase(i);
 
@@ -1292,6 +1306,8 @@ private:
     else
     {
       std::string s = args;
+      replace_variables(s);
+
       std::string::size_type p = s.find(CMD_ARG_SEPARATOR);
       if (p != std::string::npos)
       {
@@ -1463,7 +1479,6 @@ private:
 
   Result cmd_system(Execution_context &context, const std::string &args)
   {
-    // XXX - remove command
     // command used only at dev level
     // example of usage
     // -->system (sleep 3; echo "Killing"; ps aux | grep mysqld | egrep -v "gdb .+mysqld" | grep -v  "kdeinit4"| awk '{print($2)}' | xargs kill -s SIGQUIT)&
@@ -1558,10 +1573,11 @@ private:
       return Stop_with_failure;
     }
 
+    context.m_cm->active()->set_closed();
+
     if (context.m_cm->is_default_active())
       return Stop_with_success;
 
-    context.m_cm->active()->set_closed();
     context.m_cm->close_active(false);
 
     return Continue;
@@ -1815,12 +1831,7 @@ private:
     std::string::size_type p = args.find(' ');
     if (p == std::string::npos)
     {
-      if (variables.find(args) == variables.end())
-      {
-        std::cerr << "Invalid variable " << args << "\n";
-        return Stop_with_failure;
-      }
-      variables.erase(args);
+      variables[args] = "";
     }
     else
     {
@@ -2095,12 +2106,9 @@ private:
     return Continue;
   }
 
-  static void compare_variable_to(bool &match, std::string expected_value, std::string value)
+  static void put_variable_to(std::string &result, const std::string &value)
   {
-    if (expected_value == value)
-    {
-      match = true;
-    }
+    result = value;
   }
 
   static void try_result(Result result)
@@ -2135,9 +2143,11 @@ private:
     const int countdown_start_value = 30;
     int  countdown_retries = countdown_start_value;
 
+    std::string args_variables_replaced = args;
     std::vector<std::string> vargs;
 
-    boost::split(vargs, args, boost::is_any_of("\t"), boost::token_compress_on);
+    replace_variables(args_variables_replaced);
+    boost::split(vargs, args_variables_replaced, boost::is_any_of("\t"), boost::token_compress_on);
 
     if (2 != vargs.size())
     {
@@ -2145,18 +2155,24 @@ private:
       return Stop_with_failure;
     }
 
+    const std::string &expected_value = vargs[0];
+    std::string value;
+
     try
     {
-      while(!match && countdown_retries--)
+      do
       {
         Backup_and_restore<bool>        backup_and_restore_fatal_errors(OPT_fatal_errors, true);
         Backup_and_restore<bool>        backup_and_restore_query(OPT_query, false);
         Backup_and_restore<std::string> backup_and_restore_command_name(context.m_command_name, "sql");
 
         try_result(cmd_stmtsql(context, vargs[1]));
-        try_result(cmd_recvresult(context, "", ngs::bind(&Command::compare_variable_to, ngs::ref(match), vargs[0], ngs::placeholders::_1)));
+        try_result(cmd_recvresult(context, "", ngs::bind(&Command::put_variable_to, ngs::ref(value), ngs::placeholders::_1)));
         try_result(cmd_sleep(context,"1"));
+
+        match = (value == expected_value);
       }
+      while(!match && --countdown_retries);
     }
     catch(const Result result)
     {
@@ -2166,7 +2182,8 @@ private:
 
     if (!match)
     {
-      std::cerr << "Query didn't return expected value, tried " << countdown_start_value << " retries\n";
+      std::cerr << "Query didn't return expected value, tried " << countdown_start_value << " times\n";
+      std::cerr << "Expected '" << expected_value << "', received '" << value << "'\n";
       return Stop_with_failure;
     }
 
@@ -2920,6 +2937,7 @@ public:
   std::string schema;
   mysqlx::Ssl_config ssl;
   bool        daemon;
+  std::string sql;
 
   void print_version()
   {
@@ -2932,6 +2950,7 @@ public:
     std::cout << "mysqlxtest <options>\n";
     std::cout << "Options:\n";
     std::cout << "-f, --file=<file>     Reads input from file\n";
+    std::cout << "--sql=<SQL>           Use SQL as input and execute it like in -->sql block\n";
     std::cout << "-n, --no-auth         Skip authentication which is required by -->sql block (run mode)\n";
     std::cout << "--plain-auth          Use PLAIN text authentication mechanism\n";
     std::cout << "-u, --user=<user>a    Connection user\n";
@@ -2992,10 +3011,11 @@ public:
     std::cout << "  Encodes the text format protobuf message and sends it to the server (allows variables).\n";
     std::cout << "-->recv [quiet]\n";
     std::cout << "  Read and print (if not quiet) one message from the server\n";
-    std::cout << "-->recvresult [print-columnsinfo] [be-quiet]\n";
+    std::cout << "-->recvresult [print-columnsinfo] [" << CMD_ARG_BE_QUIET << "]\n";
     std::cout << "  Read and print one resultset from the server; if print-columnsinfo is present also print short columns status\n";
-    std::cout << "-->recvtovar <varname>\n";
-    std::cout << "  Read and print one resultset from the server and sets the variable from first row\n";
+    std::cout << "-->recvtovar <varname> [COLUMN_NAME]\n";
+    std::cout << "  Read first row and first column (or column with name COLUMN_NAME) of resultset\n";
+    std::cout << "  and set the variable <varname>\n";
     std::cout << "-->recverror <errno>\n";
     std::cout << "  Read a message and ensure that it's an error of the expected type\n";
     std::cout << "-->recvtype <msgtype>\n";
@@ -3117,6 +3137,10 @@ public:
       else if (check_arg(argv, i, "--plain-auth", NULL))
       {
         use_plain_auth = true;
+      }
+      else if (check_arg_with_value(argv, i, "--sql", NULL, value))
+      {
+        sql = value;
       }
       else if (check_arg_with_value(argv, i, "--password", "-p", value))
         password = value;
@@ -3491,10 +3515,16 @@ Command::Result Command::cmd_import(Execution_context &context, const std::strin
 
 typedef int (*Program_mode)(const My_command_line_options &, std::istream &input);
 
-static std::istream &get_input(My_command_line_options &opt, std::ifstream &file)
+static std::istream &get_input(My_command_line_options &opt, std::ifstream &file, std::stringstream &string)
 {
   if (opt.has_file)
   {
+    if (!opt.sql.empty())
+    {
+      std::cerr << "ERROR: specified file and sql to execute, please enter only one of those\n";
+      opt.exit_code = 1;
+    }
+
     file.open(opt.run_file.c_str());
     file.rdbuf()->pubsetbuf(NULL, 0);
 
@@ -3505,6 +3535,18 @@ static std::istream &get_input(My_command_line_options &opt, std::ifstream &file
     }
 
     return file;
+  }
+
+  if (!opt.sql.empty())
+  {
+    std::streampos position = string.tellp();
+
+    string << "-->sql\n";
+    string << opt.sql << "\n";
+    string << "-->endsql\n";
+    string.seekp(position, std::ios::beg);
+
+    return string;
   }
 
   return std::cin;
@@ -3566,7 +3608,8 @@ int main(int argc, char **argv)
 
   std::cout << std::unitbuf;
   std::ifstream fs;
-  std::istream &input = get_input(options, fs);
+  std::stringstream ss;
+  std::istream &input = get_input(options, fs, ss);
   Program_mode  mode  = get_mode_function(options);
 
 #ifdef WIN32

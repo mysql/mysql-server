@@ -271,7 +271,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 25192,
-              "sort_mode": "<sort_key, packed_additional_fields>"
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -449,7 +449,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 7040,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -662,7 +662,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 13120,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -889,7 +889,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 8888,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -1106,7 +1106,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 8888,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -1278,7 +1278,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 4656,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -1419,7 +1419,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 1256,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -1570,7 +1570,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 72,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -1749,7 +1749,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 7040,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -1962,7 +1962,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 13120,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -2189,7 +2189,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 8888,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -2406,7 +2406,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 8888,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -2578,7 +2578,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 4656,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -2764,7 +2764,7 @@ ORDER BY f1, f0 LIMIT 30	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 7040,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -2917,7 +2917,7 @@ ORDER BY f1, f0 LIMIT 0	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 232,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -3114,7 +3114,7 @@ ORDER BY f2, f0 LIMIT 20	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 8888,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -3291,7 +3291,7 @@ ORDER BY f2, f0 LIMIT 0	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 424,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -3478,7 +3478,7 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 8888,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -3655,7 +3655,7 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 4656,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -3953,7 +3953,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
               "examined_rows": 1500,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 776,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -4243,7 +4243,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               "examined_rows": 1500,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 1528,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -4538,7 +4538,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               "examined_rows": 1500,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 1528,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -4885,7 +4885,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               "examined_rows": 1185,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 1528,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -5201,7 +5201,7 @@ SELECT * FROM v1	{
                     "examined_rows": 500,
                     "number_of_tmp_files": 0,
                     "sort_buffer_size": 7040,
-                    "sort_mode": "<sort_key, additional_fields>"
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -5510,7 +5510,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                     "examined_rows": 500,
                     "number_of_tmp_files": 0,
                     "sort_buffer_size": 22928,
-                    "sort_mode": "<sort_key, additional_fields>"
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -5543,7 +5543,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 6856,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -6173,7 +6173,7 @@ LIMIT 30	{
                     "examined_rows": 500,
                     "number_of_tmp_files": 0,
                     "sort_buffer_size": 22928,
-                    "sort_mode": "<sort_key, additional_fields>"
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -6210,7 +6210,7 @@ LIMIT 30	{
                     "examined_rows": 500,
                     "number_of_tmp_files": 0,
                     "sort_buffer_size": 42728,
-                    "sort_mode": "<sort_key, additional_fields>"
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -6260,7 +6260,7 @@ LIMIT 30	{
               "examined_rows": 325,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 6976,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -6440,7 +6440,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
               "examined_rows": 10,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 200,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -6691,7 +6691,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
               "examined_rows": 500,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 13120,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -6876,7 +6876,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
               "examined_rows": 500,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 13120,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -7062,7 +7062,7 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
               "examined_rows": 500,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 13120,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -7366,7 +7366,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                     "examined_rows": 500,
                     "number_of_tmp_files": 0,
                     "sort_buffer_size": 22928,
-                    "sort_mode": "<sort_key, additional_fields>"
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -7399,7 +7399,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               "examined_rows": 100,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 6856,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -7799,7 +7799,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                     "examined_rows": 500,
                     "number_of_tmp_files": 0,
                     "sort_buffer_size": 6920,
-                    "sort_mode": "<sort_key, additional_fields>"
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -7839,7 +7839,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               "examined_rows": 620,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 6728,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -8105,7 +8105,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                           "examined_rows": 500,
                           "number_of_tmp_files": 0,
                           "sort_buffer_size": 40,
-                          "sort_mode": "<sort_key, additional_fields>"
+                          "sort_mode": "<fixed_sort_key, additional_fields>"
                         }
                       }
                     ]
@@ -11865,7 +11865,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                           "examined_rows": 500,
                           "number_of_tmp_files": 0,
                           "sort_buffer_size": 56,
-                          "sort_mode": "<sort_key, additional_fields>"
+                          "sort_mode": "<fixed_sort_key, additional_fields>"
                         }
                       }
                     ]
@@ -12133,7 +12133,7 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
               "examined_rows": 438500,
               "number_of_tmp_files": 0,
               "sort_buffer_size": 21720,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -12145,3 +12145,514 @@ DROP TABLE t1, tmp;
 DROP VIEW v1, v2;
 # end of WL#1393 - Optimizing filesort with small limit
 # end of WL#5834 - Add optimizer traces for sorting
+# WL#8741 Varlen keys for sorting JSON values
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
+INSERT INTO t(j) VALUES
+(NULL), ('true'), ('false'),
+('"abc"'), ('""'), ('"abcd"'), ('"bc"'),
+('"abc\\u0000\\u0000"'),
+('"abc\\u0000"'),
+('0.0'), ('-0.0'), ('9223372036854776000'),
+('1.0e-1'), ('1.0e-2')
+;
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id;
+j	tp
+NULL	NULL
+0	DOUBLE
+-0	DOUBLE
+0.01	DOUBLE
+0.1	DOUBLE
+9223372036854776000	UNSIGNED INTEGER
+""	STRING
+"abc"	STRING
+"abc\u0000"	STRING
+"abc\u0000\u0000"	STRING
+"abcd"	STRING
+"bc"	STRING
+false	BOOLEAN
+true	BOOLEAN
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
+j	tp
+-0	DOUBLE
+0.01	DOUBLE
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t`.`j` AS `j`,json_type(`t`.`j`) AS `tp` from `t` order by `t`.`j`,`t`.`id` limit 2,2"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "table_scan": {
+                  "rows": 14,
+                  "cost": 2
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 14,
+                      "access_type": "scan",
+                      "resulting_rows": 14,
+                      "cost": 4.8732,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 14,
+                "cost_for_plan": 4.8732,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "`t`.`j`,`t`.`id`",
+              "items": [
+                {
+                  "item": "`t`.`j`"
+                },
+                {
+                  "item": "`t`.`id`"
+                }
+              ],
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`t`.`j`,`t`.`id`"
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "filesort_information": [
+              {
+                "direction": "asc",
+                "table": "`t`",
+                "field": "j"
+              },
+              {
+                "direction": "asc",
+                "table": "`t`",
+                "field": "id"
+              }
+            ],
+            "filesort_priority_queue_optimization": {
+              "limit": 4,
+              "rows_estimate": 24,
+              "row_size": 1047,
+              "memory_available": 32768,
+              "chosen": true
+            },
+            "filesort_execution": [
+            ],
+            "filesort_summary": {
+              "rows": 5,
+              "examined_rows": 14,
+              "number_of_tmp_files": 0,
+              "sort_buffer_size": 5280,
+              "sort_mode": "<varlen_sort_key, rowid>"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}	0	0
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id;
+j	tp
+true	BOOLEAN
+false	BOOLEAN
+"bc"	STRING
+"abcd"	STRING
+"abc\u0000\u0000"	STRING
+"abc\u0000"	STRING
+"abc"	STRING
+""	STRING
+9223372036854776000	UNSIGNED INTEGER
+0.1	DOUBLE
+0.01	DOUBLE
+0	DOUBLE
+-0	DOUBLE
+NULL	NULL
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2;
+j	tp
+"bc"	STRING
+"abcd"	STRING
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t`.`j` AS `j`,json_type(`t`.`j`) AS `tp` from `t` order by `t`.`j` desc,`t`.`id` limit 2,2"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "table_scan": {
+                  "rows": 14,
+                  "cost": 2
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 14,
+                      "access_type": "scan",
+                      "resulting_rows": 14,
+                      "cost": 4.8732,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 14,
+                "cost_for_plan": 4.8732,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "`t`.`j` desc,`t`.`id`",
+              "items": [
+                {
+                  "item": "`t`.`j`"
+                },
+                {
+                  "item": "`t`.`id`"
+                }
+              ],
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`t`.`j` desc,`t`.`id`"
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "filesort_information": [
+              {
+                "direction": "desc",
+                "table": "`t`",
+                "field": "j"
+              },
+              {
+                "direction": "asc",
+                "table": "`t`",
+                "field": "id"
+              }
+            ],
+            "filesort_priority_queue_optimization": {
+              "limit": 4,
+              "rows_estimate": 24,
+              "row_size": 1047,
+              "memory_available": 32768,
+              "chosen": true
+            },
+            "filesort_execution": [
+            ],
+            "filesort_summary": {
+              "rows": 5,
+              "examined_rows": 14,
+              "number_of_tmp_files": 0,
+              "sort_buffer_size": 5280,
+              "sort_mode": "<varlen_sort_key, rowid>"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}	0	0
+SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id;
+je	tp
+NULL	NULL
+0	DOUBLE
+-0	DOUBLE
+0.01	DOUBLE
+0.1	DOUBLE
+9223372036854776000	UNSIGNED INTEGER
+""	STRING
+"abc"	STRING
+"abc\u0000"	STRING
+"abc\u0000\u0000"	STRING
+"abcd"	STRING
+"bc"	STRING
+false	BOOLEAN
+true	BOOLEAN
+SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id
+limit 2 offset 2;
+je	tp
+-0	DOUBLE
+0.01	DOUBLE
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id
+limit 2 offset 2	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select json_extract(`t`.`j`,'$') AS `je`,json_type(`t`.`j`) AS `tp` from `t` order by `je`,`t`.`id` limit 2,2"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "table_scan": {
+                  "rows": 14,
+                  "cost": 2
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 14,
+                      "access_type": "scan",
+                      "resulting_rows": 14,
+                      "cost": 4.8732,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 14,
+                "cost_for_plan": 4.8732,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "`je`,`t`.`id`",
+              "items": [
+                {
+                  "item": "json_extract(`t`.`j`,'$')"
+                },
+                {
+                  "item": "`t`.`id`"
+                }
+              ],
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`je`,`t`.`id`"
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "filesort_information": [
+              {
+                "direction": "asc",
+                "expression": "json_extract(`t`.`j`,'$')"
+              },
+              {
+                "direction": "asc",
+                "table": "`t`",
+                "field": "id"
+              }
+            ],
+            "filesort_priority_queue_optimization": {
+              "limit": 4,
+              "rows_estimate": 24,
+              "row_size": 791,
+              "memory_available": 32768,
+              "chosen": true
+            },
+            "filesort_execution": [
+            ],
+            "filesort_summary": {
+              "rows": 5,
+              "examined_rows": 14,
+              "number_of_tmp_files": 0,
+              "sort_buffer_size": 4000,
+              "sort_mode": "<varlen_sort_key, rowid>"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}	0	0
+DROP TABLE t;
+# --end of WL#8741 Varlen keys for sorting JSON values

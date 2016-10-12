@@ -57,8 +57,6 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-#include "my_psi_config.h"
-#include "my_rapidjson_size_t.h"
 #include "my_sharedlib.h"
 #include "my_shm_defaults.h"
 #include "my_systime.h"

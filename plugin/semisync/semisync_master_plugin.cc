@@ -15,12 +15,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 
-#include "semisync_master.h"
-#include "sql_class.h"                          // THD
 #include "current_thd.h"
-#include "semisync_master_ack_receiver.h"
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_stage.h"
+#include "semisync_master.h"
+#include "semisync_master_ack_receiver.h"
+#include "sql_class.h"                          // THD
 
 ReplSemiSyncMaster repl_semisync;
 Ack_receiver ack_receiver;

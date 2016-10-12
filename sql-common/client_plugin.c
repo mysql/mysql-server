@@ -27,18 +27,19 @@
   There is no reference counting and no unloading either.
 */
 
-#include <my_global.h>
-#include "mysql.h"
-#include <my_sys.h>
 #include <m_string.h>
+#include <my_global.h>
+#include <my_sys.h>
 #include <my_thread.h>
-#include "sql_common.h"
-
-#include <sql_common.h>
-#include "errmsg.h"
 #include <mysql/client_plugin.h>
+#include <sql_common.h>
+
+#include "errmsg.h"
+#include "my_psi_config.h"
+#include "mysql.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/service_mysql_alloc.h"
+#include "sql_common.h"
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>

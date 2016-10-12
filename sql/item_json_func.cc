@@ -1519,11 +1519,11 @@ static bool val_json_func_field_subselect(Item* arg,
 
         if (scalar)
         {
-          scalar->emplace<Json_string>(std::string(s, ss));
+          scalar->emplace<Json_string>(s, ss);
         }
         else
         {
-          dom= new (std::nothrow) Json_string(std::string(s, ss));
+          dom= new (std::nothrow) Json_string(s, ss);
           if (!dom)
             return true;                       /* purecov: inspected */
         }

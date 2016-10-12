@@ -672,6 +672,10 @@ static int rr_from_pointers(READ_RECORD *info)
   @tparam Packed_addon_fields Are the addon fields packed?
      This is a compile-time constant, to avoid if (....) tests during execution.
 
+  TODO: consider templatizing on is_varlen as well.
+  Variable / Fixed size key is currently handled by
+  Filesort_info::get_start_of_payload
+
   @retval
     0   Record successfully read.
   @retval
@@ -685,8 +689,8 @@ static int rr_unpack_from_buffer(READ_RECORD *info)
 
   uchar *record= info->table->sort.get_sorted_record(
     static_cast<uint>(info->unpack_counter));
-  uchar *plen= record + info->table->sort.get_sort_length();
-  info->table->sort.unpack_addon_fields<Packed_addon_fields>(plen);
+  uchar *payload= info->table->sort.get_start_of_payload(record);
+  info->table->sort.unpack_addon_fields<Packed_addon_fields>(payload);
   info->unpack_counter++;
   return 0;
 }

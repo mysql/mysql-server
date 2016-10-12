@@ -1128,8 +1128,6 @@ bool lock_db_routines(THD *thd, const char *db)
     mdl_requests.push_front(mdl_request);
   }
 
-  delete_container_pointers(routines);
-
   /* We should already hold a global IX lock and a schema X lock. */
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
                                  "", "", MDL_INTENTION_EXCLUSIVE) &&
@@ -1199,7 +1197,6 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db)
 
     DBUG_EXECUTE_IF("fail_drop_db_routines",
                     { my_error(ER_SP_DROP_FAILED, MYF(0), "ROUTINE", "");
-                      delete_container_pointers(routines);
                       DBUG_RETURN(SP_DROP_FAILED);} );
 
     ret_code= dd::remove_routine(thd, routine2);
@@ -1223,8 +1220,6 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db)
                   routine->name().c_str(), routine->name().length());
 #endif
   }
-
-  delete_container_pointers(routines);
 
   // Invalidate the sp cache.
   if (is_routine_dropped)

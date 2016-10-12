@@ -193,7 +193,7 @@ ngs::Error_code do_dispatch_command(xpl::Session &session, xpl::Crud_command_han
       return on_expect_close(session, expect, static_cast<const Mysqlx::Expect::Close&>(*command.message()));
   }
 
-  session.proto().get_protocol_monitor().on_unknown_msg_type();
+  session.proto().get_protocol_monitor().on_error_unknown_msg_type();
   return ngs::Error(ER_UNKNOWN_COM_ERROR, "Unexpected message received");
 }
 

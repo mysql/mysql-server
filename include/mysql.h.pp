@@ -1,6 +1,9 @@
 typedef char my_bool;
 typedef unsigned long long my_ulonglong;
 typedef int my_socket;
+#include "mem_root_fwd.h"
+struct st_mem_root;
+typedef struct st_mem_root MEM_ROOT;
 #include "mysql_version.h"
 #include "mysql_com.h"
 #include "binary_log_types.h"
@@ -268,7 +271,7 @@ mysql_client_register_plugin(struct st_mysql *mysql,
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
 #include "typelib.h"
-typedef struct st_mem_root MEM_ROOT;
+#include "mem_root_fwd.h"
 typedef struct st_typelib {
   unsigned int count;
   const char *name;
@@ -287,7 +290,6 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, unsigned int default_name,
                               my_ulonglong cur_set, my_ulonglong default_set,
                               const char *str, unsigned int length,
                               char **err_pos, unsigned int *err_len);
-typedef struct st_mem_root MEM_ROOT;
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
 typedef struct st_mysql_field {

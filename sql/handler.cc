@@ -4813,17 +4813,6 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
 }
 
 
-/*
-   Default implementation to support in-place alter table
-   and old online add/drop index API
-*/
-
-void handler::notify_table_changed()
-{
-  ha_create_handler_files(table->s->path.str, NULL, CHF_INDEX_FLAG, NULL);
-}
-
-
 void Alter_inplace_info::report_unsupported_error(const char *not_supported,
                                                   const char *try_instead)
 {
@@ -4909,29 +4898,6 @@ bool
 handler::ha_get_se_private_data(dd::Table *dd_table, uint dd_version)
 {
   return get_se_private_data(dd_table, dd_version);
-}
-
-
-/**
-  Create handler files for CREATE TABLE: public interface.
-
-  @sa handler::create_handler_files()
-*/
-
-int
-handler::ha_create_handler_files(const char *name, const char *old_name,
-                        int action_flag, HA_CREATE_INFO *info)
-{
-  /*
-    Normally this is done when unlocked, but in fast_alter_partition_table,
-    it is done on an already locked handler when preparing to alter/rename
-    partitions.
-  */
-  DBUG_ASSERT(m_lock_type == F_UNLCK ||
-              (!old_name && strcmp(name, table_share->path.str)));
-  mark_trx_read_write();
-
-  return create_handler_files(name, old_name, action_flag, info);
 }
 
 

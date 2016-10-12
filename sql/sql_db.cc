@@ -861,8 +861,6 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
     tot_list_next_global= &table_list->next_global;
   }
 
-  delete_container_pointers(sch_tables);
-
   *tables= tot_list;
   DBUG_RETURN(false);
 }

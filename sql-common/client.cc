@@ -32,13 +32,15 @@
 */ 
 
 #include <my_global.h>
-#include "mysql.h"
+
 #include "hash.h"
+#include "my_psi_config.h"
+#include "mysql.h"
 #include "mysql/client_authentication.h"
+#include "mysql/plugin_auth_common.h"
+#include "mysql/psi/mysql_memory.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/psi/mysql_memory.h"
-#include "mysql/plugin_auth_common.h"
 #include "template_utils.h"
 
 #ifdef EMBEDDED_LIBRARY
@@ -55,22 +57,23 @@
 #define CLI_MYSQL_REAL_CONNECT STDCALL mysql_real_connect
 #endif /*EMBEDDED_LIBRARY*/
 
-#include <my_sys.h>
-#include "my_default.h"
-#include <mysys_err.h>
-#include <m_string.h>
 #include <m_ctype.h>
+#include <m_string.h>
+#include <my_sys.h>
+#include <mysys_err.h>
+#include <violite.h>
+
+#include "errmsg.h"
+#include "my_default.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include "errmsg.h"
-#include <violite.h>
 
 #if !defined(_WIN32)
 #include <my_thread.h>				/* because of signal()	*/
 #endif /* !defined(_WIN32) */
 
-#include <sys/stat.h>
 #include <signal.h>
+#include <sys/stat.h>
 #include <time.h>
 
 #ifdef	 HAVE_PWD_H
@@ -87,14 +90,16 @@
 
 #ifndef _WIN32
 #include <errno.h>
+
 #define SOCKET_ERROR -1
 #endif
 
-#include "client_settings.h"
-#include <sql_common.h>
 #include <mysql/client_plugin.h>
-#include "../libmysql/mysql_trace.h"  /* MYSQL_TRACE() instrumentation */
+#include <sql_common.h>
+
 #include "../libmysql/init_commands_array.h"
+#include "../libmysql/mysql_trace.h"  /* MYSQL_TRACE() instrumentation */
+#include "client_settings.h"
 
 using std::swap;
 

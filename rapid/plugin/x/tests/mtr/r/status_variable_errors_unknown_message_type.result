@@ -15,7 +15,7 @@ Sending 23 bytes raw data...
 Got expected error: Unexpected message received (code 1047)
 Variable_name	Value
 Mysqlx_crud_find	1
-Mysqlx_unknown_message_type	1
+Mysqlx_errors_unknown_message_type	1
 0 rows affected
 closing session first
 Mysqlx.Ok {
@@ -34,7 +34,7 @@ Sending 23 bytes raw data...
 Got expected error: Unexpected message received (code 1047)
 Variable_name	Value
 Mysqlx_crud_find	1
-Mysqlx_unknown_message_type	1
+Mysqlx_errors_unknown_message_type	1
 0 rows affected
 closing session second
 Mysqlx.Ok {
@@ -53,7 +53,7 @@ Sending 23 bytes raw data...
 Got expected error: Unexpected message received (code 1047)
 Variable_name	Value
 Mysqlx_crud_find	1
-Mysqlx_unknown_message_type	1
+Mysqlx_errors_unknown_message_type	1
 0 rows affected
 closing session third
 Mysqlx.Ok {

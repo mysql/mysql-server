@@ -21,6 +21,7 @@
 #ifndef stdin
 #include "myrg_def.h"
 #endif
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 
 LIST	*myrg_open_list=0;

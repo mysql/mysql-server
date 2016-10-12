@@ -41,6 +41,7 @@
 #include "my_bitmap.h"               // MY_BITMAP
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
@@ -707,9 +708,8 @@ public:
                                    *description_event,
                                    my_bool crc_check);
 
-  /**
-   This function will read the common header into the buffer and
-   rewind the IO_CACHE back to the beginning of the event.
+  /*
+   This function will read the common header into the buffer.
 
    @param[in]         log_cache The IO_CACHE to read from.
    @param[in,out]     header The buffer where to read the common header. This
@@ -720,10 +720,8 @@ public:
   inline static bool peek_event_header(char *header, IO_CACHE *log_cache)
   {
     DBUG_ENTER("Log_event::peek_event_header");
-    my_off_t old_pos= my_b_safe_tell(log_cache);
     if (my_b_read(log_cache, (uchar*) header, LOG_EVENT_MINIMAL_HEADER_LEN))
       DBUG_RETURN(true);
-    my_b_seek(log_cache, old_pos); // rewind
     DBUG_RETURN(false);
   }
 
@@ -735,14 +733,18 @@ public:
    @param[in]         log_cache The IO_CACHE to read from.
    @param[out]        length A pointer to the memory position where to store
                       the length value.
+   @param[out]        header_buffer An optional pointer to a buffer to store
+                      the event header.
 
    @returns           false on success, true otherwise.
   */
 
-  inline static bool peek_event_length(uint32* length, IO_CACHE *log_cache)
+  inline static bool peek_event_length(uint32* length, IO_CACHE *log_cache,
+                                       char *header_buffer)
   {
     DBUG_ENTER("Log_event::peek_event_length");
-    char header[LOG_EVENT_MINIMAL_HEADER_LEN];
+    char local_header_buffer[LOG_EVENT_MINIMAL_HEADER_LEN];
+    char *header= header_buffer != NULL ? header_buffer : local_header_buffer;
     if (peek_event_header(header, log_cache))
       DBUG_RETURN(true);
     *length= uint4korr(header + EVENT_LEN_OFFSET);
@@ -764,6 +766,9 @@ public:
     @param[in]  checksum_alg_arg    the checksum algorithm
     @param[in]  log_file_name_arg   the log's file name
     @param[out] is_binlog_active    is the current log still active
+    @param[in]  event_header        the actual event header. Passing this
+                                    parameter will make the function to skip
+                                    reading the event header.
 
     @retval 0                   success
     @retval LOG_READ_EOF        end of file, nothing was read
@@ -777,7 +782,9 @@ public:
                             mysql_mutex_t* log_lock,
                             enum_binlog_checksum_alg checksum_alg_arg,
                             const char *log_file_name_arg= NULL,
-                            bool* is_binlog_active= NULL);
+                            bool* is_binlog_active= NULL,
+                            char *event_header= NULL);
+
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG

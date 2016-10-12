@@ -26,25 +26,25 @@ Created 5/7/1996 Heikki Tuuri
 #define LOCK_MODULE_IMPLEMENTATION
 
 #include <mysql/service_thd_engine_lock.h>
-#include "ha_prototypes.h"
-#include "current_thd.h"
+#include <set>
 
+#include "btr0btr.h"
+#include "current_thd.h"
+#include "dict0boot.h"
+#include "dict0mem.h"
+#include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "lock0priv.h"
-#include "dict0mem.h"
-#include "usr0sess.h"
+#include "my_psi_config.h"
+#include "pars0pars.h"
+#include "row0mysql.h"
+#include "row0sel.h"
+#include "srv0mon.h"
 #include "trx0purge.h"
 #include "trx0sys.h"
-#include "srv0mon.h"
-#include "ut0vec.h"
-#include "btr0btr.h"
-#include "dict0boot.h"
+#include "usr0sess.h"
 #include "ut0new.h"
-#include "row0sel.h"
-#include "row0mysql.h"
-#include "pars0pars.h"
-
-#include <set>
+#include "ut0vec.h"
 
 /* Flag to enable/disable deadlock detector. */
 my_bool	innobase_deadlock_detect = TRUE;

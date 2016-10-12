@@ -253,3 +253,33 @@ DROP VIEW v1, v2;
 
 --echo # end of WL#1393 - Optimizing filesort with small limit
 --echo # end of WL#5834 - Add optimizer traces for sorting
+
+--echo # WL#8741 Varlen keys for sorting JSON values
+
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
+
+INSERT INTO t(j) VALUES
+(NULL), ('true'), ('false'),
+('"abc"'), ('""'), ('"abcd"'), ('"bc"'),
+('"abc\\u0000\\u0000"'),
+('"abc\\u0000"'),
+('0.0'), ('-0.0'), ('9223372036854776000'),
+('1.0e-1'), ('1.0e-2')
+;
+
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id;
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id;
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id;
+SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id
+limit 2 offset 2;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+DROP TABLE t;
+
+--echo # --end of WL#8741 Varlen keys for sorting JSON values

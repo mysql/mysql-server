@@ -42,19 +42,21 @@ TODO:
 */
 
 #include "ha_tina.h"
-#include "my_global.h"
+
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_file.h>
-#include "probes_mysql.h"
-#include "hash.h"
-#include "table.h"
-#include "field.h"
-#include "system_variables.h"
-#include "sql_class.h"
-#include "mysql/psi/mysql_memory.h"
-#include "template_utils.h"
-
 #include <algorithm>
+
+#include "field.h"
+#include "hash.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_memory.h"
+#include "probes_mysql.h"
+#include "sql_class.h"
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
 
 using std::min;
 using std::max;

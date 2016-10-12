@@ -13,11 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_stage.h"
+#include "pfs_stage_provider.h"  // IWYU pragma: keep
 #include "semisync_master.h"
 #include "semisync_master_ack_receiver.h"
-
-#include "pfs_stage_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_stage.h"
 
 extern ReplSemiSyncMaster repl_semisync;
 

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
@@ -14,21 +14,22 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     02110-1301  USA */
 
-#include "my_config.h"
-#include "rewriter_plugin.h"
-#include "rule.h" // Rewrite_result
-#include "rewriter.h"
-
+#include <my_atomic.h>
 #include <my_global.h>
+#include <my_sys.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
 #include <mysql/service_my_plugin_log.h>
-#include <my_atomic.h>
-#include <my_sys.h>
-#include "services.h"
-#include "mysqld_error.h"
-#include "template_utils.h"
 #include <algorithm>
+
+#include "my_config.h"
+#include "my_psi_config.h"
+#include "mysqld_error.h"
+#include "rewriter.h"
+#include "rewriter_plugin.h"
+#include "rule.h" // Rewrite_result
+#include "services.h"
+#include "template_utils.h"
 
 using std::string;
 

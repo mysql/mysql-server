@@ -1197,12 +1197,14 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
                               mysql_mutex_t* log_lock,
                               enum_binlog_checksum_alg checksum_alg_arg,
                               const char *log_file_name_arg,
-                              bool* is_binlog_active)
+                              bool* is_binlog_active,
+                              char *event_header)
 {
 
   ulong data_len;
   int result=0;
-  char buf[LOG_EVENT_MINIMAL_HEADER_LEN];
+  char local_buf[LOG_EVENT_MINIMAL_HEADER_LEN];
+  char *buf= event_header != NULL ? event_header : local_buf;
   uchar ev_offset= packet->length();
   DBUG_ENTER("Log_event::read_log_event(IO_CACHE *, String *, mysql_mutex_t, uint8)");
 
@@ -1212,20 +1214,27 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   if (log_file_name_arg)
     *is_binlog_active= mysql_bin_log.is_active(log_file_name_arg);
 
-  if (my_b_read(file, (uchar*) buf, sizeof(buf)))
+  /* If the event header wasn't passed, we need to read it. */
+  if (buf == local_buf)
   {
-    /*
-      If the read hits eof, we must report it as eof so the caller
-      will know it can go into cond_wait to be woken up on the next
-      update to the log.
-    */
-    DBUG_PRINT("error",("my_b_read failed. file->error: %d", file->error));
-    if (!file->error)
-      result= LOG_READ_EOF;
-    else
-      result= (file->error > 0 ? LOG_READ_TRUNC : LOG_READ_IO);
-    goto end;
+    if (my_b_read(file, (uchar*) buf, sizeof(buf)))
+    {
+      /*
+        If the read hits eof, we must report it as eof so the caller
+        will know it can go into cond_wait to be woken up on the next
+        update to the log.
+      */
+      DBUG_PRINT("error",("my_b_read failed. file->error: %d", file->error));
+      if (!file->error)
+        result= LOG_READ_EOF;
+      else
+        result= (file->error > 0 ? LOG_READ_TRUNC : LOG_READ_IO);
+      goto end;
+    }
   }
+  else
+    DBUG_PRINT("info",("Skipped reading the event header. Using the provided one."));
+
   data_len= uint4korr(buf + EVENT_LEN_OFFSET);
   if (data_len < LOG_EVENT_MINIMAL_HEADER_LEN ||
       data_len > max(current_thd->variables.max_allowed_packet,
@@ -1238,7 +1247,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   }
 
   /* Append the log event header to packet */
-  if (packet->append(buf, sizeof(buf)))
+  if (packet->append(buf, LOG_EVENT_MINIMAL_HEADER_LEN))
   {
     DBUG_PRINT("info", ("first packet->append failed (out of memory)"));
     /* Failed to allocate packet */
@@ -1283,7 +1292,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
             debug_event_buf_c[EVENT_TYPE_OFFSET] != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
             debug_event_buf_c[EVENT_TYPE_OFFSET] != binary_log::GTID_LOG_EVENT)
         {
-          int debug_cor_pos = rand() % (data_len + sizeof(buf) -
+          int debug_cor_pos = rand() % (data_len + LOG_EVENT_MINIMAL_HEADER_LEN -
                               BINLOG_CHECKSUM_LEN);
           debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
           DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event: byte on position %d", debug_cor_pos));
@@ -1295,9 +1304,10 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
       binary_log_debug::debug_checksum_test=
         DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
 
+      DBUG_PRINT("info",("JAG checksum_alg_arg= %d", checksum_alg_arg));
       if (opt_master_verify_checksum &&
         Log_event_footer::event_checksum_test((uchar*)packet->ptr() + ev_offset,
-                                              data_len + sizeof(buf),
+                                              data_len + LOG_EVENT_MINIMAL_HEADER_LEN,
                                               checksum_alg_arg))
       {
         DBUG_PRINT("info", ("checksum test failed"));

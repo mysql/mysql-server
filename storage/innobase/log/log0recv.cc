@@ -1582,7 +1582,7 @@ recv_parse_or_apply_log_rec_body(
 		Otherwise, redo will not find the key to decrypt
 		the data pages. */
 		if (page_no == 0
-		    && space_id != TRX_SYS_SPACE
+		    && !fsp_is_system_or_temp_tablespace(space_id)
 		    && !apply) {
 			DBUG_RETURN(fil_write_encryption_parse(ptr,
 							  end_ptr,

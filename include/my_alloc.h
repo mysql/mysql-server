@@ -51,7 +51,7 @@ typedef struct st_used_mem
 } USED_MEM;
 
 
-typedef struct st_mem_root
+struct st_mem_root
 {
 #if defined(__cplusplus) && (__cplusplus >= 201103L || defined(_MSC_VER))
   // Make the class movable but not copyable.
@@ -101,7 +101,9 @@ typedef struct st_mem_root
   void (*error_handler)(void);
 
   PSI_memory_key m_psi_key;
-} MEM_ROOT;
+};
+
+#include "mem_root_fwd.h"  // Contains the typedef to MEM_ROOT.
 
 #ifdef  __cplusplus
 }

@@ -84,7 +84,7 @@ EOF
 -->recvresult
 
 -->sql
-SHOW STATUS WHERE Variable_name RLIKE 'Mysqlx_(unknown_message_type|crud_find)';
+SHOW STATUS WHERE Variable_name RLIKE 'Mysqlx_(errors_unknown_message_type|crud_find)';
 -->endsql
 
 -->closesession
@@ -106,7 +106,7 @@ CREATE TABLE xtest.table(field INT);
 --exec $MYSQLXTEST --no-auth -uroot --file=$xtest_file_session 2>&1
 
 --echo Global status
---let $wait_condition= SELECT variable_value = 5 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_unknown_message_type'
+--let $wait_condition= SELECT variable_value = 5 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_errors_unknown_message_type'
 --source include/wait_condition_or_abort.inc
 --let $wait_condition= SELECT variable_value = 3 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_crud_find'
 --source include/wait_condition_or_abort.inc
@@ -120,5 +120,3 @@ CREATE TABLE xtest.table(field INT);
 
 DROP SCHEMA IF EXISTS xtest;
 UNINSTALL PLUGIN mysqlx;
-
-

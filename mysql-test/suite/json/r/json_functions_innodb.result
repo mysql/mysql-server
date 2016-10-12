@@ -2130,6 +2130,12 @@ true	BOOLEAN
 "base64:type253:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
+j	tp
+null	NULL
+-1e308	DOUBLE
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id;
 j	tp
 "base64:type253:MTIzNGFiY2Q="	BLOB
@@ -2498,6 +2504,12 @@ false	BOOLEAN
 null	NULL
 NULL	NULL
 NULL	NULL
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2;
+j	tp
+"2010-12-02 02:01:00.000000"	TIMESTAMP
+"2010-12-02 02:01:00.000000"	DATETIME
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id;
@@ -2870,7 +2882,7 @@ true	BOOLEAN
 "base64:type253:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-SET @@max_sort_length=4;
+SET @@max_sort_length=8;
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id;
 j	tp
 NULL	NULL
@@ -3163,12 +3175,12 @@ null	NULL
 1e306	DOUBLE
 1e307	DOUBLE
 1e308	DOUBLE
-"abc"	STRING
 ""	STRING
 "abcd"	STRING
-"bc"	STRING
 "abc\u0000\u0000"	STRING
 "abc\u0000"	STRING
+"abc"	STRING
+"bc"	STRING
 {"an": "object"}	OBJECT
 {"another": "object"}	OBJECT
 {"type": "Point", "coordinates": [0, 0]}	OBJECT
@@ -3239,6 +3251,12 @@ true	BOOLEAN
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
 "base64:type253:MTIzNGFiY2Q="	BLOB
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
+j	tp
+null	NULL
+-1e308	DOUBLE
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SET @@max_sort_length=default;
@@ -9582,3 +9600,13 @@ CREATE PROCEDURE p(a JSON) SELECT 1 WHERE a = 1;
 CALL p(NULL);
 1
 DROP PROCEDURE p;
+CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, f1 INT, fj JSON);
+INSERT INTO t1 VALUES(1, NULL, JSON_OBJECT('aaa','bbb'));
+INSERT INTO t1 VALUES(2, NULL, JSON_OBJECT('bbb','aaa'));
+SELECT * FROM t1 ORDER BY f1, pk, fj;
+pk	f1	fj
+1	NULL	{"aaa": "bbb"}
+2	NULL	{"bbb": "aaa"}
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+DROP TABLE t1;

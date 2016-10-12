@@ -5491,75 +5491,69 @@ return error;
 
 static int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
 {
-bool res= false;
-const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
-sql_mode_t old_sql_mode= thd->variables.sql_mode;
-thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
-char definer[USER_HOST_BUFF_SIZE];
-strxmov(definer, thd->security_context()->priv_user().str, "@",
-        thd->security_context()->priv_host().str, NullS);
+  bool res= false;
+  const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
+  sql_mode_t old_sql_mode= thd->variables.sql_mode;
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+  char definer[USER_HOST_BUFF_SIZE];
+  strxmov(definer, thd->security_context()->priv_user().str, "@",
+          thd->security_context()->priv_host().str, NullS);
 
-DBUG_ENTER("fill_schema_proc");
+  DBUG_ENTER("fill_schema_proc");
 
-// Fetch all schemas from the catalog.
-dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
-std::vector<const dd::Schema*> schemas;
-if ((res= thd->dd_client()->fetch_catalog_components(&schemas)))
-  goto err;
+  // Fetch all schemas.
+  dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+  std::vector<const dd::Schema*> schemas;
+  if ((res= thd->dd_client()->fetch_global_components(&schemas)))
+    goto err;
 
-// Loop through all the schemas
-{
-  for (const dd::Schema *schema : schemas)
+  // Loop through all the schemas
   {
-    /*
-      We must make sure the schema is released and unlocked in the right
-      order.
-    */
-    dd::Schema_MDL_locker mdl_handler(thd);
-    if (mdl_handler.ensure_locked(schema->name().c_str()))
+    for (const dd::Schema *schema : schemas)
     {
       /*
-        Instead of stopping, skipping stored routines of the current
-        schema and continuing with the stored routines of other schemas.
+        We must make sure the schema is released and unlocked in the right
+        order.
       */
-      thd->clear_error();
-      continue;
-    }
-
-    /*
-      Fill all stored routines information in I_S.ROUTINES/I_S.PARAMETERS
-      table.
-    */
-    std::vector<const dd::Routine*> routines;
-    if ((res= thd->dd_client()->fetch_schema_components(schema, &routines)))
-      goto err;
-
-    LEX_CSTRING db_name= { schema->name().c_str(), schema->name().length() };
-    for (const dd::Routine *routine :routines)
-    {
-      // Fill I_S.ROUTINES/I_S.PARAMETERS table.
-      if (get_schema_table_idx(tables->schema_table) == SCH_PROCEDURES)
-        res= store_schema_proc(thd, tables->table, db_name,
-                               routine, wild, definer);
-      else
-        res= store_schema_params(thd, tables->table, db_name,
-                                 routine, wild, definer);
-
-      if (res)
+      dd::Schema_MDL_locker mdl_handler(thd);
+      if (mdl_handler.ensure_locked(schema->name().c_str()))
       {
-        delete_container_pointers(routines);
+        /*
+          Instead of stopping, skipping stored routines of the current
+          schema and continuing with the stored routines of other schemas.
+        */
+        thd->clear_error();
+        continue;
+      }
+
+      /*
+        Fill all stored routines information in I_S.ROUTINES/I_S.PARAMETERS
+        table.
+      */
+      std::vector<const dd::Routine*> routines;
+      if ((res= thd->dd_client()->fetch_schema_components(schema, &routines)))
         goto err;
+
+      LEX_CSTRING db_name= { schema->name().c_str(), schema->name().length() };
+      for (const dd::Routine *routine :routines)
+      {
+        // Fill I_S.ROUTINES/I_S.PARAMETERS table.
+        if (get_schema_table_idx(tables->schema_table) == SCH_PROCEDURES)
+          res= store_schema_proc(thd, tables->table, db_name,
+                                 routine, wild, definer);
+        else
+          res= store_schema_params(thd, tables->table, db_name,
+                                   routine, wild, definer);
+
+        if (res)
+          goto err;
       }
     }
-    delete_container_pointers(routines);
   }
 
-  delete_container_pointers(schemas);
-}
-
 err:
-thd->variables.sql_mode= old_sql_mode;
-DBUG_RETURN(MY_TEST(res));
+  thd->variables.sql_mode= old_sql_mode;
+  DBUG_RETURN(MY_TEST(res));
 }
 
 

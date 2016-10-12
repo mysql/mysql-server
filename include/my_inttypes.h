@@ -24,6 +24,10 @@
 
 #include "my_config.h"
 
+#ifndef MYSQL_ABI_CHECK
+#include <sys/types.h>
+#endif
+
 #ifdef _WIN32
 #include <BaseTsd.h>
 #endif
