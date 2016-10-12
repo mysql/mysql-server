@@ -5106,57 +5106,59 @@ String *Item_func_get_dd_column_privileges::val_str(String *str)
 String *Item_func_get_dd_index_sub_part_length::val_str(String *str)
 {
   DBUG_ENTER("Item_func_get_dd_index_sub_part_length::val_str");
+  null_value= TRUE;
 
-  // Read key_part_length from args[0]/
+  // Read arguments
   uint key_part_length= args[0]->val_int();
+  dd::enum_column_types col_type= (dd::enum_column_types) args[1]->val_int();
+  uint column_length= args[2]->val_int();
+  uint csid= args[3]->val_int();
+  if (args[0]->null_value ||
+      args[1]->null_value ||
+      args[2]->null_value ||
+      args[3]->null_value)
+    DBUG_RETURN(nullptr);
 
-  // Read col_type from args[1]
-  enum_field_types col_type=
-    dd_get_old_field_type((dd::enum_column_types) args[1]->val_int());
+  // Read server col_type and check if we have key part.
+  enum_field_types field_type= dd_get_old_field_type(col_type);
+  if (!Field::type_can_have_key_part(field_type))
+    DBUG_RETURN(nullptr);
 
-  if (Field::type_can_have_key_part(col_type))
+  // Read column charset id from args[3]
+  const CHARSET_INFO *column_charset= &my_charset_latin1;
+  if (csid)
   {
-    // Read column length from args[2]
-    uint column_length= args[2]->val_int();
-
-    // Read column charset id from args[3]
-    const CHARSET_INFO *column_charset= &my_charset_latin1;
-    uint csid= args[3]->val_int();
-    if (csid)
-    {
-      column_charset= get_charset(csid, MYF(0));
-      DBUG_ASSERT(column_charset);
-    }
-
-    // Read col_options from args[4]
-    uint idx_flags= 0;
-    String option_buf;
-    String *option_str;
-    if ((option_str= args[4]->val_str(&option_buf)) != nullptr)
-    {
-      // Read required values from properties
-      std::unique_ptr<dd::Properties> p
-        (dd::Properties::parse_properties(option_str->c_ptr_safe()));
-
-      // Read idx_flags from options.
-      p->get_uint32("flags", &idx_flags);
-    }
-
-    if (!(idx_flags & HA_FULLTEXT) &&
-        (key_part_length != column_length))
-    {
-      std::ostringstream oss("");
-
-      uint sub_part_length= key_part_length / column_charset->mbmaxlen;
-      oss << sub_part_length;
-      str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
-
-      null_value= 0;
-      DBUG_RETURN(str);
-    }
+    column_charset= get_charset(csid, MYF(0));
+    DBUG_ASSERT(column_charset);
   }
 
-  null_value= 1;
+  // Read col_options from args[4]
+  uint idx_flags= 0;
+  String option_buf;
+  String *option_str= args[4]->val_str(&option_buf);
+  if (option_str != nullptr)
+  {
+    // Read required values from properties
+    std::unique_ptr<dd::Properties> p
+      (dd::Properties::parse_properties(option_str->c_ptr_safe()));
+
+    // Read idx_flags from options.
+    p->get_uint32("flags", &idx_flags);
+  }
+
+  if (!(idx_flags & HA_FULLTEXT) &&
+      (key_part_length != column_length))
+  {
+    std::ostringstream oss("");
+
+    uint sub_part_length= key_part_length / column_charset->mbmaxlen;
+    oss << sub_part_length;
+    str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+    null_value= FALSE;
+    DBUG_RETURN(str);
+  }
+
   DBUG_RETURN(nullptr);
 }
 
@@ -5330,48 +5332,53 @@ String *Item_func_get_dd_create_options::val_str(String *str)
 String *Item_func_internal_get_comment_or_error::val_str(String *str)
 {
   DBUG_ENTER("Item_func_internal_get_comment_or_error::val_str");
+  null_value= FALSE;
 
-  std::ostringstream oss("");
+  // Read arguements
+  String schema;
+  String view;
+  String table_type;
+  String options;
+  String *schema_ptr= args[0]->val_str(&schema);
+  String *view_ptr= args[1]->val_str(&view);
+  String *table_type_ptr= args[2]->val_str(&table_type);
+  String *options_ptr= args[3]->val_str(&options);
+  String comment;
+  String *comment_ptr= args[4]->val_str(&comment);
+
+  if (table_type_ptr == nullptr ||
+      schema_ptr == nullptr ||
+      view_ptr == nullptr ||
+      comment_ptr == nullptr)
+  {
+    null_value= TRUE;
+    DBUG_RETURN(nullptr);
+  }
 
   THD *thd= current_thd;
-  String comment;
-  String *comment_ptr;
-  String table_type;
-  String *table_type_ptr;
-  if ((table_type_ptr= args[2]->val_str(&table_type)) != nullptr &&
+  std::ostringstream oss("");
+  if (options_ptr != nullptr &&
       strcmp(table_type_ptr->c_ptr_safe(), "VIEW") == 0)
   {
-    String schema;
-    String *schema_ptr;
-    String view;
-    String *view_ptr;
-    String options;
-    String *options_ptr;
+    bool is_view_valid= true;
+    std::unique_ptr<dd::Properties>
+      view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
 
-    if (((schema_ptr= args[0]->val_str(&schema)) != nullptr) &&
-        ((view_ptr= args[1]->val_str(&view)) != nullptr) &&
-        ((options_ptr= args[3]->val_str(&options)) != nullptr))
+    if (view_options->get_bool("view_valid", &is_view_valid))
+      DBUG_RETURN(nullptr);
+
+    if (is_view_valid == false &&
+        thd->lex->sql_command != SQLCOM_SHOW_TABLES)
     {
-      bool is_view_valid= true;
-      std::unique_ptr<dd::Properties>
-        view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+      push_view_warning_or_error(current_thd,
+                                 schema_ptr->c_ptr_safe(),
+                                 view_ptr->c_ptr_safe());
 
-      if (view_options->get_bool("view_valid", &is_view_valid))
-        DBUG_RETURN(0);
-
-      if (is_view_valid == false &&
-          thd->lex->sql_command != SQLCOM_SHOW_TABLES)
-      {
-        push_view_warning_or_error(current_thd,
-                                   schema_ptr->c_ptr_safe(),
-                                   view_ptr->c_ptr_safe());
-
-        // Append invalid view error message to comment.
-        oss << (thd->get_stmt_da()->sql_conditions()++)->message_text();
-      }
-      else
-        oss << "VIEW";
+      // Append invalid view error message to comment.
+      oss << (thd->get_stmt_da()->sql_conditions()++)->message_text();
     }
+    else
+      oss << "VIEW";
   }
   else if (!thd->lex->m_IS_dyn_stat_cache.error().empty())
   {
@@ -5382,11 +5389,7 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
     */
     oss << thd->lex->m_IS_dyn_stat_cache.error();
   }
-  else if (args[0]->type() == Item::NULL_ITEM)
-  {
-    null_value= 1;
-  }
-  else if ((comment_ptr=args[4]->val_str(&comment)) != nullptr)
+  else
   {
     oss << comment_ptr->c_ptr_safe();
   }

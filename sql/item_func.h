@@ -2200,7 +2200,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_database"; }
-  void fix_length_and_dec() { max_length= 4; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_can_access_table : public Item_int_func
@@ -2211,7 +2216,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_table"; }
-  void fix_length_and_dec() { max_length= 4; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_can_access_view : public Item_int_func
@@ -2222,7 +2232,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_view"; }
-  void fix_length_and_dec() { max_length= 4; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_can_access_column : public Item_int_func
@@ -2233,7 +2248,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_column"; }
-  void fix_length_and_dec() { max_length= 4; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_table_rows : public Item_int_func
@@ -2245,7 +2265,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_table_rows"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_avg_row_length : public Item_int_func
@@ -2257,7 +2282,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_avg_row_length"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_data_length : public Item_int_func
@@ -2269,7 +2299,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_data_length"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_max_data_length : public Item_int_func
@@ -2281,7 +2316,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_max_data_length"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_index_length : public Item_int_func
@@ -2293,7 +2333,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_index_length"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_data_free : public Item_int_func
@@ -2305,7 +2350,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_data_free"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_auto_increment : public Item_int_func
@@ -2317,7 +2367,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_auto_increment"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_checksum : public Item_int_func
@@ -2329,18 +2384,28 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_checksum"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_keys_disabled : public Item_int_func
 {
 public:
-  Item_func_internal_keys_disabled(const POS &pos, Item *a, Item *b, Item *c)
-    : Item_int_func(pos, a, b, c)
+  Item_func_internal_keys_disabled(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
   {}
   longlong val_int();
   const char *func_name() const { return "internal_keys_disabled"; }
-  void fix_length_and_dec() { max_length= 4; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= false;
+    return false;
+  }
 };
 
 class Item_func_internal_index_column_cardinality : public Item_int_func
@@ -2352,7 +2417,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_index_column_cardinality"; }
-  void fix_length_and_dec() { max_length= 4; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_dd_char_length :public Item_int_func
@@ -2362,11 +2432,14 @@ public:
                                Item *a, Item *b, Item *c, Item *d)
     :Item_int_func(pos, a, b, c, d)
   {}
-
-  virtual void fix_length_and_dec() { max_length= 32; maybe_null= 1; }
-
-  const char *func_name() const { return "internal_dd_char_length"; }
   longlong val_int();
+  const char *func_name() const { return "internal_dd_char_length"; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_get_view_warning_or_error : public Item_int_func
@@ -2378,7 +2451,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_get_view_warning_or_error"; }
-  void fix_length_and_dec() { max_length= 1; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 1;
+    maybe_null= false;
+    return false;
+  }
 };
 
 /**

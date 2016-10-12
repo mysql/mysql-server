@@ -38,7 +38,7 @@ def	information_schema	COLUMNS	COLLATION_NAME	15	NULL	YES	varchar	64	192	NULL	NU
 def	information_schema	COLUMNS	COLUMN_TYPE	16	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_bin	mediumtext			select		
 def	information_schema	COLUMNS	COLUMN_KEY	17	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_bin	enum('','PRI','UNI','MUL')			select		
 def	information_schema	COLUMNS	EXTRA	18		NO	varchar	57	171	NULL	NULL	NULL	utf8	utf8_bin	varchar(57)			select		
-def	information_schema	COLUMNS	PRIVILEGES	19	NULL	YES	varbinary	200	200	NULL	NULL	NULL	NULL	NULL	varbinary(200)			select		
+def	information_schema	COLUMNS	PRIVILEGES	19	NULL	YES	varbinary	154	154	NULL	NULL	NULL	NULL	NULL	varbinary(154)			select		
 def	information_schema	COLUMNS	COLUMN_COMMENT	20	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select		
 def	information_schema	COLUMNS	GENERATION_EXPRESSION	21	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select		
 def	information_schema	COLUMN_PRIVILEGES	GRANTEE	1		NO	varchar	27	81	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(81)			select		
@@ -547,7 +547,7 @@ NULL	information_schema	COLUMNS	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int(1
 1.0000	information_schema	COLUMNS	COLUMN_TYPE	mediumtext	16777215	16777215	utf8	utf8_bin	mediumtext
 3.0000	information_schema	COLUMNS	COLUMN_KEY	enum	3	9	utf8	utf8_bin	enum('','PRI','UNI','MUL')
 3.0000	information_schema	COLUMNS	EXTRA	varchar	57	171	utf8	utf8_bin	varchar(57)
-1.0000	information_schema	COLUMNS	PRIVILEGES	varbinary	200	200	NULL	NULL	varbinary(200)
+1.0000	information_schema	COLUMNS	PRIVILEGES	varbinary	154	154	NULL	NULL	varbinary(154)
 1.0000	information_schema	COLUMNS	COLUMN_COMMENT	text	65535	65535	utf8	utf8_bin	text
 1.0000	information_schema	COLUMNS	GENERATION_EXPRESSION	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
 3.0000	information_schema	COLUMN_PRIVILEGES	GRANTEE	varchar	27	81	utf8	utf8_general_ci	varchar(81)

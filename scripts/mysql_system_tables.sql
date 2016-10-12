@@ -630,7 +630,7 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS_
          WHEN idx.algorithm = 'SE_PRIVATE' THEN ''
          ELSE idx.algorithm END AS INDEX_TYPE,
     IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE',
-        '',IF(INTERNAL_KEYS_DISABLED(sch.name, tbl.name, tbl.options),'disabled', ''))
+        '',IF(INTERNAL_KEYS_DISABLED(tbl.options),'disabled', ''))
       AS COMMENT,
     idx.comment AS INDEX_COMMENT,
     IF (idx.is_visible, 'YES', 'NO') AS IS_VISIBLE,
