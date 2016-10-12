@@ -144,8 +144,7 @@ PFS_engine_table* table_threads::create()
 }
 
 table_threads::table_threads()
-  : cursor_by_thread(& m_share),
-    m_row_exists(false)
+  : cursor_by_thread(& m_share)
 {}
 
 bool PFS_index_threads_by_thread_id::match(PFS_thread *pfs)
@@ -253,7 +252,7 @@ int table_threads::index_init(uint idx, bool)
   return 0;
 }
 
-int table_threads::make_row(PFS_thread *pfs)
+bool table_threads::make_row(PFS_thread *pfs)
 {
   pfs_optimistic_state lock;
   pfs_optimistic_state session_lock;
@@ -261,14 +260,12 @@ int table_threads::make_row(PFS_thread *pfs)
   PFS_stage_class *stage_class;
   PFS_thread_class *safe_class;
 
-  m_row_exists= false;
-
   /* Protect this reader against thread termination */
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   safe_class= sanitize_thread_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return 1;
+    return false;
 
   m_row.m_thread_internal_id= pfs->m_thread_internal_id;
   m_row.m_parent_thread_internal_id= pfs->m_parent_thread_internal_id;
@@ -282,13 +279,15 @@ int table_threads::make_row(PFS_thread *pfs)
 
   m_row.m_username_length= pfs->m_username_length;
   if (unlikely(m_row.m_username_length > sizeof(m_row.m_username)))
-    return 1;
+    return false;
+
   if (m_row.m_username_length != 0)
     memcpy(m_row.m_username, pfs->m_username, m_row.m_username_length);
 
   m_row.m_hostname_length= pfs->m_hostname_length;
   if (unlikely(m_row.m_hostname_length > sizeof(m_row.m_hostname)))
-    return 1;
+    return false;
+
   if (m_row.m_hostname_length != 0)
     memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
 
@@ -312,7 +311,8 @@ int table_threads::make_row(PFS_thread *pfs)
 
   m_row.m_dbname_length= pfs->m_dbname_length;
   if (unlikely(m_row.m_dbname_length > sizeof(m_row.m_dbname)))
-    return 1;
+    return false;
+
   if (m_row.m_dbname_length != 0)
     memcpy(m_row.m_dbname, pfs->m_dbname, m_row.m_dbname_length);
 
@@ -359,9 +359,9 @@ int table_threads::make_row(PFS_thread *pfs)
   m_row.m_psi= pfs;
 
   if (pfs->m_lock.end_optimistic_lock(& lock))
-    m_row_exists= true;
+    return true;
 
-  return 0;
+  return false;
 }
 
 int table_threads::read_row_values(TABLE *table,
@@ -372,9 +372,6 @@ int table_threads::read_row_values(TABLE *table,
   Field *f;
   const char *str= NULL;
   int len= 0;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 2);

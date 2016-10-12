@@ -214,7 +214,7 @@ public:
   {}
 
 private:
-  virtual int make_row(PFS_thread *pfs);
+  virtual bool make_row(PFS_thread *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -223,8 +223,6 @@ private:
 
   /** Current row. */
   row_threads m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** @} */
