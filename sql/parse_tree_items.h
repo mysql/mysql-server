@@ -242,16 +242,16 @@ public:
 };
 
 
-class PTI_function_call_nonkeyword_now : public Item_func_now_local
+class PTI_function_call_nonkeyword_now final : public Item_func_now_local
 {
   typedef Item_func_now_local super;
 
 public:
-  explicit PTI_function_call_nonkeyword_now(const POS &pos, uint8 dec_arg)
+  PTI_function_call_nonkeyword_now(const POS &pos, uint8 dec_arg)
   : super(pos, dec_arg)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res)
+  bool itemize(Parse_context *pc, Item **res) override
   {
     if (super::itemize(pc, res))
       return true;
@@ -573,7 +573,7 @@ public:
 };
 
 
-class PTI_variable_aux_set_var : public Item_func_set_user_var
+class PTI_variable_aux_set_var final : public Item_func_set_user_var
 {
   typedef Item_func_set_user_var super;
 
@@ -600,7 +600,7 @@ public:
 };
 
 
-class PTI_variable_aux_ident_or_text : public Item_func_get_user_var
+class PTI_variable_aux_ident_or_text final : public Item_func_get_user_var
 {
   typedef Item_func_get_user_var super;
 

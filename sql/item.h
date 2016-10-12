@@ -674,7 +674,7 @@ class Item : public Parse_tree_node
 {
   typedef Parse_tree_node super;
 
-  virtual bool is_expensive_processor(uchar*) { return false; }
+  virtual bool is_expensive_processor(uchar *) { return false; }
 
 protected:
   /**
@@ -771,8 +771,8 @@ private:
     Note: contextualize_() is an intermediate function. Remove it together
     with Parse_tree_node::contextualize_().
   */
-  virtual bool contextualize(Parse_context*) { DBUG_ASSERT(0); return true; }
-  virtual bool contextualize_(Parse_context*) { DBUG_ASSERT(0); return true; }
+  bool contextualize(Parse_context *) override { DBUG_ASSERT(0); return true; }
+  bool contextualize_(Parse_context *) override{ DBUG_ASSERT(0); return true; }
 
 protected:
   /**
@@ -915,14 +915,14 @@ public:
   */
   inline enum Item_result temporal_with_date_as_number_result_type() const
   {
-    return is_temporal_with_date() ? 
+    return is_temporal_with_date() ?
            (decimals ? DECIMAL_RESULT : INT_RESULT) : result_type();
   }
   virtual Item_result cast_to_int_type() const { return result_type(); }
   virtual enum_field_types string_field_type() const;
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
-  
+
   /*
     Return information about function monotonicity. See comment for
     enum_monotonicity_info for details. This function can only be called
@@ -1157,7 +1157,36 @@ public:
       TRUE value is true (not equal to 0)
   */
   virtual bool val_bool();
-  virtual String *val_nodeset(String*) { return 0; }
+  /**
+    Evaluate an XPath function.
+
+    @details
+    The SQL interface consists of extractvalue() and updatexml().
+    Both of them ensure that none of the arguments are NULL, before
+    invoking parse_xml(). So, we should never see any NULL SQL input
+    and never return NULL from the overridden member functions in
+    item_xmlfunc.cc.
+
+    @see Item_xml_str_func::parse_xpath()
+    @see Item_func_xml_update::val_str()
+
+    @param nodeset   the nodeset
+    @return the extracted nodeset (never NULL in overridden member functions)
+      @retval NULL   always in the base member function
+  */
+  virtual String *val_nodeset(String *nodeset MY_ATTRIBUTE((unused)))
+  {
+    /*
+      If the first argument of updatexml() is not an XML document,
+      this base member function may be called. Because we will return
+      nullptr here, updatexml() will evaluate to NULL.
+
+      Outside Item_func_xml_update::val_str(), only the overridden
+      member functions defined in item_xmlfunc.cc should be invoked,
+      by Item_xml_str_func::parse_xpath().
+    */
+    return nullptr;
+  }
 
   /**
     Get a JSON value from an Item.
@@ -1482,7 +1511,7 @@ public:
     query and why they should be generated from the Item-tree, @see
     mysql_register_view().
   */
-  virtual inline void print(String *str, enum_query_type)
+  virtual void print(String *str, enum_query_type)
   {
     str->append(full_name());
   }
@@ -1714,7 +1743,7 @@ public:
     Item::walk function. Set bit in table->cond_set for all fields of
     all tables that are referred to by the Item.
   */
-  virtual bool add_field_to_cond_set_processor(uchar*) {return false; }
+  virtual bool add_field_to_cond_set_processor(uchar *) {return false; }
 
   /**
      Visitor interface for removing all column expressions (Item_field) in
@@ -1725,8 +1754,8 @@ public:
    */
   virtual bool remove_column_from_bitmap(uchar *arg MY_ATTRIBUTE((unused)))
   { return false; }
-  virtual bool find_item_in_field_list_processor(uchar*) { return false; }
-  virtual bool change_context_processor(uchar*) { return false; }
+  virtual bool find_item_in_field_list_processor(uchar *) { return false; }
+  virtual bool change_context_processor(uchar *) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
   /**
     Mark underlying field in read or write map of a table.
@@ -1770,8 +1799,14 @@ public:
   */
   virtual bool used_tables_for_level(uchar *arg MY_ATTRIBUTE((unused)))
   { return false; }
-  virtual bool check_column_privileges(uchar*) { return false; }
-  virtual bool inform_item_in_cond_of_tab(uchar*) { return false; }
+  /**
+    Check privileges.
+
+    @param thd   thread handle
+  */
+  virtual bool check_column_privileges(uchar *thd MY_ATTRIBUTE((unused)))
+  { return false; }
+  virtual bool inform_item_in_cond_of_tab(uchar *) { return false; }
   /**
      Clean up after removing the item from the item tree.
 
@@ -1792,37 +1827,29 @@ public:
   bool propagate_derived_used(uchar *) { return is_derived_used(); }
 
   /// @see Distinct_check::check_query()
-  virtual bool aggregate_check_distinct(uchar*)
-  { return false; }
+  virtual bool aggregate_check_distinct(uchar *) { return false; }
   /// @see Group_check::check_query()
-  virtual bool aggregate_check_group(uchar*)
-  { return false; }
+  virtual bool aggregate_check_group(uchar *) { return false; }
   /// @see Group_check::analyze_conjunct()
-  virtual bool is_strong_side_column_not_in_fd(uchar*)
-  { return false; }
+  virtual bool is_strong_side_column_not_in_fd(uchar *) { return false; }
   /// @see Group_check::is_in_fd_of_underlying()
-  virtual bool is_column_not_in_fd(uchar*)
-  { return false; }
+  virtual bool is_column_not_in_fd(uchar *) { return false; }
   virtual Bool3 local_column(const SELECT_LEX*) const
   { return Bool3::false3(); }
 
-  virtual bool cache_const_expr_analyzer(uchar**);
-  virtual Item* cache_const_expr_transformer(uchar*);
+  virtual bool cache_const_expr_analyzer(uchar **cache_item);
+  Item *cache_const_expr_transformer(uchar *item);
 
-  virtual bool equality_substitution_analyzer(uchar**) { return false; }
+  virtual bool equality_substitution_analyzer(uchar **) { return false; }
 
-  virtual Item* equality_substitution_transformer(uchar*) { return this; }
+  virtual Item *equality_substitution_transformer(uchar *) { return this; }
 
-  /*
-    Check if a partition function is allowed
-    SYNOPSIS
-      check_partition_func_processor()
-      int_arg                        Ignored
-    RETURN VALUE
-      TRUE                           Partition function not accepted
-      FALSE                          Partition function accepted
+  /**
+    Check if a partition function is allowed.
 
-    DESCRIPTION
+    @return whether a partition function is not accepted
+
+    @details
     check_partition_func_processor is used to check if a partition function
     uses an allowed function. An allowed function will always ensure that
     X=Y guarantees that also part_function(X)=part_function(Y) where X is
@@ -1864,9 +1891,7 @@ public:
     assumes that there are no multi-byte collations amongst the partition
     fields.
   */
-  virtual bool
-  check_partition_func_processor(uchar *bool_arg MY_ATTRIBUTE((unused)))
-  { return true;}
+  virtual bool check_partition_func_processor(uchar *) { return true;}
   virtual bool subst_argument_checker(uchar **arg)
   {
     if (*arg)
@@ -1903,8 +1928,7 @@ public:
 
     @returns false if the function is not DEFAULT(), otherwise true.
   */
-  virtual bool check_gcol_depend_default_processor(uchar*)
-  { return false; }
+  virtual bool check_gcol_depend_default_processor(uchar *) { return false; }
 
   /*
     For SP local variable returns pointer to Item representing its
@@ -2219,10 +2243,10 @@ public:
   explicit Item_basic_constant(const POS &pos): Item(pos), used_table_map(0) {};
 
   void set_used_tables(table_map map) { used_table_map= map; }
-  table_map used_tables() const { return used_table_map; }
-  bool check_gcol_func_processor(uchar*) { return false;}
+  table_map used_tables() const override { return used_table_map; }
+  bool check_gcol_func_processor(uchar *) override { return false; }
   /* to prevent drop fixed flag (no need parent cleanup call) */
-  void cleanup()
+  void cleanup() override
   {
     /*
       Restore the original field name as it might not have been allocated
@@ -2242,7 +2266,7 @@ public:
     - CASE expression (Item_case_expr);
 *****************************************************************************/
 
-class Item_sp_variable :public Item
+class Item_sp_variable : public Item
 {
 protected:
   /*
@@ -2267,23 +2291,24 @@ public:
   Item_sp_variable(const Name_string sp_var_name);
 
 public:
-  bool fix_fields(THD *thd, Item **);
+  bool fix_fields(THD *thd, Item **) override;
 
-  double val_real();
-  longlong val_int();
-  String *val_str(String *sp);
-  my_decimal *val_decimal(my_decimal *decimal_value);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  bool get_time(MYSQL_TIME *ltime);
-  bool is_null();
+  double val_real() override;
+  longlong val_int() override;
+  String *val_str(String *sp) override;
+  my_decimal *val_decimal(my_decimal *decimal_value) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  bool is_null() override;
 
 public:
-  inline void make_field(Send_field *field);  
-  inline bool send(Protocol *protocol, String *str);
+  inline void make_field(Send_field *field) override;
+  inline bool send(Protocol *protocol, String *str) override;
 
 protected:
   inline type_conversion_status save_in_field_inner(Field *field,
-                                                    bool no_conversions);
+                                                    bool no_conversions)
+    override;
 };
 
 /*****************************************************************************
@@ -2314,8 +2339,8 @@ inline bool Item_sp_variable::send(Protocol *protocol, String *str)
   runtime.
 *****************************************************************************/
 
-class Item_splocal :public Item_sp_variable,
-                    private Settable_routine_parameter
+class Item_splocal final : public Item_sp_variable,
+                           private Settable_routine_parameter
 {
   uint m_var_idx;
 
@@ -2354,68 +2379,48 @@ public:
                enum_field_types sp_var_type,
                uint pos_in_q= 0, uint len_in_q= 0);
 
-  bool is_splocal() const { return true; }
+  bool is_splocal() const override { return true; }
 
-  Item *this_item();
-  const Item *this_item() const;
-  Item **this_item_addr(THD *thd, Item **);
+  Item *this_item() override;
+  const Item *this_item() const override;
+  Item **this_item_addr(THD *thd, Item **) override;
 
-  virtual void print(String *str, enum_query_type query_type);
+  void print(String *str, enum_query_type query_type) override;
 
 public:
-  inline uint get_var_idx() const;
+  inline uint get_var_idx() const { return m_var_idx; }
 
-  inline enum Type type() const;
-  inline Item_result result_type() const;
-  inline enum_field_types field_type() const { return m_field_type; }
-  bool val_json(Json_wrapper *result);
+  inline enum Type type() const override { return m_type; }
+  inline Item_result result_type() const override { return m_result_type; }
+  inline enum_field_types field_type() const override { return m_field_type; }
+  bool val_json(Json_wrapper *result) override;
 
 private:
-  bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
+  bool set_value(THD *thd, sp_rcontext *ctx, Item **it) override;
 
 public:
-  Settable_routine_parameter *get_settable_routine_parameter()
+  Settable_routine_parameter *get_settable_routine_parameter() override
   {
     return this;
   }
 };
 
 /*****************************************************************************
-  Item_splocal inline implementation.
-*****************************************************************************/
-
-inline uint Item_splocal::get_var_idx() const
-{
-  return m_var_idx;
-}
-
-inline enum Item::Type Item_splocal::type() const
-{
-  return m_type;
-}
-
-inline Item_result Item_splocal::result_type() const
-{
-  return m_result_type;
-}
-
-
-/*****************************************************************************
   A reference to case expression in SP, used in runtime.
 *****************************************************************************/
 
-class Item_case_expr :public Item_sp_variable
+class Item_case_expr final :public Item_sp_variable
 {
 public:
   Item_case_expr(uint case_expr_id);
 
 public:
-  Item *this_item();
-  const Item *this_item() const;
-  Item **this_item_addr(THD *thd, Item **);
+  Item *this_item() override;
+  const Item *this_item() const override;
+  Item **this_item_addr(THD *thd, Item **) override;
 
-  inline enum Type type() const;
-  inline Item_result result_type() const;
+  Type type() const override { return this_item()->type(); }
+  Item_result result_type() const override { return this_item()->result_type();}
 
 public:
   /*
@@ -2423,26 +2428,11 @@ public:
     Item_case_expr can not occur in views, so here it is only for debug
     purposes.
   */
-  virtual void print(String *str, enum_query_type query_type);
+  void print(String *str, enum_query_type query_type) override;
 
 private:
   uint m_case_expr_id;
 };
-
-/*****************************************************************************
-  Item_case_expr inline implementation.
-*****************************************************************************/
-
-inline enum Item::Type Item_case_expr::type() const
-{
-  return this_item()->type();
-}
-
-inline Item_result Item_case_expr::result_type() const
-{
-  return this_item()->result_type();
-}
-
 
 /*
   NAME_CONST(given_name, const_value). 
@@ -2458,7 +2448,7 @@ inline Item_result Item_case_expr::result_type() const
     extract a common base with class Item_ref, too.
 */
 
-class Item_name_const : public Item
+class Item_name_const final : public Item
 {
   typedef Item super;
 
@@ -2468,30 +2458,30 @@ class Item_name_const : public Item
 public:
   Item_name_const(const POS &pos, Item *name_arg, Item *val);
 
-  virtual bool itemize(Parse_context *pc, Item **res);
-  bool fix_fields(THD *, Item **);
+  bool itemize(Parse_context *pc, Item **res) override;
+  bool fix_fields(THD *, Item **) override;
 
-  enum Type type() const;
-  double val_real();
-  longlong val_int();
-  String *val_str(String *sp);
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  bool get_time(MYSQL_TIME *ltime);
-  bool is_null();
-  virtual void print(String *str, enum_query_type query_type);
+  enum Type type() const override;
+  double val_real() override;
+  longlong val_int() override;
+  String *val_str(String *sp) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  bool is_null() override;
+  void print(String *str, enum_query_type query_type) override;
 
-  Item_result result_type() const
+  Item_result result_type() const override
   {
     return value_item->result_type();
   }
 
-  bool send(Protocol *protocol, String *str)
+  bool send(Protocol *protocol, String *str) override
   {
     return value_item->send(protocol, str);
   }
 
-  virtual bool cache_const_expr_analyzer(uchar**)
+  bool cache_const_expr_analyzer(uchar **) override
   {
     // Item_name_const always wraps a literal, so there is no need to cache it.
     return false;
@@ -2499,6 +2489,7 @@ public:
 
 protected:
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override
   {
     return value_item->save_in_field(field, no_conversions);
   }
@@ -2553,13 +2544,13 @@ public:
   { collation.set_numeric(); }
 
   virtual Item_num *neg()= 0;
-  Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar*) { return false;}
+  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  bool check_partition_func_processor(uchar *) override { return false; }
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
 
-class Item_ident :public Item
+class Item_ident : public Item
 {
   typedef Item super;
 
@@ -2642,17 +2633,17 @@ public:
     depended_from(item->depended_from)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res);
+  bool itemize(Parse_context *pc, Item **res) override;
 
-  const char *full_name() const;
-  virtual void fix_after_pullout(SELECT_LEX *parent_select,
-                                 SELECT_LEX *removed_select);
-  void cleanup();
-  virtual bool aggregate_check_distinct(uchar *arg);
-  virtual bool aggregate_check_group(uchar *arg);
-  Bool3 local_column(const SELECT_LEX *sl) const;
+  const char *full_name() const override;
+  void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select)
+    override;
+  void cleanup() override;
+  bool aggregate_check_distinct(uchar *arg) override;
+  bool aggregate_check_group(uchar *arg) override;
+  Bool3 local_column(const SELECT_LEX *sl) const override;
 
-  virtual void print(String *str, enum_query_type query_type)
+  void print(String *str, enum_query_type query_type) override
   {
     print(str, query_type, db_name, table_name);
   }
@@ -2683,7 +2674,7 @@ protected:
              const char *db_name_arg,
              const char *table_name_arg) const;
 public:
-  virtual bool change_context_processor(uchar *cntx)
+  bool change_context_processor(uchar *cntx) override
   {
     context= reinterpret_cast<Name_resolution_context *>(cntx);
     return false;
@@ -2694,7 +2685,7 @@ public:
   /// Marks that this Item's name is alias of SELECT expression
   void set_alias_of_expr() { m_alias_of_expr= true; }
 
-  bool walk(Item_processor processor, enum_walk walk, uchar *arg)
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg) override
   {
     /*
       Item_ident processors like aggregate_check*() use
@@ -2714,12 +2705,12 @@ public:
                             const char *db_name,
                             const char *table_name, List_iterator<Item> *it,
                             bool any_privileges);
-  bool is_strong_side_column_not_in_fd(uchar *arg);
-  bool is_column_not_in_fd(uchar *arg);
+  bool is_strong_side_column_not_in_fd(uchar *arg) override;
+  bool is_column_not_in_fd(uchar *arg) override;
 };
 
 
-class Item_ident_for_show :public Item
+class Item_ident_for_show final : public Item
 {
 public:
   Field *field;
@@ -2731,21 +2722,22 @@ public:
     :field(par_field), db_name(db_arg), table_name(table_name_arg)
   {}
 
-  enum Type type() const { return FIELD_ITEM; }
-  double val_real() { return field->val_real(); }
-  longlong val_int() { return field->val_int(); }
-  String *val_str(String *str) { return field->val_str(str); }
-  my_decimal *val_decimal(my_decimal *dec) { return field->val_decimal(dec); }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  enum Type type() const override { return FIELD_ITEM; }
+  double val_real() override { return field->val_real(); }
+  longlong val_int() override { return field->val_int(); }
+  String *val_str(String *str) override { return field->val_str(str); }
+  my_decimal *val_decimal(my_decimal *dec) override
+  { return field->val_decimal(dec); }
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return field->get_date(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return field->get_time(ltime);
   }
-  void make_field(Send_field *tmp_field);
-  const CHARSET_INFO *charset_for_protocol() const
+  void make_field(Send_field *tmp_field) override;
+  const CHARSET_INFO *charset_for_protocol() const override
   { return (CHARSET_INFO *)field->charset_for_protocol(); }
 };
 
@@ -2753,13 +2745,14 @@ public:
 class COND_EQUAL;
 class Item_equal;
 
-class Item_field :public Item_ident
+class Item_field : public Item_ident
 {
   typedef Item_ident super;
 
 protected:
   void set_field(Field *field);
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 public:
   /**
     Table containing this resolved field. This is required e.g for calculation
@@ -2807,96 +2800,93 @@ public:
   */
   Item_field(Field *field);
 
-  virtual bool itemize(Parse_context *pc, Item **res);
+  bool itemize(Parse_context *pc, Item **res) override;
 
-  enum Type type() const { return FIELD_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const;
-  double val_real();
-  longlong val_int();
-  longlong val_time_temporal();
-  longlong val_date_temporal();
-  my_decimal *val_decimal(my_decimal *);
-  String *val_str(String*);
-  bool val_json(Json_wrapper *result);
-  double val_result();
-  longlong val_int_result();
-  longlong val_time_temporal_result();
-  longlong val_date_temporal_result();
-  String *str_result(String* tmp);
-  my_decimal *val_decimal_result(my_decimal *);
-  bool val_bool_result();
-  bool is_null_result();
-  bool send(Protocol *protocol, String *str_arg);
+  enum Type type() const override { return FIELD_ITEM; }
+  bool eq(const Item *item, bool binary_cmp) const override;
+  double val_real() override;
+  longlong val_int() override;
+  longlong val_time_temporal() override;
+  longlong val_date_temporal() override;
+  my_decimal *val_decimal(my_decimal *) override;
+  String *val_str(String *) override;
+  bool val_json(Json_wrapper *result) override;
+  double val_result() override;
+  longlong val_int_result() override;
+  longlong val_time_temporal_result() override;
+  longlong val_date_temporal_result() override;
+  String *str_result(String *tmp) override;
+  my_decimal *val_decimal_result(my_decimal *) override;
+  bool val_bool_result() override;
+  bool is_null_result() override;
+  bool send(Protocol *protocol, String *str_arg) override;
   void reset_field(Field *f);
-  bool fix_fields(THD *, Item **);
-  void make_field(Send_field *tmp_field);
-  void save_org_in_field(Field *field);
-  table_map used_tables() const;
-  enum Item_result result_type () const
+  bool fix_fields(THD *, Item **) override;
+  void make_field(Send_field *tmp_field) override;
+  void save_org_in_field(Field *field) override;
+  table_map used_tables() const override;
+  enum Item_result result_type() const override
   {
     return field->result_type();
   }
-  enum Item_result numeric_context_result_type() const
+  enum Item_result numeric_context_result_type() const override
   {
     return field->numeric_context_result_type();
   }
-  Item_result cast_to_int_type() const
+  Item_result cast_to_int_type() const override
   {
     return field->cast_to_int_type();
   }
-  enum_field_types field_type() const
-  {
-    return field->type();
-  }
-  enum_monotonicity_info get_monotonicity_info() const
+  enum_field_types field_type() const override { return field->type(); }
+  enum_monotonicity_info get_monotonicity_info() const override
   {
     return MONOTONIC_STRICT_INCREASING;
   }
-  longlong val_int_endpoint(bool left_endp, bool *incl_endp);
-  Field *get_tmp_table_field() { return result_field; }
-  Field *tmp_table_field(TABLE*) { return result_field; }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  bool get_date_result(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  bool get_time(MYSQL_TIME *ltime);
-  bool get_timeval(struct timeval *tm, int *warnings);
-  bool is_null() { return field->is_null(); }
-  Item *get_tmp_table_item(THD *thd);
-  bool collect_item_field_processor(uchar * arg);
-  bool add_field_to_set_processor(uchar *arg);
-  bool add_field_to_cond_set_processor(uchar *unused);
-  bool remove_column_from_bitmap(uchar * arg);
-  bool find_item_in_field_list_processor(uchar *arg);
-  bool check_gcol_func_processor(uchar *int_arg);
-  bool mark_field_in_map(uchar *arg)
+  longlong val_int_endpoint(bool left_endp, bool *incl_endp) override;
+  Field *get_tmp_table_field() override { return result_field; }
+  Field *tmp_table_field(TABLE *) override { return result_field; }
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_date_result(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  bool get_timeval(struct timeval *tm, int *warnings) override;
+  bool is_null() override { return field->is_null(); }
+  Item *get_tmp_table_item(THD *thd) override;
+  bool collect_item_field_processor(uchar *arg) override;
+  bool add_field_to_set_processor(uchar *arg) override;
+  bool add_field_to_cond_set_processor(uchar *) override;
+  bool remove_column_from_bitmap(uchar *arg) override;
+  bool find_item_in_field_list_processor(uchar *arg) override;
+  bool check_gcol_func_processor(uchar *int_arg) override;
+  bool mark_field_in_map(uchar *arg) override
   {
     return Item::mark_field_in_map(pointer_cast<Mark_field *>(arg), field);
   }
-  bool used_tables_for_level(uchar *arg);
-  bool check_column_privileges(uchar *arg);
-  bool check_partition_func_processor(uchar*) { return false; }
-  void cleanup();
+  bool used_tables_for_level(uchar *arg) override;
+  bool check_column_privileges(uchar *arg) override;
+  bool check_partition_func_processor(uchar *) override { return false; }
+  void cleanup() override;
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
-  bool subst_argument_checker(uchar **arg);
-  Item *equal_fields_propagator(uchar *arg);
-  bool set_no_const_sub(uchar *);
-  Item *replace_equal_field(uchar *);
+  bool subst_argument_checker(uchar **arg) override;
+  Item *equal_fields_propagator(uchar *arg) override;
+  bool set_no_const_sub(uchar *) override;
+  Item *replace_equal_field(uchar *) override;
   inline uint32 max_disp_length() { return field->max_display_length(); }
-  Item_field *field_for_view_update() { return this; }
-  Item *safe_charset_converter(const CHARSET_INFO *tocs);
+  Item_field *field_for_view_update() override { return this; }
+  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
   int fix_outer_field(THD *thd, Field **field, Item **reference);
-  virtual Item *update_value_transformer(uchar *select_arg);
-  virtual void print(String *str, enum_query_type query_type);
-  bool is_outer_field() const
+  Item *update_value_transformer(uchar *select_arg) override;
+  void print(String *str, enum_query_type query_type) override;
+  bool is_outer_field() const override
   {
     DBUG_ASSERT(fixed);
     return table_ref->outer_join || table_ref->outer_join_nest();
   }
-  Field::geometry_type get_geometry_type() const
+  Field::geometry_type get_geometry_type() const override
   {
     DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
     return field->get_geometry_type();
   }
-  const CHARSET_INFO *charset_for_protocol(void) const
+  const CHARSET_INFO *charset_for_protocol(void) const override
   { return field->charset_for_protocol(); }
 
 #ifndef DBUG_OFF
@@ -2927,7 +2917,7 @@ public:
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
-                             double rows_in_table);
+                             double rows_in_table) override;
 
   /**
     Returns the probability for the predicate "col OP <val>" to be
@@ -2958,16 +2948,16 @@ public:
      @note that field->table->alias_name_used is reliable only if
      thd->lex->need_correct_ident() is true.
   */
-  virtual bool alias_name_used() const
+  bool alias_name_used() const override
   { return m_alias_of_expr ||
       // maybe the qualifying table was given an alias ("t1 AS foo"):
       (field ? field->table->alias_name_used : false);
   }
 
-  bool repoint_const_outer_ref(uchar *arg);
+  bool repoint_const_outer_ref(uchar *arg) override;
 };
 
-class Item_null :public Item_basic_constant
+class Item_null : public Item_basic_constant
 {
   typedef Item_basic_constant super;
 
@@ -2980,7 +2970,8 @@ class Item_null :public Item_basic_constant
     collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
   }
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 public:
   Item_null()
   {
@@ -2999,37 +2990,37 @@ public:
     item_name= name_par;
   }
 
-  enum Type type() const { return NULL_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const;
-  double val_real();
-  longlong val_int();
-  longlong val_time_temporal() { return val_int(); }
-  longlong val_date_temporal() { return val_int(); }
-  String *val_str(String *str);
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME*, my_time_flags_t)
+  enum Type type() const override { return NULL_ITEM; }
+  bool eq(const Item *item, bool binary_cmp) const override;
+  double val_real() override;
+  longlong val_int() override;
+  longlong val_time_temporal() override { return val_int(); }
+  longlong val_date_temporal() override { return val_int(); }
+  String *val_str(String *str) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override
   {
     return true;
   }
-  bool get_time(MYSQL_TIME*)
+  bool get_time(MYSQL_TIME *) override
   {
     return true;
   }
-  bool val_json(Json_wrapper *wr);
-  bool send(Protocol *protocol, String *str);
-  enum Item_result result_type () const { return STRING_RESULT; }
-  enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
-  bool basic_const_item() const { return true; }
-  Item *clone_item() const { return new Item_null(item_name); }
-  bool is_null() { return true; }
+  bool val_json(Json_wrapper *wr) override;
+  bool send(Protocol *protocol, String *str) override;
+  enum Item_result result_type() const override { return STRING_RESULT; }
+  enum_field_types field_type() const override { return MYSQL_TYPE_NULL; }
+  bool basic_const_item() const override { return true; }
+  Item *clone_item() const override { return new Item_null(item_name); }
+  bool is_null() override { return true; }
 
-  virtual inline void print(String *str, enum_query_type query_type)
+  void print(String *str, enum_query_type query_type) override
   {
     str->append(query_type == QT_NORMALIZED_FORMAT ? "?" : "NULL");
   }
 
-  Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar*) {return false;}
+  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  bool check_partition_func_processor(uchar *) override { return false; }
 };
 
 /**
@@ -3041,7 +3032,7 @@ public:
   the same field and result types as the fields of the columns they
   belong to.
  */
-class Item_null_result :public Item_null
+class Item_null_result final : public Item_null
 {
   /** Field type for this NULL value */
   enum_field_types fld_type;
@@ -3052,27 +3043,26 @@ public:
   Field *result_field;
   Item_null_result(enum_field_types fld_type, Item_result res_type)
     : Item_null(), fld_type(fld_type), res_type(res_type), result_field(0) {}
-  bool is_result_field() const { return result_field != nullptr; }
-  void save_in_result_field(bool no_conversions)
+  bool is_result_field() const override { return result_field != nullptr; }
+  void save_in_result_field(bool no_conversions) override
   {
     save_in_field(result_field, no_conversions);
   }
-  bool check_partition_func_processor(uchar*) {return true;}
-  enum_field_types field_type() const { return fld_type; }
-  Item_result result_type() const { return res_type; }
-  bool check_gcol_func_processor(uchar*)
-  { return true; }
-};  
+  bool check_partition_func_processor(uchar *) override { return true; }
+  enum_field_types field_type() const override { return fld_type; }
+  Item_result result_type() const override { return res_type; }
+  bool check_gcol_func_processor(uchar *) override { return true; }
+};
 
-/* Item represents one placeholder ('?') of prepared statement */
-
-class Item_param :public Item,
-                  private Settable_routine_parameter
+/// Placeholder ('?') of prepared statement.
+class Item_param final : public Item,
+                         private Settable_routine_parameter
 {
   typedef Item super;
 
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 
 public:
   enum enum_item_param_state
@@ -3140,18 +3130,18 @@ public:
 
   Item_param(const POS &pos, uint pos_in_query_arg);
 
-  virtual bool itemize(Parse_context *pc, Item **item);
+  bool itemize(Parse_context *pc, Item **item) override;
 
-  enum Item_result result_type () const { return item_result_type; }
-  enum Type type() const { return item_type; }
-  enum_field_types field_type() const { return param_type; }
+  enum Item_result result_type() const override { return item_result_type; }
+  enum Type type() const override { return item_type; }
+  enum_field_types field_type() const override { return param_type; }
 
-  double val_real();
-  longlong val_int();
-  my_decimal *val_decimal(my_decimal*);
-  String *val_str(String*);
-  bool get_time(MYSQL_TIME *tm);
-  bool get_date(MYSQL_TIME *tm, my_time_flags_t fuzzydate);
+  double val_real() override;
+  longlong val_int() override;
+  my_decimal *val_decimal(my_decimal *) override;
+  String *val_str(String *) override;
+  bool get_time(MYSQL_TIME *tm) override;
+  bool get_date(MYSQL_TIME *tm, my_time_flags_t fuzzydate) override;
 
   void set_null();
   void set_int(longlong i, uint32 max_length_arg);
@@ -3180,12 +3170,12 @@ public:
     so noone will use parameters value in fix_fields still
     parameter is constant during execution.
   */
-  virtual table_map used_tables() const
+  table_map used_tables() const override
   { return state != NO_VALUE ? (table_map)0 : PARAM_TABLE_BIT; }
-  virtual void print(String *str, enum_query_type query_type);
-  bool is_null()
+  void print(String *str, enum_query_type query_type) override;
+  bool is_null() override
   { DBUG_ASSERT(state != NO_VALUE); return state == NULL_VALUE; }
-  bool basic_const_item() const;
+  bool basic_const_item() const override;
   /*
     This method is used to make a copy of a basic constant item when
     propagating constants in the optimizer. The reason to create a new
@@ -3196,33 +3186,32 @@ public:
     constant, assert otherwise. This method is called only if
     basic_const_item returned TRUE.
   */
-  Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  Item *clone_item() const;
+  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *clone_item() const override;
   /*
     Implement by-value equality evaluation if parameter value
     is set and is a basic constant (integer, real or string).
     Otherwise return FALSE.
   */
-  bool eq(const Item *item, bool binary_cmp) const;
+  bool eq(const Item *item, bool binary_cmp) const override;
   /** Item is a argument to a limit clause. */
   bool limit_clause_param;
   void set_param_type_and_swap_value(Item_param *from);
 
 private:
-  virtual inline Settable_routine_parameter *
-    get_settable_routine_parameter()
+  Settable_routine_parameter *get_settable_routine_parameter() override
   {
     return this;
   }
 
-  virtual bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
+  bool set_value(THD *thd, sp_rcontext *ctx, Item **it) override;
 
-  virtual void set_out_param_info(Send_field *info);
+  void set_out_param_info(Send_field *info) override;
 
 public:
-  virtual const Send_field *get_out_param_info() const;
+  const Send_field *get_out_param_info() const override;
 
-  virtual void make_field(Send_field *field);
+  void make_field(Send_field *field) override;
 
 private:
   Send_field *m_out_param_info;
@@ -3283,40 +3272,41 @@ private:
   void init(const char *str_arg, uint length);
 
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 
 public:
-  enum Type type() const { return INT_ITEM; }
-  enum Item_result result_type () const { return INT_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
-  longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
-  double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
-  my_decimal *val_decimal(my_decimal *);
-  String *val_str(String*);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  enum Type type() const override { return INT_ITEM; }
+  enum Item_result result_type() const override { return INT_RESULT; }
+  enum_field_types field_type() const override { return MYSQL_TYPE_LONGLONG; }
+  longlong val_int() override { DBUG_ASSERT(fixed); return value; }
+  double val_real() override { DBUG_ASSERT(fixed); return value; }
+  my_decimal *val_decimal(my_decimal *) override;
+  String *val_str(String *) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_int(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_int(ltime);
   }
-  bool basic_const_item() const { return true; }
-  Item *clone_item() const { return new Item_int(this); }
-  virtual void print(String *str, enum_query_type query_type);
-  Item_num *neg() { value= -value; return this; }
-  uint decimal_precision() const
+  bool basic_const_item() const override { return true; }
+  Item *clone_item() const override { return new Item_int(this); }
+  void print(String *str, enum_query_type query_type) override;
+  Item_num *neg() override { value= -value; return this; }
+  uint decimal_precision() const override
   { return (uint)(max_length - MY_TEST(value < 0)); }
-  bool eq(const Item*, bool binary_cmp MY_ATTRIBUTE((unused))) const;
-  bool check_partition_func_processor(uchar*) { return false;}
-  bool check_gcol_func_processor(uchar*) { return false;}
+  bool eq(const Item *, bool) const override;
+  bool check_partition_func_processor(uchar *) override { return false; }
+  bool check_gcol_func_processor(uchar *) override { return false; }
 };
 
 
 /**
   Item_int with value==0 and length==1
 */
-class Item_int_0 :public Item_int
+class Item_int_0 final : public Item_int
 {
 public:
   Item_int_0() :Item_int(NAME_STRING("0"), 0, 1) {}
@@ -3337,11 +3327,12 @@ public:
   TS-TODO: Can't we use Item_time_literal, Item_date_literal,
   TS-TODO: and Item_datetime_literal for this purpose?
 */
-class Item_temporal :public Item_int
+class Item_temporal final : public Item_int
 {
   enum_field_types cached_field_type;
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 public:
   Item_temporal(enum_field_types field_type_arg, longlong i): Item_int(i),
     cached_field_type(field_type_arg)
@@ -3357,20 +3348,21 @@ public:
     item_name= name_arg;
     fixed= true;
   }
-  Item *clone_item() const { return new Item_temporal(field_type(), value); }
-  longlong val_time_temporal() { return val_int(); }
-  longlong val_date_temporal() { return val_int(); }
-  bool get_date(MYSQL_TIME*, my_time_flags_t)
+  Item *clone_item() const override
+  { return new Item_temporal(field_type(), value); }
+  longlong val_time_temporal() override { return val_int(); }
+  longlong val_date_temporal() override { return val_int(); }
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override
   {
     DBUG_ASSERT(0);
     return false;
   }
-  bool get_time(MYSQL_TIME*)
+  bool get_time(MYSQL_TIME *) override
   {
     DBUG_ASSERT(0);
     return false;
   }
-  enum_field_types field_type() const
+  enum_field_types field_type() const override
   {
     return cached_field_type;
   }
@@ -3380,7 +3372,8 @@ public:
 class Item_uint :public Item_int
 {
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 public:
   Item_uint(const char *str_arg, uint length)
     :Item_int(str_arg, length) { unsigned_flag= 1; }
@@ -3389,19 +3382,19 @@ public:
 
   Item_uint(ulonglong i) :Item_int(i, 10) {}
   Item_uint(const Name_string &name_arg, longlong i, uint length)
-    :Item_int(name_arg, i, length) { unsigned_flag= 1; }
-  double val_real()
+    :Item_int(name_arg, i, length) { unsigned_flag= true; }
+  double val_real() override
   {
     DBUG_ASSERT(fixed);
     return ulonglong2double(static_cast<ulonglong>(value));
   }
-  String *val_str(String*);
+  String *val_str(String*) override;
 
-  Item *clone_item() const
+  Item *clone_item() const override
   { return new Item_uint(item_name, value, max_length); }
-  virtual void print(String *str, enum_query_type query_type);
-  Item_num *neg ();
-  uint decimal_precision() const { return max_length; }
+  void print(String *str, enum_query_type query_type) override;
+  Item_num *neg() override;
+  uint decimal_precision() const override { return max_length; }
 };
 
 
@@ -3411,7 +3404,8 @@ class Item_decimal :public Item_num
   typedef Item_num super;
 protected:
   my_decimal decimal_value;
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 public:
   Item_decimal(const POS &pos,
                const char *str_arg, uint length, const CHARSET_INFO *charset);
@@ -3422,37 +3416,37 @@ public:
   Item_decimal(double val, int precision, int scale);
   Item_decimal(const uchar *bin, int precision, int scale);
 
-  enum Type type() const { return DECIMAL_ITEM; }
-  enum Item_result result_type () const { return DECIMAL_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
-  longlong val_int();
-  double val_real();
-  String *val_str(String*);
-  my_decimal *val_decimal(my_decimal*) { return &decimal_value; }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  enum Type type() const override { return DECIMAL_ITEM; }
+  enum Item_result result_type() const override { return DECIMAL_RESULT; }
+  enum_field_types field_type() const override { return MYSQL_TYPE_NEWDECIMAL; }
+  longlong val_int() override;
+  double val_real() override;
+  String *val_str(String *) override;
+  my_decimal *val_decimal(my_decimal *) override { return &decimal_value; }
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_decimal(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_decimal(ltime);
   }
-  bool basic_const_item() const { return 1; }
-  Item *clone_item() const
+  bool basic_const_item() const override { return true; }
+  Item *clone_item() const override
   {
     return new Item_decimal(item_name, &decimal_value, decimals, max_length);
   }
-  virtual void print(String *str, enum_query_type query_type);
-  Item_num *neg()
+  void print(String *str, enum_query_type query_type) override;
+  Item_num *neg() override
   {
     my_decimal_neg(&decimal_value);
     unsigned_flag= !decimal_value.sign();
     return this;
   }
-  uint decimal_precision() const { return decimal_value.precision(); }
-  bool eq(const Item *, bool binary_cmp) const;
+  uint decimal_precision() const override { return decimal_value.precision(); }
+  bool eq(const Item *, bool binary_cmp) const override;
   void set_decimal_value(my_decimal *value_par);
-  bool check_partition_func_processor(uchar*) { return false;}
+  bool check_partition_func_processor(uchar *) override { return false; }
 };
 
 
@@ -3500,13 +3494,14 @@ private:
   void init(const char *str_arg, uint length);
 
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 
 public:
-  enum Type type() const { return REAL_ITEM; }
-  enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
-  double val_real() { DBUG_ASSERT(fixed == 1); return value; }
-  longlong val_int()
+  enum Type type() const override { return REAL_ITEM; }
+  enum_field_types field_type() const override { return MYSQL_TYPE_DOUBLE; }
+  double val_real() override { DBUG_ASSERT(fixed); return value; }
+  longlong val_int() override
   {
     DBUG_ASSERT(fixed == 1);
     if (value <= (double) LLONG_MIN)
@@ -3519,22 +3514,22 @@ public:
     }
     return (longlong) rint(value);
   }
-  String *val_str(String*);
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  String *val_str(String *) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_real(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_real(ltime);
   }
-  bool basic_const_item() const { return 1; }
-  Item *clone_item() const
+  bool basic_const_item() const override { return true; }
+  Item *clone_item() const override
   { return new Item_float(item_name, value, decimals, max_length); }
-  Item_num *neg() { value= -value; return this; }
-  virtual void print(String *str, enum_query_type query_type);
-  bool eq(const Item *, bool binary_cmp) const;
+  Item_num *neg() override { value= -value; return this; }
+  void print(String *str, enum_query_type query_type) override;
+  bool eq(const Item *, bool binary_cmp) const override;
 };
 
 
@@ -3547,12 +3542,12 @@ public:
       func_name(NAME_STRING("pi()"))
   {}
 
-  virtual inline void print(String *str, enum_query_type)
+  void print(String *str, enum_query_type) override
   {
     str->append(func_name);
   }
 
-  Item *safe_charset_converter(const CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
 };
 
 
@@ -3585,7 +3580,8 @@ protected:
     */
     check_well_formed_result(&str_value, false, false);
   }
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 public:
   /* Create from a string, set name from the string itself. */
   Item_string(const char *str, size_t length,
@@ -3674,33 +3670,33 @@ public:
                                                str_value.ptr(),
                                                str_value.length());
   }
-  enum Type type() const { return STRING_ITEM; }
-  double val_real();
-  longlong val_int();
-  String *val_str(String*)
+  enum Type type() const override { return STRING_ITEM; }
+  double val_real() override;
+  longlong val_int() override;
+  String *val_str(String *) override
   {
     DBUG_ASSERT(fixed == 1);
     return &str_value;
   }
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  my_decimal *val_decimal(my_decimal *) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_string(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_string(ltime);
   }
-  enum Item_result result_type () const { return STRING_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
-  bool basic_const_item() const { return 1; }
-  bool eq(const Item *item, bool binary_cmp) const;
-  Item *clone_item() const
+  enum Item_result result_type() const override { return STRING_RESULT; }
+  enum_field_types field_type() const override { return MYSQL_TYPE_VARCHAR; }
+  bool basic_const_item() const override { return true; }
+  bool eq(const Item *item, bool binary_cmp) const override;
+  Item *clone_item() const override
   {
     return new Item_string(static_cast<Name_string>(item_name), str_value.ptr(),
     			   str_value.length(), collation.collation);
   }
-  Item *safe_charset_converter(const CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
   Item *charset_converter(const CHARSET_INFO *tocs, bool lossless);
   inline void append(char *str, size_t length)
   {
@@ -3708,8 +3704,8 @@ public:
     max_length= static_cast<uint32>(str_value.numchars() *
                                     collation.collation->mbmaxlen);
   }
-  virtual void print(String *str, enum_query_type query_type);
-  bool check_partition_func_processor(uchar*) {return false;}
+  void print(String *str, enum_query_type query_type) override;
+  bool check_partition_func_processor(uchar *) override { return false; }
 
   /**
     Return TRUE if character-set-introducer was explicitly specified in the
@@ -3762,7 +3758,7 @@ double
 double_from_string_with_check(const CHARSET_INFO *cs,
                               const char *cptr, const char *end);
 
-class Item_static_string_func :public Item_string
+class Item_static_string_func : public Item_string
 {
   const Name_string func_name;
 public:
@@ -3778,21 +3774,20 @@ public:
      func_name(name_par)
   {}
 
-  Item *safe_charset_converter(const CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
 
-  virtual inline void print(String *str, enum_query_type)
+  inline void print(String *str, enum_query_type) override
   {
     str->append(func_name);
   }
 
-  bool check_partition_func_processor(uchar*) {return true;}
-  bool check_gcol_func_processor(uchar*)
-  { return true; }
+  bool check_partition_func_processor(uchar *) override { return true; }
+  bool check_gcol_func_processor(uchar *) override { return true; }
 };
 
 
 /* for show tables */
-class Item_partition_func_safe_string: public Item_string
+class Item_partition_func_safe_string : public Item_string
 {
 public:
   Item_partition_func_safe_string(const Name_string name, size_t length,
@@ -3804,15 +3799,15 @@ public:
 };
 
 
-class Item_blob :public Item_partition_func_safe_string
+class Item_blob final : public Item_partition_func_safe_string
 {
 public:
   Item_blob(const char *name, size_t length) :
     Item_partition_func_safe_string(Name_string(name, strlen(name)),
                                     length, &my_charset_bin)
   { }
-  enum Type type() const { return TYPE_HOLDER; }
-  enum_field_types field_type() const { return MYSQL_TYPE_BLOB; }
+  enum Type type() const override { return TYPE_HOLDER; }
+  enum_field_types field_type() const override { return MYSQL_TYPE_BLOB; }
 };
 
 
@@ -3832,7 +3827,7 @@ public:
     {
       max_length= static_cast<uint32>(length * collation.collation->mbmaxlen);
     }
-  void make_field(Send_field *field);
+  void make_field(Send_field *field) override;
 };
 
 
@@ -3847,16 +3842,17 @@ public:
   {
     unsigned_flag=1;
   }
-  enum_field_types field_type() const { return int_field_type; }
+  enum_field_types field_type() const override { return int_field_type; }
 };
 
 
-class Item_hex_string: public Item_basic_constant
+class Item_hex_string : public Item_basic_constant
 {
   typedef Item_basic_constant super;
 
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 
 public:
   Item_hex_string();
@@ -3865,43 +3861,43 @@ public:
   Item_hex_string(const char *str,uint str_length);
   Item_hex_string(const POS &pos, const LEX_STRING &literal);
 
-  enum Type type() const { return VARBIN_ITEM; }
-  double val_real()
+  enum Type type() const override { return VARBIN_ITEM; }
+  double val_real() override
   {
     DBUG_ASSERT(fixed);
     return (double) (ulonglong) Item_hex_string::val_int();
   }
-  longlong val_int();
-  bool basic_const_item() const { return true; }
-  Item *clone_item() const
+  longlong val_int() override;
+  bool basic_const_item() const override { return true; }
+  Item *clone_item() const override
   {
     return new Item_hex_string(str_value.ptr(), max_length);
   }
-  String *val_str(String *) { DBUG_ASSERT(fixed); return &str_value; }
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  String *val_str(String *) override { DBUG_ASSERT(fixed); return &str_value; }
+  my_decimal *val_decimal(my_decimal *) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_string(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_string(ltime);
   }
-  enum Item_result result_type () const { return STRING_RESULT; }
-  Item_result numeric_context_result_type() const { return INT_RESULT; }
-  enum Item_result cast_to_int_type() const { return INT_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
-  virtual void print(String *str, enum_query_type query_type);
-  bool eq(const Item *item, bool binary_cmp) const;
-  virtual Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar*) { return false; }
+  Item_result result_type() const override { return STRING_RESULT; }
+  Item_result numeric_context_result_type() const override {return INT_RESULT;}
+  Item_result cast_to_int_type() const override { return INT_RESULT; }
+  enum_field_types field_type() const override { return MYSQL_TYPE_VARCHAR; }
+  void print(String *str, enum_query_type query_type) override;
+  bool eq(const Item *item, bool binary_cmp) const override;
+  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  bool check_partition_func_processor(uchar *) override { return false; }
   static LEX_STRING make_hex_str(const char *str, size_t str_length);
 private:
   void hex_string_init(const char *str, uint str_length);
 };
 
 
-class Item_bin_string: public Item_hex_string
+class Item_bin_string final : public Item_hex_string
 {
   typedef Item_hex_string super;
 
@@ -3968,7 +3964,7 @@ public:
     also to make printing of items inherited from Item_sum uniform.
   */
   virtual const char *func_name() const= 0;
-  bool check_gcol_func_processor(uchar*) override { return false;}
+  bool check_gcol_func_processor(uchar *) override { return false; }
 };
 
 
@@ -3976,7 +3972,8 @@ class Item_ref :public Item_ident
 {
 protected:
   void set_properties();
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 public:
   enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF, AGGREGATE_REF };
   Field *result_field;			 /* Save result here */
@@ -4027,54 +4024,54 @@ public:
   Item_ref(THD *thd, Item_ref *item)
     :Item_ident(thd, item), result_field(item->result_field), ref(item->ref),
     chop_ref(!ref) {}
-  enum Type type() const		{ return REF_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const
-  { 
+  enum Type type() const override { return REF_ITEM; }
+  bool eq(const Item *item, bool binary_cmp) const override
+  {
     Item *it= ((Item *) item)->real_item();
     return ref && (*ref)->eq(it, binary_cmp);
   }
-  double val_real();
-  longlong val_int();
-  longlong val_time_temporal();
-  longlong val_date_temporal();
-  my_decimal *val_decimal(my_decimal *);
-  bool val_bool();
-  String *val_str(String* tmp);
-  bool val_json(Json_wrapper *result);
-  bool is_null();
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  double val_result();
-  longlong val_int_result();
-  String *str_result(String* tmp);
-  my_decimal *val_decimal_result(my_decimal *);
-  bool val_bool_result();
-  bool is_null_result();
-  bool send(Protocol *prot, String *tmp);
-  void make_field(Send_field *field);
-  bool fix_fields(THD *, Item **);
+  double val_real() override;
+  longlong val_int() override;
+  longlong val_time_temporal() override;
+  longlong val_date_temporal() override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool val_bool() override;
+  String *val_str(String *tmp) override;
+  bool val_json(Json_wrapper *result) override;
+  bool is_null() override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  double val_result() override;
+  longlong val_int_result() override;
+  String *str_result(String *tmp) override;
+  my_decimal *val_decimal_result(my_decimal *) override;
+  bool val_bool_result() override;
+  bool is_null_result() override;
+  bool send(Protocol *prot, String *tmp) override;
+  void make_field(Send_field *field) override;
+  bool fix_fields(THD *, Item **) override;
   void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select);
-  void save_org_in_field(Field *field);
-  enum Item_result result_type () const { return (*ref)->result_type(); }
-  enum_field_types field_type() const   { return (*ref)->field_type(); }
-  Field *get_tmp_table_field()
+                         SELECT_LEX *removed_select) override;
+  void save_org_in_field(Field *field) override;
+  Item_result result_type() const override { return (*ref)->result_type(); }
+  enum_field_types field_type() const override { return (*ref)->field_type(); }
+  Field *get_tmp_table_field() override
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
-  Item *get_tmp_table_item(THD *thd);
-  bool const_item() const
+  Item *get_tmp_table_item(THD *thd) override;
+  bool const_item() const override
   {
     return (*ref)->const_item() && (used_tables() == 0);
   }
-  table_map used_tables() const		
+  table_map used_tables() const override
   {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
   }
-  void update_used_tables() 
-  { 
-    if (!depended_from) 
-      (*ref)->update_used_tables(); 
+  void update_used_tables() override
+  {
+    if (!depended_from)
+      (*ref)->update_used_tables();
   }
 
-  table_map not_null_tables() const
+  table_map not_null_tables() const override
   {
     /*
       It can happen that our 'depended_from' member is set but the
@@ -4084,17 +4081,17 @@ public:
     */
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->not_null_tables();
   }
-  void set_result_field(Field *field)	{ result_field= field; }
-  bool is_result_field() const { return true; }
-  void save_in_result_field(bool no_conversions)
+  void set_result_field(Field *field) override { result_field= field; }
+  bool is_result_field() const override { return true; }
+  void save_in_result_field(bool no_conversions) override
   {
     (*ref)->save_in_field(result_field, no_conversions);
   }
-  Item *real_item()
+  Item *real_item() override
   {
     return ref ? (*ref)->real_item() : this;
   }
-  bool walk(Item_processor processor, enum_walk walk, uchar *arg)
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg) override
   {
     return
       ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
@@ -4102,10 +4099,10 @@ public:
       (ref != NULL ? (*ref)->walk(processor, walk, arg) :false) ||
       ((walk & WALK_POSTFIX) && (this->*processor)(arg));
   }
-  virtual Item* transform(Item_transformer, uchar *arg);
-  virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
-                        Item_transformer transformer, uchar *arg_t);
-  virtual bool explain_subquery_checker(uchar**)
+  Item *transform(Item_transformer, uchar *arg) override;
+  Item *compile(Item_analyzer analyzer, uchar **arg_p,
+                Item_transformer transformer, uchar *arg_t) override;
+  bool explain_subquery_checker(uchar **) override
   {
     /*
       Always return false: we don't need to go deeper into referenced
@@ -4115,46 +4112,47 @@ public:
     */
     return false;
   }
-  virtual void print(String *str, enum_query_type query_type);
-  void cleanup();
-  Item_field *field_for_view_update()
+  void print(String *str, enum_query_type query_type) override;
+  void cleanup() override;
+  Item_field *field_for_view_update() override
     { return (*ref)->field_for_view_update(); }
   virtual Ref_Type ref_type() const { return REF; }
 
   // Row emulation: forwarding of ROW-related calls to ref
-  uint cols() const
+  uint cols() const override
   {
     return ref && result_type() == ROW_RESULT ? (*ref)->cols() : 1;
   }
-  Item* element_index(uint i)
+  Item *element_index(uint i) override
   {
     return ref && result_type() == ROW_RESULT ? (*ref)->element_index(i) : this;
   }
-  Item** addr(uint i)
+  Item **addr(uint i) override
   {
     return ref && result_type() == ROW_RESULT ? (*ref)->addr(i) : 0;
   }
-  bool check_cols(uint c)
+  bool check_cols(uint c) override
   {
     return ref && result_type() == ROW_RESULT ? (*ref)->check_cols(c) 
                                               : Item::check_cols(c);
   }
-  bool null_inside()
+  bool null_inside() override
   {
     return ref && result_type() == ROW_RESULT ? (*ref)->null_inside() : 0;
   }
-  void bring_value()
-  { 
+  void bring_value() override
+  {
     if (ref && result_type() == ROW_RESULT)
       (*ref)->bring_value();
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     DBUG_ASSERT(fixed);
     return (*ref)->get_time(ltime);
   }
-  virtual bool basic_const_item() const { return ref && (*ref)->basic_const_item(); }
-  bool is_outer_field() const
+  bool basic_const_item() const override
+  { return ref && (*ref)->basic_const_item(); }
+  bool is_outer_field() const override
   {
     DBUG_ASSERT(fixed);
     DBUG_ASSERT(ref);
@@ -4164,8 +4162,8 @@ public:
   /**
     Checks if the item tree that ref points to contains a subquery.
   */
-  virtual bool has_subquery() const 
-  { 
+  bool has_subquery() const override
+  {
     DBUG_ASSERT(ref);
     return (*ref)->has_subquery();
   }
@@ -4173,26 +4171,26 @@ public:
   /**
     Checks if the item tree that ref points to contains a stored program.
   */
-  virtual bool has_stored_program() const 
-  { 
+  bool has_stored_program() const override
+  {
     DBUG_ASSERT(ref);
     return (*ref)->has_stored_program();
   }
 
-  virtual bool created_by_in2exists() const
+  bool created_by_in2exists() const override
   {
     return (*ref)->created_by_in2exists();
   }
 
-  bool repoint_const_outer_ref(uchar *arg);
+  bool repoint_const_outer_ref(uchar *arg) override;
 };
 
 
-/*
+/**
   The same as Item_ref, but get value from val_* family of method to get
   value of item on which it referred instead of result* family.
 */
-class Item_direct_ref :public Item_ref
+class Item_direct_ref : public Item_ref
 {
 public:
   Item_direct_ref(Name_resolution_context *context_arg, Item **item,
@@ -4205,16 +4203,16 @@ public:
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
 
-  double val_real();
-  longlong val_int();
-  longlong val_time_temporal();
-  longlong val_date_temporal();
-  String *val_str(String* tmp);
-  my_decimal *val_decimal(my_decimal *);
-  bool val_bool();
-  bool is_null();
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  virtual Ref_Type ref_type() const { return DIRECT_REF; }
+  double val_real() override;
+  longlong val_int() override;
+  longlong val_time_temporal() override;
+  longlong val_date_temporal() override;
+  String *val_str(String *tmp) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool val_bool() override;
+  bool is_null() override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  Ref_Type ref_type() const override { return DIRECT_REF; }
 };
 
 /**
@@ -4222,7 +4220,7 @@ public:
   The same as Item_direct_ref, but call fix_fields() of reference if
   not called yet.
 */
-class Item_direct_view_ref :public Item_direct_ref
+class Item_direct_view_ref final : public Item_direct_ref
 {
   typedef Item_direct_ref super;
 
@@ -4252,23 +4250,23 @@ public:
     build_equal_items_for_cond().
     TODO: Implement multiple equality optimization for views.
   */
-  virtual bool subst_argument_checker(uchar**)
+  bool subst_argument_checker(uchar **) override
   {
     return false;
   }
 
-  bool fix_fields(THD *, Item **);
-  bool eq(const Item *item, bool binary_cmp) const;
-  Item *get_tmp_table_item(THD *thd)
+  bool fix_fields(THD *, Item **) override;
+  bool eq(const Item *item, bool binary_cmp) const override;
+  Item *get_tmp_table_item(THD *thd) override
   {
     Item *item= Item_ref::get_tmp_table_item(thd);
     item->item_name= item_name;
     return item;
   }
-  virtual Ref_Type ref_type() const { return VIEW_REF; }
+  Ref_Type ref_type() const override { return VIEW_REF; }
 
-  virtual bool check_column_privileges(uchar *arg);
-  virtual bool mark_field_in_map(uchar *arg)
+  bool check_column_privileges(uchar *arg) override;
+  bool mark_field_in_map(uchar *arg) override
   {
     /*
       If this referenced column is marked as used, flag underlying
@@ -4279,18 +4277,18 @@ public:
       (*ref)->set_derived_used();
     return false;
   }
-  virtual longlong val_int();
-  virtual double val_real();
-  virtual my_decimal *val_decimal(my_decimal *dec);
-  virtual String *val_str(String *str);
-  virtual bool val_bool();
-  virtual bool val_json(Json_wrapper *wr);
-  virtual bool is_null();
-  virtual bool send(Protocol *prot, String *tmp);
+  longlong val_int() override;
+  double val_real() override;
+  my_decimal *val_decimal(my_decimal *dec) override;
+  String *val_str(String *str) override;
+  bool val_bool() override;
+  bool val_json(Json_wrapper *wr) override;
+  bool is_null() override;
+  bool send(Protocol *prot, String *tmp) override;
 
 protected:
-  virtual type_conversion_status save_in_field_inner(Field *field,
-                                                     bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 
 private:
   /// @return true if item is from a null-extended row from an outer join
@@ -4320,7 +4318,7 @@ private:
 
 class Item_sum;
 
-class Item_outer_ref :public Item_direct_ref
+class Item_outer_ref final : public Item_direct_ref
 {
 public:
   Item *outer_ref;
@@ -4349,20 +4347,20 @@ public:
                      alias_of_expr_arg),
     outer_ref(0), in_sum_func(0), found_in_select_list(1)
   {}
-  void save_in_result_field(bool)
+  void save_in_result_field(bool) override
   {
     outer_ref->save_org_in_field(result_field);
   }
-  bool fix_fields(THD *, Item **);
+  bool fix_fields(THD *, Item **) override;
   void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select);
-  table_map used_tables() const
+                         SELECT_LEX *removed_select) override;
+  table_map used_tables() const override
   {
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
   }
-  table_map not_null_tables() const { return 0; }
+  table_map not_null_tables() const override { return 0; }
 
-  virtual Ref_Type ref_type() const { return OUTER_REF; }
+  Ref_Type ref_type() const override { return OUTER_REF; }
 };
 
 
@@ -4378,7 +4376,7 @@ class Item_in_subselect;
      with NULL value.
 */
 
-class Item_ref_null_helper: public Item_ref
+class Item_ref_null_helper final : public Item_ref
 {
 protected:
   Item_in_subselect* owner;
@@ -4388,19 +4386,19 @@ public:
 		       const char *table_name_arg, const char *field_name_arg)
     :Item_ref(context_arg, item, table_name_arg, field_name_arg),
      owner(master) {}
-  double val_real();
-  longlong val_int();
-  longlong val_time_temporal();
-  longlong val_date_temporal();
-  String* val_str(String* s);
-  my_decimal *val_decimal(my_decimal *);
-  bool val_bool();
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  virtual void print(String *str, enum_query_type query_type);
+  double val_real() override;
+  longlong val_int() override;
+  longlong val_time_temporal() override;
+  longlong val_date_temporal() override;
+  String *val_str(String *s) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool val_bool() override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  void print(String *str, enum_query_type query_type) override;
   /*
     we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
   */
-  table_map used_tables() const
+  table_map used_tables() const override
   {
     return (depended_from ?
             OUTER_REF_TABLE_BIT :
@@ -4423,6 +4421,7 @@ class Item_int_with_ref :public Item_int
 protected:
   Item *ref;
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override
   {
     return ref->save_in_field(field, no_conversions);
   }
@@ -4433,9 +4432,9 @@ public:
   {
     unsigned_flag= unsigned_arg;
   }
-  Item *clone_item() const;
-  virtual Item *real_item() { return ref; }
-  enum_field_types field_type() const { return cached_field_type; }
+  Item *clone_item() const override;
+  Item *real_item() override { return ref; }
+  enum_field_types field_type() const override { return cached_field_type; }
 };
 
 
@@ -4452,18 +4451,17 @@ public:
   {
     decimals= decimals_arg;
   }
-  void print(String *str, enum_query_type query_type);
-  bool get_date(MYSQL_TIME*, my_time_flags_t)
+  void print(String *str, enum_query_type query_type) override;
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override
   {
     DBUG_ASSERT(0);
     return true;
   }
-  bool get_time(MYSQL_TIME*)
+  bool get_time(MYSQL_TIME *) override
   {
     DBUG_ASSERT(0);
     return true;
   }
-
 };
 
 
@@ -4473,7 +4471,7 @@ public:
   The numeric constant is replaced to Item_datetime_with_ref
   by convert_constant_item().
 */
-class Item_datetime_with_ref :public Item_temporal_with_ref
+class Item_datetime_with_ref final : public Item_temporal_with_ref
 {
 public:
   /**
@@ -4488,9 +4486,9 @@ public:
     Item_temporal_with_ref(field_type_arg, decimals_arg, i, ref_arg, true)
   {
   }
-  Item *clone_item() const;
-  longlong val_date_temporal() { return val_int(); }
-  longlong val_time_temporal()
+  Item *clone_item() const override;
+  longlong val_date_temporal() override { return val_int(); }
+  longlong val_time_temporal() override
   {
     DBUG_ASSERT(0);
     return val_int();
@@ -4504,7 +4502,7 @@ public:
   The numeric constant is replaced to Item_time_with_ref
   by convert_constant_item().
 */
-class Item_time_with_ref :public Item_temporal_with_ref
+class Item_time_with_ref final : public Item_temporal_with_ref
 {
 public:
   /**
@@ -4517,9 +4515,9 @@ public:
     Item_temporal_with_ref(MYSQL_TYPE_TIME, decimals_arg, i, ref_arg, 0)
   {
   }
-  Item *clone_item() const;
-  longlong val_time_temporal() { return val_int(); }
-  longlong val_date_temporal()
+  Item *clone_item() const override;
+  longlong val_time_temporal() override { return val_int(); }
+  longlong val_date_temporal() override
   {
     DBUG_ASSERT(0);
     return val_int();
@@ -4549,7 +4547,7 @@ public:
 
 class Item_copy :public Item
 {
-protected:  
+protected:
 
   /**
     Stores the type of the resulting field that would be used to store the data
@@ -4587,39 +4585,40 @@ protected:
   }
 
   virtual type_conversion_status save_in_field_inner(Field *field,
-                                                     bool no_conversions) = 0;
+                                                     bool no_conversions)
+    override= 0;
 
 public:
-  /** 
-    Factory method to create the appropriate subclass dependent on the type of 
+  /**
+    Factory method to create the appropriate subclass dependent on the type of
     the original item.
 
     @param item      the original item.
-  */  
-  static Item_copy *create (Item *item);
+  */
+  static Item_copy *create(Item *item);
 
-  /** 
+  /**
     Update the cache with the value of the original item
-   
+
     This is the method that updates the cached value.
-    It must be explicitly called by the user of this class to store the value 
+    It must be explicitly called by the user of this class to store the value
     of the orginal item in the cache.
     @returns false if OK, true on error.
-  */  
+  */
   virtual bool copy(const THD *thd) = 0;
 
-  Item *get_item() { return item; }
+  virtual Item *get_item() { return item; }
   /** All of the subclasses should have the same type tag */
-  enum Type type() const { return COPY_STR_ITEM; }
-  enum_field_types field_type() const { return cached_field_type; }
-  enum Item_result result_type () const { return cached_result_type; }
+  enum Type type() const override { return COPY_STR_ITEM; }
+  enum_field_types field_type() const override { return cached_field_type; }
+  enum Item_result result_type() const override { return cached_result_type; }
 
-  void make_field(Send_field *field) { item->make_field(field); }
-  table_map used_tables() const { return (table_map) 1L; }
-  bool const_item() const { return 0; }
-  bool is_null() { return null_value; }
+  void make_field(Send_field *field) override { item->make_field(field); }
+  table_map used_tables() const override { return 1; }
+  bool const_item() const override { return false; }
+  bool is_null() override { return null_value; }
 
-  virtual void no_rows_in_result()
+  void no_rows_in_result() override
   {
     item->no_rows_in_result();
   }
@@ -4627,16 +4626,18 @@ public:
   /*  
     Override the methods below as pure virtual to make sure all the 
     sub-classes implement them.
-  */  
+  */
 
-  virtual String *val_str(String*) = 0;
-  virtual my_decimal *val_decimal(my_decimal *) = 0;
-  virtual double val_real() = 0;
-  virtual longlong val_int() = 0;
-  virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)= 0;
-  virtual bool get_time(MYSQL_TIME *ltime)= 0;
+  virtual String *val_str(String *) override= 0;
+  virtual my_decimal *val_decimal(my_decimal *) override= 0;
+  virtual double val_real() override= 0;
+  virtual longlong val_int() override= 0;
+  virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+    override= 0;
+  virtual bool get_time(MYSQL_TIME *ltime)
+    override= 0;
   /* purecov: begin deadcode */
-  virtual bool val_json(Json_wrapper*)
+  bool val_json(Json_wrapper *) override
   {
     DBUG_ABORT();
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "item type for JSON");
@@ -4647,145 +4648,149 @@ public:
 
 /**
  Implementation of a string cache.
- 
+
  Uses Item::str_value for storage
-*/ 
-class Item_copy_string : public Item_copy
+*/
+class Item_copy_string final : public Item_copy
 {
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 public:
   Item_copy_string (Item *item) : Item_copy(item) {}
 
-  String *val_str(String*);
-  my_decimal *val_decimal(my_decimal *);
-  double val_real();
-  longlong val_int();
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  bool get_time(MYSQL_TIME *ltime);
-  virtual bool copy(const THD *thd);
+  String *val_str(String *) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  double val_real() override;
+  longlong val_int() override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  bool copy(const THD *thd) override;
 };
 
-class Item_copy_json : public Item_copy
+class Item_copy_json final : public Item_copy
 {
   Json_wrapper *m_value;
 protected:
-  virtual type_conversion_status save_in_field_inner(Field *field,
-                                                     bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 public:
   explicit Item_copy_json(Item *item);
   virtual ~Item_copy_json();
-  virtual bool copy(const THD *thd);
-  virtual bool val_json(Json_wrapper *);
-  virtual String *val_str(String*);
-  virtual my_decimal *val_decimal(my_decimal *);
-  virtual double val_real();
-  virtual longlong val_int();
-  virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  virtual bool get_time(MYSQL_TIME *ltime);
+  bool copy(const THD *thd) override;
+  bool val_json(Json_wrapper *) override;
+  String *val_str(String *) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  double val_real() override;
+  longlong val_int() override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
 };
 
 
 class Item_copy_int : public Item_copy
 {
-protected:  
-  longlong cached_value; 
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+protected:
+  longlong cached_value;
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 public:
   Item_copy_int (Item *i) : Item_copy(i) {}
 
-  virtual String *val_str(String*);
-  virtual my_decimal *val_decimal(my_decimal *);
-  virtual double val_real()
+  String *val_str(String *) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  double val_real() override
   {
     return null_value ? 0.0 : (double) cached_value;
   }
-  virtual longlong val_int()
+  longlong val_int() override
   {
     return null_value ? 0LL : cached_value;
   }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_int(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_int(ltime);
   }
-  virtual bool copy(const THD *thd);
+  bool copy(const THD *thd) override;
 };
 
 
-class Item_copy_uint : public Item_copy_int
+class Item_copy_uint final : public Item_copy_int
 {
 public:
-  Item_copy_uint (Item *item) : Item_copy_int(item) 
+  Item_copy_uint(Item *item) : Item_copy_int(item)
   {
     unsigned_flag= 1;
   }
 
-  String *val_str(String*);
-  double val_real()
+  String *val_str(String *) override;
+  double val_real() override
   {
     return null_value ? 0.0 : (double) (ulonglong) cached_value;
   }
 };
 
 
-class Item_copy_float : public Item_copy
+class Item_copy_float final : public Item_copy
 {
-protected:  
-  double cached_value; 
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+protected:
+  double cached_value;
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 public:
-  Item_copy_float (Item *i) : Item_copy(i) {}
+  Item_copy_float(Item *i) : Item_copy(i) {}
 
-  String *val_str(String*);
-  my_decimal *val_decimal(my_decimal *);
-  double val_real()
+  String *val_str(String *) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  double val_real() override
   {
     return null_value ? 0.0 : cached_value;
   }
-  longlong val_int()
+  longlong val_int() override
   {
     return (longlong) rint(val_real());
   }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_real(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_real(ltime);
   }
-  virtual bool copy(const THD *thd);
+  bool copy(const THD *thd) override;
 };
 
 
-class Item_copy_decimal : public Item_copy
+class Item_copy_decimal final : public Item_copy
 {
-protected:  
+protected:
   my_decimal cached_value;
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 public:
-  Item_copy_decimal (Item *i) : Item_copy(i) {}
+  Item_copy_decimal(Item *i) : Item_copy(i) {}
 
-  String *val_str(String*);
-  my_decimal *val_decimal(my_decimal *) 
-  { 
+  String *val_str(String *) override;
+  my_decimal *val_decimal(my_decimal *) override
+  {
     return null_value ? NULL: &cached_value; 
   }
-  double val_real();
-  longlong val_int();
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  double val_real() override;
+  longlong val_int() override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_decimal(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_decimal(ltime);
   }
-  virtual bool copy(const THD *thd);
+  bool copy(const THD *thd) override;
 };
 
 
@@ -4798,68 +4803,68 @@ public:
   virtual ~Cached_item(); /*line -e1509 */
 };
 
-class Cached_item_str :public Cached_item
+class Cached_item_str final : public Cached_item
 {
   Item *item;
   uint32 value_max_length;
   String value,tmp_value;
 public:
   Cached_item_str(THD *thd, Item *arg);
-  bool cmp();
+  bool cmp() override;
   ~Cached_item_str();                           // Deallocate String:s
 };
 
 
 /// Cached_item subclass for JSON values.
-class Cached_item_json : public Cached_item
+class Cached_item_json final : public Cached_item
 {
   Item *m_item;              ///< The item whose value to cache.
   Json_wrapper *m_value;     ///< The cached JSON value.
 public:
   explicit Cached_item_json(Item *item);
   ~Cached_item_json();
-  bool cmp();
+  bool cmp() override;
 };
 
 
-class Cached_item_real :public Cached_item
+class Cached_item_real final : public Cached_item
 {
   Item *item;
   double value;
 public:
   Cached_item_real(Item *item_par) :item(item_par),value(0.0) {}
-  bool cmp();
+  bool cmp() override;
 };
 
-class Cached_item_int :public Cached_item
+class Cached_item_int final : public Cached_item
 {
   Item *item;
   longlong value;
 public:
   Cached_item_int(Item *item_par) :item(item_par),value(0) {}
-  bool cmp();
+  bool cmp() override;
 };
 
-class Cached_item_temporal :public Cached_item
+class Cached_item_temporal final : public Cached_item
 {
   Item *item;
   longlong value;
 public:
   Cached_item_temporal(Item *item_par) :item(item_par), value(0) {}
-  bool cmp();
+  bool cmp() override;
 };
 
 
-class Cached_item_decimal :public Cached_item
+class Cached_item_decimal final : public Cached_item
 {
   Item *item;
   my_decimal value;
 public:
   Cached_item_decimal(Item *item_par);
-  bool cmp();
+  bool cmp() override;
 };
 
-class Cached_item_field :public Cached_item
+class Cached_item_field final : public Cached_item
 {
   uchar *buff;
   Field *field;
@@ -4886,40 +4891,41 @@ public:
     /* TODO: take the memory allocation below out of the constructor. */
     buff= (uchar*) sql_calloc(length=field->pack_length());
   }
-  bool cmp();
+  bool cmp() override;
 };
 
-class Item_default_value : public Item_field
+class Item_default_value final : public Item_field
 {
   typedef Item_field super;
 
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 
 public:
   Item *arg;
   Item_default_value(const POS &pos, Item *a= NULL)
   : super(pos, NULL, NULL, NULL), arg(a)
   {}
-  virtual bool itemize(Parse_context *pc, Item **res);
-  enum Type type() const { return DEFAULT_VALUE_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const;
-  bool fix_fields(THD *, Item **);
-  virtual void print(String *str, enum_query_type query_type);
-  table_map used_tables() const { return (table_map)0L; }
-  Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
+  bool itemize(Parse_context *pc, Item **res) override;
+  enum Type type() const override { return DEFAULT_VALUE_ITEM; }
+  bool eq(const Item *item, bool binary_cmp) const override;
+  bool fix_fields(THD *, Item **) override;
+  void print(String *str, enum_query_type query_type) override;
+  table_map used_tables() const override { return 0; }
+  Item *get_tmp_table_item(THD *thd) override { return copy_or_same(thd); }
 
-  bool walk(Item_processor processor, enum_walk walk, uchar *args)
+  bool walk(Item_processor processor, enum_walk walk, uchar *args) override
   {
     return ((walk & WALK_PREFIX) && (this->*processor)(args)) ||
            (arg && arg->walk(processor, walk, args)) ||
            ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
 
-  bool check_gcol_depend_default_processor(uchar*)
+  bool check_gcol_depend_default_processor(uchar *) override
   { return true; }
 
-  Item *transform(Item_transformer transformer, uchar *args);
+  Item *transform(Item_transformer transformer, uchar *args) override;
 };
 
 /*
@@ -4932,11 +4938,11 @@ public:
   In all other places this function returns NULL.
 */
 
-class Item_insert_value : public Item_field
+class Item_insert_value final : public Item_field
 {
 protected:
   type_conversion_status save_in_field_inner(Field *field_arg,
-                                             bool no_conversions)
+                                             bool no_conversions) override
   {
     return Item_field::save_in_field_inner(field_arg, no_conversions);
   }
@@ -4946,35 +4952,34 @@ public:
     :Item_field(pos, NULL, NULL, NULL),
      arg(a) {}
 
-  virtual bool itemize(Parse_context *pc, Item **res)
+  bool itemize(Parse_context *pc, Item **res) override
   {
     if (skip_itemize(res))
       return false;
     return super::itemize(pc, res) || arg->itemize(pc, &arg);
   }
 
-  virtual enum Type type() const { return INSERT_VALUE_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const;
-  bool fix_fields(THD *, Item **);
-  virtual void print(String *str, enum_query_type query_type);
-  /* 
+  enum Type type() const override { return INSERT_VALUE_ITEM; }
+  bool eq(const Item *item, bool binary_cmp) const override;
+  bool fix_fields(THD *, Item **) override;
+  void print(String *str, enum_query_type query_type) override;
+  /*
    We use RAND_TABLE_BIT to prevent Item_insert_value from
    being treated as a constant and precalculated before execution
   */
-  table_map used_tables() const { return RAND_TABLE_BIT; }
+  table_map used_tables() const override { return RAND_TABLE_BIT; }
 
-  bool walk(Item_processor processor, enum_walk walk, uchar *args)
+  bool walk(Item_processor processor, enum_walk walk, uchar *args) override
   {
     return ((walk & WALK_PREFIX) && (this->*processor)(args)) ||
            arg->walk(processor, walk, args) ||
            ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
-  bool check_gcol_func_processor(uchar*)
-  { return true; }
+  bool check_gcol_func_processor(uchar *) override { return true; }
 };
 
 
-/*
+/**
   Represents NEW/OLD version of field of row which is
   changed/read in trigger.
 
@@ -4985,8 +4990,8 @@ public:
         two Field instances representing either OLD or NEW version of this
         field.
 */
-class Item_trigger_field : public Item_field,
-                           private Settable_routine_parameter
+class Item_trigger_field final : public Item_field,
+                                 private Settable_routine_parameter
 {
 public:
   /* Is this item represents row from NEW or OLD row ? */
@@ -5025,22 +5030,22 @@ public:
   void setup_field(THD *thd,
                    Table_trigger_field_support *table_triggers,
                    GRANT_INFO *table_grant_info);
-  enum Type type() const { return TRIGGER_FIELD_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const;
-  bool fix_fields(THD *, Item **);
-  virtual void print(String *str, enum_query_type query_type);
-  table_map used_tables() const { return (table_map)0L; }
-  Field *get_tmp_table_field() { return 0; }
-  Item *copy_or_same(THD*) { return this; }
-  Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
-  void cleanup();
-  void set_required_privilege(bool rw);
+  enum Type type() const override { return TRIGGER_FIELD_ITEM; }
+  bool eq(const Item *item, bool binary_cmp) const override;
+  bool fix_fields(THD *, Item **) override;
+  void print(String *str, enum_query_type query_type) override;
+  table_map used_tables() const override { return 0; }
+  Field *get_tmp_table_field() override { return 0; }
+  Item *copy_or_same(THD *) override { return this; }
+  Item *get_tmp_table_item(THD *thd) override { return copy_or_same(thd); }
+  void cleanup() override;
+  void set_required_privilege(bool rw) override;
 
 private:
-  bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
+  bool set_value(THD *thd, sp_rcontext *ctx, Item **it) override;
 
 public:
-  Settable_routine_parameter *get_settable_routine_parameter()
+  Settable_routine_parameter *get_settable_routine_parameter() override
   {
     return (read_only ? 0 : this);
   }
@@ -5118,8 +5123,8 @@ public:
 
   void set_used_tables(table_map map) { used_table_map= map; }
 
-  virtual void fix_after_pullout(SELECT_LEX *parent_select,
-                                 SELECT_LEX *removed_select)
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select) override
   {
     if (example == NULL)
       return;
@@ -5149,18 +5154,18 @@ public:
     }
     return 0;
   };
-  enum Type type() const { return CACHE_ITEM; }
-  enum_field_types field_type() const { return cached_field_type; }
+  enum Type type() const override { return CACHE_ITEM; }
+  enum_field_types field_type() const override { return cached_field_type; }
   static Item_cache* get_cache(const Item *item);
   static Item_cache* get_cache(const Item* item, const Item_result type);
-  table_map used_tables() const { return used_table_map; }
+  table_map used_tables() const override { return used_table_map; }
   virtual void keep_array() {}
-  virtual void print(String *str, enum_query_type query_type);
-  bool eq_def(Field *field) 
-  { 
-    return cached_field ? cached_field->eq_def (field) : FALSE;
+  void print(String *str, enum_query_type query_type) override;
+  bool eq_def(Field *field)
+  {
+    return cached_field && cached_field->eq_def(field);
   }
-  bool eq(const Item *item, bool) const { return this == item; }
+  bool eq(const Item *item, bool) const override { return this == item; }
   /**
      Check if saved item has a non-NULL value.
      Will cache value of saved item if not already done. 
@@ -5194,13 +5199,14 @@ public:
   }
 
   virtual bool cache_value()= 0;
-  bool basic_const_item() const
+  bool basic_const_item() const override
   { return MY_TEST(example && example->basic_const_item());}
-  bool walk (Item_processor processor, enum_walk walk, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
-  bool is_null() { return value_cached ? null_value : example->is_null(); }
-  bool check_gcol_func_processor(uchar*) { return true;}
-  Item_result result_type() const
+  bool is_null() override
+  { return value_cached ? null_value : example->is_null(); }
+  bool check_gcol_func_processor(uchar *) override { return true; }
+  Item_result result_type() const override
   {
     if (!example)
       return INT_RESULT;
@@ -5209,7 +5215,7 @@ public:
 };
 
 
-class Item_cache_int: public Item_cache
+class Item_cache_int final : public Item_cache
 {
 protected:
   longlong value;
@@ -5219,83 +5225,84 @@ public:
   Item_cache_int(enum_field_types field_type_arg):
     Item_cache(field_type_arg), value(0) {}
 
-  virtual void store(Item *item){ Item_cache::store(item); }
+  void store(Item *item) override { Item_cache::store(item); }
   void store(Item *item, longlong val_arg);
-  double val_real();
-  longlong val_int();
-  longlong val_time_temporal() { return val_int(); }
-  longlong val_date_temporal() { return val_int(); }
-  String* val_str(String *str);
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  double val_real() override;
+  longlong val_int() override;
+  longlong val_time_temporal() override { return val_int(); }
+  longlong val_date_temporal() override { return val_int(); }
+  String *val_str(String *str) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_int(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_int(ltime);
   }
-  enum Item_result result_type() const { return INT_RESULT; }
-  bool cache_value();
+  enum Item_result result_type() const override { return INT_RESULT; }
+  bool cache_value() override;
 };
 
 
-class Item_cache_real: public Item_cache
+class Item_cache_real final : public Item_cache
 {
   double value;
 public:
   Item_cache_real(): Item_cache(),
     value(0) {}
 
-  double val_real();
-  longlong val_int();
-  String* val_str(String *str);
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  double val_real() override;
+  longlong val_int() override;
+  String *val_str(String *str) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_real(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_real(ltime);
   }
-  enum Item_result result_type() const { return REAL_RESULT; }
-  bool cache_value();
+  enum Item_result result_type() const override { return REAL_RESULT; }
+  bool cache_value() override;
 };
 
 
-class Item_cache_decimal: public Item_cache
+class Item_cache_decimal final : public Item_cache
 {
 protected:
   my_decimal decimal_value;
 public:
   Item_cache_decimal(): Item_cache() {}
 
-  double val_real();
-  longlong val_int();
-  String* val_str(String *str);
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  double val_real() override;
+  longlong val_int() override;
+  String *val_str(String *str) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_decimal(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_decimal(ltime);
   }
-  enum Item_result result_type() const { return DECIMAL_RESULT; }
-  bool cache_value();
+  enum Item_result result_type() const override { return DECIMAL_RESULT; }
+  bool cache_value() override;
 };
 
 
-class Item_cache_str: public Item_cache
+class Item_cache_str final : public Item_cache
 {
   char buffer[STRING_BUFFER_USUAL_SIZE];
   String *value, value_buff;
   bool is_varbinary;
 
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 
 public:
   Item_cache_str(const Item *item) :
@@ -5306,24 +5313,24 @@ public:
   {
     collation.set(const_cast<DTCollation&>(item->collation));
   }
-  double val_real();
-  longlong val_int();
-  String* val_str(String *);
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  double val_real() override;
+  longlong val_int() override;
+  String *val_str(String *) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_string(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_string(ltime);
   }
-  enum Item_result result_type() const { return STRING_RESULT; }
+  enum Item_result result_type() const override { return STRING_RESULT; }
   const CHARSET_INFO *charset() const { return value->charset(); };
-  bool cache_value();
+  bool cache_value() override;
 };
 
-class Item_cache_row: public Item_cache
+class Item_cache_row final : public Item_cache
 {
   Item_cache  **values;
   uint item_count;
@@ -5331,65 +5338,64 @@ class Item_cache_row: public Item_cache
 public:
   Item_cache_row()
     :Item_cache(), values(0), item_count(2),
-    save_array(0) {}
-  
-  /*
-    'allocate' used only in row transformer, to preallocate space for row 
-    cache.
+    save_array(false) {}
+
+  /**
+    'allocate' is only used in Item_cache_row::setup()
   */
-  bool allocate(uint num);
+  bool allocate(uint num) override;
   /*
     'setup' is needed only by row => it not called by simple row subselect
     (only by IN subselect (in subselect optimizer))
   */
-  bool setup(Item *item);
-  void store(Item *item);
+  bool setup(Item *item) override;
+  void store(Item *item) override;
   void illegal_method_call(const char *) const MY_ATTRIBUTE((cold));
-  void make_field(Send_field *)
+  void make_field(Send_field *) override
   {
     illegal_method_call("make_field");
   };
-  double val_real()
+  double val_real() override
   {
     illegal_method_call("val_real");
     return 0;
   };
-  longlong val_int()
+  longlong val_int() override
   {
     illegal_method_call("val_int");
     return 0;
   };
-  String *val_str(String *)
+  String *val_str(String *) override
   {
     illegal_method_call("val_str");
     return 0;
   };
-  my_decimal *val_decimal(my_decimal *)
+  my_decimal *val_decimal(my_decimal *) override
   {
     illegal_method_call("val_decimal");
     return 0;
   };
-  bool get_date(MYSQL_TIME *, my_time_flags_t)
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override
   {
     illegal_method_call("get_date");
     return true;
   }
-  bool get_time(MYSQL_TIME *)
+  bool get_time(MYSQL_TIME *) override
   {
     illegal_method_call("get_time");
     return true;
   }
 
-  enum Item_result result_type() const { return ROW_RESULT; }
+  enum Item_result result_type() const override { return ROW_RESULT; }
 
-  uint cols() const { return item_count; }
-  Item *element_index(uint i) { return values[i]; }
-  Item **addr(uint i) { return (Item **) (values + i); }
-  bool check_cols(uint c);
-  bool null_inside();
-  void bring_value();
-  void keep_array() { save_array= 1; }
-  void cleanup()
+  uint cols() const override { return item_count; }
+  Item *element_index(uint i) override { return values[i]; }
+  Item **addr(uint i) override { return (Item **) (values + i); }
+  bool check_cols(uint c) override;
+  bool null_inside() override;
+  void bring_value() override;
+  void keep_array() override { save_array= true; }
+  void cleanup() override
   {
     DBUG_ENTER("Item_cache_row::cleanup");
     Item_cache::cleanup();
@@ -5399,7 +5405,7 @@ public:
       values= 0;
     DBUG_VOID_RETURN;
   }
-  bool cache_value();
+  bool cache_value() override;
 };
 
 
@@ -5417,16 +5423,16 @@ public:
   }
 
   void store(Item *item, longlong val_arg);
-  void store(Item *item);
-  double val_real();
-  longlong val_int();
-  longlong val_time_temporal();
-  longlong val_date_temporal();
-  String* val_str(String *str);
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  bool get_time(MYSQL_TIME *ltime);
-  enum Item_result result_type() const { return STRING_RESULT; }
+  void store(Item *item) override;
+  double val_real() override;
+  longlong val_int() override;
+  longlong val_time_temporal() override;
+  longlong val_date_temporal() override;
+  String *val_str(String *str) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  enum Item_result result_type() const override { return STRING_RESULT; }
   /*
     In order to avoid INT <-> STRING conversion of a DATETIME value
     two cache_value functions are introduced. One (cache_value) caches STRING
@@ -5435,8 +5441,8 @@ public:
     correct conversion.
   */
   bool cache_value_int();
-  bool cache_value();
-  void clear() { Item_cache::clear(); str_value_cached= FALSE; }
+  bool cache_value() override;
+  void clear() override { Item_cache::clear(); str_value_cached= false; }
 };
 
 
@@ -5447,27 +5453,27 @@ class Item_cache_json: public Item_cache
 public:
   Item_cache_json();
   ~Item_cache_json();
-  bool cache_value();
-  bool val_json(Json_wrapper *wr);
-  longlong val_int();
-  String *val_str(String *str);
-  Item_result result_type() const { return STRING_RESULT; }
+  bool cache_value() override;
+  bool val_json(Json_wrapper *wr) override;
+  longlong val_int() override;
+  String *val_str(String *str) override;
+  Item_result result_type() const override { return STRING_RESULT; }
 
-  double val_real();
-  my_decimal *val_decimal(my_decimal *val);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  bool get_time(MYSQL_TIME *ltime);
+  double val_real() override;
+  my_decimal *val_decimal(my_decimal *val) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
 };
 
 
-/*
-  Item_type_holder used to store type. name, length of Item for UNIONS &
+/**
+  Item_type_holder stores type, name, length of Item for UNIONS &
   derived tables.
 
   Item_type_holder do not need cleanup() because its time of live limited by
   single SP/PS execution.
 */
-class Item_type_holder: public Item
+class Item_type_holder final : public Item
 {
 protected:
   TYPELIB *enum_set_typelib;
@@ -5481,19 +5487,19 @@ protected:
 public:
   Item_type_holder(THD*, Item*);
 
-  Item_result result_type() const;
-  enum_field_types field_type() const { return fld_type; };
-  enum Type type() const { return TYPE_HOLDER; }
-  double val_real();
-  longlong val_int();
-  my_decimal *val_decimal(my_decimal *);
-  String *val_str(String*);
-  bool get_date(MYSQL_TIME*, my_time_flags_t)
+  Item_result result_type() const override;
+  enum_field_types field_type() const override { return fld_type; };
+  enum Type type() const override { return TYPE_HOLDER; }
+  double val_real() override;
+  longlong val_int() override;
+  my_decimal *val_decimal(my_decimal *) override;
+  String *val_str(String *) override;
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override
   {
     DBUG_ASSERT(0);
     return true;
   }
-  bool get_time(MYSQL_TIME*)
+  bool get_time(MYSQL_TIME *) override
   {
     DBUG_ASSERT(0);
     return true;
@@ -5502,8 +5508,9 @@ public:
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);
-  Field::geometry_type get_geometry_type() const { return geometry_type; };
-  virtual void make_field(Send_field *field)
+  Field::geometry_type get_geometry_type() const override
+  { return geometry_type; };
+  void make_field(Send_field *field) override
   {
     Item::make_field(field);
     // Item_type_holder is used for unions and effectively sends Fields

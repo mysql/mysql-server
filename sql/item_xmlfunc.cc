@@ -197,8 +197,8 @@ public:
     fltend= (MY_XPATH_FLT*) (res->ptr() + res->length());
     nodeset->length(0);
   }
-  enum Type type() const { return XPATH_NODESET; }
-  String *val_str(String *str)
+  enum Type type() const override { return XPATH_NODESET; }
+  String *val_str(String *str) override
   {
     prepare_nodes();
     String *res= val_nodeset(&tmp2_value);
@@ -232,8 +232,8 @@ public:
     }
     return str;
   }
-  enum Item_result result_type () const { return STRING_RESULT; }
-  bool resolve_type(THD *thd)
+  enum Item_result result_type() const override { return STRING_RESULT; }
+  bool resolve_type(THD *) override
   {
     max_length= MAX_BLOB_WIDTH;
     collation.collation= pxml->charset();
@@ -242,7 +242,7 @@ public:
     const_item_cache= false;
     return false;
   }
-  const char *func_name() const { return "nodeset"; }
+  const char *func_name() const override { return "nodeset"; }
 };
 
 
@@ -251,8 +251,8 @@ class Item_nodeset_func_rootelement :public Item_nodeset_func
 {
 public:
   Item_nodeset_func_rootelement(String *pxml): Item_nodeset_func(pxml) {}
-  const char *func_name() const { return "xpath_rootelement"; }
-  String *val_nodeset(String *nodeset);
+  const char *func_name() const override { return "xpath_rootelement"; }
+  String *val_nodeset(String *nodeset) override;
 };
 
 
@@ -262,8 +262,8 @@ class Item_nodeset_func_union :public Item_nodeset_func
 public:
   Item_nodeset_func_union(Item *a, Item *b, String *pxml)
     :Item_nodeset_func(a, b, pxml) {}
-  const char *func_name() const { return "xpath_union"; }
-  String *val_nodeset(String *nodeset);
+  const char *func_name() const override { return "xpath_union"; }
+  String *val_nodeset(String *nodeset) override;
 };
 
 
@@ -276,7 +276,7 @@ public:
   Item_nodeset_func_axisbyname(Item *a, const char *n_arg, uint l_arg,
                                String *pxml): 
     Item_nodeset_func(a, pxml), node_name(n_arg), node_namelen(l_arg) { }
-  const char *func_name() const { return "xpath_axisbyname"; }
+  const char *func_name() const override { return "xpath_axisbyname"; }
   bool validname(MY_XML_NODE *n)
   {
     if (node_name[0] == '*')
@@ -294,8 +294,8 @@ public:
   Item_nodeset_func_selfbyname(Item *a, const char *n_arg, uint l_arg,
                                 String *pxml): 
     Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml) {}
-  const char *func_name() const { return "xpath_selfbyname"; }
-  String *val_nodeset(String *nodeset);
+  const char *func_name() const override { return "xpath_selfbyname"; }
+  String *val_nodeset(String *nodeset) override;
 };
 
 
@@ -306,8 +306,8 @@ public:
   Item_nodeset_func_childbyname(Item *a, const char *n_arg, uint l_arg,
                                 String *pxml): 
     Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml) {}
-  const char *func_name() const { return "xpath_childbyname"; }
-  String *val_nodeset(String *nodeset);
+  const char *func_name() const override { return "xpath_childbyname"; }
+  String *val_nodeset(String *nodeset) override;
 };
 
 
@@ -320,8 +320,8 @@ public:
                                      String *pxml, bool need_self_arg): 
     Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml), 
       need_self(need_self_arg) {}
-  const char *func_name() const { return "xpath_descendantbyname"; }
-  String *val_nodeset(String *nodeset);
+  const char *func_name() const override { return "xpath_descendantbyname"; }
+  String *val_nodeset(String *nodeset) override;
 };
 
 
@@ -334,8 +334,8 @@ public:
                                    String *pxml, bool need_self_arg): 
     Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml),
       need_self(need_self_arg) {}
-  const char *func_name() const { return "xpath_ancestorbyname"; }
-  String *val_nodeset(String *nodeset);
+  const char *func_name() const override { return "xpath_ancestorbyname"; }
+  String *val_nodeset(String *nodeset) override;
 };
 
 
@@ -346,8 +346,8 @@ public:
   Item_nodeset_func_parentbyname(Item *a, const char *n_arg, uint l_arg,
                                  String *pxml): 
     Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml) {}
-  const char *func_name() const { return "xpath_parentbyname"; }
-  String *val_nodeset(String *nodeset);
+  const char *func_name() const override { return "xpath_parentbyname"; }
+  String *val_nodeset(String *nodeset) override;
 };
 
 
@@ -358,8 +358,8 @@ public:
   Item_nodeset_func_attributebyname(Item *a, const char *n_arg, uint l_arg,
                                     String *pxml): 
     Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml) {}
-  const char *func_name() const { return "xpath_attributebyname"; }
-  String *val_nodeset(String *nodeset);
+  const char *func_name() const override { return "xpath_attributebyname"; }
+  String *val_nodeset(String *nodeset) override;
 };
 
 
@@ -373,8 +373,8 @@ class Item_nodeset_func_predicate :public Item_nodeset_func
 public:
   Item_nodeset_func_predicate(Item *a, Item *b, String *pxml):
     Item_nodeset_func(a, b, pxml) {}
-  const char *func_name() const { return "xpath_predicate"; }
-  String *val_nodeset(String *nodeset);
+  const char *func_name() const override { return "xpath_predicate"; }
+  String *val_nodeset(String *nodeset) override;
 };
 
 
@@ -384,8 +384,8 @@ class Item_nodeset_func_elementbyindex :public Item_nodeset_func
 public:
   Item_nodeset_func_elementbyindex(Item *a, Item *b, String *pxml): 
     Item_nodeset_func(a, b, pxml) { }
-  const char *func_name() const { return "xpath_elementbyindex"; }
-  String *val_nodeset(String *nodeset);
+  const char *func_name() const override { return "xpath_elementbyindex"; }
+  String *val_nodeset(String *nodeset) override;
 };
 
 
@@ -393,11 +393,11 @@ public:
   We need to distinguish a number from a boolean:
   a[1] and a[true] are different things in XPath.
 */
-class Item_bool :public Item_int
+class Item_bool final : public Item_int
 {
 public:
   Item_bool(int32 i): Item_int(i) {}
-  bool is_bool_func() const { return true; }
+  bool is_bool_func() const override { return true; }
 };
 
 
@@ -407,15 +407,15 @@ public:
   * a node-set is true if and only if it is non-empty
   * a string is true if and only if its length is non-zero
 */
-class Item_xpath_cast_bool :public Item_int_func
+class Item_xpath_cast_bool final : public Item_int_func
 {
   String tmp_value;
 public:
   Item_xpath_cast_bool(Item *a)
     :Item_int_func(a) {}
-  const char *func_name() const { return "xpath_cast_bool"; }
-  bool is_bool_func() const { return true; }
-  longlong val_int()
+  const char *func_name() const override { return "xpath_cast_bool"; }
+  bool is_bool_func() const override { return true; }
+  longlong val_int() override
   {
     if (args[0]->type() == XPATH_NODESET)
     {
@@ -434,8 +434,8 @@ class Item_xpath_cast_number :public Item_real_func
 {
 public:
   Item_xpath_cast_number(Item *a): Item_real_func(a) {}
-  const char *func_name() const { return "xpath_cast_number"; }
-  virtual double val_real() { return args[0]->val_real(); }
+  const char *func_name() const override { return "xpath_cast_number"; }
+  double val_real() override { return args[0]->val_real(); }
 };
 
 
@@ -448,9 +448,9 @@ public:
   String *string_cache;
   Item_nodeset_context_cache(String *str_arg, String *pxml):
     Item_nodeset_func(pxml), string_cache(str_arg) { }
-  String *val_nodeset(String *res)
+  String *val_nodeset(String *) override
   { return string_cache; }
-  bool resolve_type(THD *)
+  bool resolve_type(THD *) override
   {
     max_length= MAX_BLOB_WIDTH;
     return false;
@@ -464,13 +464,13 @@ class Item_func_xpath_position :public Item_int_func
 public:
   Item_func_xpath_position(Item *a)
     :Item_int_func(a) {}
-  const char *func_name() const { return "xpath_position"; }
-  bool resolve_type(THD *)
+  const char *func_name() const override { return "xpath_position"; }
+  bool resolve_type(THD *) override
   {
     max_length= 10;
     return false;
   }
-  longlong val_int()
+  longlong val_int() override
   {
     String *flt= args[0]->val_nodeset(&tmp_value);
     if (flt->length() == sizeof(MY_XPATH_FLT))
@@ -486,13 +486,13 @@ class Item_func_xpath_count :public Item_int_func
 public:
   Item_func_xpath_count(Item *a)
     :Item_int_func(a) {}
-  const char *func_name() const { return "xpath_count"; }
-  bool resolve_type(THD *)
+  const char *func_name() const override { return "xpath_count"; }
+  bool resolve_type(THD *) override
   {
     max_length= 10;
     return false;
   }
-  longlong val_int()
+  longlong val_int() override
   {
     uint predicate_supplied_context_size;
     String *res= args[0]->val_nodeset(&tmp_value);
@@ -512,8 +512,8 @@ public:
   Item_func_xpath_sum(Item *a, String *p)
     :Item_real_func(a), pxml(p) {}
 
-  const char *func_name() const { return "xpath_sum"; }
-  double val_real()
+  const char *func_name() const override { return "xpath_sum"; }
+  double val_real() override
   {
     double sum= 0;
     String *res= args[0]->val_nodeset(&tmp_value);
@@ -521,7 +521,7 @@ public:
     MY_XPATH_FLT *fltend= (MY_XPATH_FLT*) (res->ptr() + res->length());
     size_t numnodes= pxml->length() / sizeof(MY_XML_NODE);
     MY_XML_NODE *nodebeg= (MY_XML_NODE*) pxml->ptr();
-  
+
     for (MY_XPATH_FLT *flt= fltbeg; flt < fltend; flt++)
     {
       MY_XML_NODE *self= &nodebeg[flt->num];
@@ -547,18 +547,19 @@ public:
 };
 
 
-class Item_nodeset_to_const_comparator :public Item_bool_func
+class Item_nodeset_to_const_comparator final : public Item_bool_func
 {
   String *pxml;
   String tmp_nodeset;
 public:
-  Item_nodeset_to_const_comparator(Item *nodeset, Item *cmpfunc, String *p) 
+  Item_nodeset_to_const_comparator(Item *nodeset, Item *cmpfunc, String *p)
     :Item_bool_func(nodeset,cmpfunc), pxml(p) {}
-  enum Type type() const { return XPATH_NODESET_CMP; };
-  const char *func_name() const { return "xpath_nodeset_to_const_comparator"; }
-  bool is_bool_func() const { return true; }
+  enum Type type() const override { return XPATH_NODESET_CMP; };
+  const char *func_name() const override
+  { return "xpath_nodeset_to_const_comparator"; }
+  bool is_bool_func() const override { return true; }
 
-  longlong val_int()
+  longlong val_int() override
   {
     Item_func *comp= (Item_func*)args[1];
     Item *fake= comp->arguments()[0];

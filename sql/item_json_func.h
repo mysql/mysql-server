@@ -138,7 +138,8 @@ protected:
   // Cache for constant path expressions
   Json_path_cache m_path_cache;
 
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+    override;
 
 public:
   Item_json_func(THD *thd, const POS &pos, Item *a) : Item_func(pos, a),
@@ -154,27 +155,26 @@ public:
     m_path_cache(thd, arg_count)
   {}
 
-  enum_field_types field_type() const { return MYSQL_TYPE_JSON; }
+  enum_field_types field_type() const override { return MYSQL_TYPE_JSON; }
 
-  bool resolve_type(THD *)
+  bool resolve_type(THD *) override
   {
     max_length= MAX_BLOB_WIDTH;
     maybe_null= true;
     collation.set(&my_charset_utf8mb4_bin, DERIVATION_IMPLICIT);
     return false;
   }
-  enum Item_result result_type () const { return STRING_RESULT; }
-  String *val_str(String *arg);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  bool get_time(MYSQL_TIME *ltime);
-  longlong val_int();
-  double val_real();
-  my_decimal *val_decimal(my_decimal *decimal_value);
+  enum Item_result result_type() const override { return STRING_RESULT; }
+  String *val_str(String *arg) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  longlong val_int() override;
+  double val_real() override;
+  my_decimal *val_decimal(my_decimal *decimal_value) override;
 
-  /** Cleanup between executions of the statement */
-  void cleanup();
+  void cleanup() override;
 
-  Item_result cast_to_int_type () const { return INT_RESULT; }
+  Item_result cast_to_int_type() const override { return INT_RESULT; }
 };
 
 /**
@@ -266,20 +266,20 @@ bool ensure_utf8mb4(String *val,
 /**
   Represents the JSON function JSON_VALID( <value> )
 */
-class Item_func_json_valid :public Item_int_func
+class Item_func_json_valid final : public Item_int_func
 {
   String m_value;
 public:
   Item_func_json_valid(const POS &pos, Item *a) : Item_int_func(pos, a)
   {}
 
-  const char *func_name() const { return "json_valid"; }
+  const char *func_name() const override { return "json_valid"; }
 
-  bool is_bool_func() const { return true; }
+  bool is_bool_func() const override { return true; }
 
-  longlong val_int();
+  longlong val_int() override;
 
-  bool resolve_type(THD *)
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     return false;
@@ -289,7 +289,7 @@ public:
 /**
   Represents the JSON function JSON_CONTAINS()
 */
-class Item_func_json_contains :public Item_int_func
+class Item_func_json_contains final : public Item_int_func
 {
   String m_doc_value;
   Json_path_cache m_path_cache;
@@ -299,26 +299,26 @@ class Item_func_json_contains :public Item_int_func
     : Item_int_func(pos, a), m_path_cache(thd, arg_count)
   {}
 
-  const char *func_name() const { return "json_contains"; }
+  const char *func_name() const override { return "json_contains"; }
 
-  bool is_bool_func() const { return true; }
+  bool is_bool_func() const override { return true; }
 
-  longlong val_int();
+  longlong val_int() override;
 
-  bool resolve_type(THD *)
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     return false;
   }
 
   /** Cleanup between executions of the statement */
-  void cleanup();
+  void cleanup() override;
 };
 
 /**
   Represents the JSON function JSON_CONTAINS_PATH()
 */
-class Item_func_json_contains_path :public Item_int_func
+class Item_func_json_contains_path final : public Item_int_func
 {
   String m_doc_value;
   String m_one_or_all_value;
@@ -333,20 +333,20 @@ public:
     m_cached_ooa(ooa_uninitialized), m_path_cache(thd, arg_count)
   {}
 
-  const char *func_name() const { return "json_contains_path"; }
+  const char *func_name() const override { return "json_contains_path"; }
 
-  bool is_bool_func() const { return true; }
+  bool is_bool_func() const override { return true; }
 
-  longlong val_int();
+  longlong val_int() override;
 
-  bool resolve_type(THD *)
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     return false;
   }
 
   /** Cleanup between executions of the statement */
-  void cleanup();
+  void cleanup() override;
 };
 
 /**
@@ -359,35 +359,32 @@ public:
   Item_func_json_type(const POS &pos, Item *a) : Item_str_func(pos, a)
   {}
 
-  const char *func_name() const
-  {
-    return "json_type";
-  }
+  const char *func_name() const override { return "json_type"; }
 
-  bool resolve_type(THD *);
+  bool resolve_type(THD *) override;
 
-  String *val_str(String *);
+  String *val_str(String *) override;
 };
 
 /**
   Represents a "CAST( <value> AS JSON )" coercion.
 */
-class Item_json_typecast :public Item_json_func
+class Item_json_typecast final : public Item_json_func
 {
 public:
   Item_json_typecast(THD *thd, const POS &pos, Item *a) : Item_json_func(thd, pos, a)
   {}
 
-  void print(String *str, enum_query_type query_type);
-  const char *func_name() const { return "cast_as_json"; }
+  void print(String *str, enum_query_type query_type) override;
+  const char *func_name() const override { return "cast_as_json"; }
   const char *cast_type() const { return "json"; }
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
 };
 
 /**
   Represents the JSON function JSON_LENGTH()
 */
-class Item_func_json_length :public Item_int_func
+class Item_func_json_length final : public Item_int_func
 {
   String m_doc_value;
 
@@ -403,27 +400,23 @@ public:
     : Item_int_func(pos, a, b), m_path_cache(thd, 2)
   {}
 
-  bool resolve_type(THD *)
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     return false;
   }
 
-  const char *func_name() const
-  {
-    return "json_length";
-  }
+  const char *func_name() const override { return "json_length"; }
 
-  longlong val_int();
+  longlong val_int() override;
 
-  /** Cleanup between executions of the statement */
-  void cleanup();
+  void cleanup() override;
 };
 
 /**
   Represents the JSON function JSON_DEPTH()
 */
-class Item_func_json_depth :public Item_int_func
+class Item_func_json_depth final : public Item_int_func
 {
   String m_doc_value;
 
@@ -432,12 +425,9 @@ public:
     : Item_int_func(pos, a)
   {}
 
-  const char *func_name() const
-  {
-    return "json_depth";
-  }
+  const char *func_name() const override { return "json_depth"; }
 
-  longlong val_int();
+  longlong val_int() override;
 };
 
 /**
@@ -456,18 +446,15 @@ public:
     : Item_json_func(thd, pos, a, b)
   {}
 
-  const char *func_name() const
-  {
-    return "json_keys";
-  }
+  const char *func_name() const override { return "json_keys"; }
 
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
 };
 
 /**
   Represents the JSON function JSON_EXTRACT()
 */
-class Item_func_json_extract :public Item_json_func
+class Item_func_json_extract final : public Item_json_func
 {
   String m_doc_value;
 
@@ -480,12 +467,12 @@ public:
     : Item_json_func(thd, pos, a, b)
   {}
 
-  const char *func_name() const
+  const char *func_name() const override
   {
     return "json_extract";
   }
 
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
 };
 
 /**
@@ -500,12 +487,9 @@ public:
     : Item_json_func(thd, pos, a)
   {}
 
-  const char *func_name() const
-  {
-    return "json_array_append";
-  }
+  const char *func_name() const override { return "json_array_append"; }
 
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
 };
 
 /**
@@ -521,12 +505,9 @@ public:
     : Item_json_func(thd, pos, a)
   {}
 
-  const char *func_name() const
-  {
-    return "json_insert";
-  }
+  const char *func_name() const override { return "json_insert"; }
 
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
 };
 
 /**
@@ -542,12 +523,9 @@ public:
     : Item_json_func(thd, pos, a)
   {}
 
-  const char *func_name() const
-  {
-    return "json_array_insert";
-  }
+  const char *func_name() const override { return "json_array_insert"; }
 
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
 };
 
 /**
@@ -579,10 +557,7 @@ public:
     : Item_func_json_set_replace(thd, pos, a, true)
   {}
 
-  const char *func_name() const
-  {
-    return "json_set";
-  }
+  const char *func_name() const override { return "json_set"; }
 };
 
 /**
@@ -595,10 +570,7 @@ public:
     : Item_func_json_set_replace(thd, pos, a, false)
   {}
 
-  const char *func_name() const
-  {
-    return "json_replace";
-  }
+  const char *func_name() const override { return "json_replace"; }
 };
 
 /**
@@ -611,12 +583,9 @@ public:
     : Item_json_func(thd, pos, a)
   {}
 
-  const char *func_name() const
-  {
-    return "json_array";
-  }
+  const char *func_name() const override { return "json_array"; }
 
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
 };
 
 /**
@@ -630,12 +599,9 @@ public:
     : Item_json_func(thd, pos, a)
   {}
 
-  const char *func_name() const
-  {
-    return "json_object";
-  }
+  const char *func_name() const override { return "json_object"; }
 
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
 };
 
 /**
@@ -667,20 +633,16 @@ public:
   {}
 
 
-  const char *func_name() const
-  {
-    return "json_search";
-  }
+  const char *func_name() const override { return "json_search"; }
 
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
 
   /**
     Bind logic for the JSON_SEARCH() node.
   */
-  bool fix_fields(THD *, Item **);
+  bool fix_fields(THD *, Item **) override;
 
-  /** Cleanup between executions of the statement */
-  void cleanup();
+  void cleanup() override;
 };
 
 /**
@@ -693,12 +655,9 @@ class Item_func_json_remove :public Item_json_func
 public:
   Item_func_json_remove(THD *thd, const POS &pos, PT_item_list *a);
 
-  const char *func_name() const
-  {
-    return "json_remove";
-  }
+  const char *func_name() const override { return "json_remove"; }
 
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
 };
 
 /**
@@ -711,12 +670,9 @@ public:
     : Item_json_func(thd, pos, a)
   {}
 
-  const char *func_name() const
-  {
-    return "json_merge";
-  }
+  const char *func_name() const override { return "json_merge"; }
 
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
 };
 
 /**
@@ -730,12 +686,9 @@ public:
     : Item_str_func(pos, a)
   {}
 
-  const char *func_name() const
-  {
-    return "json_quote";
-  }
+  const char *func_name() const override { return "json_quote"; }
 
-  bool resolve_type(THD *)
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
 
@@ -748,7 +701,7 @@ public:
     return false;
   };
 
-  String *val_str(String *tmpspace);
+  String *val_str(String *tmpspace) override;
 };
 
 /**
@@ -766,19 +719,16 @@ public:
     : Item_str_func(pos, a)
   {}
 
-  const char *func_name() const
-  {
-    return "json_unquote";
-  }
+  const char *func_name() const override { return "json_unquote"; }
 
-  bool resolve_type(THD *)
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     fix_length_and_charset(args[0]->max_length, &my_charset_utf8mb4_bin);
     return false;
   };
 
-  String *val_str(String *str);
+  String *val_str(String *str) override;
 };
 
 /**

@@ -220,9 +220,9 @@ public:
   {}
   Item_geometry_func(const POS &pos, PT_item_list *list);
 
-  bool resolve_type(THD *);
-  enum_field_types field_type() const  { return MYSQL_TYPE_GEOMETRY; }
-  Field *tmp_table_field(TABLE *t_arg);
+  bool resolve_type(THD *) override;
+  enum_field_types field_type() const override { return MYSQL_TYPE_GEOMETRY; }
+  Field *tmp_table_field(TABLE *t_arg) override;
 };
 
 class Item_func_geometry_from_text: public Item_geometry_func
@@ -276,9 +276,9 @@ public:
     :Item_geometry_func(pos, a, srid), m_functype(functype)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res);
-  const char *func_name() const;
-  String *val_str(String *);
+  bool itemize(Parse_context *pc, Item **res) override;
+  const char *func_name() const override;
+  String *val_str(String *) override;
 };
 
 class Item_func_geometry_from_wkb: public Item_geometry_func
@@ -332,18 +332,18 @@ public:
     : Item_geometry_func(pos, a, srid), m_functype(functype)
   { }
 
-  virtual bool itemize(Parse_context *pc, Item **res);
-  const char *func_name() const;
-  String *val_str(String *);
+  bool itemize(Parse_context *pc, Item **res) override;
+  const char *func_name() const override;
+  String *val_str(String *) override;
 };
 
 class Item_func_as_wkt: public Item_str_ascii_func
 {
 public:
   Item_func_as_wkt(const POS &pos, Item *a): Item_str_ascii_func(pos, a) {}
-  const char *func_name() const { return "st_astext"; }
-  String *val_str_ascii(String *);
-  bool resolve_type(THD *);
+  const char *func_name() const override { return "st_astext"; }
+  String *val_str_ascii(String *) override;
+  bool resolve_type(THD *) override;
 };
 
 class Item_func_as_wkb: public Item_geometry_func
@@ -352,9 +352,9 @@ public:
   Item_func_as_wkb(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
   Item_func_as_wkb(const POS &pos, Item *a, Item *b)
                    : Item_geometry_func(pos, a, b) {}
-  const char *func_name() const { return "st_aswkb"; }
-  String *val_str(String *);
-  enum_field_types field_type() const  { return MYSQL_TYPE_BLOB; }
+  const char *func_name() const override { return "st_aswkb"; }
+  String *val_str(String *) override;
+  enum_field_types field_type() const override { return MYSQL_TYPE_BLOB; }
 };
 
 class Item_func_geometry_type: public Item_str_ascii_func
@@ -362,9 +362,9 @@ class Item_func_geometry_type: public Item_str_ascii_func
 public:
   Item_func_geometry_type(const POS &pos, Item *a): Item_str_ascii_func(pos, a)
   {}
-  String *val_str_ascii(String *);
-  const char *func_name() const { return "st_geometrytype"; }
-  bool resolve_type(THD *)
+  String *val_str_ascii(String *) override;
+  const char *func_name() const override { return "st_geometrytype"; }
+  bool resolve_type(THD *) override
   {
     // "GeometryCollection" is the longest
     fix_length_and_charset(20, default_charset());
@@ -413,9 +413,9 @@ public:
     :Item_geometry_func(pos, json_string, options, srid),
     m_srid_found_in_document(-1)
   {}
-  String *val_str(String *);
-  bool fix_fields(THD *, Item **ref);
-  const char *func_name() const { return "st_geomfromgeojson"; }
+  String *val_str(String *) override;
+  bool fix_fields(THD *, Item **ref) override;
+  const char *func_name() const override { return "st_geomfromgeojson"; }
   Geometry::wkbType get_wkbtype(const char *typestring);
   bool get_positions(const Json_array *coordinates, Gis_point *point);
   bool get_linestring(const Json_array *data_array,
@@ -530,9 +530,9 @@ public:
     m_add_bounding_box(false), m_add_short_crs_urn(false),
     m_add_long_crs_urn(false)
   {}
-  bool fix_fields(THD *thd, Item **ref);
-  bool val_json(Json_wrapper *wr);
-  const char *func_name() const { return "st_asgeojson"; }
+  bool fix_fields(THD *thd, Item **ref) override;
+  bool val_json(Json_wrapper *wr) override;
+  const char *func_name() const override { return "st_asgeojson"; }
   bool parse_options_argument();
   bool parse_maxdecimaldigits_argument();
 };
@@ -598,10 +598,10 @@ public:
     min_latitude(-90.0), max_longitude(180.0), min_longitude(-180.0),
     upper_limit_output_length(100)
   {}
-  String *val_str_ascii(String *);
-  bool resolve_type(THD *);
-  bool fix_fields(THD *thd, Item **ref);
-  const char *func_name() const { return "st_geohash"; }
+  String *val_str_ascii(String *) override;
+  bool resolve_type(THD *) override;
+  bool fix_fields(THD *thd, Item **ref) override;
+  const char *func_name() const override { return "st_geohash"; }
   char char_to_base32(char char_input);
   void encode_bit(double *upper_value, double *lower_value,
                   double target_value, char *char_value, int bit_number);
@@ -656,9 +656,9 @@ public:
     upper_latitude(upper_latitude), lower_longitude(lower_longitude),
     upper_longitude(upper_longitude), start_on_even_bit(start_on_even_bit_arg)
   {}
-  double val_real();
-  virtual bool resolve_type(THD *thd);
-  bool fix_fields(THD *thd, Item **ref);
+  double val_real() override;
+  bool resolve_type(THD *thd) override;
+  bool fix_fields(THD *thd, Item **ref) override;
   static bool decode_geohash(String *geohash, double upper_latitude,
                              double lower_latitude, double upper_longitude,
                              double lower_longitude, double *result_latitude,
@@ -680,7 +680,7 @@ public:
     :Item_func_latlongfromgeohash(pos, a, -90.0, 90.0, -180.0, 180.0, false)
   {}
 
-  const char *func_name() const { return "ST_LATFROMGEOHASH"; }
+  const char *func_name() const override { return "ST_LATFROMGEOHASH"; }
 };
 
 
@@ -695,7 +695,7 @@ public:
     :Item_func_latlongfromgeohash(pos, a, -90.0, 90.0, -180.0, 180.0, true)
   {}
 
-  const char *func_name() const { return "ST_LONGFROMGEOHASH"; }
+  const char *func_name() const override { return "ST_LONGFROMGEOHASH"; }
 };
 
 
@@ -707,9 +707,9 @@ class Item_func_centroid: public Item_geometry_func
   bool bg_centroid(const Geometry *geom, String *ptwkb);
 public:
   Item_func_centroid(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
-  const char *func_name() const { return "st_centroid"; }
-  String *val_str(String *);
-  Field::geometry_type get_geometry_type() const;
+  const char *func_name() const override { return "st_centroid"; }
+  String *val_str(String *) override;
+  Field::geometry_type get_geometry_type() const override;
 };
 
 class Item_func_convex_hull: public Item_geometry_func
@@ -720,18 +720,18 @@ class Item_func_convex_hull: public Item_geometry_func
   bool bg_convex_hull(const Geometry *geom, String *wkb);
 public:
   Item_func_convex_hull(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
-  const char *func_name() const { return "st_convexhull"; }
-  String *val_str(String *);
-  Field::geometry_type get_geometry_type() const;
+  const char *func_name() const override { return "st_convexhull"; }
+  String *val_str(String *) override;
+  Field::geometry_type get_geometry_type() const override;
 };
 
 class Item_func_envelope: public Item_geometry_func
 {
 public:
   Item_func_envelope(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
-  const char *func_name() const { return "st_envelope"; }
-  String *val_str(String *);
-  Field::geometry_type get_geometry_type() const;
+  const char *func_name() const override { return "st_envelope"; }
+  String *val_str(String *) override;
+  Field::geometry_type get_geometry_type() const override;
 };
 
 class Item_func_make_envelope: public Item_geometry_func
@@ -739,9 +739,9 @@ class Item_func_make_envelope: public Item_geometry_func
 public:
   Item_func_make_envelope(const POS &pos, Item *a, Item *b)
     : Item_geometry_func(pos, a, b) {}
-  const char *func_name() const { return "st_makeenvelope"; }
-  String *val_str(String *);
-  Field::geometry_type get_geometry_type() const;
+  const char *func_name() const override { return "st_makeenvelope"; }
+  String *val_str(String *) override;
+  Field::geometry_type get_geometry_type() const override;
 };
 
 class Item_func_validate: public Item_geometry_func
@@ -749,8 +749,8 @@ class Item_func_validate: public Item_geometry_func
   String arg_val;
 public:
   Item_func_validate(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
-  const char *func_name() const { return "st_validate"; }
-  String *val_str(String *);
+  const char *func_name() const override { return "st_validate"; }
+  String *val_str(String *) override;
 };
 
 class Item_func_simplify: public Item_geometry_func
@@ -764,8 +764,8 @@ class Item_func_simplify: public Item_geometry_func
 public:
   Item_func_simplify(const POS &pos, Item *a, Item *b)
     : Item_geometry_func(pos, a, b) {}
-  const char *func_name() const { return "st_simplify"; }
-  String *val_str(String *);
+  const char *func_name() const override { return "st_simplify"; }
+  String *val_str(String *) override;
 };
 
 class Item_func_point: public Item_geometry_func
@@ -774,9 +774,9 @@ public:
   Item_func_point(const POS &pos, Item *a, Item *b)
     : Item_geometry_func(pos, a, b)
   {}
-  const char *func_name() const { return "point"; }
-  String *val_str(String *);
-  Field::geometry_type get_geometry_type() const;
+  const char *func_name() const override { return "point"; }
+  String *val_str(String *) override;
+  Field::geometry_type get_geometry_type() const override;
 };
 
 
@@ -809,10 +809,10 @@ public:
     upper_latitude(90.0), lower_latitude(-90.0),
     upper_longitude(180.0), lower_longitude(-180.0)
   {}
-  const char *func_name() const { return "st_pointfromgeohash"; }
-  String *val_str(String *);
-  bool fix_fields(THD *thd, Item **ref);
-  Field::geometry_type get_geometry_type() const
+  const char *func_name() const override { return "st_pointfromgeohash"; }
+  String *val_str(String *) override;
+  bool fix_fields(THD *thd, Item **ref) override;
+  Field::geometry_type get_geometry_type() const override
   {
     return Field::GEOM_POINT;
   };
@@ -826,7 +826,7 @@ public:
   Item_func_spatial_decomp(const POS &pos, Item *a, Item_func::Functype ft) :
     Item_geometry_func(pos, a)
   { decomp_func = ft; }
-  const char *func_name() const
+  const char *func_name() const override
   {
     switch (decomp_func)
     {
@@ -841,7 +841,7 @@ public:
         return "spatial_decomp_unknown";
     }
   }
-  String *val_str(String *);
+  String *val_str(String *) override;
 };
 
 class Item_func_startpoint : public Item_func_spatial_decomp
@@ -875,7 +875,7 @@ public:
   Item_func_spatial_decomp_n(const POS &pos, Item *a, Item *b, Item_func::Functype ft):
     Item_geometry_func(pos, a, b)
   { decomp_func_n = ft; }
-  const char *func_name() const
+  const char *func_name() const override
   {
     switch (decomp_func_n)
     {
@@ -890,7 +890,7 @@ public:
         return "spatial_decomp_n_unknown";
     }
   }
-  String *val_str(String *);
+  String *val_str(String *) override;
 };
 
 class Item_func_spatial_collection: public Item_geometry_func
@@ -906,8 +906,8 @@ public:
     coll_type=ct;
     item_type=it;
   }
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd)
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override
   {
     if (Item_geometry_func::resolve_type(thd))
       return true;
@@ -926,7 +926,7 @@ public:
     return false;
   }
 
-  const char *func_name() const;
+  const char *func_name() const override;
 };
 
 
@@ -943,12 +943,12 @@ public:
   Item_func_spatial_mbr_rel(const POS &pos, Item *a, Item *b,
                             enum Functype sp_rel)
   : Item_bool_func2(pos, a, b) { spatial_rel = sp_rel; }
-  longlong val_int();
-  enum Functype functype() const
+  longlong val_int() override;
+  enum Functype functype() const override
   {
     return spatial_rel;
   }
-  enum Functype rev_functype() const
+  enum Functype rev_functype() const override
   {
     switch (spatial_rel)
     {
@@ -961,33 +961,33 @@ public:
     }
   }
 
-  const char *func_name() const;
-  virtual inline void print(String *str, enum_query_type query_type)
+  const char *func_name() const override;
+  void print(String *str, enum_query_type query_type) override
   {
     Item_func::print(str, query_type);
   }
-  bool resolve_type(THD *)
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     return false;
   }
-  bool is_null() { (void) val_int(); return null_value; }
+  bool is_null() override { val_int(); return null_value; }
 };
 
 
-class Item_func_spatial_rel: public Item_bool_func2
+class Item_func_spatial_rel final : public Item_bool_func2
 {
   enum Functype spatial_rel;
   String tmp_value1,tmp_value2;
 public:
   Item_func_spatial_rel(const POS &pos, Item *a,Item *b, enum Functype sp_rel);
   virtual ~Item_func_spatial_rel();
-  longlong val_int();
-  enum Functype functype() const
+  longlong val_int() override;
+  enum Functype functype() const override
   {
     return spatial_rel;
   }
-  enum Functype rev_functype() const
+  enum Functype rev_functype() const override
   {
     switch (spatial_rel)
     {
@@ -1000,18 +1000,18 @@ public:
     }
   }
 
-  const char *func_name() const;
-  virtual inline void print(String *str, enum_query_type query_type)
+  const char *func_name() const override;
+  void print(String *str, enum_query_type query_type) override
   {
     Item_func::print(str, query_type);
   }
 
-  bool resolve_type(THD *)
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     return false;
   }
-  bool is_null() { (void) val_int(); return null_value; }
+  bool is_null() override { val_int(); return null_value; }
 
   template<typename CoordinateSystemType>
   static int bg_geo_relation_check(Geometry *g1, Geometry *g2,
@@ -1071,11 +1071,10 @@ protected:
 };
 
 
-/*
+/**
   Spatial operations
 */
-
-class Item_func_spatial_operation: public Item_geometry_func
+class Item_func_spatial_operation final : public Item_geometry_func
 {
 protected:
   // It will call the protected member functions in this class,
@@ -1148,9 +1147,9 @@ public:
   {
   }
   virtual ~Item_func_spatial_operation();
-  String *val_str(String *);
-  const char *func_name() const;
-  virtual inline void print(String *str, enum_query_type query_type)
+  String *val_str(String *) override;
+  const char *func_name() const override;
+  void print(String *str, enum_query_type query_type) override
   {
     Item_func::print(str, query_type);
   }
@@ -1225,8 +1224,8 @@ private:
   void set_strategies();
 public:
   Item_func_buffer(const POS &pos, PT_item_list *ilist);
-  const char *func_name() const { return "st_buffer"; }
-  String *val_str(String *);
+  const char *func_name() const override { return "st_buffer"; }
+  String *val_str(String *) override;
 };
 
 
@@ -1238,9 +1237,9 @@ private:
   char tmp_buffer[16];                          // The buffer for tmp_value.
 public:
   Item_func_buffer_strategy(const POS &pos, PT_item_list *ilist);
-  const char *func_name() const { return "st_buffer_strategy"; }
-  String *val_str(String *);
-  bool resolve_type(THD *);
+  const char *func_name() const override { return "st_buffer_strategy"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
 };
 
 
@@ -1248,10 +1247,10 @@ class Item_func_isempty: public Item_bool_func
 {
 public:
   Item_func_isempty(const POS &pos, Item *a): Item_bool_func(pos, a) {}
-  longlong val_int();
-  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
-  const char *func_name() const { return "st_isempty"; }
-  bool resolve_type(THD *)
+  longlong val_int() override;
+  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
+  const char *func_name() const override { return "st_isempty"; }
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     return false;
@@ -1263,11 +1262,11 @@ class Item_func_issimple: public Item_bool_func
   String tmp;
 public:
   Item_func_issimple(const POS &pos, Item *a): Item_bool_func(pos, a) {}
-  longlong val_int();
+  longlong val_int() override;
   bool issimple(Geometry *g);
-  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
-  const char *func_name() const { return "st_issimple"; }
-  bool resolve_type(THD *)
+  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
+  const char *func_name() const override { return "st_issimple"; }
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     return false;
@@ -1278,10 +1277,10 @@ class Item_func_isclosed: public Item_bool_func
 {
 public:
   Item_func_isclosed(const POS &pos, Item *a): Item_bool_func(pos, a) {}
-  longlong val_int();
-  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
-  const char *func_name() const { return "st_isclosed"; }
-  bool resolve_type(THD *)
+  longlong val_int() override;
+  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
+  const char *func_name() const override { return "st_isclosed"; }
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     return false;
@@ -1292,9 +1291,9 @@ class Item_func_isvalid: public Item_bool_func
 {
 public:
   Item_func_isvalid(const POS &pos, Item *a): Item_bool_func(pos, a) {}
-  longlong val_int();
-  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
-  const char *func_name() const { return "st_isvalid"; }
+  longlong val_int() override;
+  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
+  const char *func_name() const override { return "st_isvalid"; }
 };
 
 class Item_func_dimension: public Item_int_func
@@ -1302,9 +1301,9 @@ class Item_func_dimension: public Item_int_func
   String value;
 public:
   Item_func_dimension(const POS &pos, Item *a): Item_int_func(pos, a) {}
-  longlong val_int();
-  const char *func_name() const { return "st_dimension"; }
-  bool resolve_type(THD *)
+  longlong val_int() override;
+  const char *func_name() const override { return "st_dimension"; }
+  bool resolve_type(THD *) override
   {
     max_length= 10;
     maybe_null= true;
@@ -1321,8 +1320,8 @@ class Item_func_set_x : public Item_geometry_func
 public:
   Item_func_set_x(const POS &pos, Item *a, Item *b) :
     Item_geometry_func(pos, a, b) {}
-  const char *func_name() const { return "st_x"; }
-  String *val_str(String *);
+  const char *func_name() const override { return "st_x"; }
+  String *val_str(String *) override;
 };
 
 /**
@@ -1334,8 +1333,8 @@ class Item_func_set_y : public Item_geometry_func
 public:
   Item_func_set_y(const POS &pos, Item *a, Item *b) :
     Item_geometry_func(pos, a, b) {}
-  const char *func_name() const { return "st_y"; }
-  String *val_str(String *);
+  const char *func_name() const override { return "st_y"; }
+  String *val_str(String *) override;
 };
 
 
@@ -1344,9 +1343,9 @@ class Item_func_get_x: public Item_real_func
   String value;
 public:
   Item_func_get_x(const POS &pos, Item *a): Item_real_func(pos, a) {}
-  double val_real();
-  const char *func_name() const { return "st_x"; }
-  virtual bool resolve_type(THD *thd)
+  double val_real() override;
+  const char *func_name() const override { return "st_x"; }
+  bool resolve_type(THD *thd) override
   {
     if (Item_real_func::resolve_type(thd))
       return true;
@@ -1361,9 +1360,9 @@ class Item_func_get_y: public Item_real_func
   String value;
 public:
   Item_func_get_y(const POS &pos, Item *a): Item_real_func(pos, a) {}
-  double val_real();
-  const char *func_name() const { return "st_y"; }
-  virtual bool resolve_type(THD *thd)
+  double val_real() override;
+  const char *func_name() const override { return "st_y"; }
+  bool resolve_type(THD *thd) override
   {
     if (Item_real_func::resolve_type(thd))
       return true;
@@ -1378,9 +1377,9 @@ class Item_func_numgeometries: public Item_int_func
   String value;
 public:
   Item_func_numgeometries(const POS &pos, Item *a): Item_int_func(pos, a) {}
-  longlong val_int();
-  const char *func_name() const { return "st_numgeometries"; }
-  bool resolve_type(THD *)
+  longlong val_int() override;
+  const char *func_name() const override { return "st_numgeometries"; }
+  bool resolve_type(THD *) override
   {
     max_length= 10;
     maybe_null= true;
@@ -1394,9 +1393,9 @@ class Item_func_numinteriorring: public Item_int_func
   String value;
 public:
   Item_func_numinteriorring(const POS &pos, Item *a): Item_int_func(pos, a) {}
-  longlong val_int();
-  const char *func_name() const { return "st_numinteriorrings"; }
-  bool resolve_type(THD *)
+  longlong val_int() override;
+  const char *func_name() const override { return "st_numinteriorrings"; }
+  bool resolve_type(THD *) override
   {
     max_length= 10;
     maybe_null= true;
@@ -1410,9 +1409,9 @@ class Item_func_numpoints: public Item_int_func
   String value;
 public:
   Item_func_numpoints(const POS &pos, Item *a): Item_int_func(pos, a) {}
-  longlong val_int();
-  const char *func_name() const { return "st_numpoints"; }
-  bool resolve_type(THD *)
+  longlong val_int() override;
+  const char *func_name() const override { return "st_numpoints"; }
+  bool resolve_type(THD *) override
   {
     max_length= 10;
     maybe_null= true;
@@ -1429,9 +1428,9 @@ class Item_func_area: public Item_real_func
   double bg_area(const Geometry *geom);
 public:
   Item_func_area(const POS &pos, Item *a): Item_real_func(pos, a) {}
-  double val_real();
-  const char *func_name() const { return "st_area"; }
-  virtual bool resolve_type(THD *thd)
+  double val_real() override;
+  const char *func_name() const override { return "st_area"; }
+  bool resolve_type(THD *thd) override
   {
     if (Item_real_func::resolve_type(thd))
       return true;
@@ -1446,9 +1445,9 @@ class Item_func_glength: public Item_real_func
   String value;
 public:
   Item_func_glength(const POS &pos, Item *a): Item_real_func(pos, a) {}
-  double val_real();
-  const char *func_name() const { return "st_length"; }
-  virtual bool resolve_type(THD *thd)
+  double val_real() override;
+  const char *func_name() const override { return "st_length"; }
+  bool resolve_type(THD *thd) override
   {
     if (Item_real_func::resolve_type(thd))
       return true;
@@ -1472,9 +1471,9 @@ class Item_func_get_srid: public Item_int_func
   String value;
 public:
   Item_func_get_srid(const POS &pos, Item *a): Item_int_func(pos, a) {}
-  longlong val_int();
-  const char *func_name() const { return "st_srid"; }
-  bool resolve_type(THD *)
+  longlong val_int() override;
+  const char *func_name() const override { return "st_srid"; }
+  bool resolve_type(THD *) override
   {
     max_length= 10;
     maybe_null= true;
@@ -1497,8 +1496,8 @@ class Item_func_set_srid: public Item_geometry_func
 public:
   Item_func_set_srid(const POS &pos, Item *a, Item *b)
                      : Item_geometry_func(pos, a, b){};
-  String *val_str(String *str);
-  const char *func_name() const {return "st_srid"; }
+  String *val_str(String *str) override;
+  const char *func_name() const override {return "st_srid"; }
 };
 
 
@@ -1536,7 +1535,7 @@ public:
     maybe_null= true;
   }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *thd) override
   {
     if (Item_real_func::resolve_type(thd))
       return true;
@@ -1544,8 +1543,8 @@ public:
     return false;
   }
 
-  double val_real();
-  const char *func_name() const
+  double val_real() override;
+  const char *func_name() const override
   {
     return is_spherical_equatorial ? "st_distance_sphere" : "st_distance";
   }
