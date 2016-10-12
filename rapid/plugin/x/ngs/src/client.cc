@@ -80,7 +80,7 @@ Client::~Client()
 }
 
 
-ptime Client::get_accept_time() const
+ngs::chrono::time_point Client::get_accept_time() const
 {
   return m_accept_time;
 }
@@ -88,7 +88,7 @@ ptime Client::get_accept_time() const
 void Client::reset_accept_time(const Client_state new_state)
 {
   m_state.exchange(new_state);
-  m_accept_time = microsec_clock::universal_time();
+  m_accept_time = chrono::now();
   m_server.restart_client_supervision_timer();
 }
 
@@ -97,7 +97,7 @@ void Client::activate_tls()
 {
   log_debug("%s: enabling TLS for client", client_id());
 
-  if (m_server.ssl_context()->activate_tls(connection(), m_server.get_config()->connect_timeout.total_seconds()))
+  if (m_server.ssl_context()->activate_tls(connection(), chrono::to_seconds(m_server.get_config()->connect_timeout)))
   {
     if (connection().options()->active_tls())
       session()->mark_as_tls_session();

@@ -20,6 +20,7 @@
 #ifndef _NGS_CLIENT_LIST_H_
 #define _NGS_CLIENT_LIST_H_
 
+#include <algorithm>
 #include <vector>
 #include <list>
 #include <ngs/thread.h>

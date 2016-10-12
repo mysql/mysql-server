@@ -19,65 +19,32 @@
 
 #include "ngs/protocol/output_buffer.h"
 
-#include "my_dbug.h"
+#include "my_byteorder.h"
 
-#include <boost/endian/conversion.hpp>
 
-using namespace ngs;
+namespace ngs {
 
-Output_buffer::Output_buffer(Page_pool& page_pool):
-  Buffer(page_pool)
-{
+Output_buffer::Output_buffer(Page_pool& page_pool)
+  : Buffer(page_pool) {
 }
 
 
-bool Output_buffer::add_int32(int32_t i)
-{
-  void *ptr;
-  int size;
+bool Output_buffer::add_int32(int32_t i) {
+  const uint32 raw_data_size = sizeof(int32_t);
+  uchar raw_data[raw_data_size];
+  int4store(raw_data, i);
 
-  if (!Next(&ptr, &size))
-    return false;
-
-  i = boost::endian::native_to_little(i);
-
-
-  if (size >= 4)
-  {
-    memcpy(ptr, &i, 4); // can't assign as int because of alignment issues
-    if (size > 4) // return leftover
-      BackUp(size-4);
-  }
-  else
-  {
-    char tmp[4];
-    memcpy(tmp, &i, 4);
-
-    int p = 0, x = 0;
-    while (x < 4)
-    {
-      if (size-p < 1)
-      {
-        if (!Next(&ptr, &size))
-          return false;
-        p = 0;
-      }
-      *((char*)ptr + p++) = tmp[x++];
-    }
-    if (size > p) // return leftover
-      BackUp(size-p);
-  }
+  add_bytes(reinterpret_cast<char*>(raw_data),
+            raw_data_size);
 
   return true;
 }
 
-bool Output_buffer::add_int8(int8_t i)
-{
+bool Output_buffer::add_int8(int8_t i) {
   void *ptr;
   int size;
 
-  do
-  {
+  do {
     if (!Next(&ptr, &size))
       return false;
   }
@@ -92,24 +59,20 @@ bool Output_buffer::add_int8(int8_t i)
 }
 
 
-bool Output_buffer::add_bytes(const char *data, size_t length)
-{
+bool Output_buffer::add_bytes(const char *data, size_t length) {
   void *ptr;
   int size;
 
-  do
-  {
+  do {
     if (!Next(&ptr, &size) || size < 0)
       return false;
 
-    if ((size_t)size >= length)
-    {
+    if ((size_t)size >= length) {
       memcpy(ptr, data, length);
       BackUp(static_cast<int>(size - length));
       length = 0;
     }
-    else
-    {
+    else {
       memcpy(ptr, data, size);
       data += size;
       length -= size;
@@ -121,23 +84,20 @@ bool Output_buffer::add_bytes(const char *data, size_t length)
 }
 
 
-bool Output_buffer::Next(void** data, int* size)
-{
+bool Output_buffer::Next(void** data, int* size) {
   // point *data to the beginning of the next page
   // point size to the data left in that page
   // only up to m_artificial_length must be passed
 
   // first, check if there are pages left with free space
   for (Page_list::const_iterator p = m_pages.begin();
-       p != m_pages.end(); ++p)
-  {
-    if ((*p)->length < (*p)->capacity)
-    {
+       p != m_pages.end();
+       ++p) {
+    if ((*p)->length < (*p)->capacity) {
       // ensure that the next page is empty
       Page_list::const_iterator next = p;
       ++next;
-      if (next == m_pages.end() || (*next)->length == 0)
-      {
+      if (next == m_pages.end() || (*next)->length == 0) {
         *data = (*p)->data + (*p)->length;
         *size = (*p)->capacity - (*p)->length;
         (*p)->length = (*p)->capacity;
@@ -148,8 +108,7 @@ bool Output_buffer::Next(void** data, int* size)
   }
 
   // no more space left, just add new pages
-  if (Memory_allocated == add_pages(1))
-  {
+  if (Memory_allocated == add_pages(1)) {
     Buffer_page &p = m_pages.back();
 
     *data = p->data;
@@ -162,8 +121,7 @@ bool Output_buffer::Next(void** data, int* size)
 }
 
 
-void Output_buffer::BackUp(int count)
-{
+void Output_buffer::BackUp(int count) {
   // return unused bytes from the last Next() call
   for (Page_list::const_reverse_iterator p = m_pages.rbegin();
        p != m_pages.rend() && count > 0; ++p)
@@ -187,8 +145,7 @@ void Output_buffer::BackUp(int count)
 }
 
 
-int64_t Output_buffer::ByteCount() const
-{
+int64_t Output_buffer::ByteCount() const {
   size_t count = 0;
   for (Page_list::const_iterator p = m_pages.begin();
        p != m_pages.end(); ++p)
@@ -197,35 +154,33 @@ int64_t Output_buffer::ByteCount() const
 }
 
 
-Const_buffer_sequence Output_buffer::get_buffers()
-{
+Const_buffer_sequence Output_buffer::get_buffers() {
   Const_buffer_sequence buffers;
   buffers.reserve(m_pages.size());
 
   for (Page_list::const_iterator p = m_pages.begin();
-       p != m_pages.end() && (*p)->length > 0; ++p)
-  {
+       p != m_pages.end() && (*p)->length > 0;++p) {
     buffers.push_back(std::make_pair((*p)->data, (*p)->length));
   }
   return buffers;
 }
 
-void Output_buffer::save_state()
-{
+void Output_buffer::save_state() {
   m_saved_length = m_length;
   Page_list::iterator it = m_pages.begin();
-  for (; it != m_pages.end(); ++it)
-  {
+
+  for (; it != m_pages.end(); ++it) {
     (*it)->save_state();
   }
 }
 
-void Output_buffer::rollback()
-{
+void Output_buffer::rollback() {
   m_length = m_saved_length;
   Page_list::iterator it = m_pages.begin();
-  for (; it != m_pages.end(); ++it)
-  {
+
+  for (; it != m_pages.end(); ++it) {
     (*it)->rollback();
   }
 }
+
+} // namespace ngs

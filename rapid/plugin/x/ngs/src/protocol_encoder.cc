@@ -17,7 +17,11 @@
  * 02110-1301  USA
  */
 
-#include "ngs_common/protocol_protobuf.h" // has to come before boost includes, because of build issue in Solaris (unqualified map used, which clashes with some other map defined in Solaris headers)
+
+// "ngs_common/protocol_protobuf.h" has to come before boost includes, because of build
+// issue in Solaris (unqualified map used, which clashes with some other map defined
+// in Solaris headers)
+#include "ngs_common/protocol_protobuf.h"
 #include "ngs_common/connection_vio.h"
 
 #include "ngs/protocol/buffer.h"

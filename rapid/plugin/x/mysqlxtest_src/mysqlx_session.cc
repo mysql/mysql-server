@@ -29,7 +29,6 @@
 
 #include "mysqlx_session.h"
 #include "mysqlx_protocol.h"
-#include "mysqlx_crud.h"
 #include "mysqlx_error.h"
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
@@ -96,15 +95,6 @@ ngs::shared_ptr<Session> mysqlx::openSession(const std::string &host, int port, 
       throw Error(CR_INVALID_AUTH_METHOD, "Invalid authentication method " + auth_method);
   }
   return session;
-}
-
-ngs::shared_ptr<Schema> Session::getSchema(const std::string &name)
-{
-  std::map<std::string, ngs::shared_ptr<Schema> >::const_iterator iter = m_schemas.find(name);
-  if (iter != m_schemas.end())
-    return iter->second;
-
-  return m_schemas[name] = ngs::shared_ptr<Schema>(new Schema(shared_from_this(), name));
 }
 
 ngs::shared_ptr<Result> Session::executeSql(const std::string &sql)

@@ -121,7 +121,7 @@ EOF
 -->callmacro Verify_increase	%READ_BYTES2%	`SUM_NUMBER_OF_BYTES_READ`	'wait/io/socket/mysqlx/client_connection'
 -->endrepeat
 
---varlet %ACCETP_COUNT% 0
+-->varlet %ACCETP_COUNT% 0
 -->repeat 40
 -->newsession temporary_connection	root
 -->callmacro Verify_increase	%ACCETP_COUNT%	`COUNT_MISC`	'wait/io/socket/mysqlx/tcpip_socket'

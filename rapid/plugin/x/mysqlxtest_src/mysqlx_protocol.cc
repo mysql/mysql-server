@@ -29,7 +29,6 @@
 
 #include "ngs_common/protocol_protobuf.h"
 #include "mysqlx_protocol.h"
-#include "mysqlx_crud.h"
 #include "mysqlx_resultset.h"
 #include "mysqlx_row.h"
 #include "mysqlx_error.h"

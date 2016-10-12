@@ -14,7 +14,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "mysqlx_pb_wrapper.h"
-#include <cctype>
+#include "ngs_common/to_string.h"
 
 
 namespace xpl
@@ -42,7 +42,7 @@ Document_path::Document_path(const Path &path)
 
     item->set_type(i->first);
     if (isdigit(i->second[0]))
-      item->set_index(atoi(i->second.c_str()));
+      item->set_index(ngs::stoi(i->second));
     else
       item->set_value(i->second);
   }

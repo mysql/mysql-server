@@ -17,41 +17,34 @@
  * 02110-1301  USA
  */
 
-// MySQL DB access module, for use by plugins and others
-// For the module that implements interactive DB functionality see mod_db
+#ifndef NGS_CHRONO_H_
+#define NGS_CHRONO_H_
 
-#ifndef _MYSQLX_ERROR_H_
-#define _MYSQLX_ERROR_H_
+#include <boost/date_time/posix_time/posix_time.hpp>
 
-#include <stdexcept>
-#include <string>
+namespace ngs {
+namespace chrono {
 
+using boost::posix_time::milliseconds;
+using boost::posix_time::seconds;
+typedef boost::posix_time::ptime time_point;
+typedef boost::posix_time::time_duration duration;
 
-namespace mysqlx
-{
-  class Error
-  {
-  public:
-    Error(int err = 0, const std::string &message = "")
-    :_message(message), _error(err)
-    { }
-
-    int error() const { return _error; }
-
-    operator bool () const
-    {
-      return 0 != _error;
-    }
-
-    const char *what() const
-    {
-      return _message.c_str();
-    }
-
-  private:
-    std::string _message;
-    int _error;
-  };
+inline time_point now() {
+  return boost::posix_time::microsec_clock::universal_time();
 }
 
-#endif
+inline duration::tick_type to_milliseconds(const duration &d) {
+  return d.total_milliseconds();
+}
+
+inline duration::sec_type to_seconds(const duration &d) {
+  return d.total_seconds();
+}
+
+inline bool is_valid(const time_point &p) { return !p.is_not_a_date_time(); }
+
+}  // namespace chrono
+}  // namespcae ngs
+
+#endif  // NGS_CHRONO_H_

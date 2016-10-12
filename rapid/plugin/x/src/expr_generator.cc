@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -19,23 +19,16 @@
 
 #include "expr_generator.h"
 
+#include <algorithm>
 #include "json_utils.h"
 #include "ngs_common/bind.h"
+#include "ngs_common/to_string.h"
 #include "xpl_error.h"
-#include "mysql/service_my_snprintf.h"
 #include "xpl_regex.h"
+#include "mysql_function_names.h"
 
 namespace xpl
 {
-
-
-static std::string to_string(int value)
-{
-  char buffer[32];
-  (void)my_snprintf(buffer, sizeof(buffer), "%d", value);
-  return buffer;
-}
-
 
 Expression_generator::Error::Error(int error_code, const std::string& message)
 : std::invalid_argument(message), m_error(error_code)
@@ -82,17 +75,9 @@ void Expression_generator::generate(const Mysqlx::Expr::Expr &arg) const
 
   default:
     throw Error(ER_X_EXPR_BAD_TYPE_VALUE,
-                "Invalid value for Mysqlx::Expr::Expr_Type "+to_string(arg.type()));
+                "Invalid value for Mysqlx::Expr::Expr_Type "+ngs::to_string(arg.type()));
   }
 }
-
-
-namespace mysqld
-{
-
-bool is_native_mysql_function(const std::string &name);
-
-}  // namespace mysqld
 
 
 void Expression_generator::generate(const Mysqlx::Expr::Identifier& arg, bool is_function) const
@@ -101,7 +86,7 @@ void Expression_generator::generate(const Mysqlx::Expr::Identifier& arg, bool is
       (!arg.has_schema_name() || arg.schema_name().empty()))
   {
     // automatically prefix with the schema name
-    if (!is_function || !mysqld::is_native_mysql_function(arg.name()))
+    if (!is_function || !is_native_mysql_function(arg.name()))
       m_qb.quote_identifier_if_needed(m_default_schema).dot();
   }
 
@@ -212,7 +197,8 @@ void Expression_generator::generate(const Document_path &arg) const
       break;
     default:
       throw Error(ER_X_EXPR_BAD_TYPE_VALUE,
-                  "Invalid value for Mysqlx::Expr::DocumentPathItem::Type "+to_string(item->type()));
+                  "Invalid value for Mysqlx::Expr::DocumentPathItem::Type " +
+                  ngs::to_string(item->type()));
     }
   }
   m_qb.equote();
@@ -237,7 +223,8 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Any& arg) const
     break;
   default:
     throw Error(ER_X_EXPR_BAD_TYPE_VALUE,
-                "Invalid value for Mysqlx::Datatypes::Any::Type " + to_string(arg.type()));
+                "Invalid value for Mysqlx::Datatypes::Any::Type " +
+                ngs::to_string(arg.type()));
   }
 }
 
@@ -284,7 +271,9 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Scalar& arg) const
     break;
 
   default:
-    throw Error(ER_X_EXPR_BAD_TYPE_VALUE, "Invalid value for Mysqlx::Datatypes::Scalar::Type " + to_string(arg.type()));
+    throw Error(ER_X_EXPR_BAD_TYPE_VALUE,
+                "Invalid value for Mysqlx::Datatypes::Scalar::Type " +
+                ngs::to_string(arg.type()));
   }
 }
 
@@ -311,7 +300,8 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Scalar::Octets& arg
 
   default:
     throw Error(ER_X_EXPR_BAD_TYPE_VALUE,
-                "Invalid content type for Mysqlx::Datatypes::Scalar::Octets " + to_string(arg.content_type()));
+                "Invalid content type for Mysqlx::Datatypes::Scalar::Octets " +
+                ngs::to_string(arg.content_type()));
   }
 }
 
@@ -524,14 +514,6 @@ void Expression_generator::between_expression(const Mysqlx::Expr::Operator &arg,
 namespace
 {
 
-struct Is_less
-{
-  bool operator() (const char* const pattern, const char* const source) const
-  {
-    return std::strcmp(pattern, source) < 0;
-  }
-};
-
 
 struct Interval_unit_validator
 {
@@ -562,9 +544,9 @@ struct Interval_unit_validator
         "SECOND_MICROSECOND",
         "WEEK",
         "YEAR",
-        "YEAR_MONTH",
+        "YEAR_MONTH"
     };
-    static const char* const *patterns_end = patterns + sizeof(patterns)/sizeof(*patterns);
+    static const char* const *patterns_end = get_array_end(patterns);
 
     return std::binary_search(patterns, patterns_end, source, Is_less());
   }
@@ -719,7 +701,7 @@ void Expression_generator::generate(const Mysqlx::Expr::Operator &arg) const
       std::make_pair("||", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " OR ")),
       std::make_pair("~", ngs::bind(&Expression_generator::unary_operator, ngs::placeholders::_1, ngs::placeholders::_2, "~"))
   };
-  static const Operator_bind *operators_end = operators + sizeof(operators)/sizeof(*operators);
+  static const Operator_bind *operators_end = get_array_end(operators);
 
   const Operator_bind *op = std::lower_bound(operators, operators_end, arg.name(), Is_operator_less());
 

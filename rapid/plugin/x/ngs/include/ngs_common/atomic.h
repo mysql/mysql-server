@@ -17,10 +17,8 @@
  * 02110-1301  USA
  */
 
-
 #ifndef _NGS_ATOMIC_H_
 #define _NGS_ATOMIC_H_
-
 
 #include <boost/atomic.hpp>
 

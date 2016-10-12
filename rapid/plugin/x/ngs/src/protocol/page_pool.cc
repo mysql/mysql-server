@@ -20,7 +20,6 @@
 #include <stdint.h>
 #include <list>
 #include <algorithm>
-#include <boost/core/noncopyable.hpp>
 
 #include "ngs/protocol/page_pool.h"
 #include "ngs/memory.h"
