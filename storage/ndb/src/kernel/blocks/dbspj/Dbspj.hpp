@@ -24,7 +24,7 @@
 #include <AttributeHeader.hpp>
 #include <IntrusiveList.hpp>
 #include <ArenaPool.hpp>
-#include <DataBuffer2.hpp>
+#include <DataBuffer.hpp>
 #include <Bitmask.hpp>
 #include <signaldata/DbspjErr.hpp>
 #include "../dbtup/tuppage.hpp"
@@ -99,12 +99,12 @@ protected:
 
 public:
   struct ScanFragHandle;
-  typedef DataBuffer2<14, LocalArenaPoolImpl<DataBuffer2Segment<14> > > Correlation_list;
-  typedef LocalDataBuffer2<14, LocalArenaPoolImpl<DataBuffer2Segment<14> > > Local_correlation_list;
-  typedef DataBuffer2<14, LocalArenaPoolImpl<DataBuffer2Segment<14> > > Dependency_map;
-  typedef LocalDataBuffer2<14, LocalArenaPoolImpl<DataBuffer2Segment<14> > > Local_dependency_map;
-  typedef DataBuffer2<14, LocalArenaPoolImpl<DataBuffer2Segment<14> > > PatternStore;
-  typedef LocalDataBuffer2<14, LocalArenaPoolImpl<DataBuffer2Segment<14> > > Local_pattern_store;
+  typedef DataBuffer<14, LocalArenaPoolImpl<DataBufferSegment<14> > > Correlation_list;
+  typedef LocalDataBuffer<14, LocalArenaPoolImpl<DataBufferSegment<14> > > Local_correlation_list;
+  typedef DataBuffer<14, LocalArenaPoolImpl<DataBufferSegment<14> > > Dependency_map;
+  typedef LocalDataBuffer<14, LocalArenaPoolImpl<DataBufferSegment<14> > > Local_dependency_map;
+  typedef DataBuffer<14, LocalArenaPoolImpl<DataBufferSegment<14> > > PatternStore;
+  typedef LocalDataBuffer<14, LocalArenaPoolImpl<DataBufferSegment<14> > > Local_pattern_store;
   typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> TreeNodeBitMask;
 
   /* *********** TABLE RECORD ********************************************* */
@@ -1285,7 +1285,7 @@ private:
   Request_pool m_request_pool;
   Request_hash m_scan_request_hash;
   Request_hash m_lookup_request_hash;
-  ArenaPool<DataBuffer2Segment<14> > m_dependency_map_pool;
+  ArenaPool<DataBufferSegment<14> > m_dependency_map_pool;
   TreeNode_pool m_treenode_pool;
   ScanFragHandle_pool m_scanfraghandle_pool;
 

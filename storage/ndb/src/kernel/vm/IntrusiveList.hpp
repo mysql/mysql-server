@@ -96,7 +96,6 @@
  **/
 
 #include <ndb_limits.h>
-#include <ArrayPool.hpp>
 #include <Pool.hpp>
 
 #define JAM_FILE_ID 298

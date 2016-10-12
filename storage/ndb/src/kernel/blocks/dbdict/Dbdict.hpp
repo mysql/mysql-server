@@ -25,7 +25,7 @@
 #include <trigger_definitions.h>
 #include <pc.hpp>
 #include <ArenaPool.hpp>
-#include <DataBuffer2.hpp>
+#include <DataBuffer.hpp>
 #include <DLHashTable.hpp>
 #include <IntrusiveList.hpp>
 #include <CArray.hpp>
@@ -1877,18 +1877,18 @@ private:
 
   enum { OpSectionSegmentSize = 127 };
   typedef
-    DataBuffer2Segment<OpSectionSegmentSize> OpSectionSegment;
+    DataBufferSegment<OpSectionSegmentSize> OpSectionSegment;
   typedef
-    LocalDataBuffer2<OpSectionSegmentSize, LocalArenaPoolImpl<OpSectionSegment> >
+    LocalDataBuffer<OpSectionSegmentSize, LocalArenaPoolImpl<OpSectionSegment> >
     OpSectionBuffer;
   typedef
-    DataBuffer2<OpSectionSegmentSize, LocalArenaPoolImpl<OpSectionSegment> >::Head
+    DataBuffer<OpSectionSegmentSize, LocalArenaPoolImpl<OpSectionSegment> >::Head
     OpSectionBufferHead;
   typedef
     OpSectionBuffer::DataBufferPool
     OpSectionBufferPool;
   typedef
-    DataBuffer2<OpSectionSegmentSize, LocalArenaPoolImpl<OpSectionSegment> >::ConstDataBufferIterator
+    DataBuffer<OpSectionSegmentSize, LocalArenaPoolImpl<OpSectionSegment> >::ConstDataBufferIterator
     OpSectionBufferConstIterator;
 
   ArenaPool<OpSectionSegment> c_opSectionBufferPool;

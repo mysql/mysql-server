@@ -59,7 +59,7 @@ public:
     ,FK_BUILD = 6
     //ALTER_TABLE
   };
-  typedef DataBuffer<11> AttrOrderBuffer;
+  typedef DataBuffer<11,ArrayPool<DataBufferSegment<11> > > AttrOrderBuffer;
 
 private:
   // Private attributes

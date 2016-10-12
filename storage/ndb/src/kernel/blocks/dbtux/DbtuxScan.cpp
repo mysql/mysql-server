@@ -310,8 +310,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     scanBound.m_side = side;
     // save data words in segmented memory
     {
-      DataBuffer<ScanBoundSegmentSize>::Head& head = scanBound.m_head;
-      LocalDataBuffer<ScanBoundSegmentSize> b(c_scanBoundPool, head);
+      ScanBoundBuffer::Head& head = scanBound.m_head;
+      LocalScanBoundBuffer b(c_scanBoundPool, head);
       const Uint32* data = (const Uint32*)searchBoundData.get_data_buf();
       Uint32 size = (searchBoundData.get_data_len() + 3) / 4;
       bool ok = b.append(data, size);
@@ -1289,8 +1289,8 @@ Dbtux::releaseScanOp(ScanOpPtr& scanPtr)
   Frag& frag = *c_fragPool.getPtr(scanPtr.p->m_fragPtrI);
   for (unsigned i = 0; i <= 1; i++) {
     ScanBound& scanBound = scanPtr.p->m_scanBound[i];
-    DataBuffer<ScanBoundSegmentSize>::Head& head = scanBound.m_head;
-    LocalDataBuffer<ScanBoundSegmentSize> b(c_scanBoundPool, head);
+    ScanBoundBuffer::Head& head = scanBound.m_head;
+    LocalScanBoundBuffer b(c_scanBoundPool, head);
     b.release();
   }
   if (unlikely(scanPtr.p->m_statOpPtrI != RNIL)) {

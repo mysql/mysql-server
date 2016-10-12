@@ -267,13 +267,16 @@ private:
    * ScanBound instances are members of ScanOp.  Bound data is stored in
    * a separate segmented buffer pool.
    */
+  typedef ArrayPool<DataBufferSegment<ScanBoundSegmentSize> > ScanBoundSegment_pool;
+  typedef DataBuffer<ScanBoundSegmentSize,ScanBoundSegment_pool> ScanBoundBuffer;
+  typedef LocalDataBuffer<ScanBoundSegmentSize,ScanBoundSegment_pool> LocalScanBoundBuffer;
   struct ScanBound {
-    DataBuffer<ScanBoundSegmentSize>::Head m_head;
+    ScanBoundBuffer::Head m_head;
     Uint16 m_cnt;       // number of attributes
     Int16 m_side;
     ScanBound();
   };
-  DataBuffer<ScanBoundSegmentSize>::DataBufferPool c_scanBoundPool;
+  ScanBoundSegment_pool c_scanBoundPool;
 
   // ScanLock
   struct ScanLock {

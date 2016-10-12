@@ -3454,5 +3454,3 @@ operator<<(NdbOut& out, const Trix::StatOp& stat)
 
 
 BLOCK_FUNCTIONS(Trix)
-
-template void append(DataBuffer<15>&,SegmentedSectionPtr,SectionSegmentPool&);

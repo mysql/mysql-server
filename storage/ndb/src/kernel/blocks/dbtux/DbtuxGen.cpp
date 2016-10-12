@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -372,9 +372,9 @@ void
 Dbtux::unpackBound(TuxCtx& ctx, const ScanBound& scanBound, KeyBoundC& searchBound)
 {
   // there is no const version of LocalDataBuffer
-  DataBuffer<ScanBoundSegmentSize>::Head head = scanBound.m_head;
-  LocalDataBuffer<ScanBoundSegmentSize> b(c_scanBoundPool, head);
-  DataBuffer<ScanBoundSegmentSize>::ConstDataBufferIterator iter;
+  ScanBoundBuffer::Head head = scanBound.m_head;
+  LocalScanBoundBuffer b(c_scanBoundPool, head);
+  ScanBoundBuffer::ConstDataBufferIterator iter;
   // always use searchKey buffer
   Uint32* const outputBuffer = ctx.c_searchKey;
   b.first(iter);

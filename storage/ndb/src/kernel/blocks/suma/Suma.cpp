@@ -1705,7 +1705,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     
     if(tCase == 8003){
       subPtr.p->m_subscriptionType = SubCreateReq::SingleTableScan;
-      LocalDataBuffer<15> attrs(c_dataBufferPool, syncPtr.p->m_attributeList);
+      LocalSyncRecordBuffer attrs(c_dataBufferPool, syncPtr.p->m_attributeList);
       Uint32 tab = 0;
       Uint32 att[] = { 0, 1, 1 };
       syncPtr.p->m_tableList.append(&tab, 1);
@@ -2628,7 +2628,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
     {
       SegmentedSectionPtr ptr;
       handle.getSection(ptr, SubSyncReq::ATTRIBUTE_LIST);
-      LocalDataBuffer<15> attrBuf(c_dataBufferPool, syncPtr.p->m_attributeList);
+      LocalSyncRecordBuffer attrBuf(c_dataBufferPool, syncPtr.p->m_attributeList);
       append(attrBuf, ptr, getSectionSegmentPool());
     }
     if (req->requestInfo & SubSyncReq::RangeScan)
@@ -2637,7 +2637,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
       ndbrequire(handle.m_cnt > 1)
       SegmentedSectionPtr ptr;
       handle.getSection(ptr, SubSyncReq::TUX_BOUND_INFO);
-      LocalDataBuffer<15> boundBuf(c_dataBufferPool, syncPtr.p->m_boundInfo);
+      LocalSyncRecordBuffer boundBuf(c_dataBufferPool, syncPtr.p->m_boundInfo);
       append(boundBuf, ptr, getSectionSegmentPool());
     }
     releaseSections(handle);
@@ -2759,7 +2759,7 @@ Suma::execDIH_SCAN_TAB_CONF(Signal* signal)
   c_syncPool.getPtr(ptr, conf->senderData);
 
   {
-    LocalDataBuffer<15> fragBuf(c_dataBufferPool, ptr.p->m_fragments);
+    LocalSyncRecordBuffer fragBuf(c_dataBufferPool, ptr.p->m_fragments);
     ndbrequire(fragBuf.getSize() == 0);
   }
   D("fragCount = " << fragCount << " m_frag_cnt = " << ptr.p->m_frag_cnt);
@@ -2807,7 +2807,7 @@ Suma::sendDIGETNODESREQ(Signal *signal,
     ndbrequire(errCode == 0);
 
     {
-      LocalDataBuffer<15> fragBuf(c_dataBufferPool, ptr.p->m_fragments);
+      LocalSyncRecordBuffer fragBuf(c_dataBufferPool, ptr.p->m_fragments);
 
       /**
        * Add primary node for fragment to list
@@ -3079,11 +3079,11 @@ Suma::SyncRecord::getNextFragment(TablePtr * tab,
   jam();
   SubscriptionPtr subPtr;
   suma.c_subscriptions.getPtr(subPtr, m_subscriptionPtrI);
-  DataBuffer<15>::DataBufferIterator fragIt;
+  SyncRecordBuffer::DataBufferIterator fragIt;
   
   TablePtr tabPtr;
   suma.c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
-  LocalDataBuffer<15> fragBuf(suma.c_dataBufferPool,  m_fragments);
+  LocalSyncRecordBuffer fragBuf(suma.c_dataBufferPool,  m_fragments);
     
   fragBuf.position(fragIt, m_currentFragment);
   for(; !fragIt.curr.isNull(); fragBuf.next(fragIt), m_currentFragment++)
@@ -3116,8 +3116,8 @@ Suma::SyncRecord::nextScan(Signal* signal)
 
   suma.c_subscriptions.getPtr(subPtr, m_subscriptionPtrI);
  
-  DataBuffer<15>::Head head = m_attributeList;
-  LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, head);
+  SyncRecordBuffer::Head head = m_attributeList;
+  LocalSyncRecordBuffer attrBuf(suma.c_dataBufferPool, head);
 
   Uint32 instanceKey = fd.m_fragDesc.m_lqhInstanceKey;
   BlockReference lqhRef = numberToRef(DBLQH, instanceKey, suma.getOwnNodeId());
@@ -3196,7 +3196,7 @@ Suma::SyncRecord::nextScan(Signal* signal)
   attrInfo[4] = 0;
   
   Uint32 pos = 5;
-  DataBuffer<15>::DataBufferIterator it;
+  SyncRecordBuffer::DataBufferIterator it;
   for(attrBuf.first(it); !it.curr.isNull(); attrBuf.next(it))
   {
     AttributeHeader::init(&attrInfo[pos++], * it.data, 0);
@@ -3210,7 +3210,7 @@ Suma::SyncRecord::nextScan(Signal* signal)
   {
     jam();
     Uint32 oldpos = pos; // after attrInfo
-    LocalDataBuffer<15> boundBuf(suma.c_dataBufferPool, m_boundInfo);
+    LocalSyncRecordBuffer boundBuf(suma.c_dataBufferPool, m_boundInfo);
     for (boundBuf.first(it); !it.curr.isNull(); boundBuf.next(it))
     {
       attrInfo[pos++] = *it.data;
@@ -3301,8 +3301,8 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
   {
     Ptr<SyncRecord> syncPtr;
     c_syncPool.getPtr(syncPtr, syncPtrI);
-    LocalDataBuffer<15> fragBuf(c_dataBufferPool, syncPtr.p->m_fragments);
-    DataBuffer<15>::DataBufferIterator fragIt;
+    LocalSyncRecordBuffer fragBuf(c_dataBufferPool, syncPtr.p->m_fragments);
+    SyncRecordBuffer::DataBufferIterator fragIt;
     bool ok = fragBuf.position(fragIt, syncPtr.p->m_currentFragment);
     ndbrequire(ok);
     FragmentDescriptor tmp;
@@ -5911,13 +5911,13 @@ void
 Suma::SyncRecord::release(){
   jam();
 
-  LocalDataBuffer<15> fragBuf(suma.c_dataBufferPool, m_fragments);
+  LocalSyncRecordBuffer fragBuf(suma.c_dataBufferPool, m_fragments);
   fragBuf.release();
 
-  LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, m_attributeList);
+  LocalSyncRecordBuffer attrBuf(suma.c_dataBufferPool, m_attributeList);
   attrBuf.release();  
 
-  LocalDataBuffer<15> boundBuf(suma.c_dataBufferPool, m_boundInfo);
+  LocalSyncRecordBuffer boundBuf(suma.c_dataBufferPool, m_boundInfo);
   boundBuf.release();  
 
   ndbassert(m_sourceInstance == RNIL);
@@ -7290,5 +7290,5 @@ Suma::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
   return;
 }
 
-template void append(DataBuffer<11>&,SegmentedSectionPtr,SectionSegmentPool&);
+//template void append(DataBuffer<11>&,SegmentedSectionPtr,SectionSegmentPool&);
 

@@ -18,6 +18,8 @@
 #ifndef RWPOOL_HPP
 #define RWPOOL_HPP
 
+#include "ndbd_exit_codes.h"
+#include "NdbOut.hpp"
 #include "Pool.hpp"
 
 #define JAM_FILE_ID 311

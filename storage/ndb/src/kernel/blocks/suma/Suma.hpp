@@ -166,8 +166,11 @@ public:
   friend struct Table;
   typedef Ptr<Table> TablePtr;
 
+  typedef ArrayPool<DataBufferSegment<15> > SyncRecordBuffer_pool;
+  typedef DataBuffer<15,SyncRecordBuffer_pool> SyncRecordBuffer;
+  typedef LocalDataBuffer<15,SyncRecordBuffer_pool> LocalSyncRecordBuffer;
   struct SyncRecord {
-    SyncRecord(Suma& s, DataBuffer<15>::DataBufferPool & p)
+    SyncRecord(Suma& s, SyncRecordBuffer_pool & p)
       : suma(s)
 #ifdef ERROR_INSERT
 	, cerrorInsert(s.cerrorInsert)
@@ -191,15 +194,15 @@ public:
      * Fragments
      */
     Uint32 m_scan_cookie;
-    DataBuffer<15>::Head m_fragments;  // Fragment descriptors
+    SyncRecordBuffer::Head m_fragments;  // Fragment descriptors
 
     /**
      * Sync data
      */
     Uint32 m_currentFragment;       // Index in tabPtr.p->m_fragments
     Uint32 m_currentNoOfAttributes; // No of attributes for current table
-    DataBuffer<15>::Head m_attributeList; // Attribute if other than default
-    DataBuffer<15>::Head m_boundInfo;  // For range scan
+    SyncRecordBuffer::Head m_attributeList; // Attribute if other than default
+    SyncRecordBuffer::Head m_boundInfo;  // For range scan
     
     /**
      * Current row 
@@ -399,7 +402,7 @@ public:
   Table_pool c_tablePool;
   Subscription_pool c_subscriptionPool;
   SyncRecord_pool c_syncPool;
-  DataBuffer<15>::DataBufferPool c_dataBufferPool;
+  SyncRecordBuffer_pool c_dataBufferPool;
   SubOpRecord_pool c_subOpPool;
 
   Uint32 c_maxBufferedEpochs;
