@@ -1748,6 +1748,14 @@ typedef struct st_ha_create_information
   uint options;				/* OR of HA_CREATE_ options */
   uint merge_insert_method;
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
+
+  /*
+    A flag to indicate if this table should be marked as a hidden table in
+    the data dictionary. One use case is to mark the temporary tables
+    created by ALTER to be marked as hidden.
+  */
+  bool m_hidden;
+
 } HA_CREATE_INFO;
 
 

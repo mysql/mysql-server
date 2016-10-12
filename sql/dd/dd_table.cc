@@ -111,14 +111,12 @@ template bool dd::rename_table<dd::Table>(THD *thd,
                                       const char *from_schema_name,
                                       const char *from_name,
                                       const char *to_schema_name,
-                                      const char *to_name,
-                                      bool no_foreign_key_check);
+                                      const char *to_name);
 template bool dd::rename_table<dd::View>(THD *thd,
                                       const char *from_schema_name,
                                       const char *from_name,
                                       const char *to_schema_name,
-                                      const char *to_name,
-                                      bool no_foreign_key_check);
+                                      const char *to_name);
 
 namespace dd {
 
@@ -2219,6 +2217,9 @@ bool create_dd_user_table(THD *thd,
   // Create dd::Table object.
   std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table(thd));
 
+  // Mark the hidden flag.
+  tab_obj->set_hidden(create_info->m_hidden);
+
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
                                      keyinfo, keys, keys_onoff,
@@ -2414,14 +2415,14 @@ bool table_exists(dd::cache::Dictionary_client *client,
   DBUG_RETURN(false);
 }
 
-
 template <typename T>
 bool rename_table(THD *thd,
                   const char *from_schema_name,
                   const char *from_table_name,
                   const char *to_schema_name,
                   const char *to_table_name,
-                  bool no_foreign_key_check)
+                  bool no_foreign_key_check,
+                  bool mark_as_hidden)
 {
   // Disable foreign key checks temporarily
   class Disable_foreign_key_check
@@ -2527,6 +2528,9 @@ bool rename_table(THD *thd,
   // Set schema id and table name.
   new_tab->set_schema_id(to_sch->id());
   new_tab->set_name(to_table_name);
+
+  // Mark the hidden flag.
+  new_tab->set_hidden(mark_as_hidden);
 
   // Do the update. Errors will be reported by the dictionary subsystem.
   if (thd->dd_client()->update(&from_tab, new_tab.get()))

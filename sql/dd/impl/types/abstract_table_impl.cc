@@ -72,6 +72,7 @@ Abstract_table_impl::Abstract_table_impl()
  :m_mysql_version_id(MYSQL_VERSION_ID),
   m_created(0),
   m_last_altered(0),
+  m_hidden(false),
   m_options(new Properties_impl()),
   m_columns(),
   m_schema_id(INVALID_OBJECT_ID)
@@ -145,6 +146,7 @@ bool Abstract_table_impl::restore_attributes(const Raw_record &r)
 
   m_created= r.read_int(Tables::FIELD_CREATED);
   m_last_altered= r.read_int(Tables::FIELD_LAST_ALTERED);
+  m_hidden= r.read_bool(Tables::FIELD_HIDDEN);
   m_schema_id= r.read_ref_id(Tables::FIELD_SCHEMA_ID);
   m_mysql_version_id= r.read_uint(Tables::FIELD_MYSQL_VERSION_ID);
 
@@ -185,7 +187,8 @@ bool Abstract_table_impl::store_attributes(Raw_record *r)
     r->store(Tables::FIELD_MYSQL_VERSION_ID, m_mysql_version_id) ||
     r->store(Tables::FIELD_OPTIONS, *m_options) ||
     r->store(Tables::FIELD_CREATED, m_created) ||
-    r->store(Tables::FIELD_LAST_ALTERED, m_last_altered);
+    r->store(Tables::FIELD_LAST_ALTERED, m_last_altered) ||
+    r->store(Tables::FIELD_HIDDEN, m_hidden);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -209,6 +212,7 @@ void Abstract_table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write(w, m_mysql_version_id, STRING_WITH_LEN("mysql_version_id"));
   write(w, m_created, STRING_WITH_LEN("created"));
   write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
+  write(w, m_hidden, STRING_WITH_LEN("hidden"));
   write_properties(w, m_options, STRING_WITH_LEN("options"));
   serialize_each(wctx, w, m_columns, STRING_WITH_LEN("columns"));
   write(w, lookup_schema_name(wctx),
@@ -225,6 +229,7 @@ bool Abstract_table_impl::deserialize(Sdi_rcontext *rctx,
   read(&m_mysql_version_id, val, "mysql_version_id");
   read(&m_created, val, "created");
   read(&m_last_altered, val, "last_altered");
+  read(&m_hidden, val, "hidden");
   read_properties(&m_options, val, "options");
   deserialize_each(rctx, [this] () { return add_column(); },
                    val, "columns");
@@ -252,6 +257,7 @@ void Abstract_table_impl::debug_print(String_type &outb) const
     << "m_options " << m_options->raw_string() << "; "
     << "m_created: " << m_created << "; "
     << "m_last_altered: " << m_last_altered << "; "
+    << "m_hidden: " << m_hidden << "; "
     << "m_columns: " << m_columns.size() << " [ ";
 
   {
@@ -355,6 +361,7 @@ Abstract_table_impl::Abstract_table_impl(const Abstract_table_impl &src)
     m_mysql_version_id(src.m_mysql_version_id),
     m_created(src.m_created),
     m_last_altered(src.m_last_altered),
+    m_hidden(src.m_hidden),
     m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
     m_columns(),
     m_schema_id(src.m_schema_id)

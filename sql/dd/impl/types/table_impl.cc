@@ -74,8 +74,7 @@ const Object_type &Table::TYPE()
 ///////////////////////////////////////////////////////////////////////////
 
 Table_impl::Table_impl()
- :m_hidden(false),
-  m_se_private_id(INVALID_OBJECT_ID),
+ :m_se_private_id(INVALID_OBJECT_ID),
   m_se_private_data(new Properties_impl()),
   m_row_format(RF_FIXED),
   m_partition_type(PT_NONE),
@@ -331,7 +330,6 @@ bool Table_impl::restore_attributes(const Raw_record &r)
   if (Abstract_table_impl::restore_attributes(r))
     return true;
 
-  m_hidden=          r.read_bool(Tables::FIELD_HIDDEN);
   m_comment=         r.read_str(Tables::FIELD_COMMENT);
   m_row_format=      (enum_row_format) r.read_int(Tables::FIELD_ROW_FORMAT);
 
@@ -398,7 +396,6 @@ bool Table_impl::store_attributes(Raw_record *r)
     r->store(Tables::FIELD_ENGINE, m_engine) ||
     r->store_ref_id(Tables::FIELD_COLLATION_ID, m_collation_id) ||
     r->store(Tables::FIELD_COMMENT, m_comment) ||
-    r->store(Tables::FIELD_HIDDEN, m_hidden) ||
     r->store(Tables::FIELD_SE_PRIVATE_DATA, *m_se_private_data) ||
     r->store(Tables::FIELD_SE_PRIVATE_ID,
              m_se_private_id,
@@ -432,7 +429,6 @@ Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
   w->StartObject();
   Abstract_table_impl::serialize(wctx, w);
-  write(w, m_hidden, STRING_WITH_LEN("hidden"));
   write(w, m_se_private_id, STRING_WITH_LEN("se_private_id"));
   write(w, m_engine, STRING_WITH_LEN("engine"));
   write(w, m_comment, STRING_WITH_LEN("comment"));
@@ -459,7 +455,6 @@ bool
 Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 {
   Abstract_table_impl::deserialize(rctx, val);
-  read(&m_hidden, val, "hidden");
   read(&m_se_private_id, val, "se_private_id");
   read(&m_engine, val, "engine");
   read(&m_comment, val, "comment");
@@ -508,7 +503,6 @@ void Table_impl::debug_print(String_type &outb) const
     << "m_engine: " << m_engine << "; "
     << "m_collation: {OID: " << m_collation_id << "}; "
     << "m_comment: " << m_comment << "; "
-    << "m_hidden: " << m_hidden << "; "
     << "m_se_private_data " << m_se_private_data->raw_string() << "; "
     << "m_se_private_id: {OID: " << m_se_private_id << "}; "
     << "m_row_format: " << m_row_format << "; "
@@ -907,7 +901,7 @@ void Table_type::register_tables(Open_dictionary_tables_ctx *otx) const
 
 Table_impl::Table_impl(const Table_impl &src)
   : Weak_object(src), Abstract_table_impl(src),
-    m_hidden(src.m_hidden), m_se_private_id(src.m_se_private_id),
+    m_se_private_id(src.m_se_private_id),
     m_engine(src.m_engine),
     m_comment(src.m_comment),
     m_se_private_data(Properties_impl::
