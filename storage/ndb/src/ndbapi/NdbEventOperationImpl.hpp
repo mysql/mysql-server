@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <UtilBuffer.hpp>
 #include <Vector.hpp>
 #include <NdbMutex.h>
+#include <NdbTick.h>
 
 #define NDB_EVENT_OP_MAGIC_NUMBER 0xA9F301B4
 //#define EVENT_DEBUG
@@ -47,6 +48,9 @@
 // not much effect on performance, leave on
 #define NDB_EVENT_VERIFY_SIZE
 #endif
+
+#include <ndb_logevent.h>
+typedef enum ndb_logevent_event_buffer_status_report_reason ReportReason;
 
 class NdbEventOperationImpl;
 
@@ -660,7 +664,7 @@ public:
    * Transitions CB -> PD and CD -> PB and updating m_max_received epoc
    * are performed here.
    */
-  bool onEventDataReceived(Uint32 memory_usage_percent, Uint64 received_epoch);
+  ReportReason onEventDataReceived(Uint32 memory_usage_percent, Uint64 received_epoch);
 
   // Check whether the received event data can be discarded.
   // Discard-criteria : m_pre_gap_epoch < received_epoch <= m_end_gap_epoch.
@@ -674,7 +678,7 @@ public:
    * the gap is ended and the transition to COMPLETE_BUFFERING can be performed.
    * The former case sets gap_begins to true.
    */
-  bool onEpochCompleted(Uint64 completed_epoch, bool& gap_begins);
+  ReportReason onEpochCompleted(Uint64 completed_epoch, bool& gap_begins);
 
   // Check whether the received SUB_GCP_COMPLETE can be discarded
   // Discard-criteria: m_begin_gap_epoch < completed_epoch <= m_end_gap_epoch
@@ -786,7 +790,7 @@ public:
   void free_list(EventBufData_list &list);
 
   //Must report status if buffer manager state is changed
-  void reportStatus(bool force_report = false);
+  void reportStatus(ReportReason reason = NO_REPORT);
 
   //Get event buffer memory usage statistics
   void get_event_buffer_memory_usage(Ndb::EventBufferMemoryUsage& usage);
@@ -849,6 +853,7 @@ public:
   // threshholds to report status
   unsigned m_free_thresh, m_min_free_thresh, m_max_free_thresh;
   unsigned m_gci_slip_thresh;
+  NDB_TICKS m_last_log_time; // Limit frequency of event buffer status reports
 
   NdbError m_error;
 

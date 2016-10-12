@@ -1187,11 +1187,11 @@ EventBufferManager::onBufferingEpoch(Uint64 received_epoch)
     m_max_buffered_epoch = received_epoch;
 }
 
-bool
+ReportReason
 EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
                                         Uint64 received_epoch)
 {
-  bool report_status = false;
+  ReportReason report_reason = NO_REPORT;
 
   if (isCompletelyBuffering())
   {
@@ -1200,7 +1200,7 @@ EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
       // Transition COMPLETELY_BUFFERING -> PARTIALLY_DISCARDING.
       m_pre_gap_epoch = m_max_buffered_epoch;
       m_event_buffer_manager_state = EBM_PARTIALLY_DISCARDING;
-      report_status = true;
+      report_reason = PARTIALLY_DISCARDING;
     }
   }
   else if (isCompletelyDiscarding())
@@ -1210,7 +1210,7 @@ EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
       // Transition COMPLETELY_DISCARDING -> PARTIALLY_BUFFERING
       m_end_gap_epoch = m_max_received_epoch;
       m_event_buffer_manager_state = EBM_PARTIALLY_BUFFERING;
-      report_status = true;
+      report_reason = PARTIALLY_BUFFERING;
     }
   }
   else if (isPartiallyBuffering())
@@ -1218,7 +1218,7 @@ EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
     if (memory_usage_percent >= 100)
     {
       // New gap is starting before the on-going gap ends.
-      report_status = true;
+      report_reason = PARTIALLY_BUFFERING;
 
       g_eventLogger->warning("Ndb 0x%x %s: Event Buffer: Ending gap epoch %u/%u (%llu) lacks event buffer memory. Overbuffering.",
               m_ndb->getReference(), m_ndb->getNdbObjectName(),
@@ -1238,7 +1238,7 @@ EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
   if (m_max_received_epoch < received_epoch)
     m_max_received_epoch = received_epoch;
 
-  return report_status;
+  return report_reason;
 }
 
 bool
@@ -1273,10 +1273,10 @@ EventBufferManager::isEventDataToBeDiscarded(Uint64 received_epoch)
   DBUG_RETURN_EVENT(false);
 }
 
-bool
+ReportReason
 EventBufferManager::onEpochCompleted(Uint64 completed_epoch, bool& gap_begins)
 {
-  bool report_status = false;
+  ReportReason report_reason = NO_REPORT;
 
   if (isPartiallyDiscarding() && completed_epoch > m_pre_gap_epoch)
   {
@@ -1289,7 +1289,7 @@ EventBufferManager::onEpochCompleted(Uint64 completed_epoch, bool& gap_begins)
     m_begin_gap_epoch = completed_epoch;
     m_event_buffer_manager_state = EBM_COMPLETELY_DISCARDING;
     gap_begins = true;
-    report_status = true;
+    report_reason = COMPLETELY_DISCARDING;
     g_eventLogger->warning("Ndb 0x%x %s: Event Buffer: New gap begins at epoch : %u/%u (%llu)",
                            m_ndb->getReference(), m_ndb->getNdbObjectName(),
                            (Uint32)(m_begin_gap_epoch >> 32),
@@ -1310,14 +1310,14 @@ EventBufferManager::onEpochCompleted(Uint64 completed_epoch, bool& gap_begins)
     m_begin_gap_epoch = 0;
     m_end_gap_epoch = 0;
     m_event_buffer_manager_state = EBM_COMPLETELY_BUFFERING;
-    report_status = true;
+    report_reason = COMPLETELY_BUFFERING;
   }
   /**
    * else: transition from COMPLETELY_BUFFERING to PARTIALLY_DISCARDING
    * and COMPLETELY_DISCARDING to PARTIALLY_BUFFERING
    * are handled in insertDataL
    */
-  return report_status;
+  return report_reason;
 }
 
 bool
@@ -1382,6 +1382,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_min_free_thresh(0),
   m_max_free_thresh(0),
   m_gci_slip_thresh(0),
+  m_last_log_time(NdbTick_getCurrentTicks()),
   m_dropped_ev_op(0),
   m_active_op_count(0)
 {
@@ -2633,8 +2634,8 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
        bool gapBegins = false;
 
       // if there is a gap, mark the gap boundary
-       if (m_event_buffer_manager.onEpochCompleted(gci, gapBegins))
-        reportStatus();
+       ReportReason reason_to_report =
+         m_event_buffer_manager.onEpochCompleted(gci, gapBegins);
 
       // if a new gap begins, mark the bucket.
        if (gapBegins)
@@ -2642,7 +2643,7 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
 
       complete_bucket(bucket);
       m_latestGCI = m_complete_data.m_gci = gci; // before reportStatus
-      reportStatus();
+      reportStatus(reason_to_report);
       
       if(unlikely(m_latest_complete_GCI > gci))
       {
@@ -3199,8 +3200,10 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
   const Uint32 memory_usage = (m_max_alloc == 0) ? 0 :
     (Uint32)((100 * (Uint64)used_data_sz) / m_max_alloc);
 
-  if (m_event_buffer_manager.onEventDataReceived(memory_usage, gci))
-    reportStatus(true/*force_report*/);
+  ReportReason reason_to_report =
+    m_event_buffer_manager.onEventDataReceived(memory_usage, gci);
+  if (reason_to_report != NO_REPORT)
+    reportStatus(reason_to_report);
 
   if (m_event_buffer_manager.isEventDataToBeDiscarded(gci))
   {
@@ -4237,10 +4240,10 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
 }
 
 void
-NdbEventBuffer::reportStatus(bool force_report)
+NdbEventBuffer::reportStatus(ReportReason reason)
 {
-  if (force_report)
-      goto send_report;
+  if (reason != NO_REPORT)
+    goto send_report;
 
   if (m_free_thresh)
   {
@@ -4252,6 +4255,7 @@ NdbEventBuffer::reportStatus(bool force_report)
       */
       m_min_free_thresh= 0;
       m_max_free_thresh= 2 * m_free_thresh;
+      reason = LOW_FREE_EVENTBUFFER;
       goto send_report;
     }
   
@@ -4263,19 +4267,23 @@ NdbEventBuffer::reportStatus(bool force_report)
       */
       m_min_free_thresh= m_free_thresh;
       m_max_free_thresh= 100;
+      reason = ENOUGH_FREE_EVENTBUFFER;
       goto send_report;
     }
   }
   if (m_gci_slip_thresh &&
-      (m_latestGCI - m_latest_consumed_epoch >= m_gci_slip_thresh))
+      (m_latestGCI - m_latest_consumed_epoch >= m_gci_slip_thresh) &&
+      NdbTick_Elapsed(m_last_log_time, NdbTick_getCurrentTicks()).milliSec() >= 1000)
   {
+    m_last_log_time = NdbTick_getCurrentTicks();
+    reason = BUFFERED_EPOCHS_OVER_THRESHOLD;
     goto send_report;
   }
   return;
 
 send_report:
-  Uint32 data[8];
-  data[0]= NDB_LE_EventBufferStatus;
+  Uint32 data[10];
+  data[0]= NDB_LE_EventBufferStatus2;
   data[1]= m_total_alloc-m_free_data_sz;
   data[2]= m_total_alloc;
   data[3]= m_max_alloc;
@@ -4283,7 +4291,9 @@ send_report:
   data[5]= (Uint32)(m_latest_consumed_epoch >> 32);
   data[6]= (Uint32)(m_latestGCI);
   data[7]= (Uint32)(m_latestGCI >> 32);
-  Ndb_internal::send_event_report(true, m_ndb, data,8);
+  data[8]= (Uint32)(m_ndb->getReference());
+  data[9]= (Uint32)(reason);
+  Ndb_internal::send_event_report(true, m_ndb, data, 10);
 #ifdef VM_TRACE
   assert(m_total_alloc >= m_free_data_sz);
 #endif
