@@ -297,7 +297,6 @@ public:
     ITAS_WAIT_KEY_FAIL = 4     // Failed collecting key
   };
   
-
   /**--------------------------------------------------------------------------
    * LOCAL SYMBOLS PER 'SYMBOL-VALUED' VARIABLE
    *
@@ -337,6 +336,9 @@ public:
     2.3 RECORDS AND FILESIZES
     -------------------------
   */
+  typedef DataBuffer<11,ArrayPool<DataBufferSegment<11> > > AttributeBuffer;
+  typedef LocalDataBuffer<11,ArrayPool<DataBufferSegment<11> > > LocalAttributeBuffer;
+
   /* **************************************************************** */
   /* ---------------------------------------------------------------- */
   /* ------------------- TRIGGER AND INDEX DATA --------------------- */
@@ -413,11 +415,11 @@ public:
    */  
   TcDefinedTriggerData_list c_theDefinedTriggers;
 
-  typedef DataBuffer<11> AttributeBuffer;
- 
   AttributeBuffer::DataBufferPool c_theAttributeBufferPool;
 
-  typedef DataBuffer<5> CommitAckMarkerBuffer;
+  typedef ArrayPool<DataBufferSegment<5> > CommitAckMarkerBuffer_pool;
+  typedef DataBuffer<5,CommitAckMarkerBuffer_pool> CommitAckMarkerBuffer;
+  typedef LocalDataBuffer<5,CommitAckMarkerBuffer_pool> LocalCommitAckMarkerBuffer;
 
   CommitAckMarkerBuffer::DataBufferPool c_theCommitAckMarkerBufferPool;
 
@@ -1837,11 +1839,11 @@ private:
                            ApiConnectRecordPtr* transPtr,
                            TcConnectRecordPtr* opPtr);
   Uint32 appendDataToSection(Uint32& sectionIVal,
-                             DataBuffer<11> & src,
-                             DataBuffer<11>::DataBufferIterator & iter,
+                             AttributeBuffer & src,
+                             AttributeBuffer::DataBufferIterator & iter,
                              Uint32 len);
   bool appendAttrDataToSection(Uint32& sectionIVal,
-                               DataBuffer<11>& values,
+                               AttributeBuffer& values,
                                bool withHeaders,
                                Uint32& attrId,
                                bool& hasNull);
@@ -1887,7 +1889,7 @@ private:
                              Uint32 op, Uint32 attrValuesPtrI);
 
   Uint32 fk_buildKeyInfo(Uint32& keyInfoPtrI, bool& hasNull,
-                         LocalDataBuffer<11>& values,
+                         LocalAttributeBuffer& values,
                          TcFKData* fkData,
                          bool parent);
 
@@ -1907,11 +1909,11 @@ private:
   void execKEYINFO20(Signal*);
 
   Uint32 fk_buildBounds(SegmentedSectionPtr & dst,
-                        LocalDataBuffer<11> & src,
+                        LocalAttributeBuffer & src,
                         TcFKData* fkData);
   Uint32 fk_constructAttrInfoSetNull(const TcFKData*);
   Uint32 fk_constructAttrInfoUpdateCascade(const TcFKData*,
-                                           DataBuffer<11>::Head&);
+                                           AttributeBuffer::Head&);
 
   bool executeFullyReplicatedTrigger(Signal* signal,
                                      TcDefinedTriggerData* definedTriggerData,

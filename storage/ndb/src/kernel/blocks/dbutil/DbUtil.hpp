@@ -138,13 +138,13 @@ private:
 public:
   struct PreparedOperation;
 
-  typedef DataBuffer<11> KeyInfoBuffer;
+  typedef DataBuffer<11,ArrayPool<DataBufferSegment<11> > > KeyInfoBuffer;
   typedef KeyInfoBuffer::ConstDataBufferIterator KeyInfoIterator;
-  typedef DataBuffer<11> AttrInfoBuffer;
+  typedef DataBuffer<11,ArrayPool<DataBufferSegment<11> > > AttrInfoBuffer;
   typedef AttrInfoBuffer::ConstDataBufferIterator AttrInfoIterator;
-  typedef DataBuffer<11> ResultSetBuffer;
-  typedef DataBuffer<11>  ResultSetInfoBuffer;
-  typedef DataBuffer<1>  AttrMappingBuffer;
+  typedef DataBuffer<11,ArrayPool<DataBufferSegment<11> > > ResultSetBuffer;
+  typedef DataBuffer<11,ArrayPool<DataBufferSegment<11> > >  ResultSetInfoBuffer;
+  typedef DataBuffer<1,ArrayPool<DataBufferSegment<1> > >  AttrMappingBuffer;
   
   /** 
    * @struct  Page32
@@ -411,8 +411,8 @@ public:
   PreparedOperation_pool    c_preparedOperationPool;
   Transaction_pool          c_transactionPool;
 
-  DataBuffer<1>::DataBufferPool   c_attrMappingPool;
-  DataBuffer<11>::DataBufferPool  c_dataBufPool;
+  DataBuffer<1,ArrayPool<DataBufferSegment<1> > >::DataBufferPool   c_attrMappingPool;
+  DataBuffer<11,ArrayPool<DataBufferSegment<11> > >::DataBufferPool  c_dataBufPool;
   Prepare_dllist                  c_runningPrepares;
   Transaction_dllist              c_seizingTransactions; // Being seized at TC
   Transaction_dllist              c_runningTransactions; // Seized and now exec.

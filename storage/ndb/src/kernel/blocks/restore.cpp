@@ -239,8 +239,8 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_outstanding_operations = 0;
   file_ptr.p->m_rows_restored = 0;
   file_ptr.p->m_restore_start_time = NdbTick_CurrentMillisecond();;
-  LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
-  LocalDataBuffer<15> columns(m_databuffer_pool, file_ptr.p->m_columns);
+  LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
+  LocalList columns(m_databuffer_pool, file_ptr.p->m_columns);
 
   ndbassert(columns.isEmpty());
   columns.release();
@@ -293,8 +293,8 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
 void
 Restore::release_file(FilePtr file_ptr)
 {
-  LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
-  LocalDataBuffer<15> columns(m_databuffer_pool, file_ptr.p->m_columns);
+  LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
+  LocalList columns(m_databuffer_pool, file_ptr.p->m_columns);
 
   List::Iterator it;
   for (pages.first(it); !it.isNull(); pages.next(it))
@@ -442,7 +442,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 	 *   and since we have atleast 8 bytes left in buffer
 	 *   we can be sure that that's in buffer
 	 */
-	LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
+	LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
 	Uint32 next_page = file_ptr.p->m_current_page_index + 1;
 	pages.position(it, next_page % page_count);
 	m_global_page_pool.getPtr(next_page_ptr, * it.data);
@@ -489,7 +489,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
        */
       if(next_page_ptr.p == 0)
       {
-	LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
+	LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
 	Uint32 next_page = file_ptr.p->m_current_page_index + 1;
 	pages.position(it, next_page % page_count);
 	m_global_page_pool.getPtr(next_page_ptr, * it.data);
@@ -542,7 +542,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
           dst += GLOBAL_PAGE_SIZE_WORDS;
 
           {
-            LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
+            LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
             Uint32 next_page = (file_ptr.p->m_current_page_index + 1) % page_count;
             pages.position(it, next_page % page_count);
             m_global_page_pool.getPtr(next_page_ptr, * it.data);
@@ -660,7 +660,7 @@ Restore::read_file(Signal* signal, FilePtr file_ptr)
 
   read_count -= file_ptr.p->m_outstanding_reads;
   Uint32 curr_page= file_ptr.p->m_current_page_index;
-  LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
+  LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
   
   FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtrSend();
   req->filePointer = file_ptr.p->m_fd;
@@ -833,7 +833,7 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
   const BackupFormat::CtlFile::TableDescription* fh= 
     (BackupFormat::CtlFile::TableDescription*)data;
   
-  LocalDataBuffer<15> columns(m_databuffer_pool, file_ptr.p->m_columns);
+  LocalList columns(m_databuffer_pool, file_ptr.p->m_columns);
 
   SimplePropertiesLinearReader it(fh->DictTabInfo, len);
   it.first();
@@ -983,7 +983,7 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
 		      const Uint32 *data, Uint32 len)
 {
   List::Iterator it;
-  LocalDataBuffer<15> columns(m_databuffer_pool, file_ptr.p->m_columns);  
+  LocalList columns(m_databuffer_pool, file_ptr.p->m_columns);  
 
   Uint32 * const key_start = signal->getDataPtrSend()+24;
   Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;

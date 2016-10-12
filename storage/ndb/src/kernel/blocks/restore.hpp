@@ -58,7 +58,10 @@ protected:
   void execLQHKEYREF(Signal*);
   void execLQHKEYCONF(Signal*);
   
-  typedef DataBuffer<15> List;
+  
+  typedef ArrayPool<DataBufferSegment<15> > BufferPool;
+  typedef DataBuffer<15,BufferPool> List;
+  typedef LocalDataBuffer<15,BufferPool> LocalList;
 
 public:  
   struct Column

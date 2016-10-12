@@ -156,7 +156,7 @@ public:
   typedef RecordPool<Undofile, RWPool<Undofile> > Undofile_pool;
   typedef DLFifoListImpl<Undofile_pool, Undofile> Undofile_list;
   typedef LocalDLFifoListImpl<Undofile_pool, Undofile> Local_undofile_list;
-  typedef LocalDataBuffer<15> Page_map;
+  typedef LocalDataBuffer<15,ArrayPool<DataBufferSegment<15> > > Page_map;
 
   struct Buffer_idx 
   {

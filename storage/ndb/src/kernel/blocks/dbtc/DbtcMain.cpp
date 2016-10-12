@@ -4857,7 +4857,7 @@ Dbtc::CommitAckMarker::insert_in_commit_ack_marker(Dbtc *tc,
     tc->c_theCommitAckMarkerBufferPool;
   // check for duplicate (todo DataBuffer method find-or-append)
   {
-    LocalDataBuffer<5> tmp(pool, this->theDataBuffer);
+    LocalCommitAckMarkerBuffer tmp(pool, this->theDataBuffer);
     CommitAckMarkerBuffer::Iterator iter;
     bool next_flag = tmp.first(iter);
     while (next_flag)
@@ -4870,7 +4870,7 @@ Dbtc::CommitAckMarker::insert_in_commit_ack_marker(Dbtc *tc,
       next_flag = tmp.next(iter, 1);
     }
   }
-  LocalDataBuffer<5> tmp(pool, this->theDataBuffer);
+  LocalCommitAckMarkerBuffer tmp(pool, this->theDataBuffer);
   return tmp.append(&item, (Uint32)1);
 }
 bool
@@ -6969,7 +6969,7 @@ Dbtc::sendRemoveMarkers(Signal* signal,
 
   CommitAckMarkerBuffer::DataBufferPool & pool =
     c_theCommitAckMarkerBufferPool;
-  LocalDataBuffer<5> commitAckMarkers(pool, marker->theDataBuffer);
+  LocalCommitAckMarkerBuffer commitAckMarkers(pool, marker->theDataBuffer);
   CommitAckMarkerBuffer::DataBufferIterator iter;
   bool next_flag = commitAckMarkers.first(iter);
   while (next_flag)
@@ -10158,7 +10158,7 @@ void Dbtc::releaseMarker(ApiConnectRecord * const regApiPtr)
     CommitAckMarkerBuffer::DataBufferPool & pool =
       c_theCommitAckMarkerBufferPool;
     CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(marker);
-    LocalDataBuffer<5> commitAckMarkers(pool, tmp->theDataBuffer);
+    LocalCommitAckMarkerBuffer commitAckMarkers(pool, tmp->theDataBuffer);
     commitAckMarkers.release();
     m_commitAckMarkerHash.release(marker);
   }
@@ -16833,9 +16833,9 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
       AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
       {
         //TODO: error insert to make e.g middle append fail
-        LocalDataBuffer<11> tmp1(pool, trigPtr.p->keyValues);
-        LocalDataBuffer<11> tmp2(pool, trigPtr.p->beforeValues);
-        LocalDataBuffer<11> tmp3(pool, trigPtr.p->afterValues);
+        LocalAttributeBuffer tmp1(pool, trigPtr.p->keyValues);
+        LocalAttributeBuffer tmp2(pool, trigPtr.p->beforeValues);
+        LocalAttributeBuffer tmp3(pool, trigPtr.p->afterValues);
         append(tmp1, handle.m_ptr[0], getSectionSegmentPool());
         append(tmp2, handle.m_ptr[1], getSectionSegmentPool());
         append(tmp3, handle.m_ptr[2], getSectionSegmentPool());
@@ -16921,11 +16921,11 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
     errorCode = ZINCONSISTENT_TRIGGER_STATE;
     // Release trigger records
     AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
-    LocalDataBuffer<11> tmp1(pool, trigPtr.p->keyValues);
+    LocalAttributeBuffer tmp1(pool, trigPtr.p->keyValues);
     tmp1.release();
-    LocalDataBuffer<11> tmp2(pool, trigPtr.p->beforeValues);
+    LocalAttributeBuffer tmp2(pool, trigPtr.p->beforeValues);
     tmp2.release();
-    LocalDataBuffer<11> tmp3(pool, trigPtr.p->afterValues);
+    LocalAttributeBuffer tmp3(pool, trigPtr.p->afterValues);
     tmp3.release();
     c_theFiredTriggerPool.release(trigPtr);
   }
@@ -16987,21 +16987,21 @@ void Dbtc::execTRIG_ATTRINFO(Signal* signal)
   case(TrigAttrInfo::PRIMARY_KEY):
     jam();
     {
-      LocalDataBuffer<11> buf(pool, firedTrigPtr.p->keyValues);
+      LocalAttributeBuffer buf(pool, firedTrigPtr.p->keyValues);
       buf.append(src, attrInfoLength);
     }
     break;
   case(TrigAttrInfo::BEFORE_VALUES):
     jam();
     {
-      LocalDataBuffer<11> buf(pool, firedTrigPtr.p->beforeValues);
+      LocalAttributeBuffer buf(pool, firedTrigPtr.p->beforeValues);
       buf.append(src, attrInfoLength);
     }
     break;
   case(TrigAttrInfo::AFTER_VALUES):
     jam();
     {
-      LocalDataBuffer<11> buf(pool, firedTrigPtr.p->afterValues);
+      LocalAttributeBuffer buf(pool, firedTrigPtr.p->afterValues);
       buf.append(src, attrInfoLength);
     }
     break;
@@ -18522,11 +18522,11 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
 	  // return
           // Release trigger records
 	  AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
-	  LocalDataBuffer<11> tmp1(pool, trigPtr.p->keyValues);
+	  LocalAttributeBuffer tmp1(pool, trigPtr.p->keyValues);
 	  tmp1.release();
-	  LocalDataBuffer<11> tmp2(pool, trigPtr.p->beforeValues);
+	  LocalAttributeBuffer tmp2(pool, trigPtr.p->beforeValues);
 	  tmp2.release();
-	  LocalDataBuffer<11> tmp3(pool, trigPtr.p->afterValues);
+	  LocalAttributeBuffer tmp3(pool, trigPtr.p->afterValues);
 	  tmp3.release();
           regApiPtr->theFiredTriggers.release(trigPtr);
         }
@@ -18684,7 +18684,7 @@ Dbtc::fk_constructAttrInfoSetNull(const TcFKData * fkPtrP)
 
 Uint32
 Dbtc::fk_constructAttrInfoUpdateCascade(const TcFKData * fkPtrP,
-                                        DataBuffer<11>::Head & srchead)
+                                        AttributeBuffer::Head & srchead)
 {
   Uint32 tmp = RNIL;
   if (ERROR_INSERTED(8103))
@@ -18699,7 +18699,7 @@ Dbtc::fk_constructAttrInfoUpdateCascade(const TcFKData * fkPtrP,
    */
   Uint32 pos = 0;
   AttributeBuffer::DataBufferIterator iter;
-  LocalDataBuffer<11> src(c_theAttributeBufferPool, srchead);
+  LocalAttributeBuffer src(c_theAttributeBufferPool, srchead);
   bool moreData= src.first(iter);
   const Uint32 segSize= src.getSegmentSize(); // 11
 
@@ -18883,7 +18883,7 @@ Dbtc::fk_readFromChildTable(Signal* signal,
 
   // Calculate key length and renumber attribute id:s
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
-  LocalDataBuffer<11> beforeValues(pool, firedTriggerData->beforeValues);
+  LocalAttributeBuffer beforeValues(pool, firedTriggerData->beforeValues);
 
   SegmentedSectionGuard guard(this, attrValuesPtrI);
   if (beforeValues.getSize() == 0)
@@ -19071,7 +19071,7 @@ Dbtc::fk_execTCINDXREQ(Signal* signal,
 
 Uint32
 Dbtc::fk_buildKeyInfo(Uint32& keyIVal, bool& hasNull,
-                      LocalDataBuffer<11> & values,
+                      LocalAttributeBuffer & values,
                       TcFKData * fkPtrP,
                       bool parent)
 {
@@ -19278,7 +19278,7 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
 
   {
     AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
-    LocalDataBuffer<11> beforeValues(pool, firedTriggerData->beforeValues);
+    LocalAttributeBuffer beforeValues(pool, firedTriggerData->beforeValues);
     if (unlikely((errorCode=fk_buildBounds(ptr[2], beforeValues, fkData)) != 0))
     {
       jam();
@@ -19835,7 +19835,7 @@ Dbtc::execSCAN_TABREF(Signal* signal)
 
 Uint32
 Dbtc::fk_buildBounds(SegmentedSectionPtr & dst,
-                     LocalDataBuffer<11> & src,
+                     LocalAttributeBuffer & src,
                      TcFKData* fkData)
 {
   dst.i = RNIL;
@@ -19963,7 +19963,7 @@ Dbtc::fk_readFromParentTable(Signal* signal,
 
   // Calculate key length and renumber attribute id:s
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
-  LocalDataBuffer<11> afterValues(pool, firedTriggerData->afterValues);
+  LocalAttributeBuffer afterValues(pool, firedTriggerData->afterValues);
 
   if (afterValues.getSize() == 0)
   {
@@ -20050,11 +20050,11 @@ void Dbtc::releaseFiredTriggerData(TcFiredTriggerData_fifo* triggers)
     // Release trigger records
 
     AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
-    LocalDataBuffer<11> tmp1(pool, trigPtr.p->keyValues);
+    LocalAttributeBuffer tmp1(pool, trigPtr.p->keyValues);
     tmp1.release();
-    LocalDataBuffer<11> tmp2(pool, trigPtr.p->beforeValues);
+    LocalAttributeBuffer tmp2(pool, trigPtr.p->beforeValues);
     tmp2.release();
-    LocalDataBuffer<11> tmp3(pool, trigPtr.p->afterValues);
+    LocalAttributeBuffer tmp3(pool, trigPtr.p->afterValues);
     tmp3.release();
     
     triggers->next(trigPtr);
@@ -20074,11 +20074,11 @@ void Dbtc::releaseFiredTriggerData(Local_TcFiredTriggerData_fifo*
     // Release trigger records
 
     AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
-    LocalDataBuffer<11> tmp1(pool, trigPtr.p->keyValues);
+    LocalAttributeBuffer tmp1(pool, trigPtr.p->keyValues);
     tmp1.release();
-    LocalDataBuffer<11> tmp2(pool, trigPtr.p->beforeValues);
+    LocalAttributeBuffer tmp2(pool, trigPtr.p->beforeValues);
     tmp2.release();
-    LocalDataBuffer<11> tmp3(pool, trigPtr.p->afterValues);
+    LocalAttributeBuffer tmp3(pool, trigPtr.p->afterValues);
     tmp3.release();
     FiredTriggerPtr save = trigPtr;
     triggers->next(trigPtr);
@@ -20107,8 +20107,8 @@ void Dbtc::abortTransFromTrigger(Signal* signal,
 
 Uint32
 Dbtc::appendDataToSection(Uint32& sectionIVal,
-                          DataBuffer<11> & src,
-                          DataBuffer<11>::DataBufferIterator & iter,
+                          AttributeBuffer & src,
+                          AttributeBuffer::DataBufferIterator & iter,
                           Uint32 len)
 {
   const Uint32 segSize = src.getSegmentSize(); // 11
@@ -20164,7 +20164,7 @@ fail:
  * were encountered.
  */
 bool Dbtc::appendAttrDataToSection(Uint32& sectionIVal, 
-                                   DataBuffer<11>& values,
+                                   AttributeBuffer& values,
                                    bool withHeaders,
                                    Uint32& attrId,
                                    bool& hasNull)
@@ -20248,8 +20248,8 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
    */
   // Calculate key length and renumber attribute id:s
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
-  LocalDataBuffer<11> afterValues(pool, firedTriggerData->afterValues);
-  LocalDataBuffer<11> keyValues(pool, firedTriggerData->keyValues);
+  LocalAttributeBuffer afterValues(pool, firedTriggerData->afterValues);
+  LocalAttributeBuffer keyValues(pool, firedTriggerData->keyValues);
 
   if (afterValues.getSize() == 0)
   {
@@ -20401,7 +20401,7 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
 
   // Calculate key length and renumber attribute id:s
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
-  LocalDataBuffer<11> beforeValues(pool, firedTriggerData->beforeValues);
+  LocalAttributeBuffer beforeValues(pool, firedTriggerData->beforeValues);
   
   Uint32 keyIVal= RNIL;
   Uint32 attrId= 0;
@@ -20504,8 +20504,8 @@ void Dbtc::executeReorgTrigger(Signal* signal,
   tcKeyReq->senderData = opPtr->i;
 
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
-  LocalDataBuffer<11> keyValues(pool, firedTriggerData->keyValues);
-  LocalDataBuffer<11> attrValues(pool, firedTriggerData->afterValues);
+  LocalAttributeBuffer keyValues(pool, firedTriggerData->keyValues);
+  LocalAttributeBuffer attrValues(pool, firedTriggerData->afterValues);
 
   Uint32 optype;
   bool sendAttrInfo= true;
@@ -20570,8 +20570,8 @@ void Dbtc::executeReorgTrigger(Signal* signal,
     /* Prepare AttrInfo section from Key values and
      * After values
      */
-    LocalDataBuffer<11>::Iterator attrIter;
-    LocalDataBuffer<11>* buffers[2];
+    LocalAttributeBuffer::Iterator attrIter;
+    LocalAttributeBuffer* buffers[2];
     buffers[0]= &keyValues;
     buffers[1]= &attrValues;
     const Uint32 segSize= keyValues.getSegmentSize(); // 11
@@ -20694,8 +20694,8 @@ Dbtc::executeFullyReplicatedTrigger(Signal* signal,
   tcKeyReq->senderData = opPtr->i;
 
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
-  LocalDataBuffer<11> keyValues(pool, firedTriggerData->keyValues);
-  LocalDataBuffer<11> attrValues(pool, firedTriggerData->afterValues);
+  LocalAttributeBuffer keyValues(pool, firedTriggerData->keyValues);
+  LocalAttributeBuffer attrValues(pool, firedTriggerData->afterValues);
 
   Uint32 optype;
   bool sendAttrInfo = true;
@@ -20761,8 +20761,8 @@ Dbtc::executeFullyReplicatedTrigger(Signal* signal,
      * After values
      */
     jam();
-    LocalDataBuffer<11>::Iterator attrIter;
-    LocalDataBuffer<11>* buffers[2];
+    LocalAttributeBuffer::Iterator attrIter;
+    LocalAttributeBuffer* buffers[2];
     buffers[0] = &keyValues;
     buffers[1] = &attrValues;
     const Uint32 segSize = keyValues.getSegmentSize(); // 11

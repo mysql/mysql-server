@@ -400,7 +400,7 @@ private:
   Ptr<Page_entry> m_cleanup_ptr;
  
   // file map
-  typedef DataBuffer<15> File_map;
+  typedef DataBuffer<15,ArrayPool<DataBufferSegment<15> > > File_map;
   File_map m_file_map;
   File_map::DataBufferPool m_data_buffer_pool;
 
