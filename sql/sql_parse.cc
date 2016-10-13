@@ -4766,10 +4766,19 @@ bool show_precheck(THD *thd, LEX *lex, bool lock)
       if (!lock)
         break;
 
+      LEX_STRING lex_str_db;
+      if (make_lex_string_root(thd->mem_root, &lex_str_db,
+                               lex->select_lex->db,
+                               strlen(lex->select_lex->db), false) == nullptr)
+        return true;
+
+      if (check_and_convert_db_name(&lex_str_db, false) != Ident_name_check::OK)
+        return true;
+
       // Acquire IX MDL lock on schema name.
       MDL_request mdl_request;
       MDL_REQUEST_INIT(&mdl_request, MDL_key::SCHEMA,
-                       lex->select_lex->db, "",
+                       lex_str_db.str, "",
                        MDL_INTENTION_EXCLUSIVE,
                        MDL_TRANSACTION);
       if (thd->mdl_context.acquire_lock(&mdl_request,
@@ -4778,7 +4787,7 @@ bool show_precheck(THD *thd, LEX *lex, bool lock)
 
       // Stop if given database does not exist.
       bool exists= false;
-      if (dd::schema_exists(thd, lex->select_lex->db, &exists))
+      if (dd::schema_exists(thd, lex_str_db.str, &exists))
         return true;
 
       if (!exists)
