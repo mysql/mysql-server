@@ -2817,6 +2817,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
                                  size_t *length)
 {
   const char *value;
+  const CHARSET_INFO *value_charset;
 
   if (show_type == SHOW_SYS)
   {
@@ -2826,11 +2827,12 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     sys_var *var= ((sys_var *) variable->value);
     show_type= var->show_type();
     value= (char*) var->value_ptr(running_thd, target_thd, value_type, &null_lex_str);
-    *charset= var->charset(running_thd);
+    value_charset= var->charset(target_thd);
   }
   else
   {
     value= variable->value;
+    value_charset= system_charset_info;
   }
 
   const char *pos= buff;
@@ -2848,6 +2850,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     case SHOW_DOUBLE:
       /* 6 is the default precision for '%f' in sprintf() */
       end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_LONG_STATUS:
@@ -2858,10 +2861,12 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
      /* the difference lies in refresh_status() */
     case SHOW_LONG_NOFLUSH:
       end= int10_to_str(*(long*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_SIGNED_LONG:
       end= int10_to_str(*(long*) value, buff, -10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_LONGLONG_STATUS:
@@ -2870,22 +2875,27 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_LONGLONG:
       end= longlong10_to_str(*(longlong*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_HA_ROWS:
       end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_BOOL:
       end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
+      value_charset= system_charset_info;
       break;
 
     case SHOW_MY_BOOL:
       end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
+      value_charset= system_charset_info;
       break;
 
     case SHOW_INT:
       end= int10_to_str((long) *(uint32*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_HAVE:
@@ -2893,6 +2903,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
       SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
       pos= show_comp_option_name[(int) tmp];
       end= strend(pos);
+      value_charset= system_charset_info;
       break;
     }
 
@@ -2926,11 +2937,13 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     case SHOW_KEY_CACHE_LONG:
       value= (char*) dflt_key_cache + (ulong)value;
       end= int10_to_str(*(long*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_KEY_CACHE_LONGLONG:
       value= (char*) dflt_key_cache + (ulong)value;
       end= longlong10_to_str(*(longlong*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_UNDEF:
@@ -2944,6 +2957,12 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
   }
 
   *length= (size_t) (end - pos);
+  /* Some callers do not use the result. */
+  if (charset != NULL)
+  {
+    DBUG_ASSERT(value_charset != NULL);
+    *charset= value_charset;
+  }
   return pos;
 }
 

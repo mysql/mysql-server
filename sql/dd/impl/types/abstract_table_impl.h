@@ -126,6 +126,15 @@ public:
   virtual void set_last_altered(ulonglong last_altered)
   { m_last_altered= last_altered; }
 
+  /////////////////////////////////////////////////////////////////////////
+  // hidden.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool hidden() const
+  { return m_hidden; }
+
+  virtual void set_hidden(bool hidden)
+  { m_hidden= hidden; }
 
   /////////////////////////////////////////////////////////////////////////
   // Column collection.
@@ -174,6 +183,8 @@ private:
 
   ulonglong m_created;
   ulonglong m_last_altered;
+
+  bool m_hidden;
 
   std::unique_ptr<Properties> m_options;
 

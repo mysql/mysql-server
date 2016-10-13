@@ -49,9 +49,11 @@ int cursor_by_thread::rnd_next(void)
   pfs= it.scan_next(& m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    m_next_pos.set_after(&m_pos);
-    return 0;
+    if (make_row(pfs))
+    {
+      m_next_pos.set_after(&m_pos);
+      return 0;
+    }
   }
 
   return HA_ERR_END_OF_FILE;
@@ -67,8 +69,8 @@ cursor_by_thread::rnd_pos(const void *pos)
   pfs= global_thread_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    return 0;
+    if (make_row(pfs))
+      return 0;
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -88,7 +90,7 @@ int cursor_by_thread::index_next()
     {
       if (m_opened_index->match(pfs))
       {
-        if (!make_row(pfs))
+        if (make_row(pfs))
         {
           m_next_pos.set_after(&m_pos);
           return 0;

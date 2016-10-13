@@ -203,14 +203,28 @@ bool table_exists(dd::cache::Dictionary_client *client,
                   const char *name,
                   bool *exists);
 
-/* Rename table name in dd.tables */
+/**
+  Rename a table or view in dd.tables.
+
+  @param  thd                  The dictionary client.
+  @param  from_schema_name     Schema of table/view to rename.
+  @param  from_name            Table/view name to rename.
+  @param  to_schema_name       New schema name.
+  @param  to_name              New table/view name.
+  @param  no_foreign_key_check Ignore foreign key check while rename, if true.
+  @param  mark_as_hidden       Mark the new table as hidden, if true.
+
+  @retval      true         Failure (error has been reported).
+  @retval      false        Success.
+*/
 template <typename T>
 bool rename_table(THD *thd,
                   const char *from_schema_name,
                   const char *from_name,
                   const char *to_schema_name,
                   const char *to_name,
-                  bool no_foreign_key_check);
+                  bool no_foreign_key_check,
+                  bool mark_as_hidden);
 
 template <typename T>
 inline bool rename_table(THD *thd,
@@ -222,7 +236,7 @@ inline bool rename_table(THD *thd,
   return dd::rename_table<T>(thd,
                              from_schema_name, from_name,
                              to_schema_name, to_name,
-                             false);
+                             false, false);
 }
 
 

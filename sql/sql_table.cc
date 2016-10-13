@@ -6387,7 +6387,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     based on transactional storage.
   */
   if (dd::rename_table<dd::Table>(thd, old_db, old_name,
-                                  new_db, new_name, true))
+                                  new_db, new_name, true,
+                                  flags & FN_TO_IS_TMP))
   {
     DBUG_ASSERT(thd->is_error() || thd->killed);
     delete file;
@@ -6417,7 +6418,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   if (error != 0)
   {
     (void) dd::rename_table<dd::Table>(thd, new_db, new_name,
-                                       old_db, old_name, true);
+                                       old_db, old_name, true,
+                                       flags & FN_FROM_IS_TMP);
 
     if (!(flags & NO_HA_TABLE))
     {
@@ -10491,6 +10493,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   MDL_request tmp_name_mdl_request;
   bool is_tmp_table= (table->s->tmp_table != NO_TMP_TABLE);
+
+  // Avoid these tables to be visible by I_S/SHOW queries.
+  create_info->m_hidden= !is_tmp_table;
 
   if (!is_tmp_table)
   {  MDL_REQUEST_INIT(&tmp_name_mdl_request,

@@ -1,5 +1,3 @@
-select @@global.show_compatibility_56 into @save_show_compatibility_56;
-set @@global.show_compatibility_56=ON;
 SET CHARACTER SET utf8;
 SHOW VARIABLES like 'character_sets_dir';
 Variable_name	Value
@@ -11,4 +9,3 @@ SHOW VARIABLES like 'character_set_client';
 Variable_name	Value
 character_set_client	utf8
 SET CHARACTER SET default;
-set @@global.show_compatibility_56=@save_show_compatibility_56;

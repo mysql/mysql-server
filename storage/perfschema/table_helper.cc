@@ -839,14 +839,31 @@ void PFS_variable_name_row::make_row(const char* str, size_t length)
   m_str[m_length]= '\0';
 }
 
-void PFS_variable_value_row::make_row(const char* str, size_t length)
+void PFS_variable_value_row::make_row(const Status_variable *var)
 {
+  make_row(var->m_charset, var->m_value_str, var->m_value_length);
+}
+
+void PFS_variable_value_row::make_row(const System_variable *var)
+{
+  make_row(var->m_charset, var->m_value_str, var->m_value_length);
+}
+
+void PFS_variable_value_row::make_row(const CHARSET_INFO *cs, const char* str, size_t length)
+{
+  DBUG_ASSERT(cs != NULL);
   DBUG_ASSERT(length <= sizeof(m_str));
   if (length > 0)
   {
     memcpy(m_str, str, length);
   }
   m_length= (uint)length;
+  m_charset= cs;
+}
+
+void PFS_variable_value_row::set_field(Field *f)
+{
+  PFS_engine_table::set_field_varchar(f, m_charset, m_str, m_length);
 }
 
 void PFS_user_variable_value_row::clear()

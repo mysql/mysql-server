@@ -1576,6 +1576,9 @@ static void close_connections(void)
 
   Call_close_conn call_close_conn(true);
   thd_manager->do_for_all_thd(&call_close_conn);
+
+  (void) RUN_HOOK(server_state, after_server_shutdown, (NULL));
+
   /*
     All threads have now been aborted. Stop event scheduler thread
     after aborting all client connections, otherwise user may
@@ -1594,8 +1597,6 @@ static void close_connections(void)
 
   delete_slave_info_objects();
   DBUG_PRINT("quit",("close_connections thread"));
-
-  (void) RUN_HOOK(server_state, after_server_shutdown, (NULL));
 
   DBUG_VOID_RETURN;
 }

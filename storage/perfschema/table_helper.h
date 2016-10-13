@@ -687,10 +687,22 @@ public:
 
 struct PFS_variable_value_row
 {
-  void make_row(const char* str, size_t length);
+public:
+  /** Set the row from a status variable. */
+  void make_row(const Status_variable *var);
+
+  /** Set the row from a system variable. */
+  void make_row(const System_variable *var);
+
+  /** Set a table field from the row. */
+  void set_field(Field *f);
+
+private:
+  void make_row(const CHARSET_INFO *cs, const char* str, size_t length);
 
   char m_str[1024];
   uint m_length;
+  const CHARSET_INFO *m_charset;
 };
 
 struct PFS_user_variable_value_row

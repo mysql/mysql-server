@@ -302,13 +302,13 @@ bool TABLE_LIST::create_derived(THD *thd)
   /* create tmp table */
   Query_result_union *result= (Query_result_union*)unit->query_result();
 
-  if (instantiate_tmp_table(table, table->key_info,
+  if (instantiate_tmp_table(thd, table, table->key_info,
                             result->tmp_table_param.start_recinfo,
                             &result->tmp_table_param.recinfo,
                             unit->first_select()->active_options() |
                             thd->lex->select_lex->active_options() |
                             TMP_TABLE_ALL_COLUMNS,
-                            thd->variables.big_tables, &thd->opt_trace))
+                            thd->variables.big_tables))
     DBUG_RETURN(true);        /* purecov: inspected */
 
   table->file->extra(HA_EXTRA_WRITE_CACHE);

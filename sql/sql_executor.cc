@@ -4795,12 +4795,11 @@ QEP_tmp_table::prepare_tmp_table()
   Temp_table_param *const tmp_tbl= qep_tab->tmp_table_param;
   if (!table->is_created())
   {
-    if (instantiate_tmp_table(table, tmp_tbl->keyinfo,
+    if (instantiate_tmp_table(join->thd, table, tmp_tbl->keyinfo,
                               tmp_tbl->start_recinfo,
                               &tmp_tbl->recinfo,
                               join->select_lex->active_options(),
-                              join->thd->variables.big_tables,
-                              &join->thd->opt_trace))
+                              join->thd->variables.big_tables))
       return true;
     (void) table->file->extra(HA_EXTRA_WRITE_CACHE);
     empty_record(table);
