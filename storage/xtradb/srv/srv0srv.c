@@ -180,6 +180,9 @@ UNIV_INTERN char*	srv_doublewrite_file = NULL;
 
 UNIV_INTERN ibool	srv_recovery_stats = FALSE;
 
+/** Whether the redo log tracking is currently enabled. Note that it is
+possible for the log tracker thread to be running and the tracking to be
+disabled */
 UNIV_INTERN my_bool	srv_track_changed_pages = FALSE;
 
 UNIV_INTERN ib_uint64_t	srv_max_bitmap_file_size = 100 * 1024 * 1024;
@@ -829,6 +832,11 @@ UNIV_INTERN os_event_t	srv_shutdown_event;
 UNIV_INTERN os_event_t	srv_checkpoint_completed_event;
 
 UNIV_INTERN os_event_t	srv_redo_log_thread_finished_event;
+
+/** Whether the redo log tracker thread has been started. Does not take into
+account whether the tracking is currently enabled (see srv_track_changed_pages
+for that) */
+UNIV_INTERN my_bool	srv_redo_log_thread_started = FALSE;
 
 UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
 
@@ -3201,18 +3209,15 @@ srv_redo_log_follow_thread(
 #endif
 
 	my_thread_init();
+	srv_redo_log_thread_started = TRUE;
 
 	do {
 		os_event_wait(srv_checkpoint_completed_event);
 		os_event_reset(srv_checkpoint_completed_event);
 
-#ifdef UNIV_DEBUG
-		if (!srv_track_changed_pages) {
-			continue;
-		}
-#endif
+		if (srv_track_changed_pages
+		    && srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
 
-		if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
 			if (!log_online_follow_redo_log()) {
 				/* TODO: sync with I_S log tracking status? */
 				fprintf(stderr,
@@ -3228,6 +3233,7 @@ srv_redo_log_follow_thread(
 	srv_track_changed_pages = FALSE;
 	log_online_read_shutdown();
 	os_event_set(srv_redo_log_thread_finished_event);
+	srv_redo_log_thread_started = FALSE; /* Defensive, not required */
 
 	my_thread_end();
 	os_thread_exit(NULL);
@@ -3349,7 +3355,7 @@ srv_master_do_purge(void)
 
 	ut_ad(!mutex_own(&kernel_mutex));
 
-	ut_a(srv_n_purge_threads == 0 || (srv_shutdown_state > 0 && srv_n_threads_active[SRV_WORKER] == 0));
+	ut_a(srv_n_purge_threads == 0);
 
 	do {
 		/* Check for shutdown and change in purge config. */
@@ -3875,7 +3881,7 @@ retry_flush_batch:
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
 
-	if (srv_n_purge_threads == 0 || (srv_shutdown_state > 0 && srv_n_threads_active[SRV_WORKER] == 0)) {
+	if (srv_n_purge_threads == 0) {
 		srv_main_thread_op_info = "master purging";
 
 		srv_master_do_purge();
@@ -3953,7 +3959,7 @@ background_loop:
 		}
 	}
 
-	if (srv_n_purge_threads == 0 || (srv_shutdown_state > 0 && srv_n_threads_active[SRV_WORKER] == 0)) {
+	if (srv_n_purge_threads == 0) {
 		srv_main_thread_op_info = "master purging";
 
 		srv_master_do_purge();
@@ -4170,9 +4176,10 @@ srv_purge_thread(
 	        We peek at the history len without holding any mutex
 		because in the worst case we will end up waiting for
 		the next purge event. */
-		if (trx_sys->rseg_history_len < srv_purge_batch_size
-		    || (n_total_purged == 0
-			&& retries >= TRX_SYS_N_RSEGS)) {
+		if (srv_shutdown_state == SRV_SHUTDOWN_NONE
+		    && (trx_sys->rseg_history_len < srv_purge_batch_size
+			|| (n_total_purged == 0
+			    && retries >= TRX_SYS_N_RSEGS))) {
 
 			mutex_enter(&kernel_mutex);
 
@@ -4187,8 +4194,12 @@ srv_purge_thread(
 
 		/* Check for shutdown and whether we should do purge at all. */
 		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND
-		    || srv_shutdown_state != 0
-		    || srv_fast_shutdown) {
+		    || (srv_shutdown_state != SRV_SHUTDOWN_NONE
+			&& srv_fast_shutdown)
+		    || (srv_shutdown_state != SRV_SHUTDOWN_NONE
+			&& srv_fast_shutdown == 0
+			&& n_total_purged == 0
+			&& retries >= TRX_SYS_N_RSEGS)) {
 
 			break;
 		}
@@ -4210,6 +4221,9 @@ srv_purge_thread(
 		} while (n_pages_purged > 0 && !srv_fast_shutdown);
 
 		srv_sync_log_buffer_in_background();
+
+		if (srv_shutdown_state != SRV_SHUTDOWN_NONE)
+			continue;
 
 		cur_time = ut_time_ms();
 		sig_count = os_event_reset(srv_shutdown_event);

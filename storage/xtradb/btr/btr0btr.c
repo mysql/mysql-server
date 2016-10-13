@@ -76,7 +76,7 @@ btr_corruption_report(
 			       buf_block_get_zip_size(block),
 			       BUF_PAGE_PRINT_NO_CRASH);
 	}
-	buf_page_print(buf_block_get_frame_fast(block), 0, 0);
+	buf_page_print(buf_nonnull_block_get_frame(block), 0, 0);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1077,7 +1077,7 @@ btr_get_size(
 	SRV_CORRUPT_TABLE_CHECK(root,
 	{
 		mtr_commit(mtr);
-		return(0);
+		return(ULINT_UNDEFINED);
 	});
 
 	if (flag == BTR_N_LEAF_PAGES) {

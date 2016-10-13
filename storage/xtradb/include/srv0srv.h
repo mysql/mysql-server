@@ -78,6 +78,11 @@ extern os_event_t	srv_checkpoint_completed_event;
 that the (slow) shutdown may proceed */
 extern os_event_t	srv_redo_log_thread_finished_event;
 
+/** Whether the redo log tracker thread has been started. Does not take into
+account whether the tracking is currently enabled (see srv_track_changed_pages
+for that) */
+extern my_bool		srv_redo_log_thread_started;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
@@ -145,6 +150,9 @@ extern char*	srv_doublewrite_file;
 
 extern ibool	srv_recovery_stats;
 
+/** Whether the redo log tracking is currently enabled. Note that it is
+possible for the log tracker thread to be running and the tracking to be
+disabled */
 extern my_bool		srv_track_changed_pages;
 extern ib_uint64_t	srv_max_bitmap_file_size;
 
