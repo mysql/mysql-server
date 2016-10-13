@@ -1730,8 +1730,6 @@ private:
   Uint32 cfirstfreepage;
   Uint32 cpageFileSize;
 
-  ReplicaRecord *replicaRecord;
-  Uint32 cfirstfreeReplica;
   Uint32 cnoFreeReplicaRec;
   Uint32 creplicaFileSize;
   RSS_OP_SNAPSHOT(cnoFreeReplicaRec);

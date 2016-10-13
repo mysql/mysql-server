@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,6 +93,9 @@ Thd_ndb::recycle_ndb(void)
 
   /* Reset last commit epoch for this 'session'. */
   m_last_commit_epoch_session = 0;
+
+  /* Update m_connect_count to avoid false failures of ::valid_ndb() */
+  m_connect_count= connection->get_connect_count();
 
   DBUG_RETURN(true);
 }

@@ -12097,7 +12097,7 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
   req->jamBufferPtr = jamBuffer();
 
   EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-                 DihScanTabReq::SignalLength, JBB);
+                 DihScanTabReq::SignalLength, 0);
 
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
   if (conf->senderData == 0)
@@ -12271,60 +12271,91 @@ void Dbtc::sendDihGetNodesReq(Signal* signal, ScanRecordPtr scanptr)
   ScanFragRecPtr scanFragP;
   Uint32 fragCnt = 0;
   Uint32 cntLocSignals = 0;
+  scanFragP.i = RNIL;
 
-  { // running-list scope
-    ScanFragList list(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+  do
+  {
+    { // running-list scope
+      ScanFragList list(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
 
-    for (list.first(scanFragP);
-         !scanFragP.isNull();
-         list.next(scanFragP))
-    {
-      jam();
-      if (scanFragP.p->scanFragState == ScanFragRec::IDLE) // Start it NOW!.
+      /**
+       * Since we have to leave the running-list scope for the list while
+       * calling startFragScanLab we have to have the below logic to
+       * restart the loop when coming back from startFragScanLab.
+       */
+      if (scanFragP.i == RNIL)
       {
         jam();
-        fragCnt++;
-
-        /**
-         * We check for CONTINUEB sending here before actually getting
-         * the table distribution using the state to indicate we are
-         * waiting to get table distribution. Also set limits to how many
-         * fragment scans we can start in one signal to ensure we keep the
-         * rules of not executing for more than 5-10 microseconds per
-         * signal.
-         */
-        if (cntLocSignals >= 4 || fragCnt >= DiGetNodesReq::MAX_DIGETNODESREQS)
+        list.first(scanFragP);
+      }
+      else
+      {
+        jam();
+        list.next(scanFragP);
+      }
+      for ( ; !scanFragP.isNull(); list.next(scanFragP))
+      {
+        jam();
+        if (scanFragP.p->scanFragState == ScanFragRec::IDLE) // Start it NOW!.
         {
           jam();
-          signal->theData[0] = TcContinueB::ZSTART_FRAG_SCANS;
-          signal->theData[1] = scanptr.i;
-          sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-          return;
-        }
+          fragCnt++;
 
-        if (ERROR_INSERTED_CLEAR(8097) &&
-            fragCnt > 0 &&
-            scanFragP.p->scanFragId == scanptr.p->scanNoFrag-1) //Last FragId
-        {
-          jam();
-          signal->theData[0] = TcContinueB::ZSTART_FRAG_SCANS;
-          signal->theData[1] = scanptr.i;
-          sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2, 10);
-          return;
-        }
+          /**
+           * We check for CONTINUEB sending here before actually getting
+           * the table distribution using the state to indicate we are
+           * waiting to get table distribution. Also set limits to how many
+           * fragment scans we can start in one signal to ensure we keep the
+           * rules of not executing for more than 5-10 microseconds per
+           * signal.
+           */
+          if (cntLocSignals >= 4 || fragCnt >= DiGetNodesReq::MAX_DIGETNODESREQS)
+          {
+            jam();
+            signal->theData[0] = TcContinueB::ZSTART_FRAG_SCANS;
+            signal->theData[1] = scanptr.i;
+            sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+            return;
+          }
 
-        scanFragP.p->scanFragState = ScanFragRec::WAIT_GET_PRIMCONF;
-        scanFragP.p->startFragTimer(ctcTimer);
-
-        bool local = false;
-        bool success = startFragScanLab(signal, scanFragP, scanptr, local);
-        if (!success)
-          return;
-        if (local)
-          cntLocSignals++;
-      } // if IDLE
+          if (ERROR_INSERTED_CLEAR(8097) &&
+              fragCnt > 0 &&
+              scanFragP.p->scanFragId == scanptr.p->scanNoFrag-1) //Last FragId
+          {
+            jam();
+            signal->theData[0] = TcContinueB::ZSTART_FRAG_SCANS;
+            signal->theData[1] = scanptr.i;
+            sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2, 10);
+            return;
+          }
+          /**
+           * Need to break out of running-list scope before calling
+           * startFragScanLab.
+           */
+          break;
+        } // if IDLE
+      }
     }
-  } // running-list scope
+    /**
+     * We have to distinguish between exiting the loop due to end of loop or
+     * to get out of running-list scope to call startFragScanLab.
+     */
+    if (scanFragP.isNull())
+    {
+      jam();
+      return;
+    }
+    scanFragP.p->scanFragState = ScanFragRec::WAIT_GET_PRIMCONF;
+    scanFragP.p->startFragTimer(ctcTimer);
+
+    bool local = false;
+    bool success = startFragScanLab(signal, scanFragP, scanptr, local);
+    if (!success)
+      return;
+    if (local)
+      cntLocSignals++;
+  } while (1);
+  return;
 }//Dbtc::sendDihGetNodesReq
 
 /******************************************************
@@ -12417,7 +12448,7 @@ void Dbtc::releaseScanResources(Signal* signal,
     rep->jamBufferPtr = jamBuffer();
 
     EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-                   DihScanTabCompleteRep::SignalLength, JBB);
+                   DihScanTabCompleteRep::SignalLength, 0);
     jamEntry();
     /* No return code, it will always succeed. */
     scanPtr.p->m_scan_cookie = DihScanTabConf::InvalidCookie;
@@ -12960,8 +12991,6 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   tmp.batch_size_rows = scanP->batch_size_rows;
   tmp.batch_size_bytes = scanP->batch_byte_size;
 
-  ScanFragList running(c_scan_frag_pool, scanP->m_running_scan_frags);
-  ScanFragList delivered(c_scan_frag_pool, scanP->m_delivered_scan_frags);
   for(Uint32 i = 0 ; i<len; i++)
   {
     jam();
@@ -12972,8 +13001,12 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
     scanFragptr.p->startFragTimer(ctcTimer);
     scanFragptr.p->m_ops = 0;
 
-    delivered.remove(scanFragptr);
-    running.addFirst(scanFragptr);
+    {
+      ScanFragList running(c_scan_frag_pool, scanP->m_running_scan_frags);
+      ScanFragList delivered(c_scan_frag_pool, scanP->m_delivered_scan_frags);
+      delivered.remove(scanFragptr);
+      running.addFirst(scanFragptr);
+    }
 
     if(scanFragptr.p->m_scan_frag_conf_status)
     {
@@ -12989,7 +13022,6 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
       scanFragptr.p->scanFragId = scanptr.p->scanNextFragId++;
       bool dummy;
       startFragScanLab(signal, scanFragptr, scanptr, dummy);
-      return;
     }
     else
     {
@@ -16391,6 +16423,7 @@ void Dbtc::execDROP_INDX_IMPL_REQ(Signal* signal)
     return;
   }
   // Release index record
+  indexData->indexState = IS_OFFLINE;
   c_theIndexes.release(req->indexId);
 
   DropIndxImplConf * const conf =  
@@ -16586,7 +16619,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     handle.clear();
 
     /* All data received, process */
-    readIndexTable(signal, regApiPtr, indexOp, 0);
+    readIndexTable(signal, transPtr, indexOp, 0);
     return;
   }
   else
@@ -16613,7 +16646,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     {
       jam();
       /* All KI + no AI received, process */
-      readIndexTable(signal, regApiPtr, indexOp, 0);
+      readIndexTable(signal, transPtr, indexOp, 0);
       return;
     }
     else if (ret == -1)
@@ -16630,7 +16663,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
                          includedAttrLength) == 0) {
       jam();
       /* All KI and AI received, process */
-      readIndexTable(signal, regApiPtr, indexOp, 0);
+      readIndexTable(signal, transPtr, indexOp, 0);
       return;
     }
   }
@@ -16679,7 +16712,7 @@ void Dbtc::execINDXKEYINFO(Signal* signal)
 			keyInfoLength) == 0) {
       jam();
       /* All KI + AI received, process */
-      readIndexTable(signal, regApiPtr, indexOp, 0);
+      readIndexTable(signal, transPtr, indexOp, 0);
     }
   }
 }
@@ -16727,7 +16760,7 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
 			 attrInfoLength) == 0) {
       jam();
       /* All KI + AI received, process */
-      readIndexTable(signal, regApiPtr, indexOp, 0);
+      readIndexTable(signal, transPtr, indexOp, 0);
       return;
     }
     return;
@@ -17312,37 +17345,43 @@ void Dbtc::execTCROLLBACKREP(Signal* signal)
 /**
  * Read index table with the index attributes as PK
  */
-void Dbtc::readIndexTable(Signal* signal, 
-			  ApiConnectRecord* regApiPtr,
-			  TcIndexOperation* indexOp,
+void Dbtc::readIndexTable(Signal* signal,
+                          ApiConnectRecordPtr transPtr,
+                          TcIndexOperation* indexOp,
                           Uint32 special_op_flags)
 {
   TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtrSend();
   Uint32 tcKeyRequestInfo = indexOp->tcIndxReq.requestInfo; 
-  TcIndexData* indexData;
+  TcIndexDataPtr indexDataPtr;
   Uint32 transId1 = indexOp->tcIndxReq.transId1;
   Uint32 transId2 = indexOp->tcIndxReq.transId2;
+  ApiConnectRecord* regApiPtr = transPtr.p;
 
   const Operation_t opType = 
     (Operation_t)TcKeyReq::getOperationType(tcKeyRequestInfo);
 
   // Find index table
-  if ((indexData = c_theIndexes.getPtr(indexOp->tcIndxReq.tableId)) == NULL) {
-    // TODO : Free KeyInfo and AttrInfo sections here if necessary
-    // How is this operation cleaned up?
+  indexDataPtr.i = indexOp->tcIndxReq.tableId;
+  /* Using a IgnoreAlloc variant of getPtr to make the lookup safe.
+   * The validity of the index is checked subsequently using indexState. */
+  c_theIndexes.getPool().getPtrIgnoreAlloc(indexDataPtr);
+  if (indexDataPtr.p == NULL ||
+      indexDataPtr.p->indexState == IS_OFFLINE )
+  {
+    /* The index was either null or was already dropped.
+     * Abort the operation and release the resources. */
     jam();
-    // Failed to find index record
-    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
-
-    tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
-    tcIndxRef->transId[0] = regApiPtr->transid[0];
-    tcIndxRef->transId[1] = regApiPtr->transid[1];
-    tcIndxRef->errorCode = 4000;    
-    // tcIndxRef->errorData = ??; Where to find indexId
-    sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcKeyRef::SignalLength, JBB);
+    terrorCode = ZNO_SUCH_TABLE;
+    apiConnectptr = transPtr;
+    /* If the signal is last in the batch, don't wait for more
+     * and enable sending the reply signal in abortErrorLab */
+    regApiPtr->m_flags |=
+      TcKeyReq::getExecuteFlag(tcKeyRequestInfo) ?
+      ApiConnectRecord::TF_EXEC_FLAG : 0;
+    abortErrorLab(signal);
     return;
   }
+  TcIndexData* indexData = indexDataPtr.p;
   tcKeyReq->transId1 = transId1;
   tcKeyReq->transId2 = transId2;
   tcKeyReq->tableId = indexData->indexId;
@@ -18345,7 +18384,7 @@ Dbtc::fk_execTCINDXREQ(Signal* signal,
   handle.clear();
 
   /* All data received, process */
-  readIndexTable(signal, transPtr.p, indexOpPtr.p,
+  readIndexTable(signal, transPtr, indexOpPtr.p,
                  transPtr.p->m_special_op_flags);
 
   if (unlikely(transPtr.p->apiConnectstate == CS_ABORTING))

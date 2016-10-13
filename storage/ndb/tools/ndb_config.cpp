@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -470,36 +470,47 @@ HostMatch::eval(const Iter& iter)
   
   if(iter.get(m_key, &valc) == 0)
   {
-	  struct hostent *h1, *h2, copy1;
-	  char *addr1;
+    struct hostent *h1, *h2, copy1;
+    char *addr1;
 
-	  h1 = gethostbyname(m_value.c_str());
-	  if (h1 == NULL) {
-		  return 0;
-	  }
+    if (m_value.empty())
+    {
+      return 0;
+    }
+    h1 = gethostbyname(m_value.c_str());
+    if (h1 == NULL)
+    {
+      return 0;
+    }
 
-	  // gethostbyname returns a pointer to a static structure
-	  // so we need to copy the results before doing the next call
-	  memcpy(&copy1, h1, sizeof(struct hostent));
-	  addr1 = (char *)malloc(copy1.h_length);
-	  NdbAutoPtr<char> tmp_aptr(addr1);
-	  memcpy(addr1, h1->h_addr, copy1.h_length);
+    // gethostbyname returns a pointer to a static structure
+    // so we need to copy the results before doing the next call
+    memcpy(&copy1, h1, sizeof(struct hostent));
+    addr1 = (char *)malloc(copy1.h_length);
+    NdbAutoPtr<char> tmp_aptr(addr1);
+    memcpy(addr1, h1->h_addr, copy1.h_length);
 
-	  h2 = gethostbyname(valc);
-	  if (h2 == NULL) {
-		  return 0;
-	  }
+    if (valc == NULL || strlen(valc) == 0)
+    {
+      return 0;
+    }
+    h2 = gethostbyname(valc);
+    if (h2 == NULL)
+    {
+      return 0;
+    }
 
-	  if (copy1.h_addrtype != h2->h_addrtype) {
-		  return 0;
-	  }
+    if (copy1.h_addrtype != h2->h_addrtype)
+    {
+      return 0;
+    }
 
-	  if (copy1.h_length != h2->h_length) 
-	  {
-		  return 0;
-	  }
-	  
-	  return 0 ==  memcmp(addr1, h2->h_addr, copy1.h_length);	  
+    if (copy1.h_length != h2->h_length) 
+    {
+      return 0;
+    }
+ 
+    return 0 ==  memcmp(addr1, h2->h_addr, copy1.h_length);	  
   }
 
   return 0;

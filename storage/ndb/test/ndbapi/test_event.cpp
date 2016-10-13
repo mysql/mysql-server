@@ -4062,7 +4062,7 @@ bool wait_to_fill_buffer(Ndb* ndb, Uint32 fill_percent)
 
     // Assume that latestGCI will increase in this sleep time
     // (with default TimeBetweenEpochs 100 mill).
-    NdbSleep_SecSleep(1);
+    NdbSleep_MilliSleep(1000); 
 
     const Uint64 latest_gci = ndb->getLatestGCI();
 
@@ -4074,7 +4074,7 @@ bool wait_to_fill_buffer(Ndb* ndb, Uint32 fill_percent)
      * latest_gci (and usage) becomes stable, because epochs are
      * discarded during a gap.
      */
-    if (prev_gci == latest_gci && retries-- == 0)
+    if (prev_gci == latest_gci)
     {
       /* No new epoch is buffered despite waiting with continuous
        * load generation. A gap must have occurred. Enough waiting.
@@ -4086,11 +4086,14 @@ bool wait_to_fill_buffer(Ndb* ndb, Uint32 fill_percent)
       {
         return true;
       }
-      g_err << "wait_to_fill_buffer failed : prev_gci "
-            << prev_gci << "latest_gci " << latest_gci
-            << " usage before wait " << usage_before_wait
-            << " usage after wait " <<  usage_after_wait << endl;
-      return false;
+      if (retries-- == 0)
+      {
+        g_err << "wait_to_fill_buffer failed : prev_gci "
+              << prev_gci << "latest_gci " << latest_gci
+              << " usage before wait " << usage_before_wait
+              << " usage after wait " <<  usage_after_wait << endl;
+        return false;
+      }
     }
     prev_gci = latest_gci;
   } while (true);
@@ -4933,8 +4936,11 @@ bool consume_buffer(NDBT_Context* ctx, Ndb* ndb,
   Ndb::EventBufferMemoryUsage mem_usage;
   ndb->get_event_buffer_memory_usage(mem_usage);
   Uint32 prev_mem_usage = mem_usage.usage_percent;
-  Uint64 op_gci = 0, curr_gci = 0;
 
+  const Uint32 max_mem_usage = mem_usage.usage_percent;
+  const Uint32 max_allocated = mem_usage.allocated_bytes;
+
+  Uint64 op_gci = 0, curr_gci = 0;
   Uint64 poll_gci = 0;
   int poll_retries = 10;
   int res = 0;
@@ -4972,13 +4978,29 @@ bool consume_buffer(NDBT_Context* ctx, Ndb* ndb,
         }
 
         /**
+         * When more than 50% of the previous max allocated buffer
+         * has been consumed, we expect to see 'allocated_bytes' 
+         * being reduced.
+         */
+        if ((max_mem_usage - current_mem_usage) > 50     &&
+            mem_usage.allocated_bytes >= max_allocated)
+        {
+          g_err << "Test failed: Allocated buffer memory not shrinking as expected." << endl;
+          g_err << "Current mem usage " << current_mem_usage
+                << ", max allocated: " <<  max_allocated
+                << ", now allocated: " <<  mem_usage.allocated_bytes
+                << ", used: "          << mem_usage.used_bytes
+                << endl;
+          return false;
+        }
+
+        /**
          * Consume until
          * a) the whole event buffer is consumed or
          * b) >= free_percent is consumed such that buffering can be resumed
          * (For case b) buffer_percent must be < (100-free_percent)
          * for resumption).
          */
-
         if (current_mem_usage == 0 ||
             current_mem_usage < buffer_percent)
         {
@@ -5003,11 +5025,10 @@ bool consume_buffer(NDBT_Context* ctx, Ndb* ndb,
  * Fill the event buffer to 100% initially, in order to accelerate
  * the gap occurence.
  * Then let the consumer to consume and free the buffer a little
- *   more than free_percent (20), such that buffering resumes again.
+ *   more than free_percent (60), such that buffering resumes again.
  *   Fill 100%. Repeat this consume/fill until 'n' gaps are
- *   produced and all are consumed, where n = ((100 / 20) + 1) = 6.
- *   When 6-th gap is produced, the event buffer is filled for the second time.
- * The load generator (insert/delete) is stopped after 6 gaps are produced.
+ *   produced and all are consumed.
+ * The load generator (insert/delete) is stopped after all gaps are produced.
  * Then the consumer consumes all produced gap epochs.
  * Test succeeds when : all gaps are consumed,
  * Test fails if
@@ -5025,8 +5046,8 @@ int runTardyEventListener(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* ndb= GETNDB(step);
   tardy_ndb_ref = ndb->getReference();
 
-  ndb->set_eventbuf_max_alloc(5242880); // max event buffer size 10485760
-  const Uint32 free_percent = 20;
+  ndb->set_eventbuf_max_alloc(5*1024*1024); // max event buffer size 1024*1024 
+  const Uint32 free_percent = 60;
   ndb->set_eventbuffer_free_percent(free_percent);
 
   if (ctx->getProperty("BufferUsage2"))
@@ -5058,9 +5079,6 @@ int runTardyEventListener(NDBT_Context* ctx, NDBT_Step* step)
       goto end_test;
     }
 
-    if (producedGaps == statistics.totalGaps)
-      break;
-
     /**
      * The buffer has overflown, consume until buffer gets
      * free_percent space free, such that buffering can be resumed.
@@ -5075,7 +5093,7 @@ int runTardyEventListener(NDBT_Context* ctx, NDBT_Step* step)
   // Signal the load generator to stop the load
   ctx->stopTest();
 
-  // Consume the whole event buffer.
+  // Consume the whole event buffer, including last gap 
   // (buffer_percent to be consumed = 100 - 100 = 0)
   res = consume_buffer(ctx, ndb, pOp, 0, statistics);
 
@@ -5084,7 +5102,7 @@ end_test:
   if (!res)
     g_err << "consume_buffer failed." << endl;
 
-  if (!res || statistics.consumedGaps < statistics.totalGaps)
+  if (!res || statistics.consumedGaps != statistics.totalGaps)
     result = NDBT_FAILED;
 
   if (result == NDBT_FAILED)

@@ -5906,7 +5906,7 @@ Dbspj::scanIndex_prepare(Signal * signal,
   req->jamBufferPtr = jamBuffer();
 
   EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-                 DihScanTabReq::SignalLength, JBB);
+                 DihScanTabReq::SignalLength, 0);
 
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
   Uint32 senderData = conf->senderData;
@@ -7369,7 +7369,7 @@ Dbspj::scanIndex_complete(Signal* signal,
     rep->jamBufferPtr = jamBuffer();
 
     EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP,
-                   signal, DihScanTabCompleteRep::SignalLength, JBB);
+                   signal, DihScanTabCompleteRep::SignalLength, 0);
   }
 }
 

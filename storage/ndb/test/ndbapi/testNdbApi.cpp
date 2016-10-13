@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6317,6 +6317,312 @@ testMgmdSendBufferExhaust(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+/*
+ * Create Unique Index in the given table using ndbapi
+ * Returns
+ *   NDBT_OK     if index creation was successful
+ *   NDBT_FAILED if the index creation failed
+ * */
+int
+createUniqueIndex(NdbDictionary::Dictionary* pDict,
+                  const char* tableName,
+                  const char* indexName,
+                  const char* columnName)
+{
+  /* create a new index on the table */
+  NdbDictionary::Index tmpIndex;
+  tmpIndex.setName(indexName);
+  tmpIndex.setTable(tableName);
+  tmpIndex.setType(NdbDictionary::Index::UniqueHashIndex);
+  tmpIndex.setLogging(false);
+  tmpIndex.addIndexColumn(columnName);
+
+  /* create an index on the table */
+  ndbout << "Creating index " << indexName
+         << " on " << tableName << endl;
+  CHECKN(pDict->createIndex(tmpIndex) == 0, pDict, NDBT_FAILED);
+  return NDBT_OK;
+}
+
+/**
+ * Runs a transaction using the passed index data.
+ * Returns the errorCode on failure. 0 on success.
+ */
+int
+runTransactionUsingNdbIndexOperation(Ndb* pNdb,
+                                     Vector<const NdbDictionary::Index*> pIndexes,
+                                     const NdbDictionary::Table *tab)
+{
+  /*
+   * 1. Start a transaction and fetch NdbIndexOperations using the
+   *    sent indexes.
+   * 2. Execute the transaction.
+   * 3. Return the error-code or 0
+   */
+  /* start a transaction */
+  NdbTransaction *pTransaction= pNdb->startTransaction();
+  CHECKN(pTransaction != NULL, pNdb, pNdb->getNdbError().code);
+
+  for(uint i = 0; i < pIndexes.size(); i++){
+    /* use the obsolete index to fetch a NdbIndexOperation */
+    NdbIndexOperation *pIndexOperation=
+        pTransaction->getNdbIndexOperation(pIndexes[i], tab);
+    CHECKN(pIndexOperation != NULL, pTransaction,
+           pTransaction->getNdbError().code);
+
+    /* add where field */
+    pIndexOperation->readTuple(NdbOperation::LM_Read);
+    pIndexOperation->equal(pIndexes[i]->getColumn(0)->getName(), 10);
+
+    /* add select field */
+    NdbRecAttr *pRecAttr= pIndexOperation->getValue(1, NULL);
+    CHECKN(pRecAttr != NULL, pTransaction, pTransaction->getNdbError().code);
+  }
+
+  /* execute the transaction */
+  ndbout << "Executing the transaction." << endl;
+  if(pTransaction->execute( NdbTransaction::Commit,
+                            NdbOperation::AbortOnError) == -1)
+  {
+    /* Transaction failed. */
+    NdbError ndbError = pTransaction->getNdbError();
+    /* Ignore - Tuple did not exist errors */
+    if(ndbError.code != 626)
+    {
+      pNdb->closeTransaction(pTransaction);
+      NDB_ERR(ndbError);
+      return ndbError.code;
+    }
+  }
+  pNdb->closeTransaction(pTransaction);
+  ndbout << "Transaction ran successfully." << endl;
+  return NDBT_OK;
+}
+
+int
+runGetNdbIndexOperationTest(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * 1. Obtain the index using getIndex()
+   * 2. Drop that index from that table.
+   * 3. Execute transaction using that index
+   * 5. Verify that the transaction returns error code 284.
+   * 6. Create another index - this will take the same index id as the
+   *    one previously dropped.
+   * 7. Repeat 3 the previously dropped index object.
+   * 8. Verify that the transaction returns error code 241.
+   */
+  Ndb* pNdb = GETNDB(step);
+  const char* tableName = "I3";
+  const char* indexName = "I3$NDBT_IDX0";
+  const NdbDictionary::Table *tab = ctx->getTab();
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  /* load the index */
+  const NdbDictionary::Index *pIndex;
+  Vector<const NdbDictionary::Index*> pIndexes;
+  CHECKN((pIndex = pDict->getIndex(indexName,tableName)) != NULL,
+         pDict, NDBT_FAILED);
+  pIndexes.push_back(pIndex);
+  /* drop the index from the table */
+  ndbout << "Dropping index " << indexName << " from " << tableName << endl;
+  CHECKN(pDict->dropIndexGlobal(*pIndex) == 0, pDict, NDBT_FAILED);
+  /*
+    perform a transaction using the dropped index
+    Expected Error : 284 - Table not defined in transaction coordinator
+   */
+  if(runTransactionUsingNdbIndexOperation(pNdb, pIndexes, tab) != 284)
+  {
+    ndberr << "Transaction was supposed to fail with error 284 but didn't."
+           << endl;
+    return NDBT_FAILED;
+  }
+
+  /* create a new index on the table */
+  CHECK(createUniqueIndex(pDict, tableName, indexName,
+                          pIndex->getColumn(0)->getName()) != NDBT_FAILED);
+
+  /*
+    perform a transaction using the dropped index
+    Expected Error : 241 - Invalid schema object version
+   */
+  if(runTransactionUsingNdbIndexOperation(pNdb, pIndexes, tab) != 241)
+  {
+    ndberr << "Transaction was supposed to fail with error 241 but didn't."
+           << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+int
+runCreateIndexesOnI3(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Create indexes on table I3 */
+  Ndb* pNdb = GETNDB(step);
+  const char* tableName = "I3";
+  const uint numOfIndexes = 4;
+  const char* columnNames[] = {"PORT", "MAC", "HOSTNAME", "GW"};
+  ctx->setProperty("numOfIndexes", numOfIndexes);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  /* create the indexes */
+  Vector<const NdbDictionary::Index*> pIndexes;
+  for(uint i = 0; i < numOfIndexes; i++)
+  {
+    BaseString name;
+    name.assfmt("I3$NDBT_UIDX%d", i);
+    CHECK(createUniqueIndex(pDict, tableName, name.c_str(),
+                            columnNames[i]) != NDBT_FAILED);
+  }
+  return NDBT_OK;
+}
+
+int
+runGetNdbIndexOperationBatchTest(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * 1. In a loop, use all the indexes to perform batch transactions
+   *    but, drop an index at every turn at different positions.
+   * 2. Verify that the transactions fail with expected error.
+   */
+  Ndb* pNdb = GETNDB(step);
+  const char* tableName = "I3";
+  const NdbDictionary::Table *tab = ctx->getTab();
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const uint numOfIndexes = ctx->getProperty("numOfIndexes");
+
+  /* load the indexes */
+  Vector<const NdbDictionary::Index*> pIndexes;
+  for(uint i = 0; i < numOfIndexes; i++)
+  {
+    BaseString name;
+    const NdbDictionary::Index *pIndex;
+    name.assfmt("I3$NDBT_UIDX%d", i);
+    CHECKN((pIndex = pDict->getIndex(name.c_str(),tableName)) != NULL,
+           pDict, NDBT_FAILED);
+    pIndexes.push_back(pIndex);
+  }
+
+  /* start batch operations */
+  ndbout << "Starting batch transactions." << endl;
+  for(uint i=0; i < numOfIndexes; i++)
+  {
+    /* drop ith index */
+    ndbout << "Dropping index " << pIndexes[i]->getName()
+           << " from " << tableName << endl;
+    CHECKN(pDict->dropIndexGlobal(*pIndexes[i]) == 0, pDict, NDBT_FAILED);
+
+    /* run batch operations in a loop,
+     * changing the position of dropped indexes every time */
+    for(uint loops = 0; loops < numOfIndexes; loops++)
+    {
+      /*
+      perform a transaction using the dropped index
+      Expected Error : 284 - Table not defined in transaction coordinator
+       */
+      if(runTransactionUsingNdbIndexOperation(pNdb, pIndexes, tab) != 284)
+      {
+        ndberr << "Transaction was supposed to fail with error 284 but didn't."
+               << endl;
+        return NDBT_FAILED;
+      }
+
+      /* rotate positions of obsolete indexes */
+      pIndexes.push_back(pIndexes[0]);
+      pIndexes.erase(0);
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int
+runGetNdbIndexOperationTransactions(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * 1. In a loop, use all the indexes to perform batch transactions
+   * 2. Verify that the transactions fail with one of the expected error.
+   */
+  Ndb* pNdb = GETNDB(step);
+  const char* tableName = "I3";
+  const NdbDictionary::Table *tab = ctx->getTab();
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const uint numOfIndexes = ctx->getProperty("numOfIndexes");
+
+  /* start batch operations */
+  ndbout << "Starting batch transactions." << endl;
+  uint l = 0;
+  while(ctx->getProperty("StopTransactions") == 0)
+  {
+    Vector<const NdbDictionary::Index*> pIndexes;
+    if(l++ % 50 == 0)
+    {
+      /* load the indexes every 50th loop */
+      pIndexes.clear();
+      for(uint i = 0; i < numOfIndexes; i++)
+      {
+        BaseString name;
+        const NdbDictionary::Index *pIndex;
+        name.assfmt("I3$NDBT_UIDX%d", i);
+        pIndex = pDict->getIndex(name.c_str(),tableName);
+        if(pIndex != NULL)
+          pIndexes.push_back(pIndex);
+      }
+    }
+
+    /*
+      perform a transaction
+      Expected Errors : 284 - Table not defined in transaction coordinator (or)
+                        241 - Invalid schema object version (or)
+                        283 - Table is being dropped
+    */
+    int result = runTransactionUsingNdbIndexOperation(pNdb, pIndexes, tab);
+    if(result != NDBT_OK && result != 241 && result != 284 && result != 283)
+    {
+      /* Transaction failed with an unexpected error */
+      ndberr << "Transaction failed with an unexpected error : " << result << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int
+runDropIndexesOnI3(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const char* tableName = "I3";
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const uint numOfIndexes = ctx->getProperty("numOfIndexes");
+  uint loops = ctx->getNumLoops();
+
+  while(loops-- > 0)
+  {
+    for(uint i =0; i < numOfIndexes; i++)
+    {
+      BaseString name;
+      name.assfmt("I3$NDBT_UIDX%d", i);
+      /* drop the index. */
+      ndbout << "Dropping index " << name.c_str()
+                 << " from " << tableName << endl;
+      CHECKN(pDict->dropIndex(name.c_str(), tableName) == 0,
+             pDict, NDBT_FAILED);
+
+      /* sleep for a random ms */
+      const int max_sleep = 100;
+      NdbSleep_MilliSleep(rand() % max_sleep);
+    }
+
+    /* recreate the indexes and start again */
+    runCreateIndexesOnI3(ctx, step);
+  }
+  ctx->setProperty("StopTransactions", 1);
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
@@ -6621,6 +6927,40 @@ TESTCASE("MgmdSendbufferExhaust",
          "")
 {
   INITIALIZER(testMgmdSendBufferExhaust);
+}
+TESTCASE("GetNdbIndexOperationTest",
+         "Send an obsolete index into getNdbIndexOperation and execute." \
+         "Confirm that this doesn't crash the ndbd.")
+{
+  //To be run only on Table I3
+  INITIALIZER(runLoadTable);
+  STEP(runGetNdbIndexOperationTest);
+  VERIFIER(runCheckAllNodesStarted);
+  FINALIZER(runClearTable)
+}
+TESTCASE("GetNdbIndexOperationBatchTest",
+         "Send an obsolete index into getNdbIndexOperation in a batch" \
+         "and execute. Confirm that this doesn't crash the ndbd.")
+{
+  //To be run only on Table I3
+  INITIALIZER(runCreateIndexesOnI3);
+  INITIALIZER(runLoadTable);
+  STEP(runGetNdbIndexOperationBatchTest);
+  VERIFIER(runCheckAllNodesStarted);
+  FINALIZER(runClearTable)
+}
+TESTCASE("GetNdbIndexOperationParallelDroppingTest",
+         "1. Start transactions batch/normal in a step" \
+         "2. Start dropping/creating indexes in a parallel thread " \
+         "Confirm that this doesn't crash the ndbd.")
+{
+  //To be run only on Table I3
+  INITIALIZER(runCreateIndexesOnI3);
+  INITIALIZER(runLoadTable);
+  STEPS(runGetNdbIndexOperationTransactions, 100);
+  STEP(runDropIndexesOnI3);
+  VERIFIER(runCheckAllNodesStarted);
+  FINALIZER(runClearTable)
 }
 
 NDBT_TESTSUITE_END(testNdbApi);
