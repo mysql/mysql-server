@@ -547,9 +547,7 @@ static int dump_all_tablespaces();
 static int dump_tablespaces_for_tables(char *db, char **table_names, int tables);
 static int dump_tablespaces_for_databases(char** databases);
 static int dump_tablespaces(char* ts_where);
-static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
-                          ...);
-
+static void print_comment(FILE *, my_bool, const char *, ...);
 
 /*
   Print the supplied message if in verbose mode
@@ -627,6 +625,30 @@ static void short_usage(FILE *f)
 }
 
 
+/** returns a string fixed to be safely printed inside a -- comment
+
+  that is, any new line in it gets prefixed with --
+*/
+static const char *fix_for_comment(const char *ident)
+{
+  static char buf[1024];
+  char c, *s= buf;
+
+  while ((c= *s++= *ident++))
+  {
+    if (s >= buf + sizeof(buf) - 10)
+    {
+      strmov(s, "...");
+      break;
+    }
+    if (c == '\n')
+      s= strmov(s, "-- ");
+  }
+
+  return buf;
+}
+
+
 static void write_header(FILE *sql_file, char *db_name)
 {
   if (opt_xml)
@@ -649,8 +671,8 @@ static void write_header(FILE *sql_file, char *db_name)
                   DUMP_VERSION, MYSQL_SERVER_VERSION, SYSTEM_TYPE,
                   MACHINE_TYPE);
     print_comment(sql_file, 0, "-- Host: %s    Database: %s\n",
-                  current_host ? current_host : "localhost",
-                  db_name ? db_name : "");
+                  fix_for_comment(current_host ? current_host : "localhost"),
+                  fix_for_comment(db_name ? db_name : ""));
     print_comment(sql_file, 0,
                   "-- ------------------------------------------------------\n"
                  );
@@ -2094,7 +2116,8 @@ static uint dump_events_for_db(char *db)
 
   /* nice comments */
   print_comment(sql_file, 0,
-                "\n--\n-- Dumping events for database '%s'\n--\n", db);
+                "\n--\n-- Dumping events for database '%s'\n--\n",
+                fix_for_comment(db));
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -2307,7 +2330,8 @@ static uint dump_routines_for_db(char *db)
 
   /* nice comments */
   print_comment(sql_file, 0,
-                "\n--\n-- Dumping routines for database '%s'\n--\n", db);
+                "\n--\n-- Dumping routines for database '%s'\n--\n",
+                fix_for_comment(db));
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -2580,11 +2604,11 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       if (strcmp (table_type, "VIEW") == 0)         /* view */
         print_comment(sql_file, 0,
                       "\n--\n-- Temporary table structure for view %s\n--\n\n",
-                      result_table);
+                      fix_for_comment(result_table));
       else
         print_comment(sql_file, 0,
                       "\n--\n-- Table structure for table %s\n--\n\n",
-                      result_table);
+                      fix_for_comment(result_table));
 
       if (opt_drop)
       {
@@ -2826,7 +2850,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       print_comment(sql_file, 0,
                     "\n--\n-- Table structure for table %s\n--\n\n",
-                    result_table);
+                    fix_for_comment(result_table));
       if (opt_drop)
         fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", result_table);
       if (!opt_xml)
@@ -3530,21 +3554,21 @@ static void dump_table(char *table, char *db)
   {
     print_comment(md_result_file, 0,
                   "\n--\n-- Dumping data for table %s\n--\n",
-                  result_table);
+                  fix_for_comment(result_table));
     
     dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ * FROM ");
     dynstr_append_checked(&query_string, result_table);
 
     if (where)
     {
-      print_comment(md_result_file, 0, "-- WHERE:  %s\n", where);
+      print_comment(md_result_file, 0, "-- WHERE:  %s\n", fix_for_comment(where));
 
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
     }
     if (order_by)
     {
-      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n", order_by);
+      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n", fix_for_comment(order_by));
 
       dynstr_append_checked(&query_string, " ORDER BY ");
       dynstr_append_checked(&query_string, order_by);
@@ -4053,7 +4077,7 @@ static int dump_tablespaces(char* ts_where)
     if (first)
     {
       print_comment(md_result_file, 0, "\n--\n-- Logfile group: %s\n--\n",
-                    row[0]);
+                    fix_for_comment(row[0]));
 
       fprintf(md_result_file, "\nCREATE");
     }
@@ -4122,7 +4146,8 @@ static int dump_tablespaces(char* ts_where)
       first= 1;
     if (first)
     {
-      print_comment(md_result_file, 0, "\n--\n-- Tablespace: %s\n--\n", row[0]);
+      print_comment(md_result_file, 0, "\n--\n-- Tablespace: %s\n--\n",
+                    fix_for_comment(row[0]));
       fprintf(md_result_file, "\nCREATE");
     }
     else
@@ -4326,7 +4351,8 @@ static int init_dumping(char *database, int init_func(char*))
       char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
 
       print_comment(md_result_file, 0,
-                    "\n--\n-- Current Database: %s\n--\n", qdatabase);
+                    "\n--\n-- Current Database: %s\n--\n",
+                    fix_for_comment(qdatabase));
 
       /* Call the view or table specific function */
       init_func(qdatabase);
@@ -5356,7 +5382,7 @@ static my_bool get_view_structure(char *table, char* db)
 
   print_comment(sql_file, 0,
                 "\n--\n-- Final view structure for view %s\n--\n\n",
-                result_table);
+                fix_for_comment(result_table));
 
   /* Table might not exist if this view was dumped with --tab. */
   fprintf(sql_file, "/*!50001 DROP TABLE IF EXISTS %s*/;\n", opt_quoted_table);
