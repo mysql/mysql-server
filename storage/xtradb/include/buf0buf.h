@@ -1110,8 +1110,20 @@ buf_block_get_frame(
 /*================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 	__attribute__((pure));
+
+/*********************************************************************//**
+Gets a pointer to the memory frame of a block, where block is known not to be
+NULL.
+@return	pointer to the frame */
+UNIV_INLINE
+buf_frame_t*
+buf_nonnull_block_get_frame(
+	const buf_block_t*	block)	/*!< in: pointer to the control block */
+	__attribute__((pure));
+
 #else /* UNIV_DEBUG */
 # define buf_block_get_frame(block) (block ? (block)->frame : 0)
+# define buf_nonnull_block_get_frame(block) ((block)->frame)
 #endif /* UNIV_DEBUG */
 /*********************************************************************//**
 Gets the space id of a block.

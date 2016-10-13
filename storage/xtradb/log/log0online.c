@@ -1813,7 +1813,7 @@ log_online_purge_changed_page_bitmaps(
 		lsn = IB_ULONGLONG_MAX;
 	}
 
-	if (srv_track_changed_pages) {
+	if (srv_redo_log_thread_started) {
 		/* User requests might happen with both enabled and disabled
 		tracking */
 		mutex_enter(&log_bmp_sys->mutex);
@@ -1821,13 +1821,13 @@ log_online_purge_changed_page_bitmaps(
 
 	if (!log_online_setup_bitmap_file_range(&bitmap_files, 0,
 						IB_ULONGLONG_MAX)) {
-		if (srv_track_changed_pages) {
+		if (srv_redo_log_thread_started) {
 			mutex_exit(&log_bmp_sys->mutex);
 		}
 		return TRUE;
 	}
 
-	if (srv_track_changed_pages && lsn > log_bmp_sys->end_lsn) {
+	if (srv_redo_log_thread_started && lsn > log_bmp_sys->end_lsn) {
 		/* If we have to delete the current output file, close it
 		first. */
 		os_file_close(log_bmp_sys->out.file);
@@ -1858,7 +1858,7 @@ log_online_purge_changed_page_bitmaps(
 		}
 	}
 
-	if (srv_track_changed_pages) {
+	if (srv_redo_log_thread_started) {
 		if (lsn > log_bmp_sys->end_lsn) {
 			ib_uint64_t	new_file_lsn;
 			if (lsn == IB_ULONGLONG_MAX) {
@@ -1869,9 +1869,7 @@ log_online_purge_changed_page_bitmaps(
 				new_file_lsn = log_bmp_sys->end_lsn;
 			}
 			if (!log_online_rotate_bitmap_file(new_file_lsn)) {
-				/* If file create failed, signal the log
-				tracking thread to quit next time it wakes
-				up.  */
+				/* If file create failed, stop log tracking */
 				srv_track_changed_pages = FALSE;
 			}
 		}

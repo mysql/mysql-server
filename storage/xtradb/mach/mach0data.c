@@ -56,7 +56,18 @@ mach_parse_compressed(
 		*val = flag;
 		return(ptr + 1);
 
-	} else if (flag < 0xC0UL) {
+	}
+
+	/* Workaround GCC bug
+	https://gcc.gnu.org/bugzilla/show_bug.cgi?id=77673:
+	the compiler moves mach_read_from_4 right to the beginning of the
+	function, causing and out-of-bounds read if we are reading a short
+	integer close to the end of buffer. */
+#if defined(__GNUC__) && (__GNUC__ >= 5) && !defined(__clang__)
+	asm volatile("": : :"memory");
+#endif
+
+	if (flag < 0xC0UL) {
 		if (end_ptr < ptr + 2) {
 			return(NULL);
 		}

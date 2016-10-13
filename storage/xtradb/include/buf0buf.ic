@@ -718,6 +718,19 @@ buf_block_get_frame(
 {
 	SRV_CORRUPT_TABLE_CHECK(block, return(0););
 
+	return(buf_nonnull_block_get_frame(block));
+}
+
+/*********************************************************************//**
+Gets a pointer to the memory frame of a block, where block is known not to be
+NULL.
+@return	pointer to the frame */
+UNIV_INLINE
+buf_frame_t*
+buf_nonnull_block_get_frame(
+/*========================*/
+	const buf_block_t*	block)	/*!< in: pointer to the control block */
+{
 	switch (buf_block_get_state(block)) {
 	case BUF_BLOCK_ZIP_FREE:
 	case BUF_BLOCK_ZIP_PAGE:
@@ -739,6 +752,7 @@ buf_block_get_frame(
 ok:
 	return((buf_frame_t*) block->frame);
 }
+
 #endif /* UNIV_DEBUG */
 
 /*********************************************************************//**
