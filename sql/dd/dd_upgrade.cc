@@ -3151,7 +3151,8 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table)
   Disable_autocommit_guard autocommit_guard(thd);
 
   // This function fixes sp_head to use in sp_create_routine()
-  if (db_load_routine(thd, routine_type, &sp_name_obj, &sp,
+  if (db_load_routine(thd, routine_type, sp_db_str.str, sp_db_str.length,
+                      sp_name_str.str, sp_name_str.length, &sp,
                       thd->variables.sql_mode, params, returns, body, &chistics,
                       definer_user_name_holder, definer_host_name_holder,
                       created, modified, creation_ctx))

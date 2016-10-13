@@ -209,13 +209,13 @@ bool sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
 bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name);
 
 enum_sp_return_code
-db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
-                sql_mode_t sql_mode, const char *params, const char *returns,
-                const char *body, st_sp_chistics *sp_chistics,
+db_load_routine(THD *thd, enum_sp_type type, const char *sp_db,
+                size_t sp_db_len, const char *sp_name, size_t sp_name_len,
+                sp_head **sphp, sql_mode_t sql_mode, const char *params,
+                const char *returns, const char *body, st_sp_chistics *chistics,
                 const char *definer_user, const char *definer_host,
-                long long created, long long modified,
+                longlong created, longlong modified,
                 Stored_program_creation_ctx *creation_ctx);
-
 
 bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer);
 
