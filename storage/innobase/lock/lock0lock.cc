@@ -5753,8 +5753,10 @@ lock_rec_queue_validate(
 			ut_a(!lock_rec_other_has_expl_req(
 				     mode, 0, 0, block, heap_no, lock->trx));
 
-		} else if (lock_get_wait(lock) && !lock_rec_get_gap(lock)) {
-
+		} else if (lock_get_wait(lock) && !lock_rec_get_gap(lock)
+				   && innodb_lock_schedule_algorithm == INNODB_LOCK_SCHEDULE_ALGORITHM_FCFS) {
+			// If using VATS, it's possible that a wait lock is inserted to a place in the list
+			// such that it does not need to wait.
 			ut_a(lock_rec_has_to_wait_in_queue(lock));
 		}
 	}
