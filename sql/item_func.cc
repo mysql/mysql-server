@@ -7495,6 +7495,7 @@ bool Item_func_get_system_var::resolve_type(THD *thd)
   char *cptr;
   maybe_null= TRUE;
   max_length= 0;
+  DBUG_ASSERT(thd == current_thd);
 
   if (!var->check_scope(var_type))
   {
@@ -7528,9 +7529,9 @@ bool Item_func_get_system_var::resolve_type(THD *thd)
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
       mysql_mutex_lock(&LOCK_global_system_variables);
-      cptr= var->show_type() == SHOW_CHAR ? 
-        (char*) var->value_ptr(current_thd, var_type, &component) :
-        *(char**) var->value_ptr(current_thd, var_type, &component);
+      cptr= var->show_type() == SHOW_CHAR ?
+        pointer_cast<char *>(var->value_ptr(thd, var_type, &component)) :
+        *pointer_cast<char **>(var->value_ptr(thd, var_type, &component));
       if (cptr)
         max_length= system_charset_info->cset->numchars(system_charset_info,
                                                         cptr,
@@ -7543,7 +7544,8 @@ bool Item_func_get_system_var::resolve_type(THD *thd)
     case SHOW_LEX_STRING:
       {
         mysql_mutex_lock(&LOCK_global_system_variables);
-        LEX_STRING *ls= ((LEX_STRING*)var->value_ptr(current_thd, var_type, &component));
+        LEX_STRING *ls= pointer_cast<LEX_STRING*>
+	  (var->value_ptr(thd, var_type, &component));
         max_length= system_charset_info->cset->numchars(system_charset_info,
                                                         ls->str,
                                                         ls->str + ls->length);
