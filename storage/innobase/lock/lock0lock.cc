@@ -1921,12 +1921,8 @@ lock_rec_create(
 
 	ut_ad(index->table->n_ref_count > 0 || !index->table->can_be_evicted);
 
-	if (innodb_lock_schedule_algorithm == INNODB_LOCK_SCHEDULE_ALGORITHM_VATS) {
-		lock_rec_insert_by_trx_age(lock, type_mode & LOCK_WAIT);
-	} else {
-		HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
-					lock_rec_fold(space, page_no), lock);
-	}
+	HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
+				lock_rec_fold(space, page_no), lock);
 
 	if (!caller_owns_trx_mutex) {
 		trx_mutex_enter(trx);
@@ -2051,6 +2047,13 @@ lock_rec_enqueue_waiting(
 
 		return(DB_SUCCESS_LOCKED_REC);
 	}
+
+    // Move it only when it does not cause a deadlock.
+    if (innodb_lock_schedule_algorithm == INNODB_LOCK_SCHEDULE_ALGORITHM_VATS) {
+        HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
+                    lock_rec_fold(buf_block_get_space(block), buf_block_get_page_no(block)), lock);
+        lock_rec_insert_by_trx_age(lock, true);
+    }
 
 	trx->lock.que_state = TRX_QUE_LOCK_WAIT;
 
@@ -3798,7 +3801,8 @@ lock_get_first_lock(
 	}
 
 	ut_a(lock != NULL);
-	ut_a(lock != ctx->wait_lock);
+	ut_a(lock != ctx->wait_lock ||
+            innodb_lock_schedule_algorithm == INNODB_LOCK_SCHEDULE_ALGORITHM_VATS);
 	ut_ad(lock_get_type_low(lock) == lock_get_type_low(ctx->wait_lock));
 
 	return(lock);
