@@ -512,6 +512,14 @@ DROP DATABASE connected_db;
 create database `aa``bb````cc`;
 DATABASE()
 aa`bb``cc
+DATABASE()
+test
+DATABASE()
+aa`bb``cc
+DATABASE()
+test
+DATABASE()
+aa`bb``cc
 drop database `aa``bb````cc`;
 a
 >>\ndelimiter\n<<

@@ -245,7 +245,8 @@ static void end_pager();
 static void init_tee(const char *);
 static void end_tee();
 static const char* construct_prompt();
-static char *get_arg(char *line, my_bool get_next_arg);
+enum get_arg_mode { CHECK, GET, GET_NEXT};
+static char *get_arg(char *line, get_arg_mode mode);
 static void init_username();
 static void add_int_to_prompt(int toadd);
 static int get_result_width(MYSQL_RES *res);
@@ -2223,7 +2224,7 @@ static COMMANDS *find_command(char *name)
       if (!my_strnncoll(&my_charset_latin1, (uchar*) name, len,
                         (uchar*) commands[i].name, len) &&
           (commands[i].name[len] == '\0') &&
-          (!end || commands[i].takes_params))
+          (!end || (commands[i].takes_params && get_arg(name, CHECK))))
       {
         index= i;
         break;
@@ -3143,7 +3144,7 @@ com_charset(String *buffer __attribute__((unused)), char *line)
   char buff[256], *param;
   CHARSET_INFO * new_cs;
   strmake_buf(buff, line);
-  param= get_arg(buff, 0);
+  param= get_arg(buff, GET);
   if (!param || !*param)
   {
     return put_info("Usage: \\C charset_name | charset charset_name", 
@@ -4228,12 +4229,12 @@ com_connect(String *buffer, char *line)
 #ifdef EXTRA_DEBUG
     tmp[1]= 0;
 #endif
-    tmp= get_arg(buff, 0);
+    tmp= get_arg(buff, GET);
     if (tmp && *tmp)
     {
       my_free(current_db);
       current_db= my_strdup(tmp, MYF(MY_WME));
-      tmp= get_arg(buff, 1);
+      tmp= get_arg(buff, GET_NEXT);
       if (tmp)
       {
 	my_free(current_host);
@@ -4336,7 +4337,7 @@ com_delimiter(String *buffer __attribute__((unused)), char *line)
   char buff[256], *tmp;
 
   strmake_buf(buff, line);
-  tmp= get_arg(buff, 0);
+  tmp= get_arg(buff, GET);
 
   if (!tmp || !*tmp)
   {
@@ -4367,7 +4368,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
 
   bzero(buff, sizeof(buff));
   strmake_buf(buff, line);
-  tmp= get_arg(buff, 0);
+  tmp= get_arg(buff, GET);
   if (!tmp || !*tmp)
   {
     put_info("USE must be followed by a database name", INFO_ERROR);
@@ -4452,23 +4453,22 @@ com_nowarnings(String *buffer __attribute__((unused)),
 }
 
 /*
-  Gets argument from a command on the command line. If get_next_arg is
-  not defined, skips the command and returns the first argument. The
-  line is modified by adding zero to the end of the argument. If
-  get_next_arg is defined, then the function searches for end of string
-  first, after found, returns the next argument and adds zero to the
-  end. If you ever wish to use this feature, remember to initialize all
-  items in the array to zero first.
+  Gets argument from a command on the command line. If mode is not GET_NEXT,
+  skips the command and returns the first argument. The line is modified by
+  adding zero to the end of the argument. If mode is GET_NEXT, then the
+  function searches for end of string first, after found, returns the next
+  argument and adds zero to the end. If you ever wish to use this feature,
+  remember to initialize all items in the array to zero first.
 */
 
-char *get_arg(char *line, my_bool get_next_arg)
+static char *get_arg(char *line, get_arg_mode mode)
 {
   char *ptr, *start;
-  my_bool quoted= 0, valid_arg= 0;
+  bool short_cmd= false;
   char qtype= 0;
 
   ptr= line;
-  if (get_next_arg)
+  if (mode == GET_NEXT)
   {
     for (; *ptr; ptr++) ;
     if (*(ptr + 1))
@@ -4479,7 +4479,7 @@ char *get_arg(char *line, my_bool get_next_arg)
     /* skip leading white spaces */
     while (my_isspace(charset_info, *ptr))
       ptr++;
-    if (*ptr == '\\') // short command was used
+    if ((short_cmd= *ptr == '\\')) // short command was used
       ptr+= 2;
     else
       while (*ptr &&!my_isspace(charset_info, *ptr)) // skip command
@@ -4492,24 +4492,28 @@ char *get_arg(char *line, my_bool get_next_arg)
   if (*ptr == '\'' || *ptr == '\"' || *ptr == '`')
   {
     qtype= *ptr;
-    quoted= 1;
     ptr++;
   }
   for (start=ptr ; *ptr; ptr++)
   {
-    if (*ptr == '\\' && ptr[1]) // escaped character
+    if ((*ptr == '\\' && ptr[1]) ||  // escaped character
+        (!short_cmd && qtype && *ptr == qtype && ptr[1] == qtype)) // quote
     {
-      // Remove the backslash
-      strmov_overlapp(ptr, ptr+1);
+      // Remove (or skip) the backslash (or a second quote)
+      if (mode != CHECK)
+        strmov_overlapp(ptr, ptr+1);
+      else
+        ptr++;
     }
-    else if ((!quoted && *ptr == ' ') || (quoted && *ptr == qtype))
+    else if (*ptr == (qtype ? qtype : ' '))
     {
-      *ptr= 0;
+      qtype= 0;
+      if (mode != CHECK)
+        *ptr= 0;
       break;
     }
   }
-  valid_arg= ptr != start;
-  return valid_arg ? start : NullS;
+  return ptr != start && !qtype ? start : NullS;
 }
 
 

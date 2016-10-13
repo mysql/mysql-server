@@ -586,7 +586,15 @@ DROP DATABASE connected_db;
 # USE and names with backticks
 #
 --write_file $MYSQLTEST_VARDIR/tmp/backticks.sql
+\u aa`bb``cc
+SELECT DATABASE();
+USE test
+SELECT DATABASE();
 USE aa`bb``cc
+SELECT DATABASE();
+USE test
+SELECT DATABASE();
+USE `aa``bb````cc`
 SELECT DATABASE();
 EOF
 create database `aa``bb````cc`;
