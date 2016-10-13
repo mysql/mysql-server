@@ -13,3 +13,12 @@
 
 --echo
 --echo End of tests
+
+# Multi-line exec
+exec $MYSQL \
+    test -e "select 1";
+exec $MYSQL test -e "select
+    2";
+let $query = select 3
+    as X;
+exec $MYSQL test -e "$query";

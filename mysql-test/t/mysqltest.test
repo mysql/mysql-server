@@ -741,15 +741,6 @@ echo ;
 --error 1
 --exec echo "--exec " | $MYSQL_TEST 2>&1
 
-# Multi-line exec
-exec $MYSQL
-    test -e "select 1";
-exec $MYSQL test -e "select
-    2";
-let $query = select 3
-    as X;
-exec $MYSQL test -e "$query";
-
 # ----------------------------------------------------------------------------
 # Test let command
 # ----------------------------------------------------------------------------
