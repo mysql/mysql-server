@@ -481,7 +481,7 @@ int
 innobase_get_parent_fk_list(
 	THD*			thd,
 	const char*		path,
-	List<FOREIGN_KEY_INFO>*	f_key_list);
+	List<FOREIGN_KEY_INFO>*	f_key_list) __attribute__((unused));
 
 /******************************************************************//**
 Maps a MySQL trx isolation level code to the InnoDB isolation level code
