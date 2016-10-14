@@ -32,6 +32,7 @@
 #include "my_dbug.h"
 #include "my_default.h"                 // check_file_permissions
 #include "my_getopt.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/plugin.h"

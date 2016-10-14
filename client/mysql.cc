@@ -30,17 +30,19 @@
  *
  **/
 
-#include "client_priv.h"
-#include "my_default.h"
 #include <m_ctype.h>
-#include <stdarg.h>
 #include <mf_wcomp.h>                  // wild_prefix, wild_one, wild_any
 #include <my_dir.h>
-#include "my_readline.h"
 #include <signal.h>
+#include <stdarg.h>
 #include <violite.h>
-#include "prealloced_array.h"
+
+#include "client_priv.h"
+#include "my_default.h"
+#include "my_loglevel.h"
+#include "my_readline.h"
 #include "mysql/service_my_snprintf.h"
+#include "prealloced_array.h"
 
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -61,18 +63,20 @@
 
 #if defined(_WIN32)
 #include <conio.h>
+
 // Not using syslog but EventLog on Win32, so a dummy facility is enough.
 #define LOG_USER 0
 #else
-#include <syslog.h>
 #include <readline.h>
+#include <syslog.h>
+
 #define HAVE_READLINE
 #define USE_POPEN
 #endif
 
-#include <algorithm>
-#include <sql_common.h>
 #include <mysqld_error.h>
+#include <sql_common.h>
+#include <algorithm>
 
 using std::min;
 using std::max;
@@ -99,8 +103,9 @@ static char *server_version= NULL;
 #define cmp_database(cs,A,B) strcmp((A),(B))
 #endif
 
-#include "completion_hash.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
+
+#include "completion_hash.h"
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
@@ -1808,6 +1813,7 @@ static struct my_option my_long_options[] =
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
+
   {"table", 't', "Output in table format.", &output_tables,
    &output_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tee", OPT_TEE,
@@ -2114,6 +2120,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 #endif
     break;
 #include <sslopt-case.h>
+
   case 'V':
     usage(1);
     exit(0);

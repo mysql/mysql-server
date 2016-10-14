@@ -13,8 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "vio_priv.h"
+#include "my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
+#include "vio_priv.h"
 
 #ifdef HAVE_OPENSSL
 

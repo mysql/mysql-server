@@ -16,12 +16,11 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
+#include <sys/types.h>
+#include <time.h>
 #include <atomic>
 #include <string>
 #include <vector>
-
-#include <sys/types.h>
-#include <time.h>
 
 #include "binlog.h"            // MYSQL_BIN_LOG
 #include "handler.h"
@@ -29,6 +28,7 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_cond.h"

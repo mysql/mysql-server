@@ -55,7 +55,6 @@
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sharedlib.h"
 #include "my_shm_defaults.h"

@@ -35,13 +35,14 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
-#include <iterator>
 #include <bitset>
+#include <iterator>
 
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mb_wc.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "mysql/service_my_snprintf.h"
 #include "str_uca_type.h"
 #include "template_utils.h"

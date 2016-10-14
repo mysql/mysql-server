@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -39,6 +39,7 @@
 #include "expr_parser.h"
 #include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
 #include "my_global.h"
+#include "my_loglevel.h"
 #include "mysqlx_crud.h"
 #include "mysqlx_error.h"
 #include "mysqlx_protocol.h"
