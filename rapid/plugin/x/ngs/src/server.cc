@@ -54,14 +54,14 @@ Server::Server(ngs::shared_ptr<Server_acceptors>  acceptors,
 {
 }
 
-bool Server::prepare(Ssl_context_unique_ptr ssl_context, const bool skip_networking, const bool skip_name_resolve, const bool use_named_pipes)
+bool Server::prepare(Ssl_context_unique_ptr ssl_context, const bool skip_networking, const bool skip_name_resolve, const bool use_unix_sockets)
 {
   Listener_interface::On_connection on_connection = ngs::bind(&Server::on_accept, this, ngs::placeholders::_1);
 
   m_skip_name_resolve = skip_name_resolve;
   m_ssl_context = ngs::move(ssl_context);
 
-  const bool result = m_acceptors->prepare(on_connection, skip_networking, use_named_pipes);
+  const bool result = m_acceptors->prepare(on_connection, skip_networking, use_unix_sockets);
 
   if (result)
   {
@@ -100,7 +100,7 @@ bool Server::is_running()
 
 bool Server::is_terminating()
 {
-  return m_state.is(State_terminating) || m_delegate->is_terminating();
+  return m_state.is(State_failure) || m_state.is(State_terminating) || m_delegate->is_terminating();
 }
 
 void Server::start()

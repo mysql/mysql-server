@@ -167,7 +167,7 @@ show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_nam
 
 ##try login using mysqlx protocol when server and mysqlx loaded with super user
 let $restart_parameters = restart: --plugin-load=$MYSQLXPLUGIN;
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 --sleep 1
 show status like 'Mysqlx_connections_closed';
@@ -274,7 +274,7 @@ EOF
 ##try login with valid user when server started with localhost as bind-address and mysqlx loaded
 let $restart_parameters = restart: --bind-address=localhost --plugin-load=$MYSQLXPLUGIN;
 --replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --exec $MYSQLXTEST -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 --sleep 1
 --exec $MYSQLXTEST -u nonblank --password='nonblank' -hlocalhost --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
@@ -289,7 +289,7 @@ show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_nam
 ##try login with valid user when server started with 127.0.0.1 as bind-address and mysqlx loaded 
 let $restart_parameters = restart: --bind-address=127.0.0.1 --plugin-load=$MYSQLXPLUGIN;
 --replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --exec $MYSQLXTEST -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 --sleep 1
 show status like 'Mysqlx_connections_closed';
@@ -310,7 +310,7 @@ show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_nam
 ##try login with valid non-super and super user when server is in offline mode and mysqlx loaded
 let $restart_parameters = restart: --offline_mode=ON --plugin-load=$MYSQLXPLUGIN;
 --replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --error 1
 --exec $MYSQLXTEST -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 --sleep 1
@@ -332,7 +332,7 @@ show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_nam
 ##start server with session tracking variables and monitor them using xprotocol
 let $restart_parameters = restart: --plugin-load=$MYSQLXPLUGIN;
 --replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --exec $MYSQLXTEST -u session --password='session' --file=$MYSQL_TMP_DIR/mysqlx-connection_session_track.tmp 2>&1
 --sleep 1
 show status like 'Mysqlx_connections_closed';
@@ -345,7 +345,7 @@ show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_nam
 ###try login with user whose password expired when mysqlx installed and when server started with skip-disconnect-on-expired-password option
 let $restart_parameters = restart:  --skip-disconnect-on-expired-password --plugin-load=$MYSQLXPLUGIN;
 --replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --exec $MYSQLXTEST -u xplugin --password='xplugin' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 --sleep 1
@@ -371,7 +371,7 @@ show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_nam
 ##restart server and try connecting using xprotocol,expect connection success as mysqlxsys user would be created during server restart as plugin gets loaded again
 let $restart_parameters = restart: --plugin-load=$MYSQLXPLUGIN ;
 --replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 --sleep 1
 show status like 'Mysqlx_connections_closed';
@@ -429,7 +429,7 @@ EOF
 ##try to open xprotocol sessions more than mysqlx_max_connections,expect error for last connection
 let $restart_parameters = restart: --plugin-load=$MYSQLXPLUGIN --mysqlx_max_connections=2;
 --replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection.tmp --fatal-errors=1 2>&1
 --sleep 1
 show status like 'Mysqlx_connections_closed';
@@ -486,7 +486,7 @@ drop user con1@localhost;
 drop user con2@localhost;
 let $restart_parameters = restart: --plugin-load=$MYSQLXPLUGIN --mysqlx_max_connections=3;
 --replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection2.tmp 2>&1
 --sleep 1
 show status like 'Mysqlx_connections_closed';

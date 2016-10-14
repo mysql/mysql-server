@@ -21,13 +21,13 @@
 #include "xpl_session.h"
 #include "mysql_show_variable_wrapper.h"
 
+#include "ngs_common/string_formatter.h"
 #include "ngs/thread.h"
 
-#include "cap_handles_expired_passwords.h"
 #include "ngs/capabilities/configurator.h"
 #include "ngs/capabilities/handler_readonly_value.h"
+#include "cap_handles_expired_passwords.h"
 
-#include <boost/algorithm/string/join.hpp>
 #include "mysqlx_version.h"
 #include "mysql_variables.h"
 #include "xpl_client.h"
@@ -156,42 +156,38 @@ void Client::get_status_ssl_cipher_list(st_mysql_show_var * var)
 {
   std::vector<std::string> ciphers = connection().options()->ssl_cipher_list();
 
-  mysqld::xpl_show_var(var).assign(boost::join(ciphers, ":").c_str());
+  mysqld::xpl_show_var(var).assign(ngs::join(ciphers, ":"));
 }
 
 
-std::string Client::resolve_hostname(const std::string &ip)
+std::string Client::resolve_hostname()
 {
   std::string result;
+  std::string socket_ip_string;
+  uint16      socket_port;
 
-  my_socket socket = m_connection->get_socket_id();
-  struct sockaddr_storage addr_storage;
-  struct sockaddr *addr= (struct sockaddr *) &addr_storage;
-  socket_len_t addr_length= sizeof (addr_storage);
+  sockaddr_storage *addr = m_connection->peer_address(socket_ip_string, socket_port);
 
-  /* Get sockaddr by socked fd. */
-
-  const int err_code = getpeername(socket, addr, &addr_length);
-
-  if (err_code)
+  if (NULL == addr)
   {
-    log_error("getpeername failed with error: %i", err_code);
+    log_error("%s: get peer address failed, can't resolve IP to hostname", m_id);
     return "";
   }
 
   char *hostname = NULL;
   uint connect_errors = 0;
-  const int resolve_result = ip_to_hostname(&addr_storage, ip.c_str(), &hostname, &connect_errors);
+  const int resolve_result = ip_to_hostname(addr, socket_ip_string.c_str(), &hostname, &connect_errors);
 
-  if (RC_BLOCKED_HOST == resolve_result)
-  {
+  if (RC_BLOCKED_HOST == resolve_result) {
     throw std::runtime_error("Host is blocked");
   }
 
-  result = hostname;
+  if (hostname) {
+    result = hostname;
 
-  if (!is_localhost(hostname))
-    my_free(hostname);
+    if (!is_localhost(hostname))
+      my_free(hostname);
+  }
 
   return result;
 }

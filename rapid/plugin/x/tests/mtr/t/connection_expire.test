@@ -174,14 +174,14 @@ alter user root@localhost password expire;
 ##try login with password expired user when server started with disconnect_on_expired_password=off option
 set password for root@localhost = '';
 let $restart_parameters = restart: --disconnect_on_expired_password=off;
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --echo Test: expect expired Notice for connection
 --exec $MYSQLXTEST -ufoo  --file=$MYSQL_TMP_DIR/connection_expire_user.tmp 2>&1
 
 ##try login with password expired user when server started with skip-disconnect_on_expired_password option
 set password for root@localhost = '';
 let $restart_parameters = restart: --skip-disconnect_on_expired_password;
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --echo Test: expect expired Notice for connection
 --exec $MYSQLXTEST -ufoo  --file=$MYSQL_TMP_DIR/connection_expire_user.tmp 2>&1
 
@@ -190,7 +190,7 @@ let $restart_parameters = restart: --skip-disconnect_on_expired_password;
 
 ###try execute statements with password exipired user once connected,connect should be successful with --disconnect_on_expired_password and statement execution should be failed until password reset
 let $restart_parameters = restart: --disconnect_on_expired_password;
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --exec $MYSQLXTEST --connect-expired-password -uxplugin -pxplugin  --file=$MYSQL_TMP_DIR/connection_expire_user_xplugin.tmp 2>&1
 
 ## Connect with expired password without advertising connect on expired (should get kicked out)

@@ -9,7 +9,7 @@ Mysqlx.Session.AuthenticateStart {
     mech_name: "PLAIN"
     auth_data: "\0root\0"
 }
--->recvuntil Mysqlx.Session.AuthenticateOk 0
+-->recvuntil Mysqlx.Session.AuthenticateOk do_not_show_intermediate
 EOF
 
 --write_file $MYSQL_TMP_DIR/check_connection.tmp
@@ -37,7 +37,7 @@ Mysqlx.Session.AuthenticateStart {
     mech_name: "PLAIN"
     auth_data: "\0root\0"
 }
--->recvuntil Mysqlx.Session.AuthenticateOk 0
+-->recvuntil Mysqlx.Session.AuthenticateOk do_not_show_intermediate
 EOF
 
 call mtr.add_suppression("Plugin mysqlx reported: ....: Unsuccessful login attempt: Secure transport required. To log in you must use TCP.SSL or UNIX socket connection");
@@ -48,7 +48,7 @@ call mtr.add_suppression("Plugin mysqlx reported: ....: Unsuccessful login attem
 --echo Test different connection types while secure transport when the server was started with this flag set to ON
 # Cases when the flag is dynamicly changes is tests in related x test file (for example connection_ssl.test)
 let $restart_parameters = restart: --require_secure_transport=ON;
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --exec $MYSQLXTEST -n --socket=$MASTER_X_MYSOCK -uroot --password='' --file=$MYSQL_TMP_DIR/check_plain_connection.tmp 2>&1
 --exec $MYSQLXTEST -n -uroot --password='' --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem  --file=$MYSQL_TMP_DIR/check_ssl_plain_connection.tmp 2>&1

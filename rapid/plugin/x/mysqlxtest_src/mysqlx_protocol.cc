@@ -166,12 +166,16 @@ static void throw_server_error(const Mysqlx::Error &error)
 }
 
 
-XProtocol::XProtocol(const Ssl_config &ssl_config, const std::size_t timeout, const bool dont_wait_for_disconnect)
+XProtocol::XProtocol(const Ssl_config &ssl_config,
+                     const std::size_t timeout,
+                     const bool dont_wait_for_disconnect,
+                     const Internet_protocol ip_mode)
 : m_sync_connection(ssl_config.key, ssl_config.ca, ssl_config.ca_path,
                     ssl_config.cert, ssl_config.cipher, ssl_config.tls_version, timeout),
   m_client_id(0),
   m_trace_packets(false), m_closed(true),
-  m_dont_wait_for_disconnect(dont_wait_for_disconnect)
+  m_dont_wait_for_disconnect(dont_wait_for_disconnect),
+  m_ip_mode(ip_mode)
 {
   if (getenv("MYSQLX_TRACE_CONNECTION"))
     m_trace_packets = true;
@@ -225,7 +229,12 @@ void XProtocol::connect(const std::string &host, int port)
   memset(&hints, 0, sizeof(hints));
   hints.ai_socktype= SOCK_STREAM;
   hints.ai_protocol= IPPROTO_TCP;
-  hints.ai_family= AF_INET;
+  hints.ai_family= AF_UNSPEC;
+
+  if (IPv6 == m_ip_mode)
+    hints.ai_family = AF_INET6;
+  else if (IPv4 == m_ip_mode)
+    hints.ai_family = AF_INET;
 
   gai_errno= getaddrinfo(host.c_str(), port_buf, &hints, &res_lst);
   if (gai_errno != 0)
@@ -233,7 +242,7 @@ void XProtocol::connect(const std::string &host, int port)
 
   for (t_res= res_lst; t_res; t_res= t_res->ai_next)
   {
-    error = m_sync_connection.connect((sockaddr_in*)t_res->ai_addr, t_res->ai_addrlen);
+    error = m_sync_connection.connect((sockaddr*)t_res->ai_addr, t_res->ai_addrlen);
 
     if (!error)
       break;
