@@ -21,7 +21,13 @@
 #ifndef _m_ctype_h
 #define _m_ctype_h
 
-#include "my_global.h"                          /* uint16, uchar */
+#include <stdarg.h>
+
+#include "my_byteorder.h"
+#include "my_global.h"
+#include "my_loglevel.h"
+#include "my_inttypes.h"
+#include "my_sharedlib.h"
 #include "str_uca_type.h"
 
 #ifdef	__cplusplus
@@ -49,10 +55,17 @@ extern "C" {
 */
 #if defined(__i386__) || defined(__x86_64__)
 #define MB2(x)                (((x) >> 8) + (((x) & 0xFF) << 8))
-#define MY_PUT_MB2(s, code)   { *((uint16*)(s))= (code); }
+static inline void MY_PUT_MB2(unsigned char *s, uint16 code)
+{
+  int2store(s, code);
+}
 #else
 #define MB2(x)                (x)
-#define MY_PUT_MB2(s, code)   { (s)[0]= code >> 8; (s)[1]= code & 0xFF; }
+static inline void MY_PUT_MB2(unsigned char *s, uint16 code)
+{
+  s[0]= code >> 8;
+  s[1]= code & 0xFF;
+}
 #endif
 
 
