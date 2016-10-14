@@ -1073,8 +1073,6 @@ void fill_dd_indexes_from_keyinfo(THD *thd,
 
     idx_obj->set_type(dd_get_new_index_type(key));
 
-    idx_obj->set_ordinal_position(key_nr);
-
     idx_obj->set_generated(key->flags & HA_GENERATED_KEY);
 
     if (key->comment.str)
@@ -1280,8 +1278,6 @@ static bool fill_dd_foreign_keys_from_create_fields(dd::Table *tab_obj,
     for (uint i= 0; i < key->key_parts; i++)
     {
       dd::Foreign_key_element *fk_col_obj= fk_obj->add_element();
-
-      fk_col_obj->set_ordinal_position(i);
 
       const dd::Column *column=
         tab_obj->get_column(dd::String_type(key->key_part[i].str,
