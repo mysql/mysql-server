@@ -359,7 +359,7 @@ typedef I_List<Item_change_record> Item_change_list;
   Type of locked tables mode.
   See comment for THD::locked_tables_mode for complete description.
   While adding new enum values add them to the getter method for this enum
-  declared below and defined in sql_class.cc as well.
+  declared below and defined in binlog.cc as well.
 */
 
 enum enum_locked_tables_mode
