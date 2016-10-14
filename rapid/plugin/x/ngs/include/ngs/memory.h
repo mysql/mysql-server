@@ -20,7 +20,6 @@
 #ifndef _NGS_MEMORY_H_
 #define _NGS_MEMORY_H_
 
-#include <boost/none.hpp>
 #include "ngs_common/smart_ptr.h"
 #include "ngs_common/bind.h"
 
@@ -41,39 +40,6 @@ template <typename Type, typename DeleterType = ngs::function<void (Type *value_
 struct Custom_allocator
 {
   typedef ngs::unique_ptr<Type, DeleterType > Unique_ptr;
-};
-
-template<typename Type>
-struct Custom_allocator_with_check
-{
-  typedef void (*functor_type)(Type *ptr);
-
-  Custom_allocator_with_check()
-  {
-    function = Custom_allocator_default_delete<Type>;
-  }
-
-  Custom_allocator_with_check(const boost::none_t &)
-  {
-    function = NULL;
-  }
-
-  Custom_allocator_with_check(functor_type user_function)
-  {
-    function = user_function;
-  }
-
-  void operator() (Type *ptr)
-  {
-    if (function)
-    {
-      function(ptr);
-    }
-  }
-
-  functor_type function;
-
-  typedef ngs::unique_ptr<Type, Custom_allocator_with_check<Type> > Unique_ptr;
 };
 
 
@@ -159,6 +125,17 @@ T *allocate_object(Arg1 const &arg1, Arg2 const &arg2, Arg3 const &arg3, Arg4 co
   return new ( my_malloc( x_psf_objects_key, sizeof(T), MYF(MY_WME) ) ) T(arg1, arg2, arg3, arg4);
 }
 
+template <typename T, typename Arg1, typename Arg2, typename Arg3, typename Arg4, typename Arg5>
+T *allocate_object(Arg1 const &arg1, Arg2 const &arg2, Arg3 const &arg3, Arg4 const &arg4, Arg5 const &arg5)
+{
+  return new ( my_malloc( x_psf_objects_key, sizeof(T), MYF(MY_WME) ) ) T(arg1, arg2, arg3, arg4, arg5);
+}
+
+template <typename T, typename Arg1, typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6>
+T *allocate_object(Arg1 const &arg1, Arg2 const &arg2, Arg3 const &arg3, Arg4 const &arg4, Arg5 const &arg5, Arg6 const &arg6)
+{
+  return new ( my_malloc( x_psf_objects_key, sizeof(T), MYF(MY_WME) ) ) T(arg1, arg2, arg3, arg4, arg5, arg6);
+}
 
 template <typename T>
 ngs::shared_ptr<T> allocate_shared()
@@ -192,6 +169,18 @@ template <typename T, typename Arg1, typename Arg2, typename Arg3, typename Arg4
 ngs::shared_ptr<T> allocate_shared(Arg1 const &arg1, Arg2 const &arg2, Arg3 const &arg3, Arg4 const &arg4)
 {
   return ngs::detail::allocate_shared<T>(detail::PFS_allocator<T>(), arg1, arg2, arg3, arg4);
+}
+
+template <typename T, typename Arg1, typename Arg2, typename Arg3, typename Arg4, typename Arg5>
+ngs::shared_ptr<T> allocate_shared(Arg1 const &arg1, Arg2 const &arg2, Arg3 const &arg3, Arg4 const &arg4, Arg5 const &arg5)
+{
+  return ngs::detail::allocate_shared<T>(detail::PFS_allocator<T>(), arg1, arg2, arg3, arg4, arg5);
+}
+
+template <typename T, typename Arg1, typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6>
+ngs::shared_ptr<T> allocate_shared(Arg1 const &arg1, Arg2 const &arg2, Arg3 const &arg3, Arg4 const &arg4, Arg5 const &arg5, Arg6 const &arg6)
+{
+  return ngs::detail::allocate_shared<T>(detail::PFS_allocator<T>(), arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 

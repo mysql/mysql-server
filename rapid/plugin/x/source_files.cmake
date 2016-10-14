@@ -43,6 +43,8 @@ FILE(GLOB ngs_SRC
 )
 
 SET(xplugin_HDRS
+  "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_tcp.h"
+  "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_unix_socket.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_server.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_session.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_client.h"
@@ -81,6 +83,8 @@ SET(xplugin_HDRS
 
 SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/xpl_log.cc"
+  "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_tcp.cc"
+  "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_unix_socket.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_server.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_session.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_client.cc"
@@ -88,7 +92,7 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/xpl_system_variables.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_replication_observer.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_regex.cc"
-  "${MYSQLX_PROJECT_DIR}/src/xpl_listener_factory.cc"
+  "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_factory.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_variables.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_function_names.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_show_variable_wrapper.cc"

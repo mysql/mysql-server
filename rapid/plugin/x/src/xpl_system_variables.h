@@ -65,7 +65,8 @@ public:
   static unsigned int max_allowed_packet;
   static unsigned int connect_timeout;
   static char        *socket;
-  static my_bool      named_pipe;
+  static unsigned int port_open_timeout;
+  static char        *bind_address;
 
   static Ssl_config ssl_config;
 

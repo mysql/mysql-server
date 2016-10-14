@@ -192,19 +192,22 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo checking directly from IS tables
 Mysqlx.Sql.StmtExecute {
-  stmt: "select * from information_schema.session_variables where variable_name like 'max_join_size';"
+  stmt: "select * from performance_schema.session_variables where variable_name like 'max_join_size';"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
 
 Mysqlx.Sql.StmtExecute {
-  stmt: "select * from information_schema.session_variables where variable_name like 'concurrent_insert';"
+  stmt: "select * from performance_schema.session_variables where variable_name like 'concurrent_insert';"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
 
 Mysqlx.Sql.StmtExecute {
-  stmt: "select * from information_schema.session_variables where variable_name like 'default_storage_engine';"
+  stmt: "select * from performance_schema.session_variables where variable_name like 'default_storage_engine';"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
 
 -->echo checking errors and warnings with duplicate table
 Mysqlx.Sql.StmtExecute {
@@ -272,7 +275,8 @@ Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecute {
   stmt: "show status like \"Opened_tables\";"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
 
 Mysqlx.Sql.StmtExecute {
   stmt: "select * from t1;"
@@ -336,7 +340,8 @@ Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecute {
  stmt: "show variables like 'max_error_count';"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
 
 Mysqlx.Sql.StmtExecute {
  stmt: "set max_error_count=64;"
@@ -1246,7 +1251,7 @@ create user xplugin@localhost identified by 'xplugin';
 
 ##verify Mysqlx_notice_other_sent,Mysqlx_stmt_disable_notices with show_compatibility_56=ON
 let $restart_parameters = restart: --show_compatibility_56=ON;
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 ##expect Mysqlx_notice_other_sent=0,Mysqlx_stmt_disable_notices=2 with both native and xconnection
 ##change result file once Bug#21781263 is fixed
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stats_disablenoti.tmp 2>&1

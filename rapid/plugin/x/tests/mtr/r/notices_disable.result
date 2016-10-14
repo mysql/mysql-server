@@ -677,43 +677,7 @@ Mysqlx.Sql.StmtExecuteOk {
 
 checking directly from IS tables
 send Mysqlx.Sql.StmtExecute {
-  stmt: "select * from information_schema.session_variables where variable_name like \'max_join_size\';"
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "VARIABLE_NAME"
-  original_name: "VARIABLE_NAME"
-  table: "session_variables"
-  original_table: "SESSION_VARIABLES"
-  schema: "information_schema"
-  catalog: "def"
-  collation: 33
-  fractional_digits: 0
-  length: 192
-  flags: 16
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "VARIABLE_VALUE"
-  original_name: "VARIABLE_VALUE"
-  table: "session_variables"
-  original_table: "SESSION_VARIABLES"
-  schema: "information_schema"
-  catalog: "def"
-  collation: 33
-  fractional_digits: 0
-  length: 3072
-  flags: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: "MAX_JOIN_SIZE\000"
-  field: "18446744073709551615\000"
-}
-
-Mysqlx.Resultset.FetchDone {
+  stmt: "select * from performance_schema.session_variables where variable_name like \'max_join_size\';"
 }
 
 Mysqlx.Notice.Frame {
@@ -726,43 +690,7 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 send Mysqlx.Sql.StmtExecute {
-  stmt: "select * from information_schema.session_variables where variable_name like \'concurrent_insert\';"
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "VARIABLE_NAME"
-  original_name: "VARIABLE_NAME"
-  table: "session_variables"
-  original_table: "SESSION_VARIABLES"
-  schema: "information_schema"
-  catalog: "def"
-  collation: 33
-  fractional_digits: 0
-  length: 192
-  flags: 16
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "VARIABLE_VALUE"
-  original_name: "VARIABLE_VALUE"
-  table: "session_variables"
-  original_table: "SESSION_VARIABLES"
-  schema: "information_schema"
-  catalog: "def"
-  collation: 33
-  fractional_digits: 0
-  length: 3072
-  flags: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: "CONCURRENT_INSERT\000"
-  field: "AUTO\000"
-}
-
-Mysqlx.Resultset.FetchDone {
+  stmt: "select * from performance_schema.session_variables where variable_name like \'concurrent_insert\';"
 }
 
 Mysqlx.Notice.Frame {
@@ -775,43 +703,7 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 send Mysqlx.Sql.StmtExecute {
-  stmt: "select * from information_schema.session_variables where variable_name like \'default_storage_engine\';"
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "VARIABLE_NAME"
-  original_name: "VARIABLE_NAME"
-  table: "session_variables"
-  original_table: "SESSION_VARIABLES"
-  schema: "information_schema"
-  catalog: "def"
-  collation: 33
-  fractional_digits: 0
-  length: 192
-  flags: 16
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "VARIABLE_VALUE"
-  original_name: "VARIABLE_VALUE"
-  table: "session_variables"
-  original_table: "SESSION_VARIABLES"
-  schema: "information_schema"
-  catalog: "def"
-  collation: 33
-  fractional_digits: 0
-  length: 3072
-  flags: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: "DEFAULT_STORAGE_ENGINE\000"
-  field: "InnoDB\000"
-}
-
-Mysqlx.Resultset.FetchDone {
+  stmt: "select * from performance_schema.session_variables where variable_name like \'default_storage_engine\';"
 }
 
 Mysqlx.Notice.Frame {
@@ -1071,42 +963,6 @@ send Mysqlx.Sql.StmtExecute {
   stmt: "show status like \"Opened_tables\";"
 }
 
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "Variable_name"
-  original_name: "VARIABLE_NAME"
-  table: "STATUS"
-  original_table: "STATUS"
-  schema: "information_schema"
-  catalog: "def"
-  collation: 33
-  fractional_digits: 0
-  length: 192
-  flags: 16
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "Value"
-  original_name: "VARIABLE_VALUE"
-  table: "STATUS"
-  original_table: "STATUS"
-  schema: "information_schema"
-  catalog: "def"
-  collation: 33
-  fractional_digits: 0
-  length: 3072
-  flags: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: "Opened_tables\000"
-  field: "1\000"
-}
-
-Mysqlx.Resultset.FetchDone {
-}
-
 Mysqlx.Notice.Frame {
   type: 3
   scope: LOCAL
@@ -1281,42 +1137,6 @@ Mysqlx.Sql.StmtExecuteOk {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "show variables like \'max_error_count\';"
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "Variable_name"
-  original_name: "VARIABLE_NAME"
-  table: "VARIABLES"
-  original_table: "VARIABLES"
-  schema: "information_schema"
-  catalog: "def"
-  collation: 33
-  fractional_digits: 0
-  length: 192
-  flags: 16
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "Value"
-  original_name: "VARIABLE_VALUE"
-  table: "VARIABLES"
-  original_table: "VARIABLES"
-  schema: "information_schema"
-  catalog: "def"
-  collation: 33
-  fractional_digits: 0
-  length: 3072
-  flags: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: "max_error_count\000"
-  field: "0\000"
-}
-
-Mysqlx.Resultset.FetchDone {
 }
 
 Mysqlx.Notice.Frame {

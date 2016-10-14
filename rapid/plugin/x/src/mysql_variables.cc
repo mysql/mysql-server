@@ -43,5 +43,4 @@ const CHARSET_INFO *get_charset_utf8mb4_general_ci()
   return &my_charset_utf8mb4_general_ci;
 }
 
-
 } // namespace mysqld
