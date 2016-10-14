@@ -4138,6 +4138,13 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
                                       bool can_deadlock)
 {
   bool error;
+
+  DBUG_EXECUTE_IF("simulate_try_acquire_high_prio_shared_mdl_lock_timeout_error",
+                  {
+                    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+                    return true;
+                  });
+
   MDL_REQUEST_INIT(&table->mdl_request,
                    MDL_key::TABLE, table->db, table->table_name,
                    MDL_SHARED_HIGH_PRIO, MDL_TRANSACTION);
@@ -4664,6 +4671,8 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 
             if (!res)
               continue;
+            else
+              goto err;
           }
 
           DEBUG_SYNC(thd, "before_open_in_get_all_tables");
