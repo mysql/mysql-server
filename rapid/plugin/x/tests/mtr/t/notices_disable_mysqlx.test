@@ -117,13 +117,13 @@
 -->recvresult
 
 -->echo checking directly from IS tables
--->stmtsql select * from information_schema.session_variables where variable_name like 'max_join_size';
+-->stmtsql select * from performance_schema.session_variables where variable_name like 'max_join_size';
 -->recvresult
 
--->stmtsql select * from information_schema.session_variables where variable_name like 'concurrent_insert';
+-->stmtsql select * from performance_schema.session_variables where variable_name like 'concurrent_insert';
 -->recvresult
 
--->stmtsql select * from information_schema.session_variables where variable_name like 'default_storage_engine';
+-->stmtsql select * from performance_schema.session_variables where variable_name like 'default_storage_engine';
 -->recvresult
 
 -->echo checking errors and warnings with duplicate table
@@ -794,7 +794,7 @@ create user xplugin@localhost identified by 'xplugin';
 
 ##verify Mysqlx_notice_other_sent,Mysqlx_stmt_disable_notices with show_compatibility_56=ON
 let $restart_parameters = restart: --show_compatibility_56=ON;
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 ##expect Mysqlx_notice_other_sent=0,Mysqlx_stmt_disable_notices=2 with both native and xconnection
 ##change result file once Bug#21781263 is fixed
 --exec $MYSQLXTEST -uroot --password='' --file=$xtest_disable 2>&1

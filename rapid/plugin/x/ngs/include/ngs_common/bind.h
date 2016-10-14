@@ -20,7 +20,6 @@
 #ifndef _NGS_BIND_H_
 #define _NGS_BIND_H_
 
-
 #include <boost/bind.hpp>
 #include <boost/function.hpp>
 #include <boost/ref.hpp>

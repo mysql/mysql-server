@@ -38,3 +38,5 @@ perl mysql-test-run.pl --timer --force   --parallel=auto  --comment=eits-tests-m
 perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-tests-innodb-engine --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs  --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --skip-test-list=collections/disabled-daily.list
 # Memcached tests
 perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=1 --retry=0 --suite=memcached --skip-test-list=collections/disabled-daily.list
+# test x plugin
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=x --vardir=var-x --suite=x --experimental=collections/default.experimental

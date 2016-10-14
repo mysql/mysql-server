@@ -51,8 +51,7 @@ class Server : public ngs::Server_delegate
 public:
   Server(ngs::shared_ptr<ngs::Server_acceptors> acceptors,
          ngs::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-         ngs::shared_ptr<ngs::Protocol_config> config,
-         const std::string &unix_socket_or_named_pipe);
+         ngs::shared_ptr<ngs::Protocol_config> config);
 
   static int main(MYSQL_PLUGIN p);
   static int exit(MYSQL_PLUGIN p);
@@ -81,7 +80,10 @@ public:
   ngs::Server &server() { return m_server; }
 
   ngs::Error_code kill_client(uint64_t client_id, Session &requester);
+
   std::string get_socket_file();
+  std::string get_tcp_bind_address();
+  std::string get_tcp_port();
 
   typedef ngs::Locked_container<Server, ngs::RWLock_readlock, ngs::RWLock> Server_with_lock;
   typedef ngs::Memory_instrumented<Server_with_lock>::Unique_ptr Server_ref;
@@ -132,7 +134,6 @@ private:
   ngs::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
   ngs::Mutex  m_accepting_mutex;
   ngs::Server m_server;
-  std::string m_unix_socket_or_named_pipe;
 
   static bool exiting;
   static bool is_exiting();
@@ -192,7 +193,6 @@ void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff
   }
 }
 
-
 template <typename ReturnType, ReturnType (Server::*method)()>
 void Server::global_status_variable_server_with_return(THD *thd, st_mysql_show_var *var, char *buff)
 {
@@ -204,6 +204,7 @@ void Server::global_status_variable_server_with_return(THD *thd, st_mysql_show_v
   {
     Server* server_ptr = server->container();
     ReturnType result = (server_ptr->*method)();
+
     mysqld::xpl_show_var(var).assign(result);
   }
 }

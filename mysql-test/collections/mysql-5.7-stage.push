@@ -40,4 +40,5 @@ perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-tests-inn
 perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=1 --retry=0 --suite=memcached --skip-test-list=collections/disabled-daily.list
 # test-sql-api-plugins
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=test_service_sql_api --vardir=var-test_service_sql_api --suite=test_service_sql_api --experimental=collections/default.experimental --skip-ndb
-
+# test x plugin
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=x --vardir=var-x --suite=x --experimental=collections/default.experimental

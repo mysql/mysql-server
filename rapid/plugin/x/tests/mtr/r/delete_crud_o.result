@@ -1004,37 +1004,37 @@ ok
 .
 #---------- START COLLECTION TESTING----------#
 .
-RUN DROP SCHEMA if EXISTS mysqlxpluginColl
+RUN DROP SCHEMA if EXISTS mysqlxplugin_coll
 
 0 rows affected
-RUN CREATE SCHEMA mysqlxpluginColl
+RUN CREATE SCHEMA mysqlxplugin_coll
 
 1 rows affected
-RUN USE mysqlxpluginColl
+RUN USE mysqlxplugin_coll
 
 0 rows affected
-RUN CREATE TABLE mysqlxpluginColl.MainCollection (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY)
+RUN CREATE TABLE mysqlxplugin_coll.main_collection (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY)
 
 0 rows affected
-RUN insert into mysqlxpluginColl.MainCollection (doc, _id) values ('{"_id": "1", "name": "Omar", "Last_Name":"Andrei"}', json_unquote(json_extract(doc, '$._id')))
+RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "1", "name": "Omar", "Last_Name":"Andrei"}', json_unquote(json_extract(doc, '$._id')))
 
 1 rows affected
-RUN insert into mysqlxpluginColl.MainCollection (doc, _id) values ('{"_id": "2", "name": "Alfonso", "Last_Name":"Pavluchenko"}', json_unquote(json_extract(doc, '$._id')))
+RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "2", "name": "Alfonso", "Last_Name":"Pavluchenko"}', json_unquote(json_extract(doc, '$._id')))
 
 1 rows affected
-RUN insert into mysqlxpluginColl.MainCollection (doc, _id) values ('{"_id": "3", "name": "Rodrigo", "Last_Name":"Kernel"}', json_unquote(json_extract(doc, '$._id')))
+RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "3", "name": "Rodrigo", "Last_Name":"Kernel"}', json_unquote(json_extract(doc, '$._id')))
 
 1 rows affected
-RUN insert into mysqlxpluginColl.MainCollection (doc, _id) values ('{"_id": "4", "name": "Omar", "Last_Name":"Kerball"}', json_unquote(json_extract(doc, '$._id')))
+RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "4", "name": "Omar", "Last_Name":"Kerball"}', json_unquote(json_extract(doc, '$._id')))
 
 1 rows affected
-RUN insert into mysqlxpluginColl.MainCollection (doc, _id) values ('{"_id": "5", "name": "Omar", "Last_Name":"Lopez"}', json_unquote(json_extract(doc, '$._id')))
+RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "5", "name": "Omar", "Last_Name":"Lopez"}', json_unquote(json_extract(doc, '$._id')))
 
 1 rows affected
-RUN insert into mysqlxpluginColl.MainCollection (doc, _id) values ('{"_id": "6", "name": "Javier", "Last_Name":"Torres"}', json_unquote(json_extract(doc, '$._id')))
+RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "6", "name": "Javier", "Last_Name":"Torres"}', json_unquote(json_extract(doc, '$._id')))
 
 1 rows affected
-RUN select * from mysqlxpluginColl.MainCollection
+RUN select * from mysqlxplugin_coll.main_collection
 doc	_id
 {"_id": "1", "name": "Omar", "Last_Name": "Andrei"}	1
 {"_id": "2", "name": "Alfonso", "Last_Name": "Pavluchenko"}	2
@@ -1046,8 +1046,8 @@ doc	_id
 Delete collection rows with in Operator and based in ID
 send Mysqlx.Crud.Delete {
   collection {
-    name: "MainCollection"
-    schema: "mysqlxpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   criteria {
@@ -1084,7 +1084,7 @@ send Mysqlx.Crud.Delete {
 
 
 2 rows affected
-RUN select * from mysqlxpluginColl.MainCollection
+RUN select * from mysqlxplugin_coll.main_collection
 doc	_id
 {"_id": "2", "name": "Alfonso", "Last_Name": "Pavluchenko"}	2
 {"_id": "4", "name": "Omar", "Last_Name": "Kerball"}	4
@@ -1094,8 +1094,8 @@ doc	_id
 Delete collection row with == Operator
 send Mysqlx.Crud.Delete {
   collection {
-    name: "MainCollection"
-    schema: "mysqlxpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   criteria {
@@ -1126,7 +1126,7 @@ send Mysqlx.Crud.Delete {
 
 
 1 rows affected
-RUN select * from mysqlxpluginColl.MainCollection
+RUN select * from mysqlxplugin_coll.main_collection
 doc	_id
 {"_id": "4", "name": "Omar", "Last_Name": "Kerball"}	4
 {"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
@@ -1135,8 +1135,8 @@ doc	_id
 Delete collection row with != Operator
 send Mysqlx.Crud.Delete {
   collection {
-    name: "MainCollection"
-    schema: "mysqlxpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   criteria {
@@ -1167,7 +1167,7 @@ send Mysqlx.Crud.Delete {
 
 
 1 rows affected
-RUN select * from mysqlxpluginColl.MainCollection
+RUN select * from mysqlxplugin_coll.main_collection
 doc	_id
 {"_id": "4", "name": "Omar", "Last_Name": "Kerball"}	4
 {"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
@@ -1175,8 +1175,8 @@ doc	_id
 Delete collection row with not in Operator
 send Mysqlx.Crud.Delete {
   collection {
-    name: "MainCollection"
-    schema: "mysqlxpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   criteria {
@@ -1207,15 +1207,15 @@ send Mysqlx.Crud.Delete {
 
 
 1 rows affected
-RUN select * from mysqlxpluginColl.MainCollection
+RUN select * from mysqlxplugin_coll.main_collection
 doc	_id
 {"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
 0 rows affected
 Delete collection wrong schema
 send Mysqlx.Crud.Delete {
   collection {
-    name: "MainCollection"
-    schema: "NotAvailableSchema"
+    name: "main_collection"
+    schema: "not_available_schema"
   }
   data_model: DOCUMENT
   criteria {
@@ -1247,15 +1247,15 @@ send Mysqlx.Crud.Delete {
 Mysqlx.Error {
   severity: ERROR
   code: 1146
-  msg: "Table \'notavailableschema.maincollection\' doesn\'t exist"
+  msg: "Table \'not_available_schema.main_collection\' doesn\'t exist"
   sql_state: "42S02"
 }
 
 Delete collection wrong collection
 send Mysqlx.Crud.Delete {
   collection {
-    name: "NotAvailableCollection"
-    schema: "mysqlxpluginColl"
+    name: "not_available_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   criteria {
@@ -1287,15 +1287,15 @@ send Mysqlx.Crud.Delete {
 Mysqlx.Error {
   severity: ERROR
   code: 1146
-  msg: "Table \'mysqlxplugincoll.notavailablecollection\' doesn\'t exist"
+  msg: "Table \'mysqlxplugin_coll.not_available_collection\' doesn\'t exist"
   sql_state: "42S02"
 }
 
 Delete collection wrong member
 send Mysqlx.Crud.Delete {
   collection {
-    name: "MainCollection"
-    schema: "mysqlxpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   criteria {
@@ -1332,7 +1332,7 @@ CLEAN UP
 RUN DROP SCHEMA if EXISTS mysqlxplugin
 
 2 rows affected
-RUN DROP SCHEMA if EXISTS mysqlxpluginColl
+RUN DROP SCHEMA if EXISTS mysqlxplugin_coll
 
 1 rows affected
 RUN DROP USER deletecruduser@localhost

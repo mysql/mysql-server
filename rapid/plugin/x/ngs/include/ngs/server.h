@@ -35,10 +35,10 @@
 #include "ngs/protocol/protocol_config.h"
 #include "ngs/protocol_encoder.h"
 #include "ngs/protocol_authentication.h"
-#include "ngs/time_socket_events.h"
 #include "ngs/client_list.h"
 #include "ngs/thread.h"
 #include "ngs_common/bind.h"
+#include "socket_events.h"
 
 
 namespace ngs
@@ -66,7 +66,7 @@ public:
 
   virtual Ssl_context *ssl_context() const { return m_ssl_context.get(); }
 
-  bool prepare(Ssl_context_unique_ptr ssl_context, const bool skip_networking, const bool skip_name_resolve, const bool use_named_pipes);
+  bool prepare(Ssl_context_unique_ptr ssl_context, const bool skip_networking, const bool skip_name_resolve, const bool use_unix_sockets);
 
   void start();
   void start_failed();
