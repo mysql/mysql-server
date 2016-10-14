@@ -19,16 +19,30 @@
 
 /* my_setwd() and my_getwd() works with intern_filenames !! */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include <m_string.h>
-#include "mysys_err.h"
-#include "my_thread_local.h"
+#include "my_config.h"
+
+#include <errno.h>
+#include <string.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "m_string.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_static.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysys_err.h"
 #if defined(_WIN32)
-#include <m_ctype.h>
-#include <dos.h>
 #include <direct.h>
+#include <dos.h>
+
+#include "m_ctype.h"
 #endif
 
 /* Gets current working directory in buff.

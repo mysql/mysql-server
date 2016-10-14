@@ -1226,7 +1226,7 @@ bool
 dict_table_in_shared_tablespace(
 	const dict_table_t*	table)
 {
-	return(is_system_tablespace(table->space)
+	return(fsp_is_system_or_temp_tablespace(table->space)
 		|| DICT_TF_HAS_SHARED_SPACE(table->flags));
 }
 
@@ -1281,7 +1281,7 @@ dict_table_is_file_per_table(
 	const dict_table_t*	table)	/*!< in: table to check */
 {
 	bool is_file_per_table =
-		!is_system_tablespace(table->space)
+		!fsp_is_system_or_temp_tablespace(table->space)
 		&& !DICT_TF_HAS_SHARED_SPACE(table->flags);
 
 	/* If the table is file-per-table and it is not redundant, then

@@ -23,11 +23,17 @@
   of queue_fix was implemented.
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "mysys_err.h"
 #include <queues.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "my_systime.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys_priv.h"
 
 int resize_queue(QUEUE *queue, uint max_elements);
 

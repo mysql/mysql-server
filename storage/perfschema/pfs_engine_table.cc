@@ -694,7 +694,7 @@ public:
   {}
 };
 
-void PFS_check_intact::report_error(uint code, const char *fmt, ...)
+void PFS_check_intact::report_error(uint, const char *fmt, ...)
 {
   va_list args;
   char buff[MYSQL_ERRMSG_SIZE];
@@ -1160,8 +1160,7 @@ int PFS_engine_table::index_read(KEY *key_infos,
   Reads the next row matching the given key value.
   @return 0, HA_ERR_END_OF_FILE, or error
 */
-int PFS_engine_table::index_next_same(const uchar *key,
-                                      uint key_len)
+int PFS_engine_table::index_next_same(const uchar*, uint)
 {
   return index_next();
 }
@@ -1184,7 +1183,7 @@ public:
 
 ACL_internal_access_result
 PFS_internal_schema_access::check(ulong want_access,
-                                  ulong *save_priv)  const
+                                  ulong*)  const
 {
   const ulong always_forbidden= /* CREATE_ACL | */ REFERENCES_ACL
     | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL | EXECUTE_ACL
@@ -1236,7 +1235,7 @@ void initialize_performance_schema_acl(bool bootstrap)
 PFS_readonly_acl pfs_readonly_acl;
 
 ACL_internal_access_result
-PFS_readonly_acl::check(ulong want_access, ulong *save_priv) const
+PFS_readonly_acl::check(ulong want_access, ulong*) const
 {
   const ulong always_forbidden= INSERT_ACL | UPDATE_ACL | DELETE_ACL
     | /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL | ALTER_ACL
@@ -1264,7 +1263,7 @@ PFS_readonly_world_acl::check(ulong want_access, ulong *save_priv) const
 PFS_truncatable_acl pfs_truncatable_acl;
 
 ACL_internal_access_result
-PFS_truncatable_acl::check(ulong want_access, ulong *save_priv) const
+PFS_truncatable_acl::check(ulong want_access, ulong*) const
 {
   const ulong always_forbidden= INSERT_ACL | UPDATE_ACL | DELETE_ACL
     | /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL | ALTER_ACL
@@ -1292,7 +1291,7 @@ PFS_truncatable_world_acl::check(ulong want_access, ulong *save_priv) const
 PFS_updatable_acl pfs_updatable_acl;
 
 ACL_internal_access_result
-PFS_updatable_acl::check(ulong want_access, ulong *save_priv) const
+PFS_updatable_acl::check(ulong want_access, ulong*) const
 {
   const ulong always_forbidden= INSERT_ACL | DELETE_ACL
     | /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL | ALTER_ACL
@@ -1307,7 +1306,7 @@ PFS_updatable_acl::check(ulong want_access, ulong *save_priv) const
 PFS_editable_acl pfs_editable_acl;
 
 ACL_internal_access_result
-PFS_editable_acl::check(ulong want_access, ulong *save_priv) const
+PFS_editable_acl::check(ulong want_access, ulong*) const
 {
   const ulong always_forbidden= /* CREATE_ACL | */ REFERENCES_ACL
     | INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL;
@@ -1321,7 +1320,7 @@ PFS_editable_acl::check(ulong want_access, ulong *save_priv) const
 PFS_unknown_acl pfs_unknown_acl;
 
 ACL_internal_access_result
-PFS_unknown_acl::check(ulong want_access, ulong *save_priv) const
+PFS_unknown_acl::check(ulong want_access, ulong*) const
 {
   const ulong always_forbidden= CREATE_ACL
     | REFERENCES_ACL | INDEX_ACL | ALTER_ACL

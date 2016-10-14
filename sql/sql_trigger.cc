@@ -94,7 +94,16 @@ bool add_table_for_trigger(THD *thd,
     DBUG_RETURN(true);
   }
 
-  *table= sp_add_to_query_tables(thd, lex, db_name.str, table_name.c_str());
+  char lc_table_name[NAME_LEN + 1];
+  const char *table_name_ptr= table_name.c_str();
+  if (lower_case_table_names == 2)
+  {
+    my_stpncpy(lc_table_name, table_name.c_str(), NAME_LEN);
+    my_casedn_str(files_charset_info, lc_table_name);
+    lc_table_name[NAME_LEN]= '\0';
+    table_name_ptr= lc_table_name;
+  }
+  *table= sp_add_to_query_tables(thd, lex, db_name.str, table_name_ptr);
 
   DBUG_RETURN(*table ? false : true);
 }

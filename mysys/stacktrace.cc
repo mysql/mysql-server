@@ -17,12 +17,28 @@
   @file mysys/stacktrace.cc
 */
 
+#include "my_config.h"
+
+#include <errno.h>
+#include <fcntl.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#ifdef __linux__
+#include <syscall.h>
+#endif
+#include <time.h>
+
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_stacktrace.h"
 
 #ifndef _WIN32
-#include "my_thread.h"
-#include "m_string.h"
 #include <signal.h>
+
+#include "my_thread.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -30,7 +46,6 @@
 
 #ifdef __linux__
 #include <ctype.h>          /* isprint */
-#include <sys/syscall.h>    /* SYS_gettid */
 #endif
 
 #ifdef HAVE_EXECINFO_H
@@ -183,6 +198,7 @@ void my_print_stacktrace(uchar* stack_bottom MY_ATTRIBUTE((unused)),
 #ifdef HAVE_ABI_CXA_DEMANGLE
 
 #include <cxxabi.h>
+
 static char *my_demangle(const char *mangled_name, int *status)
 {
   return abi::__cxa_demangle(mangled_name, NULL, NULL, status);
@@ -524,6 +540,7 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid)
 {
   char path[MAX_PATH];
   MINIDUMP_EXCEPTION_INFORMATION info;
+  PMINIDUMP_EXCEPTION_INFORMATION info_ptr= NULL;
   HANDLE hFile;
 
   if (process == 0)
@@ -534,6 +551,7 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid)
     info.ExceptionPointers= exception_ptrs;
     info.ClientPointers= FALSE;
     info.ThreadId= GetCurrentThreadId();
+    info_ptr= &info;
   }
 
   hFile= CreateFile(name, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,
@@ -545,7 +563,7 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid)
                                         MiniDumpWithProcessThreadData);
     /* Create minidump, use info only if same process. */
     if(MiniDumpWriteDump(process, pid, hFile, mdt,
-                         process ? &info : NULL, 0, 0))
+                         info_ptr, 0, 0))
     {
       my_safe_printf_stderr("Minidump written to %s\n",
                             _fullpath(path, name, sizeof(path)) ?

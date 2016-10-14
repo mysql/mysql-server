@@ -16,6 +16,7 @@ drop table if exists t1,t2;
 --enable_warnings
 SET SQL_WARNINGS=1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET @default_table_open_cache = @@table_open_cache;
 #
 # Test problem with CHECK TABLE;
 #
@@ -1247,7 +1248,7 @@ ANALYZE TABLE t1;
 SELECT TABLE_ROWS, DATA_LENGTH FROM INFORMATION_SCHEMA.TABLES
   WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
 DROP TABLE t1;
-SET GLOBAL table_open_cache=DEFAULT;
+SET GLOBAL table_open_cache= @default_table_open_cache;
 
 --echo End of 5.0 tests
 

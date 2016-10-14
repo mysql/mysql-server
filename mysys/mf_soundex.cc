@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,8 +37,9 @@
   @file mysys/mf_soundex.cc
 */
 
-#include "mysys_priv.h"
 #include <m_ctype.h>
+
+#include "my_inttypes.h"
 #include "my_static.h"
 
 static char get_scode(CHARSET_INFO * cs, char **ptr,pbool remove_garbage);

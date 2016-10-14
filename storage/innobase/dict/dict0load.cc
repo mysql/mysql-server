@@ -1781,11 +1781,10 @@ dict_check_sys_tablespaces(
 
 		/* Ignore system and file-per-table tablespaces,
 		and tablespaces that already are in the tablespace cache. */
-		if (is_system_tablespace(space_id)
+		if (fsp_is_system_or_temp_tablespace(space_id)
 		    || !fsp_is_shared_tablespace(fsp_flags)
 		    || fil_space_for_table_exists_in_mem(
-			    space_id, space_name,
-			    false, true, NULL, 0)) {
+			    space_id, space_name, false, true, NULL, 0)) {
 			continue;
 		}
 
@@ -1967,7 +1966,7 @@ dict_check_sys_tables(
 					 &table_id, &space_id,
 					 &n_cols, &flags, &flags2);
 		if (flags == ULINT_UNDEFINED
-		    || is_system_tablespace(space_id)) {
+		    || fsp_is_system_or_temp_tablespace(space_id)) {
 			ut_free(table_name.m_name);
 			continue;
 		}
@@ -2782,8 +2781,8 @@ dict_load_tablespace(
 {
 	ut_ad(!table->is_temporary());
 
-	/* The system tablespace is always available. */
-	if (is_system_tablespace(table->space)) {
+	/* The system and temporary tablespaces are preloaded and always available. */
+	if (fsp_is_system_or_temp_tablespace(table->space)) {
 		return;
 	}
 
@@ -3047,7 +3046,7 @@ err_exit:
 	field) if the datafiles are from 3.23.52 version. To identify this
 	version, we do the below check and reset the flags. */
 	if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
-	    && table->space == srv_sys_space.space_id()
+	    && table->space == TRX_SYS_SPACE
 	    && table->flags == 0) {
 		table->flags2 = 0;
 	}

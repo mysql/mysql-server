@@ -103,16 +103,16 @@ public:
   const_pointer address(const_reference r) const { return &r; }
 
   template <class U>
-  Stateless_allocator(const Stateless_allocator_type<U> &other)
+  Stateless_allocator(const Stateless_allocator_type<U> &)
   {}
 
   template <class U>
-  Stateless_allocator & operator=(const Stateless_allocator_type<U> &other)
+  Stateless_allocator & operator=(const Stateless_allocator_type<U> &)
   {}
 
   ~Stateless_allocator() = default;
 
-  pointer allocate(size_type n, const_pointer hint= 0)
+  pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused))= 0)
   {
     if (n == 0)
       return NULL;

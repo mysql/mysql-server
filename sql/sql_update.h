@@ -40,7 +40,7 @@ struct TABLE_LIST;
 bool records_are_comparable(const TABLE *table);
 bool compare_records(const TABLE *table);
 
-class Query_result_update :public Query_result_interceptor
+class Query_result_update final : public Query_result_interceptor
 {
   /// Number of tables being updated
   uint update_table_count;
@@ -116,43 +116,44 @@ public:
   {}
   ~Query_result_update()
   {}
-  virtual bool need_explain_interceptor() const { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
-  bool initialize_tables (JOIN *join);
-  void send_error(uint errcode,const char *err);
+  bool need_explain_interceptor() const override { return true; }
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool send_data(List<Item> &items) override;
+  bool initialize_tables (JOIN *join) override;
+  void send_error(uint errcode, const char *err) override;
   bool do_updates();
-  bool send_eof();
-  virtual void abort_result_set();
-  virtual void cleanup();
+  bool send_eof() override;
+  void abort_result_set() override;
+  void cleanup() override;
 };
 
-class Sql_cmd_update : public Sql_cmd_dml
+class Sql_cmd_update final : public Sql_cmd_dml
 {
 public:
-  explicit Sql_cmd_update(bool multitable_arg, List<Item> *update_values)
+  Sql_cmd_update(bool multitable_arg, List<Item> *update_values)
   : multitable(multitable_arg), update_value_list(update_values) {}
 
-  virtual enum_sql_command sql_command_code() const { return lex->sql_command; }
+  enum_sql_command sql_command_code() const override
+  { return lex->sql_command; }
 
-  virtual bool is_single_table_plan() const { return !multitable; }
+  bool is_single_table_plan() const override { return !multitable; }
 
 protected:
-  virtual bool precheck(THD *thd);
+  bool precheck(THD *thd) override;
 
-  virtual bool prepare_inner(THD *thd);
+  bool prepare_inner(THD *thd) override;
 
-  virtual bool execute_inner(THD *thd);
+  bool execute_inner(THD *thd) override;
 
 #if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  virtual void start_stmt_dtrace(char *query)
+  void start_stmt_dtrace(char *query) override
   {
     if (multitable)
       MYSQL_MULTI_UPDATE_START(query);
     else
       MYSQL_UPDATE_START(query);
   }
-  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed)
+  void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed) override
   {
     if (multitable)
       MYSQL_UPDATE_DONE(status, rows, changed);

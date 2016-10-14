@@ -1150,7 +1150,7 @@ protected:
 
   <tr>
     <td>thread_id</td>
-    <td>unsigned 8 byte integer</td>
+    <td>4 byte integer</td>
     <td>The identifier for the thread executing the transaction.</td>
   </tr>
 
@@ -1222,7 +1222,7 @@ public:
 
   virtual ~Transaction_context_event();
 
-  static const char *read_data_set(const char *pos, uint16_t set_len,
+  static const char *read_data_set(const char *pos, uint32_t set_len,
                                    std::list<const char*> *set);
 
   static void clear_set(std::list<const char*> *set);
@@ -1234,10 +1234,7 @@ public:
 
 protected:
   const char *server_uuid;
-  // Despite thread_id is 32 bits size maximum, to keep compatibility
-  // with MySQL 5.7 Transaction_context_event, which encodes it as a
-  // 64 bits integer, we use the same 64 bits size.
-  uint64_t thread_id;
+  uint32_t thread_id;
   bool gtid_specified;
   const unsigned char *encoded_snapshot_version;
   uint32_t encoded_snapshot_version_length;
@@ -1249,16 +1246,16 @@ protected:
 
   // 1 byte length.
   static const int ENCODED_SERVER_UUID_LEN_OFFSET= 0;
-  // 8 bytes length.
+  // 4 bytes length.
   static const int ENCODED_THREAD_ID_OFFSET= 1;
   // 1 byte length.
-  static const int ENCODED_GTID_SPECIFIED_OFFSET= 9;
+  static const int ENCODED_GTID_SPECIFIED_OFFSET= 5;
   // 4 bytes length
-  static const int ENCODED_SNAPSHOT_VERSION_LEN_OFFSET= 10;
-  // 2 bytes length.
-  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 14;
-  // 2 bytes length.
-  static const int ENCODED_READ_SET_ITEMS_OFFSET=  16;
+  static const int ENCODED_SNAPSHOT_VERSION_LEN_OFFSET= 6;
+  // 4 bytes length.
+  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 10;
+  // 4 bytes length.
+  static const int ENCODED_READ_SET_ITEMS_OFFSET=  14;
 
   // The values mentioned on the next class's constants is the length of the
   // data that will be copied in the buffer.

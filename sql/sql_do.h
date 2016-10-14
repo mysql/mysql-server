@@ -27,28 +27,26 @@ class Item;
 class THD;
 template <class T> class List;
 
-class Sql_cmd_do : public Sql_cmd_select
+class Sql_cmd_do final : public Sql_cmd_select
 {
 public:
   explicit Sql_cmd_do(Query_result *result_arg) : Sql_cmd_select(result_arg)
   {}
 
-  virtual enum_sql_command sql_command_code() const
-  {
-    return SQLCOM_DO;
-  }
+  enum_sql_command sql_command_code() const override { return SQLCOM_DO; }
 };
 
-class Query_result_do :public Query_result
+class Query_result_do final : public Query_result
 {
 public:
   Query_result_do(THD *thd): Query_result(thd) {}
-  bool send_result_set_metadata(List<Item> &list, uint flags) { return false; }
-  bool send_data(List<Item> &items);
-  bool send_eof();
-  virtual bool check_simple_select() const { return false; }
-  void abort_result_set() {}
-  virtual void cleanup() {}
+  bool send_result_set_metadata(List<Item> &list, uint flags) override
+  { return false; }
+  bool send_data(List<Item> &items) override;
+  bool send_eof() override;
+  bool check_simple_select() const override { return false; }
+  void abort_result_set() override {}
+  void cleanup() override {}
 };
 
 #endif /* SQL_DO_INCLUDED */

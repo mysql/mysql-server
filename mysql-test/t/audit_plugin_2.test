@@ -1,11 +1,12 @@
 # Disabling the test with --ps-protocol
 --source include/no_ps_protocol.inc
 
+--source include/have_null_audit_plugin.inc
+--source include/not_embedded.inc
+
 --echo # Test is temporarily run with show_compatibility_56=ON until Bug#21783798 is fixed.
 select @@global.show_compatibility_56 into @show_compatibility_56_save;
 set @@global.show_compatibility_56=ON;
---source include/have_null_audit_plugin.inc
---source include/not_embedded.inc
 
 call mtr.add_suppression("Event 'MYSQL_AUDIT_COMMAND_END' cannot be aborted.");
 call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be aborted.");

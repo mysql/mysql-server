@@ -85,6 +85,9 @@ public:
 
   virtual Table &table();
 
+  /* non-virtual */ void set_table(Table_impl *parent)
+  { m_table= parent; }
+
   /* non-virtual */ const Table_impl &table_impl() const
   { return *m_table; }
 

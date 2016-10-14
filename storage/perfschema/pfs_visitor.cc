@@ -1439,7 +1439,7 @@ void PFS_connection_status_visitor::visit_account(PFS_account *pfs)
   pfs->m_status_stats.aggregate_to(m_status_vars);
 }
 
-void PFS_connection_status_visitor::visit_thread(PFS_thread *pfs)
+void PFS_connection_status_visitor::visit_thread(PFS_thread*)
 {
 }
 

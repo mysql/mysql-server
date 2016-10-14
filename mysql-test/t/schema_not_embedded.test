@@ -34,8 +34,7 @@ CREATE SCHEMA s;
 # SHOW CREATE SCHEMA accesses meta data only, and succeeds.
 SHOW CREATE SCHEMA s;
 
-# USE SCHEMA checks file system access, and fails.
---error ER_BAD_DB_ERROR
+# USE SCHEMA checks meta data only, and succeeds
 USE s;
 
 # ALTER SCHEMA is a meta data only operation, and succeeds.
@@ -212,3 +211,19 @@ DROP TABLE s.t_innodb;
 DROP SCHEMA s;
 
 # End of tests for WL#6378: New data dictionary.
+
+
+--echo #
+--echo # Bug#24732194: "USE DB_NAME" AND "SELECT SCHEMA()"
+--echo #               WORK FOR NON-EXISTING DATABASES
+--echo #
+
+# Create the directory manually
+--mkdir $SCHEMA_DIR
+
+# USE should fail, it didn't before.
+--error ER_BAD_DB_ERROR
+USE s;
+
+# Cleanup
+--rmdir $SCHEMA_DIR

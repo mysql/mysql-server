@@ -17,12 +17,25 @@
   @file mysys/my_copy.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
+#include "my_config.h"
+
+#include <errno.h>
+#include <fcntl.h>
 #include <my_dir.h> /* for stat */
-#include <m_string.h>
-#include "mysys_err.h"
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysys_err.h"
 
 #ifndef _WIN32
 #include <utime.h>

@@ -326,6 +326,23 @@ fsp_flags_is_valid(
 	return(true);
 }
 
+/** Check whether a space id is an undo tablespace ID
+@param[in]	space_id	space id to check
+@return true if it is undo tablespace else false. */
+bool
+fsp_is_undo_tablespace(space_id_t space_id)
+{
+	/* Before this global variable is set, we do not know what the
+	undo tablespace ID range is. Assume this is not an undo space. */
+	if (srv_undo_space_id_start == 0) {
+		return(false);
+	}
+
+	return(space_id >= srv_undo_space_id_start
+		&& space_id < srv_undo_space_id_start
+			      + srv_undo_tablespaces_open);
+}
+
 /** Check if tablespace is system temporary.
 @param[in]	space_id	tablespace ID
 @return true if tablespace is system temporary. */
@@ -342,19 +359,6 @@ bool
 fsp_is_checksum_disabled(space_id_t space_id)
 {
 	return(fsp_is_system_temporary(space_id));
-}
-
-/** Check if tablespace is file-per-table.
-@param[in]	space_id	tablespace ID
-@param[in]	fsp_flags	tablespace flags
-@return true if tablespace is file-per-table. */
-bool
-fsp_is_file_per_table(
-	space_id_t	space_id,
-	ulint		fsp_flags)
-{
-	return(!is_system_tablespace(space_id)
-		&& !fsp_is_shared_tablespace(fsp_flags));
 }
 
 #ifdef UNIV_DEBUG
@@ -841,7 +845,7 @@ fsp_space_modify_check(
 #ifdef UNIV_DEBUG
 		{
 			const fil_type_t	type = fil_space_get_type(id);
-			ut_a(id == srv_tmp_space.space_id()
+			ut_a(fsp_is_system_temporary(id)
 			     || fil_space_get_flags(id) == ULINT_UNDEFINED
 			     || type == FIL_TYPE_TEMPORARY
 			     || type == FIL_TYPE_IMPORT
@@ -853,7 +857,7 @@ fsp_space_modify_check(
 	case MTR_LOG_ALL:
 		/* We must not write redo log for the shared temporary
 		tablespace. */
-		ut_ad(id != srv_tmp_space.space_id());
+		ut_ad(!fsp_is_system_temporary(id));
 		/* If we write redo log, the tablespace must exist. */
 		ut_ad(fil_space_get_type(id) == FIL_TYPE_TABLESPACE);
 		ut_ad(mtr->is_named_space(id));
@@ -1190,7 +1194,7 @@ fsp_header_init(
 
 	mlog_write_ull(header + FSP_SEG_ID, 1, mtr);
 
-	fsp_fill_free_list(!is_system_tablespace(space_id),
+	fsp_fill_free_list(!fsp_is_system_or_temp_tablespace(space_id),
 			   space, header, mtr);
 
 	/* For encryption tablespace, we need to save the encryption
@@ -1216,7 +1220,7 @@ fsp_header_init(
 				  mtr);
 	}
 
-	if (space_id == srv_sys_space.space_id()) {
+	if (space_id == TRX_SYS_SPACE) {
 		if (btr_create(DICT_CLUSTERED | DICT_IBUF,
 			       0, univ_page_size, DICT_IBUF_ID_MIN + space_id,
 			       dict_ind_redundant, mtr) == FIL_NULL) {
@@ -1502,7 +1506,7 @@ fsp_try_extend_data_file_with_pages(
 	ulint	size;
 	DBUG_ENTER("fsp_try_extend_data_file_with_pages");
 
-	ut_a(!is_system_tablespace(space->id));
+	ut_a(!fsp_is_system_or_temp_tablespace(space->id));
 	ut_d(fsp_space_modify_check(space->id, mtr));
 
 	size = mach_read_from_4(header + FSP_SIZE);
@@ -1541,7 +1545,7 @@ fsp_try_extend_data_file(
 
 	ut_d(fsp_space_modify_check(space->id, mtr));
 
-	if (space->id == srv_sys_space.space_id()
+	if (space->id == TRX_SYS_SPACE
 	    && !srv_sys_space.can_auto_extend_last_file()) {
 
 		/* We print the error message only once to avoid
@@ -1577,7 +1581,7 @@ fsp_try_extend_data_file(
 	const page_size_t	page_size(
 		mach_read_from_4(header + FSP_SPACE_FLAGS));
 
-	if (space->id == srv_sys_space.space_id()) {
+	if (space->id == TRX_SYS_SPACE) {
 
 		size_increase = srv_sys_space.get_increment();
 
@@ -1729,10 +1733,10 @@ fsp_fill_free_list(
 	const page_size_t	page_size(flags);
 
 	if (size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
-		if ((!init_space && !is_system_tablespace(space->id))
-		    || (space->id == srv_sys_space.space_id()
+		if ((!init_space && !fsp_is_system_or_temp_tablespace(space->id))
+		    || (space->id == TRX_SYS_SPACE
 			&& srv_sys_space.can_auto_extend_last_file())
-		    || (space->id == srv_tmp_space.space_id()
+		    || (fsp_is_system_temporary(space->id)
 			&& srv_tmp_space.can_auto_extend_last_file())) {
 			fsp_try_extend_data_file(space, header, mtr);
 			size = space->size_in_header;
@@ -1782,7 +1786,7 @@ fsp_fill_free_list(
 			order, and we must be able to release its latch.
 			Note: Insert-Buffering is disabled for tables that
 			reside in the temp-tablespace. */
-			if (space->id != srv_tmp_space.space_id()) {
+			if (!fsp_is_system_temporary(space->id)) {
 				mtr_t	ibuf_mtr;
 
 				mtr_start(&ibuf_mtr);
@@ -2093,7 +2097,7 @@ fsp_alloc_free_page(
 		/* It must be that we are extending a single-table tablespace
 		whose size is still < 64 pages */
 
-		ut_a(!is_system_tablespace(space));
+		ut_a(!fsp_is_system_or_temp_tablespace(space));
 		if (page_no >= FSP_EXTENT_SIZE) {
 			ib::error() << "Trying to extend a single-table"
 				" tablespace " << space << " , by single"
@@ -3385,7 +3389,7 @@ take_hinted_page:
 		return(NULL);
 	}
 
-	if (space->size <= ret_page && !is_system_tablespace(space_id)) {
+	if (space->size <= ret_page && !fsp_is_system_or_temp_tablespace(space_id)) {
 		/* It must be that we are extending a single-table
 		tablespace whose size is still < 64 pages */
 
@@ -3533,7 +3537,7 @@ fsp_reserve_free_pages(
 {
 	xdes_t*	descr;
 
-	ut_a(!is_system_tablespace(space->id));
+	ut_a(!fsp_is_system_or_temp_tablespace(space->id));
 	ut_a(size < FSP_EXTENT_SIZE);
 
 	descr = xdes_get_descriptor_with_space_hdr(

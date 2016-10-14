@@ -36,6 +36,7 @@
 #endif
 
 #include <limits.h>
+#include <sys/types.h>  // IWYU pragma: keep, needed for mode_t.
 
 #ifdef _WIN32
 

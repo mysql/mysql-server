@@ -57,7 +57,6 @@
 
 class partition_element;
 
-
 bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
 {
   /* Moved from mysql_execute_command */

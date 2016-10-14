@@ -4093,3 +4093,12 @@ DO ST_POLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
 ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_polygonfromwkb.
 DO ST_POLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
 ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_polygonfromwkb.
+#
+# Bug #23573720 ASSERTION FAILED: GEOMETRY::IS_VALID_GEOTYPE(GT)
+#
+CREATE TABLE t1 (a DECIMAL(54,20));
+INSERT INTO t1 VALUES (0);
+SELECT (SELECT MULTILINESTRING(d.a, d.a, d.a) FROM t1)
+FROM t1 AS d GROUP BY d.a;
+ERROR 22023: Invalid GIS data provided to function multilinestring.
+DROP TABLE t1;

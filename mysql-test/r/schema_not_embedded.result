@@ -3,7 +3,6 @@ SHOW CREATE SCHEMA s;
 Database	Create Database
 s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET latin1 */
 USE s;
-ERROR 42000: Unknown database 's'
 ALTER SCHEMA s DEFAULT COLLATE= utf8_general_ci;
 SHOW CREATE SCHEMA s;
 Database	Create Database
@@ -41,3 +40,9 @@ DROP TABLE s.t_myisam;
 ERROR HY000: Storage engine can't drop table 's.t_myisam' because it is missing. Use DROP TABLE IF EXISTS to remove it from data-dictionary.
 DROP TABLE s.t_innodb;
 DROP SCHEMA s;
+#
+# Bug#24732194: "USE DB_NAME" AND "SELECT SCHEMA()"
+#               WORK FOR NON-EXISTING DATABASES
+#
+USE s;
+ERROR 42000: Unknown database 's'

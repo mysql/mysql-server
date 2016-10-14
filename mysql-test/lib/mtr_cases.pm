@@ -1129,6 +1129,12 @@ sub collect_one_test_case {
     $::group_replication= 1;
   }
 
+  # Check for xplugin tests
+  if ( $tinfo->{'xplugin_test'} )
+  {
+    $::xplugin= 1;
+  }
+
   if ( $tinfo->{'not_windows'} && IS_WINDOWS )
   {
     $tinfo->{'skip'}= 1;
@@ -1236,6 +1242,9 @@ my @tags=
 
  # Tests with below .inc file are considered to be group replication tests
  ["have_group_replication_plugin_base.inc", "grp_rpl_test", 1],
+
+ # Tests with below .inc file are considered to be xplugin tests
+ ["include/have_mysqlx_plugin.inc", "xplugin_test", 1],
 );
 
 

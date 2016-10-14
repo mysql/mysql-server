@@ -105,19 +105,29 @@
 */
 
 #include <errno.h>
-#include <keycache.h>
-#include <m_string.h>
-#include <my_bit.h>
-#include <stdarg.h>
+#include <stddef.h>
+#include <string.h>
+#include <sys/types.h>
 
+#include "keycache.h"
+#include "my_bit.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
-#include "my_static.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"
 #include "mysys_priv.h"
 #include "probes_mysql.h"
 #include "template_utils.h"
+#include "thr_mutex.h"
 
 #define STRUCT_PTR(TYPE, MEMBER, a)                                           \
           (TYPE *) ((char *) (a) - offsetof(TYPE, MEMBER))

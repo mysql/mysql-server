@@ -921,7 +921,7 @@ row_quiesce_set_state(
 			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
 
 		return(DB_UNSUPPORTED);
-	} else if (table->space == srv_sys_space.space_id()) {
+	} else if (table->space == TRX_SYS_SPACE) {
 
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 

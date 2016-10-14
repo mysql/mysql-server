@@ -54,7 +54,7 @@ struct sql_digest_state;
   handler of the temporary table.
 */
 
-class Materialized_cursor: public Server_side_cursor
+class Materialized_cursor final : public Server_side_cursor
 {
   MEM_ROOT main_mem_root;
   /* A fake unit to supply to Query_result_send when fetching */
@@ -68,10 +68,10 @@ public:
   Materialized_cursor(Query_result *result, TABLE *table);
 
   int send_result_set_metadata(THD *thd, List<Item> &send_result_set_metadata);
-  virtual bool is_open() const { return table != 0; }
-  virtual int open(JOIN *join MY_ATTRIBUTE((unused)));
-  virtual bool fetch(ulong num_rows);
-  virtual void close();
+  bool is_open() const override { return table != 0; }
+  int open(JOIN *) override;
+  bool fetch(ulong num_rows) override;
+  void close() override;
   virtual ~Materialized_cursor();
 };
 
@@ -85,7 +85,7 @@ public:
   create a Materialized_cursor.
 */
 
-class Query_result_materialize: public Query_result_union
+class Query_result_materialize final : public Query_result_union
 {
   Query_result *result; /**< the result object of the caller (PS or SP) */
 public:
@@ -93,8 +93,8 @@ public:
   Query_result_materialize(THD *thd, Query_result *result_arg)
     :Query_result_union(thd),
      result(result_arg), materialized_cursor(0) {}
-  virtual bool send_result_set_metadata(List<Item> &list, uint flags);
-  virtual void cleanup()
+  bool send_result_set_metadata(List<Item> &list, uint flags) override;
+  void cleanup() override
   {
     table= NULL;  // Pass table object to Materialized_cursor
   }

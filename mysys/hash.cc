@@ -17,10 +17,15 @@
   @file mysys/hash.cc
 */
 
-#include "mysys_priv.h"
-#include <m_string.h>
-#include <m_ctype.h>
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "hash.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
 
 #define NO_RECORD	((uint) -1)

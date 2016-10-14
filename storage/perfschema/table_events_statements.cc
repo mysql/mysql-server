@@ -718,7 +718,7 @@ void table_events_statements_current::reset_position(void)
   m_next_pos.reset();
 }
 
-int table_events_statements_current::rnd_init(bool scan)
+int table_events_statements_current::rnd_init(bool)
 {
   m_normalizer= time_normalizer::get(statement_timer);
   return 0;
@@ -892,7 +892,7 @@ table_events_statements_current::get_row_count(void)
   return global_thread_container.get_row_count() * statement_stack_max;
 }
 
-int table_events_statements_current::index_init(uint idx, bool sorted)
+int table_events_statements_current::index_init(uint idx, bool)
 {
   m_normalizer= time_normalizer::get(statement_timer);
 
@@ -920,7 +920,7 @@ void table_events_statements_history::reset_position(void)
   m_next_pos.reset();
 }
 
-int table_events_statements_history::rnd_init(bool scan)
+int table_events_statements_history::rnd_init(bool)
 {
   m_normalizer= time_normalizer::get(statement_timer);
   return 0;
@@ -1087,7 +1087,7 @@ table_events_statements_history::get_row_count(void)
   return events_statements_history_per_thread * global_thread_container.get_row_count();
 }
 
-int table_events_statements_history::index_init(uint idx, bool sorted)
+int table_events_statements_history::index_init(uint idx, bool)
 {
   m_normalizer= time_normalizer::get(statement_timer);
 
@@ -1115,7 +1115,7 @@ void table_events_statements_history_long::reset_position(void)
   m_next_pos.m_index= 0;
 }
 
-int table_events_statements_history_long::rnd_init(bool scan)
+int table_events_statements_history_long::rnd_init(bool)
 {
   m_normalizer= time_normalizer::get(statement_timer);
   return 0;

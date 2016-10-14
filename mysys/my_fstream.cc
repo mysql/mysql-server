@@ -17,12 +17,19 @@
   @file mysys/my_fstream.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "mysys_err.h"
 #include <errno.h>
 #include <stdio.h>
+#include <sys/types.h>
+
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysys_err.h"
+#if defined(_WIN32)
+#include "mysys_priv.h"
+#endif
 
 
 #ifdef HAVE_FSEEKO

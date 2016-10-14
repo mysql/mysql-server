@@ -897,7 +897,8 @@ void table_events_waits_current::reset_position(void)
   m_next_pos.reset();
 }
 
-PFS_events_waits *table_events_waits_current::get_wait(PFS_thread *pfs_thread, uint index_2)
+PFS_events_waits *table_events_waits_current::get_wait(PFS_thread *pfs_thread,
+                                                       uint index_2 MY_ATTRIBUTE((unused)))
 {
   PFS_events_waits *wait;
 
@@ -992,7 +993,7 @@ int table_events_waits_current::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_waits_current::index_init(uint idx, bool sorted)
+int table_events_waits_current::index_init(uint idx, bool)
 {
   PFS_index_events_waits *result;
   DBUG_ASSERT(idx == 0);
@@ -1160,7 +1161,7 @@ int table_events_waits_history::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_waits_history::index_init(uint idx, bool sorted)
+int table_events_waits_history::index_init(uint idx, bool)
 {
   PFS_index_events_waits *result;
   DBUG_ASSERT(idx == 0);

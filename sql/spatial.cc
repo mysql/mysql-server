@@ -5225,6 +5225,7 @@ void Gis_wkb_vector<T>::resize(size_t sz)
 
 
 // Explicit template instantiation
+/// @cond
 template void Gis_wkb_vector<Gis_line_string>::clear();
 template void Gis_wkb_vector<Gis_point>::clear();
 template void Gis_wkb_vector<Gis_polygon>::clear();
@@ -5267,4 +5268,7 @@ Gis_wkb_vector<Gis_point>&
 Gis_wkb_vector<Gis_point>::operator=(Gis_wkb_vector<Gis_point> const&);
 
 template
+Gis_wkb_vector<Gis_point>::Gis_wkb_vector(Gis_wkb_vector<Gis_point> const&);
+template
 Gis_wkb_vector<Gis_polygon>::Gis_wkb_vector(const Gis_wkb_vector<Gis_polygon> &);
+/// @endcond

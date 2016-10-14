@@ -310,7 +310,9 @@ private:
     @param thd             pointer to THD object
     @param str             pointer to String object
   */
-  virtual void print_irregular_hints(THD *thd, String *str) { }
+  virtual void print_irregular_hints(THD *thd MY_ATTRIBUTE((unused)),
+                                     String *str MY_ATTRIBUTE((unused)))
+  { }
 };
 
 

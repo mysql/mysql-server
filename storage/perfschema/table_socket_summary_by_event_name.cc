@@ -247,7 +247,7 @@ int table_socket_summary_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_socket_summary_by_event_name::index_init(uint idx, bool sorted)
+int table_socket_summary_by_event_name::index_init(uint idx, bool)
 {
   PFS_index_socket_summary_by_event_name *result= NULL;
   DBUG_ASSERT(idx == 0);

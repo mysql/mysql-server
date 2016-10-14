@@ -95,22 +95,22 @@ class Worker_scheduler_monitor : public ngs::Scheduler_dynamic::Monitor_interfac
 public:
   virtual void on_worker_thread_create()
   {
-    xpl::Global_status_variables::instance().increment_worker_thread_count();
+    ++xpl::Global_status_variables::instance().m_worker_thread_count;
   }
 
   virtual void on_worker_thread_destroy()
   {
-    xpl::Global_status_variables::instance().decrement_worker_thread_count();
+    --xpl::Global_status_variables::instance().m_worker_thread_count;
   }
 
   virtual void on_task_start()
   {
-    xpl::Global_status_variables::instance().increment_active_worker_thread_count();
+    ++xpl::Global_status_variables::instance().m_active_worker_thread_count;
   }
 
   virtual void on_task_end()
   {
-    xpl::Global_status_variables::instance().decrement_active_worker_thread_count();
+    --xpl::Global_status_variables::instance().m_active_worker_thread_count;
   }
 };
 
@@ -198,7 +198,7 @@ ngs::shared_ptr<ngs::Session_interface> xpl::Server::create_session(ngs::Client_
 
 void xpl::Server::on_client_closed(const ngs::Client_interface &client)
 {
-  Global_status_variables::instance().increment_closed_connections_count();
+  ++Global_status_variables::instance().m_closed_connections_count;
 
   // Only accepted clients are calling on_client_closed
   --m_num_of_connections;
@@ -226,7 +226,7 @@ bool xpl::Server::will_accept_client(const ngs::Client_interface &client)
 
 void xpl::Server::did_accept_client(const ngs::Client_interface &client)
 {
-  Global_status_variables::instance().increment_accepted_connections_count();
+  ++Global_status_variables::instance().m_accepted_connections_count;
 }
 
 
@@ -235,11 +235,11 @@ void xpl::Server::did_reject_client(ngs::Server_delegate::Reject_reason reason)
   switch (reason)
   {
     case ngs::Server_delegate::AcceptError:
-      Global_status_variables::instance().increment_connection_errors_count();
-      Global_status_variables::instance().increment_connection_accept_errors_count();
+      ++Global_status_variables::instance().m_connection_errors_count;
+      ++Global_status_variables::instance().m_connection_accept_errors_count;
       break;
     case ngs::Server_delegate::TooManyConnections:
-      Global_status_variables::instance().increment_connection_reject_count();
+      ++Global_status_variables::instance().m_rejected_connections_count;
       break;
   }
 }

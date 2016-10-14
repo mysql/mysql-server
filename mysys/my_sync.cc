@@ -17,11 +17,25 @@
   @file mysys/my_sync.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "mysys_err.h"
+#include "my_config.h"
+
 #include <errno.h>
+#include <fcntl.h>
+#include <stddef.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysys_err.h"
+#if defined(_WIN32)
+#include "mysys_priv.h"
+#endif
 
 extern "C" {
 static void (*before_sync_wait)(void)= 0;

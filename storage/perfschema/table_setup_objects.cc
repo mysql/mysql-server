@@ -144,7 +144,7 @@ PFS_engine_table* table_setup_objects::create(void)
   return new table_setup_objects();
 }
 
-int table_setup_objects::write_row(TABLE *table, unsigned char *buf,
+int table_setup_objects::write_row(TABLE *table, unsigned char*,
                                    Field **fields)
 {
   int result;
@@ -267,7 +267,7 @@ int table_setup_objects::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_setup_objects::index_init(uint idx, bool sorted)
+int table_setup_objects::index_init(uint idx, bool)
 {
   PFS_index_setup_objects *result= NULL;
   DBUG_ASSERT(idx == 0);
@@ -417,9 +417,9 @@ int table_setup_objects::update_row_values(TABLE *table,
   return result;
 }
 
-int table_setup_objects::delete_row_values(TABLE *table,
-                                           const unsigned char *buf,
-                                           Field **fields)
+int table_setup_objects::delete_row_values(TABLE*,
+                                           const unsigned char*,
+                                           Field**)
 {
   DBUG_ASSERT(m_row_exists);
 

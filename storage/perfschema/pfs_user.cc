@@ -239,7 +239,7 @@ void PFS_user::aggregate_errors()
   reset_errors_stats();
 }
 
-void PFS_user::aggregate_memory(bool alive)
+void PFS_user::aggregate_memory(bool)
 {
   /* No parent to aggregate to, clean the stats */
   rebase_memory_stats();

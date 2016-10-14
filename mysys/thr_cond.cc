@@ -20,6 +20,11 @@
 #ifdef SAFE_MUTEX
 
 #include "thr_cond.h"
+
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "my_thread_local.h"
 
 int safe_cond_wait(native_cond_t *cond, my_mutex_t *mp,

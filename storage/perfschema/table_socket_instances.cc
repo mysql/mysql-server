@@ -190,7 +190,7 @@ int table_socket_instances::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_socket_instances::index_init(uint idx, bool sorted)
+int table_socket_instances::index_init(uint idx, bool)
 {
   PFS_index_socket_instances *result= NULL;
 

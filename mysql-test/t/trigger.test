@@ -2868,6 +2868,18 @@ DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_a
 DROP TRIGGER test.silly_trigger;
 DROP TABLE test.silly_one;
 
+--echo #
+--echo # Bug #22512899 - DROP TRIGGER AFTER RENAME TABLE RESULTS IN ERROR CODE 1146: TABLE DOESN'T EXIST
+--echo #
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+
+RENAME TABLE t1 TO t1Renamed;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1Renamed;
+
 --echo End of 5.7 tests.
 
 --echo #

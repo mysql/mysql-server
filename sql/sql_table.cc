@@ -2124,10 +2124,6 @@ static bool rea_create_table(THD *thd, const char *path,
   if (thd->variables.keep_files_on_create)
     create_info->options|= HA_CREATE_KEEP_FILES;
 
-  if (file->ha_create_handler_files(path, NULL, CHF_CREATE_FLAG,
-                                    create_info))
-    goto err;
-
   if (!no_ha_table)
   {
     if ((create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
@@ -2137,8 +2133,6 @@ static bool rea_create_table(THD *thd, const char *path,
     if(ha_create_table(thd, path, db, table_name, create_info,
                        false, false, table_ptr.get(), false))
     {
-      (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG,
-                                           create_info);
       goto err;
     }
   }
@@ -2292,13 +2286,7 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
         part_handler->set_part_info(part_info, false);
       }
     }
-    /* Write shadow frm file */
-    if (lpt->table->file->ha_create_handler_files(shadow_path, NULL,
-                                                  CHF_CREATE_FLAG,
-                                                  lpt->create_info))
-    {
-      DBUG_RETURN(true);
-    }
+
     // Add table details into new DD
     if (!dd::get_dictionary()->is_dd_table_name(lpt->db, shadow_name) &&
         !dd::get_dictionary()->is_dd_table_name(lpt->db, lpt->table_name))
@@ -4052,8 +4040,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   @param base        The handlerton handle.
   @param db          The database name.
   @param table_name  The table name.
-  @param flags       Flags for build_table_filename() as well as describing
-                     if handler files should be deleted as well.
+  @param flags       Flags for build_table_filename().
 
   @return False in case of success, True otherwise.
 */
@@ -4077,41 +4064,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   if (!table_def)
     DBUG_RETURN(false);
 
-  // Invoke the handler as appropriate, depending on the NO_HA_TABLE flag.
-  int error= 0;
-  if (flags & NO_HA_TABLE)
-  {
-    /*
-      handler::create_handler_files() is only used by partitioning SE.
-      Since we plan to remove it soon and this SE doesn't care about
-      "partitioned" argument of get_new_handler() we don't determine
-      is correct value. We simply assume that table is non-partitioned.
-    */
-    handler *file= get_new_handler((TABLE_SHARE*) 0, false, thd->mem_root, base);
-    if (!file)
-      DBUG_RETURN(true);
-
-    // This is relevant for deleting the partition files from the partition
-    // engine. In this case, we will not take an error into account, i.e.,
-    // even if the operation against the SE fails, we will go ahead and
-    // remove the table from the data dictionary. This is necessary due to
-    // the following behavior: In 'ha_partition::create()', there is a call
-    // to 'handler::delete_table()' at the end that does cleanup if create
-    // failed. In the context of a table being created during ALTER, this
-    // means that if creation fails, the .par file will be removed already
-    // at that stage, and when we get here, it will not be present. Thus, the
-    // ENOENT while deleting the file is to be expected. This might be
-    // refactored to avoid deleting the .par file at the end of 'create()', and
-    // instead expect it to be present when calling 'ha_create_handler_files()'
-    // below, and consequently take any error returned into account.
-    (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, NULL);
-    delete file;
-  }
-  else
-    error= ha_delete_table(thd, base, path, db, table_name, table_def, 0);
-
-
-  if (error)
+  if (ha_delete_table(thd, base, path, db, table_name, table_def, 0))
   {
     delete table_def;
     DBUG_RETURN(true);
@@ -6958,8 +6911,6 @@ bool create_table_impl(THD *thd,
       if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
         (void) dd::drop_table<dd::Table>(thd, db, table_name, true);
 
-      file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info);
-
       goto err;
     }
   }
@@ -7382,15 +7333,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   if (flags & NO_FK_CHECKS)
     thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
 
-  /*
-    Invoke the storage engine as appropriate, depending on the flags.
-    If the function ha_create_handler_files() fails, it also calls
-    my_error() when CHF_RENAME_FLAG is set.
-  */
   int error= 0;
-  if (flags & NO_HA_TABLE)
-    error= file->ha_create_handler_files(to, from, CHF_RENAME_FLAG, NULL);
-  else
+  if (!(flags & NO_HA_TABLE))
     error= file->ha_rename_table(from_base, to_base, from_table_def.get(),
                                  to_table_def.get());
 
@@ -7403,7 +7347,6 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   */
   if (error != 0)
   {
-    // ha_create_handler_files() has already reported error.
     if (!(flags & NO_HA_TABLE))
     {
       if (error == HA_ERR_WRONG_COMMAND)
@@ -9106,7 +9049,6 @@ static bool mysql_inplace_alter_table(THD *thd,
 {
   handlerton *db_type= table->s->db_type();
   MDL_ticket *mdl_ticket= table->mdl_ticket;
-  HA_CREATE_INFO *create_info= ha_alter_info->create_info;
   const Alter_info *alter_info= ha_alter_info->alter_info;
   bool reopen_tables= false;
   bool keep_altered_table= false;
@@ -9426,9 +9368,6 @@ static bool mysql_inplace_alter_table(THD *thd,
     altered_table_def->set_schema_id(old_table_def->schema_id());
     altered_table_def->set_name(alter_ctx->alias);
 
-    // WL7743/TODO: add comment why we can't do this earlier.
-    altered_table_def->copy_triggers(old_table_def);
-
     if (dd::remove_sdi(thd, old_table_def, old_sch) ||
         thd->dd_client()->drop(old_table_def))
       goto cleanup2;
@@ -9475,27 +9414,12 @@ static bool mysql_inplace_alter_table(THD *thd,
 
   }
 
-  {
-    /*
-      handler::create_handler_files() is only used by partitioning SE.
-      Since we plan to remove it soon and this SE doesn't care about
-      "partitioned" argument of get_new_handler() we don't determine
-      is correct value. We simply assume that table is non-partitioned.
-    */
-    handler *file;
-    file= get_new_handler((TABLE_SHARE*) 0, false, thd->mem_root, db_type);
-    (void) file->ha_create_handler_files(alter_ctx->get_path(),
-                                         alter_ctx->get_tmp_path(),
-                                         CHF_RENAME_FLAG, NULL);
-    delete file;
-
 #ifdef HAVE_PSI_TABLE_INTERFACE
-    PSI_TABLE_CALL(drop_table_share)
-      (true, alter_ctx->new_db, static_cast<int>(strlen(alter_ctx->new_db)),
-       alter_ctx->tmp_name, static_cast<int>(strlen(alter_ctx->tmp_name)));
+  PSI_TABLE_CALL(drop_table_share)
+    (true, alter_ctx->new_db, static_cast<int>(strlen(alter_ctx->new_db)),
+     alter_ctx->tmp_name, static_cast<int>(strlen(alter_ctx->tmp_name)));
 #endif
 
-  }
   DBUG_EXECUTE_IF("crash_after_index_create",
                   DBUG_SET("-d,crash_after_index_create");
                   DBUG_SUICIDE(););
@@ -9547,15 +9471,27 @@ static bool mysql_inplace_alter_table(THD *thd,
   }
 
   /*
-    Transfer pre-existing foreign keys to the new table.
-    Since fk names have to be unique per schema, we cannot
+    Remove TABLE and TABLE_SHARE for new name from TDC to force re-opening
+    in order to reload triggers.
+  */
+  if (!alter_ctx->trg_info.empty())
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                     alter_ctx->new_db, alter_ctx->new_alias, false);
+
+  /*
+    Transfer pre-existing foreign keys and triggers to the new table.
+    Since fk and trigger names have to be unique per schema, we cannot
     create them while both the old and the temp version of the
     table exist.
   */
-  if (alter_ctx->fk_count > 0 &&
-      dd::add_foreign_keys(thd, alter_ctx->new_db, alter_ctx->new_alias,
-                           alter_ctx->fk_info, alter_ctx->fk_count,
-                           !(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)))
+  if ((alter_ctx->fk_count > 0 || !alter_ctx->trg_info.empty()) &&
+      dd::add_foreign_keys_and_triggers(thd, alter_ctx->new_db,
+                                        alter_ctx->new_alias,
+                                        alter_ctx->fk_info,
+                                        alter_ctx->fk_count,
+                                        &alter_ctx->trg_info,
+                                        !(db_type->flags &
+                                          HTON_SUPPORTS_ATOMIC_DDL)))
     goto cleanup2;
 
   THD_STAGE_INFO(thd, stage_end);
@@ -9563,13 +9499,16 @@ static bool mysql_inplace_alter_table(THD *thd,
   DBUG_EXECUTE_IF("sleep_alter_before_main_binlog", my_sleep(6000000););
   DEBUG_SYNC(thd, "alter_table_before_main_binlog");
 
-  ha_binlog_log_query(thd, create_info->db_type, LOGCOM_ALTER_TABLE,
+  ha_binlog_log_query(thd, ha_alter_info->create_info->db_type,
+                      LOGCOM_ALTER_TABLE,
                       thd->query().str, thd->query().length,
                       alter_ctx->db, alter_ctx->table_name);
 
   DBUG_ASSERT(!(mysql_bin_log.is_open() &&
                 thd->is_current_stmt_binlog_format_row() &&
-                (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
+                (ha_alter_info->create_info->options &
+                 HA_LEX_CREATE_TMP_TABLE)));
+
   if (write_bin_log(thd, true, thd->query().str, thd->query().length,
                     (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)))
     goto cleanup2;
@@ -9608,6 +9547,10 @@ static bool mysql_inplace_alter_table(THD *thd,
     DBUG_ASSERT(table_list.table == thd->open_tables);
     close_thread_table(thd, &thd->open_tables);
   }
+
+  // TODO: May move the opening of the table and the call to
+  //       ha_notify_table_changed() here to make sure we don't
+  //       notify the handler until all meta data is complete.
 
   DBUG_RETURN(false);
 
@@ -9653,8 +9596,8 @@ cleanup2:
 #endif
       !keep_altered_table)
   {
-    (void) quick_rm_table(thd, create_info->db_type, alter_ctx->new_db,
-                          alter_ctx->tmp_name, FN_IS_TMP | NO_HA_TABLE);
+    (void) dd::drop_table<dd::Table>(thd, alter_ctx->new_db,
+                                     alter_ctx->tmp_name, true);
   }
 
   DBUG_RETURN(true);
@@ -9851,8 +9794,8 @@ static void to_lex_cstring(MEM_ROOT *mem_root,
 
 
 /**
-  Remember information about pre-existing foreign keys so that they can
-  be added to the new version of the table later.
+  Remember information about pre-existing foreign keys and triggers so
+  that they can be added to the new version of the table later.
 
   @param[in]      thd              Thread handle.
   @param[in]      table            The source table.
@@ -9862,12 +9805,14 @@ static void to_lex_cstring(MEM_ROOT *mem_root,
 */
 
 static
-void remember_preexisting_foreign_keys(THD *thd, TABLE *table,
-                                       Alter_info *alter_info,
-                                       Alter_table_ctx *alter_ctx,
-                                       List<Create_field> *new_create_list)
+void remember_preexisting_foreign_keys_and_triggers(
+        THD *thd,
+        TABLE *table,
+        Alter_info *alter_info,
+        Alter_table_ctx *alter_ctx,
+        List<Create_field> *new_create_list)
 {
-  // FKs are not supported for temporary tables.
+  // FKs and triggers are not supported for temporary tables.
   if (table->s->tmp_table)
     return;
 
@@ -9881,6 +9826,10 @@ void remember_preexisting_foreign_keys(THD *thd, TABLE *table,
     // Should not happen, we know the table exists and can be opened.
     DBUG_ASSERT(false);
   }
+
+  if (src_table->has_trigger())
+    src_table->clone_triggers(&alter_ctx->trg_info);
+
   alter_ctx->fk_info=
     (FOREIGN_KEY*)sql_calloc(sizeof(FOREIGN_KEY) *
                              src_table->foreign_keys().size());
@@ -10572,8 +10521,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       new_drop_list.push_back(drop);
   }
 
-  remember_preexisting_foreign_keys(thd, table, alter_info, alter_ctx,
-                                    &new_create_list);
+  remember_preexisting_foreign_keys_and_triggers(thd, table, alter_info,
+                                                 alter_ctx, &new_create_list);
 
   if (rename_key_list.size() > 0)
   {
@@ -11867,19 +11816,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       close_temporary_table(thd, altered_table, true, false);
 
       if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-        // NewDD - Delete temporary .frm/.par
-        (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                              alter_ctx.tmp_name, FN_IS_TMP | NO_HA_TABLE);
+        // Delete temporary table object from data dictionary.
+        (void) dd::drop_table<dd::Table>(thd, alter_ctx.new_db,
+                                         alter_ctx.tmp_name, true);
       else
       {
-        // SE notification to be removed soon.
-        handler *file= get_new_handler((TABLE_SHARE*) 0, false, thd->mem_root,
-                                       new_db_type);
-        if (file)
-          (void) file->ha_create_handler_files(alter_ctx.get_tmp_path(), NULL,
-                                               CHF_DELETE_FLAG, NULL);
-        delete file;
-
         dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
         const dd::Schema *sch_obj;
         if (thd->dd_client()->acquire<dd::Schema>(alter_ctx.new_db, &sch_obj))
@@ -12364,38 +12305,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     goto err_with_mdl;
   }
 
-  // Move triggers from old table to the new table.
-  if (dd::move_triggers(thd, alter_ctx.db, backup_name,
-                        alter_ctx.new_db, alter_ctx.new_alias,
-                        !atomic_replace))
-  {
-    if (!atomic_replace)
-    {
-      // Rename failed, delete the new table.
-      (void) quick_rm_table(thd, new_db_type,
-                            alter_ctx.new_db, alter_ctx.new_alias, 0);
-      // Restore the backup of the original table to the old name.
-      (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
-                                alter_ctx.db, alter_ctx.alias,
-                                FN_FROM_IS_TMP | NO_TARGET_CHECK |
-                                NO_FK_CHECKS);
-    }
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016
-    else
-    {
-      trans_commit_stmt(thd);
-      trans_commit_implicit(thd);
-      (void) quick_rm_table(thd, new_db_type,
-                            alter_ctx.new_db, alter_ctx.new_alias, 0);
-      (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
-                                alter_ctx.db, alter_ctx.alias,
-                                FN_FROM_IS_TMP | NO_TARGET_CHECK |
-                                NO_FK_CHECKS);
-    }
-#endif
-    goto err_with_mdl;
-  }
-
   // ALTER TABLE succeeded, delete the backup of the old table.
   if (quick_rm_table(thd, old_db_type, alter_ctx.db, backup_name,
                      FN_IS_TMP | (atomic_replace ? NO_DD_COMMIT : 0)))
@@ -12409,16 +12318,21 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   /*
-    Transfer pre-existing foreign keys to the new table.
-    Since fk names have to be unique per schema, we cannot
+    Transfer pre-existing foreign keys and triggers to the new table.
+    Since fk and trigger names have to be unique per schema, we cannot
     create them while both the old and the tmp version of the
     table exist.
   */
-  if (alter_ctx.fk_count > 0 &&
-      dd::add_foreign_keys(thd, alter_ctx.new_db, alter_ctx.new_alias,
-                           alter_ctx.fk_info, alter_ctx.fk_count,
-                           !atomic_replace))
+  if ((alter_ctx.fk_count > 0 || !alter_ctx.trg_info.empty()) &&
+      dd::add_foreign_keys_and_triggers(thd, alter_ctx.new_db,
+                                        alter_ctx.new_alias,
+                                        alter_ctx.fk_info,
+                                        alter_ctx.fk_count,
+                                        &alter_ctx.trg_info,
+                                        !atomic_replace))
+  {
     goto err_with_mdl;
+  }
 
 end_inplace_noop:
 
@@ -12496,15 +12410,22 @@ err_new_table_cleanup:
       close_temporary_table(thd, new_table, true, false);
 
     if (!(new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-      (void) quick_rm_table(thd, new_db_type,
-                            alter_ctx.new_db, alter_ctx.tmp_name,
-                            (FN_IS_TMP | (no_ha_table ? NO_HA_TABLE : 0)));
+    {
+      if (no_ha_table) // Only remove from DD.
+        (void) dd::drop_table<dd::Table>(thd, alter_ctx.new_db,
+                                         alter_ctx.tmp_name, true);
+      else // Remove from both DD and SE.
+        (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                              alter_ctx.tmp_name, FN_IS_TMP);
+    }
 #ifndef WORKAROUND_UNTIL_WL7016_IS_IMPLEMENTED
     else
-      (void) quick_rm_table(thd, new_db_type,
-                            alter_ctx.new_db, alter_ctx.tmp_name,
-                            (FN_IS_TMP | NO_DD_COMMIT |
-                             (no_ha_table ? NO_HA_TABLE : 0)));
+    {
+      if (! no_ha_table)
+        // Remove from both DD and SE.
+        (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                              alter_ctx.tmp_name, FN_IS_TMP);
+    }
 #endif
     trans_rollback_stmt(thd);
     if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&

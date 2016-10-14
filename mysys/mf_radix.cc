@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,10 +21,13 @@
   2-3 times faster than quicksort
 */
 
-#include "mysys_priv.h"
-#include <m_string.h>
-
 	/* Radixsort */
+
+#include <string.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_sys.h"  // IWYU pragma: keep
 
 my_bool radixsort_is_appliccable(uint n_items, size_t size_of_element)
 {

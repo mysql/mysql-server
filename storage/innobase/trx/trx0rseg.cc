@@ -282,25 +282,18 @@ trx_rseg_schedule_pending_purge(
 	space = trx_sysf_rseg_get_space(sys_header, slot, mtr);
 
 	if (page_no != FIL_NULL
-	    && is_system_or_undo_tablespace(space)) {
+	    && (space == TRX_SYS_SPACE || fsp_is_undo_tablespace(space))) {
 
 		/* rseg resides in system or undo tablespace and so
 		this is an upgrade scenario. trx_rseg_mem_create
 		will add rseg to purge queue if needed. */
 
 		trx_rseg_t*		rseg = NULL;
-		bool			found = true;
-		const page_size_t&	page_size
-			= is_system_tablespace(space)
-			? univ_page_size
-			: fil_space_get_page_size(space, &found);
-
-		ut_ad(found);
 
 		trx_rseg_t** rseg_array =
 			((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
 		rseg = trx_rseg_mem_create(
-			slot, space, page_no, page_size,
+			slot, space, page_no, univ_page_size,
 			purge_queue, rseg_array, mtr);
 
 		ut_a(rseg->id == slot);
@@ -346,19 +339,14 @@ trx_rseg_create_instance(
 
 			space = trx_sysf_rseg_get_space(sys_header, i, &mtr);
 
-			bool			found = true;
-			const page_size_t&	page_size
-				= is_system_tablespace(space)
-				? univ_page_size
-				: fil_space_get_page_size(space, &found);
-
-			ut_ad(found);
+			/* Note that all tablespaces with rollback segments
+			use univ_page_size. (system, temp & undo) */
 
 			trx_rseg_t** rseg_array =
 				static_cast<trx_rseg_t**>(trx_sys->rseg_array);
 
 			rseg = trx_rseg_mem_create(
-				i, space, page_no, page_size,
+				i, space, page_no, univ_page_size,
 				purge_queue, rseg_array, &mtr);
 
 			ut_a(rseg->id == i);
@@ -411,10 +399,11 @@ trx_rseg_create(
 		ulint		id;
 		page_no_t	page_no;
 		trx_sysf_t*	sys_header;
-		page_size_t	page_size(space->flags);
+
+		ut_ad(univ_page_size.equals_to(page_size_t(space->flags)));
 
 		page_no = trx_rseg_header_create(
-			space_id, page_size, PAGE_NO_MAX, slot_no, &mtr);
+			space_id, univ_page_size, PAGE_NO_MAX, slot_no, &mtr);
 
 		if (page_no == FIL_NULL) {
 			mtr_commit(&mtr);
@@ -431,7 +420,7 @@ trx_rseg_create(
 			((trx_rseg_t**) trx_sys->rseg_array);
 
 		rseg = trx_rseg_mem_create(
-			slot_no, space_id, page_no, page_size,
+			slot_no, space_id, page_no, univ_page_size,
 			purge_sys->purge_queue, rseg_array, &mtr);
 	}
 

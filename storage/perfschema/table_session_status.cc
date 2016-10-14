@@ -166,7 +166,7 @@ table_session_status::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_session_status::index_init(uint idx, bool sorted)
+int table_session_status::index_init(uint idx, bool)
 {
  /* Build a cache of all status variables for this thread. */
   m_status_cache.materialize_all(current_thd);

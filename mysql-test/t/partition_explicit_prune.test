@@ -1,13 +1,13 @@
 
-# Test is temporarily run with show_compatibility_56=ON until Bug#21789221 is fixed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
 # Test is skipped with log-bin enabled as the count of commit and prepare handlers
 # increase when binary logging is enabled.
 --source include/not_log_bin.inc
 
 --source include/have_innodb.inc
+
+# Test is temporarily run with show_compatibility_56=ON until Bug#21789221 is fixed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 # Helper statement
 # Not using P_S tables until Bug#21789221 is fixed.

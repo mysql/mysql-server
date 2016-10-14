@@ -19,14 +19,18 @@
   @file mysys/my_compress.cc
 */
 
-#include <my_global.h>
-#include <mysys_priv.h>
-#include <my_sys.h>
-#include <m_string.h>
+#include <string.h>
+#include <sys/types.h>
 #include <zlib.h>
-#include "mysql/service_mysql_alloc.h"
-
 #include <algorithm>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysys_priv.h"
+#include "zconf.h"
 
 /*
    This replaces the packet with a compressed packet

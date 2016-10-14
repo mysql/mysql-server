@@ -1,7 +1,4 @@
 
-#Bug21789221- Until this Bug is resolved, the test will be run with show_compatibility_56=ON
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
@@ -9,6 +6,10 @@ set @@global.show_compatibility_56=ON;
 
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
+
+# Bug21789221- Until this Bug is resolved, the test will be run with show_compatibility_56=ON
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 #
 # Tests with query cache

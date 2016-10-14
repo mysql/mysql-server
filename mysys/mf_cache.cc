@@ -18,14 +18,16 @@
   Open a temporary file and cache it with io_cache. Delete it on close.
 */
 
-#include "my_global.h"
-#include "mysys_priv.h"
-#include "mysql/psi/mysql_file.h"
+#include <fcntl.h>
+#include <stddef.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"
-#include <m_string.h>
-#include "my_static.h"
-#include "mysys_err.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys_priv.h"
 
 
 	/*

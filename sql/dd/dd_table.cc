@@ -2380,21 +2380,30 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
 }
 
 
-bool add_foreign_keys(THD *thd,
-                      const dd::String_type &schema_name,
-                      const dd::String_type &table_name,
-                      const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
-                      bool commit_dd_changes)
+bool add_foreign_keys_and_triggers(THD *thd,
+                                   const dd::String_type &schema_name,
+                                   const dd::String_type &table_name,
+                                   const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
+                                   Prealloced_array<dd::Trigger*, 1> *trg_info,
+                                   bool commit_dd_changes)
 {
-  DBUG_ENTER("dd::add_foreign_keys");
   std::unique_ptr<dd::Table> table;
+
+  DBUG_ENTER("dd::add_foreign_keys_and_triggers");
+  DBUG_ASSERT((fk_keys > 0 && fk_keyinfo != nullptr) ||
+              (trg_info != nullptr && !trg_info->empty()));
+
 
   if (!(table= acquire_uncached_uncommitted_table<dd::Table>(thd,
                  schema_name.c_str(), table_name.c_str())))
     DBUG_RETURN(true);
 
-  if (fill_dd_foreign_keys_from_create_fields(table.get(), fk_keys, fk_keyinfo))
+  if (fk_keys > 0 &&
+      fill_dd_foreign_keys_from_create_fields(table.get(), fk_keys, fk_keyinfo))
     DBUG_RETURN(true);
+
+  if (trg_info != nullptr && !trg_info->empty())
+    table->move_triggers(trg_info);
 
   if (thd->dd_client()->update_uncached_and_invalidate(table.get()))
     DBUG_RETURN(true);

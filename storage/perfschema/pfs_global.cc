@@ -190,7 +190,7 @@ uint pfs_get_socket_address(char *host,
                             uint host_len,
                             uint *port,
                             const struct sockaddr_storage *src_addr,
-                            socklen_t src_len)
+                            socklen_t)
 {
   DBUG_ASSERT(host);
   DBUG_ASSERT(src_addr);

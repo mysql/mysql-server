@@ -18,11 +18,15 @@
 */
 
 #include <stdarg.h>
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
-#include "my_sys.h"
+#include "my_sys.h"  // IWYU pragma: keep
+#include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h"
 
 /*
   Malloc many pointers at the same time

@@ -42,10 +42,8 @@
 /*
   Callbacks implementation for GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS.
 */
-static void set_channel_name(void* const context, const char& value,
-                             size_t length)
-{
-}
+static void set_channel_name(void* const, const char&, size_t)
+{ }
 
 static void set_group_name(void* const context, const char& value,
                            size_t length)
@@ -300,7 +298,7 @@ int table_replication_connection_status::rnd_pos(const void *pos)
   return res;
 }
 
-int table_replication_connection_status::index_init(uint idx, bool sorted)
+int table_replication_connection_status::index_init(uint idx, bool)
 {
 #ifdef HAVE_REPLICATION
   PFS_index_rpl_connection_status *result= NULL;

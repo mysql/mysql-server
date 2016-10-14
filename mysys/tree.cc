@@ -56,10 +56,15 @@
   ft_boolean_search.c (at least) relies on that.
 */
 
-#include <m_string.h>
 #include <my_tree.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
 
+#include "my_alloc.h"
 #include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"

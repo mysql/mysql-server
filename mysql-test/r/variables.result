@@ -1,4 +1,5 @@
 drop table if exists t1,t2;
+SET @default_table_open_cache = @@table_open_cache;
 set @my_log_error_verbosity       =@@global.log_error_verbosity;
 set @my_connect_timeout           =@@global.connect_timeout;
 set @my_delayed_insert_timeout    =@@global.delayed_insert_timeout;
@@ -780,7 +781,7 @@ table_open_cache	1
 SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'table_open_cache';
 VARIABLE_NAME	VARIABLE_VALUE
 table_open_cache	1
-SET GLOBAL table_open_cache=DEFAULT;
+SET GLOBAL table_open_cache= @default_table_open_cache;
 set character_set_results=NULL;
 select ifnull(@@character_set_results,"really null");
 ifnull(@@character_set_results,"really null")

@@ -540,7 +540,7 @@ void table_events_transactions_current::reset_position(void)
   m_next_pos.m_index= 0;
 }
 
-int table_events_transactions_current::rnd_init(bool scan)
+int table_events_transactions_current::rnd_init(bool)
 {
   m_normalizer= time_normalizer::get(transaction_timer);
   return 0;
@@ -590,7 +590,7 @@ int table_events_transactions_current::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_transactions_current::index_init(uint idx, bool sorted)
+int table_events_transactions_current::index_init(uint idx, bool)
 {
   m_normalizer= time_normalizer::get(transaction_timer);
 
@@ -662,7 +662,7 @@ void table_events_transactions_history::reset_position(void)
   m_next_pos.reset();
 }
 
-int table_events_transactions_history::rnd_init(bool scan)
+int table_events_transactions_history::rnd_init(bool)
 {
   m_normalizer= time_normalizer::get(transaction_timer);
   return 0;
@@ -739,7 +739,7 @@ int table_events_transactions_history::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_transactions_history::index_init(uint idx, bool sorted)
+int table_events_transactions_history::index_init(uint idx, bool)
 {
   m_normalizer= time_normalizer::get(transaction_timer);
 
@@ -834,7 +834,7 @@ void table_events_transactions_history_long::reset_position(void)
   m_next_pos.m_index= 0;
 }
 
-int table_events_transactions_history_long::rnd_init(bool scan)
+int table_events_transactions_history_long::rnd_init(bool)
 {
   m_normalizer= time_normalizer::get(transaction_timer);
   return 0;

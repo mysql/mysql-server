@@ -21,23 +21,37 @@
 #define USE_PSI_V1
 #define HAVE_PSI_INTERFACE
 
-#include "my_global.h"
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <sys/types.h>
+#include <time.h>
+
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"  // IWYU pragma: keep
 #include "my_thread.h"
-#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_data_lock.h"
+#include "mysql/psi/psi_error.h"
+#include "mysql/psi/psi_file.h"
+#include "mysql/psi/psi_idle.h"
+#include "mysql/psi/psi_mdl.h"
+#include "mysql/psi/psi_memory.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/psi/psi_rwlock.h"
-#include "mysql/psi/psi_cond.h"
-#include "mysql/psi/psi_file.h"
 #include "mysql/psi/psi_socket.h"
-#include "mysql/psi/psi_table.h"
-#include "mysql/psi/psi_mdl.h"
-#include "mysql/psi/psi_idle.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_statement.h"
+#include "mysql/psi/psi_table.h"
+#include "mysql/psi/psi_thread.h"
 #include "mysql/psi/psi_transaction.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_error.h"
-#include "mysql/psi/psi_data_lock.h"
+
+class THD;
+struct MDL_key;
 
 C_MODE_START
 

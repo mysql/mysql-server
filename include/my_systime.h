@@ -36,6 +36,8 @@
 
 #ifdef _WIN32
 
+#include <windows.h>
+
 static inline void sleep(unsigned long seconds)
 { 
   Sleep(seconds * 1000);

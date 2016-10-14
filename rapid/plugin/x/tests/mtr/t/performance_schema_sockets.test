@@ -164,7 +164,7 @@ if ($XPlugin_ip != "0.0.0.0") {
 --die X Plugins TCP server IP should be set to 0.0.0.0 
 }
 
---let $XPlugin_port_expected= query_get_value(SELECT $MASTER_MYPORT + 9 as value, value, 1)
+--let $XPlugin_port_expected= query_get_value(SELECT @@mysqlx_port as value, value, 1)
 
 if ( $XPlugin_port != $XPlugin_port_expected) {
 --echo X Plugin tcp-port is set to $XPlugin_port, was expecting $XPlugin_port_expected

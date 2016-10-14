@@ -2705,7 +2705,7 @@ void pfs_set_thread_start_time_v1(time_t start_time)
   Implementation of the thread instrumentation interface.
   @sa PSI_v1::set_thread_state.
 */
-void pfs_set_thread_state_v1(const char* state)
+void pfs_set_thread_state_v1(const char*)
 {
   /* DEPRECATED. */
 }
@@ -3451,7 +3451,7 @@ PSI_file_locker*
 pfs_get_thread_file_name_locker_v1(PSI_file_locker_state *state,
                                    PSI_file_key key,
                                    PSI_file_operation op,
-                                   const char *name, const void *identity)
+                                   const char *name, const void *)
 {
   DBUG_ASSERT(static_cast<int> (op) >= 0);
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(file_operation_map));
@@ -4017,7 +4017,7 @@ void pfs_unlock_rwlock_v1(PSI_rwlock *rwlock)
   Implementation of the cond instrumentation interface.
   @sa PSI_v1::signal_cond.
 */
-void pfs_signal_cond_v1(PSI_cond* cond)
+void pfs_signal_cond_v1(PSI_cond* cond MY_ATTRIBUTE((unused)))
 {
 #ifdef PFS_LATER
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);
@@ -4032,7 +4032,7 @@ void pfs_signal_cond_v1(PSI_cond* cond)
   Implementation of the cond instrumentation interface.
   @sa PSI_v1::broadcast_cond.
 */
-void pfs_broadcast_cond_v1(PSI_cond* cond)
+void pfs_broadcast_cond_v1(PSI_cond* cond MY_ATTRIBUTE((unused)))
 {
 #ifdef PFS_LATER
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);
@@ -4459,7 +4459,7 @@ void pfs_end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
   Implementation of the cond instrumentation interface.
   @sa PSI_v1::end_cond_wait.
 */
-void pfs_end_cond_wait_v1(PSI_cond_locker* locker, int rc)
+void pfs_end_cond_wait_v1(PSI_cond_locker* locker, int)
 {
   PSI_cond_locker_state *state= reinterpret_cast<PSI_cond_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
@@ -6176,7 +6176,7 @@ static PSI_sp_share *pfs_get_sp_share_v1(uint sp_type,
   return reinterpret_cast<PSI_sp_share *>(pfs_program);
 }
 
-static void pfs_release_sp_share_v1(PSI_sp_share* sp_share)
+static void pfs_release_sp_share_v1(PSI_sp_share*)
 {
   /* Unused */
   return;
@@ -7216,7 +7216,8 @@ static PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size,
   return key;
 }
 
-void pfs_memory_free_v1(PSI_memory_key key, size_t size, PSI_thread *owner)
+void pfs_memory_free_v1(PSI_memory_key key, size_t size,
+                        PSI_thread *owner MY_ATTRIBUTE((unused)))
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
@@ -7450,7 +7451,7 @@ pfs_start_metadata_wait_v1(PSI_metadata_locker_state *state,
 
 void
 pfs_end_metadata_wait_v1(PSI_metadata_locker *locker,
-                         int rc)
+                         int)
 {
   PSI_metadata_locker_state *state= reinterpret_cast<PSI_metadata_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);

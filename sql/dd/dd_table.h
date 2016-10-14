@@ -23,6 +23,7 @@
 #include "dd/types/column.h"         // dd::enum_column_types
 #include "handler.h"                 // legacy_db_type
 #include "my_global.h"
+#include "prealloced_array.h"        // Prealloced_array
 #include "sql_alter.h"               // Alter_info::enum_enable_or_disable
 #include "system_variables.h"
 #include "table.h"                   // ST_FIELD_INFO
@@ -43,6 +44,7 @@ class KEY;
 template <class T> class List;
 
 namespace dd {
+  class Trigger;
   class Table;
 
   enum class enum_table_type;
@@ -150,26 +152,29 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
                              handler *file);
 
 /**
-  Add foreign keys to a given table. This is used by ALTER TABLE
-  to restore existing foreign keys towards the end of the statement.
-  This is needed to avoid problems with duplicate foreign key names
-  while we have to definitions of the same table.
+  Add foreign keys and triggers to a given table. This is used by
+  ALTER TABLE to restore existing foreign keys and triggers towards
+  the end of the statement. This is needed to avoid problems with
+  duplicate foreign key and trigger names while we have two definitions
+  of the same table.
 
   @param thd            Thread handle.
   @param schema_name    Database name.
   @param table_name     Table name.
-  @param fk_keyinfo     Array of foreign key information
+  @param fk_keyinfo     Array of foreign key information.
   @param fk_keys        Number of foreign keys to add.
+  @param trg_info       Array of triggers to be added to the table.
   @param commit_dd_changes  Indicates whether change should be committed.
 
   @retval false on success
   @retval true on failure
 */
-bool add_foreign_keys(THD *thd,
-                      const dd::String_type &schema_name,
-                      const dd::String_type &table_name,
-                      const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
-                      bool commit_dd_changes);
+bool add_foreign_keys_and_triggers(THD *thd,
+                                   const dd::String_type &schema_name,
+                                   const dd::String_type &table_name,
+                                   const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
+                                   Prealloced_array<dd::Trigger*, 1> *trg_info,
+                                   bool commit_dd_changes);
 
 //////////////////////////////////////////////////////////////////////////
 // Function common to 'table' and 'view' objects

@@ -507,7 +507,8 @@ void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
     or 0 if unknown
   @return a thread instance, or NULL
 */
-PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
+PFS_thread* create_thread(PFS_thread_class *klass,
+                          const void *identity MY_ATTRIBUTE((unused)),
                           ulonglong processlist_id)
 {
   PFS_thread *pfs;
@@ -1624,7 +1625,7 @@ void aggregate_thread_status(PFS_thread *thread,
   return;
 }
 
-static void aggregate_thread_stats(PFS_thread *thread,
+static void aggregate_thread_stats(PFS_thread*,
                                    PFS_account *safe_account,
                                    PFS_user *safe_user,
                                    PFS_host *safe_host)

@@ -226,17 +226,6 @@ static ulint	srv_data_written;
 # define fil_buffering_disabled(s)	(0)
 #endif /* __WIN32 */
 
-/** Determine if the space id is a user tablespace id or not.
-@param[in]	space_id	Space ID to check
-@return true if it is a user tablespace ID */
-UNIV_INLINE
-bool
-fil_is_user_tablespace_id(space_id_t space_id)
-{
-	return(!srv_is_undo_tablespace(space_id)
-	       && !is_system_tablespace(space_id));
-}
-
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
 # define FIL_VALIDATE_SKIP	17
@@ -280,7 +269,7 @@ fil_space_belongs_in_lru(
 	case FIL_TYPE_LOG:
 		return(false);
 	case FIL_TYPE_TABLESPACE:
-		return(fil_is_user_tablespace_id(space->id));
+		return(fsp_is_ibd_tablespace(space->id));
 	case FIL_TYPE_IMPORT:
 		return(true);
 	}
@@ -2088,7 +2077,8 @@ fil_name_write_rename(
 	const char*	new_name,
 	mtr_t*		mtr)
 {
-	ut_ad(!is_predefined_tablespace(space_id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
+	ut_ad(!fsp_is_undo_tablespace(space_id));
 
 	fil_op_write_log(
 		MLOG_FILE_RENAME2,
@@ -2315,7 +2305,7 @@ fil_check_pending_operations(
 {
 	ulint		count = 0;
 
-	ut_a(!is_system_tablespace(id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(id));
 	ut_ad(space);
 
 	*space = 0;
@@ -2515,7 +2505,8 @@ fil_close_tablespace(
 	fil_space_t*	space = 0;
 	dberr_t		err;
 
-	ut_a(!is_system_tablespace(id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(id));
+	ut_ad(!fsp_is_undo_tablespace(id));
 
 	err = fil_check_pending_operations(id, FIL_OPERATION_CLOSE,
 					   &space, &path);
@@ -2584,7 +2575,8 @@ fil_delete_tablespace(
 	char*		path = 0;
 	fil_space_t*	space = 0;
 
-	ut_a(!is_system_tablespace(id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(id));
+	ut_ad(!fsp_is_undo_tablespace(id));
 
 	dberr_t err = fil_check_pending_operations(
 		id, FIL_OPERATION_DELETE, &space, &path);
@@ -2718,7 +2710,8 @@ fil_prepare_for_truncate(
 	char*		path = 0;
 	fil_space_t*	space = 0;
 
-	ut_a(!is_system_tablespace(id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(id));
+	ut_ad(fsp_is_undo_tablespace(id));
 
 	dberr_t err = fil_check_pending_operations(
 		id, FIL_OPERATION_CLOSE, &space, &path);
@@ -3254,7 +3247,7 @@ fil_ibd_create(
 	bool		has_shared_space = FSP_FLAGS_GET_SHARED(flags);
 	fil_space_t*	space = NULL;
 
-	ut_ad(!is_system_tablespace(space_id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
 	ut_ad(!srv_read_only_mode);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
@@ -4368,9 +4361,9 @@ retry:
 	page_no_t	size_in_pages = ((node->size / pages_per_mb)
 					 * pages_per_mb);
 
-	if (space->id == srv_sys_space.space_id()) {
+	if (space->id == TRX_SYS_SPACE) {
 		srv_sys_space.set_last_file_size(size_in_pages);
-	} else if (space->id == srv_tmp_space.space_id()) {
+	} else if (fsp_is_system_temporary(space->id)) {
 		srv_tmp_space.set_last_file_size(size_in_pages);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -4829,7 +4822,7 @@ fil_io(
 				space->name, byte_offset, len,
 				req_type.is_read());
 
-		} else if (fil_is_user_tablespace_id(space->id)
+		} else if (fsp_is_ibd_tablespace(space->id)
 			   && node->size == 0) {
 
 			/* We do not know the size of a single-table tablespace
@@ -4841,7 +4834,7 @@ fil_io(
 			break;
 
 		} else {
-			if (space->id != srv_sys_space.space_id()
+			if (space->id != TRX_SYS_SPACE
 			    && UT_LIST_GET_LEN(space->chain) == 1
 			    && req_type.is_read()
 			    && (undo::Truncate::is_tablespace_truncated(
@@ -4864,7 +4857,7 @@ fil_io(
 	/* Open file if closed */
 	if (!fil_node_prepare_for_io(node, fil_system, space)) {
 		if (fil_type_is_data(space->purpose)
-		    && fil_is_user_tablespace_id(space->id)) {
+		    && fsp_is_ibd_tablespace(space->id)) {
 			mutex_exit(&fil_system->mutex);
 
 			if (!req_type.ignore_missing()) {
@@ -4893,7 +4886,7 @@ fil_io(
 	/* Check that at least the start offset is within the bounds of a
 	single-table tablespace, including rollback tablespaces. */
 	if (node->size <= cur_page_no
-	    && space->id != srv_sys_space.space_id()
+	    && space->id != TRX_SYS_SPACE
 	    && fil_type_is_data(space->purpose)) {
 
 		if (req_type.ignore_missing()) {
@@ -6005,12 +5998,10 @@ fil_mtr_rename_log(
 	dberr_t	err;
 
 	bool	old_is_file_per_table =
-		!is_system_tablespace(old_table->space)
-		&& !DICT_TF_HAS_SHARED_SPACE(old_table->flags);
+		dict_table_is_file_per_table(old_table);
 
 	bool	new_is_file_per_table =
-		!is_system_tablespace(new_table->space)
-		&& !DICT_TF_HAS_SHARED_SPACE(new_table->flags);
+		dict_table_is_file_per_table(new_table);
 
 	/* If neither table is file-per-table,
 	there will be no renaming of files. */
@@ -6349,9 +6340,10 @@ fil_set_encryption(
 	byte*			key,
 	byte*			iv)
 {
-	ut_ad(!is_system_or_undo_tablespace(space_id));
+	ut_ad(space_id != TRX_SYS_SPACE);
+	ut_ad(!fsp_is_undo_tablespace(space_id));
 
-	if (is_system_tablespace(space_id)) {
+	if (fsp_is_system_temporary(space_id)) {
 		return(DB_IO_NO_ENCRYPT_TABLESPACE);
 	}
 
@@ -6398,8 +6390,8 @@ fil_encryption_rotate()
 	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL; ) {
 		/* Skip unencypted tablespaces. */
-		if (is_system_or_undo_tablespace(space->id)
-		    || fsp_is_system_temporary(space->id)
+		if (fsp_is_system_or_temp_tablespace(space->id)
+		    || fsp_is_undo_tablespace(space->id)
 		    || space->purpose == FIL_TYPE_LOG) {
 			space = UT_LIST_GET_NEXT(space_list, space);
 			continue;

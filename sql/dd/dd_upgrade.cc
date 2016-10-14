@@ -725,22 +725,23 @@ bool Trigger_loader::load_triggers(THD *thd,
     LEX_CSTRING db_cl= { db_cl_name->str, db_cl_name->length };
 
     // Create a new trigger instance.
-    ::Trigger *t= ::Trigger::create_from_dd(mem_root,
-                                            tmp_name,
-                                            db_name_str,
-                                            table_name_str,
-                                            orig_definition,
-                                            body_utf8,
-                                            *sql_mode,
-                                            definer_user_name,
-                                            definer_host_name,
-                                            client_cs,
-                                            cn_cl,
-                                            db_cl,
-                                            enum_trigger_event_type::TRG_EVENT_MAX,
-                                            enum_trigger_action_time_type::TRG_ACTION_MAX,
-                                            0,
-                                            timestamp_value);
+    ::Trigger *t= ::Trigger::create_from_dd(
+            mem_root,
+            tmp_name,
+            db_name_str,
+            table_name_str,
+            orig_definition,
+            body_utf8,
+            *sql_mode,
+            definer_user_name,
+            definer_host_name,
+            client_cs,
+            cn_cl,
+            db_cl,
+            enum_trigger_event_type::TRG_EVENT_MAX,
+            enum_trigger_action_time_type::TRG_ACTION_MAX,
+            0,
+            timestamp_value);
 
     /*
       NOTE: new trigger object is not fully initialized here.

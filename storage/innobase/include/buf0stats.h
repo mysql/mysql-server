@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -109,8 +109,7 @@ private:
 	should_skip(
 		const index_id_t&	id)
 	{
-		const bool	is_temp
-			= id.m_space_id == srv_tmp_space.space_id();
+		const bool is_temp = fsp_is_system_temporary(id.m_space_id);
 
 		return(id.is_ibuf() || is_temp
 		       || (id.m_index_id & 0xFFFFFFFF00000000ULL) != 0);

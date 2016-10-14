@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +18,16 @@
   Code for handling strings with can grow dynamically.
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
 #include <m_string.h>
+#include <stdarg.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys_priv.h"
 
 my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
 			    size_t init_alloc, size_t alloc_increment)

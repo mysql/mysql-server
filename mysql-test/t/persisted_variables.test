@@ -399,4 +399,3 @@ SELECT @@global.general_log, @@global.autocommit,
 --source include/wait_until_connected_again.inc
 
 SELECT 'END OF TEST';
-

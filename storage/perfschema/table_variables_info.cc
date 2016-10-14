@@ -108,7 +108,7 @@ void table_variables_info::reset_position(void)
   m_next_pos.m_index= 0;
 }
 
-int table_variables_info::rnd_init(bool scan)
+int table_variables_info::rnd_init(bool)
 {
   /* Build a cache of system variables for this thread. */
   m_sysvarinfo_cache.materialize_all(current_thd);

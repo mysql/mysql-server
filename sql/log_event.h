@@ -856,9 +856,9 @@ public:
 	   write_data_body(file) ||
 	   write_footer(file));
   }
-  virtual bool write_data_header(IO_CACHE* file)
+  virtual bool write_data_header(IO_CACHE*)
   { return 0; }
-  virtual bool write_data_body(IO_CACHE* file MY_ATTRIBUTE((unused)))
+  virtual bool write_data_body(IO_CACHE*)
   { return 0; }
 
   time_t get_time();
@@ -951,11 +951,6 @@ public:
   /**
      Is called from get_mts_execution_mode() to
 
-     @param  is_scheduler_dbname
-                   The current scheduler type.
-                   In case the db-name scheduler certain events
-                   can't be applied in parallel.
-
      @return TRUE  if the event needs applying with synchronization
                    agaist Workers, otherwise
              FALSE
@@ -966,7 +961,7 @@ public:
 
            todo: to mts-support Old master Load-data related events
   */
-  bool is_mts_sequential_exec(bool is_scheduler_dbname)
+  bool is_mts_sequential_exec()
   {
     switch(get_type_code())
     {
@@ -1017,20 +1012,15 @@ private:
      Coordinator concurrently with Workers and some to require synchronization
      with Workers (@c see wait_for_workers_to_finish) before to apply them.
 
-     @param slave_server_id   id of the server, extracted from event
      @param mts_in_group      the being group parsing status, true
                               means inside the group
-     @param is_dbname_type    true when the current submode (scheduler)
-                              is of DB_NAME type.
 
      @retval EVENT_EXEC_PARALLEL  if event is executed by a Worker
      @retval EVENT_EXEC_ASYNC     if event is executed by Coordinator
      @retval EVENT_EXEC_SYNC      if event is executed by Coordinator
                                   with synchronization against the Workers
   */
-  enum enum_mts_event_exec_mode get_mts_execution_mode(ulong slave_server_id,
-                                                       bool mts_in_group,
-                                                       bool is_dbname_type)
+  enum enum_mts_event_exec_mode get_mts_execution_mode(bool mts_in_group)
   {
     /*
       Slave workers are unable to handle Format_description_log_event,
@@ -1081,7 +1071,7 @@ private:
          ((server_id == (uint32) ::server_id) ||
           (common_header->log_pos == 0 && mts_in_group))))
       return EVENT_EXEC_ASYNC;
-    else if (is_mts_sequential_exec(is_dbname_type))
+    else if (is_mts_sequential_exec())
       return EVENT_EXEC_SYNC;
     else
       return EVENT_EXEC_PARALLEL;
@@ -1223,7 +1213,7 @@ public:
     @retval 0     Event applied successfully
     @retval errno Error code if event application failed
   */
-  virtual int do_apply_event(Relay_log_info const *rli)
+  virtual int do_apply_event(Relay_log_info const *rli MY_ATTRIBUTE((unused)))
   {
     return 0;                /* Default implementation does nothing */
   }
@@ -1435,7 +1425,7 @@ public:
   }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
-  virtual bool write_post_header_for_derived(IO_CACHE* file) { return FALSE; }
+  virtual bool write_post_header_for_derived(IO_CACHE*) { return FALSE; }
 #endif
 
   /*
@@ -1837,9 +1827,7 @@ protected:
               Log_event::EVENT_TRANSACTIONAL_CACHE,
               Log_event::EVENT_NORMAL_LOGGING, header_arg, footer_arg) {};
 #endif
-  Xid_apply_log_event(const char* buf,
-                      const Format_description_event *description_event,
-                      Log_event_header *header_arg,
+  Xid_apply_log_event(Log_event_header *header_arg,
                       Log_event_footer *footer_arg)
   : Log_event(header_arg, footer_arg) {}
   ~Xid_apply_log_event() {}
@@ -1915,7 +1903,7 @@ public:
   XA_prepare_log_event(const char* buf,
                          const Format_description_log_event *description_event)
     : binary_log::XA_prepare_event(buf, description_event),
-      Xid_apply_log_event(buf, description_event, header(), footer())
+      Xid_apply_log_event(header(), footer())
   {
     is_valid_param= true;
     xid= NULL;
@@ -2041,7 +2029,7 @@ public:
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_update_pos(Relay_log_info *rli);
-  virtual enum_skip_reason do_shall_skip(Relay_log_info *rli)
+  virtual enum_skip_reason do_shall_skip(Relay_log_info*)
   {
     /*
       Events from ourself should be skipped, but they should not
@@ -4014,13 +4002,13 @@ public:
     Also, we should not increment slave_skip_counter
     for this event, hence return EVENT_SKIP_IGNORE.
    */
-  enum_skip_reason do_shall_skip(Relay_log_info *rli)
+  enum_skip_reason do_shall_skip(Relay_log_info*)
   {
     return EVENT_SKIP_IGNORE;
   }
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  int do_apply_event(Relay_log_info const *rli) { return 0; }
+  int do_apply_event(Relay_log_info const *) { return 0; }
   int do_update_pos(Relay_log_info *rli);
 #endif
 };
@@ -4101,7 +4089,7 @@ public:
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  int do_apply_event(Relay_log_info const *rli) { return 0; }
+  int do_apply_event(Relay_log_info const *) { return 0; }
   int do_update_pos(Relay_log_info *rli);
 #endif
 

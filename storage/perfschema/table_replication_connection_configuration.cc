@@ -263,7 +263,7 @@ int table_replication_connection_configuration::rnd_pos(const void *pos)
   return res;
 }
 
-int table_replication_connection_configuration::index_init(uint idx, bool sorted)
+int table_replication_connection_configuration::index_init(uint idx, bool)
 {
 #ifdef HAVE_REPLICATION
   PFS_index_rpl_connection_config *result= NULL;

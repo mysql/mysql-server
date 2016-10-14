@@ -4,10 +4,6 @@ if (!$require_case_insensitive_file_system)
   --source include/have_case_sensitive_file_system.inc
 }
 
-# Running test with show_compatibility_56=ON to retain I_S compatibility until it is permanently removed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
 --source include/no_valgrind_without_big.inc
 
 # This test  uses grants, which can't get tested for embedded server
@@ -18,6 +14,10 @@ set @@global.show_compatibility_56=ON;
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
+
+# Running test with show_compatibility_56=ON to retain I_S compatibility until it is permanently removed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 #
 # Remove NO_AUTO_CREATE_USER sql mode (default since 5.7).

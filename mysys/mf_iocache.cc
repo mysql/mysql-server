@@ -48,12 +48,31 @@ TODO:
   write buffer to the read buffer before we start to reuse it.
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include <m_string.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysys_priv.h"
+#include "thr_mutex.h"
 
 PSI_file_key key_file_io_cache;
 

@@ -38,6 +38,7 @@ public:
   virtual void on_row_send() = 0;
   virtual void on_send(long bytes_transferred) = 0;
   virtual void on_receive(long bytes_transferred) = 0;
+  virtual void on_unknown_msg_type() = 0;
 };
 
 

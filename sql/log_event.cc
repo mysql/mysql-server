@@ -3260,11 +3260,8 @@ int Log_event::apply_event(Relay_log_info *rli)
   {
     bool skip=
       bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index) &&
-      (get_mts_execution_mode(::server_id,
-                              rli->mts_group_status ==
-                              Relay_log_info::MTS_IN_GROUP,
-                              rli->current_mts_submode->get_type() ==
-                              MTS_PARALLEL_TYPE_DB_NAME)
+      (get_mts_execution_mode(rli->mts_group_status ==
+                              Relay_log_info::MTS_IN_GROUP)
        == EVENT_EXEC_PARALLEL);
     if (skip)
     {
@@ -3278,11 +3275,8 @@ int Log_event::apply_event(Relay_log_info *rli)
 
   if (!(parallel= rli->is_parallel_exec()) ||
       ((actual_exec_mode=
-        get_mts_execution_mode(::server_id,
-                               rli->mts_group_status ==
-                               Relay_log_info::MTS_IN_GROUP,
-                               rli->current_mts_submode->get_type() ==
-                               MTS_PARALLEL_TYPE_DB_NAME))
+        get_mts_execution_mode(rli->mts_group_status ==
+                               Relay_log_info::MTS_IN_GROUP))
        != EVENT_EXEC_PARALLEL))
   {
     if (parallel)
@@ -5984,7 +5978,7 @@ Xid_log_event::
 Xid_log_event(const char* buf,
               const Format_description_event *description_event)
   : binary_log::Xid_event(buf, description_event),
-    Xid_apply_log_event(buf, description_event, header(), footer())
+    Xid_apply_log_event(header(), footer())
 {
   is_valid_param= true;
 }
@@ -12363,11 +12357,11 @@ bool Transaction_context_log_event::write_data_header(IO_CACHE* file)
   char buf[Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN];
 
   buf[ENCODED_SERVER_UUID_LEN_OFFSET] = (char) strlen(server_uuid);
-  int8store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
+  int4store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
   buf[ENCODED_GTID_SPECIFIED_OFFSET] = gtid_specified;
   int4store(buf + ENCODED_SNAPSHOT_VERSION_LEN_OFFSET, get_snapshot_version_size());
-  int2store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
-  int2store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
+  int4store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
+  int4store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
   DBUG_RETURN(wrapper_my_b_safe_write(file, (const uchar *) buf,
                                       Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN));
 }

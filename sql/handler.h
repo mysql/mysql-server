@@ -2765,15 +2765,10 @@ public:
   Meta data routines to CREATE, DROP, RENAME table are often used at
   ALTER TABLE (update_create_info used from ALTER TABLE and SHOW ..).
 
-  create_handler_files is called before opening a new handler object
-  to call create. It is used to create any local handler object needed
-  when opening the object.
-
   Methods:
     delete_table()
     rename_table()
     create()
-    create_handler_files()
     update_create_info()
 
   -------------------------------------------------------------------------
@@ -3461,9 +3456,6 @@ public:
    */
 
   bool ha_get_se_private_data(dd::Table *dd_table, uint dd_version);
-
-  int ha_create_handler_files(const char *name, const char *old_name,
-                              int action_flag, HA_CREATE_INFO *info);
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
@@ -4282,12 +4274,6 @@ public:
   virtual bool auto_repair() const { return 0; }
 
 
-#define CHF_CREATE_FLAG 0
-#define CHF_DELETE_FLAG 1
-#define CHF_RENAME_FLAG 2
-#define CHF_INDEX_FLAG  3
-
-
   /**
     Get number of lock objects returned in store_lock.
 
@@ -4824,7 +4810,7 @@ protected:
 
     WL7743/TODO: Check if this method needed for InnoDB/atomic DDL.
  */
- virtual void notify_table_changed(Alter_inplace_info *ha_alter_info);
+ virtual void notify_table_changed(Alter_inplace_info *ha_alter_info) { };
 
 public:
  /* End of On-line/in-place ALTER TABLE interface. */
@@ -5178,12 +5164,6 @@ public:
   virtual bool get_se_private_data(dd::Table *dd_table MY_ATTRIBUTE((unused)),
                                    uint dd_version MY_ATTRIBUTE((unused)))
   { return false; }
-
-  virtual int create_handler_files(const char *name MY_ATTRIBUTE((unused)),
-                                   const char *old_name MY_ATTRIBUTE((unused)),
-                                   int action_flag MY_ATTRIBUTE((unused)),
-                                   HA_CREATE_INFO *info MY_ATTRIBUTE((unused)))
-  { return FALSE; }
 
   virtual int get_extra_columns_and_keys(const HA_CREATE_INFO *create_info,
                                          const List<Create_field> *create_list,

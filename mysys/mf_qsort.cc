@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,9 +21,10 @@
 */
 
 
-#include "mysys_priv.h"
+#include <string.h>
+
+#include "my_inttypes.h"
 #include "my_sys.h"
-#include <m_string.h>
 
 /* We need to use qsort with 2 different compare functions */
 #ifdef QSORT_EXTRA_CMP_ARGUMENT

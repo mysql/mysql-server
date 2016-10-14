@@ -3692,7 +3692,7 @@ ibuf_insert(
 			    op, page_id.space(), page_id.page_no()));
 
 	ut_ad(dtuple_check_typed(entry));
-	ut_ad(page_id.space() != srv_tmp_space.space_id());
+	ut_ad(!fsp_is_system_temporary(page_id.space()));
 
 	ut_a(!index->is_clustered());
 

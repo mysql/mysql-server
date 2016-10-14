@@ -12944,7 +12944,7 @@ ha_innobase::discard_or_import_tablespace(
 		DBUG_RETURN(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}
 
-	if (dict_table->space == srv_sys_space.space_id()) {
+	if (dict_table->space == TRX_SYS_SPACE) {
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLE_IN_SYSTEM_TABLESPACE,

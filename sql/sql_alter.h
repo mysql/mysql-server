@@ -43,6 +43,9 @@ struct TABLE_LIST;
 
 typedef struct st_mysql_lex_string LEX_STRING;
 
+namespace dd {
+  class Trigger;
+}
 
 /**
   Class representing DROP COLUMN, DROP KEY and DROP FOREIGN KEY
@@ -429,6 +432,8 @@ public:
   Alter_table_ctx(THD *thd, TABLE_LIST *table_list, uint tables_opened_arg,
                   const char *new_db_arg, const char *new_name_arg);
 
+  ~Alter_table_ctx();
+
   /**
      @return true if the table is moved to another database, false otherwise.
   */
@@ -480,6 +485,11 @@ public:
   */
   FOREIGN_KEY  *fk_info;
   uint         fk_count;
+
+  /*
+    Used for the same purpose as fk_info above.
+  */
+  Prealloced_array<dd::Trigger*, 1>  trg_info;
 
 private:
   char new_filename[FN_REFLEN + 1];

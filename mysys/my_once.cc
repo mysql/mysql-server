@@ -19,13 +19,19 @@
 
 /* Not MT-SAFE */
 
-#include <m_string.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
 
+#include "my_alloc.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_static.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"
-#include "mysys_priv.h"
 
 /*
   Alloc for things we don't nend to free run-time (that only

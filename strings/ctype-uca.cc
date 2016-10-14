@@ -3586,7 +3586,7 @@ static void change_weight_if_case_first(CHARSET_INFO *cs, MY_COLL_RULE *r,
 }
 
 static size_t
-my_char_weight_put_900(CHARSET_INFO *cs, MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
+my_char_weight_put_900(MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
                        size_t to_length, MY_COLL_RULE *rule, size_t base_len,
                        size_t curr_len)
 {
@@ -3694,7 +3694,7 @@ my_char_weight_put(CHARSET_INFO *cs, MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
   if (!to_length)
     return 0;
   if (uca_ver == UCA_V900)
-    return my_char_weight_put_900(cs, dst, to, to_length, rule, base_len,
+    return my_char_weight_put_900(dst, to, to_length, rule, base_len,
                                   curr_len);
 
   to_length--; /* Without trailing zero */

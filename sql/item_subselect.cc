@@ -921,7 +921,7 @@ Item_singlerow_subselect::invalidate_and_restore_select_lex()
 }
 
 /* used in independent ALL/ANY optimisation */
-class Query_result_max_min_subquery :public Query_result_subquery
+class Query_result_max_min_subquery final : public Query_result_subquery
 {
   Item_cache *cache;
   bool (Query_result_max_min_subquery::*op)();
@@ -938,8 +938,8 @@ public:
     :Query_result_subquery(thd, item_arg), cache(0), fmax(mx),
      ignore_nulls(ignore_nulls)
   {}
-  void cleanup();
-  bool send_data(List<Item> &items);
+  void cleanup() override;
+  bool send_data(List<Item> &items) override;
 private:
   bool cmp_real();
   bool cmp_int();

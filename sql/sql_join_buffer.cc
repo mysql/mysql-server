@@ -1042,7 +1042,7 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
 
 
 /**
-  Calculate the increment of the MRR buffer for a record write       
+  Calculate the increment of the MRR buffer for a record write.
 
   This implementation of the virtual function aux_buffer_incr
   determines for how much the size of the MRR buffer should be
@@ -1074,7 +1074,7 @@ uint JOIN_CACHE_BKA::aux_buffer_incr()
 
 
 /**
-  Calculate the minimume size for the MRR buffer.
+  Calculate the minimum size for the MRR buffer.
 
   @return The minumum size that must be allocated for the MRR buffer
 */
@@ -3133,29 +3133,24 @@ bool JOIN_CACHE_BKA_UNIQUE::skip_record_if_match()
 }
 
 
-/* 
-  Search for a key in the hash table of the join buffer
+/**
+  Search for a key in the hash table of the join buffer.
 
-  SYNOPSIS
-    key_search()
-      key             pointer to the key value
-      key_len         key value length
-      key_ref_ptr OUT position of the reference to the next key from 
-                      the hash element for the found key , or
-                      a position where the reference to the the hash 
-                      element for the key is to be added in the
-                      case when the key has not been found
-      
-  DESCRIPTION
+  @param key              pointer to the key value
+  @param key_len          key value length
+  @param[out] key_ref_ptr position of the reference to the next key from
+                          the hash element for the found key, or a
+                          position where the reference to the the hash
+                          element for the key is to be added in the
+                          case when the key has not been found
+  @details
     The function looks for a key in the hash table of the join buffer.
     If the key is found the functionreturns the position of the reference
-    to the next key from  to the hash element for the given key. 
+    to the next key from  to the hash element for the given key.
     Otherwise the function returns the position where the reference to the
-    newly created hash element for the given key is to be added.  
+    newly created hash element for the given key is to be added.
 
-  RETURN
-    TRUE  - the key is found in the hash table
-    FALSE - otherwise
+  @return whether the key is found in the hash table
 */
 
 bool JOIN_CACHE_BKA_UNIQUE::key_search(uchar *key, uint key_len,
@@ -3550,22 +3545,17 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
 }
 
 
-/*
-  Check whether all records in a key chain have their match flags set on   
+/**
+  Check whether all records in a key chain are flagged as matches.
 
-  SYNOPSIS
-    check_all_match_flags_for_key()
-      key_chain_ptr     
+  @param key_chain_ptr key chain
+  @return whether each record in the key chain has been flagged as a match
 
-  DESCRIPTION
+  @details
     This function retrieves records in the given circular chain and checks
     whether their match flags are set on. The parameter key_chain_ptr shall
     point to the position in the join buffer storing the reference to the
-    last element of this chain. 
-            
-  RETURN
-    TRUE   if each retrieved record has its match flag set on
-    FALSE  otherwise 
+    last element of this chain.
 */
 
 bool JOIN_CACHE_BKA_UNIQUE::check_all_match_flags_for_key(uchar *key_chain_ptr)
@@ -3577,12 +3567,12 @@ bool JOIN_CACHE_BKA_UNIQUE::check_all_match_flags_for_key(uchar *key_chain_ptr)
     next_rec_ref_ptr= get_next_rec_ref(next_rec_ref_ptr);
     uchar *rec_ptr= next_rec_ref_ptr+rec_fields_offset;
     if (!get_match_flag_by_pos(rec_ptr))
-      return FALSE;
+      return false;
   }
   while (next_rec_ref_ptr != last_rec_ref_ptr);
-  return TRUE;
+  return true;
 }
-  
+
 
 /* 
   Get the next key built for the records from BKA_UNIQUE join buffer

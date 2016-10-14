@@ -114,11 +114,13 @@ sub mtr_get_unique_id($$$) {
         # Not able to get a lock on the file, start the search from
         # next id(i.e min+1).
         $min= $min + 1;
-        $build_thread= 0;
 
-        if (defined $mtr_unique_fh[$build_thread-1])
+        for (;$build_thread > 0; $build_thread--)
         {
-          close $mtr_unique_fh[$build_thread-1];
+          if (defined $mtr_unique_fh[$build_thread-1])
+          {
+            close $mtr_unique_fh[$build_thread-1];
+          }
         }
 
         # Close the file opened in the current iterartion.
@@ -131,6 +133,8 @@ sub mtr_get_unique_id($$$) {
         return $id - $build_thread + 1;
       }
     }
+
+    return undef if ($min > $max);
   }
 
   return undef;

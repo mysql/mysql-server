@@ -163,7 +163,7 @@ int table_global_variables::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_global_variables::index_init(uint idx, bool sorted)
+int table_global_variables::index_init(uint idx, bool)
 {
   /*
     Build a list of system variables from the global system variable hash.

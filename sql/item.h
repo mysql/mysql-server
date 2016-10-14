@@ -3915,9 +3915,9 @@ public:
     Item(thd, item), result_field(item->result_field)
   {}
   ~Item_result_field() {}			/* Required with gcc 2.95 */
-  Field *get_tmp_table_field() { return result_field; }
-  Field *tmp_table_field(TABLE*) { return result_field; }
-  table_map used_tables() const { return 1; }
+  Field *get_tmp_table_field() override { return result_field; }
+  Field *tmp_table_field(TABLE*) override { return result_field; }
+  table_map used_tables() const override { return 1; }
 
   /**
     Resolve type-related information for this item, such as result field type,
@@ -3930,13 +3930,13 @@ public:
   */
   virtual bool resolve_type(THD *thd)=0;
 
-  void set_result_field(Field *field) { result_field= field; }
-  bool is_result_field() { return 1; }
-  void save_in_result_field(bool no_conversions)
+  void set_result_field(Field *field) override { result_field= field; }
+  bool is_result_field() override { return 1; }
+  void save_in_result_field(bool no_conversions) override
   {
     save_in_field(result_field, no_conversions);
   }
-  void cleanup();
+  void cleanup() override;
   /*
     This method is used for debug purposes to print the name of an
     item to the debug log. The second use of this method is as
@@ -3954,7 +3954,7 @@ public:
     also to make printing of items inherited from Item_sum uniform.
   */
   virtual const char *func_name() const= 0;
-  bool check_gcol_func_processor(uchar*) { return false;}
+  bool check_gcol_func_processor(uchar*) override { return false;}
 };
 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,14 @@
   @file mysys/mf_fn_ext.cc
 */
 
-#include "mysys_priv.h"
-#include <m_string.h>
+#include <string.h>
+
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_io.h"
+#if defined(FN_DEVCHAR) || defined(_WIN32)
+#include "mysys_priv.h"  // dirname_part
+#endif
 
 /*
   Return a pointer to the extension of the filename.

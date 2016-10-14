@@ -17,13 +17,15 @@
   @file mysys/my_compare.cc
 */
 
-#include <my_global.h>
-#include <m_ctype.h>
-#include <my_base.h>
-#include <my_compare.h>
-#include <my_sys.h>
-
+#include <sys/types.h>
 #include <algorithm>
+
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_compare.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "myisampack.h"
 
 #define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 

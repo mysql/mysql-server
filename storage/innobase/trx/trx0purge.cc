@@ -151,12 +151,10 @@ TrxUndoRsegsIterator::set_next()
 	ut_a(m_purge_sys->rseg->last_page_no != FIL_NULL);
 	ut_ad(m_purge_sys->rseg->last_trx_no == m_trx_undo_rsegs.get_trx_no());
 
-	/* We assume in purge of externally stored fields that
-	space id is in the range of UNDO tablespace space ids
-	unless space is system tablespace */
-	ut_a(srv_is_undo_tablespace(m_purge_sys->rseg->space)
-	     || is_system_tablespace(
-			m_purge_sys->rseg->space));
+	/* The space_id must be a tablespace that contains rollback segments.
+	That includes the system, temporary and all undo tablespaces. */
+	ut_a(fsp_is_system_or_temp_tablespace(m_purge_sys->rseg->space)
+	     || fsp_is_undo_tablespace(m_purge_sys->rseg->space));
 
 	const page_size_t	page_size(m_purge_sys->rseg->page_size);
 

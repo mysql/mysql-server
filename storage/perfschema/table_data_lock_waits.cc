@@ -248,7 +248,7 @@ int table_data_lock_waits::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_data_lock_waits::index_init(uint idx, bool sorted)
+int table_data_lock_waits::index_init(uint idx, bool)
 {
   PFS_index_data_lock_waits *result= NULL;
 

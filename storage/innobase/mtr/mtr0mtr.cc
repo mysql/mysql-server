@@ -969,7 +969,7 @@ mtr_t::space(space_id_t space_id) const
 {
 	fil_space_t*	space = m_impl.space(space_id);
 	if (space == NULL) {
-		ut_ad(space_id == srv_tmp_space.space_id());
+		ut_ad(fsp_is_system_temporary(space_id));
 		space = fil_space_get(space_id);
 	}
 	return(space);
