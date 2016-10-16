@@ -7137,11 +7137,22 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
   case TYPE_NOTE_TRUNCATED:
   case TYPE_WARN_TRUNCATED:
     return false;
-  case TYPE_WARN_ALL_TRUNCATED:
+  case TYPE_WARN_INVALID_STRING:
     /*
-      A completely truncated value can not be used for creating a valid range
-      key
+      An invalid string does not produce any rows when used with
+      equality operator.
     */
+    if (comp_op == Item_func::EQUAL_FUNC || comp_op == Item_func::EQ_FUNC)
+    {
+      *impossible_cond_cause= "invalid_characters_in_string";
+      goto impossible_cond;
+    }
+    /*
+      For other operations on invalid strings, we assume that the range
+      predicate is always true and let evaluate_join_record() decide
+      the outcome.
+    */
+    return true;
   case TYPE_ERR_BAD_VALUE:
     /*
       In the case of incompatible values, MySQL's SQL dialect has some

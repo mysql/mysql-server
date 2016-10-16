@@ -865,3 +865,47 @@ a	b	c	d
 5	7	9	9
 DROP TABLE t1;
 # End of test for Bug#18698556
+#
+# Bug#21032418: PERFORMANCE REGRESSION IN 5.6: UPDATE DOES NOT USE INDEX
+#
+CREATE TABLE t1(
+id INTEGER NOT NULL AUTO_INCREMENT,
+token VARCHAR(255) DEFAULT NULL,
+PRIMARY KEY (id),
+KEY token (token)
+)DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES (1, "abc"), (2, "def");
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+UPDATE t1 SET token = X'ad';
+Warnings:
+Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
+Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 2
+SELECT * FROM t1;
+id	token
+1	
+2	
+EXPLAIN UPDATE t1 SET token = NULL WHERE token = X'ad';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
+UPDATE t1 SET token = NULL WHERE token = X'ad';
+Warnings:
+Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
+SET sql_mode=default;
+EXPLAIN UPDATE t1 SET token = NULL WHERE token = X'ad';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
+UPDATE t1 SET token = NULL WHERE token = X'ad';
+Warnings:
+Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
+SELECT * FROM t1;
+id	token
+1	
+2	
+DROP TABLE t1;
+# End of test for Bug#21032418

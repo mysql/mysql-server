@@ -148,10 +148,10 @@ enum type_conversion_status
   */
   TYPE_WARN_TRUNCATED,
   /**
-    Value has been completely truncated. When this happens, it makes
-    comparisions with index impossible and confuses the range optimizer.
+    Value has invalid string data. When present in a predicate with
+    equality operator, range optimizer returns an impossible where.
   */
-  TYPE_WARN_ALL_TRUNCATED,
+  TYPE_WARN_INVALID_STRING,
   /// Trying to store NULL in a NOT NULL field.
   TYPE_ERR_NULL_CONSTRAINT_VIOLATION,
   /**
