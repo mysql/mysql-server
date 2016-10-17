@@ -612,13 +612,13 @@ select * from information_schema.schema_privileges order by grantee;
 select * from information_schema.user_privileges order by grantee;
 show grants;
 connection con4;
-select * from information_schema.column_privileges where grantee like '%user%'
+select * from information_schema.column_privileges where grantee like '\'user%'
 order by grantee;
-select * from information_schema.table_privileges where grantee like '%user%'
+select * from information_schema.table_privileges where grantee like '\'user%'
 order by grantee;
-select * from information_schema.schema_privileges where grantee like '%user%'
+select * from information_schema.schema_privileges where grantee like '\'user%'
 order by grantee;
-select * from information_schema.user_privileges where grantee like '%user%'
+select * from information_schema.user_privileges where grantee like '\'user%'
 order by grantee;
 show grants;
 connection default;
