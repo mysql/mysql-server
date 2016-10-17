@@ -70,6 +70,7 @@
 #include "probes_mysql.h"                       // IWYU pragma: keep
 #include "psi_memory_key.h"
 #include "session_tracker.h"
+#include "sort_param.h"
 #include "sql_array.h"
 #include "sql_base.h"
 #include "sql_bitmap.h"
@@ -582,7 +583,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   else
   {
     // We will need an extra buffer in rr_unpack_from_tempfile()
-    if (table_sort.using_addon_fields() &&
+    if (table_sort.addon_fields != nullptr &&
         !(table_sort.addon_fields->allocate_addon_buf(param.addon_length)))
       goto err;                                 /* purecov: inspected */
 

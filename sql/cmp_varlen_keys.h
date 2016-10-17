@@ -18,7 +18,7 @@
 
 #include "my_global.h"
 #include "sql_array.h"
-#include "sql_sort.h"
+#include "sort_param.h"
 
 #include <functional>
 
