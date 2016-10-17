@@ -1522,19 +1522,20 @@ public:
   bool is_binlog_applier() { return rli_fake && variables.pseudo_slave_mode; }
 
   /**
-    @return true  when the thread is binlog applier.
-    @note When the thread is a binlog applier it memorizes a fact of that it
-          has detached "native" engine transactions associated with it.
+    When the thread is a binlog or slave applier it detaches the engine
+    ha_data associated with it and memorizes the fact of that.
   */
-  bool binlog_applier_need_detach_trx();
+  void rpl_detach_engine_ha_data();
 
   /**
-    @return true   when the binlog applier (rli_fake) thread has detached
-                   "native" engine transaction, see @c binlog_applier_detach_trx.
-    @note The binlog applier having detached transactions resets a memo
+    @return true   when the current binlog (rli_fake) or slave (rli_slave)
+                   applier thread has detached the engine ha_data,
+                   see @c rpl_detach_engine_ha_data.
+    @note The detached transaction applier resets a memo
           mark at once with this check.
   */
-  bool binlog_applier_has_detached_trx();
+  bool rpl_unflag_detached_engine_ha_data();
+
   void reset_for_next_command();
   /*
     Constant for THD::where initialization in the beginning of every query.
@@ -5495,6 +5496,29 @@ inline void add_group_to_list(THD *thd, ORDER *order)
 inline void **thd_ha_data_backup(const THD *thd, const struct handlerton *hton)
 {
   return (void **) &thd->ha_data[hton->slot].ha_ptr_backup;
+}
+
+/**
+  The function re-attaches the engine ha_data (which was previously detached by
+  detach_ha_data_from_thd) to THD.
+  This is typically done to replication applier executing
+  one of XA-PREPARE, XA-COMMIT ONE PHASE or rollback.
+
+  @param thd         thread context
+  @param hton        pointer to handlerton
+*/
+
+inline void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton)
+{
+  if (hton->replace_native_transaction_in_thd)
+  {
+    /* restore the saved original engine transaction's link with thd */
+    void **trx_backup= thd_ha_data_backup(thd, hton);
+
+    hton->
+      replace_native_transaction_in_thd(thd, *trx_backup, NULL);
+    *trx_backup= NULL;
+  }
 }
 
 /*************************************************************************/

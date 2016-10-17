@@ -10,6 +10,7 @@
 ###############################################################################
 --source include/have_log_bin.inc
 
+--connection default
 CREATE TABLE t1(f1 int);
 
 XA START'','';
@@ -25,22 +26,53 @@ XA COMMIT'';
 # Bug#21942487 ASSERTION
 # `STATIC_CAST<SQL_CMD_XA_COMMIT*>(THD->LEX->M_SQL_CMDQL_CMD)->
 # GET_XA_OPT()
+# Bug #24764800 REPLICATION FAILING ON SLAVE WITH XAER_RMFAIL ERROR
+#
 # The following block checks safety of processing of load masquaraded
-# as it's out of mysqlbing. The XA transaction must complete.
+# as if it's out of mysqlbinlog. The XA transaction must complete in
+# either rollback or commit mode.
+# Rollback is done two ways: explicit and implicit through connection close.
 #
 SET @sav.pseudo_slave_mode= @@session.pseudo_slave_mode;
 SELECT  @@session.pseudo_slave_mode;
 # A warning out of the following query is improper and caused by a combination
 # of the above BINLOG processing and side effect of BUG#15891524.
 SET @@session.pseudo_slave_mode=1;
-XA START 'xa';
-INSERT INTO t1 VALUES(10);
+
+# In order to simulate dressing up as the binlog applier the current connection needs
+# to process at least one BINLOG carrying Format-Descriptor log-event.
+BEGIN;
 BINLOG '
 SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
-XA END 'xa';
-XA PREPARE 'xa';
-XA COMMIT 'xa';
+COMMIT;
+
+XA START 'xa_rollback';
+INSERT INTO t1 VALUES(10);
+XA END 'xa_rollback';
+XA ROLLBACK 'xa_rollback';
+
+#
+# The same but XA END as above in a new connection which is closed to rollback xa
+#
+--connect(con1,localhost,root,,)
+SET @@session.pseudo_slave_mode=1;
+BEGIN;
+BINLOG '
+SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
+COMMIT;
+
+XA START 'xa_disconnect';
+INSERT INTO t1 VALUES(10);
+--disconnect con1
+
+--connection default
+XA START 'xa_commit';
+INSERT INTO t1 VALUES(10);
+XA END 'xa_commit';
+XA PREPARE 'xa_commit';
+XA COMMIT 'xa_commit';
 SET @@session.pseudo_slave_mode= @sav.pseudo_slave_mode;
 
 DROP TABLE t1;
