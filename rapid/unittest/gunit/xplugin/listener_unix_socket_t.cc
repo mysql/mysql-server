@@ -34,12 +34,10 @@ using namespace ::testing;
 
 const uint32 BACKLOG = 122;
 const my_socket SOCKET_OK = 10;
-const int BIND_ERR = -1;
 const int BIND_OK = 0;
 const int LISTEN_ERR = -1;
 const int LISTEN_OK = 0;
 const int OPEN_ERR = -1;
-const int OPEN_OK = 1;
 const int READ_ERR = -1;
 const int WRITE_ERR = -1;
 const int UNLINK_ERR = -1;
