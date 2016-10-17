@@ -6056,6 +6056,7 @@ extern "C" void *handle_slave_worker(void *arg)
   struct PSI_thread *psi;
   #endif
 
+  is_slave_replication = true;
   my_thread_init();
   DBUG_ENTER("handle_slave_worker");
 

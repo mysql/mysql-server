@@ -84,6 +84,8 @@ void set_thd_stage_info(void *thd,
 #define THD_STAGE_INFO(thd, stage) \
   (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
 
+extern bool is_slave_replication;
+
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
