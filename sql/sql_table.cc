@@ -90,7 +90,9 @@ static bool check_engine(THD *thd, const char *db_name,
                          HA_CREATE_INFO *create_info);
 
 static int
-mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
+mysql_prepare_create_table(THD *thd, const char *error_schema_name,
+                           const char *error_table_name,
+                           HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
                            bool tmp_table,
                            uint *db_options,
@@ -1883,7 +1885,9 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       part_handler->set_part_info(lpt->part_info, false);
     }
 
-    if (mysql_prepare_create_table(lpt->thd, lpt->create_info,
+    if (mysql_prepare_create_table(lpt->thd, lpt->db,
+                                   lpt->table_name,
+                                   lpt->create_info,
                                    lpt->alter_info,
                                    /*tmp_table*/ 1,
                                    &lpt->db_options,
@@ -3331,15 +3335,18 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
 /**
   Check if there is a duplicate key. Report a warning for every duplicate key.
 
-  @param thd              Thread context.
-  @param key              Key to be checked.
-  @param key_info         Key meta-data info.
-  @param alter_info       List of columns and indexes to create.
+  @param thd                Thread context.
+  @param error_schema_name  Schema name of the table used for error reporting.
+  @param error_table_name   Table name used for error reporting.
+  @param key                Key to be checked.
+  @param key_info           Key meta-data info.
+  @param alter_info         List of columns and indexes to create.
 
   @retval false           Ok.
   @retval true            Error.
 */
-static bool check_duplicate_key(THD *thd,
+static bool check_duplicate_key(THD *thd, const char *error_schema_name,
+                                const char *error_table_name,
                                 Key *key, KEY *key_info,
                                 Alter_info *alter_info)
 {
@@ -3419,8 +3426,8 @@ static bool check_duplicate_key(THD *thd,
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_DUP_INDEX, ER(ER_DUP_INDEX),
                           key_info->name,
-                          thd->lex->query_tables->db,
-                          thd->lex->query_tables->table_name);
+                          error_schema_name,
+                          error_table_name);
       if (thd->is_error())
       {
         // An error was reported.
@@ -3439,6 +3446,10 @@ static bool check_duplicate_key(THD *thd,
   SYNOPSIS
     mysql_prepare_create_table()
       thd                       Thread object.
+      error_schema_name         Schema name of the table to create/alter,only
+                                used for error reporting.
+      error_table_name          Name of table to create/alter, only used for
+                                error reporting.
       create_info               Create information (like MAX_ROWS).
       alter_info                List of columns and indexes to create
       tmp_table                 If a temporary table is to be created.
@@ -3460,7 +3471,9 @@ static bool check_duplicate_key(THD *thd,
 */
 
 static int
-mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
+mysql_prepare_create_table(THD *thd, const char *error_schema_name,
+                           const char *error_table_name,
+                           HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
                            bool tmp_table,
                            uint *db_options,
@@ -4468,7 +4481,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
 
     // Check if a duplicate index is defined.
-  if (check_duplicate_key(thd, key, key_info, alter_info))
+  if (check_duplicate_key(thd, error_schema_name, error_table_name,
+                          key, key_info, alter_info))
       DBUG_RETURN(true);
 
     key_info++;
@@ -4767,6 +4781,8 @@ static void sp_prepare_create_field(THD *thd, Create_field *sql_field)
   @param thd                 Thread object
   @param db                  Database
   @param table_name          Table name
+  @param error_table_name    The real table name in case table_name is a temporary
+                             table (ALTER). Only used for error messages.
   @param path                Path to table (i.e. to its .FRM file without
                              the extension).
   @param create_info         Create information (like MAX_ROWS)
@@ -4799,6 +4815,7 @@ static void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 static
 bool create_table_impl(THD *thd,
                        const char *db, const char *table_name,
+                       const char *error_table_name,
                        const char *path,
                        HA_CREATE_INFO *create_info,
                        Alter_info *alter_info,
@@ -5095,7 +5112,8 @@ bool create_table_impl(THD *thd,
     }
   }
 
-  if (mysql_prepare_create_table(thd, create_info, alter_info,
+  if (mysql_prepare_create_table(thd, db, error_table_name,
+                                 create_info, alter_info,
                                  internal_tmp_table,
                                  &db_options, file,
                                  key_info, key_count,
@@ -5378,9 +5396,9 @@ bool mysql_create_table_no_lock(THD *thd,
     }
   }
 
-  return create_table_impl(thd, db, table_name, path, create_info, alter_info,
-                           false, select_field_count, false, is_trans,
-                           &not_used_1, &not_used_2);
+  return create_table_impl(thd, db, table_name, table_name, path, create_info,
+                           alter_info, false, select_field_count, false,
+                           is_trans, &not_used_1, &not_used_2);
 }
 
 
@@ -6945,8 +6963,8 @@ bool mysql_compare_tables(TABLE *table,
   KEY *key_info_buffer= NULL;
 
   /* Create the prepared information. */
-  if (mysql_prepare_create_table(thd, create_info,
-                                 &tmp_alter_info,
+  if (mysql_prepare_create_table(thd, "", "",
+                                 create_info, &tmp_alter_info,
                                  (table->s->tmp_table != NO_TMP_TABLE),
                                  &db_options,
                                  table->file, &key_info_buffer,
@@ -9395,6 +9413,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   tmp_disable_binlog(thd);
   error= create_table_impl(thd, alter_ctx.new_db, alter_ctx.tmp_name,
+                           alter_ctx.table_name,
                            alter_ctx.get_tmp_path(),
                            create_info, alter_info,
                            true, 0, true, NULL,
