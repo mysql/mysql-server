@@ -251,28 +251,6 @@ int Sort_param::count_varlen_keys() const
 }
 
 
-// static
-void Sort_param::store_varlen_key_length(uchar *p, uint sz)
-{
-  int4store(p, sz);
-}
-
-uchar* Sort_param::get_start_of_payload(uchar *p) const
-{
-  size_t offset= using_varlen_keys() ? uint4korr(p) : max_compare_length();
-  if (!using_addon_fields() && !using_varlen_keys())
-    offset-= ref_length; // The reference is also part of the sort key.
-  return p + offset;
-}
-
-// static
-uchar*
-Sort_param::get_start_of_payload(uint default_val, bool is_varlen, uchar *p)
-{
-  size_t offset= is_varlen ? uint4korr(p) : default_val;
-  return p + offset;
-}
-
 size_t Sort_param::get_record_length(uchar *p) const
 {
   uchar *start_of_payload= get_start_of_payload(p);

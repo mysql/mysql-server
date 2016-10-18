@@ -308,16 +308,29 @@ public:
   uint make_sortkey(uchar *to, const uchar *ref_pos);
 
   /// Stores the length of a variable-sized key.
-  static void store_varlen_key_length(uchar *p, uint sz);
+  static void store_varlen_key_length(uchar *p, uint sz)
+  {
+    int4store(p, sz);
+  }
 
   /// Skips the key part, and returns address of payload.
-  uchar *get_start_of_payload(uchar *p) const;
+  uchar *get_start_of_payload(uchar *p) const
+  {
+    size_t offset= using_varlen_keys() ? uint4korr(p) : max_compare_length();
+    if (!using_addon_fields() && !using_varlen_keys())
+      offset-= ref_length; // The reference is also part of the sort key.
+    return p + offset;
+  }
 
   /**
     Skips the key part, and returns address of payload.
     For rr_unpack_from_buffer, which does not have access to Sort_param.
    */
-  static uchar *get_start_of_payload(uint val, bool is_varlen, uchar *p);
+  static uchar *get_start_of_payload(uint default_val, bool is_varlen, uchar *p)
+  {
+    size_t offset= is_varlen ? uint4korr(p) : default_val;
+    return p + offset;
+  }
 
   /// @returns The number of bytes used for sorting of fixed-size keys.
   uint max_compare_length() const
