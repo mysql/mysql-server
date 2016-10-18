@@ -79,15 +79,17 @@
  *
  */
 
-#include <my_global.h>
-#include "my_sys.h"
-#include <m_string.h>
-#include <errno.h>
 #include <ctype.h>
-#include "thr_mutex.h"
-#include "thr_rwlock.h"
+#include <errno.h>
+#include <m_string.h>
+#include <my_global.h>
+#include <stdio.h>
+
+#include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_my_snprintf.h"
+#include "thr_mutex.h"
+#include "thr_rwlock.h"
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>

@@ -23,12 +23,14 @@
 **  Written by Monty
 */
 
-#include <my_global.h>
-#include <my_sys.h>
 #include <m_string.h>
 #include <my_getopt.h>
-#include "my_default.h"
+#include <my_global.h>
+#include <my_sys.h>
+#include <stdio.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+
+#include "my_default.h"
 #include "mysql/service_mysql_alloc.h"
 
 

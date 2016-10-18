@@ -18,6 +18,7 @@
 #include <my_global.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "m_string.h"                           // strlen

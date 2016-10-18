@@ -20,6 +20,7 @@
 #include <my_time.h>
 #include <mysys_err.h>
 #include <signal.h>
+#include <stdio.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <violite.h>

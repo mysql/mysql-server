@@ -15,7 +15,10 @@
 
 #include <my_global.h>
 #include <mysql/psi/mysql_file.h>
+#include <stdio.h>
 #include <algorithm>
+#include <memory>
+
 #include "buffered_file_io.h"
 
 namespace keyring {

@@ -32,6 +32,7 @@
 */ 
 
 #include <my_global.h>
+#include <stdio.h>
 
 #include "hash.h"
 #include "my_loglevel.h"

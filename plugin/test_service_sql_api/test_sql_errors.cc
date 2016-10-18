@@ -13,12 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <stdlib.h>
 #include <my_global.h>
-#include "my_sys.h"                             // my_write, my_malloc
 #include <mysql/plugin.h>
-#include "mysql_com.h"
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "m_string.h"
+#include "my_sys.h"                             // my_write, my_malloc
+#include "mysql_com.h"
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
 
 static const char *log_filename= "test_sql_errors";
