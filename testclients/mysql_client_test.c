@@ -24,8 +24,9 @@
   contains only the actual tests, plus the list of test functions to call.
 */
 
-#include "mysql_client_fw.c"
+#include "my_double2ulonglong.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql_client_fw.c"
 
 static void mct_log(const char *format, ...)
   MY_ATTRIBUTE((format(printf, 1, 2)));

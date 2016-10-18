@@ -34,6 +34,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"  // my_decimal
+#include "my_double2ulonglong.h"
 #include "my_global.h"
 #include "my_sys.h"
 #include "my_time.h"
