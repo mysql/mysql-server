@@ -4204,9 +4204,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   const Uint32 maxInsert[] = {
     MAX_WORDS_META_FILE,
     4096,    // 16k
-    // Max 16 tuples
-    ZRESERVED_SCAN_BATCH_SIZE *
-      (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE + 128/* safety */),
+    BACKUP_MIN_BUFF_WORDS
   };
   Uint32 minWrite[] = {
     8192,
@@ -4408,27 +4406,12 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
       }//if
       tabPtr.p->tableType = tableType;
       tabPtr.p->tableId = tableId;
-    }//for
-  }
-  {
-    TablePtr tabPtr;
-    jam();
-    for (ptr.p->tables.first(tabPtr);
-         tabPtr.i !=RNIL;
-         ptr.p->tables.next(tabPtr))
-    {
-      /**
-       * Insert into table map after completing loop to avoid
-       * complex error handling.
-       */
-      jamLine(tabPtr.p->tableId);
 #ifdef VM_TRACE
       TablePtr locTabPtr;
       ndbassert(findTable(ptr, locTabPtr, tabPtr.p->tableId) == false);
 #endif
       insertTableMap(tabPtr, ptr.i, tabPtr.p->tableId);
-    }
-    jam();
+    }//for
   }
 
   releaseSections(handle);
@@ -4897,7 +4880,7 @@ Backup::afterGetTabinfoLockTab(Signal *signal,
     req->schemaTransId = 0;
     req->jamBufferPtr = jamBuffer();
     EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-               DihScanTabReq::SignalLength, JBB);
+               DihScanTabReq::SignalLength, 0);
     DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
     ndbrequire(conf->senderData == 0);
     conf->senderData = ptr.i;
@@ -5072,7 +5055,7 @@ Backup::execDIH_SCAN_TAB_CONF(Signal* signal)
     req->schemaTransId = 0;
     req->jamBufferPtr = jamBuffer();
     EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-                   DihScanTabReq::SignalLength, JBB);
+                   DihScanTabReq::SignalLength, 0);
     jamEntry();
     DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
     ndbrequire(conf->senderData == 0);
@@ -5145,7 +5128,7 @@ Backup::getFragmentInfo(Signal* signal,
     rep->scanCookie = tabPtr.p->m_scan_cookie;
     rep->jamBufferPtr = jamBuffer();
     EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-                   DihScanTabCompleteRep::SignalLength, JBB);
+                   DihScanTabCompleteRep::SignalLength, 0);
 
     fragNo = 0;
   }//for

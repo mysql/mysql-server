@@ -249,8 +249,8 @@ connection server1;
 
 connection server2;
 --echo Reading 'mysql.ndb_schema' on 'server2' announce schema distr. participation as a side effect.
---error 0,ER_NO_SUCH_TABLE,ER_OPEN_AS_READONLY,ER_GET_ERRMSG,ER_TABLE_DEF_CHANGED,ER_NOT_FORM_FILE,ER_KEY_NOT_FOUND
 disable_result_log;
+--error 0,ER_NO_SUCH_TABLE,ER_OPEN_AS_READONLY,ER_GET_ERRMSG,ER_TABLE_DEF_CHANGED,ER_NOT_FORM_FILE,ER_KEY_NOT_FOUND
 select * from mysql.ndb_schema where db="" and name="";
 enable_result_log;
 

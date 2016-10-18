@@ -28,6 +28,7 @@
 #include <random.h>
 #include <NdbAutoPtr.hpp>
 #include <NdbMixRestarter.hpp>
+#include <NdbBackup.hpp>
 #include <NdbSqlUtil.hpp>
 #include <NdbEnv.h>
 #include <ndb_rand.h>
@@ -1053,6 +1054,19 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
   
+  return NDBT_OK;
+}
+
+int
+runBackup(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbBackup backup;
+  Uint32 backupId = 0;
+  backup.clearOldBackups();
+  if (backup.start(backupId) == -1)
+  {
+    return NDBT_FAILED;
+  }
   return NDBT_OK;
 }
 
@@ -11455,6 +11469,13 @@ TESTCASE("CreateMaxTables",
 	 "Create tables until db says that it can't create any more\n"){
   TC_PROPERTY("tables", 1000);
   INITIALIZER(runCreateMaxTables);
+  INITIALIZER(runDropMaxTables);
+}
+TESTCASE("BackupMaxTables", 
+	 "Create max amount of tables and verify backup works\n"){
+  TC_PROPERTY("tables", 200);
+  INITIALIZER(runCreateMaxTables);
+  INITIALIZER(runBackup);
   INITIALIZER(runDropMaxTables);
 }
 TESTCASE("PkSizes", 

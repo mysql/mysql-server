@@ -92,15 +92,14 @@ void Dbtc::initRecords()
   */
   c_theFiredTriggerPool.resetFreeMin();
 
-  /*
   // Init all index records
-  ArrayList<TcIndexData> indexes(c_theIndexPool);
+  DLList<TcIndexData> indexes(c_theIndexPool);
   TcIndexDataPtr iptr;
-  while(indexes.seize(iptr) == true) {
-    new (iptr.p) TcIndexData(c_theAttrInfoListPool);
+  while(indexes.seizeFirst(iptr) == true) {
+    p= iptr.p;
+    new (p) TcIndexData();
   }
-  indexes.release();
-  */
+  while (indexes.releaseFirst());
 
   // Init all index operation records
   SLList<TcIndexOperation> indexOps(c_theIndexOperationPool);

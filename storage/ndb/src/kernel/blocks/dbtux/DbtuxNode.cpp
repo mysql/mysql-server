@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -637,7 +637,19 @@ Dbtux::islinkScan(NodeHandle& node, ScanOpPtr scanPtr)
 }
 
 void
-Dbtux::NodeHandle::progError(int line, int cause, const char* file)
+Dbtux::NodeHandle::progError(int line, int cause, const char* file,
+                             const char* check)
 {
-  ErrorReporter::handleAssert("Dbtux::NodeHandle: assert failed", file, line);
+  char buf[500];
+  /*Add the check to the log message only if default value of ""
+    is over-written. */
+  if(native_strcasecmp(check,"") == 0)
+    BaseString::snprintf(buf, sizeof(buf),
+                         "Dbtux::NodeHandle: assert failed");
+  else
+    BaseString::snprintf(buf, sizeof(buf),
+                         "Dbtux::NodeHandle: assert %.400s failed",
+                         check);
+
+  ErrorReporter::handleAssert(buf, file, line);
 }
