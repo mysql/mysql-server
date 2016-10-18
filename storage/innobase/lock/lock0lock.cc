@@ -1670,7 +1670,9 @@ RecLock::check_deadlock_result(const trx_t* victim_trx, lock_t* lock)
 
     // Move it only when it does not cause a deadlock.
     if (innodb_lock_schedule_algorithm
-        == INNODB_LOCK_SCHEDULE_ALGORITHM_VATS && !is_slave_replication) {
+        == INNODB_LOCK_SCHEDULE_ALGORITHM_VATS
+        && !is_slave_replication
+        && !trx_is_high_priority(lock->trx)) {
         
         HASH_DELETE(lock_t, hash, lock_hash_get(lock->type_mode),
                     m_rec_id.fold(), lock);

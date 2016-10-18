@@ -105,7 +105,7 @@ bool handle_slave_worker_stop(Slave_worker *worker,
       worker->running_status= Slave_worker::STOP_ACCEPTED;
       mysql_cond_signal(&worker->jobs_cond);
       mysql_mutex_unlock(&rli->exit_count_lock);
-    is_slave_replication = false;
+      is_slave_replication = false;
       return(true);
     }
   }
