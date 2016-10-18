@@ -15312,6 +15312,8 @@ innobase_create_dd_tablespace(
 	dd_file->set_filename(path);
 	dd_client->store(dd_space);
 
+	ut_free(path);
+
 	return(false);
 }
 
