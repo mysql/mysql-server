@@ -2895,28 +2895,28 @@ void THD::claim_memory_ownership()
 }
 
 
-bool THD::binlog_applier_need_detach_trx()
+void THD::rpl_detach_engine_ha_data()
 {
 #ifdef HAVE_REPLICATION
-  return is_binlog_applier() ? rli_fake->is_native_trx_detached= true : false;
-#else
-  return false;
+  Relay_log_info *rli=
+    is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
+
+  DBUG_ASSERT(!rli_fake  || !rli_fake-> is_engine_ha_data_detached);
+  DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached);
+
+  if (rli)
+    rli->detach_engine_ha_data(this);
 #endif
 };
 
 
-bool THD::binlog_applier_has_detached_trx()
+bool THD::rpl_unflag_detached_engine_ha_data()
 {
-#ifdef HAVE_REPLICATION
-  bool rc= is_binlog_applier() && rli_fake->is_native_trx_detached;
-
-  if (rc)
-    rli_fake->is_native_trx_detached= false;
-  return rc;
-#else
-  return false;
-#endif
+  Relay_log_info *rli=
+    is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
+  return rli ? rli->unflag_detached_engine_ha_data() : false;
 }
+
 /**
   Determine if binlogging is disabled for this session
   @retval 0 if the current statement binlogging is disabled
