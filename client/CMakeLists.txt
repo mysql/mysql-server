@@ -48,14 +48,9 @@ IF(UNIX)
 ENDIF(UNIX)
 
 IF(NOT WITHOUT_SERVER)
-  MYSQL_ADD_EXECUTABLE(mysql_upgrade
-    upgrade/program.cc
-  )
-ADD_COMPILE_FLAGS(
-  upgrade/program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-)
-TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
-ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema)
+  MYSQL_ADD_EXECUTABLE(mysql_upgrade upgrade/program.cc)
+  TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
+  ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema GenBootstrapPriv)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)

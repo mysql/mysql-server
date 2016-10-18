@@ -2280,7 +2280,6 @@ check_reverse_order:
         DBUG_ASSERT(tab->quick() == save_quick || tab->quick() == NULL);
         tab->set_quick(NULL);
         tab->set_index(best_key);
-        tab->reversed_access= order_direction < 0;
         tab->set_type(JT_INDEX_SCAN);       // Read with index_first(), index_next()
         /*
           There is a bug. When we change here, e.g. from group_min_max to
@@ -2345,7 +2344,7 @@ check_reverse_order:
         tab->set_type(calc_join_type(tmp->get_type()));
         tab->position()->filter_effect= COND_FILTER_STALE;
       }
-      else if ((tab->type() == JT_REF || tab->type() == JT_INDEX_SCAN) &&
+      else if (tab->type() == JT_REF &&
                tab->ref().key_parts <= used_key_parts)
       {
         /*
@@ -2365,6 +2364,8 @@ check_reverse_order:
         */
         changed_key= tab->ref().key;
       }
+      else if (tab->type() == JT_INDEX_SCAN)
+        tab->reversed_access= true;
     }
     else if (tab->quick())
       tab->quick()->need_sorted_output();

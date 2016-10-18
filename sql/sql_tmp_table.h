@@ -66,11 +66,10 @@ void free_tmp_table(THD *thd, TABLE *entry);
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, 
                                           uint uniq_tuple_length_arg,
                                           SJ_TMP_TABLE *sjtbl);
-bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
+bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
                            MI_COLUMNDEF *start_recinfo,
                            MI_COLUMNDEF **recinfo,
-                           ulonglong options, my_bool big_tables,
-                           Opt_trace_context *trace);
+                           ulonglong options, my_bool big_tables);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         Mem_root_array<Item *> *copy_func, Field **from_field,
                         Field **default_field,

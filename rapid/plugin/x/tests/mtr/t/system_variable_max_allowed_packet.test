@@ -1,0 +1,78 @@
+## Various regression tests
+##
+--source include/restart_mysqld.inc
+--source ../include/xplugin_preamble.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/mysqlx-largetest.tmp
+-->sql
+use test;
+create table bla (data json);
+-->endsql
+
+-->varfile %JSONDATA% %PATH_TO_256kb_JSON_FILE%
+
+# prevent flood from big json data
+-->quiet
+-->varsub %JSONDATA%
+Mysqlx.Sql.StmtExecute {
+    stmt : "insert into bla values ('%JSONDATA%');"
+}
+-->recvresult
+-->noquiet
+
+-->varsub %JSONDATA%
+-->sql
+select * from bla;
+-->endsql
+
+-->sql
+drop table bla;
+-->endsql
+
+
+-->vargen %1% . 610000
+
+-->quiet
+-->varsub %1%
+Mysqlx.Sql.StmtExecute {
+    stmt: "select '>%1%!1' as result"
+}
+-->noquiet
+
+-->recv
+-->varsub %1%
+-->recv
+-->recv
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+EOF
+
+--write_file $MYSQL_TMP_DIR/mysqlx-largetest-asio.tmp
+-->vargen %1% . 161000000
+
+-->varsub %1%
+-->quiet
+# lets put the SQL string directly to message, its faster than parsing
+# 161MB message by protobuf
+-->stmtsql select 1; /* %1% */;
+-->noquiet
+-->recvresult
+EOF
+
+--write_file $MYSQL_TMP_DIR/mysqlx-empty.tmp
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-largetest.tmp -v %PATH_TO_256kb_JSON_FILE%=$MYSQL_TEST_DIR/std_data/256kb.json 2>&1
+
+SET GLOBAL mysqlx_max_allowed_packet=162000000;
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-empty.tmp 2>&1
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-largetest-asio.tmp 2>&1
+
+--remove_file $MYSQL_TMP_DIR/mysqlx-largetest.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-largetest-asio.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-empty.tmp
+
+##cleanup
+uninstall plugin mysqlx;
+

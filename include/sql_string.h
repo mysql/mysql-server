@@ -28,6 +28,7 @@
 
 #include "m_ctype.h"                         // my_convert
 #include "m_string.h"                        // LEX_CSTRING
+#include "mem_root_fwd.h"
 #include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -138,7 +139,6 @@ class String;
 
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_io_cache IO_CACHE;
-typedef struct st_mem_root MEM_ROOT;
 
 int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *to, String *from, size_t from_length);

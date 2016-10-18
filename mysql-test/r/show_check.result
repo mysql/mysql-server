@@ -1045,7 +1045,7 @@ def		COLUMNS	COLUMNS	COLLATION_NAME	COLLATION_NAME	253	192	0	Y	0	31	33
 def	mysql	COLUMNS	COLUMNS	COLUMN_TYPE	COLUMN_TYPE	252	50331645	7	N	4241	0	33
 def	mysql	COLUMNS	COLUMNS	COLUMN_KEY	COLUMN_KEY	254	9	3	N	4481	0	33
 def		COLUMNS	COLUMNS	EXTRA	EXTRA	253	171	0	Y	128	31	33
-def		COLUMNS	COLUMNS	PRIVILEGES	PRIVILEGES	253	200	31	Y	128	31	63
+def		COLUMNS	COLUMNS	PRIVILEGES	PRIVILEGES	253	154	31	Y	128	31	63
 def		COLUMNS	COLUMNS	COLUMN_COMMENT	COLUMN_COMMENT	253	6144	0	N	129	31	33
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 def	test	t1	c	NULL	NO	int	NULL	NULL	int(11)	PRI		select,insert,update,references	
@@ -1683,3 +1683,18 @@ CREATE TABLE `t1` (
 `n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 DROP TABLE t1;
+#
+# Bug#24800048 - SHOW TABLES FROM DATABASE HANGS ON WINDOWS PLATFORM
+#
+CREATE DATABASE unknown;
+# On case sensitive file system following statement fails as DB name
+# is in different case. Following statement works fine on case insensitive
+# file systems.
+SHOW TABLES FROM UNKNOWN;
+# On case sensitive file system following statement fails as DB name
+# is in different case. Following statement works fine on case insensitive
+# file systems.
+# Without fix following SHOW TABLES statements hangs in Windows (with
+# lower_case_table_names=1).
+SHOW TABLES FROM UNKNOWN;
+DROP DATABASE unknown;

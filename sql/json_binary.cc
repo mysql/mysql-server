@@ -110,7 +110,7 @@ enum enum_serialization_result
 
 static enum_serialization_result
 serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
-                     String *dest, size_t depth);
+                     String *dest, size_t depth, bool small_parent);
 
 bool serialize(const THD *thd, const Json_dom *dom, String *dest)
 {
@@ -121,7 +121,7 @@ bool serialize(const THD *thd, const Json_dom *dom, String *dest)
   // Reserve space (one byte) for the type identifier.
   if (dest->append('\0'))
     return true;                              /* purecov: inspected */
-  return serialize_json_value(thd, dom, 0, dest, 0) != OK;
+  return serialize_json_value(thd, dom, 0, dest, 0, false) != OK;
 }
 
 
@@ -502,8 +502,7 @@ serialize_json_array(const THD *thd, const Json_array *array, String *dest,
       if (is_too_big_for_json(offset, large))
         return VALUE_TOO_BIG;
       insert_offset_or_size(dest, entry_pos + 1, offset, large);
-      enum_serialization_result res=
-        serialize_json_value(thd, elt, entry_pos, dest, depth);
+      auto res= serialize_json_value(thd, elt, entry_pos, dest, depth, !large);
       if (res != OK)
         return res;
     }
@@ -600,7 +599,8 @@ serialize_json_object(const THD *thd, const Json_object *object, String *dest,
       if (is_too_big_for_json(offset, large))
         return VALUE_TOO_BIG;
       insert_offset_or_size(dest, entry_pos + 1, offset, large);
-      res= serialize_json_value(thd, it->second, entry_pos, dest, depth);
+      res= serialize_json_value(thd, it->second, entry_pos, dest, depth,
+                                !large);
       if (res != OK)
         return res;
     }
@@ -689,11 +689,14 @@ serialize_datetime(const Json_datetime *jdt, size_t type_pos, String *dest)
   @param type_pos  the position of the type specifier to update
   @param dest      the destination string
   @param depth     the current nesting level
+  @param small_parent
+                   tells if @a dom is contained in an array or object
+                   which is stored in the small storage format
   @return          serialization status
 */
 static enum_serialization_result
 serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
-                     String *dest, size_t depth)
+                     String *dest, size_t depth, bool small_parent)
 {
   const size_t start_pos= dest->length();
   DBUG_ASSERT(type_pos < start_pos);
@@ -718,6 +721,9 @@ serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
       */
       if (result == VALUE_TOO_BIG)
       {
+        // If the parent uses the small storage format, it needs to grow too.
+        if (small_parent)
+          return VALUE_TOO_BIG;
         dest->length(start_pos);
         (*dest)[type_pos]= JSONB_TYPE_LARGE_ARRAY;
         result= serialize_json_array(thd, array, dest, true, depth);
@@ -740,6 +746,9 @@ serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
       */
       if (result == VALUE_TOO_BIG)
       {
+        // If the parent uses the small storage format, it needs to grow too.
+        if (small_parent)
+          return VALUE_TOO_BIG;
         dest->length(start_pos);
         (*dest)[type_pos]= JSONB_TYPE_LARGE_OBJECT;
         result= serialize_json_object(thd, object, dest, true, depth);

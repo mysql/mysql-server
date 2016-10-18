@@ -123,7 +123,7 @@ public:
     key->key= element->val;
     return sizeof(key->key);
   }
-  size_t compare_length() const { return sizeof(int); }
+  size_t max_compare_length() const { return sizeof(int); }
 };
 
 
@@ -390,6 +390,7 @@ int int_ptr_compare(size_t *cmp_arg, int **a, int **b)
 }
 
 
+class Int_keymaker;
 class Int_ptr_compare
 {
 public:
@@ -399,6 +400,7 @@ public:
     return *a > *b;
   }
   size_t m_compare_length;
+  Int_keymaker *m_param;
 };
 
 
@@ -413,7 +415,8 @@ public:
     memcpy(to, from, sizeof(int));
     return sizeof(int);
   }
-  size_t compare_length() const { return sizeof(int); }
+  size_t max_compare_length() const { return sizeof(int); }
+  bool using_varlen_keys() const { return false; }
 };
 
 

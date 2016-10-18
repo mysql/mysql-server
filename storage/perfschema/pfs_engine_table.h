@@ -197,6 +197,14 @@ public:
   /**
     Helper, assign a value to a varchar utf8 field.
     @param f the field to set
+    @param cs the string character set
+    @param str the string to assign
+    @param len the length of the string to assign
+  */
+  static void set_field_varchar(Field *f, const CHARSET_INFO *cs, const char *str, uint len);
+  /**
+    Helper, assign a value to a varchar utf8 field.
+    @param f the field to set
     @param str the string to assign
     @param len the length of the string to assign
   */

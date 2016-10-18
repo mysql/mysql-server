@@ -2808,6 +2808,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
                                  size_t *length)
 {
   const char *value;
+  const CHARSET_INFO *value_charset;
 
   if (show_type == SHOW_SYS)
   {
@@ -2817,11 +2818,12 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     sys_var *var= ((sys_var *) variable->value);
     show_type= var->show_type();
     value= (char*) var->value_ptr(running_thd, target_thd, value_type, &null_lex_str);
-    *charset= var->charset(running_thd);
+    value_charset= var->charset(target_thd);
   }
   else
   {
     value= variable->value;
+    value_charset= system_charset_info;
   }
 
   const char *pos= buff;
@@ -2839,6 +2841,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     case SHOW_DOUBLE:
       /* 6 is the default precision for '%f' in sprintf() */
       end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_LONG_STATUS:
@@ -2849,10 +2852,12 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
      /* the difference lies in refresh_status() */
     case SHOW_LONG_NOFLUSH:
       end= int10_to_str(*(long*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_SIGNED_LONG:
       end= int10_to_str(*(long*) value, buff, -10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_LONGLONG_STATUS:
@@ -2861,22 +2866,27 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_LONGLONG:
       end= longlong10_to_str(*(longlong*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_HA_ROWS:
       end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_BOOL:
       end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
+      value_charset= system_charset_info;
       break;
 
     case SHOW_MY_BOOL:
       end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
+      value_charset= system_charset_info;
       break;
 
     case SHOW_INT:
       end= int10_to_str((long) *(uint32*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_HAVE:
@@ -2884,6 +2894,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
       SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
       pos= show_comp_option_name[(int) tmp];
       end= strend(pos);
+      value_charset= system_charset_info;
       break;
     }
 
@@ -2917,11 +2928,13 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     case SHOW_KEY_CACHE_LONG:
       value= (char*) dflt_key_cache + (ulong)value;
       end= int10_to_str(*(long*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_KEY_CACHE_LONGLONG:
       value= (char*) dflt_key_cache + (ulong)value;
       end= longlong10_to_str(*(longlong*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_UNDEF:
@@ -2935,6 +2948,12 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
   }
 
   *length= (size_t) (end - pos);
+  /* Some callers do not use the result. */
+  if (charset != NULL)
+  {
+    DBUG_ASSERT(value_charset != NULL);
+    *charset= value_charset;
+  }
   return pos;
 }
 
@@ -4110,6 +4129,13 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
                                       bool can_deadlock)
 {
   bool error;
+
+  DBUG_EXECUTE_IF("simulate_try_acquire_high_prio_shared_mdl_lock_timeout_error",
+                  {
+                    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+                    return true;
+                  });
+
   MDL_REQUEST_INIT(&table->mdl_request,
                    MDL_key::TABLE, table->db, table->table_name,
                    MDL_SHARED_HIGH_PRIO, MDL_TRANSACTION);
@@ -4636,6 +4662,8 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 
             if (!res)
               continue;
+            else
+              goto err;
           }
 
           DEBUG_SYNC(thd, "before_open_in_get_all_tables");
@@ -5482,75 +5510,69 @@ return error;
 
 static int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
 {
-bool res= false;
-const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
-sql_mode_t old_sql_mode= thd->variables.sql_mode;
-thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
-char definer[USER_HOST_BUFF_SIZE];
-strxmov(definer, thd->security_context()->priv_user().str, "@",
-        thd->security_context()->priv_host().str, NullS);
+  bool res= false;
+  const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
+  sql_mode_t old_sql_mode= thd->variables.sql_mode;
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+  char definer[USER_HOST_BUFF_SIZE];
+  strxmov(definer, thd->security_context()->priv_user().str, "@",
+          thd->security_context()->priv_host().str, NullS);
 
-DBUG_ENTER("fill_schema_proc");
+  DBUG_ENTER("fill_schema_proc");
 
-// Fetch all schemas from the catalog.
-dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
-std::vector<const dd::Schema*> schemas;
-if ((res= thd->dd_client()->fetch_catalog_components(&schemas)))
-  goto err;
+  // Fetch all schemas.
+  dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+  std::vector<const dd::Schema*> schemas;
+  if ((res= thd->dd_client()->fetch_global_components(&schemas)))
+    goto err;
 
-// Loop through all the schemas
-{
-  for (const dd::Schema *schema : schemas)
+  // Loop through all the schemas
   {
-    /*
-      We must make sure the schema is released and unlocked in the right
-      order.
-    */
-    dd::Schema_MDL_locker mdl_handler(thd);
-    if (mdl_handler.ensure_locked(schema->name().c_str()))
+    for (const dd::Schema *schema : schemas)
     {
       /*
-        Instead of stopping, skipping stored routines of the current
-        schema and continuing with the stored routines of other schemas.
+        We must make sure the schema is released and unlocked in the right
+        order.
       */
-      thd->clear_error();
-      continue;
-    }
-
-    /*
-      Fill all stored routines information in I_S.ROUTINES/I_S.PARAMETERS
-      table.
-    */
-    std::vector<const dd::Routine*> routines;
-    if ((res= thd->dd_client()->fetch_schema_components(schema, &routines)))
-      goto err;
-
-    LEX_CSTRING db_name= { schema->name().c_str(), schema->name().length() };
-    for (const dd::Routine *routine :routines)
-    {
-      // Fill I_S.ROUTINES/I_S.PARAMETERS table.
-      if (get_schema_table_idx(tables->schema_table) == SCH_PROCEDURES)
-        res= store_schema_proc(thd, tables->table, db_name,
-                               routine, wild, definer);
-      else
-        res= store_schema_params(thd, tables->table, db_name,
-                                 routine, wild, definer);
-
-      if (res)
+      dd::Schema_MDL_locker mdl_handler(thd);
+      if (mdl_handler.ensure_locked(schema->name().c_str()))
       {
-        delete_container_pointers(routines);
+        /*
+          Instead of stopping, skipping stored routines of the current
+          schema and continuing with the stored routines of other schemas.
+        */
+        thd->clear_error();
+        continue;
+      }
+
+      /*
+        Fill all stored routines information in I_S.ROUTINES/I_S.PARAMETERS
+        table.
+      */
+      std::vector<const dd::Routine*> routines;
+      if ((res= thd->dd_client()->fetch_schema_components(schema, &routines)))
         goto err;
+
+      LEX_CSTRING db_name= { schema->name().c_str(), schema->name().length() };
+      for (const dd::Routine *routine :routines)
+      {
+        // Fill I_S.ROUTINES/I_S.PARAMETERS table.
+        if (get_schema_table_idx(tables->schema_table) == SCH_PROCEDURES)
+          res= store_schema_proc(thd, tables->table, db_name,
+                                 routine, wild, definer);
+        else
+          res= store_schema_params(thd, tables->table, db_name,
+                                   routine, wild, definer);
+
+        if (res)
+          goto err;
       }
     }
-    delete_container_pointers(routines);
   }
 
-  delete_container_pointers(schemas);
-}
-
 err:
-thd->variables.sql_mode= old_sql_mode;
-DBUG_RETURN(MY_TEST(res));
+  thd->variables.sql_mode= old_sql_mode;
+  DBUG_RETURN(MY_TEST(res));
 }
 
 

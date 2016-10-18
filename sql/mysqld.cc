@@ -1576,6 +1576,9 @@ static void close_connections(void)
 
   Call_close_conn call_close_conn(true);
   thd_manager->do_for_all_thd(&call_close_conn);
+
+  (void) RUN_HOOK(server_state, after_server_shutdown, (NULL));
+
   /*
     All threads have now been aborted. Stop event scheduler thread
     after aborting all client connections, otherwise user may
@@ -1594,8 +1597,6 @@ static void close_connections(void)
 
   delete_slave_info_objects();
   DBUG_PRINT("quit",("close_connections thread"));
-
-  (void) RUN_HOOK(server_state, after_server_shutdown, (NULL));
 
   DBUG_VOID_RETURN;
 }
@@ -2743,19 +2744,38 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
     error= ER_UNKNOWN_ERROR;
   }
 
-#ifndef EMBEDDED_LIBRARY
-  if (error != ER_STACK_OVERRUN_NEED_MORE)
-    mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_ERROR, error, str);
-#endif
-
   if (thd)
   {
+    Sql_condition::enum_severity_level level= Sql_condition::SL_ERROR;
+
+    /**
+      Reporting an error invokes audit API call that notifies the error
+      to the plugin. Audit API that generate the error adds a protection
+      (condition handler) that prevents entering infinite recursion, when
+      a plugin signals error, when already handling the error.
+
+      handle_condition is normally invoked from within raise_condition,
+      but we need to prevent recursion befere notifying error to the plugin.
+
+      Additionaly, handle_condition must be called once during reporting
+      an error, so the raise_condition is called depending on the result of
+      the handle_condition call.
+    */
+    bool handle= thd->handle_condition(error,
+                                       mysql_errno_to_sqlstate(error),
+                                       &level,
+                                       str ? str : ER_DEFAULT(error));
+#ifndef EMBEDDED_LIBRARY
+    if (!handle)
+      mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_ERROR),
+                         error, str, strlen(str));
+#endif
+
     if (MyFlags & ME_FATALERROR)
       thd->is_fatal_error= 1;
-    (void) thd->raise_condition(error,
-                                NULL,
-                                Sql_condition::SL_ERROR,
-                                str);
+
+    if (!handle)
+      (void) thd->raise_condition(error, NULL, level, str, false);
   }
 
   /* When simulating OOM, skip writing to error log to avoid mtr errors */

@@ -41,8 +41,6 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref);
 
 bool insert_view_fields(List<Item> *list, TABLE_LIST *view);
 
-int view_checksum(TABLE_LIST *view);
-
 bool check_duplicate_names(List<Item>& item_list, bool gen_unique_view_names);
 
 bool mysql_rename_view(THD *thd, const char *new_db, const char *new_name,

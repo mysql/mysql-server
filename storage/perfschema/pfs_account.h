@@ -24,6 +24,7 @@
 #include "pfs_lock.h"
 #include "lf.h"
 #include "pfs_con_slice.h"
+#include "pfs_global.h"
 #include "mysql_com.h" /* USERNAME_LENGTH */
 
 struct PFS_global_param;

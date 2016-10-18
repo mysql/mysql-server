@@ -46,7 +46,7 @@ namespace xpl
     virtual void on_row_send();
     virtual void on_send(long bytes_transferred);
     virtual void on_receive(long bytes_transferred);
-    virtual void on_unknown_msg_type();
+    virtual void on_error_unknown_msg_type();
 
   private:
     Client *m_client;
@@ -67,7 +67,7 @@ namespace xpl
 
   public: // impl ngs::Client
     virtual void on_network_error(int error);
-    virtual std::string resolve_hostname(const std::string &ip);
+    virtual std::string resolve_hostname();
     virtual ngs::Capabilities_configurator *capabilities_configurator();
 
   public:

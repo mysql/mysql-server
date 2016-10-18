@@ -222,20 +222,34 @@ bool table_exists(dd::cache::Dictionary_client *client,
                   const char *name,
                   bool *exists);
 
-/* Rename table name in dd.tables */
+/**
+  Rename a table or view in dd.tables.
+
+  @param  thd                  The dictionary client.
+  @param  from_schema_name     Schema of table/view to rename.
+  @param  from_name            Table/view name to rename.
+  @param  to_schema_name       New schema name.
+  @param  to_name              New table/view name.
+  @param  mark_as_hidden       Mark the new table as hidden, if true.
+
+  @retval      true         Failure (error has been reported).
+  @retval      false        Success.
+*/
 template <typename T>
 bool rename_table(THD *thd,
                   const char *from_schema_name,
                   const char *from_name,
                   const char *to_schema_name,
                   const char *to_name,
+                  bool mark_as_hidden,
                   bool commit_dd_changes);
 
 template <typename T>
 bool rename_table(THD *thd,
                   const dd::Schema *from_sch, const dd::Table *from_table_def,
                   const dd::Schema *to_sch, dd::Table *to_table_def,
-                  bool commit_dd_changes);
+                  bool mark_as_hidden, bool commit_dd_changes);
+
 
 //////////////////////////////////////////////////////////////////////////
 // Functions for retrieving, inspecting and manipulating instances of

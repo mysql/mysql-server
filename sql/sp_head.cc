@@ -1646,6 +1646,13 @@ static bool sp_update_sp_used_routines(HASH *dst, HASH *src)
         This should be fine as sp_name objects created by this constructor
         are mainly used for SP-cache lookups.
 
+  @note Stored routine names are case insensitive. So for the proper MDL key
+        comparison, routine name is converted to the lower case while
+        preparing the MDL_key. Hence the instance of sp_name created from the
+        MDL_key has the routine name in lower case.
+        Since instances created by this constructor are mainly used for
+        SP-cache lookups, routine name in lower case should work fine.
+
   @param key         MDL key containing database and routine name.
   @param qname_buff  Buffer to be used for storing quoted routine name
                      (should be at least 2*NAME_LEN+1+1 bytes).

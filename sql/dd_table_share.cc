@@ -2258,19 +2258,22 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
         Read it from DD
       */
       share->is_view= true;
-      if (thd->dd_client()->acquire_uncached<dd::View>(share->db.str,
-                                                       share->table_name.str,
-                                                       &share->view_object))
+      const dd::View *tmp_view= nullptr;
+      if (thd->dd_client()->acquire<dd::View>(share->db.str,
+                                              share->table_name.str,
+                                              &tmp_view))
       {
         DBUG_ASSERT(thd->is_error() || thd->killed);
         DBUG_RETURN(true);
       }
 
-      if (!share->view_object)
+      if (!tmp_view)
       {
         my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
         DBUG_RETURN(true);
       }
+      share->view_object= tmp_view->clone();
+
       share->table_category= get_table_category(share->db, share->table_name);
       thd->status_var.opened_shares++;
       DBUG_RETURN(false);

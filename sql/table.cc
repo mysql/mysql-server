@@ -45,8 +45,6 @@
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_decimal.h"
-#include "my_md5.h"                      // compute_md5_hash
-#include "my_md5_size.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
@@ -4438,21 +4436,6 @@ bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select)
   return false;
 }
 
-
-
-/**
-  calculate md5 of query
-
-  @param buffer	buffer for md5 writing
-*/
-
-void  TABLE_LIST::calc_md5(char *buffer)
-{
-  uchar digest[MD5_HASH_SIZE];
-  compute_md5_hash((char *) digest, (const char *) select_stmt.str,
-                   select_stmt.length);
-  array_to_hex(buffer, digest, MD5_HASH_SIZE);
-}
 
 
 /**

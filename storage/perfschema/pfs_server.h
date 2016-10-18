@@ -21,21 +21,22 @@
   Private interface for the server (declarations).
 */
 
-#include "mysql/psi/psi_thread.h"
+#include "my_psi_config.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_data_lock.h"
+#include "mysql/psi/psi_error.h"
+#include "mysql/psi/psi_file.h"
+#include "mysql/psi/psi_idle.h"
+#include "mysql/psi/psi_mdl.h"
+#include "mysql/psi/psi_memory.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/psi/psi_rwlock.h"
-#include "mysql/psi/psi_cond.h"
-#include "mysql/psi/psi_file.h"
 #include "mysql/psi/psi_socket.h"
-#include "mysql/psi/psi_table.h"
-#include "mysql/psi/psi_mdl.h"
-#include "mysql/psi/psi_idle.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_statement.h"
+#include "mysql/psi/psi_table.h"
+#include "mysql/psi/psi_thread.h"
 #include "mysql/psi/psi_transaction.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_error.h"
-#include "mysql/psi/psi_data_lock.h"
 
 #ifdef HAVE_PSI_INTERFACE
 

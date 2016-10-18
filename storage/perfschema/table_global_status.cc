@@ -220,7 +220,7 @@ void table_global_status
   if (status_var->is_null())
     return;
   m_row.m_variable_name.make_row(status_var->m_name, status_var->m_name_length);
-  m_row.m_variable_value.make_row(status_var->m_value_str, status_var->m_value_length);
+  m_row.m_variable_value.make_row(status_var);
   m_row_exists= true;
 }
 
@@ -249,7 +249,7 @@ int table_global_status
         set_field_varchar_utf8(f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
         break;
       case 1: /* VARIABLE_VALUE */
-        set_field_varchar_utf8(f, m_row.m_variable_value.m_str, m_row.m_variable_value.m_length);
+        m_row.m_variable_value.set_field(f);
         break;
       default:
         DBUG_ASSERT(false);

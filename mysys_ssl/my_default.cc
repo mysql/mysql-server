@@ -37,14 +37,16 @@
                                 the login file.
 */
 
+#include <my_aes.h>
+#include <my_dir.h>
+#include <my_getopt.h>
+
 #include "../mysys/mysys_priv.h"
+#include "m_ctype.h"
+#include "m_string.h"
 #include "my_default.h"
 #include "my_default_priv.h"
-#include "m_string.h"
-#include "m_ctype.h"
-#include <my_dir.h>
-#include <my_aes.h>
-#include <my_getopt.h>
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"
 #include "typelib.h"
@@ -52,9 +54,10 @@
 #include <winbase.h>
 #endif
 
-#include "prealloced_array.h"
-#include <string>
 #include <map>
+#include <string>
+
+#include "prealloced_array.h"
 
 using std::string;
 

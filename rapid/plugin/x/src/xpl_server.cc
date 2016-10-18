@@ -26,7 +26,7 @@
 #include "xpl_client.h"
 #include "xpl_session.h"
 #include "xpl_system_variables.h"
-#include "xpl_listener_factory.h"
+#include "io/xpl_listener_factory.h"
 #include "mysql_variables.h"
 #include "mysql_show_variable_wrapper.h"
 #include "sql_data_result.h"
@@ -62,6 +62,14 @@ public:
       log_error("srv_session_init_thread returned error");
       return false;
     }
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    // Reset user name and hostname stored in PFS_thread
+    // which were copied from parent thread
+    PSI_THREAD_CALL(set_thread_account) (
+        "", 0, "", 0);
+#endif // HAVE_PSI_THREAD_INTERFACE
+
     ngs::Scheduler_dynamic::thread_init();
 
 #if defined(__APPLE__) || defined(HAVE_PTHREAD_SETNAME_NP)
@@ -115,21 +123,27 @@ public:
 };
 
 
+namespace
+{
+
+const char *STATUS_VALUE_FOR_NOT_CONFIGURED_INTERFACE = "UNDEFINED";
+
+} // namespace
+
 xpl::Server* xpl::Server::instance;
 ngs::RWLock  xpl::Server::instance_rwl;
 bool         xpl::Server::exiting = false;
 
-xpl::Server::Server(ngs::shared_ptr<ngs::Server_acceptors> acceptors, ngs::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-                    ngs::shared_ptr<ngs::Protocol_config> config,
-                    const std::string &unix_socket_or_named_pipe)
+xpl::Server::Server(ngs::shared_ptr<ngs::Server_acceptors> acceptors,
+                    ngs::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
+                    ngs::shared_ptr<ngs::Protocol_config> config)
 : m_client_id(0),
   m_num_of_connections(0),
   m_config(config),
   m_acceptors(acceptors),
   m_wscheduler(wscheduler),
   m_nscheduler(ngs::allocate_shared<ngs::Scheduler_dynamic>("network", KEY_thread_x_acceptor)),
-  m_server(acceptors, m_nscheduler, wscheduler, this, config),
-  m_unix_socket_or_named_pipe(unix_socket_or_named_pipe)
+  m_server(acceptors, m_nscheduler, wscheduler, this, config)
 {
 }
 
@@ -287,16 +301,21 @@ int xpl::Server::main(MYSQL_PLUGIN p)
     Plugin_system_variables::setup_system_variable_from_env_or_compile_opt(
         Plugin_system_variables::socket,
         "MYSQLX_UNIX_PORT",
-        WIN32_OR_UNIX(MYSQLX_NAMEDPIPE, MYSQLX_UNIX_ADDR));
+        MYSQLX_UNIX_ADDR);
 
     Listener_factory listener_factory;
-    ngs::shared_ptr<ngs::Server_acceptors> acceptors(
-        ngs::allocate_shared<ngs::Server_acceptors>(ngs::ref(listener_factory), Plugin_system_variables::port, Plugin_system_variables::socket, listen_backlog));
+    ngs::shared_ptr<ngs::Server_acceptors> acceptors(ngs::allocate_shared<ngs::Server_acceptors>(
+         ngs::ref(listener_factory),
+         Plugin_system_variables::bind_address,
+         Plugin_system_variables::port,
+         Plugin_system_variables::port_open_timeout,
+         Plugin_system_variables::socket,
+         listen_backlog));
 
     instance_rwl.wlock();
 
     exiting = false;
-    instance = ngs::allocate_object<Server>(acceptors, thd_scheduler, ngs::allocate_shared<ngs::Protocol_config>(), Plugin_system_variables::socket);
+    instance = ngs::allocate_object<Server>(acceptors, thd_scheduler, ngs::allocate_shared<ngs::Protocol_config>());
 
     const bool use_only_through_secure_connection = true, use_only_in_non_secure_connection = false;
 
@@ -752,12 +771,58 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
 
 std::string xpl::Server::get_socket_file()
 {
-  if (m_acceptors->was_unix_socket_or_named_pipe_configured())
+  if (!m_server.is_terminating())
   {
-    return m_unix_socket_or_named_pipe;
+    if (!m_acceptors->was_prepared())
+      return "";
+
+    if (m_acceptors->was_unix_socket_configured())
+    {
+      return Plugin_system_variables::socket;
+    }
   }
 
-  return "";
+  return ::STATUS_VALUE_FOR_NOT_CONFIGURED_INTERFACE;
+}
+
+std::string xpl::Server::get_tcp_port()
+{
+  if (!m_server.is_terminating())
+  {
+    if (!m_acceptors->was_prepared())
+      return "";
+
+    std::string bind_address;
+
+    if (m_acceptors->was_tcp_server_configured(bind_address))
+    {
+      char buffer[100];
+
+      sprintf(buffer, "%u",Plugin_system_variables::port);
+
+      return buffer;
+    }
+  }
+
+  return ::STATUS_VALUE_FOR_NOT_CONFIGURED_INTERFACE;
+}
+
+std::string xpl::Server::get_tcp_bind_address()
+{
+  if (!m_server.is_terminating())
+  {
+    if (!m_acceptors->was_prepared())
+      return "";
+
+    std::string bind_address;
+
+    if (m_acceptors->was_tcp_server_configured(bind_address))
+    {
+      return bind_address;
+    }
+  }
+
+  return ::STATUS_VALUE_FOR_NOT_CONFIGURED_INTERFACE;
 }
 
 struct Client_check_handler_thd

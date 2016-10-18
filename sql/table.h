@@ -1925,8 +1925,6 @@ struct TABLE_LIST
   /// Reset table
   void reset();
 
-  void calc_md5(char *buffer);
-
   /// Evaluate the check option of a view
   int view_check_option(THD *thd) const;
 
@@ -2533,19 +2531,11 @@ public:
   Item          *check_option;          ///< WITH CHECK OPTION condition
   Item          *replace_filter;        ///< Filter for REPLACE command
   LEX_STRING    select_stmt;            ///< text of (CREATE/SELECT) statement
-  LEX_STRING    md5;                    ///< md5 of query text
   LEX_STRING    source;                 ///< source of CREATE VIEW
   LEX_CSTRING   view_db;                ///< saved view database
   LEX_CSTRING   view_name;              ///< saved view name
   LEX_STRING    timestamp;              ///< GMT time stamp of last operation
   st_lex_user   definer;                ///< definer of view
-  /*
-    This variable in is only used to read .frm file for views.
-    It should not be used any where else in the code. It is only used
-    in upgrade scenario for migrating old data directory to be compatible
-    with current server. It will be removed in future release.
-  */
-  ulonglong     file_version;           ///< version of file's field set
   /**
     @note: This field is currently not reliable when read from dictionary:
     If an underlying view is changed, updatable_view is not changed,

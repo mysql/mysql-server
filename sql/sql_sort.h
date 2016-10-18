@@ -20,6 +20,7 @@
 
 #include "my_base.h"          // ha_rows
 #include "my_byteorder.h"     // uint2korr
+#include "my_sys.h"           // qsort2_cmp
 #include "mysql_com.h"        // Item_result
 #include "binary_log_types.h" // enum_field_types
 #include "filesort_utils.h"   // Filesort_buffer
@@ -33,20 +34,25 @@ class Filesort;
 
 /* Defines used by filesort and uniques */
 
-#define MERGEBUFF		7
-#define MERGEBUFF2		15
+constexpr size_t MERGEBUFF= 7;
+constexpr size_t MERGEBUFF2= 15;
+// Number of bytes used to store varlen key's length
+constexpr size_t VARLEN_PREFIX= 4;
 
 /* Structs used when sorting */
 
+/// Struct that holds information about a sort field.
 struct st_sort_field {
-  Field *field;				/* Field to sort */
-  Item	*item;				/* Item if not sorting fields */
-  uint	 length;			/* Length of sort field */
-  uint   suffix_length;                 /* Length suffix (0-4) */
-  Item_result result_type;		/* Type of item */
-  enum_field_types field_type;          /* Field type of the field or item */
-  bool reverse;				/* if descending sort */
-  bool need_strxnfrm;			/* If we have to use strxnfrm() */
+  Field *field;                  ///< Field to sort
+  Item  *item;                   ///< Item if not sorting fields
+  uint  length;                  ///< Length of sort field
+  uint  suffix_length;           ///< Length suffix (0-4)
+  Item_result result_type;       ///< Type of item
+  enum_field_types field_type;   ///< Field type of the field or item
+  bool reverse;                  ///< if descending sort
+  bool need_strxnfrm;            ///< If we have to use strxnfrm()
+  bool is_varlen;                ///< If key part has variable length
+  bool maybe_null;               ///< If key part is nullable
 };
 
 
@@ -69,12 +75,6 @@ struct Sort_addon_field {/* Sort addon packed field */
   uint   null_offset;    /* Offset to to null bit from the last sorted field */
   uint   max_length;     /* Maximum length in the sort buffer */
   uint8  null_bit;       /* Null bit mask for the field */
-};
-
-struct Merge_chunk_compare_context
-{
-  qsort2_cmp key_compare;
-  const void *key_compare_arg;
 };
 
 /**
@@ -120,11 +120,12 @@ public:
   void set_buffer_end(uchar *end)
   {
     DBUG_ASSERT(m_buffer_end == NULL || end <= m_buffer_end);
+    DBUG_ASSERT(m_buffer_start != nullptr);
     m_buffer_end= end;
   }
 
   void init_current_key() { m_current_key= m_buffer_start; }
-  uchar *current_key() { return m_current_key; }
+  uchar *current_key() const { return m_current_key; }
   void advance_current_key(uint val) { m_current_key+= val; }
 
   void decrement_rowcount(ha_rows val) { m_rowcount-= val; }
@@ -164,13 +165,13 @@ public:
   }
 
 private:
-  uchar   *m_current_key;  /// The current key for this chunk.
-  my_off_t m_file_position;/// Current position in the file to be sorted.
-  uchar   *m_buffer_start; /// Start of main-memory buffer for this chunk.
-  uchar   *m_buffer_end;   /// End of main-memory buffer for this chunk.
-  ha_rows  m_rowcount;     /// Number of unread rows in this chunk.
-  ha_rows  m_mem_count;    /// Number of rows in the main-memory buffer.
-  ha_rows  m_max_keys;     /// If we have fixed-size rows:
+  uchar   *m_current_key;  ///< The current key for this chunk.
+  my_off_t m_file_position;///< Current position in the file to be sorted.
+  uchar   *m_buffer_start; ///< Start of main-memory buffer for this chunk.
+  uchar   *m_buffer_end;   ///< End of main-memory buffer for this chunk.
+  ha_rows  m_rowcount;     ///< Number of unread rows in this chunk.
+  ha_rows  m_mem_count;    ///< Number of rows in the main-memory buffer.
+  ha_rows  m_max_keys;     ///< If we have fixed-size rows:
                            ///    max number of rows in buffer.
 };
 
@@ -261,39 +262,83 @@ private:
 };
 
 /**
-  There are two record formats for sorting:
-    |@<key a@>@<key b@>...|@<rowid@>|
-    /  sort_length    / ref_l /
+  There are several record formats for sorting:
+@verbatim
+    |<key a><key b>...    | <rowid> |
+    / m_fixed_sort_length / ref_len /
+@endverbatim
 
   or with "addon fields"
-    |@<key a@>@<key b@>...|@<null bits@>|@<field a@>@<field b@>...|
-    /  sort_length    /         addon_length            /
+@verbatim
+    |<key a><key b>...    |<null bits>|<field a><field b>...|
+    / m_fixed_sort_length /         addon_length            /
+@endverbatim
 
   The packed format for "addon fields"
-    |@<key a@>@<key b@>...|@<length@>|@<null bits@>|@<field a@>@<field b@>...|
-    /  sort_length    /         addon_length                     /
+@verbatim
+    |<key a><key b>...    |<length>|<null bits>|<field a><field b>...|
+    / m_fixed_sort_length /         addon_length                     /
+@endverbatim
 
-  @<key@>     Fields are fixed-size, specially encoded with
-              Field::make_sort_key() so we can do byte-by-byte compare.
-  @<length@>  Contains the *actual* packed length (after packing) of
-              everything after the sort keys.
-              The size of the length field is 2 bytes,
-              which should cover most use cases: addon data <= 65535 bytes.
-              This is the same as max record size in MySQL.
-  @<null bits@> One bit for each nullable field, indicating whether the field
-              is null or not. May have size zero if no fields are nullable.
-  @<field xx@>  Are stored with field->pack(), and retrieved with field->unpack().
-              Addon fields within a record are stored consecutively, with no
-              "holes" or padding. They will have zero size for NULL values.
+  All the formats above have fixed-size keys, with appropriate padding.
+  Fixed-size keys can be compared/sorted using memcmp().
 
+  The packed (variable length) format for keys:
+@verbatim
+    |<keylen>|<varkey a><key b>...<hash>|<rowid>  or <addons>     |
+    / 4 bytes/   keylen bytes           / ref_len or addon_length /
+@endverbatim
+
+  This format is currently only used if we are sorting JSON data.
+  Variable-size keys must be compared piece-by-piece, using type information
+  about each individual key part, @see cmp_varlen_keys.
+
+  All the record formats consist of a (possibly composite) key,
+  followed by a (possibly composite) payload.
+  The key is used for sorting data. Once sorting is done, the payload is
+  stored in some buffer, and read by some rr_from or rr_unpack routine.
+
+  For fixed-size keys, with @<rowid@> payload, the @<rowid@> is also
+  considered to be part of the key.
+
+<dl>
+<dt>@<key@>
+          <dd>  Fields are fixed-size, specially encoded with
+                Field::make_sort_key() so we can do byte-by-byte compare.
+<dt>@<length@>
+          <dd>  Contains the *actual* packed length (after packing) of
+                everything after the sort keys.
+                The size of the length field is 2 bytes,
+                which should cover most use cases: addon data <= 65535 bytes.
+                This is the same as max record size in MySQL.
+<dt>@<null bits@>
+          <dd>  One bit for each nullable field, indicating whether the field
+                is null or not. May have size zero if no fields are nullable.
+<dt>@<field xx@>
+          <dd>  Are stored with field->pack(), and retrieved with
+                field->unpack().
+                Addon fields within a record are stored consecutively, with no
+                "holes" or padding. They will have zero size for NULL values.
+<dt>@<keylen@>
+          <dd>  Contains the *actual* packed length of all the keys.
+                We may have an arbitrary mix of fixed and variable-sized keys.
+<dt>@<hash@>
+          <dd>  Optional 8 byte hash, used for GROUPing of JSON values.
+<dt>@<varkey@>
+          <dd>  Used for JSON values, the format is:
+</dl>
+@verbatim
+                |<null value>|<key length>|<JSON sort key>    |
+                / 1 byte     /   4 bytes  / key length bytes  /
+@endverbatim
  */
 class Sort_param {
+  uint m_fixed_rec_length;    ///< Maximum length of a record, see above.
+  uint m_fixed_sort_length;   ///< Maximum number of bytes used for sorting.
 public:
-  uint rec_length;            // Length of sorted records.
-  uint sort_length;           // Length of sorted columns.
   uint ref_length;            // Length of record ref.
   uint addon_length;          // Length of added packed fields.
-  uint res_length;            // Length of records in final sorted file/buffer.
+  uint fixed_res_length;      // Length of records in final sorted file/buffer.
   uint max_keys_per_buffer;   // Max keys / buffer.
   ha_rows max_rows;           // Select limit, or HA_POS_ERROR if unlimited.
   ha_rows examined_rows;      // Number of examined rows.
@@ -307,16 +352,9 @@ public:
   Bounds_checked_array<st_sort_field> local_sortorder;
 
   Addon_fields *addon_fields; ///< Descriptors for addon fields.
-  uchar *unique_buff;
   bool not_killable;
   bool using_pq;
   char* tmp_buffer;
-
-  // The fields below are used only by Unique class.
-  Merge_chunk_compare_context cmp_context;
-  typedef int (*chunk_compare_fun)(Merge_chunk_compare_context* ctx,
-                                   uchar* arg1, uchar* arg2);
-  chunk_compare_fun compare;
 
   Sort_param()
   {
@@ -324,16 +362,18 @@ public:
   }
   /**
     Initialize this struct for filesort() usage.
-    @see description of record layout above.
-    @param [in,out] file_sort Sorting information which may be re-used on
-                              subsequent invocations of filesort().
-    @param sortlen   Length of sorted columns.
-    @param table     Table to be sorted.
-    @param max_length_for_sort_data From thd->variables.
-    @param maxrows   HA_POS_ERROR or possible LIMIT value.
-    @param sort_positions see documentation for the filesort() function.
+    @see description of record layout above
+    @param [in,out] file_sort sorting information which may be re-used on
+                              subsequent invocations of filesort()
+    @param sf_array  initialization value for local_sortorder
+    @param sortlen   length of sorted columns
+    @param table     table to be sorted
+    @param max_length_for_sort_data from thd->variables
+    @param maxrows   HA_POS_ERROR or possible LIMIT value
+    @param sort_positions see documentation for the filesort() function
   */
   void init_for_filesort(Filesort *file_sort,
+                         Bounds_checked_array<st_sort_field> sf_array,
                          uint sortlen, TABLE *table,
                          ulong max_length_for_sort_data,
                          ha_rows maxrows, bool sort_positions);
@@ -347,6 +387,12 @@ public:
     DBUG_ASSERT(m_using_packed_addons ==
                 (addon_fields != NULL && addon_fields->using_packed_addons()));
     return m_using_packed_addons;
+  }
+
+  /// Are we using varlen JSON key fields?
+  bool using_varlen_keys() const
+  {
+    return m_num_varlen_keys > 0;
   }
 
   /// Are we using "addon fields"?
@@ -364,9 +410,41 @@ public:
    */
   uint make_sortkey(uchar *to, const uchar *ref_pos);
 
-  /// @returns The number of bytes used for sorting.
-  size_t compare_length() const {
-    return sort_length;
+  /// Stores the length of a variable-sized key.
+  static void store_varlen_key_length(uchar *p, uint sz);
+
+  /// Skips the key part, and returns address of payload.
+  uchar *get_start_of_payload(uchar *p) const;
+
+  /**
+    Skips the key part, and returns address of payload.
+    For rr_unpack_from_buffer, which does not have access to Sort_param.
+   */
+  static uchar *get_start_of_payload(uint val, bool is_varlen, uchar *p);
+
+  /// @returns The number of bytes used for sorting of fixed-size keys.
+  uint max_compare_length() const
+  {
+    return m_fixed_sort_length;
+  }
+
+  void set_max_compare_length(uint len)
+  {
+    m_fixed_sort_length= len;
+  }
+
+  /// @returns The actual size of a record (key + addons)
+  size_t get_record_length(uchar *p) const;
+
+  /// @returns The maximum size of a record (key + addons)
+  uint max_record_length() const
+  {
+    return m_fixed_rec_length;
+  }
+
+  void set_max_record_length(uint len)
+  {
+    m_fixed_rec_length= len;
   }
 
   /**
@@ -375,28 +453,22 @@ public:
     @param [out] recl   Store record length here.
     @param [out] resl   Store result length here.
    */
-  void get_rec_and_res_len(uchar *record_start, uint *recl, uint *resl)
-  {
-    if (!using_packed_addons())
-    {
-      *recl= rec_length;
-      *resl= res_length;
-      return;
-    }
-    uchar *plen= record_start + sort_length;
-    *resl= Addon_fields::read_addon_length(plen);
-    DBUG_ASSERT(*resl <= res_length);
-    const uchar *record_end= plen + *resl;
-    *recl= static_cast<uint>(record_end - record_start);
-  }
+  void get_rec_and_res_len(uchar *record_start, uint *recl, uint *resl);
+
+  static const uint size_of_varlength_field= 4;
 
 private:
-  uint m_packable_length;     ///< total length of fields which have a packable type
-  bool m_using_packed_addons; ///< caches the value of using_packed_addons()
+  /// Counts number of JSON keys
+  int count_varlen_keys() const;
 
+  uint m_packable_length; ///< total length of fields which have a packable type
+  bool m_using_packed_addons; ///< caches the value of using_packed_addons()
+  int  m_num_varlen_keys;     ///< number of varlen keys
+
+public:
   // Not copyable.
-  Sort_param(const Sort_param&);
-  Sort_param &operator=(const Sort_param&);
+  Sort_param(const Sort_param&)= delete;
+  Sort_param &operator=(const Sort_param&)= delete;
 };
 
 
@@ -427,13 +499,19 @@ public:
   bool      sorted_result_in_fsbuf;
   uchar     *sorted_result;
   uchar     *sorted_result_end;
+  bool      m_using_varlen_keys;
+  uint      m_sort_length;
 
   ha_rows   found_records;        ///< How many records in sort.
 
   // Note that we use the default copy CTOR / assignment operator in filesort().
+  Filesort_info(const Filesort_info&)= default;
+  Filesort_info &operator=(const Filesort_info&)= default;
+
   Filesort_info()
     : sorted_result_in_fsbuf(false),
-      sorted_result(NULL), sorted_result_end(NULL)
+      sorted_result(NULL), sorted_result_end(NULL),
+      m_using_varlen_keys(false), m_sort_length(0)
   {};
 
   bool has_filesort_result_in_memory() const
@@ -518,25 +596,21 @@ public:
   size_t sort_buffer_size() const
   { return filesort_buffer.sort_buffer_size(); }
 
-  uint get_sort_length() const
-  { return filesort_buffer.get_sort_length(); }
+  uchar *get_start_of_payload(uchar *p)
+  {
+    return
+      Sort_param::get_start_of_payload(m_sort_length, m_using_varlen_keys, p);
+  }
 
-  void set_sort_length(uint val)
-  { filesort_buffer.set_sort_length(val); }
+  void set_sort_length(uint val, bool is_varlen)
+  {
+    m_sort_length= val;
+    m_using_varlen_keys= is_varlen;
+  }
 };
 
 typedef Bounds_checked_array<uchar> Sort_buffer;
 
-int merge_many_buff(THD *thd, Sort_param *param, Sort_buffer sort_buffer,
-		    Merge_chunk_array chunk_array,
-		    size_t *num_chunks, IO_CACHE *t_file);
-uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
-                    Sort_param *param);
-int merge_buffers(THD *thd, Sort_param *param,IO_CACHE *from_file,
-                  IO_CACHE *to_file, Sort_buffer sort_buffer,
-                  Merge_chunk *lastbuff,
-                  Merge_chunk_array chunk_array,
-                  int flag);
 
 /**
   Put all room used by freed buffer to use in adjacent buffer.

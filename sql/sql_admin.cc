@@ -67,7 +67,6 @@
 #include "sql_security_ctx.h"
 #include "sql_string.h"
 #include "sql_table.h"                       // mysql_recreate_table
-#include "sql_view.h"                        // view_checksum
 #include "system_variables.h"
 #include "table.h"
 #include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
@@ -551,12 +550,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         push_warning(thd, Sql_condition::SL_WARNING,
                      ER_CHECK_NO_SUCH_TABLE,
                      ER_THD(thd, ER_CHECK_NO_SUCH_TABLE));
-      /* if it was a view will check md5 sum */
-      if (table->is_view() &&
-          view_checksum(table) == HA_ADMIN_WRONG_CHECKSUM)
-        push_warning(thd, Sql_condition::SL_WARNING,
-                     ER_VIEW_CHECKSUM,
-                     ER_THD(thd, ER_VIEW_CHECKSUM));
       if (thd->get_stmt_da()->is_error() &&
           table_not_corrupt_error(thd->get_stmt_da()->mysql_errno()))
         result_code= HA_ADMIN_FAILED;

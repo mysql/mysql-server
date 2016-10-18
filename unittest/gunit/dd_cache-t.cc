@@ -651,13 +651,8 @@ TEST_F(CacheStorageTest, TestSchema)
 
     if (s1 && s2)
     {
-      // Get "schema1.table1" table uncached.
-      const dd::Table *s1_t1= NULL;
-      EXPECT_FALSE(dc.acquire_uncached("schema1", "table1", &s1_t1));
-      EXPECT_NE(nullp<const dd::Table>(), s1_t1);
-      delete s1_t1;
-
       // Get "schema1.table1" table uncached uncommitted.
+      const dd::Table *s1_t1= NULL;
       EXPECT_FALSE(dc.acquire_uncached_uncommitted("schema1", "table1", &s1_t1));
       EXPECT_NE(nullp<const dd::Table>(), s1_t1);
       delete s1_t1;
@@ -723,31 +718,28 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
   //EXPECT_FALSE(dc.get_tables_max_se_private_id("unknown", &max_id));
   //EXPECT_EQ(20u, max_id);
 
-  const dd::Table *tab1_new= NULL;
+  dd::Table *tab1_new= NULL;
   EXPECT_FALSE(dc.acquire_uncached_table_by_se_private_id("innodb", 5, &tab1_new));
   EXPECT_NE(nullp<dd::Table>(), tab1_new);
 
-  const dd::Table *tab2_new= NULL;
+  dd::Table *tab2_new= NULL;
   EXPECT_FALSE(dc.acquire_uncached_table_by_se_private_id("innodb", 10, &tab2_new));
   EXPECT_NE(nullp<dd::Table>(), tab2_new);
 
-  const dd::Table *tab3_new= NULL;
+  dd::Table *tab3_new= NULL;
   EXPECT_FALSE(dc.acquire_uncached_table_by_se_private_id("unknown", 20, &tab3_new));
   EXPECT_NE(nullp<dd::Table>(), tab3_new);
 
-  // The tables are acquired uncached, so we must delete them to avoid
-  // a memory leak.
-  delete tab1_new;
-  delete tab2_new;
-  delete tab3_new;
-
   // Drop the objects
-  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table1", &tab1_new));
-  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table2", &tab2_new));
-  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table3", &tab3_new));
-  EXPECT_FALSE(dc.drop(tab1_new));
-  EXPECT_FALSE(dc.drop(tab2_new));
-  EXPECT_FALSE(dc.drop(tab3_new));
+  const dd::Table *tab1_new_c= NULL;
+  const dd::Table *tab2_new_c= NULL;
+  const dd::Table *tab3_new_c= NULL;
+  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table1", &tab1_new_c));
+  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table2", &tab2_new_c));
+  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table3", &tab3_new_c));
+  EXPECT_FALSE(dc.drop(tab1_new_c));
+  EXPECT_FALSE(dc.drop(tab2_new_c));
+  EXPECT_FALSE(dc.drop(tab3_new_c));
 }
 
 

@@ -1419,8 +1419,8 @@ public:
       per privileges is 11 chars.
       So, setting max approximate to 200.
     */
-    max_length= 200;
-    maybe_null= 1;
+    max_length= 14*11;
+    maybe_null= true;
 
     return false;
   }
@@ -1471,7 +1471,7 @@ public:
     // maximum string length of all options is expected
     // to be less than 256 characters.
     max_length= 256;
-    maybe_null= 1;
+    maybe_null= false;
 
     return false;
   }

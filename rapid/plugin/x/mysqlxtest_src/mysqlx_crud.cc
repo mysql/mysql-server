@@ -17,13 +17,13 @@
  * 02110-1301  USA
  */
 
+#include "ngs_common/string_formatter.h"
 #include "mysqlx_crud.h"
 #include "mysqlx_session.h"
 #include "mysqlx_protocol.h"
 #include "mysqlx_parser.h"
 #include "mysqlx_resultset.h"
 
-#include <boost/algorithm/string.hpp>
 
 #define CONTENT_TYPE_GEOMETRY 0x0001
 #define CONTENT_TYPE_JSON 0x0002
@@ -142,7 +142,7 @@ void Statement::insert_bound_values(::google::protobuf::RepeatedPtrField< ::Mysq
   // First validates that all the placeholders have a bound value
   std::string str_undefined;
   if (m_placeholders.size() && !m_bound_values.size())
-    str_undefined = boost::algorithm::join(m_placeholders, ", ");
+    str_undefined = ngs::join(m_placeholders, ", ");
   else
   {
     std::vector<std::string> undefined;
@@ -152,7 +152,7 @@ void Statement::insert_bound_values(::google::protobuf::RepeatedPtrField< ::Mysq
         undefined.push_back(m_placeholders[index]);
     }
 
-    str_undefined = boost::algorithm::join(undefined, ", ");
+    str_undefined = ngs::join(undefined, ", ");
   }
 
   // Throws the error if needed

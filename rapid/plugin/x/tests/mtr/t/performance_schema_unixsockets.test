@@ -10,15 +10,12 @@
 # Tests
 --write_file $MYSQL_TMP_DIR/performance_schema_socket_num.tmp
 -->macro check_xconnection_count %EXPECTED_NUM_OF_CONNECTIONS%
--->echo Checking if X Plugin reports %EXPECTED_NUM_OF_CONNECTIONS% connections
--->stmtsql SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection'
--->recvtovar %NUM%
--->assert_eq %EXPECTED_NUM_OF_CONNECTIONS%	%NUM%
+-->echo Verify [Checking if X Plugin reports %EXPECTED_NUM_OF_CONNECTIONS% connections]
+-->wait_for %EXPECTED_NUM_OF_CONNECTIONS%	SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection'
 -->echo  success
 -->endmacro
 
 
--->noquery_result
 -->varlet %CON_COUNTER% 1
 -->callmacro check_xconnection_count	%CON_COUNTER%
 
@@ -28,12 +25,12 @@
 -->callmacro check_xconnection_count	%CON_COUNTER%
 -->endrepeat
 
--->echo Peer addresses of all UNIX sockets should be set to ''
+-->echo Verify [Peer addresses of all UNIX sockets should be set to '']
 -->stmtsql SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection' AND LENGTH(IP)=0
 -->recvtovar %NUM%
 -->assert_eq %CON_COUNTER%	%NUM%
 
--->echo Peer ports should be unique
+-->echo Verify [Peer ports should be unique]
 -->stmtsql SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection' AND PORT=0
 -->recvtovar %NUM%
 -->assert_eq %CON_COUNTER%	%NUM%
@@ -42,10 +39,8 @@
 -->wait_for 1	SELECT 1 FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection' AND `STATE` = 'IDLE'
 
 -->echo Check if we have connection ACTIVE and IDLE state
--->query_result
 -->stmtsql SELECT `STATE` FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection' GROUP BY `STATE` ORDER BY `STATE`
 -->recvresult
--->noquery_result
 
 -->repeat 10
 -->setsession NAME_%CON_COUNTER%
@@ -55,40 +50,35 @@
 
 -->setsession
 -->callmacro check_xconnection_count	%CON_COUNTER%
--->query_result
 EOF
 
 --write_file $MYSQL_TMP_DIR/performance_schema_socket_io_stats.tmp
 -->macro Verify_increase %VARI% %COLUMN% %EVENT_NAME%
--->noquery_result
-#ENSURE 
+# ENSURE THAT SOCKET STATS WERE INCREMENTED
+# BY SENDING DATA TO THE SOCKET
 -->stmtsql SELECT 1
--->recvresult
+-->recvresult be-quiet
 #MAKE THE CHECK
 # Get %COLUMN% counter at latest created connection (`OBJECT_INSTANCE_BEGIN`)
 -->stmtsql SELECT %COLUMN% FROM `performance_schema`.`socket_summary_by_instance` WHERE  `EVENT_NAME` LIKE %EVENT_NAME% and OBJECT_INSTANCE_BEGIN IN  (SELECT MAX(OBJECT_INSTANCE_BEGIN) FROM `performance_schema`.`socket_summary_by_instance` WHERE  `EVENT_NAME` LIKE %EVENT_NAME%);
 -->recvtovar %TMP%
--->echo Checking if data in column %COLUMN% had increased
+-->echo Verify [Checking if data in column %COLUMN% had increased]
 -->assert_gt %TMP%	%VARI%
--->echo  success
 -->varlet %VARI% %TMP%
--->query_result
 -->endmacro
 
 # This function doesn't get latest entry !
 -->macro Verify_greater_or_equal %VARI% %COLUMN% %TABLE%
--->noquery_result
-#ENSURE 
+# ENSURE THAT SOCKET STATS WERE INCREMENTED
+# BY SENDING DATA TO THE SOCKET
 -->stmtsql SELECT 1
--->recvresult
+-->recvresult be-quiet
 #MAKE THE CHECK
 -->stmtsql SELECT %COLUMN% FROM `performance_schema`.%TABLE% WHERE  `EVENT_NAME` LIKE 'wait/io/socket/mysqlx/client_connection'
 -->recvtovar %TMP%
--->echo Checking if data in column %COLUMN% had increased
+-->echo Verify [Checking if data in column %COLUMN% had increased]
 -->assert_ge %TMP%	%VARI%
--->echo  success
 -->varlet %VARI% %TMP%
--->query_result
 -->endmacro
 
 -->varlet %READ_CNT% 0
@@ -167,14 +157,14 @@ if ( $XPlugin_socket_count_when_no_Xconnection != 0) {
 
 if ($XPlugin_ip != "") {
 --echo X Plugin UNIX socket is set to $XPlugin_ip
---die X Plugins UNIX socket should be set to '' 
+--die X Plugins UNIX socket should be set to ''
 }
 
 --let $XPlugin_port_expected= 0
 
 if ( $XPlugin_port != $XPlugin_port_expected) {
 --echo X Plugin UNIX socket port filed is set to $XPlugin_port, was expecting $XPlugin_port_expected
---die X Plugin UNIX sockets port has a wrong value 
+--die X Plugin UNIX sockets port has a wrong value
 }
 
 --echo Check if clinet_socket are reported in proper way in PFS

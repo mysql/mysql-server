@@ -16,25 +16,26 @@
 
 
 #define MYSQL_SERVER 1
-#include "probes_mysql.h"
-#include "key.h"                                // key_copy
-#include "sql_plugin.h"
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <myisampack.h>
-#include "ha_myisam.h"
 #include <stdarg.h>
-#include "myisamdef.h"
-#include "rt_index.h"
-#include "sql_table.h"                          // tablename_to_filename
-#include "sql_class.h"                          // THD
-#include "log.h"
-#include "current_thd.h"
-#include "system_variables.h"
-#include "mysqld.h"
-#include "derror.h"
-
 #include <algorithm>
+
+#include "current_thd.h"
+#include "derror.h"
+#include "ha_myisam.h"
+#include "key.h"                                // key_copy
+#include "log.h"
+#include "my_psi_config.h"
+#include "myisamdef.h"
+#include "mysqld.h"
+#include "probes_mysql.h"
+#include "rt_index.h"
+#include "sql_class.h"                          // THD
+#include "sql_plugin.h"
+#include "sql_table.h"                          // tablename_to_filename
+#include "system_variables.h"
 
 using std::min;
 using std::max;

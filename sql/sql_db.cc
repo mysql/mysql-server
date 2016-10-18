@@ -925,8 +925,6 @@ static bool find_db_tables(THD *thd, const char *db, TABLE_LIST **tables)
     tot_list_next_global= &table_list->next_global;
   }
 
-  delete_container_pointers(sch_tables);
-
   *tables= tot_list;
   DBUG_RETURN(false);
 }

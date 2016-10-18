@@ -207,31 +207,24 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
 
   for (uint idx= 0; idx < view_ids.size(); idx++)
   {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     dd::String_type view_name;
     dd::String_type schema_name;
     // Get schema name and view name from the object id of the view.
     {
-      const dd::View *view= nullptr;
+      dd::View *view= nullptr;
       if (thd->dd_client()->acquire_uncached(view_ids.at(idx), &view))
         DBUG_RETURN(true);
       if (!view)
         continue;
 
-      const dd::Schema *schema= nullptr;
+      dd::Schema *schema= nullptr;
       if (thd->dd_client()->acquire_uncached(view->schema_id(), &schema))
-      {
-        delete view;
         DBUG_RETURN(true);
-      }
       if (!schema)
-      {
-        delete view;
         continue;
-      }
       view_name= view->name();
       schema_name= schema->name();
-      delete schema;
-      delete view;
     }
 
     // If TABLE_LIST object is already prepared for view name then skip it.

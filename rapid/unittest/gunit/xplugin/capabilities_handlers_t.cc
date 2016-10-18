@@ -22,7 +22,7 @@
 #include "ngs/capabilities/handler_auth_mech.h"
 #include "mock/session.h"
 #include "mock/capabilities.h"
-#include "mock/connection.h"
+#include "mock/ngs_general.h"
 #include "my_config.h"
 
 namespace ngs

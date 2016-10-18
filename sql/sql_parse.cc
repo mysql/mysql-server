@@ -1261,21 +1261,51 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
-  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(thd->query_start_in_secs()))
+  if (IS_TIME_T_VALID_FOR_TIMESTAMP(thd->query_start_in_secs()) == false)
   {
     /*
-     If the time has got past 2038 we need to shut this server down
-     We do this by making sure every command is a shutdown and we 
-     have enough privileges to shut the server down
-
-     TODO: remove this when we have full 64 bit my_time_t support
+      If the time has gone past 2038 we need to shutdown the server. But
+      there is possibility of getting invalid time value on some platforms.
+      For example, gettimeofday() might return incorrect value on solaris
+      platform. Hence validating the current time with 5 iterations before
+      initiating the normal server shutdown process because of time getting
+      past 2038.
     */
-    ulong master_access= thd->security_context()->master_access();
-    thd->security_context()->set_master_access(master_access | SHUTDOWN_ACL);
-    error= TRUE;
+    const int max_tries= 5;
+    sql_print_warning("Current time has got past year 2038. Validating current "
+                      "time with %d iterations before initiating the normal "
+                      "server shutdown process.", max_tries);
+
+    int tries= 0;
+    while (++tries <= max_tries)
+    {
+      thd->set_time();
+      if (IS_TIME_T_VALID_FOR_TIMESTAMP(thd->query_start_in_secs()) == true)
+      {
+        sql_print_warning("Iteration %d: Obtained valid current time from "
+                          "system", tries);
+        break;
+      }
+      sql_print_warning("Iteration %d: Current time obtained from system is "
+                        "greater than 2038", tries);
+    }
+    if (tries > max_tries)
+    {
+      /*
+        If the time has got past 2038 we need to shut this server down
+        We do this by making sure every command is a shutdown and we
+        have enough privileges to shut the server down
+
+        TODO: remove this when we have full 64 bit my_time_t support
+      */
+      sql_print_error("This MySQL server doesn't support dates later then 2038");
+      ulong master_access= thd->security_context()->master_access();
+      thd->security_context()->set_master_access(master_access | SHUTDOWN_ACL);
+      error= TRUE;
 #ifndef EMBEDDED_LIBRARY
-    kill_mysql();
+      kill_mysql();
 #endif
+    }
   }
   thd->set_query_id(next_query_id());
   thd->rewritten_query.mem_free();
@@ -1498,10 +1528,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       query_cache.end_of_result(thd);
 
 #ifndef EMBEDDED_LIBRARY
-      mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
-                          thd->get_stmt_da()->is_error() ?
-                          thd->get_stmt_da()->mysql_errno() : 0,
-                          command_name[command].str);
+      mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
+                         thd->get_stmt_da()->is_error() ?
+                         thd->get_stmt_da()->mysql_errno() : 0,
+                         command_name[command].str,
+                         command_name[command].length);
 #endif
 
       size_t length= static_cast<size_t>(packet_end - beginning_of_next_stmt);
@@ -1883,17 +1914,19 @@ done:
 
 #ifndef EMBEDDED_LIBRARY
   if (!thd->is_error() && !thd->killed)
-    mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
+    mysql_audit_notify(thd,
+                       AUDIT_EVENT(MYSQL_AUDIT_GENERAL_RESULT), 0, NULL, 0);
 
-  mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
-                      thd->get_stmt_da()->is_error() ?
-                      thd->get_stmt_da()->mysql_errno() : 0,
-                      command_name[command].str);
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
+                     thd->get_stmt_da()->is_error() ?
+                     thd->get_stmt_da()->mysql_errno() : 0,
+                     command_name[command].str,
+                     command_name[command].length);
 
   /* command_end is informational only. The plugin cannot abort
      execution of the command at thie point. */
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END),
-                     command, command_name[command].str);
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END), command,
+                     command_name[command].str);
 #endif
 
   log_slow_statement(thd);
@@ -4734,10 +4767,19 @@ bool show_precheck(THD *thd, LEX *lex, bool lock)
       if (!lock)
         break;
 
+      LEX_STRING lex_str_db;
+      if (make_lex_string_root(thd->mem_root, &lex_str_db,
+                               lex->select_lex->db,
+                               strlen(lex->select_lex->db), false) == nullptr)
+        return true;
+
+      if (check_and_convert_db_name(&lex_str_db, false) != Ident_name_check::OK)
+        return true;
+
       // Acquire IX MDL lock on schema name.
       MDL_request mdl_request;
       MDL_REQUEST_INIT(&mdl_request, MDL_key::SCHEMA,
-                       lex->select_lex->db, "",
+                       lex_str_db.str, "",
                        MDL_INTENTION_EXCLUSIVE,
                        MDL_TRANSACTION);
       if (thd->mdl_context.acquire_lock(&mdl_request,
@@ -4746,7 +4788,7 @@ bool show_precheck(THD *thd, LEX *lex, bool lock)
 
       // Stop if given database does not exist.
       bool exists= false;
-      if (dd::schema_exists(thd, lex->select_lex->db, &exists))
+      if (dd::schema_exists(thd, lex_str_db.str, &exists))
         return true;
 
       if (!exists)

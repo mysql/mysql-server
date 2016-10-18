@@ -33,6 +33,7 @@
 #include "free_list.h"                       // Free_list
 #include "malloc_allocator.h"                // Malloc_allocator.
 #include "my_global.h"
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t

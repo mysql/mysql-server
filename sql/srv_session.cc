@@ -487,22 +487,15 @@ static Thread_to_plugin_map server_session_threads;
   @param sess Session to backup
 */
 Srv_session::
-Session_backup_and_attach::Session_backup_and_attach(Srv_session *sess,
-                                                     bool is_close_session)
-  :session(sess),
-   old_session(NULL),
-   in_close_session(is_close_session)
+Session_backup_and_attach::Session_backup_and_attach(Srv_session *sess)
+  :session(sess), old_session(nullptr), backup_thd(nullptr)
 {
-  THD *c_thd= current_thd;
-  const void *is_srv_session_thread= my_get_thread_local(THR_srv_session_thread);
-  backup_thd= is_srv_session_thread? NULL:c_thd;
-
-  if (is_srv_session_thread && c_thd && c_thd != &session->thd)
-  {
-    if ((old_session= server_session_list.find(c_thd)))
-      old_session->detach();
-  }
-
+  THD *thd= current_thd;
+  // If it is a srv_session thread and there's another session attached
+  if ((old_session= server_session_list.find(thd)))
+    old_session->detach();
+  else
+    backup_thd= thd;
   attach_error= session->attach();
 }
 
@@ -523,13 +516,10 @@ Srv_session::Session_backup_and_attach::~Session_backup_and_attach()
       PSI_THREAD_CALL(set_connection_type)(vio_type);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
   }
-  else if (in_close_session)
+  else
   {
-    /*
-      We should restore the old session only in case of close.
-      In case of execute we should stay attached.
-    */
     session->detach();
+    // If previously there was another session attached, then attach it back.
     if (old_session)
       old_session->attach();
   }
@@ -1128,7 +1118,7 @@ bool Srv_session::close()
     The destructor will attach the session we detached.
   */
 
-  Srv_session::Session_backup_and_attach backup(this, true);
+  Srv_session::Session_backup_and_attach backup(this);
 
   if (backup.attach_error)
     DBUG_RETURN(true);
@@ -1216,7 +1206,7 @@ int Srv_session::execute_command(enum enum_server_command command,
   DBUG_ASSERT(thd.get_protocol() == &protocol_error);
 
   // RAII:the destructor restores the state
-  Srv_session::Session_backup_and_attach backup(this, false);
+  Srv_session::Session_backup_and_attach backup(this);
 
   if (backup.attach_error)
     DBUG_RETURN(1);

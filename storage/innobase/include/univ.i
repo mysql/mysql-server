@@ -93,6 +93,8 @@ support cross-platform development and expose comonly used SQL names. */
 # include <mysqld_error.h>
 #endif /* !UNIV_HOTBACKUP  */
 
+#include "my_psi_config.h"
+
 #ifdef HAVE_PSI_INTERFACE
 
 /** Define for performance schema registration key */

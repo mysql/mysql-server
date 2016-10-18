@@ -6935,7 +6935,7 @@ type_conversion_status Field_datetimef::store_packed(longlong nr)
   @param  cs                         character set of the string
 
   @return TYPE_OK, TYPE_NOTE_TRUNCATED, TYPE_WARN_TRUNCATED,
-          TYPE_WARN_ALL_TRUNCATED
+          TYPE_WARN_INVALID_STRING
 
 */
 
@@ -6965,8 +6965,8 @@ Field_longstr::check_string_copy_error(const char *original_string,
                       "string", tmp, field_name,
                       thd->get_stmt_da()->current_row_for_condition());
 
-  if (well_formed_error_pos == original_string)
-    return TYPE_WARN_ALL_TRUNCATED;
+  if (well_formed_error_pos != NULL)
+    return TYPE_WARN_INVALID_STRING;
 
   return TYPE_WARN_TRUNCATED;
 }
@@ -8904,7 +8904,6 @@ type_conversion_status Field_json::store(Field_json *field)
 bool Field_json::val_json(Json_wrapper *wr)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  DBUG_ASSERT(!is_null());
 
   String tmp;
   String *s= Field_blob::val_str(&tmp, &tmp);
@@ -8947,7 +8946,7 @@ longlong Field_json::val_int()
   ASSERT_COLUMN_MARKED_FOR_READ;
 
   Json_wrapper wr;
-  if (is_null() || val_json(&wr))
+  if (val_json(&wr))
     return 0;                                   /* purecov: inspected */
 
   return wr.coerce_int(field_name);
@@ -8959,7 +8958,7 @@ double Field_json::val_real()
   ASSERT_COLUMN_MARKED_FOR_READ;
 
   Json_wrapper wr;
-  if (is_null() || val_json(&wr))
+  if (val_json(&wr))
     return 0.0;                                 /* purecov: inspected */
 
   return wr.coerce_real(field_name);
@@ -8979,7 +8978,7 @@ String *Field_json::val_str(String *buf1, String *buf2 MY_ATTRIBUTE((unused)))
   buf1->length(0);
 
   Json_wrapper wr;
-  if (is_null() || val_json(&wr) || wr.to_string(buf1, true, field_name))
+  if (val_json(&wr) || wr.to_string(buf1, true, field_name))
     buf1->length(0);
 
   return buf1;
@@ -8990,7 +8989,7 @@ my_decimal *Field_json::val_decimal(my_decimal *decimal_value)
   ASSERT_COLUMN_MARKED_FOR_READ;
 
   Json_wrapper wr;
-  if (is_null() || val_json(&wr))
+  if (val_json(&wr))
   {
     /* purecov: begin inspected */
     my_decimal_set_zero(decimal_value);
@@ -9019,7 +9018,7 @@ bool Field_json::get_time(MYSQL_TIME *ltime)
   ASSERT_COLUMN_MARKED_FOR_READ;
 
   Json_wrapper wr;
-  bool result= is_null() || val_json(&wr) || wr.coerce_time(ltime, field_name);
+  bool result= val_json(&wr) || wr.coerce_time(ltime, field_name);
   if (result)
     set_zero_time(ltime, MYSQL_TIMESTAMP_DATETIME); /* purecov: inspected */
   return result;

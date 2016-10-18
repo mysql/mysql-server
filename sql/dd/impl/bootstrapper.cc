@@ -754,16 +754,13 @@ bool read_meta_data(THD *thd)
   }
 
   // Read and update the system schema object from disk.
-  const Schema *stored_sys_schema= nullptr;
+  Schema *stored_sys_schema= nullptr;
   if (thd->dd_client()->acquire_uncached(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                          &stored_sys_schema))
     return end_transaction(thd, true);
 
   DBUG_ASSERT(stored_sys_schema != nullptr);
-  std::unique_ptr<Schema> stored_sys_schema_clone(stored_sys_schema->clone());
-  delete stored_sys_schema;
-  if (thd->dd_client()->update(&sys_schema,
-                               stored_sys_schema_clone.get(), false))
+  if (thd->dd_client()->update(&sys_schema, stored_sys_schema, false))
     return end_transaction(thd, true);
 
   /*
@@ -783,17 +780,13 @@ bool read_meta_data(THD *thd)
   // Read and update the system tablespace object from disk.
   if (sys_tspace)
   {
-    const Tablespace *stored_sys_tspace= nullptr;
+    Tablespace *stored_sys_tspace= nullptr;
     if (thd->dd_client()->acquire_uncached(dd::String_type(MYSQL_TABLESPACE_NAME.str),
                                            &stored_sys_tspace))
       return end_transaction(thd, true);
 
     DBUG_ASSERT(stored_sys_tspace != nullptr);
-    std::unique_ptr<Tablespace> stored_sys_tspace_clone(
-            stored_sys_tspace->clone());
-    delete stored_sys_tspace;
-    if (thd->dd_client()->update(&sys_tspace,
-                                 stored_sys_tspace_clone.get(), false))
+    if (thd->dd_client()->update(&sys_tspace, stored_sys_tspace, false))
       return end_transaction(thd, true);
 
     /*
@@ -821,16 +814,14 @@ bool read_meta_data(THD *thd)
   for (std::vector<const Table*>::iterator it= sys_tables.begin();
        it != sys_tables.end(); ++it)
   {
-    const Table *stored_sys_table= nullptr;
+    Table *stored_sys_table= nullptr;
     if (thd->dd_client()->acquire_uncached(MYSQL_SCHEMA_NAME.str,
                                            (*it)->name(),
                                            &stored_sys_table))
       return end_transaction(thd, true);
 
     DBUG_ASSERT(stored_sys_table != nullptr);
-    std::unique_ptr<Table> stored_sys_table_clone(stored_sys_table->clone());
-    delete stored_sys_table;
-    if (thd->dd_client()->update(&(*it), stored_sys_table_clone.get(), false))
+    if (thd->dd_client()->update(&(*it), stored_sys_table, false))
       return end_transaction(thd, true);
   }
 
@@ -846,7 +837,7 @@ bool read_meta_data(THD *thd)
              System_tablespaces::PREDEFINED_DDSE))
   {
     const Tablespace *tspace= nullptr;
-    const Tablespace *stored_tspace= nullptr;
+    Tablespace *stored_tspace= nullptr;
 
     // Acquire from the cache (the scaffolding) and from the DD tables.
     if (thd->dd_client()->acquire((*it)->key().second, &tspace) ||
@@ -854,10 +845,7 @@ bool read_meta_data(THD *thd)
                                            &stored_tspace))
       return end_transaction(thd, true);
 
-    std::unique_ptr<Tablespace> stored_tspace_clone(
-            stored_tspace->clone());
-    delete stored_tspace;
-    if (thd->dd_client()->update(&tspace, stored_tspace_clone.get(), false))
+    if (thd->dd_client()->update(&tspace, stored_tspace, false))
       return end_transaction(thd, true);
   }
   bootstrap_stage= bootstrap::BOOTSTRAP_SYNCED;

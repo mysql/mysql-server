@@ -374,21 +374,22 @@
 #define MYSQL_SERVER 1
 #include "ha_federated.h"
 
-#include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
-#include "sql_analyse.h"         // append_escaped
 #include <mysql/plugin.h>
-#include "probes_mysql.h"
-#include "m_string.h"
-#include "key.h"                                // key_copy
-#include "myisam.h"                             // TT_USEFRM
-#include "current_thd.h"
-#include "mysqld.h"                             // my_localhost
-#include "sql_class.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/mysql_memory.h"
-#include "template_utils.h"
-
 #include <algorithm>
+
+#include "current_thd.h"
+#include "key.h"                                // key_copy
+#include "m_string.h"
+#include "my_psi_config.h"
+#include "myisam.h"                             // TT_USEFRM
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysqld.h"                             // my_localhost
+#include "probes_mysql.h"
+#include "sql_analyse.h"         // append_escaped
+#include "sql_class.h"
+#include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
+#include "template_utils.h"
 
 using std::min;
 using std::max;

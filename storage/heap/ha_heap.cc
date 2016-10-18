@@ -21,6 +21,7 @@
 #include "current_thd.h"
 #include "heapdef.h"
 #include "my_pointer_arithmetic.h"
+#include "my_psi_config.h"
 #include "probes_mysql.h"
 #include "sql_base.h"                    // enum_tdc_remove_table_type
 #include "sql_class.h"

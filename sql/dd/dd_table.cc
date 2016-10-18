@@ -120,18 +120,21 @@ template bool dd::rename_table<dd::Table>(THD *thd,
                                       const char *from_name,
                                       const char *to_schema_name,
                                       const char *to_name,
-                                      bool no_foreign_key_check);
+                                      bool mark_as_hidden,
+                                      bool commit_dd_changes);
 template bool dd::rename_table<dd::View>(THD *thd,
                                       const char *from_schema_name,
                                       const char *from_name,
                                       const char *to_schema_name,
                                       const char *to_name,
-                                      bool no_foreign_key_check);
+                                      bool mark_as_hidden,
+                                      bool commit_dd_changes);
 template bool dd::rename_table<dd::Table>(THD *thd,
                                           const dd::Schema *from_sch,
                                           const dd::Table *from_table_def,
                                           const dd::Schema *to_sch,
                                           dd::Table *to_table_def,
+                                          bool mark_as_hidden,
                                           bool commit_dd_changes);
 
 template std::unique_ptr<dd::Abstract_table>
@@ -2279,6 +2282,9 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
   // Create dd::Table object.
   std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table(thd));
 
+  // Mark the hidden flag.
+  tab_obj->set_hidden(create_info->m_hidden);
+
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
                                      keyinfo, keys, keys_onoff,
@@ -2550,13 +2556,13 @@ bool table_exists(dd::cache::Dictionary_client *client,
   DBUG_RETURN(false);
 }
 
-
 template <typename T>
 bool rename_table(THD *thd,
                   const char *from_schema_name,
                   const char *from_table_name,
                   const char *to_schema_name,
                   const char *to_table_name,
+                  bool mark_as_hidden,
                   bool commit_dd_changes)
 {
   // We must make sure the schema is released and unlocked in the right order.
@@ -2636,6 +2642,9 @@ bool rename_table(THD *thd,
   from_tab->set_schema_id(to_sch->id());
   from_tab->set_name(to_table_name);
 
+  // Mark the hidden flag.
+  from_tab->set_hidden(mark_as_hidden);
+
   // Do the update. Errors will be reported by the dictionary subsystem.
   if (thd->dd_client()->update_uncached_and_invalidate(from_tab.get()))
   {
@@ -2680,6 +2689,7 @@ template <typename T>
 bool rename_table(THD *thd,
                   const dd::Schema *from_sch, const dd::Table *from_table_def,
                   const dd::Schema *to_sch, dd::Table *to_table_def,
+                  bool mark_as_hidden,
                   bool commit_dd_changes)
 {
   Disable_gtid_state_update_guard disabler(thd);
@@ -2689,6 +2699,9 @@ bool rename_table(THD *thd,
   bool abort= false;
   DBUG_EXECUTE_IF("abort_rename_after_update",
                   abort= true;);
+
+  // Mark the hidden flag.
+  to_table_def->set_hidden(mark_as_hidden);
 
   // Do the update. Errors will be reported by the dictionary subsystem.
   if (thd->dd_client()->update_uncached_and_invalidate(to_table_def) ||

@@ -7628,18 +7628,16 @@ Create_func_internal_keys_disabled::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
-  if (arg_count != 3)
+  if (arg_count != 1)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
     return nullptr;
   }
 
   Item *param_1= item_list->pop_front();
-  Item *param_2= item_list->pop_front();
-  Item *param_3= item_list->pop_front();
 
   return new (thd->mem_root) Item_func_internal_keys_disabled(
-                               POS(), param_1, param_2, param_3);
+                               POS(), param_1);
 }
 
 

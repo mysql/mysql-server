@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,7 +86,11 @@ public:
     // We allocate space for one extra element, for replace when queue is full.
     if (m_queue.reserve(max_elements + 1))
       return true;
-    m_queue.m_compare_length= sort_param->compare_length();
+    // We cannot have packed keys in the queue.
+    m_queue.m_compare_length= sort_param->max_compare_length();
+    // We can have variable length keys though.
+    if (sort_param->using_varlen_keys())
+      m_queue.m_param= sort_param;
     return false;
   }
 

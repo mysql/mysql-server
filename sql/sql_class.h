@@ -359,7 +359,7 @@ typedef I_List<Item_change_record> Item_change_list;
   Type of locked tables mode.
   See comment for THD::locked_tables_mode for complete description.
   While adding new enum values add them to the getter method for this enum
-  declared below and defined in sql_class.cc as well.
+  declared below and defined in binlog.cc as well.
 */
 
 enum enum_locked_tables_mode
@@ -3515,7 +3515,6 @@ public:
   */
   void push_internal_handler(Internal_error_handler *handler);
 
-private:
   /**
     Handle a sql condition.
     @param sql_errno the condition error number
@@ -3529,7 +3528,6 @@ private:
                         Sql_condition::enum_severity_level *level,
                         const char* msg);
 
-public:
   /**
     Remove the error handler last pushed.
   */
@@ -3593,13 +3591,15 @@ private:
     @param sqlstate the condition SQLSTATE
     @param level the condition level
     @param msg the condition message text
+    @param use_condition_handler Invoke the handle_condition.
     @return The condition raised, or NULL
   */
   Sql_condition*
   raise_condition(uint sql_errno,
                   const char* sqlstate,
                   Sql_condition::enum_severity_level level,
-                  const char* msg);
+                  const char* msg,
+                  bool use_condition_handler= true);
 
 public:
   void set_command(enum enum_server_command command);

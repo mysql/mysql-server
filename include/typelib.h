@@ -21,7 +21,7 @@
   @file include/typelib.h
 */
 
-typedef struct st_mem_root MEM_ROOT;
+#include "mem_root_fwd.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -22,7 +22,7 @@
 #include "ngs/memory.h"
 #include "auth_plain.h"
 #include "mock/session.h"
-#include "mock/connection.h"
+#include "mock/ngs_general.h"
 
 #include <stdexcept>
 #include "my_config.h"
@@ -41,6 +41,10 @@ template<typename Auth_type>
 class AuthenticationTestSuite : public Test
 {
 public:
+  static void dont_delete_ptr(ngs::IOptions_session *) {
+
+  }
+
   void SetUp()
   {
     mock_session.reset(new StrictMock<Mock_session>(&mock_client));
@@ -50,7 +54,7 @@ public:
     ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _, _)).WillByDefault(Return(default_error));
     EXPECT_CALL(mock_connection,
                 options()).WillRepeatedly(Return(ngs::IOptions_session_ptr(mock_options_session.get(),
-                                                                           ngs::Custom_allocator_with_check<ngs::IOptions_session>(boost::none))));
+                                                                           &dont_delete_ptr)));
     EXPECT_CALL(mock_connection, connection_type()).WillRepeatedly(Return(ngs::Connection_tls));
     EXPECT_CALL(mock_client, connection()).WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(*mock_session, data_context()).WillRepeatedly(ReturnRef(mock_data_context));

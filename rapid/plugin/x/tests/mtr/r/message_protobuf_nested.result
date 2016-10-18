@@ -1,0 +1,23 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+
+command ok
+connecting...
+active session is now 'test_different_messages1'
+Try to send number of objects less then X Protocol limit, 50 (2 * 25)
+doc
+command ok
+Try to send number of objects equal to the X Protocol limit, 100 (2 * 50)
+doc
+command ok
+Try to send number of object more than the X Protocol limit 101 (2 * 51)
+Got expected error: X Protocol message recursion limit (100) exceeded (code 5000)
+aborting session test_different_messages1
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+uninstall plugin mysqlx;
+DROP TABLE IF EXISTS coll;

@@ -95,6 +95,7 @@
 #include "debug_sync.h"
 #include "ha_myisammrg.h"
 #include "my_pointer_arithmetic.h"
+#include "my_psi_config.h"
 #include "myrg_def.h"
 #include "mysqld.h"
 #include "probes_mysql.h"

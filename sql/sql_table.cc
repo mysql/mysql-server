@@ -1491,6 +1491,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
                                             from_table_name,
                                             db,
                                             table_name,
+                                            false,
                                             true /* WL7743/TODO to be removed with partitioning SE */))
               break;
           }
@@ -7363,6 +7364,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   {
     if (dd::rename_table<dd::Table>(thd, from_sch, from_table_def.get(),
                                     to_sch, to_table_def.get(),
+                                    (flags & FN_TO_IS_TMP),
                                     !(flags & NO_DD_COMMIT)))
     {
       /*
@@ -9367,6 +9369,7 @@ static bool mysql_inplace_alter_table(THD *thd,
 
     altered_table_def->set_schema_id(old_table_def->schema_id());
     altered_table_def->set_name(alter_ctx->alias);
+    altered_table_def->set_hidden(false);
 
     if (dd::remove_sdi(thd, old_table_def, old_sch) ||
         thd->dd_client()->drop(old_table_def))
@@ -11694,6 +11697,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   MDL_request tmp_name_mdl_request;
   bool is_tmp_table= (table->s->tmp_table != NO_TMP_TABLE);
+
+  // Avoid these tables to be visible by I_S/SHOW queries.
+  create_info->m_hidden= !is_tmp_table;
 
   if (!is_tmp_table)
   {

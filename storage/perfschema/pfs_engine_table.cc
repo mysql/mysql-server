@@ -1013,6 +1013,16 @@ void PFS_engine_table::set_field_char_utf8(Field *f, const char* str,
   f2->store(str, len, &my_charset_utf8_bin);
 }
 
+void PFS_engine_table::set_field_varchar(Field *f,
+                                         const CHARSET_INFO *cs,
+                                         const char* str,
+                                         uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  f2->store(str, len, cs);
+}
+
 void PFS_engine_table::set_field_varchar_utf8(Field *f, const char* str,
                                               uint len)
 {

@@ -94,16 +94,16 @@ public:
 
 
   /**
-    Class to help releasing objects.
+    Class to help releasing and deleting objects.
 
-    This class keeps a register of objects that are automatically
+    This class keeps a register of shared objects that are automatically
     released when the instance goes out of scope. When a new instance
     is created, the encompassing dictionary client's current auto releaser
     is replaced by this one, keeping a link to the old one. When the
     auto releaser is deleted, it links the old releaser back in as the
     client's current releaser.
 
-    Objects that are added to the auto releaser will be released when
+    Shared objects that are added to the auto releaser will be released when
     the releaser is deleted. Only the dictionary client is allowed to add
     objects to the auto releaser.
 
@@ -113,6 +113,10 @@ public:
     the auto releaser. Thus, when the releaser is deleted, it releases all
     objects that have been retrieved from the shared cache during the
     lifetime of the releaser.
+
+    Similarly the auto releaser maintains a list of objects created
+    by acquire_uncached(). These objects are owned by the Auto_releaser
+    and are deleted when the auto releaser goes out of scope.
   */
 
   class Auto_releaser
@@ -123,7 +127,7 @@ public:
     Dictionary_client *m_client;
     Object_registry m_release_registry;
     Auto_releaser *m_prev;
-
+    std::vector<Dictionary_object*> m_uncached_objects;
 
     /**
       Register an object to be auto released.
@@ -138,6 +142,30 @@ public:
       // Catch situations where we do not use a non-default releaser.
       DBUG_ASSERT(m_prev != NULL);
       m_release_registry.put(element);
+    }
+
+
+    /**
+      Register an uncached object to be auto deleted.
+
+      @param  object  Dictionary object to auto delete.
+    */
+    template <typename T>
+    void auto_delete(Dictionary_object *object)
+    {
+      // Catch situations where we do not use a non-default releaser.
+      DBUG_ASSERT(m_prev != NULL);
+
+#ifndef DBUG_OFF
+      // Make sure we do not sign up a shared object for auto delete.
+      Cache_element<typename T::cache_partition_type> *element= nullptr;
+      m_client->m_registry.get(
+        static_cast<const typename T::cache_partition_type*>(object),
+        &element);
+      DBUG_ASSERT(element == nullptr);
+#endif
+
+      m_uncached_objects.push_back(object);
     }
 
 
@@ -307,16 +335,11 @@ public:
   /**
     Retrieve an object by its object id without caching it.
 
-    The object is not cached, hence, it is owned by the caller, who must
-    make sure it is deleted. The object must not be released, and may not
+    The object is not cached but owned by the current auto releaser who
+    makes sure it is deleted. The object must not be released, and may not
     be used as a parameter to the other dictionary client methods since it is
     not known by the object registry.
 
-    @note This is needed when acquiring objects for e.g. I_S queries, which
-          happens before there is any MDL lock on the object names. If the
-          objects are retrieved from the cache, their usage counter may lead
-          to asserts failing if there are concurrent operations on the objects.
-
     @tparam       T       Dictionary object type.
     @param        id      Object id to retrieve.
     @param [out]  object  Dictionary object, if present; otherwise NULL.
@@ -326,34 +349,7 @@ public:
    */
 
   template <typename T>
-  bool acquire_uncached(Object_id id, const T** object);
-
-
-  /**
-    Retrieve a possibly uncommitted object by its object id without caching it.
-
-    The object is not cached, hence, it is owned by the caller, who must
-    make sure it is deleted. The object must not be released, and may not
-    be used as a parameter to most of the other dictionary client methods
-    since it is not known by the object registry.
-
-    When the object is read from the persistent tables, the transaction
-    isolation level is READ UNCOMMITTED. This is necessary to be able to
-    read uncommitted data from an earlier stage of the same session.
-
-    @note This is needed when acquiring tablespace objects during execution
-          of ALTER TABLE.
-
-    @tparam       T       Dictionary object type.
-    @param        id      Object id to retrieve.
-    @param [out]  object  Dictionary object, if present; otherwise NULL.
-
-    @retval       false   No error.
-    @retval       true    Error (from reading the dictionary tables).
-   */
-
-  template <typename T>
-  bool acquire_uncached_uncommitted(Object_id id, const T** object);
+  bool acquire_uncached(Object_id id, T** object);
 
 
   /**
@@ -374,8 +370,8 @@ public:
   /**
     Retrieve an object by its name without caching it.
 
-    The object is not cached, hence, it is owned by the caller, who must
-    make sure it is deleted. The object must not be released, and may not
+    The object is not cached but owned by the current auto releaser who
+    makes sure it is deleted. The object must not be released, and may not
     be used as a parameter to the other dictionary client methods since it is
     not known by the object registry.
 
@@ -392,7 +388,7 @@ public:
    */
 
   template <typename T>
-  bool acquire_uncached(const String_type &object_name, const T** object);
+  bool acquire_uncached(const String_type &object_name, T** object);
 
 
   /**
@@ -458,20 +454,14 @@ public:
   /**
     Retrieve an object by its schema- and object name without caching it.
 
-    The object is not cached, hence, it is owned by the caller, who must
-    make sure it is deleted. The object must not be released, and may not
+    The object is not cached but owned by the current auto releaser who
+    makes sure it is deleted. The object must not be released, and may not
     be used as a parameter to the other dictionary client methods since it is
     not known by the object registry.
 
-    @note This is needed to let the TABLE_SHARE for views own the actual
-          view object. Acquiring a cached copy on demand is prohibited by
-          asserts verifying that the THD does not own LOCK_OPEN (which it
-          does, when the view object is needed). Letting the TABLE_SHARE
-          point into the cache, and making the view object sticky, requires
-          synchronization of making the view object unsticky and deleting it
-          from the cache, which is needed both when the view is dropped and
-          when the TABLE_SHARE is evicted. Thus, the most robust solution is
-          to let the TABLE_SHARE own the view object in this specific case.
+    @note This is needed when acquiring objects during bootstrap to make
+          sure we get objects from the DD tables in order to replace the
+          temporarily generated meta data.
 
     @tparam       T             Dictionary object type.
     @param        schema_name   Name of the schema containing the table.
@@ -485,7 +475,7 @@ public:
   template <typename T>
   bool acquire_uncached(const String_type &schema_name,
                         const String_type &object_name,
-                        const T** object);
+                        T** object);
 
 
   /**
@@ -537,7 +527,7 @@ public:
 
   bool acquire_uncached_table_by_se_private_id(const String_type &engine,
                                                Object_id se_private_id,
-                                               const Table **table);
+                                               Table **table);
 
 
   /**
@@ -554,7 +544,7 @@ public:
   bool acquire_uncached_table_by_partition_se_private_id(
          const String_type &engine,
          Object_id se_partition_id,
-         const Table **table);
+         Table **table);
 
 
   /**
@@ -664,23 +654,6 @@ public:
   bool fetch_schema_components(
     const Schema *schema,
     std::vector<const T*> *coll) const;
-
-
-  /**
-    Fetch all components of the given type in the default catalog.
-
-    The signature may be extended with a catalog parameter if that
-    will be supported. The key created requires a catalog parameter.
-
-    @tparam        T              Type of components to get.
-    @param   [out] coll           An std::vector containing all components.
-
-    @return      true   Failure (error is reported).
-    @return      false  Success.
-  */
-
-  template <typename T>
-  bool fetch_catalog_components(std::vector<const T*> *coll) const;
 
 
   /**

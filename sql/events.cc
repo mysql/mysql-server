@@ -1224,11 +1224,7 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
         drop_events_vector.push_back(std::make_pair(schema_obj, ev_obj));
       }
     }
-
-    delete_container_pointers(events);
   }
-
-  delete_container_pointers(schemas);
 
   for (auto event_info : drop_events_vector)
   {

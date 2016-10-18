@@ -15,10 +15,11 @@
 
 
 #define MYSQL_SERVER 1
-#include "probes_mysql.h"
 #include "ha_blackhole.h"
-#include "sql_class.h"                          // THD, SYSTEM_THREAD_SLAVE_*
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "probes_mysql.h"
+#include "sql_class.h"                          // THD, SYSTEM_THREAD_SLAVE_*
 #include "template_utils.h"
 
 static PSI_memory_key bh_key_memory_blackhole_share;
