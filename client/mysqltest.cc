@@ -419,7 +419,8 @@ enum enum_commands {
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
-  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR, Q_FORCE_RMDIR,
+  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
+  Q_FORCE_RMDIR, Q_FORCE_CPDIR,
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
   Q_RESULT_FORMAT_VERSION,
@@ -521,6 +522,7 @@ const char *command_names[]=
   "mkdir",
   "rmdir",
   "force-rmdir",
+  "force-cpdir",
   "list_files",
   "list_files_write_file",
   "list_files_append_file",
@@ -3617,6 +3619,202 @@ static void do_copy_file(struct st_command *command)
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  SYNOPSIS
+  recursive_copy
+  ds_source      - pointer to dynamic string containing source
+                   directory informtion
+  ds_destination - pointer to dynamic string containing destination
+                   directory informtion
+
+  DESCRIPTION
+  Recursive copy of <ds_source> to <ds_destination>
+*/
+
+static int recursive_copy(DYNAMIC_STRING *ds_source,
+                          DYNAMIC_STRING *ds_destination)
+{
+  /* Note that my_dir sorts the list if not given any flags */
+  MY_DIR *src_dir_info= my_dir(ds_source->str, MYF(MY_DONT_SORT | MY_WANT_STAT));
+
+  int error= 0;
+
+  /* Source directory exists */
+  if (src_dir_info)
+  {
+    /* Note that my_dir sorts the list if not given any flags */
+    MY_DIR *dest_dir_info= my_dir(ds_destination->str,
+                                  MYF(MY_DONT_SORT | MY_WANT_STAT));
+
+    /* Create destination directory if it doesn't exist */
+    if (!dest_dir_info)
+    {
+      error= my_mkdir(ds_destination->str, 0777, MYF(0)) != 0;
+      if (error)
+      {
+        my_dirend(dest_dir_info);
+        goto end;
+      }
+    }
+    else
+    {
+      /* Extracting the source directory name */
+      if (ds_source->str[strlen(ds_source->str) - 1] == '/')
+      {
+        strmake(ds_source->str, ds_source->str, strlen(ds_source->str) - 1);
+        ds_source->length= ds_source->length - 1;
+      }
+      char *src_dir_name= strrchr(ds_source->str, '/');
+
+      /* Extracting the destination directory name */
+      if (ds_destination->str[strlen(ds_destination->str) - 1] == '/')
+      {
+        strmake(ds_destination->str, ds_destination->str,
+                strlen(ds_destination->str) - 1);
+        ds_destination->length= ds_destination->length - 1;
+      }
+      char *dest_dir_name= strrchr(ds_destination->str, '/');
+
+      /*
+        Destination directory might not exist if source directory
+        name and destination directory name are not same.
+
+        For example, if source is "abc" and destintion is "def",
+        check for the existance of directory "def/abc". If it exists
+        then, copy the files from source directory(i.e "abc") to
+        destination directory(i.e "def/abc"), otherwise create a new
+        directory "abc" under "def" and copy the files from source to
+        destination directory.
+      */
+      if (strcmp(src_dir_name, dest_dir_name))
+      {
+        dynstr_append(ds_destination, src_dir_name);
+        my_dirend(dest_dir_info);
+        dest_dir_info= my_dir(ds_destination->str,
+                              MYF(MY_DONT_SORT | MY_WANT_STAT));
+
+        /* Create destination directory if it doesn't exist */
+        if (!dest_dir_info)
+        {
+          error= my_mkdir(ds_destination->str, 0777, MYF(0)) != 0;
+          if (error)
+          {
+            my_dirend(dest_dir_info);
+            goto end;
+          }
+        }
+      }
+    }
+
+    char dir_separator[2]= {FN_LIBCHAR, 0};
+    dynstr_append(ds_source, dir_separator);
+    dynstr_append(ds_destination, dir_separator);
+
+    /*
+      Storing the length of source and destination
+      directory paths so it can be reused.
+    */
+    size_t source_dir_length= ds_source->length;
+    size_t destination_dir_length = ds_destination->length;;
+
+    for (uint i= 0; i < src_dir_info->number_off_files; i++)
+    {
+      ds_source->length= source_dir_length;
+      ds_destination->length= destination_dir_length;
+      FILEINFO *file= src_dir_info->dir_entry + i;
+
+      /* Skip the names "." and ".." */
+      if (!strcmp(file->name, ".") ||
+          !strcmp(file->name, ".."))
+        continue;
+
+      dynstr_append(ds_source, file->name);
+      dynstr_append(ds_destination, file->name);
+
+      if (MY_S_ISDIR(file->mystat->st_mode))
+        error= (recursive_copy(ds_source, ds_destination) != 0) ? 1 : error;
+      else
+      {
+        DBUG_PRINT("info", ("Copying file: %s to %s",
+                            ds_source->str, ds_destination->str));
+
+        /* MY_HOLD_ORIGINAL_MODES prevents attempts to chown the file */
+        error= (my_copy(ds_source->str, ds_destination->str,
+                        MYF(MY_HOLD_ORIGINAL_MODES)) != 0) ? 1 : error;
+      }
+    }
+    my_dirend(dest_dir_info);
+  }
+  /* Source directory does not exist or access denied */
+  else
+    error= 1;
+
+end:
+  my_dirend(src_dir_info);
+  return error;
+}
+
+
+/**
+  SYNOPSIS
+  do_force_cpdir
+  command    - command handle
+
+  DESCRIPTION
+  force-cpdir <from_directory> <to_directory>
+  Recursive copy of <from_directory> to <to_directory>.
+  Destination directory is created if it doesn't exist.
+
+  NOTE
+  Will fail if  <from_directory> doesn't exist.
+*/
+
+static void do_force_cpdir(struct st_command * command)
+{
+  DBUG_ENTER("do_force_cpdir");
+
+  static DYNAMIC_STRING ds_source;
+  static DYNAMIC_STRING ds_destination;
+
+  const struct command_arg copy_file_args[] = {
+    { "from_directory", ARG_STRING, TRUE, &ds_source,
+      "Directory to copy from" },
+    { "to_directory", ARG_STRING, TRUE, &ds_destination,
+      "Directory to copy to" }
+  };
+
+  check_command_args(command, command->first_argument,
+                     copy_file_args,
+                     sizeof(copy_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  DBUG_PRINT("info", ("Recursive copy files of %s to %s",
+                      ds_source.str, ds_destination.str));
+
+  DBUG_PRINT("info", ("listing directory: %s", ds_source.str));
+
+  int error= 0;
+
+  /*
+    Throw an error if source directory path and
+    destination directory path are same.
+  */
+  if (!strcmp(ds_source.str, ds_destination.str))
+  {
+    error= 1;
+    set_my_errno(EEXIST);
+  }
+  else
+    error= recursive_copy(&ds_source, &ds_destination);
+
+  handle_command_error(command, error);
+  dynstr_free(&ds_source);
+  dynstr_free(&ds_destination);
+
   DBUG_VOID_RETURN;
 }
 
@@ -9771,6 +9969,7 @@ int main(int argc, char **argv)
       case Q_MKDIR: do_mkdir(command); break;
       case Q_RMDIR: do_rmdir(command, 0); break;
       case Q_FORCE_RMDIR: do_rmdir(command, 1); break;
+      case Q_FORCE_CPDIR: do_force_cpdir(command); break;
       case Q_LIST_FILES: do_list_files(command); break;
       case Q_LIST_FILES_WRITE_FILE:
         do_list_files_write_file_command(command, FALSE);

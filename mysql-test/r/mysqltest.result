@@ -1280,3 +1280,24 @@ words2.dat
 #
 mysqltest: At line 1: Illegal option to connect: SOCKETNEW
 mysqltest: At line 1: Illegal option to connect: SSL3
+#
+# Bug#24806681 : MTR: INTRODUCE COMMAND TO COPY DIRECTORIES RECURSIVELY
+#
+# Destination directory doesn't exist and is created, should pass
+Berlin
+London
+Paris
+# Destination directory exists, should pass
+Berlin
+London
+Paris
+# Destination contains a subdirectory with the same name as a
+# subdirectory in source, should pass
+Berlin
+Italy
+London
+Paris
+# Source directory doesn't exist, should fail
+# Destination contains a file with the same name as a
+# subdirectory in source, should fail
+# Source directory path and destination directory path are same, should fail
