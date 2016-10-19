@@ -1682,3 +1682,39 @@ INSERT INTO t VALUES('1',''),('','');
 SELECT SQL_BIG_RESULT DISTINCT a&b FROM t;
 ERROR HY000: Binary operands of bitwise operators must be of equal length
 DROP TABLE t;
+#
+# Bug#24910958 BITWISE OPERATORS: CRASH IN ITEM_FUNC_BIT_COUNT::VAL_INT()
+#
+CREATE TABLE t (a BLOB NOT NULL) ENGINE=INNODB;
+INSERT INTO t values(0xfefefefefefe);
+SELECT bit_count(a & 0x2438) FROM t;
+ERROR HY000: Binary operands of bitwise operators must be of equal length
+SELECT 1 FROM t WHERE ~reverse(a & 0x111111);
+ERROR HY000: Binary operands of bitwise operators must be of equal length
+SELECT 1 FROM t WHERE insert(a & 0x111111,'','','');
+ERROR HY000: Binary operands of bitwise operators must be of equal length
+SELECT 1 FROM t WHERE rtrim(a & 0x111111);
+ERROR HY000: Binary operands of bitwise operators must be of equal length
+SELECT (SELECT a & 0xff FROM t);
+ERROR HY000: Binary operands of bitwise operators must be of equal length
+SELECT des_decrypt(a & NULL) FROM t;
+des_decrypt(a & NULL)
+NULL
+Warnings:
+Warning	1287	'DES_DECRYPT' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
+SELECT bit_count(a & NULL) FROM t;
+bit_count(a & NULL)
+NULL
+SELECT 1 FROM t WHERE ~reverse(a & NULL);
+1
+SELECT 1 FROM t WHERE insert(a & NULL,'','','');
+1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT 1 FROM t WHERE rtrim(a & NULL);
+1
+SELECT (SELECT a & NULL from t);
+(SELECT a & NULL from t)
+NULL
+DROP TABLE t;
