@@ -3623,7 +3623,7 @@ static void do_copy_file(struct st_command *command)
 }
 
 
-/**
+/*
   SYNOPSIS
   recursive_copy
   ds_source      - pointer to dynamic string containing source
@@ -3759,7 +3759,7 @@ end:
 }
 
 
-/**
+/*
   SYNOPSIS
   do_force_cpdir
   command    - command handle
