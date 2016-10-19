@@ -63,7 +63,6 @@
 using std::min;
 using std::max;
 
-
 /*
   The following is used to initialise Table_ident with a internal
   table name
