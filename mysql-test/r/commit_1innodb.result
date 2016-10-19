@@ -845,7 +845,7 @@ call p_verify_status_increment(<commit_count>, 0, 4, 4);
 SUCCESS
 
 alter table t3 add column (b int);
-call p_verify_status_increment(7, 0, 2, 0);
+call p_verify_status_increment(6, 0, 2, 0);
 SUCCESS
 
 alter table t3 rename t4;

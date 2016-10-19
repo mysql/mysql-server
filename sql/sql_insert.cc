@@ -2568,6 +2568,22 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
+#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
+        /*
+          InnoDB might add tablespace objects to the DD during table creation.
+          If this changes are not committed here it will have problems dropping
+          table on error.
+
+          The problem will be solved once InnoDB implements support for atomic
+          DDL and statement rollback will remove the table automatically.
+        */
+        {
+          Disable_gtid_state_update_guard disabler(thd);
+          trans_commit_stmt(thd);
+          trans_commit_implicit(thd);
+        }
+#endif
+
         Open_table_context ot_ctx(thd, (MYSQL_OPEN_REOPEN |
                                         MYSQL_OPEN_UNCOMMITTED));
         /*
@@ -3116,28 +3132,9 @@ void Query_result_create::drop_open_table()
 #ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
     else
     {
-      std::unique_ptr<dd::Table> table_def=
-        dd::acquire_uncached_uncommitted_table<dd::Table>(thd, create_table->db,
-              create_table->table_name);
-
       trans_rollback_stmt(thd);
       if (thd->transaction_rollback_request)
         trans_rollback_implicit(thd);
-
-      {
-        Disable_gtid_state_update_guard disabler(thd);
-        dd::Schema_MDL_locker mdl_locker(thd);
-        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-        const dd::Schema *sch_obj= NULL;
-        thd->dd_client()->store(table_def.get());
-        if (!mdl_locker.ensure_locked(create_table->db) &&
-            !thd->dd_client()->acquire<dd::Schema>(create_table->db,
-                                                   &sch_obj) &&
-            sch_obj)
-          dd::store_sdi(thd, table_def.get(), sch_obj);
-        trans_commit_stmt(thd);
-        trans_commit(thd);
-      }
 
       quick_rm_table(thd, table_type, create_table->db,
                      create_table->table_name, 0);
