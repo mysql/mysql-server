@@ -4279,7 +4279,7 @@ longlong Item_func_locate::val_int()
   if (arg_count == 3)
   {
     const longlong tmp= args[2]->val_int();
-    if (tmp <= 0)
+    if ((null_value= args[2]->null_value) || tmp <= 0)
       return 0;
     start0= start= tmp - 1;
 

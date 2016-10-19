@@ -2050,3 +2050,22 @@ DROP PROCEDURE sub1;
 DROP VIEW view1;
 DROP VIEW view2;
 DROP TABLE dd_table;
+
+--echo #
+--echo # Bug#24911350 LOCATE('HE','HELLO',NULL) SHOULD RETURN NULL INSTEAD OF 0
+--echo #
+select locate('he','hello',null),locate('he',null,2),locate(null,'hello',2);
+select locate(null,'hello',null),locate('he',null,null);
+select left('hello',null),left(null,1),left(null,null);
+select right('hello',null),right(null,1),right(null,null);
+select mid('hello',1,null),mid('hello',null,1),mid(null,1,1);
+select substr('hello',null,2),substr('hello',2,null),substr(null,1,2);
+select substr(null,null,null),mid(null,null,null);
+select substring_index('the king of the the null','the',null);
+select substring_index('the king of the the null',null,3);
+select substring_index(null,'the',3);
+select substring_index(null,null,3);
+select substring_index(null,null,null);
+select insert(null,2,1,'hi'),insert('txs',null,1,'hi');
+select insert('txs',2,null,'hi'),insert('txs',2,1,null);
+select insert('txs',null,null,'hi'),insert(null,null,null,null);
