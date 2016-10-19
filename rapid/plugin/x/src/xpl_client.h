@@ -67,7 +67,7 @@ namespace xpl
 
   public: // impl ngs::Client
     virtual void on_network_error(int error);
-    virtual std::string resolve_hostname(const std::string &ip);
+    virtual std::string resolve_hostname();
     virtual ngs::Capabilities_configurator *capabilities_configurator();
 
   public:

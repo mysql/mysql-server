@@ -41,6 +41,7 @@
 #include "json_dom.h"
 #include "my_base.h"
 #include "my_byteorder.h"
+#include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysqld.h"                        // my_thread_get_THR_MALLOC

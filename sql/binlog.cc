@@ -10209,13 +10209,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     bool warned_gtid_executed_table= false;
 #ifndef DBUG_OFF
     {
-      static const char *prelocked_mode_name[] = {
-        "NON_PRELOCKED",
-        "PRELOCKED",
-        "PRELOCKED_UNDER_LOCK_TABLES",
-      };
       DBUG_PRINT("debug", ("prelocked_mode: %s",
-                           prelocked_mode_name[locked_tables_mode]));
+                           get_locked_tables_mode_name(locked_tables_mode)));
     }
 #endif
 

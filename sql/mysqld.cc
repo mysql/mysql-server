@@ -341,6 +341,7 @@
 #include "my_decimal.h"
 #include "my_default.h"                 // print_defaults
 #include "my_dir.h"
+#include "my_loglevel.h"
 #include "my_regex.h"
 #include "my_stacktrace.h"              // my_set_exception_pointers
 #include "my_time.h"
@@ -370,8 +371,8 @@
 #include "mysql_time.h"
 #include "mysql_version.h"
 #include "mysqld_daemon.h"
-#include "mysqld_error.h"
 #include "mysqld_embedded.h"            // IWYU pragma: keep
+#include "mysqld_error.h"
 #include "mysqld_thd_manager.h"         // Global_THD_manager
 #include "mysys_err.h"                  // EXIT_OUT_OF_MEMORY
 #include "opt_costconstantcache.h"      // delete_optimizer_cost_module
@@ -449,23 +450,21 @@
 #include "shared_memory_connection.h"
 #endif
 
-#include <algorithm>
-#include <atomic>
-#include <functional>
-#include <list>
-#include <set>
-#include <string>
-#include <vector>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <fenv.h>
 #include <limits.h>
+#ifdef HAVE_GRP_H
+#include <grp.h>
+#endif
 #ifndef _WIN32
 #include <netdb.h>
 #endif
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
+#endif
+#ifdef HAVE_PWD_H
+#include <pwd.h>
 #endif
 #include <signal.h>
 #include <stdarg.h>
@@ -476,28 +475,26 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
+#ifdef HAVE_SYS_RESOURCE_H
+#include <sys/resource.h>
+#endif
 #include <sys/stat.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-#include <algorithm>
-#include <functional>
-#include <new>
-#include <string>
-#include <vector>
-#ifdef HAVE_PWD_H
-#include <pwd.h>
-#endif
-#ifdef HAVE_GRP_H
-#include <grp.h>
-#endif
-#ifdef HAVE_SYS_RESOURCE_H
-#include <sys/resource.h>
 #endif
 #ifdef _WIN32
 #include <crtdbg.h>
 #include <process.h>
 #endif
+
+#include <algorithm>
+#include <atomic>
+#include <functional>
+#include <list>
+#include <set>
+#include <string>
+#include <vector>
+#include <new>
 
 #ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"
@@ -992,9 +989,6 @@ char *mysqld_unix_port, *opt_mysql_tmpdir;
 
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
-/** name of additional condition */
-const char *in_additional_cond= "<IN COND>";
-const char *in_having_cond= "<IN HAVING>";
 
 my_decimal decimal_zero;
 #ifndef EMBEDDED_LIBRARY

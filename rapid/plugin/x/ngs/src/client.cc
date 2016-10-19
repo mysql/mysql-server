@@ -32,6 +32,7 @@
 #include "ngs/protocol/protocol_config.h"
 #include "ngs/protocol_monitor.h"
 #include "ngs/ngs_error.h"
+#include "ngs_common/operations_factory.h"
 
 #include <string.h>
 #include <algorithm>
@@ -285,7 +286,7 @@ void Client::on_client_addr(const bool skip_resolve)
 
   try
   {
-    m_client_host = resolve_hostname(m_client_addr);
+    m_client_host = resolve_hostname();
   }
   catch(...)
   {
@@ -402,13 +403,22 @@ Protocol_monitor_interface &Client::get_protocol_monitor()
   return m_protocol_monitor;
 }
 
+void Client::get_last_error(int &error_code, std::string &message)
+{
+  ngs::Operations_factory operations_factory;
+  System_interface::Shared_ptr system_interface(operations_factory.create_system_interface());
+
+  system_interface->get_socket_error_and_message(error_code, message);
+}
+
 void Client::shutdown_connection()
 {
   if (m_connection->shutdown(Connection_vio::Shutdown_recv) < 0)
   {
     int err;
     std::string strerr;
-    Connection_vio::get_error(err, strerr);
+
+    get_last_error(err, strerr);
     log_debug("%s: connection shutdown error %s (%i)", client_id(), strerr.c_str(), err);
   }
 }
@@ -437,7 +447,7 @@ Request *Client::read_one_message(Error_code &ret_error)
   {
     int err;
     std::string strerr;
-    Connection_vio::get_error(err, strerr);
+    get_last_error(err, strerr);
     if (!(err == EBADF && m_close_reason == Close_connect_timeout))
     {
       log_info("%s: ERROR reading from socket %s (%i) %i", client_id(), strerr.c_str(), err, m_close_reason);
@@ -488,7 +498,8 @@ Request *Client::read_one_message(Error_code &ret_error)
   {
     int err;
     std::string strerr;
-    Connection_vio::get_error(err, strerr);
+
+    get_last_error(err, strerr);
     log_info("%s: ERROR reading from socket %s (%i)", client_id(), strerr.c_str(), err);
     on_network_error(err);
     return NULL;

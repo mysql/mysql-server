@@ -986,7 +986,7 @@ type_conversion_status_to_store_key (type_conversion_status ts)
   case TYPE_NOTE_TIME_TRUNCATED:
     return store_key::STORE_KEY_CONV;
   case TYPE_WARN_OUT_OF_RANGE:
-  case TYPE_WARN_ALL_TRUNCATED:
+  case TYPE_WARN_INVALID_STRING:
   case TYPE_ERR_NULL_CONSTRAINT_VIOLATION:
   case TYPE_ERR_BAD_VALUE:
   case TYPE_ERR_OOM:
@@ -1153,8 +1153,32 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 bool types_allow_materialization(Item *outer, Item *inner);
 bool and_conditions(Item **e1, Item *e2);
 
-static inline Item * and_items(Item* cond, Item *item)
+
+/**
+  Create a AND item of two existing items.
+  A new Item_cond_and item is created with the two supplied items as
+  arguments.
+
+  @note About handling of null pointers as arguments: if the first
+  argument is a null pointer, then the item given as second argument is
+  returned (no new Item_cond_and item is created). The second argument
+  must not be a null pointer.
+
+  @param cond  the first argument to the new AND condition
+  @param item  the second argument to the new AND condtion
+
+  @return the new AND item
+*/
+static inline Item *and_items(Item *cond, Item *item)
 {
+  DBUG_ASSERT(item != NULL);
+  return (cond? (new Item_cond_and(cond, item)) : item);
+}
+
+/// A variant of the above, guaranteed to return Item_bool_func.
+static inline Item_bool_func *and_items(Item *cond, Item_bool_func *item)
+{
+  DBUG_ASSERT(item != NULL);
   return (cond? (new Item_cond_and(cond, item)) : item);
 }
 

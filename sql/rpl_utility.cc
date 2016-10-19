@@ -19,6 +19,7 @@
 
 #include "binary_log_funcs.h"
 #include "my_byteorder.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "thr_malloc.h"

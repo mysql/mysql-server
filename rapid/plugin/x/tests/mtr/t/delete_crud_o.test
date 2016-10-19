@@ -872,24 +872,24 @@ EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-delete_collection_CRUD.tmp
 -->sql
-DROP SCHEMA if EXISTS mysqlxpluginColl;
-CREATE SCHEMA mysqlxpluginColl;
-USE mysqlxpluginColl;
-CREATE TABLE mysqlxpluginColl.MainCollection (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY);
-insert into mysqlxpluginColl.MainCollection (doc, _id) values ('{"_id": "1", "name": "Omar", "Last_Name":"Andrei"}', json_unquote(json_extract(doc, '$._id')));
-insert into mysqlxpluginColl.MainCollection (doc, _id) values ('{"_id": "2", "name": "Alfonso", "Last_Name":"Pavluchenko"}', json_unquote(json_extract(doc, '$._id')));
-insert into mysqlxpluginColl.MainCollection (doc, _id) values ('{"_id": "3", "name": "Rodrigo", "Last_Name":"Kernel"}', json_unquote(json_extract(doc, '$._id')));
-insert into mysqlxpluginColl.MainCollection (doc, _id) values ('{"_id": "4", "name": "Omar", "Last_Name":"Kerball"}', json_unquote(json_extract(doc, '$._id')));
-insert into mysqlxpluginColl.MainCollection (doc, _id) values ('{"_id": "5", "name": "Omar", "Last_Name":"Lopez"}', json_unquote(json_extract(doc, '$._id')));
-insert into mysqlxpluginColl.MainCollection (doc, _id) values ('{"_id": "6", "name": "Javier", "Last_Name":"Torres"}', json_unquote(json_extract(doc, '$._id')));
-select * from mysqlxpluginColl.MainCollection;
+DROP SCHEMA if EXISTS mysqlxplugin_coll;
+CREATE SCHEMA mysqlxplugin_coll;
+USE mysqlxplugin_coll;
+CREATE TABLE mysqlxplugin_coll.main_collection (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY);
+insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "1", "name": "Omar", "Last_Name":"Andrei"}', json_unquote(json_extract(doc, '$._id')));
+insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "2", "name": "Alfonso", "Last_Name":"Pavluchenko"}', json_unquote(json_extract(doc, '$._id')));
+insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "3", "name": "Rodrigo", "Last_Name":"Kernel"}', json_unquote(json_extract(doc, '$._id')));
+insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "4", "name": "Omar", "Last_Name":"Kerball"}', json_unquote(json_extract(doc, '$._id')));
+insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "5", "name": "Omar", "Last_Name":"Lopez"}', json_unquote(json_extract(doc, '$._id')));
+insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "6", "name": "Javier", "Last_Name":"Torres"}', json_unquote(json_extract(doc, '$._id')));
+select * from mysqlxplugin_coll.main_collection;
 -->endsql
 
 -->echo Delete collection rows with in Operator and based in ID
 Mysqlx.Crud.Delete {
   collection {
-    name: "MainCollection"
-    schema: "mysqlxpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   criteria {
@@ -921,14 +921,14 @@ Mysqlx.Crud.Delete {
 -->recvresult
 
 -->sql
- select * from mysqlxpluginColl.MainCollection;
+ select * from mysqlxplugin_coll.main_collection;
 -->endsql
 
 -->echo Delete collection row with == Operator
 Mysqlx.Crud.Delete {
   collection {
-    name: "MainCollection"
-    schema: "mysqlxpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   criteria {
@@ -959,14 +959,14 @@ Mysqlx.Crud.Delete {
 -->recvresult
 
 -->sql
- select * from mysqlxpluginColl.MainCollection;
+ select * from mysqlxplugin_coll.main_collection;
 -->endsql
 
 -->echo Delete collection row with != Operator
 Mysqlx.Crud.Delete {
   collection {
-    name: "MainCollection"
-    schema: "mysqlxpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   criteria {
@@ -997,14 +997,14 @@ Mysqlx.Crud.Delete {
 -->recvresult
 
 -->sql
- select * from mysqlxpluginColl.MainCollection;
+ select * from mysqlxplugin_coll.main_collection;
 -->endsql
 
 -->echo Delete collection row with not in Operator
 Mysqlx.Crud.Delete {
   collection {
-    name: "MainCollection"
-    schema: "mysqlxpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   criteria {
@@ -1035,14 +1035,14 @@ Mysqlx.Crud.Delete {
 -->recvresult
 
 -->sql
- select * from mysqlxpluginColl.MainCollection;
+ select * from mysqlxplugin_coll.main_collection;
 -->endsql
 
 -->echo Delete collection wrong schema
 Mysqlx.Crud.Delete {
   collection {
-    name: "MainCollection"
-    schema: "NotAvailableSchema"
+    name: "main_collection"
+    schema: "not_available_schema"
   }
   data_model: DOCUMENT
   criteria {
@@ -1075,8 +1075,8 @@ Mysqlx.Crud.Delete {
 -->echo Delete collection wrong collection
 Mysqlx.Crud.Delete {
   collection {
-    name: "NotAvailableCollection"
-    schema: "mysqlxpluginColl"
+    name: "not_available_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   criteria {
@@ -1109,8 +1109,8 @@ Mysqlx.Crud.Delete {
 -->echo Delete collection wrong member
 Mysqlx.Crud.Delete {
   collection {
-    name: "MainCollection"
-    schema: "mysqlxpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   criteria {
@@ -1146,7 +1146,7 @@ Mysqlx.Crud.Delete {
 -->echo ================================================================================
 -->sql
  DROP SCHEMA if EXISTS mysqlxplugin;
- DROP SCHEMA if EXISTS mysqlxpluginColl;
+ DROP SCHEMA if EXISTS mysqlxplugin_coll;
  DROP USER deletecruduser@localhost;
  SET SQL_SAFE_UPDATES = 1;
 -->endsql

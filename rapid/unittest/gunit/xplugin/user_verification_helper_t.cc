@@ -23,7 +23,7 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "mock/connection.h"
+#include "mock/ngs_general.h"
 
 namespace xpl
 {

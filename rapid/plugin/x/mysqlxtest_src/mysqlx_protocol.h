@@ -216,10 +216,17 @@ namespace mysqlx
     const char *tls_version;
   };
 
+  enum Internet_protocol
+  {
+    IP_any = 0,
+    IPv4,
+    IPv6,
+  };
+
   class MYSQLXTEST_PUBLIC XProtocol : public ngs::enable_shared_from_this<XProtocol>
   {
   public:
-    XProtocol(const Ssl_config &ssl_config, const std::size_t timeout, const bool dont_wait_for_disconnect = true);
+    XProtocol(const Ssl_config &ssl_config, const std::size_t timeout, const bool dont_wait_for_disconnect = true, const Internet_protocol ip_mode = IPv4);
     ~XProtocol();
 
     uint64_t client_id() const { return m_client_id; }
@@ -304,6 +311,7 @@ namespace mysqlx
     bool m_trace_packets;
     bool m_closed;
     const bool m_dont_wait_for_disconnect;
+    const Internet_protocol m_ip_mode;
     ngs::shared_ptr<Result> m_last_result;
   };
 

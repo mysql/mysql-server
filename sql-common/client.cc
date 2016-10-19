@@ -34,6 +34,7 @@
 #include <my_global.h>
 
 #include "hash.h"
+#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "mysql.h"
 #include "mysql/client_authentication.h"

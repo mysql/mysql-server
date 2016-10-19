@@ -34,6 +34,7 @@
 #include "m_ctype.h"
 #include "m_string.h"           // my_gcvt, _dig_vec_lower
 #include "my_byteorder.h"
+#include "my_double2ulonglong.h"
 #include "my_rapidjson_size_t.h"
 #include "my_sys.h"
 #include "my_time.h"

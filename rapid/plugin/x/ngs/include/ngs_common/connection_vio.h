@@ -30,6 +30,7 @@
 #include "ngs_common/types.h"
 #include "ngs_common/options.h"
 #include "ngs_common/connection_type.h"
+#include "ngs_common/socket_interface.h"
 
 #ifdef WIN32
 #define SHUT_RD   SD_RECEIVE
@@ -41,42 +42,6 @@ namespace ngs
 {
 
 class Ssl_context;
-
-class Socket_operations_interface
-{
-public:
-  typedef ngs::Memory_instrumented<Socket_operations_interface>::Unique_ptr Unique_ptr;
-
-  virtual ~Socket_operations_interface() {}
-
-  virtual int bind(const MYSQL_SOCKET &socket, const struct sockaddr *addr, socklen_t len) = 0;
-  virtual MYSQL_SOCKET accept(PSI_socket_key key, const MYSQL_SOCKET &socket_listen,
-                      struct sockaddr *addr, socklen_t *addr_len) = 0;
-  virtual MYSQL_SOCKET socket(PSI_socket_key key, int domain, int type, int protocol) = 0;
-  virtual int listen(const MYSQL_SOCKET &socket, int backlog) = 0;
-  virtual int get_socket_errno() = 0;
-};
-
-class System_operations_interface
-{
-public:
-  typedef ngs::Memory_instrumented<System_operations_interface>::Unique_ptr Unique_ptr;
-
-  virtual ~System_operations_interface() {}
-
-  virtual int open(const char* name, int access, int permission) = 0;
-  virtual int close(int fd) = 0;
-  virtual int read(int  fd, void *buffer, int nbyte) = 0;
-  virtual int write(int fd, void *buffer, int nbyte) = 0;
-  virtual int fsync(int fd) = 0;
-  virtual int unlink(const char* name) = 0;
-
-  virtual int getppid() = 0;
-  virtual int getpid() = 0;
-  virtual int kill(int pid, int signal) = 0;
-
-  virtual int get_errno() = 0;
-};
 
 class Connection_vio
 {
@@ -91,7 +56,7 @@ public:
   ssize_t write(const Const_buffer_sequence &data);
   ssize_t write(const char *buffer, const std::size_t buffer_size);
 
-  bool peer_address(std::string &address, uint16 &port);
+  sockaddr_storage * peer_address(std::string &address, uint16 &port);
   virtual Connection_type connection_type();
 
   enum Shutdown_type
@@ -105,36 +70,17 @@ public:
   void close();
 
   /* psf-related methods */
-  MYSQL_SOCKET get_mysql_socket();
   void mark_idle();
   void mark_active();
   void set_socket_thread_owner();
 
-  static void close_socket(MYSQL_SOCKET &sock);
-  static void unlink_unix_socket_file(const std::string &unix_socket_file);
-  static MYSQL_SOCKET accept(const MYSQL_SOCKET &sock, struct sockaddr* addr, socklen_t& len, int& err, std::string& strerr);
-
-  static MYSQL_SOCKET create_and_bind_socket(const unsigned short port, std::string &error_message, const uint32 backlog);
-  static MYSQL_SOCKET create_and_bind_socket(const std::string &unix_socket_file, std::string &error_message, const uint32 backlog);
-
-  static void get_error(int& err, std::string& strerr);
-
-  static void init();
-  static void set_socket_operations(Socket_operations_interface* socket_operations);
-  static void set_system_operations(System_operations_interface* system_operations);
-
 private:
-  static bool create_lockfile(const std::string &unix_socket_file, std::string &error_message);
-  static std::string get_lockfile_name(const std::string &unix_socket_file);
   friend class Ssl_context;
 
   Mutex m_shutdown_mutex;
   Vio  *m_vio;
   IOptions_session_ptr m_options_session;
   Ssl_context &m_ssl_context;
-
-  static Socket_operations_interface::Unique_ptr m_socket_operations;
-  static System_operations_interface::Unique_ptr m_system_operations;
 };
 
 /* A shared SSL context object.

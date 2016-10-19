@@ -162,7 +162,8 @@ static bool prepare_set_field(THD *thd, Create_field *sql_field);
 static bool prepare_enum_field(THD *thd, Create_field *sql_field);
 
 static bool
-mysql_prepare_create_table(THD *thd, const char *error_table_name,
+mysql_prepare_create_table(THD *thd, const char *error_schema_name,
+                           const char *error_table_name,
                            HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
                            handler *file, KEY **key_info_buffer,
@@ -2220,7 +2221,7 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   DBUG_ASSERT(shadow_name);
   if (flags & WSDI_WRITE_SHADOW)
   {
-    if (mysql_prepare_create_table(lpt->thd,
+    if (mysql_prepare_create_table(lpt->thd, lpt->db,
                                    lpt->table_name,
                                    lpt->create_info,
                                    lpt->alter_info,
@@ -3693,11 +3694,13 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
 /**
   Check if there is a duplicate key. Report a warning for every duplicate key.
 
-  @param thd              Thread context.
-  @param key              Key to be checked.
-  @param key_info         Array with all keys for the table.
-  @param key_count        Number of keys in the table.
-  @param alter_info       Alter_info structure describing ALTER TABLE.
+  @param thd                Thread context.
+  @param error_schema_name  Schema name of the table used for error reporting.
+  @param error_table_name   Table name used for error reporting.
+  @param key                Key to be checked.
+  @param key_info           Array with all keys for the table.
+  @param key_count          Number of keys in the table.
+  @param alter_info         Alter_info structure describing ALTER TABLE.
 
   @note Unlike has_index_def_changed() and similar code in
         mysql_compare_tables() this function compares KEY objects for the same
@@ -3707,10 +3710,10 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
   @retval false           Ok.
   @retval true            Error.
 */
-
-static bool check_duplicate_key(THD *thd, const KEY *key,
-                                const KEY *key_info, uint key_count,
-                                const Alter_info *alter_info)
+static bool check_duplicate_key(THD *thd, const char *error_schema_name,
+                                const char *error_table_name,
+                                const KEY *key, const KEY *key_info,
+                                uint key_count, Alter_info *alter_info)
 {
   const KEY *k;
   const KEY *k_end= key_info + key_count;
@@ -3790,9 +3793,7 @@ static bool check_duplicate_key(THD *thd, const KEY *key,
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_DUP_INDEX, ER_THD(thd, ER_DUP_INDEX),
-                          key->name,
-                          thd->lex->query_tables->db,
-                          thd->lex->query_tables->table_name);
+                          key->name, error_schema_name, error_table_name);
       if (thd->is_error())
       {
         // An error was reported.
@@ -3810,7 +3811,6 @@ static bool check_duplicate_key(THD *thd, const KEY *key,
   used key packing (optimization implemented only by MyISAM) under erroneous
   assumption that they have BLOB type.
 */
-
 static bool is_phony_blob(enum_field_types sql_type, uint decimals)
 {
   const uint FIELDFLAG_BLOB= 1024;
@@ -5107,6 +5107,8 @@ static bool check_promoted_index(const handler *file,
   Prepares the table and key structures for table creation.
 
   @param thd                       Thread object.
+  @param error_schema_name         Schema name of the table to create/alter, only
+                                   error reporting.
   @param error_table_name          Name of table to create/alter, only used for
                                    error reporting.
   @param create_info               Create information (like MAX_ROWS).
@@ -5127,6 +5129,7 @@ static bool check_promoted_index(const handler *file,
 */
 
 static bool mysql_prepare_create_table(THD *thd,
+                                       const char* error_schema_name,
                                        const char* error_table_name,
                                        HA_CREATE_INFO *create_info,
                                        Alter_info *alter_info,
@@ -5354,7 +5357,8 @@ static bool mysql_prepare_create_table(THD *thd,
        dup_check_key != keys_to_check.end();
        dup_check_key++)
   {
-    if (check_duplicate_key(thd, *dup_check_key, *key_info_buffer, *key_count,
+    if (check_duplicate_key(thd, error_schema_name, error_table_name,
+                            *dup_check_key, *key_info_buffer, *key_count,
                             alter_info))
       DBUG_RETURN(true);
   }
@@ -5831,7 +5835,7 @@ bool create_table_impl(THD *thd,
     }
   }
 
-  if (mysql_prepare_create_table(thd, error_table_name,
+  if (mysql_prepare_create_table(thd, db, error_table_name,
                                  create_info, alter_info,
                                  file,
                                  key_info, key_count,
@@ -7782,6 +7786,7 @@ bool mysql_compare_tables(TABLE *table,
 
   /* Create the prepared information. */
   if (mysql_prepare_create_table(thd,
+                                 "", // Not used
                                  "", // Not used
                                  create_info,
                                  &tmp_alter_info,

@@ -2049,11 +2049,10 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       The test above is to ensure we don't do a reference for things
       that are constants (PARAM_TABLE_BIT is in effect a constant)
       or already referenced (for example an item in HAVING)
-      Exception is Item_direct_view_ref which we need to convert to
+      Exception is Item_direct_view_ref which we need to wrap in
       Item_ref to allow fields from view being stored in tmp table.
     */
     uint el= fields.elements;
-    Item *real_itm= real_item();
 
     SELECT_LEX *base_select;
     SELECT_LEX *depended_from= NULL;
@@ -2070,13 +2069,13 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       base_select= thd->lex->current_select();
     }
 
-    ref_item_array[el]= real_itm;
+    ref_item_array[el]= this;
     Item_aggregate_ref *const item_ref=
       new Item_aggregate_ref(&base_select->context, &ref_item_array[el], 0,
                              item_name.ptr(), depended_from);
     if (!item_ref)
       return;                      /* purecov: inspected */
-    fields.push_front(real_itm);
+    fields.push_front(this);
     thd->change_item_tree(ref, item_ref);
   }
 }

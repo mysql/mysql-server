@@ -128,12 +128,13 @@ namespace ngs
     void remove_client_from_server();
 
     void handle_message(Request &message);
-    virtual std::string resolve_hostname(const std::string &ip) = 0;
+    virtual std::string resolve_hostname() = 0;
     virtual void on_network_error(int error);
 
     Protocol_monitor_interface &get_protocol_monitor();
 
   private:
+    void get_last_error(int &error_code, std::string &message);
     void shutdown_connection();
 
     void on_client_addr(const bool skip_resolve_name);

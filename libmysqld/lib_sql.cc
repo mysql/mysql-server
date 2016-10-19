@@ -18,15 +18,18 @@
   This code was modified by the MySQL team
 */
 
-#include "my_global.h"
-#include "mysql.h"
-#include "errmsg.h"
-#include "embedded_priv.h"
-#include "client_settings.h"
-#include "my_default.h"
+#include <algorithm>
 
+#include "../storage/perfschema/pfs_server.h"
+#include "client_settings.h"
 #include "current_thd.h"
+#include "embedded_priv.h"
+#include "errmsg.h"
 #include "log.h"
+#include "my_default.h"
+#include "my_global.h"
+#include "my_loglevel.h"
+#include "mysql.h"
 #include "mysqld.h"
 #include "mysqld_embedded.h"
 #include "mysqld_thd_manager.h"
@@ -39,10 +42,6 @@
 #include "sql_table.h"
 #include "sql_thd_internal_api.h"
 #include "tztime.h"
-#include "../storage/perfschema/pfs_server.h"
-
-#include "sql_db.h"     // mysql_change_db
-#include <algorithm>
 
 using std::min;
 using std::max;

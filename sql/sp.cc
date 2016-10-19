@@ -392,10 +392,11 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
     Create sp_head object for the stored routine from the information obtained
     from the dd::Routine object.
   */
-  ret= db_load_routine(thd, type, name, sphp, routine->sql_mode(),
-                       params_str.c_str(), return_type_str.c_str(),
-                       routine->definition().c_str(), &sp_chistics,
-                       routine->definer_user().c_str(),
+  ret= db_load_routine(thd, type, name->m_db.str, name->m_db.length,
+                       routine->name().c_str(), routine->name().length(),
+                       sphp, routine->sql_mode(), params_str.c_str(),
+                       return_type_str.c_str(), routine->definition().c_str(),
+                       &sp_chistics, routine->definer_user().c_str(),
                        routine->definer_host().c_str(),
                        routine->created(), routine->last_altered(),
                        creation_ctx);
@@ -521,11 +522,12 @@ private:
 
 
 enum_sp_return_code
-db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
-                sql_mode_t sql_mode, const char *params, const char *returns,
-                const char *body, st_sp_chistics *sp_chistics,
-                const char *definer_user, const char *definer_host,
-                longlong created, longlong modified,
+db_load_routine(THD *thd, enum_sp_type type, const char *sp_db,
+                size_t sp_db_len, const char *sp_name, size_t sp_name_len,
+                sp_head **sphp, sql_mode_t sql_mode, const char *params,
+                const char *returns, const char *body,
+                st_sp_chistics *sp_chistics, const char *definer_user,
+                const char *definer_host, longlong created, longlong modified,
                 Stored_program_creation_ctx *creation_ctx)
 {
   LEX *old_lex= thd->lex, newlex;
@@ -547,8 +549,7 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
   LEX_CSTRING host= { definer_host, strlen(definer_host) };
 
   if (!create_string(thd, &defstr, type,
-                     NULL, 0,
-                     name->m_name.str, name->m_name.length,
+                     NULL, 0, sp_name, sp_name_len,
                      params, strlen(params),
                      returns, strlen(returns),
                      body, strlen(body),
@@ -566,7 +567,7 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
 
     TODO: why do we force switch here?
   */
-  if (mysql_opt_change_db(thd, name->m_db, &saved_cur_db_name, TRUE,
+  if (mysql_opt_change_db(thd, { sp_db, sp_db_len }, &saved_cur_db_name, TRUE,
                           &cur_db_changed))
   {
     ret= SP_INTERNAL_ERROR;
@@ -577,7 +578,7 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
   if (db_not_exists_handler.error_caught())
   {
     ret= SP_INTERNAL_ERROR;
-    my_error(ER_BAD_DB_ERROR, MYF(0), name->m_db.str);
+    my_error(ER_BAD_DB_ERROR, MYF(0), sp_db);
 
     goto end;
   }
@@ -1561,7 +1562,9 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
   }
 
   sp_head *new_sp;
-  if (db_load_routine(thd, type, name, &new_sp, sp->m_sql_mode,
+  if (db_load_routine(thd, type, name->m_db.str, name->m_db.length,
+                      name->m_name.str, name->m_name.length,
+                      &new_sp, sp->m_sql_mode,
                       sp->m_params.str, returns,
                       sp->m_body.str, sp->m_chistics,
                       sp->m_definer_user.str, sp->m_definer_host.str,
@@ -1719,9 +1722,17 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          sp_name *rt, enum_sp_type rt_type)
 {
+  // Stored routine names are case insensitive. So for the proper MDL key
+  // comparison, routine name is converted to the lower case while preparing the
+  // MDL_key.
+  char lc_name[NAME_LEN + 1];
+  my_stpncpy(lc_name, rt->m_name.str, NAME_LEN);
+  my_casedn_str(system_charset_info, lc_name);
+  lc_name[NAME_LEN]= '\0';
   MDL_key key((rt_type == enum_sp_type::FUNCTION) ? MDL_key::FUNCTION :
                                                     MDL_key::PROCEDURE,
-              rt->m_db.str, rt->m_name.str);
+              rt->m_db.str, lc_name);
+
   (void)sp_add_used_routine(prelocking_ctx, arena, &key, 0);
   prelocking_ctx->sroutines_list_own_last= prelocking_ctx->sroutines_list.next;
   prelocking_ctx->sroutines_list_own_elements=

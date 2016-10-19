@@ -91,13 +91,13 @@ length(a)
 0 rows affected
 checking directly from IS tables
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_JOIN_SIZE	18446744073709551615
+max_join_size	18446744073709551615
 0 rows affected
 VARIABLE_NAME	VARIABLE_VALUE
-CONCURRENT_INSERT	AUTO
+concurrent_insert	AUTO
 0 rows affected
 VARIABLE_NAME	VARIABLE_VALUE
-DEFAULT_STORAGE_ENGINE	InnoDB
+default_storage_engine	InnoDB
 0 rows affected
 checking errors and warnings with duplicate table
 

@@ -23,6 +23,7 @@
 
 #include "filesort.h"
 #include "sql_sort.h"
+#include "sort_param.h"
 
 namespace make_sortkey_unittest {
 

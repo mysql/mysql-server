@@ -6935,7 +6935,7 @@ type_conversion_status Field_datetimef::store_packed(longlong nr)
   @param  cs                         character set of the string
 
   @return TYPE_OK, TYPE_NOTE_TRUNCATED, TYPE_WARN_TRUNCATED,
-          TYPE_WARN_ALL_TRUNCATED
+          TYPE_WARN_INVALID_STRING
 
 */
 
@@ -6965,8 +6965,8 @@ Field_longstr::check_string_copy_error(const char *original_string,
                       "string", tmp, field_name,
                       thd->get_stmt_da()->current_row_for_condition());
 
-  if (well_formed_error_pos == original_string)
-    return TYPE_WARN_ALL_TRUNCATED;
+  if (well_formed_error_pos != NULL)
+    return TYPE_WARN_INVALID_STRING;
 
   return TYPE_WARN_TRUNCATED;
 }

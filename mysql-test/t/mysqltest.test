@@ -3370,3 +3370,49 @@ if ($os_version)
 
 --error 1
 --exec echo "connect(tcp_ssl_con,localhost,root,,,,,TCP SSL3 COMPRESS);" | $MYSQL_TEST 2>&1
+
+--echo #
+--echo # Bug#24806681 : MTR: INTRODUCE COMMAND TO COPY DIRECTORIES RECURSIVELY
+--echo #
+
+--echo # Destination directory doesn't exist and is created, should pass
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24806681
+--list_files $MYSQLTEST_VARDIR/bug24806681/Europe
+--force-rmdir $MYSQLTEST_VARDIR/bug24806681
+
+--echo # Destination directory exists, should pass
+--mkdir $MYSQLTEST_VARDIR/bug24806681
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24806681
+--list_files $MYSQLTEST_VARDIR/bug24806681/std_data/Europe
+--force-rmdir $MYSQLTEST_VARDIR/bug24806681
+
+--echo # Destination contains a subdirectory with the same name as a
+--echo # subdirectory in source, should pass
+--mkdir $MYSQLTEST_VARDIR/bug24806681
+--mkdir $MYSQLTEST_VARDIR/bug24806681/std_data
+--mkdir $MYSQLTEST_VARDIR/bug24806681/std_data/Europe
+--write_file $MYSQLTEST_VARDIR/bug24806681/std_data/Europe/Italy
+Test case for "force-cpdir <source> <destination>" command
+EOF
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24806681
+--list_files $MYSQLTEST_VARDIR/bug24806681/std_data/Europe
+--force-rmdir $MYSQLTEST_VARDIR/bug24806681
+
+--echo # Source directory doesn't exist, should fail
+--error 1
+--force-cpdir $MYSQLTEST_VARDIR/bug24806681 $MYSQLTEST_VARDIR/bug24806681_1
+
+--echo # Destination contains a file with the same name as a
+--echo # subdirectory in source, should fail
+--mkdir $MYSQLTEST_VARDIR/bug24806681
+--mkdir $MYSQLTEST_VARDIR/bug24806681/std_data
+--write_file $MYSQLTEST_VARDIR/bug24806681/std_data/Europe
+Test case for "force-cpdir <source> <destination>" command
+EOF
+--error 1
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24806681
+--force-rmdir $MYSQLTEST_VARDIR/bug24806681
+
+--echo # Source directory path and destination directory path are same, should fail
+--error 1
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/std_data/

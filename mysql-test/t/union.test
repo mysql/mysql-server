@@ -1977,7 +1977,6 @@ eval select variable_name,
             (case when variable_name not like "%disk%" and ($PS_PROTOCOL > 0)
              then 1 else 0 end)
             as tweaked_value
-from performance_schema.status_by_thread
-where variable_name like 'created_tmp%'
-and thread_id=sys.ps_thread_id(connection_id());
+from performance_schema.session_status
+where variable_name like 'created_tmp_%tables';
 --enable_query_log

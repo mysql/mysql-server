@@ -33,6 +33,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"

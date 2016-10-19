@@ -1030,7 +1030,7 @@ static void  fill_create_info_for_upgrade(HA_CREATE_INFO *create_info,
 }
 
 
-static const int REQUIRED_VIEW_PARAMETERS= 14;
+static const int REQUIRED_VIEW_PARAMETERS= 12;
 
 /*
   Table of VIEW .frm field descriptors
@@ -1042,9 +1042,6 @@ static File_option view_parameters[]=
 {{{ C_STRING_WITH_LEN("query")},
   my_offsetof_upgrade(TABLE_LIST, select_stmt),
   FILE_OPTIONS_ESTRING},
- {{ C_STRING_WITH_LEN("md5")},
-  my_offsetof_upgrade(TABLE_LIST, md5),
-  FILE_OPTIONS_STRING},
  {{ C_STRING_WITH_LEN("updatable")},
   my_offsetof_upgrade(TABLE_LIST, updatable_view),
   FILE_OPTIONS_ULONGLONG},
@@ -1066,9 +1063,6 @@ static File_option view_parameters[]=
  {{ C_STRING_WITH_LEN("timestamp")},
   my_offsetof_upgrade(TABLE_LIST, timestamp),
   FILE_OPTIONS_TIMESTAMP},
- {{ C_STRING_WITH_LEN("create-version")},
-  my_offsetof_upgrade(TABLE_LIST, file_version),
- FILE_OPTIONS_ULONGLONG},
  {{ C_STRING_WITH_LEN("source")},
   my_offsetof_upgrade(TABLE_LIST, source),
   FILE_OPTIONS_ESTRING},
@@ -3151,7 +3145,8 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table)
   Disable_autocommit_guard autocommit_guard(thd);
 
   // This function fixes sp_head to use in sp_create_routine()
-  if (db_load_routine(thd, routine_type, &sp_name_obj, &sp,
+  if (db_load_routine(thd, routine_type, sp_db_str.str, sp_db_str.length,
+                      sp_name_str.str, sp_name_str.length, &sp,
                       thd->variables.sql_mode, params, returns, body, &chistics,
                       definer_user_name_holder, definer_host_name_holder,
                       created, modified, creation_ctx))

@@ -1,0 +1,14 @@
+#
+# WL#6599: New Data Dictionary and I_S Integration.
+#
+# Test case to check if ndbinfo schema is listed by I_S when ndbcluster
+# is running.
+#
+SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'ndbinfo';
+SCHEMA_NAME
+ndbinfo
+SELECT
+IF(count(table_name) > 10, 'Yes', 'No') as 'Have more than 10 ndbinfo tables'
+  FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ndbinfo';
+Have more than 10 ndbinfo tables
+Yes

@@ -23,6 +23,7 @@
 #include <sys/types.h>
 
 #include "my_dbug.h"
+#include "my_loglevel.h"
 
 
 /*
