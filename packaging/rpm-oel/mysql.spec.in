@@ -475,7 +475,7 @@ information to all nodes in the cluster.
 Summary:        MySQL Cluster Data Node Daemon
 Group:          Applications/Databases
 %description    data-node
-This package contains MySQL Cluster Data Node Daemon, it's the process
+This package contains MySQL Cluster Data Node Daemon, it is the process
 that is used to handle all the data in tables using the NDB Cluster
 storage engine. It comes in two variants: ndbd and ndbmtd, the former
 is single threaded while the latter is multi-threaded.
@@ -599,7 +599,7 @@ fi
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DCMAKE_C_FLAGS="%{optflags}" \
     -DCMAKE_CXX_FLAGS="%{optflags}" \
-    -DWITH_INNODB_MEMCACHED=1 \
+    -DWITH_INNODB_MEMCACHED=0 \
     -DINSTALL_LIBDIR="%{_lib}/mysql" \
     -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
     -DINSTALL_SQLBENCHDIR=share \

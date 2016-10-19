@@ -367,7 +367,7 @@ fi
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
-           -DWITH_INNODB_MEMCACHED=1 \
+           -DWITH_INNODB_MEMCACHED=0 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DINSTALL_SQLBENCHDIR=share \
@@ -393,7 +393,7 @@ mkdir debug
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
-		   -DMYSQL_MAINTAINER_MODE=0 \
+           -DMYSQL_MAINTAINER_MODE=0 \
            -DTMPDIR=/var/tmp \
            -DWITH_BOOST=.. \
            -DWITH_MECAB=system \
