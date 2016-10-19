@@ -3524,14 +3524,13 @@ public:
 };
 
 
-class Item_static_float_func :public Item_float
+class Item_func_pi :public Item_float
 {
   const Name_string func_name;
 public:
-  Item_static_float_func(const POS &pos, const Name_string &name_arg,
-                         double val_arg, uint decimal_par, uint length)
-    :Item_float(pos, null_name_string,
-                val_arg, decimal_par, length), func_name(name_arg)
+  Item_func_pi(const POS &pos)
+    : Item_float(pos, null_name_string, M_PI, 6, 8),
+      func_name(NAME_STRING("pi()"))
   {}
 
   virtual inline void print(String *str, enum_query_type)

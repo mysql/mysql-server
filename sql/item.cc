@@ -1097,7 +1097,7 @@ Item *Item_num::safe_charset_converter(const CHARSET_INFO *tocs)
 }
 
 
-Item *Item_static_float_func::safe_charset_converter(const CHARSET_INFO *tocs)
+Item *Item_func_pi::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   Item_string *conv;
   char buf[64];
