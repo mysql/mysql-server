@@ -726,7 +726,8 @@ ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
   // Turn autocommit on
   // This is needed to ensure calls to mysqld.delete_rows commits.
   my_thd->variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
-
+  // Ensure that file paths on Windows are not modified by parser
+  my_thd->variables.sql_mode|= MODE_NO_BACKSLASH_ESCAPES;
   if(mysqld.delete_rows(STRING_WITH_LEN("mysql"),
                         STRING_WITH_LEN("ndb_binlog_index"),
                         ignore_no_such_table,
