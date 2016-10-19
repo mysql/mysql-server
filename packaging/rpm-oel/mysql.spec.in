@@ -1085,7 +1085,9 @@ fi
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
+%ifarch %{multiarchs}
 %attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
+%endif
 %{_includedir}/mysql
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libmysqlclient.a
