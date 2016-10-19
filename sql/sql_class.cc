@@ -2912,9 +2912,13 @@ void THD::rpl_detach_engine_ha_data()
 
 bool THD::rpl_unflag_detached_engine_ha_data()
 {
+#ifdef HAVE_REPLICATION
   Relay_log_info *rli=
     is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
   return rli ? rli->unflag_detached_engine_ha_data() : false;
+#else
+  return false;
+#endif
 }
 
 /**
