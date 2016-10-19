@@ -1671,7 +1671,7 @@ RecLock::check_deadlock_result(const trx_t* victim_trx, lock_t* lock)
     // Move it only when it does not cause a deadlock.
     if (innodb_lock_schedule_algorithm
         == INNODB_LOCK_SCHEDULE_ALGORITHM_VATS
-        && !is_slave_replication
+        && !thd_is_replication_slave_thread(lock->trx->mysql_thd)
         && !trx_is_high_priority(lock->trx)) {
         
         HASH_DELETE(lock_t, hash, lock_hash_get(lock->type_mode),
@@ -2602,7 +2602,7 @@ lock_rec_dequeue_from_page(
 	MONITOR_DEC(MONITOR_NUM_RECLOCK);
 
 	if (innodb_lock_schedule_algorithm
-	    == INNODB_LOCK_SCHEDULE_ALGORITHM_FCFS || is_slave_replication) {
+	    == INNODB_LOCK_SCHEDULE_ALGORITHM_FCFS || thd_is_replication_slave_thread(in_lock->trx->mysql_thd)) {
 
 		/* Check if waiting locks in the queue can now be granted:
 		grant locks if there are no conflicting locks ahead. Stop at
@@ -7395,7 +7395,7 @@ DeadlockChecker::get_first_lock(ulint* heap_no) const
 	ut_a(lock != m_wait_lock ||
 	     (innodb_lock_schedule_algorithm
 	      == INNODB_LOCK_SCHEDULE_ALGORITHM_VATS
-          && !is_slave_replication));
+          && !thd_is_replication_slave_thread(lock->trx->mysql_thd)));
 
 	/* Check that the lock type doesn't change. */
 	ut_ad(lock_get_type_low(lock) == lock_get_type_low(m_wait_lock));
