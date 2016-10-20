@@ -393,7 +393,8 @@ std::unique_ptr<T> acquire_uncached_uncommitted_table(THD *thd,
 bool update_keys_disabled(THD *thd,
                           const char *schema_name,
                           const char *table_name,
-                          Alter_info::enum_enable_or_disable keys_onoff);
+                          Alter_info::enum_enable_or_disable keys_onoff,
+                          bool commit_dd_changes);
 
 /**
   Function prepares string representing columns data type.

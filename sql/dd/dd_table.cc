@@ -2956,7 +2956,8 @@ std::unique_ptr<T> acquire_uncached_uncommitted_table(THD *thd,
 bool update_keys_disabled(THD *thd,
                           const char *schema_name,
                           const char *table_name,
-                          Alter_info::enum_enable_or_disable keys_onoff)
+                          Alter_info::enum_enable_or_disable keys_onoff,
+                          bool commit_dd_changes)
 {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
@@ -2972,38 +2973,46 @@ bool update_keys_disabled(THD *thd,
     return true;
   }
 
-  // Get 'from' table object
-  const dd::Table *tab_obj= nullptr;
-  if (thd->dd_client()->acquire<dd::Table>(schema_name,
-                                           table_name,
-                                           &tab_obj))
+  // Get table object
+  std::unique_ptr<dd::Table> new_tab_obj;
+
   {
-    return true;
+    dd::cache::Dictionary_client::Auto_releaser releaser2(thd->dd_client());
+    const dd::Table *tab_obj= nullptr;
+    if (thd->dd_client()->acquire<dd::Table>(schema_name,
+                                             table_name,
+                                             &tab_obj))
+    {
+      return true;
+    }
+    if (!tab_obj)
+    {
+     return true;
+    }
+    new_tab_obj= std::unique_ptr<dd::Table>(tab_obj->clone());
   }
 
-  if (!tab_obj)
-  {
-    return true;
-  }
 
   // Update option keys_disabled
-  dd::Properties *table_options= &const_cast<dd::Table*>(tab_obj)->options();
-  table_options->set_uint32("keys_disabled",
-                            (keys_onoff==Alter_info::DISABLE ? 1 : 0));
+  new_tab_obj->options().set_uint32("keys_disabled",
+                                    (keys_onoff==Alter_info::DISABLE ? 1 : 0));
 
-  // Clone the object to be modified, and make sure the clone is deleted
-  // by wrapping it in a unique_ptr.
-  std::unique_ptr<dd::Table> new_tab(tab_obj->clone());
+  // Save the changes
+  Disable_gtid_state_update_guard disabler(thd);
 
-  // Update the changes
-  if (thd->dd_client()->update(&tab_obj, new_tab.get()))
+  if (thd->dd_client()->update_uncached_and_invalidate(new_tab_obj.get()) ||
+      store_sdi(thd, new_tab_obj.get(), sch))
   {
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      trans_rollback(thd);
+    }
     return true;
   }
 
-  // The table object will be left in cache.
-
-  return (false);
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 

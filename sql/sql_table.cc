@@ -7362,6 +7362,18 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   }
   else
   {
+    /*
+      Note that before WL#7743 we have renamed table in the data-dictionary
+      before renaming it in storage engine. However with WL#7743 engines
+      supporting atomic DDL are allowed to update dd::Table object describing
+      new version of table in handler::rename_table(). Hence it should saved
+      after this call.
+      So to avoid extra calls to DD layer and to keep code simple the
+      renaming of table in the DD was moved past rename in SE for all SEs.
+      From crash-safety point of view order doesn't matter for engines
+      supporting atomic DDL. And for engines which can't do atomic DDL in
+      either case there are scenarios in which DD and SE get out of sync.
+    */
     if (dd::rename_table<dd::Table>(thd, from_sch, from_table_def.get(),
                                     to_sch, to_table_def.get(),
                                     (flags & FN_TO_IS_TMP),
@@ -9588,6 +9600,8 @@ cleanup2:
   }
 
   (void) trans_rollback_stmt(thd);
+  // Full rollback in case we have THD::transaction_rollback_request.
+  (void) trans_rollback(thd);
 
   if ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       db_type->post_ddl)
@@ -10958,14 +10972,11 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
         keys were disabled.
        */
       if (dd::update_keys_disabled(thd, table_list->db, table_list->table_name,
-                                   keys_onoff))
+                                   keys_onoff, !atomic_ddl))
       {
-        table->file->print_error(error, MYF(0));
-        ha_rollback_trans(thd, false);
+        // Error should have been reported by DD layer already.
         error= -1;
       }
-      else
-        ha_commit_trans(thd, false, true);
     }
   }
 
@@ -11016,9 +11027,12 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
   {
     /*
       We need rollback possible changes to data-dictionary before releasing
-      metadata lock.
+      or downgrading metadata lock.
+
+      Also do full rollback in case we have THD::transaction_rollback_request.
     */
     trans_rollback_stmt(thd);
+    trans_rollback(thd);
   }
 
   if (atomic_ddl && old_db_type->post_ddl)
@@ -11727,7 +11741,17 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   reenable_binlog(thd);
 
   if (error)
+  {
+    /*
+      Play it safe, rollback possible changes to the data-dictionary,
+      so failed mysql_alter_table()/mysql_recreate_table() do not
+      require rollback in the caller. Also do full rollback in unlikely
+      case we have THD::transaction_rollback_request.
+    */
+    trans_rollback_stmt(thd);
+    trans_rollback(thd);
     DBUG_RETURN(true);
+  }
 
   /*
     Atomic replacement of the table is possible only if both old and new
@@ -12434,6 +12458,8 @@ err_new_table_cleanup:
     }
 #endif
     trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
     if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
         new_db_type->post_ddl)
       new_db_type->post_ddl(thd);
@@ -12493,6 +12519,8 @@ err_with_mdl:
   thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
 
   trans_rollback_stmt(thd);
+  // Full rollback in case we have THD::transaction_rollback_request.
+  trans_rollback(thd);
   if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       new_db_type->post_ddl)
     new_db_type->post_ddl(thd);
