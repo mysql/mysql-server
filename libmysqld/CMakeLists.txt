@@ -122,6 +122,16 @@ ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
+# warning C4348
+# boost::spirit::terminal<boost::spirit::tag::lit>::result_helper': 
+#       redefinition of default parameter
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    ../sql/gis/srs/srs.cc
+    ../sql/gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "/wd4348")
+ENDIF()
+
 ADD_COMPILE_FLAGS(
   ../extra/lz4/xxhash.c
   COMPILE_FLAGS -DXXH_NAMESPACE=MY_
@@ -129,7 +139,7 @@ ADD_COMPILE_FLAGS(
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC /MD
 # The flag /bigobj is not added if the build is not /MD
-IF(WIN32 AND CMAKE_SIZEOF_VOID_P MATCHES 8)
+IF(WIN32)
   FOREACH(flag 
      CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO 
      CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
