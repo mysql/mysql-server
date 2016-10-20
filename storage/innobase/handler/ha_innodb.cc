@@ -8241,7 +8241,6 @@ dd_table_open_on_dd_obj(
 	}
 
 	free_table_share(&ts);
-	delete schema;
 
 	return(error);
 }
@@ -8344,7 +8343,6 @@ dd_table_open_on_id_low(
 
 		if (dc->acquire_uncached(schema, tablename, &dd_table)
 		    || dd_table == nullptr) {
-			delete dd_table;
 			if (mdl != nullptr) {
 				dd_mdl_release(thd, mdl);
 			}
@@ -8379,7 +8377,6 @@ dd_table_open_on_id_low(
 
 		if (mdl != nullptr && !same_name) {
 			dd_mdl_release(thd, mdl);
-			delete dd_table;
 			continue;
 		}
 
@@ -8398,7 +8395,6 @@ dd_table_open_on_id_low(
 		dc, *dd_table, dd_part, tbl_name, nullptr,
 		ib_table, mdl == nullptr/*, table */, thd);
 
-	delete dd_table;
 	return(ib_table);
 }
 

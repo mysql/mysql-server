@@ -823,11 +823,11 @@ TRUNCATE TABLE t1;
 affected rows: 0
 DROP TABLE t1;
 Variable_name	Value
-Handler_update	2
+Handler_update	10
 Variable_name	Value
 Handler_delete	0
 Variable_name	Value
-Handler_update	3
+Handler_update	11
 Variable_name	Value
 Handler_delete	1
 count_alloc WHERE event_name like 'memory/innodb/other'

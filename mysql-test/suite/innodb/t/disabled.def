@@ -24,8 +24,6 @@ analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too 
 
 
 # Disabled list(Due to server issues)
-innodb_misc1              : WL#9525 disables it, waiting for a fix from WL#7743, which make rollback of CREATE...SELECT correct
-innodb_mysql              : WL#9525 disables it, waiting for a fix from WL#7743, which make rollback of CREATE...SELECT correct
 innodb_upd_stats_if_needed_not_inited : WL#9525 disables it, waiting for FK fix
 create_tablespace         : WL#9525 disables it, waiting for FK fix
 create_tablespace_16k     : WL#9525 disables it, waiting for FK fix
