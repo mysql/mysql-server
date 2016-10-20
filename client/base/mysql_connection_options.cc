@@ -23,6 +23,7 @@
 
 #include "abstract_options_provider.h"
 #include "abstract_program.h"
+#include "mysys_err.h"
 #include "mysql_connection_options.h"
 #include "typelib.h"
 

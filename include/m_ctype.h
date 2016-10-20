@@ -22,11 +22,13 @@
 #define _m_ctype_h
 
 #include <stdarg.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "my_byteorder.h"
-#include "my_global.h"
-#include "my_loglevel.h"
+#include "my_compiler.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sharedlib.h"
 #include "str_uca_type.h"
 
@@ -322,10 +324,10 @@ typedef struct my_collation_handler_st
   int  (*strcasecmp)(const struct charset_info_st *, const char *,
                      const char *);
   
-  uint (*instr)(const struct charset_info_st *,
-                const char *b, size_t b_length,
-                const char *s, size_t s_length,
-                my_match_t *match, uint nmatch);
+  uint (*strstr)(const struct charset_info_st *,
+                 const char *b, size_t b_length,
+                 const char *s, size_t s_length,
+                 my_match_t *match, uint nmatch);
   
   /**
     Compute a sort hash for the given key. This hash must preserve equality

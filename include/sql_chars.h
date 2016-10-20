@@ -23,9 +23,8 @@
 #define SQL_LEX_CHARS_INCLUDED
 
 #include "my_compiler.h"
-#include "my_global.h"
-
-struct charset_info_st;
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 enum MY_ATTRIBUTE((__packed__)) my_lex_states
 {

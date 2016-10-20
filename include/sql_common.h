@@ -23,6 +23,15 @@
 */
 
 #include <mysql.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "errmsg.h"
+#include "mem_root_fwd.h"
+#include "my_command.h"
+#include "my_inttypes.h"
+#include "my_list.h"
+#include "mysql_com.h"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -189,6 +198,7 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
 
 /* client side of the pluggable authentication */
 struct st_plugin_vio_info;
+
 void mpvio_info(MYSQL_VIO vio, struct st_plugin_vio_info *info);
 int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
                     const char *data_plugin, const char *db);
@@ -196,6 +206,7 @@ int mysql_client_plugin_init();
 void mysql_client_plugin_deinit();
 
 struct st_mysql_client_plugin;
+
 extern struct st_mysql_client_plugin *mysql_client_builtins[];
 uchar * send_client_connect_attrs(MYSQL *mysql, uchar *buf);
 extern my_bool libmysql_cleartext_plugin_enabled;

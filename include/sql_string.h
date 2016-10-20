@@ -29,13 +29,13 @@
 #include "m_ctype.h"                         // my_convert
 #include "m_string.h"                        // LEX_CSTRING
 #include "mem_root_fwd.h"
-#include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"                          // alloc_root
 #include "mysql/mysql_lex_string.h"          // LEX_STRING
+#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"       // my_free
 

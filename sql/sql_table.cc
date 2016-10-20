@@ -3844,10 +3844,10 @@ static bool prepare_set_field(THD *thd, Create_field *sql_field)
 
   for (uint i= 0; i < sql_field->interval->count; i++)
   {
-    if (sql_field->charset->coll->instr(sql_field->charset,
-                                        sql_field->interval->type_names[i],
-                                        sql_field->interval->type_lengths[i],
-                                        comma_buf, comma_length, NULL, 0))
+    if (sql_field->charset->coll->strstr(sql_field->charset,
+                                         sql_field->interval->type_names[i],
+                                         sql_field->interval->type_lengths[i],
+                                         comma_buf, comma_length, NULL, 0))
     {
       ErrConvString err(sql_field->interval->type_names[i],
                         sql_field->interval->type_lengths[i],

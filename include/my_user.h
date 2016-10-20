@@ -21,8 +21,9 @@
 #ifndef _my_user_h_
 #define _my_user_h_
 
-#include <my_global.h>
 #include <stddef.h>
+
+#include "my_macros.h"
 
 C_MODE_START
 

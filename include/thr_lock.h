@@ -22,10 +22,13 @@
 #ifndef _thr_lock_h
 #define _thr_lock_h
 
-#include <my_thread.h>
 #include <my_list.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_thread_local.h"
 #include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/mysql_mutex.h"
 
 extern mysql_mutex_t THR_LOCK_lock;
 
@@ -34,6 +37,7 @@ extern "C" {
 #endif
 
 struct st_thr_lock;
+
 extern ulong locks_immediate,locks_waited ;
 
 /*

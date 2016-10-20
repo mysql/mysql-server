@@ -24,9 +24,16 @@
   better compression.
 */
 
-/* these two are for uniformity */
+#include "my_config.h"
 
-#include "my_global.h"
+#ifdef HAVE_ENDIAN_H
+#include <endian.h>
+#endif
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+
+/* these two are for uniformity */
 
 static inline int8 mi_sint1korr(const uchar *A)
 {

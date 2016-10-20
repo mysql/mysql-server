@@ -25,15 +25,18 @@
 #include "my_config.h"
 
 #ifndef MYSQL_ABI_CHECK
-#include <sys/types.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 #endif
 
 #ifdef _WIN32
 #include <BaseTsd.h>
 typedef unsigned int uint;
 typedef unsigned short ushort;
+#endif
+#if !defined(HAVE_ULONG)
+typedef unsigned long	ulong;		  /* Short for unsigned long */
 #endif
 
 typedef unsigned char	uchar;	/* Short for unsigned char */
@@ -51,9 +54,6 @@ typedef unsigned long uint32;
 #error Neither int or long is of 4 bytes width
 #endif
 
-#if !defined(HAVE_ULONG)
-typedef unsigned long	ulong;		  /* Short for unsigned long */
-#endif
 /* 
   Using [unsigned] long long is preferable as [u]longlong because we use 
   [unsigned] long long unconditionally in many places, 

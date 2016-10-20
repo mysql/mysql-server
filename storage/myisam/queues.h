@@ -23,7 +23,10 @@
   By monty.
 */
 
-#include "my_global.h"                          /* uchar */
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "mysql/psi/psi_memory.h"
 
 #ifdef	__cplusplus

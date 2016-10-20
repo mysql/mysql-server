@@ -22,7 +22,13 @@
 #ifndef _my_base_h
 #define _my_base_h
 
-#include "my_global.h"
+#include <limits.h>
+#include <sys/types.h>
+
+#include "my_config.h"
+#include "my_double2ulonglong.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 /* The following is bits in the flag parameter to ha_open() */
 

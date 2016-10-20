@@ -21,11 +21,16 @@
   Performance schema instrumentation (declarations).
 */
 
+#include "my_psi_config.h"
+
 #ifdef HAVE_PSI_IDLE_INTERFACE
 #ifdef MYSQL_SERVER
 #ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
+#include <sys/types.h>
+
+#include "my_macros.h"
 #include "mysql/psi/psi_idle.h"
 
 #define PSI_IDLE_CALL(M) pfs_ ## M ## _v1

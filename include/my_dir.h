@@ -20,9 +20,11 @@
   @file include/my_dir.h
 */
 
-#include "my_global.h"
-
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 
 #ifdef	__cplusplus
 extern "C" {

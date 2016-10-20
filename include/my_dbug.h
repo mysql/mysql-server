@@ -42,6 +42,7 @@ struct _db_stack_frame_ {
 };
 
 struct  _db_code_state_;
+
 extern  int _db_keyword_(struct _db_code_state_ *, const char *, int);
 extern  int _db_explain_(struct _db_code_state_ *cs, char *buf, size_t len);
 extern  int _db_explain_init_(char *buf, size_t len);
@@ -170,6 +171,7 @@ extern void _db_flush_gcov_();
 #ifdef __cplusplus
 #if !defined(DBUG_OFF)
 #include <sstream>
+#include <string>
 
 /*
   A C++ interface to the DBUG_PRINT macro.  The DBUG_LOG macro takes two

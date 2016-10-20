@@ -20,12 +20,17 @@
   @file include/prealloced_array.h
 */
 
-#include "my_global.h"
-#include "my_sys.h"
-#include "my_dbug.h"
-#include "mysql/service_mysql_alloc.h"
-
+#include <stddef.h>
 #include <algorithm>
+#include <new>
+#include <utility>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/service_mysql_alloc.h"
 
 /**
   A typesafe replacement for DYNAMIC_ARRAY. We do our own memory management,

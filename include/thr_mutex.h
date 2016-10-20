@@ -33,11 +33,12 @@
        See include/mysql/psi/mysql_thread.h
 */
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_thread.h"
 
 C_MODE_START

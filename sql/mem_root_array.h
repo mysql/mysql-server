@@ -18,6 +18,7 @@
 #define MEM_ROOT_ARRAY_INCLUDED
 
 #include "my_alloc.h"
+#include "my_dbug.h"
 
 /**
   Just a dummy class for use as a default value in template parameters.

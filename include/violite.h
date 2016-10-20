@@ -25,9 +25,18 @@
 #include "my_config.h"
 
 #include <my_thread.h> /* my_thread_handle */
-#include <pfs_socket_provider.h>
 #include <mysql/psi/mysql_socket.h>
+#include <stddef.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
+
+struct st_vio;
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
 
@@ -208,8 +217,8 @@ int vio_getnameinfo(const struct sockaddr *sa,
 /* Set yaSSL to use same type as MySQL do for socket handles */
 typedef my_socket YASSL_SOCKET_T;
 #define YASSL_SOCKET_T_DEFINED
-#include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 
 #ifndef EMBEDDED_LIBRARY
 enum enum_ssl_init_error

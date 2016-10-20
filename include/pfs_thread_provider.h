@@ -21,12 +21,21 @@
   Performance schema instrumentation (declarations).
 */
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
-#ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
-#ifndef MYSQL_DYNAMIC_PLUGIN
+#include "my_psi_config.h"
 
+#if defined(HAVE_PSI_THREAD_INTERFACE) && defined(MYSQL_SERVER) && \
+    !defined(EMBEDDED_LIBRARY) && !defined(MYSQL_DYNAMIC_PLUGIN) && \
+    defined(__cplusplus)
+
+#include <sys/types.h>
+#include <time.h>
+
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_thread.h"
 #include "mysql/psi/psi_thread.h"
+
+class THD;
 
 #define PSI_THREAD_CALL(M) pfs_ ## M ## _v1
 
@@ -78,9 +87,6 @@ int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
 
 C_MODE_END
 
-#endif /* EMBEDDED_LIBRARY */
-#endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 #endif

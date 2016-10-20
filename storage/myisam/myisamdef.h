@@ -20,6 +20,7 @@
   @file storage/myisam/myisamdef.h
 */
 
+#include "my_icp.h"
 #include "my_pointer_arithmetic.h"
 #include "my_thread.h"
 #include "my_thread_local.h"

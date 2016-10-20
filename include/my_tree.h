@@ -20,8 +20,13 @@
   @file include/my_tree.h
 */
 
-#include "my_base.h"		/* get 'enum ha_rkey_function' */
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "mem_root_fwd.h"
 #include "my_alloc.h"           /* MEM_ROOT */
+#include "my_base.h"		/* get 'enum ha_rkey_function' */
+#include "my_inttypes.h"
 #include "my_sys.h"             /* qsort2_cmp */
 
 #ifdef	__cplusplus

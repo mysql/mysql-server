@@ -21,12 +21,16 @@
 #ifndef _myisammrg_h
 #define _myisammrg_h
 
-#include "my_global.h"
+#include <sys/types.h>
+
 #include "my_base.h"
+#include "my_inttypes.h"
+#include "my_list.h"
+#include "my_macros.h"
 #include "myisam.h"
 #include "../storage/myisam/queues.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "typelib.h"
-#include "my_list.h"
 
 C_MODE_START
 

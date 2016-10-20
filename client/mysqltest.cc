@@ -59,6 +59,7 @@
 
 #include "prealloced_array.h"
 #include "template_utils.h"
+#include "typelib.h"
 
 using std::min;
 using std::max;

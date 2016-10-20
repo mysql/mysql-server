@@ -27,6 +27,7 @@
 #include "my_config.h"
 
 #include <string.h>
+#include <sys/types.h>
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -41,6 +42,8 @@
 #else
 #include "byte_order_generic.h"  // IWYU pragma: export
 #endif
+
+#include "my_inttypes.h"
 
 #ifdef __cplusplus
 #include "template_utils.h"

@@ -29,9 +29,13 @@
 #include <my_base.h>
 #endif
 
+#include <sys/types.h>
 #include <thr_lock.h>
+#include <time.h>
 
 #include "my_compare.h"
+#include "my_inttypes.h"
+#include "my_list.h"
 #include "my_tree.h"
 
 #ifdef	__cplusplus
