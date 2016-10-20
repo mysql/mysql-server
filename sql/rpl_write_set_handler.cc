@@ -95,6 +95,25 @@ static void check_foreign_key(TABLE *table, THD *thd,
                               std::map<std::string,std::string> &foreign_key_map)
 {
   DBUG_ENTER("check_foreign_key");
+  /*
+    OPTION_NO_FOREIGN_KEY_CHECKS bit in options_bits is set at two places
+
+    1) If the user executed 'SET foreign_key_checks= 0' on the local session
+    before executing the query.
+    or
+    2) We are applying a RBR event (i.e., the event is from a remote server)
+    and logic in Rows_log_event::do_apply_event found out that the event is
+    generated from a remote server session that disabled foreign_key_checks
+    (using 'SET foreign_key_checks=0').
+
+    In either of the above cases (i.e., the foreign key check is disabled for
+    the current query/current event), we should ignore generating
+    the foreign key information as they should not participate
+    in the conflicts detecting algorithm.
+  */
+  if (thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS)
+    DBUG_VOID_RETURN;
+
   List<FOREIGN_KEY_INFO> f_key_list;
   table->file->get_foreign_key_list(thd, &f_key_list);
 
@@ -122,6 +141,7 @@ static void check_foreign_key(TABLE *table, THD *thd,
                                 length_table, MYF(0));
     char *char_length_table= my_safe_itoa(10, length_table, &buffer_table[length_table-1]);
 
+    DBUG_ASSERT(f_key_info->referenced_key_name);
     /*
       Prefix the hash keys with the referenced index name.
     */
