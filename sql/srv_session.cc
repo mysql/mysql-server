@@ -15,26 +15,50 @@
 */
 
 #include "srv_session.h"
-#include "my_dbug.h"
-#include "my_thread.h"
-#include "sql_class.h"
-#include "sql_base.h"            // close_mysql_tables
-#include "sql_connect.h"         // thd_init_client_charset
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "sql_audit.h"           // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
-#include "log.h"                 // Query log
-#include "my_thread_local.h"     // my_get_thread_local & my_set_thread_local
-#include "mysqld.h"              // current_thd
-#include "sql_parse.h"           // dispatch_command()
-#include "sql_thd_internal_api.h" // thd_set_thread_stack
-#include "rwlock_scoped_lock.h"
-#include "mutex_lock.h"
-#include "conn_handler/connection_handler_manager.h"
-#include "sql_plugin.h"
-#include "current_thd.h"
-#include "derror.h"             // ER_DEFAULT
 
+#include <stddef.h>
+#include <sys/types.h>
+#include <list>
 #include <map>
+#include <new>
+#include <utility>
+
+#include "conn_handler/connection_handler_manager.h"
+#include "current_thd.h"
+#include "decimal.h"
+#include "derror.h"             // ER_DEFAULT
+#include "log.h"                 // Query log
+#include "m_ctype.h"
+#include "mutex_lock.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_thread.h"
+#include "my_thread_local.h"     // my_get_thread_local & my_set_thread_local
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld.h"              // current_thd
+#include "mysqld_error.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "pfs_thread_provider.h"
+#include "rwlock_scoped_lock.h"
+#include "sql_audit.h"           // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
+#include "sql_base.h"            // close_mysql_tables
+#include "sql_class.h"
+#include "sql_connect.h"         // thd_init_client_charset
+#include "sql_list.h"
+#include "sql_parse.h"           // dispatch_command()
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_thd_internal_api.h" // thd_set_thread_stack
+#include "system_variables.h"
+#include "thr_mutex.h"
 
 /**
   @file
@@ -463,22 +487,15 @@ static Thread_to_plugin_map server_session_threads;
   @param sess Session to backup
 */
 Srv_session::
-Session_backup_and_attach::Session_backup_and_attach(Srv_session *sess,
-                                                     bool is_close_session)
-  :session(sess),
-   old_session(NULL),
-   in_close_session(is_close_session)
+Session_backup_and_attach::Session_backup_and_attach(Srv_session *sess)
+  :session(sess), old_session(nullptr), backup_thd(nullptr)
 {
-  THD *c_thd= current_thd;
-  const void *is_srv_session_thread= my_get_thread_local(THR_srv_session_thread);
-  backup_thd= is_srv_session_thread? NULL:c_thd;
-
-  if (is_srv_session_thread && c_thd && c_thd != &session->thd)
-  {
-    if ((old_session= server_session_list.find(c_thd)))
-      old_session->detach();
-  }
-
+  THD *thd= current_thd;
+  // If it is a srv_session thread and there's another session attached
+  if ((old_session= server_session_list.find(thd)))
+    old_session->detach();
+  else
+    backup_thd= thd;
   attach_error= session->attach();
 }
 
@@ -499,13 +516,10 @@ Srv_session::Session_backup_and_attach::~Session_backup_and_attach()
       PSI_THREAD_CALL(set_connection_type)(vio_type);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
   }
-  else if (in_close_session)
+  else
   {
-    /*
-      We should restore the old session only in case of close.
-      In case of execute we should stay attached.
-    */
     session->detach();
+    // If previously there was another session attached, then attach it back.
     if (old_session)
       old_session->attach();
   }
@@ -1104,7 +1118,7 @@ bool Srv_session::close()
     The destructor will attach the session we detached.
   */
 
-  Srv_session::Session_backup_and_attach backup(this, true);
+  Srv_session::Session_backup_and_attach backup(this);
 
   if (backup.attach_error)
     DBUG_RETURN(true);
@@ -1162,8 +1176,6 @@ void Srv_session::set_detached()
   thd_set_thread_stack(&thd, NULL);
 }
 
-#include "auth_common.h"
-
 int Srv_session::execute_command(enum enum_server_command command,
                                  const union COM_DATA * data,
                                  const CHARSET_INFO * client_cs,
@@ -1194,7 +1206,7 @@ int Srv_session::execute_command(enum enum_server_command command,
   DBUG_ASSERT(thd.get_protocol() == &protocol_error);
 
   // RAII:the destructor restores the state
-  Srv_session::Session_backup_and_attach backup(this, false);
+  Srv_session::Session_backup_and_attach backup(this);
 
   if (backup.attach_error)
     DBUG_RETURN(1);

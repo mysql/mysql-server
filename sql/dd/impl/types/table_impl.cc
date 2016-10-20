@@ -15,26 +15,38 @@
 
 #include "dd/impl/types/table_impl.h"
 
-#include "mysqld_error.h"                            // ER_*
-#include "current_thd.h"                             // current_thd
+#include <string.h>
+#include <sstream>
 
+#include "current_thd.h"                             // current_thd
 #include "dd/impl/object_key.h"                      // Needed for destructor
 #include "dd/impl/properties_impl.h"                 // Properties_impl
-#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
-#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
+#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
 #include "dd/impl/tables/indexes.h"                  // Indexes
-#include "dd/impl/tables/tables.h"                   // Tables
 #include "dd/impl/tables/table_partitions.h"         // Table_partitions
+#include "dd/impl/tables/tables.h"                   // Tables
 #include "dd/impl/tables/triggers.h"                 // Triggers
+#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/types/foreign_key_impl.h"          // Foreign_key_impl
 #include "dd/impl/types/index_impl.h"                // Index_impl
 #include "dd/impl/types/partition_impl.h"            // Partition_impl
 #include "dd/impl/types/trigger_impl.h"              // Trigger_impl
+#include "dd/properties.h"
+#include "dd/string_type.h"                          // dd::String_type
 #include "dd/types/column.h"                         // Column
-
-#include <sstream>
+#include "dd/types/foreign_key.h"
+#include "dd/types/index.h"
+#include "dd/types/partition.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "mysqld_error.h"                            // ER_*
+#include "my_sys.h"
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+#include "sql_class.h"
 
 using dd::tables::Foreign_keys;
 using dd::tables::Indexes;
@@ -43,6 +55,9 @@ using dd::tables::Table_partitions;
 using dd::tables::Triggers;
 
 namespace dd {
+
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 // Table implementation.
@@ -59,8 +74,7 @@ const Object_type &Table::TYPE()
 ///////////////////////////////////////////////////////////////////////////
 
 Table_impl::Table_impl()
- :m_hidden(false),
-  m_se_private_id(INVALID_OBJECT_ID),
+ :m_se_private_id(INVALID_OBJECT_ID),
   m_se_private_data(new Properties_impl()),
   m_row_format(RF_FIXED),
   m_partition_type(PT_NONE),
@@ -81,7 +95,7 @@ Table_impl::~Table_impl()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Table_impl::set_se_private_data_raw(const std::string &se_private_data_raw)
+bool Table_impl::set_se_private_data_raw(const String_type &se_private_data_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(se_private_data_raw);
@@ -182,9 +196,12 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
       inline bool operator() (const Trigger *t1,
                               const Trigger *t2) const
       {
-        return t1->action_timing() < t2->action_timing() &&
-               t1->event_type() < t2->event_type() &&
-               t1->action_order() < t2->action_order();
+        return (t1->action_timing() < t2->action_timing()) ||
+                (t1->action_timing() == t2->action_timing() &&
+                 t1->event_type() < t2->event_type()) ||
+                (t1->action_timing() == t2->action_timing() &&
+                 t1->event_type() == t2->event_type() &&
+                 t1->action_order() < t2->action_order());
       }
     };
 
@@ -317,7 +334,6 @@ bool Table_impl::restore_attributes(const Raw_record &r)
   if (Abstract_table_impl::restore_attributes(r))
     return true;
 
-  m_hidden=          r.read_bool(Tables::FIELD_HIDDEN);
   m_comment=         r.read_str(Tables::FIELD_COMMENT);
   m_row_format=      (enum_row_format) r.read_int(Tables::FIELD_ROW_FORMAT);
 
@@ -384,7 +400,6 @@ bool Table_impl::store_attributes(Raw_record *r)
     r->store(Tables::FIELD_ENGINE, m_engine) ||
     r->store_ref_id(Tables::FIELD_COLLATION_ID, m_collation_id) ||
     r->store(Tables::FIELD_COMMENT, m_comment) ||
-    r->store(Tables::FIELD_HIDDEN, m_hidden) ||
     r->store(Tables::FIELD_SE_PRIVATE_DATA, *m_se_private_data) ||
     r->store(Tables::FIELD_SE_PRIVATE_ID,
              m_se_private_id,
@@ -418,7 +433,6 @@ Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
   w->StartObject();
   Abstract_table_impl::serialize(wctx, w);
-  write(w, m_hidden, STRING_WITH_LEN("hidden"));
   write(w, m_se_private_id, STRING_WITH_LEN("se_private_id"));
   write(w, m_engine, STRING_WITH_LEN("engine"));
   write(w, m_comment, STRING_WITH_LEN("comment"));
@@ -445,7 +459,6 @@ bool
 Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 {
   Abstract_table_impl::deserialize(rctx, val);
-  read(&m_hidden, val, "hidden");
   read(&m_se_private_id, val, "se_private_id");
   read(&m_engine, val, "engine");
   read(&m_comment, val, "comment");
@@ -483,19 +496,18 @@ Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Table_impl::debug_print(std::string &outb) const
+void Table_impl::debug_print(String_type &outb) const
 {
-  std::string s;
+  String_type s;
   Abstract_table_impl::debug_print(s);
 
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "TABLE OBJECT: { "
     << s
     << "m_engine: " << m_engine << "; "
     << "m_collation: {OID: " << m_collation_id << "}; "
     << "m_comment: " << m_comment << "; "
-    << "m_hidden: " << m_hidden << "; "
     << "m_se_private_data " << m_se_private_data->raw_string() << "; "
     << "m_se_private_id: {OID: " << m_se_private_id << "}; "
     << "m_row_format: " << m_row_format << "; "
@@ -511,7 +523,7 @@ void Table_impl::debug_print(std::string &outb) const
   {
     for (const Partition *i : partitions())
     {
-      std::string s;
+      String_type s;
       i->debug_print(s);
       ss << s << " | ";
     }
@@ -522,7 +534,7 @@ void Table_impl::debug_print(std::string &outb) const
   {
     for (const Index *i : indexes())
     {
-      std::string s;
+      String_type s;
       i->debug_print(s);
       ss << s << " | ";
     }
@@ -533,7 +545,7 @@ void Table_impl::debug_print(std::string &outb) const
   {
     for (const Foreign_key *fk : foreign_keys())
     {
-      std::string s;
+      String_type s;
       fk->debug_print(s);
       ss << s << " | ";
     }
@@ -544,7 +556,7 @@ void Table_impl::debug_print(std::string &outb) const
   {
     for (const Trigger *trig : triggers())
     {
-      std::string s;
+      String_type s;
       trig->debug_print(s);
       ss << s << " | ";
     }
@@ -761,6 +773,39 @@ Trigger *Table_impl::add_trigger_preceding(const Trigger *trigger,
 
 ///////////////////////////////////////////////////////////////////////////
 
+void Table_impl::clone_triggers(Prealloced_array<Trigger*, 1> *triggers) const
+{
+  DBUG_ASSERT(triggers != nullptr);
+
+  for (const auto &trg: m_triggers)
+  {
+    Trigger_impl *trg_impl= Trigger_impl::clone(
+            *dynamic_cast<const Trigger_impl*>(trg), nullptr);
+    trg_impl->set_id(INVALID_OBJECT_ID);
+    triggers->push_back(trg_impl);
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+void Table_impl::move_triggers(Prealloced_array<Trigger*, 1> *triggers)
+{
+  DBUG_ASSERT(triggers != nullptr);
+
+  for (auto &trg: *triggers)
+  {
+    Trigger_impl *trg_impl= dynamic_cast<Trigger_impl*>(trg);
+    DBUG_ASSERT(trg_impl->id() == INVALID_OBJECT_ID);
+    trg_impl->set_table(this);
+    m_triggers.push_back(trg_impl);
+  }
+  // All triggers are now owned by this table. Clear the array to make sure
+  // the triggers are not deleted by the owner of the array.
+  triggers->clear();
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 void Table_impl::copy_triggers(const Table *tab_obj)
 {
   DBUG_ASSERT(tab_obj != nullptr);
@@ -832,7 +877,7 @@ void Table_impl::drop_trigger(const Trigger *trigger)
 
 ///////////////////////////////////////////////////////////////////////////
 
-Partition *Table_impl::get_partition(std::string name)
+Partition *Table_impl::get_partition(const String_type &name)
 {
   for (Partition *i : m_partitions)
   {
@@ -874,7 +919,7 @@ void Table_impl::fix_partitions()
 ///////////////////////////////////////////////////////////////////////////
 
 bool Table::update_aux_key(aux_key_type *key,
-                           const std::string &engine,
+                           const String_type &engine,
                            Object_id se_private_id)
 {
   if (se_private_id != INVALID_OBJECT_ID)
@@ -902,7 +947,7 @@ void Table_type::register_tables(Open_dictionary_tables_ctx *otx) const
 
 Table_impl::Table_impl(const Table_impl &src)
   : Weak_object(src), Abstract_table_impl(src),
-    m_hidden(src.m_hidden), m_se_private_id(src.m_se_private_id),
+    m_se_private_id(src.m_se_private_id),
     m_engine(src.m_engine),
     m_comment(src.m_comment),
     m_se_private_data(Properties_impl::

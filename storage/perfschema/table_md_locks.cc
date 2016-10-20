@@ -215,7 +215,7 @@ int table_metadata_locks::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_metadata_locks::index_init(uint idx, bool sorted)
+int table_metadata_locks::index_init(uint idx, bool)
 {
   PFS_index_metadata_locks *result= NULL;
 

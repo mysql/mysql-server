@@ -15,8 +15,19 @@
 
 #include "dd/impl/tables/spatial_reference_systems.h"
 
+#include <string.h>
+#include <new>
+
 #include "dd/impl/raw/object_keys.h"                    // Parent_id_range_key
+#include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/impl/types/spatial_reference_system_impl.h"// dd::Spatial_refere...
+#include "m_ctype.h"
+
+namespace dd {
+class Dictionary_object;
+class Object_key;
+class Raw_record;
+}  // namespace dd
 
 namespace dd {
 namespace tables {
@@ -87,7 +98,7 @@ Spatial_reference_systems::create_dictionary_object(const Raw_record &) const
 
 bool Spatial_reference_systems::update_object_key(Item_name_key *key,
                                                   Object_id catalog_id,
-                                                  const std::string &name)
+                                                  const String_type &name)
 {
   // Construct a lowercase version of the key. The collation of the
   // name column is also accent insensitive, but we don't have a

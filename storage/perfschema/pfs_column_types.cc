@@ -52,7 +52,7 @@ void object_type_to_string(enum_object_type object_type,
 {
   s_object_type_map *map;
 
-  compile_time_assert(array_elements(object_type_map) == COUNT_OBJECT_TYPE + 1);
+  static_assert(array_elements(object_type_map) == COUNT_OBJECT_TYPE + 1, "");
 
   for (map= & object_type_map[0];
        map->m_enum != NO_OBJECT_TYPE;

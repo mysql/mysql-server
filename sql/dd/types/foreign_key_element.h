@@ -71,8 +71,8 @@ public:
   // referenced column name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_column_name() const = 0;
-  virtual void referenced_column_name(const std::string &name) = 0;
+  virtual const String_type &referenced_column_name() const = 0;
+  virtual void referenced_column_name(const String_type &name) = 0;
 
 
   /**

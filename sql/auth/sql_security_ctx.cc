@@ -13,11 +13,26 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_security_ctx.h"
+
+#include <map>
+#include <string>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "auth_acls.h"
 #include "auth_common.h"
-#include "sql_class.h"
-#include "sql_authorization.h"
+#include "auth_internal.h"
+#include "m_ctype.h"
+#include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"
-#include "current_thd.h"
+#include "mysqld_error.h"
+#include "sql_auth_cache.h"
+#include "sql_authorization.h"
+#include "sql_class.h"
 
 void Security_context::init()
 {
@@ -362,14 +377,12 @@ void Security_context::clear_active_roles(void)
     it->second.length= 0;
   }
   m_active_roles.clear();
-#if defined(HAVE_VALGRIND) || defined(HAVE_ASAN)
   /*
     Clear does not actually free the memory as an optimization for reuse.
     This confuses valgrind, so we swap with an empty vector to ensure the
     memory is freed when testing with valgrind
   */
   List_of_auth_id_refs().swap(m_active_roles);
-#endif
 }
 
 List_of_auth_id_refs *

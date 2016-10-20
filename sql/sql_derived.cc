@@ -20,15 +20,33 @@
 */
 
 
+#include <stddef.h>
+
+#include "auth_acls.h"
+#include "handler.h"
+#include "item.h"
+#include "my_base.h"
+#include "my_dbug.h"
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "my_sqlcommand.h"
+#include "opt_trace.h"                        // opt_trace_disable_etc
+#include "query_options.h"
+#include "sql_class.h"
+#include "sql_const.h"
 #include "sql_derived.h"
-#include "sql_select.h"
+#include "sql_executor.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"                    // JOIN
-#include "sql_view.h"                         // check_duplicate_names
-#include "auth_common.h"                      // SELECT_ACL
 #include "sql_tmp_table.h"                    // Tmp tables
 #include "sql_union.h"                        // Query_result_union
-#include "opt_trace.h"                        // opt_trace_disable_etc
+#include "sql_view.h"                         // check_duplicate_names
+#include "system_variables.h"
+#include "table.h"
+#include "temp_table_param.h"
+
+class Opt_trace_context;
 
 
 /**
@@ -51,6 +69,9 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
   const bool derived_tables_saved= thd->derived_tables_processing;
 
   thd->derived_tables_processing= true;
+
+  if (derived->prepare_limit(thd, derived->global_parameters()))
+    DBUG_RETURN(true);              /* purecov: inspected */
 
 #ifndef DBUG_OFF
   for (SELECT_LEX *sl= derived->first_select(); sl; sl= sl->next_select())
@@ -80,6 +101,11 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
   if (check_duplicate_names(derived->types, 0))
     DBUG_RETURN(true);
 
+  if (is_derived())
+  {
+    // The underlying tables of a derived table are all readonly:
+    for (SELECT_LEX *sl= derived->first_select(); sl; sl= sl->next_select())
+      sl->set_tables_readonly();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     A derived table is transparent with respect to privilege checking.
@@ -88,9 +114,9 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     SELECT_ACL is used because derived tables cannot be used for update,
     delete or insert.
   */
-  if (is_derived())
     set_privileges(SELECT_ACL);
 #endif
+  }
 
   thd->lex->allow_sum_func= allow_sum_func_saved;
 
@@ -125,6 +151,9 @@ bool TABLE_LIST::setup_materialized_derived(THD *thd)
 
   set_uses_materialization();
 
+  // From resolver POV, columns of this table are readonly
+  set_readonly();
+
   // Create the result table for the materialization
   const ulonglong create_options= derived->first_select()->active_options() |
                                   TMP_TABLE_ALL_COLUMNS;
@@ -157,6 +186,8 @@ bool TABLE_LIST::setup_materialized_derived(THD *thd)
 
   for (SELECT_LEX *sl= derived->first_select(); sl; sl= sl->next_select())
   {
+    // All underlying tables are read-only
+    sl->set_tables_readonly();
     /*
       Derived tables/view are materialized prior to UPDATE, thus we can skip
       them from table uniqueness check
@@ -271,13 +302,13 @@ bool TABLE_LIST::create_derived(THD *thd)
   /* create tmp table */
   Query_result_union *result= (Query_result_union*)unit->query_result();
 
-  if (instantiate_tmp_table(table, table->key_info,
+  if (instantiate_tmp_table(thd, table, table->key_info,
                             result->tmp_table_param.start_recinfo,
                             &result->tmp_table_param.recinfo,
                             unit->first_select()->active_options() |
                             thd->lex->select_lex->active_options() |
                             TMP_TABLE_ALL_COLUMNS,
-                            thd->variables.big_tables, &thd->opt_trace))
+                            thd->variables.big_tables))
     DBUG_RETURN(true);        /* purecov: inspected */
 
   table->file->extra(HA_EXTRA_WRITE_CACHE);
@@ -329,7 +360,7 @@ bool TABLE_LIST::materialize_derived(THD *thd)
 
     DBUG_ASSERT(join && join->is_optimized());
 
-    unit->set_limit(first_select);
+    unit->set_limit(thd, first_select);
 
     join->exec();
     res= join->error;

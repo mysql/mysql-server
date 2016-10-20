@@ -20,8 +20,9 @@
 
 #include "my_global.h"
 #include "xpl_log.h"
-#include <boost/function.hpp>
+#include "ngs_common/bind.h"
 #include <vector>
+#include <algorithm>
 
 #ifdef max_allowed_packet
 #undef max_allowed_packet
@@ -64,12 +65,13 @@ public:
   static unsigned int max_allowed_packet;
   static unsigned int connect_timeout;
   static char        *socket;
-  static my_bool      named_pipe;
+  static unsigned int port_open_timeout;
+  static char        *bind_address;
 
   static Ssl_config ssl_config;
 
 public:
-  typedef boost::function<void()> Value_changed_callback;
+  typedef ngs::function<void()> Value_changed_callback;
 
   static void clean_callbacks();
   static void registry_callback(Value_changed_callback callcback);

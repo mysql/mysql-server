@@ -15,11 +15,21 @@
 
 #include "dd/impl/raw/raw_record.h"
 
-#include "field.h"                  // Field
-#include "table.h"                  // TABLE
-#include "tztime.h"                 // Time_zone_offset
+#include <stddef.h>
 
 #include "dd/properties.h"          // dd::Properties
+#include "field.h"                  // Field
+#include "handler.h"
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_time.h"
+#include "mysql_time.h"
+#include "sql_const.h"
+#include "sql_string.h"
+#include "table.h"                  // TABLE
+#include "tztime.h"                 // Time_zone_offset
 
 namespace dd {
 
@@ -139,7 +149,7 @@ void Raw_record::set_null(int field_no, bool is_null)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Raw_record::store(int field_no, const std::string &s, bool is_null)
+bool Raw_record::store(int field_no, const String_type &s, bool is_null)
 {
   set_null(field_no, is_null);
 
@@ -238,14 +248,14 @@ ulonglong Raw_record::read_uint(int field_no) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-std::string Raw_record::read_str(int field_no) const
+String_type Raw_record::read_str(int field_no) const
 {
   char buff[MAX_FIELD_WIDTH];
   String val(buff, sizeof(buff), &my_charset_bin);
 
   field(field_no)->val_str(&val);
 
-  return std::string(val.ptr(), val.length());
+  return String_type(val.ptr(), val.length());
 }
 
 ///////////////////////////////////////////////////////////////////////////

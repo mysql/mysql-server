@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,10 +22,25 @@
 
 #include "aggregate_check.h"
 
-#include "opt_trace.h"
-#include "sql_base.h"
-#include "sql_select.h"
+#include <utility>
+
 #include "derror.h"
+#include "field.h"
+#include "item_func.h"
+#include "item_row.h"
+#include "key.h"
+#include "my_base.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "opt_trace.h"
+#include "opt_trace_context.h"
+#include "sql_base.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "table.h"
+#include "template_utils.h"
 
 /**
   @addtogroup AGGREGATE_CHECKS

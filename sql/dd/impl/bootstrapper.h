@@ -17,7 +17,8 @@
 #define DD__BOOTSTRAPPER_INCLUDED
 
 #include "my_global.h"
-#include <string>
+
+#include "dd/string_type.h"                    // dd::String_type
 
 class THD;
 
@@ -31,7 +32,7 @@ class THD;
   @retval false  Success.
   @retval true   Error.
 */
-bool execute_query(THD *thd, const std::string &q_buf);
+bool execute_query(THD *thd, const dd::String_type &q_buf);
 
 
 /**
@@ -261,14 +262,12 @@ bool upgrade_fill_dd_and_finalize(THD *thd);
 
 /**
   Drop all DD tables in case there is an error while upgrading server.
-  See initialize_dd() and upgrade_dd() for further details.
 
-  @param thd    Thread context.
+  @param[in] thd               Thread context.
 
   @return       Upon failure, return true, otherwise false.
 */
 bool delete_dictionary_and_cleanup(THD *thd);
-
 }
 }
 

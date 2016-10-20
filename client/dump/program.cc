@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,6 +15,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <chrono>
+#include <functional>
+
 #include "program.h"
 #include "i_connection_provider.h"
 #include "thread_specific_connection_provider.h"
@@ -26,9 +29,9 @@
 #include "mysql_crawler.h"
 #include "i_chain_maker.h"
 #include "mysqldump_tool_chain_maker.h"
-#include <chrono>
 
 using namespace Mysql::Tools::Dump;
+using std::placeholders::_1;
 
 void Program::close_redirected_stderr()
 {
@@ -75,8 +78,8 @@ void Program::create_options()
 {
   this->create_new_option(&m_error_log_file, "log-error-file",
     "Append warnings and errors to specified file.")
-    ->add_callback(new Mysql::Instance_callback<void, char*, Program>(
-    this, &Program::error_log_file_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Program::error_log_file_callback, this, _1)));
   this->create_new_option(&m_watch_progress, "watch-progress",
     "Shows periodically dump process progress information on error output. "
     "Progress information include both completed and total number of "
@@ -138,10 +141,9 @@ int Program::execute(std::vector<std::string> positional_options)
   I_connection_provider* connection_provider= NULL;
   int num_connections= get_total_connections();
 
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
-    message_handler= new Mysql::Instance_callback
-    <bool, const Mysql::Tools::Base::Message_data&, Program>(
-    this, &Program::message_handler);
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
+    message_handler= new std::function<bool(const Mysql::Tools::Base::Message_data&)>(
+      std::bind(&Program::message_handler, this, _1));
 
   try
   {

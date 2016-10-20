@@ -114,4 +114,11 @@ private:
   size_t        m_size;
 };
 
+template <typename Element_type>
+Bounds_checked_array<Element_type>
+make_array(Element_type *p, size_t n)
+{
+  return Bounds_checked_array<Element_type>(p, n);
+}
+
 #endif /* SQL_ARRAY_INCLUDED */

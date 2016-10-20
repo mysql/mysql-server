@@ -18,12 +18,12 @@
 #ifndef ABSTRACT_CHAIN_ELEMENT_INCLUDED
 #define ABSTRACT_CHAIN_ELEMENT_INCLUDED
 
+#include <functional>
+
 #include "i_chain_element.h"
 #include "abstract_progress_reporter.h"
 #include "base/message_data.h"
-#include "i_callable.h"
 #include "simple_id_generator.h"
-#include "instance_callback.h"
 #include "item_processing_data.h"
 
 namespace Mysql{
@@ -52,7 +52,7 @@ public:
 
 protected:
   Abstract_chain_element(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, Simple_id_generator* object_id_generator);
 
   /**
@@ -112,7 +112,7 @@ protected:
    */
   void pass_message(const Mysql::Tools::Base::Message_data& message_data);
 
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     get_message_handler() const;
 
 protected:
@@ -139,17 +139,13 @@ private:
     Item_processing_data* current_item_data,
     I_chain_element* child_chain_element,
     I_dump_task* task_to_be_processed,
-    Mysql::Instance_callback<
-      void, Item_processing_data*, Abstract_chain_element>*
-      callback);
+    std::function<void(Item_processing_data*)>* callback);
 
   uint64 m_id;
-  Mysql::I_callable<bool, const Mysql::Tools::Base:: Message_data&>*
+  std::function<bool(const Mysql::Tools::Base:: Message_data&)>*
     m_message_handler;
-  Mysql::Instance_callback<void, Item_processing_data*, Abstract_chain_element>
-    m_item_processed_callback;
-  Mysql::Instance_callback<void, Item_processing_data*, Abstract_chain_element>
-    m_item_processed_complete_callback;
+  std::function<void(Item_processing_data*)> m_item_processed_callback;
+  std::function<void(Item_processing_data*)> m_item_processed_complete_callback;
   Simple_id_generator* m_object_id_generator;
 
   /**

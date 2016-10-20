@@ -23,7 +23,9 @@
 
 #include "my_sqlcommand.h"
 #include "sql_alloc.h"
+
 class THD;
+class Prepared_statement;
 
 /**
   Representation of an SQL command.
@@ -59,11 +61,30 @@ public:
   */
   virtual enum_sql_command sql_command_code() const = 0;
 
+  /// @return true if this statement is prepared
+  bool is_prepared() const { return m_prepared; }
+
+  /**
+    Prepare this SQL statement.
+
+    @param thd the current thread
+
+    @returns false if success, true if error
+  */
+  virtual bool prepare(THD *thd MY_ATTRIBUTE((unused)))
+  {
+    // Default behavior for a statement is to have no preparation code.
+    /* purecov: begin inspected */
+    DBUG_ASSERT(!is_prepared());
+    set_prepared();
+    return false;
+    /* purecov: end */
+  }
+
   /**
     Execute this SQL statement.
     @param thd the current thread.
-    @retval false on success.
-    @retval true on error
+    @returns false if success, true if error
   */
   virtual bool execute(THD *thd) = 0;
 
@@ -78,8 +99,31 @@ public:
   */
   virtual void cleanup(THD *thd MY_ATTRIBUTE((unused))) {}
 
+  /// @return true if SQL command is a DML statement
+  virtual bool is_dml() const { return false; }
+
+  /// @return true if implemented as single table plan, DML statement only
+  virtual bool is_single_table_plan() const
+  {
+    /* purecov: begin inspected */
+    DBUG_ASSERT(is_dml());
+    return false;
+    /* purecov: end */
+  }
+
+  /**
+    Temporary function used to "unprepare" a prepared statement after
+    preparation, so that a subsequent execute statement will reprepare it.
+    This is done because UNIT::cleanup() will un-resolve all resolved QBs.
+  */
+  virtual void unprepare(THD *thd MY_ATTRIBUTE((unused)))
+  {
+    DBUG_ASSERT(is_prepared());
+    m_prepared= false;
+  }
+
 protected:
-  Sql_cmd()
+  Sql_cmd() : m_prepared(false), prepare_only(true)
   {}
 
   virtual ~Sql_cmd()
@@ -92,6 +136,24 @@ protected:
     */
     DBUG_ASSERT(FALSE);
   }
+
+  /**
+    @return true if object represents a preparable statement, ie. a query
+    that is prepared with a PREPARE statement and executed with an EXECUTE
+    statement. False is returned for regular statements (non-preparable
+    statements) that are executed directly.
+    @todo replace with "m_owner != NULL" when prepare-once is implemented
+  */
+  bool needs_explicit_preparation() const { return prepare_only; }
+
+  /// Set this statement as prepared
+  void set_prepared() { m_prepared= true; }
+
+private:
+  bool m_prepared;             /// True when statement has been prepared
+protected:
+  bool prepare_only;           /// @see needs_explicit_preparation
+                               /// @todo remove when prepare-once is implemented
 };
 
 #endif // SQL_CMD_INCLUDED

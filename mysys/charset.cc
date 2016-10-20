@@ -17,15 +17,30 @@
   @file mysys/charset.cc
 */
 
-#include "mysys_priv.h"
+#include <fcntl.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_dir.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_sys.h"
-#include "mysys_err.h"
-#include <m_ctype.h>
-#include <m_string.h>
-#include <my_dir.h>
-#include <my_xml.h>
-#include "mysql/service_my_snprintf.h"
+#include "my_thread.h"
+#include "my_xml.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysys_err.h"
+#include "mysys_priv.h"
 #include "sql_chars.h"
 
 /*

@@ -15,18 +15,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <functional>
 #include <sstream>
 #include <vector>
+
 #include "abstract_options_provider.h"
 #include "mysql_connection_options.h"
 #include "abstract_program.h"
 #include <mysys_err.h>
 
+using Mysql::Nullable;
 using Mysql::Tools::Base::Abstract_program;
 using namespace Mysql::Tools::Base::Options;
-using Mysql::Nullable;
-using std::vector;
+using std::placeholders::_1;
 using std::string;
+using std::vector;
 
 bool Mysql_connection_options::mysql_inited;
 
@@ -83,16 +86,16 @@ void Mysql_connection_options::create_options()
 #ifdef _WIN32
   this->create_new_option("pipe", "Use named pipes to connect to server.")
     ->set_short_character('W')
-    ->add_callback(new Instance_callback<void, char*, Mysql_connection_options>
-      (this, &Mysql_connection_options::pipe_protocol_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Mysql_connection_options::pipe_protocol_callback, this, _1)));
 #endif
   this->create_new_option(&this->m_mysql_port, "port",
       "Port number to use for connection.")
     ->set_short_character('P');
   this->create_new_option(&this->m_protocol_string, "protocol",
       "The protocol to use for connection (tcp, socket, pipe, memory).")
-    ->add_callback(new Instance_callback<void, char*, Mysql_connection_options>
-    (this, &Mysql_connection_options::protocol_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Mysql_connection_options::protocol_callback, this, _1)));
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   this->create_new_option(&this->m_shared_memory_base_name,
     "shared-memory-base-name", "Base name of shared memory.");
@@ -103,8 +106,8 @@ void Mysql_connection_options::create_options()
   this->create_new_option(&this->m_secure_auth, "secure-auth",
       "Refuse client connecting to server if it uses old (pre-4.1.1) "
       "protocol. Deprecated. Always TRUE")
-    ->add_callback(new Instance_callback<void, char*, Mysql_connection_options>
-      (this, &Mysql_connection_options::secure_auth_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Mysql_connection_options::secure_auth_callback, this, _1)));
   this->create_new_option(&this->m_user, "user",
     "User for login if not current user.")
     ->set_short_character('u');

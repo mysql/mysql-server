@@ -17,13 +17,23 @@
   @file mysys/my_symlink.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "mysys_err.h"
+#include "my_config.h"
+
+#include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysys_err.h"
 #ifndef _WIN32
-#include <sys/param.h>
 #include <sys/stat.h>
 #endif
 

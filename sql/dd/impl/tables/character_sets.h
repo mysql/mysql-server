@@ -16,12 +16,18 @@
 #ifndef DD_TABLES__CHARACTER_SETS_INCLUDED
 #define DD_TABLES__CHARACTER_SETS_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "my_global.h"
+
+class THD;
 
 namespace dd {
 class Global_name_key;
+class Dictionary_object;
+class Raw_record;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -31,9 +37,9 @@ class Character_sets : public Dictionary_object_table_impl
 public:
   static const Character_sets &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("character_sets");
+    static String_type s_table_name("character_sets");
     return s_table_name;
   }
 
@@ -52,7 +58,7 @@ public:
 
   virtual bool populate(THD *thd) const;
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Character_sets::table_name(); }
 
   // Charset objects are not created and cached, the keys are just referenced
@@ -62,7 +68,7 @@ public:
 
 public:
    static bool update_object_key(Global_name_key *key,
-                                 const std::string &charset_name);
+                                 const String_type &charset_name);
 };
 
 ///////////////////////////////////////////////////////////////////////////

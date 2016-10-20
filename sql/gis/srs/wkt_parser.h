@@ -18,10 +18,11 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include "srs.h"
-#include <boost/variant.hpp>
 #include <string>
 #include <vector>
+
+#include <boost/variant/variant.hpp>
+#include "srs.h"
 
 namespace gis { namespace srs { namespace wkt_parser {
 
@@ -154,13 +155,15 @@ typedef boost::variant<Projected_cs, Geographic_cs> Coordinate_system;
   specification in OGC 01-009.
 
   @param[in] srid Spatial reference system ID to use when reporting errors
-  @param[in] str WKT string in UTF-8
+  @param[in] begin Start of WKT string in UTF-8
+  @param[in] end End of WKT string in UTF-8
   @param[out] cs Coordinate system
 
   @retval true An error has occurred
   @retval false Success
 */
-bool parse_wkt(srid_t srid, std::string *str, Coordinate_system *cs);
+bool parse_wkt(srid_t srid, const char *begin, const char *end,
+               Coordinate_system *cs);
 
 }}} // gis::srs::wkt_parser
 

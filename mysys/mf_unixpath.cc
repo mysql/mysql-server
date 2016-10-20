@@ -17,9 +17,6 @@
   @file mysys/mf_unixpath.cc
 */
 
-#include "mysys_priv.h"
-#include <m_string.h>
-
 /**
   Convert filename to unix style filename.
 
@@ -27,6 +24,9 @@
 
   @param to   A pathname.
 */
+
+#include "my_compiler.h"
+#include "my_io.h"
 
 extern "C" void to_unix_path(char *to MY_ATTRIBUTE((unused)))
 {

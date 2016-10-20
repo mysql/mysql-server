@@ -884,6 +884,7 @@ buf_flush_init_for_writing(
 			/* fall through */
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
+		case FIL_PAGE_TYPE_ZBLOB3:
 		case FIL_PAGE_SDI_ZBLOB:
 		case FIL_PAGE_INDEX:
 		case FIL_PAGE_SDI:
@@ -943,6 +944,7 @@ buf_flush_init_for_writing(
 				case FIL_PAGE_TYPE_BLOB:
 				case FIL_PAGE_TYPE_ZBLOB:
 				case FIL_PAGE_TYPE_ZBLOB2:
+				case FIL_PAGE_TYPE_ZBLOB3:
 				case FIL_PAGE_SDI_BLOB:
 				case FIL_PAGE_SDI_ZBLOB:
 					break;

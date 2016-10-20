@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,18 @@
 #ifndef INJECTOR_H
 #define INJECTOR_H
 
-#include "my_global.h"
-#include "table.h"          // TABLE
-#include "control_events.h" // enum_incidents
+#include <stddef.h>
 
-/* Forward declarations */
-class handler;
+#include "control_events.h" // enum_incidents
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "sql_plugin_ref.h"
+#include "table.h"          // TABLE
+
 class MYSQL_BIN_LOG;
 class THD;
+
 typedef struct st_bitmap MY_BITMAP;
 
 

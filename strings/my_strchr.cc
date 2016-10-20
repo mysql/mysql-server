@@ -34,7 +34,7 @@
 */
 
 char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
-                pchar c)
+                char c)
 {
   while (str < end)
   {

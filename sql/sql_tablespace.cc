@@ -15,14 +15,28 @@
 
 #include "sql_tablespace.h"
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "dd/dd_tablespace.h"                   // dd::create_tablespace
 #include "derror.h"                             // ER_THD
+#include "handler.h"
 #include "lock.h"                               // lock_tablespace_name
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
 #include "sql_class.h"                          // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_plugin.h"
 #include "sql_table.h"                          // write_bin_log
 #include "table.h"                              // ident_name_check
 #include "transaction.h"                        // trans_commit_stmt
 
-#include "dd/dd_tablespace.h"                   // dd::create_tablespace
 #include "dd/cache/dictionary_client.h"         // dd::Dictionary_client
 #include "dd/types/tablespace_file.h"           // dd::Tablespace_file
 

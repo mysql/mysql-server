@@ -61,8 +61,6 @@ unittest/gunit/innodb/CMakeLists.txt */
 #include <tbb/concurrent_hash_map.h>
 #endif /* TEST_TBB */
 
-#define __STDC_LIMIT_MACROS
-
 #include <gtest/gtest.h>
 #include <thread>
 

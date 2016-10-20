@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016 Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -34,29 +34,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file ha_innodb.cc */
 
-#include "univ.i"
-
-/* Include necessary SQL headers */
-#include "ha_prototypes.h"
 #include <current_thd.h>
 #include <debug_sync.h>
 #include <derror.h>
 #include <gstream.h>
 #include <log.h>
+#include <my_bitmap.h>
+#include <my_check_opt.h>
+#include <mysql/service_thd_alloc.h>
+#include <mysql/service_thd_wait.h>
+#include <mysql_com.h>
 #include <mysqld.h>
 #include <mysys_err.h>
-#include <strfunc.h>
 #include <sql_acl.h>
 #include <sql_class.h>
 #include <sql_show.h>
 #include <sql_table.h>
 #include <sql_tablespace.h>
 #include <sql_thd_internal_api.h>
-#include <my_check_opt.h>
-#include <my_bitmap.h>
-#include <mysql_com.h>
-#include <mysql/service_thd_alloc.h>
-#include <mysql/service_thd_wait.h>
+#include <strfunc.h>
 
 #include "dd/dd.h"
 #include "dd/dictionary.h"
@@ -82,8 +78,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "api0api.h"
 #include "api0misc.h"
 #include "btr0btr.h"
-#include "btr0cur.h"
 #include "btr0bulk.h"
+#include "btr0cur.h"
 #include "btr0sea.h"
 #include "buf0dblwr.h"
 #include "buf0dump.h"
@@ -104,11 +100,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0plugin.h"
 #include "fts0priv.h"
 #include "fts0types.h"
+/* Include necessary SQL headers */
+#include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0log.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
+#include "my_psi_config.h"
 #include "os0file.h"
 #include "os0thread.h"
 #include "page0zip.h"
@@ -124,9 +123,19 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "univ.i"
 #ifdef UNIV_DEBUG
 #include "trx0purge.h"
 #endif /* UNIV_DEBUG */
+#include "ha_innodb.h"
+/* for ha_innopart, Native InnoDB Partitioning. */
+#include "ha_innopart.h"
+#include "i_s.h"
+#include "lob0lob.h"
+#include "mysql/psi/mysql_data_lock.h"
+#include "p_s.h"
+#include "row0ext.h"
+#include "sync0sync.h"
 #include "trx0roll.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
@@ -135,11 +144,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0ext.h"
 #include "lob0lob.h"
 #include "dict0priv.h"
-#include "ha_innodb.h"
 #include "i_s.h"
 #include "sync0sync.h"
-/* for ha_innopart, Native InnoDB Partitioning. */
-#include "ha_innopart.h"
 #include <bitset>
 #include "sql_base.h" // OPEN_FRM_FILE_ONLY
 #include "dict0dd.h"
@@ -214,6 +220,8 @@ my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
+
+static Innodb_data_lock_inspector innodb_data_lock_inspector;
 
 /** dd table space id for creating fts dd table. */
 thread_local dd::Object_id thread_local_dd_space_id = dd::INVALID_OBJECT_ID;
@@ -535,15 +543,19 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(fts_delete_mutex, 0, 0),
 	PSI_MUTEX_KEY(fts_optimize_mutex, 0, 0),
 	PSI_MUTEX_KEY(fts_doc_id_mutex, 0, 0),
+	PSI_MUTEX_KEY(fts_pll_tokenize_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_flush_order_mutex, 0, 0),
 	PSI_MUTEX_KEY(hash_table_mutex, 0, 0),
 	PSI_MUTEX_KEY(ibuf_bitmap_mutex, 0, 0),
 	PSI_MUTEX_KEY(ibuf_mutex, 0, 0),
 	PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0),
+	PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_sys_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_sys_write_mutex, 0, 0),
+	PSI_MUTEX_KEY(log_cmdq_mutex, 0, 0),
 	PSI_MUTEX_KEY(mutex_list_mutex, 0, 0),
 	PSI_MUTEX_KEY(page_zip_stat_per_index_mutex, 0, 0),
+	PSI_MUTEX_KEY(page_cleaner_mutex, 0, 0),
 	PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0),
 	PSI_MUTEX_KEY(recv_sys_mutex, 0, 0),
 	PSI_MUTEX_KEY(recv_writer_mutex, 0, 0),
@@ -572,6 +584,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(srv_threads_mutex, 0, 0),
 #  ifndef PFS_SKIP_EVENT_MUTEX
 	PSI_MUTEX_KEY(event_mutex, 0, 0),
+	PSI_MUTEX_KEY(event_manager_mutex, 0, 0),
 #  endif /* PFS_SKIP_EVENT_MUTEX */
 	PSI_MUTEX_KEY(rtr_active_mutex, 0, 0),
 	PSI_MUTEX_KEY(rtr_match_mutex, 0, 0),
@@ -580,6 +593,9 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(trx_sys_mutex, 0, 0),
 	PSI_MUTEX_KEY(zip_pad_mutex, 0, 0),
 	PSI_MUTEX_KEY(master_key_id_mutex, 0, 0),
+	PSI_MUTEX_KEY(sync_array_mutex, 0, 0),
+	PSI_MUTEX_KEY(thread_mutex, 0, 0),
+	PSI_MUTEX_KEY(row_drop_list_mutex, 0, 0)
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -596,6 +612,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	PSI_RWLOCK_KEY(buf_block_debug_latch),
 #  endif /* UNIV_DEBUG */
 	PSI_RWLOCK_KEY(dict_operation_lock),
+	PSI_RWLOCK_KEY(dict_persist_checkpoint),
 	PSI_RWLOCK_KEY(fil_space_latch),
 	PSI_RWLOCK_KEY(checkpoint_lock),
 	PSI_RWLOCK_KEY(fts_cache_rw_lock),
@@ -1286,7 +1303,7 @@ bool
 innodb_store_schema_sdi(
         THD*                    thd,
         handlerton*,
-        const dd::sdi_t&        sdi,
+        const LEX_CSTRING&	sdi,
         const dd::Schema*       schema,
         const dd::Table*        table);
 
@@ -4304,6 +4321,9 @@ innodb_init(
 
 	count = array_elements(all_innodb_conds);
 	mysql_cond_register("innodb", all_innodb_conds, count);
+
+	mysql_data_lock_register(& innodb_data_lock_inspector);
+
 #endif /* HAVE_PSI_INTERFACE */
 
 	if (int error = innodb_init_params()) {
@@ -5353,7 +5373,7 @@ innobase_sdi_get_num_copies(
 
 /** Store sdi for a dd:Schema object associated with table
 @param[in,out]  thd     connection thread
-@param[in]      sdi     serialized dictionary information JSON string
+@param[in]	sdi	SDI json string
 @param[in]      schema  dd object
 @param[in]      table   table with which schema is associated
 @return error status
@@ -5364,7 +5384,7 @@ bool
 innodb_store_schema_sdi(
         THD*                    thd,
         handlerton*,
-        const dd::sdi_t&        sdi,
+	const LEX_CSTRING&	sdi,
         const dd::Schema*       schema,
         const dd::Table*        table)
 {
@@ -7384,8 +7404,8 @@ create_table_metadata(
 	}
 
 	/* TODO: these should be tablespace attributes and be used!*/
-	std::string     encrypt;
-	std::string     compress;
+	dd::String_type	encrypt;
+	dd::String_type	compress;
 	if (dd_part != nullptr) {
 		dd_part->table().options().get("compress", compress);
 		dd_part->table().options().get("encrypt_type", encrypt);
@@ -8156,7 +8176,7 @@ dd_table_open_on_dd_obj(
 	}
 
 	TABLE_SHARE		ts;
-	const dd::Schema*	schema;
+	dd::Schema*		schema;
 	const char*		table_cache_key;
 	size_t			table_cache_key_len;
 
@@ -8265,15 +8285,15 @@ dd_table_open_on_id_low(
 	}
 #endif /* UNIV_DEBUG */
 
-	const dd::Table*				dd_table;
+	dd::Table*					dd_table;
 	const dd::Partition*				dd_part	= nullptr;
 	dd::cache::Dictionary_client*			dc
 		= dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(dc);
 
 	for (;;) {
-		std::string	schema;
-		std::string	tablename;
+		dd::String_type	schema;
+		dd::String_type	tablename;
 		if (dc->get_table_name_by_se_private_id(handler_name,
 							table_id,
 							&schema, &tablename)) {
@@ -8338,9 +8358,9 @@ dd_table_open_on_id_low(
 			&& dd_table->engine() == handler_name;
 
 		if (same_name && is_part) {
-			auto end = dd_table->partitions().end();
+			auto end = dd_table->partitions()->end();
 			auto i = std::search_n(
-				dd_table->partitions().begin(), end, 1,
+				dd_table->partitions()->begin(), end, 1,
 				table_id,
 				[](const dd::Partition* p, table_id_t id)
 				{
@@ -15326,7 +15346,7 @@ create_table_info_t::set_table_options(
         dd::Table::enum_row_format      rf;
         dd::Properties& options = dd_table.options();
 
-	std::string datadir;
+	dd::String_type	datadir;
 	options.get(data_file_name_key, datadir);
 
         if (auto zip_ssize = DICT_TF_GET_ZIP_SSIZE(table->flags)) {
@@ -16729,7 +16749,7 @@ ha_innobase::discard_or_import_tablespace(
 		DBUG_RETURN(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}
 
-	if (dict_table->space == srv_sys_space.space_id()) {
+	if (dict_table->space == TRX_SYS_SPACE) {
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLE_IN_SYSTEM_TABLESPACE,
@@ -21705,7 +21725,8 @@ innobase_xa_prepare(
 
 	TrxInInnoDB	trx_in_innodb(trx);
 
-	if (trx_in_innodb.is_aborted()) {
+	if (trx_in_innodb.is_aborted() ||
+	    DBUG_EVALUATE_IF("simulate_xa_failure_prepare_in_engine", 1, 0)) {
 
 		innobase_rollback(hton, thd, prepare_trx);
 
@@ -24566,8 +24587,6 @@ mysql_declare_plugin(innobase)
   0,    /* flags */
 },
 i_s_innodb_trx,
-i_s_innodb_locks,
-i_s_innodb_lock_waits,
 i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,

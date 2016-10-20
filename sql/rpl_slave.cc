@@ -26,44 +26,110 @@
 
 #ifdef HAVE_REPLICATION
 #include "rpl_slave.h"
-#include "client_settings.h"
 
-#include "errmsg.h"                            // CR_*
-#include "my_bitmap.h"                         // MY_BITMAP
-#include "my_thread_local.h"                   // thread_local_key_t
-#include "mysql.h"                             // MYSQL
-#include "sql_common.h"                        // end_server
+#include "my_config.h"
+
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <time.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+#include <map>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "auth_acls.h"
 #include "auth_common.h"                       // any_db
+#include "binary_log_types.h"
+#include "binlog.h"
+#include "binlog_event.h"
+#include "control_events.h"
 #include "current_thd.h"
 #include "debug_sync.h"                        // DEBUG_SYNC
+#include "debug_vars.h"
 #include "derror.h"                            // ER_THD
 #include "dynamic_ids.h"                       // Server_ids
+#include "errmsg.h"                            // CR_*
+#include "handler.h"
+#include "item.h"
 #include "log.h"                               // sql_print_error
 #include "log_event.h"                         // Rotate_log_event
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_bitmap.h"                         // MY_BITMAP
+#include "my_byteorder.h"
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_dir.h"
+#include "my_sys.h"
+#include "my_thread_local.h"                   // thread_local_key_t
+#include "mysql.h"                             // MYSQL
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_thread.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
 #include "mysqld.h"                            // ER
+#include "mysqld_error.h"
 #include "mysqld_thd_manager.h"                // Global_THD_manager
+#include "pfs_thread_provider.h"
+#include "prealloced_array.h"
+#include "protocol.h"
+#include "protocol_classic.h"
 #include "psi_memory_key.h"
+#include "query_options.h"
 #include "rpl_constants.h"                     // BINLOG_FLAGS_INFO_SIZE
+#include "rpl_filter.h"
+#include "rpl_group_replication.h"
+#include "rpl_gtid.h"
 #include "rpl_handler.h"                       // RUN_HOOK
+#include "rpl_info.h"
 #include "rpl_info_factory.h"                  // Rpl_info_factory
+#include "rpl_info_handler.h"
+#include "rpl_mi.h"
 #include "rpl_msr.h"                           // Multisource_info
+#include "rpl_mts_submode.h"
+#include "rpl_reporting.h"
 #include "rpl_rli.h"                           // Relay_log_info
 #include "rpl_rli_pdb.h"                       // Slave_worker
 #include "rpl_slave_commit_order_manager.h"    // Commit_order_manager
 #include "rpl_slave_until_options.h"
+#include "rpl_trx_boundary_parser.h"
+#include "rpl_utility.h"
 #include "sql_class.h"                         // THD
+#include "sql_common.h"                        // end_server
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"                         // execute_init_command
 #include "sql_plugin.h"                        // opt_plugin_dir_ptr
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
 #include "transaction.h"                       // trans_begin
+#include "transaction_info.h"
+#include "typelib.h"
 #include "tztime.h"                            // Time_zone
-#include "rpl_group_replication.h"
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-#include "mysql/psi/mysql_memory.h"
-
-#include <signal.h>
-#include <algorithm>
 
 using std::min;
 using std::max;
@@ -4276,7 +4342,7 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
   while (! (ret= func(thd, info)))
   {
     int error= mysql_cond_timedwait(cond, lock, &abstime);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
       break;
   }
 
@@ -5860,7 +5926,7 @@ err:
                         mi->get_for_channel_str(), mi->get_io_rpl_log_name(),
                         llstr(mi->get_master_log_pos(), llbuff));
   /* At this point the I/O thread will not try to reconnect anymore. */
-  mi->is_stopping.atomic_set(1);
+  mi->atomic_is_stopping= true;
   (void) RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
   /*
     Pause the IO thread and wait for 'continue_to_stop_io_thread'
@@ -5914,7 +5980,7 @@ err:
 
   mi->abort_slave= 0;
   mi->slave_running= 0;
-  mi->is_stopping.atomic_set(0);
+  mi->atomic_is_stopping= false;
   mysql_mutex_lock(&mi->info_thd_lock);
   mi->info_thd= NULL;
   mysql_mutex_unlock(&mi->info_thd_lock);
@@ -7384,7 +7450,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
  err:
   /* At this point the SQL thread will not try to work anymore. */
-  rli->is_stopping.atomic_set(1);
+  rli->atomic_is_stopping= true;
   (void) RUN_HOOK(binlog_relay_io, applier_stop,
                   (thd, rli->mi,
                    rli->is_error() || !rli->sql_thread_kill_accepted));
@@ -7430,7 +7496,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun
   /* When master_pos_wait() wakes up it will check this and terminate */
   rli->slave_running= 0;
-  rli->is_stopping.atomic_set(0);
+  rli->atomic_is_stopping= false;
   /* Forget the relay log's format */
   rli->set_rli_description_event(NULL);
   /* Wake up master_pos_wait() */
@@ -9035,7 +9101,7 @@ static Log_event* next_event(Relay_log_info* rli)
 
             set_timespec_nsec(&waittime, period);
             ret= rli->relay_log.wait_for_update_relay_log(thd, &waittime);
-          } while ((ret == ETIMEDOUT || ret == ETIME) /* todo:remove */ &&
+          } while (is_timeout(ret) /* todo:remove */ &&
                    signal_cnt == rli->relay_log.signal_cnt && !thd->killed);
         }
         else
@@ -9823,7 +9889,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel,
     See WL#7441 regarding this command.
   */
 
-  if (mi->rli->channel_open_temp_tables.atomic_get() &&
+  if (mi->rli->atomic_channel_open_temp_tables &&
       *push_temp_tables_warning)
   {
     push_warning(thd, Sql_condition::SL_WARNING,
@@ -10708,7 +10774,7 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
   */
   if ((lex_mi->host || lex_mi->port || lex_mi->log_file_name || lex_mi->pos ||
        lex_mi->relay_log_name || lex_mi->relay_log_pos) &&
-      (mi->rli->channel_open_temp_tables.atomic_get() > 0))
+      (mi->rli->atomic_channel_open_temp_tables > 0))
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO,
                  ER_THD(thd, ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO));

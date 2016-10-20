@@ -12,6 +12,9 @@ call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is execute
 call mtr.add_suppression("table is missing or has an incorrect definition");
 call mtr.add_suppression("is expected to be transactional");
 call mtr.add_suppression("Upgrading redo log");
+call mtr.add_suppression("information_schema");
+call mtr.add_suppression("doesn't exist");
+call mtr.add_suppression("references invalid");
 # Stop DB server which was created by MTR default
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
@@ -116,6 +119,7 @@ tablespace.t2                                      OK
 tablespace.t3                                      OK
 tablespace.t4                                      OK
 test.geom                                          OK
+test.initial_tü                                   OK
 test.jemp                                          OK
 test.jemp_myisam                                   OK
 test.opening_lines                                 OK
@@ -293,7 +297,7 @@ SHOW CREATE TABLE test.jemp;
 Table	Create Table
 jemp	CREATE TABLE `jemp` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,'$.id')) VIRTUAL,
+  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_latin1'$.id')) VIRTUAL,
   KEY `i` (`g`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t_gen_stored_myisam;
@@ -313,12 +317,14 @@ SHOW CREATE TABLE test.jemp_myisam;
 Table	Create Table
 jemp_myisam	CREATE TABLE `jemp_myisam` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,'$.id')) VIRTUAL
+  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_latin1'$.id')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
 FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
 TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT
 test	geom	BASE TABLE	InnoDB	10	Dynamic
+test	initial_t�	BASE TABLE	BLACKHOLE	10	Fixed
+test	initial_v�	VIEW	NULL	NULL	NULL
 test	jemp	BASE TABLE	InnoDB	10	Dynamic
 test	jemp_myisam	BASE TABLE	MyISAM	10	Dynamic
 test	opening_lines	BASE TABLE	InnoDB	10	Dynamic
@@ -374,6 +380,14 @@ view_user2	CREATE ALGORITHM=UNDEFINED DEFINER=`abcd`@`localhost` SQL SECURITY IN
 SHOW CREATE VIEW aview.view_character_set;
 View	Create View	character_set_client	collation_connection
 view_character_set	CREATE ALGORITHM=UNDEFINED DEFINER=`jeffrey`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_character_set` AS select 1 AS `1`	latin1	latin1_swedish_ci
+SET names utf8;
+DESC `test`.`initial_vü`;
+Field	Type	Null	Key	Default	Extra
+cü	char(1)	YES		NULL	
+SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_type='VIEW';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+def	test	initial_vü	VIEW	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	CREATE_TIME	NULL	NULL	NULL	NULL	NULL	VIEW
+SET names default;
 SHOW CREATE PROCEDURE sp.simpleproc;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 simpleproc	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `simpleproc`(OUT param1 INT)

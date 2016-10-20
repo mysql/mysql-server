@@ -212,7 +212,20 @@ DEFINER
 user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 DROP EVENT event_test;
 
-# 
+#
 # End of tests
 #
-drop database events_test;
+#
+# Bug#2469962 - INVALID UTF-8 IN COMMENT OF AN EVENT DDL CAUSES ASSERT.
+#
+SET @orig_character_set_client = @@character_set_client;
+SET character_set_client = utf8;
+CREATE EVENT t÷est ON SCHEDULE AT NOW() ON COMPLETION NOT PRESERVE DO SELECT 1;
+ERROR HY000: Invalid utf8 character string: 't\xF7est'
+CREATE EVENT event ON SCHEDULE EVERY 1 SECOND COMMENT 'testÿ' DO SELECT 1;
+ERROR HY000: Invalid utf8 character string: 'FF'
+CREATE EVENT event ON SCHEDULE EVERY 1 SECOND COMMENT 'test' DO SELECT 1;
+ALTER EVENT event COMMENT 'testÿ';
+ERROR HY000: Invalid utf8 character string: 'FF'
+SET character_set_client = @orig_character_set_client;
+DROP DATABASE events_test;

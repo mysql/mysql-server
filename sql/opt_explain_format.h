@@ -22,15 +22,20 @@
   EXPLAIN FORMAT=@<format@> @<command@>.
 */
 
-#include "sql_alloc.h"
+#include <string.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
 #include "parse_tree_node_base.h"
+#include "sql_alloc.h"
 #include "sql_list.h"
 #include "sql_string.h"
 
-class Item;
 class Query_result;
 class SELECT_LEX_UNIT;
-struct st_join_table;
+
 enum class enum_explain_type;
 
 /**

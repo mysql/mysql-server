@@ -14,19 +14,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define MYSQL_SERVER
+#include <current_thd.h>
+#include <derror.h>
+#include <errmsg.h>
+#include <hash.h>
+#include <locking_service.h>
+#include <m_string.h>
 #include <my_global.h>
 #include <mysql/plugin_audit.h>
-#include <m_string.h>
-#include <sql_class.h>
-#include <hash.h>
-#include <current_thd.h>
-#include <sstream>
-#include <errmsg.h>
-#include <mysql/service_locking.h>
-#include <locking_service.h>
-#include <derror.h>
-#include <mysql/psi/mysql_rwlock.h>
 #include <mysql/psi/mysql_memory.h>
+#include <mysql/psi/mysql_rwlock.h>
+#include <mysql/service_locking.h>
+#include <sql_class.h>
+#include <sstream>
+
+#include "my_psi_config.h"
 
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)

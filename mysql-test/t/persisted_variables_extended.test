@@ -242,20 +242,7 @@ SELECT VARIABLE_NAME, VARIABLE_SOURCE, MIN_VALUE, MAX_VALUE
   'autocommit','innodb_checksum_algorithm')
   ORDER BY VARIABLE_NAME;
 
-#--echo # Restart server --login-path
-#--echo # Default login path (client)
---exec $MYSQL_CONFIG_EDITOR set --login-path=test-login-path1 --user=test_user1 --port=30000
-CREATE USER test_user1@localhost;
-GRANT ALL PRIVILEGES ON *.* TO test_user1@localhost;
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
---exec echo "restart:--login-path=test-login-path1" --server-id=$MYSQL_SERVER_ID > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
-
-SHOW VARIABLES LIKE 'port';
+#echo should return 0 rows now
 SELECT VARIABLE_NAME,VARIABLE_SOURCE
   FROM performance_schema.variables_info
   WHERE VARIABLE_SOURCE = 'LOGIN';

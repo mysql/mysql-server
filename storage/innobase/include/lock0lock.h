@@ -569,6 +569,16 @@ lock_rec_find_set_bit(
 	const lock_t*	lock);	/*!< in: record lock with at least one
 				bit set */
 
+/** Looks for the next set bit in the record lock bitmap.
+@param[in] lock		record lock with at least one bit set
+@param[in] heap_no	current set bit
+@return The next bit index  == heap number following heap_no, or ULINT_UNDEFINED
+if none found */
+ulint
+lock_rec_find_next_set_bit(
+	const lock_t*	lock,
+	ulint		heap_no);
+
 /*********************************************************************//**
 Checks if a lock request lock1 has to wait for request lock2.
 @return TRUE if lock1 has to wait for lock2 to be removed */
@@ -653,6 +663,35 @@ trx_id_t
 lock_get_trx_id(
 /*============*/
 	const lock_t*	lock);	/*!< in: lock */
+
+/** Get the performance schema event (thread_id, event_id)
+that created the lock.
+@param[in]	lock		Lock
+@param[out]	thread_id	Thread ID that created the lock
+@param[out]	event_id	Event ID that created the lock
+*/
+void
+lock_get_psi_event(
+	const lock_t*	lock,
+	ulonglong*	thread_id,
+	ulonglong*	event_id);
+
+/** Get the first lock of a trx lock list.
+@param[in]	trx_lock	the trx lock
+@return The first lock
+*/
+const lock_t*
+lock_get_first_trx_locks(
+	const trx_lock_t*	trx_lock);
+
+/** Get the next lock of a trx lock list.
+@param[in]	lock	the current lock
+@return The next lock
+*/
+const lock_t*
+lock_get_next_trx_locks(
+	const lock_t*	lock);
+
 
 /*******************************************************************//**
 Gets the mode of a lock in a human readable string.

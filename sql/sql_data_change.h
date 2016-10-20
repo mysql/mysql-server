@@ -23,12 +23,17 @@
   sql_{insert, update}.{h,cc} 
 */
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_base.h"        // ha_rows
 #include "my_bitmap.h"      // MY_BITMAP
+#include "my_dbug.h"
+#include "my_global.h"
 #include "sql_alloc.h"      // Sql_alloc
 
-struct TABLE;
 class Item;
+struct TABLE;
 template <class T> class List;
 
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };

@@ -17,15 +17,14 @@
  * 02110-1301  USA
  */
 
-#ifndef _NGS_SERVER_INTERFACE_H_
-#define _NGS_SERVER_INTERFACE_H_
+#ifndef NGS_SERVER_INTERFACE_H_
+#define NGS_SERVER_INTERFACE_H_
 
 #include "ngs/protocol_authentication.h"
+#include "ngs_common/smart_ptr.h"
 
-#include <boost/shared_ptr.hpp>
 
-namespace ngs
-{
+namespace ngs {
 
 class Client_interface;
 class Server;
@@ -35,24 +34,25 @@ class Protocol_encoder;
 class Protocol_config;
 class Mutex;
 
-class Server_interface
-{
+class Server_interface {
 public:
   virtual ~Server_interface() {}
 
 
   virtual void get_authentication_mechanisms(std::vector<std::string> &auth_mech, Client_interface &client) = 0;
 
-  virtual boost::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const = 0;
-  virtual Authentication_handler_ptr           get_auth_handler(const std::string &name, Session_interface *session) = 0;
-  virtual boost::shared_ptr<Protocol_config>   get_config() const = 0;
+  virtual ngs::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const = 0;
+  virtual Authentication_handler_ptr         get_auth_handler(const std::string &name, Session_interface *session) = 0;
+  virtual ngs::shared_ptr<Protocol_config>   get_config() const = 0;
   virtual Mutex &get_client_exit_mutex() = 0;
 
   virtual Ssl_context *ssl_context() const = 0;
 
-  virtual boost::shared_ptr<Session_interface> create_session(Client_interface &client,
-                                                    Protocol_encoder &proto,
-                                                    int session_id) = 0;
+  virtual ngs::shared_ptr<Session_interface> create_session(
+      Client_interface &client,
+      Protocol_encoder &proto,
+      int session_id) = 0;
+
   virtual bool is_running() = 0;
 
   virtual void on_client_closed(const Client_interface &client) = 0;
@@ -62,4 +62,4 @@ public:
 
 } // namespace ngs
 
-#endif // _NGS_SERVER_INTERFACE_H_
+#endif // NGS_SERVER_INTERFACE_H_

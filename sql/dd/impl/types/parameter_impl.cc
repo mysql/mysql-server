@@ -15,15 +15,22 @@
 
 #include "dd/impl/types/parameter_impl.h"
 
+#include <sstream>
+
 #include "dd/impl/properties_impl.h"                  // Properties_impl
-#include "dd/impl/transaction_impl.h"                 // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                   // Raw_record
 #include "dd/impl/tables/parameters.h"                // Parameters
 #include "dd/impl/tables/parameter_type_elements.h"   // Parameter_type_elements
+#include "dd/impl/transaction_impl.h"                 // Open_dictionary_tables_ctx
 #include "dd/impl/types/parameter_type_element_impl.h"// Parameter_type_element_impl
 #include "dd/impl/types/routine_impl.h"               // Routine_impl
-
-#include <sstream>
+#include "dd/string_type.h"                           // dd::String_type
+#include "dd/types/object_table.h"
+#include "dd/types/parameter_type_element.h"
+#include "dd/types/weak_object.h"
+#include "my_global.h"
+#include "mysqld_error.h"
+#include "my_sys.h"
 
 using dd::tables::Parameters;
 using dd::tables::Parameter_type_elements;
@@ -105,7 +112,7 @@ Routine &Parameter_impl::routine()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Parameter_impl::set_options_raw(const std::string &options_raw)
+bool Parameter_impl::set_options_raw(const String_type &options_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(options_raw);
@@ -242,9 +249,9 @@ bool Parameter_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Parameter_impl::debug_print(std::string &outb) const
+void Parameter_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "PARAMETER OBJECT: { "
     << "m_id: {OID: " << id() << "}; "
@@ -273,7 +280,7 @@ void Parameter_impl::debug_print(std::string &outb) const
 
     for (const Parameter_type_element *e : elements())
     {
-      std::string ob;
+      String_type ob;
       e->debug_print(ob);
       ss << ob;
     }

@@ -1442,7 +1442,7 @@ performance-schema-consumer-global-instrumentation TRUE
 performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
 performance-schema-digests-size -1
-performance-schema-error-size 1043
+performance-schema-error-size 1046
 performance-schema-events-stages-history-long-size -1
 performance-schema-events-stages-history-size -1
 performance-schema-events-statements-history-long-size -1
@@ -1460,9 +1460,9 @@ performance-schema-max-file-classes 80
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
-performance-schema-max-memory-classes 350
+performance-schema-max-memory-classes 450
 performance-schema-max-metadata-locks -1
-performance-schema-max-mutex-classes 200
+performance-schema-max-mutex-classes 220
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
 performance-schema-max-program-instances -1

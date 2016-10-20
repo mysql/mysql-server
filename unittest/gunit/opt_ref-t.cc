@@ -80,7 +80,7 @@ public:
   virtual void SetUp()
   {
     // We do some pointer arithmetic on these
-    compile_time_assert(sizeof(Fake_key_field) == sizeof(Key_field));
+    static_assert(sizeof(Fake_key_field) == sizeof(Key_field), "");
     initializer.SetUp();
 
     item_zero= new Item_int(0);

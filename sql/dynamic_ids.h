@@ -16,6 +16,8 @@
 #ifndef DYNAMIC_ID_H
 #define DYNAMIC_ID_H
 
+#include <sys/types.h>
+
 #include "my_global.h"
 #include "prealloced_array.h"
 

@@ -43,15 +43,15 @@ public:
   // schema name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &schema_name() const = 0;
-  virtual void set_schema_name(const std::string &schema_name) = 0;
+  virtual const String_type &schema_name() const = 0;
+  virtual void set_schema_name(const String_type &schema_name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // table name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_name() const = 0;
-  virtual void set_table_name(const std::string &table_name) = 0;
+  virtual const String_type &table_name() const = 0;
+  virtual void set_table_name(const String_type &table_name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // table_rows.

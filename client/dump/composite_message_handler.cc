@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,14 +17,17 @@
 
 #include "composite_message_handler.h"
 
+#include <functional>
+
 using namespace Mysql::Tools::Dump;
+using std::placeholders::_1;
 
 bool Composite_message_handler::pass_message(
   const Mysql::Tools::Base::Message_data& message_data)
 {
   for (
-    std::vector<Mysql::I_callable<
-    bool, const Mysql::Tools::Base::Message_data&>*>
+    std::vector<std::function<
+      bool(const Mysql::Tools::Base::Message_data&)>*>
     ::reverse_iterator it= m_message_handlers.rbegin();
   it != m_message_handlers.rend(); ++it
     )
@@ -38,18 +41,19 @@ bool Composite_message_handler::pass_message(
 }
 
 Composite_message_handler::Composite_message_handler(
-  const std::vector<Mysql::I_callable<bool,
-    const Mysql::Tools::Base::Message_data&>*>& message_handlers)
+  const std::vector<std::function<
+    bool(const Mysql::Tools::Base::Message_data&)>*>& message_handlers)
   : m_message_handlers(message_handlers)
 {}
 
-Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+std::function<bool(const Mysql::Tools::Base::Message_data&)>*
   Composite_message_handler::create_composite_handler(
-    const std::vector<Mysql::I_callable<
-      bool, const Mysql::Tools::Base::Message_data&>*>& message_handlers)
+    const std::vector<std::function<
+      bool(const Mysql::Tools::Base::Message_data&)>*>& message_handlers)
 {
-  return new Mysql::Instance_callback<bool,
-    const Mysql::Tools::Base::Message_data&, Composite_message_handler>(
+  return new std::function<bool(const Mysql::Tools::Base::Message_data&)>(
+    std::bind(
+      &Composite_message_handler::pass_message,
       new Composite_message_handler(message_handlers),
-        &Composite_message_handler::pass_message);
+      _1));
 }

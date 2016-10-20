@@ -205,15 +205,6 @@ Tablespace::delete_files()
 	}
 }
 
-/** Check if undo tablespace.
-@return true if undo tablespace */
-bool
-Tablespace::is_undo_tablespace(
-	ulint	id)
-{
-	return(srv_is_undo_tablespace(id));
-}
-
 /** Use the ADD DATAFILE path to create a Datafile object and add it to the
 front of m_files.
 Parse the datafile path into a path and a filename with extension 'ibd'.

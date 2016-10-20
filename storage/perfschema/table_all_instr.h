@@ -65,13 +65,13 @@ public:
   ~PFS_index_all_instr()
   {}
 
-  virtual bool match(PFS_mutex *pfs) { return false; }
-  virtual bool match(PFS_rwlock *pfs) { return false; }
-  virtual bool match(PFS_cond *pfs) { return false; }
-  virtual bool match(PFS_file *pfs) { return false; }
-  virtual bool match(PFS_socket *pfs) { return false; }
+  virtual bool match(PFS_mutex*) { return false; }
+  virtual bool match(PFS_rwlock*) { return false; }
+  virtual bool match(PFS_cond*) { return false; }
+  virtual bool match(PFS_file*) { return false; }
+  virtual bool match(PFS_socket*) { return false; }
   /* All views match by default. */
-  virtual bool match_view(uint view) { return true; }
+  virtual bool match_view(uint view MY_ATTRIBUTE((unused))) { return true; }
 };
 
 /**
@@ -88,7 +88,7 @@ class table_all_instr : public PFS_engine_table
 public:
   static ha_rows get_row_count();
 
-  virtual int index_init(uint idx, bool sorted) { return 0; }
+  virtual int index_init(uint, bool) { return 0; }
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);

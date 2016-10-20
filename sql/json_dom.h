@@ -16,24 +16,31 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "malloc_allocator.h"   // Malloc_allocator
-#include "my_decimal.h"         // my_decimal
-#include "binary_log_types.h"   // enum_field_types
-#include "mysql_time.h"         // MYSQL_TIME
-#include "json_binary.h"        // json_binary::Value
-#include "sql_alloc.h"          // Sql_alloc
-#include "prealloced_array.h"   // Prealloced_array
-
+#include <stddef.h>
+#include <functional>
 #include <map>
+#include <new>
 #include <string>
 #include <type_traits>          // is_base_of
+#include <utility>
+
+#include "binary_log_types.h"   // enum_field_types
+#include "json_binary.h"        // json_binary::Value
+#include "malloc_allocator.h"   // Malloc_allocator
+#include "my_dbug.h"
+#include "my_decimal.h"         // my_decimal
+#include "my_global.h"
+#include "mysql_time.h"         // MYSQL_TIME
+#include "prealloced_array.h"   // Prealloced_array
+#include "sql_alloc.h"          // Sql_alloc
 
 class Json_dom;
 class Json_path;
 class Json_path_leg;
 class Json_seekable_path;
 class Json_wrapper;
+class String;
+class THD;
 
 typedef Prealloced_array<Json_wrapper, 16, false> Json_wrapper_vector;
 typedef Prealloced_array<Json_dom *, 16> Json_dom_vector;
@@ -608,8 +615,13 @@ class Json_string : public Json_scalar
 private:
   std::string m_str; //!< holds the string
 public:
-  explicit Json_string(const std::string &value)
-    : Json_scalar(), m_str(value)
+  /*
+    Construct a Json_string object.
+    @param args any arguments accepted by std::string's constructors
+  */
+  template <typename... Args>
+  explicit Json_string(Args&&... args)
+    : Json_scalar(), m_str(std::forward<Args>(args)...)
   {}
   ~Json_string() {}
 
@@ -1502,6 +1514,23 @@ public:
 
     @param[out] to      a buffer to which the sort key is written
     @param[in]  length  the length of the sort key
+
+    @details Key storage format is following:
+    @verbatim
+      |<key len><json type><   sort key    >|
+      / 4 bytes/   1 byte /key len bytes - 5/
+    @endverbatim
+
+    JSON is assumed to be non-sql-null and valid (checked by caller).
+    Key length contains full length - the len prefix itself, json type and the
+    sort key.
+    All numeric types are stored as a number, without distinction to
+    double/decimal/int/etc. See @c make_json_numeric_sort_key().
+    Same is done to DATETIME and TIMESTAMP types.
+    For string and opaque types only the prefix that fits into the output buffer
+    is stored.
+    For JSON objects and arrays only their length (number of elements) is
+    stored, this is a limitation of current implementation.
   */
   void make_sort_key(uchar *to, size_t length) const;
 

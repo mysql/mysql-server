@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     )
 
 
-ADD_DEFINITIONS(-DEMBEDDED_LIBRARY -UMYSQL_CLIENT)
+ADD_DEFINITIONS(-DEMBEDDED_LIBRARY -DNO_EMBEDDED_ACCESS_CHECKS)
+REMOVE_DEFINITIONS(-DMYSQL_CLIENT)
 
 
 MYSQL_ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
@@ -43,6 +44,7 @@ ENDIF()
 
 
 
+REMOVE_DEFINITIONS(${SSL_DEFINES})
 MYSQL_ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.cc)
 TARGET_LINK_LIBRARIES(mysqltest_embedded mysqlserver)
 

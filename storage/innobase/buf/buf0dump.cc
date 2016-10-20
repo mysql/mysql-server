@@ -23,26 +23,24 @@ Implements a buffer pool dump/load.
 Created April 08, 2011 Vasil Dimov
 *******************************************************/
 
-#include "my_global.h"
-#include "my_sys.h"
-#include "my_thread.h"
-
-#include "mysql/psi/mysql_stage.h"
-
-#include "univ.i"
+#include <algorithm>
 
 #include "buf0buf.h"
 #include "buf0dump.h"
 #include "dict0dict.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_stage.h"
 #include "os0file.h"
+#include "os0thread-create.h"
 #include "os0thread.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0rw.h"
+#include "univ.i"
 #include "ut0byte.h"
-#include "os0thread-create.h"
-
-#include <algorithm>
 
 enum status_severity {
 	STATUS_VERBOSE,

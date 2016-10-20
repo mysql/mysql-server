@@ -15,12 +15,16 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
-
-#include "sql_alloc.h"         // Sql_alloc
-
+#include <stddef.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <type_traits>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "sql_alloc.h"         // Sql_alloc
+#include "thr_malloc.h"
 
 
 /**

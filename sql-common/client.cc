@@ -32,13 +32,15 @@
 */ 
 
 #include <my_global.h>
-#include "mysql.h"
+
 #include "hash.h"
+#include "my_psi_config.h"
+#include "mysql.h"
 #include "mysql/client_authentication.h"
+#include "mysql/plugin_auth_common.h"
+#include "mysql/psi/mysql_memory.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/psi/mysql_memory.h"
-#include "mysql/plugin_auth_common.h"
 #include "template_utils.h"
 
 #ifdef EMBEDDED_LIBRARY
@@ -55,22 +57,23 @@
 #define CLI_MYSQL_REAL_CONNECT STDCALL mysql_real_connect
 #endif /*EMBEDDED_LIBRARY*/
 
-#include <my_sys.h>
-#include "my_default.h"
-#include <mysys_err.h>
-#include <m_string.h>
 #include <m_ctype.h>
+#include <m_string.h>
+#include <my_sys.h>
+#include <mysys_err.h>
+#include <violite.h>
+
+#include "errmsg.h"
+#include "my_default.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include "errmsg.h"
-#include <violite.h>
 
 #if !defined(_WIN32)
 #include <my_thread.h>				/* because of signal()	*/
 #endif /* !defined(_WIN32) */
 
-#include <sys/stat.h>
 #include <signal.h>
+#include <sys/stat.h>
 #include <time.h>
 
 #ifdef	 HAVE_PWD_H
@@ -87,14 +90,18 @@
 
 #ifndef _WIN32
 #include <errno.h>
+
 #define SOCKET_ERROR -1
 #endif
 
-#include "client_settings.h"
-#include <sql_common.h>
 #include <mysql/client_plugin.h>
-#include "../libmysql/mysql_trace.h"  /* MYSQL_TRACE() instrumentation */
+#include <sql_common.h>
+
 #include "../libmysql/init_commands_array.h"
+#include "../libmysql/mysql_trace.h"  /* MYSQL_TRACE() instrumentation */
+#include "client_settings.h"
+
+using std::swap;
 
 #define STATE_DATA(M) \
   (NULL != (M) ? &(MYSQL_EXTENSION_PTR(M)->state_change) : NULL)
@@ -1192,7 +1199,8 @@ void free_rows(MYSQL_DATA *cur)
 {
   if (cur)
   {
-    free_root(&cur->alloc,MYF(0));
+    free_root(cur->alloc,MYF(0));
+    my_free(cur->alloc);
     my_free(cur);
   }
 }
@@ -1353,10 +1361,11 @@ end:
 void free_old_query(MYSQL *mysql)
 {
   DBUG_ENTER("free_old_query");
-  if (mysql->fields)
-    free_root(&mysql->field_alloc,MYF(0));
-  init_alloc_root(PSI_NOT_INSTRUMENTED,
-                  &mysql->field_alloc, 8192, 0); /* Assume rowlength < 8192 */
+  if (mysql->field_alloc) {
+    free_root(mysql->field_alloc,MYF(0));
+    init_alloc_root(PSI_NOT_INSTRUMENTED,
+                    mysql->field_alloc, 8192, 0); /* Assume rowlength < 8192 */
+  }
   mysql->fields= 0;
   mysql->field_count= 0;			/* For API */
   mysql->warning_count= 0;
@@ -1509,7 +1518,9 @@ static void cli_flush_use_result(MYSQL *mysql, my_bool flush_all_results)
     {
       if ((mysql->fields= cli_read_metadata(mysql,
                        mysql->net.read_pos[0], protocol_41(mysql) ? 7:5)))
-        free_root(&mysql->field_alloc,MYF(0));
+      {
+        free_root(mysql->field_alloc,MYF(0));
+      }
       else
         DBUG_VOID_RETURN;
     }
@@ -1629,8 +1640,11 @@ mysql_free_result(MYSQL_RES *result)
       }
     }
     free_rows(result->data);
-    if (result->fields)
-      free_root(&result->field_alloc,MYF(0));
+    if (result->field_alloc)
+    {
+      free_root(result->field_alloc,MYF(0));
+      my_free(result->field_alloc);
+    }
     my_free(result->row);
     my_free(result);
   }
@@ -1790,8 +1804,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
   DBUG_ENTER("mysql_read_default_options");
   DBUG_PRINT("enter",("file: %s  group: %s",filename,group ? group :"NULL"));
 
-  compile_time_assert(OPT_keep_this_one_last ==
-                      array_elements(default_options));
+  static_assert(OPT_keep_this_one_last == array_elements(default_options),
+                "OPT_keep_this_one_last needs to be the last element.");
 
   argc=1; argv=argv_buff; argv_buff[0]= (char*) "client";
   groups[0]= (char*) "client"; groups[1]= (char*) group; groups[2]=0;
@@ -2284,7 +2298,20 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
 MYSQL_FIELD *cli_read_metadata(MYSQL *mysql, ulong field_count,
                                unsigned int field)
 {
-  return cli_read_metadata_ex(mysql, &mysql->field_alloc, field_count, field);
+  if (mysql->field_alloc == nullptr)
+  {
+    mysql->field_alloc= (MEM_ROOT*) my_malloc(key_memory_MYSQL,
+                                              sizeof(MEM_ROOT),
+					      MYF(MY_WME | MY_ZEROFILL));
+    if (mysql->field_alloc == nullptr)
+    {
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+      return nullptr;
+    }
+    init_alloc_root(PSI_NOT_INSTRUMENTED,
+                    mysql->field_alloc, 8192, 0); /* Assume rowlength < 8192 */
+  }
+  return cli_read_metadata_ex(mysql, mysql->field_alloc, field_count, field);
 }
 
 
@@ -2308,14 +2335,18 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
     DBUG_RETURN(0);
   if (!(result=(MYSQL_DATA*) my_malloc(key_memory_MYSQL_DATA,
                                        sizeof(MYSQL_DATA),
-				       MYF(MY_WME | MY_ZEROFILL))))
+				       MYF(MY_WME | MY_ZEROFILL))) ||
+      !(result->alloc=(MEM_ROOT*) my_malloc(key_memory_MYSQL_DATA,
+                                            sizeof(MEM_ROOT),
+				            MYF(MY_WME | MY_ZEROFILL))))
   {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    free_rows(result);
     DBUG_RETURN(0);
   }
   init_alloc_root(PSI_NOT_INSTRUMENTED,
-                  &result->alloc, 8192, 0); /* Assume rowlength < 8192 */
-  result->alloc.min_malloc=sizeof(MYSQL_ROWS);
+                  result->alloc, 8192, 0); /* Assume rowlength < 8192 */
+  result->alloc->min_malloc= sizeof(MYSQL_ROWS);
   prev_ptr= &result->data;
   result->rows=0;
   result->fields=fields;
@@ -2328,10 +2359,10 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   while (*(cp=net->read_pos) == 0 || is_data_packet)
   {
     result->rows++;
-    if (!(cur= (MYSQL_ROWS*) alloc_root(&result->alloc,
+    if (!(cur= (MYSQL_ROWS*) alloc_root(result->alloc,
 					sizeof(MYSQL_ROWS))) ||
 	!(cur->data= ((MYSQL_ROW)
-		      alloc_root(&result->alloc,
+		      alloc_root(result->alloc,
 				 (fields+1)*sizeof(char *)+pkt_len))))
     {
       free_rows(result);
@@ -2492,6 +2523,16 @@ mysql_init(MYSQL *mysql)
   else
     memset(mysql, 0, sizeof(*(mysql)));
   mysql->charset=default_client_charset_info;
+  mysql->field_alloc=
+    (MEM_ROOT *) my_malloc(key_memory_MYSQL,
+                           sizeof(*mysql->field_alloc), MYF(MY_WME | MY_ZEROFILL));
+  if (!mysql->field_alloc)
+  {
+    set_mysql_error(NULL, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    if (mysql->free_me)
+      my_free(mysql);
+    return 0;
+  }
   my_stpcpy(mysql->net.sqlstate, not_error_sqlstate);
 
   /*
@@ -3722,7 +3763,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
 		     mysql->server_version, mysql->server_capabilities,
 		     mysql->server_status, mysql->client_flag));
 
-  compile_time_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH);
+  static_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH, "");
 
   /* This needs to be changed as it's not useful with big packets */
   if (mysql->user[0])
@@ -4040,8 +4081,8 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
                        res == CR_OK_HANDSHAKE_COMPLETE ? 
                          "CR_OK_HANDSHAKE_COMPLETE" : "error"));
 
-  compile_time_assert(CR_OK == -1);
-  compile_time_assert(CR_ERROR == 0);
+  static_assert(CR_OK == -1, "");
+  static_assert(CR_ERROR == 0, "");
 
   /*
     The connection may be closed. If so: do not try to read from the buffer.
@@ -4970,7 +5011,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   memset(&mysql->options, 0, sizeof(mysql->options));
   mysql->free_me=0;
   mysql_close(mysql);
-  *mysql=tmp_mysql;
+  *mysql=std::move(tmp_mysql);
   net_clear(&mysql->net, 1);
   mysql->affected_rows= ~(my_ulonglong) 0;
   DBUG_RETURN(0);
@@ -5065,6 +5106,9 @@ void mysql_close_free(MYSQL *mysql)
 
   my_free(mysql->info_buffer);
   mysql->info_buffer= 0;
+
+  my_free(mysql->field_alloc);
+  mysql->field_alloc= nullptr;
 
   /* Clear pointers for better safety */
   mysql->host_info= NULL;
@@ -5176,7 +5220,9 @@ void STDCALL mysql_close(MYSQL *mysql)
       (*mysql->methods->free_embedded_thd)(mysql);
 #endif
     if (mysql->free_me)
+    {
       my_free(mysql);
+    }
   }
   DBUG_VOID_RETURN;
 }
@@ -5236,7 +5282,7 @@ get_info:
 
   if (!(mysql->fields=cli_read_metadata(mysql, field_count, protocol_41(mysql) ? 7:5)))
   {
-    free_root(&mysql->field_alloc,MYF(0));
+    free_root(mysql->field_alloc,MYF(0));
     DBUG_RETURN(1);
   }
   mysql->status= MYSQL_STATUS_GET_RESULT;
@@ -5317,23 +5363,32 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(0);
   }
+  if (!(result->field_alloc=
+        (MEM_ROOT*) my_malloc(key_memory_MYSQL,
+                              sizeof(MEM_ROOT),
+                              MYF(MY_WME | MY_ZEROFILL))))
+  {
+    set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    my_free(result);
+    DBUG_RETURN(0);
+  }
   result->methods= mysql->methods;
   result->eof=1;				/* Marker for buffered */
   result->lengths=(ulong*) (result+1);
   if (!(result->data=
 	(*mysql->methods->read_rows)(mysql,mysql->fields,mysql->field_count)))
   {
+    my_free(result->field_alloc);
     my_free(result);
     DBUG_RETURN(0);
   }
   mysql->affected_rows= result->row_count= result->data->rows;
   result->data_cursor=	result->data->data;
   result->fields=	mysql->fields;
-  result->field_alloc= mysql->field_alloc;
+  *result->field_alloc= std::move(*mysql->field_alloc);
   result->field_count=	mysql->field_count;
   /* The rest of result members is zerofilled in my_malloc */
   mysql->fields=0;				/* fields is now in result */
-  clear_alloc_root(&mysql->field_alloc);
   /* just in case this was mistakenly called after mysql_stmt_execute() */
   mysql->unbuffered_fetch_owner= 0;
   DBUG_RETURN(result);				/* Data fetched */
@@ -5376,14 +5431,22 @@ static MYSQL_RES * cli_use_result(MYSQL *mysql)
     my_free(result);
     DBUG_RETURN(0);
   }
+  if (!(result->field_alloc=
+        (MEM_ROOT*) my_malloc(key_memory_MYSQL,
+                              sizeof(MEM_ROOT),
+                              MYF(MY_WME | MY_ZEROFILL))))
+  {
+    my_free(result->row);
+    my_free(result);
+    DBUG_RETURN(0);
+  }
   result->fields=	mysql->fields;
-  result->field_alloc= mysql->field_alloc;
+  *result->field_alloc= std::move(*mysql->field_alloc);
   result->field_count=	mysql->field_count;
   result->current_field=0;
   result->handle=	mysql;
   result->current_row=	0;
   mysql->fields=0;			/* fields is now in result */
-  clear_alloc_root(&mysql->field_alloc);
   mysql->status=MYSQL_STATUS_USE_RESULT;
   mysql->unbuffered_fetch_owner= &result->unbuffered_fetch_cancelled;
   DBUG_RETURN(result);			/* Data is read to be fetched */

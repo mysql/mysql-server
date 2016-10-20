@@ -1,8 +1,4 @@
 
-# Test is temporarily run with show_compatibility_56=ON until Bug#21789221 is fixed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
 #
 # Testing the behavior of 'PREPARE', 'DDL', 'EXECUTE' scenarios
 #
@@ -56,6 +52,10 @@ set @@global.show_compatibility_56=ON;
 # - Part 24: Testing the strength of TABLE_SHARE version
 # Test SQLCOM_REPAIR  needs MyISAM for execution. 
 --source include/have_myisam.inc
+
+# Test is temporarily run with show_compatibility_56=ON until Bug#21789221 is fixed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 --disable_warnings
 drop temporary table if exists t1, t2, t3;

@@ -17,52 +17,50 @@
  * 02110-1301  USA
  */
 
-#include "my_global.h"
-#include "mysqlx_version.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "mysqlx_crud.h"
-#include "ngs_common/protocol_const.h"
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
-#include <boost/algorithm/string.hpp>
 #include <boost/algorithm/hex.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
-#include <boost/bind.hpp>
-#include <boost/scoped_ptr.hpp>
-#include <boost/date_time/posix_time/posix_time_types.hpp>
-#include <string.h>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
-#include <boost/format.hpp>
-#include <boost/make_shared.hpp>
-
-#include "expr_parser.h"
-#include "utils_mysql_parsing.h"
-
-#include "violite.h"
-#include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
 #include <rapidjson/writer.h>
-
+#include <string.h>
+#include <algorithm>
+#include <fstream>
 #include <ios>
 #include <iostream>
-#include <fstream>
 #include <iterator>
 #include <sstream>
 #include <stdexcept>
-#include <algorithm>
-#include "mysqlx_protocol.h"
-#include "mysqlx_session.h"
-#include "mysqlx_resultset.h"
+
+#include "dummy_stream.h"
+#include "expr_parser.h"
+#include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
+#include "my_global.h"
+#include "mysqlx_crud.h"
 #include "mysqlx_error.h"
+#include "mysqlx_protocol.h"
+#include "mysqlx_resultset.h"
+#include "mysqlx_session.h"
+#include "mysqlx_version.h"
+#include "ngs_common/bind.h"
+#include "ngs_common/posix_time.h"
+#include "ngs_common/protocol_const.h"
+#include "ngs_common/protocol_protobuf.h"
+#include "utils_mysql_parsing.h"
+#include "violite.h"
 
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
 
+const char *CMD_ARG_BE_QUIET = "be-quiet";
 const char CMD_ARG_SEPARATOR = '\t';
 const char * const MYSQLXTEST_VERSION = "1.0";
-const unsigned short MYSQLX_PORT = 33060;
-#include <mysql/service_my_snprintf.h>
 #include <mysql.h>
+#include <mysql/service_my_snprintf.h>
 
 #ifdef _MSC_VER
 #  pragma push_macro("ERROR")
@@ -76,7 +74,7 @@ static Message_by_full_name server_msgs_by_full_name;
 static Message_by_full_name client_msgs_by_full_name;
 
 typedef std::map<std::string, std::pair<mysqlx::Message* (*)(), int8_t> > Message_by_name;
-typedef boost::function<void (std::string)> Value_callback;
+typedef ngs::function<void (std::string)> Value_callback;
 static Message_by_name server_msgs_by_name;
 static Message_by_name client_msgs_by_name;
 
@@ -89,6 +87,7 @@ bool OPT_bindump = false;
 bool OPT_show_warnings = false;
 bool OPT_fatal_errors = false;
 bool OPT_verbose = false;
+bool OPT_query = true;
 #ifndef _WIN32
 bool OPT_color = false;
 #endif
@@ -107,6 +106,16 @@ static std::list<std::string> variables_to_unreplace;
 
 static void ignore_traces_from_libraries(enum loglevel ll, const char *format, va_list args)
 {
+}
+
+static std::ostream &get_stream_for_results(const bool force_quiet = false)
+{
+  if (OPT_query && !force_quiet)
+    return std::cout;
+
+  static Dummy_stream dummy;
+
+  return dummy;
 }
 
 static void replace_all(std::string &input, const std::string &to_find, const std::string &change_to)
@@ -286,16 +295,52 @@ private:
 
 //---------------------------------------------------------------------------------------------------------
 
+struct Connection_options
+{
+  Connection_options()
+  : port(0)
+  {
+  }
+
+  std::string socket;
+  std::string host;
+  int port;
+  std::string user;
+  std::string password;
+  std::string schema;
+};
+
 class Connection_manager
 {
 public:
-  Connection_manager(const std::string &uri, const mysqlx::Ssl_config &ssl_config_, const std::size_t timeout_, const bool _dont_wait_for_disconnect, const std::string &socket)
-  : port(MYSQLX_PORT), ssl_config(ssl_config_), timeout(timeout_), dont_wait_for_disconnect(_dont_wait_for_disconnect), unix_socket(socket)
+  Connection_manager(const std::string &uri,
+                     const Connection_options &co,
+                     const mysqlx::Ssl_config &ssl_config_,
+                     const std::size_t timeout_,
+                     const bool _dont_wait_for_disconnect,
+                     const mysqlx::Internet_protocol ip_mode)
+  : connection_options(co),
+    ssl_config(ssl_config_),
+    timeout(timeout_),
+    dont_wait_for_disconnect(_dont_wait_for_disconnect),
+    m_ip_mode(ip_mode)
   {
     int pwdfound;
-    mysqlx::parse_mysql_connstring(uri, proto, user, pass, host, port, sock, db, pwdfound);
+    std::string proto;
 
-    active_connection.reset(new mysqlx::XProtocol(ssl_config, timeout, dont_wait_for_disconnect));
+    if (uri.length())
+    {
+      mysqlx::parse_mysql_connstring(uri, proto,
+          connection_options.user,
+          connection_options.password,
+          connection_options.host,
+          connection_options.port,
+          connection_options.socket,
+          connection_options.schema,
+          pwdfound);
+    }
+
+    active_connection.reset(new mysqlx::XProtocol(ssl_config, timeout, dont_wait_for_disconnect, m_ip_mode));
     connections[""] = active_connection;
 
     if (OPT_verbose)
@@ -306,8 +351,8 @@ public:
 
   void get_credentials(std::string &ret_user, std::string &ret_pass)
   {
-    ret_user = user;
-    ret_pass = pass;
+    ret_user = connection_options.user;
+    ret_pass = connection_options.password;
   }
 
   void connect_default(const bool send_cap_password_expired = false, bool use_plain_auth = false)
@@ -316,9 +361,9 @@ public:
       active_connection->setup_capability("client.pwd_expire_ok", true);
 
     if (use_plain_auth)
-      active_connection->authenticate_plain(user, pass, db);
+      active_connection->authenticate_plain(connection_options.user, connection_options.password, connection_options.schema);
     else
-      active_connection->authenticate(user, pass, db);
+      active_connection->authenticate(connection_options.user, connection_options.password, connection_options.schema);
 
     std::stringstream s;
     s << active_connection->client_id();
@@ -337,22 +382,22 @@ public:
 
     std::cout << "connecting...\n";
 
-    boost::shared_ptr<mysqlx::XProtocol> connection;
+    ngs::shared_ptr<mysqlx::XProtocol> connection;
     mysqlx::Ssl_config                    connection_ssl_config;
 
     if (!no_ssl)
       connection_ssl_config = ssl_config;
 
-    connection.reset(new mysqlx::XProtocol(connection_ssl_config, timeout, dont_wait_for_disconnect));
+    connection.reset(new mysqlx::XProtocol(connection_ssl_config, timeout, dont_wait_for_disconnect, m_ip_mode));
 
     make_connection(connection);
 
     if (user != "-")
     {
       if (user.empty())
-        connection->authenticate(this->user, this->pass, db.empty() ? this->db : db);
+        connection->authenticate(connection_options.user, connection_options.password, db.empty() ? connection_options.schema : db);
       else
-        connection->authenticate(user, password, db.empty() ? this->db : db);
+        connection->authenticate(user, password, db.empty() ? connection_options.schema : db);
     }
 
     active_connection = connection;
@@ -405,7 +450,7 @@ public:
           active_connection->send(Mysqlx::Session::Close());
           active_connection->set_closed();
           int msgid;
-          boost::scoped_ptr<mysqlx::Message> msg(active_connection->recv_raw(msgid));
+          ngs::unique_ptr<mysqlx::Message> msg(active_connection->recv_raw(msgid));
           std::cout << message_to_text(*msg);
           if (Mysqlx::ServerMessages::OK != msgid)
             throw mysqlx::Error(CR_COMMANDS_OUT_OF_SYNC,
@@ -420,7 +465,7 @@ public:
           {
             try
             {
-              boost::scoped_ptr<mysqlx::Message> msg(active_connection->recv_raw(msgid));
+              ngs::unique_ptr<mysqlx::Message> msg(active_connection->recv_raw(msgid));
 
               std::cout << message_to_text(*msg);
 
@@ -452,7 +497,7 @@ public:
     if (connections.find(name) == connections.end())
     {
       std::string slist;
-      for (std::map<std::string, boost::shared_ptr<mysqlx::XProtocol> >::const_iterator it = connections.begin(); it != connections.end(); ++it)
+      for (std::map<std::string, ngs::shared_ptr<mysqlx::XProtocol> >::const_iterator it = connections.begin(); it != connections.end(); ++it)
         slist.append(it->first).append(", ");
       if (!slist.empty())
         slist.resize(slist.length()-2);
@@ -474,23 +519,23 @@ public:
   }
 
 private:
-  void make_connection(boost::shared_ptr<mysqlx::XProtocol> &connection)
+  void make_connection(ngs::shared_ptr<mysqlx::XProtocol> &connection)
   {
-    if (unix_socket.empty())
-      connection->connect(host, port);
+    if (connection_options.socket.empty())
+      connection->connect(connection_options.host, connection_options.port);
     else
-      connection->connect_to_localhost(unix_socket);
+      connection->connect_to_localhost(connection_options.socket);
   }
 
-  std::map<std::string, boost::shared_ptr<mysqlx::XProtocol> > connections;
-  boost::shared_ptr<mysqlx::XProtocol> active_connection;
+  std::map<std::string, ngs::shared_ptr<mysqlx::XProtocol> > connections;
+  ngs::shared_ptr<mysqlx::XProtocol> active_connection;
   std::string active_connection_name;
-  std::string proto, user, pass, host, sock, db;
-  int port;
+  Connection_options connection_options;
+
   mysqlx::Ssl_config ssl_config;
   const std::size_t timeout;
   const bool dont_wait_for_disconnect;
-  const std::string unix_socket;
+  const mysqlx::Internet_protocol m_ip_mode;
 };
 
 static std::string data_to_bindump(const std::string &bindump)
@@ -776,9 +821,9 @@ public:
   }
 
 public:
-  static std::list<boost::shared_ptr<Macro> > macros;
+  static std::list<ngs::shared_ptr<Macro> > macros;
 
-  static void add(boost::shared_ptr<Macro> macro)
+  static void add(ngs::shared_ptr<Macro> macro)
   {
     macros.push_back(macro);
   }
@@ -801,7 +846,7 @@ public:
       return "";
     }
 
-    for (std::list<boost::shared_ptr<Macro> >::const_iterator iter = macros.begin(); iter != macros.end(); ++iter)
+    for (std::list<ngs::shared_ptr<Macro> >::const_iterator iter = macros.begin(); iter != macros.end(); ++iter)
     {
       if ((*iter)->m_name == r_name)
       {
@@ -820,7 +865,7 @@ private:
   std::string m_body;
 };
 
-std::list<boost::shared_ptr<Macro> > Macro::macros;
+std::list<ngs::shared_ptr<Macro> > Macro::macros;
 
 
 //---------------------------------------------------------------------------------------------------------
@@ -878,6 +923,12 @@ public:
     m_commands["binsendoffset "] = &Command::cmd_binsendoffset;
     m_commands["callmacro "]   = &Command::cmd_callmacro;
     m_commands["import "]      = &Command::cmd_import;
+    m_commands["assert_eq "]      = &Command::cmd_assert_eq;
+    m_commands["assert_gt "]      = &Command::cmd_assert_gt;
+    m_commands["assert_ge "]      = &Command::cmd_assert_ge;
+    m_commands["query_result"]    = &Command::cmd_query;
+    m_commands["noquery_result"]  = &Command::cmd_noquery;
+    m_commands["wait_for "]       = &Command::cmd_wait_for;
   }
 
   bool is_command_syntax(const std::string &cmd) const
@@ -892,7 +943,7 @@ public:
 
     Command_map::iterator i = std::find_if(m_commands.begin(),
                                            m_commands.end(),
-                                           boost::bind(&Command::match_command_name, this, _1, command));
+                                           ngs::bind(&Command::match_command_name, this, ngs::placeholders::_1, command));
 
     if (i == m_commands.end())
     {
@@ -972,14 +1023,16 @@ private:
   Result cmd_recvtype(Execution_context &context, const std::string &args)
   {
     int msgid;
-    boost::scoped_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
+    ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
     if (msg.get())
     {
       if (msg->GetDescriptor()->full_name() != args)
         std::cout << "Received unexpected message. Was expecting:\n    " << args << "\nbut got:\n";
       try
       {
-        std::cout << message_to_text(*msg) << "\n";
+        std::ostream &out = get_stream_for_results();
+
+        out << unreplace_variables(message_to_text(*msg), true) << "\n";
 
         if (msg->GetDescriptor()->full_name() != args && OPT_fatal_errors)
           return Stop_with_success;
@@ -998,7 +1051,7 @@ private:
   Result cmd_recverror(Execution_context &context, const std::string &args)
   {
     int msgid;
-    boost::scoped_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
+    ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
     if (msg.get())
     {
       bool failed = false;
@@ -1039,7 +1092,21 @@ private:
   {
     bool was_set = false;
 
-    cmd_recvresult(context, "", boost::bind(&Command::set_variable, boost::ref(was_set), args, _1));
+    std::string args_cmd = args;
+    std::vector<std::string> args_array;
+    boost::algorithm::trim(args_cmd);
+
+    boost::split(args_array, args_cmd, boost::is_any_of(" "), boost::token_compress_off);
+
+    args_cmd = CMD_ARG_BE_QUIET;
+
+    if (args_array.size() > 1)
+    {
+      args_cmd += " ";
+      args_cmd += args_array.at(1);
+    }
+
+    cmd_recvresult(context, args_cmd, ngs::bind(&Command::set_variable, ngs::ref(was_set), args_array.at(0), ngs::placeholders::_1));
 
     if (!was_set)
     {
@@ -1057,7 +1124,7 @@ private:
 
   Result cmd_recvresult(Execution_context &context, const std::string &args, Value_callback value_callback)
   {
-    boost::shared_ptr<mysqlx::Result> result;
+    ngs::shared_ptr<mysqlx::Result> result;
     try
     {
       std::vector<std::string> columns;
@@ -1071,39 +1138,40 @@ private:
       std::vector<std::string>::iterator i = std::find(columns.begin(), columns.end(), "print-columnsinfo");
       const bool print_colinfo = i != columns.end();
       if (print_colinfo) columns.erase(i);
-      i = std::find(columns.begin(), columns.end(), "be-quiet");
+
+      i = std::find(columns.begin(), columns.end(), CMD_ARG_BE_QUIET);
       const bool quiet = i != columns.end();
       if (quiet) columns.erase(i);
 
+      std::ostream &out = get_stream_for_results(quiet);
+
       result = context.connection()->recv_result();
-      variables_to_unreplace.clear();
-
       print_result_set(*result, columns, value_callback, quiet);
-      if (!quiet)
-      {
-        if (print_colinfo)
-          print_columndata(*result->columnMetadata());
 
-        int64_t x = result->affectedRows();
-        if (x >= 0)
-          std::cout << x << " rows affected\n";
-        else
-          std::cout << "command ok\n";
-        if (result->lastInsertId() > 0)
-          std::cout << "last insert id: " << result->lastInsertId() << "\n";
-        if (!result->infoMessage().empty())
-          std::cout << result->infoMessage() << "\n";
+      if (print_colinfo)
+        print_columndata(*result->columnMetadata());
+
+      variables_to_unreplace.clear();
+      int64_t x = result->affectedRows();
+      if (x >= 0)
+        out << x << " rows affected\n";
+      else
+        out << "command ok\n";
+      if (result->lastInsertId() > 0)
+        out << "last insert id: " << result->lastInsertId() << "\n";
+      if (!result->infoMessage().empty())
+        out << result->infoMessage() << "\n";
+      {
+        std::vector<mysqlx::Result::Warning> warnings(result->getWarnings());
+        if (!warnings.empty())
+          out << "Warnings generated:\n";
+        for (std::vector<mysqlx::Result::Warning>::const_iterator w = warnings.begin();
+            w != warnings.end(); ++w)
         {
-          std::vector<mysqlx::Result::Warning> warnings(result->getWarnings());
-          if (!warnings.empty())
-            std::cout << "Warnings generated:\n";
-          for (std::vector<mysqlx::Result::Warning>::const_iterator w = warnings.begin();
-              w != warnings.end(); ++w)
-          {
-            std::cout << (w->is_note ? "NOTE" : "WARNING") << " | " << w->code << " | " << w->text << "\n";
-          }
+          out << (w->is_note ? "NOTE" : "WARNING") << " | " << w->code << " | " << w->text << "\n";
         }
       }
+
       if (!OPT_expect_error->check_ok())
         return Stop_with_failure;
     }
@@ -1128,7 +1196,16 @@ private:
     bool show = true, stop = false;
 
     if (argl.size() > 1)
-      show = atoi(argl[1].c_str()) > 0;
+    {
+      const char *argument_do_not_print = argl[1].c_str();
+      show = false;
+
+      if (0 != strcmp(argument_do_not_print, "do_not_show_intermediate"))
+      {
+        std::cout << "Invalid argument received: " << argl[1] << "\n";
+        return Stop_with_failure;
+      }
+    }
 
     Message_by_full_name::iterator iterator_msg_name = server_msgs_by_full_name.find(argl[0]);
 
@@ -1150,7 +1227,7 @@ private:
 
     do
     {
-      boost::scoped_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
+      ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
       if (msg.get())
       {
         if (msg->GetDescriptor()->full_name() == argl[0] ||
@@ -1275,6 +1352,8 @@ private:
     else
     {
       std::string s = args;
+      replace_variables(s);
+
       std::string::size_type p = s.find(CMD_ARG_SEPARATOR);
       if (p != std::string::npos)
       {
@@ -1307,7 +1386,7 @@ private:
 
     try
     {
-      context.connection()->push_local_notice_handler(boost::bind(dump_notices, _1, _2));
+      context.connection()->push_local_notice_handler(ngs::bind(dump_notices, ngs::placeholders::_1, ngs::placeholders::_2));
       //XXX
       // Prepered for method map
       if (0 == strncmp(auth_meth.c_str(), "plain", 5))
@@ -1417,7 +1496,7 @@ private:
     }
     try
     {
-      context.connection()->push_local_notice_handler(boost::bind(dump_notices, _1, _2));
+      context.connection()->push_local_notice_handler(ngs::bind(dump_notices, ngs::placeholders::_1, ngs::placeholders::_2));
 
       context.connection()->authenticate_mysql41(user, pass, db);
 
@@ -1446,7 +1525,6 @@ private:
 
   Result cmd_system(Execution_context &context, const std::string &args)
   {
-    // XXX - remove command
     // command used only at dev level
     // example of usage
     // -->system (sleep 3; echo "Killing"; ps aux | grep mysqld | egrep -v "gdb .+mysqld" | grep -v  "kdeinit4"| awk '{print($2)}' | xargs kill -s SIGQUIT)&
@@ -1463,7 +1541,7 @@ private:
     {
       while(true)
       {
-        boost::scoped_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
+        ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
 
         //TODO:
         // For now this command will be used in places where random messages
@@ -1505,12 +1583,12 @@ private:
       tolerance = 10 * expected_delta_time / 100;
     }
 
-    boost::posix_time::ptime start_time = boost::posix_time::microsec_clock::local_time();
+    ngs::ptime start_time = ngs::microsec_clock::local_time();
     try
     {
       int msgid;
 
-      boost::scoped_ptr<mysqlx::Message> msg(context.connection()->recv_raw_with_deadline(msgid, 2 * expected_delta_time));
+      ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw_with_deadline(msgid, 2 * expected_delta_time));
 
       if (msg.get())
       {
@@ -1533,7 +1611,7 @@ private:
       }
     }
 
-    int execution_delta_time = (boost::posix_time::microsec_clock::local_time() - start_time).total_milliseconds();
+    int execution_delta_time = (ngs::microsec_clock::local_time() - start_time).total_milliseconds();
 
     if (abs(execution_delta_time - expected_delta_time) > tolerance)
     {
@@ -1541,10 +1619,11 @@ private:
       return Stop_with_failure;
     }
 
+    context.m_cm->active()->set_closed();
+
     if (context.m_cm->is_default_active())
       return Stop_with_success;
 
-    context.m_cm->active()->set_closed();
     context.m_cm->close_active(false);
 
     return Continue;
@@ -1567,16 +1646,18 @@ private:
 
     try
     {
-      boost::scoped_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
+      ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
 
-      if (msg.get() && !quiet)
-        std::cout << unreplace_variables(message_to_text(*msg), true) << "\n";
+      std::ostream &out = get_stream_for_results(quiet);
+
+      if (msg.get())
+        out << unreplace_variables(message_to_text(*msg), true) << "\n";
       if (!OPT_expect_error->check_ok())
         return Stop_with_failure;
     }
     catch (mysqlx::Error &e)
     {
-      if (!quiet && !OPT_expect_error->check_error(e))
+      if (!quiet && !OPT_expect_error->check_error(e)) //TODO do we need this !quiet ?
         return Stop_with_failure;
     }
     catch (std::exception &e)
@@ -1683,10 +1764,14 @@ private:
 
   Result cmd_setsession(Execution_context &context, const std::string &args)
   {
-    if (!args.empty() && (args[0] == ' ' || args[0] == '\t'))
-      context.m_cm->set_active(args.substr(1));
+    std::string s = args;
+
+    replace_variables(s);
+
+    if (!s.empty() && (s[0] == ' ' || s[0] == '\t'))
+      context.m_cm->set_active(s.substr(1));
     else
-      context.m_cm->set_active(args);
+      context.m_cm->set_active(s);
     return Continue;
   }
 
@@ -1727,11 +1812,11 @@ private:
   }
 
 
-  static boost::posix_time::ptime m_start_measure;
+  static ngs::ptime m_start_measure;
 
   Result cmd_measure(Execution_context &context, const std::string &args)
   {
-    m_start_measure = boost::posix_time::microsec_clock::local_time();
+    m_start_measure = ngs::microsec_clock::local_time();
     return Continue;
   }
 
@@ -1752,7 +1837,7 @@ private:
     }
 
     const int64_t expected_msec = atoi(argl[0].c_str());
-    const int64_t msec = (boost::posix_time::microsec_clock::local_time() - m_start_measure).total_milliseconds();
+    const int64_t msec = (ngs::microsec_clock::local_time() - m_start_measure).total_milliseconds();
 
     int64_t tolerance = expected_msec * 10 / 100;
 
@@ -1765,7 +1850,7 @@ private:
       return Stop_with_failure;
     }
 
-    m_start_measure = boost::posix_time::not_a_date_time;
+    m_start_measure = ngs::not_a_date_time;
     return Continue;
   }
 
@@ -1794,12 +1879,7 @@ private:
     std::string::size_type p = args.find(' ');
     if (p == std::string::npos)
     {
-      if (variables.find(args) == variables.end())
-      {
-        std::cerr << "Invalid variable " << args << "\n";
-        return Stop_with_failure;
-      }
-      variables.erase(args);
+      variables[args] = "";
     }
     else
     {
@@ -1828,8 +1908,12 @@ private:
 
     std::string val = variables[argl[0]];
     char* c;
+    std::string inc_by = argl[1].c_str();
+
+    replace_variables(inc_by);
+
     long int_val = strtol(val.c_str(), &c, 10);
-    long int_n = strtol(argl[1].c_str(), &c, 10);
+    long int_n = strtol(inc_by.c_str(), &c, 10);
     int_val += int_n;
     val = boost::lexical_cast<std::string>(int_val);
     variables[argl[0]] = val;
@@ -1986,10 +2070,179 @@ private:
     return Stop_with_failure;
   }
 
+  Result cmd_assert_eq(Execution_context &context, const std::string &args)
+  {
+    std::vector<std::string> vargs;
+
+    boost::split(vargs, args, boost::is_any_of("\t"), boost::token_compress_on);
+
+    if (2 != vargs.size())
+    {
+      std::cerr << "Specified invalid number of arguments for command assert_eq:" << vargs.size() << " expecting 2\n";
+      return Stop_with_failure;
+    }
+
+    replace_variables(vargs[0]);
+    replace_variables(vargs[1]);
+
+    if (vargs[0] != vargs[1])
+    {
+      std::cerr << "Expecting '" << vargs[0] << "', but received '" << vargs[1] << "'\n";
+      return Stop_with_failure;
+    }
+
+    return Continue;
+  }
+
+  Result cmd_assert_gt(Execution_context &context, const std::string &args)
+  {
+    std::vector<std::string> vargs;
+
+    boost::split(vargs, args, boost::is_any_of("\t"), boost::token_compress_on);
+
+    if (2 != vargs.size())
+    {
+      std::cerr << "Specified invalid number of arguments for command assert_gt:" << vargs.size() << " expecting 2\n";
+      return Stop_with_failure;
+    }
+
+    replace_variables(vargs[0]);
+    replace_variables(vargs[1]);
+
+    if (atoi(vargs[0].c_str()) <= atoi(vargs[1].c_str()))
+    {
+      std::cerr << "Expecting '" << vargs[0] << "' to be greater than '" << vargs[1] << "'\n";
+      return Stop_with_failure;
+    }
+
+    return Continue;
+  }
+
+  Result cmd_assert_ge(Execution_context &context, const std::string &args)
+  {
+    std::vector<std::string> vargs;
+    char *end_string = NULL;
+
+    boost::split(vargs, args, boost::is_any_of("\t"), boost::token_compress_on);
+
+    if (2 != vargs.size())
+    {
+      std::cerr << "Specified invalid number of arguments for command assert_gt:" << vargs.size() << " expecting 2\n";
+      return Stop_with_failure;
+    }
+
+    replace_variables(vargs[0]);
+    replace_variables(vargs[1]);
+
+    if (strtoll(vargs[0].c_str(), &end_string, 10) < strtoll(vargs[1].c_str(), &end_string, 10))
+    {
+      std::cerr << "Expecting '" << vargs[0] << "' to be greater or equal to '" << vargs[1] << "'\n";
+      return Stop_with_failure;
+    }
+
+    return Continue;
+  }
+
+  Result cmd_query(Execution_context &context, const std::string &args)
+  {
+    OPT_query = true;
+    return Continue;
+  }
+
+  Result cmd_noquery(Execution_context &context, const std::string &args)
+  {
+    OPT_query = false;
+    return Continue;
+  }
+
+  static void put_variable_to(std::string &result, const std::string &value)
+  {
+    result = value;
+  }
+
+  static void try_result(Result result)
+  {
+    if (result != Continue)
+      throw result;
+  }
+
+  template <typename T>
+  class Backup_and_restore
+  {
+  public:
+    Backup_and_restore(T &variable, const T &temporaru_value)
+    : m_variable(variable), m_value(variable)
+    {
+      m_variable = temporaru_value;
+    }
+
+    ~Backup_and_restore()
+    {
+      m_variable = m_value;
+    }
+
+  private:
+    T &m_variable;
+    T m_value;
+  };
+
+  Result cmd_wait_for(Execution_context &context, const std::string &args)
+  {
+    bool match = false;
+    const int countdown_start_value = 30;
+    int  countdown_retries = countdown_start_value;
+
+    std::string args_variables_replaced = args;
+    std::vector<std::string> vargs;
+
+    replace_variables(args_variables_replaced);
+    boost::split(vargs, args_variables_replaced, boost::is_any_of("\t"), boost::token_compress_on);
+
+    if (2 != vargs.size())
+    {
+      std::cerr << "Specified invalid number of arguments for command wait_for:" << vargs.size() << " expecting 2\n";
+      return Stop_with_failure;
+    }
+
+    const std::string &expected_value = vargs[0];
+    std::string value;
+
+    try
+    {
+      do
+      {
+        Backup_and_restore<bool>        backup_and_restore_fatal_errors(OPT_fatal_errors, true);
+        Backup_and_restore<bool>        backup_and_restore_query(OPT_query, false);
+        Backup_and_restore<std::string> backup_and_restore_command_name(context.m_command_name, "sql");
+
+        try_result(cmd_stmtsql(context, vargs[1]));
+        try_result(cmd_recvresult(context, "", ngs::bind(&Command::put_variable_to, ngs::ref(value), ngs::placeholders::_1)));
+        try_result(cmd_sleep(context,"1"));
+
+        match = (value == expected_value);
+      }
+      while(!match && --countdown_retries);
+    }
+    catch(const Result result)
+    {
+      std::cerr << "'Wait_for' failed because one of subsequent commands failed\n";
+      return  result;
+    }
+
+    if (!match)
+    {
+      std::cerr << "Query didn't return expected value, tried " << countdown_start_value << " times\n";
+      std::cerr << "Expected '" << expected_value << "', received '" << value << "'\n";
+      return Stop_with_failure;
+    }
+
+    return Continue;
+  }
+
   Result cmd_import(Execution_context &context, const std::string &args);
 };
 
-boost::posix_time::ptime Command::m_start_measure = boost::posix_time::not_a_date_time;
+ngs::ptime Command::m_start_measure = ngs::not_a_date_time;
 
 static int process_client_message(mysqlx::XProtocol *connection, int8_t msg_id, const mysqlx::Message &msg)
 {
@@ -2031,7 +2284,7 @@ std::string get_object_value(const T &value)
   return result.str();
 }
 
-std::string get_field_value(boost::shared_ptr<mysqlx::Row> &row, const int field, boost::shared_ptr<std::vector<mysqlx::ColumnMetadata> > &meta)
+std::string get_field_value(ngs::shared_ptr<mysqlx::Row> &row, const int field, ngs::shared_ptr<std::vector<mysqlx::ColumnMetadata> > &meta)
 {
   if (row->isNullField(field))
   {
@@ -2211,10 +2464,12 @@ static void print_columndata(const std::vector<mysqlx::ColumnMetadata> &meta)
 static void print_result_set(mysqlx::Result &result, const std::vector<std::string> &columns,
                              Value_callback value_callback, bool quiet)
 {
-  boost::shared_ptr<std::vector<mysqlx::ColumnMetadata> > meta(result.columnMetadata());
+  ngs::shared_ptr<std::vector<mysqlx::ColumnMetadata> > meta(result.columnMetadata());
   std::vector<int> column_indexes;
   int column_index = -1;
   bool first = true;
+
+  std::ostream &out = get_stream_for_results(quiet);
 
   for (std::vector<mysqlx::ColumnMetadata>::const_iterator col = meta->begin();
       col != meta->end(); ++col)
@@ -2222,9 +2477,7 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
     ++column_index;
 
     if (!first)
-    {
-      if (!quiet) std::cout << "\t";
-    }
+      out << "\t";
     else
       first = false;
 
@@ -2232,13 +2485,13 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
       continue;
 
     column_indexes.push_back(column_index);
-    if (!quiet) std::cout << col->name;
+    out << col->name;
   }
-  if (!quiet) std::cout << "\n";
+  out << "\n";
 
   for (;;)
   {
-    boost::shared_ptr<mysqlx::Row> row(result.next());
+    ngs::shared_ptr<mysqlx::Row> row(result.next());
     if (!row.get())
       break;
 
@@ -2247,18 +2500,18 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
     {
       int field = (*i);
       if (field != 0)
-        if (!quiet) std::cout << "\t";
+        out << "\t";
 
       std::string result = get_field_value(row, field, meta);
 
       if (value_callback)
       {
         value_callback(result);
-        value_callback.clear();
+        Value_callback().swap(value_callback);
       }
-      if (!quiet) std::cout << result;
+      out << result;
     }
-    if (!quiet) std::cout << "\n";
+    out << "\n";
   }
 }
 
@@ -2280,7 +2533,7 @@ static int run_sql_batch(mysqlx::XProtocol *conn, const std::string &sql_)
     {
       if (!OPT_quiet)
         std::cout << "RUN " << sql.substr(st->first, st->second) << "\n";
-      boost::shared_ptr<mysqlx::Result> result(conn->execute_sql(sql.substr(st->first, st->second)));
+      ngs::shared_ptr<mysqlx::Result> result(conn->execute_sql(sql.substr(st->first, st->second)));
       if (result.get())
       {
         do
@@ -2340,7 +2593,7 @@ public:
   virtual bool feed_ended_is_state_ok() { return true; }
 };
 
-typedef boost::shared_ptr<Block_processor> Block_processor_ptr;
+typedef ngs::shared_ptr<Block_processor> Block_processor_ptr;
 
 class Sql_block_processor : public Block_processor
 {
@@ -2473,7 +2726,7 @@ public:
 
 private:
   Connection_manager *m_cm;
-  boost::shared_ptr<Macro> m_macro;
+  ngs::shared_ptr<Macro> m_macro;
   std::string m_rawbuffer;
 };
 
@@ -2539,7 +2792,7 @@ public:
         std::string processed_buffer = m_buffer;
         replace_variables(processed_buffer);
 
-        boost::scoped_ptr<mysqlx::Message> msg(text_to_client_message(m_full_name, processed_buffer, msg_id));
+        ngs::unique_ptr<mysqlx::Message> msg(text_to_client_message(m_full_name, processed_buffer, msg_id));
 
         m_full_name.clear();
         if (!msg.get())
@@ -2724,15 +2977,14 @@ public:
   bool        dont_wait_for_server_disconnect;
   bool        use_plain_auth;
 
-  int port;
+  mysqlx::Internet_protocol ip_mode;
   int timeout;
-  std::string socket;
-  std::string host;
+  Connection_options connection;
+
   std::string uri;
-  std::string password;
-  std::string schema;
   mysqlx::Ssl_config ssl;
   bool        daemon;
+  std::string sql;
 
   void print_version()
   {
@@ -2745,19 +2997,27 @@ public:
     std::cout << "mysqlxtest <options>\n";
     std::cout << "Options:\n";
     std::cout << "-f, --file=<file>     Reads input from file\n";
+    std::cout << "--sql=<SQL>           Use SQL as input and execute it like in -->sql block\n";
     std::cout << "-n, --no-auth         Skip authentication which is required by -->sql block (run mode)\n";
     std::cout << "--plain-auth          Use PLAIN text authentication mechanism\n";
     std::cout << "-u, --user=<user>a    Connection user\n";
     std::cout << "-p, --password=<pass> Connection password\n";
     std::cout << "-h, --host=<host>     Connection host\n";
-    std::cout << "-P, --port=<port>     Connection port\n";
+    std::cout << "-P, --port=<port>     Connection port (default:" << MYSQLX_TCP_PORT << ")\n";
+    std::cout << "--ipv=<mode>          Force internet protocol (default:4):\n";
+    std::cout << "                      0 - allow system to resolve IPv6 and IPv4, for example";
+    std::cout << "                          resolving of 'localhost' can return both '::1' and '127.0.0.1'";
+    std::cout << "                      4 - allow system to resolve only IPv4, for example\n";
+    std::cout << "                          resolving of 'localhost' is going to return '127.0.0.1'";
+    std::cout << "                      6 - allow system to resolve only IPv6, for example\n";
+    std::cout << "                          resolving of 'localhost' is going to return '::1'";
     std::cout << "-t, --timeout=<ms>    Connection timeout\n";
     std::cout << "--close-no-sync       Do not wait for connection to be closed by server(disconnect first)\n";
     std::cout << "--schema=<schema>     Default schema to connect to\n";
     std::cout << "--uri=<uri>           Connection URI\n";
     std::cout << "                      URI takes precedence before options like: user, host, password, port\n";
-    std::cout << "--socket=<file>       Connection through UNIX socket or Named Pipe\n";
-    std::cout << "--use-socket          Connection through UNIX socket or Named Pipe using default file name\n";
+    std::cout << "--socket=<file>       Connection through UNIX socket\n";
+    std::cout << "--use-socket          Connection through UNIX socket, using default file name '" << MYSQLX_UNIX_ADDR << "'\n";
     std::cout << "                      --use-socket* options take precedence before options like: uri, user,\n";
     std::cout << "                      host, password, port\n";
     std::cout << "--ssl-key             X509 key in PEM format\n";
@@ -2805,17 +3065,19 @@ public:
     std::cout << "  Encodes the text format protobuf message and sends it to the server (allows variables).\n";
     std::cout << "-->recv [quiet]\n";
     std::cout << "  Read and print (if not quiet) one message from the server\n";
-    std::cout << "-->recvresult [print-columnsinfo] [be-quiet]\n";
+    std::cout << "-->recvresult [print-columnsinfo] [" << CMD_ARG_BE_QUIET << "]\n";
     std::cout << "  Read and print one resultset from the server; if print-columnsinfo is present also print short columns status\n";
-    std::cout << "-->recvtovar <varname>\n";
-    std::cout << "  Read and print one resultset from the server and sets the variable from first row\n";
+    std::cout << "-->recvtovar <varname> [COLUMN_NAME]\n";
+    std::cout << "  Read first row and first column (or column with name COLUMN_NAME) of resultset\n";
+    std::cout << "  and set the variable <varname>\n";
     std::cout << "-->recverror <errno>\n";
     std::cout << "  Read a message and ensure that it's an error of the expected type\n";
     std::cout << "-->recvtype <msgtype>\n";
     std::cout << "  Read one message and print it, checking that its type is the specified one\n";
-    std::cout << "-->recvuntil <msgtype>\n";
+    std::cout << "-->recvuntil <msgtype> [do_not_show_intermediate]\n";
     std::cout << "  Read messages and print them, until a msg of the specified type (or Error) is received\n";
-    std::cout << "-->repeat <N>\n";
+    std::cout << "  do_not_show_intermediate - if this argument is present then printing of intermediate message should be omitted\n";
+    std::cout << "-->repeat <N> [<VARIABLE_NAME>]\n";
     std::cout << "  Begin block of instructions that should be repeated N times\n";
     std::cout << "-->endrepeat\n";
     std::cout << "  End block of instructions that should be repeated - next iteration\n";
@@ -2852,6 +3114,14 @@ public:
     std::cout << "  Activate the named session\n";
     std::cout << "-->closesession [abort]\n";
     std::cout << "  Close the active session (unless its the default session)\n";
+    std::cout << "-->wait_for <VALUE_EXPECTED>\t<SQL QUERY>\n";
+    std::cout << "   Wait until SQL query returns value matches expected value (time limit 30 second)\n";
+    std::cout << "-->assert_eq <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
+    std::cout << "   Ensure that 'TESTED' value equals 'EXPECTED' by comparing strings lexicographically\n";
+    std::cout << "-->assert_gt <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
+    std::cout << "   Ensure that 'TESTED' value is greater than 'EXPECTED' (only when the both are numeric values)\n";
+    std::cout << "-->assert_ge <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
+    std::cout << "   Ensure that 'TESTED' value is greater  or equal to 'EXPECTED' (only when the both are numeric values)\n";
     std::cout << "-->varfile <varname> <datafile>\n";
     std::cout << "   Assigns the contents of the file to the named variable\n";
     std::cout << "-->varlet <varname> <value>\n";
@@ -2870,6 +3140,8 @@ public:
     std::cout << "   Dump given message to variable %MESSAGE_DUMP%\n";
     std::cout << "-->quiet/noquiet\n";
     std::cout << "   Toggle verbose messages\n";
+    std::cout << "-->query_result/noquery_result\n";
+    std::cout << "   Toggle visibility for query results\n";
     std::cout << "# comment\n";
   }
 
@@ -2895,7 +3167,7 @@ public:
   My_command_line_options(int argc, char **argv)
   : Command_line_options(argc, argv), run_mode(RunTest), has_file(false),
     cap_expired_password(false), dont_wait_for_server_disconnect(false),
-    use_plain_auth(false), port(0), timeout(0l), daemon(false)
+    use_plain_auth(false), ip_mode(mysqlx::IPv4), timeout(0l), daemon(false)
   {
     std::string user;
 
@@ -2921,8 +3193,12 @@ public:
       {
         use_plain_auth = true;
       }
+      else if (check_arg_with_value(argv, i, "--sql", NULL, value))
+      {
+        sql = value;
+      }
       else if (check_arg_with_value(argv, i, "--password", "-p", value))
-        password = value;
+        connection.password = value;
       else if (check_arg_with_value(argv, i, "--ssl-key", NULL, value))
         ssl.key = value;
       else if (check_arg_with_value(argv, i, "--ssl-ca", NULL, value))
@@ -2936,27 +3212,31 @@ public:
       else if (check_arg_with_value(argv, i, "--tls-version", NULL, value))
         ssl.tls_version = value;
       else if (check_arg_with_value(argv, i, "--host", "-h", value))
-        host = value;
+        connection.host = value;
       else if (check_arg_with_value(argv, i, "--user", "-u", value))
-        user = value;
+        connection.user = value;
       else if (check_arg_with_value(argv, i, "--uri", NULL, value))
         uri = value;
       else if (check_arg_with_value(argv, i, "--schema", NULL, value))
-        schema = value;
+        connection.schema = value;
       else if (check_arg_with_value(argv, i, "--port", "-P", value))
-        port = atoi(value);
+        connection.port = atoi(value);
+      else if (check_arg_with_value(argv, i, "--ipv", NULL, value))
+      {
+        ip_mode = set_protocol(atoi(value));
+      }
       else if (check_arg_with_value(argv, i, "--timeout", "-t", value))
         timeout = atoi(value);
       else if (check_arg_with_value(argv, i, "--fatal-errors", NULL, value))
         OPT_fatal_errors = atoi(value);
       else if (check_arg_with_value(argv, i, "--password", "-p", value))
-        password = value;
+        connection.password = value;
       else if (check_arg_with_value(argv, i, "--socket", "-S", value))
-        socket = value;
+        connection.socket = value;
       else if (check_arg_with_value(argv, i, NULL, "-v", value))
         set_variable_option(value);
       else if (check_arg(argv, i, "--use-socket", NULL))
-        socket = get_socket_name();
+        connection.socket = get_socket_name();
       else if (check_arg(argv, i, "--close-no-sync", NULL))
         dont_wait_for_server_disconnect = true;
       else if (check_arg(argv, i, "--bindump", "-B"))
@@ -2996,29 +3276,10 @@ public:
       }
     }
 
-    if (port == 0)
-      port = MYSQLX_TCP_PORT;
-    if (host.empty())
-      host = "localhost";
-
-    if (uri.empty())
-    {
-      uri = user;
-      if (!uri.empty()) {
-        if (!password.empty()) {
-          uri.append(":").append(password);
-        }
-        uri.append("@");
-      }
-      uri.append(host);
-      {
-        char buf[10];
-        my_snprintf(buf, sizeof(buf), ":%i", port);
-        uri.append(buf);
-      }
-      if (!schema.empty())
-        uri.append("/").append(schema);
-    }
+    if (connection.port == 0)
+      connection.port = MYSQLX_TCP_PORT;
+    if (connection.host.empty())
+      connection.host = "localhost";
   }
 
   void set_variable_option(const std::string &set_expression)
@@ -3036,16 +3297,36 @@ public:
 
     variables[args[0]] = args[1];
   }
+
+  mysqlx::Internet_protocol set_protocol(const int ip_mode)
+  {
+    switch(ip_mode)
+    {
+    case 0:
+      return mysqlx::IP_any;
+
+    case 4:
+      return mysqlx::IPv4;
+
+    case 6:
+      return mysqlx::IPv6;
+
+    default:
+      std::cerr << "Wrong Internet protocol version\n";
+      exit_code = 1;
+      return mysqlx::IP_any;
+    }
+  }
 };
 
 static std::vector<Block_processor_ptr> create_macro_block_processors(Connection_manager *cm)
 {
   std::vector<Block_processor_ptr> result;
 
-  result.push_back(boost::make_shared<Sql_block_processor>(cm));
-  result.push_back(boost::make_shared<Dump_message_block_processor>(cm));
-  result.push_back(boost::make_shared<Single_command_processor>(cm));
-  result.push_back(boost::make_shared<Snd_message_block_processor>(cm));
+  result.push_back(ngs::make_shared<Sql_block_processor>(cm));
+  result.push_back(ngs::make_shared<Dump_message_block_processor>(cm));
+  result.push_back(ngs::make_shared<Single_command_processor>(cm));
+  result.push_back(ngs::make_shared<Snd_message_block_processor>(cm));
 
   return result;
 }
@@ -3054,18 +3335,18 @@ static std::vector<Block_processor_ptr> create_block_processors(Connection_manag
 {
   std::vector<Block_processor_ptr> result;
 
-  result.push_back(boost::make_shared<Sql_block_processor>(cm));
-  result.push_back(boost::make_shared<Macro_block_processor>(cm));
-  result.push_back(boost::make_shared<Dump_message_block_processor>(cm));
-  result.push_back(boost::make_shared<Single_command_processor>(cm));
-  result.push_back(boost::make_shared<Snd_message_block_processor>(cm));
+  result.push_back(ngs::make_shared<Sql_block_processor>(cm));
+  result.push_back(ngs::make_shared<Macro_block_processor>(cm));
+  result.push_back(ngs::make_shared<Dump_message_block_processor>(cm));
+  result.push_back(ngs::make_shared<Single_command_processor>(cm));
+  result.push_back(ngs::make_shared<Snd_message_block_processor>(cm));
 
   return result;
 }
 
 static int process_client_input_on_session(const My_command_line_options &options, std::istream &input)
 {
-  Connection_manager cm(options.uri, options.ssl, options.timeout, options.dont_wait_for_server_disconnect, options.socket);
+  Connection_manager cm(options.uri, options.connection, options.ssl, options.timeout, options.dont_wait_for_server_disconnect, options.ip_mode);
   int r = 1;
 
   try
@@ -3094,7 +3375,7 @@ static int process_client_input_on_session(const My_command_line_options &option
 
 static int process_client_input_no_auth(const My_command_line_options &options, std::istream &input)
 {
-  Connection_manager cm(options.uri, options.ssl, options.timeout, options.dont_wait_for_server_disconnect, options.socket);
+  Connection_manager cm(options.uri, options.connection, options.ssl, options.timeout, options.dont_wait_for_server_disconnect, options.ip_mode);
   int r = 1;
 
   try
@@ -3285,7 +3566,7 @@ Command::Result Command::cmd_import(Execution_context &context, const std::strin
   script_stack.push_front(frame);
 
   std::vector<Block_processor_ptr> processors;
-  processors.push_back(boost::make_shared<Macro_block_processor>(context.m_cm));
+  processors.push_back(ngs::make_shared<Macro_block_processor>(context.m_cm));
   bool r = process_client_input(fs, processors) == 0;
   script_stack.pop_front();
 
@@ -3294,11 +3575,18 @@ Command::Result Command::cmd_import(Execution_context &context, const std::strin
 
 typedef int (*Program_mode)(const My_command_line_options &, std::istream &input);
 
-static std::istream &get_input(My_command_line_options &opt, std::ifstream &file)
+static std::istream &get_input(My_command_line_options &opt, std::ifstream &file, std::stringstream &string)
 {
   if (opt.has_file)
   {
+    if (!opt.sql.empty())
+    {
+      std::cerr << "ERROR: specified file and sql to execute, please enter only one of those\n";
+      opt.exit_code = 1;
+    }
+
     file.open(opt.run_file.c_str());
+    file.rdbuf()->pubsetbuf(NULL, 0);
 
     if (!file.is_open())
     {
@@ -3307,6 +3595,18 @@ static std::istream &get_input(My_command_line_options &opt, std::ifstream &file
     }
 
     return file;
+  }
+
+  if (!opt.sql.empty())
+  {
+    std::streampos position = string.tellp();
+
+    string << "-->sql\n";
+    string << opt.sql << "\n";
+    string << "-->endsql\n";
+    string.seekp(position, std::ios::beg);
+
+    return string;
   }
 
   return std::cin;
@@ -3368,7 +3668,8 @@ int main(int argc, char **argv)
 
   std::cout << std::unitbuf;
   std::ifstream fs;
-  std::istream &input = get_input(options, fs);
+  std::stringstream ss;
+  std::istream &input = get_input(options, fs, ss);
   Program_mode  mode  = get_mode_function(options);
 
 #ifdef WIN32

@@ -14,12 +14,22 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_alter_instance.h"         /* Alter_instance class */
-#include "sql_class.h"                  /* THD */
-#include "my_sys.h"                     /* my_error */
-#include "auth_common.h"                /* check_global_access */
-#include "handler.h"                    /* ha_resolve_by_legacy_type */
-#include "sql_table.h"                  /* write_to_binlog */
+
+#include "auth_acls.h"
 #include "derror.h"                     /* ER_THD */
+#include "handler.h"                    /* ha_resolve_by_legacy_type */
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"                     /* my_error */
+#include "mysqld_error.h"
+#include "sql_class.h"                  /* THD */
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_table.h"                  /* write_to_binlog */
 
 /*
   @brief

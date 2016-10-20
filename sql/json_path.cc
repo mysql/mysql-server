@@ -23,33 +23,38 @@
 
 #include "json_path.h"
 
+#include <algorithm>                            // any_of
+#include <memory>                               // unique_ptr
+#include <string>
+
 #include "json_dom.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_global.h"
 #include "psi_memory_key.h"           // key_memory_JSON
-#include "rapidjson/rapidjson.h"      // rapidjson::UTF8<char>::Decode
+#include "rapidjson/encodings.h"
 #include "rapidjson/memorystream.h"   // rapidjson::MemoryStream
 #include "sql_const.h"                // STRING_BUFFER_USUAL_SIZE
 #include "sql_string.h"               // String
 #include "template_utils.h"           // down_cast
 
-#include <m_ctype.h>
-
-#include <algorithm>                            // any_of
-#include <cwctype>
-#include <memory>                               // unique_ptr
-#include <string>
-
 // For use in Json_path::parse_path
 #define PARSER_RETURN(retval) { *status= retval; return charptr; }
-#define SCOPE '$'
-#define BEGIN_MEMBER '.'
-#define BEGIN_ARRAY '['
-#define END_ARRAY ']'
-#define DOUBLE_QUOTE '\"'
-#define WILDCARD '*'
-#define PRINTABLE_SPACE ' '
 
-bool is_ecmascript_identifier(const char *name, size_t name_length);
-bool is_digit(unsigned codepoint);
+namespace
+{
+
+constexpr char SCOPE=           '$';
+constexpr char BEGIN_MEMBER=    '.';
+constexpr char BEGIN_ARRAY=     '[';
+constexpr char END_ARRAY=       ']';
+constexpr char DOUBLE_QUOTE=    '"';
+constexpr char WILDCARD=        '*';
+
+} // namespace
+
+static bool is_ecmascript_identifier(const char *name, size_t name_length);
+static bool is_digit(unsigned codepoint);
 
 // Json_path_leg
 
@@ -141,7 +146,7 @@ bool Json_path_clone::set(Json_seekable_path *source)
   size_t legcount= source->leg_count();
   for (size_t idx= 0; idx < legcount; idx++)
   {
-    Json_path_leg *path_leg= (Json_path_leg *) source->get_leg_at(idx);
+    const Json_path_leg *path_leg= source->get_leg_at(idx);
     if (append(path_leg))
     {
       return true;
@@ -296,9 +301,10 @@ bool parse_path(const bool begins_with_column_id, const size_t path_length,
 */
 static inline const char *purge_whitespace(const char *str, const char *end)
 {
-  while (str < end && my_isspace(&my_charset_utf8mb4_bin, *str))
-    ++str;
-  return str;
+  const auto is_space= [] (char c) {
+    return my_isspace(&my_charset_utf8mb4_bin, c);
+  };
+  return std::find_if_not(str, end, is_space);
 }
 
 
@@ -433,10 +439,7 @@ const char *Json_path::parse_array_leg(const char *charptr,
     // Not a WILDCARD. Must be an array index.
     const char *number_start= charptr;
 
-    while ((charptr < endptr) && is_digit(*charptr))
-    {
-      charptr++;
-    }
+    charptr= std::find_if_not(charptr, endptr, is_digit);
     if (charptr == number_start)
     {
       PARSER_RETURN(false);
@@ -520,16 +523,13 @@ static const char *find_end_of_member_name(const char *start, const char *end)
     If we have an unquoted name, the name is terminated by whitespace
     or [ or . or * or end-of-string.
   */
-  while (str < end &&
-         !my_isspace(&my_charset_utf8mb4_bin, *str) &&
-         *str != BEGIN_ARRAY &&
-         *str != BEGIN_MEMBER &&
-         *str != WILDCARD)
-  {
-    str++;
-  }
-
-  return str;
+  const auto is_terminator= [] (const char c) {
+    return my_isspace(&my_charset_utf8mb4_bin, c) ||
+           c == BEGIN_ARRAY ||
+           c == BEGIN_MEMBER ||
+           c == WILDCARD;
+  };
+  return std::find_if(str, end, is_terminator);
 }
 
 
@@ -635,7 +635,7 @@ const char *Json_path::parse_member_leg(const char *charptr,
 
    @return True if the codepoint is a unicode combining mark.
 */
-inline bool unicode_combining_mark(unsigned codepoint)
+static inline bool unicode_combining_mark(unsigned codepoint)
 {
   return ((0x300 <= codepoint) && (codepoint <= 0x36F));
 }
@@ -671,7 +671,7 @@ static bool is_letter(unsigned codepoint)
    This was the best
    recommendation from the old-times about how to answer this question.
 */
-bool is_digit(unsigned codepoint)
+static bool is_digit(unsigned codepoint)
 {
   return my_isdigit(&my_charset_utf8mb4_bin, codepoint);
 }
@@ -717,7 +717,7 @@ static bool is_connector_punctuation(unsigned codepoint)
 
    @return True if the name is a valid ECMAScript identifier. False otherwise.
 */
-bool is_ecmascript_identifier(const char *name, size_t name_length)
+static bool is_ecmascript_identifier(const char *name, size_t name_length)
 {
   // An empty string is not a valid identifier.
   if (name_length == 0)

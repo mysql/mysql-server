@@ -74,9 +74,9 @@ enum dd_index_keys {
 extern const char* const	dd_index_key_strings[DD_INDEX__LAST];
 
 /** dd::Partition::options() key for INDEX DIRECTORY */
-static const std::string	index_file_name_key("index_file_name");
+static const dd::String_type	index_file_name_key("index_file_name");
 /** dd::Partition::options() key for DATA DIRECTORY */
-static const std::string	data_file_name_key("data_file_name");
+static const dd::String_type	data_file_name_key("data_file_name");
 
 /** Set the AUTO_INCREMENT attribute.
 @param[in,out]	se_private_data	dd::Table::se_private_data

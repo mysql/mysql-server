@@ -166,7 +166,7 @@ table_session_status::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_session_status::index_init(uint idx, bool sorted)
+int table_session_status::index_init(uint idx, bool)
 {
  /* Build a cache of all status variables for this thread. */
   m_status_cache.materialize_all(current_thd);
@@ -219,7 +219,7 @@ void table_session_status
 {
   m_row_exists= false;
   m_row.m_variable_name.make_row(status_var->m_name, status_var->m_name_length);
-  m_row.m_variable_value.make_row(status_var->m_value_str, status_var->m_value_length);
+  m_row.m_variable_value.make_row(status_var);
   m_row_exists= true;
 }
 
@@ -248,7 +248,7 @@ int table_session_status
         set_field_varchar_utf8(f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
         break;
       case 1: /* VARIABLE_VALUE */
-        set_field_varchar_utf8(f, m_row.m_variable_value.m_str, m_row.m_variable_value.m_length);
+        m_row.m_variable_value.set_field(f);
         break;
       default:
         DBUG_ASSERT(false);

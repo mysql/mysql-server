@@ -329,22 +329,59 @@ TODO list:
 
 #include "sql_cache.h"
 
-#include "myisammrg.h"        // MYRG_INFO
+#include <errno.h>
+#include <limits.h>
+#include <string.h>
+#include <time.h>
+#include <algorithm>
 
+#include "../storage/myisam/myisamdef.h"       // st_myisam_info
+#include "../storage/myisammrg/ha_myisammrg.h" // ha_myisammrg
+#include "auth_acls.h"
 #include "auth_common.h"      // check_table_access
 #include "current_thd.h"      // current_thd
 #include "debug_sync.h"       // DEBUG_SYNC
+#include "handler.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "myisammrg.h"        // MYRG_INFO
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"           // key_structure_guard_mutex
 #include "opt_trace.h"        // Opt_trace_stmt
-#include "probes_mysql.h"     // MYSQL_QUERY_CACHE_HIT
+#include "probes_mysql.h"
+#include "protocol.h"
+#include "protocol_classic.h"
 #include "psi_memory_key.h"   // key_memory_queue_item
+#include "query_options.h"
+#include "session_tracker.h"
+#include "set_var.h"
 #include "sql_base.h"         // get_table_def_key
 #include "sql_class.h"        // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
 #include "sql_table.h"        // build_table_filename
+#include "system_variables.h"
+#include "table.h"
+#include "thr_lock.h"
+#include "thr_mutex.h"
 #include "transaction.h"      // trans_rollback_stmt
+#include "transaction_info.h"
+#include "xa.h"
 
-#include "../storage/myisammrg/ha_myisammrg.h" // ha_myisammrg
-#include "../storage/myisam/myisamdef.h"       // st_myisam_info
+class MY_LOCALE;
+class Time_zone;
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"

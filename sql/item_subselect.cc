@@ -23,21 +23,61 @@
 
 #include "item_subselect.h"
 
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+#include <utility>
+
+#include "check_stack.h"
 #include "current_thd.h"         // current_thd
 #include "debug_sync.h"          // DEBUG_SYNC
+#include "decimal.h"
 #include "derror.h"              // ER_THD
+#include "field.h"
+#include "handler.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
 #include "item_sum.h"            // Item_sum_max
+#include "key.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_config.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
 #include "mysqld.h"              // in_left_expr_name
+#include "mysqld_error.h"
+#include "opt_explain_format.h"
 #include "opt_trace.h"           // OPT_TRACE_TRANSFORM
+#include "opt_trace_context.h"
 #include "parse_tree_nodes.h"    // PT_subquery
+#include "query_options.h"
+#include "query_result.h"
+#include "records.h"
 #include "sql_class.h"           // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_executor.h"
 #include "sql_join_buffer.h"     // JOIN_CACHE
 #include "sql_lex.h"             // SELECT_LEX
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"       // JOIN
-#include "sql_parse.h"           // check_stack_overrun
+#include "sql_plugin_ref.h"
+#include "sql_select.h"
+#include "sql_string.h"
 #include "sql_test.h"            // print_where
 #include "sql_tmp_table.h"       // free_tmp_table
 #include "sql_union.h"           // Query_result_union
+#include "system_variables.h"
+#include "table.h"
+#include "temp_table_param.h"
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
+
+class Json_wrapper;
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), traced_before(false),
@@ -232,7 +272,11 @@ bool Item_in_subselect::finalize_exists_transform(SELECT_LEX *select_lex)
   if (!(unit->global_parameters()->select_limit= new Item_int(1)))
     return true;
 
-  unit->set_limit(unit->global_parameters());
+  if (unit->prepare_limit(unit->thd, unit->global_parameters()))
+    return true;                 /* purecov: inspected */
+
+  if (unit->set_limit(unit->thd, unit->global_parameters()))
+    return true;                 /* purecov: inspected */
 
   select_lex->join->allow_outer_refs= true;   // for JOIN::set_prefix_tables()
   exec_method= EXEC_EXISTS;
@@ -877,7 +921,7 @@ Item_singlerow_subselect::invalidate_and_restore_select_lex()
 }
 
 /* used in independent ALL/ANY optimisation */
-class Query_result_max_min_subquery :public Query_result_subquery
+class Query_result_max_min_subquery final : public Query_result_subquery
 {
   Item_cache *cache;
   bool (Query_result_max_min_subquery::*op)();
@@ -894,8 +938,8 @@ public:
     :Query_result_subquery(thd, item_arg), cache(0), fmax(mx),
      ignore_nulls(ignore_nulls)
   {}
-  void cleanup();
-  bool send_data(List<Item> &items);
+  void cleanup() override;
+  bool send_data(List<Item> &items) override;
 private:
   bool cmp_real();
   bool cmp_int();
@@ -1517,6 +1561,7 @@ bool Item_exists_subselect::resolve_type(THD *thd)
    max_columns= engine->cols();
    if (exec_method == EXEC_EXISTS)
    {
+     Prepared_stmt_arena_holder ps_arena_holder(unit->thd);
      /*
        We need only 1 row to determine existence.
        Note that if the subquery is "SELECT1 UNION SELECT2" then this is not
@@ -2956,17 +3001,23 @@ bool subselect_single_select_engine::prepare()
 {
   if (item->unit->is_prepared())
     return false;
-  THD * const thd= item->unit->thd;
+
+  SELECT_LEX_UNIT *const unit= item->unit;
+  THD * const thd= unit->thd;
 
   DBUG_ASSERT(result);
 
   select_lex->set_query_result(result);
   select_lex->make_active_options(SELECT_NO_UNLOCK, 0);
 
-  item->unit->set_prepared();
+  if (unit->prepare_limit(thd, unit->global_parameters()))
+    return true;                 /* purecov: inspected */
+
   SELECT_LEX *save_select= thd->lex->current_select();
   thd->lex->set_current_select(select_lex);
   const bool ret= select_lex->prepare(thd);
+  if (!ret)
+    unit->set_prepared();
   thd->lex->set_current_select(save_select);
   return ret;
 }
@@ -3115,6 +3166,10 @@ bool subselect_single_select_engine::exec()
     item->reset_value_registration();
     QEP_TAB *changed_tabs[MAX_TABLES];
     QEP_TAB **last_changed_tab= changed_tabs;
+
+    if (unit->set_limit(thd, unit->global_parameters()))
+      DBUG_RETURN(true);                 /* purecov: inspected */
+
     if (item->have_guarded_conds())
     {
       /*

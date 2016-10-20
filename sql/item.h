@@ -16,16 +16,54 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "field.h"       // Derivation
-#include "my_decimal.h"  // my_decimal
-#include "parse_tree_node_base.h" // Parse_tree_node
-#include "sql_array.h"   // Bounds_checked_array
-#include "trigger_def.h" // enum_trigger_variable_type
-#include "table_trigger_field_support.h" // Table_trigger_field_support
-#include "mysql/service_parser.h"
+#include <float.h>
+#include <limits.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <new>
 
-class user_var_entry;
+#include "binary_log_types.h"
+#include "enum_query_type.h"
+#include "field.h"       // Derivation
+#include "handler.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"  // my_decimal
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "parse_tree_node_base.h" // Parse_tree_node
+#include "sql_alloc.h"
+#include "sql_array.h"   // Bounds_checked_array
+#include "sql_const.h"
+#include "sql_plugin_ref.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "table_trigger_field_support.h" // Table_trigger_field_support
+#include "template_utils.h"
+#include "thr_malloc.h"
+#include "trigger_def.h" // enum_trigger_variable_type
+#include "typelib.h"
+
+class Item;
+class Item_field;
 class Json_wrapper;
+class Protocol;
+class SELECT_LEX;
+class Security_context;
+class THD;
+class user_var_entry;
+template <class T> class List;
+template <class T> class List_iterator;
+template <typename T> class SQL_I_List;
 
 typedef Bounds_checked_array<Item*> Ref_item_array;
 
@@ -1559,12 +1597,50 @@ public:
     return (this->*processor)(arg);
   }
 
+  /**
+    Perform a generic transformation of the Item tree, by adding zero or
+    more additional Item objects to it.
+
+    @param transformer  Transformer function
+    @param[in,out] arg  Pointer to struct used by transformer function
+
+    @returns Returned item tree after transformation, NULL if error
+
+    @details
+
+    Transformation is performed as follows:
+
+    transform()
+    {
+      transform children if any;
+      return this->*some_transformer(...);
+    }
+
+    Note that unlike Item::compile(), transform() does not support an analyzer
+    function, ie. all children are unconditionally invoked.
+
+    @todo Let compile() handle all transformations during optimization, and
+          let transform() handle transformations during preparation only.
+          Then there would be no need to call change_item_tree() during
+          transformation.
+  */
   virtual Item* transform(Item_transformer transformer, uchar *arg);
 
-  /*
-    This function performs a generic "compilation" of the Item tree.
-    The process of compilation is assumed to go as follows: 
-    
+  /**
+    Perform a generic "compilation" of the Item tree, ie transform the Item tree
+    by adding zero or more Item objects to it.
+
+    @param analyzer      Analyzer function, see details section
+    @param[in,out] arg_p Pointer to struct used by analyzer function
+    @param transformer   Transformer function, see details section
+    @param[in,out] arg_t Pointer to struct used by transformer function
+
+    @returns Returned item tree after transformation, NULL if error
+
+    @details
+
+    The process of this transformation is assumed to be as follows:
+
     compile()
     { 
       if (this->*some_analyzer(...))
@@ -1580,6 +1656,12 @@ public:
     bottom-up. If no transformation is applied, the item is returned unchanged.
     A transformation error is indicated by returning a NULL pointer. Notice
     that the analyzer function should never cause an error.
+
+    The function is supposed to be used during the optimization stage of
+    query execution. All new allocations are recorded using
+    THD::change_item_tree() so that they can be rolled back after execution.
+
+    @todo Pass THD to compile() function, thus no need to use current_thd.
   */
   virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
                         Item_transformer transformer, uchar *arg_t)
@@ -2465,6 +2547,7 @@ public:
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
 
 class SELECT_LEX;
+
 class Item_ident :public Item
 {
   typedef Item super;
@@ -2656,8 +2739,8 @@ public:
 };
 
 
-class Item_equal;
 class COND_EQUAL;
+class Item_equal;
 
 class Item_field :public Item_ident
 {
@@ -3832,9 +3915,9 @@ public:
     Item(thd, item), result_field(item->result_field)
   {}
   ~Item_result_field() {}			/* Required with gcc 2.95 */
-  Field *get_tmp_table_field() { return result_field; }
-  Field *tmp_table_field(TABLE*) { return result_field; }
-  table_map used_tables() const { return 1; }
+  Field *get_tmp_table_field() override { return result_field; }
+  Field *tmp_table_field(TABLE*) override { return result_field; }
+  table_map used_tables() const override { return 1; }
 
   /**
     Resolve type-related information for this item, such as result field type,
@@ -3847,13 +3930,13 @@ public:
   */
   virtual bool resolve_type(THD *thd)=0;
 
-  void set_result_field(Field *field) { result_field= field; }
-  bool is_result_field() { return 1; }
-  void save_in_result_field(bool no_conversions)
+  void set_result_field(Field *field) override { result_field= field; }
+  bool is_result_field() override { return 1; }
+  void save_in_result_field(bool no_conversions) override
   {
     save_in_field(result_field, no_conversions);
   }
-  void cleanup();
+  void cleanup() override;
   /*
     This method is used for debug purposes to print the name of an
     item to the debug log. The second use of this method is as
@@ -3871,7 +3954,7 @@ public:
     also to make printing of items inherited from Item_sum uniform.
   */
   virtual const char *func_name() const= 0;
-  bool check_gcol_func_processor(uchar*) { return false;}
+  bool check_gcol_func_processor(uchar*) override { return false;}
 };
 
 
@@ -4222,6 +4305,7 @@ private:
 */
 
 class Item_sum;
+
 class Item_outer_ref :public Item_direct_ref
 {
 public:
@@ -4936,9 +5020,9 @@ public:
   Item *copy_or_same(THD*) { return this; }
   Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
   void cleanup();
+  void set_required_privilege(bool rw);
 
 private:
-  void set_required_privilege(bool rw);
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
 
 public:
@@ -5416,8 +5500,6 @@ public:
   }
 };
 
-
-class SELECT_LEX;
 
 extern Cached_item *new_Cached_item(THD *thd, Item *item,
                                     bool use_result_field);

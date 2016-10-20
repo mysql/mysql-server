@@ -45,8 +45,8 @@ public:
   // Name
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &name() const = 0;
-  virtual void set_name(const std::string &name) = 0;
+  virtual const String_type &name() const = 0;
+  virtual void set_name(const String_type &name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Parameter

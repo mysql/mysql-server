@@ -59,7 +59,7 @@ public:
   { return update_name_key(key, schema_id(), name()); }
 
   static bool update_name_key(name_key_type *key, Object_id schema_id,
-                              const std::string &name);
+                              const String_type &name);
 
   virtual bool update_aux_key(aux_key_type *key) const
   { return true; }
@@ -118,27 +118,27 @@ public:
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definer_user() const = 0;
-  virtual const std::string &definer_host() const = 0;
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname) = 0;
+  virtual const String_type &definer_user() const = 0;
+  virtual const String_type &definer_host() const = 0;
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // time_zone.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &time_zone() const = 0;
-  virtual void set_time_zone(const std::string &time_zone) = 0;
+  virtual const String_type &time_zone() const = 0;
+  virtual void set_time_zone(const String_type &time_zone) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // definition/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definition() const = 0;
-  virtual void set_definition(const std::string &definition) = 0;
+  virtual const String_type &definition() const = 0;
+  virtual void set_definition(const String_type &definition) = 0;
 
-  virtual const std::string &definition_utf8() const = 0;
-  virtual void set_definition_utf8(const std::string &definition_utf8) = 0;
+  virtual const String_type &definition_utf8() const = 0;
+  virtual void set_definition_utf8(const String_type &definition_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // execute_at.
@@ -242,8 +242,8 @@ public:
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const = 0;
-  virtual void set_comment(const std::string &comment) = 0;
+  virtual const String_type &comment() const = 0;
+  virtual void set_comment(const String_type &comment) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // originator.

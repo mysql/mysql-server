@@ -15,20 +15,31 @@
 
 #include "dd/impl/types/tablespace_file_impl.h"
 
-#include "mysqld_error.h"                    // ER_*
-
-#include "dd/impl/properties_impl.h"         // Properties_impl
-#include "dd/impl/sdi_impl.h"                // sdi read/write functions
-#include "dd/impl/transaction_impl.h"        // Open_dictionary_tables_ctx
-#include "dd/impl/raw/raw_record.h"          // Raw_record
-#include "dd/impl/tables/tablespace_files.h" // Tablespace_files
-#include "dd/impl/types/tablespace_impl.h"   // Tablespace_impl
-
 #include <sstream>
+
+#include "dd/string_type.h"                  // dd::String_type
+#include "dd/impl/properties_impl.h"         // Properties_impl
+#include "dd/impl/raw/raw_record.h"          // Raw_record
+#include "dd/impl/sdi_impl.h"                // sdi read/write functions
+#include "dd/impl/tables/tablespace_files.h" // Tablespace_files
+#include "dd/impl/transaction_impl.h"        // Open_dictionary_tables_ctx
+#include "dd/impl/types/tablespace_impl.h"   // Tablespace_impl
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                    // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 
 using dd::tables::Tablespace_files;
 
 namespace dd {
+
+class Object_key;
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 // Tablespace_file implementation.
@@ -77,7 +88,7 @@ Tablespace &Tablespace_file_impl::tablespace()
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tablespace_file_impl::set_se_private_data_raw(
-  const std::string &se_private_data_raw)
+  const String_type &se_private_data_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(se_private_data_raw);
@@ -161,9 +172,9 @@ Tablespace_file_impl::deserialize(Sdi_rcontext*, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Tablespace_file_impl::debug_print(std::string &outb) const
+void Tablespace_file_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "TABLESPACE FILE OBJECT: { "
     << "m_ordinal_position: " << m_ordinal_position << "; "

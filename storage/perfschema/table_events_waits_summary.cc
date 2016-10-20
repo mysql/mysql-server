@@ -228,7 +228,7 @@ table_events_waits_summary_by_instance
   : table_all_instr(&m_share), m_row_exists(false)
 {}
 
-int table_events_waits_summary_by_instance::index_init(uint idx, bool sorted)
+int table_events_waits_summary_by_instance::index_init(uint idx, bool)
 {
   PFS_index_all_instr *result= NULL;
   switch(idx)

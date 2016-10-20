@@ -13,18 +13,48 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "debug_sync.h"
-#include "rpl_rli_pdb.h"
+#include "my_config.h"
 
+#include <stdio.h>
+#include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <algorithm>
+
+#include "binlog.h"
 #include "current_thd.h"
-#include "psi_memory_key.h"
+#include "debug_sync.h"
+#include "handler.h"
+#include "hash.h"
 #include "log.h"                            // sql_print_error
-#include "mysqld.h"                         // key_mutex_slave_parallel_worker
-#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
-
-#include "pfs_file_provider.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_atomic.h"
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_sys.h"
+#include "my_thread.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/thread_type.h"
+#include "mysqld.h"                         // key_mutex_slave_parallel_worker
+#include "mysqld_error.h"
+#include "psi_memory_key.h"
+#include "rpl_info_handler.h"
+#include "rpl_reporting.h"
+#include "rpl_rli_pdb.h"
+#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_plugin_ref.h"
+#include "sql_string.h"
+#include "table.h"
 #include "template_utils.h"
+#include "thr_mutex.h"
+#include "transaction_info.h"
 
 #ifndef DBUG_OFF
   ulong w_rr= 0;
@@ -1571,7 +1601,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
       break; /* gap at i'th */
 
     /* Worker-id domain guard */
-    compile_time_assert(MTS_WORKER_UNDEF > MTS_MAX_WORKERS);
+    static_assert(MTS_WORKER_UNDEF > MTS_MAX_WORKERS, "");
 
     w_i= ws->at(ptr_g->worker_id);
 
@@ -1953,7 +1983,7 @@ bool Slave_worker::worker_sleep(ulong seconds)
   while (!(ret= info_thd->killed || running_status != RUNNING))
   {
     int error= mysql_cond_timedwait(cond, lock, &abstime);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
       break;
   }
 
@@ -2089,8 +2119,7 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
     if (ev != NULL)
     {
       /* It is a event belongs to the transaction */
-      if (!ev->is_mts_sequential_exec(rli->current_mts_submode->get_type() ==
-                                      MTS_PARALLEL_TYPE_DB_NAME))
+      if (!ev->is_mts_sequential_exec())
       {
         int ret= 0;
 

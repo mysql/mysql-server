@@ -19,26 +19,38 @@
 
 #include "sql_lex.h"
 
-#include "mysql_version.h"             // MYSQL_VERSION_ID
+#include <limits.h>
+#include <stdlib.h>
+#include <algorithm>                   // find_if, iter_swap, reverse
 
 #include "current_thd.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_version.h"             // MYSQL_VERSION_ID
 #include "mysqld.h"                    // table_alias_charset
+#include "mysqld_error.h"
+#include "parse_location.h"
+#include "prealloced_array.h"          // Prealloced_array
+#include "protocol.h"
+#include "select_lex_visitor.h"
+#include "session_tracker.h"
 #include "sp_head.h"                   // sp_head
 #include "sql_class.h"                 // THD
-#include "sql_parse.h"                 // add_to_list
-#include "parse_tree_helpers.h"
-#include "prealloced_array.h"          // Prealloced_array
-#include "sql_hints.yy.h"
+#include "sql_error.h"
+#include "sql_insert.h"                // Sql_cmd_insert_base
+#include "sql_lex_hash.h"
 #include "sql_lex_hints.h"
-#include "sql_yacc.h"
 #include "sql_optimizer.h"             // JOIN
+#include "sql_parse.h"                 // add_to_list
 #include "sql_plugin.h"                // plugin_unlock_list
+#include "sql_profile.h"
+#include "sql_security_ctx.h"
 #include "sql_show.h"                  // append_identifier
 #include "sql_table.h"                 // primary_key_name
-#include "sql_insert.h"                // Sql_cmd_insert_base
-#include "lex_token.h"
-
-#include <algorithm>                   // find_if, iter_swap, reverse
+#include "sql_yacc.h"
+#include "system_variables.h"
+#include "template_utils.h"
 
 
 extern int HINT_PARSER_parse(THD *thd,
@@ -455,7 +467,6 @@ void LEX::reset()
   param_list.empty();
   view_list.empty();
   prepared_stmt_params.empty();
-  auxiliary_table_list.empty();
   describe= DESCRIBE_NONE;
   subqueries= false;
   context_analysis_only= 0;
@@ -2322,6 +2333,7 @@ SELECT_LEX::SELECT_LEX
   opt_hints_qb(NULL),
   m_agg_func_used(false),
   m_json_agg_func_used(false),
+  m_empty_query(false),
   sj_candidates(NULL)
 {
 }
@@ -2607,68 +2619,17 @@ set_explain_marker_from(const SELECT_LEX_UNIT *u)
 
 ha_rows SELECT_LEX::get_offset()
 {
-  ulonglong val= 0;
+  DBUG_ASSERT(offset_limit == NULL || offset_limit->fixed);
 
-  if (offset_limit)
-  {
-    // see comment for SELECT_LEX::get_limit()
-    bool fix_fields_successful= true;
-    if (!offset_limit->fixed)
-    {
-      fix_fields_successful= !offset_limit->fix_fields(master->thd, NULL);
-
-      DBUG_ASSERT(fix_fields_successful);
-    }
-    val= fix_fields_successful ? offset_limit->val_uint() : HA_POS_ERROR;
-  }
-
-  return (ha_rows)val;
+  return ha_rows(offset_limit ? offset_limit->val_uint() : 0ULL);
 }
 
 
 ha_rows SELECT_LEX::get_limit()
 {
-  ulonglong val= HA_POS_ERROR;
+  DBUG_ASSERT(select_limit == NULL || select_limit->fixed);
 
-  if (select_limit)
-  {
-    /*
-      fix_fields() has not been called for select_limit. That's due to the
-      historical reasons -- this item could be only of type Item_int, and
-      Item_int does not require fix_fields(). Thus, fix_fields() was never
-      called for select_limit.
-
-      Some time ago, Item_splocal was also allowed for LIMIT / OFFSET clauses.
-      However, the fix_fields() behavior was not updated, which led to a crash
-      in some cases.
-
-      There is no single place where to call fix_fields() for LIMIT / OFFSET
-      items during the fix-fields-phase. Thus, for the sake of readability,
-      it was decided to do it here, on the evaluation phase (which is a
-      violation of design, but we chose the lesser of two evils).
-
-      We can call fix_fields() here, because select_limit can be of two
-      types only: Item_int and Item_splocal. Item_int::fix_fields() is trivial,
-      and Item_splocal::fix_fields() (or rather Item_sp_variable::fix_fields())
-      has the following properties:
-        1) it does not affect other items;
-        2) it does not fail.
-
-      Nevertheless DBUG_ASSERT was added to catch future changes in
-      fix_fields() implementation. Also added runtime check against a result
-      of fix_fields() in order to handle error condition in non-debug build.
-    */
-    bool fix_fields_successful= true;
-    if (!select_limit->fixed)
-    {
-      fix_fields_successful= !select_limit->fix_fields(master->thd, NULL);
-
-      DBUG_ASSERT(fix_fields_successful);
-    }
-    val= fix_fields_successful ? select_limit->val_uint() : HA_POS_ERROR;
-  }
-
-  return (ha_rows)val;
+  return ha_rows(select_limit ? select_limit->val_uint() : HA_POS_ERROR);
 }
 
 
@@ -3533,7 +3494,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
   using_match= FALSE;
 
   /* Check the max size of the enum to control new enum values definitions. */
-  compile_time_assert(BINLOG_STMT_UNSAFE_COUNT <= 32);
+  static_assert(BINLOG_STMT_UNSAFE_COUNT <= 32, "");
 }
 
 
@@ -3721,20 +3682,54 @@ LEX::copy_db_to(char **p_db, size_t *p_db_length) const
 
 
 /**
-  Initialize offset and limit counters.
+  Prepare sources for offset and limit counters.
 
-  @param sl SELECT_LEX to get offset and limit from.
+  @param thd_arg thread handler
+  @param provider SELECT_LEX to get offset and limit from.
+
+  @returns false if success, true if error
 */
-void SELECT_LEX_UNIT::set_limit(SELECT_LEX *sl)
+bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg, SELECT_LEX *provider)
 {
-  DBUG_ASSERT(!thd->stmt_arena->is_stmt_prepare());
+  /// @todo Remove THD from class SELECT_LEX_UNIT
+  DBUG_ASSERT(this->thd == thd_arg);
+  if (provider->offset_limit && provider->offset_limit->fix_fields(thd, NULL))
+    return true;                      /* purecov: inspected */
 
-  offset_limit_cnt= sl->get_offset();
-  select_limit_cnt= sl->get_limit();
+  if (provider->select_limit && provider->select_limit->fix_fields(thd, NULL))
+    return true;                      /* purecov: inspected */
+
+  return false;
+}
+
+/**
+  Set limit and offset for query expression object
+
+  @param thd_arg thread handler
+  @param provider SELECT_LEX to get offset and limit from.
+
+  @returns false if success, true if error
+*/
+bool SELECT_LEX_UNIT::set_limit(THD *thd_arg, SELECT_LEX *provider)
+{
+  /// @todo Remove THD from class SELECT_LEX_UNIT
+  DBUG_ASSERT(this->thd == thd_arg);
+  if (provider->offset_limit)
+    offset_limit_cnt= provider->offset_limit->val_uint();
+  else
+    offset_limit_cnt= 0;
+
+  if (provider->select_limit)
+    select_limit_cnt= provider->select_limit->val_uint();
+  else
+    select_limit_cnt= HA_POS_ERROR;
+
   if (select_limit_cnt + offset_limit_cnt >= select_limit_cnt)
     select_limit_cnt+= offset_limit_cnt;
   else
     select_limit_cnt= HA_POS_ERROR;
+
+  return false;
 }
 
 

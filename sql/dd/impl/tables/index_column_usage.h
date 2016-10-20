@@ -16,13 +16,15 @@
 #ifndef DD_TABLES__INDEX_COLUMN_USAGE_INCLUDED
 #define DD_TABLES__INDEX_COLUMN_USAGE_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
-#include "dd/object_id.h"                    // dd::Object_id
 #include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "dd/object_id.h"                    // dd::Object_id
+#include "my_global.h"
 
 namespace dd {
   class Object_key;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -32,9 +34,9 @@ class Index_column_usage : public Object_table_impl
 public:
   static const Index_column_usage &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("index_column_usage");
+    static String_type s_table_name("index_column_usage");
     return s_table_name;
   }
 
@@ -52,7 +54,7 @@ public:
 public:
   Index_column_usage();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Index_column_usage::table_name(); }
 
 public:

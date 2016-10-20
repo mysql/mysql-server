@@ -108,12 +108,13 @@ public:
   int delete_row(TABLE *table, const unsigned char *buf, Field **fields);
 
   /** Initialize table scan. */
-  virtual int rnd_init(bool scan){return 0;}
+  virtual int rnd_init(bool scan MY_ATTRIBUTE((unused))){return 0;}
 
   /** Fetch the next row in this cursor. */
   virtual int rnd_next(void)= 0;
 
-  virtual int index_init(uint idx, bool sorted)
+  virtual int index_init(uint idx MY_ATTRIBUTE((unused)),
+                         bool sorted MY_ATTRIBUTE((unused)))
   {
     DBUG_ASSERT(false);
     return HA_ERR_UNSUPPORTED;
@@ -125,9 +126,9 @@ public:
                          uint key_len,
                          enum ha_rkey_function find_flag);
 
-  virtual int index_read_last(KEY *key_infos,
-                              const uchar * key,
-                              uint key_len)
+  virtual int index_read_last(KEY *key_infos MY_ATTRIBUTE((unused)),
+                              const uchar * key MY_ATTRIBUTE((unused)),
+                              uint key_len MY_ATTRIBUTE((unused)))
   { return HA_ERR_UNSUPPORTED; }
 
   /** Find key in index, read record. */
@@ -196,10 +197,37 @@ public:
   /**
     Helper, assign a value to a varchar utf8 field.
     @param f the field to set
+    @param cs the string character set
+    @param str the string to assign
+    @param len the length of the string to assign
+  */
+  static void set_field_varchar(Field *f, const CHARSET_INFO *cs, const char *str, uint len);
+  /**
+    Helper, assign a value to a varchar utf8 field.
+    @param f the field to set
     @param str the string to assign
     @param len the length of the string to assign
   */
   static void set_field_varchar_utf8(Field *f, const char *str, uint len);
+  /**
+    Helper, assign a value to a varchar utf8mb4 field.
+    @param f the field to set
+    @param str the string to assign
+    @param len the length of the string to assign
+  */
+  static void set_field_varchar_utf8mb4(Field *f, const char *str, uint len);
+  /**
+    Helper, assign a value to a varchar utf8 field.
+    @param f the field to set
+    @param str the string to assign
+  */
+  static void set_field_varchar_utf8(Field *f, const char *str);
+  /**
+    Helper, assign a value to a varchar utf8mb4 field.
+    @param f the field to set
+    @param str the string to assign
+  */
+  static void set_field_varchar_utf8mb4(Field *f, const char *str);
   /**
     Helper, assign a value to a longtext utf8 field.
     @param f the field to set

@@ -16,14 +16,23 @@
 #ifndef DD__DICTIONARY_OBJECT_TABLE_IMPL_INCLUDED
 #define DD__DICTIONARY_OBJECT_TABLE_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
 
 #include "dd/impl/types/object_table_impl.h"  // Object_table_impl
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
+#include "my_compiler.h"
+#include "my_global.h"
+
+class THD;
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Dictionary_object;
+class Object_table_definition;
+class Open_dictionary_tables_ctx;
+class Raw_record;
 
 class Dictionary_object_table_impl : public Object_table_impl,
                                      public Dictionary_object_table

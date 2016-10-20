@@ -1327,7 +1327,7 @@ PFS_cond_class *sanitize_cond_class(PFS_cond_class *unsafe)
   @return a thread instrumentation key
 */
 PFS_thread_key register_thread_class(const char *name, uint name_length,
-                                     PSI_thread_info *info)
+                                   PSI_thread_info *info MY_ATTRIBUTE((unused)))
 {
   /* See comments in register_mutex_class */
   uint32 index;

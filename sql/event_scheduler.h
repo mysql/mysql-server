@@ -30,15 +30,17 @@
   module are in events.h and event_data_objects.h.
 */
 
+#include <sys/types.h>
+
 #include "my_global.h"
 #include "mysql/psi/mysql_cond.h"  // mysql_cond_t
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_stage.h"   // PSI_stage_info
 
-class Event_queue;
-class Event_job_data;
 class Event_db_repository;
+class Event_job_data;
+class Event_queue;
 class Event_queue_element_for_exec;
-class Events;
 class THD;
 
 void

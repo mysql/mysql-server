@@ -58,7 +58,7 @@ EOF
 --exec $MYSQLXTEST -u root --file=$MYSQL_TMP_DIR/mysqlx-capabilities-set-all-message.tmp -n 2>&1
 --let $send_in_single_call= query_get_value(SHOW STATUS LIKE 'Mysqlx_bytes_received', Value, 1)
 UNINSTALL PLUGIN mysqlx;
---eval install plugin mysqlx soname "$MYSQLXPLUGIN"
+--source ../include/xplugin_install_and_wait.inc
 --exec $MYSQLXTEST -u root --file=$MYSQL_TMP_DIR/mysqlx-capabilities-set-parts-message.tmp -n 2>&1
 --let $send_in_two_calls= query_get_value(SHOW STATUS LIKE 'Mysqlx_bytes_received', Value, 1)
 

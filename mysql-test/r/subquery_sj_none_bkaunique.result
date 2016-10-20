@@ -12345,5 +12345,15 @@ FROM t AS t3
 WHERE t3.b=1));
 a	b
 DROP TABLE t;
+#
+# Bug#24287772 SUBQUERY RETURNS EMPTY LIST WHILE IDENTICAL QUERY
+#              WITH JOIN RETURNS RESULT
+#
+CREATE TABLE t SELECT 4096 c;
+SELECT c FROM t WHERE 1 IN
+(SELECT t.c = page_size FROM information_schema.innodb_cmpmem);
+c
+4096
+DROP TABLE t;
 set optimizer_switch=default;
 set optimizer_switch=default;

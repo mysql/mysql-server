@@ -16,11 +16,13 @@
 #ifndef _PARSE_FILE_H_
 #define _PARSE_FILE_H_
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_alloc.h"
 #include "my_global.h"                  // uchar
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
 #include "sql_alloc.h"                  // Sql_alloc
-
-class THD;
 
 typedef struct st_mem_root MEM_ROOT;
 typedef struct st_mysql_lex_string LEX_STRING;
@@ -86,6 +88,7 @@ parse_escaped_string(const char *ptr, const char *end, MEM_ROOT *mem_root,
                      LEX_STRING *str);
 
 class File_parser;
+
 File_parser *sql_parse_prepare(const LEX_STRING *file_name,
 			       MEM_ROOT *mem_root, bool bad_format_errors);
 

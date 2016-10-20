@@ -19,18 +19,37 @@
 #ifndef _opt_range_h
 #define _opt_range_h
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <memory>
+#include <vector>
+
 #include "field.h"            // Field
+#include "handler.h"
+#include "key.h"
+#include "m_string.h"
+#include "malloc_allocator.h"  // IWYU pragma: keep
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
 #include "prealloced_array.h" // Prealloced_array
 #include "priority_queue.h"   // Priority_queue
 #include "records.h"          // READ_RECORD
-#include "malloc_allocator.h"
+#include "sql_alloc.h"
+#include "sql_bitmap.h"
+#include "sql_const.h"
+#include "sql_list.h"
+#include "sql_string.h"
+#include "table.h"
+#include "typelib.h"
 
-#include <algorithm>
-
-class JOIN;
+class Item;
 class Item_sum;
+class JOIN;
 class Opt_trace_context;
+class THD;
 class Unique;
 
 typedef struct st_key_part {
@@ -395,6 +414,7 @@ public:
 
 class PARAM;
 class SEL_ARG;
+class SEL_ROOT;
 
 
 typedef Prealloced_array<QUICK_RANGE*, 16> Quick_ranges;
@@ -439,7 +459,7 @@ protected:
                              uchar *min_key, uint min_key_flag,
                              uchar *max_key, uint max_key_flag);
   friend QUICK_RANGE_SELECT *get_quick_select(PARAM*,uint idx,
-                                              SEL_ARG *key_tree,
+                                              SEL_ROOT *key_tree,
                                               uint mrr_flags,
                                               uint mrr_buf_size,
                                               MEM_ROOT *alloc);
@@ -476,7 +496,7 @@ protected:
   int cmp_prev(QUICK_RANGE *range);
   bool row_in_ranges();
 public:
-  MEM_ROOT alloc;
+  std::shared_ptr<MEM_ROOT> alloc;
 
   QUICK_RANGE_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc,
                      MEM_ROOT *parent_alloc, bool *create_error);

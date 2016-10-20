@@ -171,7 +171,7 @@ void table_table_handles::reset_position(void)
   m_next_pos.m_index= 0;
 }
 
-int table_table_handles::rnd_init(bool scan)
+int table_table_handles::rnd_init(bool)
 {
   return 0;
 }
@@ -210,7 +210,7 @@ table_table_handles::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_table_handles::index_init(uint idx, bool sorted)
+int table_table_handles::index_init(uint idx, bool)
 {
   PFS_index_table_handles *result= NULL;
 

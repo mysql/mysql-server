@@ -17,21 +17,35 @@
 #ifndef SQL_ALTER_TABLE_H
 #define SQL_ALTER_TABLE_H
 
-#include "my_global.h"
+#include <assert.h>
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "binary_log_types.h" // enum_field_types
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/psi_base.h"
 #include "prealloced_array.h" // Prealloced_array
+#include "sql_alloc.h"
 #include "sql_cmd.h"  // Sql_cmd
 #include "sql_list.h" // List
-#include "binary_log_types.h" // enum_field_types
+#include "thr_malloc.h"
 
 class Create_field;
 class FOREIGN_KEY;
 class Item;
 class Key_spec;
 class String;
+class THD;
 struct TABLE_LIST;
+
 typedef struct st_mysql_lex_string LEX_STRING;
 
+namespace dd {
+  class Trigger;
+}
 
 /**
   Class representing DROP COLUMN, DROP KEY and DROP FOREIGN KEY
@@ -418,6 +432,8 @@ public:
   Alter_table_ctx(THD *thd, TABLE_LIST *table_list, uint tables_opened_arg,
                   const char *new_db_arg, const char *new_name_arg);
 
+  ~Alter_table_ctx();
+
   /**
      @return true if the table is moved to another database, false otherwise.
   */
@@ -469,6 +485,11 @@ public:
   */
   FOREIGN_KEY  *fk_info;
   uint         fk_count;
+
+  /*
+    Used for the same purpose as fk_info above.
+  */
+  Prealloced_array<dd::Trigger*, 1>  trg_info;
 
 private:
   char new_filename[FN_REFLEN + 1];

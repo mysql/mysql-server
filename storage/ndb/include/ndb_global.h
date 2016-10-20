@@ -231,25 +231,7 @@ extern "C" {
      if the expression is false.
 */
 
-#if (defined(_WIN32) && _MSC_VER > 1500) || (defined __GXX_EXPERIMENTAL_CXX0X__)
-
-/*
-  Prefer to use the 'static_assert' function from C++0x
-  to get best error message
-*/
 #define NDB_STATIC_ASSERT(expr) static_assert(expr, #expr)
-
-#else
-
-/*
-  Fallback to use home grown solution
-  (i.e use mysys version)
-*/
-
-#define NDB_STATIC_ASSERT(expr) compile_time_assert(expr)
-
-#endif
-
 
 #if defined(_WIN32) && (_MSC_VER > 1500)
 #define HAVE___HAS_TRIVIAL_CONSTRUCTOR

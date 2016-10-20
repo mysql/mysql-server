@@ -15,14 +15,16 @@
 
 /* Pack MyISAM file */
 
-#include "myisamdef.h"
-#include "my_default.h"
-#include <queues.h>
-#include <my_tree.h>
-#include "mysys_err.h"
-#include <my_getopt.h>
 #include <assert.h>
+#include <my_getopt.h>
+#include <my_tree.h>
+#include <queues.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
+
+#include "my_default.h"
+#include "my_pointer_arithmetic.h"
+#include "myisamdef.h"
+#include "mysys_err.h"
 
 #if SIZEOF_LONG_LONG > 4
 #define BITS_SAVED 64

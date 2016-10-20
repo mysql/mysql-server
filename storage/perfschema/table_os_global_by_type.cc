@@ -260,7 +260,7 @@ table_os_global_by_type::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_os_global_by_type::index_init(uint idx, bool sorted)
+int table_os_global_by_type::index_init(uint idx, bool)
 {
   PFS_index_os_global_by_type *result;
   DBUG_ASSERT(idx == 0);

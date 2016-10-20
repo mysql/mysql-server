@@ -13,9 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <memory>
+
 #include <my_global.h>
 #include <mysql/psi/mysql_file.h>
+
 #include "buffered_file_io.h"
+#include "my_psi_config.h"
 
 namespace keyring {
 
@@ -76,7 +80,7 @@ my_bool Buffered_file_io::is_file_tag_correct(File file)
 
 my_bool Buffered_file_io::is_file_version_correct(File file)
 {
-  boost::movelib::unique_ptr<uchar[]> version(new uchar[file_version.length()+1]);
+  std::unique_ptr<uchar[]> version(new uchar[file_version.length()+1]);
   version.get()[file_version.length()]= '\0';
   mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0));
   if (unlikely(mysql_file_read(file, version.get(), file_version.length(), MYF(0)) !=

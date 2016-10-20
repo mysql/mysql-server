@@ -755,6 +755,10 @@ static const SYMBOL symbols[] = {
   { SYM_H("SUBQUERY",               SUBQUERY_HINT)},
   { SYM_H("MERGE",                  DERIVED_MERGE_HINT)},
   { SYM_H("NO_MERGE",               NO_DERIVED_MERGE_HINT)},
+  { SYM_H("JOIN_PREFIX",            JOIN_PREFIX_HINT)},
+  { SYM_H("JOIN_SUFFIX",            JOIN_SUFFIX_HINT)},
+  { SYM_H("JOIN_ORDER",             JOIN_ORDER_HINT)},
+  { SYM_H("JOIN_FIXED_ORDER",       JOIN_FIXED_ORDER_HINT)},
 };
 
 #endif /* LEX_INCLUDED */

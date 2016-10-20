@@ -17,12 +17,20 @@
 
 #include "rpl_table_access.h"
 
+#include <stddef.h>
+
 #include "current_thd.h" // my_thread_set_THR_THD
 #include "handler.h"     // ha_rollback_trans
 #include "log.h"         // sql_print_warning
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include "sql_base.h"    // close_thread_tables
 #include "sql_class.h"   // THD
+#include "sql_error.h"
 #include "sql_lex.h"     // Query_tables_list
+#include "sql_security_ctx.h"
 #include "table.h"       // TABLE_LIST
 
 

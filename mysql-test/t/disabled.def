@@ -21,12 +21,8 @@ main.status               : Bug#14286343 2015-12-22 Mohit Legacy Bug leading to 
 no_binlog_gtid_next_partially_failed_stmts           : WL#7743 DROP TABLES semantics change issue
 no_binlog_gtid_next_partially_failed_stmts_anonymous : WL#7743 DROP TABLES semantics change issue
 no_binlog_gtid_next_partially_failed_stmts_error     : WL#7743 DROP TABLES semantics change issue
-mysqldump                 : WL7743 Problem with merging view columns changes
-dd_view_columns           : WL7743 Problem with merging view columns changes
-view                      : WL7743 Problem with merging view columns changes
 dd_table_access           : WL7743 Need help from Sivert to implement INPLACE ALTER for sticky tables
 dd_upgrade_test           : WL7743 Problem with stickiness
-alter_table_myisam        : WL7743 Problem with stats
 index_merge_delete        :Bug#21373532 2016-07-29 Anitha Test fails very frequently on PB2
 
 # Disabled list(Due to InnoDB issues)

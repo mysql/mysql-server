@@ -16,27 +16,31 @@
 #ifndef _sql_plugin_h
 #define _sql_plugin_h
 
-#include "my_global.h"
-
-#include "my_getopt.h"              // my_open
-#include "my_sqlcommand.h"          // enum_sql_command
-#include "mysql/mysql_lex_string.h" // LEX_CSTRING
-
-#include "sql_cmd.h"                // Sql_cmd
-#include "sql_const.h"              // SHOW_COMP_OPTION
-#include "sql_plugin_ref.h"         // plugin_ref
-
+#include <stddef.h>
+#include <sys/types.h>
 #include <vector>
 
+#include "my_global.h"
+#include "my_sqlcommand.h"          // enum_sql_command
+#include "mysql/mysql_lex_string.h" // LEX_CSTRING
+#include "mysql/psi/mysql_mutex.h"
+#include "sql_cmd.h"                // Sql_cmd
+#include "sql_plugin_ref.h"         // plugin_ref
+#include "thr_malloc.h"
+
+class THD;
 class i_string;
+struct my_option;
 struct st_mysql_sys_var;
 template <class T> class I_List;
+
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
 typedef struct st_mysql_lex_string LEX_STRING;
 
 
 extern const char *global_plugin_typelib_names[];
+extern mysql_mutex_t LOCK_plugin;
 extern mysql_mutex_t LOCK_plugin_delete;
 
 #ifdef DBUG_OFF

@@ -21,6 +21,9 @@
   @file include/sha1.h
 */
 
+#include "my_config.h"
+#include "my_global.h"
+
 #define SHA1_HASH_SIZE 20 /* Hash size in bytes */
 
 C_MODE_START

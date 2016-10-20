@@ -18,6 +18,8 @@
 #ifndef SQL_FORMATTER_INCLUDED
 #define SQL_FORMATTER_INCLUDED
 
+#include <functional>
+
 #include "abstract_output_writer_wrapper.h"
 #include "i_data_formatter.h"
 #include "abstract_mysql_chain_element_extension.h"
@@ -46,7 +48,7 @@ class Sql_formatter
 public:
   Sql_formatter(
     I_connection_provider* connection_provider,
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, Simple_id_generator* object_id_generator,
       const Sql_formatter_options* options);
 

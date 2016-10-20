@@ -69,8 +69,8 @@ public:
   // value.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &value_utf8() const = 0;
-  virtual void set_value_utf8(const std::string &value) = 0;
+  virtual const String_type &value_utf8() const = 0;
+  virtual void set_value_utf8(const String_type &value) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // max_value.

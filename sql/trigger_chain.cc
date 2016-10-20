@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,15 @@
 
 #include "trigger_chain.h"
 
-#include "mysqld_error.h"             // ER_*
+#include "handler.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
 #include "mysqld.h"                   // table_alias_charset
+#include "mysqld_error.h"             // ER_*
 #include "sp_head.h"                  // sp_head
-#include "table.h"                    // GRANT_INFO
+#include "sql_servers.h"
 #include "trigger.h"                  // Trigger
 
 

@@ -9,6 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-innodb_views  : WL7743 Problem with merging view columns changes
-memory_views  : WL7743 Problem with merging view columns changes
-is_tables     : WL7743 Problem with stats

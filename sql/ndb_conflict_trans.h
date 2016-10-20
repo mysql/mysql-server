@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,12 @@
 #ifndef NDB_CONFLICT_TRANS_H
 #define NDB_CONFLICT_TRANS_H
 
-#include <my_global.h>
+#include "my_global.h"
 
 #ifdef HAVE_NDB_BINLOG
-#include <ndbapi/NdbApi.hpp>
-#include <util/HashMap2.hpp>
-#include <util/LinkedStack.hpp>
+#include "ndbapi/NdbApi.hpp"
+#include "util/HashMap2.hpp"
+#include "util/LinkedStack.hpp"
 
 /*
    This file defines structures for detecting dependencies between

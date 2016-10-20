@@ -26,26 +26,26 @@ Completed by Sunny Bains and Marko Makela
 
 #include <math.h>
 
-#include "ha_prototypes.h"
-
-#include "row0merge.h"
-#include "row0ext.h"
-#include "row0log.h"
-#include "row0ins.h"
-#include "row0sel.h"
+#include "btr0bulk.h"
 #include "dict0crea.h"
-#include "trx0purge.h"
+#include "fsp0sysspace.h"
+#include "ha_prototypes.h"
+#include "handler0alter.h"
+#include "lob0lob.h"
 #include "lock0lock.h"
+#include "my_psi_config.h"
 #include "pars0pars.h"
-#include "ut0sort.h"
+#include "row0ext.h"
 #include "row0ftsort.h"
 #include "row0import.h"
-#include "handler0alter.h"
-#include "btr0bulk.h"
-#include "fsp0sysspace.h"
+#include "row0ins.h"
+#include "row0log.h"
+#include "row0merge.h"
+#include "row0sel.h"
+#include "trx0purge.h"
 #include "ut0new.h"
+#include "ut0sort.h"
 #include "ut0stage.h"
-#include "lob0lob.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -3964,7 +3964,7 @@ row_make_new_pathname(
 	char*	new_path;
 	char*	old_path;
 
-	ut_ad(!is_system_tablespace(table->space));
+	ut_ad(dict_table_is_file_per_table(table));
 
 	old_path = fil_space_get_first_path(table->space);
 	ut_a(old_path);

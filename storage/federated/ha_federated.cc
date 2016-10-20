@@ -374,21 +374,22 @@
 #define MYSQL_SERVER 1
 #include "ha_federated.h"
 
-#include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
-#include "sql_analyse.h"         // append_escaped
 #include <mysql/plugin.h>
-#include "probes_mysql.h"
-#include "m_string.h"
-#include "key.h"                                // key_copy
-#include "myisam.h"                             // TT_USEFRM
-#include "current_thd.h"
-#include "mysqld.h"                             // my_localhost
-#include "sql_class.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/mysql_memory.h"
-#include "template_utils.h"
-
 #include <algorithm>
+
+#include "current_thd.h"
+#include "key.h"                                // key_copy
+#include "m_string.h"
+#include "my_psi_config.h"
+#include "myisam.h"                             // TT_USEFRM
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysqld.h"                             // my_localhost
+#include "probes_mysql.h"
+#include "sql_analyse.h"         // append_escaped
+#include "sql_class.h"
+#include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
+#include "template_utils.h"
 
 using std::min;
 using std::max;
@@ -1569,7 +1570,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
       goto error;
 
     share->use_count= 0;
-    share->mem_root= mem_root;
+    share->mem_root= std::move(mem_root);
 
     DBUG_PRINT("info",
                ("share->select_query %s", share->select_query));
@@ -1603,7 +1604,6 @@ error:
 
 static int free_share(FEDERATED_SHARE *share)
 {
-  MEM_ROOT mem_root= share->mem_root;
   DBUG_ENTER("free_share");
 
   mysql_mutex_lock(&federated_mutex);
@@ -1612,6 +1612,7 @@ static int free_share(FEDERATED_SHARE *share)
     my_hash_delete(&federated_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     mysql_mutex_destroy(&share->mutex);
+    MEM_ROOT mem_root = std::move(share->mem_root);
     free_root(&mem_root, MYF(0));
   }
   mysql_mutex_unlock(&federated_mutex);

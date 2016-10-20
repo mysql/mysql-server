@@ -15,13 +15,23 @@
 
 #include "dd/impl/types/spatial_reference_system_impl.h"
 
-#include "gis/srs/srs.h"                   // gis::srs::parse_wkt
+#include <stdint.h>
+
 #include "dd/impl/dictionary_impl.h"       // Dictionary_impl
-#include "dd/impl/sdi_impl.h"              // sdi read/write functions
-#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"       // id_key_type
 #include "dd/impl/raw/raw_record.h"        // Raw_record
+#include "dd/impl/sdi_impl.h"              // sdi read/write functions
 #include "dd/impl/tables/spatial_reference_systems.h" // Spatial_reference_sy...
+#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
+#include "gis/srs/srs.h"                   // gis::srs::parse_wkt
+#include "m_string.h"
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+
+namespace dd {
+class Sdi_rcontext;
+class Sdi_wcontext;
+}  // namespace dd
 
 using dd::tables::Spatial_reference_systems;
 
@@ -74,7 +84,11 @@ bool Spatial_reference_system_impl::restore_attributes(const Raw_record &r)
 
   gis::srs::Spatial_reference_system *srs= nullptr;
   // parse_wkt() will only allocate memory if successful.
-  error= gis::srs::parse_wkt(id(), &m_definition, &srs);
+  error=
+    gis::srs::parse_wkt(id(),
+                        &m_definition.front(),
+                        &m_definition.back()+1,
+                        &srs);
   if (!error)
     m_parsed_definition.reset(srs);
 
@@ -134,7 +148,11 @@ bool Spatial_reference_system_impl::deserialize(Sdi_rcontext *rctx,
 
   gis::srs::Spatial_reference_system *srs= nullptr;
   // parse_wkt() will only allocate memory if successful.
-  bool error= gis::srs::parse_wkt(id(), &m_definition, &srs);
+  bool error=
+    gis::srs::parse_wkt(id(),
+                        &m_definition.front(),
+                        &m_definition.back()+1,
+                        &srs);
   if (!error)
     m_parsed_definition.reset(srs);
 
@@ -152,7 +170,7 @@ bool Spatial_reference_system::update_id_key(id_key_type *key, Object_id id)
 ///////////////////////////////////////////////////////////////////////////
 
 bool Spatial_reference_system::update_name_key(name_key_type *key,
-                                               const std::string &name)
+                                               const String_type &name)
 {
   return Spatial_reference_systems::update_object_key(key,
                       Dictionary_impl::instance()->default_catalog_id(),

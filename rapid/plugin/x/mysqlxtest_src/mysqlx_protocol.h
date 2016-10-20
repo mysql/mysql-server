@@ -32,16 +32,14 @@
 #pragma warning (disable : 4018 4996)
 #endif
 
-#include <boost/enable_shared_from_this.hpp>
-
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 #pragma GCC diagnostic pop
 #elif defined _MSC_VER
 #pragma warning (pop)
 #endif
 
-#include <boost/shared_ptr.hpp>
-#include <boost/function.hpp>
+#include "ngs_common/smart_ptr.h"
+#include "ngs_common/bind.h"
 #include <list>
 #include <assert.h>
 
@@ -53,7 +51,7 @@
 namespace mysqlx
 {
   typedef google::protobuf::Message Message;
-  typedef boost::function<bool (int,std::string)> Local_notice_handler;
+  typedef ngs::function<bool (int,std::string)> Local_notice_handler;
 
   class Result;
 
@@ -205,9 +203,9 @@ namespace mysqlx
       ca(NULL),
       ca_path(NULL),
       cert(NULL),
-      cipher(NULL)
+      cipher(NULL),
+      tls_version(NULL)
     {
-      tls_version = NULL;
     }
 
     const char *key;
@@ -218,10 +216,17 @@ namespace mysqlx
     const char *tls_version;
   };
 
-  class MYSQLXTEST_PUBLIC XProtocol : public boost::enable_shared_from_this<XProtocol>
+  enum Internet_protocol
+  {
+    IP_any = 0,
+    IPv4,
+    IPv6,
+  };
+
+  class MYSQLXTEST_PUBLIC XProtocol : public ngs::enable_shared_from_this<XProtocol>
   {
   public:
-    XProtocol(const Ssl_config &ssl_config, const std::size_t timeout, const bool dont_wait_for_disconnect = true);
+    XProtocol(const Ssl_config &ssl_config, const std::size_t timeout, const bool dont_wait_for_disconnect = true, const Internet_protocol ip_mode = IPv4);
     ~XProtocol();
 
     uint64_t client_id() const { return m_client_id; }
@@ -247,8 +252,8 @@ namespace mysqlx
     Message *recv_payload(const int mid, const std::size_t msglen);
     Message *recv_raw_with_deadline(int &mid, const int deadline_milliseconds);
 
-    boost::shared_ptr<Result> recv_result();
-    boost::shared_ptr<Result> new_empty_result();
+    ngs::shared_ptr<Result> recv_result();
+    ngs::shared_ptr<Result> new_empty_result();
 
     // Overrides for Client Session Messages
     void send(const Mysqlx::Session::AuthenticateStart &m) { send(Mysqlx::ClientMessages::SESS_AUTHENTICATE_START, m); };
@@ -271,13 +276,13 @@ namespace mysqlx
     void send(const Mysqlx::Connection::Close &m) { send(Mysqlx::ClientMessages::CON_CLOSE, m); };
 
   public:
-    boost::shared_ptr<Result> execute_sql(const std::string &sql);
-    boost::shared_ptr<Result> execute_stmt(const std::string &ns, const std::string &sql, const std::vector<ArgumentValue> &args);
+    ngs::shared_ptr<Result> execute_sql(const std::string &sql);
+    ngs::shared_ptr<Result> execute_stmt(const std::string &ns, const std::string &sql, const std::vector<ArgumentValue> &args);
 
-    boost::shared_ptr<Result> execute_find(const Mysqlx::Crud::Find &m);
-    boost::shared_ptr<Result> execute_update(const Mysqlx::Crud::Update &m);
-    boost::shared_ptr<Result> execute_insert(const Mysqlx::Crud::Insert &m);
-    boost::shared_ptr<Result> execute_delete(const Mysqlx::Crud::Delete &m);
+    ngs::shared_ptr<Result> execute_find(const Mysqlx::Crud::Find &m);
+    ngs::shared_ptr<Result> execute_update(const Mysqlx::Crud::Update &m);
+    ngs::shared_ptr<Result> execute_insert(const Mysqlx::Crud::Insert &m);
+    ngs::shared_ptr<Result> execute_delete(const Mysqlx::Crud::Delete &m);
 
     void fetch_capabilities();
     void setup_capability(const std::string &name, const bool value);
@@ -295,7 +300,7 @@ namespace mysqlx
     void dispatch_notice(Mysqlx::Notice::Frame *frame);
     Message *recv_message_with_header(int &mid, char (&header_buffer)[5], const std::size_t header_offset);
     void throw_mysqlx_error(const Error &ec);
-    boost::shared_ptr<Result> new_result(bool expect_data);
+    ngs::shared_ptr<Result> new_result(bool expect_data);
 
   private:
     std::list<Local_notice_handler> m_local_notice_handlers;
@@ -306,7 +311,8 @@ namespace mysqlx
     bool m_trace_packets;
     bool m_closed;
     const bool m_dont_wait_for_disconnect;
-    boost::shared_ptr<Result> m_last_result;
+    const Internet_protocol m_ip_mode;
+    ngs::shared_ptr<Result> m_last_result;
   };
 
   bool parse_mysql_connstring(const std::string &connstring,

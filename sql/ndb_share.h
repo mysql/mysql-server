@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,11 @@
 #ifndef NDB_SHARE_H
 #define NDB_SHARE_H
 
-#include <my_global.h>
-#include <my_alloc.h>        // MEM_ROOT
-#include <thr_lock.h>        // THR_LOCK
-#include <my_bitmap.h>       // MY_BITMAP
-
-#include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
+#include "my_alloc.h"        // MEM_ROOT
+#include "my_bitmap.h"       // MY_BITMAP
+#include "my_global.h"
+#include "ndbapi/Ndb.hpp"    // Ndb::TupleIdRange
+#include "thr_lock.h"        // THR_LOCK
 
 enum NDB_SHARE_STATE {
   NSS_INITIAL= 0,

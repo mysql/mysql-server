@@ -15,27 +15,50 @@
 
 #include "dd_view.h"
 
-#include "dd_table_share.h"                   // dd_get_mysql_charset
-#include "item_func.h"                        // Item_func
-#include "log.h"                              // sql_print_error, sql_print_..
-#include "parse_file.h"                       // PARSE_FILE_TIMESTAMPLENGTH
-#include "sql_class.h"                        // THD
-#include "sql_tmp_table.h"                    // create_tmp_field
-#include "transaction.h"                      // trans_commit
-#include "sp_head.h"                          // sp_name
-#include "sp.h"                               // Sroutine_hash_entry
+#include <string.h>
+#include <time.h>
+#include <memory>
+#include <string>
 
+#include "binary_log_types.h"
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::get_dictionary
 #include "dd/dd_table.h"                      // fill_dd_columns_from_create_*
 #include "dd/dictionary.h"                    // dd::Dictionary
-#include "dd/properties.h"                    // dd::Properties
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/impl/dictionary_impl.h"          // default_catalog_name
+#include "dd/properties.h"                    // dd::Properties
 #include "dd/types/abstract_table.h"          // dd::enum_table_type
 #include "dd/types/schema.h"                  // dd::Schema
 #include "dd/types/view.h"                    // dd::View
-#include "dd/types/view_table.h"              // dd::View_table
 #include "dd/types/view_routine.h"            // dd::View_routine
+#include "dd/types/view_table.h"              // dd::View_table
+#include "dd_table_share.h"                   // dd_get_mysql_charset
+#include "field.h"
+#include "handler.h"
+#include "item.h"
+#include "item_func.h"                        // Item_func
+#include "key.h"
+#include "log.h"                              // sql_print_error, sql_print_..
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "parse_file.h"                       // PARSE_FILE_TIMESTAMPLENGTH
+#include "session_tracker.h"
+#include "sp.h"                               // Sroutine_hash_entry
+#include "sp_head.h"                          // sp_name
+#include "sql_class.h"                        // THD
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_tmp_table.h"                    // create_tmp_field
+#include "system_variables.h"
+#include "table.h"
+#include "transaction.h"                      // trans_commit
 
 namespace dd {
 
@@ -432,10 +455,10 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
     view_table_obj->set_table_catalog(Dictionary_impl::default_catalog_name());
 
     // View table schema
-    view_table_obj->set_table_schema(std::string(db_name.str, db_name.length));
+    view_table_obj->set_table_schema(String_type(db_name.str, db_name.length));
 
     // View table name
-    view_table_obj->set_table_name(std::string(table_name.str,
+    view_table_obj->set_table_name(String_type(table_name.str,
                                                table_name.length));
   }
 
@@ -468,10 +491,10 @@ static void fill_dd_view_routines(
     view_sf_obj->set_routine_catalog(Dictionary_impl::default_catalog_name());
 
     // View routine schema
-    view_sf_obj->set_routine_schema(std::string(sf.m_db.str, sf.m_db.length));
+    view_sf_obj->set_routine_schema(String_type(sf.m_db.str, sf.m_db.length));
 
     // View routine name
-    view_sf_obj->set_routine_name(std::string(sf.m_name.str, sf.m_name.length));
+    view_sf_obj->set_routine_name(String_type(sf.m_name.str, sf.m_name.length));
   }
 
   DBUG_VOID_RETURN;
@@ -518,10 +541,10 @@ bool create_view(THD *thd,
   view_obj->set_definer(view->definer.user.str, view->definer.host.str);
 
   // View definition.
-  view_obj->set_definition(std::string(view->select_stmt.str,
+  view_obj->set_definition(String_type(view->select_stmt.str,
                                        view->select_stmt.length));
 
-  view_obj->set_definition_utf8(std::string(view->view_body_utf8.str,
+  view_obj->set_definition_utf8(String_type(view->view_body_utf8.str,
                                             view->view_body_utf8.length));
 
   // Set updatable.
@@ -573,7 +596,7 @@ bool create_view(THD *thd,
   view->timestamp.length= PARSE_FILE_TIMESTAMPLENGTH;
 
   dd::Properties *view_options= &view_obj->options();
-  view_options->set("timestamp", std::string(view->timestamp.str,
+  view_options->set("timestamp", String_type(view->timestamp.str,
                                              view->timestamp.length));
   view_options->set_bool("view_valid", true);
 
@@ -608,20 +631,20 @@ void read_view(TABLE_LIST *view,
                MEM_ROOT *mem_root)
 {
   // Fill TABLE_LIST 'view' with view details.
-  std::string definer_user= view_obj.definer_user();
+  String_type definer_user= view_obj.definer_user();
   view->definer.user.length= definer_user.length();
   view->definer.user.str= (char*) strmake_root(mem_root,
                                                definer_user.c_str(),
                                                definer_user.length());
 
-  std::string definer_host= view_obj.definer_host();
+  String_type definer_host= view_obj.definer_host();
   view->definer.host.length= definer_host.length();
   view->definer.host.str= (char*) strmake_root(mem_root,
                                                definer_host.c_str(),
                                                definer_host.length());
 
   // View definition body.
-  std::string vd_utf8= view_obj.definition_utf8();
+  String_type vd_utf8= view_obj.definition_utf8();
   view->view_body_utf8.length= vd_utf8.length();
   view->view_body_utf8.str= (char*) strmake_root(mem_root,
                                                  vd_utf8.c_str(),
@@ -644,7 +667,7 @@ void read_view(TABLE_LIST *view,
     (view_obj.type() == dd::enum_table_type::SYSTEM_VIEW);
 
   // Get definition.
-  std::string view_definition= view_obj.definition();
+  String_type view_definition= view_obj.definition();
   view->select_stmt.length= view_definition.length();
   view->select_stmt.str= (char*) strmake_root(mem_root,
                                          view_definition.c_str(),

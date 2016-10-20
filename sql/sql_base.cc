@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,60 +17,105 @@
 
 #include "sql_base.h"
 
+#include <fcntl.h>
+#include <limits.h>
+#include <string.h>
+#include <time.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
+#include "check_stack.h"
+#include "dd/types/abstract_table.h"
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
 #include "error_handler.h"            // Internal_error_handler
+#include "field.h"
+#include "handler.h"
+#include "item.h"
 #include "item_cmpfunc.h"             // Item_func_eq
-#include "log.h"                      // sql_print_error
+#include "item_func.h"
+#include "item_subselect.h"
+#include "key.h"
 #include "lock.h"                     // mysql_lock_remove
+#include "log.h"                      // sql_print_error
 #include "log_event.h"                // Query_log_event
+#include "m_ctype.h"
+#include "mf_wcomp.h"                 // wild_one, wild_many
+#include "my_bitmap.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_dir.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
 #include "mysqld.h"                   // slave_open_temp_tables
+#include "mysqld_error.h"
 #include "partition_info.h"           // partition_info
 #include "psi_memory_key.h"           // key_memory_TABLE
+#include "query_options.h"
+#include "rpl_gtid.h"
 #include "rpl_handler.h"              // RUN_HOOK
+#include "session_tracker.h"
 #include "sp.h"                       // Sroutine_hash_entry
 #include "sp_cache.h"                 // sp_cache_version
 #include "sp_head.h"                  // sp_head
+#include "sql_audit.h"                // mysql_audit_table_access_notify
 #include "sql_class.h"                // THD
+#include "sql_const.h"
 #include "sql_error.h"                // Sql_condition
 #include "sql_handler.h"              // mysql_ha_flush_tables
 #include "sql_hset.h"                 // Hash_set
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"                // is_update_query
+#include "sql_plugin_ref.h"
 #include "sql_prepare.h"              // Reprepare_observer
+#include "sql_security_ctx.h"
+#include "sql_select.h"               // reset_statement_timer
 #include "sql_show.h"                 // append_identifier
+#include "sql_sort.h"
+#include "sql_string.h"
 #include "sql_table.h"                // build_table_filename
 #include "sql_tmp_table.h"            // free_tmp_table
 #include "sql_view.h"                 // mysql_make_view
+#include "system_variables.h"
 #include "table.h"                    // TABLE_LIST
 #include "table_cache.h"              // table_cache_manager
+#include "table_id.h"
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "template_utils.h"
+#include "thr_malloc.h"
+#include "thr_mutex.h"
 #include "transaction.h"              // trans_rollback_stmt
-#include "sql_audit.h"                // mysql_audit_table_access_notify
-#include "auth_common.h"
+#include "transaction_info.h"
+#include "xa.h"
 
 #ifdef HAVE_REPLICATION
 #include "rpl_rli.h"                  //Relay_log_information
 #endif
 
-#include "dd/dd.h"                    // dd::get_dictionary
-#include "dd/dictionary.h"            // dd::Dictionary
+#include <algorithm>
+
 #include "dd/dd_table.h"              // dd::table_exists
 #include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
 #include "dd/dd_trigger.h"            // dd::table_has_triggers
 #include "dd/types/table.h"           // dd::Table
-
-#include "pfs_table_provider.h"
-#include "mysql/psi/mysql_table.h"
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include <algorithm>
 #include "mutex_lock.h"
+#include "mysql/psi/mysql_file.h"
+#include "pfs_table_provider.h"
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE and
@@ -1737,7 +1782,7 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
   creates one DROP TEMPORARY TABLE binlog event for each pseudo-thread.
 
   TODO: In future, we should have temporary_table= 0 and
-        slave_open_temp_tables.atomic_add() at one place instead of repeating
+        slave_open_temp_tables.fetch_add() at one place instead of repeating
         it all across the function. An alternative would be to use
         close_temporary_table() instead of close_temporary() that maintains
         the correct invariant regarding empty list of temporary tables
@@ -1788,8 +1833,8 @@ bool close_temporary_tables(THD *thd)
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread)
     {
-      slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
-      thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
+      atomic_slave_open_temp_tables -= slave_closed_temp_tables;
+      thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables -= slave_closed_temp_tables;
     }
 #endif
 
@@ -2015,8 +2060,8 @@ bool close_temporary_tables(THD *thd)
 #ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
-    slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
-    thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
+    atomic_slave_open_temp_tables -= slave_closed_temp_tables;
+    thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables -= slave_closed_temp_tables;
   }
 #endif
 
@@ -2440,9 +2485,10 @@ void close_temporary_table(THD *thd, TABLE *table,
   if (thd->slave_thread)
   {
     /* natural invariant of temporary_tables */
-    DBUG_ASSERT(thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_get() || !thd->temporary_tables);
-    slave_open_temp_tables.atomic_add(-1);
-    thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-1);
+    DBUG_ASSERT(thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables ||
+                !thd->temporary_tables);
+    --atomic_slave_open_temp_tables;
+    --thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables;
   }
 #endif
   close_temporary(thd, table, free_share, delete_table);
@@ -7156,8 +7202,8 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread)
     {
-      slave_open_temp_tables.atomic_add(1);
-      thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(1);
+      ++atomic_slave_open_temp_tables;
+      ++thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables;
     }
 #endif
   }
@@ -9119,6 +9165,14 @@ bool resolve_var_assignments(THD *thd, LEX *lex)
                                 to a base table column
 
   @returns false if success, true if error
+
+  @note The function checks updatability/insertability for the table before
+        checking column privileges, for consistent error reporting.
+        This has consequences for columns that are specified to be updated:
+        The column is first resolved without privilege check.
+        This check is followed by an updatablity/insertability check.
+        Finally, a column privilege check is run, and the column is marked
+        for update.
 */
 
 bool setup_fields(THD *thd, Ref_item_array ref_item_array,
@@ -9131,7 +9185,8 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
   SELECT_LEX *const select= thd->lex->current_select();
   const enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
   nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
-  Column_privilege_tracker column_privilege(thd, want_privilege);
+  Column_privilege_tracker column_privilege(thd, column_update ?
+                                                 0 : want_privilege);
 
   // Function can only be used to set up one specific operation:
   DBUG_ASSERT(want_privilege == 0 ||
@@ -9141,7 +9196,7 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
   DBUG_ASSERT(! (column_update && (want_privilege & SELECT_ACL)));
   if (want_privilege & SELECT_ACL)
     thd->mark_used_columns= MARK_COLUMNS_READ;
-  else if (want_privilege & (INSERT_ACL | UPDATE_ACL))
+  else if (want_privilege & (INSERT_ACL | UPDATE_ACL) && !column_update)
     thd->mark_used_columns= MARK_COLUMNS_WRITE;
   else
     thd->mark_used_columns= MARK_COLUMNS_NONE;
@@ -9187,11 +9242,43 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
       ref[0]= item;
       ref.pop_front();
     }
-    if (column_update && item->field_for_view_update() == NULL)
+    if (column_update)
     {
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
-      DBUG_RETURN(true);
-    }
+      Item_field *const field= item->field_for_view_update();
+      if (field == NULL)
+      {
+        my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
+        DBUG_RETURN(true);
+      }
+      TABLE_LIST *tr= field->table_ref;
+      if ((want_privilege & UPDATE_ACL) && !tr->is_updatable())
+      {
+        my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tr->alias, "UPDATE");
+        DBUG_RETURN(true);
+      }
+      if ((want_privilege & INSERT_ACL) && !tr->is_insertable())
+      {
+        /* purecov: begin inspected */
+        /*
+          Generally unused as long as INSERT only can be applied against
+          one base table, for which the INSERT privileges are checked in
+          Sql_cmd_insert_base::prepare_inner()
+        */
+        my_error(ER_NON_INSERTABLE_TABLE, MYF(0), tr->alias, "INSERT");
+        DBUG_RETURN(true);
+        /* purecov: end */
+      }
+      if (want_privilege & (INSERT_ACL | UPDATE_ACL))
+      {
+        Column_privilege_tracker column_privilege(thd, want_privilege);
+        if (item->walk(&Item::check_column_privileges, Item::WALK_PREFIX,
+                       pointer_cast<uchar *>(thd)))
+          DBUG_RETURN(true);
+      }
+      Mark_field mf(MARK_COLUMNS_WRITE);
+      item->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
+                 pointer_cast<uchar *>(&mf));
+   }
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
       item->split_sum_func(thd, ref_item_array, *sum_func_list);

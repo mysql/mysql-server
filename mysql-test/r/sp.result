@@ -7169,15 +7169,16 @@ CREATE VIEW t1 AS SELECT 10 AS f1;
 CALL p1(1);
 ERROR HY000: The target table t1 of the INSERT is not insertable-into
 CREATE TEMPORARY TABLE t1 (f1 INT);
-# t1 still refers to the view since it was inlined
+# Since last call to p1 was unsuccessful, the query will be reparsed
+# and the procedure will refer to the temporary table
 CALL p1(2);
-ERROR HY000: The target table t1 of the INSERT is not insertable-into
 DROP VIEW t1;
-# t1 now refers to the temporary table
+# t1 still refers to the temporary table
 CALL p1(3);
 # Check which values were inserted into the temp table.
 SELECT * FROM t1;
 f1
+2
 3
 DROP TEMPORARY TABLE t1;
 DROP PROCEDURE p1;

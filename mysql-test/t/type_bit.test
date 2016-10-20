@@ -371,7 +371,7 @@ SHOW CREATE TABLE t1;
 
 # Should store the defaults
 INSERT INTO t1 (f1) VALUES (DEFAULT);
-# Should store 0's, not the default
+# Should store 0s, not the default
 INSERT INTO t1 VALUES (b'', b''); 
 
 SELECT HEX(f1), HEX(f2) FROM t1;
@@ -481,3 +481,12 @@ CREATE TEMPORARY TABLE t2(a BIT(60)) ENGINE=InnoDB SELECT a FROM t1
 GROUP BY a DESC HAVING a IS NULL;
 DROP TEMPORARY TABLE t2;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#24686658 BIN RETURN INCONSISTENT RESULTS WITH
+--echo #              PARAMS OF DATETYPE BIT
+--echo #
+
+select bin(0b11111111), oct(0b11111111), hex(0b11111111),
+       bin(0xFF), oct(0xFF), hex(0xFF);
+

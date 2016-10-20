@@ -16,17 +16,23 @@
 #ifndef DD_CACHE__STORAGE_ADAPTER_INCLUDED
 #define DD_CACHE__STORAGE_ADAPTER_INCLUDED
 
-#include "my_global.h"                       // DBUG_ASSERT() etc.
-#include "handler.h"                         // enum_tx_isolation
+#include <stddef.h>
+
 #include "dd/impl/types/entity_object_impl.h" // set_id()
+#include "dd/object_id.h"
+#include "handler.h"                         // enum_tx_isolation
+#include "my_global.h"                       // DBUG_ASSERT() etc.
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "thr_mutex.h"
 
 #ifndef DBUG_OFF
-// Only needed for unit testing
-#include "sql_class.h"                       // THD
-#include "mysqld_error.h"                    // my_error
-#include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
 #include "dd/cache/object_registry.h"        // Object_registry
 #include "dd/impl/cache/cache_element.h"     // Cache_element
+#include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
+#include "mysqld_error.h"                    // my_error
+#include "sql_class.h"                       // THD
 
 #endif /* DBUG_OFF */
 
@@ -38,8 +44,8 @@ namespace dd_cache_unittest {
 
 namespace dd {
 
-class Table_stat;
 class Index_stat;
+class Table_stat;
 
 namespace cache {
 

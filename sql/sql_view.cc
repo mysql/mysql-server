@@ -15,30 +15,71 @@
 
 #include "sql_view.h"
 
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
+
+#include "auth_acls.h"
 #include "auth_common.h"    // CREATE_VIEW_ACL
 #include "binlog.h"         // mysql_bin_log
-#include "dd_sql_view.h"    // update_referencing_views_metadata
-#include "error_handler.h"  // Internal_error_handler
-#include "derror.h"         // ER_THD
-#include "mysqld.h"         // stage_end reg_ext key_file_frm
-#include "opt_trace.h"      // opt_trace_disable_if_no_view_access
-#include "sp_cache.h"       // sp_cache_invalidate
-#include "sql_base.h"       // get_table_def_key
-#include "sql_cache.h"      // query_cache
-#include "sql_class.h"      // THD
-#include "sql_parse.h"      // create_default_definer
-#include "sql_show.h"       // append_identifier
-#include "sql_table.h"      // write_bin_log
-
 #include "dd/dd.h"          // dd::get_dictionary
-#include "dd/dictionary.h"  // dd::Dictionary
 #include "dd/dd_schema.h"   // dd::schema_exists
 #include "dd/dd_table.h"    // dd::abstract_table_type
 #include "dd/dd_view.h"     // dd::create_view
-#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "dd/dictionary.h"  // dd::Dictionary
+#include "dd/types/abstract_table.h"
+#include "dd_sql_view.h"    // update_referencing_views_metadata
+#include "derror.h"         // ER_THD
+#include "enum_query_type.h"
+#include "error_handler.h"  // Internal_error_handler
+#include "field.h"
+#include "handler.h"
+#include "item.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld.h"         // stage_end reg_ext key_file_frm
+#include "mysqld_error.h"
+#include "opt_trace.h"      // opt_trace_disable_if_no_view_access
+#include "parse_tree_node_base.h"
+#include "query_options.h"
+#include "set_var.h"
+#include "sp_cache.h"       // sp_cache_invalidate
+#include "sql_admin.h"
+#include "sql_base.h"       // get_table_def_key
+#include "sql_cache.h"      // query_cache
+#include "sql_class.h"      // THD
+#include "sql_const.h"
+#include "sql_digest_stream.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"      // create_default_definer
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_show.h"       // append_identifier
+#include "sql_string.h"
+#include "sql_table.h"      // write_bin_log
+#include "sql_udf.h"
+#include "system_variables.h"
+#include "table.h"
+#include "thr_lock.h"
 
-#define MD5_BUFF_LENGTH 33
-
+class Field;
+namespace dd {
+class View;
+}  // namespace dd
 
 /*
   Make a unique name for an anonymous view column
@@ -780,17 +821,6 @@ err:
   lex->link_first_table_back(view, link_to_local);
   unit->cleanup(true);
 
-  /*
-    If we are upgrading on old data directory, the view might be
-    broken and ALTER will fail on view. Though my_error() is called
-    for errors, it does not set DA error status for bootstrap thread.
-    Set OK status here to avoid the assert after statement execution due
-    to empty DA error status. Error will be handled by called function.
-    View will be marked invalid from caller function.
-  */
-  if (dd_upgrade_flag)
-    my_ok(thd);
-
   DBUG_RETURN(res || thd->is_error());
 }
 
@@ -894,15 +924,6 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
     goto err;   
   }
 
-  //view->file_version= 1;
-  //view->calc_md5(md5);
-  //if (!(view->md5.str= (char*) thd->memdup(md5, 32)))
-  //{
-  //  my_error(ER_OUT_OF_RESOURCES, MYF(0));
-  //  error= -1;
-  //  goto err;   
-  //}
-  //view->md5.length= 32;
   if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
       !can_be_merged)
   {
@@ -1101,8 +1122,6 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
 err:
   view->select_stmt.str= NULL;
   view->select_stmt.length= 0;
-  //view->md5.str= NULL;
-  //view->md5.length= 0;
   DBUG_RETURN(error);
 }
 
@@ -2079,30 +2098,6 @@ bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
   DBUG_RETURN(false);
 }
 
-/*
-  checking view md5 check suum
-
-  SINOPSYS
-    view_checksum()
-    view    view for check
-
-  RETUIRN
-    HA_ADMIN_OK               OK
-    HA_ADMIN_NOT_IMPLEMENTED  it is not VIEW
-    HA_ADMIN_WRONG_CHECKSUM   check sum is wrong
-*/
-
-int view_checksum(TABLE_LIST *view)
-{
-  char md5[MD5_BUFF_LENGTH];
-  if (!view->is_view() || view->md5.length != 32)
-    return HA_ADMIN_NOT_IMPLEMENTED;
-  view->calc_md5(md5);
-  return (strncmp(md5, view->md5.str, 32) ?
-          HA_ADMIN_WRONG_CHECKSUM :
-          HA_ADMIN_OK);
-}
-
 /**
   Rename a view,
 
@@ -2128,7 +2123,7 @@ mysql_rename_view(THD *thd,
   /* Rename view in the data-dictionary. */
   if (dd::rename_table<dd::View>(thd,
                                  view->db, view->table_name,
-                                 new_db, new_name, do_commit))
+                                 new_db, new_name, false, do_commit))
   {
     DBUG_RETURN(true);
   }

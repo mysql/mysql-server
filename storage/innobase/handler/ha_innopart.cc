@@ -2918,8 +2918,8 @@ ha_innopart::create(
 		}
 
 		const dd::Properties&	options = dd_part->options();
-		std::string		index_file_name;
-		std::string		data_file_name;
+		dd::String_type		index_file_name;
+		dd::String_type		data_file_name;
 		const char*		tablespace_name;
 
 		options.get(index_file_name_key, index_file_name);
@@ -3845,7 +3845,8 @@ ha_innopart::info_low(
 			    && avail_space != ULINT_UNDEFINED) {
 
 				/* Only count system tablespace once! */
-				if (is_system_tablespace(ib_table->space)) {
+				if (fsp_is_system_or_temp_tablespace(
+						ib_table->space)) {
 					if (checked_sys_tablespace) {
 						continue;
 					}

@@ -1,0 +1,15 @@
+TYPE=VIEW
+query=select `test`.`initial_tü`.`cü` AS `cü` from `test`.`initial_tü`
+md5=22f4b5be8a048187316022c1a2e202c0
+updatable=1
+algorithm=0
+definer_user=root
+definer_host=localhost
+suid=0
+with_check_option=0
+timestamp=2016-09-01 09:49:13
+create-version=1
+source=SELECT cü FROM initial_tü
+client_cs_name=latin1
+connection_cl_name=latin1_swedish_ci
+view_body_utf8=select `test`.`initial_tÃ¼`.`cÃ¼` AS `cÃ¼` from `test`.`initial_tÃ¼`

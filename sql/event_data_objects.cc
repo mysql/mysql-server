@@ -15,27 +15,54 @@
 
 #include "event_data_objects.h"
 
+#include <string.h>
+
+#include "auth_acls.h"
+                                               // struct Time_zone
+#include "auth_common.h"                       // EVENT_ACL, SUPER_ACL
+#include "dd/dd_event.h"                       // dd::get_old_interval_type
+#include "dd/dd_schema.h"                      // dd::get_schema_name
+#include "dd/string_type.h"
+#include "dd/types/event.h"
+#include "derror.h"
+#include "event_parse_data.h"
+#include "events.h"
+                                               // append_identifier
+#include "log.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_sp.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
 #include "psi_memory_key.h"
+#include "sp_head.h"
+#include "sql_alloc.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"                         // parse_sql
-#include "sql_db.h"                            // get_default_db_collation
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_show.h"                          // append_definer,
+#include "sql_string.h"
 #include "sql_time.h"                          // interval_type_to_name
+#include "system_variables.h"
+#include "table.h"
+#include "thr_malloc.h"
                                                // date_add_interval,
                                                // calc_time_diff.
 #include "tztime.h"                            // my_tz_find, my_tz_OFFSET0
-                                               // struct Time_zone
-#include "auth_common.h"                       // EVENT_ACL, SUPER_ACL
-#include "events.h"
-#include "event_db_repository.h"
-#include "event_parse_data.h"
-#include "sp_head.h"
-#include "sql_show.h"                          // append_definer,
-                                               // append_identifier
-#include "log.h"
-#include "derror.h"
-#include "dd/dd_event.h"                       // dd::get_old_interval_type
-#include "dd/dd_schema.h"                      // dd::get_schema_name
 
-#include "mysql/psi/mysql_sp.h"
+class Item;
+struct PSI_statement_locker;
+struct sql_digest_state;
 
 /**
   @addtogroup Event_Scheduler
@@ -65,7 +92,7 @@ static inline LEX_STRING make_lex_string(MEM_ROOT *mem_root, const char *str)
 
 
 static inline LEX_STRING make_lex_string(MEM_ROOT *mem_root,
-                                         const std::string &str)
+                                         const dd::String_type &str)
 {
   LEX_STRING lex_str;
   lex_str.str= strmake_root(mem_root, str.c_str(), str.length());
@@ -75,7 +102,7 @@ static inline LEX_STRING make_lex_string(MEM_ROOT *mem_root,
 
 
 static inline LEX_CSTRING make_lex_cstring(MEM_ROOT *mem_root,
-                                           const std::string &str)
+                                           const dd::String_type &str)
 {
   LEX_CSTRING lex_cstr;
   lex_cstr.str= strmake_root(mem_root, str.c_str(), str.length());
@@ -347,7 +374,7 @@ Event_job_data::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_schema_name= make_lex_string(&mem_root, schema_name);
   m_event_name= make_lex_string(&mem_root, event_obj.name());
 
-  std::string tmp(event_obj.definer_user());
+  dd::String_type tmp(event_obj.definer_user());
   tmp.append("@");
   tmp.append(event_obj.definer_host());
   m_definer= make_lex_string(&mem_root, tmp);
@@ -384,7 +411,7 @@ Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_schema_name= make_lex_string(&mem_root, schema_name);
   m_event_name=make_lex_string(&mem_root, event_obj.name());
 
-  std::string tmp(event_obj.definer_user());
+  dd::String_type tmp(event_obj.definer_user());
   tmp.append("@");
   tmp.append(event_obj.definer_host());
 

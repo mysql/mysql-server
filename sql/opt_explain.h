@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,15 +47,21 @@ launches the EXPLAIN process for "inner units" (==subqueries of this
 SELECT_LEX), by calling explain_unit() for each of them. 
 */
 
-#include <my_base.h>
+#include "my_base.h"
+#include "my_global.h"
 #include "opt_explain_format.h"
+#include "parse_tree_node_base.h"
 #include "query_result.h"                // Query_result_send
+#include "sys/types.h"
 
+class Item;
 class JOIN;
-struct TABLE;
-class THD;
-class SELECT_LEX_UNIT;
+class QEP_TAB;
 class SELECT_LEX;
+class SELECT_LEX_UNIT;
+class THD;
+struct TABLE;
+template <class T> class List;
 
 extern const char *join_type_str[];
 
@@ -115,7 +121,7 @@ private:
 
 */
 
-class Query_result_explain : public Query_result_send {
+class Query_result_explain final : public Query_result_send {
 protected:
   /*
     As far as we use Query_result_explain object in a place of Query_result_send,
@@ -146,7 +152,7 @@ public:
   { unit= unit_arg; }
 
 protected:
-  virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override
   {
     if (prepared)
       return false;
@@ -154,7 +160,7 @@ protected:
     return Query_result_send::prepare(list, u) || interceptor->prepare(list, u);
   }
 
-  virtual int prepare2(void)
+  int prepare2() override
   {
     if (prepared2)
       return false;
@@ -162,7 +168,7 @@ protected:
     return Query_result_send::prepare2() || interceptor->prepare2();
   }
 
-  virtual bool initialize_tables(JOIN *join)
+  bool initialize_tables(JOIN *join) override
   {
     if (initialized)
       return false;
@@ -171,7 +177,7 @@ protected:
            interceptor->initialize_tables(join);
   }
 
-  virtual void cleanup()
+  void cleanup() override
   {
     Query_result_send::cleanup();
     interceptor->cleanup();

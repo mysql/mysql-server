@@ -21,10 +21,20 @@
 #ifndef _my_alloc_h
 #define _my_alloc_h
 
+/*
+  How much overhead does malloc have. The code often allocates
+  something like 1024-MALLOC_OVERHEAD bytes
+*/
+#define MALLOC_OVERHEAD 8
+
+/* Typical record cache */
+#define RECORD_CACHE_SIZE      (uint) (64*1024-MALLOC_OVERHEAD)
+
 #define ALLOC_MAX_BLOCK_TO_DROP			4096
 #define ALLOC_MAX_BLOCK_USAGE_BEFORE_DROP	10
 
 #ifndef MYSQL_ABI_CHECK
+#include <string.h>
 #include "my_global.h"
 #endif
 #include "mysql/psi/psi_memory.h"
@@ -41,8 +51,27 @@ typedef struct st_used_mem
 } USED_MEM;
 
 
-typedef struct st_mem_root
+struct st_mem_root
 {
+#if defined(__cplusplus) && (__cplusplus >= 201103L || defined(_MSC_VER))
+  // Make the class movable but not copyable.
+  st_mem_root() {}
+  st_mem_root(const st_mem_root &) = delete;
+  st_mem_root(st_mem_root &&other) {
+    memcpy(this, &other, sizeof(*this));
+    other.free= other.used= other.pre_alloc= nullptr;
+    other.min_malloc= 0;
+  }
+
+  st_mem_root& operator= (const st_mem_root &) = delete;
+  st_mem_root& operator= (st_mem_root &&other) {
+    memcpy(this, &other, sizeof(*this));
+    other.free= other.used= other.pre_alloc= nullptr;
+    other.min_malloc= 0;
+    return *this;
+  }
+#endif
+
   USED_MEM *free;                  /* blocks with free memory in it */
   USED_MEM *used;                  /* blocks almost without free memory */
   USED_MEM *pre_alloc;             /* preallocated block */
@@ -72,7 +101,9 @@ typedef struct st_mem_root
   void (*error_handler)(void);
 
   PSI_memory_key m_psi_key;
-} MEM_ROOT;
+};
+
+#include "mem_root_fwd.h"  // Contains the typedef to MEM_ROOT.
 
 #ifdef  __cplusplus
 }

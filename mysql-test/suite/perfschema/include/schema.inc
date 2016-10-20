@@ -58,6 +58,8 @@ show create table hosts;
 show create table mutex_instances;
 show create table objects_summary_global_by_type;
 show create table performance_timers;
+show create table data_locks;
+show create table data_lock_waits;
 show create table rwlock_instances;
 show create table setup_actors;
 show create table setup_consumers;

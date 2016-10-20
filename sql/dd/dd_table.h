@@ -16,25 +16,37 @@
 #ifndef DD_TABLE_INCLUDED
 #define DD_TABLE_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <string>
 
 #include "binary_log_types.h"        // enum_field_types
-#include "handler.h"                 // legacy_db_type
-
-#include "sql_alter.h"               // Alter_info::enum_enable_or_disable
-#include "table.h"                   // ST_FIELD_INFO
 #include "dd/types/column.h"         // dd::enum_column_types
+#include "handler.h"                 // legacy_db_type
+#include "my_global.h"
+#include "prealloced_array.h"        // Prealloced_array
+#include "sql_alter.h"               // Alter_info::enum_enable_or_disable
+#include "system_variables.h"
+#include "table.h"                   // ST_FIELD_INFO
 
 #include <memory>                    // std:unique_ptr
 
 class Create_field;
+class FOREIGN_KEY;
 class THD;
+namespace dd {
+class Abstract_table;
+}  // namespace dd
+struct TABLE_LIST;
+struct TABLE_SHARE;
+
 typedef struct st_ha_create_information HA_CREATE_INFO;
 class KEY;
 template <class T> class List;
 
 namespace dd {
+  class Trigger;
   class Table;
+
   enum class enum_table_type;
   namespace cache {
     class Dictionary_client;
@@ -63,8 +75,8 @@ static const char FIELD_NAME_SEPARATOR_CHAR = ';';
   @retval 1 on failure.
 */
 std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
-                             const std::string &schema_name,
-                             const std::string &table_name,
+                             const dd::String_type &schema_name,
+                             const dd::String_type &table_name,
                              HA_CREATE_INFO *create_info,
                              const List<Create_field> &create_fields,
                              const KEY *keyinfo,
@@ -101,8 +113,8 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
            case of failure).
 */
 std::unique_ptr<Table> create_table(THD *thd,
-                         const std::string &schema_name,
-                         const std::string &table_name,
+                         const dd::String_type &schema_name,
+                         const dd::String_type &table_name,
                          HA_CREATE_INFO *create_info,
                          const List<Create_field> &create_fields,
                          const KEY *keyinfo, uint keys,
@@ -131,8 +143,8 @@ std::unique_ptr<Table> create_table(THD *thd,
   @returns Constructed dd::Table object, or nullptr in case of an error.
 */
 std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
-                             const std::string &schema_name,
-                             const std::string &table_name,
+                             const dd::String_type &schema_name,
+                             const dd::String_type &table_name,
                              HA_CREATE_INFO *create_info,
                              const List<Create_field> &create_fields,
                              const KEY *keyinfo, uint keys,
@@ -140,26 +152,29 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
                              handler *file);
 
 /**
-  Add foreign keys to a given table. This is used by ALTER TABLE
-  to restore existing foreign keys towards the end of the statement.
-  This is needed to avoid problems with duplicate foreign key names
-  while we have to definitions of the same table.
+  Add foreign keys and triggers to a given table. This is used by
+  ALTER TABLE to restore existing foreign keys and triggers towards
+  the end of the statement. This is needed to avoid problems with
+  duplicate foreign key and trigger names while we have two definitions
+  of the same table.
 
   @param thd            Thread handle.
   @param schema_name    Database name.
   @param table_name     Table name.
-  @param fk_keyinfo     Array of foreign key information
+  @param fk_keyinfo     Array of foreign key information.
   @param fk_keys        Number of foreign keys to add.
+  @param trg_info       Array of triggers to be added to the table.
   @param commit_dd_changes  Indicates whether change should be committed.
 
   @retval false on success
   @retval true on failure
 */
-bool add_foreign_keys(THD *thd,
-                      const char *schema_name,
-                      const char *table_name,
-                      const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
-                      bool commit_dd_changes);
+bool add_foreign_keys_and_triggers(THD *thd,
+                                   const dd::String_type &schema_name,
+                                   const dd::String_type &table_name,
+                                   const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
+                                   Prealloced_array<dd::Trigger*, 1> *trg_info,
+                                   bool commit_dd_changes);
 
 //////////////////////////////////////////////////////////////////////////
 // Function common to 'table' and 'view' objects
@@ -207,20 +222,34 @@ bool table_exists(dd::cache::Dictionary_client *client,
                   const char *name,
                   bool *exists);
 
-/* Rename table name in dd.tables */
+/**
+  Rename a table or view in dd.tables.
+
+  @param  thd                  The dictionary client.
+  @param  from_schema_name     Schema of table/view to rename.
+  @param  from_name            Table/view name to rename.
+  @param  to_schema_name       New schema name.
+  @param  to_name              New table/view name.
+  @param  mark_as_hidden       Mark the new table as hidden, if true.
+
+  @retval      true         Failure (error has been reported).
+  @retval      false        Success.
+*/
 template <typename T>
 bool rename_table(THD *thd,
                   const char *from_schema_name,
                   const char *from_name,
                   const char *to_schema_name,
                   const char *to_name,
+                  bool mark_as_hidden,
                   bool commit_dd_changes);
 
 template <typename T>
 bool rename_table(THD *thd,
                   const dd::Schema *from_sch, const dd::Table *from_table_def,
                   const dd::Schema *to_sch, dd::Table *to_table_def,
-                  bool commit_dd_changes);
+                  bool mark_as_hidden, bool commit_dd_changes);
+
 
 //////////////////////////////////////////////////////////////////////////
 // Functions for retrieving, inspecting and manipulating instances of
@@ -370,7 +399,7 @@ bool update_keys_disabled(THD *thd,
   Function prepares string representing columns data type.
   This is required for IS implementation which uses views on DD tables
 */
-std::string get_sql_type_by_field_info(THD *thd,
+String_type get_sql_type_by_field_info(THD *thd,
                                        enum_field_types field_type,
                                        uint32 field_length,
                                        const CHARSET_INFO *field_charset);

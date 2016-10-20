@@ -121,7 +121,7 @@ table_accounts::table_accounts()
   m_row_exists(false)
 {}
 
-int table_accounts::index_init(uint idx, bool sorted)
+int table_accounts::index_init(uint, bool)
 {
   PFS_index_accounts *result= NULL;
   result= PFS_NEW(PFS_index_accounts_by_user_host);

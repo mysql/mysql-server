@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,9 +18,11 @@
   Get date in a printable form: yyyy-mm-dd hh:mm:ss
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
 #include <m_string.h>
+#include <stdio.h>
+#include <time.h>
+
+#include "my_sys.h"
 
 /*
   get date as string

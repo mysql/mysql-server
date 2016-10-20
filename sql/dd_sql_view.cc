@@ -15,25 +15,47 @@
 
 #include "dd_sql_view.h"
 
+#include <string.h>
+#include <sys/types.h>
+#include <set>
+#include <vector>
+
+#include "auth_common.h"
+#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "dd/dd.h"                      // dd::get_dictionary
+#include "dd/dd_view.h"                 // dd::update_view_status
+#include "dd/dictionary.h"              // is_dd_schema_name
+#include "dd/object_id.h"
+#include "dd/string_type.h"
+#include "dd/types/schema.h"
+#include "dd/types/view.h"
 #include "derror.h"                     // ER_THD
-#include "debug_sync.h"                 // debug_sync
 #include "error_handler.h"              // Internal_error_handler
 #include "handler.h"                    // HA_LEX_CREATE_TMP_TABLE
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "set_var.h"
 #include "sp_head.h"                    // sp_name
 #include "sql_alter.h"                  // Alter_info
 #include "sql_base.h"                   // open_tables
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
 #include "sql_lex.h"                    // LEX
+#include "sql_plugin.h"
 #include "sql_view.h"                   // mysql_register_view
+#include "system_variables.h"
 #include "table.h"                      // TABLE_LIST
+#include "thr_lock.h"
 
-#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
-#include "dd/dd.h"                      // dd::get_dictionary
-#include "dd/dd_table.h"                // dd::table_exists
-#include "dd/dd_view.h"                 // dd::update_view_status
-#include "dd/dictionary.h"              // is_dd_schema_name
-#include "dd/properties.h"              // dd::Properties
-#include "dd/types/view_routine.h"      // View_routine
-#include "dd/types/view_table.h"        // View_table
+namespace dd {
+class View_routine;
+class View_table;
+}  // namespace dd
 
 /**
   RAII class to set the context for View_metadata_updater.
@@ -185,31 +207,24 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
 
   for (uint idx= 0; idx < view_ids.size(); idx++)
   {
-    std::string view_name;
-    std::string schema_name;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    dd::String_type view_name;
+    dd::String_type schema_name;
     // Get schema name and view name from the object id of the view.
     {
-      const dd::View *view= nullptr;
+      dd::View *view= nullptr;
       if (thd->dd_client()->acquire_uncached(view_ids.at(idx), &view))
         DBUG_RETURN(true);
       if (!view)
         continue;
 
-      const dd::Schema *schema= nullptr;
+      dd::Schema *schema= nullptr;
       if (thd->dd_client()->acquire_uncached(view->schema_id(), &schema))
-      {
-        delete view;
         DBUG_RETURN(true);
-      }
       if (!schema)
-      {
-        delete view;
         continue;
-      }
       view_name= view->name();
       schema_name= schema->name();
-      delete schema;
-      delete view;
     }
 
     // If TABLE_LIST object is already prepared for view name then skip it.

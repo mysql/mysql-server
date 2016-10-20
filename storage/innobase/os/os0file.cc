@@ -3906,7 +3906,7 @@ SyncFileIO::execute(Slot* slot)
 
 	}
 
-	return(ret ? slot->n_bytes : -1);
+	return(ret ? static_cast<ssize_t>(slot->n_bytes) : -1);
 }
 
 /** Check if the file system supports sparse files.

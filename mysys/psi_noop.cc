@@ -21,22 +21,37 @@
 #define USE_PSI_V1
 #define HAVE_PSI_INTERFACE
 
-#include "my_global.h"
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <sys/types.h>
+#include <time.h>
+
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"  // IWYU pragma: keep
 #include "my_thread.h"
-#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_data_lock.h"
+#include "mysql/psi/psi_error.h"
+#include "mysql/psi/psi_file.h"
+#include "mysql/psi/psi_idle.h"
+#include "mysql/psi/psi_mdl.h"
+#include "mysql/psi/psi_memory.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/psi/psi_rwlock.h"
-#include "mysql/psi/psi_cond.h"
-#include "mysql/psi/psi_file.h"
 #include "mysql/psi/psi_socket.h"
-#include "mysql/psi/psi_table.h"
-#include "mysql/psi/psi_mdl.h"
-#include "mysql/psi/psi_idle.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_statement.h"
+#include "mysql/psi/psi_table.h"
+#include "mysql/psi/psi_thread.h"
 #include "mysql/psi/psi_transaction.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_error.h"
+
+class THD;
+struct MDL_key;
 
 C_MODE_START
 
@@ -151,6 +166,13 @@ set_thread_connect_attrs_noop(const char *buffer MY_ATTRIBUTE((unused)),
   return 0;
 }
 
+static void get_thread_event_id_noop(ulonglong *thread_internal_id,
+                                     ulonglong *event_id)
+{
+  *thread_internal_id= 0;
+  *event_id= 0;
+}
+
 static PSI_thread_service_t psi_thread_noop=
 {
   register_thread_noop,
@@ -171,7 +193,8 @@ static PSI_thread_service_t psi_thread_noop=
   set_thread_noop,
   delete_current_thread_noop,
   delete_thread_noop,
-  set_thread_connect_attrs_noop
+  set_thread_connect_attrs_noop,
+  get_thread_event_id_noop
 };
 
 struct PSI_thread_bootstrap *psi_thread_hook= NULL;
@@ -1223,6 +1246,33 @@ void set_psi_memory_service(PSI_memory_service_t *psi)
   psi_memory_service= psi;
 }
 
+C_MODE_END
+
 // ===========================================================================
 
-C_MODE_END
+static void register_data_lock_noop(PSI_engine_data_lock_inspector *inspector NNN)
+{
+  return;
+}
+
+static void unregister_data_lock_noop(PSI_engine_data_lock_inspector *inspector NNN)
+{
+  return;
+}
+
+static PSI_data_lock_service_t psi_data_lock_noop=
+{
+  register_data_lock_noop,
+  unregister_data_lock_noop
+};
+
+struct PSI_data_lock_bootstrap *psi_data_lock_hook= NULL;
+PSI_data_lock_service_t *psi_data_lock_service= & psi_data_lock_noop;
+
+void set_psi_data_lock_service(PSI_data_lock_service_t *psi)
+{
+  psi_data_lock_service= psi;
+}
+
+// ===========================================================================
+

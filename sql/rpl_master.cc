@@ -17,26 +17,51 @@
 #ifdef HAVE_REPLICATION
 #include "rpl_master.h"
 
-#include "hash.h"                               // HASH
-#include "m_string.h"                           // strmake
+#include <fcntl.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"                        // check_global_access
+#include "binary_log_types.h"
 #include "binlog.h"                             // mysql_bin_log
+#include "current_thd.h"
 #include "debug_sync.h"                         // DEBUG_SYNC
+#include "handler.h"
+#include "hash.h"                               // HASH
+#include "item.h"
 #include "item_func.h"                          // user_var_entry
 #include "log.h"                                // sql_print_information
+#include "m_ctype.h"
+#include "m_string.h"                           // strmake
+#include "my_byteorder.h"
+#include "my_command.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"                             // server_id
+#include "mysqld_error.h"
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
+#include "protocol.h"
+#include "protocol_classic.h"
 #include "psi_memory_key.h"
 #include "rpl_binlog_sender.h"                  // Binlog_sender
 #include "rpl_filter.h"                         // binlog_filter
+#include "rpl_group_replication.h"              // is_group_replication_running
+#include "rpl_gtid.h"
 #include "rpl_handler.h"                        // RUN_HOOK
 #include "sql_class.h"                          // THD
-#include "rpl_group_replication.h"              // is_group_replication_running
-#include "current_thd.h"
+#include "sql_list.h"
+#include "sql_string.h"
+#include "system_variables.h"
 #include "template_utils.h"
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
+#include "thr_mutex.h"
+#include "typelib.h"
 
 
 int max_binlog_dump_events = 0; // unlimited

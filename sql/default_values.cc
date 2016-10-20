@@ -15,17 +15,30 @@
 
 #include "default_values.h"
 
-#include "dd_table_share.h"    // dd_get_old_field_type
-#include "handler.h"           // handler
-#include "item.h"              // Item
-#include "field.h"             // calc_pack_length
-#include "my_decimal.h"        // DECIMAL_MAX_SCALE
-#include "sql_class.h"         // THD
-#include "sql_list.h"          // List
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
 
+#include "binary_log_types.h"
 #include "dd/properties.h"     // dd::Properties
+#include "dd/string_type.h"
 #include "dd/types/column.h"   // dd::Column
 #include "dd/types/table.h"    // dd::Table
+#include "dd_table_share.h"    // dd_get_old_field_type
+#include "field.h"             // calc_pack_length
+#include "handler.h"           // handler
+#include "item.h"              // Item
+#include "my_base.h"
+#include "my_compare.h"
+#include "my_dbug.h"
+#include "my_decimal.h"        // DECIMAL_MAX_SCALE
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "sql_class.h"         // THD
+#include "sql_list.h"          // List
+#include "table.h"
 
 /**
   Calculate the length of the in-memory representation of the column.
@@ -285,7 +298,7 @@ bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
   col_obj->set_default_value_null(regfield->is_null());
   if (!col_obj->is_default_value_null())
   {
-    std::string default_value;
+    dd::String_type default_value;
     default_value.assign(reinterpret_cast<char*>(buf + 1), field.pack_length);
 
     // Append leftover bits as the last byte of the default value.

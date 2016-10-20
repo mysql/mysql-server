@@ -17,8 +17,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "m_string.h"                           // LEX_CSTRING
+#include "my_dbug.h"
+#include "my_global.h"
 #include "prealloced_array.h"
 
 class THD;

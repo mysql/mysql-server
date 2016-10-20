@@ -6,6 +6,16 @@ TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	INDEX_TYPE	INDEX_COMMENT
 accounts	0	performance_schema	ACCOUNT	HASH	
 cond_instances	1	performance_schema	NAME	HASH	
 cond_instances	0	performance_schema	PRIMARY	HASH	
+data_locks	1	performance_schema	ENGINE_TRANSACTION_ID	HASH	
+data_locks	1	performance_schema	OBJECT_SCHEMA	HASH	
+data_locks	0	performance_schema	PRIMARY	HASH	
+data_locks	1	performance_schema	THREAD_ID	HASH	
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_LOCK_ID	HASH	
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_TRANSACTION_ID	HASH	
+data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	HASH	
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	HASH	
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	HASH	
+data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	HASH	
 events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	HASH	
 events_errors_summary_by_host_by_error	0	performance_schema	HOST	HASH	
 events_errors_summary_by_thread_by_error	0	performance_schema	THREAD_ID	HASH	
@@ -128,6 +138,28 @@ accounts	0	performance_schema	ACCOUNT	1	USER	NULL	YES
 accounts	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
 cond_instances	1	performance_schema	NAME	1	NAME	NULL	
 cond_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
+data_locks	1	performance_schema	ENGINE_TRANSACTION_ID	1	ENGINE_TRANSACTION_ID	NULL	YES
+data_locks	1	performance_schema	ENGINE_TRANSACTION_ID	2	ENGINE	NULL	
+data_locks	1	performance_schema	OBJECT_SCHEMA	1	OBJECT_SCHEMA	NULL	YES
+data_locks	1	performance_schema	OBJECT_SCHEMA	2	OBJECT_NAME	NULL	YES
+data_locks	1	performance_schema	OBJECT_SCHEMA	3	PARTITION_NAME	NULL	YES
+data_locks	1	performance_schema	OBJECT_SCHEMA	4	SUBPARTITION_NAME	NULL	YES
+data_locks	0	performance_schema	PRIMARY	1	ENGINE_LOCK_ID	NULL	
+data_locks	0	performance_schema	PRIMARY	2	ENGINE	NULL	
+data_locks	1	performance_schema	THREAD_ID	1	THREAD_ID	NULL	YES
+data_locks	1	performance_schema	THREAD_ID	2	EVENT_ID	NULL	YES
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_LOCK_ID	1	BLOCKING_ENGINE_LOCK_ID	NULL	
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_LOCK_ID	2	ENGINE	NULL	
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_TRANSACTION_ID	1	BLOCKING_ENGINE_TRANSACTION_ID	NULL	YES
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_TRANSACTION_ID	2	ENGINE	NULL	
+data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	1	BLOCKING_THREAD_ID	NULL	YES
+data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	2	BLOCKING_EVENT_ID	NULL	YES
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	1	REQUESTING_ENGINE_LOCK_ID	NULL	
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	2	ENGINE	NULL	
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	1	REQUESTING_ENGINE_TRANSACTION_ID	NULL	YES
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	2	ENGINE	NULL	
+data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	1	REQUESTING_THREAD_ID	NULL	YES
+data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	2	REQUESTING_EVENT_ID	NULL	YES
 events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	1	USER	NULL	YES
 events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
 events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	3	ERROR_NUMBER	NULL	YES

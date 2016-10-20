@@ -1,5 +1,5 @@
 # Run all default suites with big-test option 
-perl mysql-test-run.pl --timer --big-test --debug-server --force --parallel=auto --max-test-fail=0 --comment=all_default_valgrind --vardir=var-all_default_valgrind --experimental=collections/default.experimental --skip-test-list=collections/bug#23297190-valgrind-skip-list
+perl mysql-test-run.pl --timer --big-test --debug-server --force --parallel=auto --max-test-fail=100 --comment=all_default_valgrind --vardir=var-all_default_valgrind --experimental=collections/default.experimental --skip-test-list=collections/bug#23297190-valgrind-skip-list
 
 
 # Run all non default suites with big-test

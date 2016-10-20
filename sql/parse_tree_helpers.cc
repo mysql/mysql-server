@@ -13,16 +13,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_config.h"
+#include "auth_acls.h"
+#include "derror.h"
+#include "handler.h"
+#include "item_create.h"
+#include "m_string.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include "parse_tree_helpers.h"
-
-#include "sql_class.h"
 #include "sp_head.h"
 #include "sp_instr.h"
-#include "auth/auth_common.h"
-#include "current_thd.h"
-#include "derror.h"
 #include "sp_pcontext.h"
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "system_variables.h"
+#include "trigger_def.h"
 
 
 /**

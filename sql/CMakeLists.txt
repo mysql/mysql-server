@@ -297,6 +297,7 @@ SET(SQL_SHARED_SOURCES
   sql_bootstrap.cc
   sql_initialize.cc
   sql_cache.cc
+  sql_call.cc
   sql_class.cc
   sql_component.cc
   sql_cmd_ddl_table.cc
@@ -341,7 +342,7 @@ SET(SQL_SHARED_SOURCES
   sql_show.cc
   sql_show_status.cc
   sql_signal.cc
-  sql_state.c
+  sql_state.cc
   sql_table.cc
   sql_tablespace.cc
   sql_test.cc
@@ -385,7 +386,7 @@ SET(SQL_SOURCE
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ../extra/lz4/xxhash.c
-  ../libmysql/errmsg.c
+  ../libmysql/errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
   ../sql-common/my_time.c
@@ -549,13 +550,6 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
-# Basically we should add $DD_SOURCE to SQL_SOURCE.
-# But, if there are two .cc file with same name in $SQL_SOURCE,
-# e.g., sql/table.cc and sql/dd/table.cc the cmake commands 
-# ADD_LIBRARY or even ADD_CONVENIENCE_LIBRARY picks one and ignores
-# another. And hence some symbol gets lost. The solution is to
-# build a static library 'dd' and add then to library.
-
 ADD_CONVENIENCE_LIBRARY(sql ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
 ADD_DEPENDENCIES(sql GenDigestServerSource)
@@ -627,14 +621,11 @@ IF(APPLE)
   ENDIF() 
 ENDIF() 
 
-IF(NOT WITHOUT_DYNAMIC_PLUGINS)
+IF(NOT DISABLE_SHARED)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
   GET_TARGET_PROPERTY(mysqld_link_flags mysqld LINK_FLAGS)
   IF(NOT mysqld_link_flags)
     SET(mysqld_link_flags)
-  ENDIF()
-  IF (MINGW)
-    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} -Wl,--export-all-symbols")
   ENDIF()
   IF(MSVC)
     # Set module definition file.
@@ -651,10 +642,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
       FILE(TO_NATIVE_PATH ${LOC} LOC)
       SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
     ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})
-    SET(_PLATFORM x86)
-    IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
-      SET(_PLATFORM  x64)
-    ENDIF()
+    SET(_PLATFORM  x64)
     ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
       COMMAND echo ${_PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
                   ${_PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
@@ -666,18 +654,7 @@ ENDIF()
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql mysys mysys_ssl binlogevents_static)
 
-# Provide plugins with minimal set of libraries
-SET(INTERFACE_LIBS ${LIBRT})
-IF(INTERFACE_LIBS)
- SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_INTERFACE_LIBRARIES 
-  "${INTERFACE_LIBS}")
-ENDIF()
-
-# On Solaris, some extra effort is required in order to get dtrace probes
-# from static libraries
-DTRACE_INSTRUMENT_STATIC_LIBS(mysqld 
- "sql;mysys;mysys_ssl;${MYSQLD_STATIC_PLUGIN_LIBS};${MYSQLD_STATIC_COMPONENT_LIBS}")
- 
+DTRACE_INSTRUMENT(mysqld) 
 
 SET(WITH_MYSQLD_LDFLAGS "" CACHE STRING "Additional linker flags for mysqld")
 MARK_AS_ADVANCED(WITH_MYSQLD_LDFLAGS)
@@ -766,21 +743,13 @@ ADD_CUSTOM_TARGET(
 )
 
 
+MYSQL_ADD_PLUGIN(udf_example udf_example.cc
+                 MODULE_ONLY SKIP_INSTALL MODULE_OUTPUT_NAME "udf_example")
 IF(NOT DISABLE_SHARED)
-  ADD_LIBRARY(udf_example MODULE udf_example.cc)
-  SET_TARGET_PROPERTIES(udf_example PROPERTIES PREFIX "")
-  # udf_example depends on strings 
   IF(WIN32)
-    IF(MSVC)
-     SET_TARGET_PROPERTIES(udf_example
-       PROPERTIES LINK_FLAGS "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
-    ENDIF()
-    TARGET_LINK_LIBRARIES(udf_example strings)
-  ELSE()
-    # udf_example is using safemutex exported by mysqld
-    TARGET_LINK_LIBRARIES(udf_example mysqld)
     SET_TARGET_PROPERTIES(udf_example
-      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
+      PROPERTIES LINK_FLAGS
+      "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
   ENDIF()
 ENDIF()
 
@@ -791,17 +760,13 @@ IF(NOT DISABLE_SHARED)
     SET_TARGET_PROPERTIES(locking_service
       PROPERTIES LINK_FLAGS
       "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/locking_service.def")
-  ELSE()
-    SET_TARGET_PROPERTIES(locking_service
-      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
   ENDIF()
 ENDIF()
 
-FOREACH(tool glibtoolize libtoolize aclocal autoconf autoheader automake gtar 
- tar git)
- STRING(TOUPPER ${tool}  TOOL)
- FIND_PROGRAM(${TOOL}_EXECUTABLE ${tool} DOC "path to the executable")
- MARK_AS_ADVANCED(${TOOL}_EXECUTABLE)
+FOREACH(tool gtar tar git)
+  STRING(TOUPPER ${tool}  TOOL)
+  FIND_PROGRAM(${TOOL}_EXECUTABLE ${tool} DOC "path to the executable")
+  MARK_AS_ADVANCED(${TOOL}_EXECUTABLE)
 ENDFOREACH()
 
 CONFIGURE_FILE(

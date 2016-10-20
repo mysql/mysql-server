@@ -103,6 +103,21 @@ earlier version of the row.  In rollback we are not allowed to free an
 inherited external field. */
 const ulint BTR_EXTERN_INHERITED_FLAG = 64UL;
 
+/** The structure of uncompressed LOB page header */
+
+/** Offset within header of LOB length on this page. */
+const ulint LOB_HDR_PART_LEN		= 0;
+
+/** Offset within header of next BLOB part page no.
+FIL_NULL if none */
+const ulint LOB_HDR_NEXT_PAGE_NO	= 4;
+
+/** Size of an uncompressed LOB page header, in bytes */
+const ulint LOB_HDR_SIZE		= 8;
+
+/** Start of the data on an LOB page */
+const uint	ZLOB_PAGE_DATA		= FIL_PAGE_DATA;
+
 /** The struct 'lob::ref_t' represents an external field reference. The
 reference in a field for which data is stored on a different page.  The
 reference is at the end of the 'locally' stored part of the field.  'Locally'
@@ -282,14 +297,12 @@ public:
 				 len, MLOG_4BYTES, mtr);
 	}
 
-#ifdef UNIV_DEBUG
 	/** Get the start of a page containing this blob reference.
 	@return start of the page */
 	page_t*	page_align() const
 	{
 		return(::page_align(m_ref));
 	}
-#endif /* UNIV_DEBUG */
 
 	/** The size of an LOB reference object (in bytes) */
 	static const uint SIZE = BTR_EXTERN_FIELD_REF_SIZE;
@@ -309,7 +322,8 @@ inline
 std::ostream& operator<<(std::ostream& out, const ref_t& blobref)
 {
 	out << "[ref_t: space_id=" << blobref.space_id() << ", page_no="
-		<< blobref.page_no() << ", offset=" << blobref.offset() << "]";
+		<< blobref.page_no() << ", offset=" << blobref.offset()
+		<< ", length=" << blobref.length() << "]";
 	return(out);
 }
 #endif /* UNIV_DEBUG */
@@ -438,7 +452,8 @@ public:
 	m_rec(NULL),
 	m_offsets(NULL),
 	m_block(NULL),
-	m_op(OPCODE_UNKNOWN)
+	m_op(OPCODE_UNKNOWN),
+	m_btr_page_no(FIL_NULL)
 	{}
 
 	/** Constructor **/
@@ -456,7 +471,8 @@ public:
 	m_rec(rec),
 	m_offsets(offsets),
 	m_block(block),
-	m_op(OPCODE_UNKNOWN)
+	m_op(OPCODE_UNKNOWN),
+	m_btr_page_no(FIL_NULL)
 	{
 		ut_ad(m_pcur == NULL || rec_offs_validate());
 		ut_ad(m_block == NULL || m_rec == NULL
@@ -480,7 +496,8 @@ public:
 	m_rec(rec),
 	m_offsets(offsets),
 	m_block(block),
-	m_op(op)
+	m_op(op),
+	m_btr_page_no(FIL_NULL)
 	{
 		ut_ad(m_pcur == NULL || rec_offs_validate());
 		ut_ad(m_block->frame == page_align(m_rec));
@@ -496,7 +513,8 @@ public:
 	m_rec(other.m_rec),
 	m_offsets(other.m_offsets),
 	m_block(other.m_block),
-	m_op(other.m_op)
+	m_op(other.m_op),
+	m_btr_page_no(other.m_btr_page_no)
 	{}
 
 	/** Marks non-updated off-page fields as disowned by this record.
@@ -1178,7 +1196,7 @@ public:
 	/** Make the current page as next page of previous page.  In other
 	words, make the page m_cur_blob_page_no as the next page of page
 	m_prev_page_no. */
-	void append_page();
+	void set_page_next();
 
 	/** Write the page type of the current BLOB page and also generate the
 	redo log record. */
@@ -1204,13 +1222,13 @@ public:
 		const page_size_t page_size = m_ctx->page_size();
 		const ulint	payload_size
 			= page_size.physical() - FIL_PAGE_DATA
-			- BTR_BLOB_HDR_SIZE - FIL_PAGE_DATA_END;
+			- LOB_HDR_SIZE - FIL_PAGE_DATA_END;
 		return(payload_size);
 	}
 
 	/** Write contents into a single BLOB page.
 	@param[in]	field		the big record field. */
-	void write_into_page(big_rec_field_t&	field);
+	void write_into_single_page(big_rec_field_t&	field);
 
 	/** Write first blob page.
 	@param[in]	blob_j	the jth blob object of the record.
@@ -1230,188 +1248,6 @@ private:
 	/** Data remaining to be written. */
 	ulint		m_remaining;
 };
-
-/** Insert or write the compressed BLOB. */
-class zInserter : private BaseInserter
-{
-public:
-	/** Constructor.
-	@param[in]	ctx	blob operation context. */
-	zInserter(InsertContext* ctx)
-	:
-	BaseInserter(ctx),
-	m_heap(NULL)
-	{}
-
-	/** Destructor. */
-	~zInserter();
-
-	/** Prepare to write a compressed BLOB. Setup the zlib
-	compression stream.
-	@return DB_SUCCESS on success, error code on failure. */
-	dberr_t prepare();
-
-	/** Write all the BLOBs of the clustered index record.
-	@return DB_SUCCESS on success, error code on failure. */
-	dberr_t write();
-
-	/** Cleanup after completing the write of compressed BLOB.
-	@return DB_SUCCESS on success, error code on failure. */
-	dberr_t	finish()
-	{
-		int ret = deflateEnd(&m_stream);
-		ut_ad(ret == Z_OK);
-		ut_ad(validate_blobrefs());
-
-		if (ret != Z_OK) {
-			m_status = DB_FAIL;
-		}
-
-		return(m_status);
-	}
-
-	/** Write the page type of the BLOB page and also generate the
-	redo log record.
-	@param[in]	blob_page	the BLOB page
-	@param[in]	nth_blob_page	the count of BLOB page from
-					the beginning of the BLOB. */
-	void log_page_type(page_t* blob_page, ulint nth_blob_page)
-	{
-		page_type_t	page_type;
-
-		if (is_index_sdi()) {
-			page_type = FIL_PAGE_SDI_ZBLOB;
-		} else if (nth_blob_page == 0) {
-			page_type = FIL_PAGE_TYPE_ZBLOB;
-		} else {
-			page_type = FIL_PAGE_TYPE_ZBLOB2;
-		}
-
-		mlog_write_ulint(blob_page + FIL_PAGE_TYPE, page_type,
-				 MLOG_2BYTES, &m_blob_mtr);
-	}
-
-	/** Calculate the total number of pages needed to store
-	the given blobs */
-	ulint	calc_total_pages()
-	{
-		const page_size_t page_size = m_ctx->page_size();
-
-		/* Space available in compressed page to carry blob data */
-		const ulint payload_size_zip
-			= page_size.physical() - FIL_PAGE_DATA;
-
-		const big_rec_t*	vec = m_ctx->get_big_rec_vec();
-
-		ulint total_blob_pages = 0;
-		for (ulint i = 0; i < vec->n_fields; i++) {
-			total_blob_pages += static_cast<ulint>(
-				deflateBound(&m_stream, static_cast<uLong>(
-					vec->fields[i].len))
-				+ payload_size_zip - 1) / payload_size_zip;
-		}
-
-		return(total_blob_pages);
-	}
-
-	/** Write contents into a single BLOB page.
-	@return code as returned by zlib. */
-	int write_into_page();
-
-	/** Commit the BLOB mtr. */
-	void commit_blob_mtr()
-	{
-		mtr_commit(&m_blob_mtr);
-	}
-
-	/** Write one blob page.  This function will be repeatedly called
-	with an increasing nth_blob_page to completely write a BLOB.
-	@param[in]	blob_j		the jth blob object of the record.
-	@param[in]	field		the big record field.
-	@param[in]	nth_blob_page	count of the BLOB page (starting from 1).
-	@return code as returned by the zlib. */
-	int write_single_blob_page(
-		int			blob_j,
-		big_rec_field_t&	field,
-		ulint			nth_blob_page);
-
-	/** Write first blob page.
-	@param[in]	blob_j		the jth blob object of the record.
-	@param[in]	field		the big record field.
-	@return code as returned by the zlib. */
-	int write_first_page(ulint blob_j, big_rec_field_t& field);
-
-#ifdef UNIV_DEBUG
-	/** Verify that all pointers to externally stored columns in the record
-	is be valid.  If validation fails, this function doesn't return.
-	@return true if valid. */
-	bool validate_blobrefs() const
-	{
-		const ulint *offsets = m_ctx->get_offsets();
-
-		for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
-			if (!rec_offs_nth_extern(offsets, i)) {
-				continue;
-			}
-
-			byte* field_ref = btr_rec_get_field_ref(
-				m_ctx->rec(), offsets, i);
-
-			ref_t	blobref(field_ref);
-
-			/* The pointer must not be zero if the operation
-			succeeded. */
-			ut_a(!blobref.is_null() || m_status != DB_SUCCESS);
-
-			/* The column must not be disowned by this record. */
-			ut_a(blobref.is_owner());
-		}
-		return(true);
-	}
-#endif /* UNIV_DEBUG */
-
-	/** For the given blob field, update its length in the blob reference
-	which is available in the clustered index record.
-	@param[in]	field	the concerned blob field. */
-	void update_length_in_blobref(big_rec_field_t& field);
-
-	/** Make the current page as next page of previous page.  In other
-	words, make the page m_cur_blob_page_no as the next page
-	(FIL_PAGE_NEXT) of page m_prev_page_no.
-	@return DB_SUCCESS on success, or error code on failure. */
-	dberr_t append_page();
-
-private:
-#ifdef UNIV_DEBUG
-	/** Add the BLOB page information to the directory
-	@param[in]	page_info	BLOB page information. */
-	void add_to_blob_dir(const blob_page_info_t&	page_info)
-	{
-		m_dir.add(page_info);
-	}
-#endif /* UNIV_DEBUG */
-
-	/** Write one blob field data.
-	@param[in]	blob_j	the blob field number
-	@return DB_SUCCESS on success, error code on failure. */
-	dberr_t write_one_blob(ulint blob_j);
-
-	mem_heap_t*		m_heap;
-	z_stream		m_stream;
-
-#ifdef UNIV_DEBUG
-	/** The BLOB directory information. */
-	blob_dir_t		m_dir;
-#endif /* UNIV_DEBUG */
-};
-
-inline
-zInserter::~zInserter()
-{
-	if (m_heap != NULL) {
-		mem_heap_free(m_heap);
-	}
-}
 
 /** The context information for reading a single BLOB */
 struct ReadContext
@@ -1725,6 +1561,9 @@ public:
 	dberr_t	free_first_page();
 
 private:
+	/* Obtain an x-latch on the clustered index record page.*/
+	void x_latch_rec_page();
+
 	bool validate_page_type(const page_t*	page) const
 	{
 		return(m_ctx.is_compressed()
@@ -1738,6 +1577,7 @@ private:
 		switch (pt) {
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
+		case FIL_PAGE_TYPE_ZBLOB3:
 		case FIL_PAGE_SDI_ZBLOB:
 			break;
 		default:

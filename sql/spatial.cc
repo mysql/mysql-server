@@ -16,18 +16,22 @@
 
 #include "spatial.h"
 
-#include "sql_string.h"                         // String
-#include "my_global.h"                          // REQUIRED for HAVE_* below
-#include "gstream.h"                            // Gis_read_stream
-#include "psi_memory_key.h"
-#include "gis_bg_traits.h"
-#include "mysqld_error.h"
-#include "prealloced_array.h"
-
 #include <cmath>                                // isfinite
 #include <map>
-#include <set>
+#include <memory>
+#include <new>
 #include <utility>
+
+#include "gis_bg_traits.h"
+#include "gstream.h"                            // Gis_read_stream
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_global.h"                          // REQUIRED for HAVE_* below
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "psi_memory_key.h"
+#include "sql_string.h"                         // String
 
 
 void *gis_wkb_alloc(size_t sz)
@@ -2056,8 +2060,8 @@ bool Gis_polygon_ring::set_ring_order(bool want_ccw)
   double x1, x2, y1, y2, minx= DBL_MAX, miny= DBL_MAX;
   size_t min_i= 0, prev_i, post_i, rsz= ring.size();
 
-  compile_time_assert(sizeof(double) == POINT_DATA_SIZE / 2 &&
-                      sizeof(double) == SIZEOF_STORED_DOUBLE);
+  static_assert(sizeof(double) == POINT_DATA_SIZE / 2 &&
+                sizeof(double) == SIZEOF_STORED_DOUBLE, "");
 
   /*
     User input WKT/WKB may contain invalid geometry data that has less
@@ -5221,6 +5225,7 @@ void Gis_wkb_vector<T>::resize(size_t sz)
 
 
 // Explicit template instantiation
+/// @cond
 template void Gis_wkb_vector<Gis_line_string>::clear();
 template void Gis_wkb_vector<Gis_point>::clear();
 template void Gis_wkb_vector<Gis_polygon>::clear();
@@ -5263,4 +5268,7 @@ Gis_wkb_vector<Gis_point>&
 Gis_wkb_vector<Gis_point>::operator=(Gis_wkb_vector<Gis_point> const&);
 
 template
+Gis_wkb_vector<Gis_point>::Gis_wkb_vector(Gis_wkb_vector<Gis_point> const&);
+template
 Gis_wkb_vector<Gis_polygon>::Gis_wkb_vector(const Gis_wkb_vector<Gis_polygon> &);
+/// @endcond

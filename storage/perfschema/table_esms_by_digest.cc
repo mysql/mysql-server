@@ -259,11 +259,14 @@ int table_esms_by_digest::rnd_next(void)
        m_pos.next())
   {
     digest_stat= &statements_digest_stat_array[m_pos.m_index];
-    if (digest_stat->m_first_seen != 0)
+    if (digest_stat->m_lock.is_populated())
     {
-      make_row(digest_stat);
-      m_next_pos.set_after(&m_pos);
-      return 0;
+      if (digest_stat->m_first_seen != 0)
+      {
+        make_row(digest_stat);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
     }
   }
 
@@ -281,16 +284,19 @@ table_esms_by_digest::rnd_pos(const void *pos)
   set_position(pos);
   digest_stat= &statements_digest_stat_array[m_pos.m_index];
 
-  if (digest_stat->m_first_seen != 0)
+  if (digest_stat->m_lock.is_populated())
   {
-    make_row(digest_stat);
-    return 0;
+    if (digest_stat->m_first_seen != 0)
+    {
+      make_row(digest_stat);
+      return 0;
+    }
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esms_by_digest::index_init(uint idx, bool sorted)
+int table_esms_by_digest::index_init(uint idx, bool)
 {
   PFS_index_esms_by_digest *result= NULL;
   DBUG_ASSERT(idx == 0);

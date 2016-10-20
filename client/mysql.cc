@@ -34,6 +34,7 @@
 #include "my_default.h"
 #include <m_ctype.h>
 #include <stdarg.h>
+#include <mf_wcomp.h>                  // wild_prefix, wild_one, wild_any
 #include <my_dir.h>
 #include "my_readline.h"
 #include <signal.h>

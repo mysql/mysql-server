@@ -18,10 +18,18 @@
 
 /* Query cache */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "hash.h"         // HASH
+#include "my_global.h"
+#include "my_thread_local.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 
 class THD;
+struct LEX;
 struct Query_cache_block_table;
 struct Query_cache_memory_bin;
 struct Query_cache_memory_bin_step;
@@ -30,7 +38,7 @@ struct Query_cache_result;
 struct Query_cache_table;
 struct TABLE;
 struct TABLE_LIST;
-struct LEX;
+
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
 

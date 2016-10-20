@@ -25,6 +25,7 @@
 #include <stdint.h>
 
 #include <ngs/thread.h>
+#include <ngs/memory.h>
 
 #include <query_formatter.h>
 
@@ -103,6 +104,11 @@ public:
     return put(s.data(), s.length());
   }
 
+  inline Query_string_builder &put(const ngs::PFS_string &s)
+  {
+    return put(s.data(), s.length());
+  }
+
   void clear()
   {
     m_str.clear();
@@ -113,10 +119,10 @@ public:
     m_str.reserve(bytes);
   }
 
-  inline const std::string &get() const { return m_str; }
+  inline const ngs::PFS_string &get() const { return m_str; }
 
 private:
-  std::string m_str;
+  ngs::PFS_string m_str;
   bool m_in_quoted;
   bool m_in_identifier;
 

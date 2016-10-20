@@ -8348,13 +8348,13 @@ CALL p1(1);
 
 CREATE TEMPORARY TABLE t1 (f1 INT);
 
---echo # t1 still refers to the view since it was inlined
---error ER_NON_INSERTABLE_TABLE
+--echo # Since last call to p1 was unsuccessful, the query will be reparsed
+--echo # and the procedure will refer to the temporary table
 CALL p1(2);
 
 DROP VIEW t1;
 
---echo # t1 now refers to the temporary table
+--echo # t1 still refers to the temporary table
 CALL p1(3);
 
 --echo # Check which values were inserted into the temp table.

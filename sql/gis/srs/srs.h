@@ -18,10 +18,10 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include <sql_string.h>
-#include <string>
 #include <cmath>
 #include <cstdint>
+
+#include "my_dbug.h"
 
 typedef std::uint32_t srid_t;
 
@@ -110,7 +110,9 @@ public:
 };
 
 
-namespace wkt_parser { struct Geographic_cs; }
+namespace wkt_parser {
+struct Geographic_cs;
+}  // namespace wkt_parser
 
 
 /// A geographic (longitude-latitude) spatial reference system.
@@ -191,7 +193,9 @@ public:
 };
 
 
-namespace wkt_parser { struct Projected_cs; }
+namespace wkt_parser {
+struct Projected_cs;
+}  // namespace wkt_parser
 
 
 /// A projected spatial reference system.
@@ -1798,13 +1802,14 @@ public:
   If an error occurs, no object is allocated.
 
   @param[in] srid Spatial reference system ID to use when reporting errors
-  @param[in] str WKT string in UTF-8
+  @param[in] begin Start of WKT string in UTF-8
+  @param[in] end End of WKT string
   @param[out] result Spatial reference system
 
   @retval true An error has occurred
   @retval false Success
 */
-bool parse_wkt(srid_t srid, std::string *str,
+bool parse_wkt(srid_t srid, const char *begin, const char *end,
                Spatial_reference_system **result);
 
 }}

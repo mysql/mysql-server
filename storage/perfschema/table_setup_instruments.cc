@@ -283,7 +283,7 @@ int table_setup_instruments::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_setup_instruments::index_init(uint idx, bool sorted)
+int table_setup_instruments::index_init(uint idx, bool)
 {
   PFS_index_setup_instruments *result;
 

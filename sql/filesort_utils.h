@@ -16,13 +16,15 @@
 #ifndef FILESORT_UTILS_INCLUDED
 #define FILESORT_UTILS_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <utility>
 
 #include "my_base.h"                   // ha_rows
+#include "my_dbug.h"
+#include "my_global.h"
 #include "mysql/service_mysql_alloc.h" // my_free
 #include "sql_array.h"                 // Bounds_checked_array
-
-#include <utility>
 
 class Cost_model_table;
 class Sort_param;
@@ -250,14 +252,10 @@ public:
     m_sort_keys= rhs.m_sort_keys;
     m_num_records= rhs.m_num_records;
     m_record_length= rhs.m_record_length;
-    m_sort_length= rhs.m_sort_length;
     m_size_in_bytes= rhs.m_size_in_bytes;
     m_idx= rhs.m_idx;
     return *this;
   }
-
-  uint get_sort_length() const { return m_sort_length; }
-  void set_sort_length(uint val) { m_sort_length= val; }
 
 private:
   uchar  *m_next_rec_ptr;    /// The next record will be inserted here.
@@ -266,7 +264,6 @@ private:
   uchar **m_sort_keys;       /// Caches the value of get_sort_keys()
   uint    m_num_records;     /// Saved value from alloc_sort_buffer()
   uint    m_record_length;   /// Saved value from alloc_sort_buffer()
-  uint    m_sort_length;     /// The length of the sort key.
   size_t  m_size_in_bytes;   /// Size of raw buffer, in bytes.
 
   /**

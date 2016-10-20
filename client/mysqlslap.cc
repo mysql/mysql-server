@@ -306,7 +306,7 @@ static int gettimeofday(struct timeval *tp, void *tzp)
 
 int main(int argc, char **argv)
 {
-  MYSQL mysql= MYSQL();
+  MYSQL mysql{};
   option_string *eptr;
 
   MY_INIT(argv[0]);

@@ -15,14 +15,23 @@
 
 #include "dd/impl/types/entity_object_impl.h"
 
-#include "dd/impl/sdi_impl.h"        // sdi read/write functions
+#include <new>
+
 #include "dd/impl/raw/object_keys.h" // dd::Primary_id_key
 #include "dd/impl/raw/raw_record.h"  // dd::Raw_new_record
+#include "dd/impl/sdi_impl.h"        // sdi read/write functions
+#include "m_string.h"
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Object_key;
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 void Entity_object_impl::set_primary_key_value(const Raw_new_record &r)
 {

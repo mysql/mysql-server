@@ -14,9 +14,20 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "opt_explain_traditional.h"
+
+#include <sys/types.h>
+
 #include "current_thd.h"
-#include "sql_class.h"
+#include "item.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_global.h"
 #include "query_result.h"
+#include "sql_class.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_string.h"
+#include "table.h"
 
 /**
   Heads of "extra" column parts

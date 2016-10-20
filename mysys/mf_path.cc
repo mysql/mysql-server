@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,21 @@
   @file mysys/mf_path.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
+#include "my_config.h"
+
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_static.h"
-#include <m_string.h>
+#include "my_sys.h"
 
 static char *find_file_in_path(char *to,const char *name);
 

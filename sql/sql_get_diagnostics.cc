@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,20 @@
 
 #include "sql_get_diagnostics.h"
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "item.h"
+#include "m_ctype.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysqld_error.h"
+#include "sp_rcontext.h"              // sp_rcontext
 #include "sql_class.h"                // THD
 #include "sql_error.h"                // Diagnostics_area
 #include "sql_list.h"                 // List_iterator
-#include "sp_rcontext.h"              // sp_rcontext
+#include "sql_string.h"
 
 
 /**

@@ -22,45 +22,86 @@
 
 #include "item_func.h"
 
-#include "my_bit.h"              // my_count_bits
-#include "my_user.h"             // parse_user
-#include "auth_common.h"         // check_password_strength
-#include "binlog.h"              // mysql_bin_log
-#include "current_thd.h"         // current_thd
-#include "dd_sql_view.h"         // push_view_warning_or_error
-#include "debug_sync.h"          // DEBUG_SYNC
-#include "derror.h"              // ER_THD
-#include "error_handler.h"       // Internal_error_handler
-#include "item_cmpfunc.h"        // get_datetime_value
-#include "item_strfunc.h"        // Item_func_concat_ws
-#include <mysql/service_thd_wait.h>
-#include "mysqld.h"              // log_10 stage_user_sleep
-#include "parse_tree_helpers.h"  // PT_item_list
-#include "psi_memory_key.h"
-#include "query_result.h"        // sql_exchange
-#include "rpl_mi.h"              // Master_info
-#include "rpl_msr.h"             // channel_map
-#include "rpl_rli.h"             // Relay_log_info
-#include "sp.h"                  // sp_find_routine
-#include "sp_head.h"             // sp_name
-#include "sql_audit.h"           // audit_global_variable
-#include "sql_base.h"            // Internal_error_handler_holder
-#include "sql_class.h"           // THD
-#include "sql_optimizer.h"       // JOIN
-#include "sql_parse.h"           // check_stack_overrun
-#include "sql_show.h"            // append_identifier
-#include "sql_time.h"            // TIME_from_longlong_packed
-#include "strfunc.h"             // find_type
-#include "dd/properties.h"       // dd::Properties
-#include "dd_table_share.h"      // dd_get_old_field_type
-#include "dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
-#include "val_int_compare.h"     // Integer_value
-#include "json_dom.h"            // Json_wrapper
-
+#include <string.h>
+#include <time.h>
+#include <algorithm>
 #include <cfloat>                // DBL_DIG
 #include <cmath>                 // std::log2
 #include <exception>             // std::exception subclasses
-#include <functional>
+#include <iosfwd>
+#include <memory>
+#include <new>
+#include <stdexcept>
+#include <string>
+
+#include "auth_acls.h"
+#include "auth_common.h"         // check_password_strength
+#include "binlog.h"              // mysql_bin_log
+#include "check_stack.h"
+#include "current_thd.h"         // current_thd
+#include "dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
+#include "dd/object_id.h"
+#include "dd/properties.h"       // dd::Properties
+#include "dd_sql_view.h"         // push_view_warning_or_error
+#include "dd_table_share.h"      // dd_get_old_field_type
+#include "debug_sync.h"          // DEBUG_SYNC
+#include "derror.h"              // ER_THD
+#include "error_handler.h"       // Internal_error_handler
+#include "hash.h"
+#include "item_cmpfunc.h"        // get_datetime_value
+#include "item_create.h"
+#include "item_strfunc.h"        // Item_func_concat_ws
+#include "json_dom.h"            // Json_wrapper
+#include "key.h"
+#include "log_event.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_bit.h"              // my_count_bits
+#include "my_bitmap.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_thread.h"
+#include "my_user.h"             // parse_user
+#include "mysql/plugin.h"
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_mysql_password_policy.h"
+#include "mysql/service_thd_wait.h"
+#include "mysqld.h"              // log_10 stage_user_sleep
+#include "parse_tree_helpers.h"  // PT_item_list
+#include "prealloced_array.h"
+#include "psi_memory_key.h"
+#include "query_result.h"        // sql_exchange
+#include "rpl_gtid.h"
+#include "rpl_mi.h"              // Master_info
+#include "rpl_msr.h"             // channel_map
+#include "rpl_rli.h"             // Relay_log_info
+#include "session_tracker.h"
+#include "sp.h"                  // sp_setup_routine
+#include "sp_head.h"             // sp_name
+#include "sql_audit.h"           // audit_global_variable
+#include "sql_base.h"            // Internal_error_handler_holder
+#include "sql_bitmap.h"
+#include "sql_class.h"           // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_optimizer.h"       // JOIN
+#include "sql_parse.h"           // check_stack_overrun
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_show.h"            // append_identifier
+#include "sql_time.h"            // TIME_from_longlong_packed
+#include "strfunc.h"             // find_type
+#include "thr_mutex.h"
+#include "val_int_compare.h"     // Integer_value
+
+class Protocol;
+class sp_rcontext;
 
 using std::min;
 using std::max;
@@ -379,26 +420,18 @@ void Item_func::traverse_cond(Cond_traverser traverser,
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_func object. 
-  @param transformer   the transformer callback function to be applied to
-                       the nodes of the tree of the object
-  @param argument      parameter to be passed to the transformer
-
-  @return
-    Item returned as the result of transformation of the root node
 */
 
 Item *Item_func::transform(Item_transformer transformer, uchar *argument)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
-
   if (arg_count)
   {
     Item **arg,**arg_end;
     for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
     {
       Item *new_item= (*arg)->transform(transformer, argument);
-      if (!new_item)
-	return 0;
+      if (new_item == NULL)
+        return NULL;                 /* purecov: inspected */
 
       /*
         THD::change_item_tree() should be called only if the tree was
@@ -419,24 +452,13 @@ Item *Item_func::transform(Item_transformer transformer, uchar *argument)
   callback functions.
 
     First the function applies the analyzer to the root node of
-    the Item_func object. Then if the analizer succeeeds (returns TRUE)
+    the Item_func object. Then if the analyzer succeeeds (returns TRUE)
     the function recursively applies the compile method to each argument
     of the Item_func node.
     If the call of the method for an argument item returns a new item
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_func object. 
-
-  @param analyzer      the analyzer callback function to be applied to the
-                       nodes of the tree of the object
-  @param[in,out] arg_p parameter to be passed to the processor
-  @param transformer   the transformer callback function to be applied to the
-                       nodes of the tree of the object
-  @param arg_t         parameter to be passed to the transformer
-
-  @return              Item returned as result of transformation of the node,
-                       the same item if no transformation applied, or NULL if
-                       transformation caused an error.
 */
 
 Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
@@ -2918,7 +2940,7 @@ String *Item_func_bit::val_str(String *str)
 template<bool to_left> longlong Item_func_shift::eval_int_op()
 {
   DBUG_ASSERT(fixed);
-  null_value= true;
+  null_value= maybe_null;
   ulonglong res= args[0]->val_int();
   if (args[0]->null_value)
     return 0;
@@ -2947,7 +2969,7 @@ template longlong Item_func_shift::eval_int_op<false>();
 template<bool to_left> String *Item_func_shift::eval_str_op(String *str)
 {
   DBUG_ASSERT(fixed);
-  null_value= true;
+  null_value= maybe_null;
 
   String tmp_str;
   String *arg= args[0]->val_str(&tmp_str);
@@ -3031,7 +3053,7 @@ longlong Item_func_bit_neg::int_op()
 String *Item_func_bit_neg::str_op(String *str)
 {
   DBUG_ASSERT(fixed);
-  null_value= true;
+  null_value= maybe_null;
   String *res= args[0]->val_str(str);
   if (!res || args[0]->null_value || tmp_value.alloc(res->length()))
     return nullptr;
@@ -3067,7 +3089,7 @@ template<class Int_func> longlong
 Item_func_bit_two_param::eval_int_op(Int_func int_func)
 {
   DBUG_ASSERT(fixed);
-  null_value= true;
+  null_value= maybe_null;
   ulonglong arg0= args[0]->val_uint();
   if (args[0]->null_value)
     return 0;
@@ -3100,7 +3122,7 @@ Item_func_bit_two_param::eval_str_op(String *str, Char_func char_func,
                                      Int_func int_func)
 {
   DBUG_ASSERT(fixed);
-  null_value= true;
+  null_value= maybe_null;
 
   String arg0_buff;
   String *s1= args[0]->val_str(&arg0_buff);
@@ -5401,7 +5423,7 @@ int Interruptible_wait::wait(mysql_cond_t *cond, mysql_mutex_t *mutex)
       timeout= m_abs_timeout;
 
     error= mysql_cond_timedwait(cond, mutex, &timeout);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
     {
       /* Return error if timed out or connection is broken. */
       if (!cmp_timespec(&timeout, &m_abs_timeout) || !m_thd->is_connected())
@@ -6202,7 +6224,7 @@ longlong Item_func_sleep::val_int()
   while (!thd->killed)
   {
     error= timed_cond.wait(&cond, &LOCK_item_func_sleep);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
       break;
     error= 0;
   }
@@ -8209,7 +8231,7 @@ bool Item_func_match::fix_index()
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
         (flags & FT_BOOL ? table->keys_in_use_for_query.is_set(keynr) :
-                           table->s->keys_in_use.is_set(keynr)))
+         table->s->usable_indexes().is_set(keynr)))
 
     {
       ft_to_key[fts]=keynr;
@@ -8660,8 +8682,8 @@ Item_func_sp::init_result_field(THD *thd)
   Internal_error_handler_holder<View_error_handler, TABLE_LIST>
     view_handler(thd, context->view_error_handler,
                  context->view_error_handler_arg);
-  if (!(m_sp= sp_find_routine(thd, enum_sp_type::FUNCTION, m_name,
-                               &thd->sp_func_cache, TRUE)))
+  if (!(m_sp= sp_setup_routine(thd, enum_sp_type::FUNCTION, m_name,
+                               &thd->sp_func_cache)))
   {
     my_missing_function_error (m_name->m_name, m_name->m_qname.str);
     DBUG_RETURN(TRUE);
@@ -9155,7 +9177,7 @@ static inline bool is_hidden_by_ndb(THD *thd, const String *schema_name,
 
 /**
   @brief
-    INFORMATION_SCHEMA picks metadata from new DD using system views.
+    INFORMATION_SCHEMA picks metadata from DD using system views.
     In order for INFORMATION_SCHEMA to skip listing database for which
     the user does not have rights, the following internal functions are used.
 
@@ -9170,45 +9192,47 @@ static inline bool is_hidden_by_ndb(THD *thd, const String *schema_name,
 longlong Item_func_can_access_database::val_int()
 {
   DBUG_ENTER("Item_func_can_access_database::val_int");
-  bool have_access= true;
 
   // Read schema_name
   String schema_name;
-  String *schema_name_ptr;
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr)
+  String *schema_name_ptr= args[0]->val_str(&schema_name);
+  if (schema_name_ptr == nullptr)
   {
-    // Make sure we have safe string to access.
-    schema_name_ptr->c_ptr_safe();
-
-    // Check if schema is hidden.
-    THD *thd= current_thd;
-    if (is_hidden_by_ndb(thd, schema_name_ptr, nullptr))
-      DBUG_RETURN(false);
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    // Skip INFORMATION_SCHEMA database
-    if (is_infoschema_db(schema_name_ptr->ptr()))
-      DBUG_RETURN(true);
-
-    // Check access
-    Security_context *sctx= thd->security_context();
-    if (!(sctx->master_access() & (DB_ACLS | SHOW_DB_ACL) ||
-          acl_get(thd, sctx->host().str, sctx->ip().str,
-                  sctx->priv_user().str, schema_name_ptr->ptr(), 0) ||
-          !check_grant_db(thd, schema_name_ptr->ptr()))
-       )
-    {
-      have_access= false;
-    }
-#endif
+    null_value= TRUE;
+    DBUG_RETURN(FALSE);
   }
 
-  DBUG_RETURN(have_access);
+  // Make sure we have safe string to access.
+  schema_name_ptr->c_ptr_safe();
+
+  // Check if schema is hidden.
+  THD *thd= current_thd;
+  if (is_hidden_by_ndb(thd, schema_name_ptr, nullptr))
+    DBUG_RETURN(FALSE);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  // Skip INFORMATION_SCHEMA database
+  if (is_infoschema_db(schema_name_ptr->ptr()))
+    DBUG_RETURN(TRUE);
+
+  // Check access
+  Security_context *sctx= thd->security_context();
+  if (!(sctx->master_access() & (DB_ACLS | SHOW_DB_ACL) ||
+        acl_get(thd, sctx->host().str, sctx->ip().str,
+                sctx->priv_user().str, schema_name_ptr->ptr(), 0) ||
+        !check_grant_db(thd, schema_name_ptr->ptr()))
+     )
+  {
+    DBUG_RETURN(FALSE);
+  }
+#endif
+
+  DBUG_RETURN(TRUE);
 }
 
 /**
   @brief
-    INFORMATION_SCHEMA picks metadata from new DD using system views.
+    INFORMATION_SCHEMA picks metadata from DD using system views.
     In order for INFORMATION_SCHEMA to skip listing table for which
     the user does not have rights, the following UDF's is used.
 
@@ -9222,7 +9246,6 @@ longlong Item_func_can_access_database::val_int()
 longlong Item_func_can_access_table::val_int()
 {
   DBUG_ENTER("Item_func_can_access_table::val_int");
-  bool have_access= true;
 
   /*
     If CAN_ACCCESS_TABLE is called for the hidden database objects then skip
@@ -9239,55 +9262,58 @@ longlong Item_func_can_access_table::val_int()
 
   // Read schema_name, table_name
   String schema_name;
-  String *schema_name_ptr;
+  String *schema_name_ptr= args[0]->val_str(&schema_name);
   String table_name;
-  String *table_name_ptr;
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr)
+  String *table_name_ptr= args[1]->val_str(&table_name);
+  if (schema_name_ptr == nullptr || table_name_ptr == nullptr)
   {
-    // Make sure we have safe string to access.
-    schema_name_ptr->c_ptr_safe();
-    table_name_ptr->c_ptr_safe();
-
-    // Check if table is hidden.
-    if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
-      DBUG_RETURN(false);
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    // Skip INFORMATION_SCHEMA database
-    if (is_infoschema_db(schema_name_ptr->ptr()))
-      DBUG_RETURN(true);
-
-    // Check access
-    ulong db_access= 0;
-    check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
-                 &db_access, nullptr, 0, 1);
-
-    if (!(db_access & TABLE_ACLS))
-    {
-      TABLE_LIST table_list;
-      memset(&table_list, 0, sizeof (table_list));
-      table_list.db= (char*) schema_name_ptr->ptr();
-      table_list.db_length= schema_name_ptr->length();
-      table_list.table_name= table_name_ptr->ptr();
-      table_list.table_name_length= table_name_ptr->length();
-      table_list.grant.privilege= db_access;
-
-      // Check access
-      if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
-      {
-        have_access= false;
-      }
-    }
-#endif
+    null_value= TRUE;
+    DBUG_RETURN(FALSE);
   }
 
-  DBUG_RETURN(have_access);
+  // Make sure we have safe string to access.
+  schema_name_ptr->c_ptr_safe();
+  table_name_ptr->c_ptr_safe();
+
+  // Check if table is hidden.
+  if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
+    DBUG_RETURN(FALSE);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  // Skip INFORMATION_SCHEMA database
+  if (is_infoschema_db(schema_name_ptr->ptr()))
+    DBUG_RETURN(TRUE);
+
+  // Check access
+  ulong db_access= 0;
+  if (check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
+                   &db_access, nullptr, false, true))
+    DBUG_RETURN(FALSE);
+
+  if (!(db_access & TABLE_ACLS))
+  {
+    TABLE_LIST table_list;
+    memset(&table_list, 0, sizeof (table_list));
+    table_list.db= schema_name_ptr->ptr();
+    table_list.db_length= schema_name_ptr->length();
+    table_list.table_name= table_name_ptr->ptr();
+    table_list.table_name_length= table_name_ptr->length();
+    table_list.grant.privilege= db_access;
+
+    // Check access
+    if (check_grant(thd, TABLE_ACLS, &table_list, true, 1, true))
+    {
+      DBUG_RETURN(FALSE);
+    }
+  }
+#endif
+
+  DBUG_RETURN(TRUE);
 }
 
 /**
   @brief
-    INFORMATION_SCHEMA picks metadata from new DD using system views.
+    INFORMATION_SCHEMA picks metadata from DD using system views.
     In order for INFORMATION_SCHEMA to skip listing column for which
     the user does not have rights, the following UDF's is used.
 
@@ -9304,7 +9330,6 @@ longlong Item_func_can_access_table::val_int()
 longlong Item_func_can_access_column::val_int()
 {
   DBUG_ENTER("Item_func_can_access_column::val_int");
-  bool have_access= true;
 
   THD *thd= current_thd;
   /*
@@ -9321,57 +9346,65 @@ longlong Item_func_can_access_column::val_int()
 
   // Read schema_name, table_name
   String schema_name;
-  String *schema_name_ptr;
+  String *schema_name_ptr= args[0]->val_str(&schema_name);
   String table_name;
-  String *table_name_ptr;
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr)
+  String *table_name_ptr= args[1]->val_str(&table_name);
+  if (schema_name_ptr == nullptr || table_name_ptr == nullptr)
   {
-    // Make sure we have safe string to access.
-    schema_name_ptr->c_ptr_safe();
-    table_name_ptr->c_ptr_safe();
-
-    // Check if table is hidden.
-    if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
-      DBUG_RETURN(false);
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    // Read column_name.
-    String column_name;
-    String *column_name_ptr;
-    if ((column_name_ptr=args[2]->val_str(&column_name)) == nullptr)
-      DBUG_RETURN(true);
-    // Make sure we have safe string to access.
-    column_name_ptr->c_ptr_safe();
-
-    // Skip INFORMATION_SCHEMA database
-    if (is_infoschema_db(schema_name_ptr->ptr()))
-      DBUG_RETURN(true);
-
-    // Check access
-    GRANT_INFO grant_info;
-    memset(&grant_info, 0, sizeof (grant_info));
-
-    check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
-                 &grant_info.privilege, nullptr, 0, 1);
-    uint col_access= get_column_grant(thd, &grant_info,
-                                      schema_name_ptr->ptr(),
-                                      table_name_ptr->ptr(),
-                                      column_name_ptr->ptr()
-                                     ) & COL_ACLS;
-    if (!col_access)
-    {
-      have_access= false;
-    }
-#endif
+    null_value= TRUE;
+    DBUG_RETURN(FALSE);
   }
 
-  DBUG_RETURN(have_access);
+  // Make sure we have safe string to access.
+  schema_name_ptr->c_ptr_safe();
+  table_name_ptr->c_ptr_safe();
+
+  // Check if table is hidden.
+  if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
+    DBUG_RETURN(FALSE);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  // Read column_name.
+  String column_name;
+  String *column_name_ptr= args[2]->val_str(&column_name);
+  if (column_name_ptr == nullptr)
+  {
+    null_value= TRUE;
+    DBUG_RETURN(FALSE);
+  }
+
+  // Make sure we have safe string to access.
+  column_name_ptr->c_ptr_safe();
+
+  // Skip INFORMATION_SCHEMA database
+  if (is_infoschema_db(schema_name_ptr->ptr()))
+    DBUG_RETURN(TRUE);
+
+  // Check access
+  GRANT_INFO grant_info;
+  memset(&grant_info, 0, sizeof (grant_info));
+
+  if (check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
+                   &grant_info.privilege, nullptr, false, true))
+    DBUG_RETURN(FALSE);
+
+  uint col_access= get_column_grant(thd, &grant_info,
+                                    schema_name_ptr->ptr(),
+                                    table_name_ptr->ptr(),
+                                    column_name_ptr->ptr()
+                                   ) & COL_ACLS;
+  if (!col_access)
+  {
+    DBUG_RETURN(FALSE);
+  }
+#endif
+
+  DBUG_RETURN(TRUE);
 }
 
 /**
   @brief
-    INFORMATION_SCHEMA picks metadata from new DD using system views.
+    INFORMATION_SCHEMA picks metadata from DD using system views.
     In order for INFORMATION_SCHEMA to skip listing view definition
     for the user without rights, the following UDF's is used.
 
@@ -9388,135 +9421,150 @@ longlong Item_func_can_access_view::val_int()
 
   // Read schema_name, table_name
   String schema_name;
-  String *schema_name_ptr;
   String table_name;
-  String *table_name_ptr;
   String definer;
-  String *definer_ptr;
   String options;
-  String *options_ptr;
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != NULL &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != NULL &&
-      (definer_ptr=args[2]->val_str(&definer)) != NULL &&
-      (options_ptr=args[3]->val_str(&options)) != NULL)
+  String *schema_name_ptr= args[0]->val_str(&schema_name);
+  String *table_name_ptr= args[1]->val_str(&table_name);
+  String *definer_ptr= args[2]->val_str(&definer);
+  String *options_ptr= args[3]->val_str(&options);
+  if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
+      definer_ptr == nullptr || options_ptr == nullptr)
   {
-
-    // Make strings safe.
-    schema_name_ptr->c_ptr_safe();
-    table_name_ptr->c_ptr_safe();
-    definer_ptr->c_ptr_safe();
-    options_ptr->c_ptr_safe();
-
-    // Skip INFORMATION_SCHEMA database
-    if (is_infoschema_db(schema_name_ptr->ptr()) ||
-        !my_strcasecmp(system_charset_info, schema_name_ptr->ptr(), "sys"))
-      DBUG_RETURN(true);
-
-    // Check if view is valid. If view is invalid then push invalid view
-    // warning.
-    bool is_view_valid= true;
-    std::unique_ptr<dd::Properties>
-      view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
-
-    if (view_options->get_bool("view_valid", &is_view_valid))
-      DBUG_RETURN(false);
-
-    if (is_view_valid == false)
-      push_view_warning_or_error(current_thd,
-                                 schema_name_ptr->c_ptr_safe(),
-                                 table_name_ptr->c_ptr_safe());
-
-    //
-    // Check if definer user/host has access.
-    //
-
-    THD *thd= current_thd;
-    Security_context *sctx= thd->security_context();
-
-    // NOTE: this is a copy/paste from sp_head::set_definer().
-
-    char user_name_holder[USERNAME_LENGTH + 1];
-    LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };
-
-    char host_name_holder[HOSTNAME_LENGTH + 1];
-    LEX_STRING host_name= { host_name_holder, HOSTNAME_LENGTH };
-
-    parse_user(definer_ptr->ptr(), definer_ptr->length(),
-               user_name.str, &user_name.length,
-               host_name.str, &host_name.length);
-
-    std::string definer_user(user_name.str, user_name.length);
-    std::string definer_host(host_name.str, host_name.length);
-
-    if (!my_strcasecmp(system_charset_info, definer_user.c_str(),
-                       sctx->priv_user().str) &&
-        !my_strcasecmp(system_charset_info, definer_host.c_str(),
-                       sctx->priv_host().str))
-      DBUG_RETURN(true);
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    //
-    // Check for ACL's
-    //
-
-    if ((thd->col_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
-        (SHOW_VIEW_ACL|SELECT_ACL))
-      DBUG_RETURN(true);
-
-    TABLE_LIST table_list;
-    uint view_access;
-    memset(&table_list, 0, sizeof(table_list));
-    table_list.db= schema_name_ptr->ptr();
-    table_list.table_name= table_name_ptr->ptr();
-    table_list.grant.privilege= thd->col_access;
-    view_access= get_table_grant(thd, &table_list);
-    if ((view_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
-        (SHOW_VIEW_ACL|SELECT_ACL))
-      DBUG_RETURN(true);
-#endif
-
+    null_value= TRUE;
+    DBUG_RETURN(FALSE);
   }
 
-  DBUG_RETURN(false);
+  // Make strings safe.
+  schema_name_ptr->c_ptr_safe();
+  table_name_ptr->c_ptr_safe();
+  definer_ptr->c_ptr_safe();
+  options_ptr->c_ptr_safe();
+
+  // Skip INFORMATION_SCHEMA database
+  if (is_infoschema_db(schema_name_ptr->ptr()) ||
+      !my_strcasecmp(system_charset_info, schema_name_ptr->ptr(), "sys"))
+    DBUG_RETURN(TRUE);
+
+  // Check if view is valid. If view is invalid then push invalid view
+  // warning.
+  bool is_view_valid= true;
+  std::unique_ptr<dd::Properties>
+    view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+  if (view_options->get_bool("view_valid", &is_view_valid))
+    DBUG_RETURN(FALSE);
+
+  THD *thd= current_thd;
+  if (!is_view_valid)
+    push_view_warning_or_error(thd,
+                               schema_name_ptr->c_ptr_safe(),
+                               table_name_ptr->c_ptr_safe());
+
+  //
+  // Check if definer user/host has access.
+  //
+
+  Security_context *sctx= thd->security_context();
+
+  // NOTE: this is a copy/paste from sp_head::set_definer().
+
+  char user_name_holder[USERNAME_LENGTH + 1];
+  LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };
+
+  char host_name_holder[HOSTNAME_LENGTH + 1];
+  LEX_STRING host_name= { host_name_holder, HOSTNAME_LENGTH };
+
+  parse_user(definer_ptr->ptr(), definer_ptr->length(),
+             user_name.str, &user_name.length,
+             host_name.str, &host_name.length);
+
+  std::string definer_user(user_name.str, user_name.length);
+  std::string definer_host(host_name.str, host_name.length);
+
+  if (!my_strcasecmp(system_charset_info, definer_user.c_str(),
+                     sctx->priv_user().str) &&
+      !my_strcasecmp(system_charset_info, definer_host.c_str(),
+                     sctx->priv_host().str))
+    DBUG_RETURN(TRUE);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  //
+  // Check for ACL's
+  //
+
+  if ((thd->col_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
+      (SHOW_VIEW_ACL|SELECT_ACL))
+    DBUG_RETURN(TRUE);
+
+  TABLE_LIST table_list;
+  uint view_access;
+  memset(&table_list, 0, sizeof(table_list));
+  table_list.db= schema_name_ptr->ptr();
+  table_list.table_name= table_name_ptr->ptr();
+  table_list.grant.privilege= thd->col_access;
+  view_access= get_table_grant(thd, &table_list);
+  if ((view_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
+      (SHOW_VIEW_ACL|SELECT_ACL))
+    DBUG_RETURN(TRUE);
+#endif
+
+  DBUG_RETURN(FALSE);
+}
+
+static ulonglong get_statistics_from_cache(
+                   Item** args,
+                   dd::info_schema::enum_statistics_type stype,
+                   my_bool *null_value)
+{
+  DBUG_ENTER("get_statistics_from_cache");
+  *null_value= FALSE;
+
+  // Reads arguments
+  String schema_name;
+  String table_name;
+  String engine_name;
+  String *schema_name_ptr=args[0]->val_str(&schema_name);
+  String *table_name_ptr=args[1]->val_str(&table_name);
+  String *engine_name_ptr=args[2]->val_str(&engine_name);
+  if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
+      engine_name_ptr == nullptr)
+  {
+    *null_value= TRUE;
+    DBUG_RETURN(0);
+  }
+
+  // Make sure we have safe string to access.
+  schema_name_ptr->c_ptr_safe();
+  table_name_ptr->c_ptr_safe();
+  engine_name_ptr->c_ptr_safe();
+
+  // Do not read dynamic stats for I_S tables.
+  if (is_infoschema_db(schema_name_ptr->ptr()))
+    DBUG_RETURN(0);
+
+  // Read the statistic value from cache.
+  THD *thd= current_thd;
+  dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
+  ulonglong result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+                                                      *schema_name_ptr,
+                                                      *table_name_ptr,
+                                                      *engine_name_ptr,
+                                                      se_private_id,
+                                                      stype);
+  DBUG_RETURN(result);
 }
 
 longlong Item_func_internal_table_rows::val_int()
 {
   DBUG_ENTER("Item_func_internal_table_rows::val_int");
 
-  String schema_name;
-  String *schema_name_ptr;
-  String table_name;
-  String *table_name_ptr;
-  String engine_name;
-  String *engine_name_ptr;
-  ulonglong result= 0;
+  ulonglong result= get_statistics_from_cache(
+                      args,
+                      dd::info_schema::enum_statistics_type::TABLE_ROWS,
+                      &null_value);
 
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
-      (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
-      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
-  {
-    dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
-    THD *thd= current_thd;
-
-    // Make sure we have safe string to access.
-    schema_name_ptr->c_ptr_safe();
-    table_name_ptr->c_ptr_safe();
-    engine_name_ptr->c_ptr_safe();
-
-    result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
-               *schema_name_ptr,
-               *table_name_ptr,
-               *engine_name_ptr,
-               se_private_id,
-               dd::info_schema::enum_statistics_type::TABLE_ROWS);
-  }
-
-  if (result == (ulonglong) -1)
-    null_value= 1;
-  else
-    null_value= 0;
+  if (null_value == FALSE && result == (ulonglong) -1)
+    null_value= TRUE;
 
   DBUG_RETURN(result);
 }
@@ -9525,35 +9573,11 @@ longlong Item_func_internal_avg_row_length::val_int()
 {
   DBUG_ENTER("Item_func_internal_avg_row_length::val_int");
 
-  String schema_name;
-  String *schema_name_ptr;
-  String table_name;
-  String *table_name_ptr;
-  String engine_name;
-  String *engine_name_ptr;
-  ulonglong result= 0;
-
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
-      (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
-      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
-  {
-    dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
-    THD *thd= current_thd;
-
-    // Make sure we have safe string to access.
-    schema_name_ptr->c_ptr_safe();
-    table_name_ptr->c_ptr_safe();
-    engine_name_ptr->c_ptr_safe();
-
-    result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
-              *schema_name_ptr,
-              *table_name_ptr,
-              *engine_name_ptr,
-              se_private_id,
-              dd::info_schema::enum_statistics_type::TABLE_AVG_ROW_LENGTH);
-  }
-
+  ulonglong result=
+    get_statistics_from_cache(
+      args,
+      dd::info_schema::enum_statistics_type::TABLE_AVG_ROW_LENGTH,
+      &null_value);
   DBUG_RETURN(result);
 }
 
@@ -9561,35 +9585,10 @@ longlong Item_func_internal_data_length::val_int()
 {
   DBUG_ENTER("Item_func_internal_data_length::val_int");
 
-  String schema_name;
-  String *schema_name_ptr;
-  String table_name;
-  String *table_name_ptr;
-  String engine_name;
-  String *engine_name_ptr;
-  ulonglong result= 0;
-
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
-      (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
-      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
-  {
-    dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
-    THD *thd= current_thd;
-
-    // Make sure we have safe string to access.
-    schema_name_ptr->c_ptr_safe();
-    table_name_ptr->c_ptr_safe();
-    engine_name_ptr->c_ptr_safe();
-
-    result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
-              *schema_name_ptr,
-              *table_name_ptr,
-              *engine_name_ptr,
-              se_private_id,
-              dd::info_schema::enum_statistics_type::DATA_LENGTH);
-  }
-
+  ulonglong result= get_statistics_from_cache(
+                      args,
+                      dd::info_schema::enum_statistics_type::DATA_LENGTH,
+                      &null_value);
   DBUG_RETURN(result);
 }
 
@@ -9597,35 +9596,10 @@ longlong Item_func_internal_max_data_length::val_int()
 {
   DBUG_ENTER("Item_func_internal_max_data_length::val_int");
 
-  String schema_name;
-  String *schema_name_ptr;
-  String table_name;
-  String *table_name_ptr;
-  String engine_name;
-  String *engine_name_ptr;
-  ulonglong result= 0;
-
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
-      (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
-      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
-  {
-    dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
-    THD *thd= current_thd;
-
-    // Make sure we have safe string to access.
-    schema_name_ptr->c_ptr_safe();
-    table_name_ptr->c_ptr_safe();
-    engine_name_ptr->c_ptr_safe();
-
-    result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
-              *schema_name_ptr,
-              *table_name_ptr,
-              *engine_name_ptr,
-              se_private_id,
-              dd::info_schema::enum_statistics_type::MAX_DATA_LENGTH);
-  }
-
+  ulonglong result= get_statistics_from_cache(
+                      args,
+                      dd::info_schema::enum_statistics_type::MAX_DATA_LENGTH,
+                      &null_value);
   DBUG_RETURN(result);
 }
 
@@ -9633,35 +9607,10 @@ longlong Item_func_internal_index_length::val_int()
 {
   DBUG_ENTER("Item_func_internal_index_length::val_int");
 
-  String schema_name;
-  String *schema_name_ptr;
-  String table_name;
-  String *table_name_ptr;
-  String engine_name;
-  String *engine_name_ptr;
-  ulonglong result= 0;
-
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
-      (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
-      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
-  {
-    dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
-    THD *thd= current_thd;
-
-    // Make sure we have safe string to access.
-    schema_name_ptr->c_ptr_safe();
-    table_name_ptr->c_ptr_safe();
-    engine_name_ptr->c_ptr_safe();
-
-    result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
-              *schema_name_ptr,
-              *table_name_ptr,
-              *engine_name_ptr,
-              se_private_id,
-              dd::info_schema::enum_statistics_type::INDEX_LENGTH);
-  }
-
+  ulonglong result= get_statistics_from_cache(
+                      args,
+                      dd::info_schema::enum_statistics_type::INDEX_LENGTH,
+                      &null_value);
   DBUG_RETURN(result);
 }
 
@@ -9669,39 +9618,13 @@ longlong Item_func_internal_data_free::val_int()
 {
   DBUG_ENTER("Item_func_internal_data_free::val_int");
 
-  String schema_name;
-  String *schema_name_ptr;
-  String table_name;
-  String *table_name_ptr;
-  String engine_name;
-  String *engine_name_ptr;
-  ulonglong result= 0;
+  ulonglong result= get_statistics_from_cache(
+                      args,
+                      dd::info_schema::enum_statistics_type::DATA_FREE,
+                      &null_value);
 
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
-      (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
-      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
-  {
-    dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
-    THD *thd= current_thd;
-
-    // Make sure we have safe string to access.
-    schema_name_ptr->c_ptr_safe();
-    table_name_ptr->c_ptr_safe();
-    engine_name_ptr->c_ptr_safe();
-
-    result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
-              *schema_name_ptr,
-              *table_name_ptr,
-              *engine_name_ptr,
-              se_private_id,
-              dd::info_schema::enum_statistics_type::DATA_FREE);
-  }
-
-  if (result == (ulonglong) -1)
-    null_value= 1;
-  else
-    null_value= 0;
+  if (null_value == FALSE && result == (ulonglong) -1)
+    null_value= TRUE;
 
   DBUG_RETURN(result);
 }
@@ -9710,43 +9633,13 @@ longlong Item_func_internal_auto_increment::val_int()
 {
   DBUG_ENTER("Item_func_internal_auto_increment::val_int");
 
-  String schema_name;
-  String *schema_name_ptr;
-  String table_name;
-  String *table_name_ptr;
-  String engine_name;
-  String *engine_name_ptr;
-  ulonglong result= 0;
+  ulonglong result= get_statistics_from_cache(
+                      args,
+                      dd::info_schema::enum_statistics_type::AUTO_INCREMENT,
+                      &null_value);
 
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
-      (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
-      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
-  {
-    dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
-    THD *thd= current_thd;
-
-    // Make sure we have safe string to access.
-    schema_name_ptr->c_ptr_safe();
-    table_name_ptr->c_ptr_safe();
-    engine_name_ptr->c_ptr_safe();
-
-    result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
-              *schema_name_ptr,
-              *table_name_ptr,
-              *engine_name_ptr,
-              se_private_id,
-              dd::info_schema::enum_statistics_type::AUTO_INCREMENT);
-  }
-
-  /*
-   InnoDB returns 0 instead for tables with no auto_increment value and
-   with no rows in it. So, we consider 0 also as nullptr here.
- */
-  if (result < (ulonglong) 1)
-    null_value= 1;
-  else
-    null_value= 0;
+  if (null_value == FALSE && result < (ulonglong) 1)
+    null_value= TRUE;
 
   DBUG_RETURN(result);
 }
@@ -9755,53 +9648,27 @@ longlong Item_func_internal_checksum::val_int()
 {
   DBUG_ENTER("Item_func_internal_checksum::val_int");
 
-  String schema_name;
-  String *schema_name_ptr;
-  String table_name;
-  String *table_name_ptr;
-  String engine_name;
-  String *engine_name_ptr;
-  ulonglong result= 0;
+  ulonglong result= get_statistics_from_cache(
+                      args,
+                      dd::info_schema::enum_statistics_type::CHECKSUM,
+                      &null_value);
 
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
-      (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
-      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
-  {
-    dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
-    THD *thd= current_thd;
-
-    // Make sure we have safe string to access.
-    schema_name_ptr->c_ptr_safe();
-    table_name_ptr->c_ptr_safe();
-    engine_name_ptr->c_ptr_safe();
-
-    result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
-              *schema_name_ptr,
-              *table_name_ptr,
-              *engine_name_ptr,
-              se_private_id,
-              dd::info_schema::enum_statistics_type::CHECKSUM);
-  }
-
-  if (!result)
-    null_value= 1;
-  else
-    null_value= 0;
+  if (null_value == FALSE && result == 0)
+    null_value= TRUE;
 
   DBUG_RETURN(result);
 }
 
 /**
   @brief
-    INFORMATION_SCHEMA picks metadata from new DD using system views.
+    INFORMATION_SCHEMA picks metadata from DD using system views.
     INFORMATION_SCHEMA.STATISTICS.COMMENT is used to indicate if the indexes are
     disabled by ALTER TABLE ... DISABLE KEYS. This property of table is stored
     in mysql.tables.options as 'keys_disabled=0/1/'. This internal function
     returns value of option 'keys_disabled' for a given table.
 
   Syntax:
-    int INTERNAL_KEYS_DISABLED(schema_name, table_name);
+    int INTERNAL_KEYS_DISABLED(table_options);
 
   @returns,
     1 - If keys are disabled.
@@ -9810,33 +9677,27 @@ longlong Item_func_internal_checksum::val_int()
 longlong Item_func_internal_keys_disabled::val_int()
 {
   DBUG_ENTER("Item_func_internal_keys_disabled::val_int");
-  uint keys_disabled= 0;
 
-  // Read schema_name, table_name, options
-  String schema_name;
-  String *schema_name_ptr;
-  String table_name;
-  String *table_name_ptr;
+  // Read options.
   String options;
-  String *options_ptr;
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
-      (options_ptr=args[2]->val_str(&options)) != nullptr)
-  {
-    // Read table option from properties
-    std::unique_ptr<dd::Properties> p
-      (dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+  String *options_ptr=args[0]->val_str(&options);
+  if (options_ptr == nullptr)
+    DBUG_RETURN(FALSE);
+
+  // Read table option from properties
+  std::unique_ptr<dd::Properties> p
+    (dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
 
     // Read keys_disabled sub type.
-    p->get_uint32("keys_disabled", &keys_disabled);
-  }
+  uint keys_disabled= 0;
+  p->get_uint32("keys_disabled", &keys_disabled);
 
   DBUG_RETURN(keys_disabled);
 }
 
 /**
   @brief
-    INFORMATION_SCHEMA picks metadata from new DD using system views.
+    INFORMATION_SCHEMA picks metadata from DD using system views.
     INFORMATION_SCHEMA.STATISTICS.CARDINALITY is can be read from SE when
     information_schema_stats is set to 'latest'.
 
@@ -9852,48 +9713,48 @@ longlong Item_func_internal_keys_disabled::val_int()
 longlong Item_func_internal_index_column_cardinality::val_int()
 {
   DBUG_ENTER("Item_func_internal_index_column_cardinality::val_int");
-  ulonglong result= 0;
+  null_value= FALSE;
 
-  // Read schema_name, table_name, options
+  // Read arguments
   String schema_name;
-  String *schema_name_ptr;
   String table_name;
-  String *table_name_ptr;
   String index_name;
-  String *index_name_ptr;
   String engine_name;
-  String *engine_name_ptr;
-  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
-      (index_name_ptr=args[2]->val_str(&index_name)) != nullptr &&
-      (engine_name_ptr=args[5]->val_str(&engine_name)) != nullptr)
+  String *schema_name_ptr= args[0]->val_str(&schema_name);
+  String *table_name_ptr= args[1]->val_str(&table_name);
+  String *index_name_ptr= args[2]->val_str(&index_name);
+  String *engine_name_ptr= args[5]->val_str(&engine_name);
+  uint index_ordinal_position= args[3]->val_uint();
+  uint column_ordinal_position= args[4]->val_uint();
+  dd::Object_id se_private_id= (dd::Object_id) args[6]->val_uint();
+  if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
+      index_name_ptr == nullptr || engine_name_ptr == nullptr ||
+      args[3]->null_value || args[4]->null_value)
   {
-    uint index_ordinal_position= args[3]->val_uint();
-    uint column_ordinal_position= args[4]->val_uint();
-    dd::Object_id se_private_id= (dd::Object_id) args[6]->val_uint();
-    THD *thd= current_thd;
-
-    // Make sure we have safe string to access.
-    schema_name_ptr->c_ptr_safe();
-    table_name_ptr->c_ptr_safe();
-    index_name_ptr->c_ptr_safe();
-    engine_name_ptr->c_ptr_safe();
-
-    result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
-              *schema_name_ptr,
-              *table_name_ptr,
-              *index_name_ptr,
-              index_ordinal_position - 1 ,
-              column_ordinal_position - 1 ,
-              *engine_name_ptr,
-              se_private_id,
-              dd::info_schema::enum_statistics_type::INDEX_COLUMN_CARDINALITY);
+    null_value= TRUE;
+    DBUG_RETURN(0);
   }
 
+  // Make sure we have safe string to access.
+  schema_name_ptr->c_ptr_safe();
+  table_name_ptr->c_ptr_safe();
+  index_name_ptr->c_ptr_safe();
+  engine_name_ptr->c_ptr_safe();
+
+  ulonglong result= 0;
+  THD *thd= current_thd;
+  result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+            *schema_name_ptr,
+            *table_name_ptr,
+            *index_name_ptr,
+            index_ordinal_position - 1,
+            column_ordinal_position - 1,
+            *engine_name_ptr,
+            se_private_id,
+            dd::info_schema::enum_statistics_type::INDEX_COLUMN_CARDINALITY);
+
   if (result == (ulonglong) -1)
-    null_value= 1;
-  else
-    null_value= 0;
+    null_value= TRUE;
 
   DBUG_RETURN(result);
 }
@@ -9917,31 +9778,34 @@ Item_func_version::Item_func_version(const POS &pos)
 longlong Item_func_internal_dd_char_length::val_int()
 {
   DBUG_ENTER("Item_func_get_dd_char_length::val_real");
+  null_value= FALSE;
 
-  // Read field type
-  enum_field_types field_type =
-    dd_get_old_field_type((dd::enum_column_types) args[0]->val_int());
-
-  // Read field_length from args
+  dd::enum_column_types col_type= (dd::enum_column_types) args[0]->val_int();
   uint field_length= args[1]->val_int();
+  String cs_name;
+  String *cs_name_ptr= args[2]->val_str(&cs_name);
+  uint flag= args[3]->val_int();
 
-  String cs_name, *cs_name_ptr= nullptr;
-  cs_name_ptr= args[2]->val_str(&cs_name);
-  if (!cs_name_ptr)
+  // Stop if we found a NULL argument.
+  if (args[0]->null_value ||
+      args[1]->null_value ||
+      cs_name_ptr == nullptr ||
+      args[3]->null_value)
   {
-    null_value= 1;
+    null_value= TRUE;
     DBUG_RETURN(0);
   }
+
+  // Read character set.
   CHARSET_INFO *cs= get_charset_by_name(cs_name_ptr->c_ptr_safe(), MYF(0));
   if (!cs)
   {
-    null_value= 1;
+    null_value= TRUE;
     DBUG_RETURN(0);
   }
 
-  uint flag= args[3]->val_int();
-
   // Check data types for getting info
+  enum_field_types field_type= dd_get_old_field_type(col_type);
   bool blob_flag= is_blob(field_type);
   if (!blob_flag &&
       field_type != MYSQL_TYPE_ENUM &&
@@ -9949,11 +9813,9 @@ longlong Item_func_internal_dd_char_length::val_int()
       field_type != MYSQL_TYPE_VARCHAR &&  // For varbinary type
       field_type != MYSQL_TYPE_STRING)     // For binary type
   {
-    null_value= 1;
+    null_value= TRUE;
     DBUG_RETURN(0);
   }
-  else
-    null_value= 0;
 
   std::ostringstream oss("");
   switch (field_type)
@@ -9980,21 +9842,19 @@ longlong Item_func_internal_dd_char_length::val_int()
       break;
   }
 
- if (!flag && field_length)
+  if (!flag && field_length)
   {
     if (blob_flag)
-      DBUG_RETURN(field_length / cs->mbminlen);
+      DBUG_RETURN (field_length / cs->mbminlen);
     else
-      DBUG_RETURN (field_length/cs->mbmaxlen);
+      DBUG_RETURN (field_length / cs->mbmaxlen);
   }
   else if (flag && field_length)
   {
     DBUG_RETURN (field_length);
   }
-  else
-  {
-    DBUG_RETURN(0);
-  }
+
+  DBUG_RETURN(0);
 }
 
 
@@ -10002,39 +9862,41 @@ longlong Item_func_internal_get_view_warning_or_error::val_int()
 {
   DBUG_ENTER("Item_func_internal_get_view_warning_or_error::val_int");
 
+  String schema_name;
+  String table_name;
   String table_type;
-  String *table_type_ptr;
-  if ((table_type_ptr= args[2]->val_str(&table_type)) != nullptr &&
-      strcmp(table_type_ptr->c_ptr_safe(), "VIEW") == 0)
+  String *schema_name_ptr= args[0]->val_str(&schema_name);
+  String *table_name_ptr= args[1]->val_str(&table_name);
+  String *table_type_ptr= args[2]->val_str(&table_type);
+
+
+  if (table_type_ptr == nullptr || schema_name_ptr == nullptr ||
+      table_name_ptr == nullptr)
   {
-    String schema_name;
-    String *schema_name_ptr;
-    String table_name;
-    String *table_name_ptr;
-    String options;
-    String *options_ptr;
+    DBUG_RETURN(FALSE);
+  }
 
-    if ((schema_name_ptr= args[0]->val_str(&schema_name)) != nullptr &&
-        (table_name_ptr= args[1]->val_str(&table_name)) != nullptr &&
-        (options_ptr= args[3]->val_str(&options)) != nullptr)
+  String options;
+  String *options_ptr= args[3]->val_str(&options);
+  if (strcmp(table_type_ptr->c_ptr_safe(), "VIEW") == 0 &&
+      options_ptr != nullptr)
+  {
+    bool is_view_valid= true;
+    std::unique_ptr<dd::Properties>
+      view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+    // Return 0 if get_bool() or push_view_warning_or_error() fails
+    if (view_options->get_bool("view_valid", &is_view_valid))
+      DBUG_RETURN(FALSE);
+
+    if (is_view_valid == false)
     {
-      bool is_view_valid= true;
-      std::unique_ptr<dd::Properties>
-        view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
-
-      // Return 0 if get_bool() or push_view_warning_or_error() fails
-      if (view_options->get_bool("view_valid", &is_view_valid))
-        DBUG_RETURN(0);
-
-      if (is_view_valid == false)
-      {
-        push_view_warning_or_error(current_thd,
-                                   schema_name_ptr->c_ptr_safe(),
-                                   table_name_ptr->c_ptr_safe());
-        DBUG_RETURN(0);
-      }
+      push_view_warning_or_error(current_thd,
+                                 schema_name_ptr->c_ptr_safe(),
+                                 table_name_ptr->c_ptr_safe());
+      DBUG_RETURN(FALSE);
     }
   }
 
-  DBUG_RETURN(1);
+  DBUG_RETURN(TRUE);
 }

@@ -15,10 +15,20 @@
 
 #include "dd/impl/tables/table_partitions.h"
 
-#include "dd/impl/transaction_impl.h"    // dd::Transaction_ro
+#include <memory>
+#include <new>
+
+#include "dd/impl/object_key.h"
 #include "dd/impl/raw/object_keys.h"     // dd::Parent_id_range_key
 #include "dd/impl/raw/raw_record.h"      // dd::Raw_record
 #include "dd/impl/raw/raw_table.h"       // dd::Raw_table
+#include "dd/impl/transaction_impl.h"    // dd::Transaction_ro
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "dd/types/table.h"
+#include "handler.h"
+#include "my_dbug.h"
+
+class THD;
 
 namespace dd {
 namespace tables {
@@ -102,7 +112,7 @@ Object_id Table_partitions::read_table_id(const Raw_record &r)
 
 /* purecov: begin deadcode */
 Object_key *Table_partitions::create_se_private_key(
-  const std::string &engine,
+  const String_type &engine,
   Object_id se_private_id)
 {
   const int SE_PRIVATE_ID_INDEX_ID= 3;
@@ -124,7 +134,7 @@ Object_key *Table_partitions::create_se_private_key(
 /* purecov: begin deadcode */
 bool Table_partitions::get_partition_table_id(
   THD *thd,
-  const std::string &engine,
+  const String_type &engine,
   ulonglong se_private_id,
   Object_id *oid)
 {

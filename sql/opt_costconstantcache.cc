@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,14 +18,21 @@
 
 #include "current_thd.h"                  // current_thd
 #include "field.h"                        // Field
-#include "mysqld.h"                       // key_LOCK_cost_const
 #include "log.h"                          // sql_print_warning
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mysqld.h"                       // key_LOCK_cost_const
 #include "records.h"                      // READ_RECORD
 #include "sql_base.h"                     // open_and_lock_tables
 #include "sql_class.h"                    // THD
+#include "sql_const.h"
+#include "sql_plugin.h"
+#include "sql_string.h"
 #include "sql_tmp_table.h"                // init_cache_tmp_engine_properties
 #include "table.h"                        // TABLE
 #include "template_utils.h"               // pointer_cast
+#include "thr_lock.h"
+#include "thr_mutex.h"
 #include "transaction.h"                  // trans_commit_stmt
 
 

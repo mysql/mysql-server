@@ -21,37 +21,55 @@
 
 /* Definitions for parameters to do with handler-routines */
 
-#include "my_global.h"
-#include "ft_global.h"         // ft_hints
-#include "my_thread_local.h"   // my_errno
-#include "thr_lock.h"          // thr_lock_type
+#include <fcntl.h>
+#include <float.h>
+#include <string.h>
+#include <sys/types.h>
+#include <time.h>
+#include <algorithm>
+#include <string>
+
 #include "dd/object_id.h"      // dd::Object_id
 #include "discrete_interval.h" // Discrete_interval
-#include "key.h"               // KEY
+#include "ft_global.h"         // ft_hints
+#include "hash.h"
+#include "key.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_thread_local.h"   // my_errno
+#include "mysql/psi/psi_table.h"
+#include "sql_alloc.h"
 #include "sql_bitmap.h"        // Key_map
 #include "sql_const.h"         // SHOW_COMP_OPTION
 #include "sql_list.h"          // SQL_I_List
 #include "sql_plugin_ref.h"    // plugin_ref
 #include "system_variables.h"  // System_status_var
+#include "thr_lock.h"          // thr_lock_type
+#include "typelib.h"
 
 #include "mysql/psi/psi_table.h"
 #include "dd/types/table.h"
 
-#include <algorithm>
-#include <string>
-
 class Alter_info;
-class handler;
+class Field;
 class Item;
-class partition_info;
 class Partition_handler;
 class Record_buffer;
 class SE_cost_constants;     // see opt_costconstants.h
 class String;
-struct handlerton;
+class THD;
+class handler;
+class partition_info;
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
+struct handlerton;
+
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 typedef struct st_hash HASH;
@@ -64,10 +82,10 @@ namespace dd {
   class  Schema;
   class  Table;
   class  Tablespace;
+
   typedef struct sdi_key sdi_key_t;
   typedef struct sdi_vector sdi_vector_t;
-  typedef std::string sdi_t;
-};
+}
 
 typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,
                                       uint key_length,
@@ -1198,7 +1216,7 @@ typedef uint32 (*sdi_get_num_copies_t)(const dd::Tablespace &tablespace);
     @retval true otherwise.
 */
 typedef bool (*store_schema_sdi_t)(THD *thd, handlerton *hton,
-                                   const dd::sdi_t &sdi,
+                                   const LEX_CSTRING &sdi,
                                    const dd::Schema *schema,
                                    const dd::Table *table);
 
@@ -1211,7 +1229,7 @@ typedef bool (*store_schema_sdi_t)(THD *thd, handlerton *hton,
     @retval true otherwise.
 */
 typedef bool (*store_table_sdi_t)(THD *thd, handlerton *hton,
-                                  const dd::sdi_t &sdi,
+                                  const LEX_CSTRING &sdi,
                                   const dd::Table *table,
                                   const dd::Schema *schema);
 
@@ -1767,6 +1785,14 @@ typedef struct st_ha_create_information
   uint options;				/* OR of HA_CREATE_ options */
   uint merge_insert_method;
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
+
+  /*
+    A flag to indicate if this table should be marked as a hidden table in
+    the data dictionary. One use case is to mark the temporary tables
+    created by ALTER to be marked as hidden.
+  */
+  bool m_hidden;
+
 } HA_CREATE_INFO;
 
 
@@ -2747,15 +2773,10 @@ public:
   Meta data routines to CREATE, DROP, RENAME table are often used at
   ALTER TABLE (update_create_info used from ALTER TABLE and SHOW ..).
 
-  create_handler_files is called before opening a new handler object
-  to call create. It is used to create any local handler object needed
-  when opening the object.
-
   Methods:
     delete_table()
     rename_table()
     create()
-    create_handler_files()
     update_create_info()
 
   -------------------------------------------------------------------------
@@ -3445,9 +3466,6 @@ public:
 
   bool ha_get_se_private_data(dd::Table *dd_table, uint dd_version,
                               bool reset_id);
-
-  int ha_create_handler_files(const char *name, const char *old_name,
-                              int action_flag, HA_CREATE_INFO *info);
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
@@ -4266,12 +4284,6 @@ public:
   virtual bool auto_repair() const { return 0; }
 
 
-#define CHF_CREATE_FLAG 0
-#define CHF_DELETE_FLAG 1
-#define CHF_RENAME_FLAG 2
-#define CHF_INDEX_FLAG  3
-
-
   /**
     Get number of lock objects returned in store_lock.
 
@@ -4808,7 +4820,7 @@ protected:
 
     WL7743/TODO: Check if this method needed for InnoDB/atomic DDL.
  */
- virtual void notify_table_changed(Alter_inplace_info *ha_alter_info);
+ virtual void notify_table_changed(Alter_inplace_info *ha_alter_info) { };
 
 public:
  /* End of On-line/in-place ALTER TABLE interface. */
@@ -5164,12 +5176,6 @@ public:
                                    bool reset_id MY_ATTRIBUTE((unused)))
   { return false; }
 
-  virtual int create_handler_files(const char *name MY_ATTRIBUTE((unused)),
-                                   const char *old_name MY_ATTRIBUTE((unused)),
-                                   int action_flag MY_ATTRIBUTE((unused)),
-                                   HA_CREATE_INFO *info MY_ATTRIBUTE((unused)))
-  { return FALSE; }
-
   virtual int get_extra_columns_and_keys(const HA_CREATE_INFO *create_info,
                                          const List<Create_field> *create_list,
                                          const KEY *key_info, uint key_count,
@@ -5362,7 +5368,6 @@ handlerton *ha_default_temp_handlerton(THD *thd);
   @return plugin or NULL if not found.
 */
 plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name);
-plugin_ref ha_resolve_by_name_raw(THD *thd, const std::string &name);
 plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name,
                               bool is_temp_table);
 plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);

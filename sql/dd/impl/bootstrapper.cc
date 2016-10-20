@@ -15,26 +15,23 @@
 
 #include "bootstrapper.h"
 
-#include "handler.h"                          // dict_init_mode_t
-#include "log.h"                              // sql_print_warning()
-#include "mysql/mysql_lex_string.h"           // LEX_STRING
-#include "m_string.h"                         // STRING_WITH_LEN
-#include "sql_class.h"                        // THD
-#include "sql_prepare.h"                      // Ed_connection
-#include "sql_plugin.h"                       // plugin_foreach
-#include "sql_show.h"                         // get_schema_table()
-#include "transaction.h"                      // trans_rollback
+#include <stddef.h>
+#include <sys/types.h>
+#include <memory>
+#include <new>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include "dd/dd.h"                            // dd::create_object
-#include "dd/dd_table.h"                      // dd::get_sql_type_by_field_info
-#include "dd/dd_schema.h"                     // dd::schema_exists
-#include "dd/dd_upgrade.h"                    // dd::migrate_event_to_dd
-#include "dd/properties.h"                    // dd::Properties
+#include "binary_log_types.h"
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/dd.h"                            // dd::create_object
+#include "dd/dd_schema.h"                     // dd::schema_exists
+#include "dd/dd_table.h"                      // dd::get_sql_type_by_field_info
+#include "dd/dd_upgrade.h"                    // dd::migrate_event_to_dd
 #include "dd/impl/cache/shared_dictionary_cache.h"// Shared_dictionary_cache
 #include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
 #include "dd/impl/system_registry.h"          // dd::System_tables
-#include "dd/impl/cache/storage_adapter.h"    // dd::cache::Storage_adapter
 #include "dd/impl/tables/character_sets.h"    // dd::tables::Character_sets
 #include "dd/impl/tables/collations.h"        // dd::tables::Collations
 #include "dd/impl/tables/version.h"           // dd::tables::Version
@@ -42,14 +39,41 @@
 #include "dd/impl/types/schema_impl.h"        // dd::Schema_impl
 #include "dd/impl/types/table_impl.h"         // dd::Table_impl
 #include "dd/impl/types/tablespace_impl.h"    // dd::Table_impl
-#include "dd/types/object_table.h"            // dd::Object_table
-#include "dd/types/view.h"                    // dd::View
+#include "dd/object_id.h"
+#include "dd/properties.h"                    // dd::Properties
 #include "dd/types/column.h"                  // dd::Column
 #include "dd/types/object_table_definition.h" // dd::Object_table_definition
+#include "dd/types/object_table.h"            // dd::Object_table
+#include "dd/types/schema.h"
+#include "dd/types/table.h"
 #include "dd/types/tablespace_file.h"         // dd::Tablespace_file
+#include "dd/types/tablespace.h"
+#include "dd/types/view.h"                    // dd::View
+#include "error_handler.h"                    // No_such_table_error_handler
+#include "handler.h"                          // dict_init_mode_t
+#include "log.h"                              // sql_print_warning()
+#include "m_ctype.h"
+#include "mdl.h"
+#include "m_string.h"                         // STRING_WITH_LEN
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysqld_error.h"
+#include "mysqld.h"
+#include "mysql/plugin.h"
+#include "my_sys.h"
+#include "sql_class.h"                        // THD
+#include "sql_error.h"
+#include "sql_list.h"
+#include "sql_plugin.h"                       // plugin_foreach
+#include "sql_plugin_ref.h"
+#include "sql_prepare.h"                      // Ed_connection
+#include "sql_profile.h"
+#include "sql_show.h"                         // get_schema_table()
+#include "system_variables.h"
+#include "table.h"
+#include "transaction.h"                      // trans_rollback
 
 #include <vector>
-#include <string>
 #include <memory>
 
 /*
@@ -86,14 +110,13 @@ my_bool dd_upgrade_skip_se= false;
 
 
 // Execute a single SQL query.
-bool execute_query(THD *thd, const std::string &q_buf)
+bool execute_query(THD *thd, const dd::String_type &q_buf)
 {
   Ed_connection con(thd);
   LEX_STRING str;
   thd->make_lex_string(&str, q_buf.c_str(), q_buf.length(), false);
   return con.execute_direct(str);
 }
-
 
 using namespace dd;
 
@@ -196,7 +219,7 @@ bool store_single_schema_table_meta_data(THD *thd,
                dd::get_sql_type_by_field_info(
                  thd, ft, fl, cs));
 
-    col_obj->set_default_value_utf8(std::string(STRING_WITH_LEN("")));
+    col_obj->set_default_value_utf8(dd::String_type(STRING_WITH_LEN("")));
   }
 
   // Acquire MDL on the view name.
@@ -400,17 +423,17 @@ bool DDSE_dict_recover(THD *thd,
 // Create and use the dictionary schema.
 bool create_dd_schema(THD *thd)
 {
-  return execute_query(thd, std::string("CREATE SCHEMA ") +
-                            std::string(MYSQL_SCHEMA_NAME.str) +
-                            std::string(" DEFAULT COLLATE ") +
-                            std::string(default_charset_info->name))
-  || execute_query(thd, std::string("USE ") +
-                          std::string(MYSQL_SCHEMA_NAME.str));
+  return execute_query(thd, dd::String_type("CREATE SCHEMA ") +
+                            dd::String_type(MYSQL_SCHEMA_NAME.str) +
+                            dd::String_type(" DEFAULT COLLATE ") +
+                            dd::String_type(default_charset_info->name))
+  || execute_query(thd, dd::String_type("USE ") +
+                          dd::String_type(MYSQL_SCHEMA_NAME.str));
 }
 
 
 // CREATE stats table with 5.7 definition in case of upgrade
-static const std::string stats_table_def(std::string name)
+static const dd::String_type stats_table_def(dd::String_type name)
 {
   if (strcmp(name.c_str(), "innodb_table_stats") == 0)
     return ("  CREATE TABLE innodb_table_stats (\n"
@@ -456,7 +479,8 @@ static const std::string stats_table_def(std::string name)
   definition. Later, ALTER command is executed to fix these table
   definitions.
 */
-bool create_tables(THD *thd, bool is_dd_upgrade)
+bool create_tables(THD *thd, bool is_dd_upgrade,
+                   System_tables::Const_iterator *last_table)
 {
   // Iterate over DD tables, create tables.
   System_tables::Const_iterator it= System_tables::instance()->begin();
@@ -474,17 +498,37 @@ bool create_tables(THD *thd, bool is_dd_upgrade)
 
   for (; it != System_tables::instance()->end(); ++it)
   {
+    /*
+      Creation of dictionary tables can fail in there is already a entry in
+      InnoDB dictionary with the same name as of dictionary table. The iterator
+      tracks number of dictionary tables created to delete the same number of
+      tables while aborting upgrade.
+    */
+    if (last_table != nullptr)
+      *last_table= it;
+
     const Object_table_definition *table_def=
             (*it)->entity()->table_definition(thd);
 
-    std::string name= (*it)->entity()->name();
+    String_type table_name= (*it)->entity()->name();
+    String_type schema_name(MYSQL_SCHEMA_NAME.str);
 
-    // Create stats table with 5.7 definition in case of upgrade
-    if (is_dd_upgrade &&
-        (strcmp(name.c_str(), "innodb_table_stats") == 0 ||
-         strcmp(name.c_str(), "innodb_index_stats") == 0))
+    const System_tables::Types *table_type= System_tables::instance()->
+      find_type(schema_name, table_name);
+
+    /*
+      Create innodb stats table with 5.7 definition in case of upgrade.
+      Check for innodb stats table by string comparision as other plugins might
+      create dictionary tables.
+    */
+    bool is_stats_table= (table_type != nullptr) &&
+                         (*table_type != System_tables::Types::CORE);
+    is_stats_table &= (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
+                      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
+
+    if (is_dd_upgrade && is_stats_table)
     {
-      if (execute_query(thd, stats_table_def(name)))
+      if (execute_query(thd, stats_table_def(table_name)))
         return true;
     }
 
@@ -492,6 +536,10 @@ bool create_tables(THD *thd, bool is_dd_upgrade)
              execute_query(thd, table_def->build_ddl_create_table()))
       return true;
   }
+
+  // Set iterator to end of system tables
+  if (last_table != nullptr)
+    *last_table= System_tables::instance()->end();
   bootstrap_stage= bootstrap::BOOTSTRAP_CREATED;
 
   return false;
@@ -564,9 +612,9 @@ bool store_meta_data(THD *thd)
   const Schema *sys_schema= nullptr;
   const Tablespace *sys_tspace= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire(std::string(MYSQL_SCHEMA_NAME.str),
+  if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                 &sys_schema) ||
-      thd->dd_client()->acquire(std::string(MYSQL_TABLESPACE_NAME.str),
+      thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
                                 &sys_tspace))
     return end_transaction(thd, true);
 
@@ -680,9 +728,9 @@ bool read_meta_data(THD *thd)
   const Schema *sys_schema= nullptr;
   const Tablespace *sys_tspace= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire(std::string(MYSQL_SCHEMA_NAME.str),
+  if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                 &sys_schema) ||
-      thd->dd_client()->acquire(std::string(MYSQL_TABLESPACE_NAME.str),
+      thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
                                 &sys_tspace))
     return end_transaction(thd, true);
 
@@ -699,23 +747,20 @@ bool read_meta_data(THD *thd)
        it != System_tables::instance()->end(); ++it)
   {
     const dd::Table *table= nullptr;
-    if (thd->dd_client()->acquire(std::string(MYSQL_SCHEMA_NAME.str),
+    if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                   (*it)->entity()->name(), &table))
       return end_transaction(thd, true);
     sys_tables.push_back(table);
   }
 
   // Read and update the system schema object from disk.
-  const Schema *stored_sys_schema= nullptr;
-  if (thd->dd_client()->acquire_uncached(std::string(MYSQL_SCHEMA_NAME.str),
+  Schema *stored_sys_schema= nullptr;
+  if (thd->dd_client()->acquire_uncached(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                          &stored_sys_schema))
     return end_transaction(thd, true);
 
   DBUG_ASSERT(stored_sys_schema != nullptr);
-  std::unique_ptr<Schema> stored_sys_schema_clone(stored_sys_schema->clone());
-  delete stored_sys_schema;
-  if (thd->dd_client()->update(&sys_schema,
-                               stored_sys_schema_clone.get(), false))
+  if (thd->dd_client()->update(&sys_schema, stored_sys_schema, false))
     return end_transaction(thd, true);
 
   /*
@@ -735,17 +780,13 @@ bool read_meta_data(THD *thd)
   // Read and update the system tablespace object from disk.
   if (sys_tspace)
   {
-    const Tablespace *stored_sys_tspace= nullptr;
-    if (thd->dd_client()->acquire_uncached(std::string(MYSQL_TABLESPACE_NAME.str),
+    Tablespace *stored_sys_tspace= nullptr;
+    if (thd->dd_client()->acquire_uncached(dd::String_type(MYSQL_TABLESPACE_NAME.str),
                                            &stored_sys_tspace))
       return end_transaction(thd, true);
 
     DBUG_ASSERT(stored_sys_tspace != nullptr);
-    std::unique_ptr<Tablespace> stored_sys_tspace_clone(
-            stored_sys_tspace->clone());
-    delete stored_sys_tspace;
-    if (thd->dd_client()->update(&sys_tspace,
-                                 stored_sys_tspace_clone.get(), false))
+    if (thd->dd_client()->update(&sys_tspace, stored_sys_tspace, false))
       return end_transaction(thd, true);
 
     /*
@@ -773,16 +814,14 @@ bool read_meta_data(THD *thd)
   for (std::vector<const Table*>::iterator it= sys_tables.begin();
        it != sys_tables.end(); ++it)
   {
-    const Table *stored_sys_table= nullptr;
+    Table *stored_sys_table= nullptr;
     if (thd->dd_client()->acquire_uncached(MYSQL_SCHEMA_NAME.str,
                                            (*it)->name(),
                                            &stored_sys_table))
       return end_transaction(thd, true);
 
     DBUG_ASSERT(stored_sys_table != nullptr);
-    std::unique_ptr<Table> stored_sys_table_clone(stored_sys_table->clone());
-    delete stored_sys_table;
-    if (thd->dd_client()->update(&(*it), stored_sys_table_clone.get(), false))
+    if (thd->dd_client()->update(&(*it), stored_sys_table, false))
       return end_transaction(thd, true);
   }
 
@@ -798,7 +837,7 @@ bool read_meta_data(THD *thd)
              System_tablespaces::PREDEFINED_DDSE))
   {
     const Tablespace *tspace= nullptr;
-    const Tablespace *stored_tspace= nullptr;
+    Tablespace *stored_tspace= nullptr;
 
     // Acquire from the cache (the scaffolding) and from the DD tables.
     if (thd->dd_client()->acquire((*it)->key().second, &tspace) ||
@@ -806,10 +845,7 @@ bool read_meta_data(THD *thd)
                                            &stored_tspace))
       return end_transaction(thd, true);
 
-    std::unique_ptr<Tablespace> stored_tspace_clone(
-            stored_tspace->clone());
-    delete stored_tspace;
-    if (thd->dd_client()->update(&tspace, stored_tspace_clone.get(), false))
+    if (thd->dd_client()->update(&tspace, stored_tspace, false))
       return end_transaction(thd, true);
   }
   bootstrap_stage= bootstrap::BOOTSTRAP_SYNCED;
@@ -833,8 +869,8 @@ bool populate_tables(THD *thd)
     if (table_def == nullptr)
       return end_transaction(thd, true);
 
-    std::vector<std::string> stmt= table_def->dml_populate_statements();
-    for (std::vector<std::string>::iterator stmt_it= stmt.begin();
+    std::vector<dd::String_type> stmt= table_def->dml_populate_statements();
+    for (std::vector<dd::String_type>::iterator stmt_it= stmt.begin();
            stmt_it != stmt.end() && !error; ++stmt_it)
       error= execute_query(thd, *stmt_it);
 
@@ -869,7 +905,7 @@ bool add_cyclic_foreign_keys(THD *thd)
 
     // Acquire the table object, maintain table hiding.
     const dd::Table *table= nullptr;
-    if (thd->dd_client()->acquire(std::string(MYSQL_SCHEMA_NAME.str),
+    if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                   (*it)->entity()->name(), &table))
       return true;
 
@@ -1006,10 +1042,11 @@ enum_bootstrap_stage stage()
 
 // Initialize the data dictionary.
 static bool initialize_dictionary(THD *thd, bool is_dd_upgrade,
-                                  Dictionary_impl *d)
+                                  Dictionary_impl *d,
+                                  System_tables::Const_iterator *last_table)
 {
   if (create_dd_schema(thd) ||
-      create_tables(thd, is_dd_upgrade) ||
+      create_tables(thd, is_dd_upgrade, last_table) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_INITIALIZE_SERVER,
                         d->get_target_dd_version()) ||
       execute_query(thd, "SET FOREIGN_KEY_CHECKS= 0") ||
@@ -1052,7 +1089,7 @@ bool initialize(THD *thd)
   */
   if (DDSE_dict_init(thd, DICT_INIT_CREATE_FILES,
                      d->get_target_dd_version()) ||
-      initialize_dictionary(thd, false, d))
+      initialize_dictionary(thd, false, d, nullptr))
     return true;
 
   DBUG_ASSERT(d->get_target_dd_version() == d->get_actual_dd_version(thd));
@@ -1081,7 +1118,7 @@ bool restart(THD *thd)
   cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   if (create_dd_schema(thd) ||
-      create_tables(thd, false) ||
+      create_tables(thd, false, nullptr) ||
       read_meta_data(thd) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_RESTART_SERVER,
                         d->get_actual_dd_version(thd)) ||
@@ -1113,6 +1150,75 @@ bool store_plugin_IS_table_metadata(THD *thd)
 
   return end_transaction(thd, error);
 }
+
+
+/**
+  Bootstrap thread executes SQL statements.
+  Any error in the execution of SQL statements causes call to my_error().
+  At this moment, error handler hook is set to my_message_stderr.
+  my_message_stderr() prints the error messages to standard error stream but
+  it does not follow the standard error format. Further, the error status is
+  not set in Diagnostics Area.
+
+  This class is to create RAII error handler hooks to be used when executing
+  statements from bootstrap thread.
+
+  It will print the error in the standard error format.
+  Diagnostics Area error status will be set to avoid asserts.
+  Error will be handler by caller function.
+*/
+
+class Bootstrap_error_handler
+{
+private:
+  void (*m_old_error_handler_hook)(uint, const char *, myf);
+
+
+  /**
+    Set the error in DA. Optionally print error in log.
+  */
+  static void my_message_bootstrap(uint error, const char *str, myf MyFlags)
+  {
+    my_message_sql(error, str, MyFlags | (m_log_error ? ME_ERRORLOG : 0));
+  }
+
+public:
+  Bootstrap_error_handler()
+  {
+    m_old_error_handler_hook= error_handler_hook;
+    error_handler_hook= my_message_bootstrap;
+  }
+
+  void set_log_error(bool log_error)
+  {
+    m_log_error= log_error;
+  }
+
+  ~Bootstrap_error_handler()
+  {
+    error_handler_hook= m_old_error_handler_hook;
+  }
+  static bool m_log_error;
+};
+bool Bootstrap_error_handler::m_log_error= true;
+
+// Delete dictionary tables
+static void delete_dictionary_and_cleanup(THD *thd,
+              const System_tables::Const_iterator &last_table)
+{
+
+  // RAII to handle error messages.
+  Bootstrap_error_handler bootstrap_error_handler;
+
+  // Set flag to delete DD tables only in SE and not from DD cache.
+  dd_upgrade_flag= true;
+
+  // Delete DD tables and SDI files.
+  drop_dd_tables_and_sdi_files(thd, last_table);
+
+  dd_upgrade_flag= false;
+}
+
 
 // Initialize DD in case of upgrade.
 bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
@@ -1148,6 +1254,11 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
     return true;
   }
 
+  // RAII to handle error messages.
+  Bootstrap_error_handler bootstrap_error_handler;
+
+  Key_length_error_handler key_error_handler;
+
   // This will create dd::Schema object for mysql schema
   if (create_dd_schema(thd))
     return true;
@@ -1160,16 +1271,35 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   /*
     This will create dd::Table objects for DD tables in DD cache.
     Tables will not be created inside SE.
+
+    Ignore ER_TOO_LONG_KEY for dictionary tables. Do not print the error in
+    error log as we are creating only the cached objects and not physical
+    tables.
+    TODO: Workaround due to bug#20629014. Remove when the bug is fixed.
   */
-  if (create_tables(thd, dd_upgrade_flag))
+  thd->push_internal_handler(&key_error_handler);
+  bootstrap_error_handler.set_log_error(false);
+  bool error =create_tables(thd, dd_upgrade_flag, nullptr);
+  bootstrap_error_handler.set_log_error(true);
+  thd->pop_internal_handler();
+  if (error)
     return true;
 
-  // Disable InnoDB warning in case it does not find mysql.version table.
+  // Disable InnoDB warning in case it does not find mysql.version table, and
+  // ignore error at the SQL layer.
   ulong saved_verbosity= log_error_verbosity;
   log_error_verbosity= 1;
+  No_such_table_error_handler error_handler;
+  thd->push_internal_handler(&error_handler);
+  bootstrap_error_handler.set_log_error(false);
+
   bool exists= false;
   uint dd_version= d->get_actual_dd_version(thd, &exists);
+
+  // Reset log error verbosity and pop internal error handler.
   log_error_verbosity= saved_verbosity;
+  thd->pop_internal_handler();
+  bootstrap_error_handler.set_log_error(true);
 
   if (exists)
   {
@@ -1181,7 +1311,18 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
       */
       dd::cache::Shared_dictionary_cache::instance()->reset_schema_cache();
       opt_initialize= false;
-      return restart(thd);
+      /*
+        Ignore ER_TOO_LONG_KEY for dictionary tables during restart.
+        Do not print the error in error log as we are creating only the
+        cached objects and not physical tables.
+        TODO: Workaround due to bug#20629014. Remove when the bug is fixed.
+      */
+      thd->push_internal_handler(&key_error_handler);
+      bootstrap_error_handler.set_log_error(false);
+      error= restart(thd);
+      bootstrap_error_handler.set_log_error(true);
+      thd->pop_internal_handler();
+      return error;
     }
     else
     {
@@ -1215,15 +1356,23 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
     return true;
   }
 
-  bootstrap_stage= bootstrap::BOOTSTRAP_STARTED;
+  /*
+    Ignore ER_TOO_LONG_KEY for dictionary tables creation.
+    TODO: Workaround due to bug#20629014. Remove when the bug is fixed.
+  */
+  thd->push_internal_handler(&key_error_handler);
 
-  if (initialize_dictionary(thd, dd_upgrade_flag, d))
+  bootstrap_stage= bootstrap::BOOTSTRAP_STARTED;
+  System_tables::Const_iterator last_table= System_tables::instance()->begin();
+  if (initialize_dictionary(thd, dd_upgrade_flag, d, &last_table))
   {
-    delete_dictionary_and_cleanup(thd);
+    thd->pop_internal_handler();
+    delete_dictionary_and_cleanup(thd, last_table);
     return true;
   }
+  thd->pop_internal_handler();
 
-  bool error= execute_query(thd, "UPDATE version SET version=0");
+  error= execute_query(thd, "UPDATE version SET version=0");
   // Commit the statement based population.
   error|= end_transaction(thd, error);
 
@@ -1255,8 +1404,11 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
 {
   bool error= false;
 
-  std::vector<std::string> db_name;
-  std::vector<std::string>::iterator it;
+  // RAII to handle error messages.
+  Bootstrap_error_handler bootstrap_error_handler;
+
+  std::vector<dd::String_type> db_name;
+  std::vector<dd::String_type>::iterator it;
 
   if (find_schema_from_datadir(thd, &db_name))
   {
@@ -1331,20 +1483,28 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
   /*
     ALTER innodb stats table according to new definition.
     We do it after everything else is upgraded as it changes the ibd files.
+
+    Ignore ER_TOO_LONG_KEY for dictionary tables operation.
+    TODO: Workaround due to bug#20629014. Remove when the bug is fixed.
   */
+  Key_length_error_handler key_error_handler;
+  thd->push_internal_handler(&key_error_handler);
   if (execute_query(thd, "ALTER TABLE mysql.innodb_table_stats CHANGE table_name "
                        "table_name VARCHAR(199) COLLATE utf8_bin NOT NULL") ||
       execute_query(thd, "ALTER TABLE mysql.innodb_index_stats CHANGE table_name "
                        "table_name VARCHAR(199) COLLATE utf8_bin NOT NULL"))
   {
     sql_print_error("Error in modifying definition of innodb stats tables");
+    thd->pop_internal_handler();
     delete_dictionary_and_cleanup(thd);
     return true;
   }
+  thd->pop_internal_handler();
 
   // Write the server version to indicate completion of upgrade.
-  std::string update_version_query= "UPDATE mysql.version SET version=" +
-                                    std::to_string(d->get_target_dd_version());
+  dd::String_type update_version_query= "UPDATE mysql.version SET version=";
+  std::string tdv= std::to_string(d->get_target_dd_version());
+  update_version_query.append(tdv.begin(), tdv.end());
 
   error= execute_query(thd, update_version_query);
   // Commit the statement based population.
@@ -1391,18 +1551,14 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
 }
 
 
-// Server Upgrade from 5.7
+// Delete Dictionary tables
 bool delete_dictionary_and_cleanup(THD *thd)
 {
-  // Set flag to delete DD tables only in SE and not from DD cache.
-  dd_upgrade_flag= true;
-
   // Delete DD tables and SDI files.
-  drop_dd_tables_and_sdi_files(thd);
-
-  dd_upgrade_flag= false;
+  delete_dictionary_and_cleanup(thd, System_tables::instance()->end());
   return false;
 }
+
 
 } // namespace bootstrap
 } // namespace dd

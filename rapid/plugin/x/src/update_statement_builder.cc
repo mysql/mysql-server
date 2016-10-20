@@ -155,8 +155,8 @@ void xpl::Update_statement_builder::add_document_operation(const Operation_list 
   bool is_id_synch = true;
   bld.put(doc_column).
       put_each(operation.begin(), operation.end(),
-               boost::bind(&Update_statement_builder::add_document_operation_item,
-                           this, _1, bld, boost::ref(is_id_synch),
+               ngs::bind(&Update_statement_builder::add_document_operation_item,
+                           this, ngs::placeholders::_1, bld, ngs::ref(is_id_synch),
                            static_cast<int>(operation.begin()->operation()))).put(")");
 
   if (is_id_synch)
@@ -280,7 +280,7 @@ void xpl::Update_statement_builder::add_table_operation_items(Operation_iterator
   case UpdateOperation::SET:
     if (begin->source().document_path_size() != 0)
       throw ngs::Error_code(ER_X_BAD_COLUMN_TO_UPDATE, "Invalid column name to update");
-    m_builder.put_each(begin, end, Add_field_with_value(m_builder));
+    m_builder.put_list(begin, end, Add_field_with_value(m_builder));
     break;
 
   case UpdateOperation::ITEM_REMOVE:

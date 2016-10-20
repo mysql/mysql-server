@@ -6690,9 +6690,9 @@ DROP TABLE t1;
 #57
 CREATE TABLE t1(f1 INT);
 EXPLAIN EXTENDED UPDATE t1 SET f2=1 ORDER BY f2;
-ERROR 42S22: Unknown column 'f2' in 'order clause'
+ERROR 42S22: Unknown column 'f2' in 'field list'
 UPDATE t1 SET f2=1 ORDER BY f2;
-ERROR 42S22: Unknown column 'f2' in 'order clause'
+ERROR 42S22: Unknown column 'f2' in 'field list'
 DROP TABLE t1;
 #59
 CREATE TABLE t1 ( a INT, KEY( a ) );
@@ -6728,8 +6728,6 @@ Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	3
 EXPLAIN FORMAT=JSON UPDATE        v1 SET a = 1 WHERE a > 0;;
 EXPLAIN
 {
@@ -6788,8 +6786,6 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` > 0)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	3
 EXPLAIN FORMAT=JSON SELECT * FROM v1           WHERE a > 0;;
 EXPLAIN
 {
@@ -6844,13 +6840,9 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` > 0)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	3
 Handler_read_rnd_next	6
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	3
 Handler_read_rnd	1
 Handler_read_rnd_next	9
 Handler_write	2
@@ -6875,8 +6867,6 @@ Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	3
 EXPLAIN FORMAT=JSON UPDATE        t1, v1 SET v1.a = 1 WHERE t1.a = v1.a;;
 EXPLAIN
 {
@@ -6954,8 +6944,6 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` join `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` = `test`.`t1`.`a`)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	3
 EXPLAIN FORMAT=JSON SELECT * FROM t1, v1              WHERE t1.a = v1.a;;
 EXPLAIN
 {
@@ -7029,13 +7017,9 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` join `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` = `test`.`t1`.`a`)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	3
 Handler_read_rnd_next	9
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	3
 Handler_read_rnd	2
 Handler_read_rnd_next	19
 Handler_update	1
@@ -7063,8 +7047,6 @@ Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	2
 EXPLAIN FORMAT=JSON DELETE   FROM v1 WHERE a < 4;;
 EXPLAIN
 {
@@ -7101,8 +7083,6 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 4)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	2
 EXPLAIN FORMAT=JSON SELECT * FROM v1 WHERE a < 4;;
 EXPLAIN
 {
@@ -7144,14 +7124,12 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
-Handler_read_next	5
+Handler_read_next	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
 Handler_read_first	1
-Handler_read_key	4
-Handler_read_next	5
+Handler_read_next	3
 
 DROP TABLE t1;
 DROP VIEW v1;
@@ -7179,8 +7157,6 @@ Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	3
 EXPLAIN FORMAT=JSON DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;;
 EXPLAIN
 {
@@ -7253,8 +7229,6 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	3
 EXPLAIN FORMAT=JSON SELECT *  FROM t2, v1 WHERE t2.x = v1.a;;
 EXPLAIN
 {
@@ -7320,14 +7294,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	8
-Handler_read_next	3
+Handler_read_key	4
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
-Handler_read_key	8
-Handler_read_next	3
+Handler_read_key	4
 Handler_read_rnd	4
 Handler_read_rnd_next	5
 
@@ -7357,8 +7329,6 @@ Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	3
 EXPLAIN FORMAT=JSON DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;;
 EXPLAIN
 {
@@ -7431,8 +7401,6 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	3
 EXPLAIN FORMAT=JSON SELECT *  FROM t2, v1 WHERE t2.x = v1.a;;
 EXPLAIN
 {
@@ -7498,14 +7466,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	8
-Handler_read_next	3
+Handler_read_key	4
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
-Handler_read_key	8
-Handler_read_next	3
+Handler_read_key	4
 Handler_read_rnd	4
 Handler_read_rnd_next	5
 
@@ -7530,8 +7496,6 @@ Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	2
 EXPLAIN FORMAT=JSON INSERT INTO v1 VALUES (10);;
 EXPLAIN
 {
@@ -7568,8 +7532,6 @@ Note	1003	/* select#1 */ select NULL AS `NULL`
 Variable_name	Value
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	4
-Handler_read_next	2
 Handler_write	1
 
 DROP TABLE t1;
@@ -7596,8 +7558,6 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
-Handler_read_next	2
 Handler_read_rnd_next	1
 EXPLAIN FORMAT=JSON INSERT INTO v1 SELECT * FROM t1;;
 EXPLAIN
@@ -7636,8 +7596,6 @@ Handler_read_rnd_next	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
-Handler_read_next	2
 Handler_read_rnd_next	1
 
 DROP TABLE t1, t2;

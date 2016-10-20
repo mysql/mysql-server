@@ -18,12 +18,14 @@
 #ifndef COMPRESSION_ZLIB_WRITER_INCLUDED
 #define COMPRESSION_ZLIB_WRITER_INCLUDED
 
+#include <string.h>
+
+#include <functional>
+
 #include "i_output_writer.h"
 #include "abstract_output_writer_wrapper.h"
-#include "i_callable.h"
 #include "base/mutex.h"
 #include "zlib.h"
-#include <string.h>
 
 namespace Mysql{
 namespace Tools{
@@ -37,7 +39,7 @@ class Compression_zlib_writer : public I_output_writer,
 {
 public:
   Compression_zlib_writer(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, Simple_id_generator* object_id_generator,
     uint compression_level);
 

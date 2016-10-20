@@ -209,9 +209,31 @@
 
 
 #include "protocol_classic.h"
+
+#include <string.h>
+#include <algorithm>
+
+#include "decimal.h"
+#include "field.h"
+#include "item.h"
 #include "item_func.h"                          // Item_func_set_user_var
-#include "sql_class.h"                          // THD
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/com_data.h"
+#include "mysql/psi/mysql_socket.h"
 #include "mysqld.h"                             // global_system_variables
+#include "mysqld_error.h"
+#include "session_tracker.h"
+#include "sql_class.h"                          // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "system_variables.h"
 
 using std::min;
 using std::max;

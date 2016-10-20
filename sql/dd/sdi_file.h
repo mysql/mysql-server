@@ -16,18 +16,22 @@
 #ifndef DD__SDI_FILE_INCLUDED
 #define DD__SDI_FILE_INCLUDED
 
+
 class THD;
+struct st_mysql_const_lex_string;
 
 namespace dd {
   class Entity_object;
   class Schema;
+
 namespace sdi_file {
-std::string sdi_filename(const dd::Entity_object *eo,
-                         const std::string &schema);
-bool store(THD *thd, const dd::sdi_t &sdi, const dd::Schema *schema);
-bool store(THD *thd, handlerton*, const dd::sdi_t &sdi, const dd::Table *table,
+String_type sdi_filename(const dd::Entity_object *eo,
+                         const String_type &schema);
+bool store(THD *thd, const st_mysql_const_lex_string &sdi,
            const dd::Schema *schema);
-bool remove(const std::string &fname);
+bool store(THD *thd, handlerton*, const st_mysql_const_lex_string &sdi,
+           const dd::Table *table, const dd::Schema *schema);
+bool remove(const String_type &fname);
 bool remove(THD *thd, const dd::Schema *schema);
 bool remove(THD *thd, handlerton*, const dd::Table *table,
             const dd::Schema *schema);

@@ -20,7 +20,6 @@
 #ifndef _NGS_CLIENT_H_
 #define _NGS_CLIENT_H_
 
-#include "ngs/ngs_types.h"
 #include "ngs/protocol_encoder.h"
 #include "ngs/protocol_decoder.h"
 #include "ngs/memory.h"
@@ -28,8 +27,8 @@
 #include "ngs/interface/client_interface.h"
 #include "ngs/capabilities/configurator.h"
 
-#include <boost/atomic.hpp>
-
+#include "ngs_common/atomic.h"
+#include "ngs_common/posix_time.h"
 #include "ngs_common/connection_vio.h"
 
 #ifndef WIN32
@@ -41,9 +40,8 @@ namespace ngs
 {
   class Server_interface;
 
-  class Client : public Client_interface,
-                 //public Session_interface::Session_delegate,
-                 private boost::noncopyable
+  class Client : public Client_interface
+                 //, public Session_interface::Session_delegate
   {
   public:
     Client(Connection_ptr connection,
@@ -52,8 +50,11 @@ namespace ngs
            Protocol_monitor_interface &pmon);
     virtual ~Client();
 
+    Client(const Client &) = delete;
+    Client &operator=(const Client &) = delete;
+
     Mutex &get_session_exit_mutex() { return m_session_exit_mutex; }
-    boost::shared_ptr<Session_interface> session() { return m_session; }
+    ngs::shared_ptr<Session_interface> session() { return m_session; }
 
   public: // impl ngs::Client_interface
     virtual void run(const bool skip_resolve_name);
@@ -91,16 +92,16 @@ namespace ngs
 
     Message_decoder m_decoder;
 
-    boost::posix_time::ptime m_accept_time;
+    ngs::ptime m_accept_time;
 
-    Protocol_encoder *m_encoder;
+    ngs::Memory_instrumented<Protocol_encoder>::Unique_ptr m_encoder;
     std::string m_client_addr;
     std::string m_client_host;
     uint16      m_client_port;
-    boost::atomics::atomic<Client_state> m_state;
-    boost::atomics::atomic<bool> m_removed;
+    ngs::atomic<Client_state> m_state;
+    ngs::atomic<bool> m_removed;
 
-    boost::shared_ptr<Session_interface> m_session;
+    ngs::shared_ptr<Session_interface> m_session;
 
     Protocol_monitor_interface &m_protocol_monitor;
 
@@ -115,7 +116,10 @@ namespace ngs
       Close_connect_timeout
     } m_close_reason;
 
-    Request_unique_ptr read_one_message(Error_code &ret_error);
+    char* m_msg_buffer;
+    size_t m_msg_buffer_size;
+
+    Request *read_one_message(Error_code &ret_error);
 
     virtual ngs::Capabilities_configurator *capabilities_configurator();
     void get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg);
@@ -124,12 +128,13 @@ namespace ngs
     void remove_client_from_server();
 
     void handle_message(Request &message);
-    virtual std::string resolve_hostname(const std::string &ip) = 0;
+    virtual std::string resolve_hostname() = 0;
     virtual void on_network_error(int error);
 
     Protocol_monitor_interface &get_protocol_monitor();
 
   private:
+    void get_last_error(int &error_code, std::string &message);
     void shutdown_connection();
 
     void on_client_addr(const bool skip_resolve_name);

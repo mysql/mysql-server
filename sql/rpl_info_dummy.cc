@@ -15,6 +15,11 @@
 
 #include "rpl_info_dummy.h"
 
+#include "my_compiler.h"
+#include "my_dbug.h"
+
+class Server_ids;
+
 Rpl_info_dummy::Rpl_info_dummy(const int nparam)
   :Rpl_info_handler(nparam)
 {

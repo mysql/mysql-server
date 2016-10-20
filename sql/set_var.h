@@ -19,29 +19,35 @@
   @file
   "public" interface to sys_var - server configuration variables.
 */
-#include "my_global.h"
 
-#include "m_string.h"         // LEX_CSTRING
-#include "my_getopt.h"        // get_opt_arg_type
-#include "mysql_com.h"        // Item_result
-#include "typelib.h"          // TYPELIB
-#include "mysql/plugin.h"     // enum_mysql_show_type
-#include "sql_alloc.h"        // Sql_alloc
-#include "sql_const.h"        // SHOW_COMP_OPTION
-#include "sql_plugin_ref.h"   // plugin_ref
-#include "prealloced_array.h" // Prealloced_array
-
+#include <stddef.h>
+#include <sys/types.h>
 #include <vector>
 
-class sys_var;
-class set_var;
-class sys_var_pluginvar;
-class PolyLock;
+#include "my_config.h"
+#include "my_getopt.h"        // get_opt_arg_type
+#include "my_global.h"
+#include "mysql_com.h"        // Item_result
+#include "mysql/plugin.h"     // enum_mysql_show_type
+#include "prealloced_array.h" // Prealloced_array
+#include "sql_alloc.h"        // Sql_alloc
+#include "sql_const.h"        // SHOW_COMP_OPTION
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"   // plugin_ref
+#include "thr_malloc.h"
+#include "typelib.h"          // TYPELIB
+
+class Item;
 class Item_func_set_user_var;
+class PolyLock;
 class String;
-class Time_zone;
 class THD;
+class Time_zone;
+class set_var;
+class sys_var;
+class sys_var_pluginvar;
 struct st_lex_user;
+
 typedef ulonglong sql_mode_t;
 typedef enum enum_mysql_show_type SHOW_TYPE;
 typedef enum enum_mysql_show_scope SHOW_SCOPE;

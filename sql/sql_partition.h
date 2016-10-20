@@ -16,27 +16,35 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "handler.h"
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_global.h"
+#include "mysql/mysql_lex_string.h"
 #include "partition_element.h"       // partition_state
+#include "typelib.h"
 
 class Alter_info;
 class Alter_table_ctx;
+class Create_field;
 class Field;
 class Item;
 class String;
-class handler;
-class partition_info;
-class Create_field;
 class THD;
-struct handlerton;
+class partition_info;
 struct TABLE;
-struct TABLE_SHARE;
 struct TABLE_LIST;
+struct TABLE_SHARE;
+
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_ha_create_information HA_CREATE_INFO;
 class KEY;
+
 typedef struct st_key_range key_range;
 typedef struct st_mysql_lex_string LEX_STRING;
 template <class T> class List;

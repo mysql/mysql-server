@@ -6263,7 +6263,7 @@ trace
               "examined_rows": 2,
               "number_of_tmp_files": 0,
               "sort_buffer_size": "NNN",
-              "sort_mode": "<sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, rowid>"
             } /* filesort_summary */
           }
         ] /* steps */
@@ -6349,6 +6349,14 @@ select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 update t6 set d=5 where d is NULL	{
   "steps": [
+    {
+      "update_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select `t6`.`d` AS `d` from `t6` where isnull(`t6`.`d`)"
+        ] /* steps */
+      } /* update_preparation */
+    },
     {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
@@ -6438,6 +6446,14 @@ select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 delete from t6 where d=5	{
   "steps": [
+    {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t6` where (`t6`.`d` = 5)"
+        ] /* steps */
+      } /* delete_preparation */
+    },
     {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
@@ -6535,7 +6551,7 @@ insert into t6 select * from t6 where d>7	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` where (`t6`.`d` > 7)"
+            "expanded_query": "/* select#1 */ select sql_buffer_result `t6`.`d` AS `d` from `t6` where (`t6`.`d` > 7)"
           }
         ] /* steps */
       } /* join_preparation */
@@ -6727,14 +6743,12 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
   "steps": [
     {
-      "join_preparation": {
+      "update_preparation": {
         "select#": 1,
         "steps": [
-          {
-            "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t5` join `t6` where (`t6`.`d` > 7000)"
-          }
+          "/* select#1 */ select `t6`.`d` AS `d` from `t5` join `t6` where (`t6`.`d` > 7000)"
         ] /* steps */
-      } /* join_preparation */
+      } /* update_preparation */
     },
     {
       "join_optimization": {
@@ -6933,14 +6947,12 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 delete t6 from t5, t6 where d>7000	{
   "steps": [
     {
-      "join_preparation": {
+      "delete_preparation": {
         "select#": 1,
         "steps": [
-          {
-            "expanded_query": "/* select#1 */ select NULL AS `NULL` from `t5` join `t6` where (`t6`.`d` > 7000)"
-          }
+          "/* select#1 */ select  from `t5` join `t6` where (`t6`.`d` > 7000)"
         ] /* steps */
-      } /* join_preparation */
+      } /* delete_preparation */
     },
     {
       "join_optimization": {
@@ -7669,6 +7681,14 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
+    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -7812,6 +7832,14 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
+    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -7955,6 +7983,14 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
+    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -8097,6 +8133,14 @@ insert into t1 values("z",0)	{
 }	0	0
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
     {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
@@ -8240,6 +8284,14 @@ select * from information_schema.OPTIMIZER_TRACE|
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
     {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
@@ -8624,6 +8676,14 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
+    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -8767,6 +8827,14 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
+    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -8910,6 +8978,14 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
+    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -9052,6 +9128,14 @@ insert into t1 values("z",0)	{
 }	0	0
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
     {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
@@ -9489,6 +9573,14 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
+    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -9636,6 +9728,14 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
+    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -9783,6 +9883,14 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
+    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -9929,6 +10037,14 @@ insert into t1 values("z",0)	{
 }	0	0
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
     {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
@@ -10561,6 +10677,14 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
+    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -10704,6 +10828,14 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
+    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -10847,6 +10979,14 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
+    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -10989,6 +11129,14 @@ insert into t1 values("z",0)	{
 }	0	0
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "delete_preparation": {
+        "select#": 1,
+        "steps": [
+          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+        ] /* steps */
+      } /* delete_preparation */
+    },
     {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
@@ -11316,30 +11464,38 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 delete from v1 where data=100	{
   "steps": [
     {
-      "join_preparation": {
-        "select#": 2,
+      "delete_preparation": {
+        "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select straight_join `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c')"
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select straight_join `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c')"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "view": {
+              "table": "`v1`",
+              "select#": 2,
+              "merged": true
+            } /* view */
+          },
+          "/* select#1 */ select  from (`t1`) where (`t1`.`data` = 100)",
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select  from `t1` where ((`t1`.`data` = 100) and (`t1`.`id` < 'c'))"
+            } /* transformations_to_nested_joins */
           }
         ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "view": {
-        "table": "`v1`",
-        "select#": 2,
-        "merged": true
-      } /* view */
-    },
-    {
-      "transformations_to_nested_joins": {
-        "transformations": [
-          "JOIN_condition_to_WHERE",
-          "parenthesis_removal"
-        ] /* transformations */,
-        "expanded_query": "/* select#1 */ select  from `t1` where ((`t1`.`data` = 100) and (`t1`.`id` < 'c'))"
-      } /* transformations_to_nested_joins */
+      } /* delete_preparation */
     },
     {
       "substitute_generated_columns": {

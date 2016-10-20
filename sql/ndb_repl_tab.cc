@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #ifdef HAVE_NDB_BINLOG
 #include "ha_ndbcluster_glue.h"
 #include "ha_ndbcluster_connection.h"  /* do_retry_sleep() */
+#include "mf_wcomp.h"
 #include "ndb_table_guard.h"
 #include "ndb_share.h"
 

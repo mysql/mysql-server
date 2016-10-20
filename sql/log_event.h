@@ -28,40 +28,75 @@
 #ifndef _log_event_h
 #define _log_event_h
 
-#include "my_global.h"
+#include <atomic>
+#include <list>
+#include <map>
+#include <string>
+#include <vector>
+
+#include "binlog_event.h"
+#include "control_events.h"
+#include "load_data_events.h"
 #include "m_string.h"                // native_strncasecmp
 #include "my_bitmap.h"               // MY_BITMAP
-#include "binary_log.h"              // binary_log
-#include "rpl_utility.h"             // Hash_slave_rows
-#include "query_options.h"           // OPTION_AUTO_IS_NULL
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"               // SERVER_VERSION_LENGTH
-#include "atomic_class.h"            // Atomic_int32
-#include "typelib.h"                 // TYPELIB
+#include "query_options.h"           // OPTION_AUTO_IS_NULL
+#include "rows_event.h"
 #include "rpl_gtid.h"                // enum_group_type
+#include "rpl_utility.h"             // Hash_slave_rows
+#include "sql_const.h"
+#include "sql_string.h"
+#include "statement_events.h"
+#include "thr_malloc.h"
+#include "typelib.h"                 // TYPELIB
+
+class THD;
+class Table_id;
 
 #ifdef MYSQL_SERVER
+#include "field.h"
+#include "key.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_my_snprintf.h"
 #include "rpl_filter.h"              // rpl_filter
 #include "rpl_record.h"              // unpack_row
 #include "sql_class.h"               // THD
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_profile.h"
+#include "table.h"
+#include "xa.h"
 #endif
 
 #ifdef MYSQL_CLIENT
 #include "rpl_tblmap.h"              // table_mapping
-#include "sql_const.h"               // MAX_TIME_ZONE_NAME_LENGTH
-#include "sql_list.h"                // I_List
 #endif
 
-#include <list>
-#include <map>
-#include <set>
-#include <string>
+#include <limits.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <time.h>
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-#include <mysql/psi/mysql_stage.h>
+#include "mysql/psi/mysql_stage.h"
 #endif
 
 #ifdef MYSQL_CLIENT
 class Format_description_log_event;
+
 typedef bool (*read_log_event_filter_function)(char** buf,
                                                ulong*,
                                                const Format_description_log_event*);
@@ -82,8 +117,6 @@ using binary_log::Log_event_footer;
 using binary_log::Binary_log_event;
 using binary_log::Format_description_event;
 
-class Slave_reporting_capability;
-class String;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
@@ -323,15 +356,19 @@ int ignored_error_code(int err_code);
 const int64 SEQ_MAX_TIMESTAMP= LLONG_MAX;
 
 #ifdef MYSQL_SERVER
-class String;
+class Format_description_log_event;
+class Item;
 class MYSQL_BIN_LOG;
+class Protocol;
+class Slave_reporting_capability;
+class Slave_worker;
+class String;
 class THD;
+class sql_exchange;
+template <class T> class List;
 #endif
 
-class Format_description_log_event;
 class Relay_log_info;
-class Slave_worker;
-class Slave_committed_queue;
 
 #ifdef MYSQL_CLIENT
 enum enum_base64_output_mode {
@@ -671,9 +708,8 @@ public:
                                    *description_event,
                                    my_bool crc_check);
 
-  /**
-   This function will read the common header into the buffer and
-   rewind the IO_CACHE back to the beginning of the event.
+  /*
+   This function will read the common header into the buffer.
 
    @param[in]         log_cache The IO_CACHE to read from.
    @param[in,out]     header The buffer where to read the common header. This
@@ -684,10 +720,8 @@ public:
   inline static bool peek_event_header(char *header, IO_CACHE *log_cache)
   {
     DBUG_ENTER("Log_event::peek_event_header");
-    my_off_t old_pos= my_b_safe_tell(log_cache);
     if (my_b_read(log_cache, (uchar*) header, LOG_EVENT_MINIMAL_HEADER_LEN))
       DBUG_RETURN(true);
-    my_b_seek(log_cache, old_pos); // rewind
     DBUG_RETURN(false);
   }
 
@@ -699,14 +733,18 @@ public:
    @param[in]         log_cache The IO_CACHE to read from.
    @param[out]        length A pointer to the memory position where to store
                       the length value.
+   @param[out]        header_buffer An optional pointer to a buffer to store
+                      the event header.
 
    @returns           false on success, true otherwise.
   */
 
-  inline static bool peek_event_length(uint32* length, IO_CACHE *log_cache)
+  inline static bool peek_event_length(uint32* length, IO_CACHE *log_cache,
+                                       char *header_buffer)
   {
     DBUG_ENTER("Log_event::peek_event_length");
-    char header[LOG_EVENT_MINIMAL_HEADER_LEN];
+    char local_header_buffer[LOG_EVENT_MINIMAL_HEADER_LEN];
+    char *header= header_buffer != NULL ? header_buffer : local_header_buffer;
     if (peek_event_header(header, log_cache))
       DBUG_RETURN(true);
     *length= uint4korr(header + EVENT_LEN_OFFSET);
@@ -728,6 +766,9 @@ public:
     @param[in]  checksum_alg_arg    the checksum algorithm
     @param[in]  log_file_name_arg   the log's file name
     @param[out] is_binlog_active    is the current log still active
+    @param[in]  event_header        the actual event header. Passing this
+                                    parameter will make the function to skip
+                                    reading the event header.
 
     @retval 0                   success
     @retval LOG_READ_EOF        end of file, nothing was read
@@ -741,7 +782,9 @@ public:
                             mysql_mutex_t* log_lock,
                             enum_binlog_checksum_alg checksum_alg_arg,
                             const char *log_file_name_arg= NULL,
-                            bool* is_binlog_active= NULL);
+                            bool* is_binlog_active= NULL,
+                            char *event_header= NULL);
+
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
@@ -820,9 +863,9 @@ public:
 	   write_data_body(file) ||
 	   write_footer(file));
   }
-  virtual bool write_data_header(IO_CACHE* file)
+  virtual bool write_data_header(IO_CACHE*)
   { return 0; }
-  virtual bool write_data_body(IO_CACHE* file MY_ATTRIBUTE((unused)))
+  virtual bool write_data_body(IO_CACHE*)
   { return 0; }
 
   time_t get_time();
@@ -915,11 +958,6 @@ public:
   /**
      Is called from get_mts_execution_mode() to
 
-     @param  is_scheduler_dbname
-                   The current scheduler type.
-                   In case the db-name scheduler certain events
-                   can't be applied in parallel.
-
      @return TRUE  if the event needs applying with synchronization
                    agaist Workers, otherwise
              FALSE
@@ -930,7 +968,7 @@ public:
 
            todo: to mts-support Old master Load-data related events
   */
-  bool is_mts_sequential_exec(bool is_scheduler_dbname)
+  bool is_mts_sequential_exec()
   {
     switch(get_type_code())
     {
@@ -981,20 +1019,15 @@ private:
      Coordinator concurrently with Workers and some to require synchronization
      with Workers (@c see wait_for_workers_to_finish) before to apply them.
 
-     @param slave_server_id   id of the server, extracted from event
      @param mts_in_group      the being group parsing status, true
                               means inside the group
-     @param is_dbname_type    true when the current submode (scheduler)
-                              is of DB_NAME type.
 
      @retval EVENT_EXEC_PARALLEL  if event is executed by a Worker
      @retval EVENT_EXEC_ASYNC     if event is executed by Coordinator
      @retval EVENT_EXEC_SYNC      if event is executed by Coordinator
                                   with synchronization against the Workers
   */
-  enum enum_mts_event_exec_mode get_mts_execution_mode(ulong slave_server_id,
-                                                       bool mts_in_group,
-                                                       bool is_dbname_type)
+  enum enum_mts_event_exec_mode get_mts_execution_mode(bool mts_in_group)
   {
     /*
       Slave workers are unable to handle Format_description_log_event,
@@ -1045,7 +1078,7 @@ private:
          ((server_id == (uint32) ::server_id) ||
           (common_header->log_pos == 0 && mts_in_group))))
       return EVENT_EXEC_ASYNC;
-    else if (is_mts_sequential_exec(is_dbname_type))
+    else if (is_mts_sequential_exec())
       return EVENT_EXEC_SYNC;
     else
       return EVENT_EXEC_PARALLEL;
@@ -1187,7 +1220,7 @@ public:
     @retval 0     Event applied successfully
     @retval errno Error code if event application failed
   */
-  virtual int do_apply_event(Relay_log_info const *rli)
+  virtual int do_apply_event(Relay_log_info const *rli MY_ATTRIBUTE((unused)))
   {
     return 0;                /* Default implementation does nothing */
   }
@@ -1399,7 +1432,7 @@ public:
   }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
-  virtual bool write_post_header_for_derived(IO_CACHE* file) { return FALSE; }
+  virtual bool write_post_header_for_derived(IO_CACHE*) { return FALSE; }
 #endif
 
   /*
@@ -1594,7 +1627,7 @@ public:
     Notice the counter is processed even in the single-thread mode where
     decrement and increment are done by the single SQL thread.
   */
-  Atomic_int32 usage_counter;
+  std::atomic<int32> atomic_usage_counter{0};
   Format_description_log_event(uint8_t binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_event
@@ -1801,9 +1834,7 @@ protected:
               Log_event::EVENT_TRANSACTIONAL_CACHE,
               Log_event::EVENT_NORMAL_LOGGING, header_arg, footer_arg) {};
 #endif
-  Xid_apply_log_event(const char* buf,
-                      const Format_description_event *description_event,
-                      Log_event_header *header_arg,
+  Xid_apply_log_event(Log_event_header *header_arg,
                       Log_event_footer *footer_arg)
   : Log_event(header_arg, footer_arg) {}
   ~Xid_apply_log_event() {}
@@ -1879,7 +1910,7 @@ public:
   XA_prepare_log_event(const char* buf,
                          const Format_description_log_event *description_event)
     : binary_log::XA_prepare_event(buf, description_event),
-      Xid_apply_log_event(buf, description_event, header(), footer())
+      Xid_apply_log_event(header(), footer())
   {
     is_valid_param= true;
     xid= NULL;
@@ -2005,7 +2036,7 @@ public:
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_update_pos(Relay_log_info *rli);
-  virtual enum_skip_reason do_shall_skip(Relay_log_info *rli)
+  virtual enum_skip_reason do_shall_skip(Relay_log_info*)
   {
     /*
       Events from ourself should be skipped, but they should not
@@ -3978,13 +4009,13 @@ public:
     Also, we should not increment slave_skip_counter
     for this event, hence return EVENT_SKIP_IGNORE.
    */
-  enum_skip_reason do_shall_skip(Relay_log_info *rli)
+  enum_skip_reason do_shall_skip(Relay_log_info*)
   {
     return EVENT_SKIP_IGNORE;
   }
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  int do_apply_event(Relay_log_info const *rli) { return 0; }
+  int do_apply_event(Relay_log_info const *) { return 0; }
   int do_update_pos(Relay_log_info *rli);
 #endif
 };
@@ -4065,7 +4096,7 @@ public:
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  int do_apply_event(Relay_log_info const *rli) { return 0; }
+  int do_apply_event(Relay_log_info const *) { return 0; }
   int do_update_pos(Relay_log_info *rli);
 #endif
 

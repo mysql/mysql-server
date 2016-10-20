@@ -15,27 +15,39 @@
 
 #include "dd/impl/types/abstract_table_impl.h"
 
-#include "mysqld_error.h"                   // ER_*
-#include "mysql_version.h"                  // MYSQL_VERSION_ID
-
-#include "dd/impl/properties_impl.h"        // Properties_impl
-#include "dd/impl/sdi_impl.h"               // sdi read/write functions
-#include "dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
-#include "dd/impl/raw/object_keys.h"        // Primary_id_key
-#include "dd/impl/raw/raw_record.h"         // Raw_record
-#include "dd/impl/tables/columns.h"         // Columns
-#include "dd/impl/tables/tables.h"          // Tables
-#include "dd/impl/types/column_impl.h"      // Column_impl
-#include "dd/types/view.h"                  // View
-
-
+#include <new>
 #include <sstream>
 
+#include "dd/string_type.h"                 // dd::String_type
+#include "dd/impl/properties_impl.h"        // Properties_impl
+#include "dd/impl/raw/object_keys.h"        // Primary_id_key
+#include "dd/impl/raw/raw_record.h"         // Raw_record
+#include "dd/impl/sdi_impl.h"               // sdi read/write functions
+#include "dd/impl/tables/columns.h"         // Columns
+#include "dd/impl/tables/tables.h"          // Tables
+#include "dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
+#include "dd/impl/types/column_impl.h"      // Column_impl
+#include "dd/types/column.h"
+#include "dd/types/dictionary_object_table.h"
+#include "dd/types/table.h"
+#include "dd/types/view.h"                  // View
+#include "dd/types/weak_object.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_sys.h"
+#include "mysql_version.h"                  // MYSQL_VERSION_ID
+#include "mysqld.h"
+#include "mysqld_error.h"                   // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 
 using dd::tables::Columns;
 using dd::tables::Tables;
 
 namespace dd {
+
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 // Abstract_table implementation.
@@ -60,6 +72,7 @@ Abstract_table_impl::Abstract_table_impl()
  :m_mysql_version_id(MYSQL_VERSION_ID),
   m_created(0),
   m_last_altered(0),
+  m_hidden(false),
   m_options(new Properties_impl()),
   m_columns(),
   m_schema_id(INVALID_OBJECT_ID)
@@ -68,7 +81,7 @@ Abstract_table_impl::Abstract_table_impl()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Abstract_table_impl::set_options_raw(const std::string &options_raw)
+bool Abstract_table_impl::set_options_raw(const String_type &options_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(options_raw);
@@ -133,6 +146,7 @@ bool Abstract_table_impl::restore_attributes(const Raw_record &r)
 
   m_created= r.read_int(Tables::FIELD_CREATED);
   m_last_altered= r.read_int(Tables::FIELD_LAST_ALTERED);
+  m_hidden= r.read_bool(Tables::FIELD_HIDDEN);
   m_schema_id= r.read_ref_id(Tables::FIELD_SCHEMA_ID);
   m_mysql_version_id= r.read_uint(Tables::FIELD_MYSQL_VERSION_ID);
 
@@ -173,7 +187,8 @@ bool Abstract_table_impl::store_attributes(Raw_record *r)
     r->store(Tables::FIELD_MYSQL_VERSION_ID, m_mysql_version_id) ||
     r->store(Tables::FIELD_OPTIONS, *m_options) ||
     r->store(Tables::FIELD_CREATED, m_created) ||
-    r->store(Tables::FIELD_LAST_ALTERED, m_last_altered);
+    r->store(Tables::FIELD_LAST_ALTERED, m_last_altered) ||
+    r->store(Tables::FIELD_HIDDEN, m_hidden);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -197,6 +212,7 @@ void Abstract_table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write(w, m_mysql_version_id, STRING_WITH_LEN("mysql_version_id"));
   write(w, m_created, STRING_WITH_LEN("created"));
   write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
+  write(w, m_hidden, STRING_WITH_LEN("hidden"));
   write_properties(w, m_options, STRING_WITH_LEN("options"));
   serialize_each(wctx, w, m_columns, STRING_WITH_LEN("columns"));
   write(w, lookup_schema_name(wctx),
@@ -213,6 +229,7 @@ bool Abstract_table_impl::deserialize(Sdi_rcontext *rctx,
   read(&m_mysql_version_id, val, "mysql_version_id");
   read(&m_created, val, "created");
   read(&m_last_altered, val, "last_altered");
+  read(&m_hidden, val, "hidden");
   read_properties(&m_options, val, "options");
   deserialize_each(rctx, [this] () { return add_column(); },
                    val, "columns");
@@ -223,14 +240,14 @@ bool Abstract_table_impl::deserialize(Sdi_rcontext *rctx,
 
 bool Abstract_table::update_name_key(name_key_type *key,
                                      Object_id schema_id,
-                                     const std::string &name)
+                                     const String_type &name)
 { return Tables::update_object_key(key, schema_id, name); }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Abstract_table_impl::debug_print(std::string &outb) const
+void Abstract_table_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "ABSTRACT TABLE OBJECT: { "
     << "id: {OID: " << id() << "}; "
@@ -240,12 +257,13 @@ void Abstract_table_impl::debug_print(std::string &outb) const
     << "m_options " << m_options->raw_string() << "; "
     << "m_created: " << m_created << "; "
     << "m_last_altered: " << m_last_altered << "; "
+    << "m_hidden: " << m_hidden << "; "
     << "m_columns: " << m_columns.size() << " [ ";
 
   {
     for (const Column *c : m_columns)
     {
-      std::string s;
+      String_type s;
       c->debug_print(s);
       ss << s << " | ";
     }
@@ -296,7 +314,7 @@ const Column *Abstract_table_impl::get_column(Object_id column_id) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-Column *Abstract_table_impl::get_column(const std::string name)
+Column *Abstract_table_impl::get_column(const String_type name)
 {
   for (Column *c : m_columns)
   {
@@ -312,7 +330,7 @@ Column *Abstract_table_impl::get_column(const std::string name)
 
 ///////////////////////////////////////////////////////////////////////////
 
-const Column *Abstract_table_impl::get_column(const std::string name) const
+const Column *Abstract_table_impl::get_column(const String_type name) const
 {
   for (const Column *c : m_columns)
   {
@@ -343,6 +361,7 @@ Abstract_table_impl::Abstract_table_impl(const Abstract_table_impl &src)
     m_mysql_version_id(src.m_mysql_version_id),
     m_created(src.m_created),
     m_last_altered(src.m_last_altered),
+    m_hidden(src.m_hidden),
     m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
     m_columns(),
     m_schema_id(src.m_schema_id)

@@ -16,9 +16,13 @@
 #ifndef SQL_CONNECT_INCLUDED
 #define SQL_CONNECT_INCLUDED
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_global.h"   // uint
 
 class THD;
+
 typedef struct st_lex_user LEX_USER;
 
 /*

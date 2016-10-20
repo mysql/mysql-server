@@ -438,10 +438,10 @@ typedef	uint16_t	page_type_t;
 #define FIL_PAGE_ENCRYPTED_RTREE 17	/*!< Encrypted R-tree page */
 #define FIL_PAGE_SDI_BLOB	18	/*!< Uncompressed SDI BLOB page */
 #define FIL_PAGE_SDI_ZBLOB	19	/*!< Commpressed SDI BLOB page */
-
+#define FIL_PAGE_TYPE_ZBLOB3	20	/*!< Independently compressed LOB page*/
 
 /** Used by i_s.cc to index into the text description. */
-#define FIL_PAGE_TYPE_LAST	FIL_PAGE_SDI_ZBLOB
+#define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_ZBLOB3
 					/*!< Last page type */
 /* @} */
 

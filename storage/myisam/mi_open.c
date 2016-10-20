@@ -26,10 +26,12 @@
   environment. MEMORY internal temporary tables are optimized similarly.
 */
 
-#include "fulltext.h"
-#include "sp_defs.h"
-#include "rt_index.h"
 #include <m_ctype.h>
+
+#include "fulltext.h"
+#include "my_pointer_arithmetic.h"
+#include "rt_index.h"
+#include "sp_defs.h"
 
 #ifdef _WIN32
 #include <fcntl.h>

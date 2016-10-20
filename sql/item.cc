@@ -16,25 +16,48 @@
 
 #include "item.h"
 
-#include "mysql.h"           // IS_NUM
+#include "my_config.h"
+
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <algorithm>
+#include <cmath>
+#include <utility>
+
 #include "aggregate_check.h" // Distinct_check
+#include "auth_acls.h"
 #include "auth_common.h"     // get_column_grant
 #include "current_thd.h"
+#include "decimal.h"
 #include "derror.h"          // ER_THD
 #include "error_handler.h"   // Internal_error_handler
 #include "item_cmpfunc.h"    // COND_EQUAL
 #include "item_create.h"     // create_temporal_literal
 #include "item_func.h"       // item_func_sleep_init
 #include "item_json_func.h"  // json_value
+#include "item_row.h"
 #include "item_strfunc.h"    // Item_func_conv_charset
+#include "item_subselect.h"
 #include "item_sum.h"        // Item_sum
 #include "json_dom.h"        // Json_wrapper
+#include "key.h"
 #include "log_event.h"       // append_query_string
+#include "mysql.h"           // IS_NUM
+#include "mysql/service_my_snprintf.h"
+#include "mysql_time.h"
 #include "mysqld.h"          // lower_case_table_names files_charset_info
+#include "protocol.h"
+#include "select_lex_visitor.h"
 #include "sp.h"              // sp_map_item_type
 #include "sp_rcontext.h"     // sp_rcontext
 #include "sql_base.h"        // view_ref_found
 #include "sql_class.h"       // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
 #include "sql_show.h"        // append_identifier
 #include "sql_time.h"        // Date_time_format
 #include "sql_view.h"        // VIEW_ANY_ACL
@@ -728,39 +751,8 @@ void Item::rename(char *new_name)
 }
 
 
-/**
-  Traverse item tree possibly transforming it (replacing items).
-
-  This function is designed to ease transformation of Item trees.
-  Re-execution note: every such transformation is registered for
-  rollback by THD::change_item_tree() and is rolled back at the end
-  of execution by THD::rollback_item_tree_changes().
-
-  Therefore:
-  - this function can not be used at prepared statement prepare
-  (in particular, in fix_fields!), as only permanent
-  transformation of Item trees are allowed at prepare.
-  - the transformer function shall allocate new Items in execution
-  memory root (thd->mem_root) and not anywhere else: allocated
-  items will be gone in the end of execution.
-
-  If you don't need to transform an item tree, but only traverse
-  it, please use Item::walk() instead.
-
-
-  @param transformer    functor that performs transformation of a subtree
-  @param arg            opaque argument passed to the functor
-
-  @return
-    Returns pointer to the new subtree root.  THD::change_item_tree()
-    should be called for it if transformation took place, i.e. if a
-    pointer to newly allocated item is returned.
-*/
-
 Item* Item::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
-
   return (this->*transformer)(arg);
 }
 
@@ -2536,6 +2528,7 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
     of a prepared statement or after the close_tables_for_reopen() call
     in mysql_multi_update_prepare() or due to wildcard expansion in stored
     procedures).
+    @todo: Reconsider this when preparation is refactored.
   */
   {
     if (db_name)
@@ -3367,8 +3360,11 @@ void Item_string::print(String *str, enum_query_type query_type)
     str->append("?");
     return;
   }
+
   const bool print_introducer=
-    !(query_type & QT_WITHOUT_INTRODUCERS) && is_cs_specified();
+    (query_type & QT_FORCE_INTRODUCERS) ||
+    (!(query_type & QT_WITHOUT_INTRODUCERS) && is_cs_specified());
+
   if (print_introducer)
   {
     str->append('_');
@@ -8103,24 +8099,15 @@ void Item_ref::cleanup()
   new one, this item object is returned as the result of the
   transform. Otherwise the transform function is applied to the
   Item_ref object itself.
-
-  @param transformer   the transformer callback function to be applied to
-                       the nodes of the tree of the object
-  @param arg           parameter to be passed to the transformer
-
-  @return Item returned as the result of transformation of the Item_ref object
-    @retval !NULL The transformation was successful
-    @retval NULL  Out of memory error
 */
 
 Item* Item_ref::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
   DBUG_ASSERT((*ref) != NULL);
 
   /* Transform the object we are referencing. */
   Item *new_item= (*ref)->transform(transformer, arg);
-  if (!new_item)
+  if (new_item == NULL)
     return NULL;
 
   /*
@@ -8146,16 +8133,6 @@ Item* Item_ref::transform(Item_transformer transformer, uchar *arg)
   Item_ref object is referencing. If this replaces the item with a new
   one, this object is returned as the result of the compile.
   Otherwise we apply the transformer to the Item_ref object itself.
-
-  @param analyzer      the analyzer callback function to be applied to the
-                       nodes of the tree of the object
-  @param[in,out] arg_p parameter to be passed to the processor
-  @param transformer   the transformer callback function to be applied to the
-                       nodes of the tree of the object
-  @param arg_t         parameter to be passed to the transformer
-
-  @return Item returned as the result of transformation of the Item_ref object,
-          or NULL if error.
 */
 
 Item* Item_ref::compile(Item_analyzer analyzer, uchar **arg_p,
@@ -8872,25 +8849,18 @@ Item_default_value::save_in_field_inner(Field *field_arg, bool no_conversions)
 }
 
 
-/**
-  This method like the walk method traverses the item tree, but at the
-  same time it can replace some nodes in the tree.
-*/ 
-
 Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
-
   /*
     If the value of arg is NULL, then this object represents a constant,
     so further transformation is unnecessary (and impossible).
   */
-  if (!arg)
-    return 0;
+  if (arg == NULL)
+    return NULL;
 
   Item *new_item= arg->transform(transformer, args);
-  if (!new_item)
-    return 0;
+  if (new_item == NULL)
+    return NULL;                 /* purecov: inspected */
 
   /*
     THD::change_item_tree() should be called only if the tree was
@@ -9280,7 +9250,7 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     new_item= (null_value ?
                (Item*) new Item_null(item->item_name) :
                (Item*) new Item_decimal(item->item_name, result,
-                                        item->max_length, item->decimals));
+                                        item->decimals, item->max_length));
     break;
   }
   default:

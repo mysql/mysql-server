@@ -14,3 +14,30 @@ INSERT INTO th1 VALUES(1);
 DROP TRIGGER trg_bi;
 DROP TABLE th1;
 DROP TABLE th2;
+#
+# Bug#24506766: SIG 11 IN TRIGGER::ADD_TABLES_AND_ROUTINES
+#               AT SQL/TRIGGER.CC:697
+#
+CREATE TABLE t1(a INT);
+LOCK TABLES t1 WRITE;
+SET @@debug= "+d,create_trigger_fail";
+CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+INSERT INTO t1 VALUES(0);
+SET @@debug= "-d,create_trigger_fail";
+UNLOCK TABLES;
+DROP TABLE t1;
+#
+# Bug#24420809: ASSERT SELECT_LEX::PREPARE(THD*): ASSERTION `!THD->IS_ERROR()' FOR SHOW TRIGGER
+#
+CREATE TABLE t1 (a INT);
+# The bug hit assertion only when there was a view in current schema.
+# So create a view.
+CREATE VIEW t1_view AS SELECT * FROM t1;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+SET @@debug= "+d,simulate_try_acquire_high_prio_shared_mdl_lock_timeout_error";
+SHOW TRIGGERS FROM test;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@debug= "-d,simulate_try_acquire_high_prio_shared_mdl_lock_timeout_error";
+DROP VIEW t1_view;
+DROP TABLE t1;

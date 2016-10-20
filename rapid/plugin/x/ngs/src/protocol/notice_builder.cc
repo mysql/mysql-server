@@ -54,7 +54,7 @@ void Notice_builder::encode_rows_affected(
   // 2) Scope
   encode_int32(static_cast<int>(Mysqlx::Notice::Frame_Scope_LOCAL));
   // 3) Payload
-  google::protobuf::internal::WireFormatLite::WriteTag(3, google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, m_out_stream);
+  google::protobuf::internal::WireFormatLite::WriteTag(3, google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, m_out_stream.get());
   uint32 size_scalar = CodedOutputStream::VarintSize32SignExtended(type) + CodedOutputStream::VarintSize64(value) + 2 /*tags*/;
   uint32 size_payload = 1 /* param tag */ + CodedOutputStream::VarintSize32SignExtended(param)
     + 1 /* scalar tag */ + CodedOutputStream::VarintSize32(size_scalar) + size_scalar;
@@ -64,7 +64,7 @@ void Notice_builder::encode_rows_affected(
     // 1) Param
     encode_int32(param);
     // 2) Scalar
-    google::protobuf::internal::WireFormatLite::WriteTag(2, google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, m_out_stream);
+    google::protobuf::internal::WireFormatLite::WriteTag(2, google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, m_out_stream.get());
     m_out_stream->WriteVarint32(size_scalar);
     {
       m_field_number = 0;

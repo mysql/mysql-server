@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,6 +15,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <functional>
+#include <string>
+#include <vector>
+
 #include "mysql_crawler.h"
 #include "mysql_function.h"
 #include "stored_procedure.h"
@@ -26,15 +30,14 @@
 #include "trigger.h"
 #include "view.h"
 #include "base/mysql_query_runner.h"
-#include <string>
-#include <vector>
+
 using std::string;
 using std::vector;
 
 using namespace Mysql::Tools::Dump;
 
 Mysql_crawler::Mysql_crawler(I_connection_provider* connection_provider,
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
   Mysql_chain_element_options* options,
   Mysql::Tools::Base::Abstract_program* program)

@@ -1951,3 +1951,32 @@ SELECT FOUND_ROWS();
 DROP TABLE t1;
 
 --echo #End of test for Bug#22602381
+
+--echo #
+--echo # Bug#24808970 CREATED_TMP_TABLES STATISTIC IS WRONG
+--echo #
+
+FLUSH STATUS;
+SELECT 1 UNION ALL SELECT 2;
+
+# We properly report: 0 tables
+SHOW STATUS LIKE 'Created_tmp_%tables';
+
+FLUSH STATUS;
+SELECT 1 UNION DISTINCT SELECT 2;
+
+# In normal mode, the query above creates one tmp table, so SHOW
+# STATUS reports 1;
+# in PS mode, the preparation phase creates one, and the execution
+# phase does, too. So SHOW reports 2. To have a single result in both
+# modes, we use this complex query instead of SHOW.
+
+--disable_query_log
+eval select variable_name,
+            variable_value -
+            (case when variable_name not like "%disk%" and ($PS_PROTOCOL > 0)
+             then 1 else 0 end)
+            as tweaked_value
+from performance_schema.session_status
+where variable_name like 'created_tmp_%tables';
+--enable_query_log

@@ -62,6 +62,7 @@ version_token      plugin/version_token       VERSION_TOKEN
 # Test services framework
 libtest_services   plugin/test_services TESTSERVICES
 libtest_services_threaded  plugin/test_services TESTSERVICESTHREADED
+test_services_plugin_registry  plugin/test_services TEST_SERVICES_PLUGIN_REGISTRY
 # Test session API
 libtest_session_in_thd                  plugin/test_service_sql_api TEST_SESSION_IN_THD
 libtest_x_sessions_init                 plugin/test_service_sql_api TEST_X_SESSIONS_INIT

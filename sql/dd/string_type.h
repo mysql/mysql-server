@@ -21,6 +21,7 @@
 #include "stateless_allocator.h"        // Stateless_allocator
 
 #include <string>
+#include <sstream>
 
 namespace dd {
 /**
@@ -40,36 +41,47 @@ typedef Stateless_allocator<char, String_type_alloc> String_type_allocator;
 template <class A>
 using Char_string_template= std::basic_string<char, std::char_traits<char>, A>;
 
-typedef Char_string_template<String_type_allocator> String_type_alias;
-
-// TODO: String_type is an alias for std::string until all references to
-// std::string has been replaced with String_type
-typedef std::string String_type;
+typedef Char_string_template<String_type_allocator> String_type;
 
 
-typedef std::basic_stringstream<char, std::char_traits<char>,
-                                String_type_allocator> Stringstream_type_alias;
+/**
+  Template alias for char-based std::basic_stringstream.
+ */
+template <class A>
+using Char_stringstream_template=
+  std::basic_stringstream<char, std::char_traits<char>, A>;
 
-// TODO: Stringstream_type is an alias for std::stringstream until all
-// references to std::stringstream has been replaced with String_type
-typedef std::stringstream Stringstream_type;
+/**
+  Instantiation of std::basic_stringstream with the same allocator as
+  String_type. This is needed since a std::basic_stringstream::str()
+  returns a basic_string allocated with its own allocator. Note that
+  this also means that it is diffcult to use a different PSI key for
+  the stream memory as that would mean the return type of
+  Stringstream_type::str() would be different and incompatible with
+  String_type.
+
+  To work around this would require the creation of a temporary
+  String_type from the string returned from stringstream::str().
+*/
+typedef Char_stringstream_template<String_type_allocator>
+Stringstream_type;
 }
 
 namespace std {
 
 /**
-  Specialize std::hash for dd::String_type (_alias) so that it can be
+  Specialize std::hash for dd::String_type so that it can be
   used with unordered_ containers. Uses our standard murmur3_32
-  implementation, which is a bit of a waste since size_t is 64 bit on
-  most platforms.
+  implementation, and the same suitability restrictions apply.
+  @see murmur3_32
 */
 template <>
-struct hash<dd::String_type_alias> // TODO: Switch to dd::String_type
+struct hash<dd::String_type>
 {
-  typedef dd::String_type_alias argument_type;
+  typedef dd::String_type argument_type;
   typedef size_t result_type;
 
-  size_t operator()(const dd::String_type_alias &s) const;
+  size_t operator()(const dd::String_type &s) const;
 };
 }
 #endif /* DD__STRING_TYPE */

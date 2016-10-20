@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,11 @@
 #ifdef SAFE_MUTEX
 
 #include "thr_cond.h"
+
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "my_thread_local.h"
 
 int safe_cond_wait(native_cond_t *cond, my_mutex_t *mp,
@@ -91,7 +96,7 @@ int safe_cond_timedwait(native_cond_t *cond, my_mutex_t *mp,
   native_mutex_unlock(&mp->global);
   error= native_cond_timedwait(cond,&mp->mutex,abstime);
 #ifdef EXTRA_DEBUG
-  if (error && (error != EINTR && error != ETIMEDOUT && error != ETIME))
+  if (error != 0 && error != EINTR && !is_timeout(error))
   {
     fprintf(stderr,"safe_mutex: Got error: %d (%d) when doing a safe_cond_timedwait at %s, line %d\n", error, errno, file, line);
   }

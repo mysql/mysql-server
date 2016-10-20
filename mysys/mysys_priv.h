@@ -21,6 +21,8 @@
 #define MYSYS_PRIV_INCLUDED
 
 #include "my_global.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_file.h"

@@ -173,7 +173,6 @@ IF(NOT WITHOUT_SERVER)
     ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
     ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
     ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
-    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_security_commands.sql
     ${FIX_PRIVILEGES_SQL}
     DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
   )
@@ -266,7 +265,13 @@ STRING(REGEX REPLACE "[ ]+$" "" CFLAGS   "${CFLAGS}")
 STRING(REGEX REPLACE "[ ]+$" "" CXXFLAGS "${CXXFLAGS}")
 
 IF(UNIX)
-  # FIND_PROC and CHECK_PID are used by mysqld_safe
+  # SHELL_PATH, FIND_PROC, CHECK_PID are used by mysqld_safe
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  SET (SHELL_PATH "/bin/bash")
+ELSE()
+  SET (SHELL_PATH "/bin/sh")
+ENDIF()
+
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   SET (FIND_PROC 
     "ps wwwp $PID | grep -v mysqld_safe | grep -- $MYSQLD > /dev/null")

@@ -19,16 +19,43 @@
 
 /* compare and test functions */
 
-#include "my_global.h"
-#include "mem_root_array.h"  // Mem_root_array
-#include "my_regex.h"        // my_regex_t
+#include <string.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "enum_query_type.h"
+#include "handler.h"
+#include "item.h"
 #include "item_func.h"       // Item_int_func
 #include "item_row.h"        // Item_row
+#include "mem_root_array.h"  // Mem_root_array
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "my_regex.h"        // my_regex_t
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql_com.h"
+#include "parse_tree_node_base.h"
+#include "sql_alloc.h"
+#include "sql_const.h"
+#include "sql_list.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
 #include "template_utils.h"  // down_cast
+#include "typelib.h"
 
 class Arg_comparator;
+class Field;
+class Item_in_subselect;
+class Item_subselect;
 class Item_sum_hybrid;
 class Json_scalar_holder;
+class Json_wrapper;
+class PT_item_list;
+class SELECT_LEX;
+class THD;
 
 typedef int (Arg_comparator::*arg_cmp_func)();
 
@@ -267,7 +294,6 @@ public:
 };
 
 
-class Item_cache;
 static const my_bool UNKNOWN= static_cast<my_bool>(-1);
 
 
@@ -2057,7 +2083,6 @@ public:
   virtual bool equality_substitution_analyzer(uchar **arg) { return true; }
 };
 
-
 /*
   The class Item_equal is used to represent conjunctions of equality
   predicates of the form field1 = field2, and field=const in where
@@ -2132,8 +2157,6 @@ public:
   for them. We have to take care of restricting the predicate such an
   object represents f1=f2= ...=fn to the projection of known fields fi1=...=fik.
 */
-struct st_join_table;
-
 class Item_equal: public Item_bool_func
 {
   List<Item_field> fields; /* list of equal field items                    */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,19 @@
 
 #include "rpl_reporting.h"
 
+#include <stddef.h>
+
+#include "current_thd.h"
 #include "log.h"               // sql_print_warning
+#include "m_string.h"
+#include "my_dbug.h"
+#include "mysql/service_my_snprintf.h"
 #include "mysqld.h"            // slave_trans_retries
+#include "mysqld_error.h"
 #include "sql_class.h"         // THD
 #include "sql_error.h"         // Diagnostics_area
-#include "current_thd.h"
+#include "thr_mutex.h"
+#include "transaction_info.h"
 
 Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
   : m_thread_name(thread_name)

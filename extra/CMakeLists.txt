@@ -34,7 +34,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
 ENDIF()
 
 ADD_EXECUTABLE(comp_client_err
-  comp_client_err.cc ${CMAKE_SOURCE_DIR}/libmysql/errmsg.c)
+  comp_client_err.cc ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc)
 TARGET_LINK_LIBRARIES(comp_client_err mysys mysys_ssl)
 
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
@@ -90,7 +90,7 @@ MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
 TARGET_LINK_LIBRARIES(my_print_defaults  mysys mysys_ssl)
 SET_TARGET_PROPERTIES(my_print_defaults PROPERTIES LINKER_LANGUAGE CXX)
 
-MYSQL_ADD_EXECUTABLE(perror perror.c)
+MYSQL_ADD_EXECUTABLE(perror perror.cc)
 ADD_DEPENDENCIES(perror GenError)
 TARGET_LINK_LIBRARIES(perror mysys mysys_ssl)
 SET_TARGET_PROPERTIES(perror PROPERTIES LINKER_LANGUAGE CXX)

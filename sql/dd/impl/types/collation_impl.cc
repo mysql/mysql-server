@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,13 @@
 
 #include "dd/impl/types/collation_impl.h"
 
-#include "mysqld_error.h"                // ER_*
-
-#include "dd/impl/transaction_impl.h"    // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"     // Primary_id_key
 #include "dd/impl/raw/raw_record.h"      // Raw_record
 #include "dd/impl/tables/collations.h"   // Collations
+#include "dd/impl/transaction_impl.h"    // Open_dictionary_tables_ctx
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                // ER_*
 
 using dd::tables::Collations;
 
@@ -96,7 +97,7 @@ bool Collation::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Collation::update_name_key(name_key_type *key, const std::string &name)
+bool Collation::update_name_key(name_key_type *key, const String_type &name)
 { return Collations::update_object_key(key, name); }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,10 +33,6 @@ IF(WIN32)
 ENDIF()
 
 IF(UNIX)
-  SET(WITH_EXTRA_CHARSETS all CACHE STRING "")
-
-  OPTION(WITH_PIC "" ON) # Why?
-
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     IF(NOT IGNORE_AIO_CHECK)
       # Ensure aio is available on Linux (required by InnoDB)

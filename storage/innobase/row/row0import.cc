@@ -2074,6 +2074,7 @@ PageConverter::update_page(
 	case FIL_PAGE_TYPE_BLOB:
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_BLOB:
 	case FIL_PAGE_SDI_ZBLOB:
 

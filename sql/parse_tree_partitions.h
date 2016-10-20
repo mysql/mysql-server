@@ -16,11 +16,21 @@
 #ifndef PARSE_TREE_PARTITIONS_INCLUDED
 #define PARSE_TREE_PARTITIONS_INCLUDED
 
-#include "my_config.h"
-#include "partition_info.h"
-#include "parse_tree_helpers.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "mem_root_array.h"
-#include "derror.h"
+#include "my_base.h"
+#include "my_global.h"
+#include "parse_tree_helpers.h"
+#include "parse_tree_node_base.h"
+#include "partition_element.h"
+#include "partition_info.h"
+#include "sql_udf.h"
+
+class Item;
+class THD;
+template <class T> class List;
 
 /**
   Parse context for partitioning-specific parse tree nodes.

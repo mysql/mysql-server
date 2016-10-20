@@ -16,13 +16,21 @@
 #ifndef DD_CACHE__DICTIONARY_CLIENT_INCLUDED
 #define DD_CACHE__DICTIONARY_CLIENT_INCLUDED
 
+#include <stddef.h>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "dd/object_id.h"
+#include "my_dbug.h"
 #include "my_global.h"                        // DBUG_ASSERT() etc.
 #include "object_registry.h"                  // Object_registry
 
-#include <memory>
-#include <vector>
-
 class THD;
+namespace dd {
+class Schema;
+class Table;
+}  // namespace dd
 
 namespace dd {
 namespace cache {
@@ -78,22 +86,24 @@ namespace cache {
         client itself, or by the dictionary subsystem.
 */
 
+template <typename T> class Cache_element;
+
 class Dictionary_client
 {
 public:
 
 
   /**
-    Class to help releasing objects.
+    Class to help releasing and deleting objects.
 
-    This class keeps a register of objects that are automatically
+    This class keeps a register of shared objects that are automatically
     released when the instance goes out of scope. When a new instance
     is created, the encompassing dictionary client's current auto releaser
     is replaced by this one, keeping a link to the old one. When the
     auto releaser is deleted, it links the old releaser back in as the
     client's current releaser.
 
-    Objects that are added to the auto releaser will be released when
+    Shared objects that are added to the auto releaser will be released when
     the releaser is deleted. Only the dictionary client is allowed to add
     objects to the auto releaser.
 
@@ -103,6 +113,10 @@ public:
     the auto releaser. Thus, when the releaser is deleted, it releases all
     objects that have been retrieved from the shared cache during the
     lifetime of the releaser.
+
+    Similarly the auto releaser maintains a list of objects created
+    by acquire_uncached(). These objects are owned by the Auto_releaser
+    and are deleted when the auto releaser goes out of scope.
   */
 
   class Auto_releaser
@@ -113,7 +127,7 @@ public:
     Dictionary_client *m_client;
     Object_registry m_release_registry;
     Auto_releaser *m_prev;
-
+    std::vector<Dictionary_object*> m_uncached_objects;
 
     /**
       Register an object to be auto released.
@@ -128,6 +142,30 @@ public:
       // Catch situations where we do not use a non-default releaser.
       DBUG_ASSERT(m_prev != NULL);
       m_release_registry.put(element);
+    }
+
+
+    /**
+      Register an uncached object to be auto deleted.
+
+      @param  object  Dictionary object to auto delete.
+    */
+    template <typename T>
+    void auto_delete(Dictionary_object *object)
+    {
+      // Catch situations where we do not use a non-default releaser.
+      DBUG_ASSERT(m_prev != NULL);
+
+#ifndef DBUG_OFF
+      // Make sure we do not sign up a shared object for auto delete.
+      Cache_element<typename T::cache_partition_type> *element= nullptr;
+      m_client->m_registry.get(
+        static_cast<const typename T::cache_partition_type*>(object),
+        &element);
+      DBUG_ASSERT(element == nullptr);
+#endif
+
+      m_uncached_objects.push_back(object);
     }
 
 
@@ -297,16 +335,11 @@ public:
   /**
     Retrieve an object by its object id without caching it.
 
-    The object is not cached, hence, it is owned by the caller, who must
-    make sure it is deleted. The object must not be released, and may not
+    The object is not cached but owned by the current auto releaser who
+    makes sure it is deleted. The object must not be released, and may not
     be used as a parameter to the other dictionary client methods since it is
     not known by the object registry.
 
-    @note This is needed when acquiring objects for e.g. I_S queries, which
-          happens before there is any MDL lock on the object names. If the
-          objects are retrieved from the cache, their usage counter may lead
-          to asserts failing if there are concurrent operations on the objects.
-
     @tparam       T       Dictionary object type.
     @param        id      Object id to retrieve.
     @param [out]  object  Dictionary object, if present; otherwise NULL.
@@ -316,34 +349,7 @@ public:
    */
 
   template <typename T>
-  bool acquire_uncached(Object_id id, const T** object);
-
-
-  /**
-    Retrieve a possibly uncommitted object by its object id without caching it.
-
-    The object is not cached, hence, it is owned by the caller, who must
-    make sure it is deleted. The object must not be released, and may not
-    be used as a parameter to most of the other dictionary client methods
-    since it is not known by the object registry.
-
-    When the object is read from the persistent tables, the transaction
-    isolation level is READ UNCOMMITTED. This is necessary to be able to
-    read uncommitted data from an earlier stage of the same session.
-
-    @note This is needed when acquiring tablespace objects during execution
-          of ALTER TABLE.
-
-    @tparam       T       Dictionary object type.
-    @param        id      Object id to retrieve.
-    @param [out]  object  Dictionary object, if present; otherwise NULL.
-
-    @retval       false   No error.
-    @retval       true    Error (from reading the dictionary tables).
-   */
-
-  template <typename T>
-  bool acquire_uncached_uncommitted(Object_id id, const T** object);
+  bool acquire_uncached(Object_id id, T** object);
 
 
   /**
@@ -358,14 +364,14 @@ public:
   */
 
   template <typename T>
-  bool acquire(const std::string &object_name, const T** object);
+  bool acquire(const String_type &object_name, const T** object);
 
 
   /**
     Retrieve an object by its name without caching it.
 
-    The object is not cached, hence, it is owned by the caller, who must
-    make sure it is deleted. The object must not be released, and may not
+    The object is not cached but owned by the current auto releaser who
+    makes sure it is deleted. The object must not be released, and may not
     be used as a parameter to the other dictionary client methods since it is
     not known by the object registry.
 
@@ -382,7 +388,7 @@ public:
    */
 
   template <typename T>
-  bool acquire_uncached(const std::string &object_name, const T** object);
+  bool acquire_uncached(const String_type &object_name, T** object);
 
 
   /**
@@ -408,7 +414,7 @@ public:
   */
 
   template <typename T>
-  bool acquire(const std::string &schema_name, const std::string &object_name,
+  bool acquire(const String_type &schema_name, const String_type &object_name,
                const T** object);
 
 
@@ -441,27 +447,21 @@ public:
   */
 
   template <typename T>
-  bool acquire(const std::string &schema_name, const std::string &object_name,
+  bool acquire(const String_type &schema_name, const String_type &object_name,
                const typename T::cache_partition_type** object);
 
 
   /**
     Retrieve an object by its schema- and object name without caching it.
 
-    The object is not cached, hence, it is owned by the caller, who must
-    make sure it is deleted. The object must not be released, and may not
+    The object is not cached but owned by the current auto releaser who
+    makes sure it is deleted. The object must not be released, and may not
     be used as a parameter to the other dictionary client methods since it is
     not known by the object registry.
 
-    @note This is needed to let the TABLE_SHARE for views own the actual
-          view object. Acquiring a cached copy on demand is prohibited by
-          asserts verifying that the THD does not own LOCK_OPEN (which it
-          does, when the view object is needed). Letting the TABLE_SHARE
-          point into the cache, and making the view object sticky, requires
-          synchronization of making the view object unsticky and deleting it
-          from the cache, which is needed both when the view is dropped and
-          when the TABLE_SHARE is evicted. Thus, the most robust solution is
-          to let the TABLE_SHARE own the view object in this specific case.
+    @note This is needed when acquiring objects during bootstrap to make
+          sure we get objects from the DD tables in order to replace the
+          temporarily generated meta data.
 
     @tparam       T             Dictionary object type.
     @param        schema_name   Name of the schema containing the table.
@@ -473,9 +473,36 @@ public:
   */
 
   template <typename T>
-  bool acquire_uncached(const std::string &schema_name,
-                        const std::string &object_name,
-                        const T** object);
+  bool acquire_uncached(const String_type &schema_name,
+                        const String_type &object_name,
+                        T** object);
+
+
+/**
+    Retrieve a possibly uncommitted object by its object id without caching it.
+
+    The object is not cached, hence, it is owned by the caller, who must
+    make sure it is deleted. The object must not be released, and may not
+    be used as a parameter to most of the other dictionary client methods
+    since it is not known by the object registry.
+
+    When the object is read from the persistent tables, the transaction
+    isolation level is READ UNCOMMITTED. This is necessary to be able to
+    read uncommitted data from an earlier stage of the same session.
+
+    @note This is needed when acquiring tablespace objects during execution
+          of ALTER TABLE.
+
+    @tparam       T       Dictionary object type.
+    @param        id      Object id to retrieve.
+    @param [out]  object  Dictionary object, if present; otherwise NULL.
+
+    @retval       false   No error.
+    @retval       true    Error (from reading the dictionary tables).
+   */
+
+  template <typename T>
+  bool acquire_uncached_uncommitted(Object_id id, const T** object);
 
 
   /**
@@ -503,8 +530,8 @@ public:
   */
 
   template <typename T>
-  bool acquire_uncached_uncommitted(const std::string &schema_name,
-                                    const std::string &object_name,
+  bool acquire_uncached_uncommitted(const String_type &schema_name,
+                                    const String_type &object_name,
                                     const T** object);
 
 
@@ -525,9 +552,9 @@ public:
                                  object of a wrong type was found).
   */
 
-  bool acquire_uncached_table_by_se_private_id(const std::string &engine,
+  bool acquire_uncached_table_by_se_private_id(const String_type &engine,
                                                Object_id se_private_id,
-                                               const Table **table);
+                                               Table **table);
 
 
   /**
@@ -542,9 +569,9 @@ public:
   */
 
   bool acquire_uncached_table_by_partition_se_private_id(
-         const std::string &engine,
+         const String_type &engine,
          Object_id se_partition_id,
-         const Table **table);
+         Table **table);
 
 
   /**
@@ -561,10 +588,10 @@ public:
     @retval      true     Error.
   */
 
-  bool get_table_name_by_se_private_id(const std::string &engine,
+  bool get_table_name_by_se_private_id(const String_type &engine,
                                        Object_id se_private_id,
-                                       std::string *schema_name,
-                                       std::string *table_name);
+                                       String_type *schema_name,
+                                       String_type *table_name);
 
 
   /**
@@ -581,10 +608,10 @@ public:
     @retval      true     Error.
   */
 
-  bool get_table_name_by_partition_se_private_id(const std::string &engine,
+  bool get_table_name_by_partition_se_private_id(const String_type &engine,
                                                  Object_id se_partition_id,
-                                                 std::string *schema_name,
-                                                 std::string *table_name);
+                                                 String_type *schema_name,
+                                                 String_type *table_name);
 
 
   /**
@@ -601,8 +628,8 @@ public:
   */
 
   bool get_table_name_by_trigger_name(Object_id schema_id,
-                                      const std::string &trigger_name,
-                                      std::string *table_name);
+                                      const String_type &trigger_name,
+                                      String_type *table_name);
 
 
   /**
@@ -615,7 +642,7 @@ public:
     @return      false  Success.
   */
 
-  bool get_tables_max_se_private_id(const std::string &engine,
+  bool get_tables_max_se_private_id(const String_type &engine,
                                     Object_id *max_id);
 
 
@@ -636,7 +663,7 @@ public:
   template <typename T>
   bool fetch_schema_component_names(
     const Schema *schema,
-    std::vector<std::string> *names) const;
+    std::vector<String_type> *names) const;
 
 
   /**
@@ -654,23 +681,6 @@ public:
   bool fetch_schema_components(
     const Schema *schema,
     std::vector<const T*> *coll) const;
-
-
-  /**
-    Fetch all components of the given type in the default catalog.
-
-    The signature may be extended with a catalog parameter if that
-    will be supported. The key created requires a catalog parameter.
-
-    @tparam        T              Type of components to get.
-    @param   [out] coll           An std::vector containing all components.
-
-    @return      true   Failure (error is reported).
-    @return      false  Success.
-  */
-
-  template <typename T>
-  bool fetch_catalog_components(std::vector<const T*> *coll) const;
 
 
   /**
@@ -889,8 +899,8 @@ public:
     @return true  - on failure
     @return false - on success
   */
-  bool remove_table_dynamic_statistics(const std::string &schema_name,
-                                       const std::string &table_name);
+  bool remove_table_dynamic_statistics(const String_type &schema_name,
+                                       const String_type &table_name);
 
   /**
     Make a dictionary object sticky or not in the cache.

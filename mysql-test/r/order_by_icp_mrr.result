@@ -952,15 +952,15 @@ ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
 UPDATE bug25126 SET val = 1 ORDER BY val, MissingCol;
 ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
 UPDATE bug25126 SET val = MissingCol ORDER BY MissingCol;
-ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+ERROR 42S22: Unknown column 'MissingCol' in 'field list'
 UPDATE bug25126 SET MissingCol = 1 ORDER BY val, MissingCol;
-ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+ERROR 42S22: Unknown column 'MissingCol' in 'field list'
 UPDATE bug25126 SET MissingCol = 1 ORDER BY MissingCol;
-ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+ERROR 42S22: Unknown column 'MissingCol' in 'field list'
 UPDATE bug25126 SET MissingCol = val ORDER BY MissingCol;
-ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+ERROR 42S22: Unknown column 'MissingCol' in 'field list'
 UPDATE bug25126 SET MissingCol = MissingCol ORDER BY MissingCol;
-ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+ERROR 42S22: Unknown column 'MissingCol' in 'field list'
 DROP TABLE bug25126;
 CREATE TABLE t1 (a int);
 SELECT p.a AS val, q.a AS val1 FROM t1 p, t1 q ORDER BY val > 1;

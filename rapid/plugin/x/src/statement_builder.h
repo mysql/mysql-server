@@ -23,8 +23,8 @@
 #include "expr_generator.h"
 
 #include "ngs_common/protocol_protobuf.h"
+#include "ngs_common/bind.h"
 #include <algorithm>
-#include <boost/bind.hpp>
 
 namespace xpl
 {
@@ -63,25 +63,30 @@ public:
       return *this;
     }
 
-    template<typename L, typename Op>
-    const Builder &put_list(const L &list, Op generate) const
+    template<typename I, typename Op>
+    const Builder &put_list(I begin, I end, Op generate) const
     {
-      if (list.size() == 0)
+      if (end - begin == 0)
         return *this;
 
-      typename L::const_iterator p = list.begin();
-      generate(*p);
-      for (++p; p != list.end(); ++p)
+      generate(*begin);
+      for (++begin; begin != end; ++begin)
       {
         m_qb.put(",");
-        generate(*p);
+        generate(*begin);
       }
       return *this;
     }
 
+    template<typename L, typename Op>
+    const Builder &put_list(const L &list, Op generate) const
+    {
+      return put_list(list.begin(), list.end(), generate);
+    }
+
     const Builder &put_list(const ::google::protobuf::RepeatedPtrField<Expression_generator::Expr> &list) const
     {
-      return put_list(list, boost::bind(&Expression_generator::feed<Expression_generator::Expr>, m_gen, _1));
+      return put_list(list, ngs::bind(&Expression_generator::feed<Expression_generator::Expr>, m_gen, ngs::placeholders::_1));
     }
 
     template<typename T>

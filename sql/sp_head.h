@@ -16,10 +16,35 @@
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
 
-#include "my_global.h"
-#include "mem_root_array.h"    // Mem_root_array
-#include "sql_class.h"         // Query_arena
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "field.h"
+#include "handler.h"
+#include "mem_root_array.h"    // Mem_root_array
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysqld_error.h"
+#include "set_var.h"
+#include "sql_alloc.h"
+#include "sql_class.h"         // Query_arena
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "system_variables.h"
+#include "table.h"
+
+class Item;
+class Item_trigger_field;
+class Table_trigger_field_support;
+class sp_head;
+struct MDL_key;
 struct PSI_sp_share;
 
 /**
@@ -899,7 +924,7 @@ public:
 
 private:
   /// Use sp_start_parsing() to create instances of sp_head.
-  sp_head(MEM_ROOT mem_root, enum_sp_type type);
+  sp_head(MEM_ROOT &&mem_root, enum_sp_type type);
 
   /// Use destroy() to destoy instances of sp_head.
   ~sp_head();

@@ -20,13 +20,16 @@
   the function comments.
 */
 
-#include <my_global.h>
-#include "mysql/service_rules_table.h"
+#include <string.h>
+
+#include "my_compiler.h"
+#include "my_global.h"  // IWYU pragma: keep (for Winsock definitions)
 #include "openssl/ssl.h"
+
 #if defined(HAVE_YASSL)
 using namespace yaSSL;
 #endif // defined(HAVE_YASSL)
-#include "mysql/service_ssl_wrapper.h"
+#include "mysql/service_ssl_wrapper.h"  // IWYU pragma: keep
 
 #ifndef EMBEDDED_LIBRARY
 

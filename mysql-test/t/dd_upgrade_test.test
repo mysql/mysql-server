@@ -2,6 +2,9 @@
 # events, stored routines and triggers from 5.7 to 8.0.
 
 --source include/not_embedded.inc
+--source include/not_valgrind.inc
+#Zipped data directory was created with default 16K page size
+--source include/have_innodb_16k.inc
 
 call mtr.add_suppression("Plugin * after shutdown");
 call mtr.add_suppression(".* Native table .* has the wrong structure");
@@ -17,6 +20,9 @@ call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is execute
 call mtr.add_suppression("table is missing or has an incorrect definition");
 call mtr.add_suppression("is expected to be transactional");
 call mtr.add_suppression("Upgrading redo log");
+call mtr.add_suppression("information_schema");
+call mtr.add_suppression("doesn't exist");
+call mtr.add_suppression("references invalid");
 
 # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
@@ -42,6 +48,10 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 # Remove myisam partitioned tables. There are used for negative testing.
 --remove_files_wildcard $MYSQL_TMP_DIR/data57/partitions *
 --rmdir $MYSQL_TMP_DIR/data57/partitions
+
+#Copy table and view files as test case for Bug#24580586
+--copy_file $MYSQLTEST_VARDIR/std_data/initial_t@1o.frm $MYSQL_TMP_DIR/data57/test/initial_t@1o.frm
+--copy_file $MYSQLTEST_VARDIR/std_data/initial_v@1o.frm $MYSQL_TMP_DIR/data57/test/initial_v@1o.frm
 
 --echo #Files in 'test' dir
 --list_files $MYSQL_TMP_DIR/data57/
@@ -117,6 +127,12 @@ SHOW CREATE VIEW aview.view_user2;
 #view with different character_set and connection collation
 SHOW CREATE VIEW aview.view_character_set;
 
+#Test case for Bug#24580586
+SET names utf8;
+DESC `test`.`initial_vü`;
+--replace_column 15 CREATE_TIME
+SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_type='VIEW';
+SET names default;
 
 #Check for SP/SF
 SHOW CREATE PROCEDURE sp.simpleproc;

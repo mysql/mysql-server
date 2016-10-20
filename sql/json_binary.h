@@ -133,8 +133,11 @@
   @endverbatim
 */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <new>
+
 #include "binary_log_types.h"                   // enum_field_types
+#include "my_global.h"
 
 class Json_dom;
 class String;

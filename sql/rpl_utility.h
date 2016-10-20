@@ -20,16 +20,23 @@
 #error "Don't include this C++ header file from a non-C++ file!"
 #endif
 
-#include "my_global.h"
-#include "prealloced_array.h"   // Prealloced_array
+#include <sys/types.h>
+
 #include "binary_log_types.h"   // enum_field_types
+#include "my_dbug.h"
+#include "my_global.h"
 
 #ifdef MYSQL_SERVER
+#include "handler.h"
+#include "hash.h"
+#include "prealloced_array.h"   // Prealloced_array
 #include "table.h"              // TABLE_LIST
+
+class THD;
+class Log_event;
+class Relay_log_info;
 #endif
 
-class Relay_log_info;
-class Log_event;
 #ifndef MYSQL_CLIENT
 
 /**

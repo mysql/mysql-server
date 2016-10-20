@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -414,8 +414,8 @@ int emb_load_querycache_result(THD *thd, Querycache_stream *src)
 
   if (!data)
     goto err;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &data->alloc, 8192, 0);
-  f_alloc= &data->alloc;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, data->alloc, 8192, 0);
+  f_alloc= data->alloc;
 
   data->fields= src->load_int();
   rows= src->load_ll();
@@ -450,7 +450,7 @@ int emb_load_querycache_result(THD *thd, Querycache_stream *src)
   if (thd->get_protocol()->type() == Protocol::PROTOCOL_BINARY)
   {
     uint length;
-    row= (MYSQL_ROWS *)alloc_root(&data->alloc,
+    row= (MYSQL_ROWS *)alloc_root(data->alloc,
                                   (size_t) (rows * sizeof(MYSQL_ROWS)));
     end_row= row + rows;
     data->data= row;
@@ -458,13 +458,13 @@ int emb_load_querycache_result(THD *thd, Querycache_stream *src)
     for (prev_row= &row->next; row < end_row; prev_row= &row->next, row++)
     {
       *prev_row= row;
-      row->data= (MYSQL_ROW) src->load_str(&data->alloc, &length);
+      row->data= (MYSQL_ROW) src->load_str(data->alloc, &length);
       row->length= length;
     }
   }
   else
   {
-    row= (MYSQL_ROWS *)alloc_root(&data->alloc,
+    row= (MYSQL_ROWS *)alloc_root(data->alloc,
         (uint) (rows * sizeof(MYSQL_ROWS) +
           rows*(data->fields+1)*sizeof(char*)));
     end_row= row + rows;
@@ -478,7 +478,7 @@ int emb_load_querycache_result(THD *thd, Querycache_stream *src)
       row->data= columns;
       MYSQL_ROW col_end= columns + data->fields;
       for (; columns < col_end; columns++)
-        src->load_column(&data->alloc, columns);
+        src->load_column(data->alloc, columns);
 
       *(columns++)= NULL;
     }

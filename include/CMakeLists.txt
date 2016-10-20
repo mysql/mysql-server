@@ -45,9 +45,20 @@ SET(HEADERS
   my_thread_local.h
   decimal.h
   errmsg.h
-  my_global.h
+  my_double2ulonglong.h
   my_getopt.h
+  my_global.h
+  my_inttypes.h
+  my_io.h
+  my_loglevel.h
+  my_macros.h
+  my_pointer_arithmetic.h
   my_psi_config.h
+  my_rapidjson_size_t.h
+  my_sharedlib.h
+  my_shm_defaults.h
+  my_systime.h
+  my_table_map.h
   sslopt-longopts.h
   my_dir.h 
   sslopt-vars.h
@@ -65,6 +76,7 @@ SET(HEADERS
   thr_cond.h
   thr_mutex.h
   thr_rwlock.h
+  mem_root_fwd.h
   ${HEADERS_GEN_CONFIGURE}
 )
 

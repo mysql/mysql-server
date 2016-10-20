@@ -1,10 +1,6 @@
-#Running the test with show_compatibility_56=ON until Bug#22313205 is fixed.
-select @@global.show_compatibility_56 into @save_show_compatibility_56;
-set @@global.show_compatibility_56=ON;
 SET CHARACTER SET utf8;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 SHOW VARIABLES like 'character_sets_dir';
 SHOW VARIABLES like 'character_set_filesystem';
 SHOW VARIABLES like 'character_set_client';
 SET CHARACTER SET default;
-set @@global.show_compatibility_56=@save_show_compatibility_56;

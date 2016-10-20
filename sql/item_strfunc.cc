@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,44 +30,77 @@
 /* May include caustic 3rd-party defs. Use early, so it can override nothing. */
 #include "sha2.h"
 
-#include "item_strfunc.h"
+#include <algorithm>
+#include <cmath>                     // isnan
 
-#include "base64.h"                  // base64_encode_max_arg_length
-#include "current_thd.h"             // current_thd
-#include "dd_sql_view.h"             // push_view_warning_or_error
-#include "my_aes.h"                  // MY_AES_IV_SIZE
-#include "my_md5.h"                  // MD5_HASH_SIZE
-#include "my_rnd.h"                  // my_rand_buffer
-#include "mysqld.h"                  // LOCK_des_key_file
-#include "sha1.h"                    // SHA1_HASH_SIZE
+#include "auth_acls.h"
 #include "auth_common.h"             // check_password_policy
+#include "base64.h"                  // base64_encode_max_arg_length
+#include "binary_log_types.h"
+#include "current_thd.h"             // current_thd
+#include "dd/info_schema/stats.h"
+#include "dd/properties.h"           // dd::Properties
+#include "dd/string_type.h"
+#include "dd/types/column.h"         // dd::Column
+#include "dd_sql_view.h"             // push_view_warning_or_error
+#include "dd_table_share.h"          // dd_get_old_field_type
+#include "decimal.h"
 #include "derror.h"                  // ER_THD
 #include "des_key_file.h"            // st_des_keyblock
+#include "handler.h"
+#include "item_strfunc.h"
+#include "m_string.h"
+#include "my_aes.h"                  // MY_AES_IV_SIZE
+#include "my_base.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dir.h"                  // For my_stat
+#include "my_md5.h"                  // MD5_HASH_SIZE
+#include "my_md5_size.h"
+#include "my_rnd.h"                  // my_rand_buffer
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "myisampack.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_password_policy.h"
+#include "mysqld.h"                  // LOCK_des_key_file
+#include "mysqld_error.h"
 #include "password.h"                // my_make_scrambled_password
-#include "spatial.h"                 // Geometry
+#include "rpl_gtid.h"
+#include "session_tracker.h"
+#include "sha1.h"                    // SHA1_HASH_SIZE
 #include "sql_class.h"               // THD
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_locale.h"              // my_locale_by_name
+#include "sql_security_ctx.h"
 #include "strfunc.h"                 // hexchar_to_int
-#include "dd/types/column.h"         // dd::Column
-#include "dd_table_share.h"          // dd_get_old_field_type
-#include "dd/properties.h"           // dd::Properties
+#include "template_utils.h"
+#include "typelib.h"
 #include "val_int_compare.h"         // Integer_value
+#include "zconf.h"
 
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
+
 C_MODE_END
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 #include "sql_show.h"  // grant_types
 #endif
 
-#include "template_utils.h"
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
+#include <atomic>
 #include <cmath>                     // isnan
+#include <memory>
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "mysql/psi/mysql_file.h"
 
 using std::min;
 using std::max;
@@ -1178,139 +1211,79 @@ bool Item_func_reverse::resolve_type(THD *thd)
 
 /**
   Replace all occurences of string2 in string1 with string3.
-
-  Don't reallocate val_str() if not needed.
-
-  @todo
-    Fix that this works with binary strings
 */
 
 String *Item_func_replace::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res,*res2,*res3;
-  int offset= 0;
-  size_t from_length, to_length;
-  bool alloced=0;
-  const char *ptr,*end,*strend,*search,*search_end;
-  uint32 l;
 
-  res=args[0]->val_str(str);
+  String *res1= args[0]->val_str(str);
   if ((null_value= args[0]->null_value))
     return nullptr;
-  res2=args[1]->val_str(&tmp_value);
+  String *res2= args[1]->val_str(&tmp_value);
   if ((null_value= args[1]->null_value))
     return nullptr;
-  res3=args[2]->val_str(&tmp_value2);
+  String *res3= args[2]->val_str(&tmp_value2);
   if ((null_value= args[2]->null_value))
     return nullptr;
 
-  res->set_charset(collation.collation);
-  if (res2->length() == 0)
-    return res;
+  res1->set_charset(collation.collation);
+  if (res1->length() == 0 || res2->length() == 0)
+    return res1;
 
-  const bool binary_cmp= ((res->charset()->state & MY_CS_BINSORT) ||
-                          !use_mb(res->charset()));
+  const bool binary_cmp= ((res1->charset()->state & MY_CS_BINSORT) ||
+                          !use_mb(res1->charset()));
 
-  if (binary_cmp && (offset=res->strstr(*res2)) < 0)
-    return res;
+  if (binary_cmp && res1->strstr(*res2) < 0)
+    return res1;
 
-  from_length= res2->length();
-  to_length=   res3->length();
+  tmp_value_res.length(0);
+  tmp_value_res.set_charset(collation.collation);
+  String *result= &tmp_value_res;
 
-  if (!binary_cmp)
+  THD *thd= current_thd;
+  const unsigned long max_size= thd->variables.max_allowed_packet;
+
+  const char *search= res2->ptr();
+  const size_t from_length= res2->length();
+  const char *search_end= search + from_length;
+  const size_t to_length= res3->length();
+  const char *ptr= res1->ptr();
+  const char *strend= res1->ptr() + res1->length();
+  while (ptr < strend)
   {
-    search=res2->ptr();
-    search_end=search+from_length;
-redo:
-    DBUG_ASSERT(res->ptr() || !offset);
-    ptr=res->ptr()+offset;
-    strend=res->ptr()+res->length();
-    /*
-      In some cases val_str() can return empty string
-      with ptr() == NULL and length() == 0.
-      Let's check strend to avoid overflow.
-    */
-    end= strend ? strend - from_length + 1 : NULL;
-    while (ptr < end)
+    if (ptr + from_length <= strend && std::equal(search, search_end, ptr))
     {
-        if (*ptr == *search)
-        {
-          char *i,*j;
-          i=(char*) ptr+1; j=(char*) search+1;
-          while (j != search_end)
-            if (*i++ != *j++) goto skip;
-          offset= (int) (ptr-res->ptr());
-          if (res->length()-from_length + to_length >
-	      current_thd->variables.max_allowed_packet)
-	  {
-	    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-				ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-				ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-				func_name(),
-				current_thd->variables.max_allowed_packet);
+      if (to_length > from_length &&
+          result->length() + (to_length - from_length) +
+          (strend - ptr) > max_size)
+      {
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                            ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                            func_name(),
+                            current_thd->variables.max_allowed_packet);
+        return error_str();
+      }
+      if (result->append(*res3))
+        return error_str();
+      ptr+= from_length;
+    }
+    else
+    {
+      bool err= false;
+      uint32 l= use_mb(res1->charset()) ?
+        my_ismbchar(res1->charset(), ptr, strend) : 0;
+      if (l != 0)
+        while(l-- > 0) err|= result->append(*ptr++);
+      else
+        err= result->append(*ptr++);
 
-            goto null;
-	  }
-          if (!alloced)
-          {
-            alloced=1;
-            if (res->uses_buffer_owned_by(str))
-            {
-              if (tmp_value_res.alloc(res->length() + to_length) ||
-                  tmp_value_res.copy(*res))
-                goto null;
-              res= &tmp_value_res;
-            }
-            else
-              res= copy_if_not_alloced(str, res, res->length() + to_length);
-          }
-          res->replace((uint) offset,from_length,*res3);
-	  offset+=(int) to_length;
-          goto redo;
-        }
-skip:
-        if ((l= my_ismbchar(res->charset(), ptr,strend)))
-          ptr+= l;
-        else
-          ++ptr;
+      if (err)
+        return error_str();
     }
   }
-  else
-    do
-    {
-      if (res->length()-from_length + to_length >
-	  current_thd->variables.max_allowed_packet)
-      {
-	push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			    ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			    ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                            func_name(),
-			    current_thd->variables.max_allowed_packet);
-        goto null;
-      }
-      if (!alloced)
-      {
-        alloced=1;
-        if (res->uses_buffer_owned_by(str))
-        {
-          if (tmp_value_res.alloc(res->length() + to_length) ||
-              tmp_value_res.copy(*res))
-            goto null;
-          res= &tmp_value_res;
-        }
-        else
-          res= copy_if_not_alloced(str, res, res->length() + to_length);
-      }
-      res->replace((uint) offset,from_length,*res3);
-      offset+=(int) to_length;
-    }
-    while ((offset=res->strstr(*res2,(uint) offset)) >= 0);
-  return res;
-
-null:
-  null_value=1;
-  return 0;
+  return result;
 }
 
 
@@ -2978,8 +2951,6 @@ String *Item_func_make_set::val_str(String *str)
 
 Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
-
   Item *new_item= item->transform(transformer, arg);
   if (!new_item)
     return 0;
@@ -3631,12 +3602,14 @@ String *Item_func_conv::val_str(String *str)
   null_value= 0;
   unsigned_flag= !(from_base < 0);
 
-  if (args[0]->field_type() == MYSQL_TYPE_BIT) 
+  if (args[0]->field_type() == MYSQL_TYPE_BIT ||
+      args[0]->type() == VARBIN_ITEM)
   {
     /* 
      Special case: The string representation of BIT doesn't resemble the
      decimal representation, so we shouldn't change it to string and then to
      decimal. 
+     The same is true for hexadecimal and bit literals.
     */
     dec= args[0]->val_int();
   }
@@ -4297,7 +4270,15 @@ bool Item_load_file::itemize(Parse_context *pc, Item **res)
 }
 
 
-#include <my_dir.h>				// For my_stat
+#include <fcntl.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <time.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 String *Item_load_file::val_str(String *str)
 {
@@ -4676,6 +4657,8 @@ longlong Item_func_crc32::val_int()
 }
 
 #include "zlib.h"
+
+template <class T> class List;
 
 String *Item_func_compress::val_str(String *str)
 {
@@ -5123,57 +5106,59 @@ String *Item_func_get_dd_column_privileges::val_str(String *str)
 String *Item_func_get_dd_index_sub_part_length::val_str(String *str)
 {
   DBUG_ENTER("Item_func_get_dd_index_sub_part_length::val_str");
+  null_value= TRUE;
 
-  // Read key_part_length from args[0]/
+  // Read arguments
   uint key_part_length= args[0]->val_int();
+  dd::enum_column_types col_type= (dd::enum_column_types) args[1]->val_int();
+  uint column_length= args[2]->val_int();
+  uint csid= args[3]->val_int();
+  if (args[0]->null_value ||
+      args[1]->null_value ||
+      args[2]->null_value ||
+      args[3]->null_value)
+    DBUG_RETURN(nullptr);
 
-  // Read col_type from args[1]
-  enum_field_types col_type=
-    dd_get_old_field_type((dd::enum_column_types) args[1]->val_int());
+  // Read server col_type and check if we have key part.
+  enum_field_types field_type= dd_get_old_field_type(col_type);
+  if (!Field::type_can_have_key_part(field_type))
+    DBUG_RETURN(nullptr);
 
-  if (Field::type_can_have_key_part(col_type))
+  // Read column charset id from args[3]
+  const CHARSET_INFO *column_charset= &my_charset_latin1;
+  if (csid)
   {
-    // Read column length from args[2]
-    uint column_length= args[2]->val_int();
-
-    // Read column charset id from args[3]
-    const CHARSET_INFO *column_charset= &my_charset_latin1;
-    uint csid= args[3]->val_int();
-    if (csid)
-    {
-      column_charset= get_charset(csid, MYF(0));
-      DBUG_ASSERT(column_charset);
-    }
-
-    // Read col_options from args[4]
-    uint idx_flags= 0;
-    String option_buf;
-    String *option_str;
-    if ((option_str= args[4]->val_str(&option_buf)) != nullptr)
-    {
-      // Read required values from properties
-      std::unique_ptr<dd::Properties> p
-        (dd::Properties::parse_properties(option_str->c_ptr_safe()));
-
-      // Read idx_flags from options.
-      p->get_uint32("flags", &idx_flags);
-    }
-
-    if (!(idx_flags & HA_FULLTEXT) &&
-        (key_part_length != column_length))
-    {
-      std::ostringstream oss("");
-
-      uint sub_part_length= key_part_length / column_charset->mbmaxlen;
-      oss << sub_part_length;
-      str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
-
-      null_value= 0;
-      DBUG_RETURN(str);
-    }
+    column_charset= get_charset(csid, MYF(0));
+    DBUG_ASSERT(column_charset);
   }
 
-  null_value= 1;
+  // Read col_options from args[4]
+  uint idx_flags= 0;
+  String option_buf;
+  String *option_str= args[4]->val_str(&option_buf);
+  if (option_str != nullptr)
+  {
+    // Read required values from properties
+    std::unique_ptr<dd::Properties> p
+      (dd::Properties::parse_properties(option_str->c_ptr_safe()));
+
+    // Read idx_flags from options.
+    p->get_uint32("flags", &idx_flags);
+  }
+
+  if (!(idx_flags & HA_FULLTEXT) &&
+      (key_part_length != column_length))
+  {
+    std::ostringstream oss("");
+
+    uint sub_part_length= key_part_length / column_charset->mbmaxlen;
+    oss << sub_part_length;
+    str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+    null_value= FALSE;
+    DBUG_RETURN(str);
+  }
+
   DBUG_RETURN(nullptr);
 }
 
@@ -5286,12 +5271,12 @@ String *Item_func_get_dd_create_options::val_str(String *str)
 
     if (p->exists("compress"))
     {
-      std::string opt_value;
+      dd::String_type opt_value;
       p->get("compress", opt_value);
       if (!opt_value.empty())
       {
         if (opt_value.size() > 7)
-          opt_value.erase(7, std::string::npos);
+          opt_value.erase(7, dd::String_type::npos);
         ptr=my_stpcpy(ptr, " COMPRESSION=\"");
         ptr=my_stpcpy(ptr, opt_value.c_str());
         ptr=my_stpcpy(ptr, "\"");
@@ -5347,48 +5332,53 @@ String *Item_func_get_dd_create_options::val_str(String *str)
 String *Item_func_internal_get_comment_or_error::val_str(String *str)
 {
   DBUG_ENTER("Item_func_internal_get_comment_or_error::val_str");
+  null_value= FALSE;
 
-  std::ostringstream oss("");
+  // Read arguements
+  String schema;
+  String view;
+  String table_type;
+  String options;
+  String *schema_ptr= args[0]->val_str(&schema);
+  String *view_ptr= args[1]->val_str(&view);
+  String *table_type_ptr= args[2]->val_str(&table_type);
+  String *options_ptr= args[3]->val_str(&options);
+  String comment;
+  String *comment_ptr= args[4]->val_str(&comment);
+
+  if (table_type_ptr == nullptr ||
+      schema_ptr == nullptr ||
+      view_ptr == nullptr ||
+      comment_ptr == nullptr)
+  {
+    null_value= TRUE;
+    DBUG_RETURN(nullptr);
+  }
 
   THD *thd= current_thd;
-  String comment;
-  String *comment_ptr;
-  String table_type;
-  String *table_type_ptr;
-  if ((table_type_ptr= args[2]->val_str(&table_type)) != nullptr &&
+  std::ostringstream oss("");
+  if (options_ptr != nullptr &&
       strcmp(table_type_ptr->c_ptr_safe(), "VIEW") == 0)
   {
-    String schema;
-    String *schema_ptr;
-    String view;
-    String *view_ptr;
-    String options;
-    String *options_ptr;
+    bool is_view_valid= true;
+    std::unique_ptr<dd::Properties>
+      view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
 
-    if (((schema_ptr= args[0]->val_str(&schema)) != nullptr) &&
-        ((view_ptr= args[1]->val_str(&view)) != nullptr) &&
-        ((options_ptr= args[3]->val_str(&options)) != nullptr))
+    if (view_options->get_bool("view_valid", &is_view_valid))
+      DBUG_RETURN(nullptr);
+
+    if (is_view_valid == false &&
+        thd->lex->sql_command != SQLCOM_SHOW_TABLES)
     {
-      bool is_view_valid= true;
-      std::unique_ptr<dd::Properties>
-        view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+      push_view_warning_or_error(current_thd,
+                                 schema_ptr->c_ptr_safe(),
+                                 view_ptr->c_ptr_safe());
 
-      if (view_options->get_bool("view_valid", &is_view_valid))
-        DBUG_RETURN(0);
-
-      if (is_view_valid == false &&
-          thd->lex->sql_command != SQLCOM_SHOW_TABLES)
-      {
-        push_view_warning_or_error(current_thd,
-                                   schema_ptr->c_ptr_safe(),
-                                   view_ptr->c_ptr_safe());
-
-        // Append invalid view error message to comment.
-        oss << (thd->get_stmt_da()->sql_conditions()++)->message_text();
-      }
-      else
-        oss << "VIEW";
+      // Append invalid view error message to comment.
+      oss << (thd->get_stmt_da()->sql_conditions()++)->message_text();
     }
+    else
+      oss << "VIEW";
   }
   else if (!thd->lex->m_IS_dyn_stat_cache.error().empty())
   {
@@ -5399,11 +5389,7 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
     */
     oss << thd->lex->m_IS_dyn_stat_cache.error();
   }
-  else if (args[0]->type() == Item::NULL_ITEM)
-  {
-    null_value= 1;
-  }
-  else if ((comment_ptr=args[4]->val_str(&comment)) != nullptr)
+  else
   {
     oss << comment_ptr->c_ptr_safe();
   }

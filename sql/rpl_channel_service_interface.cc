@@ -13,20 +13,39 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
-#include "log.h"
-#include "rpl_channel_service_interface.h"
+#include <string.h>
+#include <sys/types.h>
 
+#include "binlog_event.h"
 #include "current_thd.h"
+#include "log.h"
+#include "log_event.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"          // opt_mts_slave_parallel_workers
-#include "rpl_slave.h"
+#include "mysqld_error.h"
+#include "mysqld_thd_manager.h" // Global_THD_manager
+#include "rpl_channel_service_interface.h"
+#include "rpl_gtid.h"
 #include "rpl_info_factory.h"
+#include "rpl_info_handler.h"
 #include "rpl_mi.h"
 #include "rpl_msr.h"         /* Multisource replication */
+#include "rpl_mts_submode.h"
 #include "rpl_rli.h"
 #include "rpl_rli_pdb.h"
-#include "mysqld_thd_manager.h" // Global_THD_manager
-#include "sql_parse.h"          // Find_thd_with_id
+#include "rpl_slave.h"
+#include "sql_class.h"
+#include "sql_lex.h"
+#include "sql_security_ctx.h"
 
 int initialize_channel_service_interface()
 {
@@ -459,6 +478,8 @@ int channel_stop(const char* channel,
 
   int thread_mask= 0;
   int server_thd_mask= 0;
+  int error= 0;
+  bool thd_init= false;
   lock_slave_threads(mi);
 
   init_thread_mask(&server_thd_mask, mi, 0 /* not inverse*/);
@@ -476,16 +497,15 @@ int channel_stop(const char* channel,
 
   if (thread_mask == 0)
   {
-    mi->channel_unlock();
-    channel_map.unlock();
-    DBUG_RETURN(0);
+    goto end;
   }
 
-  bool thd_init= init_thread_context();
+  thd_init= init_thread_context();
 
-  int error= terminate_slave_threads(mi, thread_mask, timeout, false);
+  error= terminate_slave_threads(mi, thread_mask, timeout, false);
+
+end:
   unlock_slave_threads(mi);
-
   mi->channel_unlock();
   channel_map.unlock();
 
@@ -942,10 +962,10 @@ bool channel_is_stopping(const char* channel,
     case CHANNEL_NO_THD:
       break;
     case CHANNEL_RECEIVER_THREAD:
-      is_stopping= likely(mi->is_stopping.atomic_get());
+      is_stopping= likely(mi->atomic_is_stopping);
       break;
     case CHANNEL_APPLIER_THREAD:
-      is_stopping= likely(mi->rli->is_stopping.atomic_get());
+      is_stopping= likely(mi->rli->atomic_is_stopping);
       break;
     default:
       DBUG_ASSERT(0);
@@ -955,5 +975,22 @@ bool channel_is_stopping(const char* channel,
   channel_map.unlock();
 
   DBUG_RETURN(is_stopping);
+}
+
+bool is_partial_transaction_on_channel_relay_log(const char *channel)
+{
+  DBUG_ENTER("is_partial_transaction_on_channel_relay_log(channel)");
+  channel_map.rdlock();
+  Master_info *mi= channel_map.get_mi(channel);
+  if (mi == NULL)
+  {
+    channel_map.unlock();
+    DBUG_RETURN(false);
+  }
+  mi->channel_rdlock();
+  bool ret= mi->transaction_parser.is_inside_transaction();
+  mi->channel_unlock();
+  channel_map.unlock();
+  DBUG_RETURN(ret);
 }
 #endif /* HAVE_REPLICATION */

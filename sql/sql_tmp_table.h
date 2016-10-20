@@ -24,23 +24,25 @@
   Temporary table handling functions.
 */
 
-#include "my_global.h"
-#include "my_base.h"        // ha_rows
+#include <sys/types.h>
+
 #include "item.h"           // Item
 #include "mem_root_array.h"
+#include "my_base.h"        // ha_rows
+#include "my_global.h"
+#include "table.h"
 
 class Create_field;
 class Field;
 class Opt_trace_context;
 class SJ_TMP_TABLE;
-class Temp_table_param;
 class THD;
-struct TABLE;
-template<typename Element_type, bool has_trivial_destructor, typename Parent>
-  class Mem_root_array;
+class Temp_table_param;
 template <class T> class List;
+
 typedef struct st_columndef MI_COLUMNDEF;
 class KEY;
+
 typedef struct st_order ORDER;
 
 
@@ -64,11 +66,10 @@ void free_tmp_table(THD *thd, TABLE *entry);
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, 
                                           uint uniq_tuple_length_arg,
                                           SJ_TMP_TABLE *sjtbl);
-bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
+bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
                            MI_COLUMNDEF *start_recinfo,
                            MI_COLUMNDEF **recinfo,
-                           ulonglong options, my_bool big_tables,
-                           Opt_trace_context *trace);
+                           ulonglong options, my_bool big_tables);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         Mem_root_array<Item *> *copy_func, Field **from_field,
                         Field **default_field,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,16 +16,21 @@
 #ifndef RPL_HANDLER_H
 #define RPL_HANDLER_H
 
+#include <sys/types.h>
+
+#include "my_dbug.h"
 #include "my_global.h"
+#include "my_psi_config.h"
 #include "my_sys.h"                        // free_root
-#include "mysql/psi/mysql_thread.h"        // mysql_rwlock_t
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
 #include "sql_list.h"                      // List
 #include "sql_plugin_ref.h"                // plugin_ref
-
-#include <list>
+#include "thr_malloc.h"
 
 class Master_info;
 class String;
+class THD;
 struct Binlog_relay_IO_observer;
 struct Binlog_relay_IO_param;
 struct Binlog_storage_observer;

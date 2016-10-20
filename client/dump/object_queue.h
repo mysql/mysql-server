@@ -18,6 +18,10 @@
 #ifndef OBJECT_QUEUE_INCLUDED
 #define OBJECT_QUEUE_INCLUDED
 
+#include <functional>
+#include <map>
+#include <queue>
+
 #include "i_object_reader.h"
 #include "abstract_object_reader_wrapper.h"
 #include "abstract_dump_task.h"
@@ -25,8 +29,6 @@
 #include "thread_group.h"
 #include "base/mutex.h"
 #include "base/atomic.h"
-#include <map>
-#include <queue>
 
 namespace Mysql{
 namespace Tools{
@@ -41,9 +43,9 @@ class Object_queue : public Abstract_object_reader_wrapper,
 {
 public:
   Object_queue(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, Simple_id_generator* object_id_generator,
-    uint threads_count, Mysql::I_callable<void, bool>* thread_callback,
+    uint threads_count, std::function<void(bool)>* thread_callback,
     Mysql::Tools::Base::Abstract_program* program);
 
   ~Object_queue();
@@ -88,7 +90,7 @@ private:
   /*
     Standard callback on task completion to run all possible dependent tasks.
   */
-  Mysql::Instance_callback<void, const Abstract_dump_task*, Object_queue>
+  std::function<void(const Abstract_dump_task*)>
     m_task_availability_callback;
   /*
     Indicates if queue is running. If set to false, all pending and being
@@ -100,7 +102,7 @@ private:
     execution context of created thread. Parameter value
     of true is used for thread start, false for thread exit.
   */
-  Mysql::I_callable<void, bool>* m_thread_callback;
+  std::function<void(bool)>* m_thread_callback;
   Mysql::Tools::Base::Abstract_program* m_program;
 };
 

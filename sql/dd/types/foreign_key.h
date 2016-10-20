@@ -104,22 +104,22 @@ public:
   // the catalog name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_catalog_name() const = 0;
-  virtual void referenced_table_catalog_name(const std::string &name) = 0;
+  virtual const String_type &referenced_table_catalog_name() const = 0;
+  virtual void referenced_table_catalog_name(const String_type &name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // the schema name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_schema_name() const = 0;
-  virtual void referenced_table_schema_name(const std::string &name) = 0;
+  virtual const String_type &referenced_table_schema_name() const = 0;
+  virtual void referenced_table_schema_name(const String_type &name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // the name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_name() const = 0;
-  virtual void referenced_table_name(const std::string &name) = 0;
+  virtual const String_type &referenced_table_name() const = 0;
+  virtual void referenced_table_name(const String_type &name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Foreign key element collection.

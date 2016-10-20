@@ -26,27 +26,56 @@
 
 #include "sql_optimizer.h"
 
-#include "my_bit.h"              // my_count_bits
+#include <limits.h>
+#include <algorithm>
+#include <new>
+#include <utility>
+
 #include "abstract_query_plan.h" // Join_plan
+#include "binary_log_types.h"
+#include "check_stack.h"
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "derror.h"              // ER_THD
+#include "enum_query_type.h"
+#include "ft_global.h"
+#include "handler.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
+#include "item_row.h"
 #include "item_sum.h"            // Item_sum
+#include "key.h"
 #include "lock.h"                // mysql_unlock_some_tables
+#include "m_ctype.h"
+#include "my_bit.h"              // my_count_bits
+#include "my_bitmap.h"
+#include "my_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql_com.h"
 #include "mysqld.h"              // stage_optimizing
+#include "mysqld_error.h"
+#include "opt_costmodel.h"
 #include "opt_explain.h"         // join_type_str
+#include "opt_hints.h"           // hint_table_state
 #include "opt_range.h"           // QUICK_SELECT_I
 #include "opt_trace.h"           // Opt_trace_object
+#include "opt_trace_context.h"
+#include "query_options.h"
+#include "query_result.h"
 #include "sql_base.h"            // init_ftfuncs
+#include "sql_bitmap.h"
 #include "sql_cache.h"           // query_cache
+#include "sql_const.h"
+#include "sql_error.h"
 #include "sql_join_buffer.h"     // JOIN_CACHE
-#include "sql_parse.h"           // check_stack_overrun
 #include "sql_planner.h"         // calculate_condition_filter
 #include "sql_resolver.h"        // subquery_allows_materialization
+#include "sql_string.h"
 #include "sql_test.h"            // print_where
 #include "sql_tmp_table.h"       // get_max_key_and_part_length
-#include "opt_hints.h"           // hint_table_state
+#include "system_variables.h"
+#include "thr_malloc.h"
 
-#include <algorithm>
 using std::max;
 using std::min;
 
@@ -194,7 +223,7 @@ JOIN::optimize()
 
   set_optimized();
 
-  tables_list= select_lex->get_table_list();
+  tables_list= select_lex->leaf_tables;
 
   // The base ref items from query block are assigned as JOIN's ref items
   ref_items[REF_SLICE_BASE]= select_lex->base_ref_items;
@@ -926,8 +955,7 @@ void JOIN::set_plan_state(enum_plan_state plan_state_arg)
 
 bool JOIN::alloc_qep(uint n)
 {
-  // Just to be sure that type plan_idx is wide enough:
-  compile_time_assert(MAX_TABLES <= INT_MAX8);
+  static_assert(MAX_TABLES <= INT_MAX8, "plan_idx needs to be wide enough.");
 
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
@@ -2252,7 +2280,6 @@ check_reverse_order:
         DBUG_ASSERT(tab->quick() == save_quick || tab->quick() == NULL);
         tab->set_quick(NULL);
         tab->set_index(best_key);
-        tab->reversed_access= order_direction < 0;
         tab->set_type(JT_INDEX_SCAN);       // Read with index_first(), index_next()
         /*
           There is a bug. When we change here, e.g. from group_min_max to
@@ -2317,7 +2344,7 @@ check_reverse_order:
         tab->set_type(calc_join_type(tmp->get_type()));
         tab->position()->filter_effect= COND_FILTER_STALE;
       }
-      else if ((tab->type() == JT_REF || tab->type() == JT_INDEX_SCAN) &&
+      else if (tab->type() == JT_REF &&
                tab->ref().key_parts <= used_key_parts)
       {
         /*
@@ -2337,6 +2364,8 @@ check_reverse_order:
         */
         changed_key= tab->ref().key;
       }
+      else if (tab->type() == JT_INDEX_SCAN)
+        tab->reversed_access= true;
     }
     else if (tab->quick())
       tab->quick()->need_sorted_output();
@@ -4966,7 +4995,24 @@ bool JOIN::make_join_plan()
 
   // Outer join dependencies were initialized above, now complete the analysis.
   if (select_lex->outer_join)
-    propagate_dependencies();
+  {
+    if (propagate_dependencies())
+    {
+      /*
+        Catch illegal cross references for outer joins.
+        This could happen before WL#2486 was implemented in 5.0, but should no
+        longer be possible.
+        Thus, an assert has been added should this happen again.
+        @todo Remove the error check below.
+      */
+      DBUG_ASSERT(0);
+      tables= 0;               // Don't use join->table
+      primary_tables= 0;
+      my_error(ER_WRONG_OUTER_JOIN, MYF(0));
+      return true;
+    }
+    init_key_dependencies();
+  }
 
   if (unlikely(trace->is_started()))
     trace_table_dependencies(trace, join_tab, primary_tables);
@@ -5009,6 +5055,14 @@ bool JOIN::make_join_plan()
   // Make a first estimate of the fanout for each table in the query block.
   if (estimate_rowcount())
     DBUG_RETURN(true);
+
+  /*
+    Apply join order hints, with the exception of
+    JOIN_FIXED_ORDER and STRAIGHT_JOIN.
+  */
+  if (select_lex->opt_hints_qb &&
+      !(select_lex->active_options() & SELECT_STRAIGHT_JOIN))
+    select_lex->opt_hints_qb->apply_join_order_hints(this);
 
   if (sj_nests)
   {
@@ -5158,10 +5212,6 @@ bool JOIN::init_planner_arrays()
       table->file->print_error(err, MYF(0));
       return true;
     }
-    table->quick_keys.clear_all();
-    table->possible_quick_keys.clear_all();
-    table->reginfo.not_exists_optimize= false;
-    memset(table->const_key_parts, 0, sizeof(key_part_map)*table->s->keys);
     all_table_map|= tl->map();
     tab->set_join(this);
 
@@ -5251,24 +5301,8 @@ bool JOIN::propagate_dependencies()
   JOIN_TAB *const tab_end= join_tab + tables;
   for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
   {
-    /*
-      Catch illegal cross references for outer joins.
-      This could happen before WL#2486 was implemented in 5.0, but should no
-      longer be possible.
-      Thus, an assert has been added should this happen again.
-      @todo Remove the error check below.
-    */
-    DBUG_ASSERT(!(tab->dependent & tab->table_ref->map()));
-
-    if (tab->dependent & tab->table_ref->map())
-    {
-      tables= 0;               // Don't use join->table
-      primary_tables= 0;
-      my_error(ER_WRONG_OUTER_JOIN, MYF(0));
+    if ((tab->dependent & tab->table_ref->map()))
       return true;
-    }
-
-    tab->key_dependent= tab->dependent;
   }
 
   return false;
@@ -6006,8 +6040,9 @@ static void trace_table_dependencies(Opt_trace_context * trace,
       }
     }
     Opt_trace_array depends_on(trace, "depends_on_map_bits");
-    // RAND_TABLE_BIT may be in join_tabs[i].dependent, so we test all 64 bits
-    compile_time_assert(sizeof(table_ref->map()) <= 64);
+    static_assert(
+      sizeof(table_ref->map()) <= 64,
+      "RAND_TABLE_BIT may be in join_tabs[i].dependent, so we test all 64 bits.");
     for (uint j= 0; j < 64; j++)
     {
       if (join_tabs[i].dependent & (1ULL << j))

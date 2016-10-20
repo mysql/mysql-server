@@ -18,13 +18,24 @@
 #ifndef RPL_GTID_PERSIST_H_
 #define RPL_GTID_PERSIST_H_
 
-#include "my_global.h"
-#include "derror.h"                  // ER_THD
-#include "rpl_table_access.h"        // System_table_access
-#include "sql_class.h"               // Open_tables_backup
-
+#include <atomic>
 #include <string>
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysqld_error.h"
+#include "rpl_gtid.h"
+#include "rpl_table_access.h"        // System_table_access
+#include "sql_class.h"               // Open_tables_backup
+#include "table.h"
+#include "thr_lock.h"
+#include "transaction_info.h"
+#include "xa.h"
+
+class Field;
 
 class Gtid_table_access_context : public System_table_access
 {
@@ -102,11 +113,8 @@ class Gtid_table_persistor
 public:
   static const uint number_fields= 3;
 
-  Gtid_table_persistor()
-  {
-    m_count.atomic_set(0);
-  };
-  virtual ~Gtid_table_persistor() { };
+  Gtid_table_persistor() { }
+  virtual ~Gtid_table_persistor() { }
 
   /**
     Insert the gtid into table.
@@ -222,7 +230,7 @@ public:
 
 private:
   /* Count the append size of the table */
-  Atomic_int64 m_count;
+  std::atomic<int64> m_atomic_count{0};
   /**
     Compress the gtid_executed table, read each row by the
     PK(sid, gno_start) in increasing order, compress the first

@@ -14,16 +14,18 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>
-#include <stdlib.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* We only need the tokens here */
 #define YYSTYPE_IS_DECLARED
-#include <lex.h>
 
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "lex.h"
+#include "lex_symbol.h"
+#include "sql_yacc.h"
+#include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 /*
   MAINTAINER:

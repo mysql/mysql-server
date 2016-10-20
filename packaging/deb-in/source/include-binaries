@@ -66,6 +66,7 @@ debian/extra/semisync_master-plugin
 debian/extra/semisync_slave-plugin
 debian/extra/test_udf_services-plugin
 debian/extra/test_security_context-plugin
+debian/extra/test_services_plugin_registry-plugin
 debian/extra/validate_password-plugin
 debian/extra/version_token-plugin
 @DEB_INCLUDE_BINARIES_EXTRA@

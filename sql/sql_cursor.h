@@ -16,9 +16,17 @@
 #ifndef _sql_cursor_h_
 #define _sql_cursor_h_
 
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
+
+#include "my_global.h"
+#include "sql_alloc.h"
 #include "sql_class.h"                          /* Query_arena */
+#include "sql_servers.h"
 
 class JOIN;
+class Query_result;
 
 /**
   @file

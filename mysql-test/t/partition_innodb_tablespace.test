@@ -395,4 +395,3 @@ EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
 EVAL SET @@default_storage_engine=$old_default_storage_engine;
 --enable_query_log
-

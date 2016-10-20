@@ -20,6 +20,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0lob.h"
 #include "fil0fil.h"
 #include "row0upd.h"
+#include "lob0zip.h"
+#include "lob0fit.h"
 
 namespace lob {
 
@@ -112,6 +114,34 @@ BaseInserter::alloc_blob_page()
 	return(m_cur_blob_block);
 }
 
+/** Check if there is enough space in log file. Commit and re-start the
+mini transaction. */
+void
+BtrContext::check_redolog_normal()
+{
+	ut_ad(!is_bulk());
+
+	FlushObserver* observer = m_mtr->get_flush_observer();
+	store_position();
+
+	commit_btr_mtr();
+
+	DEBUG_SYNC_C("blob_write_middle");
+
+	log_free_check();
+
+	DEBUG_SYNC_C("blob_write_middle_after_check");
+
+	start_btr_mtr();
+
+	m_mtr->set_flush_observer(observer);
+
+	restore_position();
+
+	ut_ad(validate());
+}
+
+#ifdef UNIV_DEBUG
 /** Write first blob page.
 @param[in]	blob_j		the jth blob object of the record.
 @param[in]	field		the big record field.
@@ -138,13 +168,13 @@ zInserter::write_first_page(
 
 	log_page_type(blob_page, 0);
 
-	int	err = write_into_page();
+	int	err = write_into_single_page();
 
 	ut_ad(!dict_index_is_spatial(m_ctx->index()));
 
 	const ulint	field_no = field.field_no;
-	byte*	field_ref = btr_rec_get_field_ref(m_ctx->rec(),
-						m_ctx->get_offsets(), field_no);
+	byte*	field_ref = btr_rec_get_field_ref(
+		m_ctx->rec(), m_ctx->get_offsets(), field_no);
 	ref_t	blobref(field_ref);
 
 	if (err == Z_OK) {
@@ -182,7 +212,7 @@ zInserter::update_length_in_blobref(big_rec_field_t& field)
 	with the correct length. */
 
 	const ulint	field_no = field.field_no;
-	byte* field_ref = btr_rec_get_field_ref(
+	byte*	field_ref = btr_rec_get_field_ref(
 		m_ctx->rec(), m_ctx->get_offsets(), field_no);
 
 	ref_t	blobref(field_ref);
@@ -231,7 +261,7 @@ zInserter::write_one_blob(ulint blob_j)
 /** Write contents into a single BLOB page.
 @return code as returned by zlib. */
 int
-zInserter::write_into_page()
+zInserter::write_into_single_page()
 {
 	const ulint in_before = m_stream.avail_in;
 
@@ -255,9 +285,7 @@ zInserter::write_into_page()
 		in_before - m_stream.avail_in,
 		payload_size_zip - m_stream.avail_out);
 
-#ifdef UNIV_DEBUG
 	add_to_blob_dir(page_info);
-#endif /* UNIV_DEBUG */
 
 	/* Write the "next BLOB page" pointer */
 	mlog_write_ulint(blob_page + FIL_PAGE_NEXT, FIL_NULL,
@@ -267,6 +295,14 @@ zInserter::write_into_page()
 	mlog_write_ulint(blob_page + FIL_PAGE_PREV, FIL_NULL,
 			 MLOG_4BYTES, mtr);
 
+	/* Write a back pointer to the record into the otherwise unused area.
+	This information could be useful in debugging.  Later, we might want
+	to implement the possibility to relocate BLOB pages.  Then, we would
+	need to be able to adjust the BLOB pointer in the record.  We do not
+	store the heap number of the record, because it can change in
+	page_zip_reorganize() or btr_page_reorganize().  However, also the
+	page number of the record may change when B-tree nodes are split or
+	merged. */
 	mlog_write_ulint(blob_page + FIL_PAGE_FILE_FLUSH_LSN,
 			 m_ctx->space(), MLOG_4BYTES, mtr);
 
@@ -279,6 +315,7 @@ zInserter::write_into_page()
 		       - m_stream.avail_out, 0, m_stream.avail_out);
 	}
 
+	/* Redo log the page contents (the page is not modified). */
 	mlog_log_string(blob_page + FIL_PAGE_FILE_FLUSH_LSN,
 			page_zip_get_size(m_ctx->get_page_zip())
 			- FIL_PAGE_FILE_FLUSH_LSN, mtr);
@@ -295,33 +332,6 @@ zInserter::write_into_page()
 	memcpy(blob_page_zip->data, blob_page, page_zip_get_size(page_zip));
 
 	return(err);
-}
-
-/** Check if there is enough space in log file. Commit and re-start the
-mini transaction. */
-void
-BtrContext::check_redolog_normal()
-{
-	ut_ad(!is_bulk());
-
-	FlushObserver* observer = m_mtr->get_flush_observer();
-	store_position();
-
-	commit_btr_mtr();
-
-	DEBUG_SYNC_C("blob_write_middle");
-
-	log_free_check();
-
-	DEBUG_SYNC_C("blob_write_middle_after_check");
-
-	start_btr_mtr();
-
-	m_mtr->set_flush_observer(observer);
-
-	restore_position();
-
-	ut_ad(validate());
 }
 
 /** Write one blob page.  This function will be repeatedly called
@@ -347,13 +357,13 @@ zInserter::write_single_blob_page(
 	buf_block_t*	blob_block = alloc_blob_page();
 	page_t*		blob_page  = buf_block_get_frame(blob_block);
 
-	append_page();
+	set_page_next();
 
 	m_prev_page_no = page_get_page_no(blob_page);
 
 	log_page_type(blob_page, nth_blob_page);
 
-	int err = write_into_page();
+	int err = write_into_single_page();
 
 	ut_ad(!dict_index_is_spatial(m_ctx->index()));
 
@@ -367,6 +377,9 @@ zInserter::write_single_blob_page(
 	return(err);
 }
 
+/** Prepare to write a compressed BLOB. Setup the zlib
+compression stream.
+@return DB_SUCCESS on success, error code on failure. */
 dberr_t zInserter::prepare()
 {
 	/* Zlib deflate needs 128 kilobytes for the default
@@ -395,7 +408,8 @@ dberr_t zInserter::prepare()
 dberr_t
 zInserter::write()
 {
-	/* loop through each of the blob and write one blob at a time. */
+	/* Loop through each blob field of the record and write one blob
+	at a time.*/
 	for (ulint i = 0;
 	     i < m_ctx->get_big_rec_vec_size() && m_status == DB_SUCCESS;
 	     i++) {
@@ -406,6 +420,26 @@ zInserter::write()
 
 	return(m_status);
 }
+
+/** Make the current page as next page of previous page.  In other
+words, make the page m_cur_blob_page_no as the next page
+(FIL_PAGE_NEXT) of page m_prev_page_no.
+@return DB_SUCCESS on success, or error code on failure. */
+dberr_t
+zInserter::set_page_next()
+{
+	buf_block_t*	prev_block = get_previous_blob_block();
+	page_t*	prev_page = buf_block_get_frame(prev_block);
+
+	mlog_write_ulint(prev_page + FIL_PAGE_NEXT, m_cur_blob_page_no,
+			 MLOG_4BYTES, &m_blob_mtr);
+
+	memcpy(buf_block_get_page_zip(prev_block)->data + FIL_PAGE_NEXT,
+	       prev_page + FIL_PAGE_NEXT, 4);
+
+	return(m_status);
+}
+#endif /* UNIV_DEBUG */
 
 /** Get the previous BLOB page frame.  This will return a BLOB page.
 It should not be called for the first BLOB page, because it will not
@@ -436,6 +470,9 @@ have a previous BLOB page.
 buf_block_t*
 BaseInserter::get_previous_blob_block()
 {
+	DBUG_ENTER("BaseInserter::get_previous_blob_block");
+
+	DBUG_LOG("lob", "m_prev_page_no=" << m_prev_page_no);
 	ut_ad(m_prev_page_no != m_ctx->get_page_no());
 
 	space_id_t	space_id	= m_ctx->space();
@@ -448,26 +485,7 @@ BaseInserter::get_previous_blob_block()
 
 	buf_block_dbg_add_level(prev_block, SYNC_EXTERN_STORAGE);
 
-	return(prev_block);
-}
-
-/** Make the current page as next page of previous page.  In other
-words, make the page m_cur_blob_page_no as the next page
-(FIL_PAGE_NEXT) of page m_prev_page_no.
-@return DB_SUCCESS on success, or error code on failure. */
-dberr_t
-zInserter::append_page()
-{
-	buf_block_t*	prev_block = get_previous_blob_block();
-	page_t*	prev_page = buf_block_get_frame(prev_block);
-
-	mlog_write_ulint(prev_page + FIL_PAGE_NEXT, m_cur_blob_page_no,
-			 MLOG_4BYTES, &m_blob_mtr);
-
-	memcpy(buf_block_get_page_zip(prev_block)->data + FIL_PAGE_NEXT,
-	       prev_page + FIL_PAGE_NEXT, 4);
-
-	return(m_status);
+	DBUG_RETURN(prev_block);
 }
 
 /** Print this blob directory into the given output stream.
@@ -522,6 +540,8 @@ zReader::setup_zstream()
 dberr_t
 zReader::fetch()
 {
+	DBUG_ENTER("zReader::fetch");
+
 	dberr_t	err = DB_SUCCESS;
 
 	ut_ad(m_rctx.is_valid_blob());
@@ -565,6 +585,7 @@ zReader::fetch()
 				<< " returned " << zlib_err
 				<< " (" << m_stream.msg << ")";
 			/* fall through */
+			ut_error;
 		case Z_BUF_ERROR:
 			goto end_of_blob;
 		}
@@ -581,7 +602,7 @@ end_of_blob:
 	inflateEnd(&m_stream);
 	mem_heap_free(m_heap);
 	UNIV_MEM_ASSERT_RW(m_rctx.m_buf, m_stream.total_out);
-	return(err);
+	DBUG_RETURN(err);
 }
 
 #ifdef UNIV_DEBUG
@@ -591,6 +612,17 @@ local prefix is non-empty.
 @return true if local prefix is empty*/
 bool
 zReader::assert_empty_local_prefix()
+{
+	ut_ad(m_rctx.m_local_len == BTR_EXTERN_FIELD_REF_SIZE);
+	return(true);
+}
+
+/** Assert that the local prefix is empty.  For compressed row format,
+there is no local prefix stored.  This function doesn't return if the
+local prefix is non-empty.
+@return true if local prefix is empty*/
+bool
+CompressedReader::assert_empty_local_prefix()
 {
 	ut_ad(m_rctx.m_local_len == BTR_EXTERN_FIELD_REF_SIZE);
 	return(true);
@@ -690,7 +722,7 @@ btr_store_big_rec_extern_fields(
 	must either be zero or they must be pointers to inherited
 	columns, owned by this record or an earlier record version. */
 	for (uint i = 0; i < big_rec_vec->n_fields; i++) {
-		byte* field_ref = btr_rec_get_field_ref(
+		byte*	field_ref = btr_rec_get_field_ref(
 			rec, offsets, big_rec_vec->fields[i].field_no);
 
 		ref_t	blobref(field_ref);
@@ -708,7 +740,10 @@ btr_store_big_rec_extern_fields(
 	/* Refactored compressed BLOB code */
 	if (page_zip != NULL) {
 
-		zInserter	zblob_writer(&ctx);
+		DBUG_EXECUTE_IF("lob_insert_single_zstream",
+				{goto insert_single_zstream;});
+
+		CompressedInserter	zblob_writer(&ctx);
 		error = zblob_writer.prepare();
 		if (error == DB_SUCCESS) {
 			zblob_writer.write();
@@ -720,6 +755,20 @@ btr_store_big_rec_extern_fields(
 		error = blob_writer.write();
 	}
 	return(error);
+#ifdef UNIV_DEBUG
+	{
+insert_single_zstream:
+		/* Insert the LOB as a single zlib stream spanning multiple
+		LOB pages.  This is the old way of storing LOBs. */
+		zInserter	zblob_writer(&ctx);
+		error = zblob_writer.prepare();
+		if (error == DB_SUCCESS) {
+			zblob_writer.write();
+			error = zblob_writer.finish();
+		}
+		return(error);
+	}
+#endif /* UNIV_DEBUG */
 }
 
 /** Copies an externally stored field of a record to mem heap.
@@ -782,7 +831,8 @@ btr_rec_copy_externally_stored_field_func(
 dberr_t
 Inserter::write()
 {
-	/* loop through each of the blob and write one blob at a time. */
+	/* Loop through each blob field of the record and write one blob
+	at a time. */
 	for (ulint i = 0;
 	     i < m_ctx->get_big_rec_vec_size() && m_status == DB_SUCCESS;
 	     i++) {
@@ -835,12 +885,12 @@ Inserter::write_one_blob(ulint blob_j)
 words, make the page m_cur_blob_page_no as the next page of page
 m_prev_page_no. */
 void
-Inserter::append_page()
+Inserter::set_page_next()
 {
 	page_t*	prev_page = get_previous_blob_page();
 
 	mlog_write_ulint(
-		prev_page + FIL_PAGE_DATA + BTR_BLOB_HDR_NEXT_PAGE_NO,
+		prev_page + FIL_PAGE_DATA + LOB_HDR_NEXT_PAGE_NO,
 		m_cur_blob_page_no, MLOG_4BYTES, &m_blob_mtr);
 }
 
@@ -869,7 +919,7 @@ Inserter::write_first_page(
 	log_page_type();
 
 	m_remaining = field.len;
-	write_into_page(field);
+	write_into_single_page(field);
 
 	const ulint	field_no = field.field_no;
 	byte*	field_ref = btr_rec_get_field_ref(
@@ -907,12 +957,12 @@ Inserter::write_single_blob_page(
 		     rec_block->page.size, RW_X_LATCH, mtr);
 
 	alloc_blob_page();
-	append_page();
+	set_page_next();
 	log_page_type();
-	write_into_page(field);
+	write_into_single_page(field);
 	const ulint	field_no = field.field_no;
-	byte*	field_ref = btr_rec_get_field_ref(m_ctx->rec(),
-						m_ctx->get_offsets(), field_no);
+	byte*	field_ref = btr_rec_get_field_ref(
+		m_ctx->rec(), m_ctx->get_offsets(), field_no);
 	ref_t	blobref(field_ref);
 	blobref.set_length(field.len - m_remaining, mtr);
 	m_prev_page_no = m_cur_blob_page_no;
@@ -924,7 +974,7 @@ Inserter::write_single_blob_page(
 /** Write contents into a single BLOB page.
 @param[in]	field		the big record field. */
 void
-Inserter::write_into_page(big_rec_field_t&	field)
+Inserter::write_into_single_page(big_rec_field_t&	field)
 {
 	const ulint	payload_size = payload();
 	const ulint	store_len
@@ -932,14 +982,14 @@ Inserter::write_into_page(big_rec_field_t&	field)
 
 	page_t*	page = buf_block_get_frame(m_cur_blob_block);
 
-	mlog_write_string(page + FIL_PAGE_DATA + BTR_BLOB_HDR_SIZE,
+	mlog_write_string(page + FIL_PAGE_DATA + LOB_HDR_SIZE,
 			  (const byte*) field.data + field.len - m_remaining,
 			  store_len, &m_blob_mtr);
 
-	mlog_write_ulint(page + FIL_PAGE_DATA + BTR_BLOB_HDR_PART_LEN,
+	mlog_write_ulint(page + FIL_PAGE_DATA + LOB_HDR_PART_LEN,
 			 store_len, MLOG_4BYTES, &m_blob_mtr);
 
-	mlog_write_ulint(page + FIL_PAGE_DATA + BTR_BLOB_HDR_NEXT_PAGE_NO,
+	mlog_write_ulint(page + FIL_PAGE_DATA + LOB_HDR_NEXT_PAGE_NO,
 			 FIL_NULL, MLOG_4BYTES, &m_blob_mtr);
 
 	m_remaining -= store_len;
@@ -953,7 +1003,24 @@ inline
 page_no_t
 btr_blob_get_next_page_no(const byte* blob_header)
 {
-	return(mach_read_from_4(blob_header + BTR_BLOB_HDR_NEXT_PAGE_NO));
+	return(mach_read_from_4(blob_header + LOB_HDR_NEXT_PAGE_NO));
+}
+
+/* Obtain an x-latch on the clustered index record page.*/
+void Deleter::x_latch_rec_page()
+{
+	bool		found;
+	page_t*		rec_page = m_ctx.m_blobref.page_align();
+	page_no_t	rec_page_no = page_get_page_no(rec_page);
+	space_id_t	rec_space_id = page_get_space_id(rec_page);
+
+	const page_size_t& rec_page_size = fil_space_get_page_size(
+			rec_space_id, &found);
+	ut_ad(found);
+
+	buf_page_get(
+		page_id_t(rec_space_id, rec_page_no),
+		rec_page_size, RW_X_LATCH, &m_mtr);
 }
 
 /** Free the first page of the BLOB and update the BLOB reference
@@ -974,6 +1041,8 @@ dberr_t	Deleter::free_first_page()
 
 	page_no_t	page_no = m_ctx.m_blobref.page_no();
 	space_id_t	space_id = m_ctx.m_blobref.space_id();
+
+	x_latch_rec_page();
 
 	buf_block_t*	blob_block = buf_page_get(
 		page_id_t(space_id, page_no),
@@ -1000,10 +1069,10 @@ dberr_t	Deleter::free_first_page()
 		m_ctx.m_blobref.set_length(0, nullptr);
 		page_zip_write_blob_ptr(
 			m_ctx.get_page_zip(), m_ctx.m_rec, m_ctx.m_index,
-			m_ctx.m_offsets, m_ctx.m_field_no, m_ctx.m_mtr);
+			m_ctx.m_offsets, m_ctx.m_field_no, &m_mtr);
 	} else {
-		m_ctx.m_blobref.set_page_no(next_page_no, m_ctx.m_mtr);
-		m_ctx.m_blobref.set_length(0, m_ctx.m_mtr);
+		m_ctx.m_blobref.set_page_no(next_page_no, &m_mtr);
+		m_ctx.m_blobref.set_length(0, &m_mtr);
 	}
 
 	/* Commit mtr and release the BLOB block to save memory. */
@@ -1112,7 +1181,7 @@ inline
 ulint
 btr_blob_get_part_len(const byte* blob_header)
 {
-	return(mach_read_from_4(blob_header + BTR_BLOB_HDR_PART_LEN));
+	return(mach_read_from_4(blob_header + LOB_HDR_PART_LEN));
 }
 
 /** Fetch one BLOB page. */
@@ -1144,7 +1213,7 @@ void Reader::fetch_page()
 	part_len = btr_blob_get_part_len(blob_header);
 	copy_len = ut_min(part_len, m_rctx.m_len - m_copied_len);
 
-	memcpy(m_rctx.m_buf + m_copied_len, blob_header + BTR_BLOB_HDR_SIZE,
+	memcpy(m_rctx.m_buf + m_copied_len, blob_header + LOB_HDR_SIZE,
 	       copy_len);
 
 	m_copied_len += copy_len;
@@ -1216,7 +1285,7 @@ btr_copy_externally_stored_field_prefix_func(
 		if (!rctx.is_valid_blob()) {
 			return(0);
 		}
-		zReader	reader(rctx);
+		CompressedReader	reader(rctx);
 		reader.fetch();
 		return(reader.length());
 	}
@@ -1300,8 +1369,7 @@ btr_copy_externally_stored_field_func(
 
 	if (page_size.is_compressed()) {
 		ut_ad(local_len == 0);
-		ut_a(rctx.is_valid_blob());
-		zReader	reader(rctx);
+		CompressedReader	reader(rctx);
 		reader.fetch();
 		*len = reader.length();
 		return(buf);
@@ -1547,6 +1615,407 @@ void BtrContext::free_externally_stored_fields(bool rollback)
 			free_blob.destroy();
 		}
 	}
+}
+
+/** Prepare to write a compressed BLOB. Setup the zlib
+compression stream.
+@return DB_SUCCESS on success, error code on failure. */
+dberr_t CompressedInserter::prepare()
+{
+	int ret = m_fitblk.init(page_zip_level);
+
+	if (ret != 0) {
+		return(DB_FAIL);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/** Write all the BLOBs of the clustered index record.
+@return DB_SUCCESS on success, error code on failure. */
+dberr_t
+CompressedInserter::write()
+{
+	/* loop through each of the blob and write one blob at a time. */
+	for (ulint i = 0;
+	     i < m_ctx->get_big_rec_vec_size() && m_status == DB_SUCCESS;
+	     i++) {
+
+		ut_d(m_dir.clear(););
+		m_status = write_one_blob(i);
+	}
+
+	return(m_status);
+}
+
+
+/** Write one blob field data.
+@param[in]	blob_j	the blob field number
+@return DB_SUCCESS on success, error code on failure. */
+dberr_t
+CompressedInserter::write_one_blob(ulint blob_j)
+{
+	const big_rec_t*	vec = m_ctx->get_big_rec_vec();
+	big_rec_field_t&	field = vec->fields[blob_j];
+
+	m_ctx->check_redolog();
+
+	m_bytes_written = 0;
+
+	m_fitblk.setInputBuffer(field.ptr(), field.len);
+
+	int err = write_first_page(blob_j, field);
+	ut_a(err == Z_OK || err == Z_STREAM_END);
+
+	ulint nth_blob_page;
+	for (nth_blob_page = 1;
+	     m_bytes_written < field.len; ++nth_blob_page) {
+
+		const ulint	commit_freq = 4;
+
+		err = write_single_blob_page(blob_j, field, nth_blob_page);
+		ut_a(err == Z_OK || err == Z_STREAM_END);
+
+		if (nth_blob_page % commit_freq == 0) {
+			m_ctx->check_redolog();
+		}
+	}
+
+	// std::cout << "nth_blob_page: " << nth_blob_page << std::endl;
+	ut_a(m_bytes_written == field.len);
+	m_ctx->make_nth_extern(field.field_no);
+	return(DB_SUCCESS);
+}
+
+/** Write one blob page.  This function will be repeatedly called
+with an increasing nth_blob_page to completely write a BLOB.
+@param[in]	blob_j		the jth blob object of the record.
+@param[in]	field		the big record field.
+@param[in]	nth_blob_page	count of the BLOB page (starting from 1).
+@return code as returned by the zlib. */
+int
+CompressedInserter::write_single_blob_page(
+	int			blob_j,
+	big_rec_field_t&	field,
+	ulint			nth_blob_page)
+{
+	DBUG_ENTER("CompressedInserter::write_single_blob_page");
+
+	ut_ad(nth_blob_page > 0);
+
+	buf_block_t*	rec_block = m_ctx->block();
+	mtr_t*		mtr = start_blob_mtr();
+
+	buf_page_get(rec_block->page.id,
+		     rec_block->page.size, RW_X_LATCH, mtr);
+
+	buf_block_t*	blob_block = alloc_blob_page();
+	page_t*		blob_page  = buf_block_get_frame(blob_block);
+
+	set_page_next();
+
+	m_prev_page_no = page_get_page_no(blob_page);
+
+	log_page_type(blob_page);
+
+	int err = write_into_single_page(field);
+
+	ut_ad(!dict_index_is_spatial(m_ctx->index()));
+
+	DBUG_LOG("lob", "m_bytes_written=" << m_bytes_written);
+	DBUG_LOG("lob", "field.len=" << field.len);
+
+	if (m_bytes_written == field.len) {
+		update_length_in_blobref(field);
+	}
+
+	/* Commit mtr and release uncompressed page frame to save memory.*/
+	blob_free(m_ctx->index(), m_cur_blob_block, FALSE, mtr);
+
+	DBUG_RETURN(err);
+}
+
+/** Write contents into a single BLOB page.
+@param[in]	field	the big record field that is begin written.
+@return code as returned by zlib. */
+int
+CompressedInserter::write_into_single_page(
+	big_rec_field_t&	field)
+{
+	DBUG_ENTER("CompressedInserter::write_into_single_page");
+	mtr_t*	const	mtr = &m_blob_mtr;
+
+	/* Space available in compressed page to carry blob data */
+	const page_size_t page_size = m_ctx->page_size();
+
+	page_t*	blob_page = buf_block_get_frame(m_cur_blob_block);
+	byte*	out = blob_page + ZLOB_PAGE_DATA;
+	uint	size = page_size.physical() - ZLOB_PAGE_DATA;
+
+	m_fitblk.fit(out, size);
+
+	m_bytes_written = m_fitblk.getInputBytes();
+
+	const blob_page_info_t page_info(
+		m_cur_blob_page_no,
+		m_fitblk.getInputBytes(),
+		m_fitblk.getOutputBytes());
+
+#ifdef UNIV_DEBUG
+	add_to_blob_dir(page_info);
+#endif /* UNIV_DEBUG */
+
+	/* Write the "next BLOB page" pointer */
+	mlog_write_ulint(blob_page + FIL_PAGE_NEXT, FIL_NULL,
+			 MLOG_4BYTES, mtr);
+
+	/* Initialize the unused "prev page" pointer */
+	mlog_write_ulint(blob_page + FIL_PAGE_PREV, FIL_NULL,
+			 MLOG_4BYTES, mtr);
+
+	/* Write a back pointer to the record into the otherwise unused area.
+	This information could be useful in debugging.  Later, we might want
+	to implement the possibility to relocate BLOB pages.  Then, we would
+	need to be able to adjust the BLOB pointer in the record.  We do not
+	store the heap number of the record, because it can change in
+	page_zip_reorganize() or btr_page_reorganize().  However, also the
+	page number of the record may change when B-tree nodes are split or
+	merged. */
+	mlog_write_ulint(blob_page + FIL_PAGE_FILE_FLUSH_LSN,
+			 m_ctx->space(), MLOG_4BYTES, mtr);
+
+	mlog_write_ulint(blob_page + FIL_PAGE_FILE_FLUSH_LSN + 4,
+			 m_ctx->get_page_no(), MLOG_4BYTES, mtr);
+
+	mlog_log_string(blob_page + FIL_PAGE_FILE_FLUSH_LSN,
+			page_zip_get_size(m_ctx->get_page_zip())
+			- FIL_PAGE_FILE_FLUSH_LSN, mtr);
+
+	/* Copy the page to compressed storage, because it will be flushed
+	to disk from there. */
+	page_zip_des_t* blob_page_zip = buf_block_get_page_zip(m_cur_blob_block);
+
+	ut_ad(blob_page_zip);
+	ut_ad(page_zip_get_size(blob_page_zip)
+	      == page_zip_get_size(m_ctx->get_page_zip()));
+
+	page_zip_des_t* page_zip = buf_block_get_page_zip(m_ctx->block());
+	memcpy(blob_page_zip->data, blob_page, page_zip_get_size(page_zip));
+
+	DBUG_RETURN(Z_OK);
+}
+
+/** Write first blob page.
+@param[in]	blob_j		the jth blob object of the record.
+@param[in]	field		the big record field.
+@return code as returned by the zlib. */
+int
+CompressedInserter::write_first_page(
+	ulint			blob_j,
+	big_rec_field_t&	field)
+{
+	DBUG_ENTER("CompressedInserter::write_first_page");
+
+	buf_block_t*	rec_block = m_ctx->block();
+	mtr_t*		mtr = start_blob_mtr();
+
+	buf_page_get(rec_block->page.id,
+		     rec_block->page.size, RW_X_LATCH, mtr);
+
+	buf_block_t*	blob_block = alloc_blob_page();
+
+	if (dict_index_is_online_ddl(m_ctx->index())) {
+		row_log_table_blob_alloc(m_ctx->index(),
+					 m_cur_blob_page_no);
+	}
+
+	page_t*	blob_page  = buf_block_get_frame(blob_block);
+
+	log_page_type(blob_page);
+
+	int	err = write_into_single_page(field);
+
+	ut_ad(!dict_index_is_spatial(m_ctx->index()));
+
+	const ulint	field_no = field.field_no;
+	byte*	field_ref = btr_rec_get_field_ref(
+		m_ctx->rec(), m_ctx->get_offsets(), field_no);
+	ref_t	blobref(field_ref);
+
+	if (m_bytes_written == field.len) {
+		blobref.set_length(m_bytes_written, nullptr);
+	} else {
+		blobref.set_length(0, nullptr);
+	}
+
+	blobref.update(m_ctx->space(), m_cur_blob_page_no,
+		       ZLOB_PAGE_DATA, NULL);
+
+	/* After writing the first blob page, update the blob reference. */
+	if (!m_ctx->is_bulk()) {
+		m_ctx->zblob_write_blobref(field_no, &m_blob_mtr);
+	}
+
+	m_prev_page_no = page_get_page_no(blob_page);
+
+	/* Commit mtr and release uncompressed page frame to save memory.*/
+	blob_free(m_ctx->index(), m_cur_blob_block, FALSE, mtr);
+
+	DBUG_LOG("CompressedInserter", "err=" << err);
+
+	DBUG_RETURN(err);
+}
+
+/** Make the current page as next page of previous page.  In other
+words, make the page m_cur_blob_page_no as the next page
+(FIL_PAGE_NEXT) of page m_prev_page_no.
+@return DB_SUCCESS on success, or error code on failure. */
+dberr_t
+CompressedInserter::set_page_next()
+{
+	buf_block_t*	prev_block = get_previous_blob_block();
+	page_t*		prev_page = buf_block_get_frame(prev_block);
+
+	mlog_write_ulint(prev_page + FIL_PAGE_NEXT, m_cur_blob_page_no,
+			 MLOG_4BYTES, &m_blob_mtr);
+
+	memcpy(buf_block_get_page_zip(prev_block)->data + FIL_PAGE_NEXT,
+	       prev_page + FIL_PAGE_NEXT, 4);
+
+	return(m_status);
+}
+
+/** For the given blob field, update its length in the blob reference
+which is available in the clustered index record.
+@param[in]	field	the concerned blob field. */
+void
+CompressedInserter::update_length_in_blobref(big_rec_field_t& field)
+{
+	DBUG_ENTER("CompressedInserter::update_length_in_blobref");
+
+	/* After writing the last blob page, update the blob reference
+	with the correct length. */
+
+	const ulint	field_no = field.field_no;
+	byte*	field_ref = btr_rec_get_field_ref(
+		m_ctx->rec(), m_ctx->get_offsets(), field_no);
+
+	ref_t	blobref(field_ref);
+	blobref.set_length(m_bytes_written, nullptr);
+
+	DBUG_LOG("lob", blobref);
+
+	if (!m_ctx->is_bulk()) {
+		m_ctx->zblob_write_blobref(field_no, &m_blob_mtr);
+	}
+
+	DBUG_VOID_RETURN;
+}
+
+/** Cleanup after completing the write of compressed BLOB.
+@return DB_SUCCESS on success, error code on failure. */
+dberr_t	CompressedInserter::finish()
+{
+	m_fitblk.destroy();
+	return(m_status);
+}
+
+/** Fetch the BLOB.
+@return DB_SUCCESS on success, DB_FAIL on error. */
+dberr_t
+CompressedReader::fetch()
+{
+	DBUG_ENTER("CompressedReader::fetch");
+
+	dberr_t	err = DB_SUCCESS;
+	ut_ad(assert_empty_local_prefix());
+
+	ut_d(m_page_type_ex = m_rctx.is_sdi() ? FIL_PAGE_SDI_ZBLOB : FIL_PAGE_TYPE_ZBLOB3);
+
+	m_remaining = length();
+
+	if (m_remaining > m_rctx.m_blobref.length()) {
+		m_remaining = m_rctx.m_blobref.length();
+		set_length(m_remaining);
+	}
+
+	if (m_remaining == 0) {
+		DBUG_RETURN(DB_SUCCESS);
+	}
+
+	if (is_single_zstream()) {
+		zReader	reader(m_rctx);
+		err = reader.fetch();
+		ut_ad(length() == reader.length());
+		DBUG_RETURN(err);
+	}
+
+	m_unfit.init();
+	m_unfit.setOutput(m_rctx.m_buf, m_rctx.m_len);
+
+	while (m_unfit.m_total_out < m_rctx.m_len) {
+
+		if (m_rctx.m_page_no == FIL_NULL) {
+			break;
+		}
+
+		err = fetch_page();
+		if (err != DB_SUCCESS) {
+			break;
+		}
+		byte*	ptr = m_bpage->zip.data + ZLOB_PAGE_DATA;
+		uint	payload = getPayloadSize();
+
+		m_unfit.unfit(ptr, payload);
+
+		buf_page_release_zip(m_bpage);
+		ut_d(if (!m_rctx.m_is_sdi) m_page_type_ex = FIL_PAGE_TYPE_ZBLOB3);
+	}
+
+	UNIV_MEM_ASSERT_RW(m_rctx.m_buf, m_rctx.m_len);
+	DBUG_RETURN(err);
+}
+
+/** Check if the LOB is stored as a single zlib stream.  In the older
+approach, the LOB was stored as a single zlib stream.
+@return true if stored as a single stream, false otherwise. */
+bool
+CompressedReader::is_single_zstream()
+{
+	bool	single = false;
+
+	buf_page_t*	bpage = buf_page_get_zip(
+		page_id_t(m_rctx.m_space_id, m_rctx.m_page_no),
+		m_rctx.m_page_size);
+
+	if (fil_page_get_type(bpage->zip.data) == FIL_PAGE_TYPE_ZBLOB) {
+		/* The LOB is stored as a single zlib stream.  This is the
+		old way of storing LOB.  Use zReader. */
+		single = true;
+	}
+
+	buf_page_release_zip(bpage);
+
+	return(single);
+}
+
+dberr_t
+CompressedReader::fetch_page()
+{
+	dberr_t	err(DB_SUCCESS);
+
+	m_bpage = buf_page_get_zip(
+		page_id_t(m_rctx.m_space_id, m_rctx.m_page_no),
+		m_rctx.m_page_size);
+
+	ut_a(m_bpage != NULL);
+	ut_ad(fil_page_get_type(m_bpage->zip.data) == m_page_type_ex);
+	m_rctx.m_page_no = mach_read_from_4(m_bpage->zip.data + FIL_PAGE_NEXT);
+
+	DBUG_LOG("lob", "Reading LOB from: " << (void *) m_bpage->zip.data);
+
+	m_rctx.m_offset = ZLOB_PAGE_DATA;
+	return(err);
 }
 
 } // namespace lob

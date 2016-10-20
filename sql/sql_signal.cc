@@ -15,13 +15,25 @@
 
 #include "sql_signal.h"
 
-#include "mysqld_error.h"      // ER_*
+#include <sys/types.h>
+
 #include "derror.h"            // ER_THD
 #include "item.h"              // Item
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_error.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_error.h"
+#include "mysqld_error.h"      // ER_*
 #include "sp_pcontext.h"       // sp_condition_value
 #include "sp_rcontext.h"       // sp_rcontext
 #include "sql_class.h"         // THD
-#include "mysql/psi/mysql_error.h"
+#include "sql_lex.h"
+#include "sql_servers.h"
+#include "sql_string.h"
 
 
 /*

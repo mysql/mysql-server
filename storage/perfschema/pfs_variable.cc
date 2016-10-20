@@ -63,14 +63,15 @@ PFS_variable_cache<Var_type>::PFS_variable_cache(bool external_init)
 { }
 
 
-// Explicit template instantiation
-template
-PFS_variable_cache<System_variable>::PFS_variable_cache(bool external_init);
-
-
 /**
   CLASS PFS_system_variable_cache
 */
+
+PFS_system_variable_cache::
+PFS_system_variable_cache(bool external_init)
+  : PFS_variable_cache<System_variable>(external_init),
+    m_mem_thd(NULL), m_mem_thd_save(NULL), m_mem_sysvar_ptr(NULL)
+{}
 
 /**
   Build a sorted list of all system variables from the system variable hash.
@@ -1348,12 +1349,10 @@ void Status_variable::init(const SHOW_VAR *show_var, System_status_var *status_v
   m_type= show_var->type;
   m_scope= show_var->scope;
 
-  const CHARSET_INFO *charset= system_charset_info;
-
   /* Get the value of the status variable. */
   const char *value;
   value= get_one_variable(current_thd, show_var, query_scope, m_type,
-                          status_vars, &charset, m_value_str, &m_value_length);
+                          status_vars, &m_charset, m_value_str, &m_value_length);
   m_value_length= MY_MIN(m_value_length, SHOW_VAR_FUNC_BUFF_SIZE);
 
   /* Returned value may reference a string other than m_value_str. */

@@ -18,6 +18,8 @@
 #ifndef ABSTRACT_CRAWLER_INCLUDED
 #define ABSTRACT_CRAWLER_INCLUDED
 
+#include <functional>
+
 #include "i_crawler.h"
 #include "abstract_chain_element.h"
 #include "i_chain_maker.h"
@@ -51,7 +53,7 @@ public:
 
 protected:
   Abstract_crawler(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, Simple_id_generator* object_id_generator,
       Mysql::Tools::Base::Abstract_program* program);
   /**

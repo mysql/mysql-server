@@ -24,6 +24,7 @@
 
 #include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
 #include "dd/object_id.h"                   // Object_id typedef
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
 
 #include <rapidjson/document.h>     // rapidjson::GenericValue
 #include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
@@ -68,11 +69,11 @@ class Index;
 class Properties;
 template <typename T> class Collection;
 /**
-   Factory function for creating a Property object from std::string.
+   Factory function for creating a Property object from String_type.
 
    @param str string representation of properties
  */
-Properties *parse_properties(const std::string &str);
+Properties *parse_properties(const String_type &str);
 
 class Sdi_wcontext;
 
@@ -91,7 +92,7 @@ char *buf_handle(Sdi_wcontext *wctx, size_t sz);
   @return schema name to use.
 */
 
-const std::string &lookup_schema_name(Sdi_wcontext *wctx);
+const String_type &lookup_schema_name(Sdi_wcontext *wctx);
 
 /**
   @param wctx opaque context
@@ -99,7 +100,7 @@ const std::string &lookup_schema_name(Sdi_wcontext *wctx);
   @return tablespace name
 */
 
-const std::string &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id);
+const String_type &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id);
 
 class Sdi_rcontext;
 
@@ -173,7 +174,7 @@ char *buf_handle(Sdi_rcontext *rctx, size_t sz);
   @return MySQL error handling.
   */
 
-bool lookup_schema_ref(Sdi_rcontext *rctx, const std::string &name,
+bool lookup_schema_ref(Sdi_rcontext *rctx, const String_type &name,
                        Object_id *idp);
 
 /**
@@ -188,7 +189,7 @@ bool lookup_schema_ref(Sdi_rcontext *rctx, const std::string &name,
 
   */
 
-bool lookup_tablespace_ref(Sdi_rcontext *rctx, const std::string &name,
+bool lookup_tablespace_ref(Sdi_rcontext *rctx, const String_type &name,
                            Object_id *idp);
 
 } // namespace dd
@@ -205,7 +206,7 @@ bool lookup_tablespace_ref(Sdi_rcontext *rctx, const std::string &name,
   @{
 */
 
-typedef std::string binary_t;
+typedef dd::String_type binary_t;
 template <typename T, size_t PREALLOC=16>
 struct dd_vector :
   public Prealloced_array<T, PREALLOC,
@@ -316,19 +317,19 @@ bool read_value(ulonglong *ap, const GV &gv)
 }
 
 template <typename W>
-void write_value(W *w, const std::string &a)
+void write_value(W *w, const dd::String_type &a)
 {
   w->String(a.c_str(), a.size());
 }
 
 template <typename GV>
-bool read_value(std::string *ap, const GV &gv)
+bool read_value(dd::String_type *ap, const GV &gv)
 {
   if (!gv.IsString())
   {
     return true;
   }
-  *ap= std::string(gv.GetString(), gv.GetStringLength());
+  *ap= dd::String_type(gv.GetString(), gv.GetStringLength());
   return false;
 }
 /** @} */ // value_overloads
@@ -444,7 +445,7 @@ void write_properties(W *w, const PP &p, const char *key, size_t keysz)
 template <typename PP, typename GV>
 bool read_properties(PP *p, const GV &gv, const char *key)
 {
-  std::string raw_string;
+  dd::String_type raw_string;
   if (read(&raw_string, gv, key))
   {
     return true;
@@ -483,7 +484,7 @@ template <typename GV>
 bool deserialize_schema_ref(dd::Sdi_rcontext *rctx, dd::Object_id *p,
                                   const GV &gv, const char *key)
 {
-  std::string schema_name;
+  dd::String_type schema_name;
   return (read(&schema_name, gv, key) ||
           lookup_schema_ref(rctx, schema_name, p));
 }
@@ -499,7 +500,7 @@ void serialize_tablespace_ref(dd::Sdi_wcontext *wctx, W *w,
     // tablespaces
     return;
   }
-  const std::string &tablespace_name=
+  const dd::String_type &tablespace_name=
     lookup_tablespace_name(wctx, tablespace_id);
   if (tablespace_name.empty())
   {
@@ -513,7 +514,7 @@ template <typename GV>
 bool deserialize_tablespace_ref(dd::Sdi_rcontext *rctx, dd::Object_id *p,
                                 const GV &gv, const char *key)
 {
-  std::string tablespace_name;
+  dd::String_type tablespace_name;
   if (read(&tablespace_name, gv, key))
   {
     return false; // Ok not to have this

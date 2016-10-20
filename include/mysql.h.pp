@@ -1,6 +1,9 @@
 typedef char my_bool;
 typedef unsigned long long my_ulonglong;
 typedef int my_socket;
+#include "mem_root_fwd.h"
+struct st_mem_root;
+typedef struct st_mem_root MEM_ROOT;
 #include "mysql_version.h"
 #include "mysql_com.h"
 #include "binary_log_types.h"
@@ -268,65 +271,7 @@ mysql_client_register_plugin(struct st_mysql *mysql,
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
 #include "typelib.h"
-#include "my_alloc.h"
-#include "mysql/psi/psi_memory.h"
-#include "my_psi_config.h"
-#include "my_config.h"
-typedef unsigned int PSI_memory_key;
-struct PSI_thread;
-struct PSI_memory_bootstrap
-{
-  void* (*get_interface)(int version);
-};
-typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
-struct PSI_memory_info_v1
-{
-  PSI_memory_key *m_key;
-  const char *m_name;
-  int m_flags;
-};
-typedef struct PSI_memory_info_v1 PSI_memory_info_v1;
-typedef void (*register_memory_v1_t)
-  (const char *category, struct PSI_memory_info_v1 *info, int count);
-typedef PSI_memory_key (*memory_alloc_v1_t)
-  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
-typedef PSI_memory_key (*memory_realloc_v1_t)
-  (PSI_memory_key key, size_t old_size, size_t new_size, struct PSI_thread ** owner);
-typedef PSI_memory_key (*memory_claim_v1_t)
-  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
-typedef void (*memory_free_v1_t)
-  (PSI_memory_key key, size_t size, struct PSI_thread * owner);
-struct PSI_memory_service_v1
-{
-  register_memory_v1_t register_memory;
-  memory_alloc_v1_t memory_alloc;
-  memory_realloc_v1_t memory_realloc;
-  memory_claim_v1_t memory_claim;
-  memory_free_v1_t memory_free;
-};
-typedef struct PSI_memory_service_v1 PSI_memory_service_t;
-typedef struct PSI_memory_info_v1 PSI_memory_info;
-typedef struct st_used_mem
-{
-  struct st_used_mem *next;
-  unsigned int left;
-  unsigned int size;
-} USED_MEM;
-typedef struct st_mem_root
-{
-  USED_MEM *free;
-  USED_MEM *used;
-  USED_MEM *pre_alloc;
-  size_t min_malloc;
-  size_t block_size;
-  unsigned int block_num;
-  unsigned int first_block_usage;
-  size_t max_capacity;
-  size_t allocated_size;
-  my_bool error_for_capacity_exceeded;
-  void (*error_handler)(void);
-  PSI_memory_key m_psi_key;
-} MEM_ROOT;
+#include "mem_root_fwd.h"
 typedef struct st_typelib {
   unsigned int count;
   const char *name;
@@ -345,7 +290,6 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, unsigned int default_name,
                               my_ulonglong cur_set, my_ulonglong default_set,
                               const char *str, unsigned int length,
                               char **err_pos, unsigned int *err_len);
-#include "my_alloc.h"
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
 typedef struct st_mysql_field {
@@ -383,7 +327,7 @@ typedef struct embedded_query_result EMBEDDED_QUERY_RESULT;
 typedef struct st_mysql_data {
   MYSQL_ROWS *data;
   struct embedded_query_result *embedded_info;
-  MEM_ROOT alloc;
+  MEM_ROOT *alloc;
   my_ulonglong rows;
   unsigned int fields;
   void *extension;
@@ -484,7 +428,7 @@ typedef struct st_mysql
   char *info, *db;
   struct charset_info_st *charset;
   MYSQL_FIELD *fields;
-  MEM_ROOT field_alloc;
+  MEM_ROOT *field_alloc;
   my_ulonglong affected_rows;
   my_ulonglong insert_id;
   my_ulonglong extra_info;
@@ -521,7 +465,7 @@ typedef struct st_mysql_res {
   const struct st_mysql_methods *methods;
   MYSQL_ROW row;
   MYSQL_ROW current_row;
-  MEM_ROOT field_alloc;
+  MEM_ROOT *field_alloc;
   unsigned int field_count, current_field;
   my_bool eof;
   my_bool unbuffered_fetch_cancelled;
@@ -681,7 +625,7 @@ typedef struct st_mysql_bind
 struct st_mysql_stmt_extension;
 typedef struct st_mysql_stmt
 {
-  MEM_ROOT mem_root;
+  MEM_ROOT *mem_root;
   LIST list;
   MYSQL *mysql;
   MYSQL_BIND *params;

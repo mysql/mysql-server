@@ -16,45 +16,74 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_table.h"
+#include "sql_alloc.h"
+#include "sql_const.h"
+#include "sql_list.h"
+#include "sql_plist.h"
+#include "sql_plugin_ref.h"
+#include "system_variables.h"
+#include "thr_lock.h"
+#include "typelib.h"
+
+class Field;
+class Item;
+class String;
+class THD;
+class partition_info;
+struct TABLE;
+struct TABLE_LIST;
+struct TABLE_SHARE;
 
 #ifndef MYSQL_CLIENT
 
-#include "hash.h"          // HASH
+#include "enum_query_type.h" // enum_query_type
 #include "handler.h"       // row_type
 #include "mdl.h"           // MDL_wait_for_subgraph
-#include "enum_query_type.h" // enum_query_type
 #include "opt_costmodel.h" // Cost_model_table
 #include "record_buffer.h" // Record_buffer
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
 
-/* Structs that defines the TABLE */
-class File_parser;
-class Item_subselect;
-class Item_field;
-class GRANT_TABLE;
-class SELECT_LEX_UNIT;
-class COND_EQUAL;
-class Security_context;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
+class COND_EQUAL;
+/* Structs that defines the TABLE */
+class File_parser;
+class GRANT_TABLE;
+class Index_hint;
+class Item_field;
+class Query_result_union;
+class SELECT_LEX_UNIT;
+class Security_context;
 class Table_cache_element;
 class Table_trigger_dispatcher;
-class QEP_TAB;
-class Query_result_union;
 class Temp_table_param;
-class Index_hint;
-struct Name_resolution_context;
 struct LEX;
+
 typedef int8 plan_idx;
 class Opt_hints_qb;
 class Opt_hints_table;
 class SELECT_LEX;
+
 namespace dd {
   class Table;
   class View;
+
   enum class enum_table_type;
 }
 
@@ -629,11 +658,15 @@ struct TABLE_SHARE
   LEX_STRING normalized_path;		/* unpack_filename(path) */
   LEX_STRING connect_string;
 
-  /* 
-     Set of keys in use, implemented as a Bitmap.
-     Excludes keys disabled by ALTER TABLE ... DISABLE KEYS.
+  /**
+    The set of indexes that are not disabled for this table. I.e. it excludes
+    indexes disabled by `ALTER TABLE ... DISABLE KEYS`, however it does
+    include invisible indexes. The data dictionary populates this bitmap.
   */
   Key_map keys_in_use;
+
+  /// The set of visible and enabled indexes for this table.
+  Key_map visible_indexes;
   Key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
@@ -961,6 +994,18 @@ struct TABLE_SHARE
 
   bool wait_for_old_version(THD *thd, struct timespec *abstime,
                             uint deadlock_weight);
+
+  /**
+    The set of indexes that the optimizer may use when creating an execution
+    plan.
+   */
+  Key_map usable_indexes() const
+  {
+    Key_map usable_indexes(keys_in_use);
+    usable_indexes.intersect(visible_indexes);
+    return usable_indexes;
+  }
+
   /** Release resources and free memory occupied by the table share. */
   void destroy();
 };
@@ -1880,8 +1925,6 @@ struct TABLE_LIST
   /// Reset table
   void reset();
 
-  void calc_md5(char *buffer);
-
   /// Evaluate the check option of a view
   int view_check_option(THD *thd) const;
 
@@ -1999,6 +2042,12 @@ struct TABLE_LIST
 
   /// Set table as insertable-into. (per default, a table is not insertable)
   void set_insertable() { m_insertable= true; }
+
+  /**
+    Set table as readonly, ie it is neither updatable, insertable nor
+    deletable during this statement.
+  */
+  void set_readonly() { m_updatable= false; m_insertable= false; }
 
   /**
     Return true if this is a view or derived table that is defined over
@@ -2482,19 +2531,11 @@ public:
   Item          *check_option;          ///< WITH CHECK OPTION condition
   Item          *replace_filter;        ///< Filter for REPLACE command
   LEX_STRING    select_stmt;            ///< text of (CREATE/SELECT) statement
-  LEX_STRING    md5;                    ///< md5 of query text
   LEX_STRING    source;                 ///< source of CREATE VIEW
   LEX_CSTRING   view_db;                ///< saved view database
   LEX_CSTRING   view_name;              ///< saved view name
   LEX_STRING    timestamp;              ///< GMT time stamp of last operation
   st_lex_user   definer;                ///< definer of view
-  /*
-    This variable in is only used to read .frm file for views.
-    It should not be used any where else in the code. It is only used
-    in upgrade scenario for migrating old data directory to be compatible
-    with current server. It will be removed in future release.
-  */
-  ulonglong     file_version;           ///< version of file's field set
   /**
     @note: This field is currently not reliable when read from dictionary:
     If an underlying view is changed, updatable_view is not changed,
@@ -2533,7 +2574,12 @@ private:
   bool          m_insertable;           /* VIEW/TABLE can be inserted into */
 public:
   bool		straight;		/* optimize with prev table */
-  bool          updating;               /* for replicate-do/ignore table */
+  /**
+    True for tables and views being changed in a data change statement.
+    Also used by replication to filter out statements that can be ignored,
+    especially important for multi-table UPDATE and DELETE.
+  */
+  bool          updating;
   bool		force_index;		/* prefer index over table scan */
   bool          ignore_leaves;          /* preload only non-leaf nodes */
   table_map     dep_tables;             /* tables the table depends on      */

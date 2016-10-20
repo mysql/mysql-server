@@ -1569,8 +1569,8 @@ recv_parse_or_apply_log_rec_body(
 		ut_ad(block == NULL);
 		/* Collect the file names when parsing the log,
 		before applying any log records. */
-		DBUG_RETURN(fil_name_parse(ptr, end_ptr, space_id, page_no, type,
-				      apply));
+		DBUG_RETURN(fil_name_parse(ptr, end_ptr, space_id,
+					   page_no, type, apply));
 	case MLOG_INDEX_LOAD:
 		if (end_ptr < ptr + 8) {
 			DBUG_RETURN(NULL);
@@ -1579,9 +1579,10 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_WRITE_STRING:
 		/* For encrypted tablespace, we need to get the
 		encryption key information before the page 0 is recovered.
-	        Otherwise, redo will not find the key to decrypt
+		Otherwise, redo will not find the key to decrypt
 		the data pages. */
-		if (page_no == 0 && !is_system_tablespace(space_id)
+		if (page_no == 0
+		    && !fsp_is_system_or_temp_tablespace(space_id)
 		    && !apply) {
 			DBUG_RETURN(fil_write_encryption_parse(ptr,
 							  end_ptr,

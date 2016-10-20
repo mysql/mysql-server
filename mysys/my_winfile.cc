@@ -396,9 +396,9 @@ my_off_t my_win_lseek(File fd, my_off_t pos, int whence)
 
   DBUG_ENTER("my_win_lseek");
 
-  /* Check compatibility of Windows and Posix seek constants */
-  compile_time_assert(FILE_BEGIN == SEEK_SET && FILE_CURRENT == SEEK_CUR 
-    && FILE_END == SEEK_END);
+  static_assert(FILE_BEGIN == SEEK_SET && FILE_CURRENT == SEEK_CUR
+                  && FILE_END == SEEK_END,
+                "Windows and POSIX seek constants must be compatible.");
 
   offset.QuadPart= pos;
   if(!SetFilePointerEx(my_get_osfhandle(fd), offset, &newpos, whence))

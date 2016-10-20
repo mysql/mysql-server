@@ -16,25 +16,31 @@
 
 #include "event_db_repository.h"
 
-#include "dd/dd_event.h"
-#include "dd/cache/dictionary_client.h" // fetch_schema_components
-#include "dd/dd_schema.h"
+#include <vector>
 
-#include "sql_base.h"                   // close_thread_tables
-#include "key.h"                        // key_copy
-#include "sql_db.h"                     // get_default_db_collation
-#include "sql_time.h"                   // interval_type_to_name
-#include "tztime.h"                     // struct Time_zone
-#include "auth_common.h"                // SUPER_ACL
-#include "sp_head.h"
+#include "auth_acls.h"
+#include "dd/cache/dictionary_client.h" // fetch_schema_components
+#include "dd/dd_event.h"
+#include "dd/dd_schema.h"
+#include "dd/string_type.h"
+#include "dd/types/event.h"
+#include "dd/types/schema.h"
+#include "derror.h"
 #include "event_data_objects.h"
 #include "event_parse_data.h"
-#include "events.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sp_head.h"
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_security_ctx.h"
 #include "sql_show.h"
-#include "log.h"
-#include "lock.h"                       // lock_object_name
-#include "derror.h"
+#include "table.h"
+#include "template_utils.h"
 #include "transaction.h"
+#include "tztime.h"                     // struct Time_zone
 
 /**
   @addtogroup Event_Scheduler
@@ -112,8 +118,6 @@ static bool index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
     }
   }
 
-  delete_container_pointers(events);
-
   DBUG_RETURN(false);
 }
 
@@ -132,6 +136,8 @@ static bool index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
 static bool table_scan_all_for_i_s(THD *thd, TABLE *schema_table)
 {
   DBUG_ENTER("table_scan_all_for_i_s");
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Fetch all Schemas
   std::vector<const dd::Schema*> schemas;
@@ -164,10 +170,7 @@ static bool table_scan_all_for_i_s(THD *thd, TABLE *schema_table)
       }
     }
 
-    delete_container_pointers(events);
   }
-
-  delete_container_pointers(schemas);
 
   DBUG_RETURN(false);
 }
@@ -436,8 +439,6 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
       DBUG_RETURN(true);
     }
   }
-
-  delete_container_pointers(events);
 
   DBUG_RETURN(false);
 }

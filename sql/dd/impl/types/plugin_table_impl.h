@@ -67,8 +67,8 @@ public:
   virtual bool hidden() const
   { return false; }
 
-  Plugin_table_impl(const std::string &name, const std::string &definition,
-                    const std::string &options, uint version)
+  Plugin_table_impl(const String_type &name, const String_type &definition,
+                    const String_type &options, uint version)
   {
     m_target_def.set_table_name(name);
     m_target_def.set_table_definition(definition);
@@ -79,7 +79,7 @@ public:
   virtual ~Plugin_table_impl()
   { }
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return m_target_def.get_table_name(); }
 };
 

@@ -15,12 +15,26 @@
 
 #include "dd/impl/tables/tables.h"
 
+#include <memory>
+#include <new>
+
 #include "dd/dd.h"                         // dd::create_object
-#include "dd/impl/transaction_impl.h"      // dd::Open_dictionary_tables_ctx
+#include "dd/impl/object_key.h"
 #include "dd/impl/raw/object_keys.h"       // dd::Item_name_key
 #include "dd/impl/raw/raw_record.h"        // dd::Raw_record
 #include "dd/impl/raw/raw_table.h"         // dd::Raw_table
+#include "dd/impl/transaction_impl.h"      // dd::Open_dictionary_tables_ctx
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "dd/types/abstract_table.h"
+#include "dd/types/table.h"
 #include "dd/types/view.h"                 // dd::View
+#include "my_dbug.h"
+#include "mysql_com.h"
+#include "system_variables.h"
+
+namespace dd {
+class Dictionary_object;
+}  // namespace dd
 
 namespace dd {
 namespace tables {
@@ -47,7 +61,7 @@ Tables::Tables()
   m_target_def.add_field(FIELD_NAME,
                          "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE " +
-                         std::string(Object_table_definition_impl::
+                         String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
   m_target_def.add_field(FIELD_TYPE,
                          "FIELD_TYPE",
@@ -185,7 +199,7 @@ Dictionary_object *Tables::create_dictionary_object(
 
 bool Tables::update_object_key(Item_name_key *key,
                                Object_id schema_id,
-                               const std::string &table_name)
+                               const String_type &table_name)
 {
   char buf[NAME_LEN + 1];
   key->update(FIELD_SCHEMA_ID, schema_id, FIELD_NAME,
@@ -196,7 +210,7 @@ bool Tables::update_object_key(Item_name_key *key,
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tables::update_aux_key(Se_private_id_key *key,
-                            const std::string &engine,
+                            const String_type &engine,
                             ulonglong se_private_id)
 {
   const int SE_PRIVATE_ID_INDEX_ID= 2;
@@ -212,7 +226,7 @@ bool Tables::update_aux_key(Se_private_id_key *key,
 
 /* purecov: begin deadcode */
 Object_key *Tables::create_se_private_key(
-  const std::string &engine,
+  const String_type &engine,
   Object_id se_private_id)
 {
   const int SE_PRIVATE_ID_INDEX_ID= 2;
@@ -267,7 +281,7 @@ Object_id Tables::read_se_private_id(const Raw_record &r)
 */
 /* purecov: begin deadcode */
 bool Tables::max_se_private_id(Open_dictionary_tables_ctx *otx,
-                               const std::string &engine,
+                               const String_type &engine,
                                ulonglong *max_id)
 {
   std::unique_ptr<Object_key> key(

@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 #include "sql_class.h"
+#include "dd/impl/system_registry.h"          // dd::System_tables
 
 namespace dd {
 
@@ -70,7 +71,7 @@ bool find_files_with_metadata(THD *thd, const char *dbname,
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
 */
-bool find_schema_from_datadir(THD *thd, std::vector<std::string> *db_name);
+bool find_schema_from_datadir(THD *thd, std::vector<String_type> *db_name);
 
 /**
   Get collation id for database collation from db.opt file.
@@ -141,9 +142,11 @@ void create_metadata_backup(THD *thd);
   mysql.innodb_table_stats and mysql.innodb_index_stats tables
   are not deleted in case upgrade fails.
 
-  @param[in]  thd        Thread handle.
+  @param[in] thd         Thread handle.
+  @param[in] last_table  iterator bound to delete dictionary tables.
 */
-void drop_dd_tables_and_sdi_files(THD *thd);
+void drop_dd_tables_and_sdi_files(THD *thd,
+       const System_tables::Const_iterator &last_table);
 
 } // namespace dd
 #endif // DD_UPGRADE_INCLUDED

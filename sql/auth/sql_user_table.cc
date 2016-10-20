@@ -13,32 +13,67 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "table.h"                      /* TABLE_FIELD_TYPE */
-#include "m_string.h"                   /* C_STRING_WITH_LEN */
-#include "transaction.h"                /* trans_commit_stmt */
-                                        /* trans_commit_implicit */
-#include "sql_parse.h"                  /* stmt_causes_implicit_commit */
-#include "sql_base.h"                   /* close_thread_tables */
+#include "my_config.h"
+
+#include <stddef.h>
+#include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+#include <set>
+
+#include "auth_acls.h"
+#include "auth_common.h"
+#include "auth_internal.h"
+#include "binary_log_types.h"
+#include "binlog.h"                     /* mysql_bin_log.is_open() */
+#include "field.h"
+#include "handler.h"
+#include "hash.h"
+#include "item_func.h"                  /* mqh_used */
 #include "key.h"                        /* key_copy, key_cmp_if_same */
                                         /* key_restore */
 #include "log.h"                        /* sql_print_warning */
+#include "m_ctype.h"
+#include "m_string.h"                   /* C_STRING_WITH_LEN */
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysql_time.h"
+#include "mysqld_error.h"
 #include "rpl_filter.h"                 /* rpl_filter */
-#include "sql_plugin.h"                 // plugin_is_ready
-
-#include "auth_internal.h"
+#include "session_tracker.h"
+#include "sql_admin.h"
 #include "sql_auth_cache.h"
-#include "sql_user_table.h"
 #include "sql_authentication.h"
+#include "sql_base.h"                   /* close_thread_tables */
 #include "sql_class.h"
-#include "field.h"
-
-#include "tztime.h"
-#include "sql_time.h"
-#include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
-#include "item_func.h"                  /* mqh_used */
-#include "sql_update.h"                 /* compare_records */
-#include "binlog.h"                     /* mysql_bin_log.is_open() */
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+                                        /* trans_commit_implicit */
+#include "sql_parse.h"                  /* stmt_causes_implicit_commit */
+#include "sql_plugin.h"                 // plugin_is_ready
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 #include "sql_table.h"                  /* write_bin_log */
+#include "sql_update.h"                 /* compare_records */
+#include "sql_user_table.h"
+#include "system_variables.h"
+#include "table.h"                      /* TABLE_FIELD_TYPE */
+#include "thr_lock.h"
+#include "transaction.h"                /* trans_commit_stmt */
+#include "typelib.h"
+#include "tztime.h"
+#include "violite.h"
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {

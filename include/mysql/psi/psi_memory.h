@@ -16,7 +16,12 @@
 #ifndef MYSQL_PSI_MEMORY_H
 #define MYSQL_PSI_MEMORY_H
 
+#ifndef MYSQL_ABI_CHECK
+#include <sys/types.h>
+#endif
+
 #include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
 
 /*
   MAINTAINER:
@@ -202,9 +207,7 @@ typedef struct PSI_placeholder PSI_memory_service_t;
 typedef struct PSI_placeholder PSI_memory_info;
 #endif
 
-#ifdef MY_GLOBAL_INCLUDED  /* Don't expose to client code. */
 extern MYSQL_PLUGIN_IMPORT PSI_memory_service_t *psi_memory_service;
-#endif
 
 #ifdef __cplusplus
 }

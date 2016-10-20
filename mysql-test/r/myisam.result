@@ -3,6 +3,7 @@ SET SQL_WARNINGS=1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET @default_table_open_cache = @@table_open_cache;
 CREATE TABLE t1 (
 STRING_DATA char(255) default NULL,
 KEY string_data (STRING_DATA)
@@ -2039,7 +2040,7 @@ WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
 TABLE_ROWS	DATA_LENGTH
 0	0
 DROP TABLE t1;
-SET GLOBAL table_open_cache=DEFAULT;
+SET GLOBAL table_open_cache= @default_table_open_cache;
 End of 5.0 tests
 create table t1 (a int not null, key `a` (a) key_block_size=1024);
 show create table t1;

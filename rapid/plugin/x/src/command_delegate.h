@@ -28,7 +28,7 @@
 
 namespace xpl
 {
-  class Command_delegate : private boost::noncopyable
+  class Command_delegate
   {
   public:
     struct Field_type
@@ -43,6 +43,9 @@ namespace xpl
       reset();
     }
     virtual ~Command_delegate() {}
+
+    Command_delegate(const Command_delegate &) = delete;
+    Command_delegate &operator=(const Command_delegate &) = delete;
 
     ngs::Error_code get_error() const
     {
@@ -73,6 +76,7 @@ namespace xpl
       m_streaming_metadata = false;
       m_field_types.clear();
       m_got_eof = false;
+      m_message = "";
     }
 
     const st_command_service_cbs *callbacks() const

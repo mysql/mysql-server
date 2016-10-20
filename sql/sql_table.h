@@ -16,21 +16,26 @@
 #ifndef SQL_TABLE_INCLUDED
 #define SQL_TABLE_INCLUDED
 
-#include "my_global.h"
-#include "binary_log_types.h"  // enum_field_types
+#include <set>
+#include <stddef.h>
+#include <sys/types.h>
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
 #include <vector>
 #endif
-#include <set>
+
+#include "binary_log_types.h"  // enum_field_types
+#include "my_global.h"
+#include "mysql/psi/mysql_mutex.h"
 
 class Alter_info;
 class Alter_table_ctx;
 class Create_field;
 class THD;
-struct handlerton;
 class handler;
 struct TABLE;
 struct TABLE_LIST;
+struct handlerton;
+
 typedef struct st_ha_check_opt HA_CHECK_OPT;
 typedef struct st_ha_create_information HA_CREATE_INFO;
 typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
@@ -268,6 +273,11 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
 size_t explain_filename(THD* thd, const char *from, char *to, size_t to_length,
                         enum_explain_filename_mode explain_mode);
 
+void parse_filename(const char *filename, size_t filename_length,
+                    const char ** schema_name, size_t *schema_name_length,
+                    const char ** table_name, size_t *table_name_length,
+                    const char ** partition_name, size_t *partition_name_length,
+                    const char ** subpartition_name, size_t *subpartition_name_length);
 
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 extern mysql_mutex_t LOCK_gdl;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,9 @@
 #define DD_CACHE__CACHE_ELEMENT_INCLUDED
 
 #include "my_global.h"                    // DBUG_ASSERT() etc.
-#include "dd/impl/raw/object_keys.h"      // Primary_id_key
 
-#include <string>                         // std::string
+#include "dd/string_type.h"               // dd::String_type
+#include "dd/impl/raw/object_keys.h"      // Primary_id_key
 
 namespace dd_cache_unittest {
   class CacheTestHelper;
@@ -227,7 +227,7 @@ public:
 
   // Debug dump of the element to stderr.
   /* purecov: begin inspected */
-  void dump(const std::string &prefix= "      ") const
+  void dump(const String_type &prefix= "      ") const
   {
 #ifndef DBUG_OFF
     fprintf(stderr, "%sobj: %p, id: %llu, cnt: %u",

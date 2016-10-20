@@ -14,38 +14,54 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "json_binary.h"
-#include "current_thd.h"        // current_thd
-#include "json_dom.h"           // Json_dom
-#include "sql_class.h"          // THD
-#include "sql_parse.h"          // check_stack_overrun
-#include "template_utils.h"     // down_cast
+
+#include <string.h>
 #include <algorithm>            // std::min
+#include <map>
+#include <string>
+#include <utility>
 
-#define JSONB_TYPE_SMALL_OBJECT   0x0
-#define JSONB_TYPE_LARGE_OBJECT   0x1
-#define JSONB_TYPE_SMALL_ARRAY    0x2
-#define JSONB_TYPE_LARGE_ARRAY    0x3
-#define JSONB_TYPE_LITERAL        0x4
-#define JSONB_TYPE_INT16          0x5
-#define JSONB_TYPE_UINT16         0x6
-#define JSONB_TYPE_INT32          0x7
-#define JSONB_TYPE_UINT32         0x8
-#define JSONB_TYPE_INT64          0x9
-#define JSONB_TYPE_UINT64         0xA
-#define JSONB_TYPE_DOUBLE         0xB
-#define JSONB_TYPE_STRING         0xC
-#define JSONB_TYPE_OPAQUE         0xF
+#include "check_stack.h"
+#include "json_dom.h"           // Json_dom
+#include "m_ctype.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sql_class.h"          // THD
+#include "sql_const.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "template_utils.h"     // down_cast
 
-#define JSONB_NULL_LITERAL        '\x00'
-#define JSONB_TRUE_LITERAL        '\x01'
-#define JSONB_FALSE_LITERAL       '\x02'
+namespace
+{
+
+constexpr char JSONB_TYPE_SMALL_OBJECT= 0x0;
+constexpr char JSONB_TYPE_LARGE_OBJECT= 0x1;
+constexpr char JSONB_TYPE_SMALL_ARRAY=  0x2;
+constexpr char JSONB_TYPE_LARGE_ARRAY=  0x3;
+constexpr char JSONB_TYPE_LITERAL=      0x4;
+constexpr char JSONB_TYPE_INT16=        0x5;
+constexpr char JSONB_TYPE_UINT16=       0x6;
+constexpr char JSONB_TYPE_INT32=        0x7;
+constexpr char JSONB_TYPE_UINT32=       0x8;
+constexpr char JSONB_TYPE_INT64=        0x9;
+constexpr char JSONB_TYPE_UINT64=       0xA;
+constexpr char JSONB_TYPE_DOUBLE=       0xB;
+constexpr char JSONB_TYPE_STRING=       0xC;
+constexpr char JSONB_TYPE_OPAQUE=       0xF;
+
+constexpr char JSONB_NULL_LITERAL=      0x0;
+constexpr char JSONB_TRUE_LITERAL=      0x1;
+constexpr char JSONB_FALSE_LITERAL=     0x2;
 
 /*
   The size of offset or size fields in the small and the large storage
   format for JSON objects and JSON arrays.
 */
-#define SMALL_OFFSET_SIZE         2
-#define LARGE_OFFSET_SIZE         4
+constexpr uint8 SMALL_OFFSET_SIZE=      2;
+constexpr uint8 LARGE_OFFSET_SIZE=      4;
 
 /*
   The size of key entries for objects when using the small storage
@@ -53,8 +69,8 @@
   bytes (2 bytes for key length and 2 bytes for key offset). In the
   large format it is 6 (2 bytes for length, 4 bytes for offset).
 */
-#define KEY_ENTRY_SIZE_SMALL      (2 + SMALL_OFFSET_SIZE)
-#define KEY_ENTRY_SIZE_LARGE      (2 + LARGE_OFFSET_SIZE)
+constexpr uint8 KEY_ENTRY_SIZE_SMALL=   2 + SMALL_OFFSET_SIZE;
+constexpr uint8 KEY_ENTRY_SIZE_LARGE=   2 + LARGE_OFFSET_SIZE;
 
 /*
   The size of value entries for objects or arrays. When using the
@@ -62,8 +78,10 @@
   for offset). When using the large storage format, it is 5 (1 byte
   for type, 4 bytes for offset).
 */
-#define VALUE_ENTRY_SIZE_SMALL    (1 + SMALL_OFFSET_SIZE)
-#define VALUE_ENTRY_SIZE_LARGE    (1 + LARGE_OFFSET_SIZE)
+constexpr uint8 VALUE_ENTRY_SIZE_SMALL= 1 + SMALL_OFFSET_SIZE;
+constexpr uint8 VALUE_ENTRY_SIZE_LARGE= 1 + LARGE_OFFSET_SIZE;
+
+} // namespace
 
 namespace json_binary
 {
@@ -92,7 +110,7 @@ enum enum_serialization_result
 
 static enum_serialization_result
 serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
-                     String *dest, size_t depth);
+                     String *dest, size_t depth, bool small_parent);
 
 bool serialize(const THD *thd, const Json_dom *dom, String *dest)
 {
@@ -103,7 +121,7 @@ bool serialize(const THD *thd, const Json_dom *dom, String *dest)
   // Reserve space (one byte) for the type identifier.
   if (dest->append('\0'))
     return true;                              /* purecov: inspected */
-  return serialize_json_value(thd, dom, 0, dest, 0) != OK;
+  return serialize_json_value(thd, dom, 0, dest, 0, false) != OK;
 }
 
 
@@ -484,8 +502,7 @@ serialize_json_array(const THD *thd, const Json_array *array, String *dest,
       if (is_too_big_for_json(offset, large))
         return VALUE_TOO_BIG;
       insert_offset_or_size(dest, entry_pos + 1, offset, large);
-      enum_serialization_result res=
-        serialize_json_value(thd, elt, entry_pos, dest, depth);
+      auto res= serialize_json_value(thd, elt, entry_pos, dest, depth, !large);
       if (res != OK)
         return res;
     }
@@ -582,7 +599,8 @@ serialize_json_object(const THD *thd, const Json_object *object, String *dest,
       if (is_too_big_for_json(offset, large))
         return VALUE_TOO_BIG;
       insert_offset_or_size(dest, entry_pos + 1, offset, large);
-      res= serialize_json_value(thd, it->second, entry_pos, dest, depth);
+      res= serialize_json_value(thd, it->second, entry_pos, dest, depth,
+                                !large);
       if (res != OK)
         return res;
     }
@@ -671,11 +689,14 @@ serialize_datetime(const Json_datetime *jdt, size_t type_pos, String *dest)
   @param type_pos  the position of the type specifier to update
   @param dest      the destination string
   @param depth     the current nesting level
+  @param small_parent
+                   tells if @a dom is contained in an array or object
+                   which is stored in the small storage format
   @return          serialization status
 */
 static enum_serialization_result
 serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
-                     String *dest, size_t depth)
+                     String *dest, size_t depth, bool small_parent)
 {
   const size_t start_pos= dest->length();
   DBUG_ASSERT(type_pos < start_pos);
@@ -700,6 +721,9 @@ serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
       */
       if (result == VALUE_TOO_BIG)
       {
+        // If the parent uses the small storage format, it needs to grow too.
+        if (small_parent)
+          return VALUE_TOO_BIG;
         dest->length(start_pos);
         (*dest)[type_pos]= JSONB_TYPE_LARGE_ARRAY;
         result= serialize_json_array(thd, array, dest, true, depth);
@@ -722,6 +746,9 @@ serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
       */
       if (result == VALUE_TOO_BIG)
       {
+        // If the parent uses the small storage format, it needs to grow too.
+        if (small_parent)
+          return VALUE_TOO_BIG;
         dest->length(start_pos);
         (*dest)[type_pos]= JSONB_TYPE_LARGE_OBJECT;
         result= serialize_json_object(thd, object, dest, true, depth);

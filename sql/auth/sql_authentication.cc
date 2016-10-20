@@ -15,37 +15,71 @@
 
 #include "sql_authentication.h"
 
-#include "crypt_genhash_impl.h"         // generate_user_salt
-#include "mutex_lock.h"                 // Mutex_lock
-#include "password.h"                   // my_make_scrambled_password
-#include "sql_common.h"                 // mpvio_info
+#include <string.h>
+#include <fstream>                     // IWYU pragma: keep
+#include <string>                       /* std::string */
+#include <utility>
+#include <vector>                       /* std::vector */
+
+#include "auth_acls.h"
+#include "auth_common.h"
 #include "auth_internal.h"              // optimize_plugin_compare_by_pointer
 #include "connection_handler_manager.h" // Connection_handler_manager
+#include "crypt_genhash_impl.h"         // generate_user_salt
 #include "current_thd.h"                // current_thd
 #include "derror.h"                     // ER_THD
+#include "hash.h"
 #include "hostname.h"                   // Host_errors, inc_host_errors
+#include "key.h"
 #include "log.h"                        // sql_print_warning, query_logger
+#include "m_string.h"
+#include "mutex_lock.h"                 // Mutex_lock
+#include "my_byteorder.h"
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_plugin_log.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/service_mysql_password_policy.h"
+#include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld.h"                     // global_system_variables
+#include "mysqld_error.h"
+#include "password.h"                   // my_make_scrambled_password
+#include "pfs_thread_provider.h"
+#include "prealloced_array.h"
+#include "protocol.h"
+#include "protocol_classic.h"
 #include "psi_memory_key.h"             // key_memory_MPVIO_EXT_auth_info
 #include "sql_auth_cache.h"             // acl_cache
 #include "sql_class.h"                  // THD
+#include "sql_common.h"                 // mpvio_info
 #include "sql_connect.h"                // thd_init_client_charset
+#include "sql_const.h"
 #include "sql_db.h"                     // mysql_change_db
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_plugin.h"                 // my_plugin_lock_by_name
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_string.h"
 #include "sql_time.h"                   // Interval
+#include "system_variables.h"
 #include "tztime.h"                     // Time_zone
 
-#include <fstream>                      /* std::fstream */
-#include <string>                       /* std::string */
-#include <algorithm>                    /* for_each */
-#include <stdexcept>                    /* Exception handling */
-#include <vector>                       /* std::vector */
-#include <stdint.h>
-
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
-#include <openssl/rsa.h>
-#include <openssl/pem.h>
 #include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
 #endif /* HAVE OPENSSL && !HAVE_YASSL */
 
 
@@ -2162,7 +2196,7 @@ acl_authenticate(THD *thd, enum_server_command command)
   Thd_charset_adapter charset_adapter(thd);
 
   DBUG_ENTER("acl_authenticate");
-  compile_time_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH);
+  static_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH, "");
   DBUG_ASSERT(command == COM_CONNECT || command == COM_CHANGE_USER);
 
   server_mpvio_initialize(thd, &mpvio, &charset_adapter);

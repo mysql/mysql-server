@@ -50,17 +50,17 @@
 namespace dd {
 bool operator==(const Weak_object &a, const Weak_object &b)
 {
-  std::string arep, brep;
+  String_type arep, brep;
   a.debug_print(arep);
   b.debug_print(brep);
 
-  typedef std::string::iterator i_type;
+  typedef String_type::iterator i_type;
   typedef std::pair<i_type, i_type> mismatch_type;
 
   bool arep_largest= (arep.size() > brep.size());
 
-  std::string &largest= arep_largest ? arep : brep;
-  std::string &smallest= arep_largest ? brep : arep;
+  String_type &largest= arep_largest ? arep : brep;
+  String_type &smallest= arep_largest ? brep : arep;
 
   mismatch_type mismatch= std::mismatch(largest.begin(), largest.end(),
                                         smallest.begin());
@@ -69,10 +69,10 @@ bool operator==(const Weak_object &a, const Weak_object &b)
     return true;
   }
 
-  std::string largediff= std::string(mismatch.first, largest.end());
-  std::string smalldiff= std::string(mismatch.second, smallest.end());
+  String_type largediff= String_type(mismatch.first, largest.end());
+  String_type smalldiff= String_type(mismatch.second, smallest.end());
   std::cout << "Debug representation not equal:\n"
-            << std::string(largest.begin(), mismatch.first)
+            << String_type(largest.begin(), mismatch.first)
             << "\n<<<\n";
   if (arep_largest)
   {
@@ -234,7 +234,7 @@ public:
     {
       T *object= new T();
       object->set_id(id);
-      object->set_name(std::string(name));
+      object->set_name(dd::String_type(name));
       dd::cache::Cache_element<typename T::cache_partition_type> *element=
         new dd::cache::Cache_element<typename T::cache_partition_type>();
       element->set_object(object);
@@ -297,7 +297,7 @@ TYPED_TEST(CacheTest, FreeList)
   free_list.remove(element);
   ASSERT_EQ(3U, free_list.length());
   ASSERT_EQ(1U,    element->object()->id());
-  ASSERT_EQ(std::string("a"), element->object()->name());
+  ASSERT_EQ(dd::String_type("a"), element->object()->name());
 
   // Now let us remove the middle of the remaining elements.
   free_list.remove(objects->at(2));
@@ -308,13 +308,13 @@ TYPED_TEST(CacheTest, FreeList)
   free_list.remove(element);
   ASSERT_EQ(1U, free_list.length());
   ASSERT_EQ(2U,    element->object()->id());
-  ASSERT_EQ(std::string("b"), element->object()->name());
+  ASSERT_EQ(dd::String_type("b"), element->object()->name());
 
   element= free_list.get_lru();
   free_list.remove(element);
   ASSERT_EQ(0U, free_list.length());
   ASSERT_EQ(4U,    element->object()->id());
-  ASSERT_EQ(std::string("d"), element->object()->name());
+  ASSERT_EQ(dd::String_type("d"), element->object()->name());
 
   // Cleanup.
   CacheTestHelper::delete_elements<TypeParam>(objects);
@@ -527,12 +527,12 @@ TEST_F(CacheStorageTest, GetTableBySePrivateId)
   lock_object(*obj.get());
   EXPECT_FALSE(dc->store(obj.get()));
 
-  std::string schema_name;
-  std::string table_name;
+  dd::String_type schema_name;
+  dd::String_type table_name;
 
   EXPECT_FALSE(dc->get_table_name_by_se_private_id("innodb", 0xEEEE,
                                                    &schema_name, &table_name));
-  EXPECT_EQ(std::string("mysql"), schema_name);
+  EXPECT_EQ(dd::String_type("mysql"), schema_name);
   EXPECT_EQ(obj->name(), table_name);
 
   // Get table object.
@@ -651,13 +651,8 @@ TEST_F(CacheStorageTest, TestSchema)
 
     if (s1 && s2)
     {
-      // Get "schema1.table1" table uncached.
-      const dd::Table *s1_t1= NULL;
-      EXPECT_FALSE(dc.acquire_uncached("schema1", "table1", &s1_t1));
-      EXPECT_NE(nullp<const dd::Table>(), s1_t1);
-      delete s1_t1;
-
       // Get "schema1.table1" table uncached uncommitted.
+      const dd::Table *s1_t1= NULL;
       EXPECT_FALSE(dc.acquire_uncached_uncommitted("schema1", "table1", &s1_t1));
       EXPECT_NE(nullp<const dd::Table>(), s1_t1);
       delete s1_t1;
@@ -723,31 +718,28 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
   //EXPECT_FALSE(dc.get_tables_max_se_private_id("unknown", &max_id));
   //EXPECT_EQ(20u, max_id);
 
-  const dd::Table *tab1_new= NULL;
+  dd::Table *tab1_new= NULL;
   EXPECT_FALSE(dc.acquire_uncached_table_by_se_private_id("innodb", 5, &tab1_new));
   EXPECT_NE(nullp<dd::Table>(), tab1_new);
 
-  const dd::Table *tab2_new= NULL;
+  dd::Table *tab2_new= NULL;
   EXPECT_FALSE(dc.acquire_uncached_table_by_se_private_id("innodb", 10, &tab2_new));
   EXPECT_NE(nullp<dd::Table>(), tab2_new);
 
-  const dd::Table *tab3_new= NULL;
+  dd::Table *tab3_new= NULL;
   EXPECT_FALSE(dc.acquire_uncached_table_by_se_private_id("unknown", 20, &tab3_new));
   EXPECT_NE(nullp<dd::Table>(), tab3_new);
 
-  // The tables are acquired uncached, so we must delete them to avoid
-  // a memory leak.
-  delete tab1_new;
-  delete tab2_new;
-  delete tab3_new;
-
   // Drop the objects
-  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table1", &tab1_new));
-  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table2", &tab2_new));
-  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table3", &tab3_new));
-  EXPECT_FALSE(dc.drop(tab1_new));
-  EXPECT_FALSE(dc.drop(tab2_new));
-  EXPECT_FALSE(dc.drop(tab3_new));
+  const dd::Table *tab1_new_c= NULL;
+  const dd::Table *tab2_new_c= NULL;
+  const dd::Table *tab3_new_c= NULL;
+  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table1", &tab1_new_c));
+  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table2", &tab2_new_c));
+  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table3", &tab3_new_c));
+  EXPECT_FALSE(dc.drop(tab1_new_c));
+  EXPECT_FALSE(dc.drop(tab2_new_c));
+  EXPECT_FALSE(dc.drop(tab3_new_c));
 }
 
 
@@ -861,8 +853,8 @@ TEST_F(CacheStorageTest, TestCacheLookup)
   dd::cache::Dictionary_client &dc= *thd()->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
 
-  std::string obj_name= dd::Table::OBJECT_TABLE().name() +
-    std::string("_cacheissue");
+  dd::String_type obj_name= dd::Table::OBJECT_TABLE().name() +
+    dd::String_type("_cacheissue");
   dd::Object_id id;
   //
   // Create table object
@@ -884,7 +876,7 @@ TEST_F(CacheStorageTest, TestCacheLookup)
   // This should release the object reference in cache.
   //
   {
-    std::string sch_name, tab_name;
+    dd::String_type sch_name, tab_name;
     EXPECT_FALSE(dc.get_table_name_by_se_private_id("innodb",
                                                     0xFFFA,
                                                     &sch_name,
@@ -922,7 +914,7 @@ TEST_F(CacheStorageTest, TestCacheLookup)
   //
 
   {
-    std::string sch_name, tab_name;
+    dd::String_type sch_name, tab_name;
     EXPECT_TRUE(dc.get_table_name_by_se_private_id("innodb",
                                                    0XFFFA,
                                                    &sch_name,
@@ -937,8 +929,8 @@ TEST_F(CacheStorageTest, TestTriggers)
   dd::cache::Dictionary_client &dc= *thd()->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
 
-  std::string obj_name= dd::Table::OBJECT_TABLE().name() +
-    std::string("_trigs");
+  dd::String_type obj_name= dd::Table::OBJECT_TABLE().name() +
+    dd::String_type("_trigs");
   dd::Object_id id MY_ATTRIBUTE((unused));
 
   //

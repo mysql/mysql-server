@@ -63,17 +63,22 @@
 */
 
 #include "histogram.h"        // Histogram, Histogram_comparator,
+#include "my_decimal.h"
+#include "my_global.h"
+#include "sql_string.h"
+#include "thr_malloc.h"
                               // value_map_allocator, value_map_type
 
-#include <utility>            // std::pair
+#include <stddef.h>
 #include <map>                // std::map
 #include <string>             // std::string
+#include <utility>            // std::pair
 
-#include "my_alloc.h"         // MEM_ROOT
 #include "my_base.h"          // ha_rows
 
 class Json_array;
 class Json_object;
+template <class T> class Memroot_allocator;
 
 namespace histograms {
 

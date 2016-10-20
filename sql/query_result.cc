@@ -15,16 +15,34 @@
 
 #include "query_result.h"
 
+#include "my_config.h"
+
+#include <fcntl.h>
+#include <limits.h>
+#include <string.h>
+#include <sys/stat.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+
 #include "derror.h"            // ER_THD
+#include "item.h"
+#include "item_func.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql_com.h"
+#include "mysqld.h"            // key_select_to_file
 #include "parse_tree_nodes.h"  // PT_select_var
+#include "protocol.h"
+#include "session_tracker.h"
 #include "sp_rcontext.h"       // sp_rcontext
 #include "sql_class.h"         // THD
-#include "mysqld.h"            // key_select_to_file
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include <algorithm>
+#include "sql_const.h"
+#include "sql_error.h"
+#include "system_variables.h"
 
 using std::min;
 
@@ -171,16 +189,6 @@ void Query_result_to_file::cleanup()
 }
 
 
-Query_result_to_file::~Query_result_to_file()
-{
-  if (file >= 0)
-  {					// This only happens in case of error
-    (void) end_io_cache(&cache);
-    mysql_file_close(file, MYF(0));
-    file= -1;
-  }
-}
-
 /***************************************************************************
 ** Export of select to textfile
 ***************************************************************************/
@@ -249,12 +257,6 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 }
 
 
-Query_result_export::~Query_result_export()
-{
-  thd->set_sent_row_count(row_count);
-}
-
-
 int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   bool blob_flag= false;
@@ -265,8 +267,6 @@ int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
   write_cs= exchange->cs ? exchange->cs : &my_charset_bin;
 
-  if ((file= create_file(thd, path, exchange, &cache)) < 0)
-    return 1;
   /* Check if there is any blobs in data */
   {
     List_iterator_fast<Item> li(list);
@@ -350,6 +350,13 @@ int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   return 0;
 }
 
+
+int Query_result_export::prepare2()
+{
+  if ((file= create_file(thd, path, exchange, &cache)) < 0)
+    return 1;
+  return 0;
+}
 
 #define NEED_ESCAPING(x) ((int) (uchar) (x) == escape_char    || \
                           (enclosed ? (int) (uchar) (x) == field_sep_char      \
@@ -687,16 +694,28 @@ err:
 }
 
 
+void Query_result_export::cleanup()
+{
+  thd->set_sent_row_count(row_count);
+  Query_result_to_file::cleanup();
+}
+
 /***************************************************************************
 ** Dump of query to a binary file
 ***************************************************************************/
 
 
-int Query_result_dump::prepare(List<Item> &list MY_ATTRIBUTE((unused)),
-                               SELECT_LEX_UNIT *u)
+int Query_result_dump::prepare(List<Item> &, SELECT_LEX_UNIT *u)
 {
   unit= u;
-  return (int) ((file= create_file(thd, path, exchange, &cache)) < 0);
+  return 0;
+}
+
+int Query_result_dump::prepare2()
+{
+  if ((file= create_file(thd, path, exchange, &cache)) < 0)
+    return true;
+  return false;
 }
 
 

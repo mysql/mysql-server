@@ -16,50 +16,77 @@
 
 #include "table.h"
 
-#include "my_md5.h"                      // compute_md5_hash
-#include "myisam.h"                      // MI_MAX_KEY_LENGTH
-#include "mysql_version.h"               // MYSQL_VERSION_ID
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <algorithm>
+#include <string>
 
+#include "auth_acls.h"
 #include "auth_common.h"                 // acl_getroot
 #include "binlog.h"                      // mysql_bin_log
+#include "binlog_event.h"
+#include "dd/cache/dictionary_client.h"  // dd::cache_Dictionary_client
+#include "dd/dd.h"                       // dd::get_dictionary
+#include "dd/dictionary.h"               // dd::Dictionary
+#include "dd/types/abstract_table.h"
+#include "dd/types/table.h"              // dd::Table
+#include "dd/types/view.h"               // dd::View
 #include "debug_sync.h"                  // DEBUG_SYNC
 #include "derror.h"                      // ER_THD
 #include "error_handler.h"               // Strict_error_handler
+#include "field.h"
+#include "ft_global.h"
+#include "hash.h"
+#include "item.h"
 #include "item_cmpfunc.h"                // and_conds
 #include "key.h"                         // find_ref_key
 #include "log.h"                         // sql_print_warning
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "my_decimal.h"
+#include "my_pointer_arithmetic.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_thread_local.h"
+#include "myisam.h"                      // MI_MAX_KEY_LENGTH
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysql_version.h"               // MYSQL_VERSION_ID
 #include "mysqld.h"                      // reg_ext key_file_frm ...
+#include "mysqld_error.h"
 #include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
 #include "parse_file.h"                  // sql_parse_prepare
 #include "partition_info.h"              // partition_info
+#include "pfs_table_provider.h"
 #include "psi_memory_key.h"
 #include "query_result.h"                // Query_result
+#include "session_tracker.h"
+#include "set_var.h"
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_parse.h"                   // check_stack_overrun
 #include "sql_partition.h"               // mysql_unpack_partition
 #include "sql_plugin.h"                  // plugin_unlock
+#include "sql_security_ctx.h"
 #include "sql_select.h"                  // actual_key_parts
+#include "sql_string.h"
 #include "sql_table.h"                   // build_table_filename
 #include "sql_tablespace.h"              // check_tablespace_name())
-#include "sql_view.h"                    // view_type
+#include "sql_udf.h"
 #include "strfunc.h"                     // find_type
 #include "table_cache.h"                 // table_cache_manager
 #include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
 #include "template_utils.h"              // down_cast
-
-#include "dd/dd.h"                       // dd::get_dictionary
-#include "dd/dictionary.h"               // dd::Dictionary
-#include "dd/cache/dictionary_client.h"  // dd::cache_Dictionary_client
-#include "dd/types/table.h"              // dd::Table
-#include "dd/types/view.h"               // dd::View
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include "pfs_table_provider.h"
-#include "mysql/psi/mysql_table.h"
-#include <iterator>
+#include "thr_malloc.h"
+#include "thr_mutex.h"
+#include "trigger_def.h"
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -548,7 +575,7 @@ void TABLE_SHARE::destroy()
     Make a copy since the share is allocated in its own root,
     and free_root() updates its argument after freeing the memory.
   */
-  MEM_ROOT own_root= mem_root;
+  MEM_ROOT own_root= std::move(mem_root);
   free_root(&own_root, MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -2700,7 +2727,8 @@ void Generated_column::print_expr(THD *thd, String *out)
   sql_mode_t sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
   // Printing db and table name is useless
-  expr_item->print(out, enum_query_type(QT_NO_DB | QT_NO_TABLE));
+  auto flags= enum_query_type(QT_NO_DB | QT_NO_TABLE | QT_FORCE_INTRODUCERS);
+  expr_item->print(out, flags);
   thd->variables.sql_mode= sql_mode;
 }
 
@@ -4424,21 +4452,6 @@ bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select)
 
 
 /**
-  calculate md5 of query
-
-  @param buffer	buffer for md5 writing
-*/
-
-void  TABLE_LIST::calc_md5(char *buffer)
-{
-  uchar digest[MD5_HASH_SIZE];
-  compute_md5_hash((char *) digest, (const char *) select_stmt.str,
-                   select_stmt.length);
-  array_to_hex(buffer, digest, MD5_HASH_SIZE);
-}
-
-
-/**
    Reset a table before starting optimization
 */
 void TABLE_LIST::reset()
@@ -4452,6 +4465,11 @@ void TABLE_LIST::reset()
   table->force_index_order= table->force_index_group= 0;
   table->covering_keys= table->s->keys_for_keyread;
   table->merge_keys.clear_all();
+  table->quick_keys.clear_all();
+  table->possible_quick_keys.clear_all();
+  table->set_keyread(false);
+  table->reginfo.not_exists_optimize= false;
+  memset(table->const_key_parts, 0, sizeof(key_part_map)*table->s->keys);
 }
 
 
@@ -4808,6 +4826,7 @@ bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
 {
   if (table)
   {
+    DBUG_ASSERT(table->insert_values == NULL);
     if (!table->insert_values &&
         !(table->insert_values= (uchar *)alloc_root(mem_root,
                                                     table->s->rec_buff_length)))
@@ -5308,7 +5327,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
       field= down_cast<Item_ref *>(field)->ref[0];
     }
     if (field->type() == Item::FIELD_ITEM)
-      table_name= down_cast<Item_field *>(field)->table_name;
+      table_name= thd->mem_strdup(down_cast<Item_field *>(field)->table_name);
     else
       table_name= "";
   }
@@ -6554,7 +6573,7 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
 {
   /* initialize the result variables */
   tbl->keys_in_use_for_query= tbl->keys_in_use_for_group_by= 
-    tbl->keys_in_use_for_order_by= tbl->s->keys_in_use;
+    tbl->keys_in_use_for_order_by= tbl->s->usable_indexes();
 
   /* index hint list processing */
   if (index_hints)
@@ -6600,7 +6619,8 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
       */
       if (tbl->s->keynames.type_names == 0 ||
           (pos= find_type(&tbl->s->keynames, hint->key_name.str,
-                          hint->key_name.length, 1)) <= 0)
+                          hint->key_name.length, 1)) <= 0 ||
+          !tbl->s->key_info[pos - 1].is_visible)
       {
         my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), hint->key_name.str, alias);
         return 1;

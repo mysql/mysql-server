@@ -20,22 +20,62 @@
 
 #include "opt_explain.h"
 
+#include <limits.h>
+#include <math.h>
+#include <string.h>
+
+#include "auth_acls.h"
 #include "current_thd.h"
-#include "sql_select.h"
-#include "sql_optimizer.h" // JOIN
-#include "sql_partition.h" // for make_used_partitions_str()
-#include "sql_join_buffer.h" // JOIN_CACHE
-#include "filesort.h"        // Filesort
-#include "opt_explain_format.h"
-#include "sql_base.h"      // lock_tables
-#include "sql_acl.h"       // check_global_access, PROCESS_ACL
 #include "debug_sync.h"    // DEBUG_SYNC
+#include "derror.h"              // ER_THD
+#include "enum_query_type.h"
+#include "field.h"
+#include "ft_global.h"
+#include "handler.h"
+#include "item.h"
+#include "item_func.h"
+#include "item_subselect.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld.h"        // stage_explaining
+#include "mysqld_error.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "opt_costmodel.h"
+#include "opt_explain_format.h"
 #include "opt_range.h"     // QUICK_SELECT_I
 #include "opt_trace.h"     // Opt_trace_*
+#include "protocol.h"
+#include "sql_base.h"      // lock_tables
+#include "sql_bitmap.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_executor.h"
+#include "sql_join_buffer.h" // JOIN_CACHE
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
+#include "sql_optimizer.h" // JOIN
 #include "sql_parse.h"     // is_explainable_query
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "mysqld.h"        // stage_explaining
-#include "derror.h"              // ER_THD
+#include "sql_partition.h" // for make_used_partitions_str()
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_select.h"
+#include "sql_string.h"
+#include "table.h"
+
+class Opt_trace_context;
 
 typedef qep_row::extra extra;
 
@@ -1148,23 +1188,17 @@ bool Explain_join::explain_modify_flags()
     and thus are safe to read.
   */
   switch (query_plan->get_command()) {
+  case SQLCOM_UPDATE:
   case SQLCOM_UPDATE_MULTI:
-    if (!bitmap_is_clear_all(&table->def_write_set) &&
+    if (table->pos_in_table_list->updating &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY)
       fmt->entry()->mod_type= MT_UPDATE;
     break;
+  case SQLCOM_DELETE:
   case SQLCOM_DELETE_MULTI:
-    for (TABLE_LIST *at= query_plan->get_lex()->auxiliary_table_list.first;
-         at;
-         at= at->next_local)
-    {
-      if (at->correspondent_table->is_updatable() &&
-          at->correspondent_table->updatable_base_table()->table == table)
-      {
-        fmt->entry()->mod_type= MT_DELETE;
-        break;
-      }
-    }
+    if (table->pos_in_table_list->updating &&
+        table->s->table_category != TABLE_CATEGORY_TEMPORARY)
+      fmt->entry()->mod_type= MT_DELETE;
     break;
   case SQLCOM_INSERT_SELECT:
     if (table == query_plan->get_lex()->insert_table_leaf->table)
@@ -2384,28 +2418,12 @@ void mysql_explain_other(THD *thd)
     goto err;
   }
   DEBUG_SYNC(thd, "explain_other_got_thd");
-  // Get topmost query
-  switch(qp->get_command())
-  {
-    case SQLCOM_UPDATE_MULTI:
-    case SQLCOM_DELETE_MULTI:
-    case SQLCOM_REPLACE_SELECT:
-    case SQLCOM_INSERT_SELECT:
-    case SQLCOM_SELECT:
-      res= explain_query(thd, qp->get_lex()->unit);
-      break;
-    case SQLCOM_UPDATE:
-    case SQLCOM_DELETE:
-    case SQLCOM_INSERT:
-    case SQLCOM_REPLACE:
+
+  if (qp->is_single_table_plan())
       res= explain_single_table_modification(thd, qp->get_modification_plan(),
-                                             qp->get_lex()->unit->first_select());
-      break;
-    default:
-      DBUG_ASSERT(0); /* purecov: inspected */
-      send_ok= true; /* purecov: inspected */
-      break;
-  }
+             qp->get_lex()->unit->first_select());
+  else
+      res= explain_query(thd, qp->get_lex()->unit);
 
 err:
   if (unlock_thd_data)

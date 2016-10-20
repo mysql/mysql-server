@@ -2614,6 +2614,14 @@ user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_ha
 DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
 DROP TRIGGER test.silly_trigger;
 DROP TABLE test.silly_one;
+#
+# Bug #22512899 - DROP TRIGGER AFTER RENAME TABLE RESULTS IN ERROR CODE 1146: TABLE DOESN'T EXIST
+#
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+RENAME TABLE t1 TO t1Renamed;
+DROP TRIGGER t1_bi;
+DROP TABLE t1Renamed;
 End of 5.7 tests.
 #
 # Bug #23624693 - USING SHOW CREATE TRIGGER IN A TRANSACTION CRASHES THE SERVER
@@ -2640,4 +2648,64 @@ ALTER TABLE t1 DROP PARTITION p1;
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+DROP TABLE t1;
+#
+# Bug#24482919 -- SHOW TRIGGER OUTPUT INCONSISTENCY ON WINDOWS / LINUX ON 8.0.0
+#
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER trg1a BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1b AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1c BEFORE UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1d AFTER UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1e BEFORE DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1f AFTER DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1a2 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1b2 AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1c2 BEFORE UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1d2 AFTER UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1f2 AFTER DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1a0 BEFORE INSERT ON t1 FOR EACH ROW PRECEDES trg1a BEGIN END;
+CREATE TRIGGER trg1a3 BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS trg1a2 BEGIN END;
+CREATE TRIGGER trg1b0 AFTER INSERT ON t1 FOR EACH ROW PRECEDES trg1b BEGIN END;
+CREATE TRIGGER trg1b3 AFTER INSERT ON t1 FOR EACH ROW FOLLOWS trg1b2 BEGIN END;
+CREATE TRIGGER trg1c0 BEFORE UPDATE ON t1 FOR EACH ROW PRECEDES trg1c BEGIN END;
+CREATE TRIGGER trg1c3 BEFORE UPDATE ON t1 FOR EACH ROW FOLLOWS trg1c2 BEGIN END;
+SELECT TRIGGER_NAME FROM information_schema.triggers WHERE TRIGGER_NAME LIKE 'trg1%' ORDER BY TRIGGER_NAME;
+TRIGGER_NAME
+trg1a
+trg1a0
+trg1a2
+trg1a3
+trg1b
+trg1b0
+trg1b2
+trg1b3
+trg1c
+trg1c0
+trg1c2
+trg1c3
+trg1d
+trg1d2
+trg1e
+trg1f
+trg1f2
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trg1a0	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1a	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1a2	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1a3	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1b0	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1b	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1b2	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1b3	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1c0	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1c	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1c2	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1c3	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1d	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1d2	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1e	DELETE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1f	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1f2	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP TABLE t1;

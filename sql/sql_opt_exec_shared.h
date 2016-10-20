@@ -22,6 +22,7 @@
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
 #include "my_base.h"
+#include "my_global.h"
 #include "sql_alloc.h"          // Sql_alloc
 
 class JOIN;

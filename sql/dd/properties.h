@@ -18,11 +18,11 @@
 
 #include "my_global.h"
 
-#include "m_string.h"      // my_strtoll10
+#include "m_string.h"       // my_strtoll10
+#include "dd/string_type.h" // String_type, Stringstream_type
 
 #include <limits>
 #include <map>
-#include <sstream>
 
 typedef struct st_mem_root MEM_ROOT;
 
@@ -64,14 +64,14 @@ class Properties;
       p->set_int32("intvalue", 1234);
 
     Get values:
-      std::string str= p->value("akey");
+      String_type str= p->value("akey");
       const char* c_str= p->value_cstr("akey");
 
       int32 num;
       p->get_int32("intvalue", &num);
 
     Get raw string:
-      std::string mylist= p->raw_string();
+      String_type mylist= p->raw_string();
 
   Further comments can be found in the files properties_impl.{h,cc}
   where the interface is implemented.
@@ -81,11 +81,11 @@ class Properties
 {
 public:
   // A wrapper for Properties_impl::parse_properties()
-  static Properties *parse_properties(const std::string &raw_properties);
+  static Properties *parse_properties(const String_type &raw_properties);
 
 public:
-  typedef std::map<std::string, std::string> Map;
-  typedef std::map<std::string, std::string>::size_type size_type;
+  typedef std::map<String_type, String_type> Map;
+  typedef std::map<String_type, String_type>::size_type size_type;
   typedef Map::iterator Iterator;
   typedef Map::const_iterator Const_iterator;
 
@@ -146,7 +146,7 @@ public:
 
     @return true if the given key exists, false otherwise
   */
-  virtual bool exists(const std::string &key) const= 0;
+  virtual bool exists(const String_type &key) const= 0;
 
   /**
     Remove the key=value pair for the given key if it exists.
@@ -155,7 +155,7 @@ public:
     @param key key to lookup
     @return    false if the given key existed, true otherwise
   */
-  virtual bool remove(const std::string &key)= 0;
+  virtual bool remove(const String_type &key)= 0;
 
   /**
     Create a string containing all key=value pairs as a semicolon
@@ -165,7 +165,7 @@ public:
 
     @return a string listing all key=value pairs
   */
-  virtual const std::string raw_string() const= 0;
+  virtual const String_type raw_string() const= 0;
 
   /**
     Return the string value for a given key.
@@ -174,7 +174,7 @@ public:
     @param key key to lookup the value for
     @return the value
   */
-  virtual const std::string &value(const std::string &key) const= 0;
+  virtual const String_type &value(const String_type &key) const= 0;
 
   /**
     Return the '\0' terminated char * value for a given key.
@@ -183,7 +183,7 @@ public:
     @param key key to lookup the value for
     @return the char * value
   */
-  virtual const char* value_cstr(const std::string &key) const= 0;
+  virtual const char* value_cstr(const String_type &key) const= 0;
 
   /**
     Get the string value for a given key. Return true if the operation
@@ -193,7 +193,7 @@ public:
     @param[out] value string value
     @return           Operation outcome, false if success, otherwise true
   */
-  virtual bool get(const std::string &key, std::string &value) const= 0;
+  virtual bool get(const String_type &key, String_type &value) const= 0;
 
   /**
     Get the string value for a given key. Return true if the operation
@@ -204,7 +204,7 @@ public:
     @param[in]  mem_root MEM_ROOT to allocate string
     @return              Operation outcome, false if success, otherwise true
   */
-  virtual bool get(const std::string &key,
+  virtual bool get(const String_type &key,
                    LEX_STRING &value,
                    MEM_ROOT *mem_root) const= 0;
 
@@ -215,7 +215,7 @@ public:
     @param[out] value converted value
     @return           Operation outcome, false if success, otherwise true
   */
-  virtual bool get_int64(const std::string &key, int64 *value) const= 0;
+  virtual bool get_int64(const String_type &key, int64 *value) const= 0;
 
   /**
     Get string value for key and convert the string to uint64 (unsigned).
@@ -224,7 +224,7 @@ public:
     @param[out] value converted value
     @return           Operation outcome, false if success, otherwise true
   */
-  virtual bool get_uint64(const std::string &key, uint64 *value) const= 0;
+  virtual bool get_uint64(const String_type &key, uint64 *value) const= 0;
 
   /**
     Get string value for key and convert the string to int32 (signed).
@@ -233,7 +233,7 @@ public:
     @param[out] value converted value
     @return           Operation outcome, false if success, otherwise true
   */
-  virtual bool get_int32(const std::string &key, int32 *value) const= 0;
+  virtual bool get_int32(const String_type &key, int32 *value) const= 0;
 
   /**
     Get string value for key and convert the string to uint32 (unsigned).
@@ -242,7 +242,7 @@ public:
     @param[out] value converted value
     @return           Operation outcome, false if success, otherwise true
   */
-  virtual bool get_uint32(const std::string &key, uint32 *value) const= 0;
+  virtual bool get_uint32(const String_type &key, uint32 *value) const= 0;
 
   /**
     Get string value for key and convert the string to bool. Valid
@@ -254,7 +254,7 @@ public:
     @param[out] value converted value
     @return           Operation outcome, false if success, otherwise true
   */
-  virtual bool get_bool(const std::string &key, bool *value) const= 0;
+  virtual bool get_bool(const String_type &key, bool *value) const= 0;
 
   /**
     Add a new key=value pair. If the key already exists, the
@@ -263,7 +263,7 @@ public:
     @param key   key to lookup
     @param value value to be associated with the key
   */
-  virtual void set(const std::string &key, const std::string &value)= 0;
+  virtual void set(const String_type &key, const String_type &value)= 0;
 
   /**
     Add a new key=value pair where the value is an int64. The
@@ -272,7 +272,7 @@ public:
     @param key   key to lookup
     @param value int64 value to be associated with the key
   */
-  virtual void set_int64(const std::string &key, int64 value)= 0;
+  virtual void set_int64(const String_type &key, int64 value)= 0;
 
   /**
     Add a new key=value pair where the value is a uint64. The
@@ -281,7 +281,7 @@ public:
     @param key   key to lookup
     @param value uint64 value to be associated with the key
   */
-  virtual void set_uint64(const std::string &key, uint64 value)= 0;
+  virtual void set_uint64(const String_type &key, uint64 value)= 0;
 
   /**
     Add a new key=value pair where the value is an int32. The
@@ -290,7 +290,7 @@ public:
     @param key   key to lookup
     @param value int32 value to be associated with the key
   */
-  virtual void set_int32(const std::string &key, int32 value)= 0;
+  virtual void set_int32(const String_type &key, int32 value)= 0;
 
   /**
     Add a new key=value pair where the value is a uint32. The
@@ -299,7 +299,7 @@ public:
     @param key   key to lookup
     @param value uint32 value to be associated with the key
   */
-  virtual void set_uint32(const std::string &key, uint32 value)= 0;
+  virtual void set_uint32(const String_type &key, uint32 value)= 0;
 
   /**
     Add a new key=value pair where the value is a bool. The
@@ -309,7 +309,7 @@ public:
     @param key   key to lookup
     @param value bool value to be associated with the key
   */
-  virtual void set_bool(const std::string &key, bool value)= 0;
+  virtual void set_bool(const String_type &key, bool value)= 0;
 
   /**
     Convert a string to int64 (signed).
@@ -318,7 +318,7 @@ public:
     @param[out] value  converted value
     @return            Operation outcome, false if success, otherwise true
   */
-  static bool to_int64(const std::string &number, int64 *value)
+  static bool to_int64(const String_type &number, int64 *value)
   { return to_int<int64>(number, value); }
 
   /**
@@ -328,7 +328,7 @@ public:
     @param[out] value  converted value
     @return            Operation outcome, false if success, otherwise true
   */
-  static bool to_uint64(const std::string &number, uint64 *value)
+  static bool to_uint64(const String_type &number, uint64 *value)
   { return to_int<uint64>(number, value); }
 
   /**
@@ -338,7 +338,7 @@ public:
     @param[out] value  converted value
     @return            Operation outcome, false if success, otherwise true
   */
-  static bool to_int32(const std::string &number, int32 *value)
+  static bool to_int32(const String_type &number, int32 *value)
   { return to_int<int32>(number, value); }
 
   /**
@@ -348,7 +348,7 @@ public:
     @param[out] value  converted value
     @return            Operation outcome, false if success, otherwise true
   */
-  static bool to_uint32(const std::string &number, uint32 *value)
+  static bool to_uint32(const String_type &number, uint32 *value)
   { return to_int<uint32>(number, value); }
 
   /**
@@ -360,7 +360,7 @@ public:
     @param[out] value    converted value
     @return              Operation outcome, false if success, otherwise true
   */
-  static bool to_bool(const std::string &bool_str, bool *value)
+  static bool to_bool(const String_type &bool_str, bool *value)
   {
     uint64 tmp_uint64= 0;
     int64  tmp_int64= 0;
@@ -394,7 +394,7 @@ public:
     @param value int64 to convert
     @return      string containing decimal representation of the value
   */
-  static std::string from_int64(int64 value)
+  static String_type from_int64(int64 value)
   { return from_int<int64>(value); }
 
   /**
@@ -403,7 +403,7 @@ public:
     @param value uint64 to convert
     @return      string containing decimal representation of the value
   */
-  static std::string from_uint64(uint64 value)
+  static String_type from_uint64(uint64 value)
   { return from_int<uint64>(value); }
 
   /**
@@ -412,7 +412,7 @@ public:
     @param value int32 to convert
     @return      string containing decimal representation of the value
   */
-  static std::string from_int32(int32 value)
+  static String_type from_int32(int32 value)
   { return from_int<int32>(value); }
 
   /**
@@ -421,7 +421,7 @@ public:
     @param value uint32 to convert
     @return      string containing decimal representation of the value
   */
-  static std::string from_uint32(uint32 value)
+  static String_type from_uint32(uint32 value)
   { return from_int<uint32>(value); }
 
   /**
@@ -433,9 +433,9 @@ public:
       @retval "1"     if value == true
       @retval "0"     if value == false
   */
-  static std::string from_bool(bool value)
+  static String_type from_bool(bool value)
   {
-    std::string str("0");
+    String_type str("0");
     if (value)
       str = "1";
 
@@ -455,7 +455,7 @@ protected:
       @retval false    if success
   */
   template <class T>
-  static bool to_int(const std::string &number, T *value)
+  static bool to_int(const String_type &number, T *value)
   {
     int error_code;
     int64 tmp= 0;
@@ -500,9 +500,9 @@ protected:
     @return      string containing decimal representation of the value
   */
   template <class T>
-  static std::string from_int(T value)
+  static String_type from_int(T value)
   {
-    std::stringstream ostream;
+    Stringstream_type ostream;
     ostream << value;
     return ostream.str();
   }

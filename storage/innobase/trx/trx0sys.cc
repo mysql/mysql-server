@@ -576,11 +576,25 @@ trx_sys_create_rsegs(
 				: (srv_undo_space_id_start + i % n_spaces);
 
 			ut_ad(n_spaces == 0
-			      || srv_is_undo_tablespace(space_id));
+			      || fsp_is_undo_tablespace(space_id));
 
 			if (trx_rseg_create(space_id, 0) != NULL) {
 				++n_used;
 				++n_redo_active;
+
+				ulint	last_undo_space =
+					srv_undo_space_id_start
+					+ (srv_undo_tablespaces_active - 1);
+
+				/* Increase the number of active undo
+				tablespace in case new rollback segment
+				assigned to new undo tablespace. */
+				if (space_id > last_undo_space) {
+
+					srv_undo_tablespaces_active++;
+
+					ut_ad(space_id == last_undo_space + 1);
+				}
 			} else {
 				break;
 			}

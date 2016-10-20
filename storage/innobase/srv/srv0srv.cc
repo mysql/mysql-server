@@ -38,10 +38,6 @@ The database server main program
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
-#include "sql_thd_internal_api.h"
-
-#include "ha_prototypes.h"
-
 #include "btr0sea.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
@@ -49,14 +45,18 @@ Created 10/8/1995 Heikki Tuuri
 #include "dict0load.h"
 #include "dict0stats_bg.h"
 #include "fsp0sysspace.h"
+#include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0recv.h"
 #include "mem0mem.h"
+#include "my_psi_config.h"
 #include "os0proc.h"
+#include "os0thread-create.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "row0mysql.h"
+#include "sql_thd_internal_api.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -66,7 +66,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "usr0sess.h"
 #include "ut0crc32.h"
 #include "ut0mem.h"
-#include "os0thread-create.h"
 
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
@@ -2792,18 +2791,3 @@ srv_purge_threads_active()
 	return(false);
 }
 
-/** Check whether given space id is undo tablespace id
-@param[in]	space_id	space id to check
-@return true if it is undo tablespace else false. */
-bool
-srv_is_undo_tablespace(
-	space_id_t	space_id)
-{
-	if (srv_undo_space_id_start == 0) {
-		return(false);
-	}
-
-	return(space_id >= srv_undo_space_id_start
-	       && space_id < (srv_undo_space_id_start
-			      + srv_undo_tablespaces_open));
-}

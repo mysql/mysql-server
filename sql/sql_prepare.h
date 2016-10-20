@@ -15,10 +15,26 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
-#include "query_result.h" // Query_result_send
-#include "sql_class.h"    // Query_arena
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
 
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "mysql_com.h"
+#include "protocol_classic.h"
+#include "query_result.h" // Query_result_send
+#include "session_tracker.h"
+#include "sql_alloc.h"
+#include "sql_class.h"    // Query_arena
+#include "sql_error.h"
+#include "sql_list.h"
+#include "sql_servers.h"
+
+class Item;
+class Item_param;
+class String;
 struct LEX;
 struct PSI_prepared_stmt;
 
@@ -50,7 +66,7 @@ struct PSI_prepared_stmt;
   of metadata observers.
 */
 
-class Reprepare_observer
+class Reprepare_observer final
 {
 public:
   /**
@@ -112,7 +128,7 @@ class Ed_row;
   automatic type conversion.
 */
 
-class Ed_result_set: public Sql_alloc
+class Ed_result_set final : public Sql_alloc
 {
 public:
   operator List<Ed_row>&() { return *m_rows; }
@@ -142,7 +158,7 @@ private:
 };
 
 
-class Ed_connection
+class Ed_connection final
 {
 public:
   /**
@@ -251,7 +267,7 @@ private:
 
 /** One result set column. */
 
-struct Ed_column: public LEX_STRING
+struct Ed_column final : public LEX_STRING
 {
   /** Implementation note: destructor for this class is never called. */
 };
@@ -259,7 +275,7 @@ struct Ed_column: public LEX_STRING
 
 /** One result set record. */
 
-class Ed_row: public Sql_alloc
+class Ed_row final : public Sql_alloc
 {
 public:
   const Ed_column &operator[](const unsigned int column_index) const
@@ -287,18 +303,18 @@ private:
   A result class used to send cursor rows using the binary protocol.
 */
 
-class Query_fetch_protocol_binary: public Query_result_send
+class Query_fetch_protocol_binary final : public Query_result_send
 {
   Protocol_binary protocol;
 public:
   Query_fetch_protocol_binary(THD *thd)
     : Query_result_send(thd), protocol(thd)
   { }
-  virtual bool send_result_set_metadata(List<Item> &list, uint flags);
-  virtual bool send_data(List<Item> &items);
-  virtual bool send_eof();
+  bool send_result_set_metadata(List<Item> &list, uint flags) override;
+  bool send_data(List<Item> &items) override;
+  bool send_eof() override;
 #ifdef EMBEDDED_LIBRARY
-  void begin_dataset()
+  void begin_dataset() override
   {
     protocol.begin_dataset();
   }
@@ -312,7 +328,7 @@ class Server_side_cursor;
   Prepared_statement: a statement that can contain placeholders.
 */
 
-class Prepared_statement: public Query_arena
+class Prepared_statement final : public Query_arena
 {
   enum flag_values
   {

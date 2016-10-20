@@ -21,57 +21,93 @@
 
 #include "handler.h"
 
-#include "my_bit.h"                   // my_count_bits
-#include "myisam.h"                   // TT_FOR_UPGRADE
-#include "mysql_version.h"            // MYSQL_VERSION_ID
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/foreach.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+#include <boost/mpl/bool.hpp>
+#include <boost/mpl/bool_fwd.hpp>
+#include <boost/token_functions.hpp>
+#include <boost/tokenizer.hpp>
+#include <errno.h>
+#include <limits.h>
+#include <cmath>
+#include <cstring>
+#include <list>
+#include <string>
 
+#include "auth_common.h"              // check_readonly() and SUPER_ACL
+#include "binary_log_types.h"
 #include "binlog.h"                   // mysql_bin_log
+#include "binlog_event.h"
+#include "check_stack.h"
 #include "current_thd.h"
+#include "dd/dd.h"                    // dd::get_dictionary
+#include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
+#include "dd/sdi_file.h"              // dd::sdi_file::store
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_DEFAULT
 #include "error_handler.h"            // Internal_error_handler
+#include "field.h"
+#include "item.h"
+#include "keycache.h"
 #include "lock.h"                     // MYSQL_LOCK
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Write_rows_log_event
-#include "mysqld.h"                   // global_system_variables heap_hton ..
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"                // MY_BITMAP
-#include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
+#include "my_check_opt.h"
+#include "my_pointer_arithmetic.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "myisam.h"                   // TT_FOR_UPGRADE
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_transaction.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysql_version.h"            // MYSQL_VERSION_ID
+#include "mysqld.h"                   // global_system_variables heap_hton ..
+#include "mysqld_error.h"
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
+#include "opt_costmodel.h"
+#include "opt_hints.h"
+#include "pfs_table_provider.h"
+#include "prealloced_array.h"
+#include "probes_mysql.h"             // IWYU pragma: keep
+#include "protocol.h"
 #include "psi_memory_key.h"
+#include "query_options.h"
 #include "record_buffer.h"            // Record_buffer
+#include "rpl_filter.h"
+#include "rpl_gtid.h"
 #include "rpl_handler.h"              // RUN_HOOK
+#include "rpl_write_set_handler.h"    // add_pke
 #include "sdi_utils.h"                // import_serialized_meta_data
+#include "session_tracker.h"
+#include "sql_admin.h"
 #include "sql_base.h"                 // free_io_cache
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_parse.h"                // check_stack_overrun
 #include "sql_plugin.h"               // plugin_foreach
-#include "sql_table.h"                // build_table_filename
-#include "transaction.h"              // trans_commit_implicit
 #include "sql_select.h"               // actual_key_parts
-#include "rpl_write_set_handler.h"    // add_pke
-#include "auth_common.h"              // check_readonly() and SUPER_ACL
-
-#include "dd/dd.h"                    // dd::get_dictionary
-#include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
-#include "dd/sdi_file.h"              // dd::sdi_file::store
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include <pfs_table_provider.h>
-#include <mysql/psi/mysql_table.h>
-
-#include <pfs_transaction_provider.h>
-#include <mysql/psi/mysql_transaction.h>
-#include "opt_hints.h"
-
-#include <list>
-#include <cmath>
-#include <cstring>
-#include <string>
-#include <boost/foreach.hpp>
-#include <boost/tokenizer.hpp>
-#include <boost/algorithm/string.hpp>
+#include "sql_servers.h"
+#include "sql_string.h"
+#include "sql_table.h"                // build_table_filename
+#include "table.h"
+#include "tc_log.h"
+#include "template_utils.h"
+#include "thr_malloc.h"
+#include "transaction.h"              // trans_commit_implicit
+#include "transaction_info.h"
+#include "xa.h"
 
 #include <dd/dictionary.h>
 
@@ -400,25 +436,6 @@ handlerton *ha_default_temp_handlerton(THD *thd)
 plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name)
 {
   return plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN);
-}
-
-
-/**
-  Resolve handlerton plugin by name, without checking for "DEFAULT" or
-  HTON_NOT_USER_SELECTABLE.
-
-  @param thd  Thread context.
-  @param name Plugin name.
-
-  @return plugin or NULL if not found.
-*/
-plugin_ref ha_resolve_by_name_raw(THD *thd, const  std::string &name)
-{
-  LEX_CSTRING se_name;
-  se_name.str= name.c_str();
-  se_name.length= name.length();
-
-  return ha_resolve_by_name_raw(thd, se_name);
 }
 
 
@@ -1969,8 +1986,22 @@ int ha_rollback_low(THD *thd, bool all)
   /*
     Thanks to possibility of MDL deadlock rollback request can come even if
     transaction hasn't been started in any transactional storage engine.
+
+    It is possible to have a call of ha_rollback_low() while handling
+    failure from ha_prepare() and an error in Daignostics_area still
+    wasn't set. Therefore it is required to check that an error in
+    Diagnostics_area is set before calling the method XID_STATE::set_error().
+
+    If it wasn't done it would lead to failure of the assertion
+      DBUG_ASSERT(m_status == DA_ERROR)
+    in the method Diagnostics_area::mysql_errno().
+
+    In case ha_prepare is failed and an error wasn't set in Diagnostics_area
+    the error ER_XA_RBROLLBACK is set in the Diagnostics_area from
+    the method Sql_cmd_xa_prepare::trans_xa_prepare() when non-zero result code
+    returned by ha_prepare() is handled.
   */
-  if (all && thd->transaction_rollback_request)
+  if (all && thd->transaction_rollback_request && thd->is_error())
     trn_ctx->xid_state()->set_error(thd);
 
   (void) RUN_HOOK(transaction, after_rollback, (thd, all));
@@ -4834,17 +4865,6 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
 }
 
 
-/*
-   Default implementation to support in-place alter table
-   and old online add/drop index API
-*/
-
-void handler::notify_table_changed(Alter_inplace_info *)
-{
-  ha_create_handler_files(table->s->path.str, NULL, CHF_INDEX_FLAG, NULL);
-}
-
-
 void Alter_inplace_info::report_unsupported_error(const char *not_supported,
                                                   const char *try_instead)
 {
@@ -4929,35 +4949,11 @@ handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
 
   @sa handler::get_se_private_data()
 */
-#include "dd/types/table.h"
 bool
 handler::ha_get_se_private_data(dd::Table *dd_table, uint dd_version,
                                 bool reset_id)
 {
   return get_se_private_data(dd_table, dd_version, reset_id);
-}
-
-
-/**
-  Create handler files for CREATE TABLE: public interface.
-
-  @sa handler::create_handler_files()
-*/
-
-int
-handler::ha_create_handler_files(const char *name, const char *old_name,
-                        int action_flag, HA_CREATE_INFO *info)
-{
-  /*
-    Normally this is done when unlocked, but in fast_alter_partition_table,
-    it is done on an already locked handler when preparing to alter/rename
-    partitions.
-  */
-  DBUG_ASSERT(m_lock_type == F_UNLCK ||
-              (!old_name && strcmp(name, table_share->path.str)));
-  mark_trx_read_write();
-
-  return create_handler_files(name, old_name, action_flag, info);
 }
 
 

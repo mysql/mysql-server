@@ -19,11 +19,26 @@
 
 /* Analyse database */
 
+#include <math.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "item.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
 #include "my_global.h"
+#include "my_sys.h"
 #include "my_tree.h"          // TREE
 #include "query_result.h"     // Query_result_send
+#include "sql_alloc.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_string.h"
 
 class Item_proc;
+class THD;
 
 
 #define my_thd_charset	default_charset_info
@@ -101,7 +116,7 @@ int collect_string(String *element, element_count count,
 int sortcmp2(const void* cmp_arg MY_ATTRIBUTE((unused)),
 	     const void *a,const void *b);
 
-class field_str :public field_info
+class field_str final :public field_info
 {
   String      min_arg, max_arg;
   ulonglong   sum;
@@ -119,13 +134,11 @@ public:
     { init_tree(&tree, 0, 0, sizeof(String), sortcmp2,
 		0, (tree_element_free) free_string, NULL); };
 
-  void	 add();
-  void	 get_opt_type(String*, ha_rows);
-  String *get_min_arg(String *not_used MY_ATTRIBUTE((unused)))
-  { return &min_arg; }
-  String *get_max_arg(String *not_used MY_ATTRIBUTE((unused)))
-  { return &max_arg; }
-  String *avg(String *s, ha_rows rows)
+  void	 add() override;
+  void	 get_opt_type(String*, ha_rows) override;
+  String *get_min_arg(String *) override { return &min_arg; }
+  String *get_max_arg(String *) override { return &max_arg; }
+  String *avg(String *s, ha_rows rows) override
   {
     if (!(rows - nulls))
       s->set_real(0.0, 1,my_thd_charset);
@@ -136,18 +149,16 @@ public:
   }
   friend int collect_string(String *element, element_count count,
 			    TREE_INFO *info);
-  tree_walk_action collect_enum()
+  tree_walk_action collect_enum() override
   { return (tree_walk_action) collect_string; }
-  String *std(String *s MY_ATTRIBUTE((unused)),
-	      ha_rows rows MY_ATTRIBUTE((unused)))
-  { return (String*) 0; }
+  String *std(String *, ha_rows) override { return (String*) 0; }
 };
 
 
 int collect_decimal(uchar *element, element_count count,
                     TREE_INFO *info);
 
-class field_decimal :public field_info
+class field_decimal final : public field_info
 {
   my_decimal min_arg, max_arg;
   my_decimal sum[2], sum_sqr[2];
@@ -161,22 +172,22 @@ public:
               0, 0, (void *)&bin_size);
   };
 
-  void	 add();
-  void	 get_opt_type(String*, ha_rows);
-  String *get_min_arg(String *);
-  String *get_max_arg(String *);
-  String *avg(String *s, ha_rows rows);
+  void	 add() override;
+  void	 get_opt_type(String*, ha_rows) override;
+  String *get_min_arg(String *) override;
+  String *get_max_arg(String *) override;
+  String *avg(String *s, ha_rows rows) override;
   friend int collect_decimal(uchar *element, element_count count,
                              TREE_INFO *info);
-  tree_walk_action collect_enum()
+  tree_walk_action collect_enum() override
   { return (tree_walk_action) collect_decimal; }
-  String *std(String *s, ha_rows rows);
+  String *std(String *s, ha_rows rows) override;
 };
 
 
 int collect_real(double *element, element_count count, TREE_INFO *info);
 
-class field_real: public field_info
+class field_real final : public field_info
 {
   double min_arg, max_arg;
   double sum, sum_sqr;
@@ -188,19 +199,19 @@ public:
     { init_tree(&tree, 0, 0, sizeof(double),
 		compare_double2, 0, NULL, NULL); }
 
-  void	 add();
-  void	 get_opt_type(String*, ha_rows);
-  String *get_min_arg(String *s)
+  void	 add() override;
+  void	 get_opt_type(String*, ha_rows) override;
+  String *get_min_arg(String *s) override
   {
     s->set_real(min_arg, item->decimals, my_thd_charset);
     return s;
   }
-  String *get_max_arg(String *s)
+  String *get_max_arg(String *s) override
   {
     s->set_real(max_arg, item->decimals, my_thd_charset);
     return s;
   }
-  String *avg(String *s, ha_rows rows)
+  String *avg(String *s, ha_rows rows) override
   {
     if (!(rows - nulls))
       s->set_real(0.0, 1,my_thd_charset);
@@ -208,7 +219,7 @@ public:
       s->set_real((sum / (double) (rows - nulls)), item->decimals,my_thd_charset);
     return s;
   }
-  String *std(String *s, ha_rows rows)
+  String *std(String *s, ha_rows rows) override
   {
     double tmp = ulonglong2double(rows);
     if (!(tmp - nulls))
@@ -221,17 +232,17 @@ public:
     }
     return s;
   }
-  uint	 decimals() { return item->decimals; }
+  uint	 decimals() override { return item->decimals; }
   friend int collect_real(double *element, element_count count,
 			  TREE_INFO *info);
-  tree_walk_action collect_enum()
+  tree_walk_action collect_enum() override
   { return (tree_walk_action) collect_real;}
 };
 
 int collect_longlong(longlong *element, element_count count,
 		     TREE_INFO *info);
 
-class field_longlong: public field_info
+class field_longlong final : public field_info
 {
   longlong min_arg, max_arg;
   longlong sum, sum_sqr;
@@ -242,11 +253,13 @@ public:
     { init_tree(&tree, 0, 0, sizeof(longlong),
 		compare_longlong2, 0, NULL, NULL); }
 
-  void	 add();
-  void	 get_opt_type(String*, ha_rows);
-  String *get_min_arg(String *s) { s->set(min_arg,my_thd_charset); return s; }
-  String *get_max_arg(String *s) { s->set(max_arg,my_thd_charset); return s; }
-  String *avg(String *s, ha_rows rows)
+  void	 add() override;
+  void	 get_opt_type(String*, ha_rows) override;
+  String *get_min_arg(String *s) override
+  { s->set(min_arg,my_thd_charset); return s; }
+  String *get_max_arg(String *s) override
+  { s->set(max_arg,my_thd_charset); return s; }
+  String *avg(String *s, ha_rows rows) override
   {
     if (!(rows - nulls))
       s->set_real(0.0, 1,my_thd_charset);
@@ -254,7 +267,7 @@ public:
       s->set_real(((double) sum / (double) (rows - nulls)), DEC_IN_AVG,my_thd_charset);
     return s;
   }
-  String *std(String *s, ha_rows rows)
+  String *std(String *s, ha_rows rows) override
   {
     double tmp = ulonglong2double(rows);
     if (!(tmp - nulls))
@@ -269,14 +282,14 @@ public:
   }
   friend int collect_longlong(longlong *element, element_count count,
 			      TREE_INFO *info);
-  tree_walk_action collect_enum()
+  tree_walk_action collect_enum() override
   { return (tree_walk_action) collect_longlong;}
 };
 
 int collect_ulonglong(ulonglong *element, element_count count,
 		      TREE_INFO *info);
 
-class field_ulonglong: public field_info
+class field_ulonglong final : public field_info
 {
   ulonglong min_arg, max_arg;
   ulonglong sum, sum_sqr;
@@ -286,11 +299,13 @@ public:
     min_arg(0), max_arg(0), sum(0),sum_sqr(0)
     { init_tree(&tree, 0, 0, sizeof(ulonglong),
 		compare_ulonglong2, 0, NULL, NULL); }
-  void	 add();
-  void	 get_opt_type(String*, ha_rows);
-  String *get_min_arg(String *s) { s->set(min_arg,my_thd_charset); return s; }
-  String *get_max_arg(String *s) { s->set(max_arg,my_thd_charset); return s; }
-  String *avg(String *s, ha_rows rows)
+  void	 add() override;
+  void	 get_opt_type(String*, ha_rows) override;
+  String *get_min_arg(String *s) override
+  { s->set(min_arg,my_thd_charset); return s; }
+  String *get_max_arg(String *s) override
+  { s->set(max_arg,my_thd_charset); return s; }
+  String *avg(String *s, ha_rows rows) override
   {
     if (!(rows - nulls))
       s->set_real(0.0, 1,my_thd_charset);
@@ -299,7 +314,7 @@ public:
 	     DEC_IN_AVG,my_thd_charset);
     return s;
   }
-  String *std(String *s, ha_rows rows)
+  String *std(String *s, ha_rows rows) override
   {
     double tmp = ulonglong2double(rows);
     if (!(tmp - nulls))
@@ -315,7 +330,7 @@ public:
   }
   friend int collect_ulonglong(ulonglong *element, element_count count,
 			       TREE_INFO *info);
-  tree_walk_action collect_enum()
+  tree_walk_action collect_enum() override
   { return (tree_walk_action) collect_ulonglong; }
 };
 
@@ -324,7 +339,7 @@ public:
   Interceptor class to form SELECT ... PROCEDURE ANALYSE() output rows
 */
 
-class Query_result_analyse : public Query_result_send
+class Query_result_analyse final : public Query_result_send
 {
   Query_result *result; ///< real output stream
 
@@ -348,17 +363,20 @@ public:
     max_treemem(params->max_treemem)
   {}
 
-  ~Query_result_analyse() { cleanup(); }
+  ~Query_result_analyse()
+  {
+    DBUG_ASSERT(f_info == NULL && rows == 0);
+  }
 
-  virtual void cleanup();
-  virtual uint field_count(List<Item> &) const
+  void cleanup() override;
+  uint field_count(List<Item> &) const override
   { return array_elements(func_items); }
-  virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override
   { return result->prepare(list, u); }
-  virtual bool send_result_set_metadata(List<Item> &fields, uint flag);
-  virtual bool send_data(List<Item> &items);
-  virtual bool send_eof();
-  virtual void abort_result_set();
+  bool send_result_set_metadata(List<Item> &fields, uint flag) override;
+  bool send_data(List<Item> &items) override;
+  bool send_eof() override;
+  void abort_result_set() override;
 
 private:
   bool init(List<Item> &field_list);

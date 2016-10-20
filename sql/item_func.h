@@ -16,16 +16,50 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "item.h"       // Item_result_field
-#include "my_decimal.h" // string2my_decimal
-#include "set_var.h"    // enum_var_type
-#include "sql_udf.h"    // udf_handler
+#include <limits.h>
+#include <stddef.h>
+#include <sys/types.h>
+#include <cmath>        // isfinite
 #include <functional>
 
-#include <cmath>        // isfinite
+#include "binary_log_types.h"
+#include "decimal.h"
+#include "enum_query_type.h"
+#include "field.h"
+#include "ft_global.h"
+#include "handler.h"
+#include "item.h"       // Item_result_field
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h" // string2my_decimal
+#include "my_global.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "my_time.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "parse_tree_node_base.h"
+#include "set_var.h"    // enum_var_type
+#include "sql_const.h"
+#include "sql_string.h"
+#include "sql_udf.h"    // udf_handler
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
+#include "thr_malloc.h"
 
+class Json_wrapper;
 class PT_item_list;
+class Protocol;
+class SELECT_LEX;
+class THD;
+class sp_rcontext;
+template <class T> class List;
 
 /* Function items used by mysql */
 
@@ -453,7 +487,7 @@ public:
     representation of a TIMESTAMP argument verbatim, and thus does not depend on
     the timezone.
    */
-  virtual bool check_valid_arguments_processor(uchar *bool_arg)
+  virtual bool check_valid_arguments_processor(uchar*)
   {
     return has_timestamp_args();
   }
@@ -568,7 +602,7 @@ public:
     return get_time_from_real(ltime);
   }
   enum Item_result result_type () const { return REAL_RESULT; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     decimals= NOT_FIXED_DEC;
     max_length= float_length(decimals);
@@ -673,10 +707,10 @@ public:
 
   void fix_num_length_and_dec();
   void find_num_type();
-  String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
-  bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  String *str_op(String*) { DBUG_ASSERT(0); return 0; }
+  bool date_op(MYSQL_TIME*, my_time_flags_t)
   { DBUG_ASSERT(0); return 0; }
-  bool time_op(MYSQL_TIME *ltime)
+  bool time_op(MYSQL_TIME*)
   { DBUG_ASSERT(0); return 0; }
 };
 
@@ -697,10 +731,10 @@ class Item_num_op :public Item_func_numhybrid
   }
 
   void find_num_type();
-  String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
-  bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  String *str_op(String*) { DBUG_ASSERT(0); return 0; }
+  bool date_op(MYSQL_TIME*, my_time_flags_t)
   { DBUG_ASSERT(0); return 0; }
-  bool time_op(MYSQL_TIME *ltime)
+  bool time_op(MYSQL_TIME*)
   { DBUG_ASSERT(0); return 0; }
 };
 
@@ -753,7 +787,7 @@ public:
     return get_time_from_int(ltime);
   }
   enum Item_result result_type () const { return INT_RESULT; }
-  virtual bool resolve_type(THD *thd) { return false; }
+  virtual bool resolve_type(THD*) { return false; }
 };
 
 
@@ -771,7 +805,7 @@ public:
   virtual bool resolve_type(THD *thd);
   bool fix_fields(THD *thd, Item **ref);
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
-  bool check_gcol_func_processor(uchar *int_arg) { return true;}
+  bool check_gcol_func_processor(uchar*) { return true;}
 };
 
 
@@ -832,7 +866,7 @@ public:
   my_decimal *val_decimal(my_decimal*);
   enum Item_result result_type () const { return DECIMAL_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
-  virtual bool resolve_type(THD *thd) { return false; }
+  virtual bool resolve_type(THD*) { return false; }
   const char *func_name() const { return "decimal_typecast"; }
   enum Functype functype() const { return TYPECAST_FUNC; }
   virtual void print(String *str, enum_query_type query_type);
@@ -847,8 +881,8 @@ public:
   {}
 
   void result_precision();
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
+  bool check_partition_func_processor(uchar*) {return false;}
+  bool check_gcol_func_processor(uchar*) { return false;}
 };
 
 
@@ -899,8 +933,8 @@ public:
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   void result_precision();
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
+  bool check_partition_func_processor(uchar*) {return false;}
+  bool check_gcol_func_processor(uchar*) { return false;}
 };
 
 
@@ -934,8 +968,8 @@ public:
     print_op(str, query_type);
   }
 
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
+  bool check_partition_func_processor(uchar*) {return false;}
+  bool check_gcol_func_processor(uchar*) { return false;}
 };
 
 
@@ -951,8 +985,8 @@ public:
   const char *func_name() const { return "%"; }
   void result_precision();
   virtual bool resolve_type(THD *thd);
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
+  bool check_partition_func_processor(uchar*) {return false;}
+  bool check_gcol_func_processor(uchar*) { return false;}
 };
 
 
@@ -970,8 +1004,8 @@ public:
   virtual bool resolve_type(THD *thd);
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
+  bool check_partition_func_processor(uchar*) {return false;}
+  bool check_gcol_func_processor(uchar*) { return false;}
 };
 
 
@@ -984,8 +1018,8 @@ public:
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "abs"; }
   virtual bool resolve_type(THD *thd);
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
+  bool check_partition_func_processor(uchar*) {return false;}
+  bool check_gcol_func_processor(uchar*) { return false;}
 };
 
 
@@ -1149,8 +1183,8 @@ public:
   longlong int_op();
   double real_op();
   my_decimal *decimal_op(my_decimal *);
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
+  bool check_partition_func_processor(uchar*) {return false;}
+  bool check_gcol_func_processor(uchar*) { return false;}
 };
 
 
@@ -1163,8 +1197,8 @@ public:
   longlong int_op();
   double real_op();
   my_decimal *decimal_op(my_decimal *);
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
+  bool check_partition_func_processor(uchar*) {return false;}
+  bool check_gcol_func_processor(uchar*) { return false;}
 };
 
 /* This handles round and truncate */
@@ -1343,7 +1377,7 @@ public:
   const char *func_name() const { return "rollup_const"; }
   bool const_item() const { return 0; }
   Item_result result_type() const { return args[0]->result_type(); }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     collation= args[0]->collation;
     max_length= args[0]->max_length;
@@ -1363,7 +1397,7 @@ public:
   Item_func_length(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "length"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 10;
     return false;
@@ -1387,7 +1421,7 @@ public:
   Item_func_char_length(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "char_length"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 10;
     return false;
@@ -1400,7 +1434,7 @@ public:
   Item_func_coercibility(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "coercibility"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 10;
     maybe_null= false;
@@ -1446,7 +1480,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "validate_password_strength"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 10;
     maybe_null= true;
@@ -1477,7 +1511,7 @@ public:
   Item_func_ascii(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "ascii"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 3;
     return false;
@@ -1635,7 +1669,7 @@ public:
   Item_func_bit_count(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "bit_count"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= MAX_BIGINT_WIDTH + 1;
     return false;
@@ -1709,14 +1743,14 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "last_insert_id"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     unsigned_flag= true;
     if (arg_count)
       max_length= args[0]->max_length;
     return false;
   }
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   { return true; }
 };
 
@@ -1732,14 +1766,14 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "benchmark"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 1;
     maybe_null= true;
     return false;
   }
   virtual void print(String *str, enum_query_type query_type);
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   { return true; }
 };
 
@@ -1772,7 +1806,7 @@ class Item_udf_func :public Item_func
   typedef Item_func super;
 protected:
   udf_handler udf;
-  bool is_expensive_processor(uchar *arg) { return true; }
+  bool is_expensive_processor(uchar*) { return true; }
 
 public:
   Item_udf_func(const POS &pos, udf_func *udf_arg, PT_item_list *opt_list)
@@ -1782,7 +1816,7 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   const char *func_name() const { return udf.name(); }
   enum Functype functype() const   { return UDF_FUNC; }
-  bool fix_fields(THD *thd, Item **ref)
+  bool fix_fields(THD *thd, Item**)
   {
     DBUG_ASSERT(fixed == 0);
     bool res= udf.fix_fields(thd, this, arg_count, args);
@@ -1881,7 +1915,7 @@ class Item_func_udf_float :public Item_udf_func
   {
     return get_time_from_real(ltime);
   }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     fix_num_length_and_dec();
     return false;
@@ -1907,7 +1941,7 @@ public:
     return get_time_from_int(ltime);
   }
   enum Item_result result_type () const { return INT_RESULT; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     decimals= 0;
     max_length= 21;
@@ -2000,13 +2034,13 @@ class Item_func_get_lock :public Item_int_func
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "get_lock"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 1;
     maybe_null= true;
     return false;
   }
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   { return true; }
   virtual uint decimal_precision() const { return max_length; }
 };
@@ -2022,13 +2056,13 @@ public:
 
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 1;
     maybe_null= true;
     return false;
   }
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   { return true; }
   virtual uint decimal_precision() const { return max_length; }
 };
@@ -2043,12 +2077,12 @@ public:
 
   longlong val_int();
   const char *func_name() const { return "release_all_locks"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     unsigned_flag= true;
     return false;
   }
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   { return true; }
 };
 
@@ -2072,13 +2106,13 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 21;
     maybe_null= true;
     return false;
   }
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   { return true; }
 };
 
@@ -2101,7 +2135,7 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "wait_for_executed_gtid_set"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 21;
     maybe_null= true;
@@ -2126,7 +2160,7 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "wait_until_sql_thread_after_gtids"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 21;
     maybe_null= true;
@@ -2144,7 +2178,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "gtid_subset"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 21;
     maybe_null= false;
@@ -2166,7 +2200,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_database"; }
-  void fix_length_and_dec() { max_length= 4; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_can_access_table : public Item_int_func
@@ -2177,7 +2216,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_table"; }
-  void fix_length_and_dec() { max_length= 4; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_can_access_view : public Item_int_func
@@ -2188,7 +2232,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_view"; }
-  void fix_length_and_dec() { max_length= 4; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_can_access_column : public Item_int_func
@@ -2200,7 +2249,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_column"; }
-  void fix_length_and_dec() { max_length= 4; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_table_rows : public Item_int_func
@@ -2212,7 +2266,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_table_rows"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_avg_row_length : public Item_int_func
@@ -2224,7 +2283,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_avg_row_length"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_data_length : public Item_int_func
@@ -2236,7 +2300,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_data_length"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_max_data_length : public Item_int_func
@@ -2248,7 +2317,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_max_data_length"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_index_length : public Item_int_func
@@ -2260,7 +2334,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_index_length"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_data_free : public Item_int_func
@@ -2272,7 +2351,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_data_free"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_auto_increment : public Item_int_func
@@ -2284,7 +2368,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_auto_increment"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_checksum : public Item_int_func
@@ -2296,18 +2385,28 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_checksum"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_keys_disabled : public Item_int_func
 {
 public:
-  Item_func_internal_keys_disabled(const POS &pos, Item *a, Item *b, Item *c)
-    : Item_int_func(pos, a, b, c)
+  Item_func_internal_keys_disabled(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
   {}
   longlong val_int();
   const char *func_name() const { return "internal_keys_disabled"; }
-  void fix_length_and_dec() { max_length= 4; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= false;
+    return false;
+  }
 };
 
 class Item_func_internal_index_column_cardinality : public Item_int_func
@@ -2319,7 +2418,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_index_column_cardinality"; }
-  void fix_length_and_dec() { max_length= 4; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_dd_char_length :public Item_int_func
@@ -2329,11 +2433,14 @@ public:
                                Item *a, Item *b, Item *c, Item *d)
     :Item_int_func(pos, a, b, c, d)
   {}
-
-  virtual void fix_length_and_dec() { max_length= 32; maybe_null= 1; }
-
-  const char *func_name() const { return "internal_dd_char_length"; }
   longlong val_int();
+  const char *func_name() const { return "internal_dd_char_length"; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_internal_get_view_warning_or_error : public Item_int_func
@@ -2345,7 +2452,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_get_view_warning_or_error"; }
-  void fix_length_and_dec() { max_length= 1; maybe_null= 0; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 1;
+    maybe_null= false;
+    return false;
+  }
 };
 
 /**
@@ -2373,13 +2485,12 @@ public:
   {
     return get_time_from_non_temporal(ltime);
   }
-  bool check_gcol_func_processor(uchar *int_arg) { return true;}
+  bool check_gcol_func_processor(uchar*) { return true;}
 };
 
 
 /* Handling of user definable variables */
 
-class user_var_entry;
 // this is needed for user_vars hash
 class user_var_entry
 {
@@ -2724,12 +2835,12 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *decimal_buffer);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  bool get_date(MYSQL_TIME*, my_time_flags_t)
   {
     DBUG_ASSERT(0);
     return true;
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME*)
   {
     DBUG_ASSERT(0);
     return true;
@@ -2864,7 +2975,7 @@ public:
 
   bool fix_index();
   bool init_search(THD *thd);
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   // TODO: consider adding in support for the MATCH-based generated columns
   { return true; }
 
@@ -3080,13 +3191,13 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "is_free_lock"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 1;
     maybe_null= true;
     return false;
   }
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   { return true; }
 };
 
@@ -3101,13 +3212,13 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "is_used_lock"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     unsigned_flag= true;
     maybe_null= true;
     return false;
   }
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   { return true; }
 };
 
@@ -3123,13 +3234,13 @@ public:
 
   longlong val_int();
   const char *func_name() const { return "row_count"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     decimals= 0;
     maybe_null= false;
     return false;
   }
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   { return true; }
 };
 
@@ -3142,7 +3253,6 @@ public:
 
 class sp_head;
 class sp_name;
-struct st_sp_security_context;
 
 class Item_func_sp :public Item_func
 {
@@ -3163,7 +3273,7 @@ private:
   bool init_result_field(THD *thd);
   
 protected:
-  bool is_expensive_processor(uchar *arg) { return true; }
+  bool is_expensive_processor(uchar*) { return true; }
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 
 public:
@@ -3280,13 +3390,13 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "found_rows"; }
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     decimals= 0;
     maybe_null= false;
     return false;
   }
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   { return true; }
 };
 
@@ -3302,15 +3412,14 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   const char *func_name() const { return "uuid_short"; }
   longlong val_int();
-  virtual bool resolve_type(THD *thd)
+  virtual bool resolve_type(THD*)
   {
     max_length= 21;
     unsigned_flag= true;
     return false;
   }
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg)
-  { return true; }
+  bool check_partition_func_processor(uchar*) {return false;}
+  bool check_gcol_func_processor(uchar*)      {return true; }
 };
 
 

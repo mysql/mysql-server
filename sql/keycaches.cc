@@ -14,9 +14,13 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "keycaches.h"
+
+#include <stddef.h>
+
 #include "../mysys/mysys_priv.h"
-#include "template_utils.h"
 #include "m_string.h"
+#include "my_dbug.h"
+#include "template_utils.h"
 
 
 /****************************************************************************

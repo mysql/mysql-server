@@ -17,6 +17,7 @@
 #define DD_KILL_IMMUNIZER_INCLUDED
 
 #include "mutex_lock.h"                        // Mutex_lock
+#include "sql_class.h"                         // THD
 
 namespace dd {
 

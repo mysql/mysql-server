@@ -59,7 +59,7 @@ public:
   virtual bool update_name_key(name_key_type *key) const
   { return update_name_key(key, name()); }
 
-  static bool update_name_key(name_key_type *key, const std::string &name);
+  static bool update_name_key(name_key_type *key, const String_type &name);
 
   virtual bool update_aux_key(aux_key_type *key) const
   { return true; }
@@ -86,8 +86,8 @@ public:
   // organization
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &organization() const = 0;
-  virtual void set_organization(const std::string &organization) = 0;
+  virtual const String_type &organization() const = 0;
+  virtual void set_organization(const String_type &organization) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // organization_coordsys_id
@@ -101,8 +101,8 @@ public:
   // definition
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definition() const = 0;
-  virtual void set_definition(const std::string &definition) = 0;
+  virtual const String_type &definition() const = 0;
+  virtual void set_definition(const String_type &definition) = 0;
   virtual bool is_projected() const = 0;
   virtual bool is_cartesian() const = 0;
 
@@ -110,8 +110,8 @@ public:
   // description
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &description() const = 0;
-  virtual void set_description(const std::string &description) = 0;
+  virtual const String_type &description() const = 0;
+  virtual void set_description(const String_type &description) = 0;
 
   /**
     Allocate a new object and invoke the copy constructor

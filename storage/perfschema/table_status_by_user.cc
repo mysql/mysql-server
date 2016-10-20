@@ -211,7 +211,7 @@ table_status_by_user::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_status_by_user::index_init(uint idx, bool sorted)
+int table_status_by_user::index_init(uint idx, bool)
 {
   if (show_compatibility_56)
     return 0;
@@ -295,7 +295,7 @@ void table_status_by_user
     return;
 
   m_row.m_variable_name.make_row(status_var->m_name, status_var->m_name_length);
-  m_row.m_variable_value.make_row(status_var->m_value_str, status_var->m_value_length);
+  m_row.m_variable_value.make_row(status_var);
 
   if (!user->m_lock.end_optimistic_lock(&lock))
     return;
@@ -331,7 +331,7 @@ int table_status_by_user
         set_field_varchar_utf8(f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
         break;
       case 2: /* VARIABLE_VALUE */
-        set_field_varchar_utf8(f, m_row.m_variable_value.m_str, m_row.m_variable_value.m_length);
+        m_row.m_variable_value.set_field(f);
         break;
       default:
         DBUG_ASSERT(false);

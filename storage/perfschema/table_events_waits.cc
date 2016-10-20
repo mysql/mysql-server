@@ -735,8 +735,8 @@ int table_events_waits_common::read_row_values(TABLE *table,
   Field *f;
   const LEX_STRING *operation;
 
-  compile_time_assert(COUNT_OPERATION_TYPE ==
-                      array_elements(operation_names_map));
+  static_assert(COUNT_OPERATION_TYPE == array_elements(operation_names_map),
+                "COUNT_OPERATION_TYPE needs to be the last element.");
 
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;
@@ -897,7 +897,8 @@ void table_events_waits_current::reset_position(void)
   m_next_pos.reset();
 }
 
-PFS_events_waits *table_events_waits_current::get_wait(PFS_thread *pfs_thread, uint index_2)
+PFS_events_waits *table_events_waits_current::get_wait(PFS_thread *pfs_thread,
+                                                       uint index_2 MY_ATTRIBUTE((unused)))
 {
   PFS_events_waits *wait;
 
@@ -992,7 +993,7 @@ int table_events_waits_current::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_waits_current::index_init(uint idx, bool sorted)
+int table_events_waits_current::index_init(uint idx, bool)
 {
   PFS_index_events_waits *result;
   DBUG_ASSERT(idx == 0);
@@ -1160,7 +1161,7 @@ int table_events_waits_history::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_waits_history::index_init(uint idx, bool sorted)
+int table_events_waits_history::index_init(uint idx, bool)
 {
   PFS_index_events_waits *result;
   DBUG_ASSERT(idx == 0);

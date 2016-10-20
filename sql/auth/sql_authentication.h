@@ -16,19 +16,27 @@
 #ifndef SQL_AUTHENTICATION_INCLUDED
 #define SQL_AUTHENTICATION_INCLUDED
 
-#include "my_global.h"
-#include "m_string.h"                   // LEX_CSTRING
-#include "my_thread_local.h"            // my_thread_id
-#include "mysql/plugin_auth.h"          // MYSQL_SERVER_AUTH_INFO
-#include "sql_plugin_ref.h"             // plugin_ref
+#include <sys/types.h>
 
-/* Forward declarations */
-class String;
+#include "m_ctype.h"
+#include "my_config.h"
+#include "my_thread_local.h"            // my_thread_id
+#include "mysql/plugin.h"
+#include "mysql/plugin_auth.h"          // MYSQL_SERVER_AUTH_INFO
+#include "mysql/plugin_auth_common.h"
+#include "mysql_com.h"
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"             // plugin_ref
+#include "thr_malloc.h"
+
 class THD;
+
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_show_var SHOW_VAR;
 class ACL_USER;
 class Protocol_classic;
+class String;
+
 typedef struct st_net NET;
 
 /* Classes */

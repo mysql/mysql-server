@@ -1277,7 +1277,6 @@ innobase_find_fk_index(
 
 	while (index != NULL) {
 		if (!(index->type & DICT_FTS)
-		    && !dict_index_has_virtual(index)
 		    && dict_foreign_qualify_index(
 			    table, col_names, columns, n_cols,
 			    index, NULL, true, 0)) {
@@ -5729,7 +5728,8 @@ ha_innobase::prepare_inplace_alter_table_impl(
 	(the create options have tablespace=='innodb_system' and the
 	SHARED_SPACE flag is set in the table flags) so it can no longer be
 	implicitly moved to a file-per-table tablespace. */
-	bool	in_system_space = is_system_tablespace(indexed_table->space);
+	bool	in_system_space
+		= fsp_is_system_or_temp_tablespace(indexed_table->space);
 	bool	is_file_per_table = !in_system_space
 			&& !DICT_TF_HAS_SHARED_SPACE(indexed_table->flags);
 #ifdef UNIV_DEBUG

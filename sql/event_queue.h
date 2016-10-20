@@ -25,12 +25,23 @@
   Queue of events awaiting execution.
 */
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <time.h>
+#include <vector>
 
-#include "priority_queue.h"                     // Priority_queue
 #include "event_data_objects.h"                 // Event_queue_element
 #include "event_parse_data.h"                   // Event_parse_data
-#include "malloc_allocator.h"                   // Malloc_allocator
+#include "malloc_allocator.h"                   // Malloc_allocator, IWYU pragma: keep
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_stage.h"
+#include "priority_queue.h"                     // Priority_queue
+
+class THD;
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_LOCK_event_queue;

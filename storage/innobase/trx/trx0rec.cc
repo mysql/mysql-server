@@ -2127,7 +2127,7 @@ trx_undo_report_row_operation(
 		" log pages. Please add new data file to the tablespace or"
 		" check if filesystem is full or enable auto-extension for"
 		" the tablespace",
-		((undo->space == srv_sys_space.space_id())
+		((undo->space == TRX_SYS_SPACE)
 		? "system" :
 		  ((fsp_is_system_temporary(undo->space))
 		   ? "temporary" : "undo")));

@@ -18,11 +18,34 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
+#include <stddef.h>
+#include <sys/types.h>
+#include <algorithm>
+
+#include "control_events.h"
 #include "crypt_genhash_impl.h"       // CRYPT_MAX_PASSWORD_SIZE
-#include "item_func.h"                // Item_func
+#include "enum_query_type.h"
+#include "field.h"
+#include "item.h"
 #include "item_cmpfunc.h"             // Item_bool_func
+#include "item_func.h"                // Item_func
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "my_time.h"
+#include "mysql_com.h"
+#include "parse_tree_node_base.h"
+#include "sql_const.h"
+#include "sql_string.h"
+#include "sql_udf.h"
+#include "system_variables.h"
+#include "table.h"
 
 class MY_LOCALE;
+class PT_item_list;
+class THD;
+template <class T> class List;
 
 CHARSET_INFO *
 mysqld_collation_get_by_name(const char *name,
@@ -1396,8 +1419,8 @@ public:
       per privileges is 11 chars.
       So, setting max approximate to 200.
     */
-    max_length= 200;
-    maybe_null= 1;
+    max_length= 14*11;
+    maybe_null= true;
 
     return false;
   }
@@ -1448,7 +1471,7 @@ public:
     // maximum string length of all options is expected
     // to be less than 256 characters.
     max_length= 256;
-    maybe_null= 1;
+    maybe_null= false;
 
     return false;
   }

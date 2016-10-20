@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <my_global.h>
-#include <mysql/plugin.h>
-#include <ndbapi/NdbApi.hpp>
-#include <portlib/NdbTick.h>
-#include <my_sys.h>               // my_sleep.h
-#include <sql_thd_internal_api.h> // thd_query_unsafe
+#include "my_global.h"
+#include "mysql/plugin.h"
+#include "ndbapi/NdbApi.hpp"
+#include "portlib/NdbTick.h"
+#include "my_sys.h"               // my_sleep.h
+#include "sql_thd_internal_api.h" // thd_query_unsafe
 
 /* perform random sleep in the range milli_sleep to 2*milli_sleep */
 static inline

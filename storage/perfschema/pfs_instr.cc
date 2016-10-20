@@ -21,18 +21,19 @@
 #include <my_global.h>
 #include <string.h>
 
+#include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysqld.h" // get_thd_status_var
 #include "pfs.h"
-#include "pfs_stat.h"
-#include "pfs_instr.h"
-#include "pfs_host.h"
-#include "pfs_user.h"
 #include "pfs_account.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
-#include "mysqld.h" // get_thd_status_var
+#include "pfs_global.h"
+#include "pfs_host.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "pfs_stat.h"
+#include "pfs_user.h"
 
 ulong nested_statement_lost= 0;
 
@@ -507,7 +508,8 @@ void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
     or 0 if unknown
   @return a thread instance, or NULL
 */
-PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
+PFS_thread* create_thread(PFS_thread_class *klass,
+                          const void *identity MY_ATTRIBUTE((unused)),
                           ulonglong processlist_id)
 {
   PFS_thread *pfs;
@@ -1624,7 +1626,7 @@ void aggregate_thread_status(PFS_thread *thread,
   return;
 }
 
-static void aggregate_thread_stats(PFS_thread *thread,
+static void aggregate_thread_stats(PFS_thread*,
                                    PFS_account *safe_account,
                                    PFS_user *safe_user,
                                    PFS_host *safe_host)

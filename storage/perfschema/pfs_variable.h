@@ -367,10 +367,10 @@ private:
   virtual bool do_initialize_global(void) { return true; }
   virtual bool do_initialize_session(void) { return true; }
   virtual int do_materialize_global(void) { return 1; }
-  virtual int do_materialize_all(THD *thd) { return 1; }
-  virtual int do_materialize_session(THD *thd) { return 1; }
+  virtual int do_materialize_all(THD *) { return 1; }
+  virtual int do_materialize_session(THD *) { return 1; }
   virtual int do_materialize_session(PFS_thread *) { return 1; }
-  virtual int do_materialize_session(PFS_thread *, uint index) { return 1; }
+  virtual int do_materialize_session(PFS_thread *, uint) { return 1; }
 
 protected:
   /* Validated THD */
@@ -565,10 +565,7 @@ int PFS_variable_cache<Var_type>::materialize_session(PFS_thread *pfs_thread, ui
 class PFS_system_variable_cache : public PFS_variable_cache<System_variable>
 {
 public:
-  PFS_system_variable_cache(bool external_init) :
-                            PFS_variable_cache<System_variable>(external_init),
-                            m_mem_thd(NULL), m_mem_thd_save(NULL),
-                            m_mem_sysvar_ptr(NULL) { }
+  PFS_system_variable_cache(bool external_init);
   bool match_scope(int scope);
   ulonglong get_sysvar_hash_version(void) { return m_version; }
   ~PFS_system_variable_cache() { free_mem_root(); }
@@ -640,7 +637,7 @@ public:
 
 protected:
   /* Get PFS_user, account or host associated with a PFS_thread. Implemented by table class. */
-  virtual PFS_client *get_pfs(PFS_thread *pfs_thread) { return NULL; }
+  virtual PFS_client *get_pfs(PFS_thread*) { return NULL; }
 
   /* True if query is a SHOW command. */
   bool m_show_command;
@@ -653,7 +650,7 @@ private:
   int do_materialize_all(THD* thd);
   int do_materialize_session(THD *thd);
   int do_materialize_session(PFS_thread *thread);
-  int do_materialize_session(PFS_thread *thread, uint index) { return 0; }
+  int do_materialize_session(PFS_thread*, uint) { return 0; }
   int do_materialize_client(PFS_client *pfs_client);
 
   /* Callback to sum user, host or account status variables. */

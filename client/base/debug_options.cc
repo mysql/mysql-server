@@ -15,12 +15,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <functional>
+
 #include "client_priv.h"
 #include "debug_options.h"
 #include "abstract_program.h"
-#include "instance_callback.h"
 
 using namespace Mysql::Tools::Base::Options;
+using std::placeholders::_1;
 using Mysql::Tools::Base::Abstract_program;
 
 static Debug_options* primary_debug_options= NULL;
@@ -61,8 +63,8 @@ void Debug_options::create_options()
     ->set_short_character('#')
     ->value_optional()
     ->set_value("d:t:O,/tmp/" + this->m_program->get_name() + ".trace")
-    ->add_callback(new Instance_callback<void, char*, Debug_options>(
-      this, &Debug_options::debug_option_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Debug_options::debug_option_callback, this, _1)));
   this->create_new_option(&this->m_debug_check_flag, "debug-check",
       "Check memory and open file usage at exit.");
   this->create_new_option(&this->m_debug_info_flag, "debug-info",

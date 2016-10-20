@@ -107,6 +107,8 @@
 #include "table_prepared_stmt_instances.h"
 
 #include "table_md_locks.h"
+#include "table_data_locks.h"
+#include "table_data_lock_waits.h"
 #include "table_table_handles.h"
 
 #include "table_uvar_by_thread.h"
@@ -630,6 +632,8 @@ static PFS_engine_table_share *all_shares[]=
   &table_mems_by_user_by_event_name::m_share,
   &table_table_handles::m_share,
   &table_metadata_locks::m_share,
+  &table_data_locks::m_share,
+  &table_data_lock_waits::m_share,
 
   &table_replication_connection_configuration::m_share,
   &table_replication_group_members::m_share,
@@ -690,7 +694,7 @@ public:
   {}
 };
 
-void PFS_check_intact::report_error(uint code, const char *fmt, ...)
+void PFS_check_intact::report_error(uint, const char *fmt, ...)
 {
   va_list args;
   char buff[MYSQL_ERRMSG_SIZE];
@@ -1009,12 +1013,44 @@ void PFS_engine_table::set_field_char_utf8(Field *f, const char* str,
   f2->store(str, len, &my_charset_utf8_bin);
 }
 
+void PFS_engine_table::set_field_varchar(Field *f,
+                                         const CHARSET_INFO *cs,
+                                         const char* str,
+                                         uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  f2->store(str, len, cs);
+}
+
 void PFS_engine_table::set_field_varchar_utf8(Field *f, const char* str,
                                               uint len)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2= (Field_varstring*) f;
   f2->store(str, len, &my_charset_utf8_bin);
+}
+
+void PFS_engine_table::set_field_varchar_utf8mb4(Field *f, const char* str,
+                                                 uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  f2->store(str, len, &my_charset_utf8mb4_bin);
+}
+
+void PFS_engine_table::set_field_varchar_utf8(Field *f, const char* str)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  f2->store(str, strlen(str), &my_charset_utf8_bin);
+}
+
+void PFS_engine_table::set_field_varchar_utf8mb4(Field *f, const char* str)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  f2->store(str, strlen(str), &my_charset_utf8mb4_bin);
 }
 
 void PFS_engine_table::set_field_longtext_utf8(Field *f, const char* str,
@@ -1134,8 +1170,7 @@ int PFS_engine_table::index_read(KEY *key_infos,
   Reads the next row matching the given key value.
   @return 0, HA_ERR_END_OF_FILE, or error
 */
-int PFS_engine_table::index_next_same(const uchar *key,
-                                      uint key_len)
+int PFS_engine_table::index_next_same(const uchar*, uint)
 {
   return index_next();
 }
@@ -1158,7 +1193,7 @@ public:
 
 ACL_internal_access_result
 PFS_internal_schema_access::check(ulong want_access,
-                                  ulong *save_priv)  const
+                                  ulong*)  const
 {
   const ulong always_forbidden= /* CREATE_ACL | */ REFERENCES_ACL
     | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL | EXECUTE_ACL
@@ -1210,7 +1245,7 @@ void initialize_performance_schema_acl(bool bootstrap)
 PFS_readonly_acl pfs_readonly_acl;
 
 ACL_internal_access_result
-PFS_readonly_acl::check(ulong want_access, ulong *save_priv) const
+PFS_readonly_acl::check(ulong want_access, ulong*) const
 {
   const ulong always_forbidden= INSERT_ACL | UPDATE_ACL | DELETE_ACL
     | /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL | ALTER_ACL
@@ -1238,7 +1273,7 @@ PFS_readonly_world_acl::check(ulong want_access, ulong *save_priv) const
 PFS_truncatable_acl pfs_truncatable_acl;
 
 ACL_internal_access_result
-PFS_truncatable_acl::check(ulong want_access, ulong *save_priv) const
+PFS_truncatable_acl::check(ulong want_access, ulong*) const
 {
   const ulong always_forbidden= INSERT_ACL | UPDATE_ACL | DELETE_ACL
     | /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL | ALTER_ACL
@@ -1266,7 +1301,7 @@ PFS_truncatable_world_acl::check(ulong want_access, ulong *save_priv) const
 PFS_updatable_acl pfs_updatable_acl;
 
 ACL_internal_access_result
-PFS_updatable_acl::check(ulong want_access, ulong *save_priv) const
+PFS_updatable_acl::check(ulong want_access, ulong*) const
 {
   const ulong always_forbidden= INSERT_ACL | DELETE_ACL
     | /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL | ALTER_ACL
@@ -1281,7 +1316,7 @@ PFS_updatable_acl::check(ulong want_access, ulong *save_priv) const
 PFS_editable_acl pfs_editable_acl;
 
 ACL_internal_access_result
-PFS_editable_acl::check(ulong want_access, ulong *save_priv) const
+PFS_editable_acl::check(ulong want_access, ulong*) const
 {
   const ulong always_forbidden= /* CREATE_ACL | */ REFERENCES_ACL
     | INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL;
@@ -1295,7 +1330,7 @@ PFS_editable_acl::check(ulong want_access, ulong *save_priv) const
 PFS_unknown_acl pfs_unknown_acl;
 
 ACL_internal_access_result
-PFS_unknown_acl::check(ulong want_access, ulong *save_priv) const
+PFS_unknown_acl::check(ulong want_access, ulong*) const
 {
   const ulong always_forbidden= CREATE_ACL
     | REFERENCES_ACL | INDEX_ACL | ALTER_ACL

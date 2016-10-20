@@ -16,12 +16,21 @@
 */
 
 #include "srs.h"
-#include "wkt_parser.h"
-#include "mysqld_error.h"                  // ER_*
-#include <m_ctype.h>                       // my_strcasecmp
-#include <vector>
-#include <map>
+
+#include <stddef.h>
 #include <cmath>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <boost/variant/get.hpp>
+#include "m_ctype.h"                       // my_strcasecmp
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                  // ER_*
+#include "wkt_parser.h"
 
 /**
   Extract projection parameter values from the parse tree and assign
@@ -1151,10 +1160,10 @@ static bool create_projected_srs(srid_t srid,
 }
 
 
-bool gis::srs::parse_wkt(srid_t srid, std::string *str,
+bool gis::srs::parse_wkt(srid_t srid, const char *begin, const char *end,
                          Spatial_reference_system **result)
 {
-  if (str == nullptr || str->empty())
+  if (begin == nullptr || begin == end)
   {
     my_error(ER_SRS_PARSE_ERROR, MYF(0), srid);
     return true;
@@ -1163,7 +1172,7 @@ bool gis::srs::parse_wkt(srid_t srid, std::string *str,
   namespace wp = gis::srs::wkt_parser;
 
   wp::Coordinate_system cs;
-  bool res= wp::parse_wkt(srid, str, &cs);
+  bool res= wp::parse_wkt(srid, begin, end, &cs);
 
   if (!res)
   {

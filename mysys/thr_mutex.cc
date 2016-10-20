@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,9 +18,13 @@
 */
 
 #include "thr_mutex.h"
-#include "my_thread_local.h"
 
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#include "my_thread_local.h"
 
 #if defined(SAFE_MUTEX)
 /* This makes a wrapper for mutex handling to make it easier to debug mutex */

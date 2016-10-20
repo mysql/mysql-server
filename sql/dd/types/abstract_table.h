@@ -83,7 +83,7 @@ public:
   { return update_name_key(key, schema_id(), name()); }
 
   static bool update_name_key(name_key_type *key, Object_id schema_id,
-                              const std::string &name);
+                              const String_type &name);
 
   virtual bool update_aux_key(aux_key_type *key) const
   { return true; }
@@ -114,7 +114,7 @@ public:
   virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
-  virtual bool set_options_raw(const std::string &options_raw) = 0;
+  virtual bool set_options_raw(const String_type &options_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // created.
@@ -133,6 +133,13 @@ public:
   virtual enum_table_type type() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
+  // hidden.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool hidden() const = 0;
+  virtual void set_hidden(bool hidden) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
   // Column collection.
   /////////////////////////////////////////////////////////////////////////
 
@@ -140,7 +147,7 @@ public:
 
   virtual const Column_collection &columns() const = 0;
 
-  virtual const Column *get_column(const std::string name) const = 0;
+  virtual const Column *get_column(const String_type name) const = 0;
 
   /**
     Allocate a new object graph and invoke the copy contructor for

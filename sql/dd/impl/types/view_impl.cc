@@ -15,20 +15,26 @@
 
 #include "dd/impl/types/view_impl.h"
 
-#include "my_user.h"                          // parse_user
-#include "mysqld_error.h"                     // ER_*
+#include <sstream>
 
-#include "dd/properties.h"                     // Needed for destructor
-#include "dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"            // Raw_record
 #include "dd/impl/tables/tables.h"             // Tables
 #include "dd/impl/tables/view_routine_usage.h" // View_routine_usage
 #include "dd/impl/tables/view_table_usage.h"   // View_table_usage
+#include "dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
 #include "dd/impl/types/view_routine_impl.h"   // View_routine_impl
 #include "dd/impl/types/view_table_impl.h"     // View_table_impl
+#include "dd/properties.h"                     // Needed for destructor
+#include "dd/string_type.h"                    // dd::String_type
 #include "dd/types/column.h"                   // Column
-
-#include <sstream>
+#include "dd/types/view_routine.h"
+#include "dd/types/view_table.h"
+#include "dd/types/weak_object.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"                     // ER_*
+#include "mysqld.h"
+#include "my_sys.h"
+#include "my_user.h"                          // parse_user
 
 using dd::tables::Tables;
 using dd::tables::View_table_usage;
@@ -165,7 +171,7 @@ bool View_impl::restore_attributes(const Raw_record &r)
   m_definition_utf8= r.read_str(Tables::FIELD_VIEW_DEFINITION_UTF8);
 
   {
-    std::string definer= r.read_str(Tables::FIELD_VIEW_DEFINER);
+    String_type definer= r.read_str(Tables::FIELD_VIEW_DEFINER);
 
     // NOTE: this is a copy/paste from sp_head::set_definer().
 
@@ -203,7 +209,7 @@ bool View_impl::store_attributes(Raw_record *r)
   // Store view attributes
   //
 
-  std::stringstream definer;
+  dd::Stringstream_type definer;
   definer << m_definer_user << '@' << m_definer_host;
 
   return
@@ -222,11 +228,11 @@ bool View_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void View_impl::debug_print(std::string &outb) const
+void View_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
 
-  std::string s;
+  String_type s;
   Abstract_table_impl::debug_print(s);
 
   ss
@@ -246,7 +252,7 @@ void View_impl::debug_print(std::string &outb) const
 
   for (const View_table *f : tables())
   {
-    std::string ob;
+    String_type ob;
     f->debug_print(ob);
     ss << ob;
   }
@@ -255,7 +261,7 @@ void View_impl::debug_print(std::string &outb) const
   ss << "m_routines:" << m_routines.size() << " [ ";
   for (const View_routine *r : routines())
   {
-    std::string ob;
+    String_type ob;
     r->debug_print(ob);
     ss << ob;
   }

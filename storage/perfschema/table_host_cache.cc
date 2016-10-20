@@ -385,7 +385,7 @@ int table_host_cache::rnd_pos(const void *pos)
   return 0;
 }
 
-int table_host_cache::index_init(uint idx, bool sorted)
+int table_host_cache::index_init(uint idx, bool)
 {
   PFS_index_host_cache *result= NULL;
 

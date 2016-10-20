@@ -15,9 +15,22 @@
 
 #include "dd/info_schema/show.h"
 
-#include "dd/dd.h"                             // dd::get_dictionary
-#include "dd/dictionary.h"                     // dd::Dictionary::is_system_view_name
+#include <string.h>
+#include <string>
+
 #include "dd/info_schema/show_query_builder.h" // Select_lex_builder
+#include "dd/info_schema/stats.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_sqlcommand.h"
+#include "mysqld.h"
+#include "session_tracker.h"
+#include "sql_class.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_string.h"
+#include "table.h"
+#include "thr_lock.h"
 
 namespace dd {
 namespace info_schema {
@@ -229,7 +242,7 @@ build_show_databases_query(const POS &pos,
     C_STRING_WITH_LEN("Database") };
 
   // Build the alias 'Database (<dbname>%)'
-  std::string alias;
+  String_type alias;
   alias.append(alias_database.str);
   if (wild)
   {
@@ -490,7 +503,7 @@ build_show_tables_query(const POS &pos,
     Build the alias 'Tables_in_<dbname> %' we are building
     SHOW TABLES and not SHOW TABLE STATUS
   */
-  std::string alias;
+  String_type alias;
 
   if (include_status_fields)
   {

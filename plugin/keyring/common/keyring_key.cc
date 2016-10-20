@@ -18,7 +18,7 @@
 namespace keyring {
 
 Key::Key()
-  : key(NULL)
+  : key(nullptr)
   , key_len(0)
 {}
 

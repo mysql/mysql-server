@@ -15,13 +15,27 @@
 
 #include "mysqld_thd_manager.h"
 
-#include "mysql/thread_pool_priv.h"  // inc_thread_created
-#include "mutex_lock.h"              // Mutex_lock
-#include "debug_sync.h"              // DEBUG_SYNC_C
-#include "sql_class.h"               // THD
+#include "my_config.h"
 
-#include <functional>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 #include <algorithm>
+#include <functional>
+#include <new>
+#include <utility>
+
+#include "mutex_lock.h"              // Mutex_lock
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/thread_pool_priv.h"  // inc_thread_created
+#include "sql_class.h"               // THD
+#include "thr_mutex.h"
 
 
 std::atomic<uint> Global_THD_manager::atomic_global_thd_count { 0U };

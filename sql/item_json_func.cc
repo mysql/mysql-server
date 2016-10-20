@@ -17,16 +17,32 @@
 /* JSON Function items used by mysql */
 
 #include "item_json_func.h"
+
+#include <algorithm>            // std::fill
+#include <cstring>
+#include <new>
+#include <string>
+#include <utility>
+
 #include "current_thd.h"        // current_thd
 #include "item_cmpfunc.h"       // Item_func_like
+#include "item_subselect.h"
 #include "json_dom.h"
 #include "json_path.h"
+#include "m_string.h"
+#include "my_compare.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysqld_error.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "psi_memory_key.h"     // key_memory_JSON
 #include "sql_class.h"          // THD
+#include "sql_const.h"
 #include "sql_time.h"           // field_type_to_timestamp_type
 #include "template_utils.h"     // down_cast
-#include <algorithm>            // std::fill
+
+class PT_item_list;
 
 /** Helper routines */
 
@@ -550,38 +566,6 @@ longlong Item_func_json_valid::val_int()
 }
 
 
-/// Base class for predicates that compare elements in a JSON array.
-class Array_comparator
-{
-  const Json_wrapper &m_wrapper;
-protected:
-  Array_comparator(const Json_wrapper &wrapper) : m_wrapper(wrapper) {}
-  int cmp(size_t idx1, size_t idx2) const
-  {
-    return m_wrapper[idx1].compare(m_wrapper[idx2]);
-  }
-};
-
-/// Predicate that checks if one array element is less than another.
-struct Array_less : public Array_comparator
-{
-  Array_less(const Json_wrapper &wrapper) : Array_comparator(wrapper) {}
-  bool operator() (size_t idx1, size_t idx2) const
-  {
-    return cmp(idx1, idx2) < 0;
-  }
-};
-
-/// Predicate that checks if two array elements are equal.
-struct Array_equal : public Array_comparator
-{
-  Array_equal(const Json_wrapper &wrapper) : Array_comparator(wrapper) {}
-  bool operator() (size_t idx1, size_t idx2) const
-  {
-    return cmp(idx1, idx2) == 0;
-  }
-};
-
 typedef Prealloced_array<size_t, 16> Sorted_index_array;
 
 /**
@@ -601,9 +585,16 @@ static bool sort_array(const Json_wrapper &orig, Sorted_index_array *v)
     v->push_back(i);
 
   // Sort the array...
-  std::sort(v->begin(), v->end(), Array_less(orig));
+  const auto less= [&orig] (size_t idx1, size_t idx2) {
+    return orig[idx1].compare(orig[idx2]) < 0;
+  };
+  std::sort(v->begin(), v->end(), less);
+
   // ... and remove duplicates.
-  v->erase(std::unique(v->begin(), v->end(), Array_equal(orig)), v->end());
+  const auto equal= [&orig] (size_t idx1, size_t idx2) {
+    return orig[idx1].compare(orig[idx2]) == 0;
+  };
+  v->erase(std::unique(v->begin(), v->end(), equal), v->end());
 
   return false;
 }
@@ -1528,11 +1519,11 @@ static bool val_json_func_field_subselect(Item* arg,
 
         if (scalar)
         {
-          scalar->emplace<Json_string>(std::string(s, ss));
+          scalar->emplace<Json_string>(s, ss);
         }
         else
         {
-          dom= new (std::nothrow) Json_string(std::string(s, ss));
+          dom= new (std::nothrow) Json_string(s, ss);
           if (!dom)
             return true;                       /* purecov: inspected */
         }

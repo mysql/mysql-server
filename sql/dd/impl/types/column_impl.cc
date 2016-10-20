@@ -15,26 +15,37 @@
 
 #include "dd/impl/types/column_impl.h"
 
-#include "mysqld_error.h"                            // ER_*
-
-#include "dd/impl/properties_impl.h"                 // Properties_impl
-#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
-#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
-#include "dd/impl/raw/raw_record.h"                  // Raw_record
-#include "dd/impl/tables/columns.h"                  // Colummns
-#include "dd/impl/tables/column_type_elements.h"     // Column_type_elements
-#include "dd/impl/types/abstract_table_impl.h"       // Abstract_table_impl
-#include "dd/impl/types/column_type_element_impl.h"  // Column_type_element_impl
-#include "dd/types/column_type_element.h"            // Column_type_element
-
 #include <memory>
 #include <sstream>
 
+#include "dd/string_type.h"                          // dd::String_type
+#include "dd/impl/properties_impl.h"                 // Properties_impl
+#include "dd/impl/raw/raw_record.h"                  // Raw_record
+#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
+#include "dd/impl/tables/column_type_elements.h"     // Column_type_elements
+#include "dd/impl/tables/columns.h"                  // Colummns
+#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
+#include "dd/impl/types/abstract_table_impl.h"       // Abstract_table_impl
+#include "dd/impl/types/column_type_element_impl.h"  // Column_type_element_impl
+#include "dd/properties.h"
+#include "dd/types/column_type_element.h"            // Column_type_element
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                            // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 
 using dd::tables::Columns;
 using dd::tables::Column_type_elements;
 
 namespace dd {
+
+class Abstract_table;
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 // Column implementation.
@@ -126,7 +137,7 @@ Abstract_table &Column_impl::table()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Column_impl::set_options_raw(const std::string &options_raw)
+bool Column_impl::set_options_raw(const String_type &options_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(options_raw);
@@ -140,7 +151,7 @@ bool Column_impl::set_options_raw(const std::string &options_raw)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Column_impl::set_se_private_data_raw( const std::string &se_private_data_raw)
+bool Column_impl::set_se_private_data_raw( const String_type &se_private_data_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(se_private_data_raw);
@@ -429,9 +440,9 @@ Column_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Column_impl::debug_print(std::string &outb) const
+void Column_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "COLUMN OBJECT: { "
     << "m_id: {OID: " << id() << "}; "
@@ -469,7 +480,7 @@ void Column_impl::debug_print(std::string &outb) const
 
     for (const Column_type_element *e : elements())
     {
-      std::string ob;
+      String_type ob;
       e->debug_print(ob);
       ss << ob;
     }

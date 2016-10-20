@@ -18,12 +18,14 @@
 
 #include "my_global.h"
 
+#include "binary_log_funcs.h"                   // my_time_binary_length
 #include "decimal.h"                            // E_DEC_OOM
 #include "my_base.h"                            // ha_storage_media
 #include "my_compare.h"                         // portable_sizeof_char_ptr
+#include "my_pointer_arithmetic.h"
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
-#include "binary_log_funcs.h"                   // my_time_binary_length
 #include "mysqld_error.h"                       // ER_*
+#include "sql_bitmap.h"
 #include "sql_error.h"                          // Sql_condition
 #include "sql_string.h"                         // String
 #include "table.h"                              // TABLE
@@ -153,10 +155,10 @@ enum type_conversion_status
   */
   TYPE_WARN_TRUNCATED,
   /**
-    Value has been completely truncated. When this happens, it makes
-    comparisions with index impossible and confuses the range optimizer.
+    Value has invalid string data. When present in a predicate with
+    equality operator, range optimizer returns an impossible where.
   */
-  TYPE_WARN_ALL_TRUNCATED,
+  TYPE_WARN_INVALID_STRING,
   /// Trying to store NULL in a NOT NULL field.
   TYPE_ERR_NULL_CONSTRAINT_VIOLATION,
   /**

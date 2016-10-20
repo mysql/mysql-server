@@ -18,12 +18,14 @@
 #define MYSQL_SERVER 1
 #include "ha_heap.h"
 
-#include "probes_mysql.h"
-#include "sql_plugin.h"
+#include "current_thd.h"
 #include "heapdef.h"
+#include "my_pointer_arithmetic.h"
+#include "my_psi_config.h"
+#include "probes_mysql.h"
 #include "sql_base.h"                    // enum_tdc_remove_table_type
 #include "sql_class.h"
-#include "current_thd.h"
+#include "sql_plugin.h"
 
 static handler *heap_create_handler(handlerton *hton,
                                     TABLE_SHARE *table,

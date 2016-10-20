@@ -1,11 +1,12 @@
 ## Various regression tests
 ##
 --let $dont_load_plugin = 1
+--let $wait_for_unixsocket_status = no_wait
 --source ../include/xplugin_preamble.inc
 call mtr.add_suppression("Plugin mysqlx reported: .Error parsing message of type 17:");
-call mtr.add_suppression("Plugin mysqlx reported: .X Plugin failed to setup UNIX socket .., with:");
-call mtr.add_suppression("Plugin mysqlx reported: .UNIX socket path is empty");
---source include/restart_mysqld.inc
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket .. failed, the socket file path is empty");
+--let $wait_for_unixsocket_status = no_wait
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 
 ## Test starts here
@@ -162,12 +163,21 @@ EOF
 -->title -Bug Crash when sending an invalid message of type Find, for example
 
 -->repeat 10
+
 -->newsession foo
 # send a Find message with missing fields
 -->binsend \x01\x00\x00\x00\x11
 # expect a protobuf decode error
 -->recverror 5000
 -->closesession abort
+
+-->newsession foo	-
+# send a CapabilitySet message with missing fields
+-->binsend \x01\x00\x00\x00\x02
+# expect a protobuf decode error
+-->recverror 5000
+-->closesession abort
+
 -->endrepeat
 
 EOF

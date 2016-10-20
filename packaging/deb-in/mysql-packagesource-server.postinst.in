@@ -79,12 +79,11 @@ case "$1" in
 			db_get mysql-@DEB_PRODUCTNAME@-server/root-pass && PASSWD=${RET}
 			db_set mysql-@DEB_PRODUCTNAME@-server/root-pass ""
 			db_set mysql-@DEB_PRODUCTNAME@-server/re-root-pass ""
-			SQL=$(mktemp --tmpdir=/var/lib/mysql-files/)
-			touch ${SQL}
-			chmod 600 ${SQL}
-			chown mysql:mysql ${SQL}
+			SQL=$(mktemp -u ${MYSQLFILES}/XXXXXXXXXX)
+			install /dev/null -m0600 -omysql -gmysql "${SQL}"
 			if [ ! -z "${PASSWD}" ];
 			then
+				PASSWD=$(printf %q "${PASSWD}")
 				cat << EOF > ${SQL}
 USE mysql;
 ALTER user 'root'@'localhost' IDENTIFIED BY '${PASSWD}';

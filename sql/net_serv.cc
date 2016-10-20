@@ -33,19 +33,21 @@
   HFTODO this must be hidden if we don't want client capabilities in 
   embedded library
  */
-#include <my_global.h>
-#include <mysql.h>
-#include <mysql_com.h>
-#include <mysqld_error.h>
-#include <my_sys.h>
-#include <m_string.h>
+#include <string.h>
+#include <sys/types.h>
 #include <violite.h>
-#include <signal.h>
-#include <errno.h>
-#include "probes_mysql.h"
-#include "mysql/service_mysql_alloc.h"
-
 #include <algorithm>
+
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "mysql.h"
+#include "mysql/service_mysql_alloc.h"
+#include "my_sys.h"
+#include "probes_mysql.h"
 
 using std::min;
 using std::max;
@@ -74,6 +76,7 @@ using std::max;
 
 #ifdef MYSQL_SERVER
 #include "sql_cache.h" // query_cache_insert
+
 /*
   The following variables/functions should really not be declared
   extern, but as it's hard to include sql_class.h here, we have to

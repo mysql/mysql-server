@@ -28,11 +28,14 @@
   Most function are just inline wrappers around library calls
 */
 
+#include <decimal.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <algorithm>
+
+#include "my_dbug.h"
 #include "my_global.h"
 #include "sql_string.h"                         /* String */
-
-#include <decimal.h>
-#include <algorithm>
 
 typedef struct st_mysql_time MYSQL_TIME;
 

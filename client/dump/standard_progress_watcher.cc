@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 
 #include "standard_progress_watcher.h"
 
+#include <functional>
+
 using namespace Mysql::Tools::Dump;
 
 void Standard_progress_watcher::process_progress_step(
@@ -28,7 +30,7 @@ void Standard_progress_watcher::process_progress_step(
 }
 
 Standard_progress_watcher::Standard_progress_watcher(
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator)
   : Abstract_progress_watcher(message_handler, object_id_generator)
 {}

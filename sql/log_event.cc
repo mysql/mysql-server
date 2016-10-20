@@ -16,49 +16,108 @@
 
 #include "log_event.h"
 
-#include "base64.h"            // base64_encode
+#include "my_config.h"
+
+#include <assert.h>
+#include <stdlib.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <algorithm>
+#include <map>
+#include <string>
+#include <utility>
+
+#include "base64.h"
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
-#include "mysql/service_my_snprintf.h" // my_snprintf
-#include "mysql.h"             // MYSQL_OPT_MAX_ALLOWED_PACKET
+#include "binary_log_types.h"
+#include "debug_vars.h"
+#include "decimal.h"
+#include "m_ctype.h"
+#include "my_bitmap.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
 #include "my_decimal.h"        // my_decimal
 #include "my_time.h"           // MAX_DATE_STRING_REP_LENGTH
-#include "derror.h"            // ER_THD
+#include "mysql.h"             // MYSQL_OPT_MAX_ALLOWED_PACKET
+#include "mysql/service_my_snprintf.h" // my_snprintf
+#include "mysql_time.h"
+#include "rpl_tblmap.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table_id.h"
+#include "wrapper_functions.h"
 
 #ifdef MYSQL_CLIENT
 #include "mysqlbinlog.h"
 #endif
 
 #ifndef MYSQL_CLIENT
+
+#include <errno.h>
+#include <fcntl.h>
+#include <cstdint>
+#include <new>
+
+#include "auth/auth_common.h"
+#include "auth/sql_security_ctx.h"
+#include "binlog.h"
 #include "current_thd.h"
+#include "dd/types/abstract_table.h" // dd::enum_table_type
 #include "debug_sync.h"        // debug_sync_set_action
-#include "my_dir.h"            // my_dir
-#include "mysqld.h"            // lower_case_table_names server_uuid ...
+#include "derror.h"            // ER_THD
+#include "enum_query_type.h"
+#include "field.h"
+#include "handler.h"
 #include "item_func.h"         // Item_func_set_user_var
+#include "item.h"
+#include "key.h"
 #include "log.h"               // Log_throttle
+#include "mdl.h"
+#include "my_base.h"
+#include "my_command.h"
+#include "my_dir.h"            // my_dir
+#include "my_sqlcommand.h"
+#include "mysqld_error.h"
+#include "mysqld.h"            // lower_case_table_names server_uuid ...
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/mysql_transaction.h"
+#include "mysql/psi/psi_statement.h"
+#include "pfs_file_provider.h"
+#include "prealloced_array.h"
+#include "protocol.h"
 #include "query_result.h"      // sql_exchange
 #include "rpl_mts_submode.h"   // Mts_submode
+#include "rpl_reporting.h"
 #include "rpl_rli.h"           // Relay_log_info
 #include "rpl_rli_pdb.h"       // Slave_job_group
 #include "rpl_slave.h"         // use_slave_mask
 #include "sql_base.h"          // close_thread_tables
+#include "sql_bitmap.h"
 #include "sql_cache.h"         // query_cache
+#include "sql_class.h"
+#include "sql_cmd.h"
+#include "sql_data_change.h"
 #include "sql_db.h"            // load_db_opt_by_name
+#include "sql_digest_stream.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"          // I_List
 #include "sql_load.h"          // mysql_load
 #include "sql_locale.h"        // my_locale_by_number
 #include "sql_parse.h"         // mysql_test_parse_for_slave
+#include "sql_plugin.h" // plugin_foreach
 #include "sql_show.h"          // append_identifier
+#include "table.h"
+#include "thr_lock.h"
 #include "transaction.h"       // trans_rollback_stmt
+#include "transaction_info.h"
 #include "tztime.h"            // Time_zone
 
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include <mysql/psi/mysql_statement.h>
-#include "transaction_info.h"
-#include "sql_class.h"
-#include "mysql/psi/mysql_transaction.h"
-#include "sql_plugin.h" // plugin_foreach
-#include "dd/types/abstract_table.h" // dd::enum_table_type
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle
 slave_ignored_err_throttle(window_size,
@@ -68,16 +127,8 @@ slave_ignored_err_throttle(window_size,
                            " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_CLIENT */
 
-#include <base64.h>
-#include <my_bitmap.h>
-#include <map>
-#include <string>
-#include "rpl_utility.h"
-/* This is necessary for the List manipuation */
-#include "sql_list.h"                           /* I_List */
-#include "hash.h"
-#include "sql_digest.h"
 #include "rpl_gtid.h"
+#include "rpl_utility.h"
 #include "xa_aux.h"
 
 extern "C" {
@@ -1146,12 +1197,14 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
                               mysql_mutex_t* log_lock,
                               enum_binlog_checksum_alg checksum_alg_arg,
                               const char *log_file_name_arg,
-                              bool* is_binlog_active)
+                              bool* is_binlog_active,
+                              char *event_header)
 {
 
   ulong data_len;
   int result=0;
-  char buf[LOG_EVENT_MINIMAL_HEADER_LEN];
+  char local_buf[LOG_EVENT_MINIMAL_HEADER_LEN];
+  char *buf= event_header != NULL ? event_header : local_buf;
   uchar ev_offset= packet->length();
   DBUG_ENTER("Log_event::read_log_event(IO_CACHE *, String *, mysql_mutex_t, uint8)");
 
@@ -1161,20 +1214,27 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   if (log_file_name_arg)
     *is_binlog_active= mysql_bin_log.is_active(log_file_name_arg);
 
-  if (my_b_read(file, (uchar*) buf, sizeof(buf)))
+  /* If the event header wasn't passed, we need to read it. */
+  if (buf == local_buf)
   {
-    /*
-      If the read hits eof, we must report it as eof so the caller
-      will know it can go into cond_wait to be woken up on the next
-      update to the log.
-    */
-    DBUG_PRINT("error",("my_b_read failed. file->error: %d", file->error));
-    if (!file->error)
-      result= LOG_READ_EOF;
-    else
-      result= (file->error > 0 ? LOG_READ_TRUNC : LOG_READ_IO);
-    goto end;
+    if (my_b_read(file, (uchar*) buf, LOG_EVENT_MINIMAL_HEADER_LEN))
+    {
+      /*
+        If the read hits eof, we must report it as eof so the caller
+        will know it can go into cond_wait to be woken up on the next
+        update to the log.
+      */
+      DBUG_PRINT("error",("my_b_read failed. file->error: %d", file->error));
+      if (!file->error)
+        result= LOG_READ_EOF;
+      else
+        result= (file->error > 0 ? LOG_READ_TRUNC : LOG_READ_IO);
+      goto end;
+    }
   }
+  else
+    DBUG_PRINT("info",("Skipped reading the event header. Using the provided one."));
+
   data_len= uint4korr(buf + EVENT_LEN_OFFSET);
   if (data_len < LOG_EVENT_MINIMAL_HEADER_LEN ||
       data_len > max(current_thd->variables.max_allowed_packet,
@@ -1187,7 +1247,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   }
 
   /* Append the log event header to packet */
-  if (packet->append(buf, sizeof(buf)))
+  if (packet->append(buf, LOG_EVENT_MINIMAL_HEADER_LEN))
   {
     DBUG_PRINT("info", ("first packet->append failed (out of memory)"));
     /* Failed to allocate packet */
@@ -1232,7 +1292,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
             debug_event_buf_c[EVENT_TYPE_OFFSET] != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
             debug_event_buf_c[EVENT_TYPE_OFFSET] != binary_log::GTID_LOG_EVENT)
         {
-          int debug_cor_pos = rand() % (data_len + sizeof(buf) -
+          int debug_cor_pos = rand() % (data_len + LOG_EVENT_MINIMAL_HEADER_LEN -
                               BINLOG_CHECKSUM_LEN);
           debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
           DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event: byte on position %d", debug_cor_pos));
@@ -1246,7 +1306,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 
       if (opt_master_verify_checksum &&
         Log_event_footer::event_checksum_test((uchar*)packet->ptr() + ev_offset,
-                                              data_len + sizeof(buf),
+                                              data_len + LOG_EVENT_MINIMAL_HEADER_LEN,
                                               checksum_alg_arg))
       {
         DBUG_PRINT("info", ("checksum test failed"));
@@ -3089,7 +3149,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       This avoids inadvertent FD deletion in a race case where Coordinator
       would install a next new FD before Worker has noticed the previous one.
     */
-    rli->get_rli_description_event()->usage_counter.atomic_add(1);
+    ++rli->get_rli_description_event()->atomic_usage_counter;
     ptr_group->new_fd_event= rli->get_rli_description_event();
     ret_worker->fd_change_notified= true;
   }
@@ -3209,11 +3269,8 @@ int Log_event::apply_event(Relay_log_info *rli)
   {
     bool skip=
       bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index) &&
-      (get_mts_execution_mode(::server_id,
-                              rli->mts_group_status ==
-                              Relay_log_info::MTS_IN_GROUP,
-                              rli->current_mts_submode->get_type() ==
-                              MTS_PARALLEL_TYPE_DB_NAME)
+      (get_mts_execution_mode(rli->mts_group_status ==
+                              Relay_log_info::MTS_IN_GROUP)
        == EVENT_EXEC_PARALLEL);
     if (skip)
     {
@@ -3227,11 +3284,8 @@ int Log_event::apply_event(Relay_log_info *rli)
 
   if (!(parallel= rli->is_parallel_exec()) ||
       ((actual_exec_mode=
-        get_mts_execution_mode(::server_id,
-                               rli->mts_group_status ==
-                               Relay_log_info::MTS_IN_GROUP,
-                               rli->current_mts_submode->get_type() ==
-                               MTS_PARALLEL_TYPE_DB_NAME))
+        get_mts_execution_mode(rli->mts_group_status ==
+                               Relay_log_info::MTS_IN_GROUP))
        != EVENT_EXEC_PARALLEL))
   {
     if (parallel)
@@ -3634,7 +3688,7 @@ bool Query_log_event::write(IO_CACHE* file)
     uchar dbs;
     *start++= Q_UPDATED_DB_NAMES;
 
-    compile_time_assert(MAX_DBS_IN_EVENT_MTS <= OVER_MAX_DBS_IN_EVENT_MTS);
+    static_assert(MAX_DBS_IN_EVENT_MTS <= OVER_MAX_DBS_IN_EVENT_MTS, "");
 
     /* 
        In case of the number of db:s exceeds MAX_DBS_IN_EVENT_MTS
@@ -5263,7 +5317,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
     slave does it via marking the event according to
     FD_queue checksum_alg value.
   */
-  compile_time_assert(sizeof(BINLOG_CHECKSUM_ALG_DESC_LEN == 1));
+  static_assert(BINLOG_CHECKSUM_ALG_DESC_LEN == 1, "");
 #ifndef DBUG_OFF
   common_header->data_written= 0; // to prepare for need_checksum assert
 #endif
@@ -5933,7 +5987,7 @@ Xid_log_event::
 Xid_log_event(const char* buf,
               const Format_description_event *description_event)
   : binary_log::Xid_event(buf, description_event),
-    Xid_apply_log_event(buf, description_event, header(), footer())
+    Xid_apply_log_event(header(), footer())
 {
   is_valid_param= true;
 }
@@ -6269,7 +6323,7 @@ int XA_prepare_log_event::pack_info(Protocol *protocol)
   char query[sizeof("XA COMMIT ONE PHASE") + 1 + sizeof(buf)];
 
   /* RHS of the following assert is unknown to client sources */
-  compile_time_assert(ser_buf_size == XID::ser_buf_size);
+  static_assert(ser_buf_size == XID::ser_buf_size, "");
   serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
                 my_xid.bqual_length, my_xid.data);
   sprintf(query,
@@ -12312,11 +12366,11 @@ bool Transaction_context_log_event::write_data_header(IO_CACHE* file)
   char buf[Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN];
 
   buf[ENCODED_SERVER_UUID_LEN_OFFSET] = (char) strlen(server_uuid);
-  int8store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
+  int4store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
   buf[ENCODED_GTID_SPECIFIED_OFFSET] = gtid_specified;
   int4store(buf + ENCODED_SNAPSHOT_VERSION_LEN_OFFSET, get_snapshot_version_size());
-  int2store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
-  int2store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
+  int4store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
+  int4store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
   DBUG_RETURN(wrapper_my_b_safe_write(file, (const uchar *) buf,
                                       Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN));
 }

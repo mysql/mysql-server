@@ -15,18 +15,34 @@
 
 #include "rpl_handler.h"
 
+#include <string.h>
+#include <new>
+#include <vector>
+
 #include "current_thd.h"
 #include "debug_sync.h"        // DEBUG_SYNC
+#include "handler.h"
+#include "hash.h"
 #include "item_func.h"         // user_var_entry
+#include "key.h"
 #include "log.h"               // sql_print_error
+#include "my_compiler.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld.h"            // server_uuid
+#include "prealloced_array.h"
 #include "psi_memory_key.h"
 #include "replication.h"       // Trans_param
+#include "rpl_gtid.h"
 #include "rpl_mi.h"            // Master_info
 #include "sql_class.h"         // THD
+#include "sql_const.h"
+#include "sql_error.h"
 #include "sql_plugin.h"        // plugin_int_to_ref
-#include "mysqld.h"            // server_uuid
-
-#include <vector>
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "transaction_info.h"
 
 Trans_delegate *transaction_delegate;
 Binlog_storage_delegate *binlog_storage_delegate;

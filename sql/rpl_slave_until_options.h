@@ -16,10 +16,14 @@
 #ifndef DEFINED_RPL_SLAVE_UNTIL_OPTIONS_H
 #define DEFINED_RPL_SLAVE_UNTIL_OPTIONS_H
 
+#include <sys/types.h>
 #include <string>
-#include "log_event.h"
-#include "log.h"
 
+#include "my_dbug.h"
+#include "my_global.h"
+#include "rpl_gtid.h"
+
+class Log_event;
 class Relay_log_info;
 
 /**

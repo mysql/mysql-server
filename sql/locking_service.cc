@@ -15,10 +15,18 @@
 
 #include "locking_service.h"
 
+#include <string.h>
+#include <sys/types.h>
+
 #include "current_thd.h"   // current_thd
 #include "error_handler.h" // Internal_error_handler
 #include "mdl.h"           // MDL_request_list
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/service_thd_wait.h"
+#include "mysqld_error.h"
 #include "sql_class.h"     // THD
+#include "sql_error.h"
 
 /**
   We want to convert ER_LOCK_DEADLOCK error to ER_LOCK_SERVICE_DEADLOCK error.

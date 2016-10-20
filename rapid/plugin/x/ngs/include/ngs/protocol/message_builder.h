@@ -22,6 +22,7 @@
 
 #include "m_ctype.h"
 #include "ngs_common/protocol_protobuf.h"
+#include "ngs/memory.h"
 
 namespace ngs
 {
@@ -41,7 +42,7 @@ namespace ngs
     void end_message();
 
     Output_buffer     *m_out_buffer;
-    CodedOutputStream *m_out_stream;
+    ngs::Memory_instrumented<CodedOutputStream>::Unique_ptr m_out_stream;
 
     int m_size_addr2_size;
 

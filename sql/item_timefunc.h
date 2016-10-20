@@ -19,14 +19,36 @@
 
 /* Function items used by mysql */
 
-#include "current_thd.h"
-#include "item_strfunc.h"  // Item_str_func
-
+#include <stddef.h>
+#include <sys/types.h>
 #include <algorithm>
 
+#include "binary_log_types.h"
+#include "current_thd.h"
+#include "enum_query_type.h"
+#include "field.h"
+#include "item.h"
+#include "item_func.h"
+#include "item_strfunc.h"  // Item_str_func
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "my_time.h"
+#include "mysql_com.h"
+#include "mysql_time.h"
+#include "parse_tree_node_base.h"
+#include "set_var.h"
+#include "sql_const.h"
+#include "sql_string.h"
+#include "system_variables.h"
+
 class MY_LOCALE;
-struct Interval;
+class THD;
+class Time_zone;
 struct Date_time_format;
+struct Interval;
+struct TABLE;
 
 bool get_interval_value(Item *args,interval_type int_type,
 			       String *str_value, Interval *interval);

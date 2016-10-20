@@ -190,7 +190,7 @@ void table_ets_by_thread_by_event_name::reset_position(void)
   m_next_pos.reset();
 }
 
-int table_ets_by_thread_by_event_name::rnd_init(bool scan)
+int table_ets_by_thread_by_event_name::rnd_init(bool)
 {
   m_normalizer= time_normalizer::get(transaction_timer);
   return 0;
@@ -244,7 +244,7 @@ table_ets_by_thread_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_ets_by_thread_by_event_name::index_init(uint idx, bool sorted)
+int table_ets_by_thread_by_event_name::index_init(uint idx, bool)
 {
   m_normalizer= time_normalizer::get(transaction_timer);
 

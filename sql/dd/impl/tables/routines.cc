@@ -15,12 +15,18 @@
 
 #include "dd/impl/tables/routines.h"
 
+#include <new>
+
 #include "dd/dd.h"                       // dd::create_object
 #include "dd/impl/raw/object_keys.h"     // dd::Routine_name_key
 #include "dd/impl/raw/raw_record.h"      // dd::Raw_record
-#include "dd/impl/types/routine_impl.h"  // dd::Routine_impl
+#include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/types/function.h"           // dd::Function
 #include "dd/types/procedure.h"          // dd::Procedure
+
+namespace dd {
+class Dictionary_object;
+}  // namespace dd
 
 
 namespace dd {
@@ -203,7 +209,7 @@ Dictionary_object *Routines::create_dictionary_object(
 bool Routines::update_object_key(Routine_name_key *key,
                                  Object_id schema_id,
                                  Routine::enum_routine_type type,
-                                 const std::string &routine_name)
+                                 const String_type &routine_name)
 {
   key->update(FIELD_SCHEMA_ID, schema_id,
               FIELD_TYPE, type,

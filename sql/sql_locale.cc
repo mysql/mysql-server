@@ -21,10 +21,16 @@
 */
 
 #include "sql_locale.h"
+
+#include <stddef.h>
+
 #include "derror.h"                             // MY_LOCALE_ERRMSGS
-#include "sql_class.h"                          // THD
-#include "my_sys.h"                             // MY_*, NullS, NULL
 #include "log.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "mysqld_error.h"
+#include "sql_error.h"
+#include "typelib.h"
 
 
 enum err_msgs_index

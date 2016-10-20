@@ -87,6 +87,7 @@ def	mysql	PRIMARY	mysql	time_zone_transition_type
 def	mysql	PRIMARY	mysql	user
 def	performance_schema	ACCOUNT	performance_schema	accounts
 def	performance_schema	PRIMARY	performance_schema	cond_instances
+def	performance_schema	PRIMARY	performance_schema	data_locks
 def	performance_schema	ACCOUNT	performance_schema	events_errors_summary_by_account_by_error
 def	performance_schema	HOST	performance_schema	events_errors_summary_by_host_by_error
 def	performance_schema	THREAD_ID	performance_schema	events_errors_summary_by_thread_by_error

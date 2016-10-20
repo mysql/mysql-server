@@ -2087,11 +2087,9 @@ INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
 
 --error 2
 --exec $MYSQL_DUMP --tab=$MYSQLTEST_VARDIR/tmp/ --fields-enclosed-by='12345' test t1
---remove_file $file
 
 --error 2
 --exec $MYSQL_DUMP --tab=$MYSQLTEST_VARDIR/tmp/ --fields-escaped-by='12345' test t1
---remove_file $file
 
 --echo # default '--default-charset' (binary):
 
@@ -2658,3 +2656,6 @@ CREATE TABLE test.t1 (
 --exec $MYSQL_DUMP --compact test t1
 
 DROP TABLE test.t1;
+
+# Needs to be removed after Bug#24619634 is fixed.
+--source include/force_restart.inc

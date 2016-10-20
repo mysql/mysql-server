@@ -1,4 +1,6 @@
 #ifndef RPL_MASTER_H_INCLUDED
+#define RPL_MASTER_H_INCLUDED
+
 /* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -14,10 +16,9 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-
-#define RPL_MASTER_H_INCLUDED
-
 #ifdef HAVE_REPLICATION
+
+#include <stddef.h>
 
 #include "my_global.h"
 #include "mysql_com.h"   // HOSTNAME_LENGTH

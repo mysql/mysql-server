@@ -15,22 +15,45 @@
 
 #include "xa.h"
 
-#include "hash.h"               // HASH
-#include "mysql/plugin.h"       // MYSQL_XIDDATASIZE
+#include <new>
+
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "derror.h"             // ER_DEFAULT
 #include "handler.h"            // handlerton
+#include "hash.h"               // HASH
+#include "item.h"
 #include "log.h"                // sql_print_information
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"       // MYSQL_XIDDATASIZE
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"             // server_id
+#include "mysqld_error.h"
+#include "protocol.h"
 #include "psi_memory_key.h"     // key_memory_XID
+#include "query_options.h"
+#include "rpl_context.h"
+#include "rpl_gtid.h"
 #include "sql_class.h"          // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_list.h"
 #include "sql_plugin.h"         // plugin_foreach
+#include "sql_string.h"
+#include "system_variables.h"
 #include "tc_log.h"             // tc_log
+#include "thr_mutex.h"
 #include "transaction.h"        // trans_begin, trans_rollback
+#include "transaction_info.h"
 
-#include <pfs_transaction_provider.h>
-#include <mysql/psi/mysql_transaction.h>
-
+#include "pfs_transaction_provider.h"
+#include "mysql/psi/mysql_transaction.h"
 
 const char *XID_STATE::xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
@@ -55,8 +78,8 @@ static bool transaction_cache_insert_recovery(XID *xid);
 
 my_xid xid_t::get_my_xid() const
 {
-  // Verifies that our #define matches the one in plugin.h
-  compile_time_assert(XIDDATASIZE == MYSQL_XIDDATASIZE);
+  static_assert(XIDDATASIZE == MYSQL_XIDDATASIZE,
+                "Our #define needs to match the one in plugin.h.");
 
   if (gtrid_length == static_cast<long>(MYSQL_XID_GTRID_LEN) &&
       bqual_length == 0 &&
@@ -763,6 +786,12 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd)
     DBUG_ASSERT(thd->m_transaction_psi == NULL);
 #endif
 
+    /*
+      Reset rm_error in case ha_prepare() returned error,
+      so thd->transaction.xid structure gets reset
+      by THD::transaction::cleanup().
+    */
+    thd->get_transaction()->xid_state()->reset_error();
     cleanup_trans_state(thd);
     xid_state->set_state(XID_STATE::XA_NOTR);
     thd->get_transaction()->cleanup();

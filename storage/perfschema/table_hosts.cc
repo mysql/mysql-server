@@ -118,7 +118,7 @@ table_hosts::table_hosts()
   m_row_exists(false)
 {}
 
-int table_hosts::index_init(uint idx, bool sorted)
+int table_hosts::index_init(uint, bool)
 {
   PFS_index_hosts *result= NULL;
   result= PFS_NEW(PFS_index_hosts_by_host);

@@ -16,6 +16,7 @@
 	/* Functions to compressed records */
 
 #include "fulltext.h"
+#include "my_pointer_arithmetic.h"
 
 #define IS_CHAR ((uint) 32768)		/* Bit if char (not offset) in tree */
 

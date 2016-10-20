@@ -15,6 +15,15 @@
 
 #ifndef RPL_SLAVE_COMMIT_ORDER_MANAGER
 #define RPL_SLAVE_COMMIT_ORDER_MANAGER
+#include <stddef.h>
+#include <memory>
+#include <vector>
+
+#include "my_dbug.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+
+class THD;
 #ifdef HAVE_REPLICATION
 
 #include "my_global.h"

@@ -21,8 +21,7 @@
 #define _MYSQLX_CRUD_H_
 
 #include "ngs_common/protocol_protobuf.h"
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/shared_ptr.hpp>
+#include "ngs_common/smart_ptr.h"
 #include <stdexcept>
 
 
@@ -50,23 +49,23 @@ namespace mysqlx
   class Session;
   class Result;
 
-  typedef boost::shared_ptr<Table> TableRef;
-  typedef boost::shared_ptr<Collection> CollectionRef;
+  typedef ngs::shared_ptr<Table> TableRef;
+  typedef ngs::shared_ptr<Collection> CollectionRef;
 
-  class Schema : public boost::enable_shared_from_this<Schema>
+  class Schema : public ngs::enable_shared_from_this<Schema>
   {
   public:
-    Schema(boost::shared_ptr<Session> conn, const std::string &name);
+    Schema(ngs::shared_ptr<Session> conn, const std::string &name);
 
     TableRef getTable(const std::string &name);
     CollectionRef getCollection(const std::string &name);
 
-    boost::shared_ptr<Session> session() const { return m_sess.lock(); }
+    ngs::shared_ptr<Session> session() const { return m_sess.lock(); }
     const std::string &name() const { return m_name; }
   private:
-    std::map<std::string, boost::shared_ptr<Table> > m_tables;
-    std::map<std::string, boost::shared_ptr<Collection> > m_collections;
-    boost::weak_ptr<Session> m_sess;
+    std::map<std::string, ngs::shared_ptr<Table> > m_tables;
+    std::map<std::string, ngs::shared_ptr<Collection> > m_collections;
+    ngs::weak_ptr<Session> m_sess;
     std::string m_name;
   };
 
@@ -78,7 +77,7 @@ namespace mysqlx
     Statement(){};
     Statement(const Statement& other);
     virtual ~Statement();
-    virtual boost::shared_ptr<Result> execute() = 0;
+    virtual ngs::shared_ptr<Result> execute() = 0;
 
   protected:
     std::vector<std::string> m_placeholders;
@@ -103,7 +102,7 @@ namespace mysqlx
     void reset(const std::string &doc, bool expression = false, const std::string &id = "");
 
   private:
-    boost::shared_ptr<std::string> m_data;
+    ngs::shared_ptr<std::string> m_data;
     bool m_expression;
     std::string m_id;
   };
@@ -356,17 +355,17 @@ namespace mysqlx
   class Table_Statement : public Statement
   {
   public:
-    Table_Statement(boost::shared_ptr<Table> table);
+    Table_Statement(ngs::shared_ptr<Table> table);
     Table_Statement(const Table_Statement& other);
 
     Table_Statement &bind(const std::string &name, const TableValue &value);
 
-    boost::shared_ptr<Table> table() const { return m_table; }
+    ngs::shared_ptr<Table> table() const { return m_table; }
 
   protected:
     Mysqlx::Datatypes::Scalar* convert_table_value(const TableValue& value);
 
-    boost::shared_ptr<Table> m_table;
+    ngs::shared_ptr<Table> m_table;
   };
 
   // -------------------------------------------------------
@@ -374,19 +373,19 @@ namespace mysqlx
   class Select_Base : public Table_Statement
   {
   public:
-    Select_Base(boost::shared_ptr<Table> table);
+    Select_Base(ngs::shared_ptr<Table> table);
     Select_Base(const Select_Base &other);
     Select_Base &operator = (const Select_Base &other);
 
-    virtual boost::shared_ptr<Result> execute();
+    virtual ngs::shared_ptr<Result> execute();
   protected:
-    boost::shared_ptr<Mysqlx::Crud::Find> m_find;
+    ngs::shared_ptr<Mysqlx::Crud::Find> m_find;
   };
 
   class Select_Offset : public Select_Base
   {
   public:
-    Select_Offset(boost::shared_ptr<Table> table) : Select_Base(table) {}
+    Select_Offset(ngs::shared_ptr<Table> table) : Select_Base(table) {}
     Select_Offset(const Select_Offset &other) : Select_Base(other) {}
     Select_Offset &operator = (const Select_Offset &other) { Select_Base::operator=(other); return *this; }
 
@@ -396,7 +395,7 @@ namespace mysqlx
   class Select_Limit : public Select_Offset
   {
   public:
-    Select_Limit(boost::shared_ptr<Table> table) : Select_Offset(table) {}
+    Select_Limit(ngs::shared_ptr<Table> table) : Select_Offset(table) {}
     Select_Limit(const Select_Limit &other) : Select_Offset(other) {}
     Select_Limit &operator = (const Select_Limit &other) { Select_Offset::operator=(other); return *this; }
 
@@ -406,7 +405,7 @@ namespace mysqlx
   class Select_OrderBy : public Select_Limit
   {
   public:
-    Select_OrderBy(boost::shared_ptr<Table> table) : Select_Limit(table) {}
+    Select_OrderBy(ngs::shared_ptr<Table> table) : Select_Limit(table) {}
     Select_OrderBy(const Select_OrderBy &other) : Select_Limit(other) {}
     Select_OrderBy &operator = (const Select_OrderBy &other) { Select_Limit::operator=(other); return *this; }
 
@@ -416,7 +415,7 @@ namespace mysqlx
   class Select_Having : public Select_OrderBy
   {
   public:
-    Select_Having(boost::shared_ptr<Table> table) : Select_OrderBy(table) {}
+    Select_Having(ngs::shared_ptr<Table> table) : Select_OrderBy(table) {}
     Select_Having(const Select_Having &other) : Select_OrderBy(other) {}
     Select_Having &operator = (const Select_Having &other) { Select_OrderBy::operator=(other); return *this; }
 
@@ -426,7 +425,7 @@ namespace mysqlx
   class Select_GroupBy : public Select_Having
   {
   public:
-    Select_GroupBy(boost::shared_ptr<Table> table) : Select_Having(table) {}
+    Select_GroupBy(ngs::shared_ptr<Table> table) : Select_Having(table) {}
     Select_GroupBy(const Select_GroupBy &other) : Select_Having(other) {}
     Select_GroupBy &operator = (const Select_Having &other) { Select_Having::operator=(other); return *this; }
 
@@ -436,7 +435,7 @@ namespace mysqlx
   class SelectStatement : public Select_GroupBy
   {
   public:
-    SelectStatement(boost::shared_ptr<Table> table, const std::vector<std::string> &fieldList);
+    SelectStatement(ngs::shared_ptr<Table> table, const std::vector<std::string> &fieldList);
     SelectStatement(const SelectStatement &other) : Select_GroupBy(other) {}
     SelectStatement &operator = (const SelectStatement &other) { Select_GroupBy::operator=(other); return *this; }
 
@@ -448,19 +447,19 @@ namespace mysqlx
   class Insert_Base : public Table_Statement
   {
   public:
-    Insert_Base(boost::shared_ptr<Table> table);
+    Insert_Base(ngs::shared_ptr<Table> table);
     Insert_Base(const Insert_Base &other);
     Insert_Base &operator = (const Insert_Base &other);
 
-    virtual boost::shared_ptr<Result> execute();
+    virtual ngs::shared_ptr<Result> execute();
   protected:
-    boost::shared_ptr<Mysqlx::Crud::Insert> m_insert;
+    ngs::shared_ptr<Mysqlx::Crud::Insert> m_insert;
   };
 
   class Insert_Values : public Insert_Base
   {
   public:
-    Insert_Values(boost::shared_ptr<Table> table);
+    Insert_Values(ngs::shared_ptr<Table> table);
     Insert_Values(const Insert_Base &other);
     Insert_Values &operator = (const Insert_Values &other);
 
@@ -470,7 +469,7 @@ namespace mysqlx
   class InsertStatement : public Insert_Values
   {
   public:
-    InsertStatement(boost::shared_ptr<Table> coll);
+    InsertStatement(ngs::shared_ptr<Table> coll);
     InsertStatement(const InsertStatement &other) : Insert_Values(other) {}
     InsertStatement &operator = (const InsertStatement &other) { Insert_Values::operator=(other); return *this; }
 
@@ -480,19 +479,19 @@ namespace mysqlx
   class Delete_Base : public Table_Statement
   {
   public:
-    Delete_Base(boost::shared_ptr<Table> table);
+    Delete_Base(ngs::shared_ptr<Table> table);
     Delete_Base(const Delete_Base &other);
     Delete_Base &operator = (const Delete_Base &other);
 
-    virtual boost::shared_ptr<Result> execute();
+    virtual ngs::shared_ptr<Result> execute();
   protected:
-    boost::shared_ptr<Mysqlx::Crud::Delete> m_delete;
+    ngs::shared_ptr<Mysqlx::Crud::Delete> m_delete;
   };
 
   class Delete_Limit : public Delete_Base
   {
   public:
-    Delete_Limit(boost::shared_ptr<Table> table) : Delete_Base(table) {}
+    Delete_Limit(ngs::shared_ptr<Table> table) : Delete_Base(table) {}
     Delete_Limit(const Delete_Limit &other) : Delete_Base(other) {}
     Delete_Limit &operator = (const Delete_Limit &other) { Delete_Base::operator=(other); return *this; }
 
@@ -502,7 +501,7 @@ namespace mysqlx
   class Delete_OrderBy : public Delete_Limit
   {
   public:
-    Delete_OrderBy(boost::shared_ptr<Table> table) : Delete_Limit(table) {}
+    Delete_OrderBy(ngs::shared_ptr<Table> table) : Delete_Limit(table) {}
     Delete_OrderBy(const Delete_Limit &other) : Delete_Limit(other) {}
     Delete_OrderBy &operator = (const Delete_OrderBy &other) { Delete_Limit::operator=(other); return *this; }
 
@@ -512,7 +511,7 @@ namespace mysqlx
   class DeleteStatement : public Delete_OrderBy
   {
   public:
-    DeleteStatement(boost::shared_ptr<Table> table);
+    DeleteStatement(ngs::shared_ptr<Table> table);
     DeleteStatement(const DeleteStatement &other) : Delete_OrderBy(other) {}
     DeleteStatement &operator = (const DeleteStatement &other) { Delete_OrderBy::operator=(other); return *this; }
 
@@ -522,19 +521,19 @@ namespace mysqlx
   class Update_Base : public Table_Statement
   {
   public:
-    Update_Base(boost::shared_ptr<Table> table);
+    Update_Base(ngs::shared_ptr<Table> table);
     Update_Base(const Update_Base &other);
     Update_Base &operator = (const Update_Base &other);
 
-    virtual boost::shared_ptr<Result> execute();
+    virtual ngs::shared_ptr<Result> execute();
   protected:
-    boost::shared_ptr<Mysqlx::Crud::Update> m_update;
+    ngs::shared_ptr<Mysqlx::Crud::Update> m_update;
   };
 
   class Update_Limit : public Update_Base
   {
   public:
-    Update_Limit(boost::shared_ptr<Table> table) : Update_Base(table) {}
+    Update_Limit(ngs::shared_ptr<Table> table) : Update_Base(table) {}
     Update_Limit(const Update_Limit &other) : Update_Base(other) {}
     Update_Limit &operator = (const Update_Limit &other) { Update_Base::operator=(other); return *this; }
 
@@ -544,7 +543,7 @@ namespace mysqlx
   class Update_OrderBy : public Update_Limit
   {
   public:
-    Update_OrderBy(boost::shared_ptr<Table> table) : Update_Limit(table) {}
+    Update_OrderBy(ngs::shared_ptr<Table> table) : Update_Limit(table) {}
     Update_OrderBy(const Update_Limit &other) : Update_Limit(other) {}
     Update_OrderBy &operator = (const Update_OrderBy &other) { Update_Limit::operator=(other); return *this; }
 
@@ -554,7 +553,7 @@ namespace mysqlx
   class Update_Where : public Update_OrderBy
   {
   public:
-    Update_Where(boost::shared_ptr<Table> table) : Update_OrderBy(table) {}
+    Update_Where(ngs::shared_ptr<Table> table) : Update_OrderBy(table) {}
     Update_Where(const Update_OrderBy &other) : Update_OrderBy(other) {}
     Update_Where &operator = (const Update_Where &other) { Update_OrderBy::operator=(other); return *this; }
 
@@ -564,7 +563,7 @@ namespace mysqlx
   class Update_Set : public Update_Where
   {
   public:
-    Update_Set(boost::shared_ptr<Table> table) : Update_Where(table) {}
+    Update_Set(ngs::shared_ptr<Table> table) : Update_Where(table) {}
     Update_Set(const Update_Where &other) : Update_Where(other) {}
     Update_Set &operator = (const Update_Set &other) { Update_Where::operator=(other); return *this; }
 
@@ -575,17 +574,17 @@ namespace mysqlx
   class UpdateStatement : public Update_Set
   {
   public:
-    UpdateStatement(boost::shared_ptr<Table> table);
+    UpdateStatement(ngs::shared_ptr<Table> table);
     UpdateStatement(const UpdateStatement &other) : Update_Set(other) {}
     UpdateStatement &operator = (const UpdateStatement &other) { Update_Set::operator=(other); return *this; }
   };
 
-  class Table : public boost::enable_shared_from_this<Table>
+  class Table : public ngs::enable_shared_from_this<Table>
   {
   public:
-    Table(boost::shared_ptr<Schema> schema, const std::string &name);
+    Table(ngs::shared_ptr<Schema> schema, const std::string &name);
 
-    boost::shared_ptr<Schema> schema() const { return m_schema.lock(); }
+    ngs::shared_ptr<Schema> schema() const { return m_schema.lock(); }
     const std::string& name() const { return m_name; }
 
     UpdateStatement update();
@@ -594,7 +593,7 @@ namespace mysqlx
     SelectStatement select(const std::vector<std::string> &fieldList);
 
   private:
-    boost::weak_ptr<Schema> m_schema;
+    ngs::weak_ptr<Schema> m_schema;
     std::string m_name;
   };
 
@@ -603,34 +602,34 @@ namespace mysqlx
   class Collection_Statement : public Statement
   {
   public:
-    Collection_Statement(boost::shared_ptr<Collection> coll);
+    Collection_Statement(ngs::shared_ptr<Collection> coll);
     Collection_Statement(const Collection_Statement& other);
     Collection_Statement &bind(const std::string &name, const DocumentValue &value);
 
-    boost::shared_ptr<Collection> collection() const { return m_coll; }
+    ngs::shared_ptr<Collection> collection() const { return m_coll; }
 
   protected:
     Mysqlx::Datatypes::Scalar* convert_document_value(const DocumentValue& value);
 
-    boost::shared_ptr<Collection> m_coll;
+    ngs::shared_ptr<Collection> m_coll;
   };
 
   class Find_Base : public Collection_Statement
   {
   public:
-    Find_Base(boost::shared_ptr<Collection> coll);
+    Find_Base(ngs::shared_ptr<Collection> coll);
     Find_Base(const Find_Base &other);
     Find_Base &operator = (const Find_Base &other);
 
-    virtual boost::shared_ptr<Result> execute();
+    virtual ngs::shared_ptr<Result> execute();
   protected:
-    boost::shared_ptr<Mysqlx::Crud::Find> m_find;
+    ngs::shared_ptr<Mysqlx::Crud::Find> m_find;
   };
 
   class Find_Skip : public Find_Base
   {
   public:
-    Find_Skip(boost::shared_ptr<Collection> coll) : Find_Base(coll) {}
+    Find_Skip(ngs::shared_ptr<Collection> coll) : Find_Base(coll) {}
     Find_Skip(const Find_Skip &other) : Find_Base(other) {}
     Find_Skip &operator = (const Find_Skip &other) { Find_Base::operator=(other); return *this; }
 
@@ -640,7 +639,7 @@ namespace mysqlx
   class Find_Limit : public Find_Skip
   {
   public:
-    Find_Limit(boost::shared_ptr<Collection> coll) : Find_Skip(coll) {}
+    Find_Limit(ngs::shared_ptr<Collection> coll) : Find_Skip(coll) {}
     Find_Limit(const Find_Limit &other) : Find_Skip(other) {}
     Find_Limit &operator = (const Find_Limit &other) { Find_Skip::operator=(other); return *this; }
 
@@ -650,7 +649,7 @@ namespace mysqlx
   class Find_Sort : public Find_Limit
   {
   public:
-    Find_Sort(boost::shared_ptr<Collection> coll) : Find_Limit(coll) {}
+    Find_Sort(ngs::shared_ptr<Collection> coll) : Find_Limit(coll) {}
     Find_Sort(const Find_Sort &other) : Find_Limit(other) {}
     Find_Sort &operator = (const Find_Sort &other) { Find_Limit::operator=(other); return *this; }
 
@@ -660,7 +659,7 @@ namespace mysqlx
   class Find_Having : public Find_Sort
   {
   public:
-    Find_Having(boost::shared_ptr<Collection> coll) : Find_Sort(coll) {}
+    Find_Having(ngs::shared_ptr<Collection> coll) : Find_Sort(coll) {}
     Find_Having(const Find_Having &other) : Find_Sort(other) {}
     Find_Having &operator = (const Find_Having &other) { Find_Sort::operator=(other); return *this; }
 
@@ -670,7 +669,7 @@ namespace mysqlx
   class Find_GroupBy : public Find_Having
   {
   public:
-    Find_GroupBy(boost::shared_ptr<Collection> coll) : Find_Having(coll) {}
+    Find_GroupBy(ngs::shared_ptr<Collection> coll) : Find_Having(coll) {}
     Find_GroupBy(const Find_GroupBy &other) : Find_Having(other) {}
     Find_GroupBy &operator = (const Find_Having &other) { Find_Having::operator=(other); return *this; }
 
@@ -680,7 +679,7 @@ namespace mysqlx
   class FindStatement : public Find_GroupBy
   {
   public:
-    FindStatement(boost::shared_ptr<Collection> coll, const std::string &searchCondition);
+    FindStatement(ngs::shared_ptr<Collection> coll, const std::string &searchCondition);
     FindStatement(const FindStatement &other) : Find_GroupBy(other) {}
     FindStatement &operator = (const FindStatement &other) { Find_GroupBy::operator=(other); return *this; }
 
@@ -696,20 +695,20 @@ namespace mysqlx
     std::vector<std::string> m_last_document_ids;
 
   public:
-    Add_Base(boost::shared_ptr<Collection> coll);
+    Add_Base(ngs::shared_ptr<Collection> coll);
     Add_Base(const Add_Base &other);
     Add_Base &operator = (const Add_Base &other);
 
-    virtual boost::shared_ptr<Result> execute();
+    virtual ngs::shared_ptr<Result> execute();
   protected:
-    boost::shared_ptr<Mysqlx::Crud::Insert> m_insert;
+    ngs::shared_ptr<Mysqlx::Crud::Insert> m_insert;
   };
 
   class AddStatement : public Add_Base
   {
   public:
-    AddStatement(boost::shared_ptr<Collection> coll);
-    AddStatement(boost::shared_ptr<Collection> coll, const Document &doc);
+    AddStatement(ngs::shared_ptr<Collection> coll);
+    AddStatement(ngs::shared_ptr<Collection> coll, const Document &doc);
     AddStatement(const AddStatement &other) : Add_Base(other) {}
     AddStatement &operator = (const AddStatement &other) { Add_Base::operator=(other); return *this; }
 
@@ -721,19 +720,19 @@ namespace mysqlx
   class Modify_Base : public Collection_Statement
   {
   public:
-    Modify_Base(boost::shared_ptr<Collection> coll);
+    Modify_Base(ngs::shared_ptr<Collection> coll);
     Modify_Base(const Modify_Base &other);
     Modify_Base &operator = (const Modify_Base &other);
 
-    virtual boost::shared_ptr<Result> execute();
+    virtual ngs::shared_ptr<Result> execute();
   protected:
-    boost::shared_ptr<Mysqlx::Crud::Update> m_update;
+    ngs::shared_ptr<Mysqlx::Crud::Update> m_update;
   };
 
   class Modify_Limit : public Modify_Base
   {
   public:
-    Modify_Limit(boost::shared_ptr<Collection> coll) : Modify_Base(coll) {}
+    Modify_Limit(ngs::shared_ptr<Collection> coll) : Modify_Base(coll) {}
     Modify_Limit(const Modify_Limit &other) : Modify_Base(other) {}
     Modify_Limit &operator = (const Modify_Limit &other) { Modify_Base::operator=(other); return *this; }
 
@@ -743,7 +742,7 @@ namespace mysqlx
   class Modify_Sort : public Modify_Limit
   {
   public:
-    Modify_Sort(boost::shared_ptr<Collection> coll) : Modify_Limit(coll) {}
+    Modify_Sort(ngs::shared_ptr<Collection> coll) : Modify_Limit(coll) {}
     Modify_Sort(const Modify_Sort &other) : Modify_Limit(other) {}
     Modify_Sort &operator = (const Modify_Sort &other) { Modify_Limit::operator=(other); return *this; }
 
@@ -753,7 +752,7 @@ namespace mysqlx
   class Modify_Operation : public Modify_Sort
   {
   public:
-    Modify_Operation(boost::shared_ptr<Collection> coll) : Modify_Sort(coll) {}
+    Modify_Operation(ngs::shared_ptr<Collection> coll) : Modify_Sort(coll) {}
     Modify_Operation(const Modify_Operation &other) : Modify_Sort(other) {}
     Modify_Operation &operator = (const Modify_Operation &other) { Modify_Sort::operator=(other); return *this; }
 
@@ -772,7 +771,7 @@ namespace mysqlx
   class ModifyStatement : public Modify_Operation
   {
   public:
-    ModifyStatement(boost::shared_ptr<Collection> coll, const std::string &searchCondition);
+    ModifyStatement(ngs::shared_ptr<Collection> coll, const std::string &searchCondition);
     ModifyStatement(const ModifyStatement &other) : Modify_Operation(other) {}
     ModifyStatement &operator = (const ModifyStatement &other) { Modify_Operation::operator=(other); return *this; }
   };
@@ -782,19 +781,19 @@ namespace mysqlx
   class Remove_Base : public Collection_Statement
   {
   public:
-    Remove_Base(boost::shared_ptr<Collection> coll);
+    Remove_Base(ngs::shared_ptr<Collection> coll);
     Remove_Base(const Remove_Base &other);
     Remove_Base &operator = (const Remove_Base &other);
 
-    virtual boost::shared_ptr<Result> execute();
+    virtual ngs::shared_ptr<Result> execute();
   protected:
-    boost::shared_ptr<Mysqlx::Crud::Delete> m_delete;
+    ngs::shared_ptr<Mysqlx::Crud::Delete> m_delete;
   };
 
   class Remove_Limit : public Remove_Base
   {
   public:
-    Remove_Limit(boost::shared_ptr<Collection> coll) : Remove_Base(coll) {}
+    Remove_Limit(ngs::shared_ptr<Collection> coll) : Remove_Base(coll) {}
     Remove_Limit(const Remove_Limit &other) : Remove_Base(other) {}
     Remove_Limit &operator = (const Remove_Limit &other) { Remove_Base::operator=(other); return *this; }
 
@@ -804,7 +803,7 @@ namespace mysqlx
   class RemoveStatement : public Remove_Limit
   {
   public:
-    RemoveStatement(boost::shared_ptr<Collection> coll, const std::string &searchCondition);
+    RemoveStatement(ngs::shared_ptr<Collection> coll, const std::string &searchCondition);
     RemoveStatement(const RemoveStatement &other) : Remove_Limit(other) {}
     RemoveStatement &operator = (const RemoveStatement &other) { Remove_Limit::operator=(other); return *this; }
 
@@ -813,12 +812,12 @@ namespace mysqlx
 
   // -------------------------------------------------------
 
-  class Collection : public boost::enable_shared_from_this<Collection>
+  class Collection : public ngs::enable_shared_from_this<Collection>
   {
   public:
-    Collection(boost::shared_ptr<Schema> schema, const std::string &name);
+    Collection(ngs::shared_ptr<Schema> schema, const std::string &name);
 
-    boost::shared_ptr<Schema> schema() const { return m_schema.lock(); }
+    ngs::shared_ptr<Schema> schema() const { return m_schema.lock(); }
     const std::string& name() const { return m_name; }
 
     FindStatement find(const std::string &searchCondition);
@@ -827,7 +826,7 @@ namespace mysqlx
     RemoveStatement remove(const std::string &searchCondition);
 
   private:
-    boost::weak_ptr<Schema> m_schema;
+    ngs::weak_ptr<Schema> m_schema;
     std::string m_name;
   };
 };

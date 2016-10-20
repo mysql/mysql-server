@@ -13,22 +13,43 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
+#include <scope_guard.h>
+#include <stdarg.h>
+#include <string.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <atomic>
-#include <mysql/components/services/persistent_dynamic_loader.h>
-#include <mysql/components/service_implementation.h>
-#include <scope_guard.h>
-#include "auth_common.h" // commit_and_close_mysql_tables
-#include "log.h" // error_log_print
-#include "sql_base.h"
-#include "sql_class.h"
-#include "derror.h"
-#include "records.h"
-#include "table.h"
-#include "transaction.h"
+#include <map>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "../components/mysql_server/dynamic_loader.h"
 #include "../components/mysql_server/persistent_dynamic_loader.h"
 #include "../components/mysql_server/server_component.h"
+#include "auth_common.h" // commit_and_close_mysql_tables
+#include "derror.h"
+#include "field.h"
+#include "handler.h"
+#include "key.h"
+#include "log.h" // error_log_print
+#include "mdl.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysql/components/service_implementation.h"
+#include "mysqld_error.h"
+#include "my_sys.h"
+#include "records.h"
+#include "sql_base.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_string.h"
+#include "table.h"
+#include "thr_lock.h"
 
 typedef std::string my_string;
 

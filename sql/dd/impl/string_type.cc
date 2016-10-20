@@ -30,8 +30,7 @@ void *String_type_alloc::operator()(size_t s) const
 }
 
 namespace std {
-// TODO: dd::String_type_alias -> dd::String_type
-size_t hash<dd::String_type_alias>::operator()(const dd::String_type_alias &s)
+size_t hash<dd::String_type>::operator()(const dd::String_type &s)
   const
 {
   return murmur3_32(reinterpret_cast<const uchar*>(s.c_str()), s.size(), 0);

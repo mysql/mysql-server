@@ -17,16 +17,21 @@
 #ifndef XA_H_INCLUDED
 #define XA_H_INCLUDED
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "m_string.h"
+#include "my_dbug.h"
 #include "my_global.h"
+#include "my_sqlcommand.h"
 #include "sql_cmd.h"          // Sql_cmd
 #include "sql_plugin_ref.h"   // plugin_ref
 #include "xa_aux.h"           // serialize_xid
 
-#include <string.h>
-
 class Protocol;
 class THD;
 struct xid_t;
+
 typedef int64 query_id_t;
 
 enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
@@ -203,10 +208,9 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 
 /*
  Same as MYSQL_XIDDATASIZE but we do not want to include plugin.h here
- See compile_time_assert in .cc file.
+ See static_assert in .cc file.
 */
 #define XIDDATASIZE 128
-class XID_STATE;
 
 /**
   struct xid_t is binary compatible with the XID structure as

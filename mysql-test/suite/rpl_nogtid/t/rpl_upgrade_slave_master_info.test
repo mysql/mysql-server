@@ -301,3 +301,6 @@ RESET SLAVE ALL;
 --source include/rpl_connection.inc
 DROP TABLE t1;
 --source include/rpl_end.inc
+
+# Remove this line after Bug#24702091 is fixed
+--source include/force_restart.inc

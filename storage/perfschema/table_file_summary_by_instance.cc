@@ -276,7 +276,7 @@ int table_file_summary_by_instance::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_file_summary_by_instance::index_init(uint idx, bool sorted)
+int table_file_summary_by_instance::index_init(uint idx, bool)
 {
   PFS_index_file_summary_by_instance *result= NULL;
 

@@ -16,37 +16,81 @@
 
 #include "sql_plugin.h"
 
-#include "mysql_version.h"
-#include <mysql/plugin_auth.h>
-#include <mysql/plugin_validate_password.h>
-#include <mysql/plugin_group_replication.h>
-#include <mysql/plugin_keyring.h>
+#include <limits.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"       // check_table_access
 #include "current_thd.h"
 #include "debug_sync.h"        // DEBUG_SYNC
 #include "derror.h"            // ER_THD
 #include "error_handler.h"     // No_such_table_error_handler
+#include "field.h"
 #include "handler.h"           // ha_initalize_handlerton
+#include "hash.h"
 #include "item.h"              // Item
 #include "key.h"               // key_copy
 #include "log.h"               // sql_print_error
+#include "m_ctype.h"
+#include "m_string.h"
 #include "mutex_lock.h"        // Mutex_lock
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
 #include "my_default.h"        // free_defaults
+#include "my_getopt.h"
+#include "my_list.h"
+#include "my_psi_config.h"
+#include "mysql_com.h"
+#include "mysql/plugin_audit.h"
+#include "mysql/plugin_auth.h"
+#include "mysql/plugin_group_replication.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_keyring.h"
+#include "mysql/plugin_validate_password.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql_version.h"
 #include "mysqld.h"            // files_charset_info
-#include "psi_memory_key.h"
+#include "mysqld_error.h"
 #include "persisted_variable.h"// Persisted_variables_cache
+#include "prealloced_array.h"
+#include "protocol_classic.h"
+#include "psi_memory_key.h"
 #include "records.h"           // READ_RECORD
+#include "session_tracker.h"
+#include "set_var.h"
 #include "sql_audit.h"         // mysql_audit_acquire_plugins
 #include "sql_base.h"          // close_mysql_tables
 #include "sql_class.h"         // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"         // check_string_char_length
+#include "sql_servers.h"
 #include "sql_show.h"          // add_status_vars
+#include "sql_string.h"
 #include "strfunc.h"           // find_type
+#include "sys_vars_resource_mgr.h"
 #include "sys_vars_shared.h"   // intern_find_sys_var
+#include "system_variables.h"
+#include "table.h"
 #include "template_utils.h"    // pointer_cast
+#include "thr_lock.h"
+#include "thr_mutex.h"
 #include "transaction.h"       // trans_rollback_stmt
-
-#include "mysql/psi/mysql_memory.h"
+#include "typelib.h"
 
 
 /**
@@ -224,6 +268,7 @@
 #endif
 
 #include <algorithm>
+#include <new>
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
@@ -3321,6 +3366,9 @@ static void cleanup_variables(THD *thd, struct System_variables *vars)
 {
   if (thd)
   {
+    /* Block the Performance Schema from accessing THD::variables. */
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    
     plugin_var_memalloc_free(&thd->variables);
     thd->session_sysvar_res_mgr.deinit();
   }
@@ -3331,6 +3379,9 @@ static void cleanup_variables(THD *thd, struct System_variables *vars)
   vars->dynamic_variables_ptr= NULL;
   vars->dynamic_variables_size= 0;
   vars->dynamic_variables_version= 0;
+
+  if (thd)
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
 }
 
 

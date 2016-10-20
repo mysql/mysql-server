@@ -15,16 +15,25 @@
 
 #include "event_queue.h"
 
+#include <stdio.h>
+#include <new>
+
 #include "event_db_repository.h"  // Event_db_repository
 #include "events.h"               // Events
 #include "lock.h"                 // lock_object_name
 #include "log.h"                  // sql_print_error
+#include "malloc_allocator.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "mysql/psi/mysql_sp.h"
 #include "psi_memory_key.h"       // key_memory_Event_scheduler_scheduler_param
 #include "sql_audit.h"            // mysql_audit_release
 #include "sql_class.h"            // THD
+#include "sql_lex.h"
+#include "thr_mutex.h"
 #include "tztime.h"               // my_tz_OFFSET0
-
-#include "mysql/psi/mysql_sp.h"
 
 /**
   @addtogroup Event_Scheduler

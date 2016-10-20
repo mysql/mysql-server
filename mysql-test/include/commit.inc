@@ -660,7 +660,7 @@ drop table t2;
 set sql_mode=no_engine_substitution;
 create temporary table t2 (a int);
 --disable_warnings
-call p_verify_status_increment(4, 0, 0, 0);
+call p_verify_status_increment(6, 0, 0, 0);
 --enable_warnings
 set sql_mode=default;
 --echo # 19. A function changes temp-trans-table.
@@ -858,16 +858,16 @@ create table t3 select a from t2;
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
- --replace_regex /8/<commit_count>/
-  call p_verify_status_increment(8, 0, 4, 4);
+ --replace_regex /10/<commit_count>/
+  call p_verify_status_increment(10, 0, 4, 4);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /9/<commit_count>/
-  call p_verify_status_increment(9, 0, 4, 4);
+  --replace_regex /11/<commit_count>/
+  call p_verify_status_increment(11, 0, 4, 4);
 }
 alter table t3 add column (b int);
-call p_verify_status_increment(7, 0, 2, 0);
+call p_verify_status_increment(6, 0, 2, 0);
 alter table t3 rename t4;
 call p_verify_status_increment(6, 0, 3, 0);
 rename table t4 to t3;

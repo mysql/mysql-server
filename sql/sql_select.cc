@@ -25,33 +25,58 @@
 
 #include "sql_select.h"
 
+#include <string.h>
+#include <algorithm>
+
+#include "auth_acls.h"
+#include "auth_common.h"         // *_ACL
 #include "current_thd.h"
-#include "sql_table.h"                          // primary_key_name
-#include "sql_derived.h"
-#include "probes_mysql.h"
-#include "opt_trace.h"
+#include "debug_sync.h"          // DEBUG_SYNC
+#include "enum_query_type.h"
+#include "error_handler.h"       // Ignore_error_handler
+#include "filesort.h"            // filesort_free_buffers
+#include "handler.h"
+#include "item_func.h"
+#include "item_subselect.h"
+#include "item_sum.h"            // Item_sum
 #include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
 #include "lock.h"                // mysql_unlock_some_tables,
-                                 // mysql_unlock_read_tables
+#include "my_compiler.h"
+#include "my_decimal.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
 #include "mysqld.h"              // stage_init
-#include "sql_show.h"            // append_identifier
-#include "sql_base.h"
-#include "auth_common.h"         // *_ACL
-#include "opt_range.h"           // QUICK_SELECT_I
-#include "sql_test.h"            // misc. debug printing utilities
-#include "records.h"             // init_read_record, end_read_record
-#include "filesort.h"            // filesort_free_buffers
+#include "mysqld_error.h"
 #include "opt_explain.h"
-#include "sql_join_buffer.h"     // JOIN_CACHE
-#include "sql_optimizer.h"       // JOIN
-#include "sql_tmp_table.h"       // tmp tables
-#include "debug_sync.h"          // DEBUG_SYNC
-#include "item_sum.h"            // Item_sum
-#include "sql_planner.h"         // calculate_condition_filter
+#include "opt_explain_format.h"
 #include "opt_hints.h"           // hint_key_state()
+#include "opt_range.h"           // QUICK_SELECT_I
+#include "opt_trace.h"
+#include "probes_mysql.h"        // IWYU pragma: keep
+#include "query_options.h"
+#include "query_result.h"
+#include "records.h"             // init_read_record, end_read_record
+#include "sql_analyse.h"         // Query_result_analyse
+#include "sql_base.h"
 #include "sql_cache.h"           // query_cache
+#include "sql_do.h"
+#include "sql_executor.h"
+#include "sql_join_buffer.h"     // JOIN_CACHE
+#include "sql_list.h"
+#include "sql_optimizer.h"       // JOIN
+#include "sql_planner.h"         // calculate_condition_filter
+#include "sql_show.h"            // append_identifier
+#include "sql_sort.h"
+#include "sql_test.h"            // misc. debug printing utilities
+#include "sql_timer.h"           // thd_timer_set
+#include "sql_tmp_table.h"       // tmp tables
+#include "temp_table_param.h"
+#include "template_utils.h"
+#include "thr_lock.h"
 
-#include <algorithm>
+class Opt_trace_context;
 
 using std::max;
 using std::min;
@@ -66,7 +91,8 @@ static uint actual_key_flags(KEY *key_info);
 bool const_expression_in_where(Item *conds,Item *item, Item **comp_item);
 
 /**
-  Handle a data manipulation query, from preparation through cleanup
+  Handle data manipulation query which is not represented by Sql_cmd_dml class.
+  @todo: Integrate with Sql_cmd_dml::prepare() and ::execute()
 
   @param thd       thread handler
   @param lex       query to be processed
@@ -85,21 +111,13 @@ bool const_expression_in_where(Item *conds,Item *item, Item **comp_item);
      - Optimization
      - Execution or explain
      - Cleanup
-    The queries handled by this function are:
 
-    SELECT
-    INSERT ... SELECT
-    REPLACE ... SELECT
-    UPDATE (multi-table)
-    DELETE (multi-table)
+    The statements handled by this function are:
 
-    @todo make this function also handle INSERT ... VALUES, single-table
-          UPDATE and DELETE, SET and DO.
-    
-    The function processes simple query expressions without UNION and
-    without multi-level ORDER BY/LIMIT separately.
-    Such queries are executed with a more direct code path.
+      CREATE TABLE with SELECT clause
+      SHOW statements
 */
+
 bool handle_query(THD *thd, LEX *lex, Query_result *result,
                   ulonglong added_options, ulonglong removed_options)
 {
@@ -114,12 +132,6 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   DBUG_ASSERT(!unit->is_prepared() && !unit->is_optimized() &&
               !unit->is_executed());
 
-  if (lex->proc_analyse && lex->sql_command != SQLCOM_SELECT)
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
-    DBUG_RETURN(true);
-  }
-
   const bool single_query= unit->is_simple();
 
   lex->used_tables=0;                         // Updated by setup_fields
@@ -132,7 +144,8 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 
   if (single_query)
   {
-    unit->set_limit(unit->global_parameters());
+    if (unit->prepare_limit(thd, unit->global_parameters()))
+      goto err;                      /* purecov: inspected */
 
     select->context.resolve_in_select_list= true;
     select->set_query_result(result);
@@ -171,6 +184,8 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 
   if (single_query)
   {
+    if (unit->set_limit(thd, unit->global_parameters()))
+      goto err;                      /* purecov: inspected */
     if (select->optimize(thd))
       goto err;
 
@@ -224,6 +239,575 @@ err:
   result->abort_result_set();
 
   DBUG_RETURN(thd->is_error());
+}
+
+
+/**
+  Get the maximum execution time for a statement.
+
+  @return Length of time in milliseconds.
+
+  @remark A zero timeout means that no timeout should be
+          applied to this particular statement.
+
+*/
+static inline ulong get_max_execution_time(THD *thd)
+{
+  return (thd->lex->max_execution_time ? thd->lex->max_execution_time :
+                                        thd->variables.max_execution_time);
+}
+
+
+/**
+  Check whether max statement time is applicable to statement or not.
+
+
+  @param  thd   Thread (session) context.
+
+  @return true  if max statement time is applicable to statement
+  @return false otherwise.
+*/
+static inline bool is_timer_applicable_to_statement(THD *thd)
+{
+  /*
+    The following conditions must be met:
+      - is SELECT statement.
+      - timer support is implemented and it is initialized.
+      - statement is not made by the slave threads.
+      - timer is not set for statement
+      - timer out value of is set
+      - SELECT statement is not from any stored programs.
+  */
+  return (thd->lex->sql_command == SQLCOM_SELECT &&
+          (have_statement_timeout == SHOW_OPTION_YES) &&
+          !thd->slave_thread &&
+          !thd->timer &&
+          (thd->lex->max_execution_time ||
+           thd->variables.max_execution_time) &&
+          !thd->sp_runtime_ctx);
+}
+
+
+/**
+  Set the time until the currently running statement is aborted.
+
+  @param  thd   Thread (session) context.
+
+  @return true if the timer was armed.
+*/
+
+bool set_statement_timer(THD *thd)
+{
+  ulong max_execution_time= get_max_execution_time(thd);
+
+  /**
+    whether timer can be set for the statement or not should be checked before
+    calling set_statement_timer function.
+  */
+  DBUG_ASSERT(is_timer_applicable_to_statement(thd) == true);
+  DBUG_ASSERT(thd->timer == NULL);
+
+  thd->timer= thd_timer_set(thd, thd->timer_cache, max_execution_time);
+  thd->timer_cache= NULL;
+
+  if (thd->timer)
+    thd->status_var.max_execution_time_set++;
+  else
+    thd->status_var.max_execution_time_set_failed++;
+
+  return thd->timer;
+}
+
+/**
+  Deactivate the timer associated with the statement that was executed.
+
+  @param  thd   Thread (session) context.
+*/
+
+void reset_statement_timer(THD *thd)
+{
+  DBUG_ASSERT(thd->timer);
+  /* Cache the timer object if it can be reused. */
+  thd->timer_cache= thd_timer_reset(thd->timer);
+  thd->timer= NULL;
+}
+
+
+/**
+  Prepare a DML statement.
+
+  @param thd       thread handler
+
+  @returns false if success, true if error
+*/
+bool Sql_cmd_dml::prepare(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_dml::prepare");
+
+  // @todo: Move this to constructor?
+  lex= thd->lex;
+  result= lex->result;
+
+  SELECT_LEX_UNIT *const unit= lex->unit;
+
+  DBUG_ASSERT(thd == unit->thd && !is_prepared());
+
+  DBUG_ASSERT(!unit->is_prepared() && !unit->is_optimized() &&
+              !unit->is_executed());
+
+  // Perform a coarse statement-specific privilege check.
+  if (precheck(thd))
+    goto err;
+
+  // Trigger out_of_memory condition inside open_tables_for_query()
+  DBUG_EXECUTE_IF("sql_cmd_dml_prepare__out_of_memory",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+  /*
+    Open tables and expand views.
+    During prepare of query (not as part of an execute), acquire only
+    S metadata locks instead of SW locks to be compatible with concurrent
+    LOCK TABLES WRITE and global read lock.
+  */
+  if (open_tables_for_query(thd, lex->query_tables,
+                            needs_explicit_preparation() ?
+                              MYSQL_OPEN_FORCE_SHARED_MDL : 0))
+  {
+    if (thd->is_error())   // @todo - dictionary code should be fixed
+      goto err;
+    (void) unit->cleanup(false);
+    DBUG_RETURN(true);
+  }
+#ifndef DBUG_OFF
+  if (sql_command_code() == SQLCOM_SELECT)
+    DEBUG_SYNC(thd, "after_table_open");
+#endif
+  if (lex->set_var_list.elements && resolve_var_assignments(thd, lex))
+    goto err;                      /* purecov: inspected */
+
+  /*
+    @todo add consistent error tracking for all query preparation by adding
+    this line: (when done, remove all other occurrences in preparation code)
+
+    Prepare_error_tracker tracker(thd);
+  */
+
+  if (prepare_inner(thd))
+    goto err;
+
+  set_prepared();
+
+  DBUG_RETURN(false);
+
+err:
+  DBUG_ASSERT(thd->is_error());
+  DBUG_PRINT("info",("report_error: %d", thd->is_error()));
+
+  (void) unit->cleanup(false);
+
+  DBUG_RETURN(true);
+}
+
+
+#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
+void Sql_cmd_select::start_stmt_dtrace(char *query)
+{
+  MYSQL_SELECT_START(query);
+}
+void Sql_cmd_select::end_stmt_dtrace(int status,
+                                     ulonglong rows, ulonglong changed)
+{
+  MYSQL_SELECT_DONE(status, rows);
+}
+#endif
+
+
+/**
+  Prepare a SELECT statement.
+*/
+
+bool Sql_cmd_select::prepare_inner(THD *thd)
+{
+  lex->used_tables=0;                         // Updated by setup_fields
+
+  if (lex->is_explain())
+  {
+    /*
+      Always use Query_result_send for EXPLAIN, even if it's an EXPLAIN for
+      SELECT ... INTO OUTFILE: a user application should be able to prepend
+      EXPLAIN to any query and receive output for it, even if the query itself
+      redirects the output.
+    */
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    result= new (thd->mem_root) Query_result_send(thd);
+    if (!result)
+      return true; /* purecov: inspected */
+  }
+  else
+  {
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    if (lex->result == NULL)
+    {
+      if (sql_command_code() == SQLCOM_SELECT)
+        lex->result= new (thd->mem_root) Query_result_send(thd);
+      else if (sql_command_code() == SQLCOM_DO)
+        lex->result= new (thd->mem_root) Query_result_do(thd);
+      if (lex->result == NULL)
+        return true;                          /* purecov: inspected */
+    }
+    result= lex->result;
+    Query_result *analyse_result= NULL;
+    if (lex->proc_analyse)
+    {
+      if ((result= analyse_result=
+           new (thd->mem_root) Query_result_analyse(thd, result,
+                                                    lex->proc_analyse)) == NULL)
+        return true;                      /* purecov: inspected */
+    }
+  }
+
+  SELECT_LEX_UNIT *const unit= lex->unit;
+  SELECT_LEX *parameters= unit->global_parameters();
+  if (!parameters->explicit_limit)
+  {
+    parameters->select_limit=
+      new (thd->mem_root) Item_uint(ulonglong(thd->variables.select_limit));
+    if (parameters->select_limit == NULL)
+      return true;                        /* purecov: inspected */
+  }
+  if (unit->prepare_limit(thd, parameters))
+    return true;                          /* purecov: inspected */
+
+  if (unit->is_simple())
+  {
+    SELECT_LEX *const select= unit->first_select();
+    select->context.resolve_in_select_list= true;
+    select->set_query_result(result);
+    select->make_active_options(0, 0);
+    select->fields_list= select->item_list;
+
+    if (select->prepare(thd))
+      return true;
+
+    unit->set_prepared();
+  }
+  else
+  {
+    if (unit->prepare(thd, result, SELECT_NO_UNLOCK, 0))
+      return true;
+  }
+
+  return false;
+}
+
+
+/**
+  Execute a DML statement.
+
+  @param thd       thread handler
+
+  @returns false if success, true if error
+
+  @details
+    Processing a statement goes through 6 phases (parsing is already done)
+     - Prelocking
+     - Preparation
+     - Locking of tables
+     - Optimization
+     - Execution or explain
+     - Cleanup
+
+    If the statement is already prepared, this step is skipped.
+
+    The queries handled by this function are:
+
+    SELECT
+    INSERT ... SELECT
+    INSERT ... VALUES
+    REPLACE ... SELECT
+    REPLACE ... VALUES
+    UPDATE (single-table and multi-table)
+    DELETE (single-table and multi-table)
+    DO
+
+  @todo make this function also handle SET.
+*/
+
+bool Sql_cmd_dml::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_dml::execute");
+
+  lex= thd->lex;
+  result= lex->result;
+
+  SELECT_LEX_UNIT *const unit= lex->unit;
+
+  bool statement_timer_armed= false;
+  bool error_handler_active= false;
+  bool res;
+
+  Ignore_error_handler ignore_handler;
+  Strict_error_handler strict_handler;
+
+  DBUG_ASSERT(thd == unit->thd);
+  // @todo - enable when needs_explicit_preparation is changed
+  // DBUG_ASSERT(!needs_explicit_preparation() || is_prepared());
+
+#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
+  start_stmt_dtrace(const_cast<char *>(thd->query().str));
+#endif
+
+  // If a timer is applicable to statement, then set it.
+  if (is_timer_applicable_to_statement(thd))
+    statement_timer_armed= set_statement_timer(thd);
+
+  if (!is_prepared())
+  {
+    prepare_only= false; // Indicate that call is from execute
+    if (prepare(thd))
+      goto err;
+    prepare_only= true;
+  }
+  else
+  {
+    /*
+      When statement is prepared, authorization check and opening of tables is
+      still needed.
+    */
+    if (precheck(thd))
+      goto err;
+    if (open_tables_for_query(thd, lex->query_tables, 0))
+      goto err;
+#ifndef DBUG_OFF
+  if (sql_command_code() == SQLCOM_SELECT)
+    DEBUG_SYNC(thd, "after_table_open");
+#endif
+  }
+
+  DBUG_EXECUTE_IF("use_attachable_trx",
+                  thd->begin_attachable_ro_transaction(););
+
+  THD_STAGE_INFO(thd, stage_init);
+
+  thd->clear_current_query_costs();
+
+  thd->current_changed_rows= 0;
+
+  if (is_data_change_stmt())
+  {
+    // Replication may require extra check of data change statements
+    if (run_before_dml_hook(thd))
+      goto err;
+
+    // Push ignore / strict error handler
+    if (lex->is_ignore())
+    {
+      thd->push_internal_handler(&ignore_handler);
+      error_handler_active= true;
+      /*
+        UPDATE IGNORE can be unsafe. We therefore use row based
+        logging if mixed or row based logging is available.
+        TODO: Check if the order of the output of the select statement is
+        deterministic. Waiting for BUG#42415
+      */
+      if (lex->sql_command == SQLCOM_UPDATE)
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_UPDATE_IGNORE);
+    }
+    else if (thd->is_strict_mode())
+    {
+      thd->push_internal_handler(&strict_handler);
+      error_handler_active= true;
+    }
+  }
+
+  DBUG_ASSERT(!lex->is_query_tables_locked());
+  /*
+    Locking of tables is done after preparation but before optimization.
+    This allows to do better partition pruning and avoid locking unused
+    partitions. As a consequence, in such a case, prepare stage can rely only
+    on metadata about tables used and not data from them.
+  */
+  if (!is_empty_query())
+  {
+    if (lock_tables(thd, lex->query_tables, lex->table_count, 0))
+      goto err;
+
+    /*
+      Register query result in cache.
+      Tables must be locked before storing the query in the query cache.
+      Transactional engines must be signalled that the statement has started,
+      by calling external_lock().
+    */
+    query_cache.store_query(thd, lex->query_tables);
+  }
+
+  // Perform statement-specific execution
+  if (execute_inner(thd))
+    goto err;
+
+  DBUG_ASSERT(!thd->is_error());
+
+  // Pop ignore / strict error handler
+  if (error_handler_active)
+  {
+    thd->pop_internal_handler();
+    error_handler_active= false;
+  }
+
+  THD_STAGE_INFO(thd, stage_end);
+
+  // Do partial cleanup (preserve plans for EXPLAIN).
+  res= unit->cleanup(false);
+
+  // Perform statement-specific cleanup for Query_result
+  if (result != NULL)
+    result->cleanup();
+
+  thd->save_current_query_costs();
+
+  thd->update_previous_found_rows();
+
+  DBUG_EXECUTE_IF("use_attachable_trx",
+                  thd->end_attachable_transaction(););
+
+  if (statement_timer_armed && thd->timer)
+    reset_statement_timer(thd);
+
+  // "unprepare" this object since unit->cleanup actually unprepares.
+  unprepare(thd);
+
+#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
+  end_stmt_dtrace(0, thd->current_found_rows, thd->current_changed_rows);
+#endif
+
+  DBUG_RETURN(res);
+
+err:
+  DBUG_ASSERT(thd->is_error() || thd->killed);
+  DBUG_PRINT("info",("report_error: %d", thd->is_error()));
+  THD_STAGE_INFO(thd, stage_end);
+  prepare_only= true;
+
+  (void) unit->cleanup(false);
+
+  // Abort and cleanup the result set (if it has been prepared).
+  if (result != NULL)
+  {
+    result->abort_result_set();
+    result->cleanup();
+  }
+  if (error_handler_active)
+    thd->pop_internal_handler();
+
+  if (statement_timer_armed && thd->timer)
+    reset_statement_timer(thd);
+
+  /*
+    There are situations where we want to know the cost of a query that
+    has failed during execution, e.g because of a timeout.
+  */
+  thd->save_current_query_costs();
+
+  DBUG_EXECUTE_IF("use_attachable_trx",
+                  thd->end_attachable_transaction(););
+
+  if (is_prepared())
+    unprepare(thd);
+
+#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
+  end_stmt_dtrace(1, 0ULL, 0ULL);
+#endif
+
+  DBUG_RETURN(thd->is_error());
+}
+
+
+/**
+  Execute a DML statement.
+  This is the default implementation for a DML statement and uses a
+  nested-loop join processor per outer-most query block.
+  The implementation is split in two: One for query expressions containing
+  a single query block and one for query expressions containing multiple
+  query blocks combined with UNION.
+*/
+
+bool Sql_cmd_dml::execute_inner(THD *thd)
+{
+  SELECT_LEX_UNIT *unit= lex->unit;
+
+  if (unit->is_simple())
+  {
+    if (unit->set_limit(thd, unit->global_parameters()))
+      return true;                      /* purecov: inspected */
+    if (unit->first_select()->optimize(thd))
+      return true;
+
+    unit->set_optimized();
+  }
+  else
+  {
+    if (unit->optimize(thd))
+      return true;
+  }
+
+  if (lex->is_explain())
+  {
+    if (explain_query(thd, unit))
+      return true;     /* purecov: inspected */
+  }
+  else
+  {
+    if (unit->is_simple())
+    {
+      unit->first_select()->join->exec();
+      unit->set_executed();
+      if (thd->is_error())
+        return true;
+    }
+    else
+    {
+      if (unit->execute(thd))
+        return true;
+    }
+  }
+
+  return false;
+}
+
+
+/**
+  Perform an authorization precheck for a SELECT statement.
+*/
+
+bool Sql_cmd_select::precheck(THD *thd)
+{
+  bool res;
+  /*
+    lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
+    requires FILE_ACL access.
+  */
+  ulong privileges_requested= lex->exchange ? SELECT_ACL | FILE_ACL :
+                                              SELECT_ACL;
+
+  TABLE_LIST *tables= lex->query_tables;
+  //TABLE_LIST *first_table= tables;
+
+  if (tables)
+  {
+    res= check_table_access(thd,
+                            privileges_requested,
+                            tables, false, UINT_MAX, false); // ||
+         /*
+           @todo: The lines below should be enabled when this function is
+           extended to handle SHOW statements as well.
+
+         (first_table && first_table->schema_table_reformed &&
+          check_show_access(thd, first_table));
+         */
+  }
+  else
+    res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
+
+  return res;
 }
 
 
@@ -3135,6 +3719,9 @@ bool JOIN::make_sum_func_list(List<Item> &field_list,
 
   @param thd      THD pointer
   @param select   pointer to SELECT_LEX which subselects joins we will free
+
+  @todo when the final use of this function (from SET statements) is removed,
+  this function can be deleted.
 */
 
 void free_underlaid_joins(THD *thd, SELECT_LEX *select)

@@ -16,17 +16,30 @@
 #ifndef RPL_MI_H
 #define RPL_MI_H
 
+#include <sys/types.h>
+#include <time.h>
+
+#include "m_string.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "sql_const.h"
+
+class Relay_log_info;
+class Rpl_info_handler;
+class Server_ids;
+class THD;
 #ifdef HAVE_REPLICATION
 
-#include "my_global.h"
 #include "binlog_event.h"            // enum_binlog_checksum_alg
 #include "log_event.h"               // Format_description_log_event
+#include "my_global.h"
 #include "rpl_gtid.h"                // Gtid
 #include "rpl_info.h"                // Rpl_info
 #include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser
 
 typedef struct st_mysql MYSQL;
-class Rpl_info_factory;
 
 #define DEFAULT_CONNECT_RETRY 60
 
@@ -444,7 +457,7 @@ private:
   Checkable_rwlock *m_channel_lock;
 
   /* References of the channel, the channel can only be deleted when it is 0. */
-  Atomic_int32 references;
+  std::atomic<int32> atomic_references{0};
 public:
   /**
     Acquire the channel read lock.
@@ -475,17 +488,17 @@ public:
   { m_channel_lock->assert_some_wrlock(); }
 
   /**
-    Increase the references to prohibit deleting a channel. This function
-    must be protected by channel_map.rdlock(). dec_reference have to be
-    called with inc_reference() together.
+    Increase the reference count to prohibit deleting a channel. This function
+    must be protected by channel_map.rdlock(). dec_reference has to be
+    called in conjunction with inc_reference().
   */
-  void inc_reference() { references.atomic_add(1); }
+  void inc_reference() { ++atomic_references; }
 
   /**
-    Decrease the references. It doesn't need the protection of
+    Decrease the reference count. Doesn't need the protection of
     channel_map.rdlock.
   */
-  void dec_reference() { references.atomic_add(-1); }
+  void dec_reference() { --atomic_references; }
 
   /**
     It mush be called before deleting a channel and protected by

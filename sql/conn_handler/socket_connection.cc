@@ -17,23 +17,54 @@
 
 #include "socket_connection.h"
 
-#include "violite.h"                    // Vio
-#include "channel_info.h"               // Channel_info
-#include "connection_handler_manager.h" // Connection_handler_manager
-#include "derror.h"                     // ER_DEFAULT
-#include "mysqld.h"                     // key_socket_tcpip
-#include "log.h"                        // sql_print_error
-#include "sql_class.h"                  // THD
-#include "init_net_server_extension.h"  // init_net_server_extension
+#include "my_config.h"
 
-#include <algorithm>
+#include <errno.h>
+#include <fcntl.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <sys/stat.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+#include <new>
+#include <utility>
+
+#include "channel_info.h"               // Channel_info
+#include "derror.h"                     // ER_DEFAULT
+#include "init_net_server_extension.h"  // init_net_server_extension
+#include "log.h"                        // sql_print_error
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld.h"                     // key_socket_tcpip
+#include "mysqld_error.h"
+#include "sql_class.h"                  // THD
+#include "sql_const.h"
+#include "sql_security_ctx.h"
+#include "violite.h"                    // Vio
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
 #ifdef HAVE_LIBWRAP
-#include <tcpd.h>
 #include <syslog.h>
+#include <tcpd.h>
 #endif
 
 using std::max;
@@ -578,7 +609,7 @@ bool Unix_socket::create_lockfile()
   pid_t cur_pid= getpid();
   std::string lock_filename= m_unix_sockname + ".lock";
 
-  compile_time_assert(sizeof(pid_t) == 4);
+  static_assert(sizeof(pid_t) == 4, "");
   int retries= 3;
   while (true)
   {

@@ -24,7 +24,7 @@
 #include <map>
 #include <vector>
 #include <google/protobuf/repeated_field.h>
-#include <boost/shared_ptr.hpp>
+#include "ngs_common/smart_ptr.h"
 
 #include "ngs/error_code.h"
 #include "ngs/protocol_fwd.h"
@@ -165,7 +165,7 @@ private:
   const Object &m_object;
   ngs::Error_code m_error;
   int m_args_consumed;
-  std::vector<boost::shared_ptr<Admin_command_arguments_object> > m_sub_objects;
+  std::vector<ngs::shared_ptr<Admin_command_arguments_object> > m_sub_objects;
 };
 
 } // namespace xpl

@@ -26,14 +26,12 @@
 #include <unordered_map>
 
 /*
-  Tests of dd::String_type (TODO: String_type_alias for now).
+  Tests of dd::String_type
 */
-
 
 namespace dd_string_type_unit_test {
 
-// TODO: dd::String_type_alias -> dd::String_type
-typedef dd::String_type_alias s_t;
+typedef dd::String_type s_t;
 
 class DDStringTypeTest : public ::testing::Test
 {};
@@ -49,7 +47,7 @@ TEST(DDStringTypeTest, BasicTest)
 // Create string using stringstream
 TEST(DDStringTypeTest, StreamTest)
 {
-  typedef dd::Stringstream_type_alias ss_t;
+  typedef dd::Stringstream_type ss_t;
 
   ss_t ss;
   double d= 42.65;
@@ -99,4 +97,80 @@ TEST(DDStringTypeTest, UnorderedMapTest)
   EXPECT_EQ("little", dict["small"]);
   EXPECT_EQ("average", dict["medium"]);
 }
+
+
+
+struct Tracking_alloc
+{
+  static int allocations;
+  static int bytes_allocated;
+
+  static int frees;
+
+  void *operator()(size_t s) const
+  {
+    ++allocations;
+    bytes_allocated += s;
+    return operator new(s);
+  }
+
+  void operator()(void *p, size_t) const
+  {
+    ++frees;
+    operator delete(p);
+  }
+};
+
+int Tracking_alloc::allocations= 0;
+int Tracking_alloc::bytes_allocated= 0;
+int Tracking_alloc::frees = 0;
+
+
+template <class T>
+using Tracking_allocator= Stateless_allocator<T, Tracking_alloc,
+                                              Tracking_alloc>;
+
+typedef dd::Char_string_template<Tracking_allocator<char> > Tracking_string;
+typedef dd::Char_stringstream_template<Tracking_allocator<char> > Tracking_stringstream;
+
+class TrackingStringTypeTest : public ::testing::Test
+{
+protected:
+  virtual void SetUp()
+  {
+    Tracking_alloc::allocations= 0;
+    Tracking_alloc::bytes_allocated= 0;
+    Tracking_alloc::frees= 0;
+  }
+  virtual void TearDown()
+  {
+    std::cout << "allocations: " << Tracking_alloc::allocations <<
+      ", frees: " << Tracking_alloc::frees <<
+      ", bytes allocated: " << Tracking_alloc::bytes_allocated << std::endl;
+    EXPECT_EQ(Tracking_alloc::allocations, Tracking_alloc::frees);
+  }
+};
+
+TEST_F(TrackingStringTypeTest, TrackingString)
+{
+  Tracking_string x= "foobar";
+}
+
+TEST_F(TrackingStringTypeTest, TrackingStringstream)
+{
+  Tracking_stringstream x;
+  x << "This is a number " << 42 << " followed by a double " << 36.9
+    << std::endl;
+}
+
+TEST_F(TrackingStringTypeTest, TrackingStringstreamGetString)
+{
+  Tracking_stringstream x;
+  x << "This is a number " << 42 << " followed by a double " << 36.9
+    << std::endl;
+  Tracking_string y= x.str();
+  EXPECT_EQ(46u, y.size());
+}
+
+
 } // namespace dd_string_type_unit_test

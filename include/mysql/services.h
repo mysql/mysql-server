@@ -48,6 +48,7 @@ extern "C" {
 #include <mysql/service_security_context.h>
 #include <mysql/service_locking.h>
 #include <mysql/service_mysql_keyring.h>
+#include <mysql/service_plugin_registry.h>
 
 #ifdef __cplusplus
 }

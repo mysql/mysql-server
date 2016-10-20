@@ -26,25 +26,25 @@ Created 5/7/1996 Heikki Tuuri
 #define LOCK_MODULE_IMPLEMENTATION
 
 #include <mysql/service_thd_engine_lock.h>
-#include "ha_prototypes.h"
-#include "current_thd.h"
+#include <set>
 
+#include "btr0btr.h"
+#include "current_thd.h"
+#include "dict0boot.h"
+#include "dict0mem.h"
+#include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "lock0priv.h"
-#include "dict0mem.h"
-#include "usr0sess.h"
+#include "my_psi_config.h"
+#include "pars0pars.h"
+#include "row0mysql.h"
+#include "row0sel.h"
+#include "srv0mon.h"
 #include "trx0purge.h"
 #include "trx0sys.h"
-#include "srv0mon.h"
-#include "ut0vec.h"
-#include "btr0btr.h"
-#include "dict0boot.h"
+#include "usr0sess.h"
 #include "ut0new.h"
-#include "row0sel.h"
-#include "row0mysql.h"
-#include "pars0pars.h"
-
-#include <set>
+#include "ut0vec.h"
 
 /* Flag to enable/disable deadlock detector. */
 my_bool	innobase_deadlock_detect = TRUE;
@@ -796,6 +796,29 @@ lock_rec_find_set_bit(
 	return(ULINT_UNDEFINED);
 }
 
+/** Looks for the next set bit in the record lock bitmap.
+@param[in] lock		record lock with at least one bit set
+@param[in] heap_no	current set bit
+@return The next bit index  == heap number following heap_no, or ULINT_UNDEFINED
+if none found */
+ulint
+lock_rec_find_next_set_bit(
+	const lock_t*	lock,
+	ulint		heap_no)
+{
+	ut_ad(heap_no != ULINT_UNDEFINED);
+
+	for (ulint i = heap_no + 1; i < lock_rec_get_n_bits(lock); ++i) {
+
+		if (lock_rec_get_nth_bit(lock, i)) {
+
+			return(i);
+		}
+	}
+
+	return(ULINT_UNDEFINED);
+}
+
 /** Reset the nth bit of a record lock.
 @param[in,out] lock record lock
 @param[in] i index of the bit that will be reset
@@ -1363,6 +1386,16 @@ RecLock::lock_add(lock_t* lock, bool add_to_hash)
 	if (m_mode & LOCK_WAIT) {
 		lock_set_lock_and_trx_wait(lock, lock->trx);
 	}
+
+#ifdef HAVE_PSI_DATA_LOCK_INTERFACE
+	/*
+	  The performance schema THREAD_ID and EVENT_ID
+	  are used only when DATA_LOCKS are exposed.
+	*/
+	PSI_THREAD_CALL(get_thread_event_id)(
+		& lock->m_psi_internal_thread_id,
+		& lock->m_psi_event_id);
+#endif
 
 	UT_LIST_ADD_LAST(lock->trx->lock.trx_locks, lock);
 }
@@ -3560,6 +3593,16 @@ lock_table_create(
 	lock->un_member.tab_lock.table = table;
 
 	ut_ad(table->n_ref_count > 0 || !table->can_be_evicted);
+
+#ifdef HAVE_PSI_DATA_LOCK_INTERFACE
+	/*
+	  The performance schema THREAD_ID and EVENT_ID
+	  are used only when DATA_LOCKS are exposed.
+	*/
+	PSI_THREAD_CALL(get_thread_event_id)(
+		& lock->m_psi_internal_thread_id,
+		& lock->m_psi_event_id);
+#endif
 
 	UT_LIST_ADD_LAST(trx->lock.trx_locks, lock);
 
@@ -6306,6 +6349,44 @@ lock_get_trx_id(
 	const lock_t*	lock)	/*!< in: lock */
 {
 	return(trx_get_id_for_print(lock->trx));
+}
+
+/** Get the performance schema event (thread_id, event_id)
+that created the lock.
+@param[in]	lock		Lock
+@param[out]	thread_id	Thread ID that created the lock
+@param[out]	event_id	Event ID that created the lock
+*/
+void
+lock_get_psi_event(
+	const lock_t*	lock,
+	ulonglong*	thread_id,
+	ulonglong*	event_id)
+{
+	*thread_id = lock->m_psi_internal_thread_id;
+	*event_id = lock->m_psi_event_id;
+}
+
+/** Get the first lock of a trx lock list.
+@param[in]	trx_lock	the trx lock
+@return The first lock
+*/
+const lock_t*
+lock_get_first_trx_locks(const trx_lock_t *trx_lock)
+{
+	const lock_t* result = UT_LIST_GET_FIRST(trx_lock->trx_locks);
+	return (result);
+}
+
+/** Get the next lock of a trx lock list.
+@param[in]	lock	the current lock
+@return The next lock
+*/
+const lock_t*
+lock_get_next_trx_locks(const lock_t *lock)
+{
+	const lock_t* result = UT_LIST_GET_NEXT(trx_locks, lock);
+	return (result);
 }
 
 /*******************************************************************//**

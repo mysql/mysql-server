@@ -15,29 +15,47 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "my_global.h"                // NO_EMBEDDED_ACCESS_CHECKS
-#include "sql_trigger.h"
+#include <stddef.h>
 
+#include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
+#include "binlog.h"
+#include "dd/dd_trigger.h"            // dd::table_has_triggers
+#include "dd/string_type.h"
+#include "dd/types/abstract_table.h"  // dd::enum_table_type
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "derror.h"                   // ER_THD
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_global.h"                // NO_EMBEDDED_ACCESS_CHECKS
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_sp.h"
+#include "mysql_com.h"
 #include "mysqld.h"                   // trust_function_creators
+#include "mysqld_error.h"
 #include "sp.h"                       // sp_add_to_query_tables()
+#include "sp_cache.h"                 // sp_invalidate_cache()
+#include "sp_head.h"                  // sp_name
 #include "sql_base.h"                 // find_temporary_table()
-#include "sql_table.h"                // build_table_filename()
+#include "sql_class.h"
+#include "sql_error.h"
                                       // write_bin_log()
 #include "sql_handler.h"              // mysql_ha_rm_tables()
-#include "sp_cache.h"                 // sp_invalidate_cache()
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_table.h"                // build_table_filename()
+#include "sql_trigger.h"
+#include "system_variables.h"
+#include "table.h"
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "thr_lock.h"
 #include "transaction.h"              // trans_commit_stmt, trans_commit
 #include "trigger.h"                  // Trigger
-#include "binlog.h"
-#include "sp_head.h"                  // sp_name
-#include "derror.h"                   // ER_THD
-
-#include "dd/types/abstract_table.h"  // dd::enum_table_type
-#include "dd/dd_trigger.h"            // dd::table_has_triggers
-
-#include "mysql/psi/mysql_sp.h"
-#include "debug_sync.h"               // DEBUG_SYNC
 ///////////////////////////////////////////////////////////////////////////
 
 bool add_table_for_trigger(THD *thd,
@@ -50,7 +68,7 @@ bool add_table_for_trigger(THD *thd,
 
   DBUG_ENTER("add_table_for_trigger");
 
-  std::string table_name;
+  dd::String_type table_name;
   bool trigger_found;
   if (dd::get_table_name_for_trigger(thd, db_name.str,
                                      trigger_name.str,
@@ -76,7 +94,16 @@ bool add_table_for_trigger(THD *thd,
     DBUG_RETURN(true);
   }
 
-  *table= sp_add_to_query_tables(thd, lex, db_name.str, table_name.c_str());
+  char lc_table_name[NAME_LEN + 1];
+  const char *table_name_ptr= table_name.c_str();
+  if (lower_case_table_names == 2)
+  {
+    my_stpncpy(lc_table_name, table_name.c_str(), NAME_LEN);
+    my_casedn_str(files_charset_info, lc_table_name);
+    lc_table_name[NAME_LEN]= '\0';
+    table_name_ptr= lc_table_name;
+  }
+  *table= sp_add_to_query_tables(thd, lex, db_name.str, table_name_ptr);
 
   DBUG_RETURN(*table ? false : true);
 }
@@ -344,23 +371,25 @@ TABLE* Sql_cmd_ddl_trigger_common::open_and_lock_subj_table(
 
 /**
   Close all open instances of a trigger's table, reopen it if needed,
-  invalidate SP-cache and write a statement to binlog.
+  invalidate SP-cache and possibly write a statement to binlog.
 
   @param[in] thd         Current thread context
   @param[in] db_name     Database name where trigger's table defined
   @param[in] table       Table associated with a trigger
   @param[in] stmt_query  Query string to write to binlog
+  @param[in] binlog_stmt Should the statement be binlogged?
 
   @return Operation status.
     @retval false Success
     @retval true  Failure
 */
 
-bool Sql_cmd_ddl_trigger_common::cleanup_on_success(
+static bool finalize_trigger_ddl(
   THD *thd,
   const char *db_name,
   TABLE *table,
-  const String &stmt_query) const
+  const String &stmt_query,
+  bool binlog_stmt)
 {
   close_all_tables_for_name(thd, table->s, false, nullptr);
   /*
@@ -374,6 +403,9 @@ bool Sql_cmd_ddl_trigger_common::cleanup_on_success(
     pre-locking tables.
   */
   sp_cache_invalidate();
+
+  if (!binlog_stmt)
+    return false;
 
   thd->add_to_binlog_accessed_dbs(db_name);
 
@@ -475,7 +507,10 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
 
   if (acquire_exclusive_mdl_for_trigger(thd, thd->lex->spname->m_db.str,
                                         thd->lex->spname->m_name.str))
+  {
+    restore_original_mdl_state(thd, mdl_ticket);
     DBUG_RETURN(true);
+  }
 
   DEBUG_SYNC(thd, "create_trigger_has_acquired_mdl");
 
@@ -488,8 +523,8 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
 
   result= table->triggers->create_trigger(thd, &stmt_query);
 
-  if (!result)
-    result= cleanup_on_success(thd, m_trigger_table->db, table, stmt_query);
+  result|= finalize_trigger_ddl(thd, m_trigger_table->db, table, stmt_query,
+                                !result);
 
   if (!result)
   {
@@ -647,8 +682,7 @@ bool Sql_cmd_drop_trigger::execute(THD *thd)
   if (!result && trigger_found)
     result= stmt_query.append(thd->query().str, thd->query().length);
 
-  if (!result)
-    result= cleanup_on_success(thd, tables->db, table, stmt_query);
+  result|= finalize_trigger_ddl(thd, tables->db, table, stmt_query, !result);
 
   /* Restore the query table list. */
   thd->lex->restore_backup_query_tables_list(&backup);

@@ -26,25 +26,58 @@
 
 #include "sql_executor.h"
 
+#include <algorithm>
+#include <cmath>
+
+#include "binary_log_types.h"
 #include "debug_sync.h"       // DEBUG_SYNC
+#include "enum_query_type.h"
+#include "field.h"
+#include "filesort.h"         // Filesort
+#include "handler.h"
+#include "hash.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
 #include "item_sum.h"         // Item_sum
 #include "json_dom.h"         // Json_wrapper
 #include "key.h"              // key_cmp
 #include "log.h"              // sql_print_error
-#include "filesort.h"         // Filesort
+#include "m_ctype.h"
+#include "my_bitmap.h"
+#include "my_byteorder.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld.h"           // stage_executing
+#include "opt_explain_format.h"
 #include "opt_range.h"        // QUICK_SELECT_I
 #include "opt_trace.h"        // Opt_trace_object
+#include "opt_trace_context.h"
+#include "protocol.h"
 #include "psi_memory_key.h"
+#include "query_options.h"
 #include "query_result.h"     // Query_result
 #include "record_buffer.h"    // Record_buffer
 #include "sql_base.h"         // fill_record
+#include "sql_bitmap.h"
+#include "sql_error.h"
 #include "sql_join_buffer.h"  // st_cache_field
+#include "sql_list.h"
 #include "sql_optimizer.h"    // JOIN
+#include "sql_plugin_ref.h"
 #include "sql_show.h"         // get_schema_tables_result
+#include "sql_sort.h"
+#include "sql_string.h"
 #include "sql_tmp_table.h"    // create_tmp_table
-#include "mysqld.h"           // stage_executing
+#include "system_variables.h"
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
 
-#include <algorithm>
 using std::max;
 using std::min;
 
@@ -213,8 +246,15 @@ JOIN::exec()
 
   THD_STAGE_INFO(thd, stage_sending_data);
   DBUG_PRINT("info", ("%s", thd->proc_info));
-  query_result->send_result_set_metadata(*fields,
-                                   Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+  if (query_result->send_result_set_metadata(*fields,
+                                             Protocol::SEND_NUM_ROWS |
+                                             Protocol::SEND_EOF))
+  {
+    /* purecov: begin inspected */
+    error= 1;
+    DBUG_VOID_RETURN;
+    /* purecov: end */
+  }
   error= do_select(this);
   /* Accumulate the counts from all join iterations of all join parts. */
   thd->inc_examined_row_count(examined_rows);
@@ -4755,12 +4795,11 @@ QEP_tmp_table::prepare_tmp_table()
   Temp_table_param *const tmp_tbl= qep_tab->tmp_table_param;
   if (!table->is_created())
   {
-    if (instantiate_tmp_table(table, tmp_tbl->keyinfo,
+    if (instantiate_tmp_table(join->thd, table, tmp_tbl->keyinfo,
                               tmp_tbl->start_recinfo,
                               &tmp_tbl->recinfo,
                               join->select_lex->active_options(),
-                              join->thd->variables.big_tables,
-                              &join->thd->opt_trace))
+                              join->thd->variables.big_tables))
       return true;
     (void) table->file->extra(HA_EXTRA_WRITE_CACHE);
     empty_record(table);

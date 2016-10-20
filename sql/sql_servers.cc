@@ -34,19 +34,41 @@
 */
 
 #include "sql_servers.h"
-#include "sql_base.h"                           // close_mysql_tables
-#include "records.h"          // init_read_record, end_read_record
-#include "hash_filo.h"
-#include <m_ctype.h>
-#include <stdarg.h>
-#include "log.h"
+
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"
-#include "sql_parse.h"
-#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
-#include "transaction.h"      // trans_rollback_stmt, trans_commit_stmt
-#include "sql_class.h"
+#include "field.h"
+#include "handler.h"
+#include "hash.h"
+#include "log.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysqld_error.h"
+#include "records.h"          // init_read_record, end_read_record
+#include "sql_base.h"                           // close_mysql_tables
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "table.h"
 #include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "transaction.h"      // trans_rollback_stmt, trans_commit_stmt
+#include "typelib.h"
 
 /*
   We only use 1 mutex to guard the data structures - THR_LOCK_servers.

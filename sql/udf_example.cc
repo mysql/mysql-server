@@ -111,25 +111,33 @@
 **
 */
 
-#include <my_global.h>
-#include <my_sys.h>
-
-#include <new>
-#include <vector>
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
 #include <algorithm>
+#include <new>
+#include <string>
+#include <vector>
 
 #if defined(MYSQL_SERVER)
-#include <m_string.h>		/* To get my_stpcpy() */
+#include "m_string.h"		/* To get my_stpcpy() */
 #else
 /* when compiled as standalone */
 #include <string.h>
+
 #define my_stpcpy(a,b) stpcpy(a,b)
 #endif
 
-#include <mysql.h>
 #include <ctype.h>
 
 #include "cpp11_lib_check.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_global.h"
+#include "mysql_com.h"
+#include "thr_mutex.h"
 
 #ifdef _WIN32
 /* inet_aton needs winsock library */

@@ -21,7 +21,13 @@
 #ifndef _m_ctype_h
 #define _m_ctype_h
 
-#include "my_global.h"                          /* uint16, uchar */
+#include <stdarg.h>
+
+#include "my_byteorder.h"
+#include "my_global.h"
+#include "my_loglevel.h"
+#include "my_inttypes.h"
+#include "my_sharedlib.h"
 #include "str_uca_type.h"
 
 #ifdef	__cplusplus
@@ -47,12 +53,19 @@ extern "C" {
   to copy two bytes at onces.
   This gives some performance improvement.
 */
-#ifdef __i386__
+#if defined(__i386__) || defined(__x86_64__)
 #define MB2(x)                (((x) >> 8) + (((x) & 0xFF) << 8))
-#define MY_PUT_MB2(s, code)   { *((uint16*)(s))= (code); }
+static inline void MY_PUT_MB2(unsigned char *s, uint16 code)
+{
+  int2store(s, code);
+}
 #else
 #define MB2(x)                (x)
-#define MY_PUT_MB2(s, code)   { (s)[0]= code >> 8; (s)[1]= code & 0xFF; }
+static inline void MY_PUT_MB2(unsigned char *s, uint16 code)
+{
+  s[0]= code >> 8;
+  s[1]= code & 0xFF;
+}
 #endif
 
 
@@ -116,6 +129,7 @@ typedef struct my_uca_level_info_st
 
 typedef struct uca_info_st
 {
+  enum enum_uca_ver   version;
   MY_UCA_WEIGHT_LEVEL level[MY_UCA_WEIGHT_LEVELS];
 
   /* Logical positions */
@@ -180,7 +194,6 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_NONASCII  8192   /* if not ASCII-compatible        */
 #define MY_CS_UNICODE_SUPPLEMENT 16384 /* Non-BMP Unicode characters */
 #define MY_CS_LOWER_SORT 32768 /* If use lower case as weight   */
-#define MY_CS_UCA_900   65536  /* If use UCA 9.0.0   */
 #define MY_CHARSET_UNDEFINED 0
 
 /* Character repertoire flags */
@@ -267,7 +280,7 @@ typedef struct my_collation_handler_st
   size_t    (*strnxfrmlen)(const struct charset_info_st *, size_t);
   my_bool (*like_range)(const struct charset_info_st *,
 			const char *s, size_t s_length,
-			pchar w_prefix, pchar w_one, pchar w_many, 
+			char w_prefix, char w_one, char w_many,
 			size_t res_length,
 			char *min_str, char *max_str,
 			size_t *min_len, size_t *max_len);
@@ -669,7 +682,7 @@ int my_wildcmp_unicode(const CHARSET_INFO *cs,
 extern my_bool my_parse_charset_xml(MY_CHARSET_LOADER *loader,
                                     const char *buf, size_t buflen);
 extern char *my_strchr(const CHARSET_INFO *cs, const char *str,
-                       const char *end, pchar c);
+                       const char *end, char c);
 extern size_t my_strcspn(const CHARSET_INFO *cs, const char *str,
                          const char *end, const char *reject,
                          size_t reject_length);

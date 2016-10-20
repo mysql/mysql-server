@@ -561,7 +561,7 @@ dict_build_tablespace_for_table(
 				srv_tmp_space.space_id());
 		} else {
 			/* Create in the system tablespace. */
-			ut_ad(table->space == srv_sys_space.space_id());
+			ut_ad(table->space == TRX_SYS_SPACE);
 		}
 
 		DBUG_EXECUTE_IF("ib_ddl_crash_during_tablespace_alloc",
@@ -2439,7 +2439,7 @@ dict_delete_tablespace_and_datafiles(
 	trx->op_info = "delete tablespace and datafiles from dictionary";
 
 	pars_info_t*	info = pars_info_create();
-	ut_a(!is_system_tablespace(space));
+	ut_a(!fsp_is_system_or_temp_tablespace(space));
 	pars_info_add_int4_literal(info, "space", space);
 
 	err = que_eval_sql(info,

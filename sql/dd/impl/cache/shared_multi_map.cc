@@ -15,18 +15,12 @@
 
 #include "shared_multi_map.h"
 
-#include "log.h"                             // sql_print_warning()
+#include <stddef.h>
+#include <new>
 
-#include "dd/cache/element_map.h"            // Element_map
-#include "dd/impl/raw/object_keys.h"         // Primary_id_key
-#include "dd/types/abstract_table.h"         // Abstract_table
-#include "dd/types/charset.h"                // Charset
-#include "dd/types/collation.h"              // Collation
-#include "dd/types/event.h"                  // Event
-#include "dd/types/routine.h"                // Routine
-#include "dd/types/schema.h"                 // Schema
-#include "dd/types/spatial_reference_system.h" // Spatial_reference_system
-#include "dd/types/tablespace.h"             // Tablespace
+#include "dd/impl/cache/cache_element.h"
+#include "log.h"                             // sql_print_warning()
+#include "my_dbug.h"
 
 namespace dd {
 namespace cache {

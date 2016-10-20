@@ -16,18 +16,22 @@
 #ifndef SPATIAL_INCLUDED
 #define SPATIAL_INCLUDED
 
-#include "my_global.h"
-#include "mysql/mysql_lex_string.h"     // LEX_STRING
-#include "sql_string.h"                 // String
-
-#include <vector>
+#include <float.h>
+#include <string.h>
+#include <sys/types.h>
 #include <algorithm>
-#include <stdexcept>
+#include <cstddef>
 #include <cstdlib>
-#include <utility>
-#include <memory>
-#include "inplace_vector.h"
+#include <iterator>
 
+#include "inplace_vector.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
+#include "sql_string.h"                 // String
 
 class Gis_read_stream;
 
@@ -794,13 +798,11 @@ public:
   public:
     Flags_t(const Flags_t &o)
     {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
       memcpy(this, &o, sizeof(o));
     }
 
     Flags_t()
     {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
       memset(this, 0, sizeof(*this));
       bo= wkb_ndr;
       dim= GEOM_DIM - 1;
@@ -809,7 +811,6 @@ public:
 
     Flags_t(wkbType type, size_t len)
     {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
       memset(this, 0, sizeof(*this));
       geotype= type;
       nbytes= len;
@@ -820,7 +821,6 @@ public:
 
     Flags_t &operator=(const Flags_t &rhs)
     {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
       memcpy(this, &rhs, sizeof(rhs));
       return *this;
     }
@@ -835,6 +835,8 @@ public:
     uint64 zm:2;
     uint64 unused:11;
   };
+  static_assert(sizeof(Flags_t) == sizeof(uint64),
+                "Flags are expected to line up exactly with an uint64.");
 
   Geometry()
   {
@@ -900,6 +902,33 @@ public:
     m_flags.dim= dim - 1;
   }
 
+  /**
+    Check if a given geometry type is a valid geometry type according
+    to OpenGIS.
+
+    Internal geometry types of MySQL are regarded as invalid.
+
+    @param gtype geometry type to check
+
+    @retval true valid geometry type
+    @retval false invalid geometry type
+  */
+  static bool is_valid_opengis_geotype(uint32 gtype)
+  {
+    return gtype >= wkb_first && gtype <= wkb_geometrycollection;
+  }
+
+  /**
+    Check if a given geometry type is a valid internal geometry type.
+
+    Both OpenGIS standard geometry types and internal geometry types
+    of MySQL are regarded as valid.
+
+    @param gtype geometry type to check
+
+    @retval true valid geometry type
+    @retval false invalid geometry type
+  */
   static bool is_valid_geotype(uint32 gtype)
   {
     wkbType gt= static_cast<wkbType>(gtype);
@@ -912,6 +941,17 @@ public:
             gt == wkb_polygon_inner_rings);
   }
 
+  /**
+    Check if a given geometry type is a valid internal geometry type.
+
+    Both OpenGIS standard geometry types and internal geometry types
+    of MySQL are regarded as valid.
+
+    @param gt geometry type to check
+
+    @retval true valid geometry type
+    @retval false invalid geometry type
+  */
   static bool is_valid_geotype(Geometry::wkbType gt)
   {
     /*

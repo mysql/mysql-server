@@ -15,16 +15,40 @@
 
 #include "sql_audit.h"
 
+#include <sys/types.h>
+
 #include "auto_thd.h"                           // Auto_THD
+#include "check_stack.h"
 #include "current_thd.h"
-#include "log.h"
 #include "error_handler.h"                      // Internal_error_handler
+#include "key.h"
+#include "log.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
 #include "mysqld.h"                             // sql_statement_names
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "probes_mysql.h"                       // IWYU pragma: keep
+#include "sql_chars.h"
 #include "sql_class.h"                          // THD
-#include "sql_thd_internal_api.h"               // create_thd / destroy_thd
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_plugin.h"                         // my_plugin_foreach
+#include "sql_plugin_ref.h"
 #include "sql_rewrite.h"                        // mysql_rewrite_query
-#include "sql_parse.h"                          // check_stack_overrun
+#include "sql_string.h"
+#include "table.h"
+#include "thr_mutex.h"
+#include "violite.h"
 
 /**
   @class Audit_error_handler
@@ -226,61 +250,6 @@ void thd_get_audit_query(THD *thd, MYSQL_LEX_CSTRING *query,
   }
 }
 
-int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
-                       int error_code, const char *msg, size_t msg_len)
-{
-  mysql_event_general event;
-  char user_buff[MAX_USER_HOST_SIZE];
-
-  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
-                                  static_cast<unsigned long>(subclass)))
-    return 0;
-
-  event.event_subclass= subclass;
-  event.general_error_code= error_code;
-  event.general_thread_id= thd ? thd->thread_id() : 0;
-  if (thd)
-  {
-    Security_context *sctx= thd->security_context();
-
-    event.general_user.str= user_buff;
-    event.general_user.length= make_user_name(thd->security_context(), user_buff);
-    event.general_ip= sctx->ip();
-    event.general_host= sctx->host();
-    event.general_external_user= sctx->external_user();
-    event.general_rows= thd->get_stmt_da()->current_row_for_condition();
-    event.general_sql_command= sql_statement_names[thd->lex->sql_command];
-
-    thd_get_audit_query(thd, &event.general_query,
-                        (const charset_info_st**)&event.general_charset);
-
-    event.general_time= thd->query_start_in_secs();
-  }
-  else
-  {
-    static MYSQL_LEX_CSTRING empty={ C_STRING_WITH_LEN("") };
-
-    event.general_user.str= NULL;
-    event.general_user.length= 0;
-    event.general_ip= empty;
-    event.general_host= empty;
-    event.general_external_user= empty;
-    event.general_rows= 0;
-    event.general_sql_command= empty;
-    event.general_query.str= "";
-    event.general_query.length= 0;
-    event.general_time= my_time(0);
-  }
-
-  DBUG_EXECUTE_IF("audit_log_negative_general_error_code",
-                  event.general_error_code*= -1;);
-
-  event.general_command.str= msg;
-  event.general_command.length= msg_len;
-
-  return event_class_dispatch(thd, MYSQL_AUDIT_GENERAL_CLASS, &event);
-}
-
 /**
   @class Ignore_event_error_handler
 
@@ -329,6 +298,54 @@ private:
   */
   const char *m_event_name;
 };
+
+int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
+                       const char* subclass_name,
+                       int error_code, const char *msg, size_t msg_len)
+{
+  mysql_event_general event;
+  char user_buff[MAX_USER_HOST_SIZE];
+
+  DBUG_ASSERT(thd);
+
+  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
+                                  static_cast<unsigned long>(subclass)))
+    return 0;
+
+  event.event_subclass= subclass;
+  event.general_error_code= error_code;
+  event.general_thread_id= thd->thread_id();
+
+  Security_context *sctx= thd->security_context();
+
+  event.general_user.str= user_buff;
+  event.general_user.length= make_user_name(sctx, user_buff);
+  event.general_ip= sctx->ip();
+  event.general_host= sctx->host();
+  event.general_external_user= sctx->external_user();
+  event.general_rows= thd->get_stmt_da()->current_row_for_condition();
+  event.general_sql_command= sql_statement_names[thd->lex->sql_command];
+
+  thd_get_audit_query(thd, &event.general_query,
+                      (const charset_info_st**)&event.general_charset);
+
+  event.general_time= thd->query_start_in_secs();
+
+  DBUG_EXECUTE_IF("audit_log_negative_general_error_code",
+                  event.general_error_code*= -1;);
+
+  event.general_command.str= msg;
+  event.general_command.length= msg_len;
+
+  if (subclass == MYSQL_AUDIT_GENERAL_ERROR)
+  {
+    Ignore_event_error_handler handler(thd, subclass_name);
+
+    return event_class_dispatch(thd, MYSQL_AUDIT_GENERAL_CLASS, &event);
+  }
+
+  return event_class_dispatch(thd, MYSQL_AUDIT_GENERAL_CLASS, &event);
+}
 
 int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
                        const char* subclass_name, int errcode)
@@ -633,12 +650,24 @@ int mysql_audit_notify(mysql_event_server_startup_subclass_t subclass,
                                     subclass_name, &event);
 }
 
-int mysql_audit_notify(mysql_event_server_shutdown_subclass_t subclass,
+/**
+  Call audit plugins of SERVER SHUTDOWN audit class.
+
+  @param[in] thd       Client thread info or NULL.
+  @param[in] subclass  Type of the server abort audit event.
+  @param[in] reason    Reason code of the shutdown.
+  @param[in] exit_code Abort exit code.
+
+  @result Value returned is not taken into consideration by the server.
+*/
+int mysql_audit_notify(THD *thd,
+                       mysql_event_server_shutdown_subclass_t subclass,
                        mysql_server_shutdown_reason_t reason, int exit_code)
 {
   mysql_event_server_shutdown event;
 
-  if (mysql_audit_acquire_plugins(0, MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS,
+  if (mysql_audit_acquire_plugins(thd,
+                                  MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS,
                                   static_cast<unsigned long>(subclass)))
     return 0;
 
@@ -646,7 +675,21 @@ int mysql_audit_notify(mysql_event_server_shutdown_subclass_t subclass,
   event.exit_code = exit_code;
   event.reason= reason;
 
-  return event_class_dispatch(0, MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS, &event);
+  return event_class_dispatch(thd, MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS,
+                              &event);
+}
+
+int mysql_audit_notify(mysql_event_server_shutdown_subclass_t subclass,
+                       mysql_server_shutdown_reason_t reason, int exit_code)
+{
+  if (error_handler_hook == my_message_sql)
+  {
+    Auto_THD thd;
+
+    return mysql_audit_notify(thd.thd, subclass, reason, exit_code);
+  }
+
+  return mysql_audit_notify(NULL, subclass, reason, exit_code);
 }
 
 /*
@@ -1222,29 +1265,6 @@ static int event_class_dispatch(THD *thd, mysql_event_class_t event_class,
   else
   {
     plugin_ref *plugins, *plugins_last;
-
-    /*
-      Audit events must be generated from a thread associated with a given
-      THD. During generation of the certain events, THD's state is modified
-      using the THD::push_internal_handler and THD::pop_internal_handler
-      functions, which are not multithread safe. Additionally, audit
-      notifications have associated thread id, which should remain the same
-      accross all session associated notifications.
-    */
-    DBUG_ASSERT(thd == current_thd);
-
-    /*
-      Does not allow infinite recursive calls that crash the server.
-      This happens when error is reported from within a plugin that already
-      is receiving error event (MYSQL_AUDIT_GENERAL_ERROR). This condition
-      breaks the recursion, when the stack size gets close to its minimal
-      value.
-    */
-    if (check_stack_overrun(thd, STACK_MIN_SIZE * 5,
-                            reinterpret_cast<uchar *>(&event_generic)))
-    {
-      return 0;
-    }
 
     /* Use the cached set of audit plugins */
     plugins= thd->audit_class_plugins.begin();

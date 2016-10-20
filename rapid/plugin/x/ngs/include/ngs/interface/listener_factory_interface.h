@@ -21,22 +21,24 @@
 #define _NGS_LISTENER_FACTORY_INTERFACE_H_
 
 #include "ngs/interface/listener_interface.h"
+#include "ngs/socket_events_interface.h"
 #include "ngs/memory.h"
 
 
 namespace ngs
 {
 
-class Time_and_socket_events;
-typedef Memory_new<Listener_interface>::Unique_ptr Listener_interface_ptr;
+class Socket_events;
+typedef Memory_instrumented<Listener_interface>::Unique_ptr Listener_interface_ptr;
 
 class Listener_factory_interface
 {
 public:
   virtual ~Listener_factory_interface() {}
 
-  virtual Listener_interface_ptr create_unix_socket_listener(const std::string &unix_socket_path, Time_and_socket_events &event, const uint32 backlog) = 0;
-  virtual Listener_interface_ptr create_tcp_socket_listener(const unsigned short port, Time_and_socket_events &event, const uint32 backlog) = 0;
+  virtual Listener_interface_ptr create_unix_socket_listener(const std::string &unix_socket_path, Socket_events_interface &event, const uint32 backlog) = 0;
+  virtual Listener_interface_ptr create_tcp_socket_listener(std::string &bind_address, const unsigned short port, const uint32 port_open_timeout,
+                                                            Socket_events_interface &event, const uint32 backlog) = 0;
 };
 
 } // namespace ngs

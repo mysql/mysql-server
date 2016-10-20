@@ -16,13 +16,15 @@
 #ifndef DD_TABLES__VIEW_ROUTINE_USAGE_INCLUDED
 #define DD_TABLES__VIEW_ROUTINE_USAGE_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
-#include "dd/object_id.h"                    // dd::Object_id
 #include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "dd/object_id.h"                    // dd::Object_id
+#include "my_global.h"
 
 namespace dd {
   class Object_key;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -32,9 +34,9 @@ class View_routine_usage : virtual public Object_table_impl
 public:
   static const View_routine_usage &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("view_routine_usage");
+    static String_type s_table_name("view_routine_usage");
     return s_table_name;
   }
 
@@ -50,20 +52,20 @@ public:
 public:
   View_routine_usage();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return View_routine_usage::table_name(); }
 
 public:
   static Object_key *create_key_by_view_id(Object_id view_id);
 
   static Object_key *create_primary_key(Object_id view_id,
-                                        const std::string &routine_catalog,
-                                        const std::string &routine_schema,
-                                        const std::string &routine_name);
+                                        const String_type &routine_catalog,
+                                        const String_type &routine_schema,
+                                        const String_type &routine_name);
 
-  static Object_key *create_key_by_name(const std::string &routine_catalog,
-                                        const std::string &routine_schema,
-                                        const std::string &routine_name);
+  static Object_key *create_key_by_name(const String_type &routine_catalog,
+                                        const String_type &routine_schema,
+                                        const String_type &routine_name);
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,19 @@
 #ifndef DD_CACHE__LOCAL_MULTI_MAP_INCLUDED
 #define DD_CACHE__LOCAL_MULTI_MAP_INCLUDED
 
-#include "my_global.h"                        // DBUG_ASSERT() etc.
-#include "multi_map_base.h"                   // Multi_map_base
+#include <stdio.h>
+
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
+#include "multi_map_base.h"                   // Multi_map_base
+#include "my_global.h"                        // DBUG_ASSERT() etc.
 
 namespace dd {
 namespace cache {
 
-template <typename T>
-class Cache_element;
-
 template <typename K, typename E>
 class Element_map;
+template <typename T>
+class Cache_element;
 
 
 /**

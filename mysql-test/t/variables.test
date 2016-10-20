@@ -5,6 +5,8 @@
 drop table if exists t1,t2;
 --enable_warnings
 
+SET @default_table_open_cache = @@table_open_cache;
+
 #
 # Bug#19263: variables.test doesn't clean up after itself (I/II -- save)
 #
@@ -578,7 +580,7 @@ SHOW VARIABLES LIKE 'table_open_cache';
 --disable_warnings
 SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'table_open_cache';
 --enable_warnings
-SET GLOBAL table_open_cache=DEFAULT;
+SET GLOBAL table_open_cache= @default_table_open_cache;
 
 #
 # Bugs12363: character_set_results is nullable,

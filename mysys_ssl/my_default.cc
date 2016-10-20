@@ -37,14 +37,16 @@
                                 the login file.
 */
 
+#include <my_aes.h>
+#include <my_dir.h>
+#include <my_getopt.h>
+
 #include "../mysys/mysys_priv.h"
+#include "m_ctype.h"
+#include "m_string.h"
 #include "my_default.h"
 #include "my_default_priv.h"
-#include "m_string.h"
-#include "m_ctype.h"
-#include <my_dir.h>
-#include <my_aes.h>
-#include <my_getopt.h>
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"
 #include "typelib.h"
@@ -52,9 +54,10 @@
 #include <winbase.h>
 #endif
 
-#include "prealloced_array.h"
-#include <string>
 #include <map>
+#include <string>
+
+#include "prealloced_array.h"
 
 using std::string;
 
@@ -623,6 +626,8 @@ int load_defaults(const char *conf_file, const char **groups,
   return my_load_defaults(conf_file, groups, argc, argv, &default_directories);
 }
 
+/** A global to turn off or on reading the mylogin file. On by default */
+my_bool my_defaults_read_login_file= TRUE;
 /*
   Read options from configurations files
 
@@ -706,16 +711,18 @@ int my_load_defaults(const char *conf_file, const char **groups,
     DBUG_RETURN(error);
   }
 
-  /* Read options from login group. */
-  if (my_default_get_login_file(my_login_file, sizeof(my_login_file)) &&
-      (error= my_search_option_files(my_login_file,argc, argv, &args_used,
+  if (my_defaults_read_login_file)
+  {
+    /* Read options from login group. */
+    if (my_default_get_login_file(my_login_file, sizeof(my_login_file)) &&
+      (error= my_search_option_files(my_login_file, argc, argv, &args_used,
                                      handle_default_option, (void *) &ctx,
                                      dirs, true, found_no_defaults)))
-  {
-    free_root(&alloc,MYF(0));
-    DBUG_RETURN(error);
+    {
+      free_root(&alloc, MYF(0));
+      DBUG_RETURN(error);
+    }
   }
-
   /*
     Here error contains <> 0 only if we have a fully specified conf_file
     or a forced default file
@@ -759,7 +766,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
 
   (*argc)+= my_args.size() + args_sep;
   *argv= res;
-  *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
+  *(MEM_ROOT*) ptr= std::move(alloc);           /* Save alloc root for free */
 
   if (default_directories)
     *default_directories= dirs;

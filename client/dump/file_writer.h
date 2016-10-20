@@ -18,10 +18,11 @@
 #ifndef FILE_WRITER_INCLUDED
 #define FILE_WRITER_INCLUDED
 
+#include <functional>
+#include <string>
+
 #include "i_output_writer.h"
 #include "abstract_chain_element.h"
-#include "i_callable.h"
-#include <string>
 
 namespace Mysql{
 namespace Tools{
@@ -34,7 +35,7 @@ class File_writer : public I_output_writer, public Abstract_chain_element
 {
 public:
   File_writer(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
     const std::string& file_name);
   ~File_writer();

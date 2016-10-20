@@ -18,12 +18,17 @@
   Functions to handle typelib
 */
 
-#include "mysys_priv.h"
-#include "typelib.h"
-#include "my_sys.h"
-#include <m_string.h>
-#include <m_ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
 
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "typelib.h"
 
 #define is_field_separator(X) ((X) == ',' || (X) == '=')
 

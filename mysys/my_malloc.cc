@@ -17,12 +17,23 @@
   @file mysys/my_malloc.cc
 */
 
-#include "mysys_priv.h"
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysys_err.h"
-#include <m_string.h>
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysys_err.h"
+
+struct PSI_thread;
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 #define USE_MALLOC_WRAPPER
@@ -30,6 +41,7 @@
 
 static void *my_raw_malloc(size_t size, myf my_flags);
 static void my_raw_free(void *ptr);
+extern "C" void my_free(void *ptr);
 
 #ifdef USE_MALLOC_WRAPPER
 struct my_memory_header
@@ -53,7 +65,8 @@ extern "C" void * my_malloc(PSI_memory_key key, size_t size, myf flags)
 {
   my_memory_header *mh;
   size_t raw_size;
-  compile_time_assert(sizeof(my_memory_header) <= HEADER_SIZE);
+  static_assert(sizeof(my_memory_header) <= HEADER_SIZE,
+                "We must reserve enough memory to hold the header.");
 
   raw_size= HEADER_SIZE + size;
   mh= (my_memory_header*) my_raw_malloc(raw_size, flags);

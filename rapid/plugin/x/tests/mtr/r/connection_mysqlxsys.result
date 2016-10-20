@@ -3,7 +3,7 @@ call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: 
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysqlxsys'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch security context to root'");
-call mtr.add_suppression("Plugin mysqlx reported: 'DROP USER mysqlxsys@localhost: Operation DROP USER failed for 'mysqlxsys'@'localhost''");
+call mtr.add_suppression("Plugin mysqlx reported: 'Operation DROP USER failed for 'mysqlxsys'@'localhost''");
 call mtr.add_suppression("Plugin mysqlx reported: 'mysqlxsys@localhost account already exists but does not have the expected grants'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Authentication account could not be created, mysqlx plugin will be inaccessible.'");
 call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt");
@@ -18,10 +18,6 @@ if(count(*)=0, 'OK', 'FAIL')
 OK
 Install plugin, ensure that account got created
 install plugin mysqlx soname "mysqlx.so";
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
 select if(count(*)=1, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and host='localhost';
 if(count(*)=1, 'OK', 'FAIL')
 OK
@@ -36,10 +32,6 @@ if(count(*)=0, 'OK', 'FAIL')
 OK
 Delete our account by hand and try to login (should fail but not crash)
 install plugin mysqlx soname "mysqlx.so";
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
 drop user mysqlxsys@localhost;
 in main, line 0:ERROR: Unable to switch context to user mysqlxsys (code 1045)
 not ok
@@ -83,10 +75,6 @@ if(count(*)=1, 'OK', 'FAIL')
 FAIL
 Expire our account and see what happens (login should fail)
 install plugin mysqlx soname "mysqlx.so";
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
 alter user mysqlxsys@localhost password expire;
 in main, line 0:ERROR: Password for mysqlxsys@localhost account has been expired (code 1045)
 not ok
@@ -127,7 +115,7 @@ GRANT SELECT ON mysql.user TO mysqlxsys@localhost;
 GRANT SUPER ON *.* TO mysqlxsys@localhost;
 ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
 ALTER USER root@localhost PASSWORD EXPIRE;
-INSTALL PLUGIN mysqlx SONAME "mysqlx.so";
+install plugin mysqlx soname "mysqlx.so";
 ERROR: Connection refused connecting to HOST:PORT
 UNINSTALL PLUGIN mysqlx;
 SET PASSWORD FOR root@localhost = '';

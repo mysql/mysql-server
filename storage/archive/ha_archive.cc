@@ -18,20 +18,20 @@
 
 #include "ha_archive.h"
 
-#include "probes_mysql.h"
-#include "sql_table.h"
-#include "table.h"
-#include "field.h"
-#include "derror.h"
-#include "system_variables.h"
-#include "sql_class.h"
-#include <myisam.h>
-
 #include <my_dir.h>
-
+#include <myisam.h>
 #include <mysql/plugin.h>
+
+#include "derror.h"
+#include "field.h"
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
+#include "probes_mysql.h"
+#include "sql_class.h"
+#include "sql_table.h"
+#include "system_variables.h"
+#include "table.h"
 
 /*
   First, if you want to understand storage engines you should look at 

@@ -164,4 +164,10 @@ struct my_aligned_storage
 #endif
 #endif  /* SUPPRESS_UBSAN */
 
+#ifdef _WIN32
+#define STDCALL __stdcall
+#else
+#define STDCALL
+#endif
+
 #endif /* MY_COMPILER_INCLUDED */

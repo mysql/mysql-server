@@ -16,14 +16,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_global.h"
 #include "mysql/mysql_lex_string.h" // LEX_STRING
 #include "thr_lock.h"               // thr_lock_type
 
-/* forward declarations */
+class String;
 class THD;
 class set_var;
-class String;
+
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;

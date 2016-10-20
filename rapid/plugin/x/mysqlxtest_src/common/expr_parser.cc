@@ -66,7 +66,7 @@ Mysqlx::Datatypes::Scalar* Expr_builder::build_int_scalar(google::protobuf::int6
   sc->set_type(Mysqlx::Datatypes::Scalar::V_SINT);
   sc->set_v_signed_int(i);
   }
-  else 
+  else
   {
     sc->set_type(Mysqlx::Datatypes::Scalar::V_UINT);
     sc->set_v_unsigned_int((google::protobuf::uint64)i);
@@ -131,7 +131,7 @@ void Expr_parser::paren_expr_list(::google::protobuf::RepeatedPtrField< ::Mysqlx
   _tokenizer.consume_token(Token::LPAREN);
   if (!_tokenizer.cur_token_type_is(Token::RPAREN))
   {
-    Memory_new<Mysqlx::Expr::Expr>::Unique_ptr ptr(my_expr());
+    ngs::unique_ptr<Mysqlx::Expr::Expr> ptr(my_expr());
     expr_list->AddAllocated(ptr.get());
     ptr.release();
     while (_tokenizer.cur_token_type_is(Token::COMMA))
@@ -151,7 +151,7 @@ void Expr_parser::paren_expr_list(::google::protobuf::RepeatedPtrField< ::Mysqlx
 Mysqlx::Expr::Identifier* Expr_parser::identifier()
 {
   _tokenizer.assert_cur_token(Token::IDENT);
-  Memory_new<Mysqlx::Expr::Identifier>::Unique_ptr id(new Mysqlx::Expr::Identifier());
+  ngs::unique_ptr<Mysqlx::Expr::Identifier> id(new Mysqlx::Expr::Identifier());
   if (_tokenizer.next_token_type(Token::DOT))
   {
     const std::string& schema_name = _tokenizer.consume_token(Token::IDENT);
@@ -168,10 +168,10 @@ Mysqlx::Expr::Identifier* Expr_parser::identifier()
  */
 Mysqlx::Expr::Expr* Expr_parser::function_call()
 {
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr e(new Mysqlx::Expr::Expr());
+  ngs::unique_ptr<Mysqlx::Expr::Expr> e(new Mysqlx::Expr::Expr());
   e->set_type(Mysqlx::Expr::Expr::FUNC_CALL);
   Mysqlx::Expr::FunctionCall* func = e->mutable_function_call();
-  Memory_new<Mysqlx::Expr::Identifier>::Unique_ptr id(identifier());
+  ngs::unique_ptr<Mysqlx::Expr::Identifier> id(identifier());
   func->set_allocated_name(id.get());
   id.release();
 
@@ -288,7 +288,7 @@ const std::string& Expr_parser::id()
  */
 Mysqlx::Expr::Expr* Expr_parser::column_field()
 {
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr e(new Mysqlx::Expr::Expr());
+  ngs::unique_ptr<Mysqlx::Expr::Expr> e(new Mysqlx::Expr::Expr());
   std::vector<std::string> parts;
   const std::string& part = id();
 
@@ -342,7 +342,7 @@ Mysqlx::Expr::Expr* Expr_parser::column_field()
  */
 Mysqlx::Expr::Expr* Expr_parser::document_field()
 {
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr e(new Mysqlx::Expr::Expr());
+  ngs::unique_ptr<Mysqlx::Expr::Expr> e(new Mysqlx::Expr::Expr());
 
   if (_tokenizer.cur_token_type_is(Token::DOLLAR))
     _tokenizer.consume_token(Token::DOLLAR);
@@ -378,7 +378,7 @@ Mysqlx::Expr::Expr* Expr_parser::atomic_expr()
   }
   else if (type == Token::LPAREN)
   {
-    Memory_new<Mysqlx::Expr::Expr>::Unique_ptr e(my_expr());
+    ngs::unique_ptr<Mysqlx::Expr::Expr> e(my_expr());
     _tokenizer.consume_token(Token::RPAREN);
     return e.release();
   }
@@ -398,8 +398,8 @@ Mysqlx::Expr::Expr* Expr_parser::atomic_expr()
   }
   else if (type == Token::PLUS || type == Token::MINUS || type == Token::NOT || type == Token::NEG)
   {
-    Memory_new<Mysqlx::Expr::Expr>::Unique_ptr tmp(atomic_expr());
-    Memory_new<Mysqlx::Expr::Expr>::Unique_ptr result(Expr_builder::build_unary_op(t.get_text(), tmp.get()));
+    ngs::unique_ptr<Mysqlx::Expr::Expr> tmp(atomic_expr());
+    ngs::unique_ptr<Mysqlx::Expr::Expr> result(Expr_builder::build_unary_op(t.get_text(), tmp.get()));
     tmp.release();
     return result.release();
   }
@@ -429,10 +429,9 @@ Mysqlx::Expr::Expr* Expr_parser::atomic_expr()
   }
   else if (type == Token::INTERVAL)
   {
-    Memory_new<Mysqlx::Expr::Expr>::Unique_ptr e(new Mysqlx::Expr::Expr());
-    Memory_new<Mysqlx::Expr::Expr>::Unique_ptr operand(NULL);
+    ngs::unique_ptr<Mysqlx::Expr::Expr> e(new Mysqlx::Expr::Expr());
     e->set_type(Mysqlx::Expr::Expr::OPERATOR);
-    operand.reset(my_expr());
+    ngs::unique_ptr<Mysqlx::Expr::Expr> operand(my_expr());
 
     Mysqlx::Expr::Operator* op = e->mutable_operator_();
     op->set_name("interval");
@@ -449,7 +448,7 @@ Mysqlx::Expr::Expr* Expr_parser::atomic_expr()
       throw Parser_error((boost::format("Expected interval units at %d (%s)") % tok.get_pos() % tok.get_text()).str());
     }
     const Token& val = _tokenizer.consume_any_token();
-    Memory_new<Mysqlx::Expr::Expr>::Unique_ptr param(Expr_builder::build_literal_expr(Expr_builder::build_string_scalar(val.get_text())));
+    ngs::unique_ptr<Mysqlx::Expr::Expr> param(Expr_builder::build_literal_expr(Expr_builder::build_string_scalar(val.get_text())));
     e->mutable_operator_()->mutable_param()->AddAllocated(param.get());
     param.release();
     return e.release();
@@ -517,7 +516,7 @@ Mysqlx::Expr::Expr* Expr_parser::atomic_expr()
  */
 Mysqlx::Expr::Expr* Expr_parser::array_()
 {
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr result(new Mysqlx::Expr::Expr());
+  ngs::unique_ptr<Mysqlx::Expr::Expr> result(new Mysqlx::Expr::Expr());
 
   result->set_type(Mysqlx::Expr::Expr_Type_ARRAY);
   Mysqlx::Expr::Array* a = result->mutable_array();
@@ -526,7 +525,7 @@ Mysqlx::Expr::Expr* Expr_parser::array_()
 
   if (!_tokenizer.cur_token_type_is(Token::RSQBRACKET))
   {
-    Memory_new<Mysqlx::Expr::Expr>::Unique_ptr e(my_expr());
+    ngs::unique_ptr<Mysqlx::Expr::Expr> e(my_expr());
     Mysqlx::Expr::Expr *item = a->add_value();
     item->CopyFrom(*e);
     e.reset();
@@ -562,7 +561,7 @@ void Expr_parser::json_key_value(Mysqlx::Expr::Object* obj)
 */
 Mysqlx::Expr::Expr* Expr_parser::json_doc()
 {
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr result(new Mysqlx::Expr::Expr());
+  ngs::unique_ptr<Mysqlx::Expr::Expr> result(new Mysqlx::Expr::Expr());
   Mysqlx::Expr::Object* obj = result->mutable_object();
   result->set_type(Mysqlx::Expr::Expr_Type_OBJECT);
   _tokenizer.consume_token(Token::LCURLY);
@@ -584,7 +583,7 @@ Mysqlx::Expr::Expr* Expr_parser::json_doc()
  */
 Mysqlx::Expr::Expr* Expr_parser::placeholder()
 {
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr result(new Mysqlx::Expr::Expr());
+  ngs::unique_ptr<Mysqlx::Expr::Expr> result(new Mysqlx::Expr::Expr());
   result->set_type(Mysqlx::Expr::Expr_Type_PLACEHOLDER);
 
   std::string placeholder_name;
@@ -625,12 +624,12 @@ Mysqlx::Expr::Expr* Expr_parser::cast()
 {
   _tokenizer.consume_token(Token::CAST);
   _tokenizer.consume_token(Token::LPAREN);
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr e(my_expr());
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr result(new Mysqlx::Expr::Expr());
+  ngs::unique_ptr<Mysqlx::Expr::Expr> e(my_expr());
+  ngs::unique_ptr<Mysqlx::Expr::Expr> result(new Mysqlx::Expr::Expr());
   // function
   result->set_type(Mysqlx::Expr::Expr::FUNC_CALL);
   Mysqlx::Expr::FunctionCall* func = result->mutable_function_call();
-  Memory_new<Mysqlx::Expr::Identifier>::Unique_ptr id(new Mysqlx::Expr::Identifier());
+  ngs::unique_ptr<Mysqlx::Expr::Identifier> id(new Mysqlx::Expr::Identifier());
   id->set_name(std::string("cast"));
   func->set_allocated_name(id.release());
   // params
@@ -640,7 +639,7 @@ Mysqlx::Expr::Expr* Expr_parser::cast()
   params->AddAllocated(e.release());
   // 2nd arg, cast_data_type
   const std::string& type_to_cast = cast_data_type();
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr type_expr(new Mysqlx::Expr::Expr());
+  ngs::unique_ptr<Mysqlx::Expr::Expr> type_expr(new Mysqlx::Expr::Expr());
   type_expr->set_type(Mysqlx::Expr::Expr::LITERAL);
   Mysqlx::Datatypes::Scalar* sc(type_expr->mutable_literal());
   sc->set_type(Mysqlx::Datatypes::Scalar_Type_V_OCTETS);
@@ -826,10 +825,10 @@ Mysqlx::Expr::Expr *Expr_parser::binary()
   // binary
   _tokenizer.consume_token(Token::BINARY);
 
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr e(new Mysqlx::Expr::Expr());
+  ngs::unique_ptr<Mysqlx::Expr::Expr> e(new Mysqlx::Expr::Expr());
   e->set_type(Mysqlx::Expr::Expr::FUNC_CALL);
   Mysqlx::Expr::FunctionCall* func = e->mutable_function_call();
-  Memory_new<Mysqlx::Expr::Identifier>::Unique_ptr id(new Mysqlx::Expr::Identifier());
+  ngs::unique_ptr<Mysqlx::Expr::Identifier> id(new Mysqlx::Expr::Identifier());
   id->set_name(std::string("binary"));
   func->set_allocated_name(id.release());
   ::google::protobuf::RepeatedPtrField< ::Mysqlx::Expr::Expr >* params = func->mutable_param();
@@ -842,10 +841,10 @@ Mysqlx::Expr::Expr *Expr_parser::binary()
 Mysqlx::Expr::Expr* Expr_parser::parse_left_assoc_binary_op_expr(std::set<Token::TokenType>& types, inner_parser_t inner_parser)
 {
   // Given a `set' of types and an Expr-returning inner parser function, parse a left associate binary operator expression
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr lhs(inner_parser(this));
+  ngs::unique_ptr<Mysqlx::Expr::Expr> lhs(inner_parser(this));
   while (_tokenizer.tokens_available() && _tokenizer.is_type_within_set(types))
   {
-    Memory_new<Mysqlx::Expr::Expr>::Unique_ptr e(new Mysqlx::Expr::Expr());
+    ngs::unique_ptr<Mysqlx::Expr::Expr> e(new Mysqlx::Expr::Expr());
     e->set_type(Mysqlx::Expr::Expr::OPERATOR);
     const Token &t = _tokenizer.consume_any_token();
     const std::string& op_val = t.get_text();
@@ -855,7 +854,7 @@ Mysqlx::Expr::Expr* Expr_parser::parse_left_assoc_binary_op_expr(std::set<Token:
     op->mutable_param()->AddAllocated(lhs.get());
     lhs.release();
 
-    Memory_new<Mysqlx::Expr::Expr>::Unique_ptr tmp(inner_parser(this));
+    ngs::unique_ptr<Mysqlx::Expr::Expr> tmp(inner_parser(this));
     op->mutable_param()->AddAllocated(tmp.get());
     tmp.release();
     lhs.release();
@@ -910,8 +909,8 @@ Mysqlx::Expr::Expr* Expr_parser::comp_expr()
  */
 Mysqlx::Expr::Expr* Expr_parser::ilri_expr()
 {
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr e(new Mysqlx::Expr::Expr());
-  Memory_new<Mysqlx::Expr::Expr>::Unique_ptr lhs(comp_expr());
+  ngs::unique_ptr<Mysqlx::Expr::Expr> e(new Mysqlx::Expr::Expr());
+  ngs::unique_ptr<Mysqlx::Expr::Expr> lhs(comp_expr());
   bool is_not = false;
   if (_tokenizer.cur_token_type_is(Token::NOT))
   {
@@ -934,7 +933,7 @@ Mysqlx::Expr::Expr* Expr_parser::ilri_expr()
         is_not = true;
         _tokenizer.consume_token(Token::NOT);
       }
-      Memory_new<Mysqlx::Expr::Expr>::Unique_ptr tmp(comp_expr());
+      ngs::unique_ptr<Mysqlx::Expr::Expr> tmp(comp_expr());
       params->AddAllocated(lhs.get());
       params->AddAllocated(tmp.get());
       tmp.release();
@@ -946,7 +945,7 @@ Mysqlx::Expr::Expr* Expr_parser::ilri_expr()
       if (_tokenizer.cur_token_type_is(Token::LSQBRACKET))
       {
         _tokenizer.consume_token(Token::LSQBRACKET);
-        Memory_new<Mysqlx::Expr::Expr>::Unique_ptr ptr(my_expr());
+        ngs::unique_ptr<Mysqlx::Expr::Expr> ptr(my_expr());
         params->AddAllocated(ptr.get());
         ptr.release();
         while (_tokenizer.cur_token_type_is(Token::COMMA))
@@ -966,7 +965,7 @@ Mysqlx::Expr::Expr* Expr_parser::ilri_expr()
     else if (_tokenizer.cur_token_type_is(Token::LIKE))
     {
       _tokenizer.consume_token(Token::LIKE);
-      Memory_new<Mysqlx::Expr::Expr>::Unique_ptr tmp(comp_expr());
+      ngs::unique_ptr<Mysqlx::Expr::Expr> tmp(comp_expr());
       params->AddAllocated(lhs.get());
       params->AddAllocated(tmp.get());
       tmp.release();
@@ -982,7 +981,7 @@ Mysqlx::Expr::Expr* Expr_parser::ilri_expr()
     {
       _tokenizer.consume_token(Token::BETWEEN);
       params->AddAllocated(lhs.get());
-      Memory_new<Mysqlx::Expr::Expr>::Unique_ptr tmp(comp_expr());
+      ngs::unique_ptr<Mysqlx::Expr::Expr> tmp(comp_expr());
       params->AddAllocated(tmp.get());
       tmp.release();
       _tokenizer.consume_token(Token::AND);
@@ -993,7 +992,7 @@ Mysqlx::Expr::Expr* Expr_parser::ilri_expr()
     else if (_tokenizer.cur_token_type_is(Token::REGEXP))
     {
       _tokenizer.consume_token(Token::REGEXP);
-      Memory_new<Mysqlx::Expr::Expr>::Unique_ptr tmp(comp_expr());
+      ngs::unique_ptr<Mysqlx::Expr::Expr> tmp(comp_expr());
       params->AddAllocated(lhs.get());
       params->AddAllocated(tmp.get());
       tmp.release();
@@ -1057,7 +1056,7 @@ Mysqlx::Expr::Expr* Expr_parser::my_expr()
  */
 Mysqlx::Expr::Expr* Expr_parser::expr()
 {
- Memory_new<Mysqlx::Expr::Expr>::Unique_ptr result(or_expr());
+ ngs::unique_ptr<Mysqlx::Expr::Expr> result(or_expr());
  if (_tokenizer.tokens_available())
  {
     const Token& tok = _tokenizer.peek_token();

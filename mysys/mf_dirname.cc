@@ -13,9 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include <m_string.h>
+#include <stddef.h>
+
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_io.h"
+#include "my_sys.h"  // IWYU pragma: keep
 
 /**
   @file mysys/mf_dirname.cc

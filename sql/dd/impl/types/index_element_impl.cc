@@ -15,15 +15,29 @@
 
 #include "dd/impl/types/index_element_impl.h"
 
-#include "mysqld_error.h"                       // ER_*
+#include <ostream>
 
-#include "dd/properties.h"                      // Needed for destructor
-#include "dd/impl/sdi_impl.h"                   // sdi read/write functions
-#include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"             // Raw_record
+#include "dd/impl/sdi_impl.h"                   // sdi read/write functions
 #include "dd/impl/tables/index_column_usage.h"  // Index_column_usage
+#include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
+#include "dd/impl/types/entity_object_impl.h"
 #include "dd/impl/types/table_impl.h"           // Table_impl
 #include "dd/types/column.h"                    // Column
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                       // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+
+namespace dd {
+class Object_key;
+class Sdi_rcontext;
+class Sdi_wcontext;
+}  // namespace dd
 
 using dd::tables::Index_column_usage;
 
@@ -135,9 +149,9 @@ Index_element_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Index_element_impl::debug_print(std::string &outb) const
+void Index_element_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "INDEX ELEMENT OBJECT: { "
     << "m_index: {OID: " << m_index->id() << "}; "

@@ -15,7 +15,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
 #include "auto_thd.h"
 
-#include "error_handler.h"
 #include "log.h"                      // sql_print_error
 #include "sql_class.h"                // THD
 #include "sql_thd_internal_api.h"     // create_thd / destroy_thd
