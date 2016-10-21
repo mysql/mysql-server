@@ -22,6 +22,7 @@
 #include "auth_common.h"    // DROP_ACL
 #include "dd/dd_table.h"    // dd::recreate_table
 #include "dd/types/abstract_table.h" // dd::enum_table_type
+#include "dd/types/table.h" // dd::Table
 #include "debug_sync.h"     // DEBUG_SYNC
 #include "handler.h"
 #include "lock.h"           // MYSQL_OPEN_* flags

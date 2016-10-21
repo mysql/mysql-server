@@ -628,6 +628,18 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
 } /* ha_checktype */
 
 
+/**
+  Create handler object for the table in the storage engine.
+
+  @param share        TABLE_SHARE for the table, can be NULL if caller
+                      didn't perform full-blown open of table definition.
+  @param partitioned  Indicates whether table is partitioned.
+  @param alloc        Memory root to be used for allocating handler object.
+  @param db_type      Table's storage engine.
+
+  @note This function will try to use default storage engine if one which
+        was specified through db_type parameter is not available.
+*/
 handler *get_new_handler(TABLE_SHARE *share, bool partitioned,
                          MEM_ROOT *alloc, handlerton *db_type)
 {
@@ -2759,13 +2771,16 @@ PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
   @param        name                  Full path of table name.
   @param        mode                  Open mode flags.
   @param        test_if_locked        ?
+  @param        table_def             dd::Table object describing table
+                                      being open. Can be NULL for temporary
+                                      tables created by optimizer.
 
   @retval >0    Error.
   @retval  0    Success.
 */
 
 int handler::ha_open(TABLE *table_arg, const char *name, int mode,
-                     int test_if_locked, const dd::Table *dd_tab)
+                     int test_if_locked, const dd::Table *table_def)
 {
   int error;
   DBUG_ENTER("handler::ha_open");
@@ -2780,13 +2795,13 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   DBUG_PRINT("info", ("old m_lock_type: %d F_UNLCK %d", m_lock_type, F_UNLCK));
   DBUG_ASSERT(alloc_root_inited(&table->mem_root));
 
-  if ((error=open(name, mode, test_if_locked, dd_tab)))
+  if ((error= open(name, mode, test_if_locked, table_def)))
   {
     if ((error == EACCES || error == EROFS) && mode == O_RDWR &&
 	(table->db_stat & HA_TRY_READ_ONLY))
     {
       table->db_stat|=HA_READ_ONLY;
-      error=open(name, O_RDONLY, test_if_locked, dd_tab);
+      error= open(name, O_RDONLY, test_if_locked, table_def);
     }
   }
   if (error)
@@ -4662,13 +4677,13 @@ handler::ha_delete_all_rows()
 */
 
 int
-handler::ha_truncate(dd::Table *dd_tab)
+handler::ha_truncate(dd::Table *table_def)
 {
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
   mark_trx_read_write();
 
-  return truncate(dd_tab);
+  return truncate(table_def);
 }
 
 
@@ -4776,23 +4791,23 @@ handler::ha_discard_or_import_tablespace(my_bool discard)
 
 bool handler::ha_prepare_inplace_alter_table(TABLE *altered_table,
                                              Alter_inplace_info *ha_alter_info,
-                                             const dd::Table *old_dd_tab,
-                                             dd::Table *new_dd_tab)
+                                             const dd::Table *old_table_def,
+                                             dd::Table *new_table_def)
 {
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   mark_trx_read_write();
 
   return prepare_inplace_alter_table(altered_table, ha_alter_info,
-                                     old_dd_tab, new_dd_tab);
+                                     old_table_def, new_table_def);
 }
 
 
 bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
                                             Alter_inplace_info *ha_alter_info,
                                             bool commit,
-                                            const dd::Table *old_dd_tab,
-                                            dd::Table *new_dd_tab)
+                                            const dd::Table *old_table_def,
+                                            dd::Table *new_table_def)
 {
    /*
      At this point we should have an exclusive metadata lock on the table.
@@ -4807,7 +4822,7 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
                !commit);
 
    return commit_inplace_alter_table(altered_table, ha_alter_info, commit,
-                                     old_dd_tab, new_dd_tab);
+                                     old_table_def, new_table_def);
 }
 
 
@@ -5053,10 +5068,14 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
                              cases when this info is not available from
                              HA_CREATE_INFO).
   @param table_def           Data-dictionary object describing table to
-                             be used for table creation.
+                             be used for table creation. Can be adjusted
+                             by storage engine if it supports atomic DDL.
+                             For non-temporary tables these changes will
+                             be saved to the data-dictionary by this call.
   @param force_dd_commit     Indicates whether we need to force commit
                              of changes to data-dictionary (WL7743/TODO - this
-                             parameter should not be necessary in the end).
+                             parameter should not be necessary once we fix
+                             REPAIR TABLE code).
 
   @retval
    0  ok

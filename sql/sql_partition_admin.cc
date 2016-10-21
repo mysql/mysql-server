@@ -24,6 +24,7 @@
 #include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
 #include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
 #include "dd/sdi.h"                         // dd::store_sdi
+#include "dd/types/table.h"                 // dd::Table
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "handler.h"
 #include "log.h"

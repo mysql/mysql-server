@@ -28,6 +28,7 @@
 #include "dd/impl/bootstrapper.h"             // execute_query
 #include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
 #include "dd/types/object_type.h"             // dd::Object_type
+#include "dd/types/table.h"                   // dd::Table
 #include "dd/types/tablespace.h"              // dd::Tablespace
 #include "dd_upgrade.h"
 #include "derror.h"                           // ER_DEFAULT
