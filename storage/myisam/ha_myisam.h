@@ -20,11 +20,13 @@
   MyISAM storage engine.
 */
 
-#include <myisam.h>
 #include <ft_global.h>
+#include <myisam.h>
+
 #include "handler.h"                            /* handler */
 #include "sql_string.h"
 #include "table.h"                              /* TABLE_SHARE */
+#include "typelib.h"
 
 struct TABLE_SHARE;
 typedef struct st_ha_create_information HA_CREATE_INFO;

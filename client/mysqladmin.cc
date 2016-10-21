@@ -17,18 +17,19 @@
 
 /* maintaince of mysql databases */
 
+#include <my_thread.h>				/* because of signal()	*/
+#include <mysql.h>
+#include <mysqld_error.h>                       /* to check server error codes */
+#include <signal.h>
+#include <sql_common.h>
+#include <sys/stat.h>
+#include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include <string>
+
 #include "client_priv.h"
 #include "my_default.h"
-#include <signal.h>
-#include <my_thread.h>				/* because of signal()	*/
-#include <sys/stat.h>
-#include <mysql.h>
-#include <sql_common.h>
-#include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
-#include <mysqld_error.h>                       /* to check server error codes */
 #include "mysql/service_mysql_alloc.h"
-
-#include <string>
+#include "typelib.h"
 
 #define ADMIN_VERSION "8.42"
 #define MAX_MYSQL_VAR 512
@@ -212,6 +213,7 @@ static struct my_option my_long_options[] =
    &interval, &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
 #include <sslopt-longopts.h>
+
   {"user", 'u', "User for login if not current user.", &user,
    &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Write more information.", &opt_verbose,
@@ -290,6 +292,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mysqladmin.trace");
     break;
 #include <sslopt-case.h>
+
   case 'V':
     print_version();
     exit(0);

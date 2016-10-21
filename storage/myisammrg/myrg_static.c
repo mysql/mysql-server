@@ -23,6 +23,7 @@
 #endif
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "typelib.h"
 
 LIST	*myrg_open_list=0;
 static const char *merge_insert_methods[] =

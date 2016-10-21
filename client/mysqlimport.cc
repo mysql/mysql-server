@@ -22,13 +22,14 @@
 
 #define IMPORT_VERSION "3.7"
 
+#include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+
 #include "client_priv.h"
 #include "my_default.h"
-#include "mysql_version.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-
-#include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "mysql_version.h"
+#include "typelib.h"
 
 
 /* Global Thread counter */
@@ -189,6 +190,7 @@ static struct my_option my_long_options[] =
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
+
   {"use-threads", OPT_USE_THREADS,
    "Load files in parallel. The argument is the number "
    "of threads to use for loading data.",
@@ -287,6 +289,7 @@ get_one_option(int optid, const struct my_option *opt,
     debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
+
   case 'V': print_version(); exit(0);
   case 'I':
   case '?':

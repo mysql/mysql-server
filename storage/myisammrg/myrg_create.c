@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 /* Create a MYMERGE_-file */
 
 #include "myrg_def.h"
+#include "typelib.h"
 
 	/* create file named 'name' and save filenames in it
 	   table_names should be NULL or a vector of string-pointers with

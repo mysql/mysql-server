@@ -22,6 +22,7 @@
 #include "semisync_master.h"
 #include "semisync_master_ack_receiver.h"
 #include "sql_class.h"                          // THD
+#include "typelib.h"
 
 ReplSemiSyncMaster repl_semisync;
 Ack_receiver ack_receiver;

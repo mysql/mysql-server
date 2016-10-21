@@ -25,7 +25,6 @@ SET(HEADERS_ABI
   my_command.h
   mysql_time.h 
   my_list.h
-  my_alloc.h
   mysql/plugin.h
   mysql/plugin_audit.h
   mysql/plugin_ftparser.h
@@ -75,7 +74,6 @@ SET(HEADERS
   thr_cond.h
   thr_mutex.h
   thr_rwlock.h
-  typelib.h 
   mem_root_fwd.h
   ${HEADERS_GEN_CONFIGURE}
 )
