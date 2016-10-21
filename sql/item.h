@@ -1053,9 +1053,10 @@ public:
         object whenever possible.
 
     RETURN
-      In case of NULL value return 0 (NULL pointer) and set null_value flag
-      to TRUE.
-      If value is not null null_value flag will be reset to FALSE.
+      In case of NULL value or error, return error_str() as this function will
+      check if the return value may be null, and it will either set null_value
+      to true and return nullptr or to false and it will return empty string.
+      If value is not null set null_value flag to false before returning it.
   */
   virtual String *val_str(String *str)=0;
 

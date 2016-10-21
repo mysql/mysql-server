@@ -1081,14 +1081,7 @@ String *Item_func_concat_ws::val_str(String *str)
   THD *thd= current_thd;
   null_value= false;
   if (!(sep_str= args[0]->val_str(&tmp_sep_str)))
-  {
-    if (thd->is_error())
-      return error_str();
-
-    DBUG_ASSERT(maybe_null);
-    null_value= true;
-    return nullptr;
-  }
+    return error_str();
   tmp_value.length(0);
 
   // Skip until non-null argument is found.
@@ -3085,8 +3078,8 @@ String *Item_func_repeat::val_str(String *str)
   String *res= args[0]->val_str(str);
 
   if (args[0]->null_value || args[1]->null_value)
-    goto err;				// string and/or delim are null
-  null_value= 0;
+    return error_str();                        // string and/or delim are null
+  null_value= false;
 
   if (count <= 0 && (count == 0 || !args[1]->unsigned_flag))
     return make_empty_result();
@@ -3109,18 +3102,18 @@ String *Item_func_repeat::val_str(String *str)
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
 			ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			func_name(), current_thd->variables.max_allowed_packet);
-    goto err;
+    return error_str();
   }
   tot_length= length*(uint) count;
   if (res->uses_buffer_owned_by(str))
   {
     if (tmp_value.alloc(tot_length) || tmp_value.copy(*res))
-      goto err;
+      return error_str();
     tmp_value.length(tot_length);
     res= &tmp_value;
   }
   else if (!(res= alloc_buffer(res,str,&tmp_value,tot_length)))
-    goto err;
+    return error_str();
 
   to=(char*) res->ptr()+length;
   while (--count)
@@ -3128,11 +3121,7 @@ String *Item_func_repeat::val_str(String *str)
     memcpy(to,res->ptr(),length);
     to+=length;
   }
-  return (res);
-
-err:
-  null_value=1;
-  return 0;
+  return res;
 }
 
 

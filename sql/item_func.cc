@@ -2940,14 +2940,13 @@ String *Item_func_bit::val_str(String *str)
 template<bool to_left> longlong Item_func_shift::eval_int_op()
 {
   DBUG_ASSERT(fixed);
-  null_value= maybe_null;
-  ulonglong res= args[0]->val_int();
+  ulonglong res= args[0]->val_uint();
   if (args[0]->null_value)
-    return 0;
+    return error_int();
 
-  uint shift= args[1]->val_int();
+  ulonglong shift= args[1]->val_uint();
   if (args[1]->null_value)
-    return 0;
+    return error_int();
 
   null_value= false;
   if (shift < sizeof(longlong) * 8)
@@ -2969,19 +2968,21 @@ template longlong Item_func_shift::eval_int_op<false>();
 template<bool to_left> String *Item_func_shift::eval_str_op(String *str)
 {
   DBUG_ASSERT(fixed);
-  null_value= maybe_null;
 
   String tmp_str;
   String *arg= args[0]->val_str(&tmp_str);
-  if (!arg || tmp_value.alloc(arg->length()) || args[0]->null_value)
-    return nullptr;
+  if (!arg || args[0]->null_value)
+    return error_str();
 
   ssize_t arg_length= arg->length();
   size_t shift= min(args[1]->val_uint(),
                     static_cast<ulonglong>(arg_length) * 8);
   if (args[1]->null_value)
-    return nullptr;
-  null_value= false;
+    return error_str();
+
+  if (tmp_value.alloc(arg->length()))
+    return error_str();
+
   tmp_value.length(arg_length);
   tmp_value.set_charset(&my_charset_bin);
   /*
@@ -3029,6 +3030,8 @@ template<bool to_left> String *Item_func_shift::eval_str_op(String *str)
       else
         to_c[i]= 0;
   }
+
+  null_value= false;
   return &tmp_value;
 }
 
@@ -3042,10 +3045,11 @@ template String *Item_func_shift::eval_str_op<false>(String *);
 
 longlong Item_func_bit_neg::int_op()
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   ulonglong res= (ulonglong) args[0]->val_int();
-  if ((null_value=args[0]->null_value))
-    return 0;
+  if (args[0]->null_value)
+    return error_int();
+  null_value= false;
   return ~res;
 }
 
@@ -3053,10 +3057,12 @@ longlong Item_func_bit_neg::int_op()
 String *Item_func_bit_neg::str_op(String *str)
 {
   DBUG_ASSERT(fixed);
-  null_value= maybe_null;
   String *res= args[0]->val_str(str);
-  if (!res || args[0]->null_value || tmp_value.alloc(res->length()))
-    return nullptr;
+  if (args[0]->null_value || !res)
+    return error_str();
+
+  if (tmp_value.alloc(res->length()))
+    return error_str();
 
   size_t arg_length= res->length();
   tmp_value.length(arg_length);
@@ -3089,13 +3095,12 @@ template<class Int_func> longlong
 Item_func_bit_two_param::eval_int_op(Int_func int_func)
 {
   DBUG_ASSERT(fixed);
-  null_value= maybe_null;
   ulonglong arg0= args[0]->val_uint();
   if (args[0]->null_value)
-    return 0;
+    return error_int();
   ulonglong arg1= args[1]->val_uint();
   if (args[1]->null_value)
-    return 0;
+    return error_int();
   null_value= false;
   return (longlong) int_func(arg0, arg1);
 }
@@ -3122,19 +3127,17 @@ Item_func_bit_two_param::eval_str_op(String *str, Char_func char_func,
                                      Int_func int_func)
 {
   DBUG_ASSERT(fixed);
-  null_value= maybe_null;
-
   String arg0_buff;
   String *s1= args[0]->val_str(&arg0_buff);
 
   if (args[0]->null_value || !s1)
-    return nullptr;
+    return error_str();
 
   String arg1_buff;
   String *s2= args[1]->val_str(&arg1_buff);
 
   if (args[1]->null_value || !s2)
-    return nullptr;
+    return error_str();
 
   size_t arg_length= s1->length();
   if (arg_length != s2->length())
@@ -3146,7 +3149,6 @@ Item_func_bit_two_param::eval_str_op(String *str, Char_func char_func,
   if (tmp_value.alloc(arg_length))
     return error_str();
 
-  null_value= false;
   tmp_value.length(arg_length);
   tmp_value.set_charset(&my_charset_bin);
 
@@ -3165,6 +3167,7 @@ Item_func_bit_two_param::eval_str_op(String *str, Char_func char_func,
     i++;
   }
 
+  null_value= false;
   return &tmp_value;
 }
 
@@ -4551,8 +4554,8 @@ longlong Item_func_bit_count::val_int()
   if (bit_func_returns_binary(args[0], NULL))
   {
     String *s= args[0]->val_str(&str_value);
-    if ((null_value= args[0]->null_value))
-      return 0;
+    if (args[0]->null_value || !s)
+      return error_int();
 
     char *val= const_cast<char *>(s->ptr());
 
@@ -4570,11 +4573,15 @@ longlong Item_func_bit_count::val_int()
       i++;
     }
 
+    null_value= false;
     return len;
   }
+
   ulonglong value= (ulonglong) args[0]->val_int();
-  if ((null_value= args[0]->null_value))
-    return 0; /* purecov: inspected */
+  if (args[0]->null_value)
+    return error_int(); /* purecov: inspected */
+
+  null_value= false;
   return (longlong) my_count_bits(value);
 }
 

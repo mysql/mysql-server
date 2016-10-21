@@ -5180,3 +5180,23 @@ NULL	NULL
 select insert('txs',null,null,'hi'),insert(null,null,null,null);
 insert('txs',null,null,'hi')	insert(null,null,null,null)
 NULL	NULL
+#
+# Bug #24930038 BITWISE SHIFT: ASSERTION FAILED: NULL_VALUE OR LOST CONNECTION TO SERVER ERROR
+#
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT REPEAT(0x1111, 2100000) >> 1;
+REPEAT(0x1111, 2100000) >> 1
+
+Warnings:
+Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+SELECT (~(REPEAT(0xb822, 0x6fc221)));
+(~(REPEAT(0xb822, 0x6fc221)))
+
+Warnings:
+Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+SET SQL_MODE=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
