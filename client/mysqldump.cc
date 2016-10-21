@@ -58,6 +58,7 @@
 
 #include "prealloced_array.h"
 #include "template_utils.h"
+#include "typelib.h"
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 

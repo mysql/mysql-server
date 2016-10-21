@@ -22,6 +22,7 @@
 #include "abstract_options_provider.h"
 #include "mysql_connection_options.h"
 #include "abstract_program.h"
+#include "typelib.h"
 #include <mysys_err.h>
 
 using Mysql::Nullable;

@@ -20,7 +20,7 @@
 
 #ifndef _mysql_com_h
 #define _mysql_com_h
-#include "binary_log_types.h"
+
 #include "my_command.h"
 /*
   FIXME: #include something that gives us my_bool, but without breaking

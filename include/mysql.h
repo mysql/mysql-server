@@ -29,7 +29,7 @@
 
 #ifndef MY_GLOBAL_INCLUDED                /* If not standard header */
 #ifndef MYSQL_ABI_CHECK
-#include <sys/types.h>
+#include <stddef.h>                       /* size_t */
 #endif
 
 typedef char my_bool;
@@ -63,13 +63,14 @@ typedef int my_socket;
 #include "mysql_version.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
+#include "binary_log_types.h"
 
 #include "my_list.h" /* for LISTs used in 'MYSQL' and 'MYSQL_STMT' */
 
 /* Include declarations of plug-in API */
 #include "mysql/client_plugin.h"
 
-#include "typelib.h"
+
 
 #ifdef	__cplusplus
 extern "C" {

@@ -20,6 +20,9 @@
   @file include/sslopt-vars.h
 */
 
+#include "my_inttypes.h"
+#include "typelib.h"
+
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
 #ifndef MYSQL_CLIENT

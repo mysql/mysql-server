@@ -43,6 +43,7 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "template_utils.h"
+#include "typelib.h"
 
 #ifdef EMBEDDED_LIBRARY
 

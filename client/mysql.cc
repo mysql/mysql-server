@@ -43,6 +43,7 @@
 #include "my_readline.h"
 #include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
+#include "typelib.h"
 
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
