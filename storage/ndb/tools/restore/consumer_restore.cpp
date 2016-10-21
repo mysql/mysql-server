@@ -1302,14 +1302,36 @@ BackupRestore::rebuild_indexes(const TableS& table)
     const NDB_TICKS start = NdbTick_getCurrentTicks();
     info << "Rebuilding index `" << idx_name << "` on table `"
       << tab_name << "` ..." << flush;
-    if ((dict->getIndex(idx_name, tab_name) == NULL)
-        && (dict->createIndex(* idx, 1) != 0))
+    bool done = false;
+    for(int retries = 0; retries<11; retries++)
+    {
+      if ((dict->getIndex(idx_name, tab_name) == NULL)
+          && (dict->createIndex(* idx, 1) != 0))
+      {
+        if(dict->getNdbError().status == NdbError::TemporaryError)
+        {
+          err << "retry sleep 50 ms on error " <<
+                      dict->getNdbError().code << endl;
+          NdbSleep_MilliSleep(50);
+          continue;  // retry on temporary error
+        }
+        else
+        {
+          break;
+        }
+      }
+      else
+      {
+        done = true;
+        break;
+      }
+    }
+    if(!done)
     {
       info << "FAIL!" << endl;
       err << "Rebuilding index `" << idx_name << "` on table `"
         << tab_name <<"` failed: ";
       err << dict->getNdbError() << endl;
-
       return false;
     }
     const NDB_TICKS stop = NdbTick_getCurrentTicks();
@@ -2653,11 +2675,38 @@ BackupRestore::table(const TableS & table){
 
     if (copy.getFragmentType() == NdbDictionary::Object::HashMapPartition)
     {
-      Uint32 id;
-      if (copy.getHashMap(&id))
+      switch(copy.getFragmentCountType()) {
+      case NdbDictionary::Object::FragmentCount_Specific:
       {
-        NdbDictionary::HashMap * hm = m_hashmaps[id];
-        copy.setHashMap(* hm);
+        /**
+         * The only specific information we have in specific hash map
+         * partitions is really the number of fragments. Other than
+         * that we can use a new hash map. We won't be able to restore
+         * in exactly the same distribution anyways. So we set the
+         * hash map to be non-existing and thus it will be created
+         * as part of creating the table. The fragment count is already
+         * set in the copy object.
+         */
+        NdbDictionary::HashMap nullMap;
+        assert(Uint32(nullMap.getObjectId()) == RNIL);
+        assert(Uint32(nullMap.getObjectVersion()) == ~Uint32(0));
+        copy.setHashMap(nullMap);
+        break;
+      }
+      case NdbDictionary::Object::FragmentCount_OnePerLDMPerNode:
+      case NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup:
+      case NdbDictionary::Object::FragmentCount_OnePerNode:
+      case NdbDictionary::Object::FragmentCount_OnePerNodeGroup:
+        /**
+         * Use the FragmentCountType to resize table for this cluster...
+         *   set "null" hashmap
+         */
+        NdbDictionary::HashMap nullMap;
+        assert(Uint32(nullMap.getObjectId()) == RNIL);
+        assert(Uint32(nullMap.getObjectVersion()) == ~Uint32(0));
+        copy.setFragmentCount(0);
+        copy.setHashMap(nullMap);
+        break;
       }
     }
     else if (copy.getDefaultNoPartitionsFlag())
@@ -2935,13 +2984,32 @@ BackupRestore::endOfTables(){
     idx->setName(split_idx[3].c_str());
     if (m_restore_meta && !m_disable_indexes && !m_rebuild_indexes)
     {
-      if (dict->createIndex(* idx) != 0)
+      bool done = false;
+      for(unsigned int retries = 0; retries < 11; retries++)
+      {
+        if(dict->createIndex(* idx) == 0)
+        {
+          done = true;  // success
+          break;
+        }
+        else if(dict->getNdbError().status == NdbError::TemporaryError)
+        {
+          err << "retry sleep 50 ms on error " <<
+                      dict->getNdbError().code << endl;
+          NdbSleep_MilliSleep(50);
+          continue;  // retry on temporary error
+        }
+        else
+        {
+          break; // error out on permanent error
+        }
+      }
+      if(!done)
       {
         delete idx;
         err << "Failed to create index `" << split_idx[3].c_str()
             << "` on `" << table_name << "`" << endl
             << dict->getNdbError() << endl;
-
         return false;
       }
       info << "Successfully created index `" << split_idx[3].c_str()

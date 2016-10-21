@@ -85,6 +85,7 @@
 #include <SectionReader.hpp>
 #include <signaldata/DihRestart.hpp>
 #include <signaldata/IsolateOrd.hpp>
+#include <ndb_constants.h>
 
 #include <EventLogger.hpp>
 
@@ -11883,21 +11884,29 @@ static void set_default_node_groups(Signal *signal, Uint32 noFrags)
 {
   Uint16 *node_group_array = (Uint16*)&signal->theData[25];
   Uint32 i;
-  node_group_array[0] = 0;
-  for (i = 1; i < noFrags; i++)
+  for (i = 0; i < noFrags; i++)
     node_group_array[i] = NDB_UNDEF_NODEGROUP;
 }
 
-static Uint32 find_min_index(const Uint32* array, Uint32 cnt)
+static Uint32 find_min_index(const Uint16* array, Uint32 cnt, Uint32 start_pos)
 {
-  Uint32 m = 0;
-  Uint32 mv = array[0];
-  for (Uint32 i = 1; i<cnt; i++)
+  Uint32 m = start_pos;
+  Uint32 min_value = array[start_pos];
+
+  for (Uint32 i = start_pos + 1; i<cnt; i++)
   {
-    if (array[i] < mv)
+    if (array[i] < min_value)
     {
       m = i;
-      mv = array[i];
+      min_value = array[i];
+    }
+  }
+  for (Uint32 i = 0; i < start_pos; i++)
+  {
+    if (array[i] < min_value)
+    {
+      m = i;
+      min_value = array[i];
     }
   }
   return m;
@@ -11955,8 +11964,10 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   const Uint32 primaryTableId = req->primaryTableId;
   const Uint32 map_ptr_i = req->map_ptr_i;
   const Uint32 flags = req->requestInfo;
+  const Uint32 fragmentCountType = req->fragmentCountType;
 
   Uint32 err = 0;
+  bool use_specific_fragment_count = false;
   const Uint32 defaultFragments =
     getFragmentsPerNode() * cnoOfNodeGroups * cnoReplicas;
   const Uint32 maxFragments = MAX_FRAG_PER_LQH * defaultFragments;
@@ -11995,6 +12006,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       case DictTabInfo::SingleFragment:
         jam();
         noOfFragments = 1;
+        use_specific_fragment_count = true;
         set_default_node_groups(signal, noOfFragments);
         break;
       case DictTabInfo::DistrKeyHash:
@@ -12006,6 +12018,11 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           jam();
           noOfFragments = defaultFragments;
           set_default_node_groups(signal, noOfFragments);
+        }
+        else
+        {
+          jam();
+          use_specific_fragment_count = true;
         }
         break;
       case DictTabInfo::HashMapPartition:
@@ -12030,6 +12047,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       }
       default:
         jam();
+        use_specific_fragment_count = true;
         if (noOfFragments == 0)
         {
           jam();
@@ -12046,7 +12064,132 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       memcpy(&node_group_id[0], &signal->theData[25], 2 * noOfFragments);
       Uint16 next_replica_node[MAX_NDB_NODES];
       memset(next_replica_node,0,sizeof(next_replica_node));
-      Uint32 default_node_group= c_nextNodeGroup;
+      Uint32 default_node_group= 0;
+      Uint32 next_log_part = 0;
+      if ((DictTabInfo::FragmentType)fragType == DictTabInfo::HashMapPartition)
+      {
+        jam();
+        switch (fragmentCountType)
+        {
+          case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+          case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
+          {
+            /**
+             * Table will only use one log part, we will try spreading over
+             * different log parts, however the variable isn't persistent, so
+             * recommendation is to use only small tables for these
+             * fragment count types.
+             *
+             * One per node type will use one LDM per replica since fragment
+             * count is higher.
+             */
+            jam();
+            use_specific_fragment_count = true;
+            break;
+          }
+          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
+          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+          {
+            /**
+             * These tables will spread over all LDMs and over all node
+             * groups. We will start with LDM 0 by setting next_log_part
+             * to -1 and when we do ++ on first fragment in node group
+             * 0 it will be set to 0.
+             * We won't touch m_next_log_part in this case since it won't
+             * change its value anyways.
+             *
+             * This is the same as the default behaviour except that the
+             * old behaviour could be affected by previous tables. This
+             * behaviour is now removed.
+             */
+            jam();
+            next_log_part = (~0);
+            break;
+          }
+          case NDB_FRAGMENT_COUNT_SPECIFIC:
+          {
+            jam();
+            use_specific_fragment_count = true;
+            break;
+          }
+          default:
+          {
+            ndbrequire(false);
+            break;
+          }
+        }
+      }
+      else
+      {
+        /**
+         * The only table type supported is HashMaps, so we can change the
+         * mapping of non-HashMap tables to a more stringent one. We will
+         * still always start at LDM 0 except for tables defined to have
+         * non-standard fragment counts. In this case we will start at
+         * m_next_log_part to attempt in spreading out the use on the
+         * LDMs although we won't perform a perfect job.
+         */
+        if (!use_specific_fragment_count)
+        {
+          jam();
+          next_log_part = (~0);
+        }
+      }
+      /**
+       * Fragments are spread out in 3 different dimensions.
+       * 1) Node group dimension, each fragment belongs to a node group.
+       * 2) LDM instance dimenstion, each fragment is mapped to one of the
+       *    LDMs.
+       * 3) Primary replica dimension, each fragment maps the primary replica
+       *    to one of the nodes in the node group.
+       *
+       * Node group Dimension:
+       * ---------------------
+       * Here the fragments are spread out in easy manner by placing the first
+       * fragment in Node Group 0, the next in Node Group 1 (if there is one).
+       * When we have mapped a fragment into each node group, then we restart
+       * from Node Group 0.
+       *
+       * LDM dimension:
+       * --------------
+       * The default behaviour in 7.4 and earlier was to spread those in the
+       * same manner as node groups, one started at the next LDM to receive
+       * a fragment, this is normally LDM 0. The next fragment is mapped to
+       * next LDM, normally 1 (if it exists). One proceeds like this until
+       * one reaches the last LDM, then one starts again from LDM 0.
+       * A variable m_next_log_part is kept for as long as the node lives.
+       * Thus we cannot really tell on beforehand where fragments will end
+       * up in this fragmentation scheme.
+       *
+       * We have changed the behaviour for normal tables in 7.5. Now we will
+       * always start from LDM 0, we will use LDM 0 until all node groups
+       * have received one fragment in LDM 0. Then when we return to Node
+       * Group 0 we will step to LDM 1. When we reach the last LDM we will
+       * step back to LDM 0 again.
+       *
+       * For tables with specific fragment count we will use the same mapping
+       * algorithm except that we will start on the next LDM that was saved
+       * from creating the last table with specific fragment count.
+       * This means that tables that have a small number of fragments we will
+       * attempt to spread them and this has precedence before predictable
+       * fragmentation.
+       *
+       * Primary replica dimension:
+       * --------------------------
+       * We will start with the first node in each node group in the first
+       * round of node groups and with LDM 0. In the second turn for LDM 1
+       * we will use the second node in the node group. In this manner we
+       * will get a decent spreading of primary replicas on the nodes in the
+       * node groups. It won't be perfect, but when we support read from
+       * backup replicas the need to handle primary replica and backup
+       * replica is much smaller.
+       */
+
+      if (use_specific_fragment_count)
+      {
+        jam();
+        default_node_group = c_nextNodeGroup;
+      }
       for(Uint32 fragNo = 0; fragNo < noOfFragments; fragNo++)
       {
         jam();
@@ -12069,21 +12212,45 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           err = CreateFragmentationRef::InvalidNodeGroup;
           break;
         }
-        const Uint32 max = NGPtr.p->nodeCount;
-	const Uint32 logPart = (NGPtr.p->m_next_log_part++ / cnoReplicas) % globalData.ndbLogParts; 
+        Uint32 logPart;
+        if (use_specific_fragment_count)
+        {
+          jam();
+          /**
+           * Time to increment to next LDM
+           * Most tables use one fragment per LDM, but if there are
+           * tables that only use one LDM we make sure in this manner that
+           * those tables are spread over different LDMs.
+           *
+           * This means that the first fragment can end up a bit
+           * anywhere, but there will still be a good spread of
+           * the fragments over the LDMs.
+           */
+          logPart = NGPtr.p->m_next_log_part++ % globalData.ndbLogParts;
+        }
+        else
+        {
+          jam();
+          if (NGPtr.i == 0)
+          {
+            jam();
+            next_log_part++;
+          }
+          logPart = next_log_part % globalData.ndbLogParts;
+        }
         ndbrequire(logPart < NDBMT_MAX_WORKER_INSTANCES);
-	fragments[count++] = logPart; // Store logpart first
-	Uint32 tmp= next_replica_node[NGPtr.i];
+        fragments[count++] = logPart; // Store logpart first
+        Uint32 node_index = next_replica_node[NGPtr.i];
         for(Uint32 replicaNo = 0; replicaNo < noOfReplicas; replicaNo++)
         {
           jam();
-          const Uint16 nodeId = NGPtr.p->nodesInGroup[tmp];
+          const Uint16 nodeId = NGPtr.p->nodesInGroup[node_index];
           fragments[count++]= nodeId;
-          inc_node_or_group(tmp, max);
+          inc_node_or_group(node_index, NGPtr.p->nodeCount);
         }
-        inc_node_or_group(tmp, max);
-	next_replica_node[NGPtr.i]= tmp;
-	
+        inc_node_or_group(node_index, NGPtr.p->nodeCount);
+        next_replica_node[NGPtr.i]= node_index;
+
         /**
          * Next node group for next fragment
          */
@@ -12094,7 +12261,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         jam();
         break;
       }
-      else
+      if (use_specific_fragment_count)
       {
         jam();
         c_nextNodeGroup = default_node_group;
@@ -12112,21 +12279,29 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         err = CreateFragmentationRef::InvalidPrimaryTable;
         break;
       }
-      Uint32 fragments_per_node[MAX_NDB_NODES]; // Keep track of no of (primary) fragments per node
-      bzero(fragments_per_node, sizeof(fragments_per_node));
+      // Keep track of no of (primary) fragments per node
+      Uint16 next_replica_node[MAX_NDB_NODES];
+      Uint16 fragments_per_node[MAX_NDB_NODES];
+      Uint16 fragments_per_ldm[MAX_NDB_NODES][NDBMT_MAX_WORKER_INSTANCES];
+
+      memset(next_replica_node,0,sizeof(next_replica_node));
+      memset(fragments_per_node, 0, sizeof(fragments_per_node));
+      memset(fragments_per_ldm, 0, sizeof(fragments_per_ldm));
       for (Uint32 fragNo = 0; fragNo < primTabPtr.p->totalfragments; fragNo++) {
         jam();
         FragmentstorePtr fragPtr;
         ReplicaRecordPtr replicaPtr;
         getFragstore(primTabPtr.p, fragNo, fragPtr);
-	fragments[count++] = fragPtr.p->m_log_part_id;
+        Uint32 log_part_id = fragPtr.p->m_log_part_id;
+	fragments[count++] = log_part_id;
         fragments[count++] = fragPtr.p->preferredPrimary;
-        fragments_per_node[fragPtr.p->preferredPrimary]++;
         for (replicaPtr.i = fragPtr.p->storedReplicas;
              replicaPtr.i != RNIL;
              replicaPtr.i = replicaPtr.p->nextPool) {
           jam();
           c_replicaRecordPool.getPtr(replicaPtr);
+          fragments_per_ldm[replicaPtr.p->procNode][log_part_id]++;
+          fragments_per_node[replicaPtr.p->procNode]++;
           if (replicaPtr.p->procNode != fragPtr.p->preferredPrimary) {
             jam();
             fragments[count++]= replicaPtr.p->procNode;
@@ -12137,9 +12312,12 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
              replicaPtr.i = replicaPtr.p->nextPool) {
           jam();
           c_replicaRecordPool.getPtr(replicaPtr);
+          fragments_per_ldm[replicaPtr.p->procNode][log_part_id]++;
+          fragments_per_node[replicaPtr.p->procNode]++;
           if (replicaPtr.p->procNode != fragPtr.p->preferredPrimary) {
             jam();
             fragments[count++]= replicaPtr.p->procNode;
+            fragments_per_node[replicaPtr.p->procNode]++;
           }
         }
       }
@@ -12152,39 +12330,135 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       else if (flags & CreateFragmentationReq::RI_ADD_PARTITION)
       {
         jam();
+        ndbrequire(fragType == DictTabInfo::HashMapPartition ||
+                   fragType == DictTabInfo::DistrKeyOrderedIndex);
         /**
-         * All nodes that dont belong to a nodegroup to ~0 fragments_per_node
-         *   so that they dont get any more...
+         * All nodes that don't belong to a nodegroup to ~0 fragments_per_node
+         *   so that they don't get any more...
          */
         for (Uint32 i = 0; i<MAX_NDB_NODES; i++)
         {
           if (getNodeStatus(i) == NodeRecord::NOT_IN_CLUSTER ||
-              getNodeGroup(i) >= cnoOfNodeGroups) // XXX todo
+              getNodeGroup(i) >= cnoOfNodeGroups)
           {
             jam();
             ndbassert(fragments_per_node[i] == 0);
-            fragments_per_node[i] = ~(Uint32)0;
+            fragments_per_node[i] = ~(Uint16)0;
+          }
+        }
+        /**
+         * Fragments are also added in 3 dimensions.
+         * Node group Dimension:
+         * ---------------------
+         * When we add fragments the algorithm strives to spread the fragments
+         * in node group order first. If no new node groups exist to map the
+         * table into then one will simply start up again at Node Group 0.
+         *
+         * So the next fragment always seeks out the most empty node group and
+         * adds the fragment there. When new node groups exists and we haven't
+         * changed the fragment count type then all new fragments will end up
+         * in the new node groups. If we change fragment count type we will
+         * also add new fragments to existing node groups.
+         *
+         * LDM Dimension:
+         * --------------
+         * We will ensure that we have an even distribution on the LDMs in the
+         * nodes by ensuring that we have knowledge of which LDMs we primarily
+         * used in the original table. This is necessary to support ALTER TABLE
+         * from FRAGMENT_COUNT_ONE_PER_NODE to
+         * FRAGMENT_COUNT_ONE_PER_NODE_GROUP e.g. FRAGMENT_COUNT_ONE_PER_NODE
+         * could have used any LDMs. So it is important to ensure that we
+         * spread evenly over all LDMs also after the ALTER TABLE. We do this
+         * by always finding the LDM in the node with the minimum number of
+         * fragments.
+         *
+         * Primary replica Dimension:
+         * --------------------------
+         * We will start adding the first node of each node group as primary
+         * replica. Next time we insert into this node group we will insert
+         * into next node in node group and so forth.
+         */
+
+        Uint32 first_new_node = find_min_index(fragments_per_node, 
+                                               NDB_ARRAY_SIZE(fragments_per_node),
+                                               0);
+        Uint32 firstNG = getNodeGroup(first_new_node);
+        Uint32 next_log_part = 0;
+        bool use_old_variant = true;
+
+        switch(fragmentCountType)
+        {
+          case NDB_FRAGMENT_COUNT_SPECIFIC:
+          case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
+          case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+          {
+            jam();
+            break;
+          }
+          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
+          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+          {
+            jam();
+            use_old_variant = false;
+            next_log_part = (~0);
+            break;
+          }
+          default:
+          {
+            ndbrequire(false);
+            break;
           }
         }
         for (Uint32 i = primTabPtr.p->totalfragments; i<noOfFragments; i++)
         {
           jam();
           Uint32 node = find_min_index(fragments_per_node, 
-                                       NDB_ARRAY_SIZE(fragments_per_node));
+                                       NDB_ARRAY_SIZE(fragments_per_node),
+                                       0);
+
+          /* Ensure that we don't report this as min immediately again */
+          fragments_per_node[node]++;
+
           NGPtr.i = getNodeGroup(node);
           ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
-          const Uint32 logPart = (NGPtr.p->m_next_log_part++) % globalData.ndbLogParts;
-          ndbrequire(logPart < NDBMT_MAX_WORKER_INSTANCES);
-          fragments[count++] = logPart;
-          fragments[count++] = node;
-          fragments_per_node[node]++;
-          for (Uint32 r = 0; r<noOfReplicas; r++)
+          Uint32 logPart;
+          if (use_old_variant)
           {
             jam();
-            if (NGPtr.p->nodesInGroup[r] != node)
+            logPart = (NGPtr.p->m_next_log_part++) % globalData.ndbLogParts;
+          }
+          else
+          {
+            jam();
+            if (firstNG == NGPtr.i)
             {
               jam();
-              fragments[count++] = NGPtr.p->nodesInGroup[r];
+              next_log_part++;
+            }
+            logPart = next_log_part % globalData.ndbLogParts;
+          }
+          ndbrequire(logPart < NDBMT_MAX_WORKER_INSTANCES);
+          logPart = find_min_index(&fragments_per_ldm[node][0],
+                                   globalData.ndbLogParts,
+                                   logPart);
+
+          Uint32 node_index = next_replica_node[NGPtr.i];
+          Uint32 primary_node = NGPtr.p->nodesInGroup[node_index];
+          inc_node_or_group(node_index, NGPtr.p->nodeCount);
+          next_replica_node[NGPtr.i]= node_index;
+          fragments[count++] = logPart;
+          fragments[count++] = primary_node;
+          fragments_per_ldm[primary_node][logPart]++;
+          for (Uint32 r = 0; r < noOfReplicas; r++)
+          {
+            jam();
+            if (NGPtr.p->nodesInGroup[r] != primary_node)
+            {
+              jam();
+              Uint32 replicaNode = NGPtr.p->nodesInGroup[r];
+              fragments[count++] = replicaNode;
+              fragments_per_node[replicaNode]++;
+              fragments_per_ldm[replicaNode][logPart]++;
             }
           }
         }
@@ -12988,6 +13262,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
   const Uint32 newTableVersion = req->newTableVersion;
   AlterTabReq::RequestType requestType = 
     (AlterTabReq::RequestType) req->requestType;
+  D("ALTER_TAB_REQ(DIH)");
 
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
@@ -21954,8 +22229,7 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   case CheckNodeGroups::GetDefaultFragments:
     jamNoBlock();
     ok = true;
-    sd->output = (cnoOfNodeGroups + sd->extraNodeGroups)
-      * getFragmentsPerNode() * cnoReplicas;
+    sd->output = getFragmentCount(sd->fragmentCountType, sd->extraNodeGroups);
     break;
   }
   ndbrequire(ok);
@@ -21964,6 +22238,29 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     sendSignal(sd->blockRef, GSN_CHECKNODEGROUPSCONF, signal,
 	       CheckNodeGroups::SignalLength, JBB);
 }//Dbdih::execCHECKNODEGROUPSREQ()
+
+Uint32
+Dbdih::getFragmentCount(Uint32 fragmentCountType, Uint32 extraNodeGroups)
+{
+  /**
+   * this is actually MIN(#ldm) for each node in cluster
+   */
+  Uint32 ldms = getFragmentsPerNode();
+  Uint32 nodeGroups = cnoOfNodeGroups + extraNodeGroups;
+
+  switch(fragmentCountType) {
+  case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
+    return nodeGroups * cnoReplicas * ldms;
+  case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+    return nodeGroups * ldms;
+  case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
+    return nodeGroups * cnoReplicas;
+  case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+    return nodeGroups;
+  }
+  ndbrequire(false);
+  return 0;
+}
 
 void
 Dbdih::makePrnList(ReadNodesConf * readNodes, Uint32 nodeArray[])

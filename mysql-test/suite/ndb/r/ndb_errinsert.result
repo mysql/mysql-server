@@ -1,0 +1,7 @@
+use test;
+create table t1 (id int primary key, val int) engine=ndb;
+
+create unique index val_unique on t1(val);
+ERROR HY000: Got temporary error 748 'Busy during read of event table' from NDBCLUSTER
+
+drop table t1;

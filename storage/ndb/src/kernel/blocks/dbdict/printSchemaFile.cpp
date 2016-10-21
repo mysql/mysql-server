@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include <my_dir.h>
 #include <my_thread_local.h>
 
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include "SchemaFile.hpp"
 #include <kernel_types.h>
@@ -88,7 +87,8 @@ print_head(const char * filename, const SchemaFile * sf)
              sf->FileSize);
   }
 
-  if (memcmp(sf->Magic, "NDBSCHMA", sizeof(sf->Magic) != 0)) {
+  if (memcmp(sf->Magic, "NDBSCHMA", sizeof(sf->Magic)) != 0)
+  {
     ndbout << filename << ": invalid header magic" << endl;
     retcode = 1;
   }
@@ -208,9 +208,9 @@ print(const char * filename, const SchemaFile * xsf, Uint32 sz)
   return retcode;
 }
 
-NDB_COMMAND(printSchemafile, 
-	    "printSchemafile", "printSchemafile", "Prints a schemafile", 16384)
-{ 
+
+int main(int argc, char** argv)
+{
   ndb_init();
   progname = argv[0];
   int exitcode = 0;

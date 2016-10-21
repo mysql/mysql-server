@@ -242,7 +242,9 @@ CREATE TABLE test.t (
 ) TABLESPACE ts1 STORAGE DISK ENGINE=NDB;
 
  ALTER TABLE test.t ADD INDEX (d), ADD INDEX (f);
+--disable_warnings
  SHOW CREATE TABLE test.t;
+--enable_warnings
 
 # insert records into tables
 

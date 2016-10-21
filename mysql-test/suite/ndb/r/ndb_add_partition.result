@@ -14,6 +14,7 @@ c int unsigned not null,
 primary key(a,c),
 unique (b))
 ENGINE = NDB
+COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
 partition by key(a);
 CREATE TABLE t2 (a int unsigned not null,
 b int unsigned not null,
@@ -21,6 +22,7 @@ c int unsigned not null,
 primary key(a,b),
 unique (b))
 ENGINE = NDB
+COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
 STORAGE DISK
 TABLESPACE ts1
 partition by key(a);
@@ -36,7 +38,8 @@ b int unsigned not null,
 c int unsigned not null,
 primary key(a,b),
 unique (b))
-ENGINE = NDB;
+ENGINE = NDB
+COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
 CREATE TABLE t5 (a int unsigned not null,
 b int unsigned not null,
 c int unsigned null,
@@ -298,7 +301,7 @@ Error	1846	ALGORITHM=INPLACE is not supported. Reason: REORGANIZE of table with 
 alter table t3 algorithm=inplace, max_rows=50000000;
 alter table t4 algorithm=inplace, reorganize partition;
 alter table t5 algorithm=inplace partition by key() partitions 6;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
 Check partitions added, expect 0 in all cases
 partitions added to t1
 t1_added

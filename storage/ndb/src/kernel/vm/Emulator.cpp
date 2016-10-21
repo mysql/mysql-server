@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,6 @@
 #include <NodeState.hpp>
 #include "ndbd_malloc_impl.hpp"
 
-#include <NdbMem.h>
 #include <NdbMutex.h>
 
 #include <EventLogger.hpp>
@@ -700,8 +699,6 @@ EmulatorData::create(){
 #endif
   NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, jamBuffer);
 
-  NdbMem_Create();
-
   theConfiguration = new Configuration();
   theWatchDog      = new WatchDog();
   theThreadConfig  = new ThreadConfig();
@@ -743,6 +740,4 @@ EmulatorData::destroy(){
   NdbMutex_Destroy(theShutdownMutex);
   if (m_mem_manager)
     delete m_mem_manager; m_mem_manager = 0;
-  
-  NdbMem_Destroy();
 }

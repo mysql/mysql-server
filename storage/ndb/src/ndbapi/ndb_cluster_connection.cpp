@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -656,6 +656,12 @@ Ndb_cluster_connection_impl::unlink_ndb_object(Ndb* p)
 }
 
 void
+Ndb_cluster_connection_impl::set_data_node_neighbour(Uint32 node)
+{
+  m_data_node_neighbour = node;
+}
+
+void
 Ndb_cluster_connection_impl::set_name(const char *name)
 {
   NdbMgmHandle h= m_config_retriever->get_mgmHandle();
@@ -847,6 +853,13 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
     {
       m_config.m_default_hashmap_size = default_hashmap_size;
     }
+
+    Uint32 verbose= 0;
+    if (!iter.get(CFG_API_VERBOSE, &verbose))
+    {
+      m_config.m_verbose = verbose;
+    }
+
     // If DefaultHashmapSize is not set or zero, use the minimum
     // value set (not zero) for any other node, since this size
     // should be supported by the other nodes.  Also this allows
@@ -941,6 +954,11 @@ Ndb_cluster_connection_impl::do_test()
     }
   }
   delete [] nodes;
+}
+
+void Ndb_cluster_connection::set_data_node_neighbour(Uint32 node)
+{
+  m_impl.set_data_node_neighbour(node);
 }
 
 void Ndb_cluster_connection::set_name(const char *name)
@@ -1184,6 +1202,61 @@ Ndb_cluster_connection::release_ndb_wait_group(NdbWaitGroup *group)
   {
     return false;
   }
+}
+
+Uint32
+Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
+                                         Uint32 cnt,
+                                         Uint32 skip)
+{
+  NdbNodeBitmask checked;
+  const Node *nodes_arr = m_all_nodes.getBase();
+  const Uint32 nodes_arr_cnt = m_all_nodes.size();
+
+  if (m_data_node_neighbour != 0)
+  {
+    /**
+     * If the user has specified a closest data node neighbour AND
+     * this node is among the nodes that we can select, then we
+     * choose this node as the best node.
+     *
+     * Otherwise we'll fall back to the normal check of config
+     * to see if we have a node closer than other nodes.
+     */
+    for (Uint32 i = 0; i < cnt; i++)
+    {
+      if (nodes[i] == m_data_node_neighbour)
+      {
+        return nodes[i];
+      }
+    }
+  }
+  Uint32 best_node = nodes[0];
+  Uint32 best_score = ~Uint32(0);
+
+  for (Uint32 j = 0; j < cnt; j += (1 + skip))
+  {
+    Uint32 candidate_node = nodes[j];
+    if (checked.get(candidate_node))
+      continue;
+
+    checked.set(candidate_node);
+
+    for (Uint32 i = 0; i < nodes_arr_cnt; i++)
+    {
+      if (nodes_arr[i].id == candidate_node)
+      {
+        if (nodes_arr[i].group < best_score)
+        {
+          best_node = candidate_node;
+          best_score = nodes_arr[i].group;
+        }
+        best_score = nodes_arr[i].group;
+        break;
+      }
+    }
+  }
+  return best_node;
 }
 
 template class Vector<Ndb_cluster_connection_impl::Node>;

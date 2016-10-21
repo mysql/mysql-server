@@ -839,20 +839,12 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
  * Never to be used by end user.
  * Or anybody who doesn't know exactly what they're doing.
  */
-#ifdef NDB_WIN
-SOCKET
-ndb_mgm_get_fd(NdbMgmHandle handle)
-{
-  return handle->socket.s;
-}
-#else
 extern "C"
-int
+ndb_native_socket_t
 ndb_mgm_get_fd(NdbMgmHandle handle)
 {
-  return handle->socket.fd;
+  return ndb_socket_get_native(handle->socket);
 }
-#endif
 
 /**
  * Disconnect from mgm server without error checking
@@ -2030,21 +2022,13 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   applications.
  */
 extern "C"
-#ifdef NDB_WIN
-SOCKET
-#else
-int
-#endif
+ndb_native_socket_t
 ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
 {
   NDB_SOCKET_TYPE s;
   if(ndb_mgm_listen_event_internal(handle,filter,0,&s)<0)
     my_socket_invalidate(&s);
-#ifdef NDB_WIN
-  return s.s;
-#else
-  return s.fd;
-#endif
+  return ndb_socket_get_native(s);
 }
 
 extern "C"

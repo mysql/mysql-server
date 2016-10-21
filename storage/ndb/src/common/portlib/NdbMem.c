@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,49 +15,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
-#include <ndb_global.h>
-
 #include <NdbMem.h>
 
-void NdbMem_Create()
-{
-  /* Do nothing */
-  return;
-}
 
-void NdbMem_Destroy()
-{
-  /* Do nothing */
-  return;
-}
-
-
-void* NdbMem_Allocate(size_t size)
-{
-  void* mem_allocated;
-  assert(size > 0);
-  mem_allocated= (void*)malloc(size);
-  return mem_allocated;
-}
-
-void* NdbMem_AllocateAlign(size_t size, size_t alignment)
-{
-  (void)alignment; /* remove warning for unused parameter */
-  /*
-    return (void*)memalign(alignment, size);
-    TEMP fix
-  */
-  return (void*)malloc(size);
-}
-
-
-void NdbMem_Free(void* ptr)
-{
-  free(ptr);
-}
-
- 
 int NdbMem_MemLockAll(int i){
   if (i == 1)
   {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,6 +76,13 @@ public:
                          int force_api_nodeid);
 #endif
   ~Ndb_cluster_connection();
+
+  /**
+   * Set data node neighbour of the connection. This will be used for optimal
+   * placement of transaction coordinator.
+   *
+   */
+  void set_data_node_neighbour(Uint32 neighbour_node);
 
   /**
    * Set a name on the connection, which will be reported in cluster log

@@ -20,7 +20,6 @@
  */
 
 #include <ndb_global.h>
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
 #include <NdbTest.hpp>
@@ -566,6 +565,7 @@ createTable(int storageType)
     const Uint32 numPartitions= numReplicas * numNgs * numFragsPerNode;
     
     tab.setFragmentCount(numPartitions);
+    tab.setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
     for (Uint32 i=0; i<numPartitions; i++)
     {
       frag_ng_mappings[i]= i % numNgs;
@@ -4968,7 +4968,7 @@ static struct {
   { 62321, bugtest_62321 }
 };
 
-NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
+int main(int argc, char** argv)
 {
   ndb_init();
   // log the invocation

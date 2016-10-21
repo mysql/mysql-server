@@ -2548,6 +2548,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)
   },
 
+  {
+    CFG_API_VERBOSE,
+    "ApiVerbose",
+    "API",
+    "Tracelevel for API nodes.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    0,
+    "0",
+    "100"
+  },
+
   /****************************************************************************
    * MGM
    ***************************************************************************/

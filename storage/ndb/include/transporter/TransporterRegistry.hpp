@@ -131,9 +131,16 @@ struct TransporterReceiveData
 
   /**
    * Bitmask of transporters having received corrupted or unsupported
-   * message.  No more unpacking and delivery of messages allowed.
+   * message. No more unpacking and delivery of messages allowed.
    */
   NodeBitmask m_bad_data_transporters;
+
+  /**
+   * Last node received from if unable to complete all transporters
+   * in previous ::performReceive(). Next ::performReceive will
+   * resume from first transporter after this.
+   */
+  Uint32 m_last_nodeId;
 
 #if defined(HAVE_EPOLL_CREATE)
   int m_epoll_fd;

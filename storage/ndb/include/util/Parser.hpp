@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@ public:
     const ParserRow<T> * m_currentCmd;
     const ParserRow<T> * m_currentArg;
     char * m_currentToken;
-    STATIC_CONST(MaxParseBytes = 512);
+    STATIC_CONST(MaxParseBytes = 8192);
     char m_tokenBuffer[ MaxParseBytes ];
     NdbMutex *m_mutex;
 

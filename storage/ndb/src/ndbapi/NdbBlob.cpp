@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,7 +100,14 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   bt.m_tablespace_id = t->m_tablespace_id;
   bt.m_tablespace_version = t->m_tablespace_version;
   bt.setFragmentType(t->getFragmentType());
+  bt.setFragmentCountType(t->getFragmentCountType());
+  bt.setReadBackupFlag(t->getReadBackupFlag());
 
+  if (t->getFragmentType() == NdbDictionary::Object::HashMapPartition)
+  {
+    bt.m_hash_map_id = t->m_hash_map_id;
+    bt.m_hash_map_version = t->m_hash_map_version;
+  }
   DBUG_PRINT("info", ("Define BLOB table V%d with"
                       " primary table = %u and Fragment Type = %u",
                       blobVersion,

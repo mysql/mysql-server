@@ -427,7 +427,7 @@ c1	c2	c3	c4	c5	c6	c7
 *** Add column on master that is a Extra on Slave ***
 ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 Warnings:
-Warning	1478	Converted FIXED field 'c6' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c6' to DYNAMIC to enable online ADD COLUMN
 ********************************************************
 *** Expect slave to fail with Error ER_DUP_FIELDNAME ***
 ********************************************************
@@ -493,6 +493,8 @@ t16	CREATE TABLE `t16` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (c1)
 PARTITIONS 4 */
+Warnings:
+Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 *** Show table on Slave ****
 SHOW CREATE TABLE t16;
 Table	Create Table
@@ -508,6 +510,8 @@ t16	CREATE TABLE `t16` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (c1)
 PARTITIONS 4 */
+Warnings:
+Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 *** DROP TABLE t16 ***
 DROP TABLE t16;
 *** Alter Master End ***

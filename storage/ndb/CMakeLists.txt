@@ -86,15 +86,13 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_binlog_thread.cc
   ../../sql/ndb_find_files_list.cc
   ../../sql/ndb_name_util.cc
+  ../../sql/ndb_bitmap.cc
 )
 
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 IF(NOT MYSQL_CLUSTER_VERSION)
- # Global schema lock not supported in non
- # MySQL Cluster version yet, compile ndbcluster without it
- ADD_DEFINITIONS(-DNDB_WITHOUT_GLOBAL_SCHEMA_LOCK)
 ENDIF()
 
 # NDB needs replication

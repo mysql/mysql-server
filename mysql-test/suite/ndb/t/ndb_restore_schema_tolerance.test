@@ -42,7 +42,9 @@ drop table t1;
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 select * from t1 order by a;
 
@@ -66,7 +68,9 @@ truncate t1;
 --echo Column type change, should fail
 
 alter table t1 change cc c bigint;
+--disable_warnings
 show create table t1; #REMOVE!
+--enable_warnings
 --error 1
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 

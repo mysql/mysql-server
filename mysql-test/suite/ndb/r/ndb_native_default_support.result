@@ -145,24 +145,26 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
-j Int NULL AT=FIXED ST=MEMORY DEFAULT 6
-f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
-d Double NULL AT=FIXED ST=MEMORY DEFAULT 8.800000
-d2 Double NOT NULL AT=FIXED ST=MEMORY
-ch Char(19;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "aaa"
-vch Varchar(19;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "bbb"
-b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
-vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
-blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
-text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
-timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
-ch2 Char(30;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "alter table"
+j Int NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 6
+f Float NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 6.600000
+d Double NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 8.800000
+d2 Double NOT NULL AT=FIXED ST=MEMORY DYNAMIC
+ch Char(19;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT "aaa"
+vch Varchar(19;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC DEFAULT "bbb"
+b Binary(19) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0x636363
+vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC DEFAULT 0x646464
+blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9 DYNAMIC
+text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10 DYNAMIC
+timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0
+ch2 Char(30;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT "alter table"
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
 Index
@@ -184,17 +186,19 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 pk Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
-b1 Bit(3) NULL AT=FIXED ST=MEMORY DEFAULT H'0x7
-b2 Bit(9) NULL AT=FIXED ST=MEMORY DEFAULT H'0x5
-b3 Bit(23) NULL AT=FIXED ST=MEMORY DEFAULT H'0x6
-b4 Bit(37) NULL AT=FIXED ST=MEMORY DEFAULT H'0x3
-b5 Bit(63) NULL AT=FIXED ST=MEMORY DEFAULT H'0x2B
+b1 Bit(3) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT H'0x7
+b2 Bit(9) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT H'0x5
+b3 Bit(23) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT H'0x6
+b4 Bit(37) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT H'0x3
+b5 Bit(63) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT H'0x2B
 -- Indexes -- 
 PRIMARY KEY(pk) - UniqueHashIndex
 PRIMARY(pk) - OrderedIndex
@@ -253,9 +257,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 j Int NULL AT=FIXED ST=MEMORY
@@ -290,9 +296,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 -- Attributes --
 pk Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 b1 Bit(3) NULL AT=FIXED ST=MEMORY
@@ -338,6 +346,17 @@ CHANGE COLUMN d d DOUBLE DEFAULT 8.8
 PARTITION BY KEY () PARTITIONS 2;
 Warnings:
 Note	1880	TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format.
+Warning	1088	check_if_supported_inplace_alter: field j has default COLUMN_FORMAT fixed which will be changed to dynamic unless explicitly defined as COLUMN_FORMAT FIXED
+Warning	1088	check_if_supported_inplace_alter: field f has default COLUMN_FORMAT fixed which will be changed to dynamic unless explicitly defined as COLUMN_FORMAT FIXED
+Warning	1088	check_if_supported_inplace_alter: field d has default COLUMN_FORMAT fixed which will be changed to dynamic unless explicitly defined as COLUMN_FORMAT FIXED
+Warning	1088	check_if_supported_inplace_alter: field d2 has default COLUMN_FORMAT fixed which will be changed to dynamic unless explicitly defined as COLUMN_FORMAT FIXED
+Warning	1088	check_if_supported_inplace_alter: field ch has default COLUMN_FORMAT fixed which will be changed to dynamic unless explicitly defined as COLUMN_FORMAT FIXED
+Warning	1088	check_if_supported_inplace_alter: field vch has default COLUMN_FORMAT fixed which will be changed to dynamic unless explicitly defined as COLUMN_FORMAT FIXED
+Warning	1088	check_if_supported_inplace_alter: field b has default COLUMN_FORMAT fixed which will be changed to dynamic unless explicitly defined as COLUMN_FORMAT FIXED
+Warning	1088	check_if_supported_inplace_alter: field vb has default COLUMN_FORMAT fixed which will be changed to dynamic unless explicitly defined as COLUMN_FORMAT FIXED
+Warning	1088	check_if_supported_inplace_alter: field blob1 has default COLUMN_FORMAT fixed which will be changed to dynamic unless explicitly defined as COLUMN_FORMAT FIXED
+Warning	1088	check_if_supported_inplace_alter: field text1 has default COLUMN_FORMAT fixed which will be changed to dynamic unless explicitly defined as COLUMN_FORMAT FIXED
+Warning	1088	check_if_supported_inplace_alter: field timestamp_c has default COLUMN_FORMAT fixed which will be changed to dynamic unless explicitly defined as COLUMN_FORMAT FIXED
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -372,23 +391,25 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-2
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
-j Int NULL AT=FIXED ST=MEMORY DEFAULT 6
-f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
-d Double NULL AT=FIXED ST=MEMORY DEFAULT 8.800000
-d2 Double NOT NULL AT=FIXED ST=MEMORY
-ch Char(19;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "aaa"
-vch Varchar(19;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "bbb"
-b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
-vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
-blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
-text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
-timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+j Int NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 6
+f Float NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 6.600000
+d Double NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 8.800000
+d2 Double NOT NULL AT=FIXED ST=MEMORY DYNAMIC
+ch Char(19;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT "aaa"
+vch Varchar(19;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC DEFAULT "bbb"
+b Binary(19) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0x636363
+vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC DEFAULT 0x646464
+blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9 DYNAMIC
+text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10 DYNAMIC
+timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
 Index
@@ -463,15 +484,17 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
-j Int NULL AT=FIXED ST=MEMORY DEFAULT 666
-f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
-d Double NULL AT=FIXED ST=MEMORY DEFAULT 8.800000
+j Int NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 666
+f Float NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 6.600000
+d Double NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 8.800000
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
 Index
@@ -490,7 +513,7 @@ i	j	f	d
 * Test that online alter of default values fails
 *************************************************************
 ALTER TABLE t2 algorithm=inplace, MODIFY COLUMN j INT DEFAULT 888;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
 DROP TABLE IF EXISTS t2;
 **************************************************************
 * Test not null-after-defaults example that failed previously
@@ -515,14 +538,16 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Int NULL AT=FIXED ST=MEMORY DEFAULT 12
-c Char(1;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+b Int NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 12
+c Char(1;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -559,20 +584,22 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Int NULL AT=FIXED ST=MEMORY DEFAULT 12
-c Char(1;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
-d Varchar(6;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "Daniel"
-e Char(3;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "Stu"
-f Char(1;binary) NULL AT=FIXED ST=MEMORY DEFAULT "0x01"
-g Char(1;binary) NULL AT=FIXED ST=MEMORY DEFAULT "0x05"
-h Char(1;binary) NOT NULL AT=FIXED ST=MEMORY
-i Char(2;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "66"
+b Int NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 12
+c Char(1;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY DYNAMIC
+d Varchar(6;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC DEFAULT "Daniel"
+e Char(3;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT "Stu"
+f Char(1;binary) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT "0x01"
+g Char(1;binary) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT "0x05"
+h Char(1;binary) NOT NULL AT=FIXED ST=MEMORY DYNAMIC
+i Char(2;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT "66"
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -613,14 +640,16 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Binary(10) NULL AT=FIXED ST=MEMORY DEFAULT 0x4142430045464748494A
-c Varbinary(100) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x4142430045464748494A
+b Binary(10) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0x4142430045464748494A
+c Varbinary(100) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC DEFAULT 0x4142430045464748494A
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -661,13 +690,15 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -708,13 +739,15 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -755,13 +788,15 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -804,14 +839,16 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
-c Int NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0
+c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -856,13 +893,15 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -903,13 +942,15 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 235861201
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -952,14 +993,16 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 235861201
+c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1002,14 +1045,16 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 235861201
+c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1056,14 +1101,16 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 235861201
+c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1104,13 +1151,15 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1151,13 +1200,15 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1198,13 +1249,15 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 235861201
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1245,13 +1298,15 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1294,14 +1349,16 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NULL AT=FIXED ST=MEMORY
-c Int NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DYNAMIC
+c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1346,13 +1403,15 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1439,24 +1498,26 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
-j Bigint NOT NULL AT=FIXED ST=MEMORY DEFAULT 6006
-f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
-d Double NULL AT=FIXED ST=MEMORY DEFAULT 8.800000
-d2 Double NOT NULL AT=FIXED ST=MEMORY
-ch Char(19;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "aaaAAA"
-b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
-vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
-blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_8
-text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
-timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 1275905182
-newOne Varchar(255;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "Comment field default"
-newTwo Bigint NULL AT=FIXED ST=MEMORY
+j Bigint NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 6006
+f Float NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 6.600000
+d Double NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 8.800000
+d2 Double NOT NULL AT=FIXED ST=MEMORY DYNAMIC
+ch Char(19;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT "aaaAAA"
+b Binary(19) NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 0x636363
+vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC DEFAULT 0x646464
+blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_8 DYNAMIC
+text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9 DYNAMIC
+timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DYNAMIC DEFAULT 1275905182
+newOne Varchar(255;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC DEFAULT "Comment field default"
+newTwo Bigint NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
 Index

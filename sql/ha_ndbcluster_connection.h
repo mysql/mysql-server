@@ -28,7 +28,8 @@ int ndbcluster_connect(int (*connect_callback)(void),
                        bool optimized_node_select,
                        const char* connect_string,
                        uint force_nodeid,
-                       uint recv_thread_activation_threshold);
+                       uint recv_thread_activation_threshold,
+                       uint data_node_neighbour);
 
 void ndbcluster_disconnect(void);
 

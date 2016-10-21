@@ -192,6 +192,8 @@ class ha_ndbcluster: public handler, public Partition_handler
                                       uint *flags, Cost_estimate *cost);
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                 uint *bufsz, uint *flags, Cost_estimate *cost);
+
+  virtual void append_create_info(String *packet);
 private:
   bool choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
                        uint *bufsz, uint *flags,
@@ -361,6 +363,11 @@ enum_alter_inplace_result
   check_if_supported_inplace_alter(TABLE *altered_table,
                                    Alter_inplace_info *ha_alter_info);
 
+bool parse_comment_changes(NdbDictionary::Table *new_tab,
+                           HA_CREATE_INFO *create_info,
+                           THD *thd,
+                           bool & max_rows_changed) const;
+
 bool prepare_inplace_alter_table(TABLE *altered_table,
                                  Alter_inplace_info *ha_alter_info,
                                  dd::Table *new_dd_tab);
@@ -378,6 +385,13 @@ private:
   void prepare_for_alter();
   void prepare_drop_index(uint key_num);
   int final_drop_index(TABLE *table_arg);
+
+  enum_alter_inplace_result
+    check_inplace_alter_supported(TABLE *altered_table,
+                                  Alter_inplace_info *ha_alter_info);
+  void
+    check_implicit_column_format_change(TABLE *altered_table,
+                                        Alter_inplace_info *ha_alter_info);
   
   bool abort_inplace_alter_table(TABLE *altered_table,
                                  Alter_inplace_info *ha_alter_info);
@@ -416,17 +430,18 @@ private:
                    NDB_INDEX_TYPE idx_type, uint idx_no) const;
 // Index list management
   int create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const;
-  int open_indexes(THD *thd, Ndb *ndb, TABLE *tab, bool ignore_error);
+  int open_indexes(Ndb *ndb, TABLE *tab);
+  void release_indexes(NdbDictionary::Dictionary* dict, int invalidate);
   void renumber_indexes(uint dropped_index_num);
   int drop_indexes(Ndb *ndb, TABLE *tab);
-  int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
+  int add_index_handle(NdbDictionary::Dictionary *dict,
                        KEY *key_info, const char *key_name, uint index_no);
   int add_table_ndb_record(NdbDictionary::Dictionary *dict);
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
   int add_index_ndb_record(NdbDictionary::Dictionary *dict,
                            KEY *key_info, uint index_no);
   int get_fk_data(THD *thd, Ndb *ndb);
-  void release_fk_data(THD *thd);
+  void release_fk_data();
   int create_fks(THD *thd, Ndb *ndb);
   int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
   int drop_fk_for_online_alter(THD*, Ndb*, NdbDictionary::Dictionary*,

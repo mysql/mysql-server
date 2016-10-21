@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -250,9 +250,8 @@ public class ClusterConnectionImpl
     }
 
     public int dbCount() {
-        // one of the dbs is for the NdbRecord dictionary if it is not null
-        int dbForNdbRecord = (dictionaryForNdbRecord == null)?0:1;
-        return dbs.size() - dbForNdbRecord;
+        // dbForNdbRecord is not included in the dbs list
+        return dbs.size();
     }
 
     /** 

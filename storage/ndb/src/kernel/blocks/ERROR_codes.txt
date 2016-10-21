@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Next QMGR 945
+Next QMGR 946
 Next NDBCNTR 1006
 Next NDBFS 2002
 Next DBACC 3002
@@ -24,13 +24,14 @@ Next DBDIH 7248
 Next DBTC 8109
 Next CMVMI 9000
 Next BACKUP 10042
-Next DBUTIL 11002
+Next PGMAN 11010
 Next DBTUX 12010
 Next SUMA 13049
-Next LGMAN 15001
-Next TSMAN 16001
+Next LGMAN 15002
+Next TSMAN 16002
 Next DBSPJ 17000
 Next TRIX 18000
+Next DBUTIL 19001
 
 TESTING NODE FAILURE, ARBITRATION
 ---------------------------------
@@ -785,11 +786,15 @@ SUMA:
 
 LGMAN:
 -----
-15000: Fail to create log file
+15000: Fail to create log file CreateFileImplRef::FileSizeTooLarge
+15001: Fail to create file group due to
+       CreateFilegroupImplRef::OutOfLogBufferMemory
 
 TSMAN:
 -----
 16000: Fail to create data file
+16001: Fail to create file group due to
+       CreateFilegroupImplRef::OutOfFilegroupRecords
 
 ACC bug#34348
 -------------
@@ -808,3 +813,7 @@ Index stats:
 18022: fail RT_CLEAN_OLD (non-fatal) - as in 18021
 18023: fail RT_CLEAN_ALL (non-fatal) - as in 18021
 18024: fail RT_SCAN_FRAG - simulate TC error 630
+
+DBUTIL
+-------
+19000: fail UTIL_PREPARE_REQ with PREPARE_SEIZE_ERROR

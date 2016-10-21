@@ -2876,6 +2876,7 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
   tablePtr.i = tableId;
   ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
 
+  D("ALTER_TAB_REQ(LQH): requestType: " << requestType);
   Uint32 len = signal->getLength();
   switch (requestType) {
   case AlterTabReq::AlterTablePrepare:
@@ -2976,6 +2977,7 @@ Dblqh::wait_reorg_suma_filter_enabled(Signal* signal)
     Uint32 connectPtr = signal->theData[3];
     Uint32 senderRef = signal->theData[4];
 
+    D("ALTER_TAB_CONF after suma filter enabled");
     AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = senderData;
@@ -11330,7 +11332,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
    * Section 1 : Optional KEYINFO section
    */
   const Uint32 numSections= signal->getNoOfSections();
-  bool isLongReq= ( numSections != 0 );
+  const bool isLongReq= ( numSections != 0 );
   
   SectionHandle handle(this, signal);
 
@@ -11503,7 +11505,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
       /**
        * Correlattion factor for SPJ
        */
-      Uint32 corrFactorHi = scanFragReq->variableData[1];
+      const Uint32 corrFactorHi = scanFragReq->variableData[1];
       regTcPtr->m_corrFactorLo = scanFragReq->variableData[0];
       regTcPtr->m_corrFactorHi = corrFactorHi;
     }

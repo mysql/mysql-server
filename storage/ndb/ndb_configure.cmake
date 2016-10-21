@@ -1,5 +1,5 @@
 
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -67,8 +67,14 @@ CHECK_FUNCTION_EXISTS(pthread_mutexattr_init HAVE_PTHREAD_MUTEXATTR_INIT)
 CHECK_FUNCTION_EXISTS(pthread_mutexattr_settype HAVE_PTHREAD_MUTEXATTR_SETTYPE)
 CHECK_FUNCTION_EXISTS(pthread_setschedparam HAVE_PTHREAD_SETSCHEDPARAM)
 CHECK_FUNCTION_EXISTS(bzero HAVE_BZERO)
+CHECK_FUNCTION_EXISTS(priocntl HAVE_PRIOCNTL)
+CHECK_FUNCTION_EXISTS(processor_affinity HAVE_PROCESSOR_AFFINITY)
+CHECK_FUNCTION_EXISTS(cpuset_setaffinity HAVE_CPUSET_SETAFFINITY)
+CHECK_FUNCTION_EXISTS(setpriority HAVE_SETPRIORITY)
 
 CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
+CHECK_INCLUDE_FILES(Processtopologyapi.h HAVE_PROCESSTOPOLOGYAPI_H)
+CHECK_INCLUDE_FILES(Processthreadsapi.h HAVE_PROCESSTHREADSAPI_H)
 
 CHECK_CXX_SOURCE_RUNS("
 unsigned A = 7;

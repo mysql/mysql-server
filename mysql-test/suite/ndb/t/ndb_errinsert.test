@@ -1,0 +1,11 @@
+--source include/have_ndb.inc
+--source have_ndb_error_insert.inc
+use test;
+
+create table t1 (id int primary key, val int) engine=ndb;
+--exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 19000"
+--error 1297
+create unique index val_unique on t1(val);
+--exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0"
+drop table t1;
+

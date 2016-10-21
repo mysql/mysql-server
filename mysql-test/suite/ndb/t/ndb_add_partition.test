@@ -26,6 +26,7 @@ CREATE TABLE t1 (a int unsigned not null,
                  primary key(a,c),
                  unique (b))
 ENGINE = NDB
+COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
 partition by key(a);
 
 CREATE TABLE t2 (a int unsigned not null,
@@ -34,6 +35,7 @@ CREATE TABLE t2 (a int unsigned not null,
                  primary key(a,b),
                  unique (b))
 ENGINE = NDB
+COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
 STORAGE DISK
 TABLESPACE ts1
 partition by key(a);
@@ -51,7 +53,8 @@ CREATE TABLE t4 (a int unsigned not null,
                  c int unsigned not null,
                  primary key(a,b),
                  unique (b))
-ENGINE = NDB;
+ENGINE = NDB
+COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
 
 CREATE TABLE t5 (a int unsigned not null,
                  b int unsigned not null,
@@ -197,7 +200,7 @@ show warnings;
 alter table t3 algorithm=inplace, max_rows=50000000;
 alter table t4 algorithm=inplace, reorganize partition;
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t5 algorithm=inplace partition by key() partitions 6;
 
 let $t1_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't1', Value, 1);

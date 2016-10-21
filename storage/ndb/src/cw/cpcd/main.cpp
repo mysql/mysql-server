@@ -26,7 +26,6 @@
 
 #include "CPCD.hpp"
 #include "APIService.hpp"
-#include <NdbMain.h>
 #include <NdbSleep.h>
 #include <portlib/NdbDir.hpp>
 #include <BaseString.hpp>

@@ -45,7 +45,9 @@ TRUNCATE TABLE t2;
 --source ndb_schema_locks_count.inc
 
 --source ndb_init_schema_locks_count.inc
+--disable_warnings
 CREATE TABLE t4 ENGINE=NDB AS SELECT * FROM t2;
+--enable_warnings
 --source ndb_schema_locks_count.inc
 
 --source ndb_init_schema_locks_count.inc

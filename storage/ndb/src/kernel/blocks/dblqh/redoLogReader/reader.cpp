@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 
 void usage(const char * prg);
 Uint32 readFromFile(FILE * f, Uint32 *toPtr, Uint32 sizeInWords);
-void readArguments(int argc, const char** argv);
+void readArguments(int argc, char** argv);
 void doExit();
 
 FILE * f= 0;
@@ -61,7 +61,8 @@ Uint32 *redoLogPage;
 
 unsigned NO_MBYTE_IN_FILE = 16;
 
-NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read a redo log file", 16384) { 
+int main(int argc, char** argv)
+{
   ndb_init();
   Int32 wordIndex = 0;
   Uint32 oldWordIndex = 0;
@@ -406,7 +407,7 @@ void usage(const char * prg){
 	 << endl << endl;
   
 }
-void readArguments(int argc, const char** argv)
+void readArguments(int argc, char** argv)
 {
   if(argc < 2 ){
     usage(argv[0]);

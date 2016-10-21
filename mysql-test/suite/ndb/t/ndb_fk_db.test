@@ -21,45 +21,63 @@ create table child (
   unique(b) using hash,
   index(c)) engine = ndb;
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 alter table child algorithm=copy, add constraint fk2 foreign key (b)
   references mydb0.parent(a);
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 alter table child algorithm=inplace, add constraint fk3 foreign key (c)
   references mydb0.parent(a);
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 alter table child algorithm=copy, drop foreign key fk2;
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 alter table child algorithm=inplace, drop foreign key fk3;
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 alter table mydb0.parent algorithm=copy, rename mydb1.parent;
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 alter table mydb1.parent algorithm=inplace, rename mydb0.parent;
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 use test;
 alter table mydb1.child algorithm=copy, add constraint fk2 foreign key (b)
   references mydb0.parent(a);
 use mydb1;
+--disable_warnings
 show create table child;
+--enable_warnings
 
 use test;
 alter table mydb1.child algorithm=inplace, add constraint fk3 foreign key (c)
   references mydb0.parent(a);
 use mydb1;
+--disable_warnings
 show create table child;
+--enable_warnings
 
 # bug#16286164: the fix requires correct DROP order
 use test;

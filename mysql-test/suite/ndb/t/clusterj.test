@@ -65,6 +65,7 @@ DROP TABLE stress;
 DROP TABLE stringtype;
 DROP TABLE t_basic;
 DROP TABLE timestamptypes;
+DROP TABLE timestamp2types;
 DROP TABLE timetypes;
 DROP TABLE twopk;
 DROP TABLE yeartypes;

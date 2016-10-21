@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -153,5 +153,18 @@
 #define NDB_FK_CASCADE     2
 #define NDB_FK_SET_NULL    3
 #define NDB_FK_SET_DEFAULT 4
+
+/**
+ * Defines for FragmentCount specifier
+ */
+#define NDB_FRAGMENT_COUNT_SPECIFIC                   ~Uint32(0)
+#define NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE       ~Uint32(1)
+#define NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP ~Uint32(2)
+#define NDB_FRAGMENT_COUNT_ONE_PER_NODE               ~Uint32(3)
+#define NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP         ~Uint32(4)
+
+#ifndef UINT32_MAX
+#define UINT32_MAX             (4294967295U)
+#endif
 
 #endif

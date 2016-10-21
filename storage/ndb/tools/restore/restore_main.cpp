@@ -21,7 +21,6 @@
 #include <Properties.hpp>
 #include <ndb_limits.h>
 #include <NdbTCP.h>
-#include <NdbMem.h>
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
 #include <NDBT_ReturnCodes.h>

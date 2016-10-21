@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -292,6 +292,8 @@ private:
   Logfile_group_hash m_logfile_group_hash;
   Uint32 m_end_lcp_senderdata;
 
+  Uint64 m_records_applied; // Track number of records applied
+  Uint64 m_pages_applied; // Track number of pages applied
   SafeMutex m_client_mutex;
   void client_lock(BlockNumber block, int line);
   void client_unlock(BlockNumber block, int line);

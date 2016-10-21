@@ -32,7 +32,9 @@ CREATE TABLE tndb (a int) ENGINE = NDB;
 
 SHOW CREATE TABLE tmyisam;
 SHOW CREATE TABLE tinnodb;
+--disable_warnings
 SHOW CREATE TABLE tndb;
+--enable_warnings
 
 
 --echo [on master]

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 #include <ConfigRetriever.hpp>
 #include <IPCConfig.hpp>
 #include <ndb_version.h>
-#include <NdbMem.h>
 #include <NdbOut.hpp>
 #include <WatchDog.hpp>
 #include <NdbConfig.h>
@@ -1093,15 +1092,17 @@ Configuration::setRealtimeScheduler(NdbThread* pThread,
       //Warning, no permission to set scheduler
       if (init)
       {
-        ndbout_c("Failed to set real-time prio on tid = %d, error_no = %d",
-                 NdbThread_GetTid(pThread), error_no);
+        g_eventLogger->info("Failed to set real-time prio on tid = %d,"
+                            " error_no = %d",
+                            NdbThread_GetTid(pThread), error_no);
+        abort(); /* Fail on failures at init */
       }
       return 1;
     }
     else if (init)
     {
-      ndbout_c("Successfully set real-time prio on tid = %d",
-               NdbThread_GetTid(pThread));
+      g_eventLogger->info("Successfully set real-time prio on tid = %d",
+                          NdbThread_GetTid(pThread));
     }
   }
   return 0;
@@ -1141,13 +1142,15 @@ Configuration::setLockCPU(NdbThread * pThread,
   {
     if (res > 0)
     {
-      ndbout_c("Locked tid = %d to CPU ok", NdbThread_GetTid(pThread));
+      g_eventLogger->info("Locked tid = %d to CPU ok",
+                          NdbThread_GetTid(pThread));
       return 0;
     }
     else
     {
-      ndbout_c("Failed to lock tid = %d to CPU, error_no = %d",
-               NdbThread_GetTid(pThread), (-res));
+      g_eventLogger->info("Failed to lock tid = %d to CPU, error_no = %d",
+                          NdbThread_GetTid(pThread), (-res));
+      abort(); /* We fail when failing to lock to CPUs */
       return 1;
     }
   }
@@ -1155,10 +1158,97 @@ Configuration::setLockCPU(NdbThread * pThread,
   return 0;
 }
 
+int
+Configuration::setThreadPrio(NdbThread * pThread,
+                             enum ThreadTypes type)
+{
+  int res = 0;
+  unsigned thread_prio;
+  if (type != BlockThread &&
+      type != SendThread &&
+      type != ReceiveThread)
+  {
+    if (type == NdbfsThread)
+    {
+      /*
+       * NdbfsThread (IO threads).
+       */
+      res = m_thr_config.do_thread_prio_io(pThread, thread_prio);
+    }
+    else
+    {
+      /*
+       * WatchDogThread, SocketClientThread, SocketServerThread
+       */
+      res = m_thr_config.do_thread_prio_watchdog(pThread, thread_prio);
+    }
+  }
+  else if (!NdbIsMultiThreaded())
+  {
+    BlockNumber list[] = { DBDIH };
+    res = m_thr_config.do_thread_prio(pThread, list, 1, thread_prio);
+  }
+
+  if (res != 0)
+  {
+    if (res > 0)
+    {
+      g_eventLogger->info("Set thread prio to %u for tid: %d ok",
+                          thread_prio, NdbThread_GetTid(pThread));
+      return 0;
+    }
+    else
+    {
+      g_eventLogger->info("Failed to set thread prio to %u for tid: %d,"
+                          " error_no = %d",
+                          thread_prio,
+                          NdbThread_GetTid(pThread),
+                          (-res));
+      abort(); /* We fail when failing to set thread prio */
+      return 1;
+    }
+  }
+  return 0;
+}
+
 bool
 Configuration::get_io_real_time() const
 {
   return m_thr_config.do_get_realtime_io();
+}
+
+const char*
+Configuration::get_type_string(enum ThreadTypes type)
+{
+  const char *type_str;
+  switch (type)
+  {
+    case WatchDogThread:
+      type_str = "WatchDogThread";
+      break;
+    case SocketServerThread:
+      type_str = "SocketServerThread";
+      break;
+    case SocketClientThread:
+      type_str = "SocketClientThread";
+      break;
+    case NdbfsThread:
+      type_str = "NdbfsThread";
+      break;
+    case BlockThread:
+      type_str = "BlockThread";
+      break;
+    case SendThread:
+      type_str = "SendThread";
+      break;
+    case ReceiveThread:
+      type_str = "ReceiveThread";
+      break;
+    default:
+      type_str = NULL;
+      abort();
+  }
+  return type_str;
 }
 
 Uint32
@@ -1182,29 +1272,8 @@ Configuration::addThread(struct NdbThread* pThread,
   threadInfo[i].pThread = pThread;
   threadInfo[i].type = type;
   NdbMutex_Unlock(threadIdMutex);
-  switch (type)
-  {
-    case WatchDogThread:
-      type_str = "WatchDogThread";
-      break;
-    case SocketServerThread:
-      type_str = "SocketServerThread";
-      break;
-    case SocketClientThread:
-      type_str = "SocketClientThread";
-      break;
-    case NdbfsThread:
-      type_str = "NdbfsThread";
-      break;
-    case BlockThread:
-    case SendThread:
-    case ReceiveThread:
-      type_str = NULL;
-      break;
-    default:
-      type_str = NULL;
-      abort();
-  }
+
+  type_str = get_type_string(type);
 
   bool real_time;
   if (single_threaded)

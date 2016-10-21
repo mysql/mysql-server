@@ -270,6 +270,82 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
     l++;
   }
 
+  /**
+   * After the peak usage of NdbOperations comes a cool down periode
+   * with lower usage. Check that the NdbOperations free list manager
+   * will gradually reduce number of free NdbOperations kept for 
+   * later reuse.
+   */
+  Uint32 hiFreeOperations = 0;
+  Uint32 freeOperations = 0;
+  {
+    Ndb::Free_list_usage usage_stat;
+    usage_stat.m_name= NULL;
+    while (pNdb->get_free_list_usage(&usage_stat))
+    {
+      if (strcmp(usage_stat.m_name, "NdbOperation") == 0)
+      {
+        hiFreeOperations = usage_stat.m_free;
+        break;
+      }
+    }
+  }
+
+  maxOpsLimit = 100;
+  Uint32 coolDownLoops = 25;
+  while (coolDownLoops-- > 0){
+    int errors = 0;
+    const int maxErrors = 5;
+
+    if (hugoOps.startTransaction(pNdb) != NDBT_OK){
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+    
+    for (int rowNo = 0; rowNo < 100; rowNo++)
+    {
+      if(hugoOps.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK){
+        errors++;
+        if (errors >= maxErrors){
+          result = NDBT_FAILED;
+          break;
+        }
+      }
+    }
+
+    const int execResult = hugoOps.execute_Commit(pNdb);
+    if (execResult != NDBT_OK)
+    {
+      result = NDBT_FAILED;
+    }
+    hugoOps.closeTransaction(pNdb);
+
+    {
+      Ndb::Free_list_usage usage_stat;
+      usage_stat.m_name= NULL;
+      while (pNdb->get_free_list_usage(&usage_stat))
+      {
+        if (strcmp(usage_stat.m_name, "NdbOperation") == 0)
+        {
+          freeOperations = usage_stat.m_free;
+          ndbout << usage_stat.m_name << ", free: " << usage_stat.m_free
+                 << endl;
+          break;
+        }
+      }
+    }
+  } //while (coolDownLoops...
+
+  /**
+   * It is a pass criteria that cool down periode
+   * reduced the number of free NdbOperations kept.
+   */
+  if (freeOperations >= hiFreeOperations)
+  {
+    ndbout << "Cool down periode didn't shrink NdbOperation free-list" << endl;
+    result = NDBT_FAILED;
+  }
+
   delete pNdb;
 
   return result;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -520,7 +520,7 @@ update(Ndb::Free_list_usage* curr,
        const char * name)
 {
   curr->m_name = name;
-  curr->m_created = list.m_alloc_cnt;
+  curr->m_created = list.m_used_cnt+list.m_free_cnt;
   curr->m_free = list.m_free_cnt;
   curr->m_sizeof = sizeof(T);
   return curr;

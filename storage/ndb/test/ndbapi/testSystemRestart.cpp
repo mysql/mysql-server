@@ -2256,6 +2256,8 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
     copy.setName("BUG_45154");
     copy.setFragmentType(NdbDictionary::Object::DistrKeyLin);
     copy.setFragmentCount(2 * restarter.getNumDbNodes());
+    copy.setFragmentCountType(
+      NdbDictionary::Object::FragmentCount_Specific);
     copy.setFragmentData(frag_data, 2*restarter.getNumDbNodes());
     pDict->dropTable("BUG_45154");
     int res = pDict->createTable(copy);
@@ -2283,6 +2285,8 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
 
     pDict->dropTable("BUG_45154");
     copy.setFragmentCount(restarter.getNumDbNodes());
+    copy.setFragmentCountType(
+      NdbDictionary::Object::FragmentCount_Specific);
     copy.setFragmentData(frag_data, restarter.getNumDbNodes());
     res = pDict->createTable(copy);
     if (res != 0)

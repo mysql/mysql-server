@@ -202,8 +202,8 @@ public:
   Uint32 min_active_clients_recv_thread;
   Uint16 recv_thread_cpu_id;
   /* Support methods to lock/unlock the receiver thread to/from its CPU */
-  void lock_recv_thread_cpu();
-  void unlock_recv_thread_cpu();
+  int lock_recv_thread_cpu();
+  int unlock_recv_thread_cpu();
 
   trp_client * m_poll_owner;
   trp_client * m_poll_queue_head; // First in queue

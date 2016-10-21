@@ -1,4 +1,4 @@
--- Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights
+-- Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights
 -- reserved.
 --
 -- This program is free software; you can redistribute it and/or
@@ -659,6 +659,21 @@ create table timestamptypes (
  unique key idx_timestamp_not_null_hash (timestamp_not_null_hash) using hash,
  key idx_timestamp_not_null_btree (timestamp_not_null_btree),
  unique key idx_timestamp_not_null_both (timestamp_not_null_both)
+
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists timestamp2types;
+create table timestamp2types (
+ id int not null primary key auto_increment,
+
+ timestampx timestamp    null,
+ timestamp0 timestamp(0) null,
+ timestamp1 timestamp(1) null,
+ timestamp2 timestamp(2) null,
+ timestamp3 timestamp(3) null,
+ timestamp4 timestamp(4) null,
+ timestamp5 timestamp(5) null,
+ timestamp6 timestamp(6) null
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 

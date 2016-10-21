@@ -277,7 +277,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_proc.m_stderr = "2>&1";
   proc.m_proc.m_runas = proc.m_host->m_user;
   proc.m_proc.m_ulimit = "c:unlimited";
-  proc.m_proc.m_env.assfmt("MYSQL_BASE_DIR=%s", g_prefix);
+  proc.m_proc.m_env.assfmt("MYSQL_BASE_DIR=%s", g_prefix0);
   proc.m_proc.m_env.appfmt(" MYSQL_HOME=%s", g_basedir);
   proc.m_proc.m_env.appfmt(" ATRT_PID=%u", (unsigned)proc_no);
   proc.m_proc.m_shutdown_options = "";
@@ -1090,7 +1090,7 @@ operator<<(NdbOut& out, const atrt_process& proc)
 char *
 find_bin_path(const char * exe)
 {
-  return find_bin_path(g_prefix, exe);
+  return find_bin_path(g_prefix0, exe);
 }
 
 char *

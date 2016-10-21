@@ -523,6 +523,11 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   tabptr.p->noOfDistrKeys = desc->noOfDistrKeys;
   tabptr.p->hasVarKeys = desc->noOfVarKeys > 0;
   tabptr.p->set_user_defined_partitioning(userDefinedPartitioning);
+  if (req->readBackup)
+  {
+    jam();
+    tabptr.p->m_flags |= TableRecord::TR_READ_BACKUP;
+  }
 
   TcSchVerConf * conf = (TcSchVerConf*)signal->getDataPtr();
   conf->senderRef = reference();
@@ -663,6 +668,7 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
   const Uint32 newTableVersion = req->newTableVersion;
   AlterTabReq::RequestType requestType = 
     (AlterTabReq::RequestType) req->requestType;
+  D("ALTER_TAB_REQ(TC)");
 
   TableRecordPtr tabPtr;
   tabPtr.i = req->tableId;
@@ -3447,7 +3453,6 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
 {
   UintR tnoOfBackup;
   UintR tnoOfStandby;
-  UintR tnodeinfo;
 
   terrorCode = 0;
 
@@ -3474,7 +3479,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     TCKEY_abort(signal, 58);
     return;
   }
-  
+
   setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
   regCachePtr->hashValue = ThashValue;
 
@@ -3560,7 +3565,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   UintR Tdata6 = conf->nodes[3];
 
   regCachePtr->fragmentid = Tdata1;
-  tnodeinfo = Tdata2;
+  Uint32 tnodeinfo = Tdata2;
 
   regTcPtr->tcNodedata[0] = Tdata3;
   regTcPtr->tcNodedata[1] = Tdata4;
@@ -3576,10 +3581,21 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   tnoOfStandby = (tnodeinfo >> 8) & 3;
  
   regCachePtr->fragmentDistributionKey = (tnodeinfo >> 16) & 255;
+  Uint32 TreadBackup = (localTabptr.p->m_flags & TableRecord::TR_READ_BACKUP);
   if (Toperation == ZREAD || Toperation == ZREAD_EX)
   {
+
     regTcPtr->m_special_op_flags &= ~TcConnectRecord::SOF_REORG_MOVING;
-    if (TopSimple == 1 && TopDirty == 0){
+    /**
+     * Allow reading from backup replica...if
+     * 1) Simple-read, since this will wait in lock queue for any pending commit/complete
+     * 2) Simple/CommittedRead if TreadBackup-table property is set
+     *    (since transactions updating such table will wait with sending API commit until
+     *     complete-phase has been run)
+     */
+    if ((TopSimple != 0 && TopDirty == 0) ||
+        (TreadBackup != 0 && (TopSimple != 0 || TopDirty != 0)))
+    {
       jam();
       /*-------------------------------------------------------------*/
       /*       A SIMPLE READ CAN SELECT ANY OF THE PRIMARY AND       */
@@ -3670,6 +3686,20 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     regTcPtr->noOfNodes = (Uint8)(TlastReplicaNo + 1);
     if (regTcPtr->tcNodedata[0] == getOwnNodeId())
       c_counters.clocalWriteCount++;
+
+    if (TreadBackup)
+    {
+      jam();
+      /**
+       * Set TF_LATE_COMMIT transaction property if INS/UPD/DEL is performed
+       *   when running with readBackup property set.
+       *
+       * This causes api-commit to be sent after complete-phase has been run
+       * (instead of when commit phase has run, but complete-phase has not yet
+       * started)
+       */
+      regApiPtr->m_flags |= ApiConnectRecord::TF_LATE_COMMIT;
+    }
 
     if (unlikely((Toperation == ZREFRESH) &&
                  (! isRefreshSupported())))
@@ -5396,6 +5426,10 @@ void Dbtc::diverify010Lab(Signal* signal)
     return;
   }
 
+  ndbassert(!tc_testbit(regApiPtr->m_flags,
+                        (ApiConnectRecord::TF_INDEX_OP_RETURN |
+                         ApiConnectRecord::TF_TRIGGER_PENDING)));
+
   if (regApiPtr->lqhkeyreqrec)
   {
     if (TfirstfreeApiConnectCopy != RNIL) {
@@ -5914,7 +5948,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
   /*-------------------------------------------------------*/
 
   apiConnectptr = localApiConnectptr;
-  localCopyPtr = sendApiCommit(signal);
+  localCopyPtr = sendApiCommitAndCopy(signal);
 
   localTcConnectptr.i = localCopyPtr.p->firstTcConnect;
   UintR Tlqhkeyconfrec = localCopyPtr.p->lqhkeyconfrec;
@@ -5928,33 +5962,16 @@ void Dbtc::execCOMMITTED(Signal* signal)
 
 }//Dbtc::execCOMMITTED()
 
-/*-------------------------------------------------------*/
-/*                       SEND_API_COMMIT                 */
-/*       SEND COMMIT DECISION TO THE API.                */
-/*-------------------------------------------------------*/
-Ptr<Dbtc::ApiConnectRecord>
-Dbtc::sendApiCommit(Signal* signal)
+void
+Dbtc::sendApiCommitSignal(Signal *signal, Ptr<ApiConnectRecord> regApiPtr)
 {
-  ApiConnectRecordPtr regApiPtr = apiConnectptr;
+  ReturnSignal save = regApiPtr.p->returnsignal;
 
-  if (ERROR_INSERTED(8055))
+  if (tc_testbit(regApiPtr.p->m_flags, ApiConnectRecord::TF_LATE_COMMIT))
   {
-    /**
-     * 1) Kill self
-     * 2) Disconnect API
-     * 3) Prevent execAPI_FAILREQ from handling trans...
-     */
-    signal->theData[0] = 9999;
-    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
-    Uint32 node = refToNode(regApiPtr.p->ndbapiBlockref);
-    signal->theData[0] = node;
-    sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBB);
-
-    SET_ERROR_INSERT_VALUE(8056);
-
-    goto err8055;
+    jam();
+    regApiPtr.p->returnsignal = RS_NO_RETURN;
   }
-
   if (regApiPtr.p->returnsignal == RS_TCKEYCONF)
   {
     if (ERROR_INSERTED(8054))
@@ -5999,9 +6016,41 @@ Dbtc::sendApiCommit(Signal* signal)
   } 
   else 
   {
+    regApiPtr.p->returnsignal = save;
     TCKEY_abort(signal, 37);
-    return regApiPtr;
+    return;
   }//if
+  regApiPtr.p->returnsignal = save;
+}
+
+/*-------------------------------------------------------*/
+/*                       SEND_API_COMMIT                 */
+/*       SEND COMMIT DECISION TO THE API.                */
+/*-------------------------------------------------------*/
+Ptr<Dbtc::ApiConnectRecord>
+Dbtc::sendApiCommitAndCopy(Signal* signal)
+{
+  ApiConnectRecordPtr regApiPtr = apiConnectptr;
+
+  if (ERROR_INSERTED(8055))
+  {
+    /**
+     * 1) Kill self
+     * 2) Disconnect API
+     * 3) Prevent execAPI_FAILREQ from handling trans...
+     */
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+    Uint32 node = refToNode(regApiPtr.p->ndbapiBlockref);
+    signal->theData[0] = node;
+    sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBB);
+
+    SET_ERROR_INSERT_VALUE(8056);
+
+    goto err8055;
+  }
+
+  sendApiCommitSignal(signal, regApiPtr);
 
 err8055:
   Ptr<ApiConnectRecord> copyPtr;
@@ -6025,7 +6074,7 @@ err8055:
     handleApiFailState(signal, regApiPtr.i);
     return copyPtr;
   }//if
-}//Dbtc::sendApiCommit()
+}//Dbtc::sendApiCommitAndCopy()
 
 /* ========================================================================= */
 /* =======                  COPY_API                                 ======= */
@@ -6041,6 +6090,7 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   UintR Tlqhkeyconfrec = regApiPtr.p->lqhkeyconfrec;
   UintR TgcpPointer = regApiPtr.p->gcpPointer;
   UintR TgcpFilesize = cgcpFilesize;
+  Uint32 Tmarker = regApiPtr.p->commitAckMarker;
   NdbNodeBitmask Tnodes = regApiPtr.p->m_transaction_nodes;
   GcpRecord *localGcpRecord = gcpRecord;
 
@@ -6070,6 +6120,38 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   regApiPtr.p->singleUserMode = 0;
   regApiPtr.p->num_commit_ack_markers = 0;
   releaseAllSeizedIndexOperations(regApiPtr.p);
+
+  ndbassert(!tc_testbit(regApiPtr.p->m_flags,
+                        (ApiConnectRecord::TF_INDEX_OP_RETURN |
+                         ApiConnectRecord::TF_TRIGGER_PENDING)));
+
+  if (tc_testbit(regApiPtr.p->m_flags, ApiConnectRecord::TF_LATE_COMMIT))
+  {
+    jam();
+    /**
+     * Put pointer from copyPtr to regApiPtr
+     */
+    copyPtr.p->apiCopyRecord = regApiPtr.i;
+
+    /**
+     * Modify state of regApiPtr to prevent future operations...
+     *   timeout is already reset to 0 above so it won't be found
+     *   by timeOutLoopStartLab
+     */
+    regApiPtr.p->apiConnectstate = CS_COMMITTING;
+
+    /**
+     * save marker for sendApiCommitSignal
+     */
+    regApiPtr.p->commitAckMarker = Tmarker;
+
+    /**
+     * Set ApiConnectRecord::TF_LATE_COMMIT on copyPtr so when remember
+     *  to call sendApiCommitSignal
+     */
+    copyPtr.p->m_flags |= ApiConnectRecord::TF_LATE_COMMIT;
+  }
+
 }//Dbtc::copyApi()
 
 void Dbtc::unlinkApiConnect(Ptr<GcpRecord> gcpPtr,
@@ -6675,6 +6757,37 @@ void Dbtc::execCOMPLETED(Signal* signal)
     jam();
     systemErrorLab(signal, __LINE__);
   }//if
+
+  if (tc_testbit(localApiConnectptr.p->m_flags,
+                 ApiConnectRecord::TF_LATE_COMMIT))
+  {
+    jam();
+
+    apiConnectptr.i = localApiConnectptr.p->apiCopyRecord;
+    ptrCheckGuard(apiConnectptr, TapiConnectFilesize,
+                  localApiConnectRecord);
+    ndbrequire(apiConnectptr.p->apiConnectstate == CS_COMMITTING);
+    ndbrequire(tc_testbit(apiConnectptr.p->m_flags,
+                          ApiConnectRecord::TF_LATE_COMMIT));
+    localApiConnectptr.p->apiCopyRecord = RNIL;
+    tc_clearbit(localApiConnectptr.p->m_flags,
+                ApiConnectRecord::TF_LATE_COMMIT);
+    apiConnectptr.p->apiConnectstate = CS_CONNECTED;
+    tc_clearbit(apiConnectptr.p->m_flags,
+                ApiConnectRecord::TF_LATE_COMMIT);
+
+    sendApiCommitSignal(signal, apiConnectptr);
+    apiConnectptr.p->commitAckMarker = RNIL;
+
+    if (apiConnectptr.p->apiFailState == ZTRUE)
+    {
+      jam();
+      /**
+       * handle if API failed while we were running complete phase
+       */
+      handleApiFailState(signal, apiConnectptr.i);
+    }
+  }
   apiConnectptr = localApiConnectptr;
   releaseTransResources(signal);
   CRASH_INSERTION(8054);
@@ -10756,7 +10869,7 @@ void Dbtc::toCommitHandlingLab(Signal* signal)
 	  sendTCKEY_FAILCONF(signal, apiConnectptr.p);
 	} else {
           jam();
-          apiConnectptr = sendApiCommit(signal);
+          apiConnectptr = sendApiCommitAndCopy(signal);
         }//if
         apiConnectptr.p->currentTcConnect = apiConnectptr.p->firstTcConnect;
         tcConnectptr.i = apiConnectptr.p->firstTcConnect;
@@ -12527,12 +12640,52 @@ bool Dbtc::startFragScanLab(Signal* signal,
     local = true;
   }
 
+  ndbrequire(scanFragP.p->scanFragState == ScanFragRec::WAIT_GET_PRIMCONF);
+  scanFragP.p->stopFragTimer();
+
+  /**
+   * Check table
+   */
+  TableRecordPtr tabPtr;
+  tabPtr.i = scanptr.p->scanTableref;
+  ptrCheckGuard(tabPtr, ctabrecFilesize, tableRecord);
+  Uint32 schemaVersion = scanptr.p->scanSchemaVersion;
+  if (ERROR_INSERTED(8081) || tabPtr.p->checkTable(schemaVersion) == false)
+  {
+    jam();
+    Uint32 err;
+    if (ERROR_INSERTED(8081))
+    {
+      err = ZTIME_OUT_ERROR;
+      CLEAR_ERROR_INSERT_VALUE;
+    }
+    else
+    {
+      err = tabPtr.p->getErrorCode(schemaVersion);
+    }
+    {
+      scanFragP.p->scanFragState = ScanFragRec::COMPLETED;
+      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+      run.release(scanFragP);
+    }
+    scanError(signal, scanptr, err);
+    return false;
+  }
+ 
   /**
    * This must be false as select count(*) otherwise
    *   can "pass" committing on backup fragments and
    *   get incorrect row count
+   *
+   * The table property TR_READ_BACKUP guarantees that all commits will
+   * release locks on all replicas before reporting the commit to the
+   * application. This means that we are safe to also read from backups
+   * for committed reads. We avoid doing it for locking reads to avoid
+   * unnecessary deadlock scenarios.
    */
-  if (false && ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo))
+  Uint32 TreadBackup = (tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP);
+  if (TreadBackup &&
+      ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo))
   {
     jam();
     /* Primary not counted in DIGETNODES signal */
@@ -12541,44 +12694,10 @@ bool Dbtc::startFragScanLab(Signal* signal,
     {
       if (conf->nodes[i] == ownNodeId)
       {
-	jam();
-	nodeId = ownNodeId;
-	break;
+        jam();
+        nodeId = ownNodeId;
+        break;
       }
-    }
-  }
-  
-  ndbrequire(scanFragP.p->scanFragState == ScanFragRec::WAIT_GET_PRIMCONF);
-  scanFragP.p->stopFragTimer();
-
-  {
-    /**
-     * Check table
-     */
-    TableRecordPtr tabPtr;
-    tabPtr.i = scanptr.p->scanTableref;
-    ptrAss(tabPtr, tableRecord);
-    Uint32 schemaVersion = scanptr.p->scanSchemaVersion;
-    if (ERROR_INSERTED(8081) || tabPtr.p->checkTable(schemaVersion) == false)
-    {
-      jam();
-      Uint32 err;
-      if (ERROR_INSERTED(8081))
-      {
-        err = ZTIME_OUT_ERROR;
-        CLEAR_ERROR_INSERT_VALUE;
-      }
-      else
-      {
-        err = tabPtr.p->getErrorCode(schemaVersion);
-      }
-      {
-        scanFragP.p->scanFragState = ScanFragRec::COMPLETED;
-        ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-        run.release(scanFragP);
-      }
-      scanError(signal, scanptr, err);
-      return false;
     }
   }
   

@@ -158,6 +158,8 @@ do_swap(Uint32 & v0, Uint32 & v1)
   v1 = save;
 }
 
+static const Uint32 SuspectGETTABINFOREQMillis = 5000;
+
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
 /* MODULE:          GENERAL MODULE -------------------------------- */
@@ -258,6 +260,64 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
               c_sub_startstop_lock.getText(buf));
   }
 
+  if (signal->theData[0] == DumpStateOrd::DictDumpGetTabInfoQueue && g_trace >= 2)
+  {
+    jam();
+    Uint64 currElapsed = 0;
+    /* Dump GETTABINFOREQ stats */
+    g_eventLogger->info("DICT GETTABINFOREQ stats");
+    g_eventLogger->info("c_retrieveRecord totalRequests :  %llu "
+                        "busyState : %u",
+                        c_retrieveRecord.totalRequests,
+                        c_retrieveRecord.busyState);
+    g_eventLogger->info("totalWaiters : %llu totalBusy : %llu "
+                        "longestWaitMillis : %llu",
+                        c_retrieveRecord.totalWaiters,
+                        c_retrieveRecord.totalBusy,
+                        c_retrieveRecord.longestWaitMillis);
+    g_eventLogger->info("longestProcessTimeMillis : %llu",
+                        c_retrieveRecord.longestProcessTimeMillis);
+    if (c_retrieveRecord.busyState)
+    {
+      jam();
+      g_eventLogger->info("Busy : requestType : %u  tableId : %u, "
+                          "type : %u, ref : %x",
+                          c_retrieveRecord.requestType,
+                          c_retrieveRecord.tableId,
+                          c_retrieveRecord.m_table_type,
+                          c_retrieveRecord.blockRef);
+      currElapsed = NdbTick_Elapsed(c_retrieveRecord.startProcessTime,
+                                    NdbTick_getCurrentTicks()).milliSec();
+      g_eventLogger->info("Elapsed processing millis : %llu",
+                          currElapsed);
+    }
+    /* Dump GETTABINFOREQ queueing info */
+    c_gettabinforeq_q.dumpInfo();
+
+    if (signal->getLength() == 2)
+    {
+      jam();
+      ndbrequire(c_retrieveRecord.monitorRunning);
+
+      /* Monitoring signal, should we stop? */
+      if (currElapsed > SuspectGETTABINFOREQMillis)
+      {
+        jam();
+
+        sendSignalWithDelay(reference(),
+                            GSN_DUMP_STATE_ORD,
+                            signal,
+                            2000,
+                            signal->getLength());
+      }
+      else
+      {
+        jam();
+        g_eventLogger->info("GETTABINFOREQ : Monitoring stopped");
+        c_retrieveRecord.monitorRunning = false;
+      }
+    }
+  }
   if (signal->theData[0] == 8004)
   {
     infoEvent("DICT: c_counterMgr size: %u free: %u",
@@ -287,6 +347,7 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
     RSS_AP_SNAPSHOT_CHECK(c_hash_map_pool);
     RSS_AP_SNAPSHOT_CHECK(g_hash_map);
   }
+
 
   return;
 
@@ -508,6 +569,18 @@ void Dbdict::execCONTINUEB(Signal* signal)
   switch (signal->theData[0]) {
   case ZPACK_TABLE_INTO_PAGES :
     jam();
+    if (ERROR_INSERTED(6800))
+    {
+      jam();
+      g_eventLogger->info("Stall serialisation of a table record "
+                          "until error insert cleared");
+      sendSignalWithDelay(reference(),
+                          GSN_CONTINUEB,
+                          signal,
+                          1000,
+                          signal->getLength());
+      return;
+    }
     packTableIntoPages(signal);
     break;
 
@@ -773,6 +846,8 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 	!!(tablePtr.p->m_bits & TableRecord::TR_Temporary));
   w.add(DictTabInfo::ForceVarPartFlag,
 	!!(tablePtr.p->m_bits & TableRecord::TR_ForceVarPart));
+  w.add(DictTabInfo::ReadBackupFlag,
+	!!(tablePtr.p->m_bits & TableRecord::TR_ReadBackup));
 
   w.add(DictTabInfo::MinLoadFactor, tablePtr.p->minLoadFactor);
   w.add(DictTabInfo::MaxLoadFactor, tablePtr.p->maxLoadFactor);
@@ -783,6 +858,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::MaxRowsHigh, tablePtr.p->maxRowsHigh);
   w.add(DictTabInfo::DefaultNoPartFlag, tablePtr.p->defaultNoPartFlag);
   w.add(DictTabInfo::LinearHashFlag, tablePtr.p->linearHashFlag);
+  w.add(DictTabInfo::FragmentCountType, tablePtr.p->fragmentCountType);
   w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
   w.add(DictTabInfo::MinRowsLow, tablePtr.p->minRowsLow);
   w.add(DictTabInfo::MinRowsHigh, tablePtr.p->minRowsHigh);
@@ -2456,6 +2532,18 @@ void Dbdict::initWriteSchemaRecord()
 void Dbdict::initRetrieveRecord(Signal* signal, Uint32 i, Uint32 returnCode)
 {
   jam();
+
+  if (NdbTick_IsValid(c_retrieveRecord.startProcessTime))
+  {
+    // Completed the job...
+    const Uint64 durationMillis = NdbTick_Elapsed(c_retrieveRecord.startProcessTime,
+                                            NdbTick_getCurrentTicks()).milliSec();
+    if (durationMillis > c_retrieveRecord.longestProcessTimeMillis)
+      c_retrieveRecord.longestProcessTimeMillis = durationMillis;
+
+    NdbTick_Invalidate(&c_retrieveRecord.startProcessTime);
+  }
+
   c_retrieveRecord.blockRef = 0;
   c_retrieveRecord.m_senderData = RNIL;
   c_retrieveRecord.tableId = RNIL;
@@ -2522,6 +2610,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr, Uint32 tableId)
   tablePtr.p->gciTableCreated = 0;
   tablePtr.p->noOfAttributes = ZNIL;
   tablePtr.p->noOfNullAttr = 0;
+  tablePtr.p->fragmentCountType = NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE;
   tablePtr.p->fragmentCount = 0;
   /*
     tablePtr.p->lh3PageIndexBits = 0;
@@ -5241,13 +5330,13 @@ Dbdict::release_object(Uint32 obj_ptr_i, DictObject* obj_ptr_p){
   LocalRope name(c_rope_pool, obj_name);
   name.erase();
 
-jam();
+  jam();
   c_obj_name_hash.remove(ptr);
-jam();
+  jam();
   c_obj_id_hash.remove(ptr);
-jam();
+  jam();
   c_obj_pool.release(ptr);
-jam();
+  jam();
 }
 
 void
@@ -5386,15 +5475,69 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
 
     if (g_trace)
     {
-      g_eventLogger->info("Dbdict: %u: create name=%s,id=%u,obj_ptr_i=%d",__LINE__,
+      char buf[200];
+      char *buf_ptr = &buf[0];
+      memset(buf, 0, sizeof(buf));
+      if (!c_tableDesc.TableLoggedFlag)
+      {
+        const char *no_log_str = " NOLOG";
+        strcpy(buf_ptr, no_log_str);
+        buf_ptr+= strlen(no_log_str);
+      }
+      {
+        const char *fc_str = NULL;
+        switch (c_tableDesc.FragmentCountType)
+        {
+          case NDB_FRAGMENT_COUNT_SPECIFIC:
+            fc_str = " FC_SPEC";
+            break;
+          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
+            fc_str = " FC_OPLPN";
+            break;
+          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+            fc_str = " FC_OPLPNG";
+            break;
+          case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
+            fc_str = " FC_OPN";
+            break;
+          case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+            fc_str = " FC_OPNG";
+            break;
+          default:
+            ndbrequire(false);
+        }
+        strcpy(buf_ptr, fc_str);
+        buf_ptr+= strlen(fc_str);
+      }
+      if (c_tableDesc.ReadBackupFlag)
+      {
+        const char *rb_str = " RB";
+        strcpy(buf_ptr, rb_str);
+        buf_ptr+= strlen(rb_str);
+      }
+      g_eventLogger->info("Dbdict: %u: create name=%s,id=%u,obj_ptr_i=%d%s",
+                          __LINE__,
                           c_tableDesc.TableName,
-                          schemaFileId, tablePtr.p->m_obj_ptr_i);
+                          schemaFileId,
+                          tablePtr.p->m_obj_ptr_i,
+                          buf);
     }
     send_event(signal, trans_ptr,
                NDB_LE_CreateSchemaObject,
                schemaFileId,
                tablePtr.p->tableVersion,
                c_tableDesc.TableType);
+  }
+  else
+  {
+    /**
+     * When we perform an inplace ALTER TABLE (AlterTableFrom API) we will copy all
+     * data to the new table object, but this is a bit misleading since this new
+     * object will not replace the old table object, rather in AlterTable_commit the
+     * changed parts of the new table object will be copied over to the old table
+     * object.
+     */
+    jam();
   }
   parseP->tablePtr = tablePtr;
 
@@ -5415,11 +5558,15 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
 #endif
   tablePtr.p->m_bits |=
     (c_tableDesc.ForceVarPartFlag ? TableRecord::TR_ForceVarPart : 0);
+  tablePtr.p->m_bits |=
+    (c_tableDesc.ReadBackupFlag ? TableRecord::TR_ReadBackup : 0);
+
   tablePtr.p->minLoadFactor = c_tableDesc.MinLoadFactor;
   tablePtr.p->maxLoadFactor = c_tableDesc.MaxLoadFactor;
   tablePtr.p->fragmentType = (DictTabInfo::FragmentType)c_tableDesc.FragmentType;
   tablePtr.p->tableType = (DictTabInfo::TableType)c_tableDesc.TableType;
   tablePtr.p->kValue = c_tableDesc.TableKValue;
+  tablePtr.p->fragmentCountType = c_tableDesc.FragmentCountType;
   tablePtr.p->fragmentCount = c_tableDesc.FragmentCount;
   tablePtr.p->m_tablespace_id = c_tableDesc.TablespaceId;
   tablePtr.p->maxRowsLow = c_tableDesc.MaxRowsLow;
@@ -5437,6 +5584,41 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
 
   tabRequire(tablePtr.p->noOfAttributes <= MAX_ATTRIBUTES_IN_TABLE,
              CreateTableRef::NoMoreAttributeRecords); // bad error code!
+
+  if (!tablePtr.p->defaultNoPartFlag)
+  {
+    /**
+     * We don't use default partitioning, so must be specific.
+     */
+    if (tablePtr.p->fragmentCountType !=
+        NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE)
+    {
+      ndbrequire(tablePtr.p->fragmentCountType ==
+                 NDB_FRAGMENT_COUNT_SPECIFIC);
+    }
+    else
+    {
+      /**
+       * This will happen when an old table created before fragmentCountType
+       * was introduced AND also setting a specific number of partitions.
+       * We set it to specific partitioning as it should be. This is
+       * upgrade code.
+       */
+      jam();
+      tablePtr.p->fragmentCountType = NDB_FRAGMENT_COUNT_SPECIFIC;
+    }
+  }
+
+  /**
+   * In older version of ndb...hashMapObjectId was initialized to ~0
+   *   instead of RNIL...
+   */
+  if (tablePtr.p->hashMapObjectId == ~Uint32(0) &&
+      tablePtr.p->hashMapVersion == ~Uint32(0))
+  {
+    jam();
+    tablePtr.p->hashMapObjectId = RNIL;
+  }
 
   if (tablePtr.p->fragmentType == DictTabInfo::HashMapPartition &&
       tablePtr.p->hashMapObjectId == RNIL)
@@ -6204,6 +6386,7 @@ Dbdict::get_fragmentation(Signal* signal, Uint32 tableId)
   req->noOfFragments = 0;
   req->primaryTableId = tableId;
   req->requestInfo = CreateFragmentationReq::RI_GET_FRAGMENTATION;
+  req->fragmentCountType = 0; /* Ignored for get_fragmentation */
   EXECUTE_DIRECT(DBDICT, GSN_CREATE_FRAGMENTATION_REQ, signal,
                  CreateFragmentationReq::SignalLength);
 
@@ -6225,6 +6408,7 @@ Dbdict::create_fragmentation(Signal* signal,
   frag_req->noOfFragments = tabPtr.p->fragmentCount;
   frag_req->fragmentationType = tabPtr.p->fragmentType;
   frag_req->requestInfo = flags;
+  frag_req->fragmentCountType = tabPtr.p->fragmentCountType;
 
   if (tabPtr.p->hashMapObjectId != RNIL)
   {
@@ -6254,7 +6438,7 @@ Dbdict::create_fragmentation(Signal* signal,
     jam();
     // ordered index has same fragmentation as the table
     frag_req->primaryTableId = tabPtr.p->primaryTableId;
-    frag_req->fragmentationType = DictTabInfo::DistrKeyOrderedIndex;
+    frag_req->fragmentationType = tabPtr.p->fragmentType;
   }
   else if (tabPtr.p->isHashIndex())
   {
@@ -7259,6 +7443,7 @@ Dbdict::execDIADDTABCONF(Signal* signal)
   CreateTableRecPtr createTabPtr;
   findSchemaOp(op_ptr, createTabPtr, conf->senderData);
   ndbrequire(!op_ptr.isNull());
+  D("Commit (TAB_COMMITREQ) in LQH");
 
   signal->theData[0] = op_ptr.p->op_key;
   signal->theData[1] = reference();
@@ -7302,6 +7487,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
   if (refToBlock(signal->getSendersBlockRef()) == DBLQH)
   {
     jam();
+    D("Prepare (TC_SCHVERREQ) in SPJ");
     // prepare table in DBSPJ
     TcSchVerReq * req = (TcSchVerReq*)signal->getDataPtr();
     req->tableId = createTabPtr.p->m_request.tableId;
@@ -7313,6 +7499,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
     req->noOfPrimaryKeys = (Uint32)tabPtr.p->noOfPrimkey;
     req->singleUserMode = (Uint32)tabPtr.p->singleUserMode;
     req->userDefinedPartition = (tabPtr.p->fragmentType == DictTabInfo::UserDefined);
+    req->readBackup = (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_ReadBackup);
 
     if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
     {
@@ -7332,6 +7519,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
   {
     jam();
     // commit table in DBSPJ
+    D("Commit (TAB_COMMITREQ) in SPJ");
     signal->theData[0] = op_ptr.p->op_key;
     signal->theData[1] = reference();
     signal->theData[2] = createTabPtr.p->m_request.tableId;
@@ -7343,6 +7531,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
   {
     jam();
     // commit table in DBTC
+    D("Commit (TAB_COMMITREQ) in TC");
     signal->theData[0] = op_ptr.p->op_key;
     signal->theData[1] = reference();
     signal->theData[2] = createTabPtr.p->m_request.tableId;
@@ -7353,6 +7542,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
   if (refToBlock(signal->getSendersBlockRef()) == DBTC)
   {
     jam();
+    D("Committed table in DIH, SPJ, TC");
     execute(signal, createTabPtr.p->m_callback, 0);
     return;
   }
@@ -7438,6 +7628,7 @@ Dbdict::createTab_activate(Signal* signal, SchemaOpPtr op_ptr,
   getOpRec(op_ptr, createTabPtr);
   createTabPtr.p->m_callback = * c;
 
+  D("Commit (TAB_COMMITREQ) in DIH");
   signal->theData[0] = op_ptr.p->op_key;
   signal->theData[1] = reference();
   signal->theData[2] = createTabPtr.p->m_request.tableId;
@@ -7461,6 +7652,7 @@ Dbdict::execTC_SCHVERCONF(Signal* signal)
     TableRecordPtr tabPtr;
     bool ok = find_object(tabPtr, createTabPtr.p->m_request.tableId);
     ndbrequire(ok);
+    D("Prepare (TC_SCHVERREQ) in TC");
 
     TcSchVerReq * req = (TcSchVerReq*)signal->getDataPtr();
     req->tableId = createTabPtr.p->m_request.tableId;
@@ -7472,6 +7664,7 @@ Dbdict::execTC_SCHVERCONF(Signal* signal)
     req->noOfPrimaryKeys = (Uint32)tabPtr.p->noOfPrimkey;
     req->singleUserMode = (Uint32)tabPtr.p->singleUserMode;
     req->userDefinedPartition = (tabPtr.p->fragmentType == DictTabInfo::UserDefined);
+    req->readBackup = (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_ReadBackup);
 
     if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
     {
@@ -8845,6 +9038,23 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       return;
     }
 
+    if (newTablePtr.p->fragmentCountType != NDB_FRAGMENT_COUNT_SPECIFIC)
+    {
+      jam();
+
+      /**
+       * verify that fragment count is not decreasing.
+       */
+      Uint32 cnt0 = get_default_fragments(signal,
+                                          newTablePtr.p->fragmentCountType);
+      if (newTablePtr.p->fragmentCount > cnt0)
+      {
+        jam();
+        setError(error, AlterTableRef::UnsupportedChange, __LINE__);
+        return;
+      }
+    }
+
     /**
      * Verify that reorg is possible with the hash map(s)
      */
@@ -8867,7 +9077,12 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     if (tablePtr.p->hashMapObjectId != newTablePtr.p->hashMapObjectId)
     {
       jam();
+      D("SetReorgFragFlag");
       AlterTableReq::setReorgFragFlag(impl_req->changeMask, 1);
+    }
+    else
+    {
+      D("No hashmap change");
     }
 
     if (master)
@@ -8879,9 +9094,6 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
        *    save fragmentation for new fragment op operation record
        */
       jam();
-      Uint32 save0 = newTablePtr.p->fragmentType;
-      newTablePtr.p->fragmentType = DictTabInfo::DistrKeyHash;
-
       /**
        * Here we reset all the NODEGROUPS for the new partitions
        *   i.e they can't be specified...this should change later
@@ -8909,7 +9121,6 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       err = create_fragmentation(signal, newTablePtr,
                                  c_fragData, c_fragDataLen / 2,
                                  flags);
-      newTablePtr.p->fragmentType = (DictTabInfo::FragmentType)save0;
       newTablePtr.p->primaryTableId = save1;
 
       if (err)
@@ -9855,6 +10066,15 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
   bool ok = find_object(tablePtr, impl_req->tableId);
   ndbrequire(ok);
 
+  /**
+   * When performing an inplace ALTER TABLE we don't change the table object.
+   * We only copy over the actual changed parts to ensure that the old object
+   * is updated to contain the new data.
+   *
+   * We still have to ensure in the NDB API that we throw away the old objects
+   * since those objects might have changed, but we can simply refetch a new
+   * object from DICT and we're up-to-date again.
+   */
   if (op_ptr.p->m_sections)
   {
     jam();
@@ -9951,6 +10171,10 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
       Uint32 save = tablePtr.p->fragmentCount;
       tablePtr.p->fragmentCount = newTablePtr.p->fragmentCount;
       newTablePtr.p->fragmentCount = save;
+      
+      Uint32 save_fctype = tablePtr.p->fragmentCountType;
+      tablePtr.p->fragmentCountType = newTablePtr.p->fragmentCountType;
+      newTablePtr.p->fragmentCountType = save_fctype;
     }
   }
 
@@ -9999,7 +10223,7 @@ Dbdict::alterTable_toCommitComplete(Signal* signal,
                                     SchemaOpPtr op_ptr,
                                     Uint32 type)
 {
-  D("alterTable_toTupCommit");
+  D("alterTable_toCommitComplete");
 
   AlterTableRecPtr alterTabPtr;
   getOpRec(op_ptr, alterTabPtr);
@@ -10073,7 +10297,7 @@ Dbdict::alterTable_fromCommitComplete(Signal* signal,
                                       Uint32 op_key,
                                       Uint32 ret)
 {
-  D("alterTable_fromCommit");
+  D("alterTable_fromCommitComplete");
 
   SchemaOpPtr op_ptr;
   AlterTableRecPtr alterTabPtr;
@@ -10572,6 +10796,8 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     NodeInfo sendersNI = getNodeInfo(refToNode(req->senderRef));
     bool internalReq = (sendersNI.m_type == NodeInfo::DB);
 
+    c_retrieveRecord.totalWaiters++;
+
     /* Queue request
      * Will be processed later when current requests + queue are completed
      */
@@ -10588,9 +10814,30 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
       SectionHandle handle(this, signal);
       releaseSections(handle);
 
+      c_retrieveRecord.totalBusy++;
       sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy, __LINE__);
     }
 
+    if (!c_retrieveRecord.monitorRunning)
+    {
+      if ( NdbTick_IsValid(c_retrieveRecord.startProcessTime) &&
+           NdbTick_Elapsed(c_retrieveRecord.startProcessTime,
+                           NdbTick_getCurrentTicks()).milliSec()
+           > SuspectGETTABINFOREQMillis)
+      {
+        jam();
+
+        /* Start monitoring */
+        c_retrieveRecord.monitorRunning = true;
+        signal->theData[0] = DumpStateOrd::DictDumpGetTabInfoQueue;
+        signal->theData[1] = 0;
+        sendSignal(reference(),
+                   GSN_DUMP_STATE_ORD,
+                   signal,
+                   2,
+                   JBB);
+      }
+    }
     return;
   }
 
@@ -10606,6 +10853,9 @@ Dbdict::doGET_TABINFOREQ(Signal* signal)
   jam();
   GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
   SectionHandle handle(this, signal);
+
+  c_retrieveRecord.totalRequests++;
+  c_retrieveRecord.startProcessTime = NdbTick_getCurrentTicks();
 
   const bool useLongSig = (req->requestType & GetTabInfoReq::LongSignalConf);
   const bool byName = (req->requestType & GetTabInfoReq::RequestByName);
@@ -11956,11 +12206,15 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
   }
   w.add(DictTabInfo::FragmentTypeVal, createIndexPtr.p->m_fragmentType);
   // Inherit fragment count if main table is also hashmap partitioned.
+  // Also inherit fragment count type of main table to ensure that it
+  // gets the same partitioning.
   // Otherwise better do use default.
-  if ((DictTabInfo::FragmentType)createIndexPtr.p->m_fragmentType == tablePtr.p->fragmentType &&
+  if ((DictTabInfo::FragmentType)createIndexPtr.p->m_fragmentType ==
+        tablePtr.p->fragmentType &&
       tablePtr.p->fragmentType == DictTabInfo::HashMapPartition)
   {
     w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
+    w.add(DictTabInfo::FragmentCountType, tablePtr.p->fragmentCountType);
   }
 
   w.add(DictTabInfo::TableTypeVal, createIndexPtr.p->m_request.indexType);
@@ -23097,7 +23351,8 @@ Dbdict::createFilegroup_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
     op_ptr.p->m_callback = c;
 
     send_drop_fg(signal, op_ptr.p->op_key, impl_req->filegroup_id,
-                 DropFilegroupImplReq::Prepare);
+                 DropFilegroupImplReq::Commit);
+    return; // wait for reply from lgman
   }
 
   sendTransConf(signal, op_ptr);
@@ -24094,7 +24349,9 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
      *   but that i dont know how
      */
     Uint32 buckets = c_default_hashmap_size;
-    Uint32 fragments = get_default_fragments(signal, 1);
+    Uint32 fragments = get_default_fragments(signal,
+                                             NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE,
+                                             1);
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
                          buckets,
@@ -27867,6 +28124,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
 
   bool localTrans = (requestInfo & DictSignal::RF_LOCAL_TRANS);
 
+  D("SCHEMA_TRANS_BEGIN_REQ: localTrans: " << localTrans);
   SchemaTransPtr trans_ptr;
   ErrorInfo error;
   do {
@@ -28076,6 +28334,7 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
   ErrorInfo error;
   do {
     const bool localTrans = (requestInfo & DictSignal::RF_LOCAL_TRANS);
+    D("SCHEMA_TRANS_END_REQ: localTrans: " << localTrans);
     if (getOwnNodeId() != c_masterNodeId && !localTrans) {
       jam();
       setError(error, SchemaTransEndRef::NotMaster, __LINE__);
@@ -31728,13 +31987,16 @@ Dbdict::execCREATE_HASH_MAP_REQ(Signal* signal)
 // CreateHashMap: PARSE
 
 Uint32
-Dbdict::get_default_fragments(Signal* signal, Uint32 extranodegroups)
+Dbdict::get_default_fragments(Signal* signal,
+                              Uint32 fragmentCountType,
+                              Uint32 extranodegroups)
 {
   jam();
 
   CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, signal->getDataPtrSend());
   sd->extraNodeGroups = extranodegroups;
   sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::GetDefaultFragments;
+  sd->fragmentCountType = fragmentCountType;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
 		 CheckNodeGroups::SignalLength);
   jamEntry();
@@ -31792,7 +32054,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
   else
   {
     /**
-     * Convienienc branch...(only master)
+     * Convenience branch...(only master)
      * No info, create "default"
      */
     jam();
@@ -31800,16 +32062,45 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     {
       jam();
       impl_req->buckets = c_default_hashmap_size;
-      impl_req->fragments = 0;
     }
 
+    /**
+     * impl_req->fragments contains either fragmentCountType or
+     * the number of fragments when specific number of fragments
+     * have been specified.
+     */
     Uint32 buckets = impl_req->buckets;
-    Uint32 fragments = impl_req->fragments;
-    if (fragments == 0)
-    {
+    Uint32 fragments;
+    Uint32 fragmentCountType = impl_req->fragments;
+    switch(fragmentCountType) {
+    case 0:
+      /**
+       * Most likely a table is created from 7.4 or earlier version.
+       * We will replace the 0 with the default fragment count type
+       * and continue as if everything is ok. All tables in 7.4 and
+       * earlier are either of type ONE_PER_LDM_PER_NODE or
+       * SPECIFIC. The other types can only be created using 7.5.2
+       * and later.
+       */
       jam();
-
-      fragments = get_default_fragments(signal);
+      fragmentCountType = NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE;
+      /* Fall through */
+    case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
+    case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+    case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
+    case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+      jam();
+      fragments = get_default_fragments(signal, fragmentCountType);
+      break;
+    default:
+      fragments = impl_req->fragments;
+      fragmentCountType = NDB_FRAGMENT_COUNT_SPECIFIC;
+      break;
+    }
+    if (g_trace)
+    {
+      g_eventLogger->info("HashMap: fragments: %u, fragmentCountType: %x",
+                          fragments, fragmentCountType);
     }
 
     if (fragments > MAX_NDB_PARTITIONS)
@@ -32709,7 +33000,11 @@ Dbdict::startNextGetTabInfoReq(Signal* signal)
    * Prefer internalQueue, but give externalQueue entries
    * a proportional share to avoid starvation.
    */
-  ndbrequire(c_gettabinforeq_q.deqReq(signal));
+  Uint64 waitMillis = 0;
+  ndbrequire(c_gettabinforeq_q.deqReq(signal, waitMillis));
+
+  if (waitMillis > c_retrieveRecord.longestWaitMillis)
+    c_retrieveRecord.longestWaitMillis = waitMillis;
 
   signal->header.theLength = GetTabInfoReq::SignalLength;
 
@@ -32720,6 +33015,27 @@ Dbdict::startNextGetTabInfoReq(Signal* signal)
    * we are starting in trace file
    */
   doGET_TABINFOREQ(signal);
+
+  if (!c_retrieveRecord.monitorRunning)
+  {
+    if (NdbTick_IsValid(c_retrieveRecord.startProcessTime) &&
+        NdbTick_Elapsed(c_retrieveRecord.startProcessTime,
+                        NdbTick_getCurrentTicks()).milliSec()
+        > SuspectGETTABINFOREQMillis)
+    {
+      jam();
+
+      /* Start monitoring */
+      c_retrieveRecord.monitorRunning = true;
+      signal->theData[0] = DumpStateOrd::DictDumpGetTabInfoQueue;
+      signal->theData[1] = 0;
+      sendSignal(reference(),
+                 GSN_DUMP_STATE_ORD,
+                 signal,
+                 2,
+                 JBB);
+    }
+  }
 
   if (!c_retrieveRecord.busyState)
   {

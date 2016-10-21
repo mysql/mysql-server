@@ -25,10 +25,9 @@ class Ndb_global_schema_lock_guard
 public:
   Ndb_global_schema_lock_guard(THD *thd);
   ~Ndb_global_schema_lock_guard();
-  int lock(bool no_lock_queue=false,
-           bool report_cluster_disconnected=true);
+  int lock(bool report_cluster_disconnected=true);
 private:
-  THD* m_thd;
+  THD* const m_thd;
   bool m_locked;
 };
 

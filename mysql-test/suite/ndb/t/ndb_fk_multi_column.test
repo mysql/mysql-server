@@ -88,18 +88,24 @@ create table t2 (
 ) engine=ndbcluster;
 
 --echo #verify the presence of uniquet2a, fkt2ab & and an extra key for fkt2ab
+--disable_warnings
 show create table t2;
+--enable_warnings
 alter table t2 drop key uniquet2a;
 
 --echo #alter add a unique constraint on single key
 alter table t2 add constraint uniquet2a unique (a);
 --echo #verify the presence of uniquet2a, fkt2ab & and an extra key for fkt2ab
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 --echo #alter add a unique constraint on all cols in fk
 alter table t2 add constraint uniquet2ab unique (a,b);
 --echo #verify the presence of uniquet2a, uniquet2ab, fkt2ab. no extra key for fkt2ab
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 --echo #try adding fk(a,b,c) referring t1(a,b,c), it should fail without parent index.
 --error ER_CANNOT_ADD_FOREIGN
@@ -109,7 +115,9 @@ alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);
 alter table t1 add constraint uniquet1abc unique (c,a,b);
 alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);
 --echo #verify the presence of new fk
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 --echo #cleanup
 drop table t2, t1;

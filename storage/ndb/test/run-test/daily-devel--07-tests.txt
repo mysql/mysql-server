@@ -55,3 +55,6 @@ cmd: testNdbApi
 args: -n GetNdbIndexOperationParallelDroppingTest I3
 max-time : 300
 
+cmd: testNodeRestart
+args: -n ArbitrationWithApiNodeFailure T1
+

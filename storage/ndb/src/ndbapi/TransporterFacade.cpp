@@ -718,7 +718,10 @@ TransporterFacade::unset_recv_thread_cpu(Uint32 recv_thread_id)
   {
     return -1;
   }
-  unlock_recv_thread_cpu();
+  if (unlock_recv_thread_cpu())
+  {
+    return -1;
+  }
   recv_thread_cpu_id = NO_RECV_THREAD_CPU_ID;
   return 0;
 }
@@ -740,7 +743,10 @@ TransporterFacade::set_recv_thread_cpu(Uint16 *cpuid_array,
   if (theTransporterRegistry)
   {
     /* Receiver thread already started, lock cpu now */
-    lock_recv_thread_cpu();
+    if (lock_recv_thread_cpu())
+    {
+      return -1;
+    }
   }
   return 0;
 }
@@ -756,21 +762,40 @@ TransporterFacade::set_recv_thread_activation_threshold(Uint32 threshold)
   return 0;
 }
 
-void
+int
 TransporterFacade::unlock_recv_thread_cpu()
 {
   if (theReceiveThread)
-    Ndb_UnlockCPU(theReceiveThread);
+  {
+    int ret_code = Ndb_UnlockCPU(theReceiveThread);
+    if (ret_code)
+    {
+      fprintf(stderr, "Failed to unlock thread %d, ret_code: %d",
+              NdbThread_GetTid(theReceiveThread),
+              ret_code);
+      return ret_code;
+    }
+  }
+  return 0;
 }
 
-void
+int
 TransporterFacade::lock_recv_thread_cpu()
 {
   Uint32 cpu_id = recv_thread_cpu_id;
   if (cpu_id != NO_RECV_THREAD_CPU_ID && theReceiveThread)
   {
-    Ndb_LockCPU(theReceiveThread, cpu_id);
+    int ret_code = Ndb_LockCPU(theReceiveThread, cpu_id);
+    if (ret_code)
+    {
+      fprintf(stderr, "Failed to lock thread %d to CPU %u, ret_code: %d",
+              NdbThread_GetTid(theReceiveThread),
+              cpu_id,
+              ret_code);
+      return ret_code;
+    }
   }
+  return 0;
 }
 
 int
@@ -984,9 +1009,9 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_open_close_mutex = NdbMutex_Create();
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_send_buffers); i++)
   {
-    BaseString n;
-    n.assfmt("sendbuffer:%u", i);
-    NdbMutex_InitWithName(&m_send_buffers[i].m_mutex, n.c_str());
+    char name_buf[32];
+    BaseString::snprintf(name_buf, sizeof(name_buf), "sendbuffer:%u", i);
+    NdbMutex_InitWithName(&m_send_buffers[i].m_mutex, name_buf);
   }
 
   m_send_thread_cond = NdbCondition_Create();
