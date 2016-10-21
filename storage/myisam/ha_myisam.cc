@@ -137,7 +137,7 @@ static void debug_wait_for_kill(const char *info)
 
 static handler *myisam_create_handler(handlerton *hton,
                                       TABLE_SHARE *table,
-                                      bool partitioned,
+                                      bool,
                                       MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_myisam(hton, table);
@@ -758,7 +758,7 @@ static bool myisam_is_supported_system_table(const char*,
 
 /* Name is here without an extension */
 int ha_myisam::open(const char *name, int mode, uint test_if_locked,
-                    const dd::Table *)
+                    const dd::Table*)
 {
   MI_KEYDEF *keyinfo;
   MI_COLUMNDEF *recinfo= 0;
@@ -2001,7 +2001,7 @@ int ha_myisam::delete_all_rows()
   Allows a particular partition to be truncated.
 */
 
-int ha_myisam::truncate(dd::Table *)
+int ha_myisam::truncate(dd::Table*)
 {
   int error= delete_all_rows();
   return error ? error : reset_auto_increment(0);
@@ -2013,7 +2013,7 @@ int ha_myisam::reset_auto_increment(ulonglong value)
   return 0;
 }
 
-int ha_myisam::delete_table(const char *name, const dd::Table *)
+int ha_myisam::delete_table(const char *name, const dd::Table*)
 {
   return mi_delete_table(name);
 }
@@ -2133,7 +2133,7 @@ int ha_myisam::create(const char *name, TABLE *table_arg,
 
 
 int ha_myisam::rename_table(const char * from, const char * to,
-                            const dd::Table *, dd::Table *)
+                            const dd::Table*, dd::Table*)
 {
   return mi_rename(from,to);
 }

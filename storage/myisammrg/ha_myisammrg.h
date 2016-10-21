@@ -110,7 +110,7 @@ public:
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + file->tables; }
 
   int open(const char *name, int mode, uint test_if_locked_arg,
-           const dd::Table *dd_tab);
+           const dd::Table *table_def);
   int add_children_list(void);
   int attach_children(void);
   int detach_children(void);
@@ -135,7 +135,7 @@ public:
   int rnd_pos(uchar * buf, uchar *pos);
   void position(const uchar *record);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
-  int truncate(dd::Table *dd_tab);
+  int truncate(dd::Table *table_def);
   int info(uint);
   int reset(void);
   int extra(enum ha_extra_function operation);
@@ -143,7 +143,7 @@ public:
   int external_lock(THD *thd, int lock_type);
   uint lock_count(void) const;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab);
+             dd::Table *table_def);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
   void update_create_info(HA_CREATE_INFO *create_info);

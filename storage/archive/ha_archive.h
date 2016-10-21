@@ -134,11 +134,11 @@ public:
 			     uint key_len, enum ha_rkey_function find_flag);
   int index_next(uchar * buf);
   int open(const char *name, int mode, uint test_if_locked,
-           const dd::Table *dd_tab);
+           const dd::Table *table_def);
   int close(void);
   int write_row(uchar * buf);
   int real_write_row(uchar *buf, azio_stream *writer);
-  int truncate(dd::Table *dd_tab);
+  int truncate(dd::Table *table_def);
   int rnd_init(bool scan=1);
   int rnd_next(uchar *buf);
   int rnd_pos(uchar * buf, uchar *pos);
@@ -154,7 +154,7 @@ public:
   int extra(enum ha_extra_function operation);
   void update_create_info(HA_CREATE_INFO *create_info);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab);
+             dd::Table *table_def);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   void start_bulk_insert(ha_rows rows);

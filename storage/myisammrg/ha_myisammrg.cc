@@ -110,7 +110,7 @@ using std::max;
 
 static handler *myisammrg_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
-                                         bool partitioned,
+                                         bool,
                                          MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_myisammrg(hton, table);
@@ -312,6 +312,8 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   @param[in]    name               MERGE table path name
   @param[in]    mode               read/write mode, unused
   @param[in]    test_if_locked_arg open flags
+  @param[in]    table_def          dd::Table object describing
+                                   table to be opened.
 
   @return       status
   @retval     0                    OK
@@ -323,7 +325,8 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
 */
 
 int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
-                       uint test_if_locked_arg, const dd::Table *)
+                       uint test_if_locked_arg,
+                       const dd::Table *table_def MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("ha_myisammrg::open");
   DBUG_PRINT("myrg", ("name: '%s'  table: %p", name, table));
@@ -1228,7 +1231,7 @@ ha_rows ha_myisammrg::records_in_range(uint inx, key_range *min_key,
 }
 
 
-int ha_myisammrg::truncate(dd::Table *)
+int ha_myisammrg::truncate(dd::Table*)
 {
   int err= 0;
   MYRG_TABLE *my_table;
@@ -1479,9 +1482,9 @@ err:
 }
 
 
-int ha_myisammrg::create(const char *name, TABLE *,
+int ha_myisammrg::create(const char *name, TABLE*,
                          HA_CREATE_INFO *create_info,
-                         dd::Table *)
+                         dd::Table*)
 {
   char buff[FN_REFLEN];
   const char **table_names, **pos;

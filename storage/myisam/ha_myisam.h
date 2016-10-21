@@ -101,7 +101,7 @@ class ha_myisam: public handler
   uint checksum() const;
 
   int open(const char *name, int mode, uint test_if_locked,
-           const dd::Table *dd_tab);
+           const dd::Table *table_def);
   int close(void);
   int write_row(uchar * buf);
   int update_row(const uchar * old_data, uchar * new_data);
@@ -141,7 +141,7 @@ class ha_myisam: public handler
   int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  int truncate(dd::Table *dd_tab);
+  int truncate(dd::Table *table_def);
   int reset_auto_increment(ulonglong value);
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);
@@ -151,7 +151,7 @@ class ha_myisam: public handler
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   void update_create_info(HA_CREATE_INFO *create_info);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab);
+             dd::Table *table_def);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,

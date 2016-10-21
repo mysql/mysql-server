@@ -69,9 +69,9 @@ public:
   uint max_supported_key_length()    const { return BLACKHOLE_MAX_KEY_LENGTH; }
   uint max_supported_key_part_length() const { return BLACKHOLE_MAX_KEY_LENGTH; }
   int open(const char *name, int mode, uint test_if_locked,
-           const dd::Table *dd_tab);
+           const dd::Table *table_def);
   int close(void);
-  int truncate(dd::Table *dd_tab);
+  int truncate(dd::Table *table_def);
   int rnd_init(bool scan);
   int rnd_next(uchar *buf);
   int rnd_pos(uchar * buf, uchar *pos);
@@ -90,7 +90,7 @@ public:
   int external_lock(THD *thd, int lock_type);
   int create(const char *name, TABLE *table_arg,
              HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab);
+             dd::Table *table_def);
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);

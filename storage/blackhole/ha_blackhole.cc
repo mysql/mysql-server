@@ -34,7 +34,7 @@ static bool is_slave_applier(THD *thd)
 
 static handler *blackhole_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
-                                         bool partitioned,
+                                         bool,
                                          MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_blackhole(hton, table);

@@ -44,7 +44,7 @@ handlerton *pfs_hton= NULL;
 
 static handler* pfs_create_handler(handlerton *hton,
                                    TABLE_SHARE *table,
-                                   bool partitioned,
+                                   bool,
                                    MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_perfschema(hton, table);
@@ -1534,7 +1534,7 @@ int ha_perfschema::delete_all_rows(void)
   DBUG_RETURN(result);
 }
 
-int ha_perfschema::truncate(dd::Table *)
+int ha_perfschema::truncate(dd::Table*)
 {
   return delete_all_rows();
 }
@@ -1550,7 +1550,7 @@ THR_LOCK_DATA **ha_perfschema::store_lock(THD*,
   return to;
 }
 
-int ha_perfschema::delete_table(const char*, const dd::Table *)
+int ha_perfschema::delete_table(const char*, const dd::Table*)
 {
   DBUG_ENTER("ha_perfschema::delete_table");
   DBUG_RETURN(0);
