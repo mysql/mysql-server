@@ -458,3 +458,55 @@ a	b	c	d	a	b	c	d
 drop table t2, t1;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 set foreign_key_checks = 1;
+#
+# Bug#25063506 : Updating parent row cascades to child but not to grandchild
+#
+# Setup tables
+create table parent(
+id int primary key auto_increment,
+val1 int unique,
+val2 int
+) engine ndb;
+create table child(
+ref int unique,
+foreign key fk1(ref) references parent(val1) on update cascade
+) engine ndb;
+create table grandchild(
+ref int,
+foreign key fk2(ref) references child(ref) on update cascade
+) engine ndb;
+insert into parent(val1, val2) values(10, 100), (20, 400), (30, 900);
+insert into child(ref) values(10), (20), (30);
+insert into grandchild(ref) values(10), (20), (30);
+# Change ndb_optimized_node_selection to 2
+# so that the following queries goes to the same node
+set ndb_optimized_node_selection=2;
+# Perform query with the foreign_key_checks off
+# This transaction will use an indexOperation internally and release it when done
+set foreign_key_checks = 0;
+delete from parent where val1 = 100;
+set foreign_key_checks = 1;
+begin;
+# The following transaction would reuse the indexOperation
+# when the update is cascaded to grandchild
+update parent set val1 = 40 where val2 = 100;
+# Print tuples to check if they are consistent
+select * from parent order by id;
+id	val1	val2
+1	40	100
+2	20	400
+3	30	900
+select * from child order by ref;
+ref
+20
+30
+40
+select * from grandchild order by ref;
+ref
+20
+30
+40
+rollback;
+# Cleanup
+set ndb_optimized_node_selection=3;
+drop table grandchild, child, parent;
