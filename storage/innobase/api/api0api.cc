@@ -221,29 +221,6 @@ ib_btr_cursor_is_positioned(
 	           || pcur->pos_state == BTR_PCUR_WAS_POSITIONED));
 }
 
-#if 0
-/********************************************************************//**
-Open a table using the table name, if found then increment table ref count.
-@return table instance if found */
-static
-dict_table_t*
-ib_open_table_by_name(
-/*==================*/
-	const char*	name)		/*!< in: table name to lookup */
-{
-	dict_table_t*	table;
-
-	table = dict_table_open_on_name(name, FALSE, FALSE,
-					DICT_ERR_IGNORE_NONE);
-
-	if (table != NULL && table->ibd_file_missing) {
-		table = NULL;
-	}
-
-	return(table);
-}
-#endif
-
 /********************************************************************//**
 Find table using table name.
 @return table instance if found */
@@ -963,14 +940,16 @@ ib_cursor_open_table(
 	if (ib_trx != NULL) {
 		if (!ib_schema_lock_is_exclusive(ib_trx)) {
 			table = dd_table_open_on_name(
-				trx->mysql_thd, &mdl, normalized_name);
+				trx->mysql_thd, &mdl, normalized_name,
+				DICT_ERR_IGNORE_NONE);
 		} else {
 			/* NOTE: We do not acquire MySQL metadata lock */
 			table = ib_lookup_table_by_name(normalized_name);
 		}
 	} else {
 		table = dd_table_open_on_name(
-			trx->mysql_thd, &mdl, normalized_name);
+			trx->mysql_thd, &mdl, normalized_name,
+			DICT_ERR_IGNORE_NONE);
 	}
 
 	ut_free(normalized_name);

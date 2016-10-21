@@ -28,6 +28,7 @@ Created 2/27/1997 Heikki Tuuri
 #include "row0umod.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
+#include "dict0dd.h"
 #include "trx0undo.h"
 #include "trx0roll.h"
 #include "btr0btr.h"
@@ -1119,7 +1120,12 @@ row_undo_mod_parse_undo_rec(
 				    &dummy_extern, &undo_no, &table_id);
 	node->rec_type = type;
 
-	node->table = dict_table_open_on_id(
+	/* If a table exists, it cannot be dropped or evicted.
+	Rollback is typically protected by a table IX lock.
+	Notably, there cannot be a race between ROLLBACK and
+	DROP TEMPORARY TABLE, because temporary tables are
+	private to a single connection. */
+	node->table = dd_table_open_on_id_in_mem(
 		table_id, dict_locked, DICT_TABLE_OP_NORMAL);
 
 	/* TODO: other fixes associated with DROP TABLE + rollback in the

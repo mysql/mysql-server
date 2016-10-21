@@ -3278,7 +3278,7 @@ innobase_query_caching_of_table_permitted(
 
 	innobase_register_trx(innodb_hton_ptr, thd, trx);
 
-	if (row_search_check_if_query_cache_permitted(trx, norm_name)) {
+	if (row_search_check_if_query_cache_permitted(thd, trx, norm_name)) {
 
 		return(static_cast<my_bool>(true));
 	}
@@ -3610,7 +3610,40 @@ innobase_dict_recover(
 	dict_recovery_mode_t			dict_recovery_mode,
 	uint					version)
 {
-	return false;
+	THD*		thd = current_thd;
+	//MDL_ticket*	mdl = nullptr;
+
+	switch (dict_recovery_mode) {
+	case DICT_RECOVERY_INITIALIZE_TABLESPACES:
+		break;
+	case DICT_RECOVERY_RESTART_SERVER:
+		/* Fall through */
+	case DICT_RECOVERY_INITIALIZE_SERVER:
+		dict_sys->table_stats = dd_table_open_on_name(
+			thd, NULL, "mysql/innodb_table_stats",
+			DICT_ERR_IGNORE_NONE);
+		dict_sys->index_stats = dd_table_open_on_name(
+			thd, NULL, "mysql/innodb_index_stats",
+			DICT_ERR_IGNORE_NONE);
+		dict_sys->table_metadata = dd_table_open_on_name(
+			thd, NULL, "mysql/innodb_table_metadata",
+			DICT_ERR_IGNORE_NONE);
+	}
+
+	switch (dict_recovery_mode) {
+	case DICT_RECOVERY_INITIALIZE_SERVER:
+                return(false);
+	case DICT_RECOVERY_INITIALIZE_TABLESPACES:
+		goto success;
+	case DICT_RECOVERY_RESTART_SERVER:
+		srv_dict_recover_on_restart();
+		/* Switch latching order checks on in sync0debug.cc, if
+		--innodb-sync-debug=false (default) */
+success:
+		srv_start_threads();
+	}
+
+	return(false);
 }
 
 /** Check if InnoDB is in a mode where the data dictionary is read-only.
@@ -4393,13 +4426,9 @@ innobase_init_files(
 	/* Create mutex to protect encryption master_key_id. */
 	mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
 
-	srv_dict_recover_on_restart();
-
 	/* Switch latching order checks on in sync0debug.cc, if
 	--innodb-sync-debug=false (default) */
 	ut_d(sync_check_enable());
-
-	srv_start_threads();
 
 	/* Adjust the innodb_undo_logs config object */
 	innobase_undo_logs_init_default_max();
@@ -7864,6 +7893,22 @@ dd_tablespace_is_implicit(
         return(fail);
 }
 
+/** Open or load a table definition based on a Global DD object.
+@param[in,out]	client		data dictionary client
+@param[in]	table		MySQL table definition
+@param[in]	norm_name	Table Name
+@param[in,out]	uncached	NULL if the table should be added to the cache;
+				if not, *uncached=true will be assigned
+				when ib_table was allocated but not cached
+				(used during delete_table and rename_table)
+@param[out]	ib_table	InnoDB table handle
+@param[in]	dd_table	Global DD table or partition object
+@param[in]	skip_mdl	whether meta-data locking is skipped
+@param[in]	thd		thread THD
+@retval 0                       on success
+@retval HA_ERR_TABLE_CORRUPT    if the table is marked as corrupted
+@retval HA_ERR_TABLESPACE_MISSING       if the file is not found */
+
 dict_table_t*
 dd_open_table(
         dd::cache::Dictionary_client*   client,
@@ -7953,7 +7998,7 @@ dd_open_table(
 
 			mutex_enter(&dict_sys->mutex);
 			dict_load_tablespace(m_table, heap,
-					     DICT_ERR_IGNORE_NONE);
+					     DICT_ERR_IGNORE_RECOVER_LOCK);
 			mutex_exit(&dict_sys->mutex);
 			first_index = false;
 		}
@@ -8007,12 +8052,7 @@ dd_open_table(
 		dict_table_load_dynamic_metadata(m_table);
 	}
 
-	if (m_table->is_corrupted()) {
-		dict_table_remove_from_cache(m_table);
-		m_table = NULL;
-	} else {
-		m_table->acquire();
-	}
+	m_table->acquire();
 
 	mutex_exit(&dict_sys->mutex);
 
@@ -8068,7 +8108,7 @@ innobase_parse_tbl_name(
 
 	ulint		db_len = dict_get_db_name_len(tbl_name);
 
-	ut_ad(db_len < NAME_LEN);
+	ut_ad(db_len <= MAX_DATABASE_NAME_LEN);
 	memcpy(db_buf, tbl_name, db_len);
 	db_buf[db_len] = 0;
 	memcpy(tbl_buf, tbl_name + db_len + 1,
@@ -8118,7 +8158,6 @@ dd_table_open_on_dd_obj(
 	ut_ad(dd_part == nullptr
 	      || dd_part->parent() == nullptr
 	      || dd_part->parent()->level() == 0);
-	ut_ad(!skip_mdl || tbl_name == nullptr);
 #ifdef UNIV_DEBUG
 	if (tbl_name) {
 		char	db_buf[NAME_LEN + 1];
@@ -8126,7 +8165,8 @@ dd_table_open_on_dd_obj(
 
 		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf);
 		ut_ad(strcmp(dd_table.name().c_str(), tbl_buf) == 0);
-		ut_ad(dd::has_shared_table_mdl(thd, db_buf, tbl_buf));
+		ut_ad(skip_mdl
+		      || dd::has_shared_table_mdl(thd, db_buf, tbl_buf));
 	}	
 #endif /* UNIV_DEBUG */
 
@@ -8234,7 +8274,10 @@ dd_table_open_on_dd_obj(
 			table = dd_open_table(
 				client, &td, tab_namep, uncached, table,
 				&dd_table, skip_mdl, thd);
-			dict_stats_init(table);
+			if (table && !table->is_corrupted()
+			    && !table->ibd_file_missing) {
+				dict_stats_init(table);
+			}
 		}
 
 		closefrm(&td, false);
@@ -8595,7 +8638,8 @@ dict_table_t*
 dd_table_open_on_name(
 	THD*			thd,
 	MDL_ticket**		mdl,
-	const char*		name)
+	const char*		name,
+	dict_err_ignore_t	ignore_err)
 {
 	DBUG_ENTER("dd_table_open_on_name");
 
@@ -8610,7 +8654,9 @@ dd_table_open_on_name(
 
 	innobase_parse_tbl_name(name, db_buf, tbl_buf);
 
-	if (thd && mdl && dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
+	bool	skip_mdl = !(thd && mdl);
+
+	if (!skip_mdl && dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
 		DBUG_RETURN(nullptr);
 	}
 
@@ -8620,14 +8666,19 @@ dd_table_open_on_name(
 				thd)->lookup_table_handler(name);
 
 	if (table != nullptr) {
-		if (mdl) {
-			if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
-				return(nullptr);
-			}
-		}
 		table->acquire();
 		DBUG_RETURN(table);
 	}
+
+	mutex_enter(&dict_sys->mutex);
+	table = dict_table_check_if_in_cache_low(name);
+
+	if (table != nullptr) {
+		table->acquire();
+		mutex_exit(&dict_sys->mutex);
+		DBUG_RETURN(table);
+	}
+	mutex_exit(&dict_sys->mutex);
 
 	const dd::Table*		dd_table = nullptr;
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
@@ -8645,11 +8696,20 @@ dd_table_open_on_name(
 			ut_ad(dd_table->partitions().empty());
 			dd_table_open_on_dd_obj(
 				client, *dd_table, nullptr, name,
-				nullptr, table, false, thd);
+				nullptr, table, skip_mdl, thd);
 		}
 	}
 
-	if (table == nullptr) {
+	if (table && table->is_corrupted()
+	    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
+		mutex_enter(&dict_sys->mutex);
+		table->release();
+		dict_table_remove_from_cache(table);
+		table = NULL;
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	if (table == nullptr && mdl) {
 		dd_mdl_release(thd, mdl);
 	}
 
@@ -8666,8 +8726,6 @@ dd_table_close(
 	THD*		thd,
 	MDL_ticket**	mdl)
 {
-	ut_ad(!table->is_intrinsic());
-
 	dict_table_close(table, false, false);
 
 	const bool is_temp = table->is_temporary();
@@ -17078,16 +17136,13 @@ ha_innobase::delete_table(
 	bool	file_per_table = false;
 	bool	tmp_table = false;
 	{
-        	dict_table_t* tab = dict_table_open_on_name(
-			norm_name, FALSE, FALSE,
-			static_cast<dict_err_ignore_t>(
-				DICT_ERR_IGNORE_INDEX_ROOT
-				| DICT_ERR_IGNORE_CORRUPT));
+        	dict_table_t* tab = dd_table_open_on_name(
+			thd, NULL, norm_name, DICT_ERR_IGNORE_CORRUPT);
 
 		if (tab != NULL) {
 			file_per_table = dict_table_is_file_per_table(tab);
 			tmp_table = tab->is_temporary();
-			dict_table_close(tab, FALSE, FALSE);
+			dd_table_close(tab, thd, NULL);
 		}
 	}
 

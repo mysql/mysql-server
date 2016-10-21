@@ -6468,6 +6468,16 @@ dict_close(void)
 	/* Acquire only because it's a pre-condition. */
 	mutex_enter(&dict_sys->mutex);
 
+	if (dict_sys->table_stats) {
+		dict_table_close(dict_sys->table_stats, true, false);
+	}
+	if (dict_sys->index_stats) {
+		dict_table_close(dict_sys->index_stats, true, false);
+	}
+	if (dict_sys->table_metadata) {
+		dict_table_close(dict_sys->table_metadata, true, false);
+	}
+
 	/* Free the hash elements. We don't remove them from the table
 	because we are going to destroy the table anyway. */
 	for (ulint i = 0; i < hash_get_n_cells(dict_sys->table_id_hash); i++) {

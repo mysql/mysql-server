@@ -1837,12 +1837,6 @@ files_checked:
 
 	fil_open_log_and_system_tablespace_files();
 
-	/* Initialize objects used by dict stats gathering thread, which
-	can also be used by recovery if it tries to drop some table */
-	if (!srv_read_only_mode) {
-		dict_stats_thread_init();
-	}
-
 	if (create_new_db) {
 		ut_a(!srv_read_only_mode);
 
@@ -2375,10 +2369,10 @@ srv_start_threads()
 	/* Create the buffer pool dump/load thread */
 	os_thread_create(buf_dump_thread_key, buf_dump_thread);
 
+	dict_stats_thread_init();
 
 	/* Create the dict stats gathering thread */
 	os_thread_create(dict_stats_thread_key, dict_stats_thread);
-
 
 	/* Create the thread that will optimize the FTS sub-system. */
 	fts_optimize_init();

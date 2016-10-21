@@ -27,6 +27,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "trx0trx.h"
 #include "btr0sea.h"
+#include "dict0dd.h"
 #include "lock0lock.h"
 #include "log0log.h"
 #include "os0proc.h"
@@ -785,9 +786,9 @@ trx_resurrect_locks()
 
 		for (table_id_set::const_iterator i = tables.begin();
 		     i != tables.end(); i++) {
-			if (dict_table_t* table = dict_table_open_on_id(
-				    *i, FALSE,
-				    DICT_TABLE_OP_LOAD_TABLESPACE)) {
+			dict_table_t* table = dd_table_open_on_id(
+				*i, NULL, NULL);
+			if (table) {
 				ut_ad(!table->is_temporary());
 
 				if (table->ibd_file_missing

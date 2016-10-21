@@ -22,7 +22,10 @@ Data dictionary interface */
 #ifndef dict0dd_h
 #define dict0dd_h
 
+#include "univ.i"
+#include "dict0dict.h"
 #include "dict0types.h"
+#include "dict0mem.h"
 #include <dd/properties.h>
 
 class THD;
@@ -156,6 +159,18 @@ dict_table_t*
 dd_table_open_on_name(
 	THD*			thd,
 	MDL_ticket**		mdl,
-	const char*		name);
+	const char*		name,
+	dict_err_ignore_t	ignore_err);
+
+/** Returns a table object based on table id.
+@param[in]	table_id	table id
+@param[in]	dict_locked	TRUE=data dictionary locked
+@param[in]	table_op	operation to perform
+@return table, NULL if does not exist */
+dict_table_t*
+dd_table_open_on_id_in_mem(
+	table_id_t	table_id,
+	ibool		dict_locked,
+	dict_table_op_t	table_op);
 
 #endif

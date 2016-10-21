@@ -51,6 +51,7 @@ SET(INNOBASE_SOURCES
 	dict/dict0boot.cc
 	dict/dict0crea.cc
 	dict/dict0dict.cc
+	dict/dict0dd.cc
 	dict/dict0load.cc
 	dict/dict0mem.cc
 	dict/dict0stats.cc

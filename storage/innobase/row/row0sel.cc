@@ -6096,25 +6096,25 @@ func_exit:
 	goto loop;
 }
 
-/*******************************************************************//**
-Checks if MySQL at the moment is allowed for this table to retrieve a
+/** Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.
+@param[in]	thd	thread that is trying to access the query cache
+@param[in]	trx	transaction object
+@param[in]	norm_name concatenation of database name, '/' char, table name
 @return TRUE if storing or retrieving from the query cache is permitted */
 ibool
 row_search_check_if_query_cache_permitted(
-/*======================================*/
-	trx_t*		trx,		/*!< in: transaction object */
-	const char*	norm_name)	/*!< in: concatenation of database name,
-					'/' char, table name */
+	THD*		thd,
+	trx_t*		trx,
+	const char*	norm_name)
 {
 	dict_table_t*	table;
 	ibool		ret	= FALSE;
+	MDL_ticket*	mdl	= nullptr;
 
-	table = dict_table_open_on_name(
-		norm_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+	table = dd_table_open_on_name(thd, &mdl, norm_name, DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
-
 		return(FALSE);
 	}
 
@@ -6150,7 +6150,7 @@ row_search_check_if_query_cache_permitted(
 		}
 	}
 
-	dict_table_close(table, FALSE, FALSE);
+	dd_table_close(table, thd, &mdl);
 
 	return(ret);
 }

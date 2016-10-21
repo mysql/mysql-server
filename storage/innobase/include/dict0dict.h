@@ -1444,6 +1444,13 @@ struct dict_sys_t{
 	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
 	dict_table_t*	sys_virtual;	/*!< SYS_VIRTUAL table */
 
+	/** Permanent handle to mysql.innodb_table_stats */
+	dict_table_t*	table_stats;
+	/** Permanent handle to mysql.innodb_index_stats */
+	dict_table_t*	index_stats;
+	/** Permanent handle to mysql.innodb_table_metadata */
+	dict_table_t*	table_metadata;
+
 	/*=============================*/
 	UT_LIST_BASE_NODE_T(dict_table_t)
 			table_LRU;	/*!< List of tables that can be evicted

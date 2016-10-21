@@ -229,10 +229,14 @@ bool Dictionary_impl::is_dd_table_access_allowed(
     access. We also allow access if the appropriate debug flag
     is set.
   */
+   /* FIX_ME: NewDD: re-enable this check when mysql-trunk-meta-sync pushes
+   to mysql-trunk to mysql-trunk-wl7743-wip-3 */
+#if 0
   if (schema_length != MYSQL_SCHEMA_NAME.length ||
       strncmp(schema_name, MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length) ||
       is_dd_internal_thread ||
       DBUG_EVALUATE_IF("skip_dd_table_access_check", true, false))
+#endif
     return true;
 
   // Now we need to get the table type.

@@ -27,6 +27,7 @@ Created 2/25/1997 Heikki Tuuri
 #include "dict0dict.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
+#include "dict0dd.h"
 #include "trx0undo.h"
 #include "trx0roll.h"
 #include "btr0btr.h"
@@ -347,12 +348,21 @@ row_undo_ins_parse_undo_rec(
 	node->rec_type = type;
 
 	node->update = NULL;
-	node->table = dict_table_open_on_id(
+
+	node->table = dd_table_open_on_id_in_mem(
 		table_id, dict_locked, DICT_TABLE_OP_NORMAL);
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
-	if (UNIV_UNLIKELY(node->table == NULL)) {
-	} else if (UNIV_UNLIKELY(node->table->ibd_file_missing)) {
+	if (node->table == NULL) {
+		/* Rollback should always be protected by a table
+		lock.  Tables cannot be evicted, dropped or rebuilt
+		while locks exist. However, DROP TEMPORARY TABLE is
+		allowed in the middle of a transaction, and on client
+		disconnect, temporary tables will be dropped before
+		the transaction is rolled back. */
+		ut_ad(trx_sys_is_noredo_rseg_slot(
+			(node->roll_ptr >> 48) & 0x7F));
+	} else if (node->table->ibd_file_missing) {
 close_table:
 		dict_table_close(node->table, dict_locked, FALSE);
 		node->table = NULL;
