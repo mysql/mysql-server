@@ -739,13 +739,13 @@ protected:
   const uchar *sbeg_dup; /* Backup of beginning of input string */
 
 protected:
-  inline int next_implicit() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next_implicit());
   uint16 *contraction_find(my_wc_t *wc);
   uint16 *previous_context_find(my_wc_t wc0, my_wc_t wc1);
 
   // FIXME: Should these just be a specialization in uca_scanner_900?
   void my_put_jamo_weights(my_wc_t *hangul_jamo, int jamo_cnt);
-  inline int next_implicit_900() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next_implicit_900());
 };
 
 /*
@@ -764,7 +764,7 @@ struct uca_scanner_any : public my_uca_scanner
       : my_uca_scanner(cs, level, str, length, max_char_toscan),
         mb_wc(mb_wc) {}
 
-  inline int next() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next());
 
 private:
   const Mb_wc mb_wc;
@@ -782,13 +782,13 @@ public:
       : my_uca_scanner(cs, level, str, length, max_char_toscan),
         mb_wc(mb_wc) {}
 
-  inline int next() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next());
 
 private:
   const Mb_wc mb_wc;
 
-  inline int next_raw() MY_ATTRIBUTE((always_inline));
-  inline int next_raw_single_level() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next_raw());
+  ALWAYS_INLINE(int next_raw_single_level());
   inline int more_weight();
   uint16 apply_case_first(uint16 weight);
 };

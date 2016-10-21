@@ -47,10 +47,10 @@
 
 #define IS_CONTINUATION_BYTE(c) (((c) ^ 0x80) < 0x40)
 
-static inline int my_mb_wc_utf8(my_wc_t *pwc, const uchar *s, const uchar *e)
-  MY_ATTRIBUTE((always_inline));
-static inline int my_mb_wc_utf8mb4(my_wc_t *pwc, const uchar *s, const uchar *e)
-  MY_ATTRIBUTE((always_inline));
+static ALWAYS_INLINE(
+  int my_mb_wc_utf8(my_wc_t *pwc, const uchar *s, const uchar *e));
+static ALWAYS_INLINE(
+  int my_mb_wc_utf8mb4(my_wc_t *pwc, const uchar *s, const uchar *e));
 
 /**
   Functor that converts a UTF-8 multibyte sequence (up to three bytes)
@@ -60,8 +60,8 @@ struct Mb_wc_utf8
 {
   Mb_wc_utf8() {}
 
-  inline int operator() (my_wc_t *pwc, const uchar *s, const uchar *e) const
-    MY_ATTRIBUTE((always_inline))
+  ALWAYS_INLINE(
+    int operator() (my_wc_t *pwc, const uchar *s, const uchar *e) const)
   {
     return my_mb_wc_utf8(pwc, s, e);
   }
@@ -75,8 +75,8 @@ struct Mb_wc_utf8mb4
 {
   Mb_wc_utf8mb4() {}
 
-  inline int operator() (my_wc_t *pwc, const uchar *s, const uchar *e) const
-    MY_ATTRIBUTE((always_inline))
+  ALWAYS_INLINE(
+    int operator() (my_wc_t *pwc, const uchar *s, const uchar *e) const)
   {
     return my_mb_wc_utf8mb4(pwc, s, e);
   }
