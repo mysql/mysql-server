@@ -528,7 +528,9 @@ Summary:        Web-based graphical configuration installer for MySQL Cluster
 Group:          Applications/Databases
 Requires:       %{name}-server%{?_isa} = %{version}-%{release}
 Requires:       python-paramiko
-Requires:       python2-crypto
+%{?el5:Requires:  python-crypto}
+%{?el6:Requires:  python-crypto}
+%{?el7:Requires:  python2-crypto}
 %description    auto-installer
 This package contains the MySQL Cluster web-based graphical
 configuration installer, which can be used to set up and start or stop
