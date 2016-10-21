@@ -1697,11 +1697,6 @@ SELECT 1 FROM t WHERE rtrim(a & 0x111111);
 ERROR HY000: Binary operands of bitwise operators must be of equal length
 SELECT (SELECT a & 0xff FROM t);
 ERROR HY000: Binary operands of bitwise operators must be of equal length
-SELECT des_decrypt(a & NULL) FROM t;
-des_decrypt(a & NULL)
-NULL
-Warnings:
-Warning	1287	'DES_DECRYPT' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 SELECT bit_count(a & NULL) FROM t;
 bit_count(a & NULL)
 NULL

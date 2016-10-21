@@ -1005,7 +1005,6 @@ SELECT 1 FROM t WHERE rtrim(a & 0x111111);
 --error ER_INVALID_BITWISE_OPERANDS_SIZE
 SELECT (SELECT a & 0xff FROM t);
 
-SELECT des_decrypt(a & NULL) FROM t;
 SELECT bit_count(a & NULL) FROM t;
 SELECT 1 FROM t WHERE ~reverse(a & NULL);
 SELECT 1 FROM t WHERE insert(a & NULL,'','','');
