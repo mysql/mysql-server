@@ -7374,10 +7374,10 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
       supporting atomic DDL. And for engines which can't do atomic DDL in
       either case there are scenarios in which DD and SE get out of sync.
     */
-    if (dd::rename_table<dd::Table>(thd, from_sch, from_table_def.get(),
-                                    to_sch, to_table_def.get(),
-                                    (flags & FN_TO_IS_TMP),
-                                    !(flags & NO_DD_COMMIT)))
+    if (dd::rename_table(thd, from_sch, from_table_def.get(),
+                         to_sch, to_table_def.get(),
+                         (flags & FN_TO_IS_TMP),
+                         !(flags & NO_DD_COMMIT)))
     {
       /*
         WL7743/TODO: What should we do for SEs supporting atomic DDL?

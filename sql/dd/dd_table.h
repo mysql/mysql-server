@@ -16,6 +16,7 @@
 #ifndef DD_TABLE_INCLUDED
 #define DD_TABLE_INCLUDED
 
+#include <memory>                    // std:unique_ptr
 #include <sys/types.h>
 #include <string>
 
@@ -28,7 +29,6 @@
 #include "system_variables.h"
 #include "table.h"                   // ST_FIELD_INFO
 
-#include <memory>                    // std:unique_ptr
 
 class Create_field;
 class FOREIGN_KEY;
@@ -70,9 +70,13 @@ static const char FIELD_NAME_SEPARATOR_CHAR = ';';
   @param fk_keyinfo     Array with descriptions of foreign keys for the table.
   @param fk_keys        Number of foreign keys.
   @param file           handler instance for the table.
+  @param commit_dd_changes  Indicates whether changes to DD need to be
+                            committed.
+  @param store_sdi      Indicates whether SDI needs to be stored for the
+                        table.
 
-  @retval 0 on success.
-  @retval 1 on failure.
+  @returns Uncached dd::Table object for table created (nullptr in
+           case of failure).
 */
 std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
                              const dd::String_type &schema_name,
@@ -108,6 +112,10 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
                             necessary).
   @param store_sdi          Indicates whether we need to store SDI for
                             table being created.
+  @param commit_dd_changes  Indicates whether changes to DD need to be
+                            committed.
+  @param store_sdi      Indicates whether SDI needs to be stored for the
+                        table.
 
   @returns Uncached dd::Table object for table created (nullptr in
            case of failure).
@@ -180,13 +188,36 @@ bool add_foreign_keys_and_triggers(THD *thd,
 // Function common to 'table' and 'view' objects
 //////////////////////////////////////////////////////////////////////////
 
-/* Remove table metadata from dd.tables */
+/*
+  Remove table metadata from the data dictionary.
+
+  @param thd                Thread context.
+  @param schema_name        Schema of the table to be removed.
+  @param table_name         Name of the table to be removed.
+  @param commit_dd_changes  Indicates whether change needs to be committed.
+
+  @retval false on success
+  @retval true on failure
+*/
 template <typename T>
 bool drop_table(THD *thd,
                 const char *schema_name,
                 const char *table_name,
                 bool commit_dd_changes);
 
+/*
+  Remove table metadata from the data dictionary.
+
+  @param thd                Thread context.
+  @param schema_name        Schema of the table to be removed.
+  @param name               Name of the table to be removed.
+  @param table_def          dd::Table object for the table to be removed.
+  @param commit_dd_changes  Indicates whether change needs to be committed.
+  @param uncached           Indicates whether dd::Table object is cached.
+
+  @retval false on success
+  @retval true on failure
+*/
 template <typename T>
 bool drop_table(THD *thd, const char *schema_name, const char *name,
                 const T *table_def, bool commit_dd_changes, bool uncached);
@@ -223,7 +254,7 @@ bool table_exists(dd::cache::Dictionary_client *client,
                   bool *exists);
 
 /**
-  Rename a table or view in dd.tables.
+  Rename a table or view in the data-dictionary.
 
   @param  thd                  The dictionary client.
   @param  from_schema_name     Schema of table/view to rename.
@@ -231,6 +262,8 @@ bool table_exists(dd::cache::Dictionary_client *client,
   @param  to_schema_name       New schema name.
   @param  to_name              New table/view name.
   @param  mark_as_hidden       Mark the new table as hidden, if true.
+  @param  commit_dd_changes    Indicates whether change to the data
+                               dictionary needs to be committed.
 
   @retval      true         Failure (error has been reported).
   @retval      false        Success.
@@ -244,7 +277,21 @@ bool rename_table(THD *thd,
                   bool mark_as_hidden,
                   bool commit_dd_changes);
 
-template <typename T>
+/**
+  Rename a table in the data-dictionary.
+
+  @param  thd                  The dictionary client.
+  @param  from_sch             dd::Schema for table before rename.
+  @param  from_table_def       dd::Table for table before rename.
+  @param  to_sch               dd::Schema for table after rename.
+  @param  to_table_def         dd::Table for table after rename.
+  @param  mark_as_hidden       Mark the new table as hidden, if true.
+  @param  commit_dd_changes    Indicates whether change to the data
+                               dictionary needs to be committed.
+
+  @retval      true         Failure (error has been reported).
+  @retval      false        Success.
+*/
 bool rename_table(THD *thd,
                   const dd::Schema *from_sch, const dd::Table *from_table_def,
                   const dd::Schema *to_sch, dd::Table *to_table_def,
@@ -298,10 +345,7 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
                           enum legacy_db_type *db_type);
 
 /**
-  Get the storage engine handlerton for the given table. If the
-  table object contains a valid (i.e., not dynamically assigned)
-  legacy_db_type as one of the options, use it to get hold of the
-  handlerton. Otherwise, use the engine name directly.
+  Get the storage engine handlerton for the given table.
 
   This function sets explicit error codes if:
   - The table is not found: ER_NO_SUCH_TABLE
@@ -317,11 +361,26 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
                               valid engine specified. In this case, the
                               value of hton is undefined.
   @retval     false           Success
- */
+*/
 bool table_storage_engine(THD *thd, const TABLE_LIST *table_list,
                           handlerton **hton);
 
 
+/**
+  Get the storage engine handlerton for the given table.
+
+  This function sets explicit error codes if:
+  - The SE is invalid:      ER_STORAGE_ENGINE_NOT_LOADED
+
+  @param[in]  thd             Thread context
+  @param[in]  schema_name     Database of the table.
+  @param[in]  table_name      Name of the table.
+  @param[in]  table           dd::Table object describing the table.
+  @param[out] hton            Handlerton for the table's storage engine
+
+  @retval     true            Error
+  @retval     false           Success
+*/
 bool table_storage_engine(THD *thd, const char *schema_name,
                           const char *table_name, const dd::Table *table,
                           handlerton **hton);
@@ -385,6 +444,8 @@ std::unique_ptr<T> acquire_uncached_uncommitted_table(THD *thd,
   @param[in]    schema_name Name of the schema
   @param[in]    table_name  Name of the table
   @param[in]    keys_onoff  Wheather keys are enabled or disabled.
+  @param[in]    commit_dd_changes   Indicates whether change to the data
+                                    dictionary needs to be committed.
 
   @retval       false       Success
   @retval       true        Error
@@ -454,6 +515,8 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type);
   @param[in]    from_name        Name of the table
   @param[in]    to_schema_name   Name of the schema
   @param[in]    to_name          Name of the table
+  @param[in]    commit_dd_changes   Indicates whether change to the data
+                                    dictionary needs to be committed.
 
   Triggers from from_schema_name.from_table_name will be moved
   into to_schema_name.to_table_name. And the transaction will be

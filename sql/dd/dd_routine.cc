@@ -492,12 +492,17 @@ enum_sp_return_code remove_routine(THD *thd, const Routine *routine,
 {
   DBUG_ENTER("dd::remove_routine");
 
+  Disable_gtid_state_update_guard disabler(thd);
+
   // Drop routine.
   if(thd->dd_client()->drop(routine))
   {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
     DBUG_RETURN(SP_DROP_FAILED);
   }
 

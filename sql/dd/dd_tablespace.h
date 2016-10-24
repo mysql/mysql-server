@@ -16,11 +16,12 @@
 #ifndef DD_TABLESPACE_INCLUDED
 #define DD_TABLESPACE_INCLUDED
 
+#include <memory>                    // unique_ptr
+
 #include "lock.h"                    // Tablespace_hash_set
 #include "my_alloc.h"
 #include "my_global.h"
 
-#include <memory>                    // unique_ptr
 
 class THD;
 class st_alter_tablespace;

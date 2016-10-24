@@ -129,13 +129,6 @@ template bool dd::rename_table<dd::View>(THD *thd,
                                       const char *to_name,
                                       bool mark_as_hidden,
                                       bool commit_dd_changes);
-template bool dd::rename_table<dd::Table>(THD *thd,
-                                          const dd::Schema *from_sch,
-                                          const dd::Table *from_table_def,
-                                          const dd::Schema *to_sch,
-                                          dd::Table *to_table_def,
-                                          bool mark_as_hidden,
-                                          bool commit_dd_changes);
 
 template std::unique_ptr<dd::Abstract_table>
 dd::acquire_uncached_uncommitted_table<dd::Abstract_table>(THD *thd,
@@ -2153,6 +2146,12 @@ static bool fill_dd_table_from_create_info(THD *thd,
                               create_info->options & HA_LEX_CREATE_TMP_TABLE))
     return true;
 
+  /*
+    Add hidden columns and indexes which are implicitly created by storage
+    engine for the table. This needs to be done before handling partitions
+    since we want to create proper dd::Index_partition objects for such
+    indexes.
+  */
   if (file->get_extra_columns_and_keys(create_info, &create_fields,
                                        keyinfo, keys, tab_obj))
     return true;
@@ -2400,6 +2399,10 @@ bool add_foreign_keys_and_triggers(THD *thd,
               (trg_info != nullptr && !trg_info->empty()));
 
 
+  /*
+    Use READ UNCOMMITTED so this function can be used in the context of
+    atomic ALTER TABLE.
+  */
   if (!(table= acquire_uncached_uncommitted_table<dd::Table>(thd,
                  schema_name.c_str(), table_name.c_str())))
     DBUG_RETURN(true);
@@ -2412,7 +2415,15 @@ bool add_foreign_keys_and_triggers(THD *thd,
     table->move_triggers(trg_info);
 
   if (thd->dd_client()->update_uncached_and_invalidate(table.get()))
+  {
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
     DBUG_RETURN(true);
+  }
 
   Disable_gtid_state_update_guard disabler(thd);
 
@@ -2685,12 +2696,10 @@ bool rename_table(THD *thd,
 }
 
 
-template <typename T>
 bool rename_table(THD *thd,
                   const dd::Schema *from_sch, const dd::Table *from_table_def,
                   const dd::Schema *to_sch, dd::Table *to_table_def,
-                  bool mark_as_hidden,
-                  bool commit_dd_changes)
+                  bool mark_as_hidden, bool commit_dd_changes)
 {
   Disable_gtid_state_update_guard disabler(thd);
 
