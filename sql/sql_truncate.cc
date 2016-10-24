@@ -20,7 +20,10 @@
 
 #include "auth_acls.h"
 #include "auth_common.h"    // DROP_ACL
+#include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 #include "dd/dd_table.h"    // dd::recreate_table
+#include "dd/dd_schema.h"   // dd::Schema_MDL_locker
+#include "dd/sdi.h"         // dd::store_sdi
 #include "dd/types/abstract_table.h" // dd::enum_table_type
 #include "dd/types/table.h" // dd::Table
 #include "debug_sync.h"     // DEBUG_SYNC
@@ -50,14 +53,8 @@
 #include "system_variables.h"
 #include "table.h"          // TABLE, FOREIGN_KEY_INFO
 #include "thr_lock.h"
-#include "transaction_info.h"
-
-#include "dd/dd.h"
-#include "dd/dictionary.h"
-#include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
-#include "dd/dd_schema.h"   // dd::Schema_MDL_locker
-#include "dd/sdi.h"         // dd::store_sdi
 #include "transaction.h"    // trans_commit_stmt()
+#include "transaction_info.h"
 
 
 /**
@@ -517,6 +514,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   bool binlog_stmt;
   bool binlog_is_trans;
   handlerton *hton= nullptr;
+  bool is_temporary;
   DBUG_ENTER("Sql_cmd_truncate_table::truncate_table");
 
   DBUG_ASSERT((!table_ref->table) ||
@@ -526,7 +524,9 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   m_ticket_downgrade= NULL;
 
   /* If it is a temporary table, no need to take locks. */
-  if (is_temporary_table(table_ref))
+  is_temporary= is_temporary_table(table_ref);
+
+  if (is_temporary)
   {
     TABLE *tmp_table= table_ref->table;
 
@@ -647,7 +647,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   if (error)
     trans_rollback_stmt(thd);
 
-  if (!is_temporary_table(table_ref) &&
+  if (!is_temporary &&
       (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       hton->post_ddl)
     hton->post_ddl(thd);

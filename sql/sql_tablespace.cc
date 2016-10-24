@@ -18,6 +18,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "dd/cache/dictionary_client.h"         // dd::Dictionary_client
 #include "dd/dd_tablespace.h"                   // dd::create_tablespace
 #include "derror.h"                             // ER_THD
 #include "handler.h"
@@ -36,9 +37,6 @@
 #include "sql_table.h"                          // write_bin_log
 #include "table.h"                              // ident_name_check
 #include "transaction.h"                        // trans_commit_stmt
-
-#include "dd/cache/dictionary_client.h"         // dd::Dictionary_client
-#include "dd/types/tablespace_file.h"           // dd::Tablespace_file
 
 
 Ident_name_check check_tablespace_name(const char *tablespace_name)

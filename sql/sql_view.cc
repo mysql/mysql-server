@@ -2104,10 +2104,10 @@ bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
   @param thd        Thread context.
   @param new_db     New database into which
                     view should be moved.
-  @param new_name   New name of view,
+  @param new_name   New name of view.
   @param view       View to rename.
   @param do_commit  Commit transaction after
-                    updating data-dictionary.
+                    updating the data-dictionary.
 
   @return False - success, true - error.
 */
