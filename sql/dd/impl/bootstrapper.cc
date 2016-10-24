@@ -30,6 +30,7 @@
 #include "dd/dd_table.h"                      // dd::get_sql_type_by_field_info
 #include "dd/dd_upgrade.h"                    // dd::migrate_event_to_dd
 #include "dd/impl/cache/shared_dictionary_cache.h"// Shared_dictionary_cache
+#include "dd/impl/cache/storage_adapter.h"    // Storage_adapter
 #include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
 #include "dd/impl/system_registry.h"          // dd::System_tables
 #include "dd/impl/tables/character_sets.h"    // dd::tables::Character_sets
@@ -322,6 +323,9 @@ bool DDSE_dict_init(THD *thd,
                     uint version)
 {
   handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+
+  // The lists with element wrappers are mem root allocated. The wrapped
+  // instances are owned by the DDSE.
   List<const Plugin_table> plugin_tables;
   List<const Plugin_tablespace> plugin_tablespaces;
   if (ddse->dict_init == nullptr ||
@@ -345,54 +349,31 @@ bool DDSE_dict_init(THD *thd,
             table->get_table_options(),
             Dictionary_impl::get_target_dd_version());
     System_tables::instance()->add(MYSQL_SCHEMA_NAME.str, table->get_name(),
-                                   System_tables::Types::DDSE, plugin_table);
+                                   System_tables::Types::SUPPORT, plugin_table);
   }
 
   /*
-    Iterate over the tablespace definitions, add the names to the
-    System_tablespaces registry. Create dd::Tablespace objects and
-    add them to the shared dd cache. The tablespaces are already created
-    physically in the DDSE, so we only need to create the corresponding
-    meta data.
+    Iterate over the tablespace definitions, add the names and the
+    tablespace meta data to the System_tablespaces registry. The
+    meta data will be used later to create dd::Tablespace objects.
+    The Plugin_tablespace instances are owned by the DDSE.
   */
   List_iterator<const Plugin_tablespace> tablespace_it(plugin_tablespaces);
   const Plugin_tablespace *tablespace= nullptr;
   while ((tablespace= tablespace_it++))
   {
-    // Add the name to the registry with the appropriate property.
+    // Add the name and the object instance to the registry with the
+    // appropriate property.
     if (my_strcasecmp(system_charset_info, MYSQL_TABLESPACE_NAME.str,
                       tablespace->get_name()) == 0)
       System_tablespaces::instance()->add(tablespace->get_name(),
-                                          System_tablespaces::DD);
+                                          System_tablespaces::Types::DD,
+                                          tablespace);
     else
       System_tablespaces::instance()->add(tablespace->get_name(),
-                                          System_tablespaces::PREDEFINED_DDSE);
-
-    // Create the dd::Tablespace object.
-    Tablespace *space= dd::create_object<Tablespace>();
-    space->set_name(tablespace->get_name());
-    space->set_options_raw(tablespace->get_options());
-    space->set_se_private_data_raw(tablespace->get_se_private_data());
-    space->set_engine(tablespace->get_engine());
-
-    // Loop over the tablespace files, create dd::Tablespace_file objects.
-    List <const Plugin_tablespace::Plugin_tablespace_file> files=
-      tablespace->get_files();
-    List_iterator<const Plugin_tablespace::Plugin_tablespace_file>
-      file_it(files);
-    const Plugin_tablespace::Plugin_tablespace_file *file= NULL;
-    while ((file= file_it++))
-    {
-      Tablespace_file *space_file= space->add_file();
-      space_file->set_filename(file->get_name());
-      space_file->set_se_private_data_raw(file->get_se_private_data());
-    }
-
-    // Add to the shared cache with a temporary id, and make it sticky.
-    thd->dd_client()->add_and_reset_id(space);
-    thd->dd_client()->set_sticky(space, true);
+                            System_tablespaces::Types::PREDEFINED_DDSE,
+                            tablespace);
   }
-  bootstrap_stage= bootstrap::BOOTSTRAP_PREPARED;
 
   return false;
 }
@@ -417,6 +398,46 @@ bool DDSE_dict_recover(THD *thd,
     return end_transaction(thd, error);
 
   return error;
+}
+
+
+// Create meta data of the predefined tablespaces.
+void create_predefined_tablespaces(THD *thd)
+{
+  /*
+    Create dd::Tablespace objects and store them (which will add their meta
+    data to the storage adapter registry of DD entities). The tablespaces
+    are already created physically in the DDSE, so we only need to create
+    the corresponding meta data.
+  */
+  for (System_tablespaces::Const_iterator it=
+         System_tablespaces::instance()->begin();
+       it != System_tablespaces::instance()->end(); ++it)
+  {
+    const Plugin_tablespace *tablespace_def= (*it)->entity();
+
+    // Create the dd::Tablespace object.
+    std::unique_ptr<Tablespace> tablespace(dd::create_object<Tablespace>());
+    tablespace->set_name(tablespace_def->get_name());
+    tablespace->set_options_raw(tablespace_def->get_options());
+    tablespace->set_se_private_data_raw(tablespace_def->get_se_private_data());
+    tablespace->set_engine(tablespace_def->get_engine());
+
+    // Loop over the tablespace files, create dd::Tablespace_file objects.
+    List <const Plugin_tablespace::Plugin_tablespace_file> files=
+      tablespace_def->get_files();
+    List_iterator<const Plugin_tablespace::Plugin_tablespace_file>
+      file_it(files);
+    const Plugin_tablespace::Plugin_tablespace_file *file= NULL;
+    while ((file= file_it++))
+    {
+      Tablespace_file *space_file= tablespace->add_file();
+      space_file->set_filename(file->get_name());
+      space_file->set_se_private_data_raw(file->get_se_private_data());
+    }
+    thd->dd_client()->store(tablespace.get());
+  }
+  bootstrap_stage= bootstrap::BOOTSTRAP_PREPARED;
 }
 
 
@@ -521,12 +542,13 @@ bool create_tables(THD *thd, bool is_dd_upgrade,
       Check for innodb stats table by string comparision as other plugins might
       create dictionary tables.
     */
-    bool is_stats_table= (table_type != nullptr) &&
-                         (*table_type != System_tables::Types::CORE);
-    is_stats_table &= (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
-                      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
+    bool is_innodb_stats_table= (table_type != nullptr) &&
+                                (*table_type == System_tables::Types::SUPPORT);
+    is_innodb_stats_table &=
+      (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
+      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
 
-    if (is_dd_upgrade && is_stats_table)
+    if (is_dd_upgrade && is_innodb_stats_table)
     {
       if (execute_query(thd, stats_table_def(table_name)))
         return true;
@@ -596,116 +618,163 @@ bool acquire_exclusive_mdl(THD *thd)
 
 
 /*
-  Store the temporarily saved meta data into the DD tables. This must be
-  done in several steps to keep the DD table meta data consistent with the
-  ID of the system schema and tablespace. Consistency is necessary
-  throughout this process because the DD tables are opened when writing
-  or reading the meta data.
+  Acquire the DD schema, tablespace and table objects. Clone the objects,
+  reset ID, store persistently, and update the storage adapter.
 */
-bool store_meta_data(THD *thd)
+bool flush_meta_data(THD *thd)
 {
   // Acquire exclusive meta data locks for the relevant DD objects.
   if (acquire_exclusive_mdl(thd))
     return true;
 
-  // Acquire the system schema and tablespace.
-  const Schema *sys_schema= nullptr;
-  const Tablespace *sys_tspace= nullptr;
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
-                                &sys_schema) ||
-      thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
-                                &sys_tspace))
-    return end_transaction(thd, true);
-
-  // Expected IDs after creating the scaffolding.
-  DBUG_ASSERT(sys_schema != nullptr && sys_schema->id() == 1);
-  DBUG_ASSERT(sys_tspace == nullptr || sys_tspace->id() == 1);
-
-  /*
-    Update the system schema object. This will store it and update the in
-    memory copy.
-  */
-  std::unique_ptr<Schema_impl> sys_chema_clone(
-          dynamic_cast<Schema_impl*>(sys_schema->clone()));
-  sys_chema_clone->set_id(INVALID_OBJECT_ID);
-  if (thd->dd_client()->update(&sys_schema,
-                               static_cast<Schema*>(sys_chema_clone.get())))
-     return end_transaction(thd, true);
-
-  // Make sure the ID after storing is as expected.
-  DBUG_ASSERT(sys_schema != nullptr && sys_schema->id() == 1);
-
-  /*
-    Update the system tablespace object. This will store it and update the in
-    memory copy.
-  */
-  if (sys_tspace != nullptr)
   {
-    std::unique_ptr<Tablespace_impl> sys_tspace_clone(
-            dynamic_cast<Tablespace_impl*>(sys_tspace->clone()));
-    sys_tspace_clone->set_id(INVALID_OBJECT_ID);
-    if (thd->dd_client()->update(&sys_tspace,
-                       static_cast<Tablespace*>(sys_tspace_clone.get())))
-       return end_transaction(thd, true);
+    /*
+      Use a scoped auto releaser to make sure the cached objects are released
+      before the shared cache is reset.
+    */
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+    // Acquire the DD schema and tablespace.
+    const Schema *dd_schema= nullptr;
+    const Tablespace *dd_tspace= nullptr;
+    if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
+                                  &dd_schema) ||
+        thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
+                                  &dd_tspace))
+      return end_transaction(thd, true);
+
+    // Acquire the DD table objects.
+    for (System_tables::Const_iterator it= System_tables::instance()->begin();
+         it != System_tables::instance()->end(); ++it)
+    {
+      const dd::Table *dd_table= nullptr;
+      if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
+                                    (*it)->entity()->name(), &dd_table))
+        return end_transaction(thd, true);
+    }
+
+    /*
+      We have now populated the shared cache with the core objects. The
+      scoped auto releaser makes sure we will not evict the objects from
+      the shared cache until the auto releaser exits scope. Thus, within
+      the scope of the auto releaser, we can modify the contents of the
+      core registry in the storage adapter without risking that this will
+      interfere with the contents of the shared cache, because the DD
+      transactions will acquire the core objects from the shared cache.
+    */
+
+    /*
+      Modify and store the DD schema without changing the cached copy.
+      Cannot use acquire_for_modification() here, because that would
+      make the DD sub-transactions (e.g. when calling store()) see a
+      partially modified set of core objects, where e.g. the mysql
+      schema object has got its new, real id (from the auto-inc column
+      in the dd.schemata table), whereas the core DD table objects still
+      refer to the id that was allocated when creating the scaffolding.
+      This comment also applies to the modification of tablespaces
+      and tables.
+    */
+    std::unique_ptr<Schema_impl> dd_schema_clone(
+      dynamic_cast<Schema_impl*>(dd_schema->clone()));
+
+    // We must set the ID to INVALID to enable storing the object.
+    dd_schema_clone->set_id(INVALID_OBJECT_ID);
+    if (thd->dd_client()->store(static_cast<Schema*>(dd_schema_clone.get())))
+      return end_transaction(thd, true);
+
+    // Make sure the registry of the core DD objects is updated.
+    dd::cache::Storage_adapter::instance()->core_drop(thd, dd_schema);
+    dd::cache::Storage_adapter::instance()->core_store(thd,
+      static_cast<Schema*>(dd_schema_clone.get()));
 
     // Make sure the ID after storing is as expected.
-    DBUG_ASSERT(sys_tspace->id() == 1);
+    DBUG_ASSERT(dd_schema_clone->id() == 1);
+
+    // Update and store the DD tablespace without changing the cached copy.
+    std::unique_ptr<Tablespace_impl> dd_tspace_clone(nullptr);
+    if (dd_tspace != nullptr)
+    {
+      dd_tspace_clone.reset(
+        dynamic_cast<Tablespace_impl*>(dd_tspace->clone()));
+
+      // We must set the ID to INVALID to enable storing the object.
+      dd_tspace_clone->set_id(INVALID_OBJECT_ID);
+      if (thd->dd_client()->store(
+            static_cast<Tablespace*>(dd_tspace_clone.get())))
+        return end_transaction(thd, true);
+
+      // Make sure the registry of the core DD objects is updated.
+      dd::cache::Storage_adapter::instance()->core_drop(thd, dd_tspace);
+      dd::cache::Storage_adapter::instance()->core_store(thd,
+            static_cast<Tablespace*>(dd_tspace_clone.get()));
+
+      // Make sure the ID after storing is as expected.
+      DBUG_ASSERT(dd_tspace_clone->id() == 1);
+    }
+
+    // Update and store the DD table objects without changing the cached copy.
+    for (System_tables::Const_iterator it= System_tables::instance()->begin();
+         it != System_tables::instance()->end(); ++it)
+    {
+      const dd::Table *dd_table= nullptr;
+      if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
+                                    (*it)->entity()->name(), &dd_table))
+        return end_transaction(thd, true);
+
+      std::unique_ptr<Table_impl> dd_table_clone(
+              dynamic_cast<Table_impl*>(dd_table->clone()));
+
+      // We must set the ID to INVALID to enable storing the object.
+      dd_table_clone->set_id(INVALID_OBJECT_ID);
+
+      // Change the schema and tablespace id to match the ids of the
+      // persisted objects.
+      dd_table_clone->set_schema_id(dd_schema_clone->id());
+      if (dd_tspace != nullptr)
+        dd_table_clone->set_tablespace_id(dd_tspace_clone->id());
+      if (thd->dd_client()->store(static_cast<Table*>(dd_table_clone.get())))
+        return end_transaction(thd, true);
+
+      // No need to keep non-core dd tables in the core registry.
+      (void) dd::cache::Storage_adapter::instance()->core_drop(thd, dd_table);
+      // Make sure the registry of the core DD objects is updated.
+      if ((*it)->property() == System_tables::Types::CORE)
+          dd::cache::Storage_adapter::instance()->core_store(thd,
+            static_cast<Table*>(dd_table_clone.get()));
+    }
+
+    // Update and store the predefined tablespace objects. The DD tablespace
+    // has already been stored above, so we iterate only over the tablespaces
+    // of type PREDEFINED_DDSE.
+    for (System_tablespaces::Const_iterator it=
+           System_tablespaces::instance()->begin(
+             System_tablespaces::Types::PREDEFINED_DDSE);
+         it != System_tablespaces::instance()->end();
+         it= System_tablespaces::instance()->next(it,
+               System_tablespaces::Types::PREDEFINED_DDSE))
+    {
+      const dd::Tablespace *tspace= nullptr;
+      if (thd->dd_client()->acquire((*it)->key().second, &tspace))
+        return end_transaction(thd, true);
+
+      std::unique_ptr<Tablespace_impl> tspace_clone(
+              dynamic_cast<Tablespace_impl*>(tspace->clone()));
+
+      // We must set the ID to INVALID to enable storing the object.
+      tspace_clone->set_id(INVALID_OBJECT_ID);
+      if (thd->dd_client()->store(static_cast<Tablespace*>(tspace_clone.get())))
+        return end_transaction(thd, true);
+
+      // Only the DD tablespace is needed to handle cache misses, so we can
+      // just drop the predefined tablespaces from the core registry now that
+      // it has been persisted.
+      (void) dd::cache::Storage_adapter::instance()->core_drop(thd, tspace);
+    }
   }
 
-  /*
-    Then, we can store the table objects. This is done by setting the ID to
-    INVALID and doing an update. This will both store the object persistently
-    and update the cached object.
-  */
-  for (System_tables::Const_iterator it= System_tables::instance()->begin();
-       it != System_tables::instance()->end(); ++it)
-  {
-    const dd::Table *sys_table= nullptr;
-    if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
-                                  (*it)->entity()->name(), &sys_table))
-      return end_transaction(thd, true);
-
-    DBUG_ASSERT(sys_table->schema_id() == sys_schema->id());
-    DBUG_ASSERT(sys_tspace == nullptr ||
-                sys_table->tablespace_id() == sys_tspace->id());
-
-    std::unique_ptr<Table_impl> sys_table_clone(
-            dynamic_cast<Table_impl*>(sys_table->clone()));
-#ifndef DBUG_OFF
-    Object_id old_id= sys_table->id();
-#endif
-    // We must set the ID to INVALID to enable storing the object.
-    sys_table_clone->set_id(INVALID_OBJECT_ID);
-    if (thd->dd_client()->update(&sys_table,
-                                 static_cast<Table*>(sys_table_clone.get())))
-      return end_transaction(thd, true);
-
-    DBUG_ASSERT(old_id == sys_table->id());
-  }
-
-  /*
-    Acquire and store the predefined system tablespaces. The DD tablespace
-    has already been stored above, so we iterate only over the tablespaces
-    with property PREDEFINED_DDSE.
-  */
-  for (System_tablespaces::Const_iterator it= System_tablespaces::instance()->begin(
-         System_tablespaces::PREDEFINED_DDSE);
-       it != System_tablespaces::instance()->end();
-       it= System_tablespaces::instance()->next(it,
-             System_tablespaces::PREDEFINED_DDSE))
-  {
-    const dd::Tablespace *tspace= nullptr;
-    if (thd->dd_client()->acquire((*it)->key().second, &tspace))
-      return end_transaction(thd, true);
-
-    std::unique_ptr<Tablespace_impl> tspace_clone(
-            dynamic_cast<Tablespace_impl*>(tspace->clone()));
-    tspace_clone->set_id(INVALID_OBJECT_ID);
-    if (thd->dd_client()->update(&tspace,
-                             static_cast<Tablespace*>(tspace_clone.get())))
-       return end_transaction(thd, true);
-  }
+  // Now, the auto releaser has released the objects, and we can go ahead and
+  // reset the shared cache.
+  dd::cache::Shared_dictionary_cache::instance()->reset(true);
   bootstrap_stage= bootstrap::BOOTSTRAP_SYNCED;
 
   return end_transaction(thd, false);
@@ -713,141 +782,108 @@ bool store_meta_data(THD *thd)
 
 
 /*
-  Sync up the preliminary meta data with the DD tables. This must be
-  done in several steps to keep the DD table meta data consistent.
-  Consistency is necessary throughout this process because the DD tables
-  are opened when reading the meta data.
+  Acquire the DD schema, tablespace and table objects. Read the "real"
+  objects from the DD tables, and replace the contents of the core
+  registry in the storage adapter.
 */
-bool read_meta_data(THD *thd)
+bool sync_meta_data(THD *thd)
 {
   // Acquire exclusive meta data locks for the relevant DD objects.
   if (acquire_exclusive_mdl(thd))
     return true;
-
-  // Acquire the system schema and tablespace.
-  const Schema *sys_schema= nullptr;
-  const Tablespace *sys_tspace= nullptr;
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
-                                &sys_schema) ||
-      thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
-                                &sys_tspace))
-    return end_transaction(thd, true);
-
-  // Expected IDs after creating the scaffolding.
-  DBUG_ASSERT(sys_schema != nullptr && sys_schema->id() == 1);
-  DBUG_ASSERT(sys_tspace == nullptr || sys_tspace->id() == 1);
-
-  /*
-    Acquire all the DD objects into a vector. We must update the schema id
-    for all objects in one step without acquisition interleaved.
-  */
-  std::vector<const Table*> sys_tables;
-  for (System_tables::Const_iterator it= System_tables::instance()->begin();
-       it != System_tables::instance()->end(); ++it)
   {
-    const dd::Table *table= nullptr;
+    // Acquire the DD schema and tablespace.
+    const Schema *dd_schema= nullptr;
+    const Tablespace *dd_tspace= nullptr;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
-                                  (*it)->entity()->name(), &table))
-      return end_transaction(thd, true);
-    sys_tables.push_back(table);
-  }
-
-  // Read and update the system schema object from disk.
-  Schema *stored_sys_schema= nullptr;
-  if (thd->dd_client()->acquire_uncached(dd::String_type(MYSQL_SCHEMA_NAME.str),
-                                         &stored_sys_schema))
-    return end_transaction(thd, true);
-
-  DBUG_ASSERT(stored_sys_schema != nullptr);
-  if (thd->dd_client()->update(&sys_schema, stored_sys_schema, false))
-    return end_transaction(thd, true);
-
-  /*
-    We must update the schema id of the DD tables to be consistent with
-    the real schema id after the schema object was refreshed. We must also
-    rehash the objects since the schema id is part of the name key.
-  */
-  for (std::vector<const Table*>::iterator it= sys_tables.begin();
-       it != sys_tables.end(); ++it)
-  {
-    std::unique_ptr<Table> sys_table_clone((*it)->clone());
-    sys_table_clone->set_schema_id(sys_schema->id());
-    if (thd->dd_client()->update(&(*it), sys_table_clone.get(), false))
-      return end_transaction(thd, true);
-  }
-
-  // Read and update the system tablespace object from disk.
-  if (sys_tspace)
-  {
-    Tablespace *stored_sys_tspace= nullptr;
-    if (thd->dd_client()->acquire_uncached(dd::String_type(MYSQL_TABLESPACE_NAME.str),
-                                           &stored_sys_tspace))
+                                  &dd_schema) ||
+        thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
+                                  &dd_tspace))
       return end_transaction(thd, true);
 
-    DBUG_ASSERT(stored_sys_tspace != nullptr);
-    if (thd->dd_client()->update(&sys_tspace, stored_sys_tspace, false))
-      return end_transaction(thd, true);
+    // Acquire the DD table objects.
+    for (System_tables::Const_iterator it= System_tables::instance()->begin();
+         it != System_tables::instance()->end(); ++it)
+    {
+      const dd::Table *dd_table= nullptr;
+      if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
+                                    (*it)->entity()->name(), &dd_table))
+        return end_transaction(thd, true);
+    }
 
     /*
-      We must update the tablespace id of the DD tables to be consistent with
-      the real tablespace id after the tablespace object was refreshed.
+      We have now populated the shared cache with the core objects. The
+      scoped auto releaser makes sure we will not evict the objects from
+      the shared cache until the auto releaser exits scope. Thus, within
+      the scope of the auto releaser, we can modify the contents of the
+      core registry in the storage adapter without risking that this will
+      interfere with the contents of the shared cache, because the DD
+      transactions will acquire the core objects from the shared cache.
     */
-    for (std::vector<const Table*>::iterator it= sys_tables.begin();
-         it != sys_tables.end(); ++it)
+
+    // Sync the DD schema and tablespace.
+    Schema::name_key_type schema_key;
+    dd_schema->update_name_key(&schema_key);
+    if (dd::cache::Storage_adapter::instance()->core_sync(thd, schema_key,
+                                                          dd_schema))
+      return end_transaction(thd, true);
+
+    if (dd_tspace)
     {
-      std::unique_ptr<Table> sys_table_clone((*it)->clone());
-      sys_table_clone->set_tablespace_id(sys_tspace->id());
-      if (thd->dd_client()->update(&(*it), sys_table_clone.get(), false))
+      Tablespace::name_key_type tspace_key;
+      dd_tspace->update_name_key(&tspace_key);
+      if (dd::cache::Storage_adapter::instance()->core_sync(thd, tspace_key,
+                                                            dd_tspace))
         return end_transaction(thd, true);
+    }
+
+    // Get the synced DD schema object id. Needed for the DD table name keys.
+    Object_id dd_schema_id= cache::Storage_adapter::instance()->
+      core_get_id<Schema>(thd, schema_key);
+
+    // Sync the DD tables.
+    for (System_tables::Const_iterator it= System_tables::instance()->begin();
+         it != System_tables::instance()->end(); ++it)
+    {
+      Abstract_table::name_key_type table_key;
+      const dd::Table *dd_table= nullptr;
+      if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
+                                    (*it)->entity()->name(), &dd_table))
+        return end_transaction(thd, true);
+
+      Abstract_table::update_name_key(&table_key, dd_schema_id,
+                                      dd_table->name());
+      dd::cache::Storage_adapter::instance()->core_drop(thd, dd_table);
+      if ((*it)->property() == System_tables::Types::CORE)
+        if (dd::cache::Storage_adapter::instance()->core_sync(thd, table_key,
+                                                              dd_table))
+          return end_transaction(thd, true);
+    }
+
+    /*
+      The DD tablespace has already been refreshed above, so we iterate only
+      over the tablespaces with type PREDEFINED_DDSE. These can be dropped
+      from the storage adapter.
+    */
+    for (System_tablespaces::Const_iterator it=
+           System_tablespaces::instance()->begin(
+             System_tablespaces::Types::PREDEFINED_DDSE);
+         it != System_tablespaces::instance()->end();
+         it= System_tablespaces::instance()->next(it,
+               System_tablespaces::Types::PREDEFINED_DDSE))
+    {
+      const Tablespace *tspace= nullptr;
+      if (thd->dd_client()->acquire((*it)->entity()->get_name(), &tspace))
+        return end_transaction(thd, true);
+
+      dd::cache::Storage_adapter::instance()->core_drop(thd, tspace);
     }
   }
 
-  /*
-    At this point, the schema and tablespace objects in the shared cache
-    have been synchronized with the DD tables. Additionally, the schema
-    and tablespace ids in the DD table objects have been updated so the
-    cached DD table objects can be used to open the DD tables. The remaining
-    step is to refresh the DD table objects, so the cached objects become
-    synchronized with the persistent meta data.
-  */
-  for (std::vector<const Table*>::iterator it= sys_tables.begin();
-       it != sys_tables.end(); ++it)
-  {
-    Table *stored_sys_table= nullptr;
-    if (thd->dd_client()->acquire_uncached(MYSQL_SCHEMA_NAME.str,
-                                           (*it)->name(),
-                                           &stored_sys_table))
-      return end_transaction(thd, true);
-
-    DBUG_ASSERT(stored_sys_table != nullptr);
-    if (thd->dd_client()->update(&(*it), stored_sys_table, false))
-      return end_transaction(thd, true);
-  }
-
-  /*
-    Finally, acquire and refresh the predefined system tablespaces. The DD
-    tablespace has already been refreshed above, so we iterate only over the
-    tablespaces with property PREDEFINED_DDSE.
-  */
-  for (System_tablespaces::Const_iterator it= System_tablespaces::instance()->begin(
-         System_tablespaces::PREDEFINED_DDSE);
-       it != System_tablespaces::instance()->end();
-       it= System_tablespaces::instance()->next(it,
-             System_tablespaces::PREDEFINED_DDSE))
-  {
-    const Tablespace *tspace= nullptr;
-    Tablespace *stored_tspace= nullptr;
-
-    // Acquire from the cache (the scaffolding) and from the DD tables.
-    if (thd->dd_client()->acquire((*it)->key().second, &tspace) ||
-        thd->dd_client()->acquire_uncached((*it)->key().second,
-                                           &stored_tspace))
-      return end_transaction(thd, true);
-
-    if (thd->dd_client()->update(&tspace, stored_tspace, false))
-      return end_transaction(thd, true);
-  }
+  // Now, the auto releaser has released the objects, and we can go ahead and
+  // reset the shared cache.
+  dd::cache::Shared_dictionary_cache::instance()->reset(true);
   bootstrap_stage= bootstrap::BOOTSTRAP_SYNCED;
 
   // Commit and flush tables to force re-opening using the refreshed meta data.
@@ -919,9 +955,9 @@ bool add_cyclic_foreign_keys(THD *thd)
     }
     end_transaction(thd, false);
   }
-
   return false;
 }
+
 
 // Re-populate character sets and collations upon normal restart.
 bool repopulate_charsets_and_collations(THD *thd)
@@ -971,58 +1007,79 @@ bool repopulate_charsets_and_collations(THD *thd)
 
 
 /*
-  Verify that the individual dictionary tables as well as the schema
-  are sticky in the cache, to keep the objects from being evicted.
+  Verify that the storage adapter contains the core DD objects and
+  nothing else.
 */
-bool verify_objects_sticky(THD *thd)
+bool verify_core_objects_present(THD *thd)
 {
-  // Get the DD tables and verify that they are sticky.
-  for (System_tables::Const_iterator it= System_tables::instance()->begin();
-       it != System_tables::instance()->end(); ++it)
-  {
-    const Table *table= nullptr;
-    if (thd->dd_client()->acquire<Table>(MYSQL_SCHEMA_NAME.str,
-            (*it)->entity()->name(), &table))
-      return end_transaction(thd, true);
+  // Verify that the DD schema is present, and get its id.
+  Schema::name_key_type schema_key;
+  Schema::update_name_key(&schema_key, MYSQL_SCHEMA_NAME.str);
+  Object_id dd_schema_id= cache::Storage_adapter::instance()->
+    core_get_id<Schema>(thd, schema_key);
 
-    if (!table)
+  DBUG_ASSERT(dd_schema_id != INVALID_OBJECT_ID);
+  if (dd_schema_id == INVALID_OBJECT_ID)
+  {
+    sql_print_error("Unable to start server. The data dictionary schema "
+                    "'%s' does not exist.", MYSQL_SCHEMA_NAME.str);
+    return end_transaction(thd, true);
+  }
+  DBUG_ASSERT(cache::Storage_adapter::instance()->
+          core_size<Schema>() == 1);
+
+  // Verify that the core DD tables are present.
+#ifndef DBUG_OFF
+  size_t n_core_tables= 0;
+#endif
+  for (System_tables::Const_iterator it= System_tables::instance()->begin(
+         System_tables::Types::CORE);
+       it != System_tables::instance()->end();
+       it= System_tables::instance()->next(it,
+             System_tables::Types::CORE))
+  {
+#ifndef DBUG_OFF
+    n_core_tables++;
+#endif
+    Table::name_key_type table_key;
+    Table::update_name_key(&table_key, dd_schema_id,
+                           (*it)->entity()->name());
+    Object_id dd_table_id= cache::Storage_adapter::instance()->
+      core_get_id<Table>(thd, table_key);
+
+    DBUG_ASSERT(dd_table_id != INVALID_OBJECT_ID);
+    if (dd_table_id == INVALID_OBJECT_ID)
     {
-      my_error(ER_BAD_TABLE_ERROR, MYF(0), (*it)->entity()->name().c_str());
+      sql_print_error("Unable to start server. The data dictionary table "
+                      "'%s' does not exist.", (*it)->entity()->name().c_str());
       return end_transaction(thd, true);
     }
-    DBUG_ASSERT(thd->dd_client()->is_sticky(table));
-    if (!thd->dd_client()->is_sticky(table))
-      return end_transaction(thd, true);
   }
+  DBUG_ASSERT(cache::Storage_adapter::instance()->
+          core_size<Abstract_table>() == n_core_tables);
 
-  // Get the system schema and verify that it is sticky.
-  const Schema *sys_schema= nullptr;
-  if (thd->dd_client()->acquire<Schema>(MYSQL_SCHEMA_NAME.str,
-                                        &sys_schema))
-    return end_transaction(thd, true);
+  // Verify that the system tablespace is present.
+  Tablespace::name_key_type tspace_key;
+  Tablespace::update_name_key(&tspace_key, MYSQL_TABLESPACE_NAME.str);
+  Object_id dd_tspace_id= cache::Storage_adapter::instance()->
+    core_get_id<Tablespace>(thd, tspace_key);
 
-  if (!sys_schema)
+  /*
+    TODO: No DD tablespace yet. Enable verification later when InnoDB
+    worklogs are pushed.
+
+  DBUG_ASSERT(dd_tspace_id != INVALID_OBJECT_ID);
+  if (dd_tspace_id == INVALID_OBJECT_ID)
   {
-    my_error(ER_BAD_DB_ERROR, MYF(0), sys_schema->name().c_str());
+    sql_print_error("Unable to start server. The data dictionary tablespace "
+                    "'%s' does not exist.", MYSQL_TABLESPACE_NAME.str);
     return end_transaction(thd, true);
   }
-  DBUG_ASSERT(thd->dd_client()->is_sticky(sys_schema));
-  if (!thd->dd_client()->is_sticky(sys_schema))
-    return end_transaction(thd, true);
+  */
 
-  // Get the predefined tablespaces and verify that they are sticky.
-  for (System_tablespaces::Const_iterator it= System_tablespaces::instance()->begin();
-       it != System_tablespaces::instance()->end(); ++it)
-  {
-    const dd::Tablespace *tablespace= nullptr;
-    if (thd->dd_client()->acquire((*it)->key().second, &tablespace))
-      return end_transaction(thd, true);
+  DBUG_ASSERT(cache::Storage_adapter::instance()->
+          core_size<Tablespace>() == (dd_tspace_id != INVALID_OBJECT_ID));
 
-    DBUG_ASSERT(tablespace);
-    DBUG_ASSERT(thd->dd_client()->is_sticky(tablespace));
-    if (!thd->dd_client()->is_sticky(tablespace))
-      return end_transaction(thd, true);
-  }
   bootstrap_stage= bootstrap::BOOTSTRAP_FINISHED;
 
   return end_transaction(thd, false);
@@ -1045,19 +1102,20 @@ static bool initialize_dictionary(THD *thd, bool is_dd_upgrade,
                                   Dictionary_impl *d,
                                   System_tables::Const_iterator *last_table)
 {
+  create_predefined_tablespaces(thd);
   if (create_dd_schema(thd) ||
       create_tables(thd, is_dd_upgrade, last_table) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_INITIALIZE_SERVER,
                         d->get_target_dd_version()) ||
       execute_query(thd, "SET FOREIGN_KEY_CHECKS= 0") ||
-      store_meta_data(thd) ||
+      flush_meta_data(thd) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_INITIALIZE_TABLESPACES,
                         d->get_target_dd_version()) ||
       populate_tables(thd) ||
       add_cyclic_foreign_keys(thd) ||
       store_server_I_S_table_meta_data(thd) ||
       execute_query(thd, "SET FOREIGN_KEY_CHECKS= 1") ||
-      verify_objects_sticky(thd))
+      verify_core_objects_present(thd))
     return true;
   return false;
 }
@@ -1119,11 +1177,11 @@ bool restart(THD *thd)
 
   if (create_dd_schema(thd) ||
       create_tables(thd, false, nullptr) ||
-      read_meta_data(thd) ||
+      sync_meta_data(thd) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_RESTART_SERVER,
                         d->get_actual_dd_version(thd)) ||
       repopulate_charsets_and_collations(thd) ||
-      verify_objects_sticky(thd))
+      verify_core_objects_present(thd))
     return true;
 
   sql_print_information("Found data dictionary with version %d",
@@ -1259,6 +1317,7 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
 
   Key_length_error_handler key_error_handler;
 
+  create_predefined_tablespaces(thd);
   // This will create dd::Schema object for mysql schema
   if (create_dd_schema(thd))
     return true;
@@ -1309,7 +1368,7 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
         Delete dd::Schema and dd::Table objects from DD Cache to proceed for
         normal server startup.
       */
-      dd::cache::Shared_dictionary_cache::instance()->reset_schema_cache();
+      dd::cache::Shared_dictionary_cache::instance()->reset(false);
       opt_initialize= false;
       /*
         Ignore ER_TOO_LONG_KEY for dictionary tables during restart.
@@ -1347,7 +1406,7 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   dd_upgrade_flag= true;
 
   // Delete dd::Table objects from DD Cache to proceed for upgrade.
-  dd::cache::Shared_dictionary_cache::instance()->reset_schema_cache();
+  dd::cache::Shared_dictionary_cache::instance()->reset(false);
 
   if (check_for_dd_tables())
   {
@@ -1531,11 +1590,11 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
 
   DBUG_ASSERT(d->get_target_dd_version() == d->get_actual_dd_version(thd));
 
-  if (read_meta_data(thd) ||
+  if (sync_meta_data(thd) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_RESTART_SERVER,
                         d->get_actual_dd_version(thd)) ||
       repopulate_charsets_and_collations(thd) ||
-      verify_objects_sticky(thd))
+      verify_core_objects_present(thd))
   {
     delete_dictionary_and_cleanup(thd);
     return true;

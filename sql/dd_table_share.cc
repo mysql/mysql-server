@@ -2253,10 +2253,6 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
 
   if (!table_def)
   {
-    // No special handling needed for system tables like timezones, help etc.
-    // because their meta data objects are sticky in the cache. Previously,
-    // these objects had to be retrieved from a separate registry.
-
     // Make sure the schema exists.
     bool exists= false;
     if (dd::schema_exists(thd, share->db.str, &exists))

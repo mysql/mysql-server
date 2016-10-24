@@ -156,6 +156,7 @@ public:
 
   void erase();
 
+
   /**
     Get the number of elements in the map.
 

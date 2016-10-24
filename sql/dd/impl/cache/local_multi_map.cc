@@ -91,6 +91,7 @@ void Local_multi_map<T>::remove(Cache_element<T> *element)
 }
 
 
+// Remove and delete all elements and objects from the map.
 template <typename T>
 void Local_multi_map<T>::erase()
 {
@@ -105,7 +106,7 @@ void Local_multi_map<T>::erase()
     Cache_element<T> *element= it->second;
     ++it;
 
-    // Remove the element from the map.
+    // Remove the element from the multi map, delete the wrapped object.
     remove(element);
     delete element->object();
     delete element;

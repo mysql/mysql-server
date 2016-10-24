@@ -6142,13 +6142,13 @@ bool mysql_create_table_no_lock(THD *thd,
     found, we create it inside SE on later steps.
   */
 
-  bool is_stats_table= (!strcmp(db, "mysql")) &&
-                       ((!(strcmp(table_name, "innodb_table_stats")) ||
-                        !(strcmp(table_name, "innodb_index_stats"))));
+  bool is_innodb_stats_table= (!strcmp(db, "mysql")) &&
+    ((!(strcmp(table_name, "innodb_table_stats")) ||
+     !(strcmp(table_name, "innodb_index_stats"))));
 
   bool no_ha_table= false;
   if ((!opt_initialize || dd_upgrade_skip_se ||
-      (dd_upgrade_flag && is_stats_table)) &&
+      (dd_upgrade_flag && is_innodb_stats_table)) &&
       dd::get_dictionary()->is_dd_table_name(db, table_name))
     no_ha_table= true;
 
@@ -10805,27 +10805,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     /* Mark that we have created table in storage engine. */
     no_ha_table= false;
-
-    // Retain stickiness if non-tmp table.
-    if (!table->s->tmp_table)
-    {
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-      const dd::Table *src= nullptr;
-      const dd::Table *dst= nullptr;
-      if (thd->dd_client()->acquire(alter_ctx.db, alter_ctx.table_name, &src) ||
-          thd->dd_client()->acquire(alter_ctx.new_db, alter_ctx.tmp_name, &dst))
-      {
-        DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
-        goto err_new_table_cleanup;
-      }
-
-      // Tables must be present in cache.
-      DBUG_ASSERT(src != nullptr && dst != nullptr);
-
-      // Set stickiness as appropriate.
-      if (thd->dd_client()->is_sticky(src))
-        thd->dd_client()->set_sticky(dst, true);
-    }
 
     if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     {

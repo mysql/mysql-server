@@ -2133,12 +2133,13 @@ static bool create_dd_system_table(THD *thd,
   }
 
   // Create dd::Table object.
-  dd::Table *tab_obj= const_cast<dd::Schema *>(system_schema)->create_table(thd);
+  std::unique_ptr<dd::Table> tab_obj(const_cast<dd::Schema *>(system_schema)->
+    create_table(thd));
 
   // Set to be hidden if appropriate.
   tab_obj->set_hidden(dd_table.hidden());
 
-  if (fill_dd_table_from_create_info(thd, tab_obj, table_name,
+  if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
                                      keyinfo, keys, Alter_info::ENABLE,
                                      fk_keyinfo, fk_keys, file))
@@ -2159,17 +2160,11 @@ static bool create_dd_system_table(THD *thd,
   */
   if (!dd_upgrade_skip_se)
   {
-    if (file->ha_get_se_private_data(tab_obj,
+    if (file->ha_get_se_private_data(tab_obj.get(),
                                      dd_table.default_dd_version(thd)))
       return true;
   }
-
-  // Reset id if we are creating version DD table.
-  bool reset_id= (strcmp(table_name.c_str(), "version") == 0);
-
-  // "Store" the object in the shared cache, and make it sticky.
-  thd->dd_client()->add_and_reset_id(tab_obj, reset_id);
-  thd->dd_client()->set_sticky(tab_obj, true);
+  thd->dd_client()->store(tab_obj.get());
 
   return false;
 }
@@ -2494,15 +2489,9 @@ bool rename_table(THD *thd,
 
   Disable_gtid_state_update_guard disabler(thd);
 
-  // If 'to_tab' exists (which it may not), get the 'to' table stickiness.
-  // Set it unsticky to allow dropping it.
-  bool is_sticky= false;
+  // If 'to_tab' exists (which it may not), drop it.
   if (to_tab)
   {
-    is_sticky= thd->dd_client()->is_sticky(to_tab);
-    if (is_sticky)
-      thd->dd_client()->set_sticky(to_tab, false);
-
     if (thd->dd_client()->drop(to_tab))
     {
       // Error is reported by the dictionary subsystem.
@@ -2512,11 +2501,6 @@ bool rename_table(THD *thd,
       return true;
     }
   }
-
-  // Preserve stickiness by setting 'from_tab' to sticky if 'to_tab'
-  // was sticky, and update the changes.
-  if (is_sticky)
-    thd->dd_client()->set_sticky(from_tab, true);
 
   // Set schema id and table name.
   new_tab->set_schema_id(to_sch->id());

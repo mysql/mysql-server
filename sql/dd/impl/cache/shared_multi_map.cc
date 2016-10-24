@@ -39,9 +39,8 @@ Cache_element<T> *Shared_multi_map<T>::use_if_present(const K &key)
   // Use the element if present.
   if (e)
   {
-    // Remove the element from the free list, unless it is sticky,
-    // in which case it will not be in the free list at all.
-    if (e->usage() == 0 && !e->sticky())
+    // Remove the element from the free list.
+    if (e->usage() == 0)
       m_free_list.remove(e);
 
     // Mark the element as being used, and return it.
@@ -66,7 +65,6 @@ void Shared_multi_map<T>::remove(Cache_element<T> *element,
   // The element must be present, and its usage must be 1 (this thread).
   DBUG_ASSERT(e == element);
   DBUG_ASSERT(e->usage() == 1);
-  DBUG_ASSERT(!e->sticky());
 
   // Get all keys that were created within the element.
   const typename T::id_key_type *id_key= element->id_key();
@@ -117,23 +115,11 @@ void Shared_multi_map<T>::rectify_free_list(Autolocker *lock)
 }
 
 
-//  Helper function to evict all unused and sticky elements.
+// Helper function to evict all unused elements.
 template <typename T>
 void Shared_multi_map<T>::evict_all_unused(Autolocker *lock)
 {
   mysql_mutex_assert_owner(&m_lock);
-  // Iterate over the reverse map, make objects unsticky and add to free list.
-  for (typename Multi_map_base<T>::Iterator it=
-         m_map<const T*>()->begin();
-      it != m_map<const T*>()->end(); it++)
-    if (it->second->sticky())
-    {
-      it->second->set_sticky(false);
-      if (it->second->usage() == 0)
-        m_free_list.add_last(it->second);
-    }
-
-  // Evict all objects from the free list.
   while (m_free_list.length())
   {
     Cache_element<T> *e= m_free_list.get_lru();
@@ -358,8 +344,8 @@ void Shared_multi_map<T>::release(Cache_element<T> *element)
   // Release the element.
   element->release();
 
-  // If the element is not used, and not sticky, add it to the free list.
-  if (element->usage() == 0 && !element->sticky())
+  // If the element is not used, add it to the free list.
+  if (element->usage() == 0)
   {
     m_free_list.add_last(element);
     rectify_free_list(&lock);
@@ -372,10 +358,6 @@ template <typename T>
 void Shared_multi_map<T>::drop(Cache_element<T> *element)
 {
   Autolocker lock(this);
-
-  // If the element is sticky, remove stickiness.
-  if (element->sticky())
-    element->set_sticky(false);
   remove(element, &lock);
 }
 
@@ -410,27 +392,6 @@ void Shared_multi_map<T>::replace(Cache_element<T> *element, const T* object)
 
   // Add the element again, now with the newly generated keys.
   Multi_map_base<T>::add_single_element(element);
-}
-
-
-// Alter stickiness of an element.
-template <typename T>
-void Shared_multi_map<T>::set_sticky(Cache_element<T> *element, bool sticky)
-{
-  Autolocker lock(this);
-
-#ifndef DBUG_OFF
-  // The object must be present, and its usage must be 1 (this thread).
-  Cache_element<T> *e= NULL;
-  m_map<const T*>()->get(element->object(), &e);
-  DBUG_ASSERT(e == element);
-  DBUG_ASSERT(e->usage() == 1);
-  DBUG_ASSERT(e->sticky() == !sticky);
-#endif
-
-  element->set_sticky(sticky);
-  // Here, we know the usage is > 0, so we do not need to consider
-  // adding the element to the free list.
 }
 
 

@@ -68,21 +68,6 @@ bool create_schema(THD *thd, const char *schema_name,
 
   Disable_gtid_state_update_guard disabler(thd);
 
-  // If this is the dd schema, "store" it temporarily in the shared cache.
-  if (get_dictionary()->is_dd_schema_name(schema_name))
-  {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-    // Always reset id to 1 if we are creating DD schema from bootstrap thread
-    bool reset_id= thd->is_dd_system_thread();
-
-    thd->dd_client()->add_and_reset_id(sch_obj, reset_id);
-    thd->dd_client()->set_sticky(sch_obj, true);
-    // Note that the object is now owned by the shared cache, so we cannot
-    // delete it here.
-    return false;
-  }
-
   // Wrap the pointer in a unique_ptr to ease memory management.
   std::unique_ptr<dd::Schema> wrapped_sch_obj(sch_obj);
 

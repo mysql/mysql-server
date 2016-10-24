@@ -272,7 +272,7 @@ public:
     Get the number of objects of a given type in the registry.
 
     @tparam  T        Dictionary object type.
-    @return  Number of objects..
+    @return  Number of objects.
   */
 
   template <typename T>

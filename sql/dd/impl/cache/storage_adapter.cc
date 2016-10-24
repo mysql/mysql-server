@@ -46,39 +46,74 @@
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"
+#include "mutex_lock.h"                       // Mutex_lock
 #include "sql_class.h"                        // THD
 
 namespace dd {
 namespace cache {
 
-#ifndef DBUG_OFF
-
-Storage_adapter* Storage_adapter::fake_instance()
+Storage_adapter* Storage_adapter::instance()
 {
-  static Storage_adapter s_fake_storage;
-  return &s_fake_storage;
+  static Storage_adapter s_instance;
+  return &s_instance;
 }
+
 
 bool Storage_adapter::s_use_fake_storage= false;
 
-template <>
-bool Storage_adapter::fake_get
-                (THD *, const Table_stat::name_key_type &k, const Table_stat **o)
-{ return false; }
 
-template <>
-bool Storage_adapter::fake_get
-                (THD *, const Index_stat::name_key_type &k, const Index_stat **o)
-{ return false; }
+// Generate a new object id for a registry partition.
+template <typename T>
+Object_id Storage_adapter::next_oid()
+{
+  static Object_id next_oid= FIRST_OID;
+  return next_oid++;
+}
 
-template <>
-bool Storage_adapter::fake_drop(THD *thd, const Table_stat *object)
-{ return false; }
 
-template <>
-bool Storage_adapter::fake_drop(THD *thd, const Index_stat *object)
-{ return false; }
-#endif
+// Get the number of core objects in a registry partition.
+template <typename T>
+size_t Storage_adapter::core_size()
+{
+  Mutex_lock lock(&m_lock);
+  return m_core_registry.size<typename T::cache_partition_type>();
+}
+
+
+// Get a dictionary object id from core storage.
+template <typename T>
+Object_id Storage_adapter::core_get_id(THD *thd,
+                                       const typename T::name_key_type &key)
+{
+  Cache_element<typename T::cache_partition_type> *element= nullptr;
+  Mutex_lock lock(&m_lock);
+  m_core_registry.get(key, &element);
+  if (element)
+  {
+    DBUG_ASSERT(element->object());
+    return element->object()->id();
+  }
+  return INVALID_OBJECT_ID;
+}
+
+
+// Get a dictionary object from core storage.
+template <typename K, typename T>
+void Storage_adapter::core_get(THD *thd, const K &key, const T **object)
+{
+  DBUG_ASSERT(object);
+  *object= nullptr;
+  Cache_element<typename T::cache_partition_type> *element= nullptr;
+  Mutex_lock lock(&m_lock);
+  m_core_registry.get(key, &element);
+  if (element)
+  {
+    // Must clone the object here, otherwise evicting the object from
+    // the shared cache will also make it vanish from the core storage.
+    *object= dynamic_cast<const T*>(element->object())->clone();
+  }
+}
+
 
 // Get a dictionary object from persistent storage.
 template <typename K, typename T>
@@ -87,17 +122,16 @@ bool Storage_adapter::get(THD *thd,
                           enum_tx_isolation isolation,
                           const T **object)
 {
-#ifndef DBUG_OFF
-  if (s_use_fake_storage)
-    return fake_instance()->fake_get(thd, key, object);
-#endif
-
   DBUG_ASSERT(object);
-  *object= NULL;
+  *object= nullptr;
+
+  instance()->core_get(thd, key, object);
+  if (*object || s_use_fake_storage)
+    return false;
 
   // We may have a cache miss while checking for existing tables during
   // server start. At this stage, the object will be considered not existing.
-  if (unlikely(bootstrap::stage() < bootstrap::BOOTSTRAP_CREATED))
+  if (bootstrap::stage() < bootstrap::BOOTSTRAP_CREATED)
     return false;
 
   // Start a DD transaction to get the object.
@@ -151,18 +185,48 @@ bool Storage_adapter::get(THD *thd,
 }
 
 
+// Drop a dictionary object from core storage.
+template <typename T>
+void Storage_adapter::core_drop(THD *thd, const T *object)
+{
+  DBUG_ASSERT(s_use_fake_storage || thd->is_dd_system_thread());
+  DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);
+  Cache_element<typename T::cache_partition_type> *element= nullptr;
+  Mutex_lock lock(&m_lock);
+
+  // For unit tests, drop based on id to simulate behavior of persistent tables.
+  // For storing core objects during bootstrap, drop based on names since id may
+  // differ between scaffolding objects and persisted objects.
+  if (s_use_fake_storage)
+  {
+    typename T::id_key_type key;
+    object->update_id_key(&key);
+    m_core_registry.get(key, &element);
+  }
+  else
+  {
+    typename T::name_key_type key;
+    object->update_name_key(&key);
+    m_core_registry.get(key, &element);
+  }
+  if (element)
+  {
+    m_core_registry.remove(element);
+    delete element->object();
+    delete element;
+  }
+}
+
+
 // Drop a dictionary object from persistent storage.
 template <typename T>
 bool Storage_adapter::drop(THD *thd, const T *object)
 {
-#ifndef DBUG_OFF
-  if (s_use_fake_storage)
-    return fake_instance()->fake_drop(thd, object);
-#endif
-
-  // This may not be called until dictionary initialization is done
-  // creating the DD tables.
-  DBUG_ASSERT(bootstrap::stage() >= bootstrap::BOOTSTRAP_CREATED);
+  if (s_use_fake_storage || bootstrap::stage() < bootstrap::BOOTSTRAP_CREATED)
+  {
+    instance()->core_drop(thd, object);
+    return false;
+  }
 
   if (object->impl()->validate())
   {
@@ -190,18 +254,43 @@ bool Storage_adapter::drop(THD *thd, const T *object)
 }
 
 
+// Store a dictionary object to core storage.
+template <typename T>
+void Storage_adapter::core_store(THD *thd, T *object)
+{
+  DBUG_ASSERT(s_use_fake_storage || thd->is_dd_system_thread());
+  DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);
+  Cache_element<typename T::cache_partition_type> *element=
+    new Cache_element<typename T::cache_partition_type>();
+
+  if (object->id() != INVALID_OBJECT_ID)
+  {
+    // For unit tests, drop old object (based on id) to simulate update.
+    if (s_use_fake_storage)
+      core_drop(thd, object);
+  }
+  else
+  {
+    dynamic_cast<dd::Entity_object_impl*>(object)->set_id(next_oid<T>());
+  }
+
+  // Need to clone since core registry takes ownership
+  element->set_object(object->clone());
+  element->recreate_keys();
+  Mutex_lock lock(&m_lock);
+  m_core_registry.put(element);
+}
+
+
 // Store a dictionary object to persistent storage.
 template <typename T>
 bool Storage_adapter::store(THD *thd, T *object)
 {
-#ifndef DBUG_OFF
-  if (s_use_fake_storage)
-    return fake_instance()->fake_store(thd, object);
-#endif
-
-  // This may not be called until dictionary initialization is done
-  // creating the DD tables.
-  DBUG_ASSERT(bootstrap::stage() >= bootstrap::BOOTSTRAP_CREATED);
+  if (s_use_fake_storage || bootstrap::stage() < bootstrap::BOOTSTRAP_CREATED)
+  {
+    instance()->core_store(thd, object);
+    return false;
+  }
 
   if (object->impl()->validate())
   {
@@ -209,7 +298,8 @@ bool Storage_adapter::store(THD *thd, T *object)
     return true;
   }
 
-  // Store the object into the dd tables. We need to switch transaction ctx to do this.
+  // Store the object into the dd tables. We need to switch transaction
+  // ctx to do this.
   Update_dictionary_tables_ctx ctx(thd);
   ctx.otx.register_tables<T>();
   DEBUG_SYNC(thd, "before_storing_dd_object");
@@ -220,11 +310,112 @@ bool Storage_adapter::store(THD *thd, T *object)
     return true;
   }
 
-  return sdi::store(thd, object);
+  if (bootstrap::stage() > bootstrap::BOOTSTRAP_CREATED &&
+      sdi::store(thd, object))
+    return true;
+
+  return false;
+}
+
+
+// Sync a dictionary object from persistent to core storage.
+template <typename T>
+bool Storage_adapter::core_sync(THD *thd,
+                                const typename T::name_key_type &key,
+                                const T *object)
+{
+  DBUG_ASSERT(thd->is_dd_system_thread());
+  DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);
+  core_drop(thd, object);
+  const typename T::cache_partition_type* new_obj= nullptr;
+
+  // Fetch the object from persistent tables. The object was dropped
+  // from the core registry above, so we know get() will fetch it
+  // from the tables.
+  bool ret= get(thd, key, ISO_READ_COMMITTED, &new_obj);
+
+  Cache_element<typename T::cache_partition_type> *element=
+    new Cache_element<typename T::cache_partition_type>();
+  element->set_object(new_obj);
+  element->recreate_keys();
+  Mutex_lock lock(&m_lock);
+  m_core_registry.put(element);
+  return ret;
+}
+
+
+// Remove and delete all elements and objects from core storage.
+void Storage_adapter::erase_all()
+{
+  Mutex_lock lock(&m_lock);
+  instance()->m_core_registry.erase_all();
+}
+
+
+// Dump the contents of the core storage.
+void Storage_adapter::dump()
+{
+#ifndef DBUG_OFF
+  Mutex_lock lock(&m_lock);
+  fprintf(stderr, "================================\n");
+  fprintf(stderr, "Storage adapter\n");
+  m_core_registry.dump<dd::Tablespace>();
+  m_core_registry.dump<dd::Schema>();
+  m_core_registry.dump<dd::Abstract_table>();
+  fprintf(stderr, "================================\n");
+#endif
 }
 
 
 // Explicitly instantiate the type for the various usages.
+template bool Storage_adapter::core_sync(THD *,
+                                         const Table::name_key_type &,
+                                         const Table*);
+template bool Storage_adapter::core_sync(THD *,
+                                         const Tablespace::name_key_type &,
+                                         const Tablespace*);
+template bool Storage_adapter::core_sync(THD *,
+                                         const Schema::name_key_type &,
+                                         const Schema*);
+
+template Object_id Storage_adapter::core_get_id<Table>(
+      THD *,
+      const Table::name_key_type &);
+template Object_id Storage_adapter::core_get_id<Schema>(
+      THD *,
+      const Schema::name_key_type &);
+template Object_id Storage_adapter::core_get_id<Tablespace>(
+      THD *,
+      const Tablespace::name_key_type &);
+
+template
+void Storage_adapter::core_get(THD*,
+       dd::Item_name_key const&, const dd::Schema**);
+template
+void Storage_adapter::core_get<dd::Item_name_key, dd::Abstract_table>(THD*,
+       dd::Item_name_key const&, const dd::Abstract_table**);
+template
+void Storage_adapter::core_get<dd::Global_name_key, dd::Tablespace>(THD*,
+       dd::Global_name_key const&, const dd::Tablespace**);
+
+template Object_id Storage_adapter::next_oid<Abstract_table>();
+template Object_id Storage_adapter::next_oid<Table>();
+template Object_id Storage_adapter::next_oid<View>();
+template Object_id Storage_adapter::next_oid<Charset>();
+template Object_id Storage_adapter::next_oid<Collation>();
+template Object_id Storage_adapter::next_oid<Event>();
+template Object_id Storage_adapter::next_oid<Routine>();
+template Object_id Storage_adapter::next_oid<Function>();
+template Object_id Storage_adapter::next_oid<Procedure>();
+template Object_id Storage_adapter::next_oid<Schema>();
+template Object_id Storage_adapter::next_oid<Spatial_reference_system>();
+template Object_id Storage_adapter::next_oid<Tablespace>();
+
+template size_t Storage_adapter::core_size<Abstract_table>();
+template size_t Storage_adapter::core_size<Table>();
+template size_t Storage_adapter::core_size<Schema>();
+template size_t Storage_adapter::core_size<Tablespace>();
+
 template bool Storage_adapter::get<Abstract_table::id_key_type,
                                 Abstract_table>
        (THD *, const Abstract_table::id_key_type &,
@@ -331,6 +522,40 @@ template bool Storage_adapter::get<Tablespace::aux_key_type, Tablespace>
         enum_tx_isolation, const Tablespace **);
 template bool Storage_adapter::drop(THD *, const Tablespace*);
 template bool Storage_adapter::store(THD *, Tablespace*);
+
+/*
+  DD objects dd::Table_stat and dd::Index_stat are not cached,
+  because these objects are only updated and never read by DD
+  API's. Information schema system views use these DD tables
+  to project table/index statistics. As these objects are
+  not in DD cache, it cannot make it to core storage.
+*/
+
+template <>
+void Storage_adapter::core_get(THD*, const Table_stat::name_key_type&,
+                               const Table_stat**)
+{ }
+
+template <>
+void Storage_adapter::core_get(THD*, const Index_stat::name_key_type&,
+                               const Index_stat**)
+{ }
+
+template <>
+void Storage_adapter::core_drop(THD*, const Table_stat*)
+{ }
+
+template <>
+void Storage_adapter::core_drop(THD*, const Index_stat*)
+{ }
+
+template <>
+void Storage_adapter::core_store(THD*, Table_stat*)
+{ }
+
+template <>
+void Storage_adapter::core_store(THD*, Index_stat*)
+{ }
 
 template bool Storage_adapter::get<Table_stat::name_key_type, Table_stat>
                 (THD *, const Table_stat::name_key_type &,

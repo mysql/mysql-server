@@ -893,11 +893,11 @@ void test_acquire_and_drop(CacheStorageTest *tst, THD *thd)
   EXPECT_FALSE(dc->drop(acquired));
 
   // Should not be possible to acquire
-  // Should ideally return FALSE, bug in the fake storage adapter?
-  EXPECT_TRUE(dc->acquire<Intrfc_type>(icreated->name(), &acquired));
-  thd->clear_error();
-  EXPECT_TRUE(dc->acquire_for_modification<Intrfc_type>(icreated->name(),
+  EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->name(), &acquired));
+  EXPECT_EQ(nullp<Intrfc_type>(), acquired);
+  EXPECT_FALSE(dc->acquire_for_modification<Intrfc_type>(icreated->name(),
                                                         &modified));
+  EXPECT_EQ(nullp<Intrfc_type>(), modified);
 }
 
 TEST_F(CacheStorageTest, AquireAndDropCharset)
@@ -946,13 +946,13 @@ void test_acquire_and_drop_with_schema(CacheStorageTest *tst, THD *thd)
   EXPECT_FALSE(dc->drop(acquired));
 
   // Should not be possible to acquire
-  // Should ideally return FALSE, bug in the fake storage adapter?
-  EXPECT_TRUE(dc->acquire(tst->mysql->name(), icreated->name(),
+  EXPECT_FALSE(dc->acquire(tst->mysql->name(), icreated->name(),
                           &acquired));
-  thd->clear_error();
-  EXPECT_TRUE(dc->acquire_for_modification(tst->mysql->name(),
+  EXPECT_EQ(nullp<Intrfc_type>(), acquired);
+  EXPECT_FALSE(dc->acquire_for_modification(tst->mysql->name(),
                                            icreated->name(),
                                            &modified));
+  EXPECT_EQ(nullp<Intrfc_type>(), modified);
 }
 
 TEST_F(CacheStorageTest, AcquireAndDropTable)
@@ -1053,9 +1053,11 @@ TEST_F(CacheStorageTest, TestRename)
     EXPECT_NE(nullp<const dd::Table>(), t);
     if (t)
     {
-      std::unique_ptr<dd::Table> temp_table(t->clone());
+      dd::Table *temp_table= nullptr;
+      EXPECT_FALSE(dc.acquire_for_modification(t->id(), &temp_table));
 
       temp_table->set_name("updated_table_name");
+      dc.object_renamed(temp_table);
 
       // Change name of columns and indexes
       for (const dd::Column *c : temp_table->columns())
@@ -1065,7 +1067,7 @@ TEST_F(CacheStorageTest, TestRename)
 
       // Store the object.
       lock_object(*temp_table);
-      dc.update(&t, temp_table.get());
+      dc.update(&t, temp_table);
 
       // Enable foreign key checks
       thd()->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
@@ -1076,17 +1078,17 @@ TEST_F(CacheStorageTest, TestRename)
       EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "updated_table_name",
                                          &temp_table));
       EXPECT_NE(nullp<const dd::Table>(), temp_table);
-      if (temp_table)
+      if (t)
       {
-        EXPECT_FALSE(dc.drop(temp_table));
+        EXPECT_FALSE(dc.drop(t));
       }
     }
     if (t)
     {
+      // The old name is not available anymnore.
       const dd::Table *t= NULL;
       EXPECT_FALSE(dc.acquire<dd::Table>(sch->name(), "temp_table", &t));
-      EXPECT_NE(nullp<const dd::Table>(), t);
-      EXPECT_FALSE(dc.drop(t));
+      EXPECT_EQ(nullp<const dd::Table>(), t);
     }
   }
 }
@@ -1382,7 +1384,7 @@ TEST_F(CacheStorageTest, TestCacheLookup)
 
   {
     dd::String_type sch_name, tab_name;
-    EXPECT_TRUE(dc.get_table_name_by_se_private_id("innodb",
+    EXPECT_FALSE(dc.get_table_name_by_se_private_id("innodb",
                                                    0XFFFA,
                                                    &sch_name,
                                                    &tab_name));

@@ -3565,12 +3565,13 @@ bool check_for_dd_tables()
     const System_tables::Types *table_type= System_tables::instance()->
       find_type(schema_name, table_name);
 
-    bool is_stats_table= (table_type != nullptr) &&
-                         (*table_type != System_tables::Types::CORE);
-    is_stats_table &= (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
-                      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
+    bool is_innodb_stats_table= (table_type != nullptr) &&
+                                (*table_type == System_tables::Types::SUPPORT);
+    is_innodb_stats_table &=
+      (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
+      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
 
-    if (is_stats_table)
+    if (is_innodb_stats_table)
       continue;
 
     char path[FN_REFLEN+1];
@@ -3613,12 +3614,13 @@ void drop_dd_tables_and_sdi_files(THD *thd,
     const System_tables::Types *table_type= System_tables::instance()->
       find_type(schema_name, table_name);
 
-    bool is_stats_table= (table_type != nullptr) &&
-                         (*table_type != System_tables::Types::CORE);
-    is_stats_table &= (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
-                      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
+    bool is_innodb_stats_table= (table_type != nullptr) &&
+                                (*table_type == System_tables::Types::SUPPORT);
+    is_innodb_stats_table &=
+      (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
+      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
 
-    if (is_stats_table)
+    if (is_innodb_stats_table)
       continue;
 
     String_type query;
