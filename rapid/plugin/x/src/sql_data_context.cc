@@ -193,55 +193,22 @@ void Sql_data_context::switch_to_local_user(const std::string &user)
 }
 
 
-ngs::Error_code Sql_data_context::query_user(const char *user, const char *host, const char *ip,
-                                             On_user_password_hash &hash_verification_cb,
-                                             ngs::IOptions_session_ptr &options_session, const ngs::Connection_type type)
-{
-  COM_DATA data;
-
-  User_verification_helper user_verification(hash_verification_cb, m_buffering_delegate.get_field_types(), ip, options_session, type);
-
-  ngs::PFS_string query = user_verification.get_sql(user, host);
-
-  data.com_query.query = (char*)query.c_str();
-  data.com_query.length = static_cast<unsigned int>(query.length());
-
-  log_debug("login query: %s", data.com_query.query);
-  if (command_service_run_command(m_mysql_session, COM_QUERY, &data, mysqld::get_charset_utf8mb4_general_ci(),
-                                  m_buffering_delegate.callbacks(), CS_TEXT_REPRESENTATION, &m_buffering_delegate))
-  {
-    return ngs::Error_code(ER_X_SERVICE_ERROR, "Error executing internal query");
-  }
-
-  ngs::Error_code error = m_buffering_delegate.get_error();
-  if (error)
-  {
-    log_debug("Error %i occurred while executing query: %s", error.error, error.message.c_str());
-    return error;
-  }
-
-  Buffering_command_delegate::Resultset &result_set = m_buffering_delegate.resultset();
-
-  try
-  {
-    if (result_set.end() == std::find_if(result_set.begin(), result_set.end(), user_verification))
-    {
-      return ngs::Error_code(ER_NO_SUCH_USER, "Invalid user or password");
-    }
-  }
-  catch (ngs::Error_code &e)
-  {
-    return e;
-  }
-
-  return ngs::Error_code();
-}
-
 ngs::Error_code Sql_data_context::authenticate(const char *user, const char *host, const char *ip,
                                                const char *db, On_user_password_hash password_hash_cb,
                                                bool allow_expired_passwords, ngs::IOptions_session_ptr &options_session, const ngs::Connection_type type)
 {
-  ngs::Error_code error = switch_to_user(MYSQLXSYS_USER, MYSQLXSYS_HOST, NULL, NULL);
+  ngs::Error_code error = switch_to_user(user, host, ip, db);
+
+  if (error)
+  {
+    return ngs::Error(ER_NO_SUCH_USER, "Invalid user or password");
+  }
+
+  std::string authenticated_user_name = get_authenticated_user_name();
+  std::string authenticated_user_host = get_authenticated_user_host();
+
+  error = switch_to_user(MYSQLXSYS_USER, MYSQLXSYS_HOST, NULL, NULL);
+
   if (error)
   {
     log_error("Unable to switch context to user %s", MYSQLXSYS_USER);
@@ -250,7 +217,12 @@ ngs::Error_code Sql_data_context::authenticate(const char *user, const char *hos
 
   if (!is_acl_disabled())
   {
-    error = query_user(user, host, ip, password_hash_cb, options_session, type);
+    User_verification_helper user_verification(password_hash_cb, options_session, type);
+
+    error = user_verification.verify_mysql_account(
+        *this,
+        authenticated_user_name,
+        authenticated_user_host);
   }
 
   if (error.error == ER_MUST_CHANGE_PASSWORD_LOGIN)
@@ -269,6 +241,7 @@ ngs::Error_code Sql_data_context::authenticate(const char *user, const char *hos
     return error;
 
   error = switch_to_user(user, host, ip, db);
+
   if (!error)
   {
     if (db && *db)
@@ -285,14 +258,13 @@ ngs::Error_code Sql_data_context::authenticate(const char *user, const char *hos
       error = m_callback_delegate.get_error();
     }
 
-    // Host of
-    std::string priv_user = get_authenticated_user_name();
-    std::string priv_host = get_authenticated_user_host();
+    std::string user_name = get_user_name();
+    std::string host_or_ip = get_host_or_ip();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread_account) (
-        priv_user.c_str(), priv_user.length(),
-        priv_host.c_str(), priv_host.length());
+        user_name.c_str(), user_name.length(),
+        host_or_ip.c_str(), host_or_ip.length());
 #endif // HAVE_PSI_THREAD_INTERFACE
 
     return ngs::Error_code();
@@ -336,6 +308,26 @@ bool Sql_data_context::has_authenticated_user_a_super_priv() const
   return false;
 }
 
+std::string Sql_data_context::get_user_name() const
+{
+  MYSQL_LEX_CSTRING result;
+
+  if (get_security_context_value(get_thd(), "user", result))
+    return result.str;
+
+  return "";
+}
+
+std::string Sql_data_context::get_host_or_ip() const
+{
+  MYSQL_LEX_CSTRING result;
+
+  if (get_security_context_value(get_thd(), "host_or_ip", result))
+    return result.str;
+
+  return "";
+}
+
 std::string Sql_data_context::get_authenticated_user_name() const
 {
   MYSQL_LEX_CSTRING result;
@@ -356,10 +348,13 @@ std::string Sql_data_context::get_authenticated_user_host() const
   return "";
 }
 
-ngs::Error_code Sql_data_context::switch_to_user(const char *username, const char *hostname, const char *address,  const char *db)
+ngs::Error_code Sql_data_context::switch_to_user(
+    const char *username,
+    const char *hostname,
+    const char *address,
+    const char *db)
 {
   MYSQL_SECURITY_CONTEXT scontext;
-
   m_auth_ok = false;
 
   if (thd_get_security_context(get_thd(), &scontext))
