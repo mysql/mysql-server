@@ -5,10 +5,10 @@
 #
 
 # This command respects setarch, works on OL6/RHEL6 and later
-isa_bits=$(rpm --eval %__isa_bits)
+bits=$(rpm --eval %__isa_bits)
 
 case $bits in
-    32|64) bits=$isa_bits ;;
+    32|64) ;;
         *) bits=unknown ;;
 esac
 
@@ -16,8 +16,8 @@ esac
 if [ "$bits" = "unknown" ] ; then
     arch=$(uname -m)
     case $arch in
-	x86_64|ppc64) bits=64 ;;
-	i386|i486|i586|i686|pentium3|pentium4|athlon|ppc) bits=32 ;;
+	x86_64|ppc64|ppc64le|aarch64|s390x|sparc64) bits=64 ;;
+	i386|i486|i586|i686|pentium3|pentium4|athlon|ppc|s390|sparc) bits=32 ;;
 	*) bits=unknown ;;
     esac
 fi
@@ -33,4 +33,3 @@ else
     echo "$0: error: needed binary: /usr/bin/mysql_config-$bits is missing. Please check your MySQL installation."
     exit 1
 fi
-
