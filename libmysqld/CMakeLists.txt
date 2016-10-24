@@ -40,11 +40,17 @@ SET(GEN_YACC_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
 )
 
 SET(GEN_SOURCES
   ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-  ${CMAKE_BINARY_DIR}/sql/lex_hash.h 
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
+  COMMAND gen_lex_hash > lex_hash.h
+  DEPENDS gen_lex_hash
 )
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_YACC_SOURCES}
