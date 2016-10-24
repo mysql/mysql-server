@@ -167,3 +167,16 @@ drop prepare ps2;
 drop table pt1;
 drop table pt2;
 drop table t1;
+#
+# Bug #22843444: INSERTING LARGE JSON DATA TAKES AN INORDINATE AMOUNT OF
+#                TIME
+#
+SET global max_allowed_packet=1024*1024*16;
+CREATE TABLE t1(a JSON);
+SET @a:=CONCAT('[',REPEAT('"a",',1500000),'"a"]');
+SELECT JSON_TYPE(@a), LENGTH(@a), LENGTH(@a)*3;
+JSON_TYPE(@a)	LENGTH(@a)	LENGTH(@a)*3
+ARRAY	6000005	18000015
+INSERT INTO t1(a) VALUES(@a);
+DROP TABLE t1;
+SET global max_allowed_packet=default;
