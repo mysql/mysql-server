@@ -5313,9 +5313,12 @@ This will be invoked before inplace_alter_table().
 @param altered_table TABLE object for new version of table.
 @param ha_alter_info Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
-@param new_dd_tab    dd::Table object representing new version
-of the table. This parameter is a temporary workaround until
-WL#7743 is implemented.
+@param old_table_def dd::Table object describing old version
+of the table.
+@param new_table_def dd::Table object for the new version of the
+table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement
+commit time.
 
 @retval true Failure
 @retval false Success
@@ -5326,8 +5329,8 @@ ha_innobase::prepare_inplace_alter_table(
 /*=====================================*/
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab)
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	dict_index_t**	drop_index = NULL;	/*!< Index to be dropped */
 	ulint		n_drop_index;	/*!< Number of indexes to drop */
@@ -5532,16 +5535,16 @@ check_if_ok_to_rename:
 	and COPY it needs to be updated to reflect correct row format. */
 	switch (dict_tf_get_rec_format(info.flags())) {
 	case REC_FORMAT_REDUNDANT:
-		new_dd_tab->set_row_format(dd::Table::RF_REDUNDANT);
+		new_table_def->set_row_format(dd::Table::RF_REDUNDANT);
 		break;
 	case REC_FORMAT_COMPACT:
-		new_dd_tab->set_row_format(dd::Table::RF_COMPACT);
+		new_table_def->set_row_format(dd::Table::RF_COMPACT);
 		break;
 	case REC_FORMAT_COMPRESSED:
-		new_dd_tab->set_row_format(dd::Table::RF_COMPRESSED);
+		new_table_def->set_row_format(dd::Table::RF_COMPRESSED);
 		break;
 	case REC_FORMAT_DYNAMIC:
-		new_dd_tab->set_row_format(dd::Table::RF_DYNAMIC);
+		new_table_def->set_row_format(dd::Table::RF_DYNAMIC);
 		break;
 	}
 
@@ -6148,6 +6151,12 @@ on the return value from check_if_supported_inplace_alter().
 @param altered_table TABLE object for new version of table.
 @param ha_alter_info Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
+@param old_table_def dd::Table object describing old version
+of the table.
+@param new_table_def dd::Table object for the new version of the
+table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement
+commit time.
 
 @retval true Failure
 @retval false Success
@@ -6158,8 +6167,8 @@ ha_innobase::inplace_alter_table(
 /*=============================*/
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab)
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	dberr_t			error;
 	dict_add_v_col_t*	add_v = NULL;
@@ -8128,6 +8137,12 @@ blocked during prepare, but might not be during commit).
 @param ha_alter_info Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
 @param commit true => Commit, false => Rollback.
+@param old_table_def dd::Table object describing old version
+of the table.
+@param new_table_def dd::Table object for the new version of the
+table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement
+commit time.
 @retval true Failure
 @retval false Success
 */
@@ -8138,8 +8153,8 @@ ha_innobase::commit_inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
 	bool			commit,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab)
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	dberr_t	error;
 	ha_innobase_inplace_ctx*ctx0;
@@ -9010,14 +9025,20 @@ This will be invoked before inplace_alter_table().
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
+@param[in]	old_table_def	dd::Table object describing old version
+of the table.
+@param[in/out]	new_table_def	dd::Table object for the new version of
+the table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement commit
+time.
 @retval true Failure.
 @retval false Success. */
 bool
 ha_innopart::prepare_inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab)
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	THD* thd;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -9095,8 +9116,8 @@ ha_innopart::prepare_inplace_alter_table(
 
 		res = ha_innobase::prepare_inplace_alter_table(altered_table,
 							ha_alter_info,
-							old_dd_tab,
-							new_dd_tab);
+							old_table_def,
+							new_table_def);
 		update_partition(i);
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 		if (res) {
@@ -9120,14 +9141,20 @@ on the return value from check_if_supported_inplace_alter().
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
+@param[in]	old_table_def	dd::Table object describing old version
+of the table.
+@param[in/out]	new_table_def	dd::Table object for the new version of
+the table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement commit
+time.
 @retval true Failure.
 @retval false Success. */
 bool
 ha_innopart::inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab)
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	bool res = true;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -9140,7 +9167,8 @@ ha_innopart::inplace_alter_table(
 		set_partition(i);
 		res = ha_innobase::inplace_alter_table(altered_table,
 						ha_alter_info,
-						old_dd_tab, new_dd_tab);
+						old_table_def,
+						new_table_def);
 		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 		if (res) {
@@ -9164,6 +9192,12 @@ blocked during prepare, but might not be during commit).
 @param[in]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
 @param[in]	commit		true => Commit, false => Rollback.
+@param[in]	old_table_def	dd::Table object describing old version
+of the table.
+@param[in/out]	new_table_def	dd::Table object for the new version of
+the table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement commit
+time.
 @retval true Failure.
 @retval false Success. */
 bool
@@ -9171,8 +9205,8 @@ ha_innopart::commit_inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
 	bool			commit,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab)
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	bool res = false;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -9190,7 +9224,8 @@ ha_innopart::commit_inplace_alter_table(
 		res = ha_innobase::commit_inplace_alter_table(altered_table,
 							ha_alter_info,
 							commit,
-							old_dd_tab, new_dd_tab);
+							old_table_def,
+							new_table_def);
 		ut_ad(res || !ha_alter_info->group_commit_ctx);
 		goto end;
 	}
@@ -9201,7 +9236,8 @@ ha_innopart::commit_inplace_alter_table(
 		set_partition(i);
 		if (ha_innobase::commit_inplace_alter_table(altered_table,
 						ha_alter_info, commit,
-						old_dd_tab, new_dd_tab)) {
+						old_table_def,
+						new_table_def)) {
 			res = true;
 		}
 		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);

@@ -1003,10 +1003,11 @@ done:
 
 /** Open a partitioned InnoDB table.
 @param[in]	name	table name
+@param[in]	table_def	dd::Table describing table to be opened
 @retval 1 if error
 @retval 0 if success */
 int
-ha_innopart::open(const char* name, int, uint,const dd::Table* dd_tab)
+ha_innopart::open(const char* name, int, uint,const dd::Table* table_def)
 {
 	dict_table_t*	ib_table;
 	char		norm_name[FN_REFLEN];
@@ -2732,13 +2733,16 @@ create_table_info_t::set_remote_path_flags()
 partitions, columns and indexes etc.
 @param[in]	create_info	Additional create information, like
 create statement string.
+@parami[in,out]	table_def	dd::Table object for table to be created.
+Can be adjusted by this call. Changes to the table definition will be
+persisted in the data-dictionary at statement commit time.
 @return	0 or error number. */
 int
 ha_innopart::create(
 	const char*	name,
 	TABLE*		form,
 	HA_CREATE_INFO*	create_info,
-	dd::Table*	dd_tab)
+	dd::Table*	table_def)
 {
 	int		error;
 	/** {database}/{tablename} */
@@ -3095,17 +3099,24 @@ ha_innopart::extra(
 }
 
 /** Deletes all rows of a partitioned InnoDB table.
+@param[in,out]	table_def	dd::Table object for table to be truncated.
+Can be adjusted by this call. Changes to the table definition will be
+persisted in the data-dictionary at statement commit time.
 @return	0 or error number. */
 int
-ha_innopart::truncate(dd::Table *dd_tab)
+ha_innopart::truncate(dd::Table *table_def)
 {
 	ut_ad(m_part_info->num_partitions_used() == m_tot_parts);
-	return(truncate_partition_low(dd_tab));
+	return(truncate_partition_low(table_def));
 }
 
 /** Delete all rows in the requested partitions.
 Done by deleting the partitions and recreate them again.
 TODO: Add DDL_LOG handling to avoid missing partitions in case of crash.
+@param[in,out]	table_def	dd::Table object for partitioned table
+which partitions need to be truncated. Can be adjusted by this call.
+Changes to the table definition will be persisted in the data-dictionary
+at statement commit time.
 @return	0 or error number. */
 int
 ha_innopart::truncate_partition_low(dd::Table *table_def)

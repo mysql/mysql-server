@@ -1321,11 +1321,12 @@ innobase_rollback_by_xid(
 /** This API handles CREATE, ALTER & DROP commands for InnoDB tablespaces.
 @param[in]	hton		Handlerton of InnoDB
 @param[in]	thd		Connection
-@param[in]	alter_info	Describies the command and how to do it.
+@param[in]	alter_info	Describes the command and how to do it.
 @param[in]	old_ts_def	Old version of dd::Tablespace object for the
-tablespace
+tablespace.
 @param[in/out]	new_ts_def	New version of dd::Tablespace object for the
-tablespace
+tablespace. Can be adjusted by SE. Changes will be persisted in the
+data-dictionary at statement commit.
 @return MySQL error code*/
 static
 int
@@ -6318,10 +6319,11 @@ ha_innobase::innobase_initialize_autoinc()
 
 /** Open an InnoDB table.
 @param[in]	name	table name
+@param[in]	table_def	dd::Table object describing table to be opened
 @retval 1 if error
 @retval 0 if success */
 int
-ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
+ha_innobase::open(const char* name, int, uint, const dd::Table* table_def)
 {
 	dict_table_t*		ib_table;
 	char			norm_name[FN_REFLEN];
@@ -12774,7 +12776,9 @@ ha_innobase::get_se_private_data(
 @param[in]	name		Table name, format: "db/table_name".
 @param[in]	form		Table format; columns and index information.
 @param[in]	create_info	Create info (including create statement string).
-@param[in,out]	dd_table	data dictionary cache object
+@param[in,out]	table_def	dd::Table describing table to be created.
+Can be adjusted by SE, the changes will be saved into data-dictionary at
+statement commit time.
 @param[in]	file_per_table	whether to create a tablespace too
 @return	error number
 @retval 0 on success */
@@ -12783,7 +12787,7 @@ ha_innobase::create(
 	const char*		name,
 	TABLE*			form,
 	HA_CREATE_INFO*		create_info,
-	dd::Table*		dd_table,
+	dd::Table*		table_def,
 	bool			file_per_table)
 {
 	int		error;
@@ -12894,21 +12898,23 @@ cleanup:
 @param[in]	name		table name
 @param[in]	form		table structure
 @param[in]	create_info	more information on the table
-@param[in,out]	dd_table	data dictionary cache object
+@param[in,out]	table_def	dd::Table describing table to be created.
+Can be adjusted by SE, the changes will be saved into data-dictionary at
+statement commit time.
 @return error number */
 int
 ha_innobase::create(
 	const char*		name,
 	TABLE*			form,
 	HA_CREATE_INFO*		create_info,
-	dd::Table*		dd_table)
+	dd::Table*		table_def)
 {
 	/* Determine if this CREATE TABLE will be making a file-per-table
 	tablespace.  Note that "srv_file_per_table" is not under
 	dict_sys mutex protection, and could be changed while creating the
 	table. So we read the current value here and make all further
 	decisions based on this. */
-	return(create(name, form, create_info, dd_table, srv_file_per_table));
+	return(create(name, form, create_info, table_def, srv_file_per_table));
 }
 
 /*****************************************************************//**
@@ -13050,10 +13056,13 @@ ha_innobase::discard_or_import_tablespace(
 }
 
 /** DROP and CREATE an InnoDB table.
+@param[in,out]	table_def	dd::Table describing table to be
+truncated. Can be adjusted by SE, the changes will be saved into
+the data-dictionary at statement commit time.
 @return	error number
 @retval 0 on success */
 int
-ha_innobase::truncate(dd::Table *dd_tab)
+ha_innobase::truncate(dd::Table *table_def)
 {
 	DBUG_ENTER("ha_innobase::truncate");
 	/* The table should have been opened in ha_innobase::open().
@@ -13108,14 +13117,14 @@ ha_innobase::truncate(dd::Table *dd_tab)
 	close();
 
 	int	error	= delete_table(
-		name, dd_tab, SQLCOM_TRUNCATE);
+		name, table_def, SQLCOM_TRUNCATE);
 
 	if (!error) {
-		error = create(name, table, &info, dd_tab,
+		error = create(name, table, &info, table_def,
 				file_per_table);
 	}
 
-	open(name, 0, 0, dd_tab);
+	open(name, 0, 0, table_def);
 
 	if (!error) {
 		dict_names_t	fk_tables;
@@ -13148,13 +13157,14 @@ ha_innobase::truncate(dd::Table *dd_tab)
 
 /** Drop a table.
 @param[in]	name		table name
-@param[in]	dd_table	data dictionary table
+@param[in]	table_def	dd::Table describing table to
+be dropped
 @return error number */
 
 int
 ha_innobase::delete_table(
 	const char*		name,
-	const dd::Table*	dd_table)
+	const dd::Table*	table_def)
 {
 	enum enum_sql_command	sqlcom	= static_cast<enum enum_sql_command>(
 		thd_sql_command(ha_thd()));
@@ -13170,19 +13180,20 @@ ha_innobase::delete_table(
 	from the data dictionary tables. */
 	DBUG_ASSERT(sqlcom != SQLCOM_TRUNCATE);
 
-	return(delete_table(name, dd_table, sqlcom));
+	return(delete_table(name, table_def, sqlcom));
 }
 
 /** Drop a table.
 @param[in]	name		table name
-@param[in]	dd_table	data dictionary table
+@param[in]	table_def	dd::Table describing table to
+be dropped
 @param[in]	sqlcom	type of operation that the DROP is part of
 @return	error number
 @retval 0 on success */
 int
 ha_innobase::delete_table(
 	const char*		name,
-	const dd::Table*	dd_table,
+	const dd::Table*	table_def,
 	enum enum_sql_command	sqlcom)
 {
 	dberr_t	err;
@@ -13683,7 +13694,8 @@ have_error:
 @param[in]	old_ts_def	Old version of dd::Tablespace object for the
 tablespace
 @param[in/out]	new_ts_def	New version of dd::Tablespace object for the
-tablespace
+tablespace. Can be adjusted by SE. Changes will be persisted in the
+data-dictionary at statement commit.
 @return MySQL error code*/
 static
 int
@@ -13945,13 +13957,20 @@ innobase_rename_table(
 
 /*********************************************************************//**
 Renames an InnoDB table.
+@param[in]	from	Old name of the table.
+@param[in]	to	New name of the table.
+@param[in]	from_table_def	dd::Table object describing old version
+of table.
+@param[in/out]	to_table_def	dd::Table object describing version of
+table with new name. Can be updated by SE. Changes are persisted to the
+dictionary at statement commit time.
 @return 0 or error code */
 
 int
 ha_innobase::rename_table(
 /*======================*/
-	const char*	from,	/*!< in: old name of the table */
-	const char*	to,	/*!< in: new name of the table */
+	const char*	from,
+	const char*	to,
 	const dd::Table	*from_table_def,
 	dd::Table	*to_table_def)
 {
