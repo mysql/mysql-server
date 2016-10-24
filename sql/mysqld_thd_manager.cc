@@ -144,10 +144,10 @@ Global_THD_manager::Global_THD_manager()
     unit_test(false)
 {
 #ifdef HAVE_PSI_INTERFACE
-  int count= array_elements(all_thd_manager_mutexes);
+  int count= static_cast<int>(array_elements(all_thd_manager_mutexes));
   mysql_mutex_register("sql", all_thd_manager_mutexes, count);
 
-  count= array_elements(all_thd_manager_conds);
+  count= static_cast<int>(array_elements(all_thd_manager_conds));
   mysql_cond_register("sql", all_thd_manager_conds, count);
 #endif
 

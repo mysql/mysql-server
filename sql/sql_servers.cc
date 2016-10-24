@@ -124,10 +124,10 @@ static void init_servers_cache_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_servers_cache_rwlocks);
+  count= static_cast<int>(array_elements(all_servers_cache_rwlocks));
   mysql_rwlock_register(category, all_servers_cache_rwlocks, count);
 
-  count= array_elements(all_servers_cache_memory);
+  count= static_cast<int>(array_elements(all_servers_cache_memory));
   mysql_memory_register(category, all_servers_cache_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

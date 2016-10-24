@@ -6127,7 +6127,7 @@ static void init_item_func_sleep_psi_keys()
 {
   int count;
 
-  count= array_elements(item_func_sleep_mutexes);
+  count= static_cast<int>(array_elements(item_func_sleep_mutexes));
   mysql_mutex_register("sql", item_func_sleep_mutexes, count);
 }
 #endif

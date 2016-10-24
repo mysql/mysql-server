@@ -98,12 +98,18 @@ void xpl_init_performance_schema()
 
   const char * const category = "mysqlx";
 
-  mysql_thread_register(category, all_x_threads, array_elements(all_x_threads));
-  mysql_mutex_register(category, all_x_mutexes, array_elements(all_x_mutexes));
-  mysql_cond_register(category, all_x_conds, array_elements(all_x_conds));
-  mysql_rwlock_register(category, all_x_rwlocks, array_elements(all_x_rwlocks));
-  mysql_socket_register(category, all_x_sockets, array_elements(all_x_sockets));
-  mysql_memory_register(category, all_x_memory, array_elements(all_x_memory));
+  mysql_thread_register(category, all_x_threads,
+                        static_cast<int>(array_elements(all_x_threads)));
+  mysql_mutex_register(category, all_x_mutexes,
+                       static_cast<int>(array_elements(all_x_mutexes)));
+  mysql_cond_register(category, all_x_conds,
+                      static_cast<int>(array_elements(all_x_conds)));
+  mysql_rwlock_register(category, all_x_rwlocks,
+                        static_cast<int>(array_elements(all_x_rwlocks)));
+  mysql_socket_register(category, all_x_sockets,
+                        static_cast<int>(array_elements(all_x_sockets)));
+  mysql_memory_register(category, all_x_memory,
+                        static_cast<int>(array_elements(all_x_memory)));
 
   ngs::x_psf_objects_key = KEY_memory_x_objects;
 

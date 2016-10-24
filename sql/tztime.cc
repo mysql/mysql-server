@@ -1612,10 +1612,10 @@ static void init_tz_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_tz_mutexes);
+  count= static_cast<int>(array_elements(all_tz_mutexes));
   mysql_mutex_register(category, all_tz_mutexes, count);
 
-  count= array_elements(all_tz_memory);
+  count= static_cast<int>(array_elements(all_tz_memory));
   mysql_memory_register(category, all_tz_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

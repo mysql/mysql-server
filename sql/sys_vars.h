@@ -359,7 +359,7 @@ public:
     else
     {
       longlong tmp=var->value->val_int();
-      if (tmp < 0 || tmp >= typelib.count)
+      if (tmp < 0 || tmp >= static_cast<longlong>(typelib.count))
         return true;
       else
         var->save_result.ulonglong_value= tmp;

@@ -2799,7 +2799,7 @@ static int check_func_enum(THD *thd, st_mysql_sys_var *var,
   {
     if (value->val_int(value, &tmp))
       goto err;
-    if (tmp < 0 || tmp >= typelib->count)
+    if (tmp < 0 || tmp >= static_cast<long long>(typelib->count))
       goto err;
     result= (long) tmp;
   }

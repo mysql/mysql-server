@@ -41,7 +41,7 @@ static void init_deamon_example_psi_keys()
   const char* category= "deamon_example";
   int count;
 
-  count= array_elements(all_deamon_example_memory);
+  count= static_cast<int>(array_elements(all_deamon_example_memory));
   mysql_memory_register(category, all_deamon_example_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

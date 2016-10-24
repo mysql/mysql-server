@@ -119,7 +119,7 @@ static void init_all_slave_list_mutexes(void)
 {
   int count;
 
-  count= array_elements(all_slave_list_mutexes);
+  count= static_cast<int>(array_elements(all_slave_list_mutexes));
   mysql_mutex_register("sql", all_slave_list_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

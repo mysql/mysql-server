@@ -105,7 +105,8 @@ public:
 #ifdef HAVE_PSI_INTERFACE
     psi_initted= true;
 
-    mysql_mutex_register(category, all_mutexes, array_elements(all_mutexes));
+    mysql_mutex_register(category, all_mutexes,
+                         static_cast<int>(array_elements(all_mutexes)));
 #endif
     mysql_mutex_init(key_LOCK_collection, &LOCK_collection, MY_MUTEX_INIT_FAST);
 
@@ -327,7 +328,8 @@ public:
 #ifdef HAVE_PSI_INTERFACE
     psi_initted= true;
 
-    mysql_rwlock_register(category, all_rwlocks, array_elements(all_rwlocks));
+    mysql_rwlock_register(category, all_rwlocks,
+                          static_cast<int>(array_elements(all_rwlocks)));
 #endif
     mysql_rwlock_init(key_LOCK_collection, &LOCK_collection);
 
