@@ -61,7 +61,7 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   ulonglong m_last_seen;
 
   /** Reset data for this record. */
-  void reset_data(unsigned char* token_array, size_t length);
+  void reset_data(unsigned char *token_array, size_t length);
   /** Reset data and remove index for this record. */
   void reset_index(PFS_thread *thread);
 };
@@ -71,10 +71,11 @@ void cleanup_digest();
 
 int init_digest_hash(const PFS_global_param *param);
 void cleanup_digest_hash(void);
-PFS_statement_stat* find_or_create_digest(PFS_thread *thread,
-                                          const sql_digest_storage *digest_storage,
-                                          const char *schema_name,
-                                          uint schema_name_length);
+PFS_statement_stat *find_or_create_digest(
+  PFS_thread *thread,
+  const sql_digest_storage *digest_storage,
+  const char *schema_name,
+  uint schema_name_length);
 
 void reset_esms_by_digest();
 
@@ -84,4 +85,3 @@ extern PFS_statements_digest_stat *statements_digest_stat_array;
 extern LF_HASH digest_hash;
 
 #endif
-

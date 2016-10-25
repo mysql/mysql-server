@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,9 @@
 #include "pfs_column_types.h"
 #include "pfs_stat.h"
 
-#define PROGRAM_HASH_KEY_LENGTH sizeof(enum_object_type) + COL_OBJECT_NAME_SIZE + 1 + COL_OBJECT_SCHEMA_SIZE + 1
+#define PROGRAM_HASH_KEY_LENGTH                         \
+  sizeof(enum_object_type) + COL_OBJECT_NAME_SIZE + 1 + \
+    COL_OBJECT_SCHEMA_SIZE + 1
 
 extern LF_HASH program_hash;
 
@@ -65,7 +67,7 @@ struct PFS_ALIGNED PFS_program : public PFS_instr
   PFS_sp_stat m_sp_stat;
 
   /** Referesh setup object flags. */
-  void refresh_setup_object_flags(PFS_thread* thread);
+  void refresh_setup_object_flags(PFS_thread *thread);
 
   /** Reset data for this record. */
   void reset_data();
@@ -78,19 +80,17 @@ void cleanup_program_hash(void);
 
 void reset_esms_by_program();
 
-PFS_program*
-find_or_create_program(PFS_thread *thread,
-                      enum_object_type object_type,
-                      const char *object_name,
-                      uint object_name_length,
-                      const char *schema,
-                      uint schema_length);
+PFS_program *find_or_create_program(PFS_thread *thread,
+                                    enum_object_type object_type,
+                                    const char *object_name,
+                                    uint object_name_length,
+                                    const char *schema,
+                                    uint schema_length);
 
-void
-drop_program(PFS_thread *thread,
-             enum_object_type object_type,
-             const char *object_name,
-             uint object_name_length,
-             const char *schema_name,
-             uint schema_name_length);
+void drop_program(PFS_thread *thread,
+                  enum_object_type object_type,
+                  const char *object_name,
+                  uint object_name_length,
+                  const char *schema_name,
+                  uint schema_name_length);
 #endif

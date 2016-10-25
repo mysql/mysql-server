@@ -32,12 +32,14 @@ struct PFS_builtin_memory_class
   PFS_memory_class m_class;
   PFS_memory_stat m_stat;
 
-  inline void count_alloc(size_t size)
+  inline void
+  count_alloc(size_t size)
   {
     m_stat.count_builtin_alloc(size);
   }
 
-  inline void count_free(size_t size)
+  inline void
+  count_free(size_t size)
   {
     m_stat.count_builtin_free(size);
   }
@@ -88,7 +90,8 @@ extern PFS_builtin_memory_class builtin_memory_thread_waits_history;
 extern PFS_builtin_memory_class builtin_memory_thread_stages_history;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_history;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_history_tokens;
-extern PFS_builtin_memory_class builtin_memory_thread_statements_history_sqltext;
+extern PFS_builtin_memory_class
+  builtin_memory_thread_statements_history_sqltext;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_stack;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_stack_tokens;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_stack_sqltext;
@@ -138,4 +141,3 @@ extern PFS_builtin_memory_class builtin_memory_scalable_buffer;
 
 /** @} */
 #endif
-
