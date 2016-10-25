@@ -103,15 +103,23 @@ CREATE INDEX id_t_10_b USING BTREE ON t_10 (b);
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 ERROR HY000: Tables have different definitions
 CREATE INDEX id_tp_b USING BTREE ON tp (b);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 ERROR HY000: Tables have different definitions
 DROP INDEX id_t_10_b ON t_10;
 DROP INDEX id_tp_b ON tp;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t_10 ADD UNIQUE INDEX USING BTREE (a);
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 ERROR HY000: Tables have different definitions
 ALTER TABLE tp   ADD UNIQUE INDEX USING BTREE (a);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t_10;
 Table	Create Table
 t_10	CREATE TABLE `t_10` (
@@ -132,11 +140,19 @@ tp	CREATE TABLE `tp` (
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p2 VALUES LESS THAN (1000) ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp   DROP INDEX a;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t_10 DROP INDEX a;
 ALTER TABLE tp   ADD UNIQUE INDEX USING BTREE (a,b);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t_10 ADD UNIQUE INDEX USING BTREE (a,b);
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t_10;
 Table	Create Table
 t_10	CREATE TABLE `t_10` (
@@ -157,6 +173,8 @@ tp	CREATE TABLE `tp` (
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p2 VALUES LESS THAN (1000) ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE IF EXISTS t_10;
 DROP TABLE IF EXISTS t_100;
 DROP TABLE IF EXISTS t_1000;

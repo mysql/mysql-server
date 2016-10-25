@@ -27,7 +27,11 @@ PARTITION `p3000-299999` VALUES LESS THAN (300000)
 (SUBPARTITION subp12  ,
 SUBPARTITION subp13  ,
 SUBPARTITION subp14  ));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-4, '(pNeg-)subp0');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, '(pNeg-)subp0');
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-2, '(pNeg-)subp0');
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-1, '(pNeg-)subp0');
@@ -87,6 +91,8 @@ PARTITION `p3000-299999` VALUES LESS THAN (300000)
 (SUBPARTITION subp12  ,
 SUBPARTITION subp13  ,
 SUBPARTITION subp14  ));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE
 PROCEDURE p1 ()
 BEGIN
@@ -123,6 +129,8 @@ CREATE TRIGGER tr1 AFTER INSERT ON t2
 FOR EACH ROW BEGIN
 UPDATE t1 PARTITION (`p30-299`) SET b='p30-299-upd-trigger' WHERE a BETWEEN 30 AND 40;
 END//
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CALL p1;
 CALL p2;
 SELECT * FROM t1 PARTITION (`p0-29`) WHERE a BETWEEN 3 AND 10 ORDER BY a,b ;
@@ -138,6 +146,8 @@ SELECT * FROM t1 PARTITION (`p0-29`) WHERE a BETWEEN 3 AND 10 ORDER BY a,b ;
 a	b
 CALL p3;
 INSERT INTO t2 PARTITION (`p0-29`, subp3) VALUES (4, '(p0-29-)subp3');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t2 PARTITION (`p0-29`) WHERE a BETWEEN 3 AND 10 ORDER BY a,b ;
 a	b
 4	(p0-29-)subp3

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,5 +25,10 @@ typedef struct st_mysql_file MYSQL_FILE;
   create MySQL privilege tables without having to start a full MySQL server.
 */
 int bootstrap(MYSQL_FILE *file);
+
+/**
+  Execute a single SQL command.
+*/
+int bootstrap_single_query(const char* query);
 
 #endif // BOOTSTRAP_H

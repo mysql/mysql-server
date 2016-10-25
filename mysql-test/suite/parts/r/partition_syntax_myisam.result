@@ -638,6 +638,8 @@ PARTITION BY LIST(MOD(f_int1,2))
 ( PARTITION part1 VALUES IN (NULL),
 PARTITION part2 VALUES IN (0),
 PARTITION part3 VALUES IN (1));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 #  3.5.2.2 VALUE IN (NULL)
 CREATE TABLE t1 (
@@ -650,6 +652,8 @@ f_charbig VARCHAR(1000)
 PARTITION BY LIST(MOD(f_int1,2))
 ( PARTITION part1 VALUES IN (NULL),
 PARTITION part3 VALUES IN (1));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -685,6 +689,8 @@ PARTITION BY LIST(MOD(f_int1,2))
 ( PARTITION part1 VALUES IN (NULL),
 PARTITION part2 VALUES IN (0),
 PARTITION part3 VALUES IN (1));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -729,6 +735,8 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -757,6 +765,8 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) (PARTITION part1, PARTITION part2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -788,6 +798,8 @@ f_char1 CHAR(20),
 f_char2 CHAR(20),
 f_charbig VARCHAR(1000) )
 PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1) (PARTITION part1 VALUES LESS THAN (10), PARTITION part2 VALUES LESS THAN (20), PARTITION part3 VALUES LESS THAN (2147483646)) ;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 CREATE TABLE t1 (  f_int1 INTEGER,
 f_int2 INTEGER,
@@ -850,6 +862,8 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1) (PARTITION part1 VALUES 
 (SUBPARTITION subpart11 , SUBPARTITION subpart12 ), PARTITION part2 VALUES LESS THAN (20)
 (SUBPARTITION subpart21 , SUBPARTITION subpart22 ), PARTITION part3 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart31 , SUBPARTITION subpart32 )) ;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -902,6 +916,8 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -935,6 +951,8 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS 2
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -972,6 +990,8 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1003,6 +1023,8 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS 1
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1755,6 +1777,8 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS 2 ( PARTITION part1, PARTITION part2 ) ;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1792,6 +1816,8 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
 PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21, SUBPARTITION subpart22)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table

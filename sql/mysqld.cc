@@ -348,6 +348,7 @@ ulong slow_start_timeout;
 
 my_bool opt_bootstrap= 0;
 my_bool opt_initialize= 0;
+my_bool opt_disable_partition_check= FALSE;
 my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
 my_bool opt_enable_named_pipe= 0;
@@ -4944,6 +4945,29 @@ int mysqld_main(int argc, char **argv)
     int error= bootstrap(mysql_stdin);
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
   }
+  else
+  {
+    /*
+      Execute an I_S query to implicitly check for tables using the deprecated
+      partition engine. No need to do this during bootstrap. We ignore the
+      return value from the query execution.
+    */
+    if (!opt_disable_partition_check)
+    {
+      sql_print_information(
+              "Executing 'SELECT * FROM INFORMATION_SCHEMA.TABLES;' "
+              "to get a list of tables using the deprecated partition "
+              "engine. You may use the startup option "
+              "'--disable-partition-engine-check' to skip this check. ");
+
+      sql_print_information("Beginning of list of non-natively partitioned tables");
+      (void) bootstrap_single_query(
+              "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES "
+              "WHERE CREATE_OPTIONS LIKE '%partitioned%';");
+      sql_print_information("End of list of non-natively partitioned tables");
+    }
+  }
+
   if (opt_init_file && *opt_init_file)
   {
     if (read_init_file(opt_init_file))
@@ -5535,6 +5559,11 @@ struct my_option my_long_early_options[]=
    " Create a super user with empty password.",
    &opt_initialize_insecure, &opt_initialize_insecure, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
+  {"disable-partition-engine-check", 0,
+   "Skip the check for non-natively partitioned tables during bootstrap. "
+   "This option is deprecated along with the partition engine.",
+   &opt_disable_partition_check, &opt_disable_partition_check, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 

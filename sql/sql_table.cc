@@ -8929,7 +8929,38 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                        TABLE_LIST *table_list,
                        Alter_info *alter_info)
 {
+  class Silence_deprecation_warnings: public Internal_error_handler
+  {
+  private:
+    THD *m_thd;
+  public:
+    Silence_deprecation_warnings(THD *thd): m_thd(thd)
+    { m_thd->push_internal_handler(this); }
+    bool handle_condition(THD *thd,
+                          uint sql_errno,
+                          const char* sqlstate,
+                          Sql_condition::enum_severity_level *level,
+                          const char* msg)
+    {
+      if (sql_errno == ER_WARN_DEPRECATED_SYNTAX)
+        return true;
+
+      return false;
+    }
+    void pop()
+    {
+      if (m_thd)
+        m_thd->pop_internal_handler();
+      m_thd= NULL;
+    }
+    ~Silence_deprecation_warnings()
+    { pop(); }
+  };
+
   DBUG_ENTER("mysql_alter_table");
+
+  Silence_deprecation_warnings deprecation_silencer(thd);
+  bool is_partitioned= false;
 
   /*
     Check if we attempt to alter mysql.slow_log or
@@ -9047,6 +9078,15 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   TABLE *table= table_list->table;
   table->use_all_columns();
   MDL_ticket *mdl_ticket= table->mdl_ticket;
+
+  /*
+    Check if the source table is non-natively partitioned. This will be
+    used for pushing a deprecation warning in cases like adding/dropping
+    partitions, table rename, and ALTER INPLACE. For ALTER COPY, we need
+    to check the destination table.
+  */
+  is_partitioned= table->s->db_type() &&
+          is_ha_partition_handlerton(table->s->db_type());
 
   /*
     Prohibit changing of the UNION list of a non-temporary MERGE table
@@ -9218,6 +9258,13 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                "LOCK=NONE/SHARED", "LOCK=EXCLUSIVE");
       DBUG_RETURN(true);
     }
+    deprecation_silencer.pop();
+    if (is_partitioned)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          ER_THD(thd,
+                                 ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                          alter_ctx.new_db, alter_ctx.new_alias);
     DBUG_RETURN(simple_rename_or_index_change(thd, table_list,
                                               alter_info->keys_onoff,
                                               &alter_ctx));
@@ -9307,6 +9354,13 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     }
 
     char* table_name= const_cast<char*>(alter_ctx.table_name);
+    deprecation_silencer.pop();
+    if (is_partitioned)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          ER_THD(thd,
+                                 ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                          alter_ctx.new_db, alter_ctx.new_alias);
     // In-place execution of ALTER TABLE for partitioning.
     DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
                                            create_info, table_list,
@@ -9826,6 +9880,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   /*
+    At this point, we must check whether the destination table is
+    non-natively partitioned.
+  */
+  is_partitioned= new_table->s->db_type() &&
+          is_ha_partition_handlerton(new_table->s->db_type());
+  /*
     Close the intermediate table that will be the new table, but do
     not delete it! Even altough MERGE tables do not have their children
     attached here it is safe to call close_temporary_table().
@@ -9927,11 +9987,18 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
 end_inplace:
-
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_mdl;
+
+  deprecation_silencer.pop();
+  if (is_partitioned)
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd,
+                               ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                        alter_ctx.new_db, alter_ctx.new_alias);
 
   THD_STAGE_INFO(thd, stage_end);
 
