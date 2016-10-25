@@ -503,7 +503,11 @@ c1	c2	c3	c4	c5	c6	c7
 3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
 *** Add Partition on master ***
 ALTER TABLE t16 PARTITION BY KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t16', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t16 () VALUES(4,1.00,'Replication Rocks',@b1,'Omer');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t16', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t16;
 Table	Create Table
 t16	CREATE TABLE `t16` (
@@ -516,6 +520,8 @@ t16	CREATE TABLE `t16` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (c1)
 PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t16', is deprecated and will be removed in a future release. Please use native partitioning instead.
 *** Show table on Slave ****
 SHOW CREATE TABLE t16;
 Table	Create Table
@@ -531,6 +537,8 @@ t16	CREATE TABLE `t16` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (c1)
 PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t16', is deprecated and will be removed in a future release. Please use native partitioning instead.
 *** DROP TABLE t16 ***
 DROP TABLE t16;
 *** Alter Master End ***

@@ -6,6 +6,8 @@
 CREATE TABLE t1 (a int PRIMARY KEY, b BLOB, c varchar(16) DEFAULT 'Filler...', INDEX (b(4), a))
 ENGINE = MyISAM
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -17,15 +19,19 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 3 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (a, b) VALUES (1, 0xdeadbeef), (2, "text filler"),
 (3, 'filler...'), (4, " more filler "), (5, "test text"), (6, "testing...");
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 EXPLAIN SELECT a, HEX(b) FROM t1 WHERE b >= 'te' and (a % 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2	range	b	b	7	NULL	6	100.00	Using where
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,hex(`test`.`t1`.`b`) AS `HEX(b)` from `test`.`t1` where ((`test`.`t1`.`b` >= 'te') and (`test`.`t1`.`a` % 2))
 EXPLAIN FORMAT=JSON SELECT a, HEX(b) FROM t1 WHERE b >= 'te' and (a % 2);
 EXPLAIN

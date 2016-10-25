@@ -8193,7 +8193,11 @@ PARTITION p8189 VALUES LESS THAN (65520),
 PARTITION p8190 VALUES LESS THAN (65528),
 PARTITION p8191 VALUES LESS THAN (65536)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 65535 inserts;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select count(*) from t2;
 count(*)
 65535

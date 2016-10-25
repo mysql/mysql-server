@@ -27,7 +27,30 @@
 #include "mysql/psi/mysql_file.h"
 
 static MYSQL_FILE *bootstrap_file= NULL;
+static const char *bootstrap_query= NULL;
 static int bootstrap_error= 0;
+
+
+class Query_command_iterator: public Command_iterator
+{
+public:
+  Query_command_iterator(const char* query):
+    m_query(query), m_is_read(false) {}
+  virtual int next(std::string &query, int *read_error, int *query_source)
+  {
+    if (m_is_read)
+      return READ_BOOTSTRAP_EOF;
+
+    query= m_query;
+    m_is_read= true;
+    *read_error= 0;
+    *query_source= QUERY_SOURCE_COMPILED;
+    return READ_BOOTSTRAP_SUCCESS;
+  }
+private:
+  const char *m_query; // Owned externally.
+  bool m_is_read;
+};
 
 
 int File_command_iterator::next(std::string &query, int *error,
@@ -87,6 +110,7 @@ static void handle_bootstrap_impl(THD *thd)
   DBUG_ENTER("handle_bootstrap");
   File_command_iterator file_iter(bootstrap_file, mysql_file_fgets_fn);
   Compiled_in_command_iterator comp_iter;
+  Query_command_iterator query_iter(bootstrap_query);
   bool has_binlog_option= thd->variables.option_bits & OPTION_BIN_LOG;
   int query_source, last_query_source= -1;
 
@@ -104,10 +128,23 @@ static void handle_bootstrap_impl(THD *thd)
 
   thd->init_for_queries();
 
-  if (opt_initialize)
-    Command_iterator::current_iterator= &comp_iter;
+  /*
+    If a single bootstrap query is submitted, execute it regardless of the
+    command line options. If no query is submitted, read commands from the
+    executable or from file depending on option.
+  */
+  if (bootstrap_query)
+  {
+    Command_iterator::current_iterator= &query_iter;
+    bootstrap_query= NULL;
+  }
   else
-    Command_iterator::current_iterator= &file_iter;
+  {
+    if (opt_initialize)
+      Command_iterator::current_iterator= &comp_iter;
+    else
+      Command_iterator::current_iterator= &file_iter;
+  }
 
   Command_iterator::current_iterator->begin();
   for ( ; ; )
@@ -330,4 +367,10 @@ int bootstrap(MYSQL_FILE *file)
   my_thread_join(&thread_handle, NULL);
   delete thd;
   DBUG_RETURN(bootstrap_error);
+}
+
+int bootstrap_single_query(const char* query)
+{
+  bootstrap_query= query;
+  return bootstrap(NULL);
 }

@@ -1,0 +1,151 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( c1  SMALLINT, c2 INT) PARTITION BY RANGE (c1) (
+PARTITION p0 VALUES LESS THAN (1991),
+PARTITION p1 VALUES LESS THAN (1995),
+PARTITION p2 VALUES LESS THAN (1999),
+PARTITION p3 VALUES LESS THAN (2002),
+PARTITION p4 VALUES LESS THAN (2006),
+PARTITION p5 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (c1)
+(PARTITION p0 VALUES LESS THAN (1991) ENGINE = ENGINE,
+ PARTITION p1 VALUES LESS THAN (1995) ENGINE = ENGINE,
+ PARTITION p2 VALUES LESS THAN (1999) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN (2002) ENGINE = ENGINE,
+ PARTITION p4 VALUES LESS THAN (2006) ENGINE = ENGINE,
+ PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 ( c1  MEDIUMINT, c2 INT) PARTITION BY RANGE (c1) (
+PARTITION p0 VALUES LESS THAN (1991),
+PARTITION p1 VALUES LESS THAN (1995),
+PARTITION p2 VALUES LESS THAN (1999),
+PARTITION p3 VALUES LESS THAN (2002),
+PARTITION p4 VALUES LESS THAN (2006),
+PARTITION p5 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (c1)
+(PARTITION p0 VALUES LESS THAN (1991) ENGINE = ENGINE,
+ PARTITION p1 VALUES LESS THAN (1995) ENGINE = ENGINE,
+ PARTITION p2 VALUES LESS THAN (1999) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN (2002) ENGINE = ENGINE,
+ PARTITION p4 VALUES LESS THAN (2006) ENGINE = ENGINE,
+ PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 ( c1  INT, c2 INT) PARTITION BY RANGE (c1) (
+PARTITION p0 VALUES LESS THAN (1991),
+PARTITION p1 VALUES LESS THAN (1995),
+PARTITION p2 VALUES LESS THAN (1999),
+PARTITION p3 VALUES LESS THAN (2002),
+PARTITION p4 VALUES LESS THAN (2006),
+PARTITION p5 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (c1)
+(PARTITION p0 VALUES LESS THAN (1991) ENGINE = ENGINE,
+ PARTITION p1 VALUES LESS THAN (1995) ENGINE = ENGINE,
+ PARTITION p2 VALUES LESS THAN (1999) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN (2002) ENGINE = ENGINE,
+ PARTITION p4 VALUES LESS THAN (2006) ENGINE = ENGINE,
+ PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 ( c1  INTEGER, c2 INT) PARTITION BY RANGE (c1) (
+PARTITION p0 VALUES LESS THAN (1991),
+PARTITION p1 VALUES LESS THAN (1995),
+PARTITION p2 VALUES LESS THAN (1999),
+PARTITION p3 VALUES LESS THAN (2002),
+PARTITION p4 VALUES LESS THAN (2006),
+PARTITION p5 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (c1)
+(PARTITION p0 VALUES LESS THAN (1991) ENGINE = ENGINE,
+ PARTITION p1 VALUES LESS THAN (1995) ENGINE = ENGINE,
+ PARTITION p2 VALUES LESS THAN (1999) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN (2002) ENGINE = ENGINE,
+ PARTITION p4 VALUES LESS THAN (2006) ENGINE = ENGINE,
+ PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 ( c1  BIGINT, c2 INT) PARTITION BY RANGE (c1) (
+PARTITION p0 VALUES LESS THAN (1991),
+PARTITION p1 VALUES LESS THAN (1995),
+PARTITION p2 VALUES LESS THAN (1999),
+PARTITION p3 VALUES LESS THAN (2002),
+PARTITION p4 VALUES LESS THAN (2006),
+PARTITION p5 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (c1)
+(PARTITION p0 VALUES LESS THAN (1991) ENGINE = ENGINE,
+ PARTITION p1 VALUES LESS THAN (1995) ENGINE = ENGINE,
+ PARTITION p2 VALUES LESS THAN (1999) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN (2002) ENGINE = ENGINE,
+ PARTITION p4 VALUES LESS THAN (2006) ENGINE = ENGINE,
+ PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test

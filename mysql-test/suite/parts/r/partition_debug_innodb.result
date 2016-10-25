@@ -5239,6 +5239,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before crash
 found 3 *.ibd file(s)
@@ -5264,6 +5266,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -5339,6 +5343,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -5405,6 +5411,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before crash
 found 3 *.ibd file(s)
@@ -5430,6 +5438,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -5506,6 +5516,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -5572,6 +5584,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before crash
 found 3 *.ibd file(s)
@@ -5597,6 +5611,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -5673,6 +5689,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -5739,6 +5757,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before crash
 found 3 *.ibd file(s)
@@ -5764,6 +5784,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -5840,6 +5862,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -5906,6 +5930,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before crash
 found 3 *.ibd file(s)
@@ -5931,6 +5957,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -6072,6 +6100,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before failure
 found 3 *.ibd file(s)
@@ -6097,6 +6127,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -6165,6 +6197,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -6230,6 +6264,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before failure
 found 3 *.ibd file(s)
@@ -6255,6 +6291,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -6324,6 +6362,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -6391,6 +6431,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before failure
 found 3 *.ibd file(s)
@@ -6416,6 +6458,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -6484,6 +6528,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -6549,6 +6595,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before failure
 found 3 *.ibd file(s)
@@ -6574,6 +6622,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -6643,6 +6693,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -6710,6 +6762,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before failure
 found 3 *.ibd file(s)
@@ -6735,6 +6789,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -6803,6 +6859,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -6868,6 +6926,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before failure
 found 3 *.ibd file(s)
@@ -6893,6 +6953,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -6962,6 +7024,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -7029,6 +7093,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before failure
 found 3 *.ibd file(s)
@@ -7054,6 +7120,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -7122,6 +7190,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -7187,6 +7257,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before failure
 found 3 *.ibd file(s)
@@ -7212,6 +7284,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -7281,6 +7355,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -7348,6 +7424,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before failure
 found 3 *.ibd file(s)
@@ -7373,6 +7451,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1
@@ -7504,6 +7584,8 @@ FLUSH TABLE t1;
 # table. InnoDB internals is the same. Notice char(64) instead of (63)!
 # Flush the table data files to get deterministic checksum of data files
 FLUSH TABLE t1 FOR EXPORT;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 # State before failure
 found 3 *.ibd file(s)
@@ -7529,6 +7611,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Filler_1

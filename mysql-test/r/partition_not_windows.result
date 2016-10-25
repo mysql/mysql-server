@@ -3,12 +3,16 @@ partition by range (a)
 subpartition by hash (a)
 (partition p0 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
 (SUBPARTITION subpart00, SUBPARTITION subpart01));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Checking if file exists before alter
 ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
 (partition p1 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
 (SUBPARTITION subpart10, SUBPARTITION subpart11),
 partition p2 VALUES LESS THAN (2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
 (SUBPARTITION subpart20, SUBPARTITION subpart21));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Checking if file exists after alter
 drop table t1;
 set innodb_strict_mode=off;
@@ -87,6 +91,8 @@ INDEX DIRECTORY = 'MYSQLTEST_VARDIR/p2Index',
 PARTITION p3 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p3Data'
 INDEX DIRECTORY = 'MYSQLTEST_VARDIR/p3Index'
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.example', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Checking that MyISAM .MYD and .MYI are in test db and data/idx dir
 DROP TABLE example;
 CREATE TABLE `example` (
