@@ -411,7 +411,7 @@ private:
   //**************************************************************************
 
   const MgmtOpts& m_opts;
-  int _blockNumber;
+  BlockNumber _blockNumber;
   NodeId _ownNodeId;
   Uint32 m_port;
   SocketServer m_socket_server;
