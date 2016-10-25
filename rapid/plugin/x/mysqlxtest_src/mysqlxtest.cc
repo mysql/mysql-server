@@ -19,10 +19,6 @@
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
-#include <boost/algorithm/hex.hpp>
-#include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
-#include <boost/lexical_cast.hpp>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
@@ -36,20 +32,20 @@
 #include <stdexcept>
 
 #include "dummy_stream.h"
-#include "expr_parser.h"
 #include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
 #include "my_global.h"
 #include "my_loglevel.h"
-#include "mysqlx_crud.h"
 #include "mysqlx_error.h"
 #include "mysqlx_protocol.h"
 #include "mysqlx_resultset.h"
 #include "mysqlx_session.h"
 #include "mysqlx_version.h"
 #include "ngs_common/bind.h"
-#include "ngs_common/posix_time.h"
+#include "common/utils_string_parsing.h"
+#include "ngs_common/chrono.h"
 #include "ngs_common/protocol_const.h"
 #include "ngs_common/protocol_protobuf.h"
+#include "ngs_common/to_string.h"
 #include "utils_mysql_parsing.h"
 #include "violite.h"
 
@@ -57,11 +53,13 @@
 #include <sys/un.h>
 #endif
 
-const char *CMD_ARG_BE_QUIET = "be-quiet";
-const char CMD_ARG_SEPARATOR = '\t';
+const char * const CMD_ARG_BE_QUIET = "be-quiet";
 const char * const MYSQLXTEST_VERSION = "1.0";
-#include <mysql.h>
+const char CMD_ARG_SEPARATOR = '\t';
+const unsigned short MYSQLX_PORT = 33060;
+
 #include <mysql/service_my_snprintf.h>
+#include <mysql.h>
 
 #ifdef _MSC_VER
 #  pragma push_macro("ERROR")
@@ -119,20 +117,6 @@ static std::ostream &get_stream_for_results(const bool force_quiet = false)
   return dummy;
 }
 
-static void replace_all(std::string &input, const std::string &to_find, const std::string &change_to)
-{
-  if (to_find.empty())
-    return;
-
-  size_t position = input.find(to_find);
-
-  while (std::string::npos != position)
-  {
-    input.replace(position, to_find.size(), change_to);
-    position = input.find(to_find, position + change_to.size());
-  }
-}
-
 static void replace_variables(std::string &s)
 {
   for (std::map<std::string, std::string>::const_iterator sub = variables.begin();
@@ -140,11 +124,9 @@ static void replace_variables(std::string &s)
   {
     std::string tmp(sub->second);
 
-    // change from boost::replace_all to own fast forward implementation
-    // which is 2 times faster than boost (tested in debug mode)
-    replace_all(tmp, "\"", "\\\"");
-    replace_all(tmp, "\n", "\\n");
-    replace_all(s, sub->first, tmp);
+    aux::replace_all(tmp, "\"", "\\\"");
+    aux::replace_all(tmp, "\n", "\\n");
+    aux::replace_all(s, sub->first, tmp);
   }
 }
 
@@ -154,7 +136,7 @@ static std::string unreplace_variables(const std::string &in, bool clear)
   for (std::list<std::string>::const_iterator sub = variables_to_unreplace.begin();
       sub != variables_to_unreplace.end(); ++sub)
   {
-    replace_all(s, variables[*sub], *sub);
+    aux::replace_all(s, variables[*sub], *sub);
   }
   if (clear)
     variables_to_unreplace.clear();
@@ -556,10 +538,9 @@ static std::string data_to_bindump(const std::string &bindump)
       res.push_back(ch);
     else
     {
-      static const char *hex = "0123456789abcdef";
       res.append("\\x");
-      res.push_back(hex[(ch >> 4) & 0xf]);
-      res.push_back(hex[ch & 0xf]);
+      res.push_back(aux::ALLOWED_HEX_CHARACTERS[(ch >> 4) & 0xf]);
+      res.push_back(aux::ALLOWED_HEX_CHARACTERS[ch & 0xf]);
     }
   }
 
@@ -581,7 +562,7 @@ static std::string bindump_to_data(const std::string &bindump)
       else if (bindump[i+1] == 'x')
       {
         int value = 0;
-        static const char *hex = "0123456789abcdef";
+        const char *hex = aux::ALLOWED_HEX_CHARACTERS.c_str();
         const char *p = strchr(hex, bindump[i+2]);
         if (p)
           value = (p - hex) << 4;
@@ -678,22 +659,6 @@ static std::string message_to_bindump(const mysqlx::Message &message)
 
   return data_to_bindump(res);
 }
-
-/*
-static mysqlx::Message *text_to_server_message(const std::string &name, const std::string &data)
-{
-  if (server_msgs_by_full_name.find(name) == server_msgs_by_full_name.end())
-  {
-    std::cerr << "Invalid message type " << name << "\n";
-    return NULL;
-  }
-  mysqlx::Message *message = server_msgs_by_name[server_msgs_by_full_name[name]].first();
-
-  google::protobuf::TextFormat::ParseFromString(data, message);
-
-  return message;
-}
-*/
 
 class ErrorDumper : public ::google::protobuf::io::ErrorCollector
 {
@@ -816,7 +781,7 @@ public:
     std::list<std::string>::const_iterator n = m_args.begin(), v = args.begin();
     for (size_t i = 0; i < args.size(); i++)
     {
-      replace_all(text, *(n++), *(v++));
+      aux::replace_all(text, *(n++), *(v++));
     }
     return text;
   }
@@ -839,7 +804,7 @@ public:
     {
       r_name = cmd.substr(0, p);
       std::string rest = cmd.substr(p+1);
-      boost::split(args, rest, boost::is_any_of("\t"), boost::token_compress_on);
+      aux::split(args, rest, "\t", true);
     }
     if (r_name.empty())
     {
@@ -1056,7 +1021,8 @@ private:
     if (msg.get())
     {
       bool failed = false;
-      if (msg->GetDescriptor()->full_name() != "Mysqlx.Error" || (uint32_t)atoi(args.c_str()) != static_cast<Mysqlx::Error*>(msg.get())->code())
+      if (msg->GetDescriptor()->full_name() != "Mysqlx.Error" ||
+          (uint32_t)ngs::stoi(args) != static_cast<Mysqlx::Error*>(msg.get())->code())
       {
         std::cout << error() << "Was expecting Error " << args <<", but got:" << eoerr();
         failed = true;
@@ -1095,9 +1061,9 @@ private:
 
     std::string args_cmd = args;
     std::vector<std::string> args_array;
-    boost::algorithm::trim(args_cmd);
+    aux::trim(args_cmd);
 
-    boost::split(args_array, args_cmd, boost::is_any_of(" "), boost::token_compress_off);
+    aux::split(args_array, args_cmd, " ", false);
 
     args_cmd = CMD_ARG_BE_QUIET;
 
@@ -1131,10 +1097,10 @@ private:
       std::vector<std::string> columns;
       std::string cmd_args = args;
 
-      boost::algorithm::trim(cmd_args);
+      aux::trim(cmd_args);
 
       if (cmd_args.size())
-        boost::algorithm::split(columns, cmd_args, boost::is_any_of(" "));
+        aux::split(columns, cmd_args, " ", false);
 
       std::vector<std::string>::iterator i = std::find(columns.begin(), columns.end(), "print-columnsinfo");
       const bool print_colinfo = i != columns.end();
@@ -1192,7 +1158,7 @@ private:
 
     std::vector<std::string> argl;
 
-    boost::split(argl, args, boost::is_any_of(" "), boost::token_compress_on);
+    aux::split(argl, args, " ", true);
 
     bool show = true, stop = false;
 
@@ -1298,14 +1264,14 @@ private:
     std::string tmp = args;
     replace_variables(tmp);
     std::vector<std::string> params;
-    boost::split(params, tmp, boost::is_any_of("\t"), boost::token_compress_on);
+    aux::split(params, tmp, "\t", true);
     if (params.empty())
     {
       std::cerr << "Invalid empty admin command\n";
       return Stop_with_failure;
     }
 
-    boost::algorithm::trim(params[0]);
+    aux::trim(params[0]);
 
     Mysqlx::Sql::StmtExecute stmt;
     stmt.set_stmt(params[0]);
@@ -1333,7 +1299,9 @@ private:
 
   Result cmd_sleep(Execution_context &context, const std::string &args)
   {
-    const float delay_in_seconds = atof(args.c_str());
+    std::string tmp = args;
+    replace_variables(tmp);
+    const double delay_in_seconds = ngs::stod(tmp);
 #ifdef _WIN32
     const int delay_in_miliseconds = delay_in_seconds * 1000;
     Sleep(delay_in_miliseconds);
@@ -1419,7 +1387,7 @@ private:
     std::string variable_name = "";
     std::vector<std::string> argl;
 
-    boost::split(argl, args, boost::is_any_of("\t"), boost::token_compress_on);
+    aux::split(argl, args, "\t", true);
 
     if (argl.size() > 1)
     {
@@ -1429,12 +1397,12 @@ private:
     // Allow use of variables as a source of number of iterations
     replace_variables(argl[0]);
 
-    Loop_do loop = {context.m_stream.tellg(), atoi(argl[0].c_str()), 0, variable_name};
+    Loop_do loop = {context.m_stream.tellg(), ngs::stoi(argl[0]), 0, variable_name};
 
     m_loop_stack.push_back(loop);
 
     if (variable_name.length())
-      variables[variable_name] = boost::lexical_cast<std::string>(loop.value);
+      variables[variable_name] = ngs::to_string(loop.value);
 
     return Continue;
   }
@@ -1449,7 +1417,7 @@ private:
       ++ld.value;
 
       if (ld.variable_name.length())
-        variables[ld.variable_name] = boost::lexical_cast<std::string>(ld.value);
+        variables[ld.variable_name] = ngs::to_string(ld.value);
 
       if (1 > ld.iterations)
       {
@@ -1511,7 +1479,7 @@ private:
     {
       context.connection()->pop_local_notice_handler();
 
-      if (err.error() == (int32_t)atoi(expected.c_str()))
+      if (err.error() == (int32_t)ngs::stoi(expected))
         std::cerr << "error (as expected): " << err.what() << " (code " << err.error() << ")\n";
       else
       {
@@ -1584,7 +1552,7 @@ private:
       tolerance = 10 * expected_delta_time / 100;
     }
 
-    ngs::ptime start_time = ngs::microsec_clock::local_time();
+    ngs::chrono::time_point start_time = ngs::chrono::now();
     try
     {
       int msgid;
@@ -1612,7 +1580,7 @@ private:
       }
     }
 
-    int execution_delta_time = (ngs::microsec_clock::local_time() - start_time).total_milliseconds();
+    int execution_delta_time = ngs::chrono::to_milliseconds(ngs::chrono::now() - start_time);
 
     if (abs(execution_delta_time - expected_delta_time) > tolerance)
     {
@@ -1636,7 +1604,7 @@ private:
     bool quiet = false;
     std::string args_copy(args);
 
-    boost::algorithm::trim(args_copy);
+    aux::trim(args_copy);
     if (args_copy == "quiet")
       quiet = true;
     else if (!args_copy.empty())
@@ -1800,9 +1768,9 @@ private:
     if (!args.empty())
     {
       std::vector<std::string> argl;
-      boost::split(argl, args, boost::is_any_of(","), boost::token_compress_on);
+      aux::split(argl, args, ",", true);
       for (std::vector<std::string>::const_iterator arg = argl.begin(); arg != argl.end(); ++arg)
-        OPT_expect_error->expect_errno(atoi(arg->c_str()));
+        OPT_expect_error->expect_errno(ngs::stoi(*arg));
     }
     else
     {
@@ -1813,37 +1781,37 @@ private:
   }
 
 
-  static ngs::ptime m_start_measure;
+  static ngs::chrono::time_point m_start_measure;
 
   Result cmd_measure(Execution_context &context, const std::string &args)
   {
-    m_start_measure = ngs::microsec_clock::local_time();
+    m_start_measure = ngs::chrono::now();
     return Continue;
   }
 
   Result cmd_endmeasure(Execution_context &context, const std::string &args)
   {
-    if (m_start_measure.is_not_a_date_time())
+    if (!ngs::chrono::is_valid(m_start_measure))
     {
       std::cerr << "Time measurement, wasn't initialized\n";
       return Stop_with_failure;
     }
 
     std::vector<std::string> argl;
-    boost::split(argl, args, boost::is_any_of(" "), boost::token_compress_on);
+    aux::split(argl, args, " ", true);
     if (argl.size() != 2 && argl.size() != 1)
     {
       std::cerr << "Invalid number of arguments for command endmeasure\n";
       return Stop_with_failure;
     }
 
-    const int64_t expected_msec = atoi(argl[0].c_str());
-    const int64_t msec = (ngs::microsec_clock::local_time() - m_start_measure).total_milliseconds();
+    const int64_t expected_msec = ngs::stoi(argl[0]);
+    const int64_t msec = ngs::chrono::to_milliseconds(ngs::chrono::now() - m_start_measure);
 
     int64_t tolerance = expected_msec * 10 / 100;
 
     if (2 == argl.size())
-      tolerance = atoi(argl[1].c_str());
+      tolerance = ngs::stoi(argl[1]);
 
     if (abs(expected_msec - msec) > tolerance)
     {
@@ -1851,7 +1819,7 @@ private:
       return Stop_with_failure;
     }
 
-    m_start_measure = ngs::not_a_date_time;
+    m_start_measure = ngs::chrono::time_point();
     return Continue;
   }
 
@@ -1894,7 +1862,7 @@ private:
   Result cmd_varinc(Execution_context &context, const std::string &args)
   {
     std::vector<std::string> argl;
-    boost::split(argl, args, boost::is_any_of(" "), boost::token_compress_on);
+    aux::split(argl, args, " ", true);
     if (argl.size() != 2)
     {
       std::cerr << "Invalid number of arguments for command varinc\n";
@@ -1916,7 +1884,7 @@ private:
     long int_val = strtol(val.c_str(), &c, 10);
     long int_n = strtol(inc_by.c_str(), &c, 10);
     int_val += int_n;
-    val = boost::lexical_cast<std::string>(int_val);
+    val = ngs::to_string(int_val);
     variables[argl[0]] = val;
 
     return Continue;
@@ -1925,13 +1893,13 @@ private:
   Result cmd_vargen(Execution_context &context, const std::string &args)
   {
     std::vector<std::string> argl;
-    boost::split(argl, args, boost::is_any_of(" "), boost::token_compress_on);
+    aux::split(argl, args, " ", true);
     if (argl.size() != 3)
     {
       std::cerr << "Invalid number of arguments for command vargen\n";
       return Stop_with_failure;
     }
-    std::string data(atoi(argl[2].c_str()), *argl[1].c_str());
+    std::string data(ngs::stoi(argl[2]), *argl[1].c_str());
     variables[argl[0]] = data;
     return Continue;
   }
@@ -1939,7 +1907,7 @@ private:
   Result cmd_varfile(Execution_context &context, const std::string &args)
   {
     std::vector<std::string> argl;
-    boost::split(argl, args, boost::is_any_of(" "), boost::token_compress_on);
+    aux::split(argl, args, " ", true);
     if (argl.size() != 2)
     {
       std::cerr << "Invalid number of arguments for command varfile " << args << "\n";
@@ -1999,7 +1967,7 @@ private:
     std::string data;
     try
     {
-      boost::algorithm::unhex(args_copy.begin(), args_copy.end(), std::back_inserter(data));
+      aux::unhex(args_copy, data);
     }
     catch(const std::exception&)
     {
@@ -2016,12 +1984,12 @@ private:
   {
     if ('%' == *data.rbegin())
     {
-      size_t percent = atoi(data.c_str());
+      size_t percent = ngs::stoi(data);
 
       return maximum_value * percent / 100;
     }
 
-    return atoi(data.c_str());
+    return ngs::stoi(data);
   }
 
   Result cmd_binsendoffset(Execution_context &context, const std::string &args)
@@ -2030,7 +1998,7 @@ private:
     replace_variables(args_copy);
 
     std::vector<std::string> argl;
-    boost::split(argl, args_copy, boost::is_any_of(" "), boost::token_compress_on);
+    aux::split(argl, args_copy, " ", true);
 
     size_t begin_bin = 0;
     size_t end_bin = 0;
@@ -2075,7 +2043,7 @@ private:
   {
     std::vector<std::string> vargs;
 
-    boost::split(vargs, args, boost::is_any_of("\t"), boost::token_compress_on);
+    aux::split(vargs, args, "\t", true);
 
     if (2 != vargs.size())
     {
@@ -2099,7 +2067,7 @@ private:
   {
     std::vector<std::string> vargs;
 
-    boost::split(vargs, args, boost::is_any_of("\t"), boost::token_compress_on);
+    aux::split(vargs, args, "\t", true);
 
     if (2 != vargs.size())
     {
@@ -2110,7 +2078,7 @@ private:
     replace_variables(vargs[0]);
     replace_variables(vargs[1]);
 
-    if (atoi(vargs[0].c_str()) <= atoi(vargs[1].c_str()))
+    if (ngs::stoi(vargs[0]) <= ngs::stoi(vargs[1]))
     {
       std::cerr << "Expecting '" << vargs[0] << "' to be greater than '" << vargs[1] << "'\n";
       return Stop_with_failure;
@@ -2124,7 +2092,7 @@ private:
     std::vector<std::string> vargs;
     char *end_string = NULL;
 
-    boost::split(vargs, args, boost::is_any_of("\t"), boost::token_compress_on);
+    aux::split(vargs, args, "\t", true);
 
     if (2 != vargs.size())
     {
@@ -2197,7 +2165,7 @@ private:
     std::vector<std::string> vargs;
 
     replace_variables(args_variables_replaced);
-    boost::split(vargs, args_variables_replaced, boost::is_any_of("\t"), boost::token_compress_on);
+    aux::split(vargs, args_variables_replaced, "\t", true);
 
     if (2 != vargs.size())
     {
@@ -2243,7 +2211,7 @@ private:
   Result cmd_import(Execution_context &context, const std::string &args);
 };
 
-ngs::ptime Command::m_start_measure = ngs::not_a_date_time;
+ngs::chrono::time_point Command::m_start_measure;
 
 static int process_client_message(mysqlx::XProtocol *connection, int8_t msg_id, const mysqlx::Message &msg)
 {
@@ -2695,7 +2663,7 @@ public:
     {
       std::list<std::string> args;
       std::string t(linebuf+strlen(cmd));
-      boost::split(args, t, boost::is_any_of(" \t"), boost::token_compress_on);
+      aux::split(args, t, " \t", true);
 
       if (args.empty())
       {
@@ -2864,7 +2832,7 @@ private:
     const char *command_dump = "-->binparse";
     std::vector<std::string> args;
 
-    boost::split(args, linebuf, boost::is_any_of(" "), boost::token_compress_on);
+    aux::split(args, linebuf, " ", true);
 
     if (4 != args.size())
       return "";
@@ -3221,15 +3189,15 @@ public:
       else if (check_arg_with_value(argv, i, "--schema", NULL, value))
         connection.schema = value;
       else if (check_arg_with_value(argv, i, "--port", "-P", value))
-        connection.port = atoi(value);
+        connection.port = ngs::stoi(value);
       else if (check_arg_with_value(argv, i, "--ipv", NULL, value))
       {
-        ip_mode = set_protocol(atoi(value));
+        ip_mode = set_protocol(ngs::stoi(value));
       }
       else if (check_arg_with_value(argv, i, "--timeout", "-t", value))
-        timeout = atoi(value);
+        timeout = ngs::stoi(value);
       else if (check_arg_with_value(argv, i, "--fatal-errors", NULL, value))
-        OPT_fatal_errors = atoi(value);
+        OPT_fatal_errors = ngs::stoi(value);
       else if (check_arg_with_value(argv, i, "--password", "-p", value))
         connection.password = value;
       else if (check_arg_with_value(argv, i, "--socket", "-S", value))
@@ -3287,7 +3255,7 @@ public:
   {
     std::vector<std::string> args;
 
-    boost::algorithm::split(args, set_expression, boost::is_any_of("="));
+    aux::split(args, set_expression, "=", false);
 
     if (2 != args.size())
     {

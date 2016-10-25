@@ -17,8 +17,8 @@
  * 02110-1301  USA
  */
 
+#include <algorithm>
 #include "mysql/plugin.h"
-
 #include "sql_data_context.h"
 #include "sql_user_require.h"
 #include "mysql/service_command.h"

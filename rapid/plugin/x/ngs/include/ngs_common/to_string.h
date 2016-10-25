@@ -17,14 +17,16 @@
  * 02110-1301  USA
  */
 
-#ifndef NGS_ATOMIC_H_
-#define NGS_ATOMIC_H_
+#ifndef NGS_TO_STRING_H_
+#define NGS_TO_STRING_H_
 
-#include <atomic>
+#include <string>
 
 namespace ngs
 {
-using std::atomic;
-} // namespace ngs
+using std::to_string;
+using std::stoi;
+using std::stod;
+}  // namespace ngs
 
-#endif // NGS_ATOMIC_H_
+#endif  // NGS_TO_STRING_H_

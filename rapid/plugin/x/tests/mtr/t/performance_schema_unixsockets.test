@@ -126,7 +126,7 @@ EOF
 -->endrepeat
 
 # Make connection and verify that accept counter was incremented
---varlet %ACCETP_COUNT% 0
+-->varlet %ACCETP_COUNT% 0
 -->repeat 40
 -->newsession temporary_connection	root
 -->callmacro Verify_increase	%ACCETP_COUNT%	`COUNT_MISC`	'wait/io/socket/mysqlx/unix_socket'

@@ -17,41 +17,34 @@
  * 02110-1301  USA
  */
 
-// MySQL DB access module, for use by plugins and others
-// For the module that implements interactive DB functionality see mod_db
+#ifndef NGS_CHRONO_H_
+#define NGS_CHRONO_H_
 
-#ifndef _MYSQLX_ERROR_H_
-#define _MYSQLX_ERROR_H_
+#include <chrono>
 
-#include <stdexcept>
-#include <string>
+namespace ngs {
+namespace chrono {
 
+using std::chrono::milliseconds;
+using std::chrono::seconds;
+typedef std::chrono::steady_clock::time_point time_point;
+typedef std::chrono::steady_clock::duration duration;
 
-namespace mysqlx
-{
-  class Error
-  {
-  public:
-    Error(int err = 0, const std::string &message = "")
-    :_message(message), _error(err)
-    { }
+inline time_point now() { return std::chrono::steady_clock::now(); }
 
-    int error() const { return _error; }
-
-    operator bool () const
-    {
-      return 0 != _error;
-    }
-
-    const char *what() const
-    {
-      return _message.c_str();
-    }
-
-  private:
-    std::string _message;
-    int _error;
-  };
+inline milliseconds::rep to_milliseconds(const duration &d) {
+  return std::chrono::duration_cast<milliseconds>(d).count();
 }
 
-#endif
+inline seconds::rep to_seconds(const duration &d) {
+  return std::chrono::duration_cast<seconds>(d).count();
+}
+
+inline bool is_valid(const time_point &p) {
+  return p.time_since_epoch().count() > 0;
+}
+
+}  // namespace chrono
+}  // namespcae ngs
+
+#endif  // NGS_CHRONO_H_

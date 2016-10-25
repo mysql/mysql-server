@@ -17,23 +17,27 @@
  * 02110-1301  USA
  */
 
+#ifndef XPL_MYSQL_FUNCTION_NAMES_H_
+#define XPL_MYSQL_FUNCTION_NAMES_H_
 
-#ifndef _NGS_POSIX_TIME_H_
-#define _NGS_POSIX_TIME_H_
+#include <cstring>
+#include <string>
 
-#include <boost/date_time/posix_time/posix_time.hpp>
+namespace xpl {
 
+struct Is_less {
+  bool operator()(const char *const pattern, const char *const source) const {
+    return std::strcmp(pattern, source) < 0;
+  }
+};
 
-namespace ngs
-{
+template <typename T, unsigned size>
+inline const T *get_array_end(T (&array)[size]) {
+  return array + size;
+}
 
-using boost::posix_time::microsec_clock;
-using boost::posix_time::ptime;
-using boost::posix_time::time_duration;
-using boost::posix_time::milliseconds;
-using boost::posix_time::seconds;
-using boost::date_time::not_a_date_time;
+bool is_native_mysql_function(const std::string &name);
 
-} // namespcae ngs
+}  // namespace xpl
 
-#endif // _NGS_POSIX_TIME_H_
+#endif  // XPL_MYSQL_FUNCTION_NAMES_H_
