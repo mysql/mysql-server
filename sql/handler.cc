@@ -41,9 +41,13 @@
 #include "binlog_event.h"
 #include "check_stack.h"
 #include "current_thd.h"
+#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "dd/dd.h"                    // dd::get_dictionary
+#include "dd/dd_schema.h"             // dd::Schema_MDL_locker
 #include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
+#include "dd/sdi.h"                   // dd::store_sdi
 #include "dd/sdi_file.h"              // dd::sdi_file::store
+#include "dd/types/table.h"           // dd::Table
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_DEFAULT
@@ -109,16 +113,6 @@
 #include "transaction_info.h"
 #include "xa.h"
 
-#include <dd/dictionary.h>
-
-#include "dd/dd.h"
-#include "dd/types/object_type.h"
-#include "dd/types/schema.h"
-#include "dd/types/table.h"
-#include "dd/types/partition.h"
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd_schema.h"             // dd::Schema_MDL_locker
-#include "dd/sdi.h"                   // dd::store_sdi
 
 /**
   @def MYSQL_TABLE_IO_WAIT
@@ -2541,9 +2535,20 @@ public:
 };
 
 
-/** @brief
-  This should return ENOENT if the file doesn't exists.
-  The .frm file will be deleted only if we return 0 or ENOENT
+/**
+  Delete table from the storage engine.
+
+  @param thd                Thread context.
+  @param table_type         Handlerton for table's SE.
+  @param path               Path to table (without extension).
+  @param db                 Table database.
+  @param alias              Table name.
+  @param table_def          dd::Table object describing the table.
+  @param generate_warning   Indicates whether errors during deletion
+                            should be reported as warnings.
+
+  @return  0 - in case of success, non-0 in case of failure, ENOENT
+           if the file doesn't exists.
 */
 int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
                     const char *db, const char *alias,
@@ -4950,12 +4955,12 @@ handler::ha_drop_table(const char *name)
 
 int
 handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
-                   dd::Table *dd_tab)
+                   dd::Table *table_def)
 {
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   mark_trx_read_write();
 
-  return create(name, form, info, dd_tab);
+  return create(name, form, info, table_def);
 }
 
 

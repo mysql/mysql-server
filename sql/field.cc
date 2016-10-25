@@ -10300,7 +10300,7 @@ void Create_field::create_length_to_internal_length(void)
 }
 
 
-/*
+/**
   Calculate key length for field from its type, length and other attributes.
 
   @note for string fields "length" parameter is assumed to take into account

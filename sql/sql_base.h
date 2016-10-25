@@ -243,7 +243,7 @@ thr_lock_type read_lock_type_for_table(THD *thd,
 
 bool mysql_rm_tmp_tables(void);
 bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
-                        dd::Table *dd_tab);
+                        const dd::Table *table_def);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);

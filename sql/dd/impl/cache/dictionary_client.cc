@@ -1240,6 +1240,10 @@ static bool get_index_statistics_entries(THD *thd,
                                   std::vector<String_type> &index_names,
                                   std::vector<String_type> &column_names)
 {
+  /*
+    Use READ UNCOMMITTED isolation, so this method works correctly when
+    called from the middle of atomic ALTER TABLE statement.
+  */
   dd::Transaction_ro trx(thd, ISO_READ_UNCOMMITTED);
 
   // Open the DD tables holding dynamic table statistics.
@@ -1329,6 +1333,10 @@ bool Dictionary_client::remove_table_dynamic_statistics(
                                                *it_idxs,
                                                *it_cols));
 
+      /*
+        Use READ UNCOMMITTED isolation, so this method works correctly when
+        called from the middle of atomic ALTER TABLE statement.
+      */
       if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, &idx_stat))
       {
         DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
@@ -1359,6 +1367,10 @@ bool Dictionary_client::remove_table_dynamic_statistics(
   std::unique_ptr<Table_stat::name_key_type> key(
     tables::Table_stats::create_object_key(schema_name, table_name));
 
+  /*
+    Use READ UNCOMMITTED isolation, so this method works correctly when
+    called from the middle of atomic ALTER TABLE statement.
+  */
   const Table_stat *tab_stat;
   if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, &tab_stat))
   {
@@ -1965,9 +1977,7 @@ bool Dictionary_client::update(const T** old_object, T* new_object,
 }
 
 
-// Update a modified dictionary object and remove it from the cache.
-// Needed by WL#7743.
-/* purecov: begin deadcode */
+// Update a modified uncached dictionary object and remove it from the cache.
 template <typename T>
 bool Dictionary_client::update_uncached_and_invalidate(T* object)
 {
@@ -1993,7 +2003,6 @@ bool Dictionary_client::update_uncached_and_invalidate(T* object)
 
   return true;
 }
-/* purecov: end */
 
 
 // Add a new dictionary object.

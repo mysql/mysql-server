@@ -7216,26 +7216,28 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 /**
   Delete a temporary table.
 
-  @param thd   Thread handle
-  @param base  Handlerton for table to be deleted.
-  @param path  Path to the table to be deleted (i.e. path
-               to its .frm without an extension).
+  @param thd        Thread handle
+  @param base       Handlerton for table to be deleted.
+  @param path       Path to the table to be deleted (without
+                    an extension).
+  @param table_def  dd::Table object describing temporary table
+                    to be deleted.
 
   @retval false - success.
   @retval true  - failure.
 */
 
 bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
-                        dd::Table *dd_tab)
+                        const dd::Table *table_def)
 {
   bool error=0;
   handler *file;
   DBUG_ENTER("rm_temporary_table");
 
   file= get_new_handler((TABLE_SHARE*) 0,
-                        dd_tab->partition_type() != dd::Table::PT_NONE,
+                        table_def->partition_type() != dd::Table::PT_NONE,
                         thd->mem_root, base);
-  if (file && file->ha_delete_table(path, dd_tab))
+  if (file && file->ha_delete_table(path, table_def))
   {
     error=1;
     sql_print_warning("Could not remove temporary table: '%s', error: %d",

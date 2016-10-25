@@ -220,6 +220,11 @@ public:
 
   virtual const Partition_collection &partitions() const = 0;
 
+  /**
+    Find and set parent partitions for subpartitions.
+
+    TODO/FIXME: Can we adjust API somehow to avoid need for this method?
+  */
   virtual void fix_partitions() = 0;
 
   /////////////////////////////////////////////////////////////////////////

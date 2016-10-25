@@ -253,6 +253,19 @@ public:
   { m_map<T>()->drop(element); }
 
 
+  /**
+    Delete an element corresponding to the key from the cache if exists.
+
+    This function will find the element corresponding to the key if
+    it exists. After that it will remove the element from the cache
+    i.e. all maps, and delete the object pointed to. This means that
+    all keys associated with the element will be removed from the maps,
+    and the cache element wrapper will be deleted.
+
+    @tparam  K         Key type.
+    @tparam  T         Dictionary object type.
+    @param   key       Key to be checked.
+  */
   template <typename K, typename T>
   void drop_if_present(const K &key)
   {

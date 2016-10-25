@@ -491,8 +491,6 @@ public:
     isolation level is READ UNCOMMITTED. This is necessary to be able to
     read uncommitted data from an earlier stage of the same session.
 
-    @note This is needed by WL#7743.
-
     @tparam       T             Dictionary object type.
     @param        schema_name   Name of the schema containing the table.
     @param        object_name   Name of the object.
@@ -727,6 +725,21 @@ public:
   template <typename T>
   bool drop(const T *object);
 
+  /**
+    Remove and delete entries corresponding to uncached object from
+    the data-dictionary and its cache (if any).
+
+    @note This function assumes that object is not in the local
+          registry (i.e. was not acquired by current client).
+          It is responsibility of caller to free memory occupied
+          by the uncached object.
+
+    @tparam T       Dictionary object type.
+    @param  object  Object to be dropped.
+
+    @retval false   The operation was successful.
+    @retval true    There was an error.
+  */
   template <typename T>
   bool drop_uncached(const T *object);
 
@@ -791,13 +804,12 @@ public:
   /**
     Update a modified dictionary object and remove it from the cache.
 
-    This function will remove the object from the object registry of
-    the client, store the modified object into the DD tables, and
-    remove the object from the shared cache. Then, further attempts
-    to acquire the object will result in a cache miss, thus reading the
-    object from the DD tables. This behavior is needed to maintain
-    cache consistency regardless of the transaction outcome (commit
-    or rollback).
+    This function will store the modified object into the DD tables,
+    and remove the corresponding object from the shared cache if it
+    is there. Then, further attempts to acquire the object will result
+    in a cache miss, thus reading the object from the DD tables.
+    This behavior is needed to maintain cache consistency regardless
+    of the transaction outcome (commit or rollback).
 
     @note There must be an exclusive meta data lock on the object
           prior to calling this function.
@@ -805,8 +817,10 @@ public:
     @note This operation is not allowed on a sticky object, since a sticky
           object should always be present in the cache.
 
-    @note The object pointed to is released and deleted, and may not be
-          accessed after calling this function.
+    @note It is assumed that object is not in local registry (i.e. was
+          not acquired by this dictionary client).
+
+    @note It is responsibility of the caller to delete updated object.
 
     @tparam T       Dictionary object type.
     @param  object  Object to be updated.

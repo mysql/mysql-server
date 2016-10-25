@@ -423,6 +423,18 @@ public:
 
   void drop(Cache_element<T> *element);
 
+  /**
+    Delete an object corresponding to the key from the map if exists.
+
+    This function will find the element corresponding to the key if
+    it exists. After that it will remove the element from all maps, using
+    remove(), and delete the object pointed to. This means that all keys
+    associated with the element will be removed from the maps, and the
+    cache element wrapper will be deleted.
+
+    @param   K         Key type.
+    @param   key       Key to be checked.
+  */
   template <typename K>
   void drop_if_present(const K &key);
 
