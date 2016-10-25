@@ -230,7 +230,7 @@ translateStopRef(Uint32 errCode)
 
 MgmtSrvr::MgmtSrvr(const MgmtOpts& opts) :
   m_opts(opts),
-  _blockNumber(-1),
+  _blockNumber(0),
   _ownNodeId(0),
   m_port(0),
   m_local_config(NULL),
@@ -393,7 +393,7 @@ MgmtSrvr::start_transporter(const Config* config)
     DBUG_RETURN(false);
   }
 
-  assert(_blockNumber == -1); // Blocknumber shouldn't been allocated yet
+  assert(_blockNumber == 0); // Blocknumber shouldn't been allocated yet
 
   /*
     Register ourself at TransporterFacade to be able to receive signals
@@ -409,6 +409,7 @@ MgmtSrvr::start_transporter(const Config* config)
     DBUG_RETURN(false);
   }
   _blockNumber = refToBlock(res);
+  assert(_blockNumber > 0);
 
   /**
    * Need to call ->open() prior to actually starting TF
@@ -2472,7 +2473,7 @@ MgmtSrvr::setNodeLogLevelImpl(int nodeId, const SetLogLevelOrd & ll)
 int 
 MgmtSrvr::insertError(int nodeId, int errorNo, Uint32 * extra)
 {
-  int block;
+  BlockNumber block;
 
   if (errorNo < 0) {
     return INVALID_ERROR_NUMBER;
