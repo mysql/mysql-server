@@ -2878,17 +2878,21 @@ parse_err:
 /**
   Open a table based on a TABLE_SHARE
 
-  @param thd			Thread handler
-  @param share		Table definition
-  @param alias    Alias for table
-  @param db_stat	Open flags (for example HA_OPEN_KEYFILE|
-    			        HA_OPEN_RNDFILE..) can be 0 (example in
-                  ha_example_table)
-  @param prgflag   		READ_ALL etc..
-  @param ha_open_flags HA_OPEN_ABORT_IF_LOCKED etc..
-  @param outparam      Result table.
-  @param is_create_table Indicates that table is opened as part
-                         of CREATE or ALTER and does not yet exist in SE.
+  @param thd              Thread handler
+  @param share            Table definition
+  @param alias            Alias for table
+  @param db_stat          Open flags (for example HA_OPEN_KEYFILE|
+                          HA_OPEN_RNDFILE..) can be 0 (example in
+                          ha_example_table)
+  @param prgflag          READ_ALL etc..
+  @param ha_open_flags    HA_OPEN_ABORT_IF_LOCKED etc..
+  @param outparam         Result table.
+  @param is_create_table  Indicates that table is opened as part
+                          of CREATE or ALTER and does not yet exist in SE.
+  @param table_def_param  dd::Table object describing the table to be
+                          opened in SE. Can be nullptr, which case this
+                          function will try to retrieve such object from
+                          the data-dictionary before opening table in SE.
 
   @retval 0	ok
   @retval 1	Error (see open_table_error)
@@ -2901,7 +2905,7 @@ parse_err:
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table,
-                          const dd::Table *table_def)
+                          const dd::Table *table_def_param)
 {
   int error;
   uint records, i, bitmap_size;
@@ -3225,21 +3229,21 @@ partition_err:
   error= 2;
   if (db_stat)
   {
-    const dd::Table *dd_tab= table_def;
+    const dd::Table *table_def= table_def_param;
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-    if (!dd_tab && !(prgflag & OPEN_NO_DD_TABLE))
+    if (!table_def && !(prgflag & OPEN_NO_DD_TABLE))
     {
 
       if (thd->dd_client()->acquire<dd::Table>(share->db.str,
                                                share->table_name.str,
-                                               &dd_tab))
+                                               &table_def))
       {
         error_reported= true;
         goto err;
       }
 
-      if (!dd_tab)
+      if (!table_def)
       {
         error= 1;
         set_my_errno(ENOENT);
@@ -3257,7 +3261,7 @@ partition_err:
                             (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
                              HA_OPEN_ABORT_IF_LOCKED :
                              HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags),
-                          dd_tab))))
+                          table_def))))
     {
       /* Set a flag if the table is crashed and it can be auto. repaired */
       share->crashed= ((ha_err == HA_ERR_CRASHED_ON_USAGE) &&

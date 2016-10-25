@@ -84,10 +84,6 @@
 #include "transaction_info.h"
 #include "trigger_def.h"
 
-#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
-#include "dd/dd_table.h"              // dd::acquire_uncache_uncommitted_table
-#include "dd/dd_schema.h"             // dd::Schema_MDL_locker
-#include "dd/sdi.h"                   // dd::store_sdi
 
 static bool check_view_insertability(THD *thd, TABLE_LIST *view,
                                      const TABLE_LIST *insert_table_ref);
@@ -2441,6 +2437,9 @@ void Query_result_insert::abort_result_set()
   @param [in] items             The source table columns. Corresponding column
                                 definitions (Create_field's) will be added to
                                 the end of alter_info->create_list.
+  @param  [out] post_ddl_ht     Set to handlerton for table's SE, if this SE
+                                supports atomic DDL, so caller can call SE
+                                post DDL hook after committing transaction.
 
   @note
     This function assumes that either table exists and was pre-opened and
@@ -3079,8 +3078,8 @@ bool Query_result_create::send_eof()
 
 
 /**
-  Close a and drop (if necessary) a just created table in
-  CREATE TABLE ... SELECT in case of error.
+  Close and drop just created table in CREATE TABLE ... SELECT in case
+  of error.
 
   @note Here we assume that the table to be closed is open only by the
         calling thread, so we needn't wait until other threads close the

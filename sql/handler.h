@@ -3348,6 +3348,8 @@ protected:
   /*
     Helper methods which simplify custom clone() implementations by
     storage engines.
+
+    WL7743/TODO: Check with InnoDB guys if we really need these methods.
   */
   handler* ha_clone_prepare(MEM_ROOT *mem_root) const;
   void ha_open_psi();

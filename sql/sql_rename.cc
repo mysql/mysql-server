@@ -21,6 +21,7 @@
 
 #include <string.h>
 
+#include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 #include "dd/dd_table.h"      // dd::table_exists
 #include "dd/types/abstract_table.h" // dd::Abstract_table
 #include "dd_sql_view.h"      // View_metadata_updater
@@ -44,7 +45,6 @@
 #include "table.h"
 #include "transaction.h"      // trans_commit_stmt
 
-#include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 
 struct handlerton;
 
@@ -54,9 +54,14 @@ static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 
 static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 
-/*
-  Every two entries in the table_list form a pair of original name and
-  the new name.
+/**
+  Rename tables from the list.
+
+  @param thd          Thread context.
+  @param table_list   Every two entries in the table_list form
+                      a pair of original name and the new name.
+
+  @return True - on failure, false - on success.
 */
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
@@ -280,6 +285,9 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
   @param[in]      skip_error        Whether to skip errors.
   @param[in/out]  int_commit_done   Whether intermediate commits
                                     were done.
+  @param[in/out]  post_ddl_htons    Set of SEs supporting atomic DDL
+                                    for which post-DDL hooks needs
+                                    to be called.
 
   @return False on success, True if rename failed.
 */
@@ -401,6 +409,9 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   @param[in]      skip_error        Whether to skip errors.
   @param[in/out]  int_commit_done   Whether intermediate commits
                                     were done.
+  @param[in/out]  post_ddl_htons    Set of SEs supporting atomic DDL
+                                    for which post-DDL hooks needs
+                                    to be called.
 
   @note
     Take a table/view name from and odd list element and rename it to a

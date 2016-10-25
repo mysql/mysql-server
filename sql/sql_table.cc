@@ -36,6 +36,7 @@
 #include "dd/dd_table.h"                  // dd::drop_table, dd::update_keys...
 #include "dd/dd_trigger.h"                // dd::table_has_triggers
 #include "dd/dictionary.h"                // dd::Dictionary
+#include "dd/sdi.h"                       // dd::remove_sdi
 #include "dd/string_type.h"
 #include "dd/types/abstract_table.h"
 #include "dd/types/column.h"
@@ -56,6 +57,7 @@
 #include "key_spec.h"                 // Key_part_spec
 #include "lock.h"                     // mysql_lock_remove, lock_tablespace_names
 #include "log.h"                      // sql_print_error
+#include "log_event.h"                // Query_log_event
 #include "m_ctype.h"
 #include "m_string.h"                 // my_stpncpy
 #include "mdl.h"
@@ -134,12 +136,6 @@
 #include "pfs_table_provider.h"  // IWYU pragma: keep
 #include "mysql/psi/mysql_table.h"
 
-#include "log_event.h"                // Query_log_event
-#include "partitioning/partition_handler.h" // Partition_handler
-#include "dd/types/schema.h"
-#include "dd/impl/types/table_impl.h"
-#include "dd/impl/properties_impl.h"
-#include "dd/sdi.h"                   // dd::remove_sdi
 
 using std::max;
 using std::min;
@@ -4056,6 +4052,11 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   (void) build_table_filename(path, sizeof(path) - 1,
                               db, table_name, "", flags);
 
+
+  /*
+    Use READ UNCOMMITTED so this function can be used in implementation
+    of atomic ALTER TABLE.
+  */
   const dd::Table *table_def= 0;
   if (thd->dd_client()->acquire_uncached_uncommitted<dd::Table>(db,
                             table_name, &table_def))
