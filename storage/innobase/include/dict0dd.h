@@ -27,9 +27,37 @@ Data dictionary interface */
 #include "dict0types.h"
 #include "dict0mem.h"
 #include <dd/properties.h>
+#include "sess0sess.h"
+
+#include "dd/dd.h"
+#include "dd/dictionary.h"
+#include "dd/cache/dictionary_client.h"
+#include "dd/properties.h"
+#include "dd/sdi_tablespace.h"    // dd::sdi_tablespace::store
+#include "dd/dd_table.h"
+#include "dd/dd_schema.h"
+#include "dd/types/table.h"
+#include "dd/types/index.h"
+#include "dd/types/column.h"
+#include "dd/types/index_element.h"
+#include "dd/types/partition.h"
+#include "dd/types/partition_index.h"
+#include "dd/types/object_type.h"
+#include "dd/types/tablespace.h"
+#include "dd/types/tablespace_file.h"
+#include "dd_table_share.h"
+#include "dd/types/foreign_key.h"
+#include "dd/types/foreign_key_element.h"
+
 
 class THD;
 class MDL_ticket;
+
+/** Number of hard coded table */
+static constexpr table_id_t NUM_HARD_CODED_TABLES = 27;
+
+/** Handler name for InnoDB */
+static constexpr char handler_name[] = "InnoDB";
 
 /** InnoDB private keys for dd::Tablespace */
 enum dd_space_keys {
@@ -173,4 +201,51 @@ dd_table_open_on_id_in_mem(
 	ibool		dict_locked,
 	dict_table_op_t	table_op);
 
+/** Open or load a table definition based on a Global DD object.
+@param[in,out]	client		data dictionary client
+@param[in]	table		MySQL table definition
+@param[in]	norm_name	Table Name
+@param[in,out]	uncached	NULL if the table should be added to the cache;
+				if not, *uncached=true will be assigned
+				when ib_table was allocated but not cached
+				(used during delete_table and rename_table)
+@param[out]	ib_table	InnoDB table handle
+@param[in]	dd_table	Global DD table or partition object
+@param[in]	skip_mdl	whether meta-data locking is skipped
+@param[in]	thd		thread THD
+@retval	0			on success
+@retval	HA_ERR_TABLE_CORRUPT	if the table is marked as corrupted
+@retval	HA_ERR_TABLESPACE_MISSING	if the file is not found */
+
+dict_table_t*
+dd_open_table(
+	dd::cache::Dictionary_client*	client,
+	const TABLE*			table,
+	const char*			norm_name,
+	bool*				uncached,
+	dict_table_t*&			ib_table,
+	const dd::Table*		dd_table,
+	bool				skip_mdl,
+	THD*				thd);
+
+/** Obtain the private handler of InnoDB session specific data.
+@param[in,out]  thd     MySQL thread handler.
+@return reference to private handler */
+MY_ATTRIBUTE((warn_unused_result))
+innodb_session_t*&
+thd_to_innodb_session(
+	THD*    thd);
+
+/** Parse a table name
+@param[in]	tbl_name	table name including database and table name
+@param[in,out]	db_buf		database name buffer to be filled
+@param[in,out]	tbl_buf		table name buffer to be filled */
+UNIV_INLINE
+void
+innobase_parse_tbl_name(
+	const char*	tbl_name,
+	char*		dd_db_name,
+	char*		dd_tbl_name);
+
+#include "dict0dd.ic"
 #endif

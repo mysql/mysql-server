@@ -23,7 +23,10 @@ Code used for background table and index stats gathering.
 Created Apr 25, 2012 Vasil Dimov
 *******************************************************/
 
+#include "sql_thd_internal_api.h"
+
 #include "dict0dict.h"
+#include "dict0dd.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "row0mysql.h"
@@ -288,13 +291,13 @@ dict_stats_thread_deinit()
 	dict_stats_start_shutdown = false;
 }
 
-/*****************************************************************//**
-Get the first table that has been added for auto recalc and eventually
-update its stats. */
+/** Get the first table that has been added for auto recalc and eventually
+update its stats.
+@param[in,out]	thd	current thread */
 static
 void
-dict_stats_process_entry_from_recalc_pool()
-/*=======================================*/
+dict_stats_process_entry_from_recalc_pool(
+	THD*	thd)
 {
 	table_id_t	table_id;
 
@@ -307,28 +310,21 @@ dict_stats_process_entry_from_recalc_pool()
 	}
 
 	dict_table_t*	table;
+	MDL_ticket*	mdl = nullptr;
 
-	mutex_enter(&dict_sys->mutex);
-
-	table = dict_table_open_on_id(table_id, TRUE, DICT_TABLE_OP_NORMAL);
+	table = dd_table_open_on_id(table_id, thd, &mdl);
 
 	if (table == NULL) {
 		/* table does not exist, must have been DROPped
 		after its id was enqueued */
-		mutex_exit(&dict_sys->mutex);
 		return;
 	}
 
 	/* Check whether table is corrupted */
 	if (table->is_corrupted()) {
-		dict_table_close(table, TRUE, FALSE);
-		mutex_exit(&dict_sys->mutex);
+		dd_table_close(table, thd, &mdl);
 		return;
 	}
-
-	table->stats_bg_flag = BG_STAT_IN_PROGRESS;
-
-	mutex_exit(&dict_sys->mutex);
 
 	/* ut_time() could be expensive, the current function
 	is called once every time a table has been changed more than 10% and
@@ -351,13 +347,7 @@ dict_stats_process_entry_from_recalc_pool()
 		dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);
 	}
 
-	mutex_enter(&dict_sys->mutex);
-
-	table->stats_bg_flag = BG_STAT_NONE;
-
-	dict_table_close(table, TRUE, FALSE);
-
-	mutex_exit(&dict_sys->mutex);
+	dd_table_close(table, thd, &mdl);
 }
 
 #ifdef UNIV_DEBUG
@@ -397,6 +387,7 @@ void
 dict_stats_thread()
 {
 	ut_a(!srv_read_only_mode);
+	THD*	thd = create_thd(false, true, true, dict_stats_thread_key);
 
 	srv_dict_stats_thread_active = true;
 
@@ -425,7 +416,7 @@ dict_stats_thread()
 			break;
 		}
 
-		dict_stats_process_entry_from_recalc_pool();
+		dict_stats_process_entry_from_recalc_pool(thd);
 
 		os_event_reset(dict_stats_event);
 	}
@@ -433,6 +424,8 @@ dict_stats_thread()
 	srv_dict_stats_thread_active = false;
 
 	os_event_set(dict_stats_shutdown_event);
+
+	destroy_thd(thd);
 }
 
 /** Shutdown the dict stats thread. */

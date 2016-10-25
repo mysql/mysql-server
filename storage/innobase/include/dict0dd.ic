@@ -1,0 +1,52 @@
+/*****************************************************************************
+
+Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/dict0dd.ic
+Data dictionary access
+
+Created  10/2016 Jimmy Yamg
+*******************************************************/
+
+#include "sql_table.h"
+
+/** Parse a table name
+@param[in]      tbl_name        table name including database and table name
+@param[in,out]  db_buf          database name buffer to be filled
+@param[in,out]  tbl_buf         table name buffer to be filled */
+UNIV_INLINE
+void
+innobase_parse_tbl_name(
+        const char*     tbl_name,
+        char*           dd_db_name,
+        char*           dd_tbl_name)
+{
+	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
+	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
+	ulint	db_len = dict_get_db_name_len(tbl_name);
+
+	ut_ad(db_len <= MAX_DATABASE_NAME_LEN);
+	memcpy(db_buf, tbl_name, db_len);
+	db_buf[db_len] = 0;
+	memcpy(tbl_buf, tbl_name + db_len + 1,
+	       strlen(tbl_name) - db_len - 1);
+	tbl_buf[strlen(tbl_name) - db_len - 1] = 0;
+
+	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1);
+	filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1);
+}

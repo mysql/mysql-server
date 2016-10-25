@@ -1105,7 +1105,6 @@ ib_cursor_close(
 	if (cursor->mdl) {
 		dd_mdl_release(trx->mysql_thd, &cursor->mdl);
 	}
-
 	row_prebuilt_free(prebuilt, FALSE);
 	cursor->prebuilt = NULL;
 
@@ -3144,38 +3143,6 @@ ib_ut_strerr(
 	return(ut_strerr(num));
 }
 
-/********************************************************************//**
-Open a table using the table id, if found then increment table ref count.
-@return table instance if found */
-static
-dict_table_t*
-ib_open_table_by_id(
-/*================*/
-	ib_id_u64_t	tid,		/*!< in: table id to lookup */
-	ib_bool_t	locked)		/*!< in: TRUE if own dict mutex */
-{
-	dict_table_t*	table;
-	table_id_t	table_id;
-
-	table_id = tid;
-
-	if (!locked) {
-		dict_mutex_enter_for_mysql();
-	}
-
-	table = dict_table_open_on_id(table_id, TRUE, DICT_TABLE_OP_NORMAL);
-
-	if (table != NULL && table->ibd_file_missing) {
-		table = NULL;
-	}
-
-	if (!locked) {
-		dict_mutex_exit_for_mysql();
-	}
-
-	return(table);
-}
-
 /*****************************************************************//**
 Open an InnoDB table and return a cursor handle to it.
 @return DB_SUCCESS or err code */
@@ -3190,10 +3157,16 @@ ib_cursor_open_table_using_id(
 {
 	ib_err_t	err;
 	dict_table_t*	table;
-	const ib_bool_t	locked
-		= ib_trx && ib_schema_lock_is_exclusive(ib_trx);
+	MDL_ticket*	mdl = NULL;
 
-	table = ib_open_table_by_id(table_id, locked);
+	if (dict_table_is_sdi(table_id)) {
+		dict_mutex_enter_for_mysql();
+		table = dict_table_open_on_id(
+			table_id, TRUE, DICT_TABLE_OP_NORMAL);
+		dict_mutex_exit_for_mysql();
+	} else {
+		table = dd_table_open_on_id(table_id, ib_trx->mysql_thd, &mdl);
+	}
 
 	if (table == NULL) {
 
@@ -3202,6 +3175,7 @@ ib_cursor_open_table_using_id(
 
 	err = ib_create_cursor_with_clust_index(ib_crsr, table,
 						(trx_t*) ib_trx);
+	(*ib_crsr)->mdl = mdl;
 
 	return(err);
 }
