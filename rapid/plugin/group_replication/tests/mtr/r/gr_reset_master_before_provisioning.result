@@ -1,0 +1,40 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/start_group_replication.inc
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [On member 2, all executed GTID should belong to the group]
+include/assert.inc [On member 1, all executed GTID should belong to the group]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/stop_group_replication.inc
+RESET MASTER;
+include/stop_group_replication.inc
+RESET MASTER;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/start_and_bootstrap_group_replication.inc
+SET GTID_NEXT = 'AUTOMATIC';
+include/start_group_replication.inc
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+include/rpl_sync.inc
+include/assert.inc [On member 2, the table should exist and have 3 elements]
+include/assert.inc [On member 1, the table should exist and have 3 elements]
+[ The value of stable_set should contain both provisioned and group GIIDs ]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+INSERT INTO t1 VALUES (4);
+include/rpl_sync.inc
+include/assert.inc [On member 2, the table should exist and have 4 elements]
+include/assert.inc [On member 1, the table should exist and have 4 elements]
+DROP TABLE t1;
+include/group_replication_end.inc

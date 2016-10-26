@@ -1,0 +1,86 @@
+################################################################################
+# Test case to verify that concurrent transactions with intersecting
+# write set, the same unique key, do conflict.
+#
+# Scenario 8.1: WL#6834
+#
+# T1: WS={t1.c1=1,t1.c2=2}
+#
+# T2: WS={t1.c1=3,t1.c2=2}
+#
+# Outcome: T1 must abort, T2 must commit.
+#
+# Full details on WL#6834 QA notes.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both members ONLINE. Create a table on M1.
+# 2. Test the following two scenarios by calling
+#    gr_parallel_local_and_remote_transactions.inc.
+#    Scenario 1: UNIQUE NOT NULL KEY, conflicting case (1,2) vs (3, 2).
+#    Scenario 2: UNIQUE NOT NULL KEY, non-conflicting case (5,6) vs (7,8).
+# 3. Check the data sanity after the above two scenarios are executed.
+# 4. Clean up.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # Create a table on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT UNIQUE KEY NOT NULL);
+--source include/rpl_sync.inc
+
+--echo
+--echo ###########################################################
+--echo # Scenario 1: UNIQUE NOT NULL KEY, conflicting case
+--let $local_server_connection1=server_1
+--let $local_server_connection2=server1
+--let $remote_server_connection=server2
+--let $local_transaction=INSERT INTO t1 VALUES (1, 2)
+--let $remote_transaction=INSERT INTO t1 VALUES (3, 2)
+--let $conflict_test=1
+--source ../inc/gr_parallel_local_and_remote_transactions.inc
+
+--echo
+--echo ############################################################
+--echo # Scenario 2: UNIQUE NOT NULL KEY, non-conflicting case
+--let $local_server_connection1=server_1
+--let $local_server_connection2=server1
+--let $remote_server_connection=server2
+--let $local_transaction=INSERT INTO t1 VALUES (5, 6)
+--let $remote_transaction=INSERT INTO t1 VALUES (7, 8)
+--let $conflict_test=0
+--source ../inc/gr_parallel_local_and_remote_transactions.inc
+
+--echo
+--echo ############################################################
+--echo # Check the data sanity
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3 AND t1.c2 = 2, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 5 AND t1.c2 = 6, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 7 AND t1.c2 = 8, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain 3 rows after the above execution
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "3"
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # Clean up.
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

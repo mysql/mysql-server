@@ -1,0 +1,78 @@
+################################################################################
+# This test evaluates the variable associated to recovery completion modes
+# It checks the default value, updates it with valid values and checks them.
+# It also checks that invalid values throw an error.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Check the default value. It should be transactions_applied.
+# 2. Change to a valid values. Change to a valid alias. Expect success.
+# 3. Test an invalid values. Expect error.
+# 4. Clean up.
+################################################################################
+
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Check the default value
+--echo #
+
+--connection server1
+--echo server1
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+SET @configured_rec_policy= @@GLOBAL.group_replication_recovery_complete_at;
+
+--let $assert_text= The default of the recovery complete mode should be "transactions_applied"
+--let $assert_cond= "[SELECT @@group_replication_recovery_complete_at]" = "transactions_applied"
+--source include/assert.inc
+
+
+--echo #
+--echo # Change to a valid value.
+--echo #
+
+SET GLOBAL group_replication_recovery_complete_at= "transactions_certified";
+
+--let $assert_text= The recovery complete mode should now be "transactions_certified"
+--let $assert_cond= "[SELECT @@group_replication_recovery_complete_at]" = "transactions_certified"
+--source include/assert.inc
+
+SET GLOBAL group_replication_recovery_complete_at= @configured_rec_policy;
+
+--echo #
+--echo # Change to a valid alias.
+--echo #
+
+SET GLOBAL group_replication_recovery_complete_at= 0;
+
+--let $assert_text= The default of the recovery complete mode should be "transactions_certified"
+--let $assert_cond= "[SELECT @@group_replication_recovery_complete_at]" = "transactions_certified"
+--source include/assert.inc
+
+SET GLOBAL group_replication_recovery_complete_at= 1;
+
+--let $assert_text= The recovery complete mode should now be "transactions_applied"
+--let $assert_cond= "[SELECT @@group_replication_recovery_complete_at]" = "transactions_applied"
+--source include/assert.inc
+
+--echo #
+--echo # Test an invalid values.
+--echo #
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_recovery_complete_at= "invalid_value";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_recovery_complete_at= 20;
+
+--echo #
+--echo # Clean up
+--echo #
+
+SET GLOBAL group_replication_recovery_complete_at= @configured_rec_policy;
+
+--source ../inc/group_replication_end.inc

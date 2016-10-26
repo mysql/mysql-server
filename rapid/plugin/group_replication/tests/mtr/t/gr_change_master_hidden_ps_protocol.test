@@ -1,0 +1,27 @@
+################################################################################
+# Check inc/gr_change_master_hidden.inc for test details.
+# This test enables the binary protocol between client and server.
+#
+# Test:
+# 0. The test requires one server: M1.
+# 1. With ps_protocol enabled, verify that CHANGE MASTER FOR recovery channel
+#    command is logged in the slow log, query_log and error log, but the
+#    password value is either masked with '<secret>' or is not logged.
+# 2. Grep for pattern 'master_password' in error log. Expect 0 count.
+# 3. Grep for pattern 'unique_password' in error log. Expect 0 count.
+################################################################################
+--enable_ps_protocol
+--source ../inc/gr_change_master_hidden.inc
+--disable_ps_protocol
+
+--echo # MASTER_PASSWORD value for the CHANGE MASTER command will not be logged in the error log.
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/no_change_master_password_logging_ps_protocol.err
+--let $grep_pattern= master_password
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--echo # The password value 'unique_password' is not logged in the error log.
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/no_change_master_password_logging_ps_protocol.err
+--let $grep_pattern= unique_password
+--let $grep_output= print_count
+--source include/grep_pattern.inc

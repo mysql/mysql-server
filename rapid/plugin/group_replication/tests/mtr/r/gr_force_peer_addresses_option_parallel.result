@@ -1,0 +1,44 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There is one group_replication_force_members operation already ongoing");
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 1. Block during set value to
+#    group_replication_force_members (server_1).
+[connection server_1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,group_replication_wait_on_check_force_members';
+SET GLOBAL group_replication_force_members= "";
+[connection server1]
+
+############################################################
+# 2. Try set group_replication_force_members in a
+#    parallel session (server1), it will fail.
+[connection server1]
+SET GLOBAL group_replication_force_members= "";
+ERROR 42000: Variable 'group_replication_force_members' can't be set to the value of ''
+
+############################################################
+# 3. Resume set value to
+#    group_replication_force_members on server_1.
+[connection server1]
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+[connection server_1]
+include/assert.inc [group_replication_force_members is empty]
+
+############################################################
+# 4. Try set group_replication_force_members on
+#    server1 again, it will succeed.
+[connection server1]
+SET GLOBAL group_replication_force_members= "";
+include/assert.inc [group_replication_force_members is empty]
+
+############################################################
+# 5. Clean up.
+include/group_replication_end.inc
