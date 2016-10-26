@@ -13,50 +13,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MYSQL_BUFFER_H
-#define MYSQL_BUFFER_H
+#include "checker_ver_1_0.h"
+#include <mysql/psi/mysql_file.h>
 
-#include "keyring_memory.h"
-#include "i_serialized_object.h"
+namespace keyring {
 
-namespace keyring
+my_bool CheckerVer_1_0::is_file_size_correct(size_t file_size)
 {
-
-class Buffer : public ISerialized_object
+  return file_size >= ((size_t)EOF_TAG_SIZE + file_version.length());
+}
+my_bool CheckerVer_1_0::file_seek_to_tag(File file)
 {
-public:
-  Buffer() : data(NULL)
-  {
-    mark_as_empty();
-  }
-  Buffer(size_t memory_size) : data(NULL)
-  {
-    reserve(memory_size);
-  }
-  ~Buffer()
-  {
-    if(data != NULL)
-      delete[] data;
-  }
+  return mysql_file_seek(file, -static_cast<int>(EOF_TAG_SIZE), MY_SEEK_END,
+                         MYF(0)) == MY_FILEPOS_ERROR;
+}
+my_bool CheckerVer_1_0::is_dgst_correct(File file, Digest *digest)
+{
+  digest->is_empty= TRUE;
+  return TRUE;
+}
 
-  void free();
-  my_bool get_next_key(IKey **key);
-  my_bool has_next_key();
-  void reserve(size_t memory_size);
-
-  uchar *data;
-  size_t size;
-  size_t position;
-private:
-  Buffer(const Buffer&);
-  Buffer& operator=(const Buffer&);
-
-  inline void mark_as_empty()
-  {
-    size= position= 0;
-  }
-};
-
-} //namespace keyring
-
-#endif //MYSQL_BUFFER_H
+}//namespace keyring

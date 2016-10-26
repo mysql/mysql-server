@@ -38,6 +38,7 @@ public:
   IKey* fetch_key(IKey *key);
   my_bool remove_key(IKey *key);
   std::string get_keyring_storage_url();
+  void set_keyring_io(IKeyring_io *keyring_io);
 
   ~Keys_container();
 

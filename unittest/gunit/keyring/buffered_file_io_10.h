@@ -13,50 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MYSQL_BUFFER_H
-#define MYSQL_BUFFER_H
-
-#include "keyring_memory.h"
-#include "i_serialized_object.h"
+#include "buffered_file_io.h"
 
 namespace keyring
 {
-
-class Buffer : public ISerialized_object
-{
-public:
-  Buffer() : data(NULL)
+  class Buffered_file_io_10 : public Buffered_file_io
   {
-    mark_as_empty();
-  }
-  Buffer(size_t memory_size) : data(NULL)
-  {
-    reserve(memory_size);
-  }
-  ~Buffer()
-  {
-    if(data != NULL)
-      delete[] data;
-  }
-
-  void free();
-  my_bool get_next_key(IKey **key);
-  my_bool has_next_key();
-  void reserve(size_t memory_size);
-
-  uchar *data;
-  size_t size;
-  size_t position;
-private:
-  Buffer(const Buffer&);
-  Buffer& operator=(const Buffer&);
-
-  inline void mark_as_empty()
-  {
-    size= position= 0;
-  }
-};
+  public:
+    Buffered_file_io_10(ILogger *logger) : Buffered_file_io(logger),
+      file_version("Keyring file version:1.0")
+    {}
+    my_bool flush_to_file(PSI_file_key *file_key, const std::string* filename,
+                          const Digest *digest);
+    size_t get_memory_needed_for_buffer();
+  private:
+    std::string file_version;
+  };
 
 } //namespace keyring
-
-#endif //MYSQL_BUFFER_H
