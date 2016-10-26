@@ -1,0 +1,130 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+CREATE TABLE t1 (i INT PRIMARY KEY) engine= innodb;
+include/rpl_sync.inc
+# Test if support 'flush error logs' statement.
+flush error logs;
+# Make sure binary logs was not flushed after execute 'flush error logs' statement.
+# Make sure applier logs was not flushed after execute 'flush error logs' statement.
+include/rpl_sync.inc
+# Make sure recovery logs was not flushed after execute 'flush error logs' statement.
+# Make sure applier logs was not flushed after execute 'flush error logs' statement.
+# Make sure binary logs was not flushed after execute 'flush error logs' statement.
+include/rpl_sync.inc
+INSERT INTO t1 VALUES(1);
+include/rpl_sync.inc
+INSERT INTO t1 VALUES(2);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1]
+# Test if support 'flush relay logs' statement.
+flush relay logs;
+# Make sure binary logs was not flushed after execute 'flush relay logs' statement.
+# Make sure applier logs was not flushed after execute 'flush relay logs' statement.
+include/rpl_sync.inc
+# Make sure recovery logs was not flushed after execute 'flush relay logs' statement.
+# Make sure applier logs was not flushed after execute 'flush relay logs' statement.
+# Make sure binary logs was not flushed after execute 'flush relay logs' statement.
+INSERT INTO t1 VALUES(3);
+include/rpl_sync.inc
+INSERT INTO t1 VALUES(4);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1]
+# Test if support 'flush slow logs' statement.
+flush slow logs;
+# Make sure binary logs was not flushed after execute 'flush slow logs' statement.
+# Make sure applier logs was not flushed after execute 'flush slow logs' statement.
+include/rpl_sync.inc
+# Make sure recovery logs was not flushed after execute 'flush slow logs' statement.
+# Make sure applier logs was not flushed after execute 'flush slow logs' statement.
+# Make sure binary logs was not flushed after execute 'flush slow logs' statement.
+include/rpl_sync.inc
+INSERT INTO t1 VALUES(5);
+include/rpl_sync.inc
+INSERT INTO t1 VALUES(6);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1]
+# Test if support 'flush general logs' statement.
+flush general logs;
+# Make sure binary logs was not flushed after execute 'flush general logs' statement.
+# Make sure applier logs was not flushed after execute 'flush general logs' statement.
+include/rpl_sync.inc
+# Make sure recovery logs was not flushed after execute 'flush general logs' statement.
+# Make sure applier logs was not flushed after execute 'flush general logs' statement.
+# Make sure binary logs was not flushed after execute 'flush general logs' statement.
+INSERT INTO t1 VALUES(7);
+include/rpl_sync.inc
+INSERT INTO t1 VALUES(8);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1]
+# Test if support 'flush engine logs' statement.
+flush engine logs;
+# Make sure binary logs was not flushed after execute 'flush engine logs' statement.
+# Make sure applier logs was not flushed after execute 'flush engine logs' statement.
+include/rpl_sync.inc
+# Make sure recovery logs was not flushed after execute 'flush engine logs' statement.
+# Make sure applier logs was not flushed after execute 'flush engine logs' statement.
+# Make sure binary logs was not flushed after execute 'flush engine logs' statement.
+INSERT INTO t1 VALUES(9);
+include/rpl_sync.inc
+INSERT INTO t1 VALUES(10);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1]
+# Make sure the 'server1-bin.000002' file does not
+# exist before execute 'flush binary logs' statement.
+# Make sure the 'server1-bin.000002' file does not
+# exist before execute 'flush binary logs' statement.
+# Test if support 'flush binary logs' statement.
+flush binary logs;
+# Make sure binary logs is flushed after execute 'flush binary logs' statement.
+# Test if it supports 'show binary logs' statement and verify that it shows the correct data
+include/assert.inc [assert that the first binary log name is server-binary-log.000001]
+include/assert.inc [assert that the second binary log name is server-binary-log.000002]
+# Make sure applier logs was not flushed after execute 'flush binary logs' statement.
+include/rpl_sync.inc
+# Make sure recovery logs was not flushed after execute 'flush binary logs' statement.
+# Make sure applier logs was not flushed after execute 'flush binary logs' statement.
+# Make sure binary logs was not flushed after execute 'flush binary logs' statement.
+INSERT INTO t1 VALUES(11);
+include/rpl_sync.inc
+INSERT INTO t1 VALUES(12);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1]
+# Test if support to combine all kinds of logs into one statement.
+flush error logs, relay logs;
+# Make sure binary logs was not flushed after execute 'flush error logs, relay logs' statement.
+# Make sure applier logs was not flushed after execute 'flush error logs, relay logs' statement.
+include/rpl_sync.inc
+# Make sure recovery logs was not flushed after execute 'flush error logs, relay logs' statement.
+# Make sure applier logs was not flushed after execute 'flush error logs, relay logs' statement.
+# Make sure binary logs was not flushed after execute 'flush error logs, relay logs' statement.
+include/rpl_sync.inc
+INSERT INTO t1 VALUES(13);
+include/rpl_sync.inc
+INSERT INTO t1 VALUES(14);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1]
+# Test if 'flush logs' statement works fine and flush all the logs.
+flush logs;
+# Check 'server1-bin.000003' is created after execute 'flush logs' statement.
+# Make sure applier logs was not flushed after execute 'flush logs' statement.
+include/rpl_sync.inc
+# Make sure recovery logs was not flushed after execute 'flush logs' statement.
+# Make sure applier logs was not flushed after execute 'flush logs' statement.
+# Make sure binary logs was not flushed after execute 'flush logs' statement.
+# Checking the "flush logs" behavior executed from the server2 side
+flush logs;
+# Check 'server2-bin.000002' is created after execute 'flush logs' statement.
+# Check 'group_replication_applier.000002 is not created after execute 'flush logs' statement on server2.
+include/rpl_sync.inc
+# Check 'server1-bin.000004' is not created after execute 'flush logs' statement.
+# Check 'group_replication_applier.000002' is not created after execute 'flush logs' statement.
+INSERT INTO t1 VALUES(15);
+include/rpl_sync.inc
+INSERT INTO t1 VALUES(16);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1]
+DROP TABLE t1;
+include/group_replication_end.inc

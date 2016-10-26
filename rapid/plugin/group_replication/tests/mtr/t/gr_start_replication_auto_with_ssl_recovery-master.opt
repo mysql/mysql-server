@@ -1,0 +1,5 @@
+--loose-group_replication_group_name=7e8daba0-e793-11e4-b571-0800200c9a66
+--loose-group_replication_recovery_use_ssl=1
+--loose-group_replication_recovery_ssl_ca='$MYSQL_TEST_DIR/std_data/cacert.pem'
+--loose-group_replication_recovery_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem'
+--loose-group_replication_recovery_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem'

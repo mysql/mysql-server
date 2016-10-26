@@ -1,0 +1,41 @@
+################################################################################
+# This test verifies that a non bootstrap member in the group can leave and
+# rejoin the group.
+#
+# Test:
+# 0. The test requires two servers: server1 and server2.
+# 1. Bootstrap start GR on server1. Start GR on server2.
+# 2. Leave and rejoin the group on member server2.
+# 3. Validate number of members are 2 in the group once server2 rejoins.
+################################################################################
+
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo #######################################################
+--echo # Bootstrap group with two members on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo #######################################################
+--echo # Leave and rejoin the group on a non bootstrap member.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+--let $group_replication_number_of_members= 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members= 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--source ../inc/group_replication_end.inc

@@ -1,0 +1,80 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Create the test table on server 1
+#
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+#
+# Test case 1 - error on commit
+# Start a transaction on server 1
+# Execute a concurrent transaction on server 2.
+# Try to commit the transaction on server 1, it should fail.
+#
+[connection server1]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+[connection server2]
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+[connection server1]
+COMMIT;
+Got one of the listed errors
+#
+# Test case 1 - error on commit
+# Check all is fine
+#
+[connection server1]
+INSERT INTO t1 VALUES (2);
+include/rpl_sync.inc
+[connection server2]
+INSERT INTO t1 VALUES (3);
+include/rpl_sync.inc
+[connection server1]
+include/assert.inc [On member1, the table t1 should contain 3 rows]
+[connection server2]
+include/assert.inc [On member2, the table t1 should contain 3 rows]
+#
+# Test case 2 - error on second insert
+# Start a transaction on server 1
+# Execute a concurrent transaction on server 2.
+# Try to execute another insert on server 1 transaction, it should fail.
+#
+[connection server1]
+BEGIN;
+INSERT INTO t1 VALUES (11);
+[connection server2]
+INSERT INTO t1 VALUES (11);
+include/rpl_sync.inc
+[connection server1]
+INSERT INTO t1 VALUES (12);
+Got one of the listed errors
+COMMIT;
+#
+# Test case 2 - error on second insert
+# Check all is fine
+#
+[connection server1]
+include/assert.inc [On member1, the rolled back transaction is not there]
+[connection server2]
+include/assert.inc [On member2, the rolled back transaction is not there]
+[connection server1]
+INSERT INTO t1 VALUES (12);
+include/rpl_sync.inc
+[connection server2]
+INSERT INTO t1 VALUES (13);
+include/rpl_sync.inc
+[connection server1]
+include/assert.inc [On member1, the table t1 should contain 6 rows]
+[connection server2]
+include/assert.inc [On member2, the table t1 should contain 6 rows]
+#
+# Cleanup
+#
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

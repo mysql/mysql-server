@@ -1,0 +1,7 @@
+!include ../my.cnf
+
+[mysqld.1]
+performance-schema=OFF
+
+[mysqld.2]
+performance-schema=OFF

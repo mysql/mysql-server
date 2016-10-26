@@ -261,6 +261,26 @@ INSERT INTO global_suppressions VALUES
  */
  ("Insecure configuration for --secure-file-priv:*"),
 
+ /*
+   On slow runs (valgrind) the message may be sent twice.
+  */
+ ("The member with address .* has already sent the stable set. Therefore discarding the second message."),
+
+ /*
+   We do have offline members on some Group Replication tests, XCom
+   will throw warnings when trying to connect to them.
+ */
+ ("Connection to socket .* failed with error .*.*"),
+ ("select - Timeout! Cancelling connection..."),
+ ("connect - Error connecting .*"),
+ ("\\[GCS\\] The member is already leaving or joining a group."),
+ ("\\[GCS\\] The member is leaving a group without being on one."),
+ ("\\[GCS\\] Processing new view on handler without a valid group configuration."),
+ ("\\[GCS\\] Error on opening a connection to localhost:.* on local port: .*. Error= 0"),
+ ("\\[GCS\\] Error pushing message into group communication engine."),
+ ("\\[GCS\\] Message cannot be sent because the member does not belong to a group."),
+ ("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*"),
+
  ("THE_LAST_SUPPRESSION")||
 
 

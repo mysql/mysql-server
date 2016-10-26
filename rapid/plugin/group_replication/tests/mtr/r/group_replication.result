@@ -1,0 +1,19 @@
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The group name *.*");
+SET SESSION sql_log_bin= 1;
+SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-invalid";
+ERROR 42000: The group name is not a valid UUID
+SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-c80aa9429563";
+SET GLOBAL group_replication_start_on_boot= 1;
+include/assert.inc [The value of group name should be 8a94f357-aab4-11df-86ab-c80aa9429563]
+include/assert.inc [The value of group_replication_start_on_boot should be 1]
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/start_group_replication.inc
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed since the group is already running.
+SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-c80aa9429563";
+ERROR HY000: The group name cannot be changed when Group Replication is running
+include/stop_group_replication.inc
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";

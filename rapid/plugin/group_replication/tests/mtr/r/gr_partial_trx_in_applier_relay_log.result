@@ -1,0 +1,52 @@
+########################################################################
+# 0. The test requires three servers: M1, M2 and M3.
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+########################################################################
+# 1. Create a basic table on all three servers.
+[connection server1]
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/rpl_sync.inc
+[connection server2]
+SET sql_log_bin=0;
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+SET sql_log_bin=1;
+########################################################################
+# 2. On M2: To replicate a partial transaction downloaded scenario,
+#           setup a debug point to bring down the applier channel
+#           if it receives a Write_rows_log_event and restart the
+#           group replication to make the debug point effective.
+SET GLOBAL DEBUG="+d,stop_applier_channel_after_reading_write_rows_log_event";
+include/stop_group_replication.inc
+include/start_group_replication.inc
+########################################################################
+# 3. On M1: Execute an insert and wait till M2 goes offline
+#           (because of the above debug point, applier channel will
+#           go down after receiving Write_rows_log_event).
+[connection server1]
+INSERT INTO t1 values (12);
+########################################################################
+# 4. On M2: Reset the debug point and restart the group replication in
+#           order to download the transaction into the new relay log
+#           file fully.
+[connection server2]
+SET GLOBAL DEBUG="-d,stop_applier_channel_after_reading_write_rows_log_event";
+include/stop_group_replication.inc
+include/start_group_replication.inc
+########################################################################
+# 5. On M1: Insert another tuple and do a diff tables with other nodes.
+#           (just to check that everything is working fine).
+[connection server1]
+INSERT INTO t1 values (13);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1, server3:t1]
+################
+# 6. Cleanup.
+DROP TABLE t1;
+include/group_replication_end.inc

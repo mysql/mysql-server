@@ -1,0 +1,142 @@
+################################################################################
+# WL9426: MySQL NG: Single Primary Mode in Group Replication
+# Test SECONDARY(RO) fails gracefully upon executing DDL/DML via mysqlbinlog.
+#
+# Test:
+# 0. This test requires three servers.
+# 1. Bootstrap start GR on server3 (Primary).
+# -  Execute some transactions.
+# -  Stop GR on server3.
+# -  Save mysqlbinlog output in a file.
+# 2. Bootstrap start GR on server1 (Primary). Start GR on server2 (Secondary).
+# 3. Try executing mysqlbinlog output of server3 on server2(RO). Expect Error.
+# 4. Try executing mysqlbinlog output of server3 on server1(RW). Expect Success.
+# 5. Join server3 to the group.
+# 6. Cleanup.
+################################################################################
+
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--let $rpl_group_replication_single_primary_mode=1
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Bootstrap start GR on server3 (Primary). And, execute some transactions
+--echo # on server3. Then, stop GR on server3.
+--echo #
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+# Bootstrap start GR on server3
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+# Execute some transactions on server3
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GTID_NEXT= "$group_replication_group_name:2"
+BEGIN;
+COMMIT;
+SET GTID_NEXT= "AUTOMATIC";
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO test.t1 VALUES (1);
+
+# Stop GR on server3
+--source include/stop_group_replication.inc
+
+--let $assert_text= GTID_EXECUTED must contain GROUP_UUID:1-4
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-4"
+--source include/assert.inc
+
+# Save mysqlbinlog output in a file
+--let $server3_datadir= `SELECT @@DATADIR`
+--let $server3_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open $server3_datadir/$server3_binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_grtest.binlog
+
+--echo #
+--echo # Bootstrap start GR on server1 (Primary). Start GR on server2 (Secondary).
+--echo #
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= `SELECT @@server_uuid`
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+# Make sure server1 is Primary
+--let $assert_text= Verify group_replication_primary_member is SERVER_UUID
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$server1_uuid"
+--source include/assert.inc
+
+--echo #
+--echo # Try executing mysqlbinlog output of server3 on server2(RO). Expect ERROR.
+--echo #
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_connection_args= --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_2
+--error 1 #ER_OPTION_PREVENTS_STATEMENT
+--exec $MYSQL $server2_connection_args -e "source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_grtest.binlog"
+
+# Check no changes in GTID_EXECUTED
+--let $assert_text= GTID_EXECUTED must contain GROUP_UUID:1-2
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-2"
+--source include/assert.inc
+
+--echo #
+--echo # Try executing mysqlbinlog output of server3 on server1(RW). Expect SUCCESS.
+--echo #
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $server1_connection_args= --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_1
+--exec $MYSQL $server1_connection_args -e "source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_grtest.binlog"
+
+# Check if data has been applied on server1
+--echo Wait until server1 applies the single row of table t1
+--let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE TABLE_SCHEMA="test" AND TABLE_NAME="t1";
+--source include/wait_condition.inc
+--let $wait_condition= SELECT COUNT(*)=1 FROM test.t1
+--source include/wait_condition.inc
+
+--let $assert_text= GTID_EXECUTED must contain GROUP_UUID:1-4
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-4"
+--source include/assert.inc
+
+# Check if data has been applied in the group
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--echo Wait until server2 applies the single row of table t1
+--let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE TABLE_SCHEMA="test" AND TABLE_NAME="t1";
+--source include/wait_condition.inc
+--let $wait_condition= SELECT COUNT(*)=1 FROM test.t1
+--source include/wait_condition.inc
+
+--let $assert_text= GTID_EXECUTED must contain GROUP_UUID:1-4
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-4"
+--source include/assert.inc
+
+--echo #
+--echo # Join server3 to the group. Expect SUCCESS.
+--echo #
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+# Make sure number of servers in the group is 3
+--let $group_replication_number_of_members= 3
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--let $assert_text= GTID_EXECUTED must contain GROUP_UUID:1-5
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-5"
+--source include/assert.inc
+
+# Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Remove binlog file which is not required now
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_grtest.binlog
+DROP TABLE test.t1;
+
+--source ../inc/group_replication_end.inc

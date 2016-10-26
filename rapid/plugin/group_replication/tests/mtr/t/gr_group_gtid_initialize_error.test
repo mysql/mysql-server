@@ -1,0 +1,56 @@
+################################################################################
+# This test verifies that the error conditions are properly handled during the
+# initialization of the group_gtid_executed which is used for the skip gtid
+# handling.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Bootstrap group M1. Inject error using DEBUG point in M2. Start on M2
+#    should fail.
+# 2. Assert check that the warning was indeed thrown.
+# 3. Clean up.
+################################################################################
+
+--source include/have_debug.inc
+--let $group_replication_group_name= 32e181b1-01d2-11e6-a992-02420ef39c5b
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Setup a new group
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,gr_server_gtid_executed_extraction_error';
+
+# The start GR will error out here due to the error injection.
+--error ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+START GROUP_REPLICATION;
+
+--echo # Asserting that the warning was indeed thrown.
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_group_gtid_initialize_error.err
+--let $grep_pattern=Error when extracting this member GTID executed set. Certification module can't be properly initialized
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--echo # Asserting that the warning was indeed thrown.
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_group_gtid_initialize_error.err
+--let $grep_pattern=Error during Certification module initialization.
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# Cleanup
+SET @@GLOBAL.DEBUG= @debug_save;
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+STOP GROUP_REPLICATION;
+
+--source ../inc/group_replication_end.inc

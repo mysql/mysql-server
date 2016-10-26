@@ -1,0 +1,32 @@
+#
+# Setup a new group with two members.
+#
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# There are two relay logs of Group Replication applier
+# channel before the attempt to flush it.
+#
+#
+# Try flush applier channel with Group Replication working.
+#
+FLUSH RELAY LOGS FOR CHANNEL "group_replication_applier";
+ERROR HY000: FLUSH RELAY LOGS cannot be performed on channel 'group_replication_applier'.
+#
+# There are still only two relay logs of Group Replication
+# applier channel after trying to flush it.
+#
+#
+# Try flush applier channel with Group Replication stopped.
+#
+include/stop_group_replication.inc
+FLUSH RELAY LOGS FOR CHANNEL "group_replication_applier";
+ERROR HY000: FLUSH RELAY LOGS cannot be performed on channel 'group_replication_applier'.
+#
+# There are still only two relay logs of Group Replication
+# applier channel after trying to flush it.
+#
+include/group_replication_end.inc

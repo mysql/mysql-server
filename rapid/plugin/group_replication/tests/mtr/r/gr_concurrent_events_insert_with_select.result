@@ -1,0 +1,139 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Create the test table on server 1
+#
+[connection server1]
+CREATE TABLE IF NOT EXISTS t1 (a INT PRIMARY KEY);
+include/rpl_sync.inc
+#
+# Create the events in each member.
+#
+SET SESSION sql_log_bin= 0;
+SET GLOBAL event_scheduler=on|
+CREATE EVENT IF NOT EXISTS test.event1
+ON SCHEDULE
+EVERY 1 SECOND
+STARTS CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+ENDS CURRENT_TIMESTAMP + INTERVAL 30 SECOND
+ON COMPLETION PRESERVE
+DISABLE
+COMMENT 'Test with events'
+ DO
+BEGIN
+DECLARE v INTEGER;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+SET v=0;
+WHILE v < 1000
+DO
+SELECT max(a) + 1 INTO v FROM t1;
+INSERT INTO t1 values (v);
+SET v = v+1;
+END WHILE;
+END|
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+SET GLOBAL event_scheduler=on|
+CREATE EVENT IF NOT EXISTS test.event2
+ON SCHEDULE
+EVERY 1 SECOND
+STARTS CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+ENDS CURRENT_TIMESTAMP + INTERVAL 30 SECOND
+ON COMPLETION PRESERVE
+DISABLE
+COMMENT 'Test with events'
+ DO
+BEGIN
+DECLARE v INTEGER;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+SET v=0;
+WHILE v < 1000
+DO
+SELECT max(a) + 1 INTO v FROM t1;
+INSERT INTO t1 values (v);
+SET v = v+1;
+END WHILE;
+END|
+SET SESSION sql_log_bin= 1;
+[connection server3]
+SET SESSION sql_log_bin= 0;
+SET GLOBAL event_scheduler=on|
+CREATE EVENT IF NOT EXISTS test.event3
+ON SCHEDULE
+EVERY 1 SECOND
+STARTS CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+ENDS CURRENT_TIMESTAMP + INTERVAL 30 SECOND
+ON COMPLETION PRESERVE
+DISABLE
+COMMENT 'Test with events'
+ DO
+BEGIN
+DECLARE v INTEGER;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+SET v=0;
+WHILE v < 1000
+DO
+SELECT max(a) + 1 INTO v FROM t1;
+INSERT INTO t1 values (v);
+SET v = v+1;
+END WHILE;
+END|
+SET SESSION sql_log_bin= 1;
+#
+# Start the events in each member.
+#
+[connection server1]
+SET GLOBAL event_scheduler=on;
+SET SESSION sql_log_bin= 0;
+ALTER EVENT event1 ENABLE;
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET GLOBAL event_scheduler=on;
+SET SESSION sql_log_bin= 0;
+ALTER EVENT event2 ENABLE;
+SET SESSION sql_log_bin= 1;
+[connection server3]
+SET GLOBAL event_scheduler=on;
+SET SESSION sql_log_bin= 0;
+ALTER EVENT event3 ENABLE;
+SET SESSION sql_log_bin= 1;
+#
+# Wait for the events to be disabled
+#
+[connection server1]
+[connection server2]
+[connection server3]
+#
+# Check the members are still operational
+#
+[connection server1]
+include/assert.inc ['The group replication applier channel is ON']
+[connection server2]
+include/assert.inc ['The group replication applier channel is ON']
+[connection server3]
+include/assert.inc ['The group replication applier channel is ON']
+#
+# Remove the events and the data
+#
+[connection server1]
+SET SESSION sql_log_bin= 0;
+DROP EVENT IF EXISTS test.event1;
+SET SESSION sql_log_bin= 1;
+SET GLOBAL event_scheduler=off;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+DROP EVENT IF EXISTS test.event2;
+SET SESSION sql_log_bin= 1;
+SET GLOBAL event_scheduler=off;
+[connection server3]
+SET SESSION sql_log_bin= 0;
+DROP EVENT IF EXISTS test.event3;
+SET SESSION sql_log_bin= 1;
+SET GLOBAL event_scheduler=off;
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

@@ -1,0 +1,45 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+# Verify the statements can be binlogged correctly when error happens
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=innodb;
+CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE=innodb;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+# Nothing is inserted.
+INSERT INTO t1 VALUES(1),(2);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+include/show_binlog_events.inc
+include/assert.inc [No new row inserted in the table]
+include/rpl_sync.inc
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+# Nothing is inserted.
+INSERT INTO t1 SELECT 1 UNION SELECT 2;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+include/show_binlog_events.inc
+include/assert.inc [The row count will still be 1]
+# 2 rows are inserted.
+INSERT INTO t1 SELECT 3 UNION SELECT 2;
+include/rpl_sync.inc
+include/assert.inc [A row is inserted in the table t1]
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+# Nothing is updated.
+UPDATE t1 SET c1=4;
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+include/rpl_sync.inc
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+include/show_binlog_events.inc
+
+# Nothing is updated.
+UPDATE t1, t2 SET t1.c1= 5, t2.c1=5;
+ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+include/rpl_sync.inc
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+include/show_binlog_events.inc
+DROP TABLE t1, t2;
+include/group_replication_end.inc

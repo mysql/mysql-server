@@ -1,0 +1,72 @@
+########################################################################
+# Purpose: This test does the basic check of compound statements in a
+# group replication environment
+#
+# 0. This test requires two servers
+# 1. Start Group Replication on two servers
+# 2. Execute following compound statements on the members of the group:
+#  a) BEGIN..END
+#  b) WHILE \<condition> DO..END WHILE
+#  c) DECLARE local variable
+#  d) RETURN
+#  e) SET statement
+# 3. Verify the consistency of data across the group
+# 4. Clean-up
+#########################################################################
+
+# Start GR with two servers
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+# Connect to server1, create a table
+--echo
+CREATE TABLE t1 (a INT PRIMARY KEY);
+
+# Define compound statements
+# Define a stored procedure to insert data on t1
+--echo
+delimiter $$;
+CREATE PROCEDURE insert_into_t1(IN a INT, IN b INT)
+     BEGIN
+       DECLARE x INT;
+       SET x=a;
+       WHILE x<b DO
+         INSERT INTO t1 VALUES (x);
+         SET x=x+1;
+       END WHILE;
+     END$$
+delimiter ;$$
+--echo
+# Define a function to get the count of records
+CREATE FUNCTION f1() RETURNS INT RETURN (SELECT COUNT(*) FROM t1);
+--echo
+
+# Call the procedure to insert data on t1
+--echo Calling procedure
+CALL insert_into_t1(0,10);
+--echo
+# Call function f1
+SELECT f1();
+
+# Wait for the records to get synced to server2
+--source include/rpl_sync.inc
+--echo
+--echo Check if server1 and server2 has same data in test.t1
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+--echo
+
+# Clean-up
+# Drop table
+DROP TABLE t1;
+--echo
+
+# Drop procedure
+DROP PROCEDURE insert_into_t1;
+--echo
+
+# Drop function
+DROP FUNCTION f1;
+--echo
+
+--source ../inc/group_replication_end.inc
