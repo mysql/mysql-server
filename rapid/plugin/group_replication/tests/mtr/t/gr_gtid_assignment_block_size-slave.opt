@@ -1,0 +1,1 @@
+--no-console --log_error=$MYSQLTEST_VARDIR/tmp/group_replication_gtid_assignment_block_size.err

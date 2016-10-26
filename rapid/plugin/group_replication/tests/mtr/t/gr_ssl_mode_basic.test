@@ -1,0 +1,103 @@
+#
+# Validate that Group Replication ssl mode option values.
+#
+# Steps:
+#   1. Set invalid values to ssl mode, all must fail.
+#   2. Set ssl mode using its enum index.
+#   3. Set ssl mode valid values.
+#   4. Clean up.
+#
+--source include/have_ssl.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+
+
+--echo
+--echo ############################################################
+--echo # 1. Set invalid values to ssl mode, all must fail.
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_ssl_mode= -1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_ssl_mode= 4;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_ssl_mode= "foo";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_ssl_mode= NULL;
+
+
+--echo
+--echo ############################################################
+--echo # 2. Set ssl mode using its enum index.
+SET GLOBAL group_replication_ssl_mode= 0;
+--let $assert_text= group_replication_ssl_mode must be set to DISABLED
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_ssl_mode]" = "DISABLED"
+--source include/assert.inc
+
+SET GLOBAL group_replication_ssl_mode= 1;
+--let $assert_text= group_replication_ssl_mode must be set to REQUIRED
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_ssl_mode]" = "REQUIRED"
+--source include/assert.inc
+
+SET GLOBAL group_replication_ssl_mode= 2;
+--let $assert_text= group_replication_ssl_mode must be set to VERIFY_CA
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_ssl_mode]" = "VERIFY_CA"
+--source include/assert.inc
+
+SET GLOBAL group_replication_ssl_mode= 3;
+--let $assert_text= group_replication_ssl_mode must be set to VERIFY_IDENTITY
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_ssl_mode]" = "VERIFY_IDENTITY"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Set ssl mode valid values.
+SET GLOBAL group_replication_ssl_mode= DISABLED;
+--let $assert_text= group_replication_ssl_mode must be set to DISABLED
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_ssl_mode]" = "DISABLED"
+--source include/assert.inc
+
+SET GLOBAL group_replication_ssl_mode= REQUIRED;
+--let $assert_text= group_replication_ssl_mode must be set to REQUIRED
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_ssl_mode]" = "REQUIRED"
+--source include/assert.inc
+
+SET GLOBAL group_replication_ssl_mode= VERIFY_CA;
+--let $assert_text= group_replication_ssl_mode must be set to VERIFY_CA
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_ssl_mode]" = "VERIFY_CA"
+--source include/assert.inc
+
+SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
+--let $assert_text= group_replication_ssl_mode must be set to VERIFY_IDENTITY
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_ssl_mode]" = "VERIFY_IDENTITY"
+--source include/assert.inc
+
+SET GLOBAL group_replication_ssl_mode= DEFAULT;
+--let $assert_text= group_replication_ssl_mode must be set to DISABLED
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_ssl_mode]" = "DISABLED"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+
+--source ../inc/group_replication_end.inc

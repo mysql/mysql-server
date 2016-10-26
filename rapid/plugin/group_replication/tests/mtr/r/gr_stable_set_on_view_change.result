@@ -1,0 +1,36 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Start the first member
+#
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
+include/start_and_bootstrap_group_replication.inc
+#
+# Check the stable set is empty
+#
+include/assert.inc ['Transactions_committed_all_members should be empty']
+#
+# Add some data to the group
+#
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+#
+# Add a new guy to the group
+#
+[connection server2]
+include/start_group_replication.inc
+#
+# The stable set now contains the transactions previous to member 2 entry
+#
+[connection server1]
+include/assert.inc ['Transactions_committed_all_members should have the transactions previous to member 2 entry']
+#
+# Cleaning
+#
+DROP TABLE t1;
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
+include/group_replication_end.inc

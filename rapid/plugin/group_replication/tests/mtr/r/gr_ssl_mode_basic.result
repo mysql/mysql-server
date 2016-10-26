@@ -1,0 +1,52 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+[connection server1]
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+
+############################################################
+# 1. Set invalid values to ssl mode, all must fail.
+SET GLOBAL group_replication_ssl_mode= -1;
+ERROR 42000: Variable 'group_replication_ssl_mode' can't be set to the value of '-1'
+SET GLOBAL group_replication_ssl_mode= 4;
+ERROR 42000: Variable 'group_replication_ssl_mode' can't be set to the value of '4'
+SET GLOBAL group_replication_ssl_mode= "foo";
+ERROR 42000: Variable 'group_replication_ssl_mode' can't be set to the value of 'foo'
+SET GLOBAL group_replication_ssl_mode= NULL;
+ERROR 42000: Variable 'group_replication_ssl_mode' can't be set to the value of 'NULL'
+
+############################################################
+# 2. Set ssl mode using its enum index.
+SET GLOBAL group_replication_ssl_mode= 0;
+include/assert.inc [group_replication_ssl_mode must be set to DISABLED]
+SET GLOBAL group_replication_ssl_mode= 1;
+include/assert.inc [group_replication_ssl_mode must be set to REQUIRED]
+SET GLOBAL group_replication_ssl_mode= 2;
+include/assert.inc [group_replication_ssl_mode must be set to VERIFY_CA]
+SET GLOBAL group_replication_ssl_mode= 3;
+include/assert.inc [group_replication_ssl_mode must be set to VERIFY_IDENTITY]
+
+############################################################
+# 3. Set ssl mode valid values.
+SET GLOBAL group_replication_ssl_mode= DISABLED;
+include/assert.inc [group_replication_ssl_mode must be set to DISABLED]
+SET GLOBAL group_replication_ssl_mode= REQUIRED;
+include/assert.inc [group_replication_ssl_mode must be set to REQUIRED]
+SET GLOBAL group_replication_ssl_mode= VERIFY_CA;
+include/assert.inc [group_replication_ssl_mode must be set to VERIFY_CA]
+SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
+include/assert.inc [group_replication_ssl_mode must be set to VERIFY_IDENTITY]
+SET GLOBAL group_replication_ssl_mode= DEFAULT;
+include/assert.inc [group_replication_ssl_mode must be set to DISABLED]
+
+############################################################
+# 4. Clean up.
+[connection server1]
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+[connection server2]
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+include/group_replication_end.inc

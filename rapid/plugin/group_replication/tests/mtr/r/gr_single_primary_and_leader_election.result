@@ -1,0 +1,75 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Stage 1. Watch PRIMARY and SECONDARIES being set as we grow the group.
+#
+[connection server1]
+include/assert.inc [Assert that before joining the group the server is RW.]
+include/start_and_bootstrap_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+include/gr_wait_for_role_count.inc
+include/gr_find_a_primary.inc
+[connection server1]
+include/assert.inc [Assert that PRIMARY has not changed its super_read_only setting.]
+include/assert.inc [Assert that PRIMARY server has not changed.]
+[connection server2]
+include/assert.inc [Assert that before joining the group the server is RW.]
+include/start_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+include/gr_wait_for_role_count.inc
+include/gr_find_a_primary.inc
+[connection server1]
+include/assert.inc [Assert that PRIMARY has not changed its super_read_only setting.]
+include/assert.inc [Assert that PRIMARY server has not changed.]
+[connection server3]
+include/assert.inc [Assert that before joining the group the server is RW.]
+include/start_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+include/gr_wait_for_role_count.inc
+include/gr_find_a_primary.inc
+[connection server1]
+include/assert.inc [Assert that PRIMARY has not changed its super_read_only setting.]
+include/assert.inc [Assert that PRIMARY server has not changed.]
+[connection server4]
+include/assert.inc [Assert that before joining the group the server is RW.]
+include/start_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+include/gr_wait_for_role_count.inc
+include/gr_find_a_primary.inc
+[connection server1]
+include/assert.inc [Assert that PRIMARY has not changed its super_read_only setting.]
+include/assert.inc [Assert that PRIMARY server has not changed.]
+#
+# Stage 2. Watch the primary rotate as we tear down the group.
+#          Always stopping the primary first - worst case scenario.
+#
+include/gr_find_a_primary.inc
+include/stop_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/gr_wait_for_role_count.inc
+include/gr_find_a_primary.inc
+include/assert.inc [Assert that PRIMARY changed its super_read_only setting from RO to RW.]
+include/assert.inc [Assert that PRIMARY server HAS changed.]
+include/gr_find_a_primary.inc
+include/stop_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/gr_wait_for_role_count.inc
+include/gr_find_a_primary.inc
+include/assert.inc [Assert that PRIMARY changed its super_read_only setting from RO to RW.]
+include/assert.inc [Assert that PRIMARY server HAS changed.]
+include/gr_find_a_primary.inc
+include/stop_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/gr_wait_for_role_count.inc
+include/gr_find_a_primary.inc
+include/assert.inc [Assert that PRIMARY changed its super_read_only setting from RO to RW.]
+include/assert.inc [Assert that PRIMARY server HAS changed.]
+include/gr_find_a_primary.inc
+include/stop_group_replication.inc
+#
+# Stage 3. Clean up.
+#
+include/group_replication_end.inc

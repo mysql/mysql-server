@@ -21,6 +21,7 @@ debian/extra/adt_null-plugin
 debian/extra/auth-plugin
 debian/extra/auth_socket-plugin
 debian/extra/auth_test_plugin-plugin
+debian/extra/group_replication-plugin
 debian/extra/ha_example-plugin
 debian/extra/innodb_engine-plugin
 debian/extra/keyring_file-plugin
