@@ -6,6 +6,7 @@
 
 # Tests
 --write_file $MYSQL_TMP_DIR/performance_schema_socket_num.tmp
+-->quiet
 -->macro check_xconnection_count %EXPECTED_NUM_OF_CONNECTIONS%
 -->echo Verify [Checking if X Plugin reports %EXPECTED_NUM_OF_CONNECTIONS% connections]
 -->stmtsql SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection'
@@ -49,11 +50,13 @@
 -->setsession
 -->callmacro check_xconnection_count	%CON_COUNTER%
 -->query_result
+-->noquiet
 EOF
 
 --write_file $MYSQL_TMP_DIR/performance_schema_socket_io_stats.tmp
 -->macro Verify_increase %VARI% %COLUMN% %EVENT_NAME%
 # Kick client socket counters
+-->quiet
 -->stmtsql SELECT 1
 -->recvresult be-quiet
 # Check
@@ -63,11 +66,13 @@ EOF
 -->echo Verify [Checking if data in column %COLUMN% had increased]
 -->assert_gt %TMP%	%VARI%
 -->varlet %VARI% %TMP%
+-->noquiet
 -->endmacro
 
 # This function doesn't get latest entry !
 -->macro Verify_greater_or_equal %VARI% %COLUMN% %TABLE% %EVENT_NAME%
 #Kick client socket counters
+-->quiet
 -->stmtsql SELECT 1
 -->recvresult be-quiet
 #MAKE THE CHECK
@@ -76,6 +81,7 @@ EOF
 -->echo Verify [Checking if data in column %COLUMN% had increased]
 -->assert_ge %TMP%	%VARI%
 -->varlet %VARI% %TMP%
+-->noquiet
 -->endmacro
 
 -->varlet %READ_CNT% 0

@@ -11,10 +11,12 @@ EOF
 
 --write_file $MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp
 -->macro Verify_status	%VARIABLE_NAME%	%EXPECTED_VALUE%
+-->quiet
 -->echo Verify [%VARIABLE_NAME% session variable should be have %EXPECTED_VALUE% as value]
 -->stmtsql SHOW STATUS LIKE %VARIABLE_NAME%
 -->recvtovar %VALUE% Value
 -->assert_eq %EXPECTED_VALUE%	%VALUE%
+-->noquiet
 -->endmacro
 
 # Check session status variable

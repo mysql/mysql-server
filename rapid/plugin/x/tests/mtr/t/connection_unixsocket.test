@@ -17,6 +17,7 @@ GRANT ALL ON *.* TO user_8_8_8_8@8.8.8.8;
 GRANT ALL ON *.* TO user_all@'%';
 GRANT ALL ON *.* TO user_localhost@localhost;
 GRANT ALL ON *.* TO user_localhost_8_8_8_8@8.8.8.8;
+GRANT ALL ON *.* TO user_localhost_8_8_8_8@localhost;
 
 CREATE TABLE `city` (
   `ID` int(11) NOT NULL auto_increment,
