@@ -706,12 +706,13 @@ bool drop_after_update(THD *thd, const Schema *old_s,
 
 bool drop_after_update(THD *thd, const Table *old_t, const Table *new_t)
 {
-  if (equal_prefix_chars_name(*old_t, *new_t, sdi_file::FILENAME_PREFIX_CHARS)
+  if ((old_t->schema_id() == new_t->schema_id() &&
+       equal_prefix_chars_name(*old_t, *new_t, sdi_file::FILENAME_PREFIX_CHARS))
       // Hack to avoid calling resolve_hton() during unit tests
       // reslove_hton() will crash in unit tests because the
       // plugin_LOCK mutex has not been initialized.
       // Reviewers: Please feel free to suggest alternative solutions.
-      || old_t->engine() == "innodb")
+       || old_t->engine() == "innodb")
   {
     return false;
   }
