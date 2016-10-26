@@ -871,10 +871,12 @@ ib_cursor_open_index_using_name(
 	*idx_id = 0;
 	*ib_crsr = NULL;
 
-	/* We want to increment the ref count, so we do a redundant search. */
-	table = dict_table_open_on_id(cursor->prebuilt->table->id,
-				      FALSE, DICT_TABLE_OP_NORMAL);
+	table = cursor->prebuilt->table;
 	ut_a(table != NULL);
+
+	mutex_enter(&dict_sys->mutex);
+	table->acquire();
+	mutex_exit(&dict_sys->mutex);
 
 	/* The first index is always the cluster index. */
 	index = table->first_index();
@@ -3159,14 +3161,7 @@ ib_cursor_open_table_using_id(
 	dict_table_t*	table;
 	MDL_ticket*	mdl = NULL;
 
-	if (dict_table_is_sdi(table_id)) {
-		dict_mutex_enter_for_mysql();
-		table = dict_table_open_on_id(
-			table_id, TRUE, DICT_TABLE_OP_NORMAL);
-		dict_mutex_exit_for_mysql();
-	} else {
-		table = dd_table_open_on_id(table_id, ib_trx->mysql_thd, &mdl);
-	}
+	table = dd_table_open_on_id(table_id, ib_trx->mysql_thd, &mdl);
 
 	if (table == NULL) {
 

@@ -522,8 +522,32 @@ dd_table_open_on_id(
 		    dict_table_t*, ib_table, ut_ad(ib_table->cached),
 		    ib_table->id == table_id);
 	if (ib_table == NULL) {
-		mutex_exit(&dict_sys->mutex);
-		ib_table = dd_table_open_on_id_low(thd, mdl, nullptr, table_id);
+		if (dict_table_is_sdi(table_id)) {
+			/* The table is SDI table */
+			space_id_t      space_id = dict_sdi_get_space_id(
+				table_id);
+			uint32_t        copy_num = dict_sdi_get_copy_num(
+				table_id);
+
+			/* Create in-memory table oject for SDI table */
+			dict_index_t*   sdi_index = dict_sdi_create_idx_in_mem(
+				space_id, copy_num, false, 0);
+
+			if (sdi_index == NULL) {
+				mutex_exit(&dict_sys->mutex);
+				return(NULL);
+			}
+
+			ib_table = sdi_index->table;
+
+			ut_ad(ib_table != NULL);
+			ib_table->acquire();
+			mutex_exit(&dict_sys->mutex);
+		} else {
+			mutex_exit(&dict_sys->mutex);
+			ib_table = dd_table_open_on_id_low(
+				thd, mdl, nullptr, table_id);
+		}
 	} else if (mdl == nullptr || ib_table->is_temporary()
 		   || dict_table_is_sdi(ib_table->id)) {
 		if (dd_check_corrupted(ib_table)) {
