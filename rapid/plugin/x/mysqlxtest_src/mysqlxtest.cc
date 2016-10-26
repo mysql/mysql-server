@@ -56,7 +56,6 @@
 const char * const CMD_ARG_BE_QUIET = "be-quiet";
 const char * const MYSQLXTEST_VERSION = "1.0";
 const char CMD_ARG_SEPARATOR = '\t';
-const unsigned short MYSQLX_PORT = 33060;
 
 #include <mysql/service_my_snprintf.h>
 #include <mysql.h>
