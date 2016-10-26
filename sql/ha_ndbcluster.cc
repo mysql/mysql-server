@@ -19383,7 +19383,8 @@ static int slave_conflict_role_check_func(THD *thd, struct st_mysql_sys_var *var
     {
       if (value->val_int(value, &tmp))
         break;
-      if (tmp < 0 || tmp >= slave_conflict_role_typelib.count)
+      if (tmp < 0 ||
+          tmp >= static_cast<long long>(slave_conflict_role_typelib.count))
         break;
       result= (long) tmp;
     }
