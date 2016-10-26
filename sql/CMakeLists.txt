@@ -473,6 +473,19 @@ IF(WIN32)
     COMPILE_FLAGS "/wd4348")
 ENDIF()
 
+# warning 4244 4267
+# conversion from 'coordinate_type' to 'const promoted_type
+# conversion from 'boost::geometry::signed_size_type' to 'int'
+# etc. etc.
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    item_geofunc_buffer.cc
+    item_geofunc_internal.cc
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "/wd4244" "/wd4267")
+ENDIF()
+
 ADD_COMPILE_FLAGS(
   ../extra/lz4/xxhash.c
   COMPILE_FLAGS -DXXH_NAMESPACE=MY_
