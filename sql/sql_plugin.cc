@@ -3915,7 +3915,7 @@ ulonglong sys_var_pluginvar::get_max_value()
   Enforce the NO DEFAULT policy for plugin system variables
 
   A plugin variable does not explicitly call the plugin supplied check function
-  when setting the default value, e.g. SET <plugin_var> = DEFAULT.
+  when setting the default value, e.g. SET @<plugin_var@> = DEFAULT.
 
   But when the PLUGIN_VAR_NODEFAULT is set setting the default value is
   prohibited.
@@ -3930,7 +3930,7 @@ ulonglong sys_var_pluginvar::get_max_value()
     sys_var_pluginvar::do_check(), PLUGIN_VAR_NODEFAULT
 
   @param self   the sys_var structure for the variable being set
-  @param THD    the current thread
+  @param thd    the current thread
   @param var    the data about the value being set
   @return is the setting valid
   @retval true not valid
