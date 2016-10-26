@@ -28,8 +28,10 @@ namespace mysqlxtest {
 static Error_entry global_error_names[] =
 {
   { "<No error>", (int)-1, "" },
+#ifndef IN_DOXYGEN
 #include <mysqld_ername.h>
 #include "mysqlx_ername.h"
+#endif /* IN_DOXYGEN */
   { 0, 0, 0 }
 };
 
