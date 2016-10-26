@@ -3896,6 +3896,7 @@ String *Item_func_weight_string::val_str(String *str)
   String *res;
   const CHARSET_INFO *cs= args[0]->collation.collation;
   size_t tmp_length, frm_length;
+  bool rounded_up= false;
   DBUG_ASSERT(fixed == 1);
 
   if (args[0]->result_type() != STRING_RESULT ||
@@ -3911,6 +3912,16 @@ String *Item_func_weight_string::val_str(String *str)
               result_length ? result_length :
               cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
                                     max<size_t>(res->length(), nweights));
+
+  /*
+    my_strnxfrm() with an odd number of bytes is illegal for some collations;
+    ask for one more and then truncate ourselves instead.
+  */
+  if ((tmp_length % 2) == 1)
+  {
+    ++tmp_length;
+    rounded_up= true;
+  }
 
   if(tmp_length > current_thd->variables.max_allowed_packet)
   {
@@ -3937,6 +3948,9 @@ String *Item_func_weight_string::val_str(String *str)
                                    (const uchar *) res->ptr(), res->length(),
                                    flags);
   DBUG_ASSERT(frm_length <= tmp_length);
+
+  if (rounded_up && frm_length == tmp_length)
+    --frm_length;
 
   tmp_value.length(frm_length);
   null_value= 0;
