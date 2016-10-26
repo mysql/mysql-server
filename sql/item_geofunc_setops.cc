@@ -3134,12 +3134,11 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
 
   if (g1->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(g1->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, g1->get_srid(), &srs_exists))
       DBUG_RETURN(error_str()); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
