@@ -4386,13 +4386,12 @@ prepare_inplace_alter_table_global_dd(
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-		dd::Object_id	dd_space_id = (*old_dd_tab->indexes().begin())
-			->tablespace_id();
-
 		/* TODO: Remove the DD tables checking */
 		if (dict_table_is_file_per_table(old_table)
 		    && strstr(old_table->name.m_name, "mysql/") == NULL) {
-			dd::Object_id	old_space_id = dd_space_id;
+			dd::Object_id	old_space_id =
+				(*old_dd_tab->indexes().begin())
+				->tablespace_id();
 
 			const dd::Tablespace*	old_dd_space = NULL;
 			if (client->acquire_uncached_uncommitted<
@@ -4415,6 +4414,8 @@ prepare_inplace_alter_table_global_dd(
 			}
 		}
 
+		dd::Object_id	dd_space_id;
+
 		/* TODO: Remove the DD tables checking */
 		if (dict_table_is_file_per_table(new_table)
 		    && strstr(new_table->name.m_name, "mysql/") == NULL) {
@@ -4431,7 +4432,8 @@ prepare_inplace_alter_table_global_dd(
 		} else if (new_table->space == 0) {
 			dd_space_id = 1;
 		} else {
-			/* TODO: shared tablespace, nothing to do for now. */
+			dd_space_id = new_dd_tab->tablespace_id();
+			ut_ad(dd_space_id != dd::INVALID_OBJECT_ID);
 		}
 
 		create_table_info_t::set_table_options(
