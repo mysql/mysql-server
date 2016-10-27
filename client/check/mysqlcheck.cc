@@ -17,15 +17,17 @@
 
 #define CHECK_VERSION "2.5.1"
 
-#include "client_priv.h"
-#include "my_default.h"
-#include "mysqlcheck.h"
 #include <m_ctype.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sslopt-vars.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+
+#include "client_priv.h"
+#include "my_default.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysqlcheck.h"
+#include "typelib.h"
 
 using namespace Mysql::Tools::Check;
 using std::string;
@@ -193,6 +195,7 @@ static struct my_option my_long_options[] =
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
+
   {"tables", OPT_TABLES, "Overrides option --databases (-B).", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"use-frm", OPT_FRM,
@@ -331,6 +334,7 @@ get_one_option(int optid, const struct my_option *opt,
     debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
+
   case OPT_TABLES:
     opt_databases = 0;
     break;

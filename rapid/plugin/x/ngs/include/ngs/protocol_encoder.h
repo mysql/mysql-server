@@ -31,8 +31,7 @@
 #include <vector>
 #include <map>
 #include "ngs_common/smart_ptr.h"
-
-#include "ngs_common/posix_time.h"
+#include "ngs_common/chrono.h"
 #include "ngs/protocol/message_builder.h"
 #include "ngs/protocol/notice_builder.h"
 #include "ngs/protocol/row_builder.h"
@@ -58,9 +57,6 @@ namespace ngs
                      Protocol_monitor_interface &pmon);
 
     virtual ~Protocol_encoder();
-
-    Protocol_encoder(const Protocol_encoder &) = delete;
-    Protocol_encoder &operator=(const Protocol_encoder &) = delete;
 
     bool send_result(const Error_code &result);
 
@@ -112,6 +108,9 @@ namespace ngs
     static void log_protobuf(int8_t type);
 
   private:
+    Protocol_encoder(const Protocol_encoder &) = delete;
+    Protocol_encoder &operator=(const Protocol_encoder &) = delete;
+
     enum Frame_scope
     {
       FRAME_SCOPE_LOCAL,

@@ -82,9 +82,6 @@ public:
 
   virtual ~Sql_data_context();
 
-  Sql_data_context(const Sql_data_context &) = delete;
-  Sql_data_context &operator=(const Sql_data_context &) = delete;
-
   ngs::Error_code init();
   void deinit();
 
@@ -134,6 +131,9 @@ public:
                                                          bool compact_metadata, Result_info &r_info);
 
 private:
+  Sql_data_context(const Sql_data_context &) = delete;
+  Sql_data_context &operator=(const Sql_data_context &) = delete;
+
   ngs::Error_code execute_sql(Command_delegate &deleg, const char *sql, size_t length, Result_info &r_info);
 
   ngs::Error_code switch_to_user(const char *username, const char *hostname, const char *address, const char *db);

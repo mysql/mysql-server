@@ -23,6 +23,7 @@
 #include "dd/impl/bootstrapper.h"            // bootstrap_stage
 #include "dd/impl/dictionary_impl.h"
 #include "dd/impl/object_key.h"
+#include "dd/impl/sdi.h"                     // dd::sdi::drop_after_update
 #include "dd/impl/raw/object_keys.h"         // Primary_id_key, ...
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/raw/raw_record_set.h"      // Raw_record_set
@@ -1944,6 +1945,20 @@ bool Dictionary_client::update(const T** old_object, T* new_object,
     */
     if (store(new_object))
       return true;
+
+    /*
+      Remove the old sdi after store() has successfully written the
+      new one. Note that this is a noop unless we are writing the SDI
+      to file and the name of the new object is different. (If the
+      names are identical the old file will be over-written by
+      store(). If we are storing the SDI in a tablespace the key
+      does not depend on the name and the store is a transactional
+      update).
+    */
+    if (sdi::drop_after_update(m_thd, *old_object, new_object))
+    {
+      return true;
+    }
   }
 
   // If we succeed in storing the new object, we must update the shared
@@ -1979,25 +1994,45 @@ bool Dictionary_client::update(const T** old_object, T* new_object,
 
 // Update a modified uncached dictionary object and remove it from the cache.
 template <typename T>
-bool Dictionary_client::update_uncached_and_invalidate(T* object)
+bool Dictionary_client::update_uncached_and_invalidate(const T* old_object,
+                                                       T* new_object)
 {
   // Check proper MDL lock.
-  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
+  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, new_object));
 
   // Object should not be present in local registry.
   Cache_element<typename T::cache_partition_type> *element= NULL;
   m_registry.get(
-    static_cast<const typename T::cache_partition_type*>(object),
+    static_cast<const typename T::cache_partition_type*>(new_object),
     &element);
   DBUG_ASSERT(! element);
 
   // Store the updated object first.
-  if (Storage_adapter::store(m_thd, object) == false)
+  if (Storage_adapter::store(m_thd, new_object) == false)
   {
+    /*
+      Remove the old sdi after store() has successfully written the
+      new one. Note that this is a noop unless we are writing the SDI
+      to file and the name of the new object is different. (If the
+      names are identical the old file will be over-written by
+      store(). If we are storing the SDI in a tablespace the key
+      does not depend on the name and the store is a transactional
+      update).
+
+      nullptr value of old_object parameter means that caller guarantees
+      that object didn't change its name or schema, so there is no need
+      to drop SDI file.
+    */
+    if (old_object != nullptr &&
+        sdi::drop_after_update(m_thd, old_object, new_object))
+    {
+      return true;
+    }
+
     // Drop the element from the shared cache.
     Shared_dictionary_cache::instance()->
       drop_if_present<typename T::id_key_type,
-                      typename T::cache_partition_type>(object->id());
+                      typename T::cache_partition_type>(new_object->id());
     return false;
   }
 
@@ -2261,7 +2296,8 @@ template bool Dictionary_client::acquire_uncached_uncommitted(const String_type&
 template bool Dictionary_client::drop(const Table*);
 template bool Dictionary_client::drop_uncached(const Table*);
 template bool Dictionary_client::store(Table*);
-template bool Dictionary_client::update_uncached_and_invalidate(Table*);
+template bool Dictionary_client::update_uncached_and_invalidate(const Table*,
+                                                                Table*);
 template void Dictionary_client::add_and_reset_id(Table*);
 template void Dictionary_client::add_and_reset_id(Table*, bool);
 template bool Dictionary_client::update(const Table**, Table*, bool);
@@ -2279,7 +2315,8 @@ template bool Dictionary_client::acquire(Object_id,
 template bool Dictionary_client::drop(const Tablespace*);
 template bool Dictionary_client::drop_uncached(const Tablespace*);
 template bool Dictionary_client::store(Tablespace*);
-template bool Dictionary_client::update_uncached_and_invalidate(Tablespace*);
+template bool Dictionary_client::update_uncached_and_invalidate(
+                                   const Tablespace*, Tablespace*);
 template void Dictionary_client::add_and_reset_id(Tablespace*);
 template void Dictionary_client::add_and_reset_id(Tablespace*, bool);
 template bool Dictionary_client::update(const Tablespace**, Tablespace*, bool);
@@ -2303,7 +2340,8 @@ template bool Dictionary_client::acquire_uncached_uncommitted(const String_type&
 template bool Dictionary_client::drop(const View*);
 template bool Dictionary_client::drop_uncached(const View*);
 template bool Dictionary_client::store(View*);
-template bool Dictionary_client::update_uncached_and_invalidate(View*);
+template bool Dictionary_client::update_uncached_and_invalidate(const View*,
+                                                                View*);
 template void Dictionary_client::add_and_reset_id(View*);
 template void Dictionary_client::add_and_reset_id(View*, bool);
 template bool Dictionary_client::update(const View**, View*, bool);

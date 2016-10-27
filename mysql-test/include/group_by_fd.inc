@@ -1029,4 +1029,18 @@ SELECT t.a,t.c FROM u LEFT JOIN t ON u.a>0;
 SELECT t.a,t.c FROM u LEFT JOIN t ON u.a>0 GROUP BY t.a;
 DROP TABLE t,u;
 
+--echo #
+--echo # Bug #22924183 	GROUP BY ON DERIVED TABLE, EXPRESSION OF AGGREGATE AND GROUP COLUMN: ERROR
+--echo #
+
+CREATE TABLE coll (
+  doc text
+) ENGINE=InnoDB;
+
+SELECT (je+1)+count(*) FROM (SELECT doc+1 AS je FROM coll) AS dt GROUP BY je;
+
+SELECT je+(1+count(*)) FROM (SELECT doc+1 AS je FROM coll) AS dt GROUP BY je;
+
+DROP TABLE coll;
+
 DROP FUNCTION show_json_object;

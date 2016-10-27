@@ -116,7 +116,7 @@ public:
   MOCK_CONST_METHOD0(client_id_num, Client_id ());
   MOCK_CONST_METHOD0(client_port, int ());
 
-  MOCK_CONST_METHOD0(get_accept_time, ngs::ptime ());
+  MOCK_CONST_METHOD0(get_accept_time, ngs::chrono::time_point ());
   MOCK_CONST_METHOD0(get_state, Client_state ());
 
   MOCK_METHOD0(session, ngs::shared_ptr<ngs::Session_interface> ());

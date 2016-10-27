@@ -29,7 +29,8 @@
 /** True when the performance schema is initialized. */
 extern bool pfs_initialized;
 
-#if defined(HAVE_POSIX_MEMALIGN) || defined(HAVE_MEMALIGN) || defined(HAVE_ALIGNED_MALLOC)
+#if defined(HAVE_POSIX_MEMALIGN) || defined(HAVE_MEMALIGN) || \
+  defined(HAVE_ALIGNED_MALLOC)
 #define PFS_ALIGNEMENT 64
 #define PFS_ALIGNED MY_ALIGNED(PFS_ALIGNEMENT)
 #else
@@ -56,9 +57,9 @@ struct PFS_cacheline_uint32
   uint32 m_u32;
   char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(uint32)];
 
-  PFS_cacheline_uint32()
-  : m_u32(0)
-  {}
+  PFS_cacheline_uint32() : m_u32(0)
+  {
+  }
 };
 
 /**
@@ -70,9 +71,9 @@ struct PFS_cacheline_uint64
   uint64 m_u64;
   char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(uint64)];
 
-  PFS_cacheline_uint64()
-  : m_u64(0)
-  {}
+  PFS_cacheline_uint64() : m_u64(0)
+  {
+  }
 };
 
 struct PFS_builtin_memory_class;
@@ -81,7 +82,10 @@ struct PFS_builtin_memory_class;
 void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags);
 
 /** Allocate an array of structures with overflow check. */
-void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size, myf flags);
+void *pfs_malloc_array(PFS_builtin_memory_class *klass,
+                       size_t n,
+                       size_t size,
+                       myf flags);
 
 /**
   Helper, to allocate an array of structures.
@@ -92,13 +96,16 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size, m
   @param f flags to use when allocating memory
 */
 #define PFS_MALLOC_ARRAY(k, n, s, T, f) \
-  reinterpret_cast<T*>(pfs_malloc_array((k), (n), (s), (f)))
+  reinterpret_cast<T *>(pfs_malloc_array((k), (n), (s), (f)))
 
 /** Free memory allocated with @sa pfs_malloc. */
 void pfs_free(PFS_builtin_memory_class *klass, size_t size, void *ptr);
 
 /** Free memory allocated with @sa pfs_malloc_array. */
-void pfs_free_array(PFS_builtin_memory_class *klass, size_t n, size_t size, void *ptr);
+void pfs_free_array(PFS_builtin_memory_class *klass,
+                    size_t n,
+                    size_t size,
+                    void *ptr);
 
 /**
   Helper, to free an array of structures.
@@ -107,8 +114,7 @@ void pfs_free_array(PFS_builtin_memory_class *klass, size_t n, size_t size, void
   @param s size of array element
   @param p the array to free
 */
-#define PFS_FREE_ARRAY(k, n, s, p) \
-  pfs_free_array((k), (n), (s), (p))
+#define PFS_FREE_ARRAY(k, n, s, p) pfs_free_array((k), (n), (s), (p))
 
 /** Detect multiplication overflow. */
 bool is_overflow(size_t product, size_t n1, size_t n2);
@@ -124,7 +130,7 @@ uint pfs_get_socket_address(char *host,
   @param CLASS Class to instantiate
 */
 #define PFS_NEW(CLASS) \
-  reinterpret_cast<CLASS *>(new(current_thd->alloc(sizeof(CLASS))) CLASS())
+  reinterpret_cast<CLASS *>(new (current_thd->alloc(sizeof(CLASS))) CLASS())
 
 /**
   Compute a random index value in an interval.
@@ -132,15 +138,18 @@ uint pfs_get_socket_address(char *host,
   @param max_size maximun size of the interval
   @return a random value in [0, max_size-1]
 */
-inline uint randomized_index(const void *ptr, uint max_size)
+inline uint
+randomized_index(const void *ptr, uint max_size)
 {
-  static uint seed1= 0;
-  static uint seed2= 0;
+  static uint seed1 = 0;
+  static uint seed2 = 0;
   uint result;
   intptr value;
 
   if (unlikely(max_size == 0))
+  {
     return 0;
+  }
 
   /*
     ptr is typically an aligned structure, and can be in an array.
@@ -167,14 +176,14 @@ inline uint randomized_index(const void *ptr, uint max_size)
     What we want here, is to have index(i) and index(i+1) fall into
     very different areas in [0, max_size - 1], to avoid locality.
   */
-  value= (reinterpret_cast<intptr> (ptr)) >> 3;
-  value*= 1789;
-  value+= seed2 + seed1 + 1;
+  value = (reinterpret_cast<intptr>(ptr)) >> 3;
+  value *= 1789;
+  value += seed2 + seed1 + 1;
 
-  result= (static_cast<uint> (value)) % max_size;
+  result = (static_cast<uint>(value)) % max_size;
 
-  seed2= seed1*seed1;
-  seed1= result;
+  seed2 = seed1 * seed1;
+  seed1 = result;
 
   DBUG_ASSERT(result < max_size);
   return result;
@@ -188,16 +197,14 @@ void pfs_print_error(const char *format, ...)
   check that an UNSAFE pointer actually points to an element
   within the array.
 */
-#define SANITIZE_ARRAY_BODY(T, ARRAY, MAX, UNSAFE)          \
-  intptr offset;                                            \
-  if ((&ARRAY[0] <= UNSAFE) &&                              \
-      (UNSAFE < &ARRAY[MAX]))                               \
-  {                                                         \
-    offset= ((intptr) UNSAFE - (intptr) ARRAY) % sizeof(T); \
-    if (offset == 0)                                        \
-      return UNSAFE;                                        \
-  }                                                         \
+#define SANITIZE_ARRAY_BODY(T, ARRAY, MAX, UNSAFE)         \
+  intptr offset;                                           \
+  if ((&ARRAY[0] <= UNSAFE) && (UNSAFE < &ARRAY[MAX]))     \
+  {                                                        \
+    offset = ((intptr)UNSAFE - (intptr)ARRAY) % sizeof(T); \
+    if (offset == 0)                                       \
+      return UNSAFE;                                       \
+  }                                                        \
   return NULL
 
 #endif
-

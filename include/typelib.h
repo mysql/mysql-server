@@ -27,9 +27,9 @@
 extern "C" {
 #endif
 
-typedef struct st_typelib {	/* Different types saved here */
-  unsigned int count;		/* How many types */
-  const char *name;		/* Name of typelib */
+typedef struct st_typelib {     /* Different types saved here */
+  size_t count;                 /* How many types */
+  const char *name;             /* Name of typelib */
   const char **type_names;
   unsigned int *type_lengths;
 } TYPELIB;

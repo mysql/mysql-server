@@ -26,8 +26,8 @@
 #include <stdint.h>
 #include <stdexcept>
 #include <sstream>
-#include <boost/lexical_cast.hpp>
-#include <ngs/memory.h>
+#include "ngs/memory.h"
+#include "ngs_common/to_string.h"
 
 
 struct charset_info_st;
@@ -68,9 +68,8 @@ namespace xpl
     template<typename Value_type>
     Query_formatter & put(const Value_type &value)
     {
-
       validate_next_tag();
-      std::string string_value = boost::lexical_cast<std::string>(value);
+      std::string string_value = ngs::to_string(value);
       put_value(string_value.c_str(), string_value.length());
 
       return *this;
@@ -97,7 +96,6 @@ namespace xpl
     std::size_t      m_last_tag_position;
   };
 
-  // specializations for double and float as boost::lexical_cast doesn't work well for them
   template<>
   inline  Query_formatter& Query_formatter::operator%<double>(const double &value)
   {

@@ -37,6 +37,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "opt_range.h"           // QUICK_SELECT_I
 #include "psi_memory_key.h"
+#include "sort_param.h"
 #include "sql_class.h"           // THD
 #include "sql_const.h"
 #include "sql_executor.h"        // QEP_TAB
@@ -689,7 +690,7 @@ static int rr_unpack_from_buffer(READ_RECORD *info)
 
   uchar *record= info->table->sort.get_sorted_record(
     static_cast<uint>(info->unpack_counter));
-  uchar *payload= info->table->sort.get_start_of_payload(record);
+  uchar *payload= get_start_of_payload(&info->table->sort, record);
   info->table->sort.unpack_addon_fields<Packed_addon_fields>(payload);
   info->unpack_counter++;
   return 0;

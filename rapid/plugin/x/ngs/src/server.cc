@@ -202,9 +202,9 @@ void Server::wait_for_clients_closure()
   }
 }
 
-void Server::validate_client_state(ptime &oldest_client_time, const ptime& time_of_release, Client_ptr client)
+void Server::validate_client_state(chrono::time_point &oldest_client_time, const chrono::time_point& time_of_release, Client_ptr client)
 {
-  const ptime                client_time = client->get_accept_time();
+  const chrono::time_point client_time = client->get_accept_time();
   const Client_interface::Client_state state = client->get_state();
 
   if (Client_interface::Client_accepted_with_session != state &&
@@ -218,7 +218,7 @@ void Server::validate_client_state(ptime &oldest_client_time, const ptime& time_
       return;
     }
 
-    if (oldest_client_time.is_not_a_date_time() ||
+    if (!chrono::is_valid(oldest_client_time) ||
         oldest_client_time > client_time)
     {
       oldest_client_time = client_time;
@@ -226,13 +226,13 @@ void Server::validate_client_state(ptime &oldest_client_time, const ptime& time_
   }
 }
 
-void Server::start_client_supervision_timer(const time_duration &oldest_object_time_ms)
+void Server::start_client_supervision_timer(const chrono::duration &oldest_object_time_ms)
 {
-  log_debug("Supervision timer started %i ms", (int)oldest_object_time_ms.total_milliseconds());
+  log_debug("Supervision timer started %i ms", (int)chrono::to_milliseconds(oldest_object_time_ms));
 
   m_timer_running = true;
 
-  m_acceptors->add_timer(static_cast<size_t>(oldest_object_time_ms.total_milliseconds()),
+  m_acceptors->add_timer(static_cast<size_t>(chrono::to_milliseconds(oldest_object_time_ms)),
             ngs::bind(&Server::timeout_for_clients_validation, this));
 }
 
@@ -248,16 +248,16 @@ bool Server::timeout_for_clients_validation()
 {
   m_timer_running = false;
 
-  ptime oldest_object_time(not_a_date_time);
+  chrono::time_point oldest_object_time;
 
   log_info("Supervision timeout - started client state verification");
 
-  ptime time_oldest = microsec_clock::universal_time() - get_config()->connect_timeout;
-  ptime time_to_release = time_oldest + get_config()->connect_timeout_hysteresis;
+  chrono::time_point time_oldest = chrono::now() - get_config()->connect_timeout;
+  chrono::time_point time_to_release = time_oldest + get_config()->connect_timeout_hysteresis;
 
   go_through_all_clients(ngs::bind(&Server::validate_client_state, this, ngs::ref(oldest_object_time), time_to_release, ngs::placeholders::_1));
 
-  if (!oldest_object_time.is_not_a_date_time())
+  if (chrono::is_valid(oldest_object_time))
   {
     start_client_supervision_timer(oldest_object_time - time_oldest);
   }

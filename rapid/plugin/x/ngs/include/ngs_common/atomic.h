@@ -17,12 +17,8 @@
  * 02110-1301  USA
  */
 
-
-#ifndef _NGS_ATOMIC_H_
-#define _NGS_ATOMIC_H_
-
-
-#include <boost/atomic.hpp>
+#ifndef NGS_ATOMIC_H_
+#define NGS_ATOMIC_H_
 
 #include <atomic>
 
@@ -31,4 +27,4 @@ namespace ngs
 using std::atomic;
 } // namespace ngs
 
-#endif // _NGS_ATOMIC_H_
+#endif // NGS_ATOMIC_H_

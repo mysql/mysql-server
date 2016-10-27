@@ -462,12 +462,12 @@ static void init_federated_psi_keys(void)
   int count MY_ATTRIBUTE((unused));
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  count= array_elements(all_federated_mutexes);
+  count= static_cast<int>(array_elements(all_federated_mutexes));
   mysql_mutex_register(category, all_federated_mutexes, count);
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  count= array_elements(all_federated_memory);
+  count= static_cast<int>(array_elements(all_federated_memory));
   mysql_memory_register(category, all_federated_memory, count);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 }

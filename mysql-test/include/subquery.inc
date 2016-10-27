@@ -6665,3 +6665,36 @@ eval EXPLAIN $query2;
 eval $query2;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#13915291 NOT IN (SUBQUERY) GIVES WRONG RESULT WHEN PREFIX INDEX OF INNER TABLE IS USED
+--echo #
+
+CREATE TABLE t1 (
+  a1 char(8) DEFAULT NULL,
+  a2 char(8) DEFAULT NULL,
+  KEY a1 (a1(2))
+);
+CREATE TABLE t2 (
+  b1 char(8) DEFAULT NULL,
+  b2 char(8) DEFAULT NULL
+);
+INSERT INTO t1 VALUES
+ ('1 - 00', '2 - 00'),('1 - 01', '2 - 01'),('1 - 02', '2 - 02');
+INSERT INTO t2 VALUES
+ ('1 - 01', '2 - 01'),('1 - 01', '2 - 01'),
+ ('1 - 02', '2 - 02'),('1 - 02', '2 - 02'),('1 - 03', '2 - 03');
+ANALYZE TABLE t1,t2;
+
+SELECT a1 FROM t1 WHERE a1 > '1';
+# The correct result:
+SELECT * FROM t2 WHERE b1 NOT IN ('1 - 00', '1 - 01', '1 - 02');
+
+# Same, with subquery:
+let $query=
+SELECT * FROM t2 WHERE b1 NOT IN
+(SELECT a1 FROM t1 FORCE INDEX(a1) WHERE a1 > '1');
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;

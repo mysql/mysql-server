@@ -19,11 +19,11 @@ TABLE_SCHEMA= "test" order by TABLE_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, COLUMN_
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
 def	test	PRIMARY	def	test	t1	id	1	NULL	NULL	NULL	NULL
 def	test	PRIMARY	def	test	t2	id	1	NULL	NULL	NULL	NULL
-def	test	t2_ibfk_1	def	test	t2	t1_id	0	1	test	t1	id
-def	test	t2_ibfk_2	def	test	t2	t1_id	0	1	test	t1	id
+def	test	t2_ibfk_1	def	test	t2	t1_id	1	1	test	t1	id
+def	test	t2_ibfk_2	def	test	t2	t1_id	1	1	test	t1	id
 def	test	PRIMARY	def	test	t3	id	1	NULL	NULL	NULL	NULL
-def	test	t3_ibfk_1	def	test	t3	id	0	1	test	t2	t1_id
-def	test	t3_ibfk_1	def	test	t3	t2_id	1	2	test	t2	id
+def	test	t3_ibfk_1	def	test	t3	id	1	1	test	t2	t1_id
+def	test	t3_ibfk_1	def	test	t3	t2_id	2	2	test	t2	id
 drop table t3, t2, t1;
 CREATE TABLE t1(a1 INT NOT NULL, a2 INT NOT NULL,
 PRIMARY KEY(a1, a2)) ENGINE=INNODB;

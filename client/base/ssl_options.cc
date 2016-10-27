@@ -21,6 +21,7 @@
 #include "client_priv.h"
 #include "mysql_connection_options.h"
 #include "sslopt-vars.h"
+#include "typelib.h"
 
 using namespace Mysql::Tools::Base::Options;
 using std::placeholders::_1;

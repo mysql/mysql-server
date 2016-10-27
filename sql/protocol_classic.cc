@@ -222,6 +222,7 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/com_data.h"

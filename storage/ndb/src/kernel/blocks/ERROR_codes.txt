@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@ Next NDBFS 2002
 Next DBACC 3002
 Next DBTUP 4039
 Next DBLQH 5088
-Next DBDICT 6222
+Next DBDICT 6223
 Next DBDIH 7248
 Next DBTC 8109
 Next CMVMI 9000
@@ -744,10 +744,11 @@ Dbdict:
 6215 Randomly fail GET_TABINFOREQ with Busy (no CLEAR_ERROR_INSERT_VALUE)
 6216 Delay GET_TABINFOREQ processing indefinitely
 6217 Delay CREATE_TABLE_REQ, ALTER_TABLE_REQ and DROP_TABLE_REQ processing indefinitely
-6218 Delay CREATE_INDEX_REQ and CREATE_FILEGROUP_REQ indefinitely
-6219 Delay DROP_INDEX_REQ, DROP_FILEGROUP_REQ, DROP_FILE_REQ and DROP_FK_REQ processing indefinitely
+6218 Delay CREATE_INDEX_REQ, CREATE_FILEGROUP_REQ, CREATE_FILE_REQ, CREATE_FK_REQ indefinitely
+6219 Delay DROP_INDEX_REQ, DROP_FILEGROUP_REQ, DROP_FILE_REQ, DROP_FK_REQ processing indefinitely
 6220 Delay LIST_TABLES_REQ indefinitely
 6221 Delay INDEX_STAT_REQ indefinitely
+6222 Delay CREATE_HASH_MAP_REQ indefinitely
 
 Dbtup:
 4014 - handleInsert - Out of undo buffer

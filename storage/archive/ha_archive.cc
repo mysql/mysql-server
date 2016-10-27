@@ -189,17 +189,17 @@ static void init_archive_psi_keys(void)
   int count MY_ATTRIBUTE((unused));
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  count= array_elements(all_archive_mutexes);
+  count= static_cast<int>(array_elements(all_archive_mutexes));
   mysql_mutex_register(category, all_archive_mutexes, count);
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
 #ifdef HAVE_PSI_FILE_INTERFACE
-  count= array_elements(all_archive_files);
+  count= static_cast<int>(array_elements(all_archive_files));
   mysql_file_register(category, all_archive_files, count);
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  count= array_elements(all_archive_memory);
+  count= static_cast<int>(array_elements(all_archive_memory));
   mysql_memory_register(category, all_archive_memory, count);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 }

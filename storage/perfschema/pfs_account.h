@@ -11,7 +11,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  */
 
 #ifndef PFS_ACCOUNT_H
 #define PFS_ACCOUNT_H
@@ -54,24 +55,28 @@ struct PFS_account_key
 struct PFS_ALIGNED PFS_account : PFS_connection_slice
 {
 public:
-  inline void init_refcount(void)
+  inline void
+  init_refcount(void)
   {
-    PFS_atomic::store_32(& m_refcount, 1);
+    PFS_atomic::store_32(&m_refcount, 1);
   }
 
-  inline int get_refcount(void)
+  inline int
+  get_refcount(void)
   {
-    return PFS_atomic::load_32(& m_refcount);
+    return PFS_atomic::load_32(&m_refcount);
   }
 
-  inline void inc_refcount(void)
+  inline void
+  inc_refcount(void)
   {
-    PFS_atomic::add_32(& m_refcount, 1);
+    PFS_atomic::add_32(&m_refcount, 1);
   }
 
-  inline void dec_refcount(void)
+  inline void
+  dec_refcount(void)
   {
-    PFS_atomic::add_32(& m_refcount, -1);
+    PFS_atomic::add_32(&m_refcount, -1);
   }
 
   void aggregate(bool alive, PFS_user *safe_user, PFS_host *safe_host);
@@ -92,7 +97,8 @@ public:
   PFS_account_key m_key;
   /** True if this account is enabled, per rules in table SETUP_ACTORS. */
   bool m_enabled;
-  /** True if this account has history enabled, per rules in table SETUP_ACTORS. */
+  /** True if this account has history enabled, per rules in table SETUP_ACTORS.
+   */
   bool m_history;
   const char *m_username;
   uint m_username_length;
@@ -112,10 +118,11 @@ void cleanup_account(void);
 int init_account_hash(const PFS_global_param *param);
 void cleanup_account_hash(void);
 
-PFS_account *
-find_or_create_account(PFS_thread *thread,
-                         const char *username, uint username_length,
-                         const char *hostname, uint hostname_length);
+PFS_account *find_or_create_account(PFS_thread *thread,
+                                    const char *username,
+                                    uint username_length,
+                                    const char *hostname,
+                                    uint hostname_length);
 
 PFS_account *sanitize_account(PFS_account *unsafe);
 void purge_all_account(void);
@@ -128,4 +135,3 @@ extern LF_HASH account_hash;
 
 /** @} */
 #endif
-

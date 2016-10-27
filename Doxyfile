@@ -2194,6 +2194,7 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          HAVE_PSI_STATEMENT_DIGEST_INTERFACE \
                          __attribute__(X)= \
                          MY_ATTRIBUTE(X)= \
+                         ALWAYS_INLINE(X)=X \
                          UNIV_DEBUG \
                          UNIV_NOTHROW \
                          __cplusplus

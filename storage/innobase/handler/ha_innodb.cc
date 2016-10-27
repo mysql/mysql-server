@@ -93,6 +93,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0log.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
+#include "my_double2ulonglong.h"
 #include "my_psi_config.h"
 #include "os0file.h"
 #include "os0thread.h"
@@ -4204,30 +4205,30 @@ innodb_init(
 	/* Register keys with MySQL performance schema */
 	int	count;
 
-	count = array_elements(all_pthread_mutexes);
+	count = static_cast<int>(array_elements(all_pthread_mutexes));
 	mysql_mutex_register("innodb", all_pthread_mutexes, count);
 
 # ifdef UNIV_PFS_MUTEX
-	count = array_elements(all_innodb_mutexes);
+	count = static_cast<int>(array_elements(all_innodb_mutexes));
 	mysql_mutex_register("innodb", all_innodb_mutexes, count);
 # endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_RWLOCK
-	count = array_elements(all_innodb_rwlocks);
+	count = static_cast<int>(array_elements(all_innodb_rwlocks));
 	mysql_rwlock_register("innodb", all_innodb_rwlocks, count);
 # endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_THREAD
-	count = array_elements(all_innodb_threads);
+	count = static_cast<int>(array_elements(all_innodb_threads));
 	mysql_thread_register("innodb", all_innodb_threads, count);
 # endif /* UNIV_PFS_THREAD */
 
 # ifdef UNIV_PFS_IO
-	count = array_elements(all_innodb_files);
+	count = static_cast<int>(array_elements(all_innodb_files));
 	mysql_file_register("innodb", all_innodb_files, count);
 # endif /* UNIV_PFS_IO */
 
-	count = array_elements(all_innodb_conds);
+	count = static_cast<int>(array_elements(all_innodb_conds));
 	mysql_cond_register("innodb", all_innodb_conds, count);
 
 	mysql_data_lock_register(& innodb_data_lock_inspector);

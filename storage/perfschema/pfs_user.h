@@ -11,7 +11,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  */
 
 #ifndef PFS_USER_H
 #define PFS_USER_H
@@ -49,24 +50,28 @@ struct PFS_user_key
 struct PFS_ALIGNED PFS_user : public PFS_connection_slice
 {
 public:
-  inline void init_refcount(void)
+  inline void
+  init_refcount(void)
   {
-    PFS_atomic::store_32(& m_refcount, 1);
+    PFS_atomic::store_32(&m_refcount, 1);
   }
 
-  inline int get_refcount(void)
+  inline int
+  get_refcount(void)
   {
-    return PFS_atomic::load_32(& m_refcount);
+    return PFS_atomic::load_32(&m_refcount);
   }
 
-  inline void inc_refcount(void)
+  inline void
+  inc_refcount(void)
   {
-    PFS_atomic::add_32(& m_refcount, 1);
+    PFS_atomic::add_32(&m_refcount, 1);
   }
 
-  inline void dec_refcount(void)
+  inline void
+  dec_refcount(void)
   {
-    PFS_atomic::add_32(& m_refcount, -1);
+    PFS_atomic::add_32(&m_refcount, -1);
   }
 
   void aggregate(bool alive);
@@ -99,13 +104,12 @@ void cleanup_user(void);
 int init_user_hash(const PFS_global_param *param);
 void cleanup_user_hash(void);
 
-PFS_user *
-find_or_create_user(PFS_thread *thread,
-                    const char *username, uint username_length);
+PFS_user *find_or_create_user(PFS_thread *thread,
+                              const char *username,
+                              uint username_length);
 
 PFS_user *sanitize_user(PFS_user *unsafe);
 void purge_all_user(void);
-
 
 /* For show status. */
 
@@ -113,4 +117,3 @@ extern LF_HASH user_hash;
 
 /** @} */
 #endif
-

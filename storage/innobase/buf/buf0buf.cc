@@ -2444,6 +2444,8 @@ buf_pool_clear_hash_index(void)
 	ut_ad(!buf_pool_resizing);
 	ut_ad(!btr_search_enabled);
 
+	DEBUG_SYNC_C("purge_wait_for_btr_search_latch");
+
 	for (p = 0; p < srv_buf_pool_instances; p++) {
 		buf_pool_t*	buf_pool = buf_pool_from_array(p);
 		buf_chunk_t*	chunks	= buf_pool->chunks;
@@ -2466,8 +2468,6 @@ buf_pool_clear_hash_index(void)
 					continue;
 				}
 
-				ut_ad(buf_block_get_state(block)
-                                      == BUF_BLOCK_FILE_PAGE);
 # if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 				block->n_pointers = 0;
 # endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */

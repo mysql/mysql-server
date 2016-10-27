@@ -24,7 +24,6 @@
 #include "dd/impl/dictionary_impl.h"          // default_catalog_name
 #include "dd/impl/utils.h"                    // dd::escape
 #include "dd/properties.h"                    // dd::Properties
-#include "dd/sdi.h"                           // dd::store_sdi
 #include "dd_table_share.h"                   // is_suitable_for_primary_key
 #include "dd/types/abstract_table.h"
 #include "dd/types/column.h"                  // dd::Column
@@ -1099,8 +1098,6 @@ void fill_dd_indexes_from_keyinfo(THD *thd,
 
     idx_obj->set_type(dd_get_new_index_type(key));
 
-    idx_obj->set_ordinal_position(key_nr);
-
     idx_obj->set_generated(key->flags & HA_GENERATED_KEY);
 
     if (key->comment.str)
@@ -1306,8 +1303,6 @@ static bool fill_dd_foreign_keys_from_create_fields(dd::Table *tab_obj,
     for (uint i= 0; i < key->key_parts; i++)
     {
       dd::Foreign_key_element *fk_col_obj= fk_obj->add_element();
-
-      fk_col_obj->set_ordinal_position(i);
 
       const dd::Column *column=
         tab_obj->get_column(dd::String_type(key->key_part[i].str,
@@ -2252,8 +2247,7 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
                              const FOREIGN_KEY *fk_keyinfo,
                              uint fk_keys,
                              handler *file,
-                             bool commit_dd_changes,
-                             bool store_sdi)
+                             bool commit_dd_changes)
 {
   // Verify that this is not a dd table.
   DBUG_ASSERT(!dd::get_dictionary()->is_dd_table_name(schema_name,
@@ -2298,8 +2292,7 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Store info in DD tables.
-  if (thd->dd_client()->store(tab_obj.get()) ||
-      (store_sdi && dd::store_sdi(thd, tab_obj.get(), sch_obj)))
+  if (thd->dd_client()->store(tab_obj.get()))
   {
     if (commit_dd_changes)
     {
@@ -2328,8 +2321,7 @@ std::unique_ptr<dd::Table> create_table(THD *thd,
                              const FOREIGN_KEY *fk_keyinfo,
                              uint fk_keys,
                              handler *file,
-                             bool commit_dd_changes,
-                             bool store_sdi)
+                             bool commit_dd_changes)
 {
   dd::Dictionary *dict= dd::get_dictionary();
   const dd::Object_table *dd_table= dict->get_dd_table(schema_name, table_name);
@@ -2341,7 +2333,7 @@ std::unique_ptr<dd::Table> create_table(THD *thd,
     create_dd_user_table(thd, schema_name, table_name, create_info,
                          create_fields, keyinfo, keys, keys_onoff,
                          fk_keyinfo, fk_keys, file,
-                         commit_dd_changes, store_sdi);
+                         commit_dd_changes);
 }
 
 
@@ -2414,7 +2406,8 @@ bool add_foreign_keys_and_triggers(THD *thd,
   if (trg_info != nullptr && !trg_info->empty())
     table->move_triggers(trg_info);
 
-  if (thd->dd_client()->update_uncached_and_invalidate(table.get()))
+  if (thd->dd_client()->update_uncached_and_invalidate<dd::Table>(nullptr,
+                                                                  table.get()))
   {
     if (commit_dd_changes)
     {
@@ -2481,8 +2474,7 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop the table/view and related dynamic statistics too.
-  if (dd::remove_sdi(thd, at, sch) ||
-      client->drop_uncached(table_def.get()) ||
+  if (client->drop_uncached(table_def.get()) ||
       client->remove_table_dynamic_statistics(schema_name, name))
   {
     if (commit_dd_changes)
@@ -2527,8 +2519,7 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop the table/view
-  if (dd::remove_sdi(thd, table_def, sch) ||
-      (uncached ? thd->dd_client()->drop_uncached(table_def) :
+  if ((uncached ? thd->dd_client()->drop_uncached(table_def) :
                   thd->dd_client()->drop(table_def)) ||
       thd->dd_client()->remove_table_dynamic_statistics(schema_name, name))
   {
@@ -2633,8 +2624,7 @@ bool rename_table(THD *thd,
 //    /* This function can't properly handle sticky (i.e. system tables). */
 //    DBUG_ASSERT(! thd->dd_client()->is_sticky(to_tab));
 
-    if (dd::remove_sdi(thd, to_tab, to_sch) ||
-        thd->dd_client()->drop_uncached(to_tab))
+    if (thd->dd_client()->drop_uncached(to_tab))
     {
       if (commit_dd_changes)
       {
@@ -2647,7 +2637,7 @@ bool rename_table(THD *thd,
     }
   }
 
-  Sdi_updater update_sdi= make_sdi_updater(thd, from_tab.get(), from_sch);
+  std::unique_ptr<T> old_from_tab(from_tab->clone());
 
   // Set schema id and table name.
   from_tab->set_schema_id(to_sch->id());
@@ -2657,7 +2647,8 @@ bool rename_table(THD *thd,
   from_tab->set_hidden(mark_as_hidden);
 
   // Do the update. Errors will be reported by the dictionary subsystem.
-  if (thd->dd_client()->update_uncached_and_invalidate(from_tab.get()))
+  if (thd->dd_client()->update_uncached_and_invalidate(old_from_tab.get(),
+                                                       from_tab.get()))
   {
     if (commit_dd_changes)
     {
@@ -2665,29 +2656,6 @@ bool rename_table(THD *thd,
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
     }
-    return true;
-  }
-
-  bool abort= false;
-  DBUG_EXECUTE_IF("abort_rename_after_update",
-                  abort= true;);
-
-  if (update_sdi(thd, from_tab.get(), to_sch) || abort)
-  {
-    if (commit_dd_changes)
-    {
-      trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
-      trans_rollback(thd);
-    }
-
-#ifndef DBUG_OFF
-    if (abort)
-    {
-      my_error(ER_ERROR_ON_WRITE, MYF(0), "error inject", 42,
-               "simulated write error");
-    }
-#endif /* !DBUG_OFF */
     return true;
   }
 
@@ -2703,18 +2671,12 @@ bool rename_table(THD *thd,
 {
   Disable_gtid_state_update_guard disabler(thd);
 
-  Sdi_updater update_sdi= make_sdi_updater(thd, from_table_def, from_sch);
-
-  bool abort= false;
-  DBUG_EXECUTE_IF("abort_rename_after_update",
-                  abort= true;);
-
   // Mark the hidden flag.
   to_table_def->set_hidden(mark_as_hidden);
 
   // Do the update. Errors will be reported by the dictionary subsystem.
-  if (thd->dd_client()->update_uncached_and_invalidate(to_table_def) ||
-      update_sdi(thd, to_table_def, to_sch) || abort)
+  if (thd->dd_client()->update_uncached_and_invalidate(from_table_def,
+                                                       to_table_def))
   {
     if (commit_dd_changes)
     {
@@ -2722,13 +2684,6 @@ bool rename_table(THD *thd,
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
     }
-#ifndef DBUG_OFF
-    if (abort)
-    {
-      my_error(ER_ERROR_ON_WRITE, MYF(0), "error inject", 42,
-               "simulated write error");
-    }
-#endif /* !DBUG_OFF */
     return true;
   }
 
@@ -3009,8 +2964,8 @@ bool update_keys_disabled(THD *thd,
   // Save the changes
   Disable_gtid_state_update_guard disabler(thd);
 
-  if (thd->dd_client()->update_uncached_and_invalidate(new_tab_obj.get()) ||
-      store_sdi(thd, new_tab_obj.get(), sch))
+  if (thd->dd_client()->update_uncached_and_invalidate<dd::Table>(nullptr,
+                          new_tab_obj.get()))
   {
     if (commit_dd_changes)
     {
@@ -3126,8 +3081,8 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
 
   new_table_def->set_row_format(dd_get_new_row_format(correct_row_type));
 
-  if (thd->dd_client()->update_uncached_and_invalidate(new_table_def.get()) ||
-      store_sdi(thd, new_table_def.get(), sch))
+  if (thd->dd_client()->update_uncached_and_invalidate<dd::Table>(nullptr,
+                          new_table_def.get()))
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
@@ -3158,8 +3113,10 @@ bool move_triggers(THD *thd,
   to_tab->copy_triggers(from_tab.get());
   from_tab->drop_all_triggers();
 
-  if (thd->dd_client()->update_uncached_and_invalidate(from_tab.get()) ||
-      thd->dd_client()->update_uncached_and_invalidate(to_tab.get()))
+  if (thd->dd_client()->update_uncached_and_invalidate<dd::Table>(nullptr,
+                          from_tab.get()) ||
+      thd->dd_client()->update_uncached_and_invalidate<dd::Table>(nullptr,
+                          to_tab.get()))
   {
     if (commit_dd_changes)
     {

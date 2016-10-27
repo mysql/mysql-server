@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -106,7 +106,7 @@ private:
   DLList<ActiveCounter> m_activeCounters;
 
   BlockReference reference() const;
-  void progError(int line, int err_code, const char* extra = 0);
+  void progError(int line, int err_code, const char* extra = 0, const char* check="");
 };
 
 

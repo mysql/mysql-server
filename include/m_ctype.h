@@ -482,6 +482,7 @@ extern CHARSET_INFO my_charset_utf8mb4_bin;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_general_ci;
 extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
 extern CHARSET_INFO my_charset_utf8mb4_0900_ai_ci;
+extern CHARSET_INFO my_charset_utf8mb4_0900_as_cs;
 #define MY_UTF8MB3                 "utf8"
 #define MY_UTF8MB4                 "utf8mb4"
 

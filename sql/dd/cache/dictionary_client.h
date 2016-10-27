@@ -820,17 +820,21 @@ public:
     @note It is assumed that object is not in local registry (i.e. was
           not acquired by this dictionary client).
 
-    @note It is responsibility of the caller to delete updated object.
+    @note It is responsibility of the caller to delete both old and new
+          versions of updated object.
 
     @tparam T       Dictionary object type.
-    @param  object  Object to be updated.
+    @param  old_object  Old version of object to be updated (uncached!).
+                        It is required only when object changes its name
+                        or schema, can be nullptr otherwise.
+    @param  new_object  New version of object to be updated.
 
     @retval false   The operation was successful.
     @retval true    There was an error.
   */
 
   template <typename T>
-  bool update_uncached_and_invalidate(T* object);
+  bool update_uncached_and_invalidate(const T* old_object, T* new_object);
 
 
   /**

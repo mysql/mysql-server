@@ -36,7 +36,6 @@
 #include "dd/dd_table.h"                  // dd::drop_table, dd::update_keys...
 #include "dd/dd_trigger.h"                // dd::table_has_triggers
 #include "dd/dictionary.h"                // dd::Dictionary
-#include "dd/sdi.h"                       // dd::remove_sdi
 #include "dd/string_type.h"
 #include "dd/types/abstract_table.h"
 #include "dd/types/column.h"
@@ -165,7 +164,8 @@ static bool prepare_set_field(THD *thd, Create_field *sql_field);
 static bool prepare_enum_field(THD *thd, Create_field *sql_field);
 
 static bool
-mysql_prepare_create_table(THD *thd, const char *error_table_name,
+mysql_prepare_create_table(THD *thd, const char *error_schema_name,
+                           const char *error_table_name,
                            HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
                            handler *file, KEY **key_info_buffer,
@@ -2095,12 +2095,6 @@ static bool rea_create_table(THD *thd, const char *path,
   }
   else
   {
-    /*
-      Don't store SDI if engine supports atomic DDL. We would have to store
-      it once again anyway after SE updates dd::Table object during call
-      to handler::create() method. Also storage of SDIs in InnoDB can't work
-      correctly until SE adjusts some attributes.
-    */
     table_ptr= dd::create_table(thd, db, table_name,
                                 create_info,
                                 create_fields,
@@ -2110,8 +2104,6 @@ static bool rea_create_table(THD *thd, const char *path,
                                 fk_key_info,
                                 fk_keys,
                                 file,
-                                !(create_info->db_type->flags &
-                                  HTON_SUPPORTS_ATOMIC_DDL),
                                 !(create_info->db_type->flags &
                                   HTON_SUPPORTS_ATOMIC_DDL));
     if (!table_ptr)
@@ -2244,7 +2236,7 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   DBUG_ASSERT(shadow_name);
   if (flags & WSDI_WRITE_SHADOW)
   {
-    if (mysql_prepare_create_table(lpt->thd,
+    if (mysql_prepare_create_table(lpt->thd, lpt->db,
                                    lpt->table_name,
                                    lpt->create_info,
                                    lpt->alter_info,
@@ -2304,7 +2296,7 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                             not_used1,
                             not_used2,
                             lpt->table->file,
-                            true, true))
+                            true))
       {
         DBUG_RETURN(true);
       }
@@ -4520,11 +4512,13 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
 /**
   Check if there is a duplicate key. Report a warning for every duplicate key.
 
-  @param thd              Thread context.
-  @param key              Key to be checked.
-  @param key_info         Array with all keys for the table.
-  @param key_count        Number of keys in the table.
-  @param alter_info       Alter_info structure describing ALTER TABLE.
+  @param thd                Thread context.
+  @param error_schema_name  Schema name of the table used for error reporting.
+  @param error_table_name   Table name used for error reporting.
+  @param key                Key to be checked.
+  @param key_info           Array with all keys for the table.
+  @param key_count          Number of keys in the table.
+  @param alter_info         Alter_info structure describing ALTER TABLE.
 
   @note Unlike has_index_def_changed() and similar code in
         mysql_compare_tables() this function compares KEY objects for the same
@@ -4534,10 +4528,10 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
   @retval false           Ok.
   @retval true            Error.
 */
-
-static bool check_duplicate_key(THD *thd, const KEY *key,
-                                const KEY *key_info, uint key_count,
-                                const Alter_info *alter_info)
+static bool check_duplicate_key(THD *thd, const char *error_schema_name,
+                                const char *error_table_name,
+                                const KEY *key, const KEY *key_info,
+                                uint key_count, Alter_info *alter_info)
 {
   const KEY *k;
   const KEY *k_end= key_info + key_count;
@@ -4617,9 +4611,7 @@ static bool check_duplicate_key(THD *thd, const KEY *key,
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_DUP_INDEX, ER_THD(thd, ER_DUP_INDEX),
-                          key->name,
-                          thd->lex->query_tables->db,
-                          thd->lex->query_tables->table_name);
+                          key->name, error_schema_name, error_table_name);
       if (thd->is_error())
       {
         // An error was reported.
@@ -4637,7 +4629,6 @@ static bool check_duplicate_key(THD *thd, const KEY *key,
   used key packing (optimization implemented only by MyISAM) under erroneous
   assumption that they have BLOB type.
 */
-
 static bool is_phony_blob(enum_field_types sql_type, uint decimals)
 {
   const uint FIELDFLAG_BLOB= 1024;
@@ -5934,6 +5925,8 @@ static bool check_promoted_index(const handler *file,
   Prepares the table and key structures for table creation.
 
   @param thd                       Thread object.
+  @param error_schema_name         Schema name of the table to create/alter, only
+                                   error reporting.
   @param error_table_name          Name of table to create/alter, only used for
                                    error reporting.
   @param create_info               Create information (like MAX_ROWS).
@@ -5954,6 +5947,7 @@ static bool check_promoted_index(const handler *file,
 */
 
 static bool mysql_prepare_create_table(THD *thd,
+                                       const char* error_schema_name,
                                        const char* error_table_name,
                                        HA_CREATE_INFO *create_info,
                                        Alter_info *alter_info,
@@ -6181,7 +6175,8 @@ static bool mysql_prepare_create_table(THD *thd,
        dup_check_key != keys_to_check.end();
        dup_check_key++)
   {
-    if (check_duplicate_key(thd, *dup_check_key, *key_info_buffer, *key_count,
+    if (check_duplicate_key(thd, error_schema_name, error_table_name,
+                            *dup_check_key, *key_info_buffer, *key_count,
                             alter_info))
       DBUG_RETURN(true);
   }
@@ -6668,7 +6663,7 @@ bool create_table_impl(THD *thd,
     }
   }
 
-  if (mysql_prepare_create_table(thd, error_table_name,
+  if (mysql_prepare_create_table(thd, db, error_table_name,
                                  create_info, alter_info,
                                  file,
                                  key_info, key_count,
@@ -8781,6 +8776,7 @@ bool mysql_compare_tables(TABLE *table,
   /* Create the prepared information. */
   if (mysql_prepare_create_table(thd,
                                  "", // Not used
+                                 "", // Not used
                                  create_info,
                                  &tmp_alter_info,
                                  table->file, &key_info_buffer,
@@ -8885,6 +8881,40 @@ bool mysql_compare_tables(TABLE *table,
 
   *metadata_equal= true; // Tables are compatible
   DBUG_RETURN(false);
+}
+
+
+/**
+   Report a zero date warning if no default value is supplied
+   for the DATE/DATETIME 'NOT NULL' field and 'NO_ZERO_DATE'
+   sql_mode is enabled.
+
+   @param thd                Thread handle.
+   @param datetime_field     DATE/DATETIME column definition.
+*/
+static void push_zero_date_warning(THD *thd, Create_field *datetime_field)
+{
+  uint f_length= 0;
+  enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
+
+  switch (datetime_field->sql_type)
+  {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+    f_length= MAX_DATE_WIDTH; // "0000-00-00";
+    t_type= MYSQL_TIMESTAMP_DATE;
+    break;
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
+    f_length= MAX_DATETIME_WIDTH; // "0000-00-00 00:00:00";
+    t_type= MYSQL_TIMESTAMP_DATETIME;
+    break;
+  default:
+    DBUG_ASSERT(false);  // Should not get here.
+  }
+  make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
+                               ErrConvString(my_zero_datetime6, f_length),
+                               t_type, datetime_field->field_name);
 }
 
 
@@ -9141,7 +9171,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (lock_tables(thd, table_list, alter_ctx->tables_opened, 0))
     goto cleanup;
 
-  if (alter_ctx->error_if_not_empty & Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
+  if (alter_ctx->error_if_not_empty)
   {
     // We should have upgraded from MDL_SHARED_UPGRADABLE to a lock
     // blocking writes for it to be safe to check ha_records().
@@ -9162,8 +9192,25 @@ static bool mysql_inplace_alter_table(THD *thd,
     ha_rows tmp= 0;
     if (table_list->table->file->ha_records(&tmp) || tmp > 0)
     {
-      my_error(ER_INVALID_USE_OF_NULL, MYF(0));
-      goto cleanup;
+      if (alter_ctx->error_if_not_empty &
+          Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
+      {
+        my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+      }
+      else if ((alter_ctx->error_if_not_empty &
+                Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
+               (thd->variables.sql_mode & MODE_NO_ZERO_DATE))
+      {
+        /*
+          Report a warning if the NO ZERO DATE MODE is enabled. The
+          warning will be promoted to an error if strict mode is
+          also enabled.
+        */
+        push_zero_date_warning(thd, alter_ctx->datetime_field);
+      }
+
+      if (thd->is_error())
+        goto cleanup;
     }
 
     // Empty table, so don't allow inserts during inplace operation.
@@ -9348,49 +9395,19 @@ static bool mysql_inplace_alter_table(THD *thd,
   //
   if (!dd::get_dictionary()->is_dd_table_name(alter_ctx->db, alter_ctx->alias))
   {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Schema *old_sch= NULL;
-    const dd::Schema *new_sch= NULL;
-
-    /*
-      Note that altered table definition was created in a new schema,
-      so typical roles are reversed here!
-    */
-    if (thd->dd_client()->acquire<dd::Schema>(alter_ctx->db, &old_sch) ||
-        thd->dd_client()->acquire<dd::Schema>(alter_ctx->new_db, &new_sch))
-      goto cleanup2;
-    if (!old_sch)
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx->db);
-      goto cleanup2;
-    }
-    if (!new_sch)
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx->new_db);
-      goto cleanup2;
-    }
-
-    /*
-      For engines which support atomic DDL we don't have SDI stored yet.
-      Use Sdi_updater which only does store_sdi() for them.
-    */
-    dd::Sdi_updater update_sdi=
-        (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) ?
-        dd::Sdi_updater() :
-        make_sdi_updater(thd, altered_table_def.get(),
-                         new_sch);
+    std::unique_ptr<dd::Table> old_altered_table_def(
+                                 altered_table_def->clone());
 
     altered_table_def->set_schema_id(old_table_def->schema_id());
     altered_table_def->set_name(alter_ctx->alias);
     altered_table_def->set_hidden(false);
 
-    if (dd::remove_sdi(thd, old_table_def, old_sch) ||
-        thd->dd_client()->drop(old_table_def))
+    if (thd->dd_client()->drop(old_table_def))
       goto cleanup2;
 
     if (thd->dd_client()->update_uncached_and_invalidate(
-                            altered_table_def.get()) ||
-        update_sdi(thd, altered_table_def.get(), old_sch))
+                            old_altered_table_def.get(),
+                            altered_table_def.get()))
       goto cleanup2;
   }
   else
@@ -9398,19 +9415,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     // WL7743/TODO: Sivert's help is needed to handle this case.
     //              We need to be able to replace sticky table in the cache
     //              with an object which is not related to it.
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Schema *new_sch= NULL;
-    if (thd->dd_client()->acquire<dd::Schema>(alter_ctx->new_db, &new_sch))
-      goto cleanup2;
-    if (!new_sch)
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx->new_db);
-      goto cleanup2;
-    }
-
-    if ((!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
-         dd::remove_sdi(thd, altered_table_def.get(), new_sch)) ||
-        thd->dd_client()->drop_uncached(altered_table_def.get()))
+    if (thd->dd_client()->drop_uncached(altered_table_def.get()))
       goto cleanup2;
   }
 
@@ -10216,8 +10221,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
          def->sql_type == MYSQL_TYPE_DATETIME ||
          def->sql_type == MYSQL_TYPE_DATETIME2) &&
          !alter_ctx->datetime_field &&
-         !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
-         thd->is_strict_mode())
+         !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)))
     {
         alter_ctx->datetime_field= def;
         alter_ctx->error_if_not_empty|=
@@ -12470,41 +12474,18 @@ err_new_table_cleanup:
   {
     my_error(ER_INVALID_USE_OF_NULL, MYF(0));
   }
+
+  /*
+    No default value was provided for a DATE/DATETIME field, the
+    current sql_mode doesn't allow the '0000-00-00' value and
+    the table to be altered isn't empty.
+    Report error here.
+  */
   if ((alter_ctx.error_if_not_empty &
        Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
+      (thd->variables.sql_mode & MODE_NO_ZERO_DATE) &&
       thd->get_stmt_da()->current_row_for_condition())
-  {
-    /*
-      No default value was provided for a DATE/DATETIME field, the
-      current sql_mode doesn't allow the '0000-00-00' value and
-      the table to be altered isn't empty.
-      Report error here.
-    */
-    uint f_length;
-    enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
-    switch (alter_ctx.datetime_field->sql_type)
-    {
-      case MYSQL_TYPE_DATE:
-      case MYSQL_TYPE_NEWDATE:
-        f_length= MAX_DATE_WIDTH; // "0000-00-00";
-        t_type= MYSQL_TIMESTAMP_DATE;
-        break;
-      case MYSQL_TYPE_DATETIME:
-      case MYSQL_TYPE_DATETIME2:
-        f_length= MAX_DATETIME_WIDTH; // "0000-00-00 00:00:00";
-        t_type= MYSQL_TIMESTAMP_DATETIME;
-        break;
-      default:
-        /* Shouldn't get here. */
-        f_length= 0;
-        DBUG_ASSERT(0);
-    }
-    make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(my_zero_datetime6, f_length),
-                                 t_type,
-                                 alter_ctx.datetime_field->field_name);
-  }
-
+    push_zero_date_warning(thd, alter_ctx.datetime_field);
   DBUG_RETURN(true);
 
 err_with_mdl:
@@ -12737,8 +12718,18 @@ copy_data_between_tables(THD * thd,
       error= 1;
       break;
     }
-    /* Return error if source table isn't empty. */
-    if (alter_ctx->error_if_not_empty)
+    /*
+      Return error if source table isn't empty.
+
+      For a DATE/DATETIME field, return error only if strict mode
+      and No ZERO DATE mode is enabled.
+    */
+    if ((alter_ctx->error_if_not_empty &
+         Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT) ||
+        ((alter_ctx->error_if_not_empty &
+          Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
+         (thd->variables.sql_mode & MODE_NO_ZERO_DATE) &&
+         thd->is_strict_mode()))
     {
       error= 1;
       break;

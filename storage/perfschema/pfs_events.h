@@ -59,8 +59,7 @@ struct PFS_events
   /** Location of the instrumentation in the source code (line number). */
   uint m_source_line;
 
-  PFS_events &operator=(const PFS_events &rhs)= default;
+  PFS_events &operator=(const PFS_events &rhs) = default;
 };
 
 #endif
-

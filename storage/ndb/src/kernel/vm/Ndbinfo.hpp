@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,7 +62,12 @@ public:
     FRAG_OPERATIONS_TABLEID =    20,
     RESTART_INFO_TABLEID =       21,
     TC_TIME_TRACK_STATS_TABLEID = 22,
-    CONFIG_VALUES_TABLEID =      23
+    CONFIG_VALUES_TABLEID =      23,
+    THREADS_TABLEID =            24,
+    CPUSTAT_50MS_TABLEID =       25,
+    CPUSTAT_1SEC_TABLEID =       26,
+    CPUSTAT_20SEC_TABLEID =      27,
+    CPUSTAT_TABLEID =            28
   };
 
   struct Table {

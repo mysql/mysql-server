@@ -953,6 +953,10 @@ create_cluster_sys_table(THD *thd, const char* db, size_t db_length,
                          const char* create_definitions,
                          const char* create_options)
 {
+  /* Need a connection to create table, else retry later. */
+  if (g_ndb_cluster_connection->get_no_ready() <= 0)
+    return true; 
+
   if (opt_ndb_extra_logging)
     sql_print_information("NDB: Creating %s.%s", db, table);
 

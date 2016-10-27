@@ -45,7 +45,6 @@
 #include "dd/dd.h"                    // dd::get_dictionary
 #include "dd/dd_schema.h"             // dd::Schema_MDL_locker
 #include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
-#include "dd/sdi.h"                   // dd::store_sdi
 #include "dd/sdi_file.h"              // dd::sdi_file::store
 #include "dd/types/table.h"           // dd::Table
 #include "dd_table_share.h"           // open_table_def
@@ -1384,6 +1383,16 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 
   if (all)
   {
+    /*
+      Ensure no active backup engine data exists, unless the current transaction
+      is from replication and in active xa state.
+    */
+    DBUG_ASSERT(thd->get_ha_data(ht_arg->slot)->ha_ptr_backup == NULL ||
+                (thd->get_transaction()->xid_state()->
+                 has_state(XID_STATE::XA_ACTIVE)));
+    DBUG_ASSERT(thd->get_ha_data(ht_arg->slot)->ha_ptr_backup == NULL ||
+                (thd->is_binlog_applier() || thd->slave_thread));
+
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     if (thd->tx_read_only)
       thd->server_status|= SERVER_STATUS_IN_TRANS_READONLY;
@@ -1885,23 +1894,22 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
   Transaction_ctx::enum_trx_scope trx_scope=
     all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
   Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
-  bool restore_backup_trx= false;
 
   DBUG_ENTER("ha_commit_low");
 
   if (ha_info)
   {
+    bool restore_backup_ha_data= false;
     /*
-      binlog applier thread can execute XA COMMIT and it would
-      have to restore its local thread native transaction
-      context, previously saved at XA START.
+      At execution of XA COMMIT ONE PHASE binlog or slave applier
+      reattaches the engine ha_data to THD, previously saved at XA START.
     */
-    if (thd->lex->sql_command == SQLCOM_XA_COMMIT &&
-        thd->binlog_applier_has_detached_trx())
+    if (all && thd->rpl_unflag_detached_engine_ha_data())
     {
-      DBUG_ASSERT(all && static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
+      DBUG_ASSERT(thd->lex->sql_command == SQLCOM_XA_COMMIT);
+      DBUG_ASSERT(static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
                   get_xa_opt() == XA_ONE_PHASE);
-      restore_backup_trx= true;
+      restore_backup_ha_data= true;
     }
 
     for (; ha_info; ha_info= ha_info_next)
@@ -1917,14 +1925,8 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       }
       thd->status_var.ha_commit_count++;
       ha_info_next= ha_info->next();
-
-      if (restore_backup_trx && ht->replace_native_transaction_in_thd)
-      {
-        void **trx_backup= &thd->get_ha_data(ht->slot)->ha_ptr_backup;
-
-        ht->replace_native_transaction_in_thd(thd, *trx_backup, NULL);
-        *trx_backup= NULL;
-      }
+      if (restore_backup_ha_data)
+        reattach_engine_ha_data_to_thd(thd, ht);
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
     trn_ctx->reset_scope(trx_scope);
@@ -1971,6 +1973,19 @@ int ha_rollback_low(THD *thd, bool all)
 
   if (ha_info)
   {
+    bool restore_backup_ha_data= false;
+    /*
+      Similarly to the commit case, the binlog or slave applier
+      reattaches the engine ha_data to THD.
+    */
+    if (all && thd->rpl_unflag_detached_engine_ha_data())
+    {
+      DBUG_ASSERT(trn_ctx->xid_state()->get_state() != XID_STATE::XA_NOTR ||
+                  thd->killed == THD::KILL_CONNECTION);
+
+      restore_backup_ha_data= true;
+    }
+
     for (; ha_info; ha_info= ha_info_next)
     {
       int err;
@@ -1984,6 +1999,8 @@ int ha_rollback_low(THD *thd, bool all)
       }
       thd->status_var.ha_rollback_count++;
       ha_info_next= ha_info->next();
+      if (restore_backup_ha_data)
+        reattach_engine_ha_data_to_thd(thd, ht);
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
     trn_ctx->reset_scope(trx_scope);
@@ -5158,7 +5175,8 @@ int ha_create_table(THD *thd, const char *path,
     {
       Disable_gtid_state_update_guard disabler(thd);
 
-      if(thd->dd_client()->update_uncached_and_invalidate(table_def))
+      if(thd->dd_client()->update_uncached_and_invalidate<dd::Table>(nullptr,
+                                                                     table_def))
       {
         if (force_dd_commit)
         {
@@ -5170,37 +5188,8 @@ int ha_create_table(THD *thd, const char *path,
       }
       else
       {
-        dd::Schema_MDL_locker mdl_locker(thd);
-        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-        const dd::Schema *sch_obj;
-
-        if (mdl_locker.ensure_locked(db) ||
-            thd->dd_client()->acquire<dd::Schema>(db, &sch_obj))
-        {
-          if (force_dd_commit)
-          {
-            trans_rollback_stmt(thd);
-            // Full rollback in case we have THD::transaction_rollback_request.
-            trans_rollback(thd);
-          }
-          error= 1;
-        }
-        else if (!sch_obj ||
-                 dd::store_sdi(thd, table_def, sch_obj))
-        {
-          if (!sch_obj)
-            my_error(ER_BAD_DB_ERROR, MYF(0), db);
-          if (force_dd_commit)
-          {
-            trans_rollback_stmt(thd);
-            // Full rollback in case we have THD::transaction_rollback_request.
-            trans_rollback(thd);
-          }
-          error= 1;
-        }
-        else
-          error= (force_dd_commit &&
-                  (trans_commit_stmt(thd) || trans_commit(thd)));
+        error= (force_dd_commit &&
+                (trans_commit_stmt(thd) || trans_commit(thd)));
       }
     }
   }

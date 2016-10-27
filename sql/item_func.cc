@@ -3127,24 +3127,24 @@ Item_func_bit_two_param::eval_str_op(String *str, Char_func char_func,
   String arg0_buff;
   String *s1= args[0]->val_str(&arg0_buff);
 
-  if (!s1)
+  if (args[0]->null_value || !s1)
     return nullptr;
 
   String arg1_buff;
   String *s2= args[1]->val_str(&arg1_buff);
 
-  if (!s2)
+  if (args[1]->null_value || !s2)
     return nullptr;
 
   size_t arg_length= s1->length();
   if (arg_length != s2->length())
   {
     my_error(ER_INVALID_BITWISE_OPERANDS_SIZE, MYF(0), func_name());
-    return nullptr;
+    return error_str();
   }
 
-  if(tmp_value.alloc(arg_length))
-    return nullptr;
+  if (tmp_value.alloc(arg_length))
+    return error_str();
 
   null_value= false;
   tmp_value.length(arg_length);
@@ -4279,7 +4279,7 @@ longlong Item_func_locate::val_int()
   if (arg_count == 3)
   {
     const longlong tmp= args[2]->val_int();
-    if (tmp <= 0)
+    if ((null_value= args[2]->null_value) || tmp <= 0)
       return 0;
     start0= start= tmp - 1;
 
@@ -6127,7 +6127,7 @@ static void init_item_func_sleep_psi_keys()
 {
   int count;
 
-  count= array_elements(item_func_sleep_mutexes);
+  count= static_cast<int>(array_elements(item_func_sleep_mutexes));
   mysql_mutex_register("sql", item_func_sleep_mutexes, count);
 }
 #endif

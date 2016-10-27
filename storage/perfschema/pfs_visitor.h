@@ -62,20 +62,42 @@ struct PFS_connection_slice;
 class PFS_connection_visitor
 {
 public:
-  PFS_connection_visitor() {}
-  virtual ~PFS_connection_visitor() {}
+  PFS_connection_visitor()
+  {
+  }
+  virtual ~PFS_connection_visitor()
+  {
+  }
   /** Visit all connections. */
-  virtual void visit_global() {}
+  virtual void
+  visit_global()
+  {
+  }
   /** Visit all connections of a host. */
-  virtual void visit_host(PFS_host*) {}
+  virtual void
+  visit_host(PFS_host *)
+  {
+  }
   /** Visit all connections of a user+host. */
-  virtual void visit_account(PFS_account*) {}
+  virtual void
+  visit_account(PFS_account *)
+  {
+  }
   /** Visit all connections of a user. */
-  virtual void visit_user(PFS_user*) {}
+  virtual void
+  visit_user(PFS_user *)
+  {
+  }
   /** Visit a thread. */
-  virtual void visit_thread(PFS_thread*) {}
+  virtual void
+  visit_thread(PFS_thread *)
+  {
+  }
   /** Visit a THD associated with a thread. */
-  virtual void visit_THD(THD*) {}
+  virtual void
+  visit_THD(THD *)
+  {
+  }
 };
 
 /**
@@ -94,8 +116,10 @@ public:
     @param with_THDs when true, visit also all threads THD.
     @param visitor the visitor to call
   */
-  static void visit_global(bool with_hosts, bool with_users,
-                           bool with_accounts, bool with_threads,
+  static void visit_global(bool with_hosts,
+                           bool with_users,
+                           bool with_accounts,
+                           bool with_threads,
                            bool with_THDs,
                            PFS_connection_visitor *visitor);
   /**
@@ -106,7 +130,9 @@ public:
     @param with_THDs when true, visit also all related threads THD.
     @param visitor the visitor to call
   */
-  static void visit_host(PFS_host *host, bool with_accounts, bool with_threads,
+  static void visit_host(PFS_host *host,
+                         bool with_accounts,
+                         bool with_threads,
                          bool with_THDs,
                          PFS_connection_visitor *visitor);
   /**
@@ -117,7 +143,9 @@ public:
     @param with_THDs when true, visit also all related threads THD.
     @param visitor the visitor to call
   */
-  static void visit_user(PFS_user *user, bool with_accounts, bool with_threads,
+  static void visit_user(PFS_user *user,
+                         bool with_accounts,
+                         bool with_threads,
                          bool with_THDs,
                          PFS_connection_visitor *visitor);
   /**
@@ -127,7 +155,8 @@ public:
     @param with_THDs when true, visit also all related threads THD.
     @param visitor the visitor to call
   */
-  static void visit_account(PFS_account *account, bool with_threads,
+  static void visit_account(PFS_account *account,
+                            bool with_threads,
                             bool with_THDs,
                             PFS_connection_visitor *visitor);
   /**
@@ -135,9 +164,11 @@ public:
     @param thread the thread to visit.
     @param visitor the visitor to call
   */
-  static inline void visit_thread(PFS_thread *thread,
-                                  PFS_connection_visitor *visitor)
-  { visitor->visit_thread(thread); }
+  static inline void
+  visit_thread(PFS_thread *thread, PFS_connection_visitor *visitor)
+  {
+    visitor->visit_thread(thread);
+  }
 
   /**
     Visit THD.
@@ -154,28 +185,62 @@ public:
 class PFS_instance_visitor
 {
 public:
-  PFS_instance_visitor() {}
-  virtual ~PFS_instance_visitor() {}
+  PFS_instance_visitor()
+  {
+  }
+  virtual ~PFS_instance_visitor()
+  {
+  }
   /** Visit a mutex class. */
-  virtual void visit_mutex_class(PFS_mutex_class*) {}
+  virtual void
+  visit_mutex_class(PFS_mutex_class *)
+  {
+  }
   /** Visit a rwlock class. */
-  virtual void visit_rwlock_class(PFS_rwlock_class*) {}
+  virtual void
+  visit_rwlock_class(PFS_rwlock_class *)
+  {
+  }
   /** Visit a cond class. */
-  virtual void visit_cond_class(PFS_cond_class*) {}
+  virtual void
+  visit_cond_class(PFS_cond_class *)
+  {
+  }
   /** Visit a file class. */
-  virtual void visit_file_class(PFS_file_class*) {}
+  virtual void
+  visit_file_class(PFS_file_class *)
+  {
+  }
   /** Visit a socket class. */
-  virtual void visit_socket_class(PFS_socket_class*) {}
+  virtual void
+  visit_socket_class(PFS_socket_class *)
+  {
+  }
   /** Visit a mutex instance. */
-  virtual void visit_mutex(PFS_mutex*) {}
+  virtual void
+  visit_mutex(PFS_mutex *)
+  {
+  }
   /** Visit a rwlock instance. */
-  virtual void visit_rwlock(PFS_rwlock*) {}
+  virtual void
+  visit_rwlock(PFS_rwlock *)
+  {
+  }
   /** Visit a cond instance. */
-  virtual void visit_cond(PFS_cond*) {}
+  virtual void
+  visit_cond(PFS_cond *)
+  {
+  }
   /** Visit a file instance. */
-  virtual void visit_file(PFS_file*) {}
+  virtual void
+  visit_file(PFS_file *)
+  {
+  }
   /** Visit a socket instance. */
-  virtual void visit_socket(PFS_socket*) {}
+  virtual void
+  visit_socket(PFS_socket *)
+  {
+  }
 };
 
 /**
@@ -244,7 +309,7 @@ public:
   static void visit_socket_instances(PFS_socket_class *klass,
                                      PFS_instance_visitor *visitor,
                                      PFS_thread *thread,
-                                     bool visit_class= true);
+                                     bool visit_class = true);
   /**
     Visit an instrument class and related instances.
     @param klass the klass to visit.
@@ -255,7 +320,7 @@ public:
   static void visit_instances(PFS_instr_class *klass,
                               PFS_instance_visitor *visitor,
                               PFS_thread *thread,
-                              bool visit_class= true);
+                              bool visit_class = true);
 };
 
 /**
@@ -265,20 +330,37 @@ public:
 class PFS_object_visitor
 {
 public:
-  PFS_object_visitor() {}
-  virtual ~PFS_object_visitor() {}
+  PFS_object_visitor()
+  {
+  }
+  virtual ~PFS_object_visitor()
+  {
+  }
   /** Visit global data. */
-  virtual void visit_global() {}
+  virtual void
+  visit_global()
+  {
+  }
   /** Visit a table share. */
-  virtual void visit_table_share(PFS_table_share*) {}
+  virtual void
+  visit_table_share(PFS_table_share *)
+  {
+  }
   /** Visit a table share index. */
-  virtual void visit_table_share_index(PFS_table_share*,
-                                       uint index MY_ATTRIBUTE((unused))) {}
+  virtual void
+  visit_table_share_index(PFS_table_share *, uint index MY_ATTRIBUTE((unused)))
+  {
+  }
   /** Visit a table. */
-  virtual void visit_table(PFS_table*) {}
+  virtual void
+  visit_table(PFS_table *)
+  {
+  }
   /** Visit a table index. */
-  virtual void visit_table_index(PFS_table*,
-                                 uint index MY_ATTRIBUTE((unused))) {}
+  virtual void
+  visit_table_index(PFS_table *, uint index MY_ATTRIBUTE((unused)))
+  {
+  }
 };
 
 /**
@@ -293,8 +375,7 @@ public:
   /** Visit all tables and related handles. */
   static void visit_all_tables(PFS_object_visitor *visitor);
   /** Visit a table and related table handles. */
-  static void visit_tables(PFS_table_share *share,
-                           PFS_object_visitor *visitor);
+  static void visit_tables(PFS_table_share *share, PFS_object_visitor *visitor);
   /** Visit a table index and related table handles indexes. */
   static void visit_table_indexes(PFS_table_share *share,
                                   uint index,
@@ -705,4 +786,3 @@ public:
 
 /** @} */
 #endif
-

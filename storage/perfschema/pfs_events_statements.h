@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ struct PFS_events_statements : public PFS_events
   ulonglong m_lock_time;
 
   /** Diagnostics area, message text. */
-  char m_message_text[MYSQL_ERRMSG_SIZE+1];
+  char m_message_text[MYSQL_ERRMSG_SIZE + 1];
   /** Diagnostics area, error number. */
   uint m_sql_errno;
   /** Diagnostics area, SQLSTATE. */
@@ -112,7 +112,8 @@ struct PFS_events_statements : public PFS_events
   sql_digest_storage m_digest_storage;
 };
 
-void insert_events_statements_history(PFS_thread *thread, PFS_events_statements *statement);
+void insert_events_statements_history(PFS_thread *thread,
+                                      PFS_events_statements *statement);
 void insert_events_statements_history_long(PFS_events_statements *statement);
 
 extern ulong nested_statement_lost;
@@ -126,7 +127,8 @@ extern PFS_ALIGNED PFS_cacheline_uint32 events_statements_history_long_index;
 extern PFS_events_statements *events_statements_history_long_array;
 extern size_t events_statements_history_long_size;
 
-int init_events_statements_history_long(size_t events_statements_history_long_sizing);
+int init_events_statements_history_long(
+  size_t events_statements_history_long_sizing);
 void cleanup_events_statements_history_long();
 
 void reset_events_statements_current();
@@ -142,4 +144,3 @@ void aggregate_user_statements(PFS_user *user);
 void aggregate_host_statements(PFS_host *host);
 
 #endif
-

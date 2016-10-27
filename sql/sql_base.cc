@@ -265,10 +265,10 @@ static void init_tdc_psi_keys(void)
   const char *category= "sql";
   int count;
 
-  count= array_elements(all_tdc_mutexes);
+  count= static_cast<int>(array_elements(all_tdc_mutexes));
   mysql_mutex_register(category, all_tdc_mutexes, count);
 
-  count= array_elements(all_tdc_conds);
+  count= static_cast<int>(array_elements(all_tdc_conds));
   mysql_cond_register(category, all_tdc_conds, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

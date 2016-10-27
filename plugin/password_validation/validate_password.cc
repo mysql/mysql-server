@@ -67,7 +67,7 @@ static void init_validate_password_psi_keys()
   const char* category= "validate";
   int count;
 
-  count= array_elements(all_validate_password_rwlocks);
+  count= static_cast<int>(array_elements(all_validate_password_rwlocks));
   mysql_rwlock_register(category, all_validate_password_rwlocks, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

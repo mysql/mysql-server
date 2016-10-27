@@ -40,7 +40,7 @@ static void keyring_init_psi_file_keys(void)
   const char *category = "keyring_file";
   int count;
 
-  count= array_elements(all_keyring_files);
+  count= static_cast<int>(array_elements(all_keyring_files));
   mysql_file_register(category, all_keyring_files, count);
 }
 #endif

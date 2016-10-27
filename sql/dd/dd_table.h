@@ -72,8 +72,6 @@ static const char FIELD_NAME_SEPARATOR_CHAR = ';';
   @param file           handler instance for the table.
   @param commit_dd_changes  Indicates whether changes to DD need to be
                             committed.
-  @param store_sdi      Indicates whether SDI needs to be stored for the
-                        table.
 
   @returns Uncached dd::Table object for table created (nullptr in
            case of failure).
@@ -89,8 +87,7 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
                              const FOREIGN_KEY *fk_keyinfo,
                              uint fk_keys,
                              handler *file,
-                             bool commit_dd_changes,
-                             bool store_sdi);
+                             bool commit_dd_changes);
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
@@ -107,15 +104,8 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
   @param fk_keyinfo         Array with descriptions of foreign keys for the table.
   @param fk_keys            Number of foreign keys.
   @param file               handler instance for the table.
-  @param commit_dd_changes  Indicates whether change should be committed
-                            (WL7743/TODO: consider if this parameter is
-                            necessary).
-  @param store_sdi          Indicates whether we need to store SDI for
-                            table being created.
   @param commit_dd_changes  Indicates whether changes to DD need to be
                             committed.
-  @param store_sdi      Indicates whether SDI needs to be stored for the
-                        table.
 
   @returns Uncached dd::Table object for table created (nullptr in
            case of failure).
@@ -130,8 +120,7 @@ std::unique_ptr<Table> create_table(THD *thd,
                          const FOREIGN_KEY *fk_keyinfo,
                          uint fk_keys,
                          handler *file,
-                         bool commit_dd_changes,
-                         bool store_sdi);
+                         bool commit_dd_changes);
 
 /**
   Prepares a dd::Table object for a temporary table from

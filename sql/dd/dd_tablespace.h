@@ -79,8 +79,6 @@ bool get_tablespace_name(THD *thd, const T *obj,
   @param hton               Handlerton in which tablespace reside.
   @param commit_dd_changes  Indicates that we need to commit
                             changes to data-dictionary.
-  @param store_sdi          Indicates whether we need to store
-                            SDI for the tablespace.
 
   @returns Uncached dd::Tablespace object for tablespace created
            (nullptr in case of failure).
@@ -88,8 +86,7 @@ bool get_tablespace_name(THD *thd, const T *obj,
 std::unique_ptr<Tablespace> create_tablespace(THD *thd,
                                               st_alter_tablespace *ts_info,
                                               handlerton *hton,
-                                              bool commit_dd_changes,
-                                              bool store_sdi);
+                                              bool commit_dd_changes);
 
 /**
   Drop Tablespace from Data Dictionary.

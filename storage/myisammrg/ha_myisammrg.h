@@ -21,6 +21,8 @@
 */
 
 #include <myisammrg.h>
+
+#include "my_double2ulonglong.h"
 #include "table.h"
 
 /** 

@@ -1039,7 +1039,8 @@ static int test_sql_service_plugin_init(void *p)
 #ifdef HAVE_PSI_INTERFACE
   const char * const category = "test_service_sql";
 
-  mysql_thread_register(category, session_info_threads, array_elements(session_info_threads));
+  mysql_thread_register(category, session_info_threads,
+                        static_cast<int>(array_elements(session_info_threads)));
 #endif // HAVE_PSI_INTERFACE
 
   WRITE_SEP();

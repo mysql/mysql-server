@@ -46,6 +46,7 @@
 #include <stdarg.h>
 
 #include "ftdefs.h"
+#include "my_double2ulonglong.h"
 #include "my_pointer_arithmetic.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>

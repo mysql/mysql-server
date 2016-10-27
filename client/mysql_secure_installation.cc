@@ -15,12 +15,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
+
 #include "client_priv.h"
 #include "my_default.h"
-#include "mysqld_error.h"
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
-#include "mysql/service_mysql_alloc.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
+#include "typelib.h"
 
 using namespace std;
 
@@ -77,6 +79,7 @@ static struct my_option my_connection_options[]=
    &opt_socket, &opt_socket, 0, GET_STR_ALLOC, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
+
   {"user", 'u', "User for login if not root.", &opt_user,
    &opt_user, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong) "root", 0, 0, 0, 0, 0},
   {"use-default", 'D', "Execute with no user interactivity",
@@ -151,6 +154,7 @@ my_arguments_get_one_option(int optid,
     break;
 
 #include <sslopt-case.h>
+
   case OPT_MYSQL_PROTOCOL:
 #ifndef EMBEDDED_LIBRARY
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,

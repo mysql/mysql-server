@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -309,8 +309,10 @@ private:
     
     ThreadData(Uint32 initialSize = 32);
     
-    Uint32 m_use_cnt;
-    Uint32 m_firstFree;
+    /* All 3 members below need m_open_close_mutex */
+    Uint32 m_use_cnt;    //Number of items in use in m_clients[]
+    Uint32 m_firstFree;  //First free item in m_clients[]
+    bool   m_expanding;  //Expand of m_clients[] has been requested
 
     struct Client {
       trp_client* m_clnt;
@@ -333,6 +335,20 @@ private:
     int close(int number);
     void expand(Uint32 size);
 
+    /**
+     * get() is protected by requiring either the poll right,
+     * or the m_open_close_mutex. This protects against
+     * concurrent close or expand.
+     * get() should not require any protection against a 
+     * (non-expanding) open, as we will never 'get' a client
+     * not being opened yet.
+     *
+     * Current usage of this is:
+     * - Poll right protect against ::deliver_signal() get'ing
+     *   a trp_client while it being closed, or the m_client[] Vector
+     *   expanded during ::open(). (All holding poll-right)
+     * - get() is called from close_clnt() with m_open_close_mutex.
+     */
     inline trp_client* get(Uint16 blockNo) const {
       blockNo -= MIN_API_BLOCK_NO;
       if(likely (blockNo < m_clients.size()))
@@ -342,7 +358,7 @@ private:
       return 0;
     }
 
-    Uint32 freeCnt() const {
+    Uint32 freeCnt() const {     //need m_open_close_mutex
       return m_clients.size() - m_use_cnt;
     }
 
@@ -352,8 +368,12 @@ private:
   Uint32 m_fragmented_signal_id;
 
 public:
-  NdbMutex* m_open_close_mutex;
-  NdbMutex* thePollMutex;
+  /**
+   * To avoid deadlock with trp_client::m_mutex: Always grab 
+   * that mutex lock first, before locking m_open_close_mutex.
+   */
+  NdbMutex* m_open_close_mutex;  //Protect multiple m_threads members
+  NdbMutex* thePollMutex;        //Protect poll-right assignment
 
 public:
   GlobalDictCache *m_globalDictCache;

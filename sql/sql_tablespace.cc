@@ -172,14 +172,8 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
         in case of crash. Indeed, in this case, we can end-up with tablespace
         present in the data-dictionary and not present in SE. But this can be
         easily fixed by doing DROP TABLESPACE.
-
-        Don't store SDI if engine supports atomic DDL. We would have to store
-        it once again anyway after SE updates dd::Tablespace object during call
-        to handlerton::alter_tablespace hook. Also storage of SDIs in InnoDB
-        can't work correctly until SE adjusts some attributes.
       */
       if (!(new_ts_def= dd::create_tablespace(thd, ts_info, hton,
-                              !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL),
                               !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL))))
         goto err;
       break;

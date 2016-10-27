@@ -30,28 +30,27 @@
 
 #include "mysqlbinlog.h"
 
-#include "client_priv.h"
-#include "my_default.h"
-#include <my_time.h>
-#include <sslopt-vars.h>
-#include <signal.h>
 #include <my_dir.h>
-
-#include "prealloced_array.h"
-#include "mysql/service_my_snprintf.h"
-
-#include "rpl_gtid.h"
-#include "log_event.h"
-#include "sql_common.h"
-#include "my_dir.h"
+#include <my_time.h>
+#include <signal.h>
+#include <sslopt-vars.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
-#include "sql_string.h"
-#include "my_decimal.h"
-#include "rpl_constants.h"
-
 #include <algorithm>
-#include <utility>
 #include <map>
+#include <utility>
+
+#include "client_priv.h"
+#include "log_event.h"
+#include "my_decimal.h"
+#include "my_default.h"
+#include "my_dir.h"
+#include "mysql/service_my_snprintf.h"
+#include "prealloced_array.h"
+#include "rpl_constants.h"
+#include "rpl_gtid.h"
+#include "sql_common.h"
+#include "sql_string.h"
+#include "typelib.h"
 
 using std::min;
 using std::max;
@@ -1608,6 +1607,7 @@ static struct my_option my_long_options[] =
    &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
 #include <sslopt-longopts.h>
+
   {"start-datetime", OPT_START_DATETIME,
    "Start reading the binlog at first event having a datetime equal or "
    "posterior to the argument; the argument must be a date and time "
@@ -1857,6 +1857,7 @@ get_one_option(int optid, const struct my_option *opt,
     break;
 #endif
 #include <sslopt-case.h>
+
   case 'd':
     one_database = 1;
     break;

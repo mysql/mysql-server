@@ -1364,7 +1364,7 @@ static void init_dynamic_loader_psi_keys(void)
   const char *category= "components";
   int count;
 
-  count= array_elements(all_dynamic_loader_rwlocks);
+  count= static_cast<int>(array_elements(all_dynamic_loader_rwlocks));
   mysql_rwlock_register(category, all_dynamic_loader_rwlocks, count);
 }
 #endif

@@ -104,6 +104,7 @@
 #include "sql_show.h"                           // append_identifier
 #include "sql_table.h"                         // build_table_filename
 #include "thr_malloc.h"                         // int_sql_alloc
+#include "typelib.h"
 
 using std::min;
 using std::max;

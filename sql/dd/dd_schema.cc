@@ -22,7 +22,6 @@
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::get_dictionary
 #include "dd/dictionary.h"                    // dd::Dictionary
-#include "dd/sdi.h"                           // dd::store_sdi
 #include "dd/types/schema.h"                  // dd::Schema
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "m_ctype.h"
@@ -88,9 +87,7 @@ bool create_schema(THD *thd, const char *schema_name,
   std::unique_ptr<dd::Schema> wrapped_sch_obj(sch_obj);
 
   // Store the schema. Error will be reported by the dictionary subsystem.
-  if (thd->dd_client()->store(wrapped_sch_obj.get()) ||
-      dd::store_sdi(thd, wrapped_sch_obj.get()))
-
+  if (thd->dd_client()->store(wrapped_sch_obj.get()))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -123,8 +120,6 @@ bool alter_schema(THD *thd, const char *schema_name,
     return true;
   }
 
-  Sdi_updater update_sdi= make_sdi_updater(sch_obj);
-
   // Clone the schema object. The clone is owned here, and must be deleted
   // eventually.
   std::unique_ptr<dd::Schema> new_sch_obj(sch_obj->clone());
@@ -137,28 +132,6 @@ bool alter_schema(THD *thd, const char *schema_name,
   // Update schema.
   if (client->update(&sch_obj, new_sch_obj.get()))
   {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    return true;
-  }
-
-  if (update_sdi(thd, new_sch_obj.get()))
-  {
-    // At this point the cache already contains the new value, and
-    // aborting the transaction will not undo this automatically. To
-    // remedy this the schema is dropped to remove it from the
-    // cache. This will obviously also remove it from the DD
-    // tables, but this is ok since the removal will be rolled back
-    // when the transaction aborts. Since there is exclusive MDL on
-    // the schema, other threads will not see the removal, but will
-    // have to reload the schema into the cache when they get MDL.
-#ifndef DBUG_OFF
-    bool drop_error=
-#endif /* DBUG_OFF */
-      client->drop(sch_obj);
-    DBUG_ASSERT(drop_error == false);
-
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
     trans_rollback(thd);
@@ -198,8 +171,7 @@ bool drop_schema(THD *thd, const char *schema_name)
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop the schema.
-  if (dd::remove_sdi(thd, sch_obj) ||
-      client->drop(sch_obj))
+  if (client->drop(sch_obj))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.

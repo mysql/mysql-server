@@ -1434,4 +1434,15 @@ NULL	NULL
 SELECT t.a,t.c FROM u LEFT JOIN t ON u.a>0 GROUP BY t.a;
 ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t,u;
+#
+# Bug #22924183 	GROUP BY ON DERIVED TABLE, EXPRESSION OF AGGREGATE AND GROUP COLUMN: ERROR
+#
+CREATE TABLE coll (
+doc text
+) ENGINE=InnoDB;
+SELECT (je+1)+count(*) FROM (SELECT doc+1 AS je FROM coll) AS dt GROUP BY je;
+(je+1)+count(*)
+SELECT je+(1+count(*)) FROM (SELECT doc+1 AS je FROM coll) AS dt GROUP BY je;
+je+(1+count(*))
+DROP TABLE coll;
 DROP FUNCTION show_json_object;

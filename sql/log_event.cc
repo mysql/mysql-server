@@ -38,6 +38,7 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_decimal.h"        // my_decimal
+#include "my_loglevel.h"
 #include "my_time.h"           // MAX_DATE_STRING_REP_LENGTH
 #include "mysql.h"             // MYSQL_OPT_MAX_ALLOWED_PACKET
 #include "mysql/service_my_snprintf.h" // my_snprintf
@@ -69,8 +70,8 @@
 #include "enum_query_type.h"
 #include "field.h"
 #include "handler.h"
-#include "item_func.h"         // Item_func_set_user_var
 #include "item.h"
+#include "item_func.h"         // Item_func_set_user_var
 #include "key.h"
 #include "log.h"               // Log_throttle
 #include "mdl.h"
@@ -78,8 +79,6 @@
 #include "my_command.h"
 #include "my_dir.h"            // my_dir
 #include "my_sqlcommand.h"
-#include "mysqld_error.h"
-#include "mysqld.h"            // lower_case_table_names server_uuid ...
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
@@ -87,6 +86,8 @@
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/psi/psi_statement.h"
+#include "mysqld.h"            // lower_case_table_names server_uuid ...
+#include "mysqld_error.h"
 #include "pfs_file_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
@@ -4653,13 +4654,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       goto end;
     }
 
-    if (is_query_prefix_match(STRING_WITH_LEN("XA START")) && !thd->is_error())
-    {
-      // detach the "native" thd's trx in favor of dynamically created
-      plugin_foreach(thd, detach_native_trx,
-                     MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
-    }
-
     /* If the query was not ignored, it is printed to the general log */
     if (!thd->is_error() ||
         thd->get_stmt_da()->mysql_errno() != ER_SLAVE_IGNORED_TABLE)
@@ -6409,8 +6403,6 @@ bool XA_prepare_log_event::do_commit(THD *thd)
     thd->lex->sql_command= SQLCOM_XA_PREPARE;
     thd->lex->m_sql_cmd= new Sql_cmd_xa_prepare(&xid);
     error= thd->lex->m_sql_cmd->execute(thd);
-    if (!error)
-      error|= applier_reset_xa_trans(thd);
   }
   else
   {

@@ -1055,7 +1055,7 @@ static void init_audit_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_audit_mutexes);
+  count= static_cast<int>(array_elements(all_audit_mutexes));
   mysql_mutex_register(category, all_audit_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
