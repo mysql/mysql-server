@@ -25,9 +25,6 @@
 #include <type_traits>
 
 #include "my_config.h"
-#ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>                          // htons
-#endif
 
 #include "m_ctype.h"
 #include "mb_wc.h"
@@ -5161,9 +5158,7 @@ my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs, Mb_wc mb_wc,
       if (res <= 0)  // End of string, or invalid character.
         goto pad;
       src+= res;
-
-      *dst++= (uchar) (wc >> 8);
-      *dst++= (uchar) (wc & 0xFF);
+      dst= store16be(dst, wc);
     }
 
     // Leftover single byte, if any.
@@ -5191,8 +5186,7 @@ my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs, Mb_wc mb_wc,
 
       my_tosort_unicode(uni_plane, &wc, cs->state);
 
-      *dst++= (uchar) (wc >> 8);
-      *dst++= (uchar) (wc & 0xFF);
+      dst= store16be(dst, wc);
     }
 
     // Leftover single byte, if any.

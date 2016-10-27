@@ -41,6 +41,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mb_wc.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "mysql/service_my_snprintf.h"
@@ -5162,8 +5163,7 @@ restart:
       else if (s_res == 0 && (flags & MY_STRXFRM_PAD_WITH_SPACE))
         dst= strip_space_weights(d0, dst);
 
-      *dst++= s_res >> 8;
-      *dst++= s_res & 0xFF;
+      dst= store16be(dst, s_res);
       return (dst < dst_end);
     });
   }
@@ -5203,9 +5203,7 @@ restart:
             the level separator, and then restart the normal loop writing weights
             (for the next level) as if nothing had happened.
           */
-          dst= nonspace_end;
-          *dst++= 0;
-          *dst++= 0;
+          dst= store16be(nonspace_end, s_res);
           goto restart;
         }
         if (s_res != 0x0001)
