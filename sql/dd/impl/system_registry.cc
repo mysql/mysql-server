@@ -131,7 +131,9 @@ void System_views::init()
     "STATISTICS_BASE",
     "STATISTICS_DYNAMIC",
     "STATISTICS",
-    "TABLE_CONSTRAINTS",
+    /* TODO: Modify this view name from TABLES_CONSTRAINTS back to TABLE_CONSTRAINTS
+    after lower case table names issue resolved. */
+    "TABLES_CONSTRAINTS",
     "TABLES",
     "TABLES_DYNAMIC",
     "VIEWS",
