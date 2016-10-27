@@ -18,7 +18,10 @@ CREATE VIEW xtest.myview AS SELECT 1;
 
 
 -->sql
-CREATE VIEW xtest.fakecoll AS SELECT * FROM xtest.books
+CREATE VIEW xtest.fakecoll AS SELECT * FROM xtest.books;
+CREATE VIEW xtest.xdoc AS SELECT doc FROM xtest.mytable2;
+CREATE VIEW xtest.fakexview AS SELECT doc, a AS _id FROM xtest.mytable2;
+
 -->endsql
 
 

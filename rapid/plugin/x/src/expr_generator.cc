@@ -97,60 +97,34 @@ void Expression_generator::generate(const Mysqlx::Expr::Identifier& arg, bool is
 }
 
 
-namespace
-{
-typedef ::google::protobuf::RepeatedPtrField< ::Mysqlx::Expr::DocumentPathItem > Document_path;
-
-const char* const DOC_ID = "_id";
-
-inline bool is_doc_id(const Document_path &arg)
-{
-  return arg.size() == 1 &&
-      arg.Get(0).type() == Document_path::value_type::MEMBER &&
-      arg.Get(0).value() == DOC_ID;
-}
-
-} // namespace
-
-
 void Expression_generator::generate(const Mysqlx::Expr::ColumnIdentifier &arg) const
 {
   bool has_schema_name = arg.has_schema_name() && !arg.schema_name().empty();
 
-  if (has_schema_name &&
-      arg.has_table_name() == false)
-  {
+  if (has_schema_name && arg.has_table_name() == false)
     throw Error(ER_X_EXPR_MISSING_ARG,
                 "Table name is required if schema name is specified in ColumnIdentifier.");
-  }
 
-  if (arg.has_table_name() &&
-      arg.has_name() == false)
-  {
+  const bool has_docpath = arg.document_path_size() > 0;
+
+  if (arg.has_table_name() && arg.has_name() == false &&
+      (m_is_relational || !has_docpath))
     throw Error(ER_X_EXPR_MISSING_ARG,
                 "Column name is required if table name is specified in ColumnIdentifier.");
-  }
 
-  if (!m_is_relational && is_doc_id(arg.document_path()))
-  {
-    m_qb.quote_identifier_if_needed(DOC_ID);
-    return;
-  }
-
-  bool has_docpath = arg.document_path_size() > 0;
   if (has_docpath)
     m_qb.put("JSON_EXTRACT(");
 
   if (has_schema_name)
     m_qb.quote_identifier(arg.schema_name()).dot();
 
-  if(arg.has_table_name())
+  if (arg.has_table_name())
     m_qb.quote_identifier(arg.table_name()).dot();
 
-  if(arg.has_name())
+  if (arg.has_name())
     m_qb.quote_identifier(arg.name());
 
-  if(has_docpath)
+  if (has_docpath)
   {
     if(arg.has_name() == false)
       m_qb.put("doc");
@@ -166,9 +140,11 @@ void Expression_generator::generate(const Document_path &arg) const
 {
   using ::Mysqlx::Expr::DocumentPathItem;
 
-  if (arg.size() == 1 && arg.Get(0).type() == DocumentPathItem::MEMBER && arg.Get(0).value().empty())
+  if (arg.size() == 1 &&
+      arg.Get(0).type() == DocumentPathItem::MEMBER &&
+      arg.Get(0).value().empty())
   {
-    m_qb.bquote().put("$.").equote();
+    m_qb.quote_string("$");
     return;
   }
 
@@ -205,7 +181,7 @@ void Expression_generator::generate(const Document_path &arg) const
 }
 
 
-void Expression_generator::generate(const Mysqlx::Expr::FunctionCall& arg) const
+void Expression_generator::generate(const Mysqlx::Expr::FunctionCall &arg) const
 {
   generate(arg.name(), true);
   m_qb.put("(");
@@ -214,7 +190,7 @@ void Expression_generator::generate(const Mysqlx::Expr::FunctionCall& arg) const
 }
 
 
-void Expression_generator::generate(const Mysqlx::Datatypes::Any& arg) const
+void Expression_generator::generate(const Mysqlx::Datatypes::Any &arg) const
 {
   switch(arg.type())
   {
@@ -229,7 +205,7 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Any& arg) const
 }
 
 
-void Expression_generator::generate(const Mysqlx::Datatypes::Scalar& arg) const
+void Expression_generator::generate(const Mysqlx::Datatypes::Scalar &arg) const
 {
   switch(arg.type())
   {
@@ -278,7 +254,7 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Scalar& arg) const
 }
 
 
-void Expression_generator::generate(const Mysqlx::Datatypes::Scalar::Octets& arg) const
+void Expression_generator::generate(const Mysqlx::Datatypes::Scalar::Octets &arg) const
 {
   switch (arg.content_type())
   {
@@ -429,7 +405,7 @@ inline bool is_plain_octets(const Mysqlx::Expr::Expr &arg)
 }  // namespace
 
 
-void Expression_generator::in_expression(const Mysqlx::Expr::Operator &arg, const char* str) const
+void Expression_generator::in_expression(const Mysqlx::Expr::Operator &arg, const char *str) const
 {
   switch (arg.param_size())
   {
@@ -470,7 +446,7 @@ void Expression_generator::in_expression(const Mysqlx::Expr::Operator &arg, cons
 }
 
 
-void Expression_generator::like_expression(const Mysqlx::Expr::Operator &arg, const char* str) const
+void Expression_generator::like_expression(const Mysqlx::Expr::Operator &arg, const char *str) const
 {
   int paramSize = arg.param_size();
 
@@ -493,7 +469,7 @@ void Expression_generator::like_expression(const Mysqlx::Expr::Operator &arg, co
 }
 
 
-void Expression_generator::between_expression(const Mysqlx::Expr::Operator &arg, const char* str) const
+void Expression_generator::between_expression(const Mysqlx::Expr::Operator &arg, const char *str) const
 {
   if(arg.param_size() != 3)
   {
@@ -513,7 +489,6 @@ void Expression_generator::between_expression(const Mysqlx::Expr::Operator &arg,
 
 namespace
 {
-
 
 struct Interval_unit_validator
 {
@@ -642,7 +617,7 @@ void Expression_generator::binary_expression(const Mysqlx::Expr::Operator &arg, 
 namespace
 {
 typedef ngs::function<void (const Expression_generator*,
-                              const Mysqlx::Expr::Operator&)> Operator_ptr;
+                            const Mysqlx::Expr::Operator&)> Operator_ptr;
 
 typedef std::pair<const char* const, Operator_ptr> Operator_bind;
 
@@ -703,7 +678,8 @@ void Expression_generator::generate(const Mysqlx::Expr::Operator &arg) const
   };
   static const Operator_bind *operators_end = get_array_end(operators);
 
-  const Operator_bind *op = std::lower_bound(operators, operators_end, arg.name(), Is_operator_less());
+  const Operator_bind *op = std::lower_bound(operators, operators_end,
+                                             arg.name(), Is_operator_less());
 
   if (op == operators_end || std::strcmp(arg.name().c_str(), op->first) != 0)
     throw Error(ER_X_EXPR_BAD_OPERATOR, "Invalid operator " + arg.name());
@@ -741,6 +717,11 @@ void Expression_generator::nullary_operator(const Mysqlx::Expr::Operator &arg, c
                 "Nullary operator require no operands in expression");
 
   m_qb.put(str);
+}
+
+Expression_generator Expression_generator::clone(Query_string_builder &qb) const
+{
+  return Expression_generator(qb, m_args, m_default_schema, m_is_relational);
 }
 
 } // namespace xpl

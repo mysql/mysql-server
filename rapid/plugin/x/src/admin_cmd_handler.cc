@@ -1160,7 +1160,8 @@ ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args
 
   Query_string_builder qb;
   qb.put("SELECT T.table_name AS name, "
-         "IF(ANY_VALUE(T.table_type) LIKE '%VIEW', 'VIEW', "
+         "IF(ANY_VALUE(T.table_type) LIKE '%VIEW', "
+         "IF(COUNT(*)=1 AND ").put(COUNT_DOC).put("=1, 'COLLECTION_VIEW', 'VIEW'), "
          "IF(COUNT(*)-2 = ")
       .put(COUNT_GEN)
       .put(" AND ")
