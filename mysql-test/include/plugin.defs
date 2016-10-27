@@ -82,3 +82,4 @@ libtest_sql_lock                        plugin/test_service_sql_api TEST_SQL_LOC
 libtest_sql_sqlmode                     plugin/test_service_sql_api TEST_SQL_SQLMODE
 libtest_sql_replication                 plugin/test_service_sql_api TEST_SQL_REPLICATION
 libtest_sql_errors                      plugin/test_service_sql_api TEST_SQL_ERRORS
+connection_control  plugin/connection_control   CONNECTION_CONTROL_PLUGIN    connection_control
