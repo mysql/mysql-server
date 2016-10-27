@@ -5602,7 +5602,7 @@ private:
   @return True in case of error, false on success.
 */
 
-static bool check_and_convert_ull_name(char *buff, String *org_name)
+static bool check_and_convert_ull_name(char *buff, const String *org_name)
 {
   if (!org_name || !org_name->length())
   {

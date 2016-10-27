@@ -397,7 +397,7 @@ class Item_bool :public Item_int
 {
 public:
   Item_bool(int32 i): Item_int(i) {}
-  bool is_bool_func() { return 1; }
+  bool is_bool_func() const { return true; }
 };
 
 
@@ -414,7 +414,7 @@ public:
   Item_xpath_cast_bool(Item *a)
     :Item_int_func(a) {}
   const char *func_name() const { return "xpath_cast_bool"; }
-  bool is_bool_func() { return 1; }
+  bool is_bool_func() const { return true; }
   longlong val_int()
   {
     if (args[0]->type() == XPATH_NODESET)
@@ -556,7 +556,7 @@ public:
     :Item_bool_func(nodeset,cmpfunc), pxml(p) {}
   enum Type type() const { return XPATH_NODESET_CMP; };
   const char *func_name() const { return "xpath_nodeset_to_const_comparator"; }
-  bool is_bool_func() { return 1; }
+  bool is_bool_func() const { return true; }
 
   longlong val_int()
   {

@@ -826,7 +826,7 @@ bool Item_func_inet6_ntoa::calc_value(String *arg, String *buffer)
   @retval true  The passed string represents an IPv4-address.
 */
 
-bool Item_func_is_ipv4::calc_value(const String *arg)
+bool Item_func_is_ipv4::calc_value(const String *arg) const
 {
   in_addr ipv4_address;
 
@@ -845,7 +845,7 @@ bool Item_func_is_ipv4::calc_value(const String *arg)
   @retval true  The passed string represents an IPv6-address.
 */
 
-bool Item_func_is_ipv6::calc_value(const String *arg)
+bool Item_func_is_ipv6::calc_value(const String *arg) const
 {
   in6_addr ipv6_address;
 
@@ -864,7 +864,7 @@ bool Item_func_is_ipv6::calc_value(const String *arg)
   @retval true  The passed IPv6-address is an IPv4-compatible IPv6-address.
 */
 
-bool Item_func_is_ipv4_compat::calc_value(const String *arg)
+bool Item_func_is_ipv4_compat::calc_value(const String *arg) const
 {
   if ((int) arg->length() != IN6_ADDR_SIZE || arg->charset() != &my_charset_bin)
     return false;
@@ -884,7 +884,7 @@ bool Item_func_is_ipv4_compat::calc_value(const String *arg)
   @retval true  The passed IPv6-address is an IPv4-mapped IPv6-address.
 */
 
-bool Item_func_is_ipv4_mapped::calc_value(const String *arg)
+bool Item_func_is_ipv4_mapped::calc_value(const String *arg) const
 {
   if ((int) arg->length() != IN6_ADDR_SIZE || arg->charset() != &my_charset_bin)
     return false;

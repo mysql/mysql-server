@@ -2184,7 +2184,7 @@ public:
     maybe_null= false;
     return false;
   }
-  bool is_bool_func() { return true; }
+  bool is_bool_func() const { return true; }
 };
 
 /**

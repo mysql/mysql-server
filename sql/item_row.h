@@ -82,40 +82,40 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
 
   enum Type type() const { return ROW_ITEM; };
-  void illegal_method_call(const char *);
+  void illegal_method_call(const char *) const MY_ATTRIBUTE((cold));
   bool is_null() { return null_value; }
   void make_field(Send_field *)
   {
-    illegal_method_call((const char*)"make_field");
+    illegal_method_call("make_field");
   };
   double val_real()
   {
-    illegal_method_call((const char*)"val");
+    illegal_method_call("val_real");
     return 0;
   };
   longlong val_int()
   {
-    illegal_method_call((const char*)"val_int");
+    illegal_method_call("val_int");
     return 0;
   };
   String *val_str(String *)
   {
-    illegal_method_call((const char*)"val_str");
+    illegal_method_call("val_str");
     return 0;
   };
   my_decimal *val_decimal(my_decimal *)
   {
-    illegal_method_call((const char*)"val_decimal");
+    illegal_method_call("val_decimal");
     return 0;
   };
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  bool get_date(MYSQL_TIME *, my_time_flags_t)
   {
-    illegal_method_call((const char *) "get_date");
+    illegal_method_call("get_date");
     return true;
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *)
   {
-    illegal_method_call((const char *) "get_time");
+    illegal_method_call("get_time");
     return true;
   }
 
@@ -135,7 +135,7 @@ public:
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
 
-  uint cols() { return arg_count; }
+  uint cols() const { return arg_count; }
   Item* element_index(uint i) { return items[i]; }
   Item** addr(uint i) { return items + i; }
   bool check_cols(uint c);

@@ -273,15 +273,9 @@ public:
   Item_func_json_valid(const POS &pos, Item *a) : Item_int_func(pos, a)
   {}
 
-  const char *func_name() const
-  {
-    return "json_valid";
-  }
+  const char *func_name() const { return "json_valid"; }
 
-  bool is_bool_func()
-  {
-    return 1;
-  }
+  bool is_bool_func() const { return true; }
 
   longlong val_int();
 
@@ -305,15 +299,9 @@ class Item_func_json_contains :public Item_int_func
     : Item_int_func(pos, a), m_path_cache(thd, arg_count)
   {}
 
-  const char *func_name() const
-  {
-    return "json_contains";
-  }
+  const char *func_name() const { return "json_contains"; }
 
-  bool is_bool_func()
-  {
-    return 1;
-  }
+  bool is_bool_func() const { return true; }
 
   longlong val_int();
 
@@ -345,15 +333,9 @@ public:
     m_cached_ooa(ooa_uninitialized), m_path_cache(thd, arg_count)
   {}
 
-  const char *func_name() const
-  {
-    return "json_contains_path";
-  }
+  const char *func_name() const { return "json_contains_path"; }
 
-  bool is_bool_func()
-  {
-    return 1;
-  }
+  bool is_bool_func() const { return true; }
 
   longlong val_int();
 
