@@ -1122,16 +1122,20 @@ ngs::Error_code is_schema_selected_and_exists(xpl::Sql_data_context &da, const s
   return da.execute_sql_no_result(qb.get().data(), qb.get().length(), info);
 }
 
-
-const char* const COUNT_DOC = "COUNT(CASE WHEN (column_name = 'doc' "
-                              "AND data_type = 'json') THEN 1 ELSE NULL END)";
-const char* const COUNT_ID = "COUNT(CASE WHEN (column_name = '_id' "
-                             "AND generation_expression = 'json_unquote(json_extract(`doc`,''$._id''))') THEN 1 ELSE NULL END)";
-const char* const COUNT_GEN = "COUNT(CASE WHEN (column_name != '_id' "
-                              "AND generation_expression RLIKE '^(json_unquote[[.(.]])?json_extract[[.(.]]`doc`,"
-                              "''[[.$.]]([[...]][^[:space:][...]]+)+''[[.).]]{1,2}$') THEN 1 ELSE NULL END)";
-} // namespace
-
+const char *const COUNT_DOC =
+    "COUNT(CASE WHEN (column_name = 'doc' "
+    "AND data_type = 'json') THEN 1 ELSE NULL END)";
+const char *const COUNT_ID =
+    "COUNT(CASE WHEN (column_name = '_id' "
+    "AND generation_expression = "
+    "'json_unquote(json_extract(`doc`,''$._id''))') THEN 1 ELSE NULL END)";
+const char *const COUNT_GEN =
+    "COUNT(CASE WHEN (column_name != '_id' "
+    "AND generation_expression RLIKE "
+    "'^(json_unquote[[.(.]])?json_extract[[.(.]]`doc`,"
+    "''[[.$.]]([[...]][^[:space:][...]]+)+''[[.).]]{1,2}$') THEN 1 ELSE NULL "
+    "END)";
+}  // namespace
 
 /* Stmt: list_objects
  * Required arguments:
@@ -1155,10 +1159,17 @@ ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args
 
   Query_string_builder qb;
   qb.put("SELECT T.table_name AS name, "
-    "IF(ANY_VALUE(T.table_type) LIKE '%VIEW', 'VIEW', "
-    "IF(COUNT(*) = ").put(COUNT_DOC).put(" + ").put(COUNT_ID).put(" + ").put(COUNT_GEN).put(", 'COLLECTION', 'TABLE')) AS type "
-    "FROM information_schema.tables AS T LEFT JOIN information_schema.columns AS C USING (table_schema,table_name)"
-    "WHERE T.table_schema = ");
+         "IF(ANY_VALUE(T.table_type) LIKE '%VIEW', 'VIEW', "
+         "IF(COUNT(*)-2 = ")
+      .put(COUNT_GEN)
+      .put(" AND ")
+      .put(COUNT_DOC)
+      .put("=1 AND ")
+      .put(COUNT_ID)
+      .put("=1, 'COLLECTION', 'TABLE')) AS type "
+           "FROM information_schema.tables AS T LEFT JOIN "
+           "information_schema.columns AS C USING (table_schema,table_name)"
+           "WHERE T.table_schema = ");
   if (schema.empty())
     qb.put("schema()");
   else
@@ -1168,7 +1179,8 @@ ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args
   qb.put(" GROUP BY T.table_name ORDER BY T.table_name");
 
   Sql_data_context::Result_info info;
-  error = m_da.execute_sql_and_stream_results(qb.get().data(), qb.get().length(), false, info);
+  error = m_da.execute_sql_and_stream_results(qb.get().data(),
+                                              qb.get().length(), false, info);
   if (error)
     return error;
 
@@ -1206,7 +1218,11 @@ bool is_collection(xpl::Sql_data_context &da, const std::string &schema, const s
     result.get(cnt).get(doc).get(id).get(gen);
     return doc == 1 && id == 1 && (cnt == gen + doc + id);
   }
+#if defined(XPLUGIN_LOG_DEBUG) && !defined(XPLUGIN_DISABLE_LOG)
   catch (const ngs::Error_code &e)
+#else
+  catch (const ngs::Error_code &)
+#endif
   {
     log_debug("Unable to recognize '%s' as a collection; exception message: '%s'",
               std::string(schema.empty() ? name : schema + "." + name).c_str(), e.message.c_str());
