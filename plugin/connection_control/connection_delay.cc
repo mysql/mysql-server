@@ -545,7 +545,7 @@ namespace connection_control
     PSI_mutex_key key_connection_delay_mutex;
     PSI_mutex_info connection_delay_mutex_info[]=
     {
-      {&key_connection_delay_mutex, "connection_delay_mutex", 0}
+      {&key_connection_delay_mutex, "connection_delay_mutex", PSI_FLAG_GLOBAL, 0}
     };
     int count_mutex= array_elements(connection_delay_mutex_info);
     PSI_MUTEX_CALL(register_mutex)(category, connection_delay_mutex_info, count_mutex);
