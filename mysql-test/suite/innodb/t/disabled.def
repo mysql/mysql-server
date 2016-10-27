@@ -25,8 +25,6 @@ analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too 
 
 # Disabled list(Due to server issues)
 innodb_upd_stats_if_needed_not_inited : WL#9525 disables it, waiting for FK fix
-create_tablespace         : WL#9525 disables it, waiting for FK fix
-create_tablespace_16k     : WL#9525 disables it, waiting for FK fix
 
 (Due to InnoDB issues)
 virtual_fk_restart        : WL#9533 disables it, waiting for FK fix

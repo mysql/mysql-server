@@ -1118,7 +1118,7 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_system	innodb_system	33	5	Dynamic	0	System
