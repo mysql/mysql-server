@@ -5094,10 +5094,6 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
                              by storage engine if it supports atomic DDL.
                              For non-temporary tables these changes will
                              be saved to the data-dictionary by this call.
-  @param force_dd_commit     Indicates whether we need to force commit
-                             of changes to data-dictionary (WL7743/TODO - this
-                             parameter should not be necessary once we fix
-                             REPAIR TABLE code).
 
   @retval
    0  ok
@@ -5109,8 +5105,7 @@ int ha_create_table(THD *thd, const char *path,
                     HA_CREATE_INFO *create_info,
                     bool update_create_info,
                     bool is_temp_table,
-                    dd::Table *table_def,
-                    bool force_dd_commit)
+                    dd::Table *table_def)
 {
   int error= 1;
   TABLE table;
@@ -5177,20 +5172,7 @@ int ha_create_table(THD *thd, const char *path,
 
       if(thd->dd_client()->update_uncached_and_invalidate<dd::Table>(nullptr,
                                                                      table_def))
-      {
-        if (force_dd_commit)
-        {
-          trans_rollback_stmt(thd);
-          // Full rollback in case we have THD::transaction_rollback_request.
-          trans_rollback(thd);
-        }
         error= 1;
-      }
-      else
-      {
-        error= (force_dd_commit &&
-                (trans_commit_stmt(thd) || trans_commit(thd)));
-      }
     }
   }
   (void) closefrm(&table, 0);

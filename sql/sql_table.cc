@@ -2120,7 +2120,7 @@ static bool rea_create_table(THD *thd, const char *path,
       *post_ddl_ht= create_info->db_type;
 
     if(ha_create_table(thd, path, db, table_name, create_info,
-                       false, false, table_ptr.get(), false))
+                       false, false, table_ptr.get()))
     {
       goto err;
     }
@@ -12016,8 +12016,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (ha_create_table(thd, alter_ctx.get_tmp_path(),
                         alter_ctx.new_db, alter_ctx.tmp_name,
                         create_info, false, false,
-                        tmp_table_def ? tmp_table_def : table_def.get(),
-                        false))
+                        tmp_table_def ? tmp_table_def : table_def.get()))
       goto err_new_table_cleanup;
 
     /* Mark that we have created table in storage engine. */

@@ -368,7 +368,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   */
   ha_create_table(thd, share->normalized_path.str, share->db.str,
                   share->table_name.str, &create_info, true, true,
-                  share->tmp_table_def, false);
+                  share->tmp_table_def);
 
   if ((new_table= open_table_uncached(thd, share->path.str, share->db.str,
                                       share->table_name.str, true, true,
@@ -569,8 +569,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
         The storage engine can truncate the table by creating an
         empty table with the same structure.
       */
-      error= dd::recreate_table(thd, table_ref->db, table_ref->table_name,
-                                false);
+      error= dd::recreate_table(thd, table_ref->db, table_ref->table_name);
 
       if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
           thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);

@@ -5529,8 +5529,7 @@ int ha_create_table(THD *thd, const char *path,
                     HA_CREATE_INFO *create_info,
                     bool update_create_info,
                     bool is_temp_table,
-                    dd::Table *table_def,
-                    bool force_dd_commit);
+                    dd::Table *table_def);
 
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
                     const char *db, const char *alias,

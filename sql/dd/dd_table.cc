@@ -2860,7 +2860,7 @@ bool check_storage_engine_flag(THD *thd, const TABLE_LIST *table_list,
 
 
 bool recreate_table(THD *thd, const char *schema_name,
-                    const char *table_name, bool force_dd_commit)
+                    const char *table_name)
 {
   // There should be an exclusive metadata lock on the table
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
@@ -2893,7 +2893,7 @@ bool recreate_table(THD *thd, const char *schema_name,
 
   // Attempt to reconstruct the table
   return ha_create_table(thd, path, schema_name, table_name, &create_info,
-                         true, false, table_def.get(), force_dd_commit);
+                         true, false, table_def.get());
 }
 
 
