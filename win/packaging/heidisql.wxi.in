@@ -45,13 +45,19 @@
     <Component Id="component.HeidiSQL_ssleay32.dll" Guid="*" Win64="no">
       <File Id="heidisql.ssleay32.dll" Name="ssleay32.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\ssleay32.dll" />
     </Component>
-    <Component Id="component.HeidiSQL_libintl.dll" Guid="*" Win64="no">
-      <File Id="heidisql.libintl.dll" Name="libintl.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libintl.dll" />
+    <Component Id="component.HeidiSQL_libintl_8.dll" Guid="*" Win64="no">
+      <File Id="heidisql.libintl_8.dll" Name="libintl-8.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libintl-8.dll" />
+    </Component>
+    <Component Id="component.HeidiSQL_libiconv_2.dll" Guid="*" Win64="no">
+      <File Id="heidisql.libiconv_2.dll" Name="libiconv-2.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libiconv-2.dll" />
     </Component>
 
     <Directory Id="D.HeidiSQL.plugins" Name="plugins">
       <Component Id="component.HeidiSQL_dialog.dll" Guid="*" Win64="no">
         <File Id="heidisql.dialog.dll" Name="dialog.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\plugins\dialog.dll" />
+      </Component>
+      <Component Id="component.HeidiSQL_auth_gssapi_client.dll" Guid="*" Win64="no">
+        <File Id="heidisql.auth_gssapi_client.dll" Name="auth_gssapi_client.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\plugins\auth_gssapi_client.dll" />
       </Component>
     </Directory>
 
@@ -70,8 +76,10 @@
   <ComponentRef Id="component.HeidiSQL_libeay32.dll" />
   <ComponentRef Id="component.HeidiSQL_libpq.dll" />
   <ComponentRef Id="component.HeidiSQL_ssleay32.dll" />
-  <ComponentRef Id="component.HeidiSQL_libintl.dll" />
+  <ComponentRef Id="component.HeidiSQL_libintl_8.dll" />
+  <ComponentRef Id="component.HeidiSQL_libiconv_2.dll" />
   <ComponentRef Id="component.HeidiSQL_dialog.dll" />
+  <ComponentRef Id="component.HeidiSQL_auth_gssapi_client.dll" />
   <ComponentRef Id="component.HeidiSQL_CleanupSettings"/>
 </ComponentGroup>
 </Include>
