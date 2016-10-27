@@ -132,10 +132,10 @@ static bool sec_to_time(lldiv_t seconds, MYSQL_TIME *ltime)
   uint sec= (uint) (seconds.quot % 3600);
   ltime->minute= sec / 60;
   ltime->second= sec % 60;
-  time_add_nanoseconds_with_round(ltime, static_cast<uint>(seconds.rem), &warning);
-  
-  adjust_time_range(ltime, &warning);
+  time_add_nanoseconds_adjust_frac(ltime, static_cast<uint>(seconds.rem),
+                                   &warning, current_thd->is_fsp_truncate_mode());
 
+  adjust_time_range(ltime, &warning);
   return warning ? true : false;
 }
 
@@ -2302,7 +2302,8 @@ bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
   thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t) lld.quot);
   int warnings= 0;
   ltime->second_part= decimals ? static_cast<ulong>(lld.rem / 1000) : 0;
-  return datetime_add_nanoseconds_with_round(ltime, lld.rem % 1000, &warnings);
+  return datetime_add_nanoseconds_adjust_frac(ltime, lld.rem % 1000, &warnings,
+                                              current_thd->is_fsp_truncate_mode());
 }
 
 
@@ -2681,12 +2682,18 @@ void Item_datetime_typecast::print(String *str, enum_query_type query_type)
 bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime,
                                       my_time_flags_t fuzzy_date)
 {
-  if ((null_value= args[0]->get_date(ltime, fuzzy_date | TIME_NO_DATE_FRAC_WARN)))
+  my_time_flags_t flags= fuzzy_date | TIME_NO_DATE_FRAC_WARN;
+  if (current_thd->is_fsp_truncate_mode())
+    flags|= TIME_FRAC_TRUNCATE;
+
+  if ((null_value= args[0]->get_date(ltime, flags)))
     return true;
   DBUG_ASSERT(ltime->time_type != MYSQL_TIMESTAMP_TIME);
   ltime->time_type= MYSQL_TIMESTAMP_DATETIME; // In case it was DATE
   int warnings= 0;
-  return (null_value= my_datetime_round(ltime, decimals, &warnings));
+  return (null_value=
+          my_datetime_adjust_frac(ltime, decimals, &warnings,
+                                  current_thd->is_fsp_truncate_mode()));
 }
 
 
@@ -2706,7 +2713,8 @@ bool Item_time_typecast::get_time(MYSQL_TIME *ltime)
 {
   if (get_arg0_time(ltime))
     return true;
-  my_time_round(ltime, decimals);
+  my_time_adjust_frac(ltime, decimals, current_thd->is_fsp_truncate_mode());
+
   /*
     For MYSQL_TIMESTAMP_TIME value we can have non-zero day part,
     which we should not lose.
@@ -3039,7 +3047,9 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
     int warnings= 0;
     ltime->second_part= static_cast<ulong>(second.rem / 1000);
     adjust_time_range_with_warn(ltime, decimals);
-    time_add_nanoseconds_with_round(ltime, second.rem % 1000, &warnings);
+    time_add_nanoseconds_adjust_frac(ltime, second.rem % 1000, &warnings,
+                                     current_thd->is_fsp_truncate_mode());
+
     if (!warnings)
       return false;
   }

@@ -1804,8 +1804,8 @@ End of 5.5 tests
 # Bug#57035 'ulonglong sql_mode' stored into ulong, is risky and causes
 #           compiler warning
 #
-SET @@sql_mode= 4294967296;
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
+SET @@sql_mode= 8589934592;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '8589934592'
 #
 # Bug #59860: log-slow-admin-statements and log-slow-slave-statements not displayed
 #

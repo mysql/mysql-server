@@ -2553,15 +2553,16 @@ protected:
 
   /**
     Low level routine to store a MYSQL_TIME value into a field
-    with rounding according to the field decimals() value.
+    with rounding/truncation according to the field decimals() value and
+    sql_mode.
 
     @param[in]  ltime   MYSQL_TIME value.
     @param[out] warnings   Error flag vector, set in case of error.
     @retval     false   In case of success.
     @retval     true    In case of error.    
   */
-  virtual type_conversion_status store_internal_with_round(MYSQL_TIME *ltime,
-                                                           int *warnings)= 0;
+  virtual type_conversion_status store_internal_adjust_frac(MYSQL_TIME *ltime,
+                                                            int *warnings)= 0;
 
   /**
     Store a temporal value in lldiv_t into a field,
@@ -2758,8 +2759,10 @@ protected:
                                                 int *warning);
   bool convert_str_to_TIME(const char *str, size_t len, const CHARSET_INFO *cs,
                            MYSQL_TIME *ltime, MYSQL_TIME_STATUS *status);
-  type_conversion_status store_internal_with_round(MYSQL_TIME *ltime,
-                                                   int *warnings);
+
+  type_conversion_status store_internal_adjust_frac(MYSQL_TIME *ltime,
+                                                    int *warnings);
+  using Field_temporal::date_flags;
 public:
   /**
     Constructor for Field_temporal
@@ -3155,10 +3158,13 @@ protected:
                                                 int *error)= 0;
   /**
     Function to store time value.
-    The value is rounded according to decimals().
+    The value is rounded/truncated according to decimals() and sql_mode.
   */
-  virtual type_conversion_status store_internal_with_round(MYSQL_TIME *ltime,
-                                                           int *warnings);
+  type_conversion_status store_internal_adjust_frac(MYSQL_TIME *ltime,
+                                                    int *warnings);
+
+  my_time_flags_t date_flags(const THD *thd);
+  using Field_temporal::date_flags;
 public:
   /**
     Constructor for Field_time_common

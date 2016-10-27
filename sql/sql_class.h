@@ -2654,6 +2654,11 @@ public:
     utime_after_lock= my_micro_time();
     MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi, (utime_after_lock - start_utime));
   }
+  inline bool is_fsp_truncate_mode() const
+  {
+    return (variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL);
+  }
+
   /**
    Evaluate the current time, and if it exceeds the long-query-time
    setting, mark the query as slow.

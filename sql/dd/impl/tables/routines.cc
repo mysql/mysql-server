@@ -154,7 +154,8 @@ Routines::Routines()
                          "'NO_AUTO_CREATE_USER',\n"
                          "'HIGH_NOT_PRECEDENCE',\n"
                          "'NO_ENGINE_SUBSTITUTION',\n"
-                         "'PAD_CHAR_TO_FULL_LENGTH') NOT NULL");
+                         "'PAD_CHAR_TO_FULL_LENGTH',\n"
+                         "'TIME_TRUNCATE_FRACTIONAL') NOT NULL");
   m_target_def.add_field(FIELD_CLIENT_COLLATION_ID,
                          "FIELD_CLIENT_COLLATION_ID",
                          "client_collation_id BIGINT UNSIGNED NOT NULL");

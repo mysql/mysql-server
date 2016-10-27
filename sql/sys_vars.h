@@ -1278,7 +1278,7 @@ public:
 };
 
 // overflow-safe (1 << X)-1
-#define MAX_SET(X) ((((1UL << ((X)-1))-1) << 1) | 1)
+#define MAX_SET(X) ((((1ULL << ((X)-1))-1) << 1) | 1)
 
 /**
   The class for flagset variables - a variant of SET that allows in-place
