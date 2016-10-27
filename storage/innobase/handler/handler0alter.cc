@@ -4433,7 +4433,9 @@ prepare_inplace_alter_table_global_dd(
 			dd_space_id = 1;
 		} else {
 			dd_space_id = new_dd_tab->tablespace_id();
-			ut_ad(dd_space_id != dd::INVALID_OBJECT_ID);
+			ut_ad(dd_space_id != dd::INVALID_OBJECT_ID
+			      || strstr(new_table->name.m_name, "mysql/")
+				 != NULL);
 		}
 
 		create_table_info_t::set_table_options(
