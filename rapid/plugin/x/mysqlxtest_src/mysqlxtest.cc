@@ -994,27 +994,52 @@ private:
 
   Result cmd_recvtype(Execution_context &context, const std::string &args)
   {
+    std::vector<std::string> vargs;
+    aux::split(vargs, args, " ", true);
+
+    if (1 != vargs.size() &&
+        2 != vargs.size())
+    {
+      std::stringstream error_message;
+      error_message << "Received wrong number of arguments, got:"
+                    << vargs.size();
+      throw std::logic_error(error_message.str());
+    }
+
+    bool be_quiet = false;
     int msgid;
     ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
-    if (msg.get())
+
+    if (1 < vargs.size())
     {
-      if (msg->GetDescriptor()->full_name() != args)
-        std::cout << "Received unexpected message. Was expecting:\n    " << args << "\nbut got:\n";
-      try
-      {
-        std::ostream &out = get_stream_for_results();
+      if (vargs[1] == CMD_ARG_BE_QUIET)
+        be_quiet = true;
+    }
 
-        out << unreplace_variables(message_to_text(*msg), true) << "\n";
+    if (NULL == msg.get())
+      return OPT_fatal_errors ? Stop_with_failure : Continue;
 
-        if (msg->GetDescriptor()->full_name() != args && OPT_fatal_errors)
-          return Stop_with_success;
-      }
-      catch (std::exception &e)
+    try
+    {
+      const std::string message_in_text = unreplace_variables(message_to_text(*msg), true);
+
+      if (msg->GetDescriptor()->full_name() != vargs[0])
       {
-        dumpx(e);
-        if (OPT_fatal_errors)
-          return Stop_with_success;
+        std::cout << "Received unexpected message. Was expecting:\n    " << vargs[0] << "\nbut got:\n";
+        std::cout << message_in_text << "\n";
+
+        return OPT_fatal_errors ? Stop_with_failure : Continue;
       }
+
+      std::ostream &out = get_stream_for_results(be_quiet);
+
+      out << message_in_text << "\n";
+    }
+    catch (std::exception &e)
+    {
+      dumpx(e);
+      if (OPT_fatal_errors)
+        return Stop_with_success;
     }
 
     return Continue;
@@ -3077,7 +3102,7 @@ public:
     std::cout << "  and set the variable <varname>\n";
     std::cout << "-->recverror <errno>\n";
     std::cout << "  Read a message and ensure that it's an error of the expected type\n";
-    std::cout << "-->recvtype <msgtype>\n";
+    std::cout << "-->recvtype <msgtype> [" << CMD_ARG_BE_QUIET << "]\n";
     std::cout << "  Read one message and print it, checking that its type is the specified one\n";
     std::cout << "-->recvuntil <msgtype> [do_not_show_intermediate]\n";
     std::cout << "  Read messages and print them, until a msg of the specified type (or Error) is received\n";

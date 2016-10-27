@@ -19,9 +19,10 @@
 
 #include <stdexcept>
 #include <stdlib.h>
+#include <sstream>
 #include "ngs_common/to_string.h"
 #include "mysqlxtest_error_names.h"
-
+#include "errmsg.h"
 
 namespace mysqlxtest {
 
@@ -35,24 +36,57 @@ static Error_entry global_error_names[] =
   { 0, 0, 0 }
 };
 
-int get_error_code_by_text(const std::string &argument)
-{
-  if ('E' == argument.at(0))
-  {
-    const mysqlxtest::Error_entry* entry = mysqlxtest::get_error_entry_by_name(argument);
+namespace {
 
-    if (NULL == entry)
-    {
-      std::string error_message = "Error name not found: \"";
-      error_message += argument;
-      error_message += "\"";
-      throw std::logic_error(error_message);
+int try_to_interpret_text_as_error_code(const std::string &error_code_in_text_format) {
+  if (error_code_in_text_format.empty())
+    throw std::logic_error("Error text/code is empty");
+
+  for(std::string::size_type i = 0; i < error_code_in_text_format.length(); ++i) {
+    const char element = error_code_in_text_format[i];
+
+    if (!isdigit(element)) {
+      std::stringstream error_message;
+      error_message << "Error text should contain error name or number (only digits) "
+                    << "was expecting digit at position " << i << " but received "
+                    << "'" << element << "'";
+      throw std::logic_error(error_message.str());
+    }
+  }
+
+  const int error_code = ngs::stoi(error_code_in_text_format.c_str());
+
+  if (0 == error_code &&
+      1 == error_code_in_text_format.length())
+    return 0;
+
+  // Ignore client error, we do not have description
+  // for those
+  if (error_code >= CR_ERROR_FIRST &&
+      error_code <= CR_ERROR_LAST)
+    return error_code;
+
+  if (NULL == get_error_entry_by_id(error_code)) {
+    throw std::logic_error("Error code is unknown, got " + ngs::to_string(error_code));
+  }
+
+  return error_code;
+}
+
+} // namespace
+
+int get_error_code_by_text(const std::string &error_name_or_code) {
+  if ('E' == error_name_or_code.at(0)) {
+    const mysqlxtest::Error_entry* entry = mysqlxtest::get_error_entry_by_name(error_name_or_code);
+
+    if (NULL == entry) {
+      throw std::logic_error("Error name not found: \"" + error_name_or_code + "\"");
     }
 
     return entry->error_code;
   }
 
-  return ngs::stoi(argument.c_str());
+  return try_to_interpret_text_as_error_code(error_name_or_code);
 }
 
 const Error_entry *get_error_entry_by_id(const int error_code) {
