@@ -411,6 +411,7 @@ set tmp_table_size=100;
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set global log_warnings=1;
+set sort_buffer_size=default;
 
 #restore the variable, since it introduces a degree of unpredictability
 set global max_allowed_packet        =@my_max_allowed_packet;
