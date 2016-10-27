@@ -70,4 +70,5 @@ debian/extra/test_security_context-plugin
 debian/extra/test_services_plugin_registry-plugin
 debian/extra/validate_password-plugin
 debian/extra/version_token-plugin
+debian/extra/connection_control-plugin
 @DEB_INCLUDE_BINARIES_EXTRA@
