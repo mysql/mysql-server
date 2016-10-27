@@ -1,0 +1,152 @@
+# Skip the test in embedded mode
+--source include/not_embedded.inc
+
+# Make sure that connection_control plugin can be loaded
+--source ../inc/have_connection_control_plugin.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # Connection delay tests for valid user accounts
+
+--echo
+--echo # ----------------------------------------------------------------------
+--echo
+
+--echo # Setup
+--echo # Install connection_control plugin
+--source ../inc/install_connection_control_plugin.inc
+
+--echo # Create user account for testing
+CREATE USER u1 IDENTIFIED BY 'abcd';
+
+--echo # Save original values of connection_control variables
+SET @saved_connections_threshold = @@global.connection_control_failed_connections_threshold;
+SET @saved_max_delay = @@global.connection_control_max_connection_delay;
+SET @saved_min_delay = @@global.connection_control_min_connection_delay;
+
+-- echo # Set small values for connection_control variables
+SET @@global.connection_control_failed_connections_threshold = 3;
+SET @@global.connection_control_max_connection_delay = 4000;
+SET @@global.connection_control_min_connection_delay = 2000;
+
+# We don't need to use client side authentication plugin for this test.
+let $USE_AUTH_PLUGIN= 0;
+
+--echo
+--echo # ----------------------------------------------------------------------
+--echo
+
+--echo # Make enough failed attempts to trigger delays
+
+disable_result_log;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,haha,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,haha,,,,);
+
+enable_result_log;
+
+--echo
+--echo # Following attempts will experience delay in server respose
+
+# Trying with invalid passwords
+
+--source ../inc/set_before_marker.inc
+
+let $USER=u1;
+let $PASSWORD=hoho;
+let $SUCCESS=0;
+let $DELAY_STATS=1;
+--source ../inc/check_connection_delay.inc
+
+let $SERVER_RESPONSE_TIME= 2;
+--source ../inc/set_after_marker.inc
+
+--source ../inc/set_before_marker.inc
+let $USER=u1;
+let $PASSWORD=hoho;
+let $SUCCESS=0;
+let $DELAY_STATS=2;
+--source ../inc/check_connection_delay.inc
+
+let $SERVER_RESPONSE_TIME= 2;
+--source ../inc/set_after_marker.inc
+
+--source ../inc/set_before_marker.inc
+let $USER=u1;
+let $PASSWORD=hoho;
+let $SUCCESS=0;
+let $DELAY_STATS=3;
+--source ../inc/check_connection_delay.inc
+
+let $SERVER_RESPONSE_TIME= 3;
+--source ../inc/set_after_marker.inc
+
+--source ../inc/set_before_marker.inc
+let $USER=u1;
+let $PASSWORD=hoho;
+let $SUCCESS=0;
+let $DELAY_STATS=4;
+--source ../inc/check_connection_delay.inc
+
+let $SERVER_RESPONSE_TIME= 4;
+--source ../inc/set_after_marker.inc
+
+# Trying with valid passwords
+
+--source ../inc/set_before_marker.inc
+let $USER=u1;
+let $PASSWORD=abcd;
+let $SUCCESS=1;
+let $DELAY_STATS=5;
+--source ../inc/check_connection_delay.inc
+
+let $SERVER_RESPONSE_TIME= 4;
+--source ../inc/set_after_marker.inc
+
+--echo
+--echo # Following attempts will not experience any delay in server respose
+
+let $USER=u1;
+let $PASSWORD=hoho;
+let $SUCCESS=0;
+let $DELAY_STATS=5;
+--source ../inc/check_connection_delay.inc
+
+let $USER=u1;
+let $PASSWORD=abcd;
+let $SUCCESS=1;
+let $DELAY_STATS=5;
+--source ../inc/check_connection_delay.inc
+
+--echo
+--echo # ----------------------------------------------------------------------
+--echo
+
+--echo # Cleanup
+
+connection default;
+
+--echo # Restore original values of conenction_control variables
+SET @@global.connection_control_failed_connections_threshold = @saved_connections_threshold;
+SET @@global.connection_control_max_connection_delay = @saved_max_delay;
+SET @@global.connection_control_min_connection_delay = @saved_min_delay;
+
+--echo # Remove user account created for the test
+DROP USER u1;
+
+--echo # Uninstall connection_control plugin
+--source ../inc/uninstall_connection_control_plugin.inc
+
+# Wait till all disconnects are completed.
+--source include/wait_until_count_sessions.inc
+
+--echo
+--echo # ----------------------------------------------------------------------

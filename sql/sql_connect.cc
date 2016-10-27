@@ -448,7 +448,7 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
                global_system_variables.character_set_client->csname);
       return true;
-    }    
+    }
     thd->variables.character_set_client=
       global_system_variables.character_set_client;
     thd->variables.collation_connection=
@@ -744,6 +744,7 @@ bool login_connection(THD *thd)
   my_net_set_write_timeout(net, connect_timeout);
 
   error= check_connection(thd);
+  MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
   thd->protocol->end_statement();
 
   if (error)
@@ -904,7 +905,6 @@ bool thd_prepare_connection(THD *thd)
   bool rc;
   lex_start(thd);
   rc= login_connection(thd);
-  MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
   if (rc)
     return rc;
 
