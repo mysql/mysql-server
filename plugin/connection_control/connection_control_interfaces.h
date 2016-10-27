@@ -35,6 +35,7 @@ namespace connection_control
   {
   public:
     virtual void handle_error(const char * error_message)= 0;
+    virtual ~Error_handler() {}
   };
 
   /**
