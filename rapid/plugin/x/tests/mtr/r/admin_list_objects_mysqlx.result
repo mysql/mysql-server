@@ -65,6 +65,33 @@ command ok
 name	type
 processlist	VIEW
 command ok
+
+Collection with index
+---------------------
+
+command ok
+
+command ok
+name	type
+fruit	COLLECTION
+command ok
+
+Removing `_id` from collection
+------------------------------
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+name	type
+fruit	TABLE
+command ok
+
+Removing `_id` and index from collection
+----------------------------------------
+
+command ok
+name	type
+fruit	TABLE
+command ok
 Mysqlx.Ok {
   msg: "bye!"
 }
