@@ -1858,19 +1858,13 @@ longlong Item_func_json_length::val_int()
 
 longlong Item_func_json_depth::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
-  longlong result= 0;
-
+  DBUG_ASSERT(fixed);
   Json_wrapper wrapper;
 
   try
   {
-    if (get_json_wrapper(args, 0, &m_doc_value, func_name(), &wrapper) ||
-        args[0]->null_value)
-    {
-      null_value= true;
-      return 0;
-    }
+    if (get_json_wrapper(args, 0, &m_doc_value, func_name(), &wrapper))
+      return error_int();
   }
   catch (...)
   {
@@ -1880,10 +1874,11 @@ longlong Item_func_json_depth::val_int()
     /* purecov: end */
   }
 
-  result= wrapper.depth(current_thd);
+  null_value= args[0]->null_value;
+  if (null_value)
+    return 0;
 
-  null_value= false;
-  return result;
+  return wrapper.depth(current_thd);
 }
 
 
