@@ -171,6 +171,49 @@ bool get_default_db_collation(THD *thd,
 
 
 /**
+  Auxiliary function which writes CREATE/ALTER or DROP DATABASE statement
+  to the binary log overriding connection's current database with one
+  being dropped.
+*/
+
+static bool write_db_cmd_to_binlog(THD *thd, const char *db)
+{
+  if (mysql_bin_log.is_open())
+  {
+    int errcode= query_error_code(thd, TRUE);
+    Query_log_event qinfo(thd, thd->query().str, thd->query().length,
+                          true /* transactional cache */, false,
+                          /* suppress_use */ true, errcode);
+    /*
+      Write should use the database being created/altered or dropped
+      as the "current database" and not the threads current database,
+      which is the default. If we do not change the "current database"
+      to the database being created/dropped, the CREATE/DROP statement
+      will not be replicated when using --binlog-do-db to select
+      databases to be replicated.
+
+      An example (--binlog-do-db=sisyfos):
+
+      CREATE DATABASE bob;        # Not replicated
+      USE bob;                    # 'bob' is the current database
+      CREATE DATABASE sisyfos;    # Not replicated since 'bob' is
+                                  # current database.
+      USE sisyfos;                # Will give error on slave since
+                                  # database does not exist.
+    */
+    qinfo.db= db;
+    qinfo.db_len= strlen(db);
+
+    thd->add_to_binlog_accessed_dbs(db);
+
+    return mysql_bin_log.write_event(&qinfo);
+  }
+
+  return false;
+}
+
+
+/**
   Create a database
 
   @param thd		Thread handler
@@ -286,41 +329,11 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB, thd->query().str,
                       thd->query().length, db, "");
 
-  if (mysql_bin_log.is_open())
+  if (write_db_cmd_to_binlog(thd, db))
   {
-    int errcode= query_error_code(thd, TRUE);
-    Query_log_event qinfo(thd, thd->query().str, thd->query().length,
-                          false, true, /* suppress_use */ true, errcode);
-
-    /*
-      Write should use the database being created as the "current
-      database" and not the threads current database, which is the
-      default. If we do not change the "current database" to the
-      database being created, the CREATE statement will not be
-      replicated when using --binlog-do-db to select databases to be
-      replicated.
-
-      An example (--binlog-do-db=sisyfos):
-
-      CREATE DATABASE bob;        # Not replicated
-      USE bob;                    # 'bob' is the current database
-      CREATE DATABASE sisyfos;    # Not replicated since 'bob' is
-                                  # current database.
-      USE sisyfos;                # Will give error on slave since
-                                  # database does not exist.
-      */
-    qinfo.db     = db;
-    qinfo.db_len = strlen(db);
-    thd->add_to_binlog_accessed_dbs(db);
-    /*
-      These DDL methods and logging are protected with the exclusive
-      metadata lock on the schema
-    */
-    if (mysql_bin_log.write_event(&qinfo))
-    {
+    if (!schema_exists)
       rm_dir_w_symlink(path, true);
-      DBUG_RETURN(true);
-    }
+    DBUG_RETURN(true);
   }
 
   /*
@@ -348,10 +361,25 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
         database operation. Even if the call fails due to some
         other error we ignore the error as we anyway return
         failure (true) here.
+
+        We rely on called to do rollback in case of error and thus
+        revert change to the binary log.
       */
-      rm_dir_w_symlink(path, true);
+      if (!schema_exists)
+        rm_dir_w_symlink(path, true);
       DBUG_RETURN(true);
     }
+  }
+
+  /*
+    Do commit locally instead of relying on caller in order to be
+    able to remove directory in case of failure.
+  */
+  if (trans_commit_stmt(thd) || trans_commit(thd))
+  {
+    if (!schema_exists)
+      rm_dir_w_symlink(path, true);
+    DBUG_RETURN(true);
   }
 
   my_ok(thd, 1);
@@ -379,18 +407,29 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if (!create_info->default_table_charset)
     create_info->default_table_charset= thd->variables.collation_server;
 
-  /*
-    Do the change in the dd first to catch failures that should prevent
-    writing binlog.
-  */
+  // We rely on the caller to rollback transaction in case of error.
   if (dd::alter_schema(thd, db, create_info->default_table_charset))
   {
     // The error has been reported already.
     DBUG_RETURN(true);
   }
 
-  /* Change options if current database is being altered. */
+  ha_binlog_log_query(thd, 0, LOGCOM_ALTER_DB,
+                      thd->query().str, thd->query().length,
+                      db, "");
 
+  if (write_db_cmd_to_binlog(thd, db))
+    DBUG_RETURN(true);
+
+  /*
+    Commit the statement locally instead of relying on caller,
+    in order to be sure that it is  successfull, before changing
+    options of current database.
+  */
+  if (trans_commit_stmt(thd) || trans_commit(thd))
+    DBUG_RETURN(true);
+
+  /* Change options if current database is being altered. */
   if (thd->db().str && !strcmp(thd->db().str,db))
   {
     thd->db_charset= create_info->default_table_charset ?
@@ -399,61 +438,8 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     thd->variables.collation_database= thd->db_charset;
   }
 
-  ha_binlog_log_query(thd, 0, LOGCOM_ALTER_DB,
-                      thd->query().str, thd->query().length,
-                      db, "");
-
-  if (mysql_bin_log.is_open())
-  {
-    int errcode= query_error_code(thd, TRUE);
-    Query_log_event qinfo(thd, thd->query().str, thd->query().length,
-                          false, true, /* suppress_use */ true, errcode);
-    /*
-      Write should use the database being created as the "current
-      database" and not the threads current database, which is the
-      default.
-    */
-    qinfo.db     = db;
-    qinfo.db_len = strlen(db);
-
-    /*
-      These DDL methods and logging are protected with the exclusive
-      metadata lock on the schema.
-    */
-    if (mysql_bin_log.write_event(&qinfo))
-      DBUG_RETURN(true);
-  }
-
   my_ok(thd, 1);
   DBUG_RETURN(false);
-}
-
-
-/**
-  Auxiliary function which writes DROP DATABASE statement to binary log
-  overriding connection's current database with one being dropped.
-*/
-
-static bool write_rm_db_to_binlog(THD *thd, const LEX_CSTRING &db)
-{
-  if (mysql_bin_log.is_open())
-  {
-    int errcode= query_error_code(thd, TRUE);
-    Query_log_event qinfo(thd, thd->query().str, thd->query().length,
-                          true /* transactional cache */, false,
-                          /* suppress_use */ true, errcode);
-    /*
-      Write should use the database being dropped as the "current
-      database" and not the threads current database, which is the
-      default.
-    */
-    qinfo.db= db.str;
-    qinfo.db_len= db.length;
-
-    return mysql_bin_log.write_event(&qinfo);
-  }
-
-  return false;
 }
 
 
@@ -523,7 +509,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       push_warning_printf(thd, Sql_condition::SL_NOTE,
 			  ER_DB_DROP_EXISTS,
                           ER_THD(thd, ER_DB_DROP_EXISTS), db.str);
-      if (write_rm_db_to_binlog(thd, db))
+      if (write_db_cmd_to_binlog(thd, db.str))
         DBUG_RETURN(true);
 
       if (trans_commit_stmt(thd) ||  trans_commit_implicit(thd))
@@ -635,11 +621,13 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     write statement to binary log and remove DD entry.
   */
   if (!error)
-    error= write_rm_db_to_binlog(thd, db);
+    error= write_db_cmd_to_binlog(thd, db.str);
 
-  // Call to dd::drop_schema() implicitly commits transaction.
   if (!error)
     error= dd::drop_schema(thd, db.str);
+
+  if (!error)
+    error= trans_commit_stmt(thd) || trans_commit(thd);
 
   /*
     In case of error rollback the transaction in order to revert
@@ -650,7 +638,14 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   thd->skip_gtid_rollback= true;
 #endif
   if (error)
+  {
     trans_rollback_stmt(thd);
+    /*
+      Play safe to be sure that THD::transaction_rollback_request is
+      cleared before work-around code below is run.
+    */
+    trans_rollback_implicit(thd);
+  }
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
   thd->skip_gtid_rollback= false;
 #endif

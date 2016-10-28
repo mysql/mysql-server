@@ -88,15 +88,9 @@ bool create_schema(THD *thd, const char *schema_name,
 
   // Store the schema. Error will be reported by the dictionary subsystem.
   if (thd->dd_client()->store(wrapped_sch_obj.get()))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
     return true;
-  }
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  return false;
 }
 
 
@@ -131,15 +125,9 @@ bool alter_schema(THD *thd, const char *schema_name,
 
   // Update schema.
   if (client->update(&sch_obj, new_sch_obj.get()))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
     return true;
-  }
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  return false;
 }
 
 
@@ -172,15 +160,9 @@ bool drop_schema(THD *thd, const char *schema_name)
 
   // Drop the schema.
   if (client->drop(sch_obj))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
     return true;
-  }
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  return false;
 }
 
 
