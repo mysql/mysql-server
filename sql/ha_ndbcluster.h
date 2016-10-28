@@ -226,7 +226,6 @@ public:
   const char * table_type() const;
   ulonglong table_flags(void) const;
   ulong index_flags(uint idx, uint part, bool all_parts) const;
-  virtual const Key_map *keys_to_use_for_scanning() { return &btree_keys; }
   bool primary_key_is_clustered() const;
   uint max_supported_record_length() const;
   uint max_supported_keys() const;
