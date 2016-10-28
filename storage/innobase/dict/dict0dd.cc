@@ -38,26 +38,6 @@ Data dictionary interface */
 #include "sql_table.h"
 #include "sql_base.h"
 
-#if 0
-/* Get the "parent table" name for a partition table
-@param[in,out]	part_name partition name */
-static
-void
-dd_part_get_parent_tbl_name(
-	char*	part_name)
-{
-	char*	is_part = NULL;
-#ifdef _WIN32
-	is_part = strstr(part_name, "#p#");
-#else
-	is_part = strstr(part_name, "#P#");
-#endif /* _WIN32 */
-	if (is_part) {
-		*is_part = '\0';
-	}
-}
-#endif
-
 /** Returns a table object based on table id.
 @param[in]	table_id	table id
 @param[in]	dict_locked	TRUE=data dictionary locked
@@ -260,7 +240,12 @@ dd_table_open_on_dd_obj(
 		char	tbl_buf[NAME_LEN + 1];
 
 		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf);
-		ut_ad(strcmp(dd_table.name().c_str(), tbl_buf) == 0);
+		if (dd_part == NULL) {
+			ut_ad(strcmp(dd_table.name().c_str(), tbl_buf) == 0);
+		} else {
+			ut_ad(strncmp(dd_table.name().c_str(), tbl_buf,
+				      dd_table.name().size()) == 0);
+		}
 		ut_ad(skip_mdl
 		      || dd_mdl_verify(thd, db_buf, tbl_buf));
 	}	
