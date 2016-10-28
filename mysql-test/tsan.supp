@@ -1,0 +1,20 @@
+#
+# Blacklist for Thread Sanitizer.
+# Thread Sanitizer can be enabled with -DWITH_TSAN=1
+#
+# Suppression syntax is documented here:
+# https://github.com/google/sanitizers/wiki/ThreadSanitizerSuppressions
+#
+
+race:pthread_barrier
+
+race:innobase
+
+race:aggregate_thread_stats
+race:copy_events_waits
+race:lf_pinbox_put_pins
+race:PFS_buffer_default_allocator
+race:PFS_buffer_scalable_container
+race:PFS_single_stat::aggregate
+
+deadlock:plugin_thdvar_init

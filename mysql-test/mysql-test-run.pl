@@ -4131,6 +4131,9 @@ sub mysql_install_db {
   mtr_tofile($bootstrap_sql_file,
              sql_to_bootstrap(mtr_grab_file("include/mtr_check.sql")));
 
+  # Set blacklist option early so it works during bootstrap
+  $ENV{'TSAN_OPTIONS'}= "suppressions=$basedir/mysql-test/tsan.supp" if $opt_sanitize;
+
   if ( $opt_manual_boot_gdb )
   {
     # The configuration has been set up and user has been prompted for
@@ -7289,6 +7292,8 @@ sub valgrind_exit_reports() {
       $found_report= 1 if $line =~ /^==\d+==ERROR:.*/;
       # Various UBSAN runtime errors
       $found_report= 1 if $line =~ /.*runtime error: .*/;
+      # TSAN errors
+      $found_report= 1 if $line =~ /^WARNING: ThreadSanitizer: .*/;
 
       if ($ignore_report && $found_report) {
         $ignore_report= 0;
@@ -7304,6 +7309,7 @@ sub valgrind_exit_reports() {
         $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
         $err_in_report= 1 if $line =~ /still reachable: [1-9]/;
 	$err_in_report= 1 if $line =~ /.*runtime error: .*/;
+        $err_in_report= 1 if $line =~ /^WARNING: ThreadSanitizer: .*/;
       }
     }
 
