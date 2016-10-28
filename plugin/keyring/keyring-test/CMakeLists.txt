@@ -20,6 +20,7 @@ ADD_EXECUTABLE(keyring-test
                ../common/keyring_impl.cc
                ../buffered_file_io.cc
                ../hash_to_buffer_serializer.cc
-               ../buffer.cc)
+               ../buffer.cc
+               ../file_io.cc)
 TARGET_LINK_LIBRARIES(keyring-test strings dbug regex mysys sql)
 TARGET_LINK_LIBRARIES(keyring-test binlog rpl master slave)
