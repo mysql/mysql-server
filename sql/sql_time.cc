@@ -1604,6 +1604,7 @@ bool my_time_truncate(MYSQL_TIME *ltime, uint dec)
 
   @param [in,out]  ltime    The value to truncate.
   @param           dec      Precision.
+  @param [in,out]  warnings Warning flag vector.
   @return                   False on success, true on error.
 */
 bool my_datetime_truncate(MYSQL_TIME *ltime, uint dec, int *warnings)
@@ -1645,6 +1646,7 @@ bool my_time_adjust_frac(MYSQL_TIME *ltime, uint dec,
 
   @param [in,out]  ltime    The value to round.
   @param           dec      Precision.
+  @param [in,out]  warnings Warning flag vector
   @param           truncate Decides whether fractional part of seconds will be
                             truncated/rounded.
   @return                   False on success, true on error.
@@ -1665,8 +1667,8 @@ bool my_datetime_adjust_frac(MYSQL_TIME *ltime, uint dec, int *warnings,
 /**
   Round timeval value to the given precision.
 
-  @param [in,out]  ts       The value to round.
-  @param           dec      Precision.
+  @param [in,out]  tv       The value to round.
+  @param           decimals Precision.
   @return                   False on success, true on error.
 */
 bool my_timeval_round(struct timeval *tv, uint decimals)
