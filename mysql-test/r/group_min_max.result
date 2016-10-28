@@ -2182,12 +2182,12 @@ concat(ord(min(b)),ord(max(b)))	min(b)	max(b)
 9798	a	b
 explain select a1,a2,b,d,min(c),max(c) from t1 group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	idx_t1_1,idx_t1_2	NULL	NULL	NULL	128	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`d` AS `d`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain select a1,a2,b,d from t1 group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	idx_t1_1,idx_t1_2	NULL	NULL	NULL	128	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`d` AS `d` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain extended select a1,a2,min(b),max(b) from t1
@@ -2200,14 +2200,14 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2
 explain extended select a1,a2,b,min(c),max(c) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	idx_t1_0,idx_t1_1,idx_t1_2	NULL	NULL	NULL	128	11.02	Using where; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	11.02	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (((`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd') or (`test`.`t1`.`a1` = 'a') or (`test`.`t1`.`a1` = 'c')) and (`test`.`t1`.`a2` > 'a') and (`test`.`t1`.`d` > 'xy2')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain extended select a1,a2,b,c from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b,c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	idx_t1_0,idx_t1_1,idx_t1_2	NULL	NULL	NULL	128	11.02	Using where; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	11.02	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd') or (`test`.`t1`.`a1` = 'a') or (`test`.`t1`.`a1` = 'c')) and (`test`.`t1`.`a2` > 'a') and (`test`.`t1`.`d` > 'xy2')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`,`test`.`t1`.`c`
@@ -2243,7 +2243,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`c` > 'a000') and (`test`.`t2`.`c` <= 'd999') and (`test`.`t2`.`c` like '_8__')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain select a1, a2, b, c, min(d), max(d) from t1 group by a1,a2,b,c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	idx_t1_1	NULL	NULL	NULL	128	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	idx_t1_1	idx_t1_1	163	NULL	128	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,min(`test`.`t1`.`d`) AS `min(d)`,max(`test`.`t1`.`d`) AS `max(d)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`,`test`.`t1`.`c`
 explain select a1,a2,count(a2) from t1 group by a1,a2,b;

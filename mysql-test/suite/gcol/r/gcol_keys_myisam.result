@@ -539,7 +539,7 @@ f1 + 1	MAX(GC)
 10	10
 EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` group by `test`.`t1`.`gc`
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -671,10 +671,11 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
               "clause": "GROUP BY",
               "index_order_summary": {
                 "table": "`t1`",
-                "index_provides_order": false,
-                "order_direction": "undefined",
-                "index": "unknown",
-                "plan_changed": false
+                "index_provides_order": true,
+                "order_direction": "asc",
+                "index": "PRIMARY",
+                "plan_changed": true,
+                "access_type": "index"
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
           },

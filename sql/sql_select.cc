@@ -4706,7 +4706,6 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   if (join)
     ASSERT_BEST_REF_IN_JOIN_ORDER(join);
   uint nr;
-  Key_map keys;
   uint best_key_parts= 0;
   int best_key_direction= 0;
   ha_rows best_records= 0;
@@ -4719,29 +4718,6 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   double refkey_rows_estimate= static_cast<double>(table->quick_condition_rows);
   const bool has_limit= (select_limit != HA_POS_ERROR);
   const join_type cur_access_method= tab ? tab->type() : JT_ALL;
-
-  /*
-    If not used with LIMIT, only use keys if the whole query can be
-    resolved with a key;  This is because filesort() is usually faster than
-    retrieving all rows through an index.
-  */
-  if (select_limit >= table_records)
-  {
-    keys= *table->file->keys_to_use_for_scanning();
-    keys.merge(table->covering_keys);
-
-    /*
-      We are adding here also the index specified in FORCE INDEX clause, 
-      if any.
-      This is to allow users to use index in ORDER BY.
-    */
-    if (table->force_index) 
-      keys.merge(group ? table->keys_in_use_for_group_by :
-                         table->keys_in_use_for_order_by);
-    keys.intersect(usable_keys);
-  }
-  else
-    keys= usable_keys;
 
   if (join)
   {
@@ -4780,7 +4756,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
     int direction;
     uint used_key_parts;
 
-    if (keys.is_set(nr) &&
+    if (usable_keys.is_set(nr) &&
         (direction= test_if_order_by_key(order, table, nr, &used_key_parts)))
     {
       /*
