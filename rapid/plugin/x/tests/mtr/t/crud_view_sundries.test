@@ -36,6 +36,7 @@ Mysqlx.Crud.CreateView {
   }
 }
 -->recvuntil Mysqlx.Ok
+
 -->sql
 SHOW CREATE VIEW xtest.view_c;
 -->endsql
@@ -53,7 +54,7 @@ Mysqlx.Crud.ModifyView {
     }
   }
 }
--->recverror 1368
+-->recverror ER_VIEW_NONUPD_CHECK
 
 
 -->title -Run select query on view.
@@ -87,7 +88,7 @@ Mysqlx.Crud.Find {
   collection { name: "view_d" schema: "xtest"}
   data_model: DOCUMENT
 }
--->recverror 1356
+-->recverror ER_VIEW_INVALID
 
 
 -->title -Error on create view for non privilege user
@@ -99,7 +100,7 @@ Mysqlx.Crud.CreateView {
     data_model: TABLE
   }
 }
--->recverror 1142
+-->recverror ER_TABLEACCESS_DENIED_ERROR
 -->closesession
 
 

@@ -23,6 +23,9 @@ namespace xpl {
 
 template <typename M>
 void View_statement_builder::build_common(const M &msg) const {
+  if (!msg.has_stmt())
+    throw ngs::Error_code(ER_X_INVALID_ARGUMENT, "The field that defines the select statement is required");
+
   if (msg.has_algorithm()) add_algorithm(msg.algorithm());
   if (msg.has_definer()) add_definer(msg.definer());
   if (msg.has_security()) add_sql_security(msg.security());

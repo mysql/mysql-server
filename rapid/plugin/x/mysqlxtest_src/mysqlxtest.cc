@@ -1052,18 +1052,20 @@ private:
     if (msg.get())
     {
       bool failed = false;
-      if (msg->GetDescriptor()->full_name() != "Mysqlx.Error" ||
-          (uint32_t)ngs::stoi(args) != static_cast<Mysqlx::Error*>(msg.get())->code())
-      {
-        std::cout << error() << "Was expecting Error " << args <<", but got:" << eoerr();
-        failed = true;
-      }
-      else
-      {
-        std::cout << "Got expected error:\n";
-      }
       try
       {
+        const int expected_error_code = mysqlxtest::get_error_code_by_text(args);
+        if (msg->GetDescriptor()->full_name() != "Mysqlx.Error" ||
+            expected_error_code != (int)static_cast<Mysqlx::Error*>(msg.get())->code())
+        {
+          std::cout << error() << "Was expecting Error " << args <<", but got:" << eoerr();
+          failed = true;
+        }
+        else
+        {
+          std::cout << "Got expected error:\n";
+        }
+
         std::cout << message_to_text(*msg) << "\n";
         if (failed && OPT_fatal_errors)
           return Stop_with_success;
