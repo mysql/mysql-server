@@ -261,7 +261,7 @@ message ModifyView {
   optional ViewCheckOption check = 5;
 
   repeated string column = 6;
-  required Find stmt = 7;
+  optional Find stmt = 7;
 }
 
 

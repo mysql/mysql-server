@@ -28,6 +28,12 @@ SHOW CREATE VIEW xtest.xview
 -->endsql
 -->endmacro
 
+-->title -Modify view (missing stmt)
+Mysqlx.Crud.ModifyView {
+  collection { name: "xview" schema: "xtest" }
+  algorithm: TEMPTABLE
+}
+-->recverror ER_X_INVALID_ARGUMENT
 
 -->title -Modify view (stmt)
 -->callmacro Modify_view	second	doc	#	Mysqlx.Ok
@@ -83,7 +89,7 @@ SHOW CREATE VIEW xtest.xview;
 --exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
 
 --let $assert_text= Global status of 'Mysqlx_crud_modify_view'
---let $assert_cond= [SHOW GLOBAL STATUS LIKE \'Mysqlx_crud_modify_view\', Value, 1] = 10
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE \'Mysqlx_crud_modify_view\', Value, 1] = 11
 --source include/assert.inc
 
 
