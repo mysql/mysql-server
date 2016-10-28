@@ -2449,7 +2449,10 @@ srv_pre_dd_shutdown()
 
 	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
 	srv_purge_wakeup();
-	os_event_set(dict_stats_event);
+
+	if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
+		os_event_set(dict_stats_event);
+	}
 
 	for (ulint count = 1;;) {
 		bool	wait = srv_purge_threads_active();
@@ -2490,6 +2493,10 @@ srv_pre_dd_shutdown()
 
 		count++;
 		os_thread_sleep(100000);
+	}
+
+	if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
+		dict_stats_thread_deinit();
 	}
 
 	ut_d(srv_is_being_shutdown = true);
@@ -2536,10 +2543,6 @@ srv_shutdown()
 		fclose(srv_misc_tmpfile);
 		srv_misc_tmpfile = 0;
 		mutex_free(&srv_misc_tmpfile_mutex);
-	}
-
-	if (!srv_read_only_mode) {
-		dict_stats_thread_deinit();
 	}
 
 	/* This must be disabled before closing the buffer pool
