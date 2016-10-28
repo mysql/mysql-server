@@ -9,6 +9,17 @@ SHOW CREATE VIEW xtest.xview;
 View	Create View	character_set_client	collation_connection
 xview	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`first` AS `first` from `xtest`.`xtable`	latin1	latin1_swedish_ci
 
+Modify view (missing stmt)
+--------------------------
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5012
+  msg: "The field that defines the select statement is required"
+  sql_state: "HY000"
+}
+
+
 Modify view (stmt)
 ------------------
 Mysqlx.Ok {
@@ -103,7 +114,7 @@ View	Create View	character_set_client	collation_connection
 xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `third` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 Variable_name	Value
-Mysqlx_crud_modify_view	10
+Mysqlx_crud_modify_view	11
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
