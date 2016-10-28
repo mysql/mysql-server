@@ -126,7 +126,6 @@ dd_table_open_on_id_in_mem(
         return(table);
 }
 
-
 /** Acquire a metadata lock.
 @param[in,out]	thd	current thread
 @param[out]	mdl	metadata lock
@@ -142,7 +141,7 @@ dd_mdl_acquire(
 	const char*		db,
 	char*			table)
 {
-	bool	ret;
+	bool	ret = false;
 
 	/* If InnoDB acquires MDL lock on partition table, it always
 	acquires on its parent table name */
@@ -162,8 +161,47 @@ dd_mdl_acquire(
 	if (is_part) {
 		*is_part = '?';
 	}
+
 	return(ret);
 }
+
+/** Verify a metadata lock.
+@param[in,out]	thd	current thread
+@param[in]	db	schema name
+@param[in]	table	table name
+@retval	false if acquired
+@retval	true if lock is there */
+static
+bool
+dd_mdl_verify(
+	THD*			thd,
+	const char*		db,
+	char*			table)
+{
+	bool	ret = false;
+
+	/* If InnoDB acquires MDL lock on partition table, it always
+	acquires on its parent table name */
+	char*   is_part = NULL;
+#ifdef _WIN32
+                is_part = strstr(table, "?p?");
+#else
+                is_part = strstr(table, "?P?");
+#endif /* _WIN32 */
+
+	if (is_part) {
+		*is_part ='\0';
+	}
+
+	ret = dd::has_shared_table_mdl(thd, db, table);
+
+	if (is_part) {
+		*is_part = '?';
+	}
+
+	return(ret);
+}
+
 
 /** Release a metadata lock.
 @param[in,out]	thd	current thread
@@ -224,7 +262,7 @@ dd_table_open_on_dd_obj(
 		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf);
 		ut_ad(strcmp(dd_table.name().c_str(), tbl_buf) == 0);
 		ut_ad(skip_mdl
-		      || dd::has_shared_table_mdl(thd, db_buf, tbl_buf));
+		      || dd_mdl_verify(thd, db_buf, tbl_buf));
 	}	
 #endif /* UNIV_DEBUG */
 
@@ -377,7 +415,7 @@ dd_table_open_on_id_low(
 
 	if (tbl_name) {
 		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf);
-		ut_ad(dd::has_shared_table_mdl(thd, db_buf, tbl_buf));
+		ut_ad(dd_mdl_verify(thd, db_buf, tbl_buf));
 	}
 #endif /* UNIV_DEBUG */
 
