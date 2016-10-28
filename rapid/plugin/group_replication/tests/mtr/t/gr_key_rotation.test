@@ -17,8 +17,8 @@
 # 3. Clean Up.
 ###############################################################################
 
---let plugins = KEYRING_PLUGIN,GROUP_REPLICATION
---source include/check_plugin_dir.inc
+#--let plugins = KEYRING_PLUGIN,GROUP_REPLICATION
+#--source include/check_plugin_dir.inc
 
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -28,6 +28,7 @@ set sql_log_bin=0;
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Error while loading keyring content*");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*/keyring' not found .*");
 set sql_log_bin=1;
 
 # Scenario 1
@@ -37,8 +38,10 @@ set sql_log_bin=1;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 # Install keyring plugin on server1
+--disable_warnings
 --replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN'
+--enable_warnings
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --eval SET @@global.keyring_file_data='$MYSQL_TMP_DIR/keyring_server1/keyring_server1'
 --query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file'
@@ -74,6 +77,7 @@ call mtr.add_suppression("\\[Error\\] Plugin group_replication reported: 'The se
 call mtr.add_suppression("\\[Warning\\] Plugin group_replication reported: 'Skipping leave operation:*");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Error while loading keyring content*");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*/keyring' not found .*");
 call mtr.add_suppression("\\[Error\\] Plugin group_replication reported: 'Message received while the plugin is not ready, message discarded'*");
 set sql_log_bin=1;
 
@@ -82,8 +86,10 @@ set sql_log_bin=1;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 # Install keyring plugin on server2
+--disable_warnings
 --replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN'
+--enable_warnings
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --eval SET @@global.keyring_file_data='$MYSQL_TMP_DIR/keyring_server2/keyring_server2'
 --query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file'
@@ -138,8 +144,10 @@ SELECT * FROM t3;
 --source include/stop_group_replication.inc
 
 # Install plugin on server2 and start GR
+--disable_warnings
 --replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN'
+--enable_warnings
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --eval SET @@global.keyring_file_data='$MYSQL_TMP_DIR/keyring_server2/keyring_server2'
 --query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file'
