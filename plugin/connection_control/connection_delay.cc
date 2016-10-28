@@ -850,7 +850,7 @@ namespace connection_control
           char buff[1024];
           String *res;
           String filter(buff, sizeof(buff), system_charset_info);
-          if (eq_func->arguments()[2] != NULL &&
+          if (eq_func->arguments()[1] != NULL &&
             (res= eq_func->arguments()[1]->val_str(&filter)))
           {
             eq_arg->append(res->c_ptr_safe(), res->length());
