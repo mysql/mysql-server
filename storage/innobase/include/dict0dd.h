@@ -238,8 +238,8 @@ thd_to_innodb_session(
 
 /** Parse a table name
 @param[in]	tbl_name	table name including database and table name
-@param[in,out]	db_buf		database name buffer to be filled
-@param[in,out]	tbl_buf		table name buffer to be filled */
+@param[in,out]	dd_db_name	database name buffer to be filled
+@param[in,out]	dd_tbl_name	table name buffer to be filled */
 UNIV_INLINE
 void
 innobase_parse_tbl_name(

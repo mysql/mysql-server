@@ -38,6 +38,26 @@ Data dictionary interface */
 #include "sql_table.h"
 #include "sql_base.h"
 
+#if 0
+/* Get the "parent table" name for a partition table
+@param[in,out]	part_name partition name */
+static
+void
+dd_part_get_parent_tbl_name(
+	char*	part_name)
+{
+	char*	is_part = NULL;
+#ifdef _WIN32
+	is_part = strstr(part_name, "#p#");
+#else
+	is_part = strstr(part_name, "#P#");
+#endif /* _WIN32 */
+	if (is_part) {
+		*is_part = '\0';
+	}
+}
+#endif
+
 /** Returns a table object based on table id.
 @param[in]	table_id	table id
 @param[in]	dict_locked	TRUE=data dictionary locked
@@ -120,9 +140,29 @@ dd_mdl_acquire(
 	THD*			thd,
 	MDL_ticket**		mdl,
 	const char*		db,
-	const char*		table)
+	char*			table)
 {
-	return(dd::acquire_shared_table_mdl(thd, db, table, false, mdl));
+	bool	ret;
+
+	/* If InnoDB acquires MDL lock on partition table, it always
+	acquires on its parent table name */
+	char*   is_part = NULL;
+#ifdef _WIN32
+                is_part = strstr(table, "?p?");
+#else
+                is_part = strstr(table, "?P?");
+#endif /* _WIN32 */
+
+	if (is_part) {
+		*is_part ='\0';
+	}
+
+	ret = dd::acquire_shared_table_mdl(thd, db, table, false, mdl);
+
+	if (is_part) {
+		*is_part = '?';
+	}
+	return(ret);
 }
 
 /** Release a metadata lock.
@@ -391,7 +431,8 @@ dd_table_open_on_id_low(
 
 			if (*mdl == nullptr && dd_mdl_acquire(
 				    thd, mdl,
-				    schema.c_str(), tablename.c_str())) {
+				    schema.c_str(),
+				    const_cast<char*>(tablename.c_str()))) {
 				return(nullptr);
 			}
 
