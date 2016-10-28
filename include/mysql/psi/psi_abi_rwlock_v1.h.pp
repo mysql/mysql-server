@@ -20,23 +20,23 @@ struct PSI_rwlock;
 typedef struct PSI_rwlock PSI_rwlock;
 struct PSI_rwlock_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_rwlock_bootstrap PSI_rwlock_bootstrap;
 struct PSI_rwlock_locker;
 typedef struct PSI_rwlock_locker PSI_rwlock_locker;
 enum PSI_rwlock_operation
 {
-  PSI_RWLOCK_READLOCK= 0,
-  PSI_RWLOCK_WRITELOCK= 1,
-  PSI_RWLOCK_TRYREADLOCK= 2,
-  PSI_RWLOCK_TRYWRITELOCK= 3,
-  PSI_RWLOCK_SHAREDLOCK= 4,
-  PSI_RWLOCK_SHAREDEXCLUSIVELOCK= 5,
-  PSI_RWLOCK_EXCLUSIVELOCK= 6,
-  PSI_RWLOCK_TRYSHAREDLOCK= 7,
-  PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK= 8,
-  PSI_RWLOCK_TRYEXCLUSIVELOCK= 9
+  PSI_RWLOCK_READLOCK = 0,
+  PSI_RWLOCK_WRITELOCK = 1,
+  PSI_RWLOCK_TRYREADLOCK = 2,
+  PSI_RWLOCK_TRYWRITELOCK = 3,
+  PSI_RWLOCK_SHAREDLOCK = 4,
+  PSI_RWLOCK_SHAREDEXCLUSIVELOCK = 5,
+  PSI_RWLOCK_EXCLUSIVELOCK = 6,
+  PSI_RWLOCK_TRYSHAREDLOCK = 7,
+  PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK = 8,
+  PSI_RWLOCK_TRYEXCLUSIVELOCK = 9
 };
 typedef enum PSI_rwlock_operation PSI_rwlock_operation;
 struct PSI_rwlock_info_v1
@@ -57,27 +57,29 @@ struct PSI_rwlock_locker_state_v1
   void *m_wait;
 };
 typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state_v1;
-typedef void (*register_rwlock_v1_t)
-  (const char *category, struct PSI_rwlock_info_v1 *info, int count);
-typedef struct PSI_rwlock* (*init_rwlock_v1_t)
-  (PSI_rwlock_key key, const void *identity);
+typedef void (*register_rwlock_v1_t)(const char *category,
+                                     struct PSI_rwlock_info_v1 *info,
+                                     int count);
+typedef struct PSI_rwlock *(*init_rwlock_v1_t)(PSI_rwlock_key key,
+                                               const void *identity);
 typedef void (*destroy_rwlock_v1_t)(struct PSI_rwlock *rwlock);
-typedef struct PSI_rwlock_locker* (*start_rwlock_rdwait_v1_t)
-  (struct PSI_rwlock_locker_state_v1 *state,
-   struct PSI_rwlock *rwlock,
-   enum PSI_rwlock_operation op,
-   const char *src_file, uint src_line);
-typedef void (*end_rwlock_rdwait_v1_t)
-  (struct PSI_rwlock_locker *locker, int rc);
-typedef struct PSI_rwlock_locker* (*start_rwlock_wrwait_v1_t)
-  (struct PSI_rwlock_locker_state_v1 *state,
-   struct PSI_rwlock *rwlock,
-   enum PSI_rwlock_operation op,
-   const char *src_file, uint src_line);
-typedef void (*end_rwlock_wrwait_v1_t)
-  (struct PSI_rwlock_locker *locker, int rc);
-typedef void (*unlock_rwlock_v1_t)
-  (struct PSI_rwlock *rwlock);
+typedef struct PSI_rwlock_locker *(*start_rwlock_rdwait_v1_t)(
+  struct PSI_rwlock_locker_state_v1 *state,
+  struct PSI_rwlock *rwlock,
+  enum PSI_rwlock_operation op,
+  const char *src_file,
+  uint src_line);
+typedef void (*end_rwlock_rdwait_v1_t)(struct PSI_rwlock_locker *locker,
+                                       int rc);
+typedef struct PSI_rwlock_locker *(*start_rwlock_wrwait_v1_t)(
+  struct PSI_rwlock_locker_state_v1 *state,
+  struct PSI_rwlock *rwlock,
+  enum PSI_rwlock_operation op,
+  const char *src_file,
+  uint src_line);
+typedef void (*end_rwlock_wrwait_v1_t)(struct PSI_rwlock_locker *locker,
+                                       int rc);
+typedef void (*unlock_rwlock_v1_t)(struct PSI_rwlock *rwlock);
 struct PSI_rwlock_service_v1
 {
   register_rwlock_v1_t register_rwlock;

@@ -18,7 +18,7 @@ struct PSI_placeholder
 C_MODE_START
 struct PSI_mdl_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_mdl_bootstrap PSI_mdl_bootstrap;
 struct MDL_key;
@@ -39,23 +39,24 @@ struct PSI_metadata_locker_state_v1
   void *m_wait;
 };
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state_v1;
-typedef PSI_metadata_lock* (*create_metadata_lock_v1_t)
-  (void *identity,
-   const struct MDL_key *key,
-   opaque_mdl_type mdl_type,
-   opaque_mdl_duration mdl_duration,
-   opaque_mdl_status mdl_status,
-   const char *src_file,
-   uint src_line);
+typedef PSI_metadata_lock *(*create_metadata_lock_v1_t)(
+  void *identity,
+  const struct MDL_key *key,
+  opaque_mdl_type mdl_type,
+  opaque_mdl_duration mdl_duration,
+  opaque_mdl_status mdl_status,
+  const char *src_file,
+  uint src_line);
 typedef void (*set_metadata_lock_status_v1_t)(PSI_metadata_lock *lock,
                                               opaque_mdl_status mdl_status);
 typedef void (*destroy_metadata_lock_v1_t)(PSI_metadata_lock *lock);
-typedef struct PSI_metadata_locker* (*start_metadata_wait_v1_t)
-  (struct PSI_metadata_locker_state_v1 *state,
-   struct PSI_metadata_lock *mdl,
-   const char *src_file, uint src_line);
-typedef void (*end_metadata_wait_v1_t)
-  (struct PSI_metadata_locker *locker, int rc);
+typedef struct PSI_metadata_locker *(*start_metadata_wait_v1_t)(
+  struct PSI_metadata_locker_state_v1 *state,
+  struct PSI_metadata_lock *mdl,
+  const char *src_file,
+  uint src_line);
+typedef void (*end_metadata_wait_v1_t)(struct PSI_metadata_locker *locker,
+                                       int rc);
 struct PSI_mdl_service_v1
 {
   create_metadata_lock_v1_t create_metadata_lock;

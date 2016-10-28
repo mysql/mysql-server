@@ -1,6 +1,7 @@
 #include "mysql/psi/psi_thread.h"
 #include "my_global.h"
 #include "my_psi_config.h"
+#include "my_thread.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
 typedef unsigned int PSI_mutex_key;
@@ -15,16 +16,15 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-#include "my_thread.h"
 C_MODE_START
-  struct opaque_THD
-  {
-    int dummy;
-  };
-  typedef struct opaque_THD THD;
+struct opaque_THD
+{
+  int dummy;
+};
+typedef struct opaque_THD THD;
 struct PSI_thread_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_thread_bootstrap PSI_thread_bootstrap;
 typedef struct PSI_placeholder PSI_thread_service_t;

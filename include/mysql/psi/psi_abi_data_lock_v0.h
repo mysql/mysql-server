@@ -15,10 +15,10 @@
 
 /**
   @file include/mysql/psi/psi_abi_data_lock_v0.h
-  ABI check for mysql/psi/psi_data_lock.h, when compiling without instrumentation.
+  ABI check for mysql/psi/psi_data_lock.h, when compiling without
+  instrumentation.
   This file is only used to automate detection of changes between versions.
   Do not include this file, include mysql/psi/psi_data_lock.h instead.
 */
 #define MY_GLOBAL_INCLUDED
 #include "mysql/psi/psi_data_lock.h"
-
