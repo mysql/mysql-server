@@ -765,13 +765,7 @@ dd_table_open_on_name(
 	char	db_buf[NAME_LEN + 1];
 	char	tbl_buf[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(name, db_buf, tbl_buf);
-
 	bool	skip_mdl = !(thd && mdl);
-
-	if (!skip_mdl && dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
-		DBUG_RETURN(nullptr);
-	}
 
 	/* Get pointer to a table object in InnoDB dictionary cache.
 	For intrinsic table, get it from session private data */
@@ -781,6 +775,12 @@ dd_table_open_on_name(
 	if (table != nullptr) {
 		table->acquire();
 		DBUG_RETURN(table);
+	}
+
+	innobase_parse_tbl_name(name, db_buf, tbl_buf);
+
+	if (!skip_mdl && dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
+		DBUG_RETURN(nullptr);
 	}
 
 	mutex_enter(&dict_sys->mutex);
