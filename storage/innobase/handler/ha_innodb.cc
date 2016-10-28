@@ -6820,10 +6820,6 @@ format_validate(
 				my_error(ER_INNODB_NO_FT_TEMP_TABLE, MYF(0));
 				return(true);
 			}
-#if 1//WL#9099 TODO: enable FULLTEXT INDEX
-			my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
-			return(true);
-#endif
 		}
 	}
 
@@ -6923,20 +6919,14 @@ create_index_metadata(
 	ut_ad(form->fields > 0);
 	ut_ad(n_fields > 0);
 
-	if (key.flags & (HA_SPATIAL | HA_FULLTEXT)) {
+	if (key.flags & HA_SPATIAL) {
 		ut_ad(!table->is_intrinsic());
-
-		switch (key.flags & HA_KEYFLAG_MASK) {
-		case HA_SPATIAL:
-			type = DICT_SPATIAL;
-			ut_ad(n_fields == 1);
-			break;
-		case HA_FULLTEXT:
-			type = DICT_FTS;
-			n_uniq = 0;
-		default:
-			ut_ad(0);
-		}
+		type = DICT_SPATIAL;
+		ut_ad(n_fields == 1);
+	} else if (key.flags & HA_FULLTEXT) {
+		ut_ad(!table->is_intrinsic());
+		type = DICT_FTS;
+		n_uniq = 0;
 	} else if (key_num == form->primary_key) {
 		ut_ad(key.flags & HA_NOSAME);
 		ut_ad(n_uniq > 0);
@@ -6976,7 +6966,9 @@ create_index_metadata(
 			prefix_len = 0;
 		} else
 #endif
-		if (key_part->key_part_flag & HA_PART_KEY_SEG) {
+		if (key.flags & HA_FULLTEXT) {
+			prefix_len = 0;
+		} else if (key_part->key_part_flag & HA_PART_KEY_SEG) {
 			/* SPATIAL and FULLTEXT index always are on
 			full columns. */
 			ut_ad(!(key.flags & (HA_SPATIAL | HA_FULLTEXT)));
@@ -7042,12 +7034,12 @@ create_index_metadata(
 		if (table->fts->cache == nullptr) {
 			table->flags2 |= DICT_TF2_FTS;
 			table->fts->cache = fts_cache_create(table);
-		}
 
-		rw_lock_x_lock(&table->fts->cache->init_lock);
-		/* Notify the FTS cache about this index. */
-		fts_cache_index_cache_create(table, index);
-		rw_lock_x_unlock(&table->fts->cache->init_lock);
+			rw_lock_x_lock(&table->fts->cache->init_lock);
+			/* Notify the FTS cache about this index. */
+			fts_cache_index_cache_create(table, index);
+			rw_lock_x_unlock(&table->fts->cache->init_lock);
+		}
 	}
 
 	if (!strcmp(index->name, FTS_DOC_ID_INDEX_NAME)) {
@@ -7170,10 +7162,20 @@ dd_copy_from_table_share(
 		}
 
 		index = index->next();
+
+		/* Skip hidden FTS_DOC_ID index */
+		if (index != nullptr && index->hidden) {
+			ut_ad(index != nullptr);
+			ut_ad(strcmp(index->name, FTS_DOC_ID_INDEX_NAME) == 0);
+			index = index->next();
+		}
 	}
 
 	ut_ad(index == nullptr);
 }
+
+const dd::Column*
+dd_find_column(dd::Table* dd_table, const char* name);
 
 inline
 int
@@ -7215,13 +7217,19 @@ create_key_metadata(
 		}
 	}
 
+	for (uint i = !m_form->s->primary_key; i < m_form->s->keys; i++) {
+		error = create_index_metadata(m_table, strict, m_form->s, i);
+		if (error != 0) {
+			goto dd_error;
+		}
+	}
+
 	/* Create the ancillary tables that are common to all FTS indexes on
 	this table. */
 	if (dict_table_has_fts_index(m_table)) {
-#if 0// WL#9099 TODO: implement FULLTEXT INDEX
 		fts_doc_id_index_enum	ret;
 
-		ut_ad(!dict_table_is_intrinsic(m_table));
+		ut_ad(!m_table->is_intrinsic());
 		/* Check whether there already exists FTS_DOC_ID_INDEX */
 		ret = innobase_fts_check_doc_id_index_in_def(
 			m_form->s->keys, m_form->key_info);
@@ -7240,7 +7248,7 @@ create_key_metadata(
 					    " make sure it is of correct"
 					    " type\n",
 					    FTS_DOC_ID_INDEX_NAME,
-					    m_table->name.table());
+					    m_table->name.m_name);
 
 			if (m_table->fts) {
 				fts_free(m_table);
@@ -7251,18 +7259,42 @@ create_key_metadata(
 			error = -1;
 			return(error);
 		case FTS_EXIST_DOC_ID_INDEX:
-		case FTS_NOT_EXIST_DOC_ID_INDEX:
 			break;
-		}
-		// TODO: replace fts_create_common_tables()
-#endif
-		return(HA_ERR_GENERIC);
-	}
+		case FTS_NOT_EXIST_DOC_ID_INDEX:
+			/* Fixme: find fts doc id colmun when its name
+			is not FTS_DOC_ID_INDEX_NAME */
+			const dd::Column* fts_doc_id = dd_find_column(
+				const_cast<dd::Table*>(dd_part),
+				FTS_DOC_ID_INDEX_NAME);
 
-	for (uint i = !m_form->s->primary_key; i < m_form->s->keys; i++) {
-		error = create_index_metadata(m_table, strict, m_form->s, i);
-		if (error != 0) {
-			goto dd_error;
+			dict_index_t*	doc_id_index;
+			if (fts_doc_id != nullptr) {
+				doc_id_index = dict_mem_index_create(
+					m_table->name.m_name,
+					FTS_DOC_ID_INDEX_NAME,
+					0, DICT_UNIQUE, 1);
+				doc_id_index->add_field(FTS_DOC_ID_COL_NAME, 0);
+			} else {
+				doc_id_index = dict_mem_index_create(
+					m_table->name.m_name,
+					FTS_DOC_ID_INDEX_NAME,
+					0, DICT_UNIQUE, 0);
+			}
+
+			dberr_t	new_err = dict_index_add_to_cache(
+				m_table, doc_id_index,
+				doc_id_index->page, FALSE);
+			if (new_err != DB_SUCCESS) {
+				error = HA_ERR_GENERIC;
+				goto dd_error;
+			}
+
+			doc_id_index = UT_LIST_GET_LAST(m_table->indexes);
+			doc_id_index->hidden = true;
+
+			/* Adjust index order */
+			innobase_adjust_fts_doc_id_index_order(
+				const_cast<dd::Table*>(dd_part), m_table);
 		}
 	}
 
@@ -7274,6 +7306,21 @@ create_key_metadata(
 		ut_a(fts != nullptr);
 
 		dict_table_get_all_fts_indexes(m_table, fts->indexes);
+
+		ulint	fts_doc_id_col = ULINT_UNDEFINED;
+		fts_doc_id_index_enum	ret;
+		ret = innobase_fts_check_doc_id_index(
+			m_table, nullptr, &fts_doc_id_col);
+
+		if (ret != FTS_INCORRECT_DOC_ID_INDEX) {
+			ut_ad(m_table->fts->doc_col == ULINT_UNDEFINED);
+			m_table->fts->doc_col = fts_doc_id_col;
+			ut_ad(m_table->fts->doc_col != ULINT_UNDEFINED);
+
+			m_table->fts_doc_id_index =
+				dict_table_get_index_on_name(
+					m_table, FTS_DOC_ID_INDEX_NAME);
+		}
 	}
 
 	if (Field** autoinc_col = m_form->s->found_next_number_field) {
@@ -7922,9 +7969,11 @@ dd_open_table(
 
 	mutex_enter(&dict_sys->mutex);
 
-	create_key_metadata(
+	int	ret;
+	ret = create_key_metadata(
 		dd_table, table, m_table, dd_table->name().c_str(),
 		NULL, zip_allowed, strict, thd, skip_mdl);
+	ut_ad(ret == 0);
 
 	mutex_exit(&dict_sys->mutex);
 
@@ -7985,7 +8034,7 @@ dd_open_table(
                 }
 
                 ut_ad(root > 1);
-                ut_ad(root != FIL_NULL);
+                ut_ad(index->type & DICT_FTS || root != FIL_NULL);
                 ut_ad(id != 0);
 		index->page = root;
 		index->space = sid;
@@ -14751,6 +14800,9 @@ innobase_write_dd_table(
 
 	dd_table->set_se_private_id(table->id);
 
+	innobase_adjust_fts_doc_id_index_order(
+		dd_table, const_cast<dict_table_t*>(table));
+
 	const dict_index_t* index = table->first_index();
 
 	for (auto dd_index : *dd_table->indexes()) {
@@ -14966,7 +15018,6 @@ create_table_info_t::allocate_trx()
 @param[in]	name		column name
 @return	the column
 @retval	nullptr	if not found */
-static
 const dd::Column*
 dd_find_column(dd::Table* dd_table, const char* name)
 {
@@ -15052,6 +15103,68 @@ dd_add_hidden_column(
 
 	return(col);
 }
+
+/** Adjust fts doc id index order in table according to dd table object.
+Note: index order can be mismatched between dict table and dd table,
+due to hidden fts doc index. */
+template<typename Table>
+void
+innobase_adjust_fts_doc_id_index_order(
+	Table*		dd_table,
+	dict_table_t*	table)
+{
+	/* Skip non-fts table */
+	if (!dict_table_has_fts_index(table)) {
+		return;
+	}
+
+	/* Find fts doc id index */
+	dict_index_t*	doc_id_index = nullptr;
+	dict_index_t*	index = table->first_index();
+	while (index != nullptr) {
+		if (strcmp(index->name, FTS_DOC_ID_INDEX_NAME) == 0) {
+			doc_id_index = index;
+			break;
+		}
+
+		index = index->next();
+	}
+
+	ut_ad(UT_LIST_GET_LEN(table->indexes) == dd_table->indexes()->size());
+	ut_ad(doc_id_index != nullptr);
+
+	/* Adjust index order */
+	UT_LIST_REMOVE(table->indexes, doc_id_index);
+
+	index = nullptr;
+	for (auto dd_index : *dd_table->indexes()) {
+		if (strcmp(dd_index->name().c_str(),
+			   FTS_DOC_ID_INDEX_NAME) == 0) {
+			if (index == nullptr) {
+				UT_LIST_ADD_FIRST(
+					table->indexes, doc_id_index);
+			} else {
+				UT_LIST_INSERT_AFTER(
+					table->indexes, index, doc_id_index);
+			}
+
+			break;
+		}
+
+		if (index == nullptr) {
+			index = table->first_index();
+		} else {
+			index = index->next();
+		}
+	}
+
+	ut_ad(UT_LIST_GET_LEN(table->indexes) == dd_table->indexes()->size());
+}
+
+template void innobase_adjust_fts_doc_id_index_order<dd::Table>(
+	dd::Table*, dict_table_t*);
+template void innobase_adjust_fts_doc_id_index_order<dd::Partition>(
+	dd::Partition*, dict_table_t*);
 
 /** Get dd tablespace id for fts table
 @param[in]	parent_table	parent table of fts table
@@ -15157,7 +15270,7 @@ innobase_get_dd_tablespace_id(
 bool
 innobase_fts_create_one_index_dd_table(
 	const dict_table_t*	parent_table,
-	const dict_table_t*	table,
+	dict_table_t*		table,
 	const CHARSET_INFO*	charset)
 {
 	ut_ad(charset != nullptr);
@@ -15340,7 +15453,7 @@ innobase_fts_create_one_index_dd_table(
 bool
 innobase_fts_create_one_common_dd_table(
 	const dict_table_t*	parent_table,
-	const dict_table_t*	table,
+	dict_table_t*		table,
 	bool			is_config)
 {
 	char    db_name[NAME_LEN + 1];
@@ -15745,9 +15858,7 @@ ha_innobase::get_extra_columns_and_keys(
 
 		ut_ad(fts_doc_id);
 
-		if (fts_doc_id_index == nullptr
-		    && (primary == nullptr
-			|| !dd_is_only_column(primary, fts_doc_id))) {
+		if (fts_doc_id_index == nullptr) {
 			dd_set_hidden_unique_index(dd_table->add_index(),
 						   FTS_DOC_ID_INDEX_NAME,
 						   fts_doc_id);

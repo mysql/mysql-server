@@ -3067,7 +3067,7 @@ ha_innopart::rename_table(
 	dd::Table*		to_table)
 {
 	THD*	thd = ha_thd();
-	dberr_t	error;
+	dberr_t	error = DB_SUCCESS;
 
 	DBUG_ENTER("ha_innopart::rename_table");
 

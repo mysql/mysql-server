@@ -906,7 +906,7 @@ innobase_mysql_fts_get_token(
 bool
 innobase_fts_create_one_index_dd_table(
 	const dict_table_t*	parent_table,
-	const dict_table_t*	fts_table,
+	dict_table_t*		fts_table,
 	const CHARSET_INFO*	charset);
 
 /** Create dd table for fts aux common table
@@ -917,7 +917,7 @@ innobase_fts_create_one_index_dd_table(
 bool
 innobase_fts_create_one_common_dd_table(
 	const dict_table_t*	parent_talbe,
-	const dict_table_t*	table,
+	dict_table_t*		table,
 	bool			is_config);
 
 /** Drop dd table & tablespace for fts aux table

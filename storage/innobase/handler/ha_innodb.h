@@ -1223,3 +1223,9 @@ innobase_write_dd_index(
 	dd::Object_id		dd_space_id,
 	Index*			dd_index,
 	const dict_index_t*	index);
+
+template<typename Table>
+void
+innobase_adjust_fts_doc_id_index_order(
+	Table*		dd_table,
+	dict_table_t*	table);

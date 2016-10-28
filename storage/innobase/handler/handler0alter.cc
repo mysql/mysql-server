@@ -2210,7 +2210,6 @@ innobase_create_index_def(
 /*******************************************************************//**
 Check whether the table has the FTS_DOC_ID column
 @return whether there exists an FTS_DOC_ID column */
-static
 bool
 innobase_fts_check_doc_id_col(
 /*==========================*/
