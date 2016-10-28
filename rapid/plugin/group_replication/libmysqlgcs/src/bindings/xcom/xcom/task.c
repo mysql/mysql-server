@@ -54,9 +54,6 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
-#ifdef __sun
-#include <procfs.h>
-#endif
 
 #include "task_debug.h"
 #include "task_net.h"
