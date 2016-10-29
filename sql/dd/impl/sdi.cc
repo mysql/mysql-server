@@ -23,8 +23,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <vector>
-#include <tuple>
-#include <utility>
 
 #include "dd/cache/dictionary_client.h" // dd::Dictionary_client
 #include "dd/impl/dictionary_impl.h"    // dd::Dictionary_impl::get_target_dd_version
@@ -500,37 +498,6 @@ bool with_schema(THD *thd, const AKT &key, CLOS &&clos)
 
 
 /**
-  Convenience function to select a safte iterator triple from two
-  ranges. Many algoritms which operate on two ranges of diffrent
-  length take three iterators, first1, last1 and first2. The algorithm
-  will only work correctly if first1 and last1 is the longest range,
-  and first2 is the start of the shortest. This function takes two
-  input ranges, in the form of 4 iterators and returns a tuple
-  containing the begin and end of the longes range and the begin of
-  the shortest.
-
-  @param first1 beginning of first range
-  @param last1 end of first range
-  @param first2 beginning of second range
-  @param last2 end of second range
-  @return safe iterator triple
- */
-
-template <class IT>
-std::tuple<IT, IT, IT>
-make_iterator_tuple(IT &&first1, IT &&last1, IT &&first2, IT &&last2)
-{
-  if (last1-first1 < last2-first2)
-  {
-    return std::make_tuple(std::forward<IT>(first1), std::forward<IT>(last1),
-                           std::forward<IT>(first2));
-  }
-  return std::make_tuple(std::forward<IT>(first2), std::forward<IT>(last2),
-                         std::forward<IT>(first1));
-}
-
-
-/**
   Predicate which returns true if an n-character prefix of two
   character ranges are equal.
 
@@ -548,23 +515,18 @@ bool equal_prefix_chars(CHAR_IT &&begin1, CHAR_IT &&end1,
                         CHAR_IT &&begin2, CHAR_IT &&end2,
                         size_t n, const CHARSET_INFO *csi= system_charset_info)
 {
-  CHAR_IT long_begin, long_end, short_begin;
-  std::tie(long_begin, long_end, short_begin)=
-    make_iterator_tuple(std::forward<CHAR_IT>(begin1),
-                        std::forward<CHAR_IT>(end1),
-                        std::forward<CHAR_IT>(begin2),
-                        std::forward<CHAR_IT>(end2));
-  for (size_t rem_bytes= 0, char_count= 0;
-       char_count < n && long_begin < long_end;
-       ++long_begin, ++short_begin)
+  size_t char_count= 0;
+  for (size_t rem_bytes= 0;
+       char_count < n && begin1 < end1 && begin2 < end2;
+       ++begin1, ++begin2)
   {
-    if (*long_begin != *short_begin)
+    if (*begin1 != *begin2)
     {
       return false;
     }
     if (rem_bytes == 0)
     {
-      rem_bytes= my_mbcharlen(csi, *long_begin);
+      rem_bytes= my_mbcharlen(csi, *begin1);
     }
     --rem_bytes;
 
@@ -573,8 +535,9 @@ bool equal_prefix_chars(CHAR_IT &&begin1, CHAR_IT &&end1,
       ++char_count;
     }
   }
-  return true;
+  return ((begin1 == end1 && begin2 == end2) || char_count == n);
 }
+
 
 /**
   Convenience function for comparing a prefix of the names of two DD objects.
