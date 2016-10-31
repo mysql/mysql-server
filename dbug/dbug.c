@@ -84,6 +84,7 @@
 #include <m_string.h>
 #include <my_global.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "my_sys.h"
 #include "my_thread_local.h"

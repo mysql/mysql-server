@@ -5,15 +5,16 @@
  * macros that code uses.  This lets the same code operate on two different
  * representations for state sets.
  */
-#include <my_global.h>
-#include <m_string.h>
 #include <m_ctype.h>
+#include <m_string.h>
+#include <stdlib.h>
 #ifdef _WIN32
 #include  <limits.h>
 #endif
+#include "my_global.h"
 #include "my_regex.h"
-#include "utils.h"
 #include "regex2.h"
+#include "utils.h"
 
 /* for use in asserts */
 #define nope 0

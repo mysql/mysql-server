@@ -39,6 +39,7 @@ Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "btr0btr.h"
 #include "btr0cur.h"

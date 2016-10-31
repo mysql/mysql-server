@@ -18,6 +18,7 @@
   This code was modified by the MySQL team
 */
 
+#include <stdlib.h>
 #include <algorithm>
 
 #include "../storage/perfschema/pfs_server.h"

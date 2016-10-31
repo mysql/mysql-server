@@ -14,10 +14,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <my_global.h>
-#include <mysql_version.h>
 #include <mysql/plugin.h>
-#include "my_sys.h"                             // my_write, my_malloc
+#include <mysql_version.h>
+#include <stdlib.h>
+
 #include "m_string.h"                           // strlen
+#include "my_sys.h"                             // my_write, my_malloc
 #include "sql_plugin.h"                         // st_plugin_int
 
 #define STRING_BUFFER 256

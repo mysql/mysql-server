@@ -24,6 +24,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <stdio.h>
+#include <stdlib.h>
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "../storage/ndb/include/mgmapi/mgmapi_error.h"
 #include "../storage/ndb/src/kernel/error/ndbd_exit_codes.c"

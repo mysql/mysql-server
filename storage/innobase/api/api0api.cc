@@ -24,30 +24,30 @@ InnoDB Native API
 3/20/2011 Jimmy Yang extracted from Embedded InnoDB
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <dd/properties.h>
+#include <dd/types/tablespace.h>
+#include <stdlib.h>
 
 #include "api0api.h"
 #include "api0misc.h"
-#include "srv0start.h"
-#include "dict0dict.h"
 #include "btr0pcur.h"
+#include "dict0crea.h"
+#include "dict0dict.h"
+#include "dict0priv.h"
+#include "fsp0fsp.h"
+#include "ha_prototypes.h"
+#include "lob0lob.h"
+#include "lock0lock.h"
+#include "lock0types.h"
+#include "pars0pars.h"
+#include "rem0cmp.h"
 #include "row0ins.h"
+#include "row0merge.h"
+#include "row0sel.h"
 #include "row0upd.h"
 #include "row0vers.h"
+#include "srv0start.h"
 #include "trx0roll.h"
-#include "dict0crea.h"
-#include "row0merge.h"
-#include "pars0pars.h"
-#include "lock0types.h"
-#include "row0sel.h"
-#include "lock0lock.h"
-#include "rem0cmp.h"
-#include "dict0priv.h"
-#include "trx0roll.h"
-#include "fsp0fsp.h"
-#include <dd/types/tablespace.h>
-#include <dd/properties.h>
-#include "lob0lob.h"
 
 /** configure variable for binlog option with InnoDB APIs */
 my_bool ib_binlog_enabled = FALSE;

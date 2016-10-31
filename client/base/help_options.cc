@@ -15,15 +15,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <stdlib.h>
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <functional>
 #include <sstream>
 
-#include "client_priv.h"
-#include "my_default.h"
-#include "help_options.h"
 #include "abstract_program.h"
-
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "client_priv.h"
+#include "help_options.h"
+#include "my_default.h"
 
 using namespace Mysql::Tools::Base::Options;
 using std::placeholders::_1;

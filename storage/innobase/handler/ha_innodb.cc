@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_table.h>
 #include <sql_tablespace.h>
 #include <sql_thd_internal_api.h>
+#include <stdlib.h>
 #include <strfunc.h>
 
 /* Include necessary InnoDB headers */

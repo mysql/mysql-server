@@ -35,6 +35,7 @@
 #include <my_dir.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <violite.h>
 
 #include "client_priv.h"

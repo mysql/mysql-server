@@ -3,22 +3,22 @@
 
    This file was modified by Oracle on 2015-05-18 for 32-bit compatibility.
 
-   Modifications copyright (c) 2015, Oracle and/or its affiliates. All rights
+   Modifications copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights
    reserved. */
 
-#include <my_global.h>
-#include <m_string.h>
 #include <m_ctype.h>
+#include <m_string.h>
+#include <my_global.h>
+#include <stdlib.h>
 #ifdef _WIN32
 #include  <limits.h>
 #endif
 
-#include "my_regex.h"
-#include "utils.h"
-#include "regex2.h"
-
 #include "cclass.h"
 #include "cname.h"
+#include "my_regex.h"
+#include "regex2.h"
+#include "utils.h"
 
 /*
  * parse structure, passed up and down to avoid global variables and

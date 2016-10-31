@@ -85,6 +85,7 @@ TODO:
 #include <signal.h>
 #include <sslopt-vars.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -97,9 +98,9 @@ TODO:
 
 #include "client_priv.h"
 #include "my_default.h"
-#include "typelib.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "typelib.h"
 
 #ifdef _WIN32
 #define srandom  srand

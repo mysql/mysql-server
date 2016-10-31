@@ -15,21 +15,22 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <stdlib.h>
 #include <functional>
 #include <string>
 #include <vector>
 
+#include "base/mysql_query_runner.h"
+#include "event_scheduler_event.h"
 #include "mysql_crawler.h"
 #include "mysql_function.h"
+#include "privilege.h"
 #include "stored_procedure.h"
+#include "table_deferred_indexes_dump_task.h"
 #include "table_definition_dump_task.h"
 #include "table_rows_dump_task.h"
-#include "table_deferred_indexes_dump_task.h"
-#include "event_scheduler_event.h"
-#include "privilege.h"
 #include "trigger.h"
 #include "view.h"
-#include "base/mysql_query_runner.h"
 
 using std::string;
 using std::vector;

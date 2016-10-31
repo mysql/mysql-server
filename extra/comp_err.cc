@@ -33,6 +33,7 @@
 #include <my_sys.h>
 #include <mysql_version.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"

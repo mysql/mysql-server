@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
    */
 
-#include <vector>
+#include <stdlib.h>
 #include <iostream>
-#include "my_getopt.h"
+#include <vector>
+
 #include "abstract_options_provider.h"
 #include "i_options_provider.h"
+#include "my_getopt.h"
 
 using std::vector;
 using std::string;

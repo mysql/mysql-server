@@ -15,13 +15,14 @@
 
 /* Describe, check and repair of MyISAM tables */
 
+#include <m_ctype.h>
+#include <my_bit.h>
+#include <my_getopt.h>
+#include <stdarg.h>
+#include <stdlib.h>
+
 #include "fulltext.h"
 #include "my_default.h"
-
-#include <m_ctype.h>
-#include <stdarg.h>
-#include <my_getopt.h>
-#include <my_bit.h>
 #include "typelib.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>

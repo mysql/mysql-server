@@ -48,6 +48,7 @@
 #include <my_user.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"

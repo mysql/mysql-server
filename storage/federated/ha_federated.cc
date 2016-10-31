@@ -375,6 +375,7 @@
 #include "ha_federated.h"
 
 #include <mysql/plugin.h>
+#include <stdlib.h>
 #include <algorithm>
 
 #include "current_thd.h"

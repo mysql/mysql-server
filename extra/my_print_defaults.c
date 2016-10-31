@@ -28,6 +28,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "my_default.h"

@@ -15,11 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <stdlib.h>
 #include <functional>
 
+#include "abstract_program.h"
 #include "client_priv.h"
 #include "debug_options.h"
-#include "abstract_program.h"
 
 using namespace Mysql::Tools::Base::Options;
 using std::placeholders::_1;

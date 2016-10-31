@@ -17,6 +17,8 @@
 
 #include "xpl_system_variables.h"
 
+#include <stdlib.h>
+
 
 namespace xpl
 {

@@ -15,9 +15,11 @@
 
 /* write whats in isam.log */
 
-#include "myisamdef.h"
 #include <my_tree.h>
 #include <stdarg.h>
+#include <stdlib.h>
+
+#include "myisamdef.h"
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
