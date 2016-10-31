@@ -91,6 +91,28 @@ void Local_multi_map<T>::remove(Cache_element<T> *element)
 }
 
 
+template <typename T>
+void Local_multi_map<T>::erase()
+{
+  typename Multi_map_base<T>::Const_iterator it;
+  for (it= begin(); it != end();)
+  {
+    DBUG_ASSERT(it->second);
+    DBUG_ASSERT(it->second->object());
+
+    // Make sure we handle iterator invalidation: Increment
+    // before erasing.
+    Cache_element<T> *element= it->second;
+    ++it;
+
+    // Remove the element from the map.
+    remove(element);
+    delete element->object();
+    delete element;
+  }
+}
+
+
 // Explicitly instantiate the types for the various usages.
 template class Local_multi_map<Abstract_table>;
 template class Local_multi_map<Charset>;

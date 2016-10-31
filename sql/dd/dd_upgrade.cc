@@ -2647,15 +2647,16 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
                                        char *event_name)
 {
   const dd::Event *event= nullptr;
+  dd::Event *new_event= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  if (thd->dd_client()->acquire<dd::Event>(event_db_name, event_name,
-                                           &event))
+  if (thd->dd_client()->acquire(event_db_name, event_name, &event) ||
+      thd->dd_client()->acquire_for_modification(event_db_name,
+                                                 event_name,
+                                                 &new_event))
     return true;
   if (event == nullptr)
     return true;
-
-  std::unique_ptr<dd::Event> new_event(event->clone());
 
   if (!table->field[ET_FIELD_LAST_EXECUTED]->is_null())
   {
@@ -2671,13 +2672,16 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
   new_event->set_created(table->field[ET_FIELD_CREATED]->val_int());
   new_event->set_last_altered(table->field[ET_FIELD_MODIFIED]->val_int());
 
-  if (thd->dd_client()->update(&event, new_event.get()))
+  if (thd->dd_client()->update(&event, new_event))
   {
     trans_rollback_stmt(thd);
     return true;
   }
 
-  return (trans_commit_stmt(thd) || trans_commit(thd));
+  bool error= trans_commit_stmt(thd) || trans_commit(thd);
+  // TODO: Remove this call in WL#7743?
+  thd->dd_client()->remove_uncommitted_objects<Event>(!error);
+  return error;
 }
 
 

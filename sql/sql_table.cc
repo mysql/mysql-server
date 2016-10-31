@@ -8274,16 +8274,17 @@ static bool mysql_inplace_alter_table(THD *thd,
     dd::Schema_MDL_locker mdl_locker(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Table *new_dd_tab= nullptr;
+    dd::Table *altered_table_def= nullptr;
     if (mdl_locker.ensure_locked(alter_ctx->new_db) ||
         thd->dd_client()->acquire(alter_ctx->new_db, alter_ctx->tmp_name,
-                                  &new_dd_tab))
+                                  &new_dd_tab) ||
+        thd->dd_client()->acquire_for_modification(alter_ctx->new_db, alter_ctx->tmp_name,
+                                  &altered_table_def))
       goto cleanup;
-
-    std::unique_ptr<dd::Table> altered_table_def(new_dd_tab->clone());
 
     if (table->file->ha_prepare_inplace_alter_table(altered_table,
                                                     ha_alter_info,
-                                                    altered_table_def.get()))
+                                                    altered_table_def))
     {
       goto rollback;
     }
@@ -8293,8 +8294,10 @@ static bool mysql_inplace_alter_table(THD *thd,
       updating SDI here. This will happen anyway during further operations
       on new table version in this statement.
     */
-    if (thd->dd_client()->update(&new_dd_tab, altered_table_def.get()))
+    if (thd->dd_client()->update(&new_dd_tab, altered_table_def))
       goto rollback;
+    // TODO: Remove this call in WL#7743?
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
 
   /*

@@ -2315,21 +2315,25 @@ bool add_foreign_keys_and_triggers(THD *thd,
   dd::cache::Dictionary_client *client= thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-  const dd::Table *const_table= nullptr;
-  if (client->acquire<dd::Table>(schema_name, table_name, &const_table))
+  const dd::Table *old_table= nullptr;
+  dd::Table *new_table= nullptr;
+  if (client->acquire<dd::Table>(schema_name, table_name, &old_table) ||
+      client->acquire_for_modification<dd::Table>(schema_name, table_name,
+                                                  &new_table))
     DBUG_RETURN(true);
 
-  std::unique_ptr<dd::Table> table(const_table->clone());
-
   if (fk_keys > 0 &&
-      fill_dd_foreign_keys_from_create_fields(table.get(), fk_keys, fk_keyinfo))
+      fill_dd_foreign_keys_from_create_fields(new_table, fk_keys, fk_keyinfo))
     DBUG_RETURN(true);
 
   if (trg_info != nullptr && !trg_info->empty())
-    table->move_triggers(trg_info);
+    new_table->move_triggers(trg_info);
 
-  if (client->update(&const_table, table.get()))
+  if (client->update(&old_table, new_table))
     DBUG_RETURN(true);
+
+  // TODO: Remove this call in WL#7743?
+  client->remove_uncommitted_objects<dd::Table>(true);
 
   DBUG_RETURN(false);
 }
@@ -2449,6 +2453,7 @@ bool rename_table(THD *thd,
   const dd::Schema *to_sch= NULL;
   const T *from_tab= NULL;
   const T *to_tab= NULL;
+  T *new_tab = nullptr;
 
   DBUG_EXECUTE_IF("alter_table_after_rename_1",
                   DEBUG_SYNC(thd, "before_rename_in_dd"););
@@ -2460,7 +2465,9 @@ bool rename_table(THD *thd,
       thd->dd_client()->acquire<dd::Schema>(to_schema_name, &to_sch) ||
       thd->dd_client()->acquire<T>(to_schema_name, to_table_name, &to_tab) ||
       thd->dd_client()->acquire<T>(from_schema_name, from_table_name,
-                                   &from_tab))
+                                   &from_tab) ||
+      thd->dd_client()->acquire_for_modification<T>(from_schema_name, from_table_name,
+                                                    &new_tab))
   {
     // Error is reported by the dictionary subsystem.
     return true;
@@ -2511,10 +2518,6 @@ bool rename_table(THD *thd,
   if (is_sticky)
     thd->dd_client()->set_sticky(from_tab, true);
 
-  // Clone the object to be modified, and make sure the clone is deleted
-  // by wrapping it in a unique_ptr.
-  std::unique_ptr<T> new_tab(from_tab->clone());
-
   // Set schema id and table name.
   new_tab->set_schema_id(to_sch->id());
   new_tab->set_name(to_table_name);
@@ -2523,7 +2526,7 @@ bool rename_table(THD *thd,
   new_tab->set_hidden(mark_as_hidden);
 
   // Do the update. Errors will be reported by the dictionary subsystem.
-  if (thd->dd_client()->update(&from_tab, new_tab.get()))
+  if (thd->dd_client()->update(&from_tab, new_tab))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -2535,8 +2538,10 @@ bool rename_table(THD *thd,
                   DBUG_SET("-d,alter_table_after_rename_1");
                   DEBUG_SYNC(thd, "after_rename_in_dd"););
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  bool error= trans_commit_stmt(thd) || trans_commit(thd);
+  // TODO: Remove this call in WL#7743?
+  thd->dd_client()->remove_uncommitted_objects<T>(true);
+  return error;
 }
 
 
@@ -2718,11 +2723,12 @@ bool update_keys_disabled(THD *thd,
                           const char *table_name,
                           Alter_info::enum_enable_or_disable keys_onoff)
 {
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::cache::Dictionary_client *client= thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
   // Check if source and destination schema exists
   const dd::Schema *sch= nullptr;
-  if (thd->dd_client()->acquire<dd::Schema>(schema_name, &sch))
+  if (client->acquire<dd::Schema>(schema_name, &sch))
   {
     return true;
   }
@@ -2733,37 +2739,36 @@ bool update_keys_disabled(THD *thd,
   }
 
   // Get 'from' table object
-  const dd::Table *tab_obj= nullptr;
-  if (thd->dd_client()->acquire<dd::Table>(schema_name,
-                                           table_name,
-                                           &tab_obj))
+  const dd::Table *old_tab_obj= nullptr;
+  dd::Table *new_tab_obj= nullptr;
+  if (client->acquire<dd::Table>(schema_name, table_name, &old_tab_obj) ||
+      client->acquire_for_modification<dd::Table>(schema_name, table_name,
+                                                  &new_tab_obj))
   {
     return true;
   }
 
-  if (!tab_obj)
+  if (!old_tab_obj)
   {
     return true;
   }
 
   // Update option keys_disabled
-  dd::Properties *table_options= &const_cast<dd::Table*>(tab_obj)->options();
-  table_options->set_uint32("keys_disabled",
-                            (keys_onoff==Alter_info::DISABLE ? 1 : 0));
-
-  // Clone the object to be modified, and make sure the clone is deleted
-  // by wrapping it in a unique_ptr.
-  std::unique_ptr<dd::Table> new_tab(tab_obj->clone());
+  new_tab_obj->options().set_uint32("keys_disabled",
+                                    (keys_onoff==Alter_info::DISABLE ? 1 : 0));
 
   // Update the changes
-  if (thd->dd_client()->update(&tab_obj, new_tab.get()))
+  if (client->update(&old_tab_obj, new_tab_obj))
   {
     return true;
   }
 
+  // TODO: Remove this call in WL#7743?
+  client->remove_uncommitted_objects<dd::Table>(true);
+
   // The table object will be left in cache.
 
-  return (false);
+  return false;
 }
 
 
@@ -2830,6 +2835,7 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch= nullptr;
   const dd::Table *old_table_def= nullptr;
+  dd::Table *new_table_def= nullptr;
 
   // There should be an exclusive metadata lock on the table
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
@@ -2838,7 +2844,10 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
   if (mdl_locker.ensure_locked(share->db.str) ||
       thd->dd_client()->acquire<dd::Schema>(share->db.str, &sch) ||
       thd->dd_client()->acquire(share->db.str, share->table_name.str,
-                                &old_table_def))
+                                &old_table_def) ||
+      thd->dd_client()->acquire_for_modification(share->db.str,
+                                                 share->table_name.str,
+                                                 &new_table_def))
     return true;
 
   if (!sch)
@@ -2855,18 +2864,19 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
     return true;
   }
 
-  std::unique_ptr<dd::Table> new_table_def(old_table_def->clone());
-
   new_table_def->set_row_format(dd_get_new_row_format(correct_row_type));
 
-  if (thd->dd_client()->update(&old_table_def, new_table_def.get()))
+  if (thd->dd_client()->update(&old_table_def, new_table_def))
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
     return true;
   }
 
-  return trans_commit_stmt(thd) || trans_commit(thd);
+  bool error= trans_commit_stmt(thd) || trans_commit(thd);
+  // TODO: Remove this call in WL#7743?
+  thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+  return error;
 }
 
 bool move_triggers(THD *thd,
@@ -2880,19 +2890,26 @@ bool move_triggers(THD *thd,
   dd::Schema_MDL_locker to_mdl_locker(thd);
 
   // Check if source and destination schemas exist.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::cache::Dictionary_client *client= thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
   const dd::Schema *from_sch= nullptr;
   const dd::Schema *to_sch= nullptr;
-  const dd::Table *from_tab= nullptr;
-  const dd::Table *to_tab= nullptr;
+  const dd::Table *old_from_tab= nullptr;
+  const dd::Table *old_to_tab= nullptr;
+  dd::Table *new_from_tab= nullptr;
+  dd::Table *new_to_tab= nullptr;
 
   // Acquire all objects.
   if (from_mdl_locker.ensure_locked(from_schema_name) ||
       to_mdl_locker.ensure_locked(to_schema_name) ||
-      thd->dd_client()->acquire<dd::Schema>(from_schema_name, &from_sch) ||
-      thd->dd_client()->acquire<dd::Schema>(to_schema_name, &to_sch) ||
-      thd->dd_client()->acquire<dd::Table>(to_schema_name, to_name, &to_tab) ||
-      thd->dd_client()->acquire<dd::Table>(from_schema_name, from_name, &from_tab))
+      client->acquire<dd::Schema>(from_schema_name, &from_sch) ||
+      client->acquire<dd::Schema>(to_schema_name, &to_sch) ||
+      client->acquire<dd::Table>(to_schema_name, to_name, &old_to_tab) ||
+      client->acquire<dd::Table>(from_schema_name, from_name, &old_from_tab) ||
+      client->acquire_for_modification<dd::Table>(to_schema_name, to_name,
+                                                  &new_to_tab) ||
+      client->acquire_for_modification<dd::Table>(from_schema_name, from_name,
+                                                  &new_from_tab))
   {
     // Error is reported by the dictionary subsystem.
     return true;
@@ -2911,28 +2928,25 @@ bool move_triggers(THD *thd,
     return true;
   }
 
-  if (from_tab == nullptr)
+  if (old_from_tab == nullptr)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), from_schema_name, from_name);
     return true;
   }
 
-  if (to_tab == nullptr)
+  if (old_to_tab == nullptr)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), to_schema_name, to_name);
     return true;
   }
 
-  // Copy the triggers into to_tab clone and drop it from
-  // from_tab clone.
-  std::unique_ptr<dd::Table> from_clone(from_tab->clone());
-  std::unique_ptr<dd::Table> to_clone(to_tab->clone());
-  to_clone->copy_triggers(from_clone.get());
-  from_clone->drop_all_triggers();
+  // Copy the triggers into new_to_tab drop it from new_from_tab.
+  new_to_tab->copy_triggers(new_from_tab);
+  new_from_tab->drop_all_triggers();
 
   // Store from_clone and to_clone
-  if (thd->dd_client()->update(&from_tab, from_clone.get()) ||
-      thd->dd_client()->update(&to_tab, to_clone.get()))
+  if (client->update(&old_from_tab, new_from_tab) ||
+      client->update(&old_to_tab, new_to_tab))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -2940,8 +2954,10 @@ bool move_triggers(THD *thd,
     return true;
   }
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  bool error= trans_commit_stmt(thd) || trans_commit(thd);
+  // TODO: Remove this call in WL#7743?
+  client->remove_uncommitted_objects<dd::Table>(!error);
+  return error;
 }
 
 } // namespace dd

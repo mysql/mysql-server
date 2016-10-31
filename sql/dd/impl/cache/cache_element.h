@@ -64,6 +64,7 @@ class Cache_element
   friend class Storage_adapter;                     // Unit test access.
   friend class dd_cache_unittest::CacheTestHelper;  // Unit test access.
   friend class Shared_multi_map<T>;                 // Access to changing data.
+  friend class Dictionary_client;                   // Access to changing data.
 
 private:
 

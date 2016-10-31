@@ -150,6 +150,23 @@ public:
 
 
   /**
+    Remove and delete all objects from the map. This includes
+    Cache_elements and the Dictionary objects themselves.
+  */
+
+  void erase();
+
+  /**
+    Get the number of elements in the map.
+
+    @return  Number of elements.
+  */
+
+  size_t size() const
+  { return m_map<const T*>()->size(); }
+
+
+  /**
     Debug dump of the local multi map to stderr.
   */
 
