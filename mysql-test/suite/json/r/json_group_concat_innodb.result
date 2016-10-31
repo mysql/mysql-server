@@ -92,7 +92,6 @@ insert into t values (NULL, NULL);
 select group_concat(j), group_concat(distinct j), group_concat(c) from t;
 group_concat(j)	group_concat(distinct j)	group_concat(c)
 [1, 2, 3],7,2,7,2	[1, 2, 3],7,2	[a,b,c],7,2,7,2
-drop table t;
 #
 # Bug#22992666 NULL VALUE IN JSON COLUMN CORRUPTS GROUP_CONCAT
 #              WITH ORDER BY CLAUSE
