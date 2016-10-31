@@ -52,3 +52,6 @@ trigger                          : WL#9525 disables it, waiting for WL#9559
 plugin_auth                      : Waiting for wl#9532
 transactional_acl_tables         : Waiting for wl#9532
 roles-upgrade                    : Waiting for wl#9532
+component-upgrade                : Waiting for wl#9532
+bug14826854                      : Waiting for wl#9532
+grant_user_lock                  : Waiting for wl#9532

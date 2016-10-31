@@ -17,3 +17,5 @@ perfschema.innodb_s_gap_data_locks          : Bug#24688694 2016-09-19 Marc Frequ
 perfschema.innodb_x_gap_data_locks          : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
 perfschema.stage_mdl_function               : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
 
+#NewDD disable some test cases for wl#9532.
+variables_info : Waiting for wl#9532
