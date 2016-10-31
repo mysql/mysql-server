@@ -47,3 +47,8 @@ partition_mgm                    : WL#9525 disables it, waiting for WL#9559
 partition_pruning                : WL#9525 disables it, waiting for WL#9559
 partition_range                  : WL#9525 disables it, waiting for WL#9559
 trigger                          : WL#9525 disables it, waiting for WL#9559
+
+#NewDD disable some test cases for wl#9532.
+plugin_auth                      : Waiting for wl#9532
+transactional_acl_tables         : Waiting for wl#9532
+roles-upgrade                    : Waiting for wl#9532

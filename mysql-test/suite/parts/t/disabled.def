@@ -10,8 +10,8 @@
 #
 ##############################################################################
 
-rpl_row_binlog_max_cache_size : BUG#14126780 May 29 2012 Vasil Dimov timeout if est number of rows is 3 instead of 4
-
-#NewDD disable test case for waiting wl#9532
-rpl_alter_repository                 : Waiting for wl#9532
-rpl_upgrade_slave_master_info        : Waiting for wl#9532
+#NewDD disable some test cases for partition.
+parts.partition_special_innodb      : Waiting for wl#9559
+parts.partition_debug_sync_innodb   : Waiting for wl#9559
+parts.partition_mgm_lc1_innodb      : Waiting for wl#9559
+parts.partition_exchange_innodb     : Waiting for wl#9559
