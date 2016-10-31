@@ -1061,6 +1061,7 @@ THD::THD(bool enable_plugins)
    initial_status_var(NULL),
    status_var_aggregated(false),
    query_plan(this),
+   m_current_stage_key(0),
    current_mutex(NULL),
    current_cond(NULL),
    in_sub_stmt(0),
