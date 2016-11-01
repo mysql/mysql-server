@@ -15,6 +15,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifndef PARSE_MASK_HPP
+#define PARSE_MASK_HPP
+
 #include <util/BaseString.hpp>
 #include <util/SparseBitmask.hpp>
 #include <ctype.h>
@@ -159,3 +162,5 @@ parse_mask(const char *str, T& mask)
   }
   return cnt;
 }
+
+#endif

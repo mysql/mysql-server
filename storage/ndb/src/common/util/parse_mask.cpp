@@ -15,13 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <util/BaseString.hpp>
-#include <util/SparseBitmask.hpp>
-#include <ctype.h>
 #include <parse_mask.hpp>
-#ifndef _WIN32
-#include <strings.h>
-#endif
 
 ParseThreadConfiguration::ParseThreadConfiguration(const char *str,
                                             const struct ParseEntries *parse_entries,

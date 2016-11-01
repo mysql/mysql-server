@@ -59,7 +59,6 @@
 #include "ndb_version.h"
 #include "partition_info.h"
 #include "ndb_bitmap.h"
-#include "../storage/ndb/src/common/util/parse_mask.hpp"
 #include "../storage/ndb/include/util/SparseBitmask.hpp"
 #include "../storage/ndb/src/common/util/parse_mask.hpp"
 #include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
