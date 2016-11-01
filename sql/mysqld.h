@@ -380,6 +380,7 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_done;
 extern PSI_mutex_key key_RELAYLOG_LOCK_flush_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 extern PSI_mutex_key key_RELAYLOG_LOCK_log;
+extern PSI_mutex_key key_RELAYLOG_LOCK_log_end_pos;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
@@ -396,6 +397,7 @@ extern PSI_rwlock_key key_rwlock_LOCK_logger;
 extern PSI_rwlock_key key_rwlock_query_cache_query_lock;
 extern PSI_rwlock_key key_rwlock_channel_map_lock;
 extern PSI_rwlock_key key_rwlock_channel_lock;
+extern PSI_rwlock_key key_rwlock_receiver_sid_lock;
 
 extern PSI_cond_key key_PAGE_cond;
 extern PSI_cond_key key_COND_active;

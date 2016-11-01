@@ -435,19 +435,21 @@ table_replication_connection_status::make_row(Master_info *mi)
   m_row.last_heartbeat_timestamp = (ulonglong)mi->last_heartbeat * 1000000;
 
   {
-    global_sid_lock->wrlock();
-    const Gtid_set *io_gtid_set = mi->rli->get_gtid_set();
+    const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
+    Checkable_rwlock *sid_lock= mi->rli->get_sid_lock();
 
-    if ((m_row.received_transaction_set_length =
-           io_gtid_set->to_string(&m_row.received_transaction_set)) < 0)
+    sid_lock->wrlock();
+    m_row.received_transaction_set_length=
+      io_gtid_set->to_string(&m_row.received_transaction_set);
+    sid_lock->unlock();
+
+    if (m_row.received_transaction_set_length < 0)
     {
       my_free(m_row.received_transaction_set);
-      m_row.received_transaction_set_length = 0;
-      global_sid_lock->unlock();
-      error = true;
+      m_row.received_transaction_set_length= 0;
+      error= true;
       goto end;
     }
-    global_sid_lock->unlock();
   }
 
   /* Errors */

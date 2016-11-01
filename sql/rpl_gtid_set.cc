@@ -333,6 +333,22 @@ void Gtid_set::clear()
 }
 
 
+void Gtid_set::clear_set_and_sid_map()
+{
+  DBUG_ENTER("Gtid_set::clear_set_and_sid_map");
+  clear();
+  /*
+    Cleaning the SID map without cleaning up the Gtid_set intervals may lead
+    to a condition were the Gtid_set->get_max_sidno() will be greater than the
+    Sid_map->get_max_sidno().
+  */
+  m_intervals.clear();
+  sid_map->clear();
+  DBUG_ASSERT(get_max_sidno() == sid_map->get_max_sidno());
+  DBUG_VOID_RETURN;
+}
+
+
 void
 Gtid_set::add_gno_interval(Interval_iterator *ivitp,
                            rpl_gno start, rpl_gno end,

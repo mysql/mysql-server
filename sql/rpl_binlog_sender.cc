@@ -110,7 +110,7 @@ void Binlog_sender::init()
 
   if (m_using_gtid_protocol)
   {
-    enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+    enum_gtid_mode gtid_mode= get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE);
     if (gtid_mode != GTID_MODE_ON)
     {
       char buf[MYSQL_ERRMSG_SIZE];
@@ -387,36 +387,40 @@ my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
 inline my_off_t Binlog_sender::get_binlog_end_pos(IO_CACHE *log_cache)
 {
   DBUG_ENTER("Binlog_sender::get_binlog_end_pos()");
-  my_off_t log_pos= my_b_tell(log_cache);
+  my_off_t read_pos= my_b_tell(log_cache);
   my_off_t end_pos= 0;
 
   do
   {
-    mysql_bin_log.lock_binlog_end_pos();
+    /*
+      MYSQL_BIN_LOG::binlog_end_pos is atomic. We should only acquire the
+      LOCK_binlog_end_pos if we reached the end of the hot log and are going
+      to wait for updates on the binary log (Binlog_sender::wait_new_event()).
+    */
     end_pos= mysql_bin_log.get_binlog_end_pos();
-    mysql_bin_log.unlock_binlog_end_pos();
 
+    /* If this is a cold binlog file, we are done getting the end pos */
     if (unlikely(!mysql_bin_log.is_active(m_linfo.log_file_name)))
     {
       end_pos= my_b_filelength(log_cache);
-      if (log_pos == end_pos)
+      if (read_pos == end_pos)
         DBUG_RETURN(0); // Arrived the end of inactive file
       else
         DBUG_RETURN(end_pos);
     }
 
     DBUG_PRINT("info", ("Reading file %s, seek pos %llu, end_pos is %llu",
-                        m_linfo.log_file_name, log_pos, end_pos));
+                        m_linfo.log_file_name, read_pos, end_pos));
     DBUG_PRINT("info", ("Active file is %s", mysql_bin_log.get_log_fname()));
 
-    if (log_pos < end_pos)
+    if (read_pos < end_pos)
       DBUG_RETURN(end_pos);
 
     /* Some data may be in net buffer, it should be flushed before waiting */
     if (!m_wait_new_events || flush_net())
       DBUG_RETURN(1);
 
-    if (unlikely(wait_new_events(log_pos)))
+    if (unlikely(wait_new_events(read_pos)))
       DBUG_RETURN(1);
   } while (unlikely(!m_thd->killed));
 
@@ -579,7 +583,7 @@ bool Binlog_sender::check_event_type(Log_event_type type,
       GTID_MODE to ON when the slave has not yet replicated all
       anonymous transactions.
     */
-    else if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
+    else if (get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
     {
       char buf[MYSQL_ERRMSG_SIZE];
       sprintf(buf,
@@ -598,7 +602,7 @@ bool Binlog_sender::check_event_type(Log_event_type type,
       GTID_MODE to OFF when the slave has not yet replicated all GTID
       transactions.
     */
-    if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
+    if (get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
     {
       char buf[MYSQL_ERRMSG_SIZE];
       sprintf(buf,
@@ -644,19 +648,26 @@ int Binlog_sender::wait_new_events(my_off_t log_pos)
   PSI_stage_info old_stage;
 
   mysql_bin_log.lock_binlog_end_pos();
+  /*
+    If the binary log was updated before reaching this waiting point,
+    there is no need to wait.
+  */
+  if (mysql_bin_log.get_binlog_end_pos() > log_pos ||
+      !mysql_bin_log.is_active(m_linfo.log_file_name))
+  {
+    mysql_bin_log.unlock_binlog_end_pos();
+    return ret;
+  }
+
   m_thd->ENTER_COND(mysql_bin_log.get_log_cond(),
                     mysql_bin_log.get_binlog_end_pos_lock(),
                     &stage_master_has_sent_all_binlog_to_slave,
                     &old_stage);
 
-  if (mysql_bin_log.get_binlog_end_pos() <= log_pos &&
-      mysql_bin_log.is_active(m_linfo.log_file_name))
-  {
-    if (m_heartbeat_period)
-      ret= wait_with_heartbeat(log_pos);
-    else
-      ret= wait_without_heartbeat();
-  }
+  if (m_heartbeat_period)
+    ret= wait_with_heartbeat(log_pos);
+  else
+    ret= wait_without_heartbeat();
 
   mysql_bin_log.unlock_binlog_end_pos();
   m_thd->EXIT_COND(&old_stage);
@@ -674,7 +685,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
   do
   {
     set_timespec_nsec(&ts, m_heartbeat_period);
-    ret= mysql_bin_log.wait_for_update_bin_log(&ts);
+    ret= mysql_bin_log.wait_for_update(&ts);
     if (!is_timeout(ret))
       break;
 
@@ -696,7 +707,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
 
 inline int Binlog_sender::wait_without_heartbeat()
 {
-  return mysql_bin_log.wait_for_update_bin_log(NULL);
+  return mysql_bin_log.wait_for_update(NULL);
 }
 
 void Binlog_sender::init_heartbeat_period()

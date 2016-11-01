@@ -222,15 +222,10 @@ public:
   LOG_INFO linfo;
 
   /*
-   cur_log
-     Pointer that either points at relay_log.get_log_file() or
-     &rli->cache_buf, depending on whether the log is hot or there was
-     the need to open a cold relay_log.
-
-   cache_buf 
-     IO_CACHE used when opening cold relay logs.
+   cache_buf
+     IO_CACHE used when opening relay logs.
    */
-  IO_CACHE cache_buf,*cur_log;
+  IO_CACHE cache_buf;
 
   /*
     Identifies when the recovery process is going on.
@@ -266,12 +261,6 @@ public:
     // the immediate master supports commit timestamps
     COMMIT_TS_FOUND
   } commit_timestamps_status;
-
-  /*
-    Needed to deal properly with cur_log getting closed and re-opened with
-    a different log under our feet
-  */
-  uint32 cur_log_old_open_count;
 
   /*
     If on init_info() call error_on_rli_init_info is true that means
@@ -332,7 +321,7 @@ protected:
   volatile my_off_t group_master_log_pos;
 
 private:
-  Gtid_set gtid_set;
+  Gtid_set *gtid_set;
   /*
     Identifies when this object belongs to the SQL thread and was not
     created for a client thread or some other purpose including
@@ -345,12 +334,18 @@ private:
   bool gtid_retrieved_initialized;
 
 public:
+  Sid_map* get_sid_map()
+  { return gtid_set->get_sid_map(); }
+
+  Checkable_rwlock* get_sid_lock()
+  { return get_sid_map()->get_sid_lock(); }
+
   void add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
-    global_sid_lock->assert_some_lock();
-    DBUG_ASSERT(sidno <= global_sid_map->get_max_sidno());
-    gtid_set.ensure_sidno(sidno);
-    gtid_set._add_gtid(sidno, gno);
+    get_sid_lock()->assert_some_lock();
+    DBUG_ASSERT(sidno <= get_sid_map()->get_max_sidno());
+    gtid_set->ensure_sidno(sidno);
+    gtid_set->_add_gtid(sidno, gno);
   }
 
   /**
@@ -362,7 +357,7 @@ public:
   */
   enum_return_status add_gtid_set(const Gtid_set *gtid_set);
 
-  const Gtid_set *get_gtid_set() const { return &gtid_set; }
+  const Gtid_set *get_gtid_set() const { return gtid_set; }
 
   int init_relay_log_pos(const char* log,
                          ulonglong pos, bool need_data_lock,
@@ -462,7 +457,7 @@ public:
     binlog) of the last of these events seen by the slave I/O thread. If not,
     ign_master_log_name_end[0] == 0.
     As they are like a Rotate event read/written from/to the relay log, they
-    are both protected by rli->relay_log.LOCK_log.
+    are both protected by rli->relay_log.LOCK_binlog_end_pos.
   */
   char ign_master_log_name_end[FN_REFLEN];
   ulonglong ign_master_log_pos_end;
@@ -510,6 +505,7 @@ public:
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos,
                    double timeout);
+  int wait_for_gtid_set(THD* thd, char* gtid, double timeout);
   int wait_for_gtid_set(THD* thd, String* gtid, double timeout);
   int wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
                         double timeout);

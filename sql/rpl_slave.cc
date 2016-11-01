@@ -1103,12 +1103,12 @@ static void recover_relay_log(Master_info *mi)
     Clear the retrieved GTID set so that events that are written partially
     will be fetched again.
   */
-  if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON &&
+  if (mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON &&
       !channel_map.is_group_replication_channel_name(rli->get_channel()))
   {
-    global_sid_lock->wrlock();
-    (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
-    global_sid_lock->unlock();
+    rli->get_sid_lock()->wrlock();
+    (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear_set_and_sid_map();
+    rli->get_sid_lock()->unlock();
   }
 }
 
@@ -1171,7 +1171,7 @@ int init_recovery(Master_info* mi)
     error= mts_recovery_groups(rli);
     if (rli->mts_recovery_group_cnt)
     {
-      if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
+      if (mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
       {
         rli->recovery_parallel_workers= 0;
         rli->clear_mts_recovery_groups();
@@ -1463,14 +1463,15 @@ err:
   DBUG_RETURN(error);
 }
 
-int flush_master_info(Master_info* mi, bool force)
+int flush_master_info(Master_info* mi, bool force,
+                      bool need_lock, bool do_flush_relay_log)
 {
   DBUG_ENTER("flush_master_info");
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
-  /*
-    The previous implementation was not acquiring locks.
-    We do the same here. However, this is quite strange.
-  */
+  DBUG_EXECUTE_IF("fail_to_flush_master_info",
+                  {
+                    DBUG_RETURN(1);
+                  });
   /*
     With the appropriate recovery process, we will not need to flush
     the content of the current log.
@@ -1489,12 +1490,23 @@ int flush_master_info(Master_info* mi, bool force)
   */
   mysql_mutex_t *log_lock= mi->rli->relay_log.get_log_lock();
 
-  mysql_mutex_lock(log_lock);
+  if (need_lock)
+    mysql_mutex_lock(log_lock);
+  else
+    mysql_mutex_assert_owner(log_lock);
 
-  int err=  (mi->rli->flush_current_log() ||
-             mi->flush_info(force));
+  int err= 0;
+  /*
+    We can skip flushing the relay log when this function is called from
+    queue_event(), as after_write_to_relay_log() will already flush it.
+  */
+  if (do_flush_relay_log)
+    err|= mi->rli->flush_current_log();
 
-  mysql_mutex_unlock(log_lock);
+  err|= mi->flush_info(force);
+
+  if (need_lock)
+    mysql_mutex_unlock(log_lock);
 
   DBUG_RETURN (err);
 }
@@ -2040,7 +2052,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
   }
 
   if (mi->is_auto_position() && (thread_mask & SLAVE_IO) &&
-      get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
+      mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
   {
     my_error(ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF, MYF(0),
              mi->get_for_channel_str());
@@ -3202,7 +3214,8 @@ when it try to get the value of TIME_ZONE global variable from master.";
   if (DBUG_EVALUATE_IF("simulate_slave_unaware_gtid", 0, 1))
   {
     enum_gtid_mode master_gtid_mode= GTID_MODE_OFF;
-    enum_gtid_mode slave_gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+    enum_gtid_mode slave_gtid_mode=
+      mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE);
     switch (io_thread_init_command(mi, "SELECT @@GLOBAL.GTID_MODE",
                                    ER_UNKNOWN_SYSTEM_VARIABLE,
                                    &master_res, &master_row))
@@ -3386,9 +3399,77 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
 
 
 /*
+  Builds a Rotate and writes it to relay log.
+
+  The caller must hold mi->data_lock.
+
+  @param thd pointer to I/O Thread's Thd.
+  @param mi  point to I/O Thread metadata class.
+
+  @return 0 if everything went fine, 1 otherwise.
+*/
+static int write_rotate_to_master_pos_into_relay_log(THD *thd,
+                                                     Master_info *mi)
+{
+  Relay_log_info *rli= mi->rli;
+  int error= 0;
+  DBUG_ENTER("write_rotate_to_master_pos_into_relay_log");
+
+  DBUG_ASSERT(thd == mi->info_thd);
+  mysql_mutex_assert_owner(&mi->data_lock);
+
+  DBUG_PRINT("info",("writing a Rotate event to the relay log"));
+  Rotate_log_event *ev= new Rotate_log_event(mi->get_master_log_name(),
+                                             0, mi->get_master_log_pos(),
+                                             Rotate_log_event::DUP_NAME);
+
+  DBUG_EXECUTE_IF("fail_generating_rotate_event_on_write_rotate_to_master_pos",
+                  {
+                    if (likely((bool)ev))
+                    {
+                      delete ev;
+                      ev= NULL;
+                    }
+                  });
+
+  if (likely((bool)ev))
+  {
+    if (mi->get_mi_description_event() != NULL)
+      ev->common_footer->checksum_alg=
+                   mi->get_mi_description_event()->common_footer->checksum_alg;
+
+    ev->server_id= 0; // don't be ignored by slave SQL thread
+    if (unlikely(rli->relay_log.write_event(ev, mi) != 0))
+      mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
+                 ER_THD(thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+                 "failed to write a Rotate event"
+                 " to the relay log, SHOW SLAVE STATUS may be"
+                 " inaccurate");
+    rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+    if (flush_master_info(mi, TRUE))
+    {
+      error= 1;
+      sql_print_error("Failed to flush master info file.");
+    }
+    delete ev;
+  }
+  else
+  {
+    error= 1;
+    mi->report(ERROR_LEVEL, ER_SLAVE_CREATE_EVENT_FAILURE,
+               ER_THD(thd, ER_SLAVE_CREATE_EVENT_FAILURE),
+               "Rotate_event (out of memory?),"
+               " SHOW SLAVE STATUS may be inaccurate");
+  }
+
+  DBUG_RETURN(error);
+}
+
+
+/*
   Builds a Rotate from the ignored events' info and writes it to relay log.
 
-  The caller must hold mi->data_lock before invoking this function.
+  The caller must hold mi->data_lock.
 
   @param thd pointer to I/O Thread's Thd.
   @param mi  point to I/O Thread metadata class.
@@ -3398,54 +3479,35 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
 static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
 {
   Relay_log_info *rli= mi->rli;
-  mysql_mutex_t *log_lock= rli->relay_log.get_log_lock();
+  mysql_mutex_t *end_pos_lock= rli->relay_log.get_binlog_end_pos_lock();
   int error= 0;
   DBUG_ENTER("write_ignored_events_info_to_relay_log");
 
   DBUG_ASSERT(thd == mi->info_thd);
   mysql_mutex_assert_owner(&mi->data_lock);
-  mysql_mutex_lock(log_lock);
+  mysql_mutex_lock(end_pos_lock);
+
   if (rli->ign_master_log_name_end[0])
   {
     DBUG_PRINT("info",("writing a Rotate event to track down ignored events"));
-    Rotate_log_event *ev= new Rotate_log_event(rli->ign_master_log_name_end,
-                                               0, rli->ign_master_log_pos_end,
-                                               Rotate_log_event::DUP_NAME);
-    if (mi->get_mi_description_event() != NULL)
-      ev->common_footer->checksum_alg=
-                   mi->get_mi_description_event()->common_footer->checksum_alg;
+    /*
+      If the ignored events' info still hold, they should have same info as
+      the mi->get_master_log_[name|pos].
+    */
+    DBUG_ASSERT(strcmp(rli->ign_master_log_name_end,
+                       mi->get_master_log_name()) == 0);
+    DBUG_ASSERT(rli->ign_master_log_pos_end == mi->get_master_log_pos());
 
+    /* Avoid the applier to get the ignored event' info by rli->ign* */
     rli->ign_master_log_name_end[0]= 0;
-    /* can unlock before writing as slave SQL thd will soon see our Rotate */
-    mysql_mutex_unlock(log_lock);
-    if (likely((bool)ev))
-    {
-      ev->server_id= 0; // don't be ignored by slave SQL thread
-      if (unlikely(rli->relay_log.append_event(ev, mi) != 0))
-        mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-                   ER_THD(thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
-                   "failed to write a Rotate event"
-                   " to the relay log, SHOW SLAVE STATUS may be"
-                   " inaccurate");
-      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-      if (flush_master_info(mi, TRUE))
-      {
-        error= 1;
-        sql_print_error("Failed to flush master info file.");
-      }
-      delete ev;
-    }
-    else
-    {
-      error= 1;
-      mi->report(ERROR_LEVEL, ER_SLAVE_CREATE_EVENT_FAILURE,
-                 ER_THD(thd, ER_SLAVE_CREATE_EVENT_FAILURE),
-                 "Rotate_event (out of memory?),"
-                 " SHOW SLAVE STATUS may be inaccurate");
-    }
+    /* can unlock before writing as the relay log will soon have our Rotate */
+    mysql_mutex_unlock(end_pos_lock);
+
+    /* Generate the rotate based on mi position */
+    error= write_rotate_to_master_pos_into_relay_log(thd, mi);
   }
   else
-    mysql_mutex_unlock(log_lock);
+    mysql_mutex_unlock(end_pos_lock);
 
   DBUG_RETURN(error);
 }
@@ -3963,6 +4025,8 @@ bool show_slave_status(THD *thd)
   const Gtid_set *sql_gtid_set= gtid_state->get_executed_gtids();
   sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer);
 
+  global_sid_lock->unlock();
+
   idx= 0;
   for (mi_map::iterator it= channel_map.begin(); it!=channel_map.end(); it++)
   {
@@ -3978,6 +4042,7 @@ bool show_slave_status(THD *thd)
     if (mi != NULL && mi->host[0])
     {
       const Gtid_set*  io_gtid_set= mi->rli->get_gtid_set();
+      mi->rli->get_sid_lock()->wrlock();
 
       /*
          @todo: a single memory allocation improves speed,
@@ -3996,16 +4061,17 @@ bool show_slave_status(THD *thd)
         }
         my_free(io_gtid_set_buffer_array);
 
-        global_sid_lock->unlock();
+        mi->rli->get_sid_lock()->unlock();
         DBUG_RETURN(true);
       }
       else
         max_io_gtid_set_size= max_io_gtid_set_size > io_gtid_set_size ?
                               max_io_gtid_set_size : io_gtid_set_size;
+
+      mi->rli->get_sid_lock()->unlock();
     }
     idx++;
   }
-  global_sid_lock->unlock();
 
 
   show_slave_status_metadata(field_list, max_io_gtid_set_size,
@@ -4075,20 +4141,24 @@ bool show_slave_status(THD* thd, Master_info* mi)
   DBUG_ENTER("show_slave_status(THD, Master_info)");
  
   if (mi != NULL)
-  { 
+  {
     global_sid_lock->wrlock();
     const Gtid_set* sql_gtid_set= gtid_state->get_executed_gtids();
+    sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer);
+    global_sid_lock->unlock();
+
+    mi->rli->get_sid_lock()->wrlock();
     const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
-    if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
-        (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
+    io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer);
+    mi->rli->get_sid_lock()->unlock();
+
+    if (sql_gtid_set_size < 0 || io_gtid_set_size < 0)
     {
       my_eof(thd);
       my_free(sql_gtid_set_buffer);
       my_free(io_gtid_set_buffer);
-      global_sid_lock->unlock();
       DBUG_RETURN(true);
     }
-    global_sid_lock->unlock();
   }
 
   /* Fill the metadata required for show slave status. */
@@ -4403,11 +4473,19 @@ static int request_dump(THD *thd, MYSQL* mysql, MYSQL_RPL *rpl,
   if (command == COM_BINLOG_DUMP_GTID)
   {
     // get set of GTIDs
+    mi->rli->get_sid_lock()->wrlock();
+
+    if (gtid_executed.add_gtid_set(mi->rli->get_gtid_set()) != RETURN_STATUS_OK)
+    {
+      mi->rli->get_sid_lock()->unlock();
+      DBUG_RETURN(1);
+    }
+    mi->rli->get_sid_lock()->unlock();
+
     global_sid_lock->wrlock();
     gtid_state->dbug_print();
 
-    if (gtid_executed.add_gtid_set(mi->rli->get_gtid_set()) != RETURN_STATUS_OK ||
-        gtid_executed.add_gtid_set(gtid_state->get_executed_gtids()) !=
+    if (gtid_executed.add_gtid_set(gtid_state->get_executed_gtids()) !=
         RETURN_STATUS_OK)
     {
       global_sid_lock->unlock();
@@ -5826,7 +5904,8 @@ Stopping slave I/O thread due to out-of-memory error from master");
       /* XXX: 'synced' should be updated by queue_event to indicate
          whether event has been synced to disk */
       bool synced= 0;
-      if (queue_event(mi, event_buf, event_len))
+      QUEUE_EVENT_RESULT queue_res= queue_event(mi, event_buf, event_len);
+      if (queue_res == QUEUE_EVENT_ERROR_QUEUING)
       {
         mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                    ER_THD(thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
@@ -5842,17 +5921,16 @@ Stopping slave I/O thread due to out-of-memory error from master");
         goto err;
       }
 
-      mysql_mutex_lock(&mi->data_lock);
-      if (flush_master_info(mi, FALSE))
+      /* The event was queued, but there was a failure flushing master info */
+      if (queue_res == QUEUE_EVENT_ERROR_FLUSHING_INFO)
       {
         mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                    ER_THD(thd, ER_SLAVE_FATAL_ERROR),
                    "Failed to flush master info.");
-        mysql_mutex_unlock(&mi->data_lock);
         goto err;
       }
-      mysql_mutex_unlock(&mi->data_lock);
 
+      DBUG_ASSERT(queue_res == QUEUE_EVENT_OK);
       /*
         Pause the IO thread execution and wait for
         'continue_after_queue_event' signal to continue IO thread
@@ -7291,8 +7369,8 @@ extern "C" void *handle_slave_sql(void *arg)
 #ifndef DBUG_OFF
   {
     char llbuf1[22], llbuf2[22];
-    DBUG_PRINT("info", ("my_b_tell(rli->cur_log)=%s rli->event_relay_log_pos=%s",
-                        llstr(my_b_tell(rli->cur_log),llbuf1),
+    DBUG_PRINT("info", ("my_b_tell(rli->cache_buf)=%s rli->event_relay_log_pos=%s",
+                        llstr(my_b_tell(&rli->cache_buf),llbuf1),
                         llstr(rli->get_event_relay_log_pos(),llbuf2)));
     DBUG_ASSERT(rli->get_event_relay_log_pos() >= BIN_LOG_HEADER_SIZE);
     /*
@@ -7719,7 +7797,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
       */
       /* make log_pos be the pos of the end of the event */
       ev->common_header->log_pos+= event_len;
-    if (unlikely(rli->relay_log.append_event(ev, mi) != 0))
+    if (unlikely(rli->relay_log.write_event(ev, mi) != 0))
     {
       delete ev;
       DBUG_RETURN(1);
@@ -7777,7 +7855,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     break;
   }
 
-  if (unlikely(rli->relay_log.append_event(ev, mi) != 0))
+  if (unlikely(rli->relay_log.write_event(ev, mi) != 0))
   {
     delete ev;
     DBUG_RETURN(1);
@@ -7829,10 +7907,13 @@ static int queue_old_event(Master_info *mi, const char *buf,
   @param mi The Master_info object representing this connection.
   @param buf Pointer to the event data.
   @param event_len Length of event data.
+  @param do_flush_mi True to flush master info after successfully queuing the
+                     event.
 
-  @retval true Error.
-  @retval false Success.
-
+  @retval QUEUE_EVENT_OK                  on success.
+  @retval QUEUE_EVENT_ERROR_QUEUING       if there was an error while queuing.
+  @retval QUEUE_EVENT_ERROR_FLUSHING_INFO if there was an error while
+                                          flushing master info.
   @note
   If the event is 3.23/4.0, passes it to queue_old_event() which will convert
   it. Otherwise, writes a 5.0 (or newer) event to the relay log. Then there is
@@ -7842,9 +7923,12 @@ static int queue_old_event(Master_info *mi, const char *buf,
 
   @todo Make this a member of Master_info.
 */
-bool queue_event(Master_info* mi,const char* buf, ulong event_len)
+QUEUE_EVENT_RESULT queue_event(Master_info* mi,
+                               const char* buf,
+                               ulong event_len,
+                               bool do_flush_mi)
 {
-  bool error= false;
+  QUEUE_EVENT_RESULT res= QUEUE_EVENT_OK;
   ulong inc_pos= 0;
   Relay_log_info *rli= mi->rli;
   mysql_mutex_t *log_lock= rli->relay_log.get_log_lock();
@@ -8212,11 +8296,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
          Put this heartbeat event in the relay log as a Rotate Event.
       */
       inc_pos= 0;
-      memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(),
-             FN_REFLEN);
-      rli->ign_master_log_pos_end = mi->get_master_log_pos();
-
-      if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
+      if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi))
         goto end;
     }
 
@@ -8262,10 +8342,8 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     */
     inc_pos= 0;
     mi->set_master_log_pos(mi->get_master_log_pos() + event_len);
-    memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(), FN_REFLEN);
-    rli->ign_master_log_pos_end= mi->get_master_log_pos();
 
-    if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
+    if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi))
       goto err;
 
     goto end;
@@ -8274,7 +8352,6 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   case binary_log::GTID_LOG_EVENT:
   {
-    global_sid_lock->rdlock();
     /*
       This can happen if the master uses GTID_MODE=OFF_PERMISSIVE, and
       sends GTID events to the slave. A possible scenario is that user
@@ -8285,9 +8362,8 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       transactions which will be sent through B to C.  Then C will hit
       this error.
     */
-    if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF)
+    if (mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
     {
-      global_sid_lock->unlock();
       mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF,
                  ER_THD(current_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
                  mi->get_master_log_name(), mi->get_master_log_pos());
@@ -8297,8 +8373,9 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
                            checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
                            mi->get_mi_description_event());
-    gtid.sidno= gtid_ev.get_sidno(false);
-    global_sid_lock->unlock();
+    rli->get_sid_lock()->rdlock();
+    gtid.sidno= gtid_ev.get_sidno(rli->get_gtid_set()->get_sid_map());
+    rli->get_sid_lock()->unlock();
     if (gtid.sidno < 0)
       goto err;
     gtid.gno= gtid_ev.get_gno();
@@ -8332,12 +8409,15 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       will generate anonymous transactions which will be sent through
       B to C.  Then C will hit this error.
     */
-    else if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
+    else
     {
-      mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON,
-                 ER_THD(current_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
-                 mi->get_master_log_name(), mi->get_master_log_pos());
-      goto err;
+      if (mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
+      {
+        mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON,
+                   ER_THD(current_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
+                   mi->get_master_log_name(), mi->get_master_log_pos());
+        goto err;
+      }
     }
     /* fall through */
 
@@ -8425,12 +8505,15 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
          event_type != binary_log::ROTATE_EVENT &&
          event_type != binary_log::STOP_EVENT))
     {
+      rli->relay_log.lock_binlog_end_pos();
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(), FN_REFLEN);
       DBUG_ASSERT(rli->ign_master_log_name_end[0]);
       rli->ign_master_log_pos_end= mi->get_master_log_pos();
+      // the slave SQL thread needs to re-check
+      rli->relay_log.update_binlog_end_pos(false /*need_lock*/);
+      rli->relay_log.unlock_binlog_end_pos();
     }
-    rli->relay_log.signal_update(); // the slave SQL thread needs to re-check
     DBUG_PRINT("info", ("master_log_pos: %lu, event originating from %u server, ignored",
                         (ulong) mi->get_master_log_pos(), uint4korr(buf + SERVER_ID_OFFSET)));
   }
@@ -8438,8 +8521,11 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   {
     bool is_error= false;
     /* write the event to the relay log */
-    if (likely(rli->relay_log.append_buffer(buf, event_len, mi) == 0))
+    if (likely(rli->relay_log.write_buffer(buf, event_len, mi) == 0))
     {
+      DBUG_SIGNAL_WAIT_FOR("pause_on_queue_event_after_write_buffer",
+                           "receiver_reached_pause_on_queue_event",
+                           "receiver_continue_queuing_event");
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
@@ -8476,7 +8562,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     }
     else
       is_error= true;
-    rli->ign_master_log_name_end[0]= 0; // last event is not ignored
+    rli->ign_master_log_name_end[0]= 0; // last event is not ignored //JAG: TODO: is this really needed?
     if (save_buf != NULL)
       buf= save_buf;
     if (is_error)
@@ -8490,15 +8576,30 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   goto end;
 
 err:
-  error= true;
+  res= QUEUE_EVENT_ERROR_QUEUING;
 
 end:
-  if (lock_count >= 1)
-    mysql_mutex_unlock(&mi->data_lock);
+  if (res == QUEUE_EVENT_OK && do_flush_mi)
+  {
+    /*
+      Take a ride in the already locked LOCK_log to flush master info.
+
+      JAG: TODO: Notice that we could only flush master info if we are
+                 not in the middle of a transaction. Having a proper
+                 relay log recovery can allow us to do this.
+    */
+    if (flush_master_info(mi,
+                          false/*force*/,
+                          lock_count == 1/*need_lock*/,
+                          false/*flush_relay_log*/))
+      res= QUEUE_EVENT_ERROR_FLUSHING_INFO;
+  }
   if (lock_count >= 2)
     mysql_mutex_unlock(log_lock);
-  DBUG_PRINT("info", ("error: %d", error));
-  DBUG_RETURN(error);
+  if (lock_count >= 1)
+    mysql_mutex_unlock(&mi->data_lock);
+  DBUG_PRINT("info", ("queue result: %d", res));
+  DBUG_RETURN(res);
 }
 
 /**
@@ -8757,30 +8858,144 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,
 }
 
 
-/*
-  Called when we notice that the current "hot" log got rotated under our feet.
-*/
-
-static IO_CACHE *reopen_relay_log(Relay_log_info *rli, const char **errmsg)
+static void relay_log_space_verification(Relay_log_info* rli)
 {
-  DBUG_ENTER("reopen_relay_log");
-  DBUG_ASSERT(rli->cur_log != &rli->cache_buf);
-  DBUG_ASSERT(rli->cur_log_fd == -1);
-
-  IO_CACHE *cur_log = rli->cur_log=&rli->cache_buf;
-  if ((rli->cur_log_fd=open_binlog_file(cur_log,rli->get_event_relay_log_name(),
-                                        errmsg)) <0)
-    DBUG_RETURN(0);
   /*
-    We want to start exactly where we was before:
-    relay_log_pos       Current log pos
-    pending             Number of bytes already processed from the event
+    Possible deadlock :
+    - the I/O thread has reached log_space_limit
+    - the SQL thread has read all relay logs, but cannot purge for some
+    reason:
+      * it has already purged all logs except the current one
+      * there are other logs than the current one but they're involved in
+      a transaction that finishes in the current one (or is not finished)
+    Solution :
+    Wake up the possibly waiting I/O thread, and set a boolean asking
+    the I/O thread to temporarily ignore the log_space_limit
+    constraint, because we do not want the I/O thread to block because of
+    space (it's ok if it blocks for any other reason (e.g. because the
+    master does not send anything). Then the I/O thread stops waiting
+    and reads one more event and starts honoring log_space_limit again.
+
+    If the SQL thread needs more events to be able to rotate the log (it
+    might need to finish the current group first), then it can ask for one
+    more at a time. Thus we don't outgrow the relay log indefinitely,
+    but rather in a controlled manner, until the next rotate.
+
+    When the SQL thread starts it sets ignore_log_space_limit to false. 
+    We should also reset ignore_log_space_limit to 0 when the user does 
+    RESET SLAVE, but in fact, no need as RESET SLAVE requires that the slave
+    be stopped, and the SQL thread sets ignore_log_space_limit to 0 when
+    it stops.
   */
-  rli->set_event_relay_log_pos(max<ulonglong>(rli->get_event_relay_log_pos(),
-                                              BIN_LOG_HEADER_SIZE));
-  my_b_seek(cur_log,rli->get_event_relay_log_pos());
-  DBUG_RETURN(cur_log);
+  mysql_mutex_lock(&rli->log_space_lock);
+
+  /*
+    If we have reached the limit of the relay space and we
+    are going to sleep, waiting for more events:
+
+    1. If outside a group, SQL thread asks the IO thread
+       to force a rotation so that the SQL thread purges
+       logs next time it processes an event (thus space is
+       freed).
+
+    2. If in a group, SQL thread asks the IO thread to
+       ignore the limit and queues yet one more event
+       so that the SQL thread finishes the group and
+       is are able to rotate and purge sometime soon.
+   */
+  if (rli->log_space_limit &&
+      rli->log_space_limit < rli->log_space_total)
+  {
+    /* force rotation if not in an unfinished group */
+    if (!rli->is_parallel_exec())
+    {
+      rli->sql_force_rotate_relay= !rli->is_in_group();
+    }
+    else
+    {
+      rli->sql_force_rotate_relay=
+        (rli->mts_group_status != Relay_log_info::MTS_IN_GROUP);
+    }
+    /* ask for one more event */
+    rli->ignore_log_space_limit= true;
+  }
+
+  /*
+    If the I/O thread is blocked, unblock it.  Ok to broadcast
+    after unlock, because the mutex is only destroyed in
+    ~Relay_log_info(), i.e. when rli is destroyed, and rli will
+    not be destroyed before we exit the present function.
+  */
+  mysql_mutex_unlock(&rli->log_space_lock);
+  mysql_cond_broadcast(&rli->log_space_cond);
 }
+
+
+/**
+  Wait until we get a signal that the relay log has been updated.
+
+  @param[in] thd        Thread variable
+  @param[in] relay_log  The relay log to wait for updates
+  @param[in] timeout    a pointer to a timespec;
+                        NULL means to wait w/o timeout.
+
+  @retval    0          if got signalled on update
+  @retval    non-0      if wait timeout elapsed
+
+  @note
+    One must have a lock on LOCK_binlog_end_pos before calling this function.
+*/
+int wait_new_relaylog_events(THD *thd, MYSQL_BIN_LOG *relay_log,
+                             const struct timespec *timeout)
+{
+  int ret= 0;
+  PSI_stage_info old_stage;
+  mysql_mutex_assert_owner(relay_log->get_binlog_end_pos_lock());
+  thd->ENTER_COND(relay_log->get_log_cond(),
+                  relay_log->get_binlog_end_pos_lock(),
+                  &stage_slave_has_read_all_relay_log,
+                  &old_stage);
+
+  ret= relay_log->wait_for_update(timeout);
+  relay_log->unlock_binlog_end_pos();
+  thd->EXIT_COND(&old_stage);
+  return ret;
+}
+
+
+#ifndef DBUG_OFF
+void dump_next_event_debug_information(Relay_log_info *rli,
+                                       my_off_t current_read_pos,
+                                       my_off_t relaylog_end_pos,
+                                       bool hot_log)
+{
+  DBUG_PRINT("info", ("assertion skip %lu file pos %lu event relay log pos %lu file %s\n",
+    (ulong) rli->slave_skip_counter, (ulong) current_read_pos,
+    (ulong) rli->get_event_relay_log_pos(),
+    rli->get_event_relay_log_name()));
+
+  /* This is an assertion which sometimes fails, let's try to track it */
+  char llbuf1[22], llbuf2[22];
+  DBUG_PRINT("info", ("my_b_tell(cur_log)=%s rli->event_relay_log_pos=%s",
+                      llstr(current_read_pos, llbuf1),
+                      llstr(rli->get_event_relay_log_pos(),llbuf2)));
+
+  DBUG_ASSERT(current_read_pos >= BIN_LOG_HEADER_SIZE);
+  DBUG_ASSERT(current_read_pos == rli->get_event_relay_log_pos() || rli->is_parallel_exec());
+
+  DBUG_PRINT("info", ("next_event group master %s %lu group relay %s %lu event %s %lu\n",
+    rli->get_group_master_log_name(),
+    (ulong) rli->get_group_master_log_pos(),
+    rli->get_group_relay_log_name(),
+    (ulong) rli->get_group_relay_log_pos(),
+    rli->get_event_relay_log_name(),
+    (ulong) rli->get_event_relay_log_pos()));
+
+  DBUG_PRINT("info",("rli->relay_log.get_binlog_end_pos()= %llu",
+                     relaylog_end_pos));
+  DBUG_PRINT("info",("hot_log= %s", hot_log ? "true" : "false"));
+}
+#endif
 
 
 /**
@@ -8796,8 +9011,8 @@ static IO_CACHE *reopen_relay_log(Relay_log_info *rli, const char **errmsg)
 static Log_event* next_event(Relay_log_info* rli)
 {
   Log_event* ev;
-  IO_CACHE* cur_log = rli->cur_log;
-  mysql_mutex_t *log_lock = rli->relay_log.get_log_lock();
+  IO_CACHE* cur_log = &rli->cache_buf;
+  mysql_mutex_t *end_pos_lock= rli->relay_log.get_binlog_end_pos_lock();
   const char* errmsg=0;
   THD* thd = rli->info_thd;
   DBUG_ENTER("next_event");
@@ -8820,90 +9035,25 @@ static Log_event* next_event(Relay_log_info* rli)
 
   while (!sql_slave_killed(thd,rli))
   {
-    /*
-      We can have two kinds of log reading:
-      hot_log:
-        rli->cur_log points at the IO_CACHE of relay_log, which
-        is actively being updated by the I/O thread. We need to be careful
-        in this case and make sure that we are not looking at a stale log that
-        has already been rotated. If it has been, we reopen the log.
+    my_off_t current_read_pos= my_b_tell(cur_log);
+    my_off_t relaylog_end_pos= rli->relay_log.get_binlog_end_pos();
+    bool hot_log= likely(rli->relay_log.is_active(rli->get_event_relay_log_name()));
 
-      The other case is much simpler:
-        We just have a read only log that nobody else will be updating.
-    */
-    bool hot_log;
-    if ((hot_log = (cur_log != &rli->cache_buf)) ||
-        DBUG_EVALUATE_IF("force_sql_thread_error", 1, 0))
-    {
-      DBUG_ASSERT(rli->cur_log_fd == -1); // foreign descriptor
-      mysql_mutex_lock(log_lock);
-
-      /*
-        Reading xxx_file_id is safe because the log will only
-        be rotated when we hold relay_log.LOCK_log
-      */
-      if (rli->relay_log.get_open_count() != rli->cur_log_old_open_count &&
-          DBUG_EVALUATE_IF("force_sql_thread_error", 0, 1))
-      {
-        // The master has switched to a new log file; Reopen the old log file
-        cur_log=reopen_relay_log(rli, &errmsg);
-        mysql_mutex_unlock(log_lock);
-        if (!cur_log)                           // No more log files
-          goto err;
-        hot_log=0;                              // Using old binary log
-      }
-    }
-    /* 
-      As there is no guarantee that the relay is open (for example, an I/O
-      error during a write by the slave I/O thread may have closed it), we
-      have to test it.
-    */
-    if (!my_b_inited(cur_log) ||
-        DBUG_EVALUATE_IF("force_sql_thread_error", 1, 0))
-    {
-      if (hot_log)
-        mysql_mutex_unlock(log_lock);
-      goto err;
-    }
 #ifndef DBUG_OFF
-    {
-      DBUG_PRINT("info", ("assertion skip %lu file pos %lu event relay log pos %lu file %s\n",
-        (ulong) rli->slave_skip_counter, (ulong) my_b_tell(cur_log),
-        (ulong) rli->get_event_relay_log_pos(),
-        rli->get_event_relay_log_name()));
+    if (DBUG_EVALUATE_IF("force_sql_thread_error", 1, 0))
+      goto err;
 
-      /* This is an assertion which sometimes fails, let's try to track it */
-      char llbuf1[22], llbuf2[22];
-      DBUG_PRINT("info", ("my_b_tell(cur_log)=%s rli->event_relay_log_pos=%s",
-                          llstr(my_b_tell(cur_log),llbuf1),
-                          llstr(rli->get_event_relay_log_pos(),llbuf2)));
-
-      DBUG_ASSERT(my_b_tell(cur_log) >= BIN_LOG_HEADER_SIZE);
-      DBUG_ASSERT(my_b_tell(cur_log) == rli->get_event_relay_log_pos() || rli->is_parallel_exec());
-
-      DBUG_PRINT("info", ("next_event group master %s %lu group relay %s %lu event %s %lu\n",
-        rli->get_group_master_log_name(),
-        (ulong) rli->get_group_master_log_pos(),
-        rli->get_group_relay_log_name(),
-        (ulong) rli->get_group_relay_log_pos(),
-        rli->get_event_relay_log_name(),
-        (ulong) rli->get_event_relay_log_pos()));
-    }
+    dump_next_event_debug_information(rli, current_read_pos,
+                                      relaylog_end_pos, hot_log);
 #endif
-    rli->set_event_start_pos(my_b_tell(cur_log));
-    /*
-      Relay log is always in new format - if the master is 3.23, the
-      I/O thread will convert the format for us.
-      A problem: the description event may be in a previous relay log. So if
-      the slave has been shutdown meanwhile, we would have to look in old relay
-      logs, which may even have been deleted. So we need to write this
-      description event at the beginning of the relay log.
-      When the relay log is created when the I/O thread starts, easy: the
-      master will send the description event and we will queue it.
-      But if the relay log is created by new_file(): then the solution is:
-      MYSQL_BIN_LOG::open() will write the buffered description event.
-    */
-    if ((ev= Log_event::read_log_event(cur_log, 0,
+    rli->set_event_start_pos(current_read_pos);
+
+    bool can_read_event= !hot_log ||
+                         current_read_pos < relaylog_end_pos;
+    DBUG_PRINT("info",("can_read_event= %s", can_read_event ? "true" : "false"));
+
+    if (can_read_event &&
+        (ev= Log_event::read_log_event(cur_log, 0,
                                        rli->get_rli_description_event(),
                                        opt_slave_sql_verify_checksum)))
     {
@@ -8915,8 +9065,6 @@ static Log_event* next_event(Relay_log_info* rli)
       rli->set_future_event_relay_log_pos(my_b_tell(cur_log));
       ev->future_event_relay_log_pos= rli->get_future_event_relay_log_pos();
 
-      if (hot_log)
-        mysql_mutex_unlock(log_lock);
       /*
          MTS checkpoint in the successful read branch.
          The following block makes sure that
@@ -8956,19 +9104,37 @@ static Log_event* next_event(Relay_log_info* rli)
           error happens and there was already a non-terminal event scheduled.
         */
         rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
-      if (hot_log)
-        mysql_mutex_unlock(log_lock);
       goto err;
     }
-    if (!cur_log->error) /* EOF */
+    if (!cur_log->error) /* Seems EOF: no error reading the event */
     {
       /*
         On a hot log, EOF means that there are no more updates to
         process and we must block until I/O thread adds some and
-        signals us to continue
+        signals us to continue.
+
+        If can_read_event is false, it means we reached the limit
+        imposed by the I/O thread. We must also block until changes
+        into the relay log signal us to continue.
       */
-      if (hot_log)
+      if (!can_read_event)
       {
+        /*
+          We are about to wait for updates. Lock relay_log.LOCK_binlog_end_pos
+          to avoid missing update signals from the receiver thread.
+        */
+        mysql_mutex_lock(end_pos_lock);
+        /*
+          If the relay log was updated before reaching this waiting point,
+          there is no need to wait.
+        */
+        if (rli->relay_log.get_binlog_end_pos() > rli->get_event_relay_log_pos() ||
+            !rli->relay_log.is_active(rli->get_event_relay_log_name()))
+        {
+          mysql_mutex_unlock(end_pos_lock);
+          continue;
+        }
+
         /*
           We say in Seconds_Behind_Master that we have "caught up". Note that
           for example if network link is broken but I/O slave thread hasn't
@@ -9007,9 +9173,6 @@ static Log_event* next_event(Relay_log_info* rli)
         if (!rli->is_parallel_exec())
           rli->last_master_timestamp= 0;
 
-        DBUG_ASSERT(rli->relay_log.get_open_count() ==
-                    rli->cur_log_old_open_count);
-
         if (rli->ign_master_log_name_end[0])
         {
           /* We generate and return a Rotate, to make our positions advance */
@@ -9018,7 +9181,7 @@ static Log_event* next_event(Relay_log_info* rli)
                                    0, rli->ign_master_log_pos_end,
                                    Rotate_log_event::DUP_NAME);
           rli->ign_master_log_name_end[0]= 0;
-          mysql_mutex_unlock(log_lock);
+          mysql_mutex_unlock(end_pos_lock);
           if (unlikely(!ev))
           {
             errmsg= "Slave SQL thread failed to create a Rotate event "
@@ -9035,75 +9198,7 @@ static Log_event* next_event(Relay_log_info* rli)
         */
         mysql_mutex_unlock(&rli->data_lock);
 
-        /*
-          Possible deadlock :
-          - the I/O thread has reached log_space_limit
-          - the SQL thread has read all relay logs, but cannot purge for some
-          reason:
-            * it has already purged all logs except the current one
-            * there are other logs than the current one but they're involved in
-            a transaction that finishes in the current one (or is not finished)
-          Solution :
-          Wake up the possibly waiting I/O thread, and set a boolean asking
-          the I/O thread to temporarily ignore the log_space_limit
-          constraint, because we do not want the I/O thread to block because of
-          space (it's ok if it blocks for any other reason (e.g. because the
-          master does not send anything). Then the I/O thread stops waiting
-          and reads one more event and starts honoring log_space_limit again.
-
-          If the SQL thread needs more events to be able to rotate the log (it
-          might need to finish the current group first), then it can ask for one
-          more at a time. Thus we don't outgrow the relay log indefinitely,
-          but rather in a controlled manner, until the next rotate.
-
-          When the SQL thread starts it sets ignore_log_space_limit to false. 
-          We should also reset ignore_log_space_limit to 0 when the user does 
-          RESET SLAVE, but in fact, no need as RESET SLAVE requires that the slave
-          be stopped, and the SQL thread sets ignore_log_space_limit to 0 when
-          it stops.
-        */
-        mysql_mutex_lock(&rli->log_space_lock);
-
-        /* 
-          If we have reached the limit of the relay space and we
-          are going to sleep, waiting for more events:
-
-          1. If outside a group, SQL thread asks the IO thread 
-             to force a rotation so that the SQL thread purges 
-             logs next time it processes an event (thus space is
-             freed).
-
-          2. If in a group, SQL thread asks the IO thread to 
-             ignore the limit and queues yet one more event 
-             so that the SQL thread finishes the group and 
-             is are able to rotate and purge sometime soon.
-         */
-        if (rli->log_space_limit && 
-            rli->log_space_limit < rli->log_space_total)
-        {
-          /* force rotation if not in an unfinished group */
-          if (!rli->is_parallel_exec())
-          {
-            rli->sql_force_rotate_relay= !rli->is_in_group();
-          }
-          else
-          {
-            rli->sql_force_rotate_relay=
-              (rli->mts_group_status != Relay_log_info::MTS_IN_GROUP);
-          }
-          /* ask for one more event */
-          rli->ignore_log_space_limit= true;
-        }
-
-        /*
-          If the I/O thread is blocked, unblock it.  Ok to broadcast
-          after unlock, because the mutex is only destroyed in
-          ~Relay_log_info(), i.e. when rli is destroyed, and rli will
-          not be destroyed before we exit the present function.
-        */
-        mysql_mutex_unlock(&rli->log_space_lock);
-        mysql_cond_broadcast(&rli->log_space_cond);
-        // Note that wait_for_update_relay_log unlocks lock_log !
+        relay_log_space_verification(rli);
 
         if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 ||
             DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)))
@@ -9113,7 +9208,7 @@ static Log_event* next_event(Relay_log_info* rli)
           ulonglong period= static_cast<ulonglong>(opt_mts_checkpoint_period * 1000000ULL);
           ulong signal_cnt= rli->relay_log.signal_cnt;
 
-          mysql_mutex_unlock(log_lock);
+          mysql_mutex_unlock(end_pos_lock);
           do
           {
             /*
@@ -9122,7 +9217,7 @@ static Log_event* next_event(Relay_log_info* rli)
               the checkpoint routine must be periodically invoked.
             */
             (void) mts_checkpoint_routine(rli, period, false, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
-            mysql_mutex_lock(log_lock);
+            mysql_mutex_lock(end_pos_lock);
             // More to the empty relay-log all assigned events done so reset it.
             if (rli->gaq->empty())
               rli->last_master_timestamp= 0;
@@ -9131,13 +9226,13 @@ static Log_event* next_event(Relay_log_info* rli)
               period= 10000000ULL;
 
             set_timespec_nsec(&waittime, period);
-            ret= rli->relay_log.wait_for_update_relay_log(thd, &waittime);
+            ret= wait_new_relaylog_events(thd, &rli->relay_log, &waittime);
           } while (is_timeout(ret) /* todo:remove */ &&
                    signal_cnt == rli->relay_log.signal_cnt && !thd->killed);
         }
         else
         {
-          rli->relay_log.wait_for_update_relay_log(thd, NULL);
+          wait_new_relaylog_events(thd, &rli->relay_log, NULL);
         }
         
         // re-acquire data lock since we released it earlier
@@ -9186,13 +9281,10 @@ static Log_event* next_event(Relay_log_info* rli)
       else
       {
         /*
-          If hot_log is set, then we already have a lock on
-          LOCK_log.  If not, we have to get the lock.
-
           According to Sasha, the only time this code will ever be executed
           is if we are recovering from a bug.
         */
-        if (rli->relay_log.find_next_log(&rli->linfo, !hot_log))
+        if (rli->relay_log.find_next_log(&rli->linfo, true))
         {
           errmsg = "error switching to the next log";
           goto err;
@@ -9215,110 +9307,11 @@ static Log_event* next_event(Relay_log_info* rli)
         rli->reset_notified_relay_log_change();
       }
 
-      /*
-        Now we want to open this next log. To know if it's a hot log (the one
-        being written by the I/O thread now) or a cold log, we can use
-        is_active(); if it is hot, we use the I/O cache; if it's cold we open
-        the file normally. But if is_active() reports that the log is hot, this
-        may change between the test and the consequence of the test. So we may
-        open the I/O cache whereas the log is now cold, which is nonsense.
-        To guard against this, we need to have LOCK_log.
-      */
-
-      DBUG_PRINT("info",("hot_log: %d",hot_log));
-      if (!hot_log) /* if hot_log, we already have this mutex */
-        mysql_mutex_lock(log_lock);
-      if (rli->relay_log.is_active(rli->linfo.log_file_name))
-      {
 #ifdef EXTRA_DEBUG
-        sql_print_information("next log '%s' is currently active",
-                              rli->linfo.log_file_name);
-#endif
-        rli->cur_log= cur_log= rli->relay_log.get_log_file();
-        rli->cur_log_old_open_count= rli->relay_log.get_open_count();
-        DBUG_ASSERT(rli->cur_log_fd == -1);
-
-        /*
-           When the SQL thread is [stopped and] (re)started the
-           following may happen:
-
-           1. Log was hot at stop time and remains hot at restart
-
-              SQL thread reads again from hot_log (SQL thread was
-              reading from the active log when it was stopped and the
-              very same log is still active on SQL thread restart).
-
-              In this case, my_b_seek is performed on cur_log, while
-              cur_log points to relay_log.get_log_file();
-
-           2. Log was hot at stop time but got cold before restart
-
-              The log was hot when SQL thread stopped, but it is not
-              anymore when the SQL thread restarts.
-
-              In this case, the SQL thread reopens the log, using
-              cache_buf, ie, cur_log points to &cache_buf, and thence
-              its coordinates are reset.
-
-           3. Log was already cold at stop time
-
-              The log was not hot when the SQL thread stopped, and, of
-              course, it will not be hot when it restarts.
-
-              In this case, the SQL thread opens the cold log again,
-              using cache_buf, ie, cur_log points to &cache_buf, and
-              thence its coordinates are reset.
-
-           4. Log was hot at stop time, DBA changes to previous cold
-              log and restarts SQL thread
-
-              The log was hot when the SQL thread was stopped, but the
-              user changed the coordinates of the SQL thread to
-              restart from a previous cold log.
-
-              In this case, at start time, cur_log points to a cold
-              log, opened using &cache_buf as cache, and coordinates
-              are reset. However, as it moves on to the next logs, it
-              will eventually reach the hot log. If the hot log is the
-              same at the time the SQL thread was stopped, then
-              coordinates were not reset - the cur_log will point to
-              relay_log.get_log_file(), and not a freshly opened
-              IO_CACHE through cache_buf. For this reason we need to
-              deploy a my_b_seek before calling check_binlog_magic at
-              this point of the code (see: BUG#55263 for more
-              details).
-          
-          NOTES: 
-            - We must keep the LOCK_log to read the 4 first bytes, as
-              this is a hot log (same as when we call read_log_event()
-              above: for a hot log we take the mutex).
-
-            - Because of scenario #4 above, we need to have a
-              my_b_seek here. Otherwise, we might hit the assertion
-              inside check_binlog_magic.
-        */
-
-        my_b_seek(cur_log, (my_off_t) 0);
-        if (check_binlog_magic(cur_log,&errmsg))
-        {
-          if (!hot_log)
-            mysql_mutex_unlock(log_lock);
-          goto err;
-        }
-        if (!hot_log)
-          mysql_mutex_unlock(log_lock);
-        continue;
-      }
-      if (!hot_log)
-        mysql_mutex_unlock(log_lock);
-      /*
-        if we get here, the log was not hot, so we will have to open it
-        ourselves. We are sure that the log is still not hot now (a log can get
-        from hot to cold, but not from cold to hot). No need for LOCK_log.
-      */
-#ifdef EXTRA_DEBUG
-      sql_print_information("next log '%s' is not active",
-                            rli->linfo.log_file_name);
+      sql_print_information("next log '%s' is %s",
+                            rli->linfo.log_file_name,
+                            rli->relay_log.is_active(rli->linfo.log_file_name) ?
+                            "active" : "not active");
 #endif
       // open_binlog_file() will check the magic header
       if ((rli->cur_log_fd=open_binlog_file(cur_log,rli->linfo.log_file_name,
@@ -9331,8 +9324,6 @@ static Log_event* next_event(Relay_log_info* rli)
         Read failed with a non-EOF error.
         TODO: come up with something better to handle this error
       */
-      if (hot_log)
-        mysql_mutex_unlock(log_lock);
       sql_print_error("Slave SQL thread%s: I/O error reading "
                       "event(errno: %d  cur_log->error: %d)",
                       rli->get_for_channel_str(), my_errno(),cur_log->error);

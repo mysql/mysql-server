@@ -84,6 +84,22 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 extern bool server_id_supplied;
 
+/**
+  This macro simplifies when a DBUG_EXECUTE_IF will generate a given
+  signal and then will wait for another signal to continue.
+*/
+#define DBUG_SIGNAL_WAIT_FOR(A,B,C) \
+  DBUG_EXECUTE_IF(A,\
+                  {\
+                    const char act[]= "now SIGNAL "\
+                                      B\
+                                      " WAIT_FOR "\
+                                      C;\
+                    DBUG_ASSERT(\
+                      !debug_sync_set_action(current_thd,\
+                                             STRING_WITH_LEN(act)));\
+                  };)
+
 /*****************************************************************************
 
   MySQL Replication
@@ -321,7 +337,9 @@ int load_mi_and_rli_from_repositories(Master_info* mi,
                                       int thread_mask);
 void end_info(Master_info* mi);
 int remove_info(Master_info* mi);
-int flush_master_info(Master_info* mi, bool force);
+int flush_master_info(Master_info* mi, bool force,
+                      bool need_lock= true,
+                      bool flush_relay_log= true);
 void add_slave_skip_errors(const char* arg);
 void set_slave_skip_errors(char** slave_skip_errors_ptr);
 int add_new_channel(Master_info** mi, const char* channel);
@@ -397,7 +415,16 @@ void init_thread_mask(int* mask,Master_info* mi,bool inverse);
 void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int rotate_relay_log(Master_info* mi);
-bool queue_event(Master_info* mi,const char* buf, ulong event_len);
+typedef enum
+{
+  QUEUE_EVENT_OK= 0,
+  QUEUE_EVENT_ERROR_QUEUING,
+  QUEUE_EVENT_ERROR_FLUSHING_INFO
+} QUEUE_EVENT_RESULT;
+QUEUE_EVENT_RESULT queue_event(Master_info* mi,
+                               const char* buf,
+                               ulong event_len,
+                               bool flush_mi= true);
 
 extern "C" void *handle_slave_io(void *arg);
 extern "C" void *handle_slave_sql(void *arg);

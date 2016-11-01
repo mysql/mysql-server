@@ -3621,7 +3621,6 @@ bool MYSQL_BIN_LOG::open(
 {
   File file= -1;
   my_off_t pos= 0;
-  int open_flags= O_CREAT;
   DBUG_ENTER("MYSQL_BIN_LOG::open");
 
   write_error= 0;
@@ -3637,11 +3636,6 @@ bool MYSQL_BIN_LOG::open(
       DBUG_EVALUATE_IF("fault_injection_init_name", 1, 0))
     goto err;
 
-  if (io_cache_type == SEQ_READ_APPEND)
-    open_flags |= O_RDWR | O_APPEND;
-  else
-    open_flags |= O_WRONLY;
-
   db[0]= 0;
 
 #ifdef HAVE_PSI_INTERFACE
@@ -3650,7 +3644,7 @@ bool MYSQL_BIN_LOG::open(
 #endif
 
   if ((file= mysql_file_open(log_file_key,
-                             log_file_name, open_flags,
+                             log_file_name, O_CREAT | O_WRONLY,
                              MYF(MY_WME))) < 0)
     goto err;
 
@@ -4492,6 +4486,9 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
                       lost_gtids, lost_gtids == NULL ? "relay" : "binary",
                       is_relay_log));
 
+  Checkable_rwlock *sid_lock= is_relay_log ?
+                              all_gtids->get_sid_map()->get_sid_lock() :
+                              global_sid_lock;
   /*
     If this is a relay log, we must have the IO thread Master_info trx_parser
     in order to correctly feed it with relay log events.
@@ -4515,14 +4512,14 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     if (all_gtids != NULL)
       mysql_mutex_lock(&LOCK_log);
     mysql_mutex_lock(&LOCK_index);
-    global_sid_lock->wrlock();
+    sid_lock->wrlock();
   }
   else
   {
     if (all_gtids != NULL)
       mysql_mutex_assert_owner(&LOCK_log);
     mysql_mutex_assert_owner(&LOCK_index);
-    global_sid_lock->assert_some_wrlock();
+    sid_lock->assert_some_wrlock();
   }
 
   // Gather the set of files to be accessed.
@@ -4805,7 +4802,7 @@ end:
     lost_gtids->dbug_print("lost_gtids");
   if (need_lock)
   {
-    global_sid_lock->unlock();
+    sid_lock->unlock();
     mysql_mutex_unlock(&LOCK_index);
     if (all_gtids != NULL)
       mysql_mutex_unlock(&LOCK_log);
@@ -4925,10 +4922,9 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   }
 
   /*
-    don't set LOG_EVENT_BINLOG_IN_USE_F for SEQ_READ_APPEND io_cache
-    as we won't be able to reset it later
+    don't set LOG_EVENT_BINLOG_IN_USE_F for the relay log
   */
-  if (io_cache_type == WRITE_CACHE)
+  if (!is_relay_log)
   {
     s.common_header->flags|= LOG_EVENT_BINLOG_IN_USE_F;
   }
@@ -4971,18 +4967,25 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   */
   if (current_thd)
   {
+    Checkable_rwlock *sid_lock= NULL;
     Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
     Gtid_set* previous_logged_gtids;
 
     if (is_relay_log)
+    {
       previous_logged_gtids= previous_gtid_set_relaylog;
+      sid_lock= previous_gtid_set_relaylog->get_sid_map()->get_sid_lock();
+    }
     else
+    {
       previous_logged_gtids= &logged_gtids_binlog;
+      sid_lock= global_sid_lock;
+    }
 
     if (need_sid_lock)
-      global_sid_lock->wrlock();
+      sid_lock->wrlock();
     else
-      global_sid_lock->assert_some_wrlock();
+      sid_lock->assert_some_wrlock();
 
     if (!is_relay_log)
     {
@@ -4994,7 +4997,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
           RETURN_STATUS_OK)
       {
         if (need_sid_lock)
-          global_sid_lock->unlock();
+          sid_lock->unlock();
         goto err;
       }
       logged_gtids_binlog.remove_gtid_set(gtids_only_in_table);
@@ -5005,7 +5008,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     if (is_relay_log)
       prev_gtids_ev.set_relay_log_event();
     if (need_sid_lock)
-      global_sid_lock->unlock();
+      sid_lock->unlock();
     prev_gtids_ev.common_footer->checksum_alg=
                                    (s.common_footer)->checksum_alg;
     if (prev_gtids_ev.write(&log_file))
@@ -5035,17 +5038,20 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     */
     if (is_relay_log)
     {
+      Sid_map *previous_gtid_sid_map= previous_gtid_set_relaylog->get_sid_map();
+      Checkable_rwlock *sid_lock= previous_gtid_sid_map->get_sid_lock();
+
       if (need_sid_lock)
-        global_sid_lock->wrlock();
+        sid_lock->wrlock();
       else
-        global_sid_lock->assert_some_wrlock();
+        sid_lock->assert_some_wrlock(); /* purecov: inspected */
 
       DBUG_PRINT("info",("Generating PREVIOUS_GTIDS for relaylog file."));
       Previous_gtids_log_event prev_gtids_ev(previous_gtid_set_relaylog);
       prev_gtids_ev.set_relay_log_event();
 
       if (need_sid_lock)
-        global_sid_lock->unlock();
+        sid_lock->unlock();
 
       prev_gtids_ev.common_footer->checksum_alg=
                                    (s.common_footer)->checksum_alg;
@@ -5619,6 +5625,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
   bool error=0;
   int err;
   const char* save_name;
+  Checkable_rwlock *sid_lock= NULL;
   DBUG_ENTER("reset_logs");
 
   /*
@@ -5637,7 +5644,11 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
   mysql_mutex_lock(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
 
-  global_sid_lock->wrlock();
+  if (is_relay_log)
+    sid_lock= previous_gtid_set_relaylog->get_sid_map()->get_sid_lock();
+  else
+    sid_lock= global_sid_lock;
+  sid_lock->wrlock();
 
   /* Save variables so that we can reopen the log */
   save_name=name;
@@ -5738,7 +5749,10 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
       error= 1;
       goto err;
     }
-    // don't clear global_sid_map because it's used by the relay log too
+    /*
+      Don't clear global_sid_map because gtid_state->clear() above didn't
+      touched owned_gtids GTID set.
+    */
     if (gtid_state->init() != 0)
       goto err;
   }
@@ -5759,7 +5773,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
 err:
   if (error == 1)
     name= const_cast<char*>(save_name);
-  global_sid_lock->unlock();
+  sid_lock->unlock();
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
@@ -6961,9 +6975,9 @@ end:
   @retval false success
   @retval true error
 */
-bool MYSQL_BIN_LOG::after_append_to_relay_log(Master_info *mi)
+bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi)
 {
-  DBUG_ENTER("MYSQL_BIN_LOG::after_append_to_relay_log");
+  DBUG_ENTER("MYSQL_BIN_LOG::after_write_to_relay_log");
   DBUG_PRINT("info",("max_size: %lu",max_size));
 
   // Check pre-conditions
@@ -6979,7 +6993,7 @@ bool MYSQL_BIN_LOG::after_append_to_relay_log(Master_info *mi)
   bool can_rotate= mi->transaction_parser.is_not_inside_transaction();
 
 #ifndef DBUG_OFF
-  if ((uint) my_b_append_tell(&log_file) >
+  if ((uint) my_b_tell(&log_file) >
       DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size) &&
       !can_rotate)
   {
@@ -7001,10 +7015,13 @@ bool MYSQL_BIN_LOG::after_append_to_relay_log(Master_info *mi)
     Gtid *last_gtid_queued= mi->get_last_gtid_queued();
     if (!last_gtid_queued->is_empty())
     {
-      global_sid_lock->rdlock();
+      mi->rli->get_sid_lock()->rdlock();
+      DBUG_SIGNAL_WAIT_FOR("updating_received_transaction_set",
+                           "reached_updating_received_transaction_set",
+                           "continue_updating_received_transaction_set");
       mi->rli->add_logged_gtid(last_gtid_queued->sidno,
                                last_gtid_queued->gno);
-      global_sid_lock->unlock();
+      mi->rli->get_sid_lock()->unlock();
       mi->clear_last_gtid_queued();
     }
 
@@ -7016,25 +7033,33 @@ bool MYSQL_BIN_LOG::after_append_to_relay_log(Master_info *mi)
       several binary logs. Therefore, if you have big transactions, you might
       see binary log files larger than max_binlog_size."
     */
-    if ((uint) my_b_append_tell(&log_file) >
+    if ((uint) my_b_tell(&log_file) >
         DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
     {
       error= new_file_without_locking(mi->get_mi_description_event());
     }
   }
 
-  signal_update();
+  lock_binlog_end_pos();
+  mi->rli->ign_master_log_name_end[0]= 0;
+  update_binlog_end_pos(false /*need_lock*/);
+  unlock_binlog_end_pos();
 
   DBUG_RETURN(error);
 }
 
 
-bool MYSQL_BIN_LOG::append_event(Log_event* ev, Master_info *mi)
+bool MYSQL_BIN_LOG::write_event(Log_event* ev, Master_info *mi)
 {
-  DBUG_ENTER("MYSQL_BIN_LOG::append");
+  DBUG_ENTER("MYSQL_BIN_LOG::write_event(Log_event *, Master_info *)");
 
+  DBUG_EXECUTE_IF("fail_to_write_ignored_event_to_relay_log",
+                  {
+                    DBUG_RETURN(true);
+                  }
+                 );
   // check preconditions
-  DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
+  DBUG_ASSERT(log_file.type == WRITE_CACHE);
   DBUG_ASSERT(is_relay_log);
 
   // acquire locks
@@ -7045,7 +7070,7 @@ bool MYSQL_BIN_LOG::append_event(Log_event* ev, Master_info *mi)
   if (ev->write(&log_file) == 0)
   {
     bytes_written+= ev->common_header->data_written;
-    error= after_append_to_relay_log(mi);
+    error= after_write_to_relay_log(mi);
   }
   else
     error= true;
@@ -7055,21 +7080,21 @@ bool MYSQL_BIN_LOG::append_event(Log_event* ev, Master_info *mi)
 }
 
 
-bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len, Master_info *mi)
+bool MYSQL_BIN_LOG::write_buffer(const char* buf, uint len, Master_info *mi)
 {
-  DBUG_ENTER("MYSQL_BIN_LOG::append_buffer");
+  DBUG_ENTER("MYSQL_BIN_LOG::write_buffer(char *, uint, Master_info *");
 
   // check preconditions
-  DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
+  DBUG_ASSERT(log_file.type == WRITE_CACHE);
   DBUG_ASSERT(is_relay_log);
   mysql_mutex_assert_owner(&LOCK_log);
 
   // write data
   bool error= false;
-  if (my_b_append(&log_file,(uchar*) buf,len) == 0)
+  if (my_b_write(&log_file, (uchar*) buf, len) == 0)
   {
     bytes_written += len;
-    error= after_append_to_relay_log(mi);
+    error= after_write_to_relay_log(mi);
   }
   else
     error= true;
@@ -7831,41 +7856,6 @@ err:
 
 
 /**
-  Wait until we get a signal that the relay log has been updated.
-
-  @param[in] thd        Thread variable
-  @param[in] timeout    a pointer to a timespec;
-                        NULL means to wait w/o timeout.
-
-  @retval    0          if got signalled on update
-  @retval    non-0      if wait timeout elapsed
-
-  @note
-    One must have a lock on LOCK_log before calling this function.
-*/
-
-int MYSQL_BIN_LOG::wait_for_update_relay_log(THD* thd, const struct timespec *timeout)
-{
-  int ret= 0;
-  PSI_stage_info old_stage;
-  DBUG_ENTER("wait_for_update_relay_log");
-
-  thd->ENTER_COND(&update_cond, &LOCK_log,
-                  &stage_slave_has_read_all_relay_log,
-                  &old_stage);
-
-  if (!timeout)
-    mysql_cond_wait(&update_cond, &LOCK_log);
-  else
-    ret= mysql_cond_timedwait(&update_cond, &LOCK_log,
-                              const_cast<struct timespec *>(timeout));
-  mysql_mutex_unlock(&LOCK_log);
-  thd->EXIT_COND(&old_stage);
-
-  DBUG_RETURN(ret);
-}
-
-/**
   Wait until we get a signal that the binary log has been updated.
   Applies to master only.
      
@@ -7880,10 +7870,10 @@ int MYSQL_BIN_LOG::wait_for_update_relay_log(THD* thd, const struct timespec *ti
     LOCK_log is released by the caller.
 */
 
-int MYSQL_BIN_LOG::wait_for_update_bin_log(const struct timespec *timeout)
+int MYSQL_BIN_LOG::wait_for_update(const struct timespec *timeout)
 {
   int ret= 0;
-  DBUG_ENTER("wait_for_update_bin_log");
+  DBUG_ENTER("wait_for_update");
 
   if (!timeout)
     mysql_cond_wait(&update_cond, &LOCK_binlog_end_pos);
@@ -7945,8 +7935,8 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
       update_binlog_end_pos();
     }
 
-    /* don't pwrite in a file opened with O_APPEND - it doesn't work */
-    if (log_file.type == WRITE_CACHE)
+    /* The following update should not be done in relay log files */
+    if (!is_relay_log)
     {
       my_off_t offset= BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
       my_off_t org_position= mysql_file_tell(log_file.file, MYF(0));

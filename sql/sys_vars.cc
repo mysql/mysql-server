@@ -3942,6 +3942,7 @@ bool Sys_var_gtid_mode::global_update(THD*, set_var *var)
 
   // Update the mode
   global_var(ulong)= new_gtid_mode;
+  gtid_mode_counter++;
   global_sid_lock->unlock();
   lock_count= 3;
 
@@ -6011,7 +6012,7 @@ static Sys_var_gtid_mode Sys_gtid_mode(
        "be replicated and executed on all servers, and finally set all "
        "servers to GTID_MODE = ON.",
        GLOBAL_VAR(_gtid_mode), CMD_LINE(REQUIRED_ARG), gtid_mode_names,
-       DEFAULT(GTID_MODE_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       DEFAULT(DEFAULT_GTID_MODE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_super_outside_trx_outside_sf_outside_sp));
 
 static Sys_var_uint Sys_gtid_executed_compression_period(

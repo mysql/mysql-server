@@ -41,6 +41,7 @@
 
 // Todo: move other global gtid variable declarations here.
 Checkable_rwlock *gtid_mode_lock= NULL;
+std::atomic<ulong> gtid_mode_counter;
 
 ulong _gtid_mode;
 const char *gtid_mode_names[]=

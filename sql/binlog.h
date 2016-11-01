@@ -405,7 +405,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   mysql_mutex_t LOCK_xids;
   mysql_cond_t update_cond;
 
-  my_off_t binlog_end_pos;
+  std::atomic<my_off_t> atomic_binlog_end_pos;
   ulonglong bytes_written;
   IO_CACHE index_file;
   char index_file_name[FN_REFLEN];
@@ -743,34 +743,28 @@ public:
     DBUG_VOID_RETURN;
   }
 
-  void update_binlog_end_pos()
+  void update_binlog_end_pos(bool need_lock= true)
   {
-    /*
-      binlog_end_pos is used only on master's binlog right now. It is possible
-      to use it on relay log.
-    */
-    if (is_relay_log)
-      signal_update();
-    else
-    {
+    if (need_lock)
       lock_binlog_end_pos();
-      binlog_end_pos= my_b_tell(&log_file);
-      signal_update();
+    else
+      mysql_mutex_assert_owner(&LOCK_binlog_end_pos);
+    atomic_binlog_end_pos= my_b_tell(&log_file);
+    signal_update();
+    if (need_lock)
       unlock_binlog_end_pos();
-    }
   }
 
   void update_binlog_end_pos(my_off_t pos)
   {
     lock_binlog_end_pos();
-    if (pos > binlog_end_pos)
-      binlog_end_pos= pos;
+    if (pos > atomic_binlog_end_pos)
+      atomic_binlog_end_pos= pos;
     signal_update();
     unlock_binlog_end_pos();
   }
 
-  int wait_for_update_relay_log(THD *thd, const struct timespec * timeout);
-  int wait_for_update_bin_log(const struct timespec * timeout);
+  int wait_for_update(const struct timespec * timeout);
   bool do_write_cache(IO_CACHE *cache, class Binlog_event_writer *writer);
 public:
   void init_pthread_objects();
@@ -851,10 +845,10 @@ public:
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-  bool append_buffer(const char* buf, uint len, Master_info *mi);
-  bool append_event(Log_event* ev, Master_info *mi);
+  bool write_buffer(const char* buf, uint len, Master_info *mi);
+  bool write_event(Log_event* ev, Master_info *mi);
 private:
-  bool after_append_to_relay_log(Master_info *mi);
+  bool after_write_to_relay_log(Master_info *mi);
 public:
 
   void make_log_name(char* buf, const char* log_ident);
@@ -921,14 +915,13 @@ public:
   inline uint32 get_open_count() { return open_count; }
 
   /*
-    It is called by the threads(e.g. dump thread) which want to read
-    hot log without LOCK_log protection.
+    It is called by the threads (e.g. dump thread, applier thread) which want
+    to read hot log without LOCK_log protection.
   */
   my_off_t get_binlog_end_pos() const
   {
     mysql_mutex_assert_not_owner(&LOCK_log);
-    mysql_mutex_assert_owner(&LOCK_binlog_end_pos);
-    return binlog_end_pos;
+    return atomic_binlog_end_pos;
   }
   mysql_mutex_t* get_binlog_end_pos_lock() { return &LOCK_binlog_end_pos; }
   void lock_binlog_end_pos() { mysql_mutex_lock(&LOCK_binlog_end_pos); }

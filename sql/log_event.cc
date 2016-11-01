@@ -1129,31 +1129,9 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
   {
     /*
       Calculate position of end of event
-
-      Note that with a SEQ_READ_APPEND cache, my_b_tell() does not
-      work well.  So this will give slightly wrong positions for the
-      Format_desc/Rotate/Stop events which the slave writes to its
-      relay log. For example, the initial Format_desc will have
-      end_log_pos=91 instead of 95. Because after writing the first 4
-      bytes of the relay log, my_b_tell() still reports 0. Because
-      my_b_append() does not update the counter which my_b_tell()
-      later uses (one should probably use my_b_append_tell() to work
-      around this).  To get right positions even when writing to the
-      relay log, we use the (new) my_b_safe_tell().
-
-      Note that this raises a question on the correctness of all these
-      DBUG_ASSERT(my_b_tell()=rli->event_relay_log_pos).
-
-      If in a transaction, the log_pos which we calculate below is not
-      very good (because then my_b_safe_tell() returns start position
-      of the BEGIN, so it's like the statement was at the BEGIN's
-      place), but it's not a very serious problem (as the slave, when
-      it is in a transaction, does not take those end_log_pos into
-      account (as it calls inc_event_relay_log_pos()). To be fixed
-      later, so that it looks less strange. But not bug.
     */
 
-    common_header->log_pos= my_b_safe_tell(file) + common_header->data_written;
+    common_header->log_pos= my_b_tell(file) + common_header->data_written;
   }
 
   write_header_to_memory(header);
@@ -12157,7 +12135,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event(THD *, const Gtid_set *)");
   common_header->type_code= binary_log::PREVIOUS_GTIDS_LOG_EVENT;
   common_header->flags|= LOG_EVENT_IGNORABLE_F;
-  global_sid_lock->assert_some_lock();
+  set->get_sid_map()->get_sid_lock()->assert_some_lock();
   buf_size= set->get_encoded_length();
   uchar *buffer= (uchar *) my_malloc(key_memory_log_event,
                                      buf_size, MYF(MY_WME));

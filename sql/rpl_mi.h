@@ -75,7 +75,7 @@ typedef struct st_mysql MYSQL;
 
 *****************************************************************************/
 
-class Master_info : public Rpl_info
+class Master_info : public Rpl_info, public Gtid_mode_copy
 {
 friend class Rpl_info_factory;
 

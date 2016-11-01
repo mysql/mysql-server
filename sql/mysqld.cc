@@ -1756,6 +1756,9 @@ bool gtid_server_init()
      !(global_sid_map= new Sid_map(global_sid_lock)) ||
      !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map))||
      !(gtid_table_persistor= new Gtid_table_persistor()));
+
+  gtid_mode_counter= 1;
+
   if (res)
   {
     gtid_server_cleanup();
@@ -9046,6 +9049,7 @@ PSI_mutex_key key_RELAYLOG_LOCK_done;
 PSI_mutex_key key_RELAYLOG_LOCK_flush_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
 PSI_mutex_key key_RELAYLOG_LOCK_log;
+PSI_mutex_key key_RELAYLOG_LOCK_log_end_pos;
 PSI_mutex_key key_RELAYLOG_LOCK_sync;
 PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_xids;
@@ -9085,6 +9089,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_RELAYLOG_LOCK_flush_queue, "MYSQL_RELAY_LOG::LOCK_flush_queue", 0, 0},
   { &key_RELAYLOG_LOCK_index, "MYSQL_RELAY_LOG::LOCK_index", 0, 0},
   { &key_RELAYLOG_LOCK_log, "MYSQL_RELAY_LOG::LOCK_log", 0, 0},
+  { &key_RELAYLOG_LOCK_log_end_pos, "MYSQL_RELAY_LOG::LOCK_log_end_pos", 0, 0},
   { &key_RELAYLOG_LOCK_sync, "MYSQL_RELAY_LOG::LOCK_sync", 0, 0},
   { &key_RELAYLOG_LOCK_sync_queue, "MYSQL_RELAY_LOG::LOCK_sync_queue", 0, 0},
   { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0, 0},
@@ -9151,6 +9156,7 @@ PSI_rwlock_key key_rwlock_LOCK_logger;
 PSI_rwlock_key key_rwlock_query_cache_query_lock;
 PSI_rwlock_key key_rwlock_channel_map_lock;
 PSI_rwlock_key key_rwlock_channel_lock;
+PSI_rwlock_key key_rwlock_receiver_sid_lock;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
@@ -9173,7 +9179,8 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_channel_lock, "channel_lock", 0},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
-  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
+  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
+  { &key_rwlock_receiver_sid_lock, "gtid_retrieved", PSI_FLAG_GLOBAL},
 };
 
 PSI_cond_key key_PAGE_cond;

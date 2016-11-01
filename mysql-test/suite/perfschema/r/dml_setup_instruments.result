@@ -26,9 +26,9 @@ wait/synch/rwlock/sql/channel_lock	YES	YES
 wait/synch/rwlock/sql/channel_map_lock	YES	YES
 wait/synch/rwlock/sql/gtid_commit_rollback	YES	YES
 wait/synch/rwlock/sql/gtid_mode_lock	YES	YES
+wait/synch/rwlock/sql/gtid_retrieved	YES	YES
 wait/synch/rwlock/sql/LOCK_system_variables_hash	YES	YES
 wait/synch/rwlock/sql/LOCK_sys_init_connect	YES	YES
-wait/synch/rwlock/sql/LOCK_sys_init_slave	YES	YES
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Cond/sql/%'
   and name not in (
