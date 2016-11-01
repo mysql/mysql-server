@@ -13,6 +13,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+IF(WIN32 AND WITH_SSL STREQUAL "bundled")
+  MESSAGE(WARNING "Disabling group replication plugin")
+  RETURN()
+ENDIF()
+
 IF(NOT GMOCK_FOUND OR DISABLE_SHARED)
   RETURN()
 ENDIF()
