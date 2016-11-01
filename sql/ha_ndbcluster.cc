@@ -10142,7 +10142,7 @@ parseFragmentCountType(THD *thd,
      */
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_GET_ERRMSG,
-                        ER(ER_GET_ERRMSG),
+                        ER_THD(thd, ER_GET_ERRMSG),
                         4500,
                         "Comment contains non-supported fragment"
                         " count type",
@@ -10267,7 +10267,7 @@ void ha_ndbcluster::append_create_info(String *packet)
            */
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_GET_ERRMSG,
-                              ER(ER_GET_ERRMSG),
+                              ER_THD(thd, ER_GET_ERRMSG),
                               4501,
                               "Table property is not the same as in"
                               " comment for FRAGMENT_COUNT_TYPE"
@@ -10296,7 +10296,7 @@ void ha_ndbcluster::append_create_info(String *packet)
        */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_GET_ERRMSG,
-                          ER(ER_GET_ERRMSG),
+                          ER_THD(thd, ER_GET_ERRMSG),
                           4502,
                           "Table property is READ_BACKUP=1,"
                           " but not in comment",
@@ -10311,7 +10311,7 @@ void ha_ndbcluster::append_create_info(String *packet)
      */
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_GET_ERRMSG,
-                        ER(ER_GET_ERRMSG),
+                        ER_THD(thd, ER_GET_ERRMSG),
                         4502,
                         "Table property is not the same as in"
                         " comment for READ_BACKUP property",
@@ -10326,7 +10326,7 @@ void ha_ndbcluster::append_create_info(String *packet)
        */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_GET_ERRMSG,
-                          ER(ER_GET_ERRMSG),
+                          ER_THD(thd, ER_GET_ERRMSG),
                           4502,
                           "Table property is NOLOGGING=1,"
                           " but not in comment",
@@ -10341,7 +10341,7 @@ void ha_ndbcluster::append_create_info(String *packet)
      */
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_GET_ERRMSG,
-                        ER(ER_GET_ERRMSG),
+                        ER_THD(thd, ER_GET_ERRMSG),
                         4502,
                         "Table property is not the same as in"
                         " comment for NOLOGGING property",
@@ -10370,7 +10370,7 @@ void ha_ndbcluster::append_create_info(String *packet)
           {
             push_warning_printf(thd, Sql_condition::SL_WARNING,
               ER_GET_ERRMSG,
-              ER(ER_GET_ERRMSG),
+              ER_THD(thd, ER_GET_ERRMSG),
               4503,
               "Table property is "
               "FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
@@ -10385,7 +10385,7 @@ void ha_ndbcluster::append_create_info(String *packet)
           {
             push_warning_printf(thd, Sql_condition::SL_WARNING,
               ER_GET_ERRMSG,
-              ER(ER_GET_ERRMSG),
+              ER_THD(thd, ER_GET_ERRMSG),
               4503,
               "Table property is "
               "FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP"
@@ -10398,7 +10398,7 @@ void ha_ndbcluster::append_create_info(String *packet)
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
             ER_GET_ERRMSG,
-            ER(ER_GET_ERRMSG),
+            ER_THD(thd, ER_GET_ERRMSG),
             4503,
             "Table property is "
             "FRAGMENT_COUNT_TYPE=ONE_PER_NODE"
@@ -10410,7 +10410,7 @@ void ha_ndbcluster::append_create_info(String *packet)
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
             ER_GET_ERRMSG,
-            ER(ER_GET_ERRMSG),
+            ER_THD(thd, ER_GET_ERRMSG),
             4503,
             "Table property is "
             "FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP"
@@ -10430,7 +10430,7 @@ void ha_ndbcluster::append_create_info(String *packet)
            */
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_GET_ERRMSG,
-                              ER(ER_GET_ERRMSG),
+                              ER_THD(thd, ER_GET_ERRMSG),
                               4503,
                               "Table property FRAGMENT_COUNT_TYPE is set to"
                               " an unknown value, could be an upgrade issue"
@@ -10901,7 +10901,7 @@ int ha_ndbcluster::create(const char *name,
        */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_ILLEGAL_HA_CREATE_OPTION,
-                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
                           ndbcluster_hton_name,
                           "Not allowed to set NOLOGGING=1 on table"
                           " with fields using STORAGE DISK");
