@@ -16594,6 +16594,8 @@ ha_innobase::delete_table(
 		}
 
 		bool fail = client->drop_uncached(dd_space);
+		DBUG_EXECUTE_IF("fail_while_dropping_dd_object",
+				fail = false;);
 		ut_a(!fail);
 		delete dd_space;
 	}
