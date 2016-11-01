@@ -1655,6 +1655,7 @@ inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(T func)
     {
       if (!func(s_res)) return;
     }
+    return;
   }
 
   /*
