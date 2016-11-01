@@ -39,6 +39,7 @@ SET(TESTS
   keyring-api
   keys_container
   buffered_file_io
+  file_io
 )
 
 IF (MERGE_UNITTESTS)
