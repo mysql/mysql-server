@@ -27,6 +27,8 @@
 #include <NdbMutex.h>
 #include <NdbTick.h>
 
+#include "my_pointer_arithmetic.h"
+
 #define NDB_EVENT_OP_MAGIC_NUMBER 0xA9F301B4
 //#define EVENT_DEBUG
 #ifdef EVENT_DEBUG
