@@ -267,8 +267,8 @@ my_bool store_schema_table_meta_data(THD *thd, plugin_ref plugin, void *unused)
 {
   // Fetch schema ID of IS schema.
   const dd::Schema *IS_schema_obj= nullptr;
-  if (thd->dd_client()->acquire<dd::Schema>(INFORMATION_SCHEMA_NAME.str,
-                                            &IS_schema_obj))
+  if (thd->dd_client()->acquire(INFORMATION_SCHEMA_NAME.str,
+                                &IS_schema_obj))
   {
     return true;
   }

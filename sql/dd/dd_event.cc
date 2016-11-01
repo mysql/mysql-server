@@ -401,7 +401,7 @@ bool create_event(THD *thd,
   const dd::Schema *sch_obj= nullptr;
 
   // Acquire schema object.
-  if (client->acquire<dd::Schema>(schema_name, &sch_obj))
+  if (client->acquire(schema_name, &sch_obj))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -456,7 +456,7 @@ bool update_event(THD *thd, const Event *event,
   if (new_db_name != "")
   {
     const dd::Schema *to_sch_ptr;
-    if (client->acquire<dd::Schema>(new_db_name, &to_sch_ptr))
+    if (client->acquire(new_db_name, &to_sch_ptr))
       DBUG_RETURN(true);
 
     if (to_sch_ptr == nullptr)

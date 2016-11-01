@@ -1422,7 +1422,7 @@ static bool migrate_tablespace_to_dd(THD *thd, const char *name,
     return false;
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire<dd::Tablespace>(name, &ts_obj))
+  if (thd->dd_client()->acquire(name, &ts_obj))
     return true;
 
   // Tablespace object found in the DD, return.

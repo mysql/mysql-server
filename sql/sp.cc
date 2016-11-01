@@ -693,7 +693,7 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer)
   // Check that a database with this name exists.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *schema= NULL;
-  if (thd->dd_client()->acquire<dd::Schema>(sp->m_db.str, &schema))
+  if (thd->dd_client()->acquire(sp->m_db.str, &schema))
   {
     // Error is reported by DD API framework.
     DBUG_RETURN(true);
@@ -1092,7 +1092,7 @@ bool lock_db_routines(THD *thd, const char *db)
 
   // Acquire Schema object.
   const dd::Schema *sch= NULL;
-  if (thd->dd_client()->acquire<dd::Schema>(db, &sch))
+  if (thd->dd_client()->acquire(db, &sch))
     DBUG_RETURN(true);
   if (sch == NULL)
   {
@@ -1162,7 +1162,7 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db)
 
   // Acquire Schema object.
   const dd::Schema *sch= NULL;
-  if (thd->dd_client()->acquire<dd::Schema>(db, &sch))
+  if (thd->dd_client()->acquire(db, &sch))
     DBUG_RETURN(SP_INTERNAL_ERROR);
   if (sch == NULL)
   {

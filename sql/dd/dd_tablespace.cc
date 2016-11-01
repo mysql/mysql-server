@@ -50,7 +50,7 @@ fill_table_and_parts_tablespace_names(THD *thd,
   // Get hold of the dd::Table object.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *table_obj= NULL;
-  if (thd->dd_client()->acquire<dd::Table>(db_name, table_name, &table_obj))
+  if (thd->dd_client()->acquire(db_name, table_name, &table_obj))
   {
     // Error is reported by the dictionary subsystem.
     return(true);
@@ -137,8 +137,7 @@ bool get_tablespace_name(THD *thd, const T *obj,
     */
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     dd::Tablespace* tablespace= NULL;
-    if (thd->dd_client()->acquire_uncached<dd::Tablespace>(
-                            obj->tablespace_id(), &tablespace))
+    if (thd->dd_client()->acquire_uncached(obj->tablespace_id(), &tablespace))
     {
       // acquire() always fails with a error being reported.
       return true;
@@ -183,8 +182,7 @@ bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
   // Check if same tablespace already exists.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Tablespace* ts= NULL;
-  if (thd->dd_client()->acquire<dd::Tablespace>(
-                          ts_info->tablespace_name, &ts))
+  if (thd->dd_client()->acquire(ts_info->tablespace_name, &ts))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -236,8 +234,7 @@ bool drop_tablespace(THD *thd, st_alter_tablespace *ts_info,
   // Acquire tablespace.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Tablespace* tablespace= NULL;
-  if (thd->dd_client()->acquire<dd::Tablespace>(
-                          ts_info->tablespace_name, &tablespace))
+  if (thd->dd_client()->acquire(ts_info->tablespace_name, &tablespace))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -273,8 +270,7 @@ bool alter_tablespace(THD *thd, st_alter_tablespace *ts_info,
   // Acquire tablespace.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Tablespace* tablespace= NULL;
-  if (thd->dd_client()->acquire<dd::Tablespace>(
-                          ts_info->tablespace_name, &tablespace))
+  if (thd->dd_client()->acquire(ts_info->tablespace_name, &tablespace))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
