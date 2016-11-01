@@ -4365,6 +4365,34 @@ find_index(
 	return(new_idx);
 }
 
+/** Replace the table name in filename with the specified one
+@param[in]	filename	original file name
+@param[out]	new_filename	new file name
+@param[in]	table_name	to replace with this table name */
+static
+void
+replace_table_name(
+	const char*	filename,
+	char*		new_filename,
+	const char*	table_name)
+{
+	const char*	slash = strrchr(filename, OS_PATH_SEPARATOR);
+	size_t		len = 0;
+
+	if (slash == NULL) {
+		len = 0;
+	} else {
+		len = slash - filename + 1;
+	}
+
+	memcpy(new_filename, filename, len);
+	strcpy(new_filename + len, table_name);
+
+	len += strlen(table_name);
+
+	strcpy(new_filename + len, dot_ext[IBD]);
+}
+
 template<typename Table>
 static MY_ATTRIBUTE((warn_unused_result))
 bool
@@ -4420,9 +4448,18 @@ prepare_inplace_alter_table_global_dd(
 		    && strstr(new_table->name.m_name, "mysql/") == NULL) {
 			std::unique_ptr<dd::Tablespace> dd_space(
 				dd::create_object<dd::Tablespace>());
+			/* Replace the table name with the final correct one */
+			char* path = fil_space_get_first_path(new_table->space);
+			char filename[FN_REFLEN + 1];
+
+			replace_table_name(path, filename,
+					   old_dd_tab->name().c_str());
+
+			ut_free(path);
+
 			if (innobase_create_dd_tablespace(
 				    client, thd, dd_space.get(),
-				    new_table->space)) {
+				    new_table->space, filename)) {
 				ut_a(false);
 				return(true);
 			}

@@ -1208,7 +1208,8 @@ innobase_create_dd_tablespace(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd,
 	dd::Tablespace*			dd_space,
-	space_id_t			space);
+	space_id_t			space,
+	const char*			filename);
 
 template<typename Table>
 void

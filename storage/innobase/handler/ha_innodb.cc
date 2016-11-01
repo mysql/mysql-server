@@ -14713,7 +14713,8 @@ innobase_create_dd_tablespace(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd,
 	dd::Tablespace*			dd_space,
-	space_id_t			space)
+	space_id_t			space,
+	const char*			filename)
 {
 	innobase_set_dd_tablespace_name(dd_space, space);
 
@@ -14722,8 +14723,7 @@ innobase_create_dd_tablespace(
 		return(true);
         }
 
-	char*   path = fil_space_get_first_path(space);
-	ulint   flags = fil_space_get_flags(space);
+	ulint	flags = fil_space_get_flags(space);
 
 	dd_space->set_engine(handler_name);
 	dd::Properties& p       = dd_space->se_private_data();
@@ -14731,10 +14731,8 @@ innobase_create_dd_tablespace(
 		     static_cast<uint32>(space));
 	p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS], flags);
 	dd::Tablespace_file*    dd_file = dd_space->add_file();
-	dd_file->set_filename(path);
+	dd_file->set_filename(filename);
 	dd_client->store(dd_space);
-
-	ut_free(path);
 
 	return(false);
 }
@@ -14939,8 +14937,10 @@ create_table_info_t::create_table_update_global_dd(
 			dd::create_object<dd::Tablespace>());
 
 		/* This means user table and file_per_table */
-		if (innobase_create_dd_tablespace(client, m_thd, dd_space.get(),
-					 table->space)) {
+		if (innobase_create_dd_tablespace(
+			client, m_thd, dd_space.get(), table->space,
+			fil_space_get_first_path(table->space))) {
+
 			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
@@ -15220,7 +15220,8 @@ innobase_get_dd_tablespace_id(
 
 		mutex_exit(&dict_sys->mutex);
 		ret = innobase_create_dd_tablespace(
-				client, thd, dd_space.get(), table->space);
+			client, thd, dd_space.get(), table->space,
+			fil_space_get_first_path(table->space));
 		mutex_enter(&dict_sys->mutex);
 		if (ret) {
 			return(false);
