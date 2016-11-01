@@ -2493,7 +2493,7 @@ class Ndb_schema_event_handler {
     /**
       Create a Ndb_schema_op from event_data
     */
-    static Ndb_schema_op*
+    static const Ndb_schema_op*
     create(const Ndb_event_data* event_data,
            Uint32 any_value)
     {
@@ -2526,7 +2526,7 @@ class Ndb_schema_event_handler {
 
 
   static void
-  write_schema_op_to_binlog(THD *thd, Ndb_schema_op *schema)
+  write_schema_op_to_binlog(THD *thd, const Ndb_schema_op *schema)
   {
 
     if (!ndb_binlog_running)
@@ -2617,7 +2617,7 @@ class Ndb_schema_event_handler {
       row for this op in ndb_schema table)
   */
   int
-  ack_schema_op(Ndb_schema_op *schema) const
+  ack_schema_op(const Ndb_schema_op *schema) const
   {
     const char* const db = schema->db;
     const char* const table_name = schema->name;
@@ -2833,7 +2833,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_after_epoch(Ndb_schema_op* schema)
+  handle_after_epoch(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_after_epoch");
     DBUG_PRINT("info", ("Pushing Ndb_schema_op on list to be "
@@ -2845,7 +2845,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  ack_after_epoch(Ndb_schema_op* schema)
+  ack_after_epoch(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("ack_after_epoch");
     assert(!is_post_epoch()); // Only before epoch
@@ -2949,7 +2949,7 @@ class Ndb_schema_event_handler {
   }
 
 
-  NDB_SHARE* get_share(Ndb_schema_op* schema) const
+  NDB_SHARE* get_share(const Ndb_schema_op* schema) const
   {
     DBUG_ENTER("get_share(Ndb_schema_op*)");
     char key[FN_REFLEN + 1];
@@ -2999,7 +2999,7 @@ class Ndb_schema_event_handler {
   }
 
 
-  void handle_clear_slock(Ndb_schema_op* schema)
+  void handle_clear_slock(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_clear_slock");
 
@@ -3082,7 +3082,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_offline_alter_table_commit(Ndb_schema_op* schema)
+  handle_offline_alter_table_commit(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_offline_alter_table_commit");
 
@@ -3164,7 +3164,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_online_alter_table_prepare(Ndb_schema_op* schema)
+  handle_online_alter_table_prepare(const Ndb_schema_op* schema)
   {
     assert(is_post_epoch()); // Always after epoch
 
@@ -3183,7 +3183,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_online_alter_table_commit(Ndb_schema_op* schema)
+  handle_online_alter_table_commit(const Ndb_schema_op* schema)
   {
     assert(is_post_epoch()); // Always after epoch
 
@@ -3261,7 +3261,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_drop_table(Ndb_schema_op* schema)
+  handle_drop_table(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_drop_table");
 
@@ -3322,7 +3322,7 @@ class Ndb_schema_event_handler {
   */
 
   void
-  handle_rename_table_prepare(Ndb_schema_op* schema)
+  handle_rename_table_prepare(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_rename_table_prepare");
 
@@ -3353,7 +3353,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_rename_table(Ndb_schema_op* schema)
+  handle_rename_table(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_rename_table");
 
@@ -3431,7 +3431,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_drop_db(Ndb_schema_op* schema)
+  handle_drop_db(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_drop_db");
 
@@ -3466,7 +3466,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_truncate_table(Ndb_schema_op* schema)
+  handle_truncate_table(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_truncate_table");
 
@@ -3507,7 +3507,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_create_table(Ndb_schema_op* schema)
+  handle_create_table(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_create_table");
 
@@ -3537,7 +3537,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_create_db(Ndb_schema_op* schema)
+  handle_create_db(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_create_db");
 
@@ -3561,7 +3561,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_alter_db(Ndb_schema_op* schema)
+  handle_alter_db(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_alter_db");
 
@@ -3585,7 +3585,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_grant_op(Ndb_schema_op* schema)
+  handle_grant_op(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_grant_op");
 
@@ -3615,7 +3615,7 @@ class Ndb_schema_event_handler {
 
 
   int
-  handle_schema_op(Ndb_schema_op* schema)
+  handle_schema_op(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_schema_op");
     {
@@ -3722,7 +3722,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_schema_op_post_epoch(Ndb_schema_op* schema)
+  handle_schema_op_post_epoch(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_schema_op_post_epoch");
     DBUG_PRINT("enter", ("%s.%s: query: '%s'  type: %d",
@@ -3786,8 +3786,8 @@ class Ndb_schema_event_handler {
 
   bool is_post_epoch(void) const { return m_post_epoch; }
 
-  List<Ndb_schema_op> m_post_epoch_handle_list;
-  List<Ndb_schema_op> m_post_epoch_ack_list;
+  List<const Ndb_schema_op> m_post_epoch_handle_list;
+  List<const Ndb_schema_op> m_post_epoch_ack_list;
 
 public:
   Ndb_schema_event_handler(); // Not implemented
@@ -3827,7 +3827,7 @@ public:
     case NDBEVENT::TE_UPDATE:
     {
       /* ndb_schema table, row INSERTed or UPDATEed*/
-      Ndb_schema_op* schema_op=
+      const Ndb_schema_op* schema_op=
         Ndb_schema_op::create(event_data, pOp->getAnyValue());
       handle_schema_op(schema_op);
       break;
@@ -3914,7 +3914,7 @@ public:
        process any operations that should be done after
        the epoch is complete
       */
-      Ndb_schema_op* schema;
+      const Ndb_schema_op* schema;
       while ((schema= m_post_epoch_handle_list.pop()))
       {
         handle_schema_op_post_epoch(schema);
