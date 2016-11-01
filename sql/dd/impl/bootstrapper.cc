@@ -1059,10 +1059,12 @@ bool verify_core_objects_present(THD *thd)
           core_size<Abstract_table>() == n_core_tables);
 
   // Verify that the system tablespace is present.
+#ifndef DBUG_OFF
   Tablespace::name_key_type tspace_key;
   Tablespace::update_name_key(&tspace_key, MYSQL_TABLESPACE_NAME.str);
   Object_id dd_tspace_id= cache::Storage_adapter::instance()->
     core_get_id<Tablespace>(thd, tspace_key);
+#endif
 
   /*
     TODO: No DD tablespace yet. Enable verification later when InnoDB
