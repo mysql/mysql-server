@@ -1,8 +1,10 @@
 /* Init cclasses array from ctypes */
 
-#include <my_global.h>
 #include <m_ctype.h>
 #include <m_string.h>
+#include <my_global.h>
+#include <stdio.h>
+
 #include "cclass.h"
 #include "my_regex.h"
 

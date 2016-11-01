@@ -674,8 +674,6 @@ class Item : public Parse_tree_node
 {
   typedef Parse_tree_node super;
 
-  Item(const Item &);			/* Prevent use of these */
-  void operator=(Item &);
   virtual bool is_expensive_processor(uchar*) { return false; }
 
 protected:
@@ -690,6 +688,8 @@ protected:
   }
 
 public:
+  Item(const Item &)= delete;
+  void operator=(Item &)= delete;
   static void *operator new(size_t size) throw ()
   { return sql_alloc(size); }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
@@ -1053,9 +1053,10 @@ public:
         object whenever possible.
 
     RETURN
-      In case of NULL value return 0 (NULL pointer) and set null_value flag
-      to TRUE.
-      If value is not null null_value flag will be reset to FALSE.
+      In case of NULL value or error, return error_str() as this function will
+      check if the return value may be null, and it will either set null_value
+      to true and return nullptr or to false and it will return empty string.
+      If value is not null set null_value flag to false before returning it.
   */
   virtual String *val_str(String *str)=0;
 
@@ -1685,10 +1686,17 @@ public:
     this function and set the int_arg to maximum of the input data
     and their own version info.
   */
-  virtual bool intro_version(uchar*) { return false; }
+  virtual bool intro_version(uchar *) { return false; }
 
-  virtual bool cleanup_processor(uchar *arg);
-  virtual bool collect_item_field_processor(uchar*) { return 0; }
+  /// cleanup() item if it is resolved ('fixed').
+  bool cleanup_processor(uchar *)
+  {
+    if (fixed)
+      cleanup();
+    return false;
+  }
+
+  virtual bool collect_item_field_processor(uchar *) { return false; }
 
   /**
     Item::walk function. Set bit in table->tmp_set for all fields in
@@ -1778,7 +1786,7 @@ public:
     means that this column can also be marked as used.
     @see also SELECT_LEX::delete_unused_merged_columns().
   */
-  virtual bool propagate_derived_used(uchar*) { return is_derived_used(); }
+  bool propagate_derived_used(uchar *) { return is_derived_used(); }
 
   /// @see Distinct_check::check_query()
   virtual bool aggregate_check_distinct(uchar*)
@@ -2546,8 +2554,6 @@ public:
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
-
-class SELECT_LEX;
 
 class Item_ident :public Item
 {

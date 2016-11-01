@@ -1105,7 +1105,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  WHERE                         /* SQL-2003-R */
 %token  WHILE_SYM
 %token  WITH                          /* SQL-2003-R */
-%token  WITH_CUBE_SYM                 /* INTERNAL */
+%token  OBSOLETE_TOKEN_893            /* was: WITH_CUBE_SYM */
 %token  WITH_ROLLUP_SYM               /* INTERNAL */
 %token  WITHOUT_SYM                   /* SQL-2003-R */
 %token  WORK_SYM                      /* SQL-2003-N */
@@ -10526,14 +10526,6 @@ group_list:
 
 olap_opt:
           /* empty */   { $$= UNSPECIFIED_OLAP_TYPE; }
-        | WITH_CUBE_SYM { $$= CUBE_TYPE; }
-            /*
-              'WITH CUBE' is reserved in the MySQL syntax, but not implemented,
-              and cause LALR(2) conflicts.
-              This syntax is not standard.
-              MySQL syntax: GROUP BY col1, col2, col3 WITH CUBE
-              SQL-2003: GROUP BY ... CUBE(col1, col2, col3)
-            */
         | WITH_ROLLUP_SYM { $$= ROLLUP_TYPE; }
             /*
               'WITH ROLLUP' is needed for backward compatibility,
@@ -13221,7 +13213,6 @@ role_or_label_keyword:
         | CONSTRAINT_NAME_SYM      {}
         | CONTEXT_SYM              {}
         | CPU_SYM                  {}
-        | CUBE_SYM                 {}
         /*
           Although a reserved keyword in SQL:2003 (and :2008),
           not reserved in MySQL per WL#2111 specification.

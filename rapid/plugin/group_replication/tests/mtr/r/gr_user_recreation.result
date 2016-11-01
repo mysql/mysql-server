@@ -1,0 +1,34 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Assert the user exist after install
+#
+[connection server1]
+include/assert.inc [The group replication user should exist in this member]
+#
+# Uninstall guaranteeing the user is not removed
+#
+SET @local_address= @@GLOBAL.group_replication_local_address;
+SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+SET @@GLOBAL.DEBUG= '+d,group_replication_bypass_user_removal';
+UNINSTALL PLUGIN group_replication;
+SET @@GLOBAL.DEBUG= '-d,group_replication_bypass_user_removal';
+include/assert.inc [The group replication user should still exist in this member]
+#
+# Check that the installation process goes fine
+#
+INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+include/assert.inc [The group replication user should exist in this member]
+#
+# Check all is OK
+#
+SET GLOBAL group_replication_local_address= @local_address;
+SET GLOBAL group_replication_group_seeds= @group_seeds;
+include/start_group_replication.inc
+#
+# Cleaning
+#
+include/group_replication_end.inc

@@ -1,0 +1,92 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+## START MASTER SERVER 1 (SINGLE PRIMARY)
+[connection server1]
+SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
+SET GLOBAL group_replication_single_primary_mode= 1;
+include/start_and_bootstrap_group_replication.inc
+
+## TRY TO START SERVER 2 (INVALID CONFIGURATION 1 - MULTI MASTER + NO ENFORCE CHECK)
+[connection server2]
+SET SQL_LOG_BIN=0;
+call mtr.add_suppression("The member configuration is not compatible with the group configuration. .* .member configuration option: \\[\\], group configuration option: \\[group_replication_single_primary_mode\\].");
+call mtr.add_suppression("The member configuration is not compatible with the group configuration. .* .member configuration option: \\[group_replication_enforce_update_everywhere_checks\\], group configuration option: \\[group_replication_single_primary_mode\\].");
+call mtr.add_suppression("The member configuration is not compatible with the group configuration. .* .member configuration option: \\[\\], group configuration option: \\[group_replication_enforce_update_everywhere_checks\\].");
+call mtr.add_suppression("The member configuration is not compatible with the group configuration. .* .member configuration option: \\[group_replication_single_primary_mode\\], group configuration option: \\[group_replication_enforce_update_everywhere_checks\\].");
+call mtr.add_suppression("The member configuration is not compatible with the group configuration. .* .member configuration option: \\[group_replication_enforce_update_everywhere_checks\\], group configuration option: \\[\\].");
+call mtr.add_suppression("The member configuration is not compatible with the group configuration. .* .member configuration option: \\[group_replication_single_primary_mode\\], group configuration option: \\[\\].");
+SET SQL_LOG_BIN=1;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
+SET GLOBAL group_replication_single_primary_mode= 0;
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+## TRY TO START SERVER 2 (INVALID CONFIGURATION 2 - MULTI MASTER + ENFORCE CHECK)
+[connection server2]
+SET GLOBAL group_replication_enforce_update_everywhere_checks= 1;
+SET GLOBAL group_replication_single_primary_mode= 0;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+## RESTART MASTER SERVER 1 (MULTI MASTER + ENFORCED CHECK)
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_single_primary_mode= 0;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= 1;
+include/start_and_bootstrap_group_replication.inc
+
+## TRY TO START SERVER 2 (INVALID CONFIGURATION 3 - MULTI MASTER + NO ENFORCED CHECK)
+[connection server2]
+SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
+SET GLOBAL group_replication_single_primary_mode= 0;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+## TRY TO START SERVER 2 (INVALID CONFIGURATION 4 - SINGLE MASTER + NO ENFORCED CHECK)
+SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
+SET GLOBAL group_replication_single_primary_mode= 1;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+## TRY TO START SERVER 2 (VALID CONFIGURATION 5 - MULTI MASTER + ENFORCED CHECK)
+SET GLOBAL group_replication_single_primary_mode= 0;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= 1;
+include/start_group_replication.inc
+include/stop_group_replication.inc
+
+## RESTART MASTER SERVER 1 (MULTI MASTER + NO ENFORCED CHECK)
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_single_primary_mode= 0;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
+include/start_and_bootstrap_group_replication.inc
+
+## TRY TO START SERVER 2 (INVALID CONFIGURATION 6 - SINGLE MASTER + NO ENFORCED CHECK)
+[connection server2]
+SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
+SET GLOBAL group_replication_single_primary_mode= 1;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+## TRY TO START SERVER 2 (INVALID CONFIGURATION 7 - MULTI MASTER + ENFORCE CHECK)
+[connection server2]
+SET GLOBAL group_replication_single_primary_mode= 0;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= 1;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+## TRY TO START SERVER 2 (VALID CONFIGURATION 8 - MULTI MASTER + NO ENFORCED CHECK)
+[connection server2]
+SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
+SET GLOBAL group_replication_single_primary_mode= 0;
+include/start_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc
+include/group_replication_end.inc

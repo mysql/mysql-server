@@ -2080,33 +2080,32 @@ static bool rea_create_table(THD *thd, const char *path,
 {
   DBUG_ENTER("rea_create_table");
 
-  std::unique_ptr<dd::Table> table_ptr(nullptr);
+  std::unique_ptr<dd::Table> tmp_table_ptr(nullptr);
 
   *tmp_table_def= NULL;
 
   // Add table details into new DD, both for user tables and dd tables
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    table_ptr= dd::create_tmp_table(thd, db, table_name,
-                                    create_info, create_fields,
-                                    key_info, keys, keys_onoff, file);
-    if (!table_ptr)
+    tmp_table_ptr= dd::create_tmp_table(thd, db, table_name,
+                                        create_info, create_fields,
+                                        key_info, keys, keys_onoff, file);
+    if (!tmp_table_ptr)
       DBUG_RETURN(true);
   }
   else
   {
-    table_ptr= dd::create_table(thd, db, table_name,
-                                create_info,
-                                create_fields,
-                                key_info,
-                                keys,
-                                keys_onoff,
-                                fk_key_info,
-                                fk_keys,
-                                file,
-                                !(create_info->db_type->flags &
-                                  HTON_SUPPORTS_ATOMIC_DDL));
-    if (!table_ptr)
+    if (!dd::create_table(thd, db, table_name,
+                          create_info,
+                          create_fields,
+                          key_info,
+                          keys,
+                          keys_onoff,
+                          fk_key_info,
+                          fk_keys,
+                          file,
+                          !(create_info->db_type->flags &
+                            HTON_SUPPORTS_ATOMIC_DDL)))
       DBUG_RETURN(true);
   }
 
@@ -2120,14 +2119,14 @@ static bool rea_create_table(THD *thd, const char *path,
       *post_ddl_ht= create_info->db_type;
 
     if(ha_create_table(thd, path, db, table_name, create_info,
-                       false, false, table_ptr.get()))
+                       false, false, tmp_table_ptr.get()))
     {
       goto err;
     }
   }
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-    *tmp_table_def= table_ptr.release();
+    *tmp_table_def= tmp_table_ptr.release();
 
   DBUG_RETURN(false);
 
@@ -6875,17 +6874,9 @@ bool create_table_impl(THD *thd,
 
     init_tmp_table_share(thd, &share, db, 0, table_name, path);
 
-    /*
-      Since changes to data-dictionary might not be committed yet, we have to
-      use acquire_uncached_uncommitted_table() to get table definition here.
-    */
-    std::unique_ptr<dd::Table> table_def;
-    bool result= (!(table_def=
-                      dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
-                            db, table_name)) ||
-                  open_table_def(thd, &share, false, table_def.get()) ||
-                  open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
-                                        0, &table, true, table_def.get()));
+    bool result= open_table_def(thd, &share, false, nullptr) ||
+                 open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
+                                        0, &table, true, nullptr);
 
     /*
       Assert that the change list is empty as no partition function currently
@@ -7207,6 +7198,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *from_sch= NULL;
   const dd::Schema *to_sch= NULL;
+  const dd::Table *from_table_def= NULL;
+  dd::Table *to_table_def= NULL;
 
   if (from_mdl_locker.ensure_locked(old_db) ||
       to_mdl_locker.ensure_locked(new_db) ||
@@ -7273,14 +7266,13 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     Use uncommitted read, so this call can be used by atomic multi-table
     RENAME TABLE and atomic ALTER TABLE implementations.
   */
-  std::unique_ptr<dd::Table> from_table_def;
-  if (!(from_table_def= dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
-                              old_db, old_name)))
-  {
+  if (thd->dd_client()->acquire<dd::Table>(old_db, old_name,
+                                          &from_table_def) ||
+      thd->dd_client()->acquire_for_modification<dd::Table>(old_db,
+                          old_name, &to_table_def))
     DBUG_RETURN(true);
-  }
 
-  std::unique_ptr<dd::Table> to_table_def(from_table_def->clone());
+  std::unique_ptr<dd::Table> from_table_def_save(from_table_def->clone());
 
   // Set schema id and table name.
   to_table_def->set_schema_id(to_sch->id());
@@ -7332,8 +7324,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 
   int error= 0;
   if (!(flags & NO_HA_TABLE))
-    error= file->ha_rename_table(from_base, to_base, from_table_def.get(),
-                                 to_table_def.get());
+    error= file->ha_rename_table(from_base, to_base, from_table_def_save.get(),
+                                 to_table_def);
 
   thd->variables.option_bits= save_bits;
 
@@ -7370,8 +7362,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
       supporting atomic DDL. And for engines which can't do atomic DDL in
       either case there are scenarios in which DD and SE get out of sync.
     */
-    if (dd::rename_table(thd, from_sch, from_table_def.get(),
-                         to_sch, to_table_def.get(),
+    if (dd::rename_table(thd, from_sch, from_table_def, to_sch, to_table_def,
                          (flags & FN_TO_IS_TMP),
                          !(flags & NO_DD_COMMIT)))
     {
@@ -7381,8 +7372,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                      this case...
        */
       if (!(flags & NO_HA_TABLE))
-        (void) file->ha_rename_table(to_base, from_base, to_table_def.get(),
-                                     from_table_def.get());
+        (void) file->ha_rename_table(to_base, from_base, to_table_def,
+                                     from_table_def_save.get());
       delete file;
       DBUG_RETURN(true);
     }
@@ -7592,8 +7583,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         char buf[2048];
         String query(buf, sizeof(buf), system_charset_info);
         query.length(0);  // Have to zero it since constructor doesn't
-        Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN |
-                                       MYSQL_OPEN_UNCOMMITTED);
+        // FIXME ?
+        Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         bool new_table= FALSE; // Whether newly created table is open.
 
         /*
@@ -9246,20 +9237,23 @@ static bool mysql_inplace_alter_table(THD *thd,
   }
 
   {
-  dd::Schema_MDL_locker mdl_locker(thd);
+  dd::Schema_MDL_locker mdl_locker_1(thd), mdl_locker_2(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  const dd::Table *old_table_def;
-  if (mdl_locker.ensure_locked(table->s->db.str) ||
+  const dd::Table *old_table_def= nullptr;
+  if (mdl_locker_1.ensure_locked(table->s->db.str) ||
       thd->dd_client()->acquire<dd::Table>(table->s->db.str,
                                            table->s->table_name.str,
                                            &old_table_def))
     goto cleanup;
 
-  std::unique_ptr<dd::Table> altered_table_def;
-  if (!(altered_table_def=
-          dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
-                alter_ctx->new_db, alter_ctx->tmp_name)))
+  const dd::Table *old_altered_table_def= nullptr;
+  dd::Table *altered_table_def= nullptr;
+  if (mdl_locker_2.ensure_locked(alter_ctx->new_db) ||
+      thd->dd_client()->acquire(alter_ctx->new_db, alter_ctx->tmp_name,
+                                &old_altered_table_def) ||
+      thd->dd_client()->acquire_for_modification(alter_ctx->new_db,
+                          alter_ctx->tmp_name, &altered_table_def))
     goto cleanup;
 
   /*
@@ -9272,7 +9266,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (table->file->ha_prepare_inplace_alter_table(altered_table,
                                                   ha_alter_info,
                                                   old_table_def,
-                                                  altered_table_def.get()))
+                                                  altered_table_def))
   {
     goto rollback;
   }
@@ -9305,7 +9299,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (table->file->ha_inplace_alter_table(altered_table,
                                           ha_alter_info,
                                           old_table_def,
-                                          altered_table_def.get()))
+                                          altered_table_def))
   {
     goto rollback;
   }
@@ -9325,7 +9319,7 @@ static bool mysql_inplace_alter_table(THD *thd,
                                                  ha_alter_info,
                                                  false,
                                                  old_table_def,
-                                                 altered_table_def.get());
+                                                 altered_table_def);
       my_error(ER_UNKNOWN_ERROR, MYF(0));
       thd->count_cuted_fields= CHECK_FIELD_IGNORE;
       goto cleanup;
@@ -9357,7 +9351,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (table->file->ha_commit_inplace_alter_table(altered_table,
                                                  ha_alter_info,
                                                  true, old_table_def,
-                                                 altered_table_def.get()))
+                                                 altered_table_def))
   {
     goto rollback;
   }
@@ -9395,9 +9389,6 @@ static bool mysql_inplace_alter_table(THD *thd,
   //
   if (!dd::get_dictionary()->is_dd_table_name(alter_ctx->db, alter_ctx->alias))
   {
-    std::unique_ptr<dd::Table> old_altered_table_def(
-                                 altered_table_def->clone());
-
     altered_table_def->set_schema_id(old_table_def->schema_id());
     altered_table_def->set_name(alter_ctx->alias);
     altered_table_def->set_hidden(false);
@@ -9405,9 +9396,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     if (thd->dd_client()->drop(old_table_def))
       goto cleanup2;
 
-    if (thd->dd_client()->update_uncached_and_invalidate(
-                            old_altered_table_def.get(),
-                            altered_table_def.get()))
+    if (thd->dd_client()->update(&old_altered_table_def, altered_table_def))
       goto cleanup2;
   }
   else
@@ -9415,7 +9404,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     // WL7743/TODO: Sivert's help is needed to handle this case.
     //              We need to be able to replace sticky table in the cache
     //              with an object which is not related to it.
-    if (thd->dd_client()->drop_uncached(altered_table_def.get()))
+    if (thd->dd_client()->drop(altered_table_def))
       goto cleanup2;
   }
 
@@ -9582,13 +9571,15 @@ rollback:
     thd->dd_client()->acquire<dd::Table>(table->s->db.str,
                                          table->s->table_name.str,
                                          &old_table_def);
-    std::unique_ptr<dd::Table> altered_table_def=
-      dd::acquire_uncached_uncommitted_table<dd::Table>(thd, alter_ctx->new_db,
-                                                        alter_ctx->tmp_name);
+    dd::Table *altered_table_def;
+    thd->dd_client()->acquire_for_modification<dd::Table>(alter_ctx->new_db,
+                                                          alter_ctx->tmp_name,
+                                                          &altered_table_def);
+
     table->file->ha_commit_inplace_alter_table(altered_table,
                                                ha_alter_info,
                                                false, old_table_def,
-                                               altered_table_def.get());
+                                               altered_table_def);
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   }
 
@@ -11804,21 +11795,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     // We assume that the table is non-temporary.
     DBUG_ASSERT(!table->s->tmp_table);
 
-    /*
-      Use uncommitted read since changes to data-dictionary might
-      be not committed yet.
-    */
-    std::unique_ptr<dd::Table> altered_table_def;
-    if (!(altered_table_def=
-            dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
-                  alter_ctx.new_db, alter_ctx.tmp_name)))
-      goto err_new_table_cleanup;
-
     if (!(altered_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
                                              alter_ctx.new_db,
                                              alter_ctx.tmp_name,
                                              true, false,
-                                             altered_table_def.get())))
+                                             nullptr)))
       goto err_new_table_cleanup;
 
     /* Set markers for fields in TABLE object for altered table. */
@@ -11857,13 +11838,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       else
       {
         dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-        const dd::Schema *sch_obj;
-        if (thd->dd_client()->acquire<dd::Schema>(alter_ctx.new_db, &sch_obj))
+        const dd::Table *tab_obj= nullptr;
+        if (thd->dd_client()->acquire<dd::Table>(alter_ctx.new_db,
+                                                 alter_ctx.tmp_name,
+                                                 &tab_obj))
           goto err_new_table_cleanup;
 
-        if (!sch_obj)
+        if (!tab_obj)
         {
-          my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx.new_db);
+          my_error(ER_NO_SUCH_TABLE, MYF(0), alter_ctx.new_db,
+                                             alter_ctx.tmp_name);
           goto err_new_table_cleanup;
         }
 
@@ -11871,7 +11855,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
           We need to revert changes to data-dictionary but
           still commit statement in this case.
         */
-        if (thd->dd_client()->drop_uncached(altered_table_def.get()))
+        if (thd->dd_client()->drop(tab_obj))
           goto err_new_table_cleanup;
       }
       goto end_inplace_noop;
@@ -12000,23 +11984,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   {
-    /*
-      Get table object for non-temporary tables use uncommitted read
-      since changes to data-dictionary might be not yet committed.
-
-      QQ: merge table_def and tmp_table_def?
-    */
-    std::unique_ptr<dd::Table> table_def;
-
-    if (!tmp_table_def &&
-        !(table_def= dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
-                           alter_ctx.new_db, alter_ctx.tmp_name)))
-      goto err_new_table_cleanup;
-
     if (ha_create_table(thd, alter_ctx.get_tmp_path(),
                         alter_ctx.new_db, alter_ctx.tmp_name,
-                        create_info, false, false,
-                        tmp_table_def ? tmp_table_def : table_def.get()))
+                        create_info, false, false, tmp_table_def))
       goto err_new_table_cleanup;
 
     /* Mark that we have created table in storage engine. */
@@ -12055,9 +12025,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     {
       /* table is a normal table: Create temporary table in same directory */
       /* Open our intermediate table. */
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::Table *table_def= nullptr;
+      if (thd->dd_client()->acquire<dd::Table>(alter_ctx.new_db,
+                                               alter_ctx.tmp_name,
+                                               &table_def))
+        goto err_new_table_cleanup;
+
       new_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
                                      alter_ctx.new_db, alter_ctx.tmp_name,
-                                     true, true, table_def.get());
+                                     true, true, table_def);
     }
     if (!new_table)
       goto err_new_table_cleanup;

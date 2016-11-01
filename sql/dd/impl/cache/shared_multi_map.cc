@@ -190,12 +190,14 @@ bool Shared_multi_map<T>::get(const K &key, Cache_element<T> **element)
 
     *element= use_if_present(key);
 
-    // Here, we return anyway, even if *element == NULL because this
-    // may happen if another thread tried to load the object, but found
-    // that it did not exist in the DD tables. In this case, the other
-    // thread would signal the condition variable without adding
-    // the object to the map, since there was no object to add.
-    return false;
+    // Here, we return only if element is non-null. An absent element
+    // does not mean that the object does not exist, it might have been
+    // evicted after the thread handling the first cache miss added
+    // it to the cache, before this waiting thread was alerted. Thus,
+    // we need to handle this situation as a cache miss if the element
+    // is absent.
+    if (*element)
+      return false;
   }
 
   // Mark the key as being missed.

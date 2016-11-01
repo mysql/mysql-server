@@ -1,0 +1,41 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+COMMIT;
+INSERT INTO t1 VALUES (3);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+ROLLBACK;
+BEGIN;
+INSERT INTO t1 VALUES (5);
+INSERT INTO t1 VALUES (6);
+COMMIT;
+CREATE TEMPORARY TABLE t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1000);
+include/rpl_sync.inc
+
+server1
+SHOW TABLES FROM test;
+Tables_in_test
+t1
+t2
+
+server2
+SHOW TABLES FROM test;
+Tables_in_test
+t1
+t2
+include/assert.inc [server1 GTID_EXECUTED must be equal to server2 GTID_EXECUTED]
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+include/diff_tables.inc [server1:test.t2, server2:test.t2]
+
+DROP TABLE t1, t2, t3;
+include/group_replication_end.inc

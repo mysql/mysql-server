@@ -30,9 +30,8 @@ SELECT COUNT(*) FROM t2;
 COUNT(*)
 3
 
-# Removed keyring file on master.
-
 # Check for keyring file on master.
+keyring_master
 
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 # Check for keyring file on master.
@@ -55,8 +54,8 @@ c1	c2
 0	aaaaa
 1	bbbbb
 2	ccccc
-# Removed keyring file on slave.
 # Check for keyring file on slave.
+keyring_slave
 [On Master]
 #
 CREATE TABLE t3(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
@@ -76,6 +75,7 @@ c1	c2
 1	bbbbb
 2	ccccc
 # Check for keyring file on slave.
+keyring_slave
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 # Check for keyring file on slave.
 keyring_slave

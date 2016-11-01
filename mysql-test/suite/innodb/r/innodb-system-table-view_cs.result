@@ -263,7 +263,7 @@ table_id	pos	mtype	prtype	len	name
 38	7	3	525324	5	execute_at
 38	8	6	1027	4	interval_value
 38	9	6	766	1	interval_field
-38	10	6	1022	4	sql_mode
+38	10	6	1022	8	sql_mode
 38	11	3	525324	5	starts
 38	12	3	525324	5	ends
 38	13	6	1022	1	status
@@ -295,7 +295,7 @@ table_id	pos	mtype	prtype	len	name
 39	16	6	1022	1	sql_data_access
 39	17	6	1022	1	security_type
 39	18	12	5443855	279	definer
-39	19	6	1022	4	sql_mode
+39	19	6	1022	8	sql_mode
 39	20	6	1800	8	client_collation_id
 39	21	6	1800	8	connection_collation_id
 39	22	6	1800	8	schema_collation_id

@@ -311,23 +311,27 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   DBUG_ASSERT(new_alias);
 
   // Fail if the target table already exists
-  const dd::Abstract_table *new_table;
-  if (thd->dd_client()->acquire_uncached_uncommitted<dd::Abstract_table>(new_db,
+  const dd::Abstract_table *new_table= nullptr;
+  if (thd->dd_client()->acquire<dd::Abstract_table>(new_db,
                           new_alias, &new_table))
     DBUG_RETURN(true);                         // This error cannot be skipped
   if (new_table)
   {
-    delete new_table;
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
     DBUG_RETURN(true);                         // This error cannot be skipped
   }
 
   // Get the table type of the old table, and fail if it does not exist
-  std::unique_ptr<dd::Abstract_table> old_table_def;
-  if (!(old_table_def=
-          dd::acquire_uncached_uncommitted_table<dd::Abstract_table>(thd,
-                ren_table->db, old_alias)))
+  const dd::Abstract_table *old_table_def=nullptr;
+  if (thd->dd_client()->acquire<dd::Abstract_table>(ren_table->db, old_alias,
+                                                    &old_table_def))
     DBUG_RETURN(!skip_error);
+
+  if (!old_table_def)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), ren_table->db, old_alias);
+    DBUG_RETURN(!skip_error);
+  }
 
   // So here we know the source table exists and the target table does
   // not exist. Next is to act based on the table type.

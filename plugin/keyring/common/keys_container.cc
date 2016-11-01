@@ -64,6 +64,12 @@ my_bool Keys_container::init(IKeyring_io* keyring_io, std::string keyring_storag
   return FALSE;
 }
 
+//Keyring_io passed to this function should be already initialized
+void Keys_container::set_keyring_io(IKeyring_io *keyring_io)
+{
+  this->keyring_io= keyring_io;
+}
+
 std::string Keys_container::get_keyring_storage_url()
 {
   return keyring_storage_url;

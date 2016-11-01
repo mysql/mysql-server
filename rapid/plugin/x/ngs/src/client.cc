@@ -385,7 +385,7 @@ void Client::on_session_reset(Session_interface &s)
     else
     {
       m_session = session;
-      m_encoder->send_ok("");
+      m_encoder->send_ok();
     }
   }
 }

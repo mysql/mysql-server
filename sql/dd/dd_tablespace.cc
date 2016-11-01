@@ -276,15 +276,16 @@ bool drop_tablespace(THD *thd, const dd::Tablespace* tablespace,
 }
 
 
-bool update_tablespace(THD *thd, dd::Tablespace *tablespace,
+bool update_tablespace(THD *thd, const dd::Tablespace *old_tablespace,
+                       dd::Tablespace *tablespace,
                        bool commit_dd_changes)
 {
   DBUG_ENTER("dd_update_tablespace");
 
   Disable_gtid_state_update_guard disabler(thd);
 
-  if (thd->dd_client()->update_uncached_and_invalidate<dd::Tablespace>(nullptr,
-                          tablespace))
+  if (thd->dd_client()->update<dd::Tablespace>(&old_tablespace,
+                                               tablespace))
   {
     if (commit_dd_changes)
     {

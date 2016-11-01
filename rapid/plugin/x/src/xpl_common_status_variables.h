@@ -71,6 +71,9 @@ public:
   Variable m_notice_warning_sent;
   Variable m_notice_other_sent;
   Variable m_errors_unknown_message_type;
+  Variable m_crud_create_view;
+  Variable m_crud_modify_view;
+  Variable m_crud_drop_view;
 
 private:
   Common_status_variables(const Common_status_variables &);

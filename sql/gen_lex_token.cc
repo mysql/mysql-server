@@ -199,7 +199,6 @@ static void compute_tokens()
     Tokens hard coded in sql_lex.cc
   */
 
-  set_token(WITH_CUBE_SYM, "WITH CUBE");
   set_token(WITH_ROLLUP_SYM, "WITH ROLLUP");
   set_token(NOT2_SYM, "!");
   set_token(OR2_SYM, "|");

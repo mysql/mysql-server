@@ -690,29 +690,35 @@ void read_view(TABLE_LIST *view,
 bool update_view_status(THD *thd, const char *schema_name,
                         const char *view_name, bool status)
 {
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::View *view= nullptr;
-  if (thd->dd_client()->acquire<dd::View>(schema_name, view_name, &view))
+  dd::cache::Dictionary_client *client= thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+  const dd::View *old_view= nullptr;
+  dd::View *new_view= nullptr;
+  if (client->acquire<dd::View>(schema_name, view_name, &old_view) ||
+      client->acquire_for_modification<dd::View>(schema_name, view_name,
+                                                 &new_view))
     return true;
-  if (view == nullptr)
+  if (old_view == nullptr)
     return false;
 
   // Update view error status.
-  std::unique_ptr<dd::View> new_view(view->clone());
   dd::Properties *view_options= &new_view->options();
   view_options->set_bool("view_valid", status);
 
   Disable_gtid_state_update_guard disabler(thd);
 
   // Update DD tables.
-  if (thd->dd_client()->update(&view, new_view.get()))
+  if (client->update(&old_view, new_view))
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
     return true;
   }
 
-  return (trans_commit_stmt(thd) || trans_commit(thd));
+  bool error= trans_commit_stmt(thd) || trans_commit(thd);
+  // TODO: Remove this call in WL#7743?
+  client->remove_uncommitted_objects<dd::View>(!error);
+  return error;
 }
 
 } // namespace dd

@@ -412,15 +412,6 @@ bool recreate_table(THD *thd, const char *schema_name,
                     const char *table_name);
 
 /**
-  Wrapper around Dictionary_client::acquire_uncached_uncommitted() which emits
-  appropriate error if table is missing and puts result object in smart-pointer.
-*/
-template <typename T>
-std::unique_ptr<T> acquire_uncached_uncommitted_table(THD *thd,
-                                                      const char *schema_name,
-                                                      const char *name);
-
-/**
   Update dd::Table::options keys_disabled=0/1 based on ALTER TABLE
   ENABLE/DISABLE KEYS. This will be used by INFORMATION_SCHEMA.STATISTICS system
   view.

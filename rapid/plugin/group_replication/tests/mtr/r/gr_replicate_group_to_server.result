@@ -1,0 +1,39 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+CREATE TABLE test.t1 (i INT PRIMARY KEY);
+INSERT INTO test.t1 VALUES(1);
+include/rpl_sync.inc
+[connection server3]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_AUTO_POSITION=1;
+include/start_slave.inc
+[connection server2]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+INSERT INTO test.t1 VALUES(2);
+include/rpl_sync.inc
+[connection server1]
+include/sync_slave_sql_with_master.inc
+# On the slave (server3), test that the data is properly replicated
+# after the start slave is complete.
+include/diff_tables.inc [server1:test.t1, server3:test.t1]
+include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction]
+[connection server1]
+DROP TABLE test.t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+RESET SLAVE;
+include/group_replication_end.inc

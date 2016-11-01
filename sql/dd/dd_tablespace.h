@@ -117,7 +117,8 @@ bool drop_tablespace(THD *thd, const Tablespace *tablespace,
   @return false - On success.
   @return true - On failure.
 */
-bool update_tablespace(THD *thd, Tablespace *tablespace,
+bool update_tablespace(THD *thd, const Tablespace *old_tablespace,
+                       Tablespace *tablespace,
                        bool commit_dd_changes);
 
 /**

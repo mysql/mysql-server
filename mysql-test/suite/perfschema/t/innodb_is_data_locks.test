@@ -17,9 +17,11 @@ SET autocommit=0;
 select * from t1_is where id=0 lock in share mode;
 
 --connection con2
+
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
   from performance_schema.data_locks
-  where object_name="t1_is";
+  where object_name="t1_is"
+  order by lock_type, lock_mode, lock_status, lock_data;
 
 --connection con1
 unlock tables;

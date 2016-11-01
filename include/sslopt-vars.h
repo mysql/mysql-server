@@ -20,6 +20,8 @@
   @file include/sslopt-vars.h
 */
 
+#include <stdio.h>
+
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "mysql.h"

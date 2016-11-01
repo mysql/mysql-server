@@ -80,6 +80,15 @@ Message *Message_decoder::alloc_message(int8_t type, Error_code &ret_error, bool
       case Mysqlx::ClientMessages::EXPECT_CLOSE:
         msg = &m_expect_close;
         break;
+      case Mysqlx::ClientMessages::CRUD_CREATE_VIEW:
+        msg = &m_crud_create_view;
+        break;
+      case Mysqlx::ClientMessages::CRUD_MODIFY_VIEW:
+        msg = &m_crud_modify_view;
+        break;
+      case Mysqlx::ClientMessages::CRUD_DROP_VIEW:
+        msg = &m_crud_drop_view;
+        break;
 
       default:
         log_debug("Cannot decode message of unknown type %i", type);

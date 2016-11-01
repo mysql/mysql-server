@@ -33,6 +33,7 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .* for how to re
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Could not create keyring directory");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*/keyring' not found .*");
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
@@ -431,7 +432,9 @@ let $restart_parameters = restart: ;
 
 --echo # Install keyring plugin
 --replace_regex /\.dll/.so/
+--disable_warnings
 eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
+--enable_warnings
 --echo # Set keyring_file_data as old file so as to access old tables
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval SET @@global.keyring_file_data='$MYSQL_TMP_DIR/mysecret_keyring';

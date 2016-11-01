@@ -2583,8 +2583,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
         }
 #endif
 
-        Open_table_context ot_ctx(thd, (MYSQL_OPEN_REOPEN |
-                                        MYSQL_OPEN_UNCOMMITTED));
+        // FIXME?
+        Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         /*
           Here we open the destination table, on which we already have
           an exclusive metadata lock.

@@ -47,6 +47,7 @@
 
 #include "binlog_config.h"
 #include "current_thd.h"
+#include "dd/cache/dictionary_client.h"
 #include "dd/types/spatial_reference_system.h"
 #include "derror.h"       // ER_THD
 #include "gis_bg_traits.h"
@@ -3300,7 +3301,9 @@ String *Item_func_validate::val_str(String *str)
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs= nullptr;
     if (fetcher.acquire(geom->get_srid(), &srs))
       return error_str(); // Error has already been flagged.
@@ -3369,7 +3372,9 @@ String *Item_func_make_envelope::val_str(String *str)
 
   if (geom1->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs= nullptr;
     if (fetcher.acquire(geom1->get_srid(), &srs))
       return error_str(); // Error has already been flagged.
@@ -3524,12 +3529,11 @@ String *Item_func_envelope::val_str(String *str)
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       return error_str(); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -3590,12 +3594,11 @@ String *Item_func_centroid::val_str(String *str)
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       return error_str(); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -3950,12 +3953,11 @@ String *Item_func_convex_hull::val_str(String *str)
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       return error_str(); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -4167,12 +4169,11 @@ String *Item_func_simplify::val_str(String *str)
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       return error_str(); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -4980,12 +4981,11 @@ longlong Item_func_issimple::val_int()
 
   if (arg->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(arg->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, arg->get_srid(), &srs_exists))
       DBUG_RETURN(error_int()); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -5320,7 +5320,9 @@ longlong Item_func_isvalid::val_int()
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs= nullptr;
     if (fetcher.acquire(geom->get_srid(), &srs))
       return error_int(); // Error has already been flagged.
@@ -5724,12 +5726,11 @@ double Item_func_area::val_real()
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       return error_real(); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -5772,12 +5773,11 @@ double Item_func_glength::val_real()
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       return error_real(); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -5851,14 +5851,13 @@ String *Item_func_set_srid::val_str(String *str)
 
   if (srid != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(srid, &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, srid, &srs_exists))
     {
       return error_str();
     }
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
       return error_str();
@@ -6119,12 +6118,11 @@ double Item_func_distance::val_real()
 
   if (g1->get_srid() != 0 && !is_spherical_equatorial)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(g1->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, g1->get_srid(), &srs_exists))
       DBUG_RETURN(error_real()); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,

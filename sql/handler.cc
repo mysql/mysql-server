@@ -5105,7 +5105,7 @@ int ha_create_table(THD *thd, const char *path,
                     HA_CREATE_INFO *create_info,
                     bool update_create_info,
                     bool is_temp_table,
-                    dd::Table *table_def)
+                    dd::Table *tmp_table_def)
 {
   int error= 1;
   TABLE table;
@@ -5121,7 +5121,23 @@ int ha_create_table(THD *thd, const char *path,
 
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
 
-  if (open_table_def(thd, &share, false, table_def))
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  const dd::Table *old_table_def= nullptr;
+  dd::Table *new_table_def= nullptr;
+
+  if (!tmp_table_def)
+  {
+
+    if (thd->dd_client()->acquire<dd::Table>(db, table_name,
+                                             &old_table_def) ||
+        thd->dd_client()->acquire_for_modification(db, table_name,
+                                                   &new_table_def))
+    goto err;
+  }
+
+  if (open_table_def(thd, &share, false, tmp_table_def ?
+                                         tmp_table_def : old_table_def))
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
@@ -5129,7 +5145,8 @@ int ha_create_table(THD *thd, const char *path,
 #endif
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
-                            TRUE, table_def))
+                            TRUE, tmp_table_def ? tmp_table_def :
+                                                  old_table_def))
   {
 #ifdef HAVE_PSI_TABLE_INTERFACE
     PSI_TABLE_CALL(drop_table_share)
@@ -5143,7 +5160,9 @@ int ha_create_table(THD *thd, const char *path,
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
-  error= table.file->ha_create(name, &table, create_info, table_def);
+  error= table.file->ha_create(name, &table, create_info,
+                               tmp_table_def ? tmp_table_def :
+                                               new_table_def);
 
   if (error)
   {
@@ -5170,8 +5189,7 @@ int ha_create_table(THD *thd, const char *path,
     {
       Disable_gtid_state_update_guard disabler(thd);
 
-      if(thd->dd_client()->update_uncached_and_invalidate<dd::Table>(nullptr,
-                                                                     table_def))
+      if(thd->dd_client()->update<dd::Table>(&old_table_def, new_table_def))
         error= 1;
     }
   }

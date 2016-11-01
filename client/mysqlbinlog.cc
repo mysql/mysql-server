@@ -30,11 +30,7 @@
 
 #include "mysqlbinlog.h"
 
-#include <my_dir.h>
-#include <my_time.h>
 #include <signal.h>
-#include <sslopt-vars.h>
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #include <algorithm>
 #include <map>
 #include <utility>
@@ -44,13 +40,16 @@
 #include "my_decimal.h"
 #include "my_default.h"
 #include "my_dir.h"
+#include "my_time.h"
 #include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
 #include "rpl_constants.h"
 #include "rpl_gtid.h"
+#include "sslopt-vars.h"
 #include "sql_common.h"
 #include "sql_string.h"
 #include "typelib.h"
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 using std::min;
 using std::max;

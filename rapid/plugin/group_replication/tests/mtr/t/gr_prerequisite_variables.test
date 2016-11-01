@@ -1,0 +1,72 @@
+################################################################################
+# Base test to verify the values of prerequisite variables for group replication
+#
+# Test:
+# 0. The test requires one server.
+# 1. Verify the GR compatible values of prerequisite variables.
+################################################################################
+
+--let $transaction_write_set_extraction= aaaaaaaa-bbbb-aaaa-bbbb-aaaaaaaaaaaa
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--echo #
+--echo # Check that member is up and running successfully.
+SELECT MEMBER_STATE FROM performance_schema.replication_group_members;
+
+--echo #
+--echo # Verify the GR compatible values of prerequisite variables.
+--echo # Curently there are 9 prerequisite variables.
+--echo #
+
+# binlog_checksum
+--let $assert_text= GR compatible value of binlog_checksum is None
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_checksum]" = "None"
+--source include/assert.inc
+
+# binlog_format
+--let $assert_text= GR compatible value of binlog_format is ROW
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_format]" = "ROW"
+--source include/assert.inc
+
+# enforce_gtid_consistency
+--let $assert_text= GR compatible value of enforce_gtid_consistency is ON
+--let $assert_cond= "[SELECT @@GLOBAL.enforce_gtid_consistency]" = "ON"
+--source include/assert.inc
+
+# gtid_mode
+--let $assert_text= GR compatible value of gtid_mode is ON
+--let $assert_cond= "[SELECT @@GLOBAL.gtid_mode]" = "ON"
+--source include/assert.inc
+
+# log_bin
+--let $assert_text= GR compatible value of log_bin is 1/ON
+--let $assert_cond= "[SELECT @@GLOBAL.log_bin]" = 1
+--source include/assert.inc
+
+# log_slave_updates
+--let $assert_text= GR compatible value of log_slave_updates is 1/ON
+--let $assert_cond= "[SELECT @@GLOBAL.log_slave_updates]" = 1
+--source include/assert.inc
+
+# master_info_repository
+--let $assert_text= GR compatible value of master_info_repository is TABLE
+--let $assert_cond= "[SELECT @@GLOBAL.master_info_repository]" = "TABLE"
+--source include/assert.inc
+
+# relay_log_info_repository
+--let $assert_text= GR compatible value of relay_log_info_repository is TABLE
+--let $assert_cond= "[SELECT @@GLOBAL.relay_log_info_repository]" = "TABLE"
+--source include/assert.inc
+
+# transaction_write_set_extraction
+--let $assert_text= GR compatible values of transaction_write_set_extraction are XXHASH64 and MURMUR32
+--let $assert_cond= "[SELECT @@GLOBAL.transaction_write_set_extraction IN (\'XXHASH64\', \'MURMUR32\')]" = 1
+--source include/assert.inc
+
+--source ../inc/group_replication_end.inc

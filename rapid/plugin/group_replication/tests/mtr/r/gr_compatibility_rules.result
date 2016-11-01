@@ -1,0 +1,38 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup a member
+#
+server1
+include/start_and_bootstrap_group_replication.inc
+# Add some data for recovery
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+#
+# Try to add a new member that was defined as incompatible with member 1
+#
+server2
+SET session sql_log_bin=0;
+call mtr.add_suppression("Member version is incompatible with the group");
+SET session sql_log_bin=1;
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error';
+SET GLOBAL group_replication_group_name= "6db14550-03bb-11e5-b939-0800200c9a66";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+#
+# Check all is fine when we clean the rules
+#
+SET @@GLOBAL.DEBUG= @debug_save;
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
+include/rpl_reconnect.inc
+include/start_group_replication.inc
+include/assert.inc [On the recovered member, the table should contain 1 elements]
+#
+# Clean up
+#
+DROP TABLE t1;
+include/group_replication_end.inc

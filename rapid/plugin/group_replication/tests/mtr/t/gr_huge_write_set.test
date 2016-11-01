@@ -1,0 +1,85 @@
+################################################################################
+# Validate that conflicts between transactions with huge number of changed rows
+# are detected.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Create a table on server1 and insert 71000 rows on it.
+# 2. Assert that a conflict between a huge transaction, one that
+#    does change all table rows, and a small transaction is
+#    detected.
+# 3. Assert that the remote transaction was the applied on both
+#    members.
+# 4. Clean up.
+################################################################################
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # Create a table on server1 and insert 71000 rows on it.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1(id INT PRIMARY KEY, balance INT);
+
+--let $trx= 71000
+--disable_query_log
+BEGIN;
+while($trx)
+{
+  --eval INSERT INTO t1 VALUES($trx, 0)
+  --dec $trx
+}
+COMMIT;
+--enable_query_log
+--let $slave_timeout= 1800
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # Assert that a conflict between a huge transaction, one that
+--echo # does change all table rows, and a small transaction is
+--echo # detected.
+--let $local_server_connection1=server_1
+--let $local_server_connection2=server1
+--let $remote_server_connection=server2
+--let $local_transaction=UPDATE t1 SET balance=1000
+--let $remote_transaction=UPDATE t1 SET balance=200 WHERE id>70000 AND id<70100
+--let $conflict_test=1
+--source ../inc/gr_parallel_local_and_remote_transactions.inc
+
+
+--echo
+--echo ############################################################
+--echo # Assert that the remote transaction was the applied on both
+--echo # members.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There are 0 rows with value 1000 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.balance=1000, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There are 70901 rows with value 0 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.balance=0 AND (id<=70000 OR id>=70100), count, 1] = 70901
+--source include/assert.inc
+
+--let $assert_text= 'There are 99 rows with value 200 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.balance=200 AND id>70000 AND id<70100, count, 1] = 99
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo ############################################################
+--echo # Clean up.
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

@@ -28,6 +28,7 @@
 #include <boost/geometry/index/predicates.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 
+#include "dd/cache/dictionary_client.h"
 #include "item_func.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -80,8 +81,21 @@ bool Srs_fetcher::acquire(Geometry::srid_t srid,
   if (lock(srid))
     return true;
 
-  if (m_ddc->acquire(srid, srs))
+  if (m_thd->dd_client()->acquire(srid, srs))
     return true;
+  return false;
+}
+
+
+bool Srs_fetcher::srs_exists(THD *thd, Geometry::srid_t srid, bool *exists)
+{
+  DBUG_ASSERT(exists);
+  dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+  Srs_fetcher fetcher(thd);
+  const dd::Spatial_reference_system *srs= nullptr;
+  if (fetcher.acquire(srid, &srs))
+    return true;
+  *exists= (srs != nullptr);
   return false;
 }
 

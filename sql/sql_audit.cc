@@ -373,10 +373,7 @@ int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
   event.ip.length= thd->security_context()->ip().length;
   event.database.str= thd->db().str;
   event.database.length= thd->db().length;
-
-  /* Keep this for backward compatibility. */
-  event.connection_type= subclass == MYSQL_AUDIT_CONNECTION_CONNECT ?
-                         thd->get_vio_type() : NO_VIO_TYPE;
+  event.connection_type= thd->get_vio_type();
 
   if (subclass == MYSQL_AUDIT_CONNECTION_DISCONNECT)
   {

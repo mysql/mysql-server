@@ -40,27 +40,26 @@
 
 #define DUMP_VERSION "10.13"
 
+#include <hash.h>
+#include <m_ctype.h>
+#include <m_string.h>
 #include <my_global.h>
 #include <my_sys.h>
 #include <my_user.h>
-#include <m_string.h>
-#include <m_ctype.h>
-#include <hash.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"
 #include "my_default.h"
 #include "mysql.h"
-#include "mysql_version.h"
-#include "mysqld_error.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-
+#include "mysql_version.h"
+#include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "template_utils.h"
 #include "typelib.h"
-
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 /* Exit codes */
 

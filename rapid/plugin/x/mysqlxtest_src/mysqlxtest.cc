@@ -22,6 +22,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
+#include <stdio.h>
 #include <string.h>
 #include <algorithm>
 #include <fstream>
@@ -41,6 +42,7 @@
 #include "mysqlx_session.h"
 #include "mysqlx_version.h"
 #include "ngs_common/bind.h"
+#include "mysqlxtest_error_names.h"
 #include "common/utils_string_parsing.h"
 #include "ngs_common/chrono.h"
 #include "ngs_common/protocol_const.h"
@@ -321,6 +323,12 @@ public:
           connection_options.schema,
           pwdfound);
     }
+    variables["%OPTION_CLIENT_USER%"]     = connection_options.user;
+    variables["%OPTION_CLIENT_PASSWORD%"] = connection_options.password;
+    variables["%OPTION_CLIENT_HOST%"]     = connection_options.host;
+    variables["%OPTION_CLIENT_PORT%"]     = connection_options.port;
+    variables["%OPTION_CLIENT_SOCKET%"]   = connection_options.socket;
+    variables["%OPTION_CLIENT_SCHEMA%"]   = connection_options.schema;
 
     active_connection.reset(new mysqlx::XProtocol(ssl_config, timeout, dont_wait_for_disconnect, m_ip_mode));
     connections[""] = active_connection;
@@ -987,27 +995,52 @@ private:
 
   Result cmd_recvtype(Execution_context &context, const std::string &args)
   {
+    std::vector<std::string> vargs;
+    aux::split(vargs, args, " ", true);
+
+    if (1 != vargs.size() &&
+        2 != vargs.size())
+    {
+      std::stringstream error_message;
+      error_message << "Received wrong number of arguments, got:"
+                    << vargs.size();
+      throw std::logic_error(error_message.str());
+    }
+
+    bool be_quiet = false;
     int msgid;
     ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
-    if (msg.get())
+
+    if (1 < vargs.size())
     {
-      if (msg->GetDescriptor()->full_name() != args)
-        std::cout << "Received unexpected message. Was expecting:\n    " << args << "\nbut got:\n";
-      try
-      {
-        std::ostream &out = get_stream_for_results();
+      if (vargs[1] == CMD_ARG_BE_QUIET)
+        be_quiet = true;
+    }
 
-        out << unreplace_variables(message_to_text(*msg), true) << "\n";
+    if (NULL == msg.get())
+      return OPT_fatal_errors ? Stop_with_failure : Continue;
 
-        if (msg->GetDescriptor()->full_name() != args && OPT_fatal_errors)
-          return Stop_with_success;
-      }
-      catch (std::exception &e)
+    try
+    {
+      const std::string message_in_text = unreplace_variables(message_to_text(*msg), true);
+
+      if (msg->GetDescriptor()->full_name() != vargs[0])
       {
-        dumpx(e);
-        if (OPT_fatal_errors)
-          return Stop_with_success;
+        std::cout << "Received unexpected message. Was expecting:\n    " << vargs[0] << "\nbut got:\n";
+        std::cout << message_in_text << "\n";
+
+        return OPT_fatal_errors ? Stop_with_failure : Continue;
       }
+
+      std::ostream &out = get_stream_for_results(be_quiet);
+
+      out << message_in_text << "\n";
+    }
+    catch (std::exception &e)
+    {
+      dumpx(e);
+      if (OPT_fatal_errors)
+        return Stop_with_success;
     }
 
     return Continue;
@@ -1020,18 +1053,20 @@ private:
     if (msg.get())
     {
       bool failed = false;
-      if (msg->GetDescriptor()->full_name() != "Mysqlx.Error" ||
-          (uint32_t)ngs::stoi(args) != static_cast<Mysqlx::Error*>(msg.get())->code())
-      {
-        std::cout << error() << "Was expecting Error " << args <<", but got:" << eoerr();
-        failed = true;
-      }
-      else
-      {
-        std::cout << "Got expected error:\n";
-      }
       try
       {
+        const int expected_error_code = mysqlxtest::get_error_code_by_text(args);
+        if (msg->GetDescriptor()->full_name() != "Mysqlx.Error" ||
+            expected_error_code != (int)static_cast<Mysqlx::Error*>(msg.get())->code())
+        {
+          std::cout << error() << "Was expecting Error " << args <<", but got:" << eoerr();
+          failed = true;
+        }
+        else
+        {
+          std::cout << "Got expected error:\n";
+        }
+
         std::cout << message_to_text(*msg) << "\n";
         if (failed && OPT_fatal_errors)
           return Stop_with_success;
@@ -1254,6 +1289,9 @@ private:
 
     context.connection()->send(stmt);
 
+    if (!OPT_quiet)
+      std::cout << "RUN " << command << "\n";
+
     return Continue;
   }
 
@@ -1435,6 +1473,9 @@ private:
   {
     std::string s = args;
     std::string expected, user, pass, db;
+    int expected_error_code = 0;
+
+    replace_variables(s);
     std::string::size_type p = s.find('\t');
     if (p != std::string::npos)
     {
@@ -1462,8 +1503,12 @@ private:
       std::cout << error() << "Missing arguments to -->loginerror" << eoerr();
       return Stop_with_failure;
     }
+
     try
     {
+      replace_variables(expected);
+      aux::trim(expected);
+      expected_error_code = mysqlxtest::get_error_code_by_text(expected);
       context.connection()->push_local_notice_handler(ngs::bind(dump_notices, ngs::placeholders::_1, ngs::placeholders::_2));
 
       context.connection()->authenticate_mysql41(user, pass, db);
@@ -1474,15 +1519,21 @@ private:
       if (OPT_fatal_errors)
         return Stop_with_failure;
     }
+    catch (const std::exception &e)
+    {
+      std::cerr << e.what() << "\n";
+
+      return Stop_with_failure;
+    }
     catch (mysqlx::Error &err)
     {
       context.connection()->pop_local_notice_handler();
 
-      if (err.error() == (int32_t)ngs::stoi(expected))
+      if (err.error() == expected_error_code)
         std::cerr << "error (as expected): " << err.what() << " (code " << err.error() << ")\n";
       else
       {
-        std::cerr << error() << "was expecting: " << expected << " but got: " << err.what() << " (code " << err.error() << ")" << eoerr();
+        std::cerr << error() << "was expecting: " << expected_error_code << " but got: " << err.what() << " (code " << err.error() << ")" << eoerr();
         if (OPT_fatal_errors)
           return Stop_with_failure;
       }
@@ -1764,18 +1815,32 @@ private:
 
   Result cmd_expecterror(Execution_context &context, const std::string &args)
   {
-    if (!args.empty())
+    try
     {
+      if (args.empty())
+        throw std::logic_error("expecterror requires an errno argument");
+
       std::vector<std::string> argl;
       aux::split(argl, args, ",", true);
       for (std::vector<std::string>::const_iterator arg = argl.begin(); arg != argl.end(); ++arg)
-        OPT_expect_error->expect_errno(ngs::stoi(*arg));
+      {
+        std::string value = *arg;
+
+        replace_variables(value);
+        aux::trim(value);
+
+        const int error_code = mysqlxtest::get_error_code_by_text(value);
+
+        OPT_expect_error->expect_errno(error_code);
+      }
     }
-    else
+    catch(const std::exception &e)
     {
-      std::cerr << "expecterror requires an errno argument\n";
+      std::cerr << e.what() << "\n";
+
       return Stop_with_failure;
     }
+
     return Continue;
   }
 
@@ -3040,7 +3105,7 @@ public:
     std::cout << "  and set the variable <varname>\n";
     std::cout << "-->recverror <errno>\n";
     std::cout << "  Read a message and ensure that it's an error of the expected type\n";
-    std::cout << "-->recvtype <msgtype>\n";
+    std::cout << "-->recvtype <msgtype> [" << CMD_ARG_BE_QUIET << "]\n";
     std::cout << "  Read one message and print it, checking that its type is the specified one\n";
     std::cout << "-->recvuntil <msgtype> [do_not_show_intermediate]\n";
     std::cout << "  Read messages and print them, until a msg of the specified type (or Error) is received\n";

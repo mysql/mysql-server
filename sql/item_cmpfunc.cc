@@ -894,6 +894,8 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
     flags|= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
     flags|= TIME_NO_ZERO_DATE;
+  if (thd->is_fsp_truncate_mode())
+    flags|=  TIME_FRAC_TRUNCATE;
 
   if (!str_to_datetime(str, l_time, flags, &status) &&
       (l_time->time_type == MYSQL_TIMESTAMP_DATETIME ||

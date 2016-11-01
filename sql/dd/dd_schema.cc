@@ -101,22 +101,20 @@ bool alter_schema(THD *thd, const char *schema_name,
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
   // Get dd::Schema object.
-  const dd::Schema *sch_obj= NULL;
-  if (client->acquire<dd::Schema>(schema_name, &sch_obj))
+  const dd::Schema *old_sch_obj= nullptr;
+  dd::Schema *new_sch_obj= nullptr;
+  if (client->acquire<dd::Schema>(schema_name, &old_sch_obj) ||
+      client->acquire_for_modification<dd::Schema>(schema_name, &new_sch_obj))
   {
     // Error is reported by the dictionary subsystem.
     return true;
   }
 
-  if (!sch_obj)
+  if (!old_sch_obj)
   {
     my_error(ER_NO_SUCH_DB, MYF(0), schema_name);
     return true;
   }
-
-  // Clone the schema object. The clone is owned here, and must be deleted
-  // eventually.
-  std::unique_ptr<dd::Schema> new_sch_obj(sch_obj->clone());
 
   // Set new collation ID.
   new_sch_obj->set_default_collation_id(charset_info->number);
@@ -124,7 +122,7 @@ bool alter_schema(THD *thd, const char *schema_name,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Update schema.
-  if (client->update(&sch_obj, new_sch_obj.get()))
+  if (client->update(&old_sch_obj, new_sch_obj))
     return true;
 
   return false;

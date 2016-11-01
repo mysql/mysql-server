@@ -1,0 +1,32 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Assert that last_conflict_free_transaction is correct
+#    when last transaction GTID was generated.
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+[connection server1]
+include/assert.inc [On server1, the value of last_conflict_free_transaction must be the last positively certified transaction (group generated)]
+[connection server2]
+include/assert.inc [On server2, the value of last_conflict_free_transaction must be the last positively certified transaction (group generated)]
+
+############################################################
+# 2. Assert that last_conflict_free_transaction is correct
+#    when last transaction GTID was specified.
+SET GTID_NEXT= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT= AUTOMATIC;
+include/rpl_sync.inc
+[connection server1]
+include/assert.inc [On server1, the value of last_conflict_free_transaction must be the last positively certified transaction (specified GTID)]
+[connection server2]
+include/assert.inc [On server2, the value of last_conflict_free_transaction must be the last positively certified transaction (specified GTID)]
+
+############################################################
+# 3. Clean up.
+DROP TABLE t1;
+include/group_replication_end.inc

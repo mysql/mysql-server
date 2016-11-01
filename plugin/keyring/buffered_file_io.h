@@ -23,19 +23,19 @@
 #include "keyring_memory.h"
 #include "buffer.h"
 #include "hash_to_buffer_serializer.h"
+#include "digest.h"
+#include "checker/checker_factory.h"
+#include "file_io.h"
 
 namespace keyring {
 
 class Buffered_file_io : public IKeyring_io
 {
 public:
-  Buffered_file_io(ILogger *logger)
-    : eofTAG("EOF")
-    , file_version("Keyring file version:1.0")
-    , logger(logger)
-    , backup_exists(FALSE)
-    , memory_needed_for_buffer(0)
-  {}
+  Buffered_file_io(ILogger *logger,
+                   std::vector<std::string> *allowedFileVersionsToInit=NULL);
+
+  ~Buffered_file_io();
 
   my_bool init(std::string *keyring_filename);
 
@@ -45,29 +45,33 @@ public:
   ISerializer* get_serializer();
   my_bool get_serialized_object(ISerialized_object **serialized_object);
   my_bool has_next_serialized_object();
+
 protected:
-  virtual my_bool remove_backup();
+  virtual my_bool remove_backup(myf myFlags);
+  Buffer buffer;
+  Digest digest;
+  size_t memory_needed_for_buffer;
 private:
   my_bool recreate_keyring_from_backup_if_backup_exists();
 
   std::string* get_backup_filename();
   my_bool open_backup_file(File *backup_file);
   my_bool load_file_into_buffer(File file, Buffer *buffer);
-  my_bool flush_buffer_to_storage(Buffer *buffer);
-  my_bool flush_buffer_to_file(Buffer *buffer, PSI_file_key *file_key,
-                               const std::string* filename);
-  inline my_bool check_file_structure(File file, size_t file_size);
-  my_bool is_file_tag_correct(File file);
-  my_bool is_file_version_correct(File file);
+  my_bool flush_buffer_to_storage(Buffer *buffer, File file);
+  my_bool flush_buffer_to_file(Buffer *buffer, Digest *buffer_digest,
+                               File file);
+  my_bool check_keyring_file_structure(File keyring_file);
+  my_bool check_file_structure(File file, size_t file_size);
+  my_bool check_if_keyring_file_can_be_opened_or_created();
 
   std::string keyring_filename;
   std::string backup_filename;
-  const std::string eofTAG;
   const std::string file_version;
   ILogger *logger;
-  my_bool backup_exists;
   Hash_to_buffer_serializer hash_to_buffer_serializer;
-  size_t memory_needed_for_buffer;
+  std::vector<Checker*> checkers;
+  CheckerFactory checker_factory;
+  File_io file_io;
 };
 
 }//namespace keyring

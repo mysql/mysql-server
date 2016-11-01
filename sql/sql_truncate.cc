@@ -269,32 +269,32 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
     if (fk_truncate_illegal_if_parent(thd, table_ref->table))
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
-  std::unique_ptr<dd::Table> non_tmp_table_def;
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  const dd::Table *old_non_tmp_table_def= nullptr;
+  dd::Table *non_tmp_table_def= nullptr;
 
   if (!is_tmp_table)
   {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Table *table_def= 0;
-
     if (thd->dd_client()->acquire<dd::Table>(table_ref->db,
                                              table_ref->table_name,
-                                             &table_def))
+                                             &old_non_tmp_table_def) ||
+        thd->dd_client()->acquire_for_modification<dd::Table>(table_ref->db,
+                            table_ref->table_name, &non_tmp_table_def))
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
-    if (!table_def)
+    if (!old_non_tmp_table_def || !non_tmp_table_def)
     {
       /* Impossible since table was successfully opened above. */
       DBUG_ASSERT(0);
       my_error(ER_NO_SUCH_TABLE, MYF(0), table_ref->db, table_ref->table_name);
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
     }
-
-    non_tmp_table_def= std::unique_ptr<dd::Table>(table_def->clone());
   }
 
   error= table_ref->table->file->ha_truncate(is_tmp_table ?
                                    table_ref->table->s->tmp_table_def :
-                                   non_tmp_table_def.get());
+                                   non_tmp_table_def);
 
 
   if (error)
@@ -315,8 +315,8 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
   else if (!is_tmp_table &&
            (table_ref->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL))
   {
-    if (thd->dd_client()->update_uncached_and_invalidate<dd::Table>(nullptr,
-                            non_tmp_table_def.get()))
+    if (thd->dd_client()->update<dd::Table>(&old_non_tmp_table_def,
+                                            non_tmp_table_def))
     {
       /* Statement rollback will revert effect of handler::truncate() as well. */
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);

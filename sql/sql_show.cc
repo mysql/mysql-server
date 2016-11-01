@@ -4297,7 +4297,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
   mysql_mutex_lock(&LOCK_open);
   share= get_table_share(thd, &table_list, key,
-                         key_length, true, false, hash_value);
+                         key_length, true, hash_value);
   if (!share)
   {
     res= 0;

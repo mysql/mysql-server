@@ -1,0 +1,73 @@
+################################################################################
+# This test simulates a situation where the group replication is created but it
+# was already present.
+#
+# Test:
+# 0. The test requires one server.
+#  - Install plugin at startup.
+# 1. With member ONLINE in the group, assert check the GR user '_gr_user' exists
+#    after install.
+# 2. Set DEBUG point. Uninstall plugin group_replication. The GR user '_gr_user'
+#    should exists.
+# 3. Check that installation of plugin group_replication goes fine. The GR user
+#    '_gr_user' should exists.
+# 4. Check all is OK i.e. START GROUP_REPLICATION should succeed.
+################################################################################
+
+--source include/have_debug.inc
+--source ../inc/have_group_replication_plugin.inc
+--source include/force_restart.inc
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Assert the user exist after install
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= The group replication user should exist in this member
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 1;
+--source include/assert.inc
+
+--echo #
+--echo # Uninstall guaranteeing the user is not removed
+--echo #
+
+#Backup the Xcom address vars
+SET @local_address= @@GLOBAL.group_replication_local_address;
+SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_bypass_user_removal';
+UNINSTALL PLUGIN group_replication;
+SET @@GLOBAL.DEBUG= '-d,group_replication_bypass_user_removal';
+
+--let $assert_text= The group replication user should still exist in this member
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 1;
+--source include/assert.inc
+
+--echo #
+--echo # Check that the installation process goes fine
+--echo #
+
+--replace_result $GROUP_REPLICATION GROUP_REPLICATION
+--eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+
+--let $assert_text= The group replication user should exist in this member
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 1;
+--source include/assert.inc
+
+--echo #
+--echo # Check all is OK
+--echo #
+
+SET GLOBAL group_replication_local_address= @local_address;
+SET GLOBAL group_replication_group_seeds= @group_seeds;
+
+--source include/start_group_replication.inc
+
+--echo #
+--echo # Cleaning
+--echo #
+
+--source ../inc/group_replication_end.inc

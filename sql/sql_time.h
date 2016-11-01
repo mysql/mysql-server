@@ -185,38 +185,22 @@ inline void my_timeval_trunc(struct timeval *tv, uint decimals)
 {
   tv->tv_usec-= my_time_fraction_remainder(tv->tv_usec, decimals);
 }
-bool my_time_round(MYSQL_TIME *ltime, uint decimals);
-bool my_datetime_round(MYSQL_TIME *ltime, uint decimals, int *warnings);
+bool my_time_adjust_frac(MYSQL_TIME *ltime, uint decimals, bool truncate);
+bool my_datetime_adjust_frac(MYSQL_TIME *ltime, uint decimals, int *warnings,
+                             bool truncate);
+
 bool my_timeval_round(struct timeval *tv, uint decimals);
+ulonglong TIME_to_ulonglong_datetime_round(const MYSQL_TIME *ltime);
+ulonglong TIME_to_ulonglong_time_round(const MYSQL_TIME *ltime);
 
-
-inline ulonglong TIME_to_ulonglong_datetime_round(const MYSQL_TIME *ltime)
-{
-  // Catch simple cases
-  if (ltime->second_part < 500000)
-    return TIME_to_ulonglong_datetime(ltime);
-  if (ltime->second < 59)
-    return TIME_to_ulonglong_datetime(ltime) + 1;
-  // Corner case e.g. 'YYYY-MM-DD hh:mm:59.5'. Proceed with slower method.
-  int warnings= 0;
-  MYSQL_TIME tmp= *ltime;
-  my_datetime_round(&tmp, 0, &warnings);
-  return TIME_to_ulonglong_datetime(&tmp);// + TIME_microseconds_round(ltime);
-}
-
-
-inline ulonglong TIME_to_ulonglong_time_round(const MYSQL_TIME *ltime)
-{
-  if (ltime->second_part < 500000)
-    return TIME_to_ulonglong_time(ltime);
-  if (ltime->second < 59)
-    return TIME_to_ulonglong_time(ltime) + 1;
-  // Corner case e.g. 'hh:mm:59.5'. Proceed with slower method.
-  MYSQL_TIME tmp= *ltime;
-  my_time_round(&tmp, 0);
-  return TIME_to_ulonglong_time(&tmp);
-}
-
+bool time_add_nanoseconds_with_truncate(MYSQL_TIME *ltime, uint nanoseconds,
+                                        int *warnings);
+bool datetime_add_nanoseconds_with_truncate(MYSQL_TIME *ltime, uint nanoseconds,
+                                        int *warnings);
+bool time_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
+                                      int *warnings, bool truncate);
+bool datetime_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
+                                          int *warnings, bool truncate);
 
 inline ulonglong TIME_to_ulonglong_round(const MYSQL_TIME *ltime)
 {

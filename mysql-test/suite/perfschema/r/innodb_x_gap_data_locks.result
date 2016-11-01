@@ -12,34 +12,36 @@ id	x
 4	40
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
 from performance_schema.data_locks
-where object_name="t1_x_gap";
+where object_name="t1_x_gap"
+  order by lock_type, lock_mode, lock_status, lock_data;
 object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
-test	t1_x_gap	TABLE	IX	GRANTED	NULL
 test	t1_x_gap	RECORD	X	GRANTED	1
 test	t1_x_gap	RECORD	X	GRANTED	2
 test	t1_x_gap	RECORD	X	GRANTED	3
 test	t1_x_gap	RECORD	X	GRANTED	4
 test	t1_x_gap	RECORD	X	GRANTED	5
+test	t1_x_gap	TABLE	IX	GRANTED	NULL
 start transaction;
 insert into t1_x_gap values (0,0);
-select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
+select object_schema, object_name, lock_type, lock_mode, lock_status
 from performance_schema.data_locks
-where object_name="t1_x_gap";
-object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
-test	t1_x_gap	TABLE	IX	GRANTED	NULL
-test	t1_x_gap	RECORD	X,GAP	WAITING	1
-test	t1_x_gap	TABLE	IX	GRANTED	NULL
-test	t1_x_gap	RECORD	X	GRANTED	1
-test	t1_x_gap	RECORD	X	GRANTED	2
-test	t1_x_gap	RECORD	X	GRANTED	3
-test	t1_x_gap	RECORD	X	GRANTED	4
-test	t1_x_gap	RECORD	X	GRANTED	5
+where object_name="t1_x_gap"
+  order by lock_type, lock_mode, lock_status;
+object_schema	object_name	lock_type	lock_mode	lock_status
+test	t1_x_gap	RECORD	X	GRANTED
+test	t1_x_gap	RECORD	X	GRANTED
+test	t1_x_gap	RECORD	X	GRANTED
+test	t1_x_gap	RECORD	X	GRANTED
+test	t1_x_gap	RECORD	X	GRANTED
+test	t1_x_gap	RECORD	X,GAP	WAITING
+test	t1_x_gap	TABLE	IX	GRANTED
+test	t1_x_gap	TABLE	IX	GRANTED
 commit;
-select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
+select object_schema, object_name, lock_type, lock_mode, lock_status
 from performance_schema.data_locks
 where object_name="t1_x_gap";
-object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
-test	t1_x_gap	TABLE	IX	GRANTED	NULL
-test	t1_x_gap	RECORD	X,GAP	GRANTED	1
+object_schema	object_name	lock_type	lock_mode	lock_status
+test	t1_x_gap	TABLE	IX	GRANTED
+test	t1_x_gap	RECORD	X,GAP	GRANTED
 commit;
 drop table t1_x_gap;

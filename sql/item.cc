@@ -426,7 +426,8 @@ longlong Item::val_temporal_with_round(enum_field_types type, uint8 dec)
       {
         MYSQL_TIME ltime;
         TIME_from_longlong_time_packed(&ltime, nr);
-        return my_time_round(&ltime, dec) ?
+        return my_time_adjust_frac(&ltime, dec,
+                                   current_thd->is_fsp_truncate_mode()) ?
                0 : TIME_to_longlong_time_packed(&ltime);
       }
     case MYSQL_TYPE_TIMESTAMP:
@@ -435,7 +436,8 @@ longlong Item::val_temporal_with_round(enum_field_types type, uint8 dec)
         MYSQL_TIME ltime;
         int warnings= 0;
         TIME_from_longlong_datetime_packed(&ltime, nr);
-        return my_datetime_round(&ltime, dec, &warnings) ? 
+        return my_datetime_adjust_frac(&ltime, dec, &warnings,
+                                       current_thd->is_fsp_truncate_mode()) ?
                0 : TIME_to_longlong_datetime_packed(&ltime);
         return nr;
       }
@@ -478,8 +480,16 @@ longlong Item::val_int_from_time()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  return get_time(&ltime) ?
-         0LL : (ltime.neg ? -1 : 1) * TIME_to_ulonglong_time_round(&ltime);
+  ulonglong value= 0;
+  if (get_time(&ltime))
+    return 0LL;
+
+  if (current_thd->is_fsp_truncate_mode())
+    value= TIME_to_ulonglong_time(&ltime);
+  else
+    value= TIME_to_ulonglong_time_round(&ltime);
+
+  return (ltime.neg ? -1 : 1) * value;
 }
 
 
@@ -496,8 +506,13 @@ longlong Item::val_int_from_datetime()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  return get_date(&ltime, TIME_FUZZY_DATE) ?
-         0LL: (longlong) TIME_to_ulonglong_datetime_round(&ltime);
+  if (get_date(&ltime, TIME_FUZZY_DATE))
+    return 0LL;
+
+  if (current_thd->is_fsp_truncate_mode())
+    return TIME_to_ulonglong_datetime(&ltime);
+  else
+    return TIME_to_ulonglong_datetime_round(&ltime);
 }
 
 
@@ -615,7 +630,7 @@ uint Item::time_precision()
     DBUG_ASSERT(fixed);
     // Nanosecond rounding is not needed, for performance purposes
     if ((tmp= val_str(&buf)) &&
-        str_to_time(tmp, &ltime, TIME_NO_NSEC_ROUNDING, &status) == 0)
+        str_to_time(tmp, &ltime, TIME_FRAC_TRUNCATE, &status) == 0)
       return MY_MIN(status.fractional_digits, DATETIME_MAX_DECIMALS);
   }
   return MY_MIN(decimals, DATETIME_MAX_DECIMALS);
@@ -632,7 +647,7 @@ uint Item::datetime_precision()
     DBUG_ASSERT(fixed);
     // Nanosecond rounding is not needed, for performance purposes
     if ((tmp= val_str(&buf)) &&
-        !str_to_datetime(tmp, &ltime, TIME_NO_NSEC_ROUNDING | TIME_FUZZY_DATE,
+        !str_to_datetime(tmp, &ltime, TIME_FRAC_TRUNCATE | TIME_FUZZY_DATE,
                          &status))
       return MY_MIN(status.fractional_digits, DATETIME_MAX_DECIMALS);
   }
@@ -712,19 +727,6 @@ void Item::cleanup()
   DBUG_VOID_RETURN;
 }
 
-
-/**
-  cleanup() item if it is 'fixed'.
-
-  @param arg   a dummy parameter, is not used here
-*/
-
-bool Item::cleanup_processor(uchar *arg)
-{
-  if (fixed)
-    cleanup();
-  return FALSE;
-}
 
 bool Item::visitor_processor(uchar *arg)
 {

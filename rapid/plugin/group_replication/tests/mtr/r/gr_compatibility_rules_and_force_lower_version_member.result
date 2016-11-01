@@ -1,0 +1,66 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup a member in a way that his version is higher than member 2
+#
+server1
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
+include/start_and_bootstrap_group_replication.inc
+# Add some data for recovery
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+#
+# Try to add a new member that:
+#   1) was defined as incompatible with member 1
+#   2) has a lower version than member 1
+#   3) group_replication_allow_local_lower_version_join= ON
+# Option group_replication_allow_local_lower_version_join must
+# not override incompatible rule.
+#
+server2
+SET session sql_log_bin=0;
+call mtr.add_suppression("Member version is incompatible with the group");
+SET session sql_log_bin=1;
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error';
+SET GLOBAL group_replication_group_name= "6db14550-03bb-11e5-b939-0800200c9a13";
+SET GLOBAL group_replication_allow_local_lower_version_join= ON;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+#
+# Check all is fine when we clean the compatibility rules, that is,
+# that server 2 with lower version and option
+# group_replication_allow_local_lower_version_join enabled will be
+# able to join the group.
+#
+SET @@GLOBAL.DEBUG= @debug_save;
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
+include/rpl_reconnect.inc
+SET GLOBAL group_replication_allow_local_lower_version_join= ON;
+include/start_group_replication.inc
+INSERT INTO t1 VALUES (2);
+include/rpl_sync.inc
+#
+# Check all is fine
+#
+server1
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+server2
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+#
+# Clean up
+#
+DROP TABLE t1;
+SET @@GLOBAL.DEBUG= @debug_save;
+include/stop_group_replication.inc
+include/start_group_replication.inc
+SET GLOBAL group_replication_allow_local_lower_version_join= OFF;
+include/group_replication_end.inc
