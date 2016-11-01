@@ -7265,7 +7265,7 @@ create_key_metadata(
 			is not FTS_DOC_ID_INDEX_NAME */
 			const dd::Column* fts_doc_id = dd_find_column(
 				const_cast<dd::Table*>(dd_part),
-				FTS_DOC_ID_INDEX_NAME);
+				FTS_DOC_ID_COL_NAME);
 
 			dict_index_t*	doc_id_index;
 			if (fts_doc_id != nullptr) {
@@ -7973,9 +7973,12 @@ dd_open_table(
 	ret = create_key_metadata(
 		dd_table, table, m_table, dd_table->name().c_str(),
 		NULL, zip_allowed, strict, thd, skip_mdl);
-	ut_ad(ret == 0);
 
 	mutex_exit(&dict_sys->mutex);
+
+	if (ret != 0) {
+		return(NULL);
+	}
 
 	mem_heap_t*	heap = mem_heap_create(1000);
 	bool		fail = false;
