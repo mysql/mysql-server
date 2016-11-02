@@ -50,7 +50,7 @@
 
 uint16_t inline le16toh(uint16_t x)
 {
-#if !(IS_BIG_ENDIAN)
+#ifndef WORDS_BIGENDIAN
   return x;
 #else
   return ((x >> 8) | (x << 8));
@@ -68,7 +68,7 @@ uint16_t inline le16toh(uint16_t x)
 
 uint32_t inline le32toh(uint32_t x)
 {
-#if !(IS_BIG_ENDIAN)
+#ifndef WORDS_BIGENDIAN
   return x;
 #else
   return (((x >> 24) & 0xff) |
@@ -89,7 +89,7 @@ uint32_t inline le32toh(uint32_t x)
 
 uint64_t inline le64toh(uint64_t x)
 {
-#if !(IS_BIG_ENDIAN)
+#ifndef WORDS_BIGENDIAN
   return x;
 #else
   x= ((x << 8) & 0xff00ff00ff00ff00ULL) |
@@ -113,7 +113,7 @@ uint64_t inline le64toh(uint64_t x)
 
 uint16_t inline htole16(uint16_t x)
 {
-#if !(IS_BIG_ENDIAN)
+#ifndef WORDS_BIGENDIAN
   return x;
 #else
   return ((x >> 8) | (x << 8));
@@ -132,7 +132,7 @@ uint16_t inline htole16(uint16_t x)
 
 uint32_t inline htole32(uint32_t x)
 {
-#if !(IS_BIG_ENDIAN)
+#ifndef WORDS_BIGENDIAN
   return x;
 #else
   return (((x >> 24) & 0xff) |
@@ -154,7 +154,7 @@ uint32_t inline htole32(uint32_t x)
 
 uint64_t inline htole64(uint64_t x)
 {
-#if !(IS_BIG_ENDIAN)
+#ifndef WORDS_BIGENDIAN
   return x;
 #else
   x= ((x << 8) & 0xff00ff00ff00ff00ULL) |

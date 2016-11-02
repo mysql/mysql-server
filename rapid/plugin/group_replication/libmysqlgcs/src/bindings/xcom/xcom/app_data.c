@@ -48,7 +48,6 @@ static char *dbg_app_data_single(app_data_ptr a)
     PTREXP(a);
     SYCEXP(a->unique_id);
     NDBG(a->group_id,x);
-    NDBG(a->lsn, lu);
     SYCEXP(a->app_key);
     NDBG(a->consensus,d);
     NDBG(a->log_it,d);
