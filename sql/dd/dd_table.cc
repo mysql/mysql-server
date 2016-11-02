@@ -2292,6 +2292,8 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
   if (commit_dd_changes && (trans_commit_stmt(thd) || trans_commit(thd)))
     return nullptr;
 
+  thd->dd_client()->register_uncommitted_object(tab_obj->clone());
+
   return tab_obj;
 }
 

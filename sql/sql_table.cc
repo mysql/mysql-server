@@ -7023,6 +7023,8 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   handlerton *post_ddl_ht= nullptr;
   DBUG_ENTER("mysql_create_table");
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   /*
     Open or obtain "X" MDL lock on the table being created.
     To check the existence of table, lock of type "S" is obtained on the table

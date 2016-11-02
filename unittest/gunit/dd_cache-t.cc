@@ -976,6 +976,24 @@ TEST_F(CacheStorageTest, AcquireAndDropProcedure)
 }
 
 
+TEST_F(CacheStorageTest, CommitNewObject)
+{
+  dd::cache::Dictionary_client *dc= thd()->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+
+  dd::Table_impl *created= new dd::Table_impl();
+  dd::Table *icreated= created;
+  created->set_schema_id(mysql->id());
+  dd_unittest::set_attributes(created, "new_object", *mysql);
+  lock_object(*created);
+  EXPECT_FALSE(dc->store(icreated));
+  EXPECT_LT(9999u, icreated->id());
+
+  dc->register_uncommitted_object(icreated);
+  dc->remove_uncommitted_objects<dd::Table>(true);
+}
+
+
 TEST_F(CacheStorageTest, GetTableBySePrivateId)
 {
   dd::cache::Dictionary_client *dc= thd()->dd_client();

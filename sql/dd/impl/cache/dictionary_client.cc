@@ -2149,7 +2149,6 @@ bool Dictionary_client::update(const T** old_object, T* new_object,
   bool uncommitted_object= (element != nullptr);
   DBUG_ASSERT(uncommitted_object || m_thd->is_dd_system_thread());
 
-
   m_registry_committed.get(
     static_cast<const typename T::cache_partition_type*>(*old_object),
     &element);
@@ -2286,22 +2285,37 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
       Cache_element<typename T::cache_partition_type> *element= NULL;
       m_registry_committed.get(key, &element);
 
-      // TODO: For now we require that an uncommitted object with the
-      // same ID exists. Consider lifting this restriction.
-      DBUG_ASSERT(element != nullptr);
-      DBUG_ASSERT(element->object() != nullptr);
+      // TODO: No committed version during bootstrap. Workaround to make
+      // bootstrap pass.
+      if (m_thd->is_dd_system_thread() && !element)
+        continue;
 
-      // Remove the element from the chain of auto releasers.
-      Auto_releaser *actual_releaser= m_current_releaser->remove(element);
-      m_registry_committed.remove(element);
+      if (element)
+      {
+        DBUG_ASSERT(element->object() != nullptr);
 
-      Shared_dictionary_cache::instance()->replace(element,
+        // Remove the element from the chain of auto releasers.
+        Auto_releaser *actual_releaser= m_current_releaser->remove(element);
+        m_registry_committed.remove(element);
+
+        Shared_dictionary_cache::instance()->replace(element,
         static_cast<const typename T::cache_partition_type*>(
           uncommitted_object->clone()));
 
-      m_registry_committed.put(element);
-      if (actual_releaser)
-        actual_releaser->auto_release(element);
+        m_registry_committed.put(element);
+        if (actual_releaser)
+          actual_releaser->auto_release(element);
+      }
+      else
+      {
+        Shared_dictionary_cache::instance()->put(
+          static_cast<const typename T::cache_partition_type*>(
+          uncommitted_object->clone()), &element);
+
+        m_registry_committed.put(element);
+        // Sign up for auto release.
+        m_current_releaser->auto_release(element);
+      }
     }
   } // commit_to_shared_cache
   m_registry_uncommitted.erase<typename T::cache_partition_type>();
