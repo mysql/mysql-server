@@ -20,6 +20,7 @@
 extern "C" {
 #endif
 
+#include "xcom_common.h"
 #include "x_platform.h"
 
 #ifdef TASK_DBUG_ON

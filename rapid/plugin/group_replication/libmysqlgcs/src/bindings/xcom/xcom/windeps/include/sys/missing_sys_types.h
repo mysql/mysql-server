@@ -73,11 +73,6 @@ typedef unsigned __int32 uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
 
-/* Maximum of unsigned integral types.  */
-#define UINT8_MAX  (255)
-#define UINT16_MAX (65535)
-#define UINT32_MAX (4294967295U)
-
 /* WIN32 missing net/if.h */
 typedef int __daddr_t;
 typedef char *__caddr_t;

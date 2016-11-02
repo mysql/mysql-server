@@ -34,7 +34,6 @@
 #include "gcs_internal_message.h"
 #include "gcs_message_stages.h"
 #include "gcs_message_stage_lz4.h"
-#include "mysql/gcs/mysql_gcs.h"
 #include "gcs_xcom_networking.h"
 #include "gcs_xcom_notification.h"
 

@@ -20,7 +20,7 @@
 #include <string.h>
 #include <mysql/gcs/xplatform/byteorder.h>
 
-const int Gcs_internal_message_header::VERSION= 1;
+const int Gcs_internal_message_header::GCS_PROTO_VERSION= 1;
 
 const unsigned short Gcs_internal_message_header::WIRE_VERSION_SIZE= 4;
 const unsigned short Gcs_internal_message_header::WIRE_HD_LEN_SIZE= 2;

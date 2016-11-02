@@ -426,7 +426,9 @@ bool Gcs_xcom_proxy_impl::xcom_close_handlers()
     }
   }
 
+#ifdef XCOM_HAVE_OPENSSL
   ::xcom_cleanup_ssl();
+#endif
 
   return false;
 }
