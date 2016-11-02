@@ -83,6 +83,7 @@ void Scheduler_dynamic::create_min_num_workers()
 
 unsigned int Scheduler_dynamic::set_num_workers(unsigned int n)
 {
+  log_debug("Scheduler '%s', set number of threads to %u", m_name.c_str(), n);
   m_min_workers_count.store(n);
   try
   {
@@ -148,6 +149,8 @@ bool Scheduler_dynamic::post(Task* task)
 
   {
     Mutex_lock lock(m_worker_pending_mutex);
+
+    log_debug("Scheduler '%s', post task", m_name.c_str());
 
     if (increase_tasks_count() >= m_workers_count.load())
     {
@@ -349,6 +352,7 @@ void Scheduler_dynamic::create_thread()
   if (is_running())
   {
     Thread_t thread;
+    log_debug("Scheduler '%s', create threads", m_name.c_str());
 
     ngs::thread_create(m_thread_key, &thread, worker_proxy, this);
     increase_workers_count();
