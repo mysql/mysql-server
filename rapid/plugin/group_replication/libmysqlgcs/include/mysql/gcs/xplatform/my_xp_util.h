@@ -16,6 +16,8 @@
 #ifndef MY_XP_UTIL_INCLUDED
 #define MY_XP_UTIL_INCLUDED
 
+#include <mysql/gcs/mysql_gcs.h>
+
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -40,8 +42,6 @@
 #include <iostream>
 #include <errno.h>
 #include <stdint.h>
-
-#include <mysql/gcs/mysql_gcs.h>
 
 #define INT_MAX32     0x7FFFFFFFL
 #define MY_MIN(a, b)  ((a) < (b) ? (a) : (b))

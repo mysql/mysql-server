@@ -20,29 +20,14 @@
 extern "C" {
 #endif
 
-
-
 /*
  * Abstraction layer for lower level OS stuff needed
  */
 
 /*
-  Disable MY_ATTRIBUTE for Sun Studio and Visual Studio.
-  Note that Sun Studio supports some __attribute__ variants,
-  but not unused which we use quite a lot.
-*/
-#ifndef MY_ATTRIBUTE
-#if defined(__GNUC__)
-#  define MY_ATTRIBUTE(A) __attribute__(A)
-#else
-#  define MY_ATTRIBUTE(A)
-#endif
-#endif
-
-/*
  * Platform independent functions
  */
-#if defined(WIN32) || defined(WIN64)
+#if defined(_WIN32)
 
 #include <sys/locking.h>
 #include <process.h>
@@ -80,16 +65,12 @@ extern "C" {
 #endif
 
 typedef int mode_t;
-typedef long ssize_t;
-
-#define UINT64_MAX _UI64_MAX
-#define INT64_MAX _I64_MAX
-#define INT64_MIN _I64_MIN
+typedef SSIZE_T ssize_t;
 
 #define _SHUT_RDWR SD_BOTH
 
 static inline void thread_yield() { SwitchToThread(); }
-#else /* defined (WIN32) || defined (WIN64) */
+#else /* defined (_WIN32)*/
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -101,12 +82,6 @@ static inline void thread_yield() { SwitchToThread(); }
 #define O_LARGEFILE 0
 #endif
 
-/* Reduce the amount of typing required when testing for not Windows */
-#ifdef NWIN
-#error "NWIN already defined!"
-#endif
-#define NWIN 1
-
 #define my_lrand48() lrand48()
 #define my_srand48(x) srand48(x)
 #define my_drand48() drand48()
@@ -116,10 +91,6 @@ static inline void thread_yield() { SwitchToThread(); }
 #define my_strtok(b, d, c) strtok_r(b, d, c)
 
 #define my_strcasecmp(a, b) strcasecmp(a, b)
- 
-#ifndef STDERR
-#define STDERR 2
-#endif
 
 #define _SHUT_RDWR (SHUT_RD|SHUT_WR)
 #define SOCKET_ERROR -1

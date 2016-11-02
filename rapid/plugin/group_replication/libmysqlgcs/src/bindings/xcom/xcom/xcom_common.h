@@ -17,11 +17,10 @@
 #define XCOM_COMMON_H
 
 #include <limits.h>
-#if defined(HAVE_STDINT_H)
 #include <stdint.h>
-#else
-#include <sys/manager_sys_types.h>
-#endif
+#include <xcom/xcom.h>
+#include "my_compiler.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

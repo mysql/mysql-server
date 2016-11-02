@@ -13,21 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  File:   mysql_gcs.h.cmake
-  Author: lsoares
-
-  Created on July 22, 2015, 12:43 AM
-*/
-
 #ifndef MYSQL_GCS_H_CMAKE
 #define MYSQL_GCS_H_CMAKE
 
+#include <config.h>
+
+/*Definitions*/
+#cmakedefine HAVE_STRUCT_SOCKADDR_SA_LEN 1
+#cmakedefine HAVE_STRUCT_IFREQ_IFR_NAME 1
+
 /* Headers we may use */
-#cmakedefine HAVE_STDINT_H @HAVE_STDINT_H@
 #cmakedefine HAVE_ENDIAN_H @HAVE_ENDIAN_H@
 /* Symbols we may use */
-#cmakedefine IS_BIG_ENDIAN @IS_BIG_ENDIAN@
 #cmakedefine HAVE_LE64TOH @HAVE_LE64TOH@
 #cmakedefine HAVE_LE32TOH @HAVE_LE32TOH@
 #cmakedefine HAVE_LE16TOH @HAVE_LE16TOH@
@@ -35,26 +32,6 @@
 #cmakedefine HAVE_HTOLE32 @HAVE_HTOLE32@
 #cmakedefine HAVE_HTOLE16 @HAVE_HTOLE16@
 #cmakedefine HAVE_ENDIAN_CONVERSION_MACROS @HAVE_ENDIAN_CONVERSION_MACROS@
-#cmakedefine SIZEOF_LONG_LONG   @SIZEOF_LONG_LONG@
-#cmakedefine HAVE_LONG_LONG 1
-#cmakedefine SIZEOF_LONG @SIZEOF_LONG@
-#cmakedefine HAVE_LONG 1
-#cmakedefine SIZEOF_INT @SIZEOF_INT@
-#cmakedefine HAVE_INT 1
-#cmakedefine HAVE_STRUCT_TIMESPEC
-#cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
 
-/*
-  Disable MY_ATTRIBUTE for Sun Studio and Visual Studio.
-  Note that Sun Studio supports some __attribute__ variants,
-  but not unused which we use quite a lot.
-*/
-#ifndef MY_ATTRIBUTE
-#if defined(__GNUC__)
-#  define MY_ATTRIBUTE(A) __attribute__(A)
-#else
-#  define MY_ATTRIBUTE(A)
-#endif
 #endif
 
-#endif /* MYSQL_GCS_H_CMAKE */
