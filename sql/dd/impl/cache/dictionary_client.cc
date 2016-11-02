@@ -1932,8 +1932,7 @@ bool Dictionary_client::update(const T** old_object, T* new_object)
   m_registry_uncommitted.get(
     static_cast<const typename T::cache_partition_type*>(new_object),
     &element);
-  bool uncommitted_object= (element != nullptr);
-  DBUG_ASSERT(uncommitted_object);
+  DBUG_ASSERT(element != nullptr);
 
   m_registry_committed.get(
     static_cast<const typename T::cache_partition_type*>(*old_object),
