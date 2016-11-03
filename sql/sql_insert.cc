@@ -2679,6 +2679,9 @@ int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   DEBUG_SYNC(thd,"create_table_select_before_check_if_exists");
 
+  m_releaser= std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser>(
+                new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
+
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values, &m_post_ddl_ht)))
     /* abort() deletes table */
@@ -3072,6 +3075,8 @@ bool Query_result_create::send_eof()
 
     if (m_post_ddl_ht)
       m_post_ddl_ht->post_ddl(thd);
+
+    m_releaser.reset();
   }
   return tmp;
 }
@@ -3190,6 +3195,8 @@ void Query_result_create::abort_result_set()
     if (m_post_ddl_ht)
       m_post_ddl_ht->post_ddl(thd);
   }
+
+  m_releaser.reset();
 
   DBUG_VOID_RETURN;
 }

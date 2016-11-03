@@ -7379,6 +7379,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
       delete file;
       DBUG_RETURN(true);
     }
+
+    thd->dd_client()->object_renamed(to_table_def);
   }
   delete file;
 
@@ -7522,6 +7524,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   */
   local_create_info.data_file_name= local_create_info.index_file_name= NULL;
   local_create_info.alias= create_info->alias;
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   if (mysql_create_table_no_lock(thd, table->db, table->table_name,
                                  &local_create_info, &local_alter_info,
@@ -9400,6 +9404,8 @@ static bool mysql_inplace_alter_table(THD *thd,
 
     if (thd->dd_client()->update(&old_altered_table_def, altered_table_def))
       goto cleanup2;
+
+    thd->dd_client()->object_renamed(altered_table_def);
   }
   else
   {
@@ -9601,6 +9607,8 @@ cleanup2:
   (void) trans_rollback_stmt(thd);
   // Full rollback in case we have THD::transaction_rollback_request.
   (void) trans_rollback(thd);
+
+  thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
 
   if ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       db_type->post_ddl)
@@ -11723,6 +11731,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                       thd->variables.lock_wait_timeout))
       DBUG_RETURN(true);
   }
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   tmp_disable_binlog(thd);
 

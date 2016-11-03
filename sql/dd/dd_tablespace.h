@@ -83,10 +83,10 @@ bool get_tablespace_name(THD *thd, const T *obj,
   @returns Uncached dd::Tablespace object for tablespace created
            (nullptr in case of failure).
 */
-std::unique_ptr<Tablespace> create_tablespace(THD *thd,
-                                              st_alter_tablespace *ts_info,
-                                              handlerton *hton,
-                                              bool commit_dd_changes);
+dd::Tablespace* create_tablespace(THD *thd,
+                                  st_alter_tablespace *ts_info,
+                                  handlerton *hton,
+                                  bool commit_dd_changes);
 
 /**
   Drop Tablespace from Data Dictionary.

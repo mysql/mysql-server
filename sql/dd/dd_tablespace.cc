@@ -175,7 +175,7 @@ bool get_tablespace_name(THD *thd, const T *obj,
 }
 
 
-std::unique_ptr<dd::Tablespace>
+dd::Tablespace*
 create_tablespace(THD *thd, st_alter_tablespace *ts_info,
                   handlerton *hton, bool commit_dd_changes)
 {
@@ -188,12 +188,12 @@ create_tablespace(THD *thd, st_alter_tablespace *ts_info,
                           ts_info->tablespace_name, &ts))
   {
     // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(std::unique_ptr<dd::Tablespace>(nullptr));
+    DBUG_RETURN(nullptr);
   }
   if (ts)
   {
     my_error(ER_TABLESPACE_EXISTS, MYF(0), ts_info->tablespace_name);
-    DBUG_RETURN(std::unique_ptr<dd::Tablespace>(nullptr));
+    DBUG_RETURN(nullptr);
   }
 
   // Create new tablespace.
@@ -214,7 +214,7 @@ create_tablespace(THD *thd, st_alter_tablespace *ts_info,
                                 TABLESPACE_COMMENT_MAXLEN,
                                 ER_TOO_LONG_TABLESPACE_COMMENT,
                                 ts_info->tablespace_name))
-      DBUG_RETURN(std::unique_ptr<dd::Tablespace>(nullptr));
+      DBUG_RETURN(nullptr);
 
     tablespace->set_comment(String_type(comment.str, comment.length));
   }
@@ -222,7 +222,7 @@ create_tablespace(THD *thd, st_alter_tablespace *ts_info,
   if (strlen(ts_info->data_file_name) > FN_REFLEN)
   {
     my_error(ER_PATH_LENGTH, MYF(0), "DATAFILE");
-    DBUG_RETURN(std::unique_ptr<dd::Tablespace>(nullptr));
+    DBUG_RETURN(nullptr);
   }
 
   // Add datafile
@@ -240,14 +240,16 @@ create_tablespace(THD *thd, st_alter_tablespace *ts_info,
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
     }
-    DBUG_RETURN(std::unique_ptr<dd::Tablespace>(nullptr));
+    DBUG_RETURN(nullptr);
   }
 
   if (commit_dd_changes &&
       (trans_commit_stmt(thd) || trans_commit(thd)))
-    DBUG_RETURN(std::unique_ptr<dd::Tablespace>(nullptr));
+    DBUG_RETURN(nullptr);
 
-  DBUG_RETURN(tablespace);
+  thd->dd_client()->register_uncommitted_object(tablespace.get());
+
+  DBUG_RETURN(tablespace.release());
 }
 
 

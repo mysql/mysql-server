@@ -2634,6 +2634,8 @@ bool rename_table(THD *thd,
     return true;
   }
 
+  thd->dd_client()->object_renamed(new_tab);
+
   return commit_dd_changes &&
          (trans_commit_stmt(thd) || trans_commit(thd));
 }

@@ -160,7 +160,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
 
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Tablespace *old_ts_def= NULL;
-    std::unique_ptr<dd::Tablespace> new_ts_def;
+    dd::Tablespace *new_ts_def;
 
     switch (ts_info->ts_cmd_type)
     {
@@ -176,6 +176,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
       if (!(new_ts_def= dd::create_tablespace(thd, ts_info, hton,
                               !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL))))
         goto err;
+      old_ts_def= new_ts_def;
       break;
 
     case DROP_TABLESPACE:
@@ -202,19 +203,19 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
 
     case ALTER_TABLESPACE:
       if (thd->dd_client()->acquire<dd::Tablespace>(ts_info->tablespace_name,
-                                                    &old_ts_def))
+                                                    &old_ts_def) ||
+          thd->dd_client()->acquire_for_modification<dd::Tablespace>(
+                              ts_info->tablespace_name, &new_ts_def))
         DBUG_RETURN(true);
 
-      if (!old_ts_def)
+      if (!old_ts_def || !new_ts_def)
       {
         my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), ts_info->tablespace_name);
         DBUG_RETURN(true);
       }
 
-      new_ts_def= std::unique_ptr<dd::Tablespace>(old_ts_def->clone());
-
       if (ts_info->ts_cmd_type == ALTER_TABLESPACE &&
-          dd::alter_tablespace(thd, ts_info, old_ts_def, new_ts_def.get()))
+          dd::alter_tablespace(thd, ts_info, old_ts_def, new_ts_def))
       {
         // Error should be reported already.
         goto err;
@@ -253,7 +254,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
     }
 
     if ((error= hton->alter_tablespace(hton, thd, ts_info, old_ts_def,
-                                       new_ts_def.get())))
+                                       new_ts_def)))
     {
       const char* sql_syntax[] =
       {
@@ -314,7 +315,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
           For engines which don't support atomic DDL addition of tablespace to
           data-dictionary has been committed already so we need to revert it.
         */
-        (void) dd::drop_tablespace(thd, new_ts_def.get(), true, true);
+        (void) dd::drop_tablespace(thd, new_ts_def, true, true);
       }
       if (ts_info->ts_cmd_type == DROP_TABLESPACE &&
           (error == HA_ERR_TABLESPACE_MISSING)
@@ -350,7 +351,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
         modify data-dictionary objects in handler::create() and other
         similar calls.
       */
-      if (dd::update_tablespace(thd, old_ts_def, new_ts_def.get(),
+      if (dd::update_tablespace(thd, old_ts_def, new_ts_def,
                                 !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL)))
         goto err;
     }

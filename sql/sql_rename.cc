@@ -87,6 +87,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 
   mysql_ha_rm_tables(thd, table_list);
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   if (query_logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
       query_logger.is_log_table_enabled(QUERY_LOG_SLOW))
   {
