@@ -387,6 +387,15 @@ struct view {
   },
   {
     "operations_per_fragment",
+    /*
+     * This is the end-user view of ndb$frag_operations. It adds some
+     * dictionary information such as the table name and type, and the name
+     * of the parent table, if there is any.
+     *
+     * The test for name.type<=6 is there to elimiate matching non-table
+     * objects (triggers, files etc.), since the 'id' of these may collide
+     * with table ids.
+     */
     "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, "
     "types.type_name AS type, table_id, node_id, block_instance, fragment_num, "
     "tot_key_reads, tot_key_inserts, tot_key_updates, tot_key_writes, "
