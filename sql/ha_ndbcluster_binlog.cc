@@ -818,9 +818,12 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd,
   });
 
   enum SCHEMA_OP_TYPE type;
-  /* Use random table_id and table_version  */
-  const uint32 table_id = (uint32)rand();
-  const uint32 table_version = (uint32)rand();
+  /**
+   * Don't have any table_id/_version to uniquely identify the 
+   *  schema operation. Set the special values 0/0 which allows
+   *  ndbcluster_log_schema_op() to produce its own unique ids.
+   */
+  const uint32 table_id= 0, table_version= 0;
   switch (binlog_command)
   {
   case LOGCOM_CREATE_DB:
@@ -1870,6 +1873,24 @@ int ndbcluster_log_schema_op(THD *thd,
     abort(); /* should not happen, programming error */
   }
 
+  // Use nodeid of the primary cluster connection since that is
+  // the nodeid which the coordinator and participants listen to
+  const uint32 node_id= g_ndb_cluster_connection->node_id();
+
+  /**
+   * If table_id/_version is not specified, we have to produce
+   * our own unique identifier for the schema operation.
+   * Use a sequence counter and own node_id for uniqueness.
+   */
+  if (ndb_table_id == 0 && ndb_table_version == 0)
+  {
+    static uint32 seq_id = 0;
+    pthread_mutex_lock(&ndbcluster_mutex);
+    ndb_table_id = ++seq_id;
+    ndb_table_version = node_id;
+    pthread_mutex_unlock(&ndbcluster_mutex);
+  }
+
   NDB_SCHEMA_OBJECT *ndb_schema_object;
   {
     char key[FN_REFLEN + 1];
@@ -1881,19 +1902,18 @@ int ndbcluster_log_schema_op(THD *thd,
     DBUG_EXECUTE_IF("ndb_binlog_random_tableid",
     {
       /**
-       * Try to trigger a race between late incomming slock ack for schema operations
-       * having its coordinator on another node, which we would otherwise have discarded
-       * as no matching ndb_schema_object existed,
-       * and another schema op with same 'key', coordinated by this node.
-       * Thus causing a mixup betweeen these, and the schema distribution getting
-       * totally out of synch.
+       * Try to trigger a race between late incomming slock ack for
+       * schema operations having its coordinator on another node,
+       * which we would otherwise have discarded as no matching
+       * ndb_schema_object existed, and another schema op with same 'key',
+       * coordinated by this node. Thus causing a mixup betweeen these,
+       * and the schema distribution getting totally out of synch.
        */
       NdbSleep_MilliSleep(50);
     });
   }
 
   const NdbError *ndb_error= 0;
-  uint32 node_id= g_ndb_cluster_connection->node_id();
   Uint64 epoch= 0;
   {
     int i;
