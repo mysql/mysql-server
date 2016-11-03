@@ -549,6 +549,10 @@ struct view {
     "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>blocks` b "
     "ON t.block_number = b.block_number"
   },
+  { "threads",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>threads`"
+  },
   { "threadstat",
     "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>threadstat`"
   },
