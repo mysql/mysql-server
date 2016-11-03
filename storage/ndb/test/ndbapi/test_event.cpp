@@ -26,6 +26,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbEnv.h>
 #include <Bitmask.hpp>
+#include "../src/kernel/ndbd.hpp"
 
 #define CHK(b,e) \
   if (!(b)) { \
@@ -5152,7 +5153,15 @@ int runCreateDropEventOperation_NF(NDBT_Context* ctx, NDBT_Step* step)
   CHK(pOp->execute() == 0, "Execute operation execution failed");
 
   NdbRestarter restarter;
-  restarter.insertErrorInNode(restarter.getMasterNodeId(), 6125);
+  int nodeid = restarter.getMasterNodeId();
+
+  int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, NRT_NoStart_Restart};
+  if (restarter.dumpStateOneNode(nodeid, val, 2))
+  {
+    return NDBT_FAILED;
+  }
+
+  restarter.insertErrorInNode(nodeid, 6125);
 
   const int res = pDict->dropEvent(eventName);
   if (res != 0)
@@ -5163,6 +5172,13 @@ int runCreateDropEventOperation_NF(NDBT_Context* ctx, NDBT_Step* step)
   }
   else
     g_info << "Dropped event1" << endl;
+
+  if (restarter.waitNodesNoStart(&nodeid, 1) != 0)
+  {
+    g_err << "Master node " << nodeid << " never crashed." << endl;
+    return NDBT_FAILED;
+  }
+  restarter.startNodes(&nodeid, 1);
 
   g_info << "Waiting for the node to start" << endl;
   if (restarter.waitClusterStarted(120) != 0)

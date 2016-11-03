@@ -896,6 +896,7 @@ public:
     Uint32 errorData;
     UintR attrInfoLen;
     Uint32 immediateTriggerId;  // Id of trigger op being fired NOW
+    Uint32 firedFragId;
     
     UintR accumulatingIndexOp;
     UintR executingIndexOp;
@@ -977,15 +978,15 @@ public:
     enum SpecialOpFlags {
       SOF_NORMAL = 0,
       SOF_INDEX_TABLE_READ = 1,       // Read index table
-      SOF_REORG_TRIGGER_BASE = 4,
-      SOF_REORG_TRIGGER = 4 | 16,     // A reorg trigger
+      SOF_REORG_TRIGGER = 4,          // A reorg trigger
       SOF_REORG_MOVING = 8,           // A record that should be moved
       SOF_TRIGGER = 16,               // A trigger
       SOF_REORG_COPY = 32,
       SOF_REORG_DELETE = 64,
       SOF_DEFERRED_UK_TRIGGER = 128,  // Op has deferred trigger
       SOF_DEFERRED_FK_TRIGGER = 256,
-      SOF_FK_READ_COMMITTED = 512     // reply to TC even for dirty read
+      SOF_FK_READ_COMMITTED = 512,    // reply to TC even for dirty read
+      SOF_FULLY_REPLICATED_TRIGGER = 1024
     };
     
     static inline bool isIndexOp(Uint16 flags) {
@@ -1159,6 +1160,7 @@ public:
       TR_PREPARED     = 1 << 3
       ,TR_USER_DEFINED_PARTITIONING = 1 << 4
       ,TR_READ_BACKUP = (1 << 5)
+      ,TR_FULLY_REPLICATED = (1<<6)
     };
     Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
     Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
@@ -1243,8 +1245,15 @@ public:
     // Timer for checking timeout of this fragment scan
     Uint32  scanFragTimer;
 
-    // Id of the current scanned fragment
+    /**
+     * Id of the current scanned fragment
+     * scanFragId can differ from lqhScanFragId for fully replicated
+     * tables where the full fragments are copies and DIGETNODESREQ
+     * might change the lqhScanFragId to differ from scanFragId to
+     * read a local fragment replica.
+     */
     Uint32 scanFragId;
+    Uint32 lqhScanFragId;
 
     // Blockreference of LQH 
     BlockReference lqhBlockref;
@@ -1424,6 +1433,7 @@ public:
      */
     bool m_scan_dist_key_flag;
     Uint32 m_scan_dist_key;
+    Uint32 m_read_any_node;
     NDB_TICKS m_start_ticks;
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
@@ -1793,7 +1803,7 @@ private:
 
   void executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr);
   void waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr);
-  void executeTrigger(Signal* signal,
+  bool executeTrigger(Signal* signal,
                       TcFiredTriggerData* firedTriggerData,
                       ApiConnectRecordPtr* transPtr,
                       TcConnectRecordPtr* opPtr);
@@ -1878,6 +1888,12 @@ private:
   Uint32 fk_constructAttrInfoSetNull(const TcFKData*);
   Uint32 fk_constructAttrInfoUpdateCascade(const TcFKData*,
                                            DataBuffer<11>::Head&);
+
+  bool executeFullyReplicatedTrigger(Signal* signal,
+                                     TcDefinedTriggerData* definedTriggerData,
+                                     TcFiredTriggerData* firedTriggerData,
+                                     ApiConnectRecordPtr* transPtr,
+                                     TcConnectRecordPtr* opPtr);
 
   void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
   void releaseFiredTriggerData(LocalDLFifoList<TcFiredTriggerData>* triggers);

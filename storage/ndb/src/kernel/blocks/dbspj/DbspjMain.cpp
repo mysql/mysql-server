@@ -172,6 +172,18 @@ void Dbspj::execTC_SCHVERREQ(Signal* signal)
     tablePtr.p->m_flags |= TableRecord::TR_READ_BACKUP;
   }
 
+  if (req->readBackup)
+  {
+    jam();
+    tablePtr.p->m_flags |= TableRecord::TR_READ_BACKUP;
+  }
+
+  if (req->fullyReplicated)
+  {
+    jam();
+    tablePtr.p->m_flags |= TableRecord::TR_FULLY_REPLICATED;
+  }
+
   /**
    * NOTE: Even if there are more information, like 
    * 'tableType', 'noOfPrimaryKeys'etc available from
@@ -4940,6 +4952,8 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
   req->hashValue = dst.hashInfo[1];
   req->distr_key_indicator = 0; // userDefinedPartitioning not supported!
   req->scan_indicator = 0;
+  req->anyNode = !!(tablePtr.p->m_flags & TableRecord::TR_FULLY_REPLICATED);
+  req->get_next_fragid_indicator = 0;
   req->jamBufferPtr = jamBuffer();
 
   EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
@@ -6206,8 +6220,14 @@ Dbspj::scanindex_sendDihGetNodesReq(Signal* signal,
 {
   jam();
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+  Uint32 tableId = treeNodePtr.p->m_tableOrIndexId;
+  TableRecordPtr tablePtr;
   Ptr<ScanFragHandle> fragPtr;
   Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, c_tabrecFilesize, m_tableRecord);
+  Uint32 readAny = tablePtr.p->m_flags & TableRecord::TR_FULLY_REPLICATED ?
+                   1 : 0;
 
   Uint32 fragCnt = 0;
   for (list.first(fragPtr);
@@ -6224,6 +6244,8 @@ Dbspj::scanindex_sendDihGetNodesReq(Signal* signal,
       req->hashValue = fragPtr.p->m_fragId;
       req->distr_key_indicator = ZTRUE;
       req->scan_indicator = ZTRUE;
+      req->anyNode = readAny;
+      req->get_next_fragid_indicator = 0;
       req->jamBufferPtr = jamBuffer();
 
       EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
@@ -6262,6 +6284,11 @@ Dbspj::scanindex_sendDihGetNodesReq(Signal* signal,
           }
         }
         fragPtr.p->m_ref = numberToRef(DBLQH, instanceKey, nodeId);
+        /**
+         * For Fully replicated tables we can change the fragment id to a local
+         * fragment as part of DIGETNODESREQ. So set it again here.
+         */
+        fragPtr.p->m_fragId = conf->fragId;
       }
       else
       {

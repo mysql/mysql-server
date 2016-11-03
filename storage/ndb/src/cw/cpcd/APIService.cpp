@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -112,9 +112,9 @@ ParserRow<CPCDAPISession> commands[] =
     CPCD_ARG("id",     Int,    Optional,  "Id of process."),
     CPCD_ARG("name",   String, Mandatory, "Name of process"),
     CPCD_ARG("group",  String, Mandatory, "Group of process"),
-    CPCD_ARG("env",    String, Optional,  "Environment variables for process"),
+    CPCD_ARG("env", LongString, Optional, "Environment variables for process"),
     CPCD_ARG("path",   String, Mandatory, "Path to binary"),
-    CPCD_ARG("args",   String, Optional,  "Arguments to process"),
+    CPCD_ARG("args", LongString, Optional, "Arguments to process"),
     CPCD_ARG("type",   String, Mandatory, "Type of process"),
     CPCD_ARG("cwd",    String, Mandatory, "Working directory of process"),
     CPCD_ARG("owner",  String, Mandatory, "Owner of process"),

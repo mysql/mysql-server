@@ -258,7 +258,10 @@ public:
   typedef LocalDLFifoListImpl<TableRecord_pool, TableRecord, TableRecord> LocalTableRecord_list;
 
   struct TableRecord {
-    TableRecord(){ m_upgrade_trigger_handling.m_upgrade = false;}
+    TableRecord(){
+      m_upgrade_trigger_handling.m_upgrade = false;
+      fullyReplicatedTriggerId = RNIL;
+    }
     static bool isCompatible(Uint32 type) { return DictTabInfo::isTable(type) || DictTabInfo::isIndex(type); }
 
     Uint32 maxRowsLow;
@@ -302,7 +305,9 @@ public:
       TR_RowChecksum  = 0x4,
       TR_Temporary    = 0x8,
       TR_ForceVarPart = 0x10,
-      TR_ReadBackup   = 0x20
+      TR_ReadBackup   = 0x20,
+      TR_FullyReplicated = 0x40
+
     };
     Uint8 m_extra_row_gci_bits;
     Uint8 m_extra_row_author_bits;
@@ -400,6 +405,7 @@ public:
     /**   Trigger ids of index (volatile data) */
     Uint32 triggerId;      // ordered index (1)
     Uint32 buildTriggerId; // temp during build
+    Uint32 fullyReplicatedTriggerId; //
 
     struct UpgradeTriggerHandling
     {
@@ -424,6 +430,7 @@ public:
 
     Uint32 fragmentCountType;
     Uint32 fragmentCount;
+    Uint32 realFragmentCount;
     Uint32 m_tablespace_id;
 
     /** List of indexes attached to table */
@@ -903,6 +910,7 @@ private:
   void execWAIT_GCP_CONF(Signal* signal);
 
   void execLIST_TABLES_REQ(Signal* signal);
+  void execLIST_TABLES_CONF(Signal* signal);
 
   // Index signals
   void execCREATE_INDX_REQ(Signal* signal);
@@ -1176,6 +1184,10 @@ private:
    * when a file is being read from disk
    ****************************************************************************/
   struct RestartRecord {
+    RestartRecord() { m_complete = false; }
+
+    bool m_complete;
+
     /**    Global check point identity       */
     Uint32 gciToRestart;
 
@@ -1880,6 +1892,9 @@ private:
 
   struct OpSection {
     OpSectionBufferHead m_head;
+    void init() {
+      m_head.init();
+    }
     Uint32 getSize() const {
       return m_head.getSize();
     }
@@ -2172,6 +2187,7 @@ private:
   bool saveOpSection(SchemaOpPtr, SectionHandle&, Uint32 ss_no);
   bool saveOpSection(SchemaOpPtr, SegmentedSectionPtr ss_ptr, Uint32 ss_no);
   void releaseOpSection(SchemaOpPtr, Uint32 ss_no);
+  bool replaceOpSection(SchemaOpPtr, Uint32 ss_no, SegmentedSectionPtr ss_ptr);
 
   // add operation to transaction OpList
   void addSchemaOp(SchemaOpPtr);
@@ -2767,6 +2783,12 @@ private:
     // flag if this op has been aborted in RT_PREPARE phase
     bool m_abortPrepareDone;
 
+    //
+    bool m_fully_replicated_trigger;
+
+    // Table has been modified by subOps
+    bool m_modified_by_subOps;
+
     CreateTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
@@ -2775,6 +2797,8 @@ private:
       m_dihAddFragPtr = RNIL;
       m_lqhFragPtr = RNIL;
       m_abortPrepareDone = false;
+      m_fully_replicated_trigger = false;
+      m_modified_by_subOps = false;
     }
 
 #ifdef VM_TRACE
@@ -2801,11 +2825,19 @@ private:
   void createTable_abortParse(Signal*, SchemaOpPtr);
   void createTable_abortPrepare(Signal*, SchemaOpPtr);
 
+  //
+  void markTableModifiedBySubOp(SchemaOpPtr, Uint32 tableId);
+
   // prepare
   void createTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
   void createTab_local(Signal*, SchemaOpPtr, OpSection fragSec, Callback*);
   void createTab_dih(Signal*, SchemaOpPtr);
   void createTab_localComplete(Signal*, Uint32 op_key, Uint32 ret);
+
+  void createTable_toCreateTrigger(Signal* signal, SchemaOpPtr op_ptr);
+  void createTable_fromCreateTrigger(Signal* signal,
+                                     Uint32 op_key,
+                                     Uint32 ret);
 
   // commit
   void createTab_activate(Signal*, SchemaOpPtr, Callback*);
@@ -2828,6 +2860,7 @@ private:
     }
 
     DropTabReq m_request;
+    bool m_fully_replicated_trigger;
 
     // wl3600_todo check mutex name and number later
     MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
@@ -2841,6 +2874,7 @@ private:
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
       m_block = 0;
+      m_fully_replicated_trigger = false;
     }
 
 #ifdef VM_TRACE
@@ -2869,6 +2903,11 @@ private:
 
   // prepare
   void dropTable_backup_mutex_locked(Signal*, Uint32 op_key, Uint32 ret);
+
+  void dropTable_toDropTrigger(Signal* signal, SchemaOpPtr op_ptr);
+  void dropTable_fromDropTrigger(Signal* signal,
+                                 Uint32 op_key,
+                                 Uint32 ret);
 
   // commit
   void dropTable_commit_nextStep(Signal*, SchemaOpPtr);
@@ -2923,7 +2962,7 @@ private:
     bool m_sub_reorg_complete;
     bool m_sub_add_frag;
     Uint32 m_sub_add_frag_index_ptr;
-    bool m_sub_trigger;
+    bool m_sub_reorg_trigger;
     bool m_sub_copy_data;
     bool m_sub_suma_enable;
     bool m_sub_suma_filter;
@@ -2943,7 +2982,7 @@ private:
       m_sub_add_frag = false;
       m_sub_reorg_commit = false;
       m_sub_reorg_complete = false;
-      m_sub_trigger = false;
+      m_sub_reorg_trigger = false;
       m_sub_copy_data = false;
       m_sub_suma_enable = false;
       m_sub_suma_filter = false;
@@ -3147,6 +3186,7 @@ private:
   static const TriggerTmpl g_buildIndexConstraintTmpl[1];
   static const TriggerTmpl g_reorgTriggerTmpl[1];
   static const TriggerTmpl g_fkTriggerTmpl[2];
+  static const TriggerTmpl g_fullyReplicatedTriggerTmp[1];
 
   struct AlterIndexRec;
   typedef RecordPool<AlterIndexRec,ArenaPool> AlterIndexRec_pool;
@@ -4490,11 +4530,13 @@ private:
   void rebuildIndex_fromBuildIndex(Signal*, Uint32 tx_key, Uint32 ret);
   void rebuildIndex_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   // FK re-enable (create triggers) on start up
+  void checkFkTriggerIds(Signal*);
   void enableFKs(Signal* signal, Uint32 i);
   void enableFK_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void enableFK_fromCreateFK(Signal*, Uint32 tx_key, Uint32 ret);
   void enableFK_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   bool c_restart_enable_fks;
+  bool c_nr_upgrade_fks_done;
   Uint32 c_at_restart_skip_indexes;
   Uint32 c_at_restart_skip_fks;
 
@@ -4736,6 +4778,8 @@ public:
                                Uint32 fragmentCountType =
                                  NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE,
                                Uint32 extra_nodegroups = 0);
+  Uint32 get_default_fragments_fully_replicated(Signal *signal,
+                                                Uint32 fragmentCountType);
   void wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags);
 
   void block_substartstop(Signal* signal, SchemaOpPtr op_ptr);

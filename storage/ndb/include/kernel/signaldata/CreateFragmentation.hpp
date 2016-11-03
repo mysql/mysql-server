@@ -37,7 +37,7 @@ class CreateFragmentationReq {
   friend bool printCREATE_FRAGMENTATION_REQ(FILE *, 
 					    const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 8 );
   
   enum RequestInfo {
     RI_ADD_PARTITION = 0x1,
@@ -52,6 +52,7 @@ private:
   Uint32 primaryTableId;  // use same fragmentation as this table if not RNIL
   Uint32 map_ptr_i;
   Uint32 fragmentCountType;
+  Uint32 realFragmentCount;
 };
 
 class CreateFragmentationRef {

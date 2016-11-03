@@ -24,6 +24,7 @@
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
 #include <NDBT_ReturnCodes.h>
+#include <Logger.hpp>
 
 #include "consumer_restore.hpp"
 #include "consumer_printer.hpp"
@@ -1292,10 +1293,14 @@ main(int argc, char** argv)
 
   init_progress();
 
+  char timestamp[64];
+
   /**
    * we must always load meta data, even if we will only print it to stdout
    */
+
   debug << "Start restoring meta data" << endl;
+
   RestoreMetaData metaData(ga_backupPath, ga_nodeId, ga_backupId);
 #ifdef ERROR_INSERTED 
   if(_error_insert > 0)
@@ -1303,6 +1308,9 @@ main(int argc, char** argv)
     metaData.error_insert(_error_insert);
   }
 #endif 
+
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Read meta data file header" << endl;
 
   if (!metaData.readHeader())
   {
@@ -1351,6 +1359,9 @@ main(int argc, char** argv)
   }
 
   debug << "Load content" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Load content" << endl;
+
   int res  = metaData.loadContent();
 
   info << "Stop GCP of Backup: " << metaData.getStopGCP() << endl;
@@ -1360,13 +1371,17 @@ main(int argc, char** argv)
     err << "Restore: Failed to load content" << endl;
     exitHandler(NDBT_FAILED);
   }
-  debug << "Get no of Tables" << endl; 
+  debug << "Get number of Tables" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Get number of Tables" << endl;
   if (metaData.getNoOfTables() == 0) 
   {
     err << "The backup contains no tables" << endl;
     exitHandler(NDBT_FAILED);
   }
   debug << "Validate Footer" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Validate Footer" << endl;
 
   if (!metaData.validateFooter()) 
   {
@@ -1394,6 +1409,8 @@ main(int argc, char** argv)
     g_consumers[i]->report_started(ga_backupId, ga_nodeId);
 
   debug << "Restore objects (tablespaces, ..)" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Restore objects (tablespaces, ..)" << endl;
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
     for(Uint32 j= 0; j < g_consumers.size(); j++)
@@ -1415,6 +1432,9 @@ main(int argc, char** argv)
 
   Vector<OutputStream *> table_output(metaData.getNoOfTables());
   debug << "Restoring tables" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Restoring tables" << endl;
+
   for(i = 0; i<metaData.getNoOfTables(); i++)
   {
     const TableS *table= metaData[i];
@@ -1480,6 +1500,8 @@ main(int argc, char** argv)
   }
 
   debug << "Save foreign key info" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Save foreign key info" << endl;
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
     for(Uint32 j= 0; j < g_consumers.size(); j++)
@@ -1512,7 +1534,9 @@ main(int argc, char** argv)
   {
     g_consumers[i]->report_meta_data(ga_backupId, ga_nodeId);
   }
-  debug << "Iterate over data" << endl; 
+  debug << "Iterate over data" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_data]" << " Start restoring table data" << endl;
   if (ga_restore || ga_print) 
   {
     if(_restore_data || _print_data)
@@ -1565,6 +1589,9 @@ main(int argc, char** argv)
         
       RestoreDataIterator dataIter(metaData, &free_data_callback);
       
+      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+      info << timestamp << " [restore_data]" << " Read data file header" << endl;
+
       // Read data file header
       if (!dataIter.readHeader())
       {
@@ -1572,6 +1599,9 @@ main(int argc, char** argv)
 	exitHandler(NDBT_FAILED);
       }
       
+      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+      info << timestamp << " [restore_data]" << " Restore fragments" << endl;
+
       Uint32 fragmentId; 
       while (dataIter.readFragmentHeader(res= 0, &fragmentId))
       {
@@ -1627,6 +1657,10 @@ main(int argc, char** argv)
     if(_restore_data || _print_log)
     {
       RestoreLogIterator logIter(metaData);
+
+      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+      info << timestamp << " [restore_log]" << " Read log file header" << endl;
+
       if (!logIter.readHeader())
       {
 	err << "Failed to read header of data file. Exiting..." << endl;
@@ -1634,6 +1668,10 @@ main(int argc, char** argv)
       }
       
       const LogEntry * logEntry = 0;
+
+      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+      info << timestamp << " [restore_log]" << " Restore log entries" << endl;
+
       while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
       {
         const TableS* table = logEntry->m_table;
@@ -1706,6 +1744,9 @@ main(int argc, char** argv)
   }
   if (ga_restore_epoch)
   {
+    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    info << timestamp << " [restore_epoch]" << " Restoring epoch" << endl;
+
     for (i= 0; i < g_consumers.size(); i++)
       if (!g_consumers[i]->update_apply_status(metaData))
       {
@@ -1728,6 +1769,9 @@ main(int argc, char** argv)
   if (ga_rebuild_indexes)
   {
     debug << "Rebuilding indexes" << endl;
+    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    info << timestamp << " [rebuild_indexes]" << " Rebuilding indexes" << endl;
+
     for(i = 0; i<metaData.getNoOfTables(); i++)
     {
       const TableS *table= metaData[i];

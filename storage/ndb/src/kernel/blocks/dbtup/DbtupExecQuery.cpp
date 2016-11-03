@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -331,6 +331,12 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     if (! ((req_struct->m_reorg == ScanFragReq::REORG_NOT_MOVED && moved == 0) ||
            (req_struct->m_reorg == ScanFragReq::REORG_MOVED && moved != 0)))
     {
+      /**
+       * We're either scanning to only find moved rows (used when scanning
+       * for rows to delete in reorg delete phase or we're scanning for
+       * only non-moved rows and this happens also in reorg delete phase,
+       * but it is done for normal scans in this phase.
+       */
       terrorCode= ZTUPLE_DELETED_ERROR;
       return false;
     }
@@ -437,7 +443,7 @@ Dbtup::load_diskpage(Signal* signal,
   Fragrecord * regFragPtr= prepare_fragptr.p;
   Tablerec* regTabPtr = prepare_tabptr.p;
 
-  if (Local_key::ref(lkey1, lkey2) == ~(Uint32)0)
+  if (Local_key::isInvalid(lkey1, lkey2))
   {
     jam();
     regOperPtr->op_struct.bit_field.m_wait_log_buffer= 1;
@@ -457,7 +463,8 @@ Dbtup::load_diskpage(Signal* signal,
   }
   
   jam();
-  Uint32 page_idx= lkey2;
+  ndbassert(Uint16(lkey2) == lkey2);
+  Uint16 page_idx= Uint16(lkey2);
   Uint32 frag_page_id= lkey1;
   regOperPtr->m_tuple_location.m_page_no= getRealpid(regFragPtr,
 						     frag_page_id);
@@ -759,16 +766,16 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      op_struct.op_bit_fields = regOperPtr->op_struct.op_bit_fields;
      const Uint32 TrequestInfo= tupKeyReq->request;
      const Uint32 disable_fk_checks = tupKeyReq->disable_fk_checks;
-     const Uint32 primaryReplica = tupKeyReq->primaryReplica;
+     const Uint32 triggers = tupKeyReq->triggers;
 
      regOperPtr->m_copy_tuple_location.setNull();
      op_struct.bit_field.delete_insert_flag = false;
-     op_struct.bit_field.tupVersion= ZNIL;
-     op_struct.bit_field.m_physical_only_op = 0;
      op_struct.bit_field.m_gci_written = 0;
+     op_struct.bit_field.m_triggers = triggers;
      op_struct.bit_field.m_disable_fk_checks = disable_fk_checks;
-     op_struct.bit_field.primary_replica= primaryReplica;
      op_struct.bit_field.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
+     op_struct.bit_field.tupVersion= ZNIL;
+
      req_struct.m_prio_a_flag = TupKeyReq::getPrioAFlag(TrequestInfo);
      req_struct.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
      regOperPtr->op_struct.op_bit_fields = op_struct.op_bit_fields;
@@ -2187,13 +2194,6 @@ int Dbtup::handleInsertReq(Signal* signal,
       goto disk_prealloc_error;
     }
 
-    if (!Local_key::isShort(frag_page_id))
-    {
-      jam();
-      terrorCode = 1603;
-      goto disk_prealloc_error;
-    }
-
     int ret= disk_page_prealloc(signal, fragPtr, &tmp, size);
     if (unlikely(ret < 0))
     {
@@ -2213,8 +2213,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     ref.m_page_no = frag_page_id;
     
     Tuple_header* disk_ptr= req_struct->m_disk_ptr;
-    disk_ptr->m_header_bits = 0;
-    disk_ptr->m_base_record_ref= ref.ref();
+    disk_ptr->set_base_record_ref(ref);
   }
 
   if (req_struct->m_reorg != ScanFragReq::REORG_ALL)
@@ -4242,9 +4241,14 @@ Dbtup::validate_page(Tablerec* regTabPtr, Var_page* p)
 	  if(! (ptr->m_header_bits & Tuple_header::COPY_TUPLE))
 	  {
 	    ndbrequire(len == fix_sz + 1);
-	    Local_key tmp; tmp.assref(*part);
+            Local_key tmp;
+            Var_part_ref* vpart = reinterpret_cast<Var_part_ref*>(part);
+            vpart->copyout(&tmp);
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+            ndbrequire(!"Looking for test coverage - found it!");
+#endif
 	    Ptr<Page> tmpPage;
-	    part= get_ptr(&tmpPage, *(Var_part_ref*)part);
+	    part= get_ptr(&tmpPage, *vpart);
 	    len= ((Var_page*)tmpPage.p)->get_entry_len(tmp.m_page_idx);
 	    Uint32 sz= ((mm_vars + 1) << 1) + (((Uint16*)part)[mm_vars]);
 	    ndbrequire(len >= ((sz + 3) >> 2));

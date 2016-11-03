@@ -321,7 +321,7 @@ show create table t1;
 drop table t1;
 
 #Verify that it isn't possible to create no logging table with disk fields
---error 1112
+--error 3014
 create table t1 (a bigint primary key, b bigint storage disk) engine ndb
   comment="NDB_TABLE=NOLOGGING=1";
 

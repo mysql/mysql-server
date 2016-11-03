@@ -131,6 +131,7 @@ ndb_eventbuffer_free_percent	#
 ndb_eventbuffer_max_alloc	#
 ndb_extra_logging	#
 ndb_force_send	#
+ndb_fully_replicated	#
 ndb_index_stat_enable	#
 ndb_index_stat_option	#
 ndb_join_pushdown	#

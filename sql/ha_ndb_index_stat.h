@@ -27,8 +27,8 @@ class Ndb_index_stat_thread : public Ndb_component
 {
   // Someone is waiting for stats
   bool client_waiting;
-  native_mutex_t LOCK;
-  native_cond_t COND;
+  native_mutex_t LOCK_client_waiting;
+  native_cond_t COND_client_waiting;
 public:
   Ndb_index_stat_thread();
   virtual ~Ndb_index_stat_thread();

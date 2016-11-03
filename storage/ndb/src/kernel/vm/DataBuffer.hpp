@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ public:
    * Head/anchor for data buffer
    */
   struct Head {
-    Head() ;
+    Head() { init(); }
 
     Uint32 used;       // Words used
     Uint32 firstItem;  // First segment (or RNIL)
@@ -58,6 +58,11 @@ public:
 #if defined VM_TRACE || defined ERROR_INSERT
     bool in_use;
 #endif
+
+    /**
+     * init
+     */
+    void init();
 
     /** 
      * Get size of databuffer, in words
@@ -205,7 +210,8 @@ private:
 
 template<Uint32 sz>
 inline
-DataBuffer<sz>::Head::Head(){
+void
+DataBuffer<sz>::Head::init() {
   used = 0;
   firstItem = RNIL;
   lastItem = RNIL;

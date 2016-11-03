@@ -1448,19 +1448,7 @@ void Dbdih::execTAB_COMMITREQ(Signal* signal)
 
   ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_CREATING);
 
-  /**
-   * Normally this signal arrives as part of CREATE TABLE and then
-   * DBTC haven't been informed of the table being available yet
-   * and no protection is needed. It is however also used for
-   * Table reorganisation and in that case the table is fully
-   * available to DBTC and we need to protect the change here
-   * to ensure that DIH_SCAN_TAB_REQ sees a correct view of
-   * these variables.
-   */
-  NdbMutex_Lock(&tabPtr.p->theMutex);
-  tabPtr.p->tabStatus = TabRecord::TS_ACTIVE;
-  tabPtr.p->schemaTransId = 0;
-  NdbMutex_Unlock(&tabPtr.p->theMutex);
+  commit_new_table(tabPtr);
 
   signal->theData[0] = tdictPtr;
   signal->theData[1] = cownNodeId;
@@ -4359,15 +4347,12 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   Sysfile::ActiveStatus TsaveState = nodePtr.p->activeStatus;
   Uint32 TnodeGroup = nodePtr.p->nodeGroup;
 
-  m_node_view_lock.write_lock();
   initNodeRecord(nodePtr);
   nodePtr.p->nodeGroup = TnodeGroup;
   nodePtr.p->activeStatus = TsaveState;
   nodePtr.p->nodeStatus = NodeRecord::ALIVE;
-  nodePtr.p->useInTransactions = true;
   nodePtr.p->m_inclDihLcp = true;
-  m_node_view_lock.write_unlock();
-
+  make_node_usable(nodePtr.p);
   removeDeadNode(nodePtr);
   insertAlive(nodePtr);
   con_lineNodes++;
@@ -4852,12 +4837,6 @@ void Dbdih::execEND_TOREQ(Signal* signal)
              EndToConf::SignalLength, JBB);
 }//Dbdih::execEND_TOREQ()
 
-#define DIH_TAB_WRITE_LOCK(tabPtrP) \
-  do { assertOwnThread(); tabPtrP->m_lock.write_lock(); } while (0)
-
-#define DIH_TAB_WRITE_UNLOCK(tabPtrP) \
-  do { assertOwnThread(); tabPtrP->m_lock.write_unlock(); } while (0)
-
 /* --------------------------------------------------------------------------*/
 /*       AN ORDER TO START OR COMMIT THE REPLICA CREATION ARRIVED FROM THE   */
 /*       MASTER.                                                             */
@@ -4899,42 +4878,11 @@ void Dbdih::execUPDATE_FRAG_STATEREQ(Signal* signal)
   }
   ndbrequire(frReplicaPtr.i != RNIL);
 
-  DIH_TAB_WRITE_LOCK(tabPtr.p);
-  switch (replicaType) {
-  case UpdateFragStateReq::STORED:
-    jam();
-    CRASH_INSERTION(7138);
-    /* ----------------------------------------------------------------------*/
-    /*  HERE WE ARE INSERTING THE NEW BACKUP NODE IN THE EXECUTION OF ALL    */
-    /*  OPERATIONS. FROM HERE ON ALL OPERATIONS ON THIS FRAGMENT WILL INCLUDE*/
-    /*  USE OF THE NEW REPLICA.                                              */
-    /* --------------------------------------------------------------------- */
-    insertBackup(fragPtr, tdestNodeid);
-    
-    fragPtr.p->distributionKey++;
-    fragPtr.p->distributionKey &= 255;
-    break;
-  case UpdateFragStateReq::COMMIT_STORED:
-    jam();
-    CRASH_INSERTION(7139);
-    /* ----------------------------------------------------------------------*/
-    /*  HERE WE ARE MOVING THE REPLICA TO THE STORED SECTION SINCE IT IS NOW */
-    /*  FULLY LOADED WITH ALL DATA NEEDED.                                   */
-    // We also update the order of the replicas here so that if the new 
-    // replica is the desired primary we insert it as primary.
-    /* ----------------------------------------------------------------------*/
-    removeOldStoredReplica(fragPtr, frReplicaPtr);
-    linkStoredReplica(fragPtr, frReplicaPtr);
-    updateNodeInfo(fragPtr);
-    break;
-  case UpdateFragStateReq::START_LOGGING:
-    jam();
-    break;
-  default:
-    ndbrequire(false);
-    break;
-  }//switch
-  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+  make_table_use_new_replica(tabPtr,
+                             fragPtr,
+                             frReplicaPtr,
+                             replicaType,
+                             tdestNodeid);
 
   /* ------------------------------------------------------------------------*/
   /*       THE NEW NODE OF THIS REPLICA IS THE STARTING NODE.                */
@@ -9106,14 +9054,13 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   // We also set certain state variables ensuring that the node no longer is 
   // used in transactions and also mark that we received this signal.
   /*-------------------------------------------------------------------------*/
-  m_node_view_lock.write_lock();
   for (i = 0; i < noOfFailedNodes; i++) {
     jam();
     NodeRecordPtr TNodePtr;
     TNodePtr.i = failedNodes[i];
     ptrCheckGuard(TNodePtr, MAX_NDB_NODES, nodeRecord);
     setNodeRecoveryStatus(TNodePtr.i, NodeRecord::NODE_FAILED);
-    TNodePtr.p->useInTransactions = false;
+    make_node_not_usable(TNodePtr.p);
     TNodePtr.p->m_inclDihLcp = false;
     TNodePtr.p->recNODE_FAILREP = ZTRUE;
     if (TNodePtr.p->nodeStatus == NodeRecord::ALIVE) {
@@ -9124,7 +9071,6 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
       insertDeadNode(TNodePtr);
     }//if
   }//for
-  m_node_view_lock.write_unlock();
 
   /*-------------------------------------------------------------------------*/
   // Verify that we can continue to operate the cluster. If we cannot we will
@@ -11965,12 +11911,23 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   const Uint32 map_ptr_i = req->map_ptr_i;
   const Uint32 flags = req->requestInfo;
   const Uint32 fragmentCountType = req->fragmentCountType;
+  const Uint32 realFragmentCount = req->realFragmentCount;
 
   Uint32 err = 0;
   bool use_specific_fragment_count = false;
   const Uint32 defaultFragments =
     getFragmentsPerNode() * cnoOfNodeGroups * cnoReplicas;
   const Uint32 maxFragments = MAX_FRAG_PER_LQH * defaultFragments;
+
+  if (flags != CreateFragmentationReq::RI_GET_FRAGMENTATION)
+  {
+    D("CREATE_FRAGMENTATION_REQ: " <<
+      " primaryTableId: " << primaryTableId <<
+      " fragmentCountType: " <<
+        getFragmentCountTypeString(fragmentCountType) <<
+      " fragType: " << fragType <<
+      " noOfFragments: " << noOfFragments);
+  }
 
   do {
     NodeGroupRecordPtr NGPtr;
@@ -12174,6 +12131,16 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
        * attempt to spread them and this has precedence before predictable
        * fragmentation.
        *
+       * For fully replicated tables that use all LDMs we want the primary
+       * fragments to be the first ones. Thus we ensure that the first
+       * fragments are all stored in Node Group 0 with increasing LDM number.
+       * If we only have one fragment per Node Group then no changes are
+       * needed for this. We discover fully replicated tables through the
+       * fact that noOfFragments != realFragmentCount. This actually only
+       * differs with fully replicated tables that are created with more
+       * than one node group. One node group will however work with the
+       * traditional algorithm since it then becomes the same.
+       *
        * Primary replica dimension:
        * --------------------------
        * We will start with the first node in each node group in the first
@@ -12231,8 +12198,13 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         else
         {
           jam();
-          if (NGPtr.i == 0)
+          if (NGPtr.i == 0 ||
+              (noOfFragments != realFragmentCount))
           {
+            /** Fully replicated table with one fragment per LDM first
+             * distributed over all LDMs before moving to the next
+             * node group.
+             */
             jam();
             next_log_part++;
           }
@@ -12254,7 +12226,22 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         /**
          * Next node group for next fragment
          */
-        inc_node_or_group(default_node_group, cnoOfNodeGroups);
+        if (noOfFragments == realFragmentCount ||
+            use_specific_fragment_count ||
+            ((logPart + 1) == globalData.ndbLogParts))
+        {
+          /**
+           * Change to new node group for
+           * 1) Normal tables
+           * 2) Tables not stored on all LDMs
+           * 3) Fully replicated when at last LDM
+           *
+           * Thus always except for fully replicated using all LDMs and
+           * not yet used all LDMs.
+           */
+          jam();
+          inc_node_or_group(default_node_group, cnoOfNodeGroups);
+        }
       }
       if (err)
       {
@@ -12321,7 +12308,6 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           }
         }
       }
-      
       if (flags & CreateFragmentationReq::RI_GET_FRAGMENTATION)
       {
         jam();
@@ -12346,6 +12332,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             fragments_per_node[i] = ~(Uint16)0;
           }
         }
+
         /**
          * Fragments are also added in 3 dimensions.
          * Node group Dimension:
@@ -12371,6 +12358,13 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
          * spread evenly over all LDMs also after the ALTER TABLE. We do this
          * by always finding the LDM in the node with the minimum number of
          * fragments.
+         *
+         * At the moment we don't support on-line add partition of for fully
+         * replicated tables. We do however support adding more node groups.
+         * In order to support adding partitions for fully replicated tables
+         * it is necessary to provide a mapping from calculated main fragment
+         * since they will then no longer be fragment id 0 to number of
+         * main fragments minus one.
          *
          * Primary replica Dimension:
          * --------------------------
@@ -12416,9 +12410,6 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
                                        NDB_ARRAY_SIZE(fragments_per_node),
                                        0);
 
-          /* Ensure that we don't report this as min immediately again */
-          fragments_per_node[node]++;
-
           NGPtr.i = getNodeGroup(node);
           ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
           Uint32 logPart;
@@ -12444,11 +12435,14 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 
           Uint32 node_index = next_replica_node[NGPtr.i];
           Uint32 primary_node = NGPtr.p->nodesInGroup[node_index];
+
           inc_node_or_group(node_index, NGPtr.p->nodeCount);
           next_replica_node[NGPtr.i]= node_index;
           fragments[count++] = logPart;
           fragments[count++] = primary_node;
           fragments_per_ldm[primary_node][logPart]++;
+          /* Ensure that we don't report this as min immediately again */
+          fragments_per_node[primary_node]++;
           for (Uint32 r = 0; r < noOfReplicas; r++)
           {
             jam();
@@ -12504,6 +12498,56 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   signal->theData[0] = err;
 }
 
+void Dbdih::insertCopyFragmentList(TabRecord *tabPtr,
+                                   Fragmentstore *fragPtr,
+                                   Uint32 my_fragid)
+{
+  Uint32 found_fragid = RNIL;
+  FragmentstorePtr locFragPtr;
+  Uint32 logPartId = fragPtr->m_log_part_id;
+  for (Uint32 i = 0; i < tabPtr->totalfragments; i++)
+  {
+    getFragstore(tabPtr, i, locFragPtr);
+    if (locFragPtr.p->m_log_part_id == logPartId)
+    {
+      if (fragPtr == locFragPtr.p)
+      {
+        /* We're inserting the main fragment */
+        fragPtr->nextCopyFragment = RNIL;
+        D("Inserting fragId " << my_fragid << " as main fragment");
+        return;
+      }
+      jam();
+      found_fragid = i;
+      break;
+    }
+  }
+  ndbrequire(found_fragid != RNIL);
+  /**
+   * We have now found the main copy fragment for this partition.
+   * We will add the fragment last in this list. So we search for
+   * end of list and add it to the list when we reach the end of
+   * the list.
+   */
+  ndbrequire(locFragPtr.p != fragPtr);
+  while (locFragPtr.p->nextCopyFragment != RNIL)
+  {
+    found_fragid = locFragPtr.p->nextCopyFragment;
+    getFragstore(tabPtr, found_fragid, locFragPtr);
+  }
+  /**
+   * We update in a safe manner here ensuring that the list is
+   * always seen as a proper list by inserting a memory barrier
+   * before setting the new nextCopyFragment. It isn't absolutely
+   * necessary but is future proof given that we use a RCU
+   * mechanism around this data.
+   */
+  fragPtr->nextCopyFragment = RNIL;
+  mb();
+  locFragPtr.p->nextCopyFragment = my_fragid;
+  D("Insert fragId " << my_fragid << " after fragId " << found_fragid);
+}
+
 void Dbdih::execDIADDTABREQ(Signal* signal) 
 {
   Uint32 fragType;
@@ -12532,34 +12576,13 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
-  NdbMutex_Lock(&tabPtr.p->theMutex);
-
-  tabPtr.p->connectrec = connectPtr.i;
-  tabPtr.p->tableType = req->tableType;
+  D("DIADDTABREQ: tableId = " << tabPtr.i);
   fragType= req->fragType;
-  tabPtr.p->schemaVersion = req->schemaVersion;
-  tabPtr.p->primaryTableId = req->primaryTableId;
-  tabPtr.p->schemaTransId = req->schemaTransId;
-  tabPtr.p->m_scan_count[0] = 0;
-  tabPtr.p->m_scan_count[1] = 0;
-  tabPtr.p->m_scan_reorg_flag = 0;
-
-  if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE)
+  if (prepare_add_table(tabPtr, connectPtr, signal))
   {
-    /**
-     * This is the only code segment in DBDIH where we can change tabStatus
-     * while DBTC also has access to the table. It can conflict with the
-     * call to execDIH_SCAN_TAB_REQ from DBTC. So we need to protect this
-     * particular segment of the this call.
-     */
     jam();
-    tabPtr.p->tabStatus = TabRecord::TS_CREATING;
-    NdbMutex_Unlock(&tabPtr.p->theMutex);
-    connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
-    sendAddFragreq(signal, connectPtr, tabPtr, 0, false);
     return;
   }
-  NdbMutex_Unlock(&tabPtr.p->theMutex);
 
   /**
    * When we get here the table is under definition and DBTC can still not
@@ -12649,6 +12672,12 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   const Uint32 noReplicas = fragments[0];
   const Uint32 noFragments = fragments[1];
 
+  if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) == 0)
+  {
+    jam();
+    D("realFragmentCount for normal table set to = " << noFragments);
+    tabPtr.p->realFragmentCount = noFragments;
+  }
   tabPtr.p->noOfBackups = noReplicas - 1;
   tabPtr.p->totalfragments = noFragments;
   ndbrequire(noReplicas == cnoReplicas); // Only allowed
@@ -12670,13 +12699,14 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   }//if
   
   Uint32 logTotalFragments = 1;
-  while (logTotalFragments <= tabPtr.p->totalfragments) {
+  ndbrequire(tabPtr.p->realFragmentCount < (1 << 16));
+  while (logTotalFragments <= tabPtr.p->realFragmentCount) {
     jam();
     logTotalFragments <<= 1;
   }
   logTotalFragments >>= 1;
   tabPtr.p->mask = logTotalFragments - 1;
-  tabPtr.p->hashpointer = tabPtr.p->totalfragments - logTotalFragments;
+  tabPtr.p->hashpointer = tabPtr.p->realFragmentCount - logTotalFragments;
   allocFragments(tabPtr.p->totalfragments, tabPtr);  
 
   if (tabPtr.p->method == TabRecord::HASH_MAP)
@@ -12723,6 +12753,11 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     }//for
     fragPtr.p->fragReplicas = activeIndex;
     ndbrequire(activeIndex > 0 && fragPtr.p->storedReplicas != RNIL);
+    if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) != 0)
+    {
+      jam();
+      insertCopyFragmentList(tabPtr.p, fragPtr.p, fragId);
+    }
   }
   initTableFile(tabPtr);
   tabPtr.p->tabCopyStatus = TabRecord::CS_ADD_TABLE_MASTER;
@@ -12818,6 +12853,7 @@ Dbdih::sendAddFragreq(Signal* signal,
     req->startGci = SYSFILE->newestRestorableGCI;
     req->logPartId = fragPtr.p->m_log_part_id;
     req->changeMask = 0;
+    req->partitionId = fragId % tabPtr.p->realFragmentCount;
 
     if (connectPtr.p->connectState == ConnectRecord::ALTER_TABLE)
     {
@@ -12838,15 +12874,7 @@ Dbdih::sendAddFragreq(Signal* signal,
     if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
     {
       jam();
-      if (!rcu_lock_held)
-      {
-        DIH_TAB_WRITE_LOCK(tabPtr.p);
-      }
-      tabPtr.p->m_new_map_ptr_i = connectPtr.p->m_alter.m_new_map_ptr_i;
-      if (!rcu_lock_held)
-      {
-        DIH_TAB_WRITE_UNLOCK(tabPtr.p);
-      }
+      make_new_table_writeable(tabPtr, connectPtr, rcu_lock_held);
     }
 
     if (AlterTableReq::getAddFragFlag(connectPtr.p->m_alter.m_changeMask))
@@ -12966,9 +12994,7 @@ Dbdih::execADD_FRAGREF(Signal* signal){
     if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
     {
       jam();
-      DIH_TAB_WRITE_LOCK(tabPtr.p);
-      tabPtr.p->m_new_map_ptr_i = RNIL;
-      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+      make_new_table_non_writeable(tabPtr);
     }
 
     connectPtr.p->connectState = ConnectRecord::ALTER_TABLE_ABORT;
@@ -13307,6 +13333,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
 
     connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
     connectPtr.p->m_alter.m_org_totalfragments = tabPtr.p->totalfragments;
+    connectPtr.p->m_alter.m_realFragmentCount = tabPtr.p->realFragmentCount;
     connectPtr.p->m_alter.m_changeMask = req->changeMask;
     connectPtr.p->m_alter.m_new_map_ptr_i = req->new_map_ptr_i;
     connectPtr.p->userpointer = senderData;
@@ -13330,9 +13357,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
     {
       jam();
-      DIH_TAB_WRITE_LOCK(tabPtr.p);
-      tabPtr.p->m_new_map_ptr_i = RNIL;
-      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+      make_new_table_non_writeable(tabPtr);
     }
 
     if (AlterTableReq::getAddFragFlag(req->changeMask))
@@ -13353,6 +13378,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     return;
     break;
   case AlterTabReq::AlterTableCommit:
+  {
     jam();
     tabPtr.p->schemaVersion = newTableVersion;
 
@@ -13361,52 +13387,9 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     connectPtr.p->userpointer = senderData;
     connectPtr.p->userblockref = senderRef;
     ndbrequire(connectPtr.p->connectState == ConnectRecord::ALTER_TABLE);
-
-    /**
-     * Here we need to protect both using the table mutex and the RCU
-     * mechanism. We want DIH_SCAN_TAB_REQ to see a correct combination
-     * of those variables as protected by the mutex and we want
-     * DIGETNODESREQ to see a protected and consistent view of its variables.
-     */
-
-    NdbMutex_Lock(&tabPtr.p->theMutex);
-    DIH_TAB_WRITE_LOCK(tabPtr.p);
-
-    tabPtr.p->totalfragments = connectPtr.p->m_alter.m_totalfragments;
-    if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
-    {
-      jam();
-      Uint32 save = tabPtr.p->m_map_ptr_i;
-      tabPtr.p->m_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
-      tabPtr.p->m_new_map_ptr_i = save;
-
-      for (Uint32 i = 0; i<tabPtr.p->totalfragments; i++)
-      {
-        jam();
-        FragmentstorePtr fragPtr;
-        getFragstore(tabPtr.p, i, fragPtr);
-        fragPtr.p->distributionKey = (fragPtr.p->distributionKey + 1) & 0xFF;
-      }
-      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
-
-      /* These variables are only protected by mutex. */
-      ndbassert(tabPtr.p->m_scan_count[1] == 0);
-      tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
-      tabPtr.p->m_scan_count[0] = 0;
-      tabPtr.p->m_scan_reorg_flag = 1;
-      NdbMutex_Unlock(&tabPtr.p->theMutex);
-
-      send_alter_tab_conf(signal, connectPtr);
-      return;
-    }
-
-    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
-    NdbMutex_Unlock(&tabPtr.p->theMutex);
-    send_alter_tab_conf(signal, connectPtr);
-    ndbrequire(tabPtr.p->connectrec == connectPtr.i);
-    tabPtr.p->connectrec = RNIL;
-    release_connect(connectPtr);
+    make_new_table_read_and_writeable(tabPtr, connectPtr, signal);
     return;
+  }
   case AlterTabReq::AlterTableComplete:
     jam();
     connectPtr.i = req->connectPtr;
@@ -13414,27 +13397,21 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     connectPtr.p->userpointer = senderData;
     connectPtr.p->userblockref = senderRef;
 
-    send_alter_tab_conf(signal, connectPtr);
 
+    if (!make_old_table_non_writeable(tabPtr, connectPtr))
+    {
+      jam();
+      send_alter_tab_conf(signal, connectPtr);
+      return;
+    }
     /**
-     * We need to ensure that all scans after this signal sees
-     * the new m_scan_reorg_flag to ensure that we don't have
-     * races where scans use this flag in an incorrect manner.
-     * It is protected by mutex, so requires a mutex protecting
-     * it, m_new_map_ptr_i is only protected by the RCU mechanism
-     * and not by the mutex.
+     * This is a table reorg, we want to wait for scans with
+     * REORG_NOT_MOVED flag set to ensure that those scans have
+     * completed before we start up a new ALTER TABLE REORG in
+     * which case these scans might miss to read rows.
+     *
+     * Fall through to make this happen.
      */
-    NdbMutex_Lock(&tabPtr.p->theMutex);
-    DIH_TAB_WRITE_LOCK(tabPtr.p);
-    tabPtr.p->m_new_map_ptr_i = RNIL;
-    tabPtr.p->m_scan_reorg_flag = 0;
-    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
-    NdbMutex_Unlock(&tabPtr.p->theMutex);
-
-    ndbrequire(tabPtr.p->connectrec == connectPtr.i);
-    tabPtr.p->connectrec = RNIL;
-    release_connect(connectPtr);
-    return;
   case AlterTabReq::AlterTableWaitScan:{
     jam();
     const NDB_TICKS now = NdbTick_getCurrentTicks();
@@ -13466,45 +13443,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     };
     copy(_align, ptr);
     releaseSections(handle);
-    Uint32 err;
-    /**
-     * We need to protect these changes to the node and fragment view of
-     * the table since DBTC can see the table through these changes
-     * and thus both the mutex and the RCU mechanism is required here to
-     * ensure that DBTC sees a consistent view of the data.
-     */
-    NdbMutex_Lock(&tabPtr.p->theMutex);
-    DIH_TAB_WRITE_LOCK(tabPtr.p);
-
-    Uint32 save = tabPtr.p->totalfragments;
-    if ((err = add_fragments_to_table(tabPtr, buf)))
-    {
-      jam();
-      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
-      NdbMutex_Unlock(&tabPtr.p->theMutex);
-      ndbrequire(tabPtr.p->totalfragments == save);
-      ndbrequire(connectPtr.p->m_alter.m_org_totalfragments == save);
-      send_alter_tab_ref(signal, tabPtr, connectPtr, err);
-
-      ndbrequire(tabPtr.p->connectrec == connectPtr.i);
-      tabPtr.p->connectrec = RNIL;
-      release_connect(connectPtr);
-      return;
-    }
-
-    tabPtr.p->tabCopyStatus = TabRecord::CS_ALTER_TABLE;
-    connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
-    /* Don't make the new fragments available just yet. */
-    tabPtr.p->totalfragments = save;
-    NdbMutex_Unlock(&tabPtr.p->theMutex);
-
-    sendAddFragreq(signal,
-                   connectPtr,
-                   tabPtr,
-                   connectPtr.p->m_alter.m_org_totalfragments,
-                   true);
-
-    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+    start_add_fragments_in_new_table(tabPtr, connectPtr, buf, signal);
     return;
   }
 
@@ -13523,6 +13462,7 @@ Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr, const Uint16 buf[])
   for (i = 0; i<cnt; i++)
   {
     FragmentstorePtr fragPtr;
+    Uint32 fragId = current + i;
     if (ERROR_INSERTED(7212) && cnt)
     {
       err = 1;
@@ -13530,7 +13470,7 @@ Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr, const Uint16 buf[])
       goto error;
     }
 
-    if ((err = add_fragment_to_table(tabPtr, current + i, fragPtr)))
+    if ((err = add_fragment_to_table(tabPtr, fragId, fragPtr)))
       goto error;
 
     fragPtr.p->m_log_part_id = buf[2+(1 + replicas)*i];
@@ -13623,7 +13563,7 @@ Dbdih::wait_old_scan(Signal* signal)
     }
   }
 
-  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 7);
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 7);
 }
 
 Uint32
@@ -13668,13 +13608,15 @@ Dbdih::add_fragment_to_table(Ptr<TabRecord> tabPtr,
 
   ndbrequire(chunks < NDB_ARRAY_SIZE(tabPtr.p->startFid));
   tabPtr.p->startFid[chunks] = fragPtr.i;
+  Uint32 init_fragid = fragId;
   for (Uint32 i = 0; i<NO_OF_FRAGS_PER_CHUNK; i++)
   {
     jam();
     Ptr<Fragmentstore> tmp;
     tmp.i = fragPtr.i + i;
     ptrCheckGuard(tmp, cfragstoreFileSize, fragmentstore);
-    initFragstore(tmp);
+    initFragstore(tmp, init_fragid);
+    init_fragid++;
   }
 
   tabPtr.p->totalfragments++;
@@ -13816,29 +13758,8 @@ Dbdih::drop_fragments(Signal* signal, Ptr<ConnectRecord> connectPtr,
     Ptr<TabRecord> tabPtr;
     tabPtr.i = connectPtr.p->table;
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-
-    Uint32 new_frags = connectPtr.p->m_alter.m_totalfragments;
-    Uint32 org_frags = connectPtr.p->m_alter.m_org_totalfragments;
-
-    /**
-     * We need to manipulate the table distribution and we want to ensure
-     * DBTC sees a consistent view of these changes. We affect both data
-     * used by DIGETNODES and DIH_SCAN_TAB_REQ, so both mutex and RCU lock
-     * need to be held.
-     */
-    NdbMutex_Lock(&tabPtr.p->theMutex);
-    DIH_TAB_WRITE_LOCK(tabPtr.p);
-
-    tabPtr.p->totalfragments = new_frags;
-    for (Uint32 i = new_frags - 1; i >= org_frags; i--)
-    {
-      jam();
-      release_fragment_from_table(tabPtr, i);
-    }
-    NdbMutex_Unlock(&tabPtr.p->theMutex);
-    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
-
-    connectPtr.p->m_alter.m_totalfragments = org_frags;
+    
+    drop_fragments_from_new_table_view(tabPtr, connectPtr);
 
     switch(connectPtr.p->connectState){
     case ConnectRecord::ALTER_TABLE_ABORT:
@@ -13903,6 +13824,459 @@ Dbdih::execDROP_FRAG_CONF(Signal* signal)
 /*****************************************************************************/
 /* **********     TRANSACTION  HANDLING  MODULE                  *************/
 /*****************************************************************************/
+
+/**
+ * Transaction Handling Module
+ * ---------------------------
+ *
+ * This module can to a great extent be described as the heart of the
+ * distribution aspects of MySQL Cluster. It is an essential part of key
+ * operations and scan operations. It will ensure that the TC block will get
+ * the correct data about table distribution in all operations of the cluster.
+ *
+ * It is absolutely for one of the USPs (Unique Selling Points) of MySQL
+ * Cluster which is its high availability and its ability to perform online
+ * meta data changes while still providing both read and write services
+ * using the old meta data and even being able to handle both new and old
+ * meta data at the same time during the switch over phase.
+ *
+ * It is absolutely vital for the recovery aspects and this module is the
+ * reason that we can support failover in a number of milliseconds. The
+ * longest time is to discover the failure, when that is done it is a
+ * matter of 2 signals back and forth to all nodes to reconfigure the
+ * nodes. It has much help in this node failure handling from QMGR and
+ * NDBCNTR blocks.
+ *
+ * As described in database theory a node failure is handled as a transaction
+ * in itself. This transaction is executed by QMGR and NDBCNTR and when
+ * the report about a failed node reaches DBDIH it will immediately switch
+ * the replicas used to read and write using the data controlled by this
+ * module.
+ *
+ * The problems we are facing in this module are the following:
+ * -----------------------------------------------------------
+ * 1) We need to quickly remove fragment replicas belonging to nodes that
+ *    died.
+ *
+ * 2) We need to include new fragment replicas to be writeable and later
+ *    to be both read and writeable. This as part of bringing new nodes
+ *    up.
+ *
+ * 3) To be able to balance up the usage of nodes we need the ability to
+ *    switch primary replica after completing node recovery.
+ *
+ * 4) We need to add new tables with a flexible table distribution.
+ *
+ * 5) We need the ability to reorganize a table to make it use new nodes
+ *    that have been added to the cluster.
+ *
+ * 6) We need to handle fully replicated tables that can at times read
+ *    from any node that contains the table.
+ *
+ * 7) Supporting updates of several fragments when fully replicated using
+ *    an iterator over a copy fragments.
+ *
+ * 8) We need to handle long-running scans that need a consistent view of
+ *    the table for its entire operation while at the same reorganising the
+ *    table.
+ *
+ * 9) We need to support many different variants of table distributions,
+ *    as an example we can have tables with one fragment per LDM per node,
+ *    we could have tables with just one fragment per node group and so
+ *    forth.
+ *
+ * 10)We need to support many different fragmentation types. This includes
+ *    range partitioning, list partitioning, key partitioning, linear key
+ *    partitioning. These variants are currently only supported when
+ *    operating only with a MySQL Server, so no direct NDB API access for
+ *    these tables is allowed. Also these tables have no ability for table
+ *    reorganisation at this time.
+ *
+ *    The most important fragmentation types we currently support is based
+ *    on the concept of hash maps. So the table is distributed with e.g.
+ *    3840 hash parts. When the table has 8 fragments these 3840 is
+ *    distributed among those 8 fragments. If the table is later is
+ *    reorganised to have 12 fragments then some of those 3840 hash
+ *    parts will be moved to the new fragments and a significant number of
+ *    those parts will stay put and not need any move.
+ *
+ * 11)Finally we also have a programmatic problem. The code that changes
+ *    these data structures is not critical in performance and is handled
+ *    by a single thread in each data node.
+ *
+ *    However reading of those data structures happens in each key operation
+ *    and several times in a scan operation. There are many readers of this
+ *    data structure, it is read from all other threads in the data node
+ *    although mostly from the TC threads.
+ *
+ *    Given the rarity of updates to those data structures we opted for an
+ *    RCU mechanism. So we get a counter before reading, then we read,
+ *    after reading we check that the counter is still the same, if not
+ *    we retry. In addition there are a number of memory barriers used to
+ *    support this properly in a highly parallel environment.
+ *
+ *    This mechanism makes for scaling which is almost unlimited. It also
+ *    means that any updates of these data structures have to be done in
+ *    a safe manner always avoiding that the user might trap on a pointer
+ *    or reference which isn't properly set. This requires very careful
+ *    programming. To support this carefulness we have gathered together
+ *    all code performing those functions into one module here in DDBIH.
+ *
+ *    To solve 8) in a multithreaded environments we use a mutex such that
+ *    scans increment a reference counter when they start and decrement it
+ *    when done. In this manner we can always keep track of any still
+ *    outstanding scan operations at table reorganisation time.
+ *
+ * Distinguish between READs and WRITEs in DIH interface
+ * -----------------------------------------------------
+ * DIH will always deliver a list of all nodes that have a replica of the
+ * data. However some of those nodes could be write-only during node
+ * recovery and during on-line table reorganisation. However the receiver
+ * of this data is only allowed to use the list in one of two ways.
+ * 
+ * 1) Use entire list for write transactions
+ * 2) Use any replica for reading in my own node (if read backup feature
+ *    is active on the table AND READ COMMITTED is used to read the data.
+ *
+ * The reason that this works is that no one is allowed to use this
+ * interface to read data while still in node recovery. So this is the manner
+ * to ensure that we don't read any fragments that are not yet fully
+ * recovered.
+ *
+ * For table reorg of a table we will only report back the fragments that
+ * are readable. The fragments that are still in the build process will
+ * be reported as new fragments and will only be used by special
+ * transactions that perform the copy phase and the delete phase.
+ *
+ * Description of key algorithms DBDIH participates in
+ * ---------------------------------------------------
+ * One important feature in MySQL Cluster is ALTER TABLE REORG. This makes
+ * it possible to reorganize the data in a table to make use of a new
+ * node group that has been added. It also makes it possible to extend
+ * the number of fragments in a table. It is still not supported to
+ * decrease the number of fragments in a table.
+ *
+ * DBDIH participates in four very crucial points in this table reorg.
+ * 1) start_add_fragments_in_new_table
+ *    This phase is about creating new empty fragments and requires insertion
+ *    of the new fragments into the shared data structures. The fragments are
+ *    still not to be used, but it is imperative that we insert the data in
+ *    a controlled manner.
+ *
+ * 2) make_new_table_writeable
+ *    This method is called when all new fragments have been created, all
+ *    triggers required to perform the copy phase has been installed. It is
+ *    now time to make the new fragments participate in write transactions
+ *    in a controlled manner.
+ *    
+ *    This means that we have 2 hash maps, one for the old table distribution
+ *    and for the new table distribution. When a write happens we need to
+ *    keep both in synch if the write goes to different fragments in the two
+ *    table distributions.
+ *
+ *    The data is also used when copying data over from old fragments to the
+ *    new fragments.
+ *
+ *    Fully replicated tables are a bit special, they cannot add new real
+ *    fragments, but they can add new copy fragments and thus extend the
+ *    number of replicas of the data. In this phase we have to distinguish
+ *    between which fragments can be used for reading and which needs to
+ *    be updated.
+ *
+ *    We handle this by always ensuring that new fragments are at the end of
+ *    list of copy fragments and that we never report any fragments with
+ *    higher fragment id than the current variable totalfragments states.
+ *
+ * 3) make_table_read_and_writeable
+ *    This is called after the copy phase has been completed. The fragments
+ *    are now filled with all data and are also available for reading. The
+ *    old fragments are still kept up to date. So here we need to ensure
+ *    that all writes goes to both old and new fragment of each row.
+ *
+ * 4) make_old_table_non_writeable
+ *    Now all transactions using old table distribution have completed (a
+ *    number of scan operations) and we remove the old hash map from the
+ *    table. We are now ready to start deleting data from old fragments
+ *    This data isn't required to stay in those fragments any more.
+ *
+ * MySQL Cluster also supports schema transactions, this means that schema
+ * transactions can be rolled back if they fail for some reason. There are
+ * two functions used to rollback some of the above.
+ *
+ * If we have passed 4 it is too late to rollback and thus recovery is about
+ * ensuring that the schema transaction is completed. Between 3 and 4 we are
+ * able to both roll backward and roll forward. So it depends on other
+ * parts of the schema transaction which path is choosen. If we fail between
+ * 2 and 3 then we will have to remove the new table as writeable.
+ * This is performed by make_new_table_non_writeable.
+ * If a failure happens between 1 and 2 then we have to drop the new
+ * fragments, this happens in drop_fragments_from_new_table_view. This method
+ * is called also during revert ALTER TABLE when failure occurred between 2
+ * and 3.
+ *
+ * Description of copy phase of ALTER TABLE REORG
+ * ----------------------------------------------
+ * The copy phase of ALTER TABLE REORG involves a great number of blocks.
+ * The below setup and tear down phase is a description of what happens
+ * for each table being reorganized.
+ *
+ * The below process happens in all nodes in parallel. Each node will
+ * take care of the fragment replicas for which it is the primary
+ * replica. This makes most of the communication here be local to
+ * a node. Only the sending of updates to the new fragments and
+ * updates to the backup replicas in the same node group will be
+ * done over the network.
+ * 
+ * DBDICT    DBDICT    TRIX          SUMA    DBUTIL      DBDIH   DBLQH
+ * COPY_DATA_REQ
+ * ------------>
+ *   COPY_DATA_IMPL_REQ
+ * --------------------->
+ *                       UTIL_PREPARE_REQ
+ *                       ---------------------->
+ *   GET_TABINFOREQ
+ * <--------------------------------------------
+ *   GET_TABINFOCONF
+ * -------------------------------------------->
+ *                       UTIL_PREPARE_CONF
+ *                       <----------------------
+ *                       SUB_CREATE_REQ
+ *                       ------------->
+ *   GET_TABINFOREQ
+ * <-----------------------------------
+ *   GET_TABINFOCONF
+ * ----------------------------------->
+ *                       SUB_CREATE_CONF
+ *                       <-------------
+ *                       SUB_SYNC_REQ
+ *                       ------------->
+ *                                     DIH_SCAN_TAB_REQ (immediate)
+ *                                     ---------------------->
+ *                                     DIH_SCAN_TAB_CONF
+ *                                     <----------------------
+ *                                 Send DIH_SCAN_TAB_CONF to get rt break
+ *
+ *                                     DIGETNODESREQ (immediate)
+ *                                     ---------------------->
+ *                                     DIGETNODESCONF
+ *                                     <----------------------
+ *                         Get distribution data for each fragment
+ *                         using DIGETNODESREQ possibly with
+ *                         rt break through CONTINUEB. This builds
+ *                         a list of fragments to handle.
+ *
+ *                                     SCAN_FRAGREQ
+ *                                     -------------------------------->
+ *                                     For each row we receive and send:
+ *                                     TRANSID_AI
+ *                                     <-------------------------------
+ *                                     KEYINFO20
+ *                                     <-------------------------------
+ *                       SUB_TABLE_DATA
+ *                       <-------------
+ *                       UTIL_EXECUTE_REQ
+ *                       --------------------->
+ *                       TCKEYREQ to DBTC
+ *                       ------------------------->
+ *                       TCKEYCONF from DBTC
+ *                       <-------------------------
+ *                       UTIL_EXECUTE_CONF
+ *                       <---------------------
+ *
+ * After 16 rows the scan will return (this will happen for each 16 row
+ *                                         SCAN_FRAGCONF
+ *                                      <--------------------------------
+ *                       SUB_SYNC_CONTINUE_REQ
+ *                       <--------------
+ *                       wait for all outstanding transactions to complete
+ *                       SUB_SYNC_CONTINUE_CONF
+ *                       -------------->
+ *                                         SCAN_NEXTREQ
+ *                                       -------------------------------->
+ *
+ * Every now and then a fragment will have its scan completed. Then it will
+ * receive SCAN_FRAGCONF with close flag set. Then it will send a new
+ * SCAN_FRAGREQ for the next fragment to copy. When no more fragments is
+ * available for copying then the copy action is completed.
+ *
+ * Copy phase completed after SCAN_FRAGCONF(close) from last fragment =>
+ *                       SUB_SYNC_CONF
+ *                       <-------------
+ *                       WAIT_GCP_REQ
+ *                       ----------------------------------->
+ *
+ *                       ..... wait for highest GCI to complete
+ *
+ *                       WAIT_GCP_CONF
+ *                       <----------------------------------
+ *                       SUB_REMOVE_REQ
+ *                       ------------->
+ *                       SUB_REMOVE_CONF
+ *                       <-------------
+ *                       UTIL_RELEASE_REQ
+ *                       ------------------------>
+ *                       UTIL_RELEASE_CONF
+ *                       <------------------------
+ * COPY_DATA_IMPL_CONF
+ * <---------------------
+ *
+ * As can be seen the TRIX block is working with SUMA and DBUTIL to set up
+ * the copy phase. The DBUTIL block is the block that performs the actual
+ * read of the old fragments (through scans) and then copies the data to
+ * the new fragments using write operations (key operations). Trix isn't
+ * doing any real work, it is merely acting as a coordinator of the work
+ * done.
+ *
+ * DBUTIL needs to set up generic data structures to enable receiving rows
+ * from any table and pass them onto to be written from DBTC. There is fair
+ * amount of code to do this, but it is straightforward code that doesn't
+ * have much interaction issues, it is a fairly pure data structure problem.
+ *
+ * These data structures are released in UTIL_RELEASE_REQ.
+ *
+ * SUMA also reads the table metadata through the GET_TABINFO interface to
+ * DICT, this is however only needed to read the number of attributes and
+ * table version and verifying that the table exists.
+ *
+ * TRIX uses similar interfaces also to build indexes, create foreign keys
+ * other basic operations. For COPY_DATA_IMPL_REQ TRIX receives the number
+ * of real fragments from DBDICT. SUB_SYNC_REQ contains fragId == ZNIL which
+ * means sync all fragments.
+ *
+ * Actually the copy phase is an exact replica of the also mentioned delete
+ * phase. So when reorganising the data one first calls this functionality
+ * using a few important flags. The first phase uses the flag REORG_COPY.
+ * The second phase uses the flag called REORG_DELETE.
+ *
+ * COPY_DATA_IMPL_REQ always set the RF_WAIT_GCP, this means that when
+ * TRIX receives SUB_SYNC_CONF we will wait for a GCP to complete to ensure
+ * that the copy transactions are stable on disk through the REDO log.
+ *
+ * The SCAN_FRAGREQ uses TUP order if disk attributes in table. It always
+ * scans using exclusive locks. This means that we will temporarily lock
+ * each row when performing copy phase for the row, there should be no
+ * risk of deadlocks due to this since only one row lock is required. So
+ * deadlock cycles can form due to this. We use parallelism 16 in the
+ * scanning.
+ *
+ * For each row we receive we get a TRANSID_AI with the attribute information
+ * and KEYINFO20 with the keyinformation. Based on this information we create
+ * a SUB_TABLE_DATA signal and pass this to TRIX for execution by DBUTIL.
+ * We send it to DBUTIL in a UTIL_EXECUTE_REQ signal referring to the prepared
+ * transaction in DBUTIL. Each row is executed as a separate Scan Take Over
+ * transaction. When the transaction is completed we get a UTIL_EXECUTE_CONF
+ * response back. We record the GCI used to ensure we know the highest GCI
+ * used as part of the Copy phase.
+ *
+ * The TCKEYREQ sent to DBTC is a Write operation and thus will either
+ * overwrite the row or it will insert if it doesn't exist.
+ *
+ * There is a lot of logic in DBTC, DBLQH and DBTUP which is used to control
+ * the upates on various fragments. During Copy phase and Delete phase all
+ * fragments have a new reorg trigger installed. This trigger is fired for
+ * all normal writes on tuples that are currently moving, nothing happens
+ * for tuples that aren't moving. The trigger fires for moving tuples in
+ * the old fragments and also in the new fragments when these are set to
+ * online as having all data. In this phase we will make the new fragments
+ * readable and also becomes the primary fragment for the tuples and in this
+ * phase we still need to maintain the data in the old fragments until we
+ * have completed the scans on those.
+ *
+ * This trigger will thus only fire during the time when we have two hash
+ * maps here in DBDIH. As soon as we set the new hash map to RNIL the
+ * reorg trigger won't fire anymore for writes going through this DIH.
+ *
+ * The copy phase and delete phase both sets the reorg flag in TCKEYREQ.
+ * For the copy phase this means that the copy is only performed for
+ * rows that are moving, for rows that aren't moving the action is
+ * immediately completed. For moving rows the write is performed and will
+ * either result in the row being inserted or the row being overwritten
+ * with the same value (this will happen if an insert reorg trigger
+ * inserted the row already).
+ *
+ * During the delete phase a delete action will be performed towards the
+ * new hash map (which is actually now the old hash map since we have
+ * switched to the new hash map as the original one and the old one is
+ * the new one. This means that the delete will be performed only on
+ * the old fragment and thus removing a row that has already completed
+ * its move.
+ *
+ * When a reorg trigger is fired we only need to write the other fragment
+ * with the same data as we did in the first fragment. However we have to
+ * take into account that the fragments might have been swapped since
+ * the original operation was here and when we come here to handle the
+ * fired trigger. So the user of this interface have to verify that the
+ * fragment id to update as new fragment isn't simply the same that the
+ * trigger fired from, if it is then the other fragment is the one reported
+ * as the current fragment from DIGETNODESREQ.
+ *
+ * How to handle ALTER TABLE REORG for fully replicated tables
+ * -----------------------------------------------------------
+ * First some observations. In fully replicated tables no data is moving.
+ * We only need to copy the data to the new fragments. This means that
+ * there is no need for reorg triggers. There is also no need for a
+ * delete phase since no data has moved.
+ *
+ * The reorg triggers is avoided simply by never reporting REORG_MOVING
+ * in the DIH interface. This ensures that no reorg trigger will ever
+ * fire. Avoiding the delete phase isn't strictly necessary but it is
+ * an easy optimisation and we can simply send COPY_DATA_IMPL_CONF
+ * directly from COPY_DATA_IMPL_REQ in the delete phase to avoid it.
+ *
+ * The copy phase can be handled by DBTC putting a different meaning to
+ * the reorg flag. Normall we would set SOF_REORG_COPY to ensure that
+ * we only write the new fragment for those copy rows. Here we want to
+ * perform an update that uses the fully replicated triggers to ensure
+ * that all copy fragments are updated. One simple manner to do this is
+ * to simply perform the update and let the fully replicated trigger
+ * update all other copy fragments. However this means that we are
+ * performing lots of unncessary writes.
+ *
+ * A very simple optimisation is to instead perform the write on the
+ * first new copy fragment. In this case the trigger will fire and
+ * since the initial fragment is the first new fragment and the
+ * iterator only goes towards higher fragment ids, thus we thus
+ * ensures that we won't write the old fragment that already has the
+ * correct data. So this write becomes a perfectly normal update on
+ * fully replicated table except that it uses a triggered operation
+ * on a copy fragment which is normally not done. But triggers are
+ * installed on also the copy fragments, so this is ok.
+ *
+ * This simple optimisation requires a new flag sent in the DIH
+ * interface since DIH needs to be told to return the first
+ * new fragment rather than the main fragment.
+ *
+ * More details about ALTER TABLE REORG
+ * ------------------------------------
+ * DBTUP has a bit in each tuple header called REORG_MOVE. This bit is set on
+ * the first time that an update/delete/insert happens on the row after
+ * calling make_new_table_writeable. After make_new_table_writeable has been
+ * called we will set DiGetNodesConf::REORG_MOVING for rows that are to be
+ * moved. So the first such a row has a write of it, this flag will be set
+ * and also the reorg trigger will fire and send the update to the new
+ * fragment. However the copy phase will copy this row even if this bit is
+ * set since the bit can be set also by a transaction that is later aborted.
+ * So there is no safe way of ensuring that a user transaction has actually
+ * transferred this row. So when SUMA performs the scan in the copy phase it
+ * will be a normal scan seeing all rows.
+ *
+ * When we have completed the copy phase and entered the delete phase then
+ * we have set the m_scan_reorg_flag on the table and this means that all
+ * transactions will have to set the flag ScanFragReq::REORG_NOT_MOVED to
+ * ensure that they don't scan moved rows in both the new and the old
+ * fragments. When all moved rows have been deleted from the old fragments
+ * then we can stop reporting this flag to starting scans.
+ *
+ * A scan that is using the REORG_NOT_MOVED is safe unless we are moving
+ * to yet another ALTER TABLE REORG of the same table very quickly. However
+ * a potential problem could exist if we have a very long-running scan
+ * and we start a new table reorg and user transactions start setting the
+ * REORG_MOVE flag again. In that case the scan will actually miss those
+ * rows. So effectively to close all possible problems we wait also for
+ * all scans to complete also after completing the REORG_DELETE phase.
+ * This ensures that we avoid this issue.
+ */
+
 /*
   3.8.1    G E T   N O D E S   R E Q U E S T
   ******************************************
@@ -13916,12 +14290,15 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   tabPtr.i = req->tableId;
   Uint32 hashValue = req->hashValue;
   Uint32 distr_key_indicator = req->distr_key_indicator;
+  Uint32 anyNode = req->anyNode;
   Uint32 scan_indicator = req->scan_indicator;
+  Uint32 get_next_fragid_indicator = req->get_next_fragid_indicator;
   Uint32 ttabFileSize = ctabFileSize;
   Uint32 fragId;
   Uint32 newFragId = RNIL;
   Uint32 nodeCount;
   Uint32 sig2;
+  Ptr<Hash2FragmentMap> ptr;
   DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
   TabRecord* regTabDesc = tabRecord;
   EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)req->jamBufferPtr;
@@ -13961,12 +14338,27 @@ loop:
   Uint32 map_ptr_i = tabPtr.p->m_map_ptr_i;
   Uint32 new_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
 
+  if (get_next_fragid_indicator != 0)
+  {
+    /**
+     * The requester is interested in getting the next copy fragment.
+     * This should only happen for Fully replicated tables atm.
+     */
+    thrjam(jambuf);
+    fragId = hashValue;
+    ndbassert((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) != 0);
+    getFragstore(tabPtr.p, fragId, fragPtr);
+    conf->fragId = fragPtr.p->nextCopyFragment;
+    conf->zero = 0;
+    goto check_exit;
+  }
   /* When distr key indicator is set, regardless
    * of distribution algorithm in use, hashValue
    * IS fragment id.
    */
   if (distr_key_indicator)
   {
+    thrjam(jambuf);
     fragId = hashValue;
     /**
      * This check isn't valid for scans, if we ever implement the possibility
@@ -13975,9 +14367,16 @@ loop:
      * is still working even if we are reading a fragId out of range. We
      * keep track of such long-running scans to ensure we know when we
      * can remove the fragments completely.
+     *
+     * For execution of fully replicated triggers we come here with anyNode=3
+     * In this case we have received the fragmentId from the code above with
+     * get_next_fragid_indicator and we should also ensure that all writes
+     * of fully replicated triggers also go to the new fragments.
+     * 
      */
     if (unlikely((!scan_indicator) &&
-                 fragId >= tabPtr.p->totalfragments))
+                 fragId >= tabPtr.p->totalfragments &&
+                 anyNode != 3))
     {
       thrjam(jambuf);
       conf->zero= 1; //Indicate error;
@@ -13987,20 +14386,50 @@ loop:
   }
   else if (tabPtr.p->method == TabRecord::HASH_MAP)
   {
-    thrjam(jambuf);
-    Ptr<Hash2FragmentMap> ptr;
-    g_hash_map.getPtr(ptr, map_ptr_i);
-    fragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
-
-    if (unlikely(new_map_ptr_i != RNIL))
+    if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) == 0)
     {
       thrjam(jambuf);
-      g_hash_map.getPtr(ptr, new_map_ptr_i);
-      newFragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
-      if (newFragId == fragId)
+      g_hash_map.getPtr(ptr, map_ptr_i);
+      fragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
+
+      if (unlikely(new_map_ptr_i != RNIL))
       {
         thrjam(jambuf);
-        newFragId = RNIL;
+        g_hash_map.getPtr(ptr, new_map_ptr_i);
+        newFragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
+        if (newFragId == fragId)
+        {
+          thrjam(jambuf);
+          newFragId = RNIL;
+        }
+      }
+    }
+    else
+    {
+      /**
+       * Fully replicated table. There are 3 cases:
+       * anyNode == 0
+       *   This is a normal read or write. We want the main fragment.
+       * anyNode == 1
+       *   This is a committed read. We want any fragment which is readable.
+       * anyNode == 2
+       *   This is a write from the copy phase of ALTER TABLE REORG
+       *   We want the first new fragment.
+       */
+      thrjam(jambuf);
+      g_hash_map.getPtr(ptr, map_ptr_i);
+      fragId = ptr.p->m_map[hashValue % tabPtr.p->realFragmentCount];
+      if (anyNode == 2)
+      {
+        thrjam(jambuf);
+        fragId = findFirstNewFragment(tabPtr.p, fragPtr, fragId, jambuf);
+        if (fragId == RNIL)
+        {
+          conf->zero = 0;
+          conf->fragId = fragId;
+          conf->nodes[0] = 0;
+          goto check_exit;
+        }
       }
     }
   }
@@ -14016,7 +14445,7 @@ loop:
   else if (tabPtr.p->method == TabRecord::NORMAL_HASH)
   {
     thrjam(jambuf);
-    fragId= hashValue % tabPtr.p->totalfragments;
+    fragId= hashValue % tabPtr.p->realFragmentCount;
   }
   else
   {
@@ -14045,6 +14474,19 @@ loop:
     return;
   }
   getFragstore(tabPtr.p, fragId, fragPtr);
+  if (anyNode == 1)
+  {
+    thrjam(jambuf);
+
+    /* anyNode is currently only useful for fully replicated tables */
+    ndbassert((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) != 0);
+
+    /**
+     * search fragments to see if local fragment can be found
+     *
+     */
+    fragId = findLocalFragment(tabPtr.p, fragPtr, jambuf);
+  }
   nodeCount = extractNodeInfo(jambuf, fragPtr.p, conf->nodes);
   sig2 = (nodeCount - 1) + 
     (fragPtr.p->distributionKey << 16) + 
@@ -14067,6 +14509,7 @@ loop:
       (dihGetInstanceKey(fragPtr) << 24);
   }
 
+check_exit:
   if (unlikely(!tabPtr.p->m_lock.read_unlock(tab_val)))
     goto loop;
   if (unlikely(!m_node_view_lock.read_unlock(node_val)))
@@ -14082,6 +14525,114 @@ error:
   return;
 
 }//Dbdih::execDIGETNODESREQ()
+
+void
+Dbdih::make_node_usable(NodeRecord *nodePtr)
+{
+  /**
+   * Called when a node is ready to be used in transactions.
+   * This means that the node needs to participate in writes,
+   * it isn't necessarily ready for reads yet.
+   */
+  m_node_view_lock.write_lock();
+  nodePtr->useInTransactions = true;
+  m_node_view_lock.write_unlock();
+}
+
+void
+Dbdih::make_node_not_usable(NodeRecord *nodePtr)
+{
+  /**
+   * Node is no longer to be used in neither read nor
+   * writes. The node is dead.
+   */
+  m_node_view_lock.write_lock();
+  nodePtr->useInTransactions = false;
+  m_node_view_lock.write_unlock();
+}
+
+Uint32
+Dbdih::findFirstNewFragment(const  TabRecord * tabPtrP,
+                            FragmentstorePtr & fragPtr,
+                            Uint32 fragId,
+                            EmulatedJamBuffer *jambuf)
+{
+  /**
+   * Used by fully replicated tables to find the first new fragment
+   * to copy data to during the copy phase.
+   */
+  do
+  {
+    getFragstore(tabPtrP, fragId, fragPtr);
+    if (fragPtr.p->fragId >= tabPtrP->totalfragments)
+    {
+      /* Found first new fragment */
+      break;
+    }
+    fragId = fragPtr.p->nextCopyFragment;
+    if (fragId == RNIL)
+      return fragId;
+  } while (1);
+  return fragPtr.p->fragId;
+}
+
+Uint32
+Dbdih::findLocalFragment(const  TabRecord * tabPtrP,
+                         FragmentstorePtr & fragPtr,
+                         EmulatedJamBuffer *jambuf)
+{
+  /**
+   * We have found the main fragment, but we want to use any of the copy
+   * fragments, so we search forward in the list of copy fragments until we
+   * find a fragment that has a replica on our node. In rare cases (after
+   * adding a node group and not yet reorganised all tables and performing
+   * this on one of the new nodes in these new node groups, it could occur).
+   *
+   * Start searching the main fragment and then proceeding
+   * forward until no more exists.
+   */
+  Uint32 fragId = fragPtr.p->fragId;
+  do
+  {
+    thrjam(jambuf);
+    if (check_if_local_fragment(jambuf, fragPtr.p))
+    {
+      thrjam(jambuf);
+      return fragId;
+    }
+    /* Step to next copy fragment. */
+    fragId = fragPtr.p->nextCopyFragment;
+    if (fragId == RNIL || fragId > tabPtrP->totalfragments)
+    {
+      thrjam(jambuf);
+      break;
+    }
+    getFragstore(tabPtrP, fragId, fragPtr);
+  } while (1);
+  /**
+   * When no local fragment was found, simply use the last
+   * copy fragment found, in this manner we avoid using
+   * the main fragment during table reorg, this node group
+   * has much to do in this phase.
+   */
+  return fragPtr.p->fragId;
+}
+
+bool
+Dbdih::check_if_local_fragment(EmulatedJamBuffer *jambuf,
+                               const Fragmentstore *fragPtr)
+{
+  for (Uint32 i = 0; i < fragPtr->fragReplicas; i++)
+  {
+    thrjam(jambuf);
+    if (fragPtr->activeNodes[i] == getOwnNodeId())
+    {
+      thrjam(jambuf);
+      return true;
+    }
+  }
+  return false;
+}
 
 Uint32 Dbdih::extractNodeInfo(EmulatedJamBuffer *jambuf,
                               const Fragmentstore * fragPtr,
@@ -14105,8 +14656,537 @@ Uint32 Dbdih::extractNodeInfo(EmulatedJamBuffer *jambuf,
   return nodeCount;
 }//Dbdih::extractNodeInfo()
 
+#define DIH_TAB_WRITE_LOCK(tabPtrP) \
+  do { assertOwnThread(); tabPtrP->m_lock.write_lock(); } while (0)
+
+#define DIH_TAB_WRITE_UNLOCK(tabPtrP) \
+  do { assertOwnThread(); tabPtrP->m_lock.write_unlock(); } while (0)
+
+void
+Dbdih::start_scan_on_table(TabRecordPtr tabPtr,
+                           Signal *signal,
+                           Uint32 schemaTransId,
+                           EmulatedJamBuffer *jambuf)
+{
+  /**
+   * This method is called from start of scans in TC threads. We need to
+   * protect against calls from multiple threads. The state and the
+   * m_scan_count is protected by the mutex.
+   *
+   * To avoid having to protect this code with both mutex and RCU code
+   * we ensure that the mutex is also held anytime we update the
+   * m_map_ptr_i, totalfragments, noOfBackups, m_scan_reorg_flag
+   * and realFragmentCount.
+   */
+  NdbMutex_Lock(&tabPtr.p->theMutex);
+
+  if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
+  {
+    if (! (tabPtr.p->tabStatus == TabRecord::TS_CREATING &&
+           tabPtr.p->schemaTransId == schemaTransId))
+    {
+      thrjam(jambuf);
+      goto error;
+    }
+  }
+
+  tabPtr.p->m_scan_count[0]++;
+  ndbrequire(tabPtr.p->m_map_ptr_i != DihScanTabConf::InvalidCookie);
+  {
+    DihScanTabConf* conf = (DihScanTabConf*)signal->getDataPtrSend();
+    conf->tableId = tabPtr.i;
+    conf->senderData = 0; /* 0 indicates success */
+    /**
+     * For Fully replicated tables the totalfragments means the total
+     * number of fragments including the copy fragment. Here however
+     * we should respond with the real fragment count which is either
+     * 1 or the number of LDMs dependent on which fragment count type
+     * the table was created with.
+     *
+     * realFragmentCount works also for other tables. We always scan
+     * the real fragments when scanning all fragments and those
+     * are always the first fragments in the interface to DIH.
+     */
+    conf->fragmentCount = tabPtr.p->realFragmentCount;
+
+    conf->noOfBackups = tabPtr.p->noOfBackups;
+    conf->scanCookie = tabPtr.p->m_map_ptr_i;
+    conf->reorgFlag = tabPtr.p->m_scan_reorg_flag;
+    NdbMutex_Unlock(&tabPtr.p->theMutex);
+    return;
+  }
+
+error:
+  DihScanTabRef* ref = (DihScanTabRef*)signal->getDataPtrSend();
+  ref->tableId = tabPtr.i;
+  ref->senderData = 1; /* 1 indicates failure */
+  ref->error = DihScanTabRef::ErroneousTableState;
+  ref->tableStatus = tabPtr.p->tabStatus;
+  ref->schemaTransId = schemaTransId;
+  NdbMutex_Unlock(&tabPtr.p->theMutex);
+  return;
+}
+
+void
+Dbdih::complete_scan_on_table(TabRecordPtr tabPtr,
+                              Uint32 map_ptr_i,
+                              EmulatedJamBuffer *jambuf)
+{
+  /**
+   * This method is called from other TC threads to signal that a
+   * scan is completed. We keep track of number of outstanding scans
+   * in two variables for old and new metadata (normally there is
+   * only new metadata, but during changes we need this to ensure
+   * that scans can continue also during schema changes).
+   */
+
+  NdbMutex_Lock(&tabPtr.p->theMutex);
+  if (map_ptr_i == tabPtr.p->m_map_ptr_i)
+  {
+    thrjam(jambuf);
+    ndbassert(tabPtr.p->m_scan_count[0]);
+    tabPtr.p->m_scan_count[0]--;
+  }
+  else
+  {
+    thrjam(jambuf);
+    ndbassert(tabPtr.p->m_scan_count[1]);
+    tabPtr.p->m_scan_count[1]--;
+  }
+  NdbMutex_Unlock(&tabPtr.p->theMutex);
+}
+
+bool
+Dbdih::prepare_add_table(TabRecordPtr tabPtr,
+                         ConnectRecordPtr connectPtr,
+                         Signal *signal)
+{
+  DiAddTabReq * const req = (DiAddTabReq*)signal->getDataPtr();
+  D("prepare_add_table tableId = " << tabPtr.i << " primaryTableId: " <<
+    req->primaryTableId);
+
+  NdbMutex_Lock(&tabPtr.p->theMutex);
+  tabPtr.p->connectrec = connectPtr.i;
+  tabPtr.p->tableType = req->tableType;
+  tabPtr.p->schemaVersion = req->schemaVersion;
+  tabPtr.p->primaryTableId = req->primaryTableId;
+  tabPtr.p->schemaTransId = req->schemaTransId;
+  tabPtr.p->m_scan_count[0] = 0;
+  tabPtr.p->m_scan_count[1] = 0;
+  tabPtr.p->m_scan_reorg_flag = 0;
+  tabPtr.p->m_flags = 0;
+
+  if (req->fullyReplicated)
+  {
+    jam();
+    tabPtr.p->m_flags |= TabRecord::TF_FULLY_REPLICATED;
+    tabPtr.p->realFragmentCount = req->realFragmentCount;
+    D("fully replicated, realFragmentCount = " <<
+      tabPtr.p->realFragmentCount);
+  }
+  else if (req->primaryTableId != RNIL)
+  {
+    jam();
+    TabRecordPtr primTabPtr;
+    primTabPtr.i = req->primaryTableId;
+    ptrCheckGuard(primTabPtr, ctabFileSize, tabRecord);
+    tabPtr.p->m_flags |= (primTabPtr.p->m_flags&TabRecord::TF_FULLY_REPLICATED);
+    tabPtr.p->realFragmentCount = primTabPtr.p->realFragmentCount;
+    D("Non-primary, m_flags: " << tabPtr.p->m_flags <<
+      " realFragmentCount: " << tabPtr.p->realFragmentCount);
+  }
+  else
+  {
+    jam();
+    tabPtr.p->realFragmentCount = req->realFragmentCount;
+  }
+
+  if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE)
+  {
+    /**
+     * This is the only code segment in DBDIH where we can change tabStatus
+     * while DBTC also has access to the table. It can conflict with the
+     * call to execDIH_SCAN_TAB_REQ from DBTC. So we need to protect this
+     * particular segment of the this call.
+     */
+    jam();
+    tabPtr.p->tabStatus = TabRecord::TS_CREATING;
+    NdbMutex_Unlock(&tabPtr.p->theMutex);
+    connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
+    sendAddFragreq(signal, connectPtr, tabPtr, 0, false);
+    return true;
+  }
+  NdbMutex_Unlock(&tabPtr.p->theMutex);
+  return false;
+}
+
+void
+Dbdih::commit_new_table(TabRecordPtr tabPtr)
+{
+  /**
+   * Normally this signal arrives as part of CREATE TABLE and then
+   * DBTC haven't been informed of the table being available yet
+   * and no protection is needed. It is however also used for
+   * Table reorganisation and in that case the table is fully
+   * available to DBTC and we need to protect the change here
+   * to ensure that DIH_SCAN_TAB_REQ sees a correct view of
+   * these variables.
+   */
+  D("commit_new_table: tableId = " << tabPtr.i);
+  NdbMutex_Lock(&tabPtr.p->theMutex);
+  tabPtr.p->tabStatus = TabRecord::TS_ACTIVE;
+  tabPtr.p->schemaTransId = 0;
+  NdbMutex_Unlock(&tabPtr.p->theMutex);
+}
+
+/**
+ * start_add_fragments_in_new_table is called during prepare phase of
+ * an ALTER TABLE reorg. It sets up new data structures for the new
+ * fragments and starts up the calling of those to actually create
+ * the new fragments. The only reason this method is protected is
+ * because it touches some of the data structures used to get table
+ * distribution.
+ */
+void
+Dbdih::start_add_fragments_in_new_table(TabRecordPtr tabPtr,
+                                        ConnectRecordPtr connectPtr,
+                                        const Uint16 buf[],
+                                        Signal *signal)
+{
+  /**
+   * We need to protect these changes to the node and fragment view of
+   * the table since DBTC can see the table through these changes
+   * and thus both the mutex and the RCU mechanism is required here to
+   * ensure that DBTC sees a consistent view of the data.
+   */
+  D("start_add_fragments_in_new_table: tableId = " << tabPtr.i);
+  Uint32 err;
+  NdbMutex_Lock(&tabPtr.p->theMutex);
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
+
+  Uint32 save = tabPtr.p->totalfragments;
+  if ((err = add_fragments_to_table(tabPtr, buf)))
+  {
+    jam();
+    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+    NdbMutex_Unlock(&tabPtr.p->theMutex);
+    ndbrequire(tabPtr.p->totalfragments == save);
+    ndbrequire(connectPtr.p->m_alter.m_org_totalfragments == save);
+    send_alter_tab_ref(signal, tabPtr, connectPtr, err);
+
+    ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+    tabPtr.p->connectrec = RNIL;
+    release_connect(connectPtr);
+    return;
+  }
+
+  tabPtr.p->tabCopyStatus = TabRecord::CS_ALTER_TABLE;
+  connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
+  if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) == 0)
+  {
+    jam();
+    connectPtr.p->m_alter.m_realFragmentCount = tabPtr.p->totalfragments;
+  }
+  /* Don't make the new fragments available just yet. */
+  tabPtr.p->totalfragments = save;
+  NdbMutex_Unlock(&tabPtr.p->theMutex);
+
+  sendAddFragreq(signal,
+                 connectPtr,
+                 tabPtr,
+                 connectPtr.p->m_alter.m_org_totalfragments,
+                 true);
+
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+  return;
+}
+
+/**
+ * make_new_table_writeable starts off the copy phase. From here on the
+ * copy triggers for reorg is activated. The new hash map is installed.
+ * The new copy fragments are installed for fully replicated tables to
+ * ensure that they are replicated to during each update of rows in the
+ * fully replicated table.
+ *
+ * The new fragments are still not readable, they are only writeable. This
+ * is secured by not changing totalfragments.
+ */
+void
+Dbdih::make_new_table_writeable(TabRecordPtr tabPtr,
+                                ConnectRecordPtr connectPtr,
+                                bool rcu_lock_held)
+{
+  D("make_new_table_writeable: tableId = " << tabPtr.i);
+  if (!rcu_lock_held)
+  {
+    jam();
+    DIH_TAB_WRITE_LOCK(tabPtr.p);
+  }
+  /**
+   * At this point the new table fragments must be updated at proper times.
+   * For tables without full replication this simply means setting the
+   * value of the new_map_ptr_i referring to the new hash map. This hash
+   * map will be used to point to new fragments for some rows.
+   *
+   * For fully replicated tables we must insert the new fragments into
+   * list of copy fragments. These will still not be seen by readers
+   * since we never return a fragment id larger than the totalfragments
+   * variable.
+   */
+  if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) != 0 &&
+       tabPtr.p->totalfragments <
+       connectPtr.p->m_alter.m_totalfragments)
+  {
+    for (Uint32 i = tabPtr.p->totalfragments;
+         i < connectPtr.p->m_alter.m_totalfragments;
+         i++)
+    {
+      jam();
+      FragmentstorePtr fragPtr;
+      getFragstore(tabPtr.p, i, fragPtr);
+      insertCopyFragmentList(tabPtr.p, fragPtr.p, i);
+    }
+  }
+  mb();
+  tabPtr.p->m_new_map_ptr_i = connectPtr.p->m_alter.m_new_map_ptr_i;
+  if (!rcu_lock_held)
+  {
+    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+    jam();
+  }
+}
+
+/**
+ * make_new_table_read_and_writeable
+ * ---------------------------------
+ * Here we need to protect both using the table mutex and the RCU
+ * mechanism. We want DIH_SCAN_TAB_REQ to see a correct combination
+ * of those variables as protected by the mutex and we want
+ * DIGETNODESREQ to see a protected and consistent view of its variables.
+ *
+ * At this point for an ALTER TABLE reorg we have completed copying the
+ * data, so the new table distribution is completely ok to use. We thus
+ * change the totalfragments to make the new fragments available for
+ * both read and write.
+ * We swap in the new hash map (so far only hash-map tables have support
+ * for on-line table reorg), the old still exists for a while more.
+ *
+ * At this point we need to start waiting for old scans using the old
+ * number of fragments to complete.
+*/
+void
+Dbdih::make_new_table_read_and_writeable(TabRecordPtr tabPtr,
+                                         ConnectRecordPtr connectPtr,
+                                         Signal *signal)
+{
+  jam();
+  D("make_new_table_read_and_writeable tableId: " << tabPtr.i);
+  NdbMutex_Lock(&tabPtr.p->theMutex);
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
+  tabPtr.p->totalfragments = connectPtr.p->m_alter.m_totalfragments;
+  tabPtr.p->realFragmentCount = connectPtr.p->m_alter.m_realFragmentCount;
+  if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
+  {
+    jam();
+    Uint32 save = tabPtr.p->m_map_ptr_i;
+    tabPtr.p->m_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
+    tabPtr.p->m_new_map_ptr_i = save;
+
+    for (Uint32 i = 0; i<tabPtr.p->totalfragments; i++)
+    {
+      jam();
+      FragmentstorePtr fragPtr;
+      getFragstore(tabPtr.p, i, fragPtr);
+      fragPtr.p->distributionKey = (fragPtr.p->distributionKey + 1) & 0xFF;
+    }
+    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+
+    /* These variables are only protected by mutex. */
+    ndbassert(tabPtr.p->m_scan_count[1] == 0);
+    tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
+    tabPtr.p->m_scan_count[0] = 0;
+    tabPtr.p->m_scan_reorg_flag = 1;
+    NdbMutex_Unlock(&tabPtr.p->theMutex);
+
+    send_alter_tab_conf(signal, connectPtr);
+    return;
+  }
+
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+  NdbMutex_Unlock(&tabPtr.p->theMutex);
+  send_alter_tab_conf(signal, connectPtr);
+  ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+  tabPtr.p->connectrec = RNIL;
+  release_connect(connectPtr);
+}
+
+/**
+ * We need to ensure that all scans after this signal sees
+ * the new m_scan_reorg_flag to ensure that we don't have
+ * races where scans use this flag in an incorrect manner.
+ * It is protected by mutex, so requires a mutex protecting
+ * it, m_new_map_ptr_i is only protected by the RCU mechanism
+ * and not by the mutex.
+ *
+ * At this point the ALTER TABLE is completed and any old scans
+ * using the old table distribution is completed and we can
+ * drop the old hash map.
+ */
+bool
+Dbdih::make_old_table_non_writeable(TabRecordPtr tabPtr,
+                                    ConnectRecordPtr connectPtr)
+{
+  bool wait_flag = false;
+  D("make_old_table_non_writeable: tableId = " << tabPtr.i);
+  NdbMutex_Lock(&tabPtr.p->theMutex);
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
+  tabPtr.p->m_new_map_ptr_i = RNIL;
+  tabPtr.p->m_scan_reorg_flag = 0;
+  if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
+  {
+    /**
+     * To ensure that we don't have any outstanding scans with
+     * REORG_NOT_MOVED flag set we also start waiting for those
+     * scans to complete here.
+     */
+    ndbassert(tabPtr.p->m_scan_count[1] == 0);
+    tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
+    tabPtr.p->m_scan_count[0] = 0;
+    wait_flag = true;
+  }
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+  NdbMutex_Unlock(&tabPtr.p->theMutex);
+
+  ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+  tabPtr.p->connectrec = RNIL;
+  release_connect(connectPtr);
+  return wait_flag;
+}
+
+/**
+ * During node recovery a replica is first installed as
+ * a new writeable replica. Then when committing this
+ * the fragment replica is also readable.
+ */
+void
+Dbdih::make_table_use_new_replica(TabRecordPtr tabPtr,
+                                  FragmentstorePtr fragPtr,
+                                  ReplicaRecordPtr replicaPtr,
+                                  Uint32 replicaType,
+                                  Uint32 destNodeId)
+{
+  D("make_table_use_new_replica: tableId: " << tabPtr.i <<
+    " fragId = " << fragPtr.p->fragId <<
+    " replicaType = " << replicaType <<
+    " destNodeId = " << destNodeId);
+
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
+  switch (replicaType) {
+  case UpdateFragStateReq::STORED:
+    jam();
+    CRASH_INSERTION(7138);
+    /* ----------------------------------------------------------------------*/
+    /*  HERE WE ARE INSERTING THE NEW BACKUP NODE IN THE EXECUTION OF ALL    */
+    /*  OPERATIONS. FROM HERE ON ALL OPERATIONS ON THIS FRAGMENT WILL INCLUDE*/
+    /*  USE OF THE NEW REPLICA.                                              */
+    /* --------------------------------------------------------------------- */
+    insertBackup(fragPtr, destNodeId);
+    
+    fragPtr.p->distributionKey++;
+    fragPtr.p->distributionKey &= 255;
+    break;
+  case UpdateFragStateReq::COMMIT_STORED:
+    jam();
+    CRASH_INSERTION(7139);
+    /* ----------------------------------------------------------------------*/
+    /*  HERE WE ARE MOVING THE REPLICA TO THE STORED SECTION SINCE IT IS NOW */
+    /*  FULLY LOADED WITH ALL DATA NEEDED.                                   */
+    // We also update the order of the replicas here so that if the new 
+    // replica is the desired primary we insert it as primary.
+    /* ----------------------------------------------------------------------*/
+    removeOldStoredReplica(fragPtr, replicaPtr);
+    linkStoredReplica(fragPtr, replicaPtr);
+    updateNodeInfo(fragPtr);
+    break;
+  case UpdateFragStateReq::START_LOGGING:
+    jam();
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }//switch
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+}
+
+/**
+ * Switch in the new primary replica. This is used to ensure that
+ * the primary replicas are balanced over all nodes.
+ */
+void
+Dbdih::make_table_use_new_node_order(TabRecordPtr tabPtr,
+                                     FragmentstorePtr fragPtr,
+                                     Uint32 numReplicas,
+                                     Uint32 *newNodeOrder)
+{
+  D("make_table_use_new_node_order: tableId = " << tabPtr.i <<
+    " fragId = " << fragPtr.p->fragId);
+
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
+  for (Uint32 i = 0; i < numReplicas; i++)
+  {
+    jam();
+    ndbrequire(i < MAX_REPLICAS);
+    fragPtr.p->activeNodes[i] = newNodeOrder[i];
+  }//for
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+}
+
+/**
+ * Remove new hash map during rollback of ALTER TABLE REORG.
+ */
+void
+Dbdih::make_new_table_non_writeable(TabRecordPtr tabPtr)
+{
+  D("make_new_table_non_writeable: tableId = " << tabPtr.i);
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
+  tabPtr.p->m_new_map_ptr_i = RNIL;
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+}
+
+/**
+ * Drop fragments as part of rollback of ALTER TABLE REORG.
+ */
+void
+Dbdih::drop_fragments_from_new_table_view(TabRecordPtr tabPtr,
+                                          ConnectRecordPtr connectPtr)
+{
+  D("drop_fragments_from_new_table_view: tableId = " << tabPtr.i);
+  Uint32 new_frags = connectPtr.p->m_alter.m_totalfragments;
+  Uint32 org_frags = connectPtr.p->m_alter.m_org_totalfragments;
+
+  /**
+   * We need to manipulate the table distribution and we want to ensure
+   * DBTC sees a consistent view of these changes. We affect both data
+   * used by DIGETNODES and DIH_SCAN_TAB_REQ, so both mutex and RCU lock
+   * need to be held.
+   */
+  NdbMutex_Lock(&tabPtr.p->theMutex);
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
+
+  tabPtr.p->totalfragments = new_frags;
+  for (Uint32 i = new_frags - 1; i >= org_frags; i--)
+  {
+    jam();
+    release_fragment_from_table(tabPtr, i);
+  }
+  NdbMutex_Unlock(&tabPtr.p->theMutex);
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+  connectPtr.p->m_alter.m_totalfragments = org_frags;
+  D("5: totalfragments = " << org_frags);
+}
+
 void 
-Dbdih::getFragstore(TabRecord * tab,        //In parameter
+Dbdih::getFragstore(const TabRecord * tab,      //In parameter
                     Uint32 fragNo,              //In parameter
                     FragmentstorePtr & fragptr) //Out parameter
 {
@@ -14125,6 +15205,11 @@ Dbdih::getFragstore(TabRecord * tab,        //In parameter
 }//Dbdih::getFragstore()
 
 /**
+ * End of TRANSACTION MODULE
+ * -------------------------
+ */
+
+/**
  * When this is called DBTC isn't made aware of the table just yet, so no
  * need to protect anything here from DBTC's view.
  */
@@ -14133,6 +15218,7 @@ void Dbdih::allocFragments(Uint32 noOfFragments, TabRecordPtr tabPtr)
   FragmentstorePtr fragPtr;
   Uint32 noOfChunks = (noOfFragments + (NO_OF_FRAGS_PER_CHUNK - 1)) >> LOG_NO_OF_FRAGS_PER_CHUNK;
   ndbrequire(cremainingfrags >= noOfFragments);
+  Uint32 fragId = 0;
   for (Uint32 i = 0; i < noOfChunks; i++) {
     jam();
     Uint32 baseFrag = cfirstfragstore;
@@ -14146,7 +15232,8 @@ void Dbdih::allocFragments(Uint32 noOfFragments, TabRecordPtr tabPtr)
       jam();
       fragPtr.i = baseFrag + j;
       ptrCheckGuard(fragPtr, cfragstoreFileSize, fragmentstore);
-      initFragstore(fragPtr);
+      initFragstore(fragPtr, fragId);
+      fragId++;
     }//if
   }//for
   tabPtr.p->noOfFragChunks = noOfChunks;
@@ -14181,7 +15268,7 @@ void Dbdih::initialiseFragstore()
   for (i = 0; i < cfragstoreFileSize; i++) {
     fragPtr.i = i;
     ptrCheckGuard(fragPtr, cfragstoreFileSize, fragmentstore);
-    initFragstore(fragPtr);
+    initFragstore(fragPtr, 0);
   }//for
   Uint32 noOfChunks = cfragstoreFileSize >> LOG_NO_OF_FRAGS_PER_CHUNK;
   fragPtr.i = 0;
@@ -14318,96 +15405,31 @@ loop:
 void Dbdih::execDIH_SCAN_TAB_REQ(Signal* signal)
 {
   DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtr();
-  TabRecordPtr tabPtr;
-  const Uint32 schemaTransId = req->schemaTransId;
   EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)req->jamBufferPtr;
 
   thrjamEntry(jambuf);
 
+  TabRecordPtr tabPtr;
   tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
-  /**
-   * This method is called from start of scans in TC threads. We need to
-   * protect against calls from multiple threads. The state and the
-   * m_scan_count is protected by the mutex.
-   *
-   * To avoid having to protect this code with both mutex and RCU code
-   * we ensure that the mutex is also held anytime we update the
-   * m_map_ptr_i, totalfragments, noOfBackups and m_scan_reorg_flag.
-   */
-  NdbMutex_Lock(&tabPtr.p->theMutex);
-
-  if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
-  {
-    if (! (tabPtr.p->tabStatus == TabRecord::TS_CREATING &&
-           tabPtr.p->schemaTransId == schemaTransId))
-    {
-      thrjam(jambuf);
-      goto error;
-    }
-  }
-
-  tabPtr.p->m_scan_count[0]++;
-  ndbrequire(tabPtr.p->m_map_ptr_i != DihScanTabConf::InvalidCookie);
-  {
-    DihScanTabConf* conf = (DihScanTabConf*)signal->getDataPtrSend();
-    conf->tableId = tabPtr.i;
-    conf->senderData = 0; /* 0 indicates success */
-    conf->fragmentCount = tabPtr.p->totalfragments;
-    conf->noOfBackups = tabPtr.p->noOfBackups;
-    conf->scanCookie = tabPtr.p->m_map_ptr_i;
-    conf->reorgFlag = tabPtr.p->m_scan_reorg_flag;
-    NdbMutex_Unlock(&tabPtr.p->theMutex);
-    return;
-  }
+  start_scan_on_table(tabPtr, signal, req->schemaTransId, jambuf);
   return;
-
-error:
-  DihScanTabRef* ref = (DihScanTabRef*)signal->getDataPtrSend();
-  ref->tableId = tabPtr.i;
-  ref->senderData = 1; /* 1 indicates failure */
-  ref->error = DihScanTabRef::ErroneousTableState;
-  ref->tableStatus = tabPtr.p->tabStatus;
-  ref->schemaTransId = schemaTransId;
-  NdbMutex_Unlock(&tabPtr.p->theMutex);
-  return;
-
 }//Dbdih::execDIH_SCAN_TAB_REQ()
 
 void
 Dbdih::execDIH_SCAN_TAB_COMPLETE_REP(Signal* signal)
 {
   DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtr();
-  TabRecordPtr tabPtr;
-  tabPtr.i = rep->tableId;
-  Uint32 map_ptr_i = rep->scanCookie;
   EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)rep->jamBufferPtr;
 
   thrjamEntry(jambuf);
-  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-  /**
-   * This method is called from other TC threads to signal that a
-   * scan is completed. We keep track of number of outstanding scans
-   * in two variables for old and new metadata (normally there is
-   * only new metadata, but during changes we need this to ensure
-   * that scans can continue also during schema changes).
-   */
 
-  NdbMutex_Lock(&tabPtr.p->theMutex);
-  if (map_ptr_i == tabPtr.p->m_map_ptr_i)
-  {
-    thrjam(jambuf);
-    ndbassert(tabPtr.p->m_scan_count[0]);
-    tabPtr.p->m_scan_count[0]--;
-  }
-  else
-  {
-    thrjam(jambuf);
-    ndbassert(tabPtr.p->m_scan_count[1]);
-    tabPtr.p->m_scan_count[1]--;
-  }
-  NdbMutex_Unlock(&tabPtr.p->theMutex);
+  TabRecordPtr tabPtr;
+  tabPtr.i = rep->tableId;
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+  complete_scan_on_table(tabPtr, rep->scanCookie, jambuf);
 }
 
 
@@ -18048,6 +19070,7 @@ void Dbdih::execCOPY_TABCONF(Signal* signal)
      * this will only result in ADD_FRAGREQ being sent.
      */
     connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
+    D("6: totalfragments = " << tabPtr.p->totalfragments);
     sendAddFragreq(signal, connectPtr, tabPtr, 0, false);
     return;
   }//if
@@ -21434,8 +22457,10 @@ void Dbdih::initCommonData()
   }
 }//Dbdih::initCommonData()
 
-void Dbdih::initFragstore(FragmentstorePtr fragPtr) 
+void Dbdih::initFragstore(FragmentstorePtr fragPtr, Uint32 fragId)
 {
+  fragPtr.p->fragId = fragId;
+  fragPtr.p->nextCopyFragment = RNIL;
   fragPtr.p->storedReplicas = RNIL;
   fragPtr.p->oldStoredReplicas = RNIL;
   fragPtr.p->m_log_part_id = RNIL; /* To ensure not used uninited */
@@ -21597,6 +22622,7 @@ void Dbdih::initTable(TabRecordPtr tabPtr)
   tabPtr.p->schemaVersion = (Uint32)-1;
   tabPtr.p->tabRemoveNode = RNIL;
   tabPtr.p->totalfragments = (Uint32)-1;
+  tabPtr.p->realFragmentCount = (Uint32)-1;
   tabPtr.p->connectrec = RNIL;
   tabPtr.p->tabFile[0] = RNIL;
   tabPtr.p->tabFile[1] = RNIL;
@@ -22230,6 +23256,20 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     jamNoBlock();
     ok = true;
     sd->output = getFragmentCount(sd->fragmentCountType, sd->extraNodeGroups);
+    break;
+  case CheckNodeGroups::GetDefaultFragmentsFullyReplicated:
+    jamNoBlock();
+    switch(sd->fragmentCountType)
+    {
+    case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+      ok = true;
+      sd->output = getFragmentsPerNode();
+      break;
+    case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+      ok = true;
+      sd->output = 1;
+      break;
+    }
     break;
   }
   ndbrequire(ok);
@@ -24733,13 +25773,10 @@ void Dbdih::execDIH_SWITCH_REPLICA_REQ(Signal* signal)
                DihSwitchReplicaRef::SignalLength, JBB);
   }//if
 
-  DIH_TAB_WRITE_LOCK(tabPtr.p);
-  for (Uint32 i = 0; i < noOfReplicas; i++) {
-    jam();
-    ndbrequire(i < MAX_REPLICAS);
-    fragPtr.p->activeNodes[i] = req->newNodeOrder[i];
-  }//for
-  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+  make_table_use_new_node_order(tabPtr,
+                                fragPtr,
+                                noOfReplicas,
+                                &req->newNodeOrder[0]);
 
   /**
    * Reply
@@ -24907,9 +25944,7 @@ void Dbdih::execSTOP_ME_REQ(Signal* signal)
     NodeRecordPtr nodePtr;
     nodePtr.i = nodeId;
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-    m_node_view_lock.write_lock();
-    nodePtr.p->useInTransactions = false;
-    m_node_view_lock.write_unlock();
+    make_node_not_usable(nodePtr.p);
   }
   if (nodeId != getOwnNodeId()) {
     jam();

@@ -125,7 +125,8 @@ public:
       HashMap = 24,
       ForeignKey = 25,
       FKParentTrigger = 26,
-      FKChildTrigger = 27
+      FKChildTrigger = 27,
+      FullyReplicatedTrigger = 28
     };
 
     /**
@@ -923,6 +924,12 @@ public:
     Uint32 getFragmentCount() const;
 
     /**
+     * Get real fragment count, no setter, is set by NDB, always
+     * equal to getFragmentCount except for fully replicated tables.
+     */
+    Uint32 getRealFragmentCount() const;
+
+    /**
      * Set fragment count using cluster agnostics defines
      */
     void setFragmentCountType(NdbDictionary::Object::FragmentCountType);
@@ -1137,6 +1144,9 @@ public:
      */
     void setExtraRowAuthorBits(Uint32);
     Uint32 getExtraRowAuthorBits() const;
+
+    void setFullyReplicated(bool val);
+    bool getFullyReplicated() const;
 #endif
 
     // these 2 are not de-doxygenated

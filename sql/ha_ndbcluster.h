@@ -364,6 +364,7 @@ enum_alter_inplace_result
                                    Alter_inplace_info *ha_alter_info);
 
 bool parse_comment_changes(NdbDictionary::Table *new_tab,
+                           const NdbDictionary::Table *old_tab,
                            HA_CREATE_INFO *create_info,
                            THD *thd,
                            bool & max_rows_changed) const;

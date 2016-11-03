@@ -21,6 +21,7 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+RealFragmentCount: 8
 FragmentCount: 8
 FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
@@ -47,6 +48,7 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+RealFragmentCount: 8
 FragmentCount: 8
 FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
@@ -73,6 +75,7 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+RealFragmentCount: 4
 FragmentCount: 4
 FragmentCountType: ONE_PER_LDM_PER_NODE_GROUP
 ExtraRowGciBits: 0
@@ -99,6 +102,7 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+RealFragmentCount: 2
 FragmentCount: 2
 FragmentCountType: ONE_PER_NODE
 ExtraRowGciBits: 0
@@ -125,6 +129,7 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+RealFragmentCount: 1
 FragmentCount: 1
 FragmentCountType: ONE_PER_NODE_GROUP
 ExtraRowGciBits: 0

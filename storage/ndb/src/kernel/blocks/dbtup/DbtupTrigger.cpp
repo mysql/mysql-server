@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,6 +76,7 @@ Dbtup::findTriggerList(Tablerec* table,
     break;
   case TriggerType::SECONDARY_INDEX:
   case TriggerType::REORG_TRIGGER:
+  case TriggerType::FULLY_REPLICATED_TRIGGER:
     switch (tevent) {
     case TriggerEvent::TE_INSERT:
       jam();
@@ -350,7 +351,8 @@ Dbtup::createTrigger(Tablerec* table,
   } tmp[3];
 
   if (ttype == TriggerType::SECONDARY_INDEX ||
-      ttype == TriggerType::REORG_TRIGGER)
+      ttype == TriggerType::REORG_TRIGGER ||
+      ttype == TriggerType::FULLY_REPLICATED_TRIGGER)
   {
     jam();
     cnt = 3;
@@ -416,7 +418,8 @@ Dbtup::createTrigger(Tablerec* table,
       tptr.p->sendBeforeValues = false;
     }
 
-    if (ttype == TriggerType::REORG_TRIGGER)
+    if (ttype == TriggerType::REORG_TRIGGER ||
+        ttype == TriggerType::FULLY_REPLICATED_TRIGGER)
     {
       jam();
       tptr.p->sendBeforeValues = false;
@@ -509,7 +512,8 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber rece
   } tmp[3];
 
   if (ttype == TriggerType::SECONDARY_INDEX ||
-      ttype == TriggerType::REORG_TRIGGER)
+      ttype == TriggerType::REORG_TRIGGER ||
+      ttype == TriggerType::FULLY_REPLICATED_TRIGGER)
   {
     jam();
     cnt = 3;
@@ -695,7 +699,8 @@ Dbtup::checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
     return;
   }
 
-  if (regOperPtr->op_struct.bit_field.primary_replica)
+  if (regOperPtr->op_struct.bit_field.m_triggers ==
+        TupKeyReq::OP_PRIMARY_REPLICA)
   {
     if (! regTablePtr->afterInsertTriggers.isEmpty())
     {
@@ -726,7 +731,8 @@ Dbtup::checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
     return;
   }
 
-  if (regOperPtr->op_struct.bit_field.primary_replica)
+  if (regOperPtr->op_struct.bit_field.m_triggers ==
+        TupKeyReq::OP_PRIMARY_REPLICA)
   {
     if (! regTablePtr->afterUpdateTriggers.isEmpty())
     {
@@ -767,7 +773,8 @@ Dbtup::checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
     return;
   }
 
-  if (regOperPtr->op_struct.bit_field.primary_replica)
+  if (regOperPtr->op_struct.bit_field.m_triggers ==
+        TupKeyReq::OP_PRIMARY_REPLICA)
   {
     if (! regTablePtr->afterDeleteTriggers.isEmpty())
     {
@@ -1171,7 +1178,8 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
   while (trigPtr.i != RNIL) {
     jam();
     if ((trigPtr.p->monitorReplicas ||
-         regOperPtr->op_struct.bit_field.primary_replica) &&
+         regOperPtr->op_struct.bit_field.m_triggers ==
+           TupKeyReq::OP_PRIMARY_REPLICA) &&
         (trigPtr.p->monitorAllAttributes ||
          trigPtr.p->attributeMask.overlaps(req_struct->changeMask))) {
       jam();
@@ -1209,6 +1217,52 @@ Dbtup::check_fire_trigger(const Fragrecord * fragPtrP,
   default:
     return true;
   }
+}
+
+bool
+Dbtup::check_fire_fully_replicated(const KeyReqStruct *req_struct,
+                                   Fragrecord::FragState state) const
+{
+  switch(state)
+  {
+    case Fragrecord::FS_ONLINE:
+    case Fragrecord::FS_REORG_COMMIT:
+    case Fragrecord::FS_REORG_COMPLETE:
+    {
+      jam();
+      /**
+       * This is the normal operations that come through the main
+       * fragment, it should not happen on non-main fragments.
+       */
+      return true;
+    }
+    case Fragrecord::FS_REORG_NEW:
+      jam();
+      /**
+       * This is the special fully replicated trigger which fires on
+       * the first new fragment in an ALTER TABLE reorg (first new
+       * fragment is always on the first new node group).
+       * This only happens in the copy phase of the ALTER TABLE reorg
+       * for fully replicated tables.
+       */
+      return true;
+      jam();
+    case Fragrecord::FS_REORG_COMMIT_NEW:
+    case Fragrecord::FS_REORG_COMPLETE_NEW:
+      jam();
+      /**
+       * Reorg scan is done, so no more triggers should fire
+       * here, we're kept up-to-date by the fully replicated
+       * trigger firing from the main fragment from here and
+       * onwards.
+       */
+      ndbrequire(false);
+      return true;
+    default:
+      break;
+  }
+  ndbrequire(false);
+  return false;
 }
 
 bool
@@ -1363,6 +1417,11 @@ out:
     if (!check_fire_reorg(req_struct, fragstatus))
       return;
   }
+  else if (unlikely(triggerType == TriggerType::FULLY_REPLICATED_TRIGGER))
+  {
+    if (!check_fire_fully_replicated(req_struct, fragstatus))
+      return;
+  }
   else if (unlikely(regFragPtr.p->fragStatus != Fragrecord::FS_ONLINE))
   {
     if (!check_fire_trigger(regFragPtr.p, trigPtr, req_struct, regOperPtr))
@@ -1417,6 +1476,7 @@ out:
   case (TriggerType::REORG_TRIGGER):
   case (TriggerType::FK_PARENT):
   case (TriggerType::FK_CHILD):
+  case (TriggerType::FULLY_REPLICATED_TRIGGER):
     jam();
     ref = req_struct->TC_ref;
     executeDirect = false;
@@ -1569,6 +1629,7 @@ out:
   fireTrigOrd->setConnectionPtr(req_struct->TC_index);
   fireTrigOrd->setTriggerId(triggerId);
   fireTrigOrd->fragId= regFragPtr.p->fragmentId;
+  fireTrigOrd->setUserRef(reference());
 
   switch(regOperPtr->op_type) {
   case(ZINSERT):
@@ -1630,6 +1691,7 @@ out:
   switch(trigPtr->triggerType) {
   case (TriggerType::SECONDARY_INDEX):
   case (TriggerType::REORG_TRIGGER):
+  case (TriggerType::FULLY_REPLICATED_TRIGGER):
   case (TriggerType::FK_PARENT):
   case (TriggerType::FK_CHILD):
     jam();
@@ -1780,7 +1842,8 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   req_struct->check_offset[DD]= regTabPtr->get_check_offset(DD);
   req_struct->attr_descr= &tableDescriptor[descr_start];
 
-  if ((regOperPtr->op_struct.bit_field.m_physical_only_op == 1) &&
+  if ((regOperPtr->op_struct.bit_field.m_triggers == 
+         TupKeyReq::OP_NO_TRIGGERS) &&
       (refToMain(trigPtr->m_receiverRef) == SUMA ||
        refToMain(trigPtr->m_receiverRef) == BACKUP))
   {
@@ -1789,15 +1852,6 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
      * ZUPDATE operation on table records, moving the varpart 
      * column-values between pages, to be storage-effective.
      */
-    Uint32 changed_attribs = 0;
-    for (Uint32 i = 0; i < regTabPtr->m_no_of_attributes; i++) {
-      jam();
-      if (req_struct->changeMask.get(i)) {
-        jam();
-        changed_attribs++;
-      }
-    }
-    ndbrequire(changed_attribs == 0);
     return false;
   }
 

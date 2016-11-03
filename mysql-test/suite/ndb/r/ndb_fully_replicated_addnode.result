@@ -1,0 +1,375 @@
+CREATE TABLE t1 (
+a char(10) NOT NULL primary key,
+b int
+) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
+insert into t1 values
+('1',1), ('2',2), ('3',3), ('4',4),
+('5',5), ('6',6), ('7',7), ('8',8);
+create temporary table counters_at_startup
+select counter_name, sum(val) as val
+from ndbinfo.counters
+group by counter_name;
+select * from t1 where a = '1';
+a	b
+1	1
+select * from t1 where a = '2';
+a	b
+2	2
+select * from t1 where a = '3';
+a	b
+3	3
+select * from t1 where a = '4';
+a	b
+4	4
+select * from t1 where a = '5';
+a	b
+5	5
+select * from t1 where a = '6';
+a	b
+6	6
+select * from t1 where a = '7';
+a	b
+7	7
+select * from t1 where a = '8';
+a	b
+8	8
+select * from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+select * from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
+a	b
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+select * from t1 where a in ('3', '4', '5', '6', '7', '8');
+a	b
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+select * from t1 where a in ('4', '5', '6', '7', '8');
+a	b
+4	4
+5	5
+6	6
+7	7
+8	8
+select * from t1 where a in ('5', '6', '7', '8');
+a	b
+5	5
+6	6
+7	7
+8	8
+select * from t1 where a in ('6', '7', '8');
+a	b
+6	6
+7	7
+8	8
+select * from t1 where a in ('7', '8');
+a	b
+7	7
+8	8
+select s1.counter_name, s2.val - s1.val as diff
+from counters_at_startup s1,
+(select counter_name, sum(val) as val
+from ndbinfo.counters
+group by counter_name) s2
+where s1.counter_name = s2.counter_name
+and ( s1.counter_name = 'LOCAL_READS' or s1.counter_name = 'READS' )
+order by 1;
+counter_name	diff
+LOCAL_READS	44
+READS	44
+drop table counters_at_startup;
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+RealFragmentCount: 4
+FragmentCount: 4
+FragmentCountType: ONE_PER_LDM_PER_NODE_GROUP
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+a Char(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Int NULL AT=FIXED ST=MEMORY DYNAMIC
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+
+Creating nodegroup
+alter table t1 algorithm=inplace, reorganize partition;
+set global ndb_data_node_neighbour = 1;
+create table c as select node_id, fragment_num, tot_frag_scans
+from `ndbinfo`.`operations_per_fragment`
+  where fq_name = 'test/def/t1';
+select count(*) from t1;
+count(*)
+8
+select distinct o.node_id
+from `ndbinfo`.`operations_per_fragment` o join c
+on o.node_id = c.node_id and o.fragment_num = c.fragment_num
+where fq_name = 'test/def/t1' and o.tot_frag_scans > c.tot_frag_scans;
+node_id
+1
+drop table c;
+set global ndb_data_node_neighbour = 2;
+create table c as select node_id, fragment_num, tot_frag_scans
+from `ndbinfo`.`operations_per_fragment`
+  where fq_name = 'test/def/t1';
+select count(*) from t1;
+count(*)
+8
+select distinct o.node_id
+from `ndbinfo`.`operations_per_fragment` o join c
+on o.node_id = c.node_id and o.fragment_num = c.fragment_num
+where fq_name = 'test/def/t1' and o.tot_frag_scans > c.tot_frag_scans;
+node_id
+2
+drop table c;
+set global ndb_data_node_neighbour = 3;
+create table c as select node_id, fragment_num, tot_frag_scans
+from `ndbinfo`.`operations_per_fragment`
+  where fq_name = 'test/def/t1';
+select * from t1 where a = 1;
+a	b
+1	1
+select distinct o.node_id
+from `ndbinfo`.`operations_per_fragment` o join c
+on o.node_id = c.node_id and o.fragment_num = c.fragment_num
+where fq_name = 'test/def/t1' and o.tot_frag_scans > c.tot_frag_scans;
+node_id
+3
+drop table c;
+set global ndb_data_node_neighbour = 4;
+create table c as select node_id, fragment_num, tot_frag_scans
+from `ndbinfo`.`operations_per_fragment`
+  where fq_name = 'test/def/t1';
+select * from t1;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+select distinct o.node_id
+from `ndbinfo`.`operations_per_fragment` o join c
+on o.node_id = c.node_id and o.fragment_num = c.fragment_num
+where fq_name = 'test/def/t1' and o.tot_frag_scans > c.tot_frag_scans;
+node_id
+4
+drop table c;
+set global ndb_data_node_neighbour = 0;
+select node_id, fragment_num, fixed_elem_count
+from `ndbinfo`.`memory_per_fragment`
+where fq_name = 'test/def/t1'
+order by node_id, fragment_num;
+node_id	fragment_num	fixed_elem_count
+1	0	2
+1	1	2
+1	2	2
+1	3	2
+2	0	2
+2	1	2
+2	2	2
+2	3	2
+3	4	2
+3	5	2
+3	6	2
+3	7	2
+4	4	2
+4	5	2
+4	6	2
+4	7	2
+create temporary table counters_at_startup
+select counter_name, sum(val) as val
+from ndbinfo.counters
+group by counter_name;
+select * from t1 where a = '1';
+a	b
+1	1
+select * from t1 where a = '2';
+a	b
+2	2
+select * from t1 where a = '3';
+a	b
+3	3
+select * from t1 where a = '4';
+a	b
+4	4
+select * from t1 where a = '5';
+a	b
+5	5
+select * from t1 where a = '6';
+a	b
+6	6
+select * from t1 where a = '7';
+a	b
+7	7
+select * from t1 where a = '8';
+a	b
+8	8
+select * from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+select * from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
+a	b
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+select * from t1 where a in ('3', '4', '5', '6', '7', '8');
+a	b
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+select * from t1 where a in ('4', '5', '6', '7', '8');
+a	b
+4	4
+5	5
+6	6
+7	7
+8	8
+select * from t1 where a in ('5', '6', '7', '8');
+a	b
+5	5
+6	6
+7	7
+8	8
+select * from t1 where a in ('6', '7', '8');
+a	b
+6	6
+7	7
+8	8
+select * from t1 where a in ('7', '8');
+a	b
+7	7
+8	8
+select s1.counter_name, s2.val - s1.val as diff
+from counters_at_startup s1,
+(select counter_name, sum(val) as val
+from ndbinfo.counters
+group by counter_name) s2
+where s1.counter_name = s2.counter_name
+and ( s1.counter_name = 'LOCAL_READS' or s1.counter_name = 'READS' )
+order by 1;
+counter_name	diff
+LOCAL_READS	43
+READS	43
+drop table counters_at_startup;
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+RealFragmentCount: 4
+FragmentCount: 8
+FragmentCountType: ONE_PER_LDM_PER_NODE_GROUP
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Char(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Int NULL AT=FIXED ST=MEMORY DYNAMIC
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+
+Creating nodegroup
+Creating nodegroup
+alter table t1 algorithm=inplace, reorganize partition;
+select node_id, fragment_num, fixed_elem_count
+from `ndbinfo`.`memory_per_fragment`
+where fq_name = 'test/def/t1'
+order by node_id, fragment_num;
+node_id	fragment_num	fixed_elem_count
+1	0	2
+1	1	2
+1	2	2
+1	3	2
+2	0	2
+2	1	2
+2	2	2
+2	3	2
+3	4	2
+3	5	2
+3	6	2
+3	7	2
+4	4	2
+4	5	2
+4	6	2
+4	7	2
+5	8	2
+5	10	2
+5	12	2
+5	14	2
+6	8	2
+6	10	2
+6	12	2
+6	14	2
+7	9	2
+7	11	2
+7	13	2
+7	15	2
+8	9	2
+8	11	2
+8	13	2
+8	15	2
+drop table t1;

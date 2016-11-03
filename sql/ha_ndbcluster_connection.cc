@@ -470,6 +470,13 @@ ndb_set_recv_thread_cpu(Uint16 *cpuid_array,
   return ret_code;
 }
 
+void
+ndb_set_data_node_neighbour(ulong data_node_neighbour)
+{
+  for (uint i= 0; i < g_pool_alloc; i++)
+    g_pool[i]->set_data_node_neighbour(data_node_neighbour);
+}
+
 void ndb_get_connection_stats(Uint64* statsArr)
 {
   Uint64 connectionStats[ Ndb::NumClientStatistics ];

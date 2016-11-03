@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ struct TriggerType {
     
     SUBSCRIPTION_BEFORE   = 9, // Only used by TUP/SUMA, should be REMOVED!!
     REORG_TRIGGER         = DictTabInfo::ReorgTrigger
+    ,FULLY_REPLICATED_TRIGGER = DictTabInfo::FullyReplicatedTrigger
   };
 };
 
@@ -161,6 +162,8 @@ struct TriggerInfo {
       return "ORDERED_INDEX";
     case TriggerType::SUBSCRIPTION_BEFORE:
       return "SUBSCRIPTION_BEFORE";
+    case TriggerType::FULLY_REPLICATED_TRIGGER:
+      return "FULLY_REPLICATED";
     }
     return "UNKNOWN";
   }

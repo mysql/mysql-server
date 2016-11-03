@@ -5092,8 +5092,10 @@ Backup::getFragmentInfo(Signal* signal,
         req->tableId = tabPtr.p->tableId;
         req->hashValue = fragNo;
         req->distr_key_indicator = ZTRUE;
+        req->anyNode = 0;
         req->scan_indicator = ZTRUE;
         req->jamBufferPtr = jamBuffer();
+        req->get_next_fragid_indicator = 0;
         EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
                        DiGetNodesReq::SignalLength, 0);
         jamEntry();

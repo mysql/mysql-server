@@ -40,6 +40,7 @@ int ndb_has_node_id(uint id);
 int ndb_set_recv_thread_activation_threshold(Uint32 threshold);
 int ndb_set_recv_thread_cpu(Uint16 *cpuid_array,
                             Uint32 cpuid_array_size);
+void ndb_set_data_node_neighbour(ulong data_node_neighbour);
 void ndb_get_connection_stats(Uint64* statsArr);
 
 /* perform random sleep in the range milli_sleep to 2*milli_sleep */

@@ -940,7 +940,7 @@ ndbd_isolate_ord(Uint32 x)
  * table and still maintaining the automatic behaviour of NDB tables.
  * Thus the real fragment number is still a function of cluster size.
  */
-#define NDBD_SUPPORT_FRAGMENT_COUNT_TYPE NDB_MAKE_VERSION(7,5,1)
+#define NDBD_SUPPORT_FRAGMENT_COUNT_TYPE NDB_MAKE_VERSION(7,5,2)
 
 static
 inline
@@ -973,7 +973,7 @@ ndbd_support_fragment_count_type(Uint32 x)
  * on these tables. It requires all data nodes to support this
  * feature to be useful.
  */
-#define NDBD_SUPPORT_READ_BACKUP NDB_MAKE_VERSION(7,5,1)
+#define NDBD_SUPPORT_READ_BACKUP NDB_MAKE_VERSION(7,5,2)
 
 static
 inline
@@ -995,6 +995,39 @@ ndbd_support_read_backup(Uint32 x)
     else if (minor == 5)
     {
       return x >= NDBD_SUPPORT_READ_BACKUP;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Support for NDB_TABLE=FULLY_REPLICATED=...
+ * This is a table property that adapts the transaction protocol
+ * on these tables. It requires all data nodes to support this
+ * feature to be useful.
+ */
+#define NDBD_SUPPORT_FULLY_REPLICATED NDB_MAKE_VERSION(7,5,2)
+
+static
+inline
+int
+ndbd_support_fully_replicated(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 5)
+    {
+      return 0;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_SUPPORT_FULLY_REPLICATED;
     }
   }
   return 1;

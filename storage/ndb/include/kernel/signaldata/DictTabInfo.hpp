@@ -159,6 +159,13 @@ public:
 
     ReadBackupFlag     = 158,
 
+    FullyReplicatedFlag= 159,
+    RealFragmentCount  = 160,
+    /**
+     * Needed for NR
+     */
+    FullyReplicatedTriggerId = 161,
+
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -232,6 +239,11 @@ public:
     FKParentTrigger = 26,
     FKChildTrigger = 27,
 
+    /**
+     * Trigger that propagates DML to all fragments
+     */
+    FullyReplicatedTrigger = 28,
+
     SchemaTransaction = 30
   };
 
@@ -286,7 +298,8 @@ public:
       tableType == IndexTrigger ||
       tableType == ReorgTrigger ||
       tableType == FKParentTrigger ||
-      tableType == FKChildTrigger;
+      tableType == FKChildTrigger ||
+      tableType == FullyReplicatedTrigger;
   }
   static inline bool
   isFilegroup(int tableType) {
@@ -406,6 +419,9 @@ public:
     Uint32 ExtraRowAuthorBits;
 
     Uint32 ReadBackupFlag;
+    Uint32 FullyReplicatedFlag;
+    Uint32 FullyReplicatedTriggerId;
+    Uint32 RealFragmentCount;
 
     Table() {}
     void init();

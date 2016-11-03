@@ -6197,9 +6197,12 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
   if (ndb_schema_share)
   {
     /* ndb_share reference binlog extra free */
-    DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
-                             ndb_apply_status_share->key_string(),
-                             ndb_apply_status_share->use_count));
+    if (ndb_apply_status_share)
+    {
+      DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
+                               ndb_apply_status_share->key_string(),
+                               ndb_apply_status_share->use_count));
+    }
     free_share(&ndb_schema_share);
     ndb_schema_share= NULL;
   }

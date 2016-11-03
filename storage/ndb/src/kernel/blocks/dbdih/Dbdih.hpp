@@ -178,6 +178,7 @@ public:
       struct {
         Uint32 m_changeMask;
         Uint32 m_totalfragments;
+        Uint32 m_realFragmentCount;
         Uint32 m_org_totalfragments;
         Uint32 m_new_map_ptr_i;
       } m_alter;
@@ -271,9 +272,6 @@ public:
   /* EACH RECORD IN MORE LIST HAS INFORMATION ABOUT ONE BACKUP. THIS RECORD */
   /* ALSO HAVE THE STATUS OF THE FRAGMENT.                                  */
   /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
-  /*                                                                        */
-  /*       FRAGMENTSTORE RECORD ALIGNED TO BE 64 BYTES                      */
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
   struct Fragmentstore {
     Uint16 activeNodes[MAX_REPLICAS];
     Uint32 preferredPrimary;
@@ -283,6 +281,13 @@ public:
     Uint32 nextFragmentChunk;
     
     Uint32 m_log_part_id;
+
+    /**
+     * Used by Fully replicated tables to find the main fragment and to
+     * find local fragments.
+     */
+    Uint32 fragId;
+    Uint32 nextCopyFragment;
     
     Uint8 distributionKey;
     Uint8 fragReplicas;
@@ -625,7 +630,7 @@ public:
    */
   struct TabRecord
   {
-    TabRecord() { }
+    TabRecord() { m_flags = 0; }
 
     /**
      * State for copying table description into pages
@@ -683,6 +688,10 @@ public:
       ST_NORMAL = 1,            // Normal table, logged and durable
       ST_TEMPORARY = 2          // Table is lost after SR, not logged
     };
+    enum TableFlags
+    {
+      TF_FULLY_REPLICATED = 1
+    };
 
     /**
      * rw-lock that protects multiple parallel DIGETNODES (readers) from
@@ -699,11 +708,17 @@ public:
     TabStatus tabStatus;
     Uint32 schemaTransId;
     Uint32 totalfragments;
+    /**
+     * realFragmentCount differs from totalfragments for fully replicated
+     * tables.
+     */
+    Uint32 realFragmentCount;
     union {
       Uint32 mask;
       Uint32 m_map_ptr_i;
     };
     Uint32 m_scan_reorg_flag;
+    Uint32 m_flags;
 
     Uint8 noOfBackups;
     Uint8 kvalue;
@@ -759,9 +774,9 @@ public:
      * metadata parts. It also protects the combination of tabStatus
      * schemaTransId checked for in execDIH_SCAN_TAB_REQ(...).
      *
-     * Given that DIH_SCAN_TAB_REQ also reads totalfragments, m_map_ptr_i,
-     * noOfBackups, m_scan_reorg_flag we protect those variables as well
-     * with this mutex. These variables are also protected by the
+     * Given that DIH_SCAN_TAB_REQ also reads totalfragments, realFragmentCount
+     * m_map_ptr_i, noOfBackups, m_scan_reorg_flag we protect those variables
+     * as well with this mutex. These variables are also protected by the
      * above NdbSeqLock to ensure that execDIGETNODESREQ can execute
      * concurrently from many TC threads simultaneously.
      *
@@ -1343,6 +1358,39 @@ private:
   void resetReplicaLcp(ReplicaRecord * replicaP, Uint32 stopGci);
   void resetReplica(Ptr<ReplicaRecord>);
 
+/**
+ * Methods part of Transaction Handling module
+ */
+  void start_scan_on_table(TabRecordPtr, Signal*, Uint32, EmulatedJamBuffer*);
+  void complete_scan_on_table(TabRecordPtr tabPtr, Uint32, EmulatedJamBuffer*);
+
+  bool prepare_add_table(TabRecordPtr, ConnectRecordPtr, Signal*);
+  void commit_new_table(TabRecordPtr);
+
+  void make_node_usable(NodeRecord *nodePtr);
+  void make_node_not_usable(NodeRecord *nodePtr);
+
+  void start_add_fragments_in_new_table(TabRecordPtr,
+                                        ConnectRecordPtr,
+                                        const Uint16 buf[],
+                                        Signal *signal);
+  void make_new_table_writeable(TabRecordPtr, ConnectRecordPtr, bool);
+  void make_new_table_read_and_writeable(TabRecordPtr,
+                                         ConnectRecordPtr,
+                                         Signal*);
+  bool make_old_table_non_writeable(TabRecordPtr, ConnectRecordPtr);
+  void make_table_use_new_replica(TabRecordPtr,
+                                  FragmentstorePtr fragPtr,
+                                  ReplicaRecordPtr,
+                                  Uint32 replicaType,
+                                  Uint32 destNodeId);
+  void make_table_use_new_node_order(TabRecordPtr,
+                                     FragmentstorePtr,
+                                     Uint32,
+                                     Uint32*);
+  void make_new_table_non_writeable(TabRecordPtr);
+  void drop_fragments_from_new_table_view(TabRecordPtr, ConnectRecordPtr);
+
 //------------------------------------
 // Methods for LCP functionality
 //------------------------------------
@@ -1591,6 +1639,9 @@ private:
 // Methods operating on a fragment and
 // its connected replicas and nodes.
 //------------------------------------
+  void insertCopyFragmentList(TabRecord *tabPtr,
+                              Fragmentstore *fragPtr,
+                              Uint32 my_fragid);
   void allocStoredReplica(FragmentstorePtr regFragptr,
                           ReplicaRecordPtr& newReplicaPtr,
                           Uint32 nodeId,
@@ -1599,6 +1650,15 @@ private:
   Uint32 extractNodeInfo(EmulatedJamBuffer *jambuf,
                          const Fragmentstore * fragPtr,
                          Uint32 nodes[]);
+  Uint32 findLocalFragment(const TabRecord *,
+                           Ptr<Fragmentstore> & fragPtr,
+                           EmulatedJamBuffer *jambuf);
+  Uint32 findFirstNewFragment(const TabRecord *,
+                              Ptr<Fragmentstore> & fragPtr,
+                              Uint32 fragId,
+                              EmulatedJamBuffer *jambuf);
+  bool check_if_local_fragment(EmulatedJamBuffer *jambuf,
+                               const Fragmentstore *fragPtr);
   bool findBestLogNode(CreateReplicaRecord* createReplica,
                        FragmentstorePtr regFragptr,
                        Uint32 startGci,
@@ -1609,7 +1669,7 @@ private:
                     FragmentstorePtr regFragptr,
                     Uint32 startGci,
                     Uint32 stopGci);
-  void initFragstore(FragmentstorePtr regFragptr);
+  void initFragstore(FragmentstorePtr regFragptr, Uint32 fragId);
   void insertfraginfo(FragmentstorePtr regFragptr,
                       Uint32 noOfBackups,
                       Uint32* nodeArray);
@@ -1637,7 +1697,7 @@ private:
 //------------------------------------
   void allocFragments(Uint32 noOfFragments, TabRecordPtr regTabPtr);
   void releaseFragments(TabRecordPtr regTabPtr);
-  void getFragstore(TabRecord *, Uint32 fragNo, FragmentstorePtr & ptr);
+  void getFragstore(const TabRecord *, Uint32 fragNo, FragmentstorePtr & ptr);
   void initialiseFragstore();
 
   void wait_old_scan(Signal*);

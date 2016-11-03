@@ -910,6 +910,7 @@ void TransporterFacade::threadMainReceive(void)
 
     recv_client->start_poll();
     poll_owner = do_poll(recv_client, 10, poll_owner, stay_poll_owner);
+    assert(poll_owner == recv_client->m_poll.m_poll_owner);
     recv_client->complete_poll();
   }
 
@@ -929,7 +930,8 @@ void TransporterFacade::threadMainReceive(void)
 }
 
 /*
-  This method is called by worker thread that owns the poll "rights".
+  This method is called by client thread or send thread that owns
+  the poll "rights".
   It waits for events and if something arrives it takes care of it
   and returns to caller. It will quickly come back here if not all
   data was received for the worker thread.
@@ -941,6 +943,14 @@ void TransporterFacade::threadMainReceive(void)
   In order to not block awaiting 'update_connections' requests,
   we never wait longer than 10ms inside ::pollReceive().
   Longer timeouts are done in multiple 10ms periods
+
+  NOTE: This 10ms max-wait is only a requirement for the thread
+  having the poll right. Threads calling do_poll() could specify
+  longer max-waits as they will either:
+   - Get the poll right and end up here in ::external_poll,
+     where the poll wait is done in multiple 10ms chunks.
+   - Not get the poll right and put to sleep in the poll queue
+     waiting to be woken up by the poller.
 */
 void
 TransporterFacade::external_poll(Uint32 wait_time)
@@ -1381,7 +1391,9 @@ TransporterFacade::close_clnt(trp_client* clnt)
         clnt->do_forceSend(1);
         first = false;
       }
-      clnt->do_poll(10);
+
+      // perform_close_clnt() will 'wakeup()', so wait how long it takes
+      clnt->do_poll(3000);
 
       NdbMutex_Lock(m_open_close_mutex);
       not_finished = (m_threads.get(clnt->m_blockNo) == clnt);
@@ -1420,8 +1432,13 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
      */
     NdbMutex_Unlock(m_open_close_mutex);
 
-    /* Ask ClusterMgr to do m_thread.expand() (Need poll rights)*/
-    clnt->start_poll();
+    /**
+     * Ask ClusterMgr to do m_thread.expand() (Need poll rights)
+     * There is no wakeup() of the client(s) wating for expand,
+     * do_poll waits in short 10ms naps before checking if expand
+     * completed. Only the client requesting the expand do_poll,
+     * the other simply sleeps.
+     */
     if (do_expand)
     {
       NdbApiSignal signal(numberToRef(0, theOwnId));
@@ -1431,15 +1448,18 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
       signal.theReceiversBlockNumber = theClusterMgr->m_blockNo;
       signal.theData[0] = 0;  //Unused
 
+      clnt->start_poll();
       clnt->raw_sendSignal(&signal, theOwnId);
       clnt->do_forceSend(1);
+      clnt->do_poll(10);
+      clnt->complete_poll();
     }
-
-    clnt->do_poll(10);
-    clnt->complete_poll();
+    else
+    {
+      NdbSleep_MilliSleep(10);
+    }
     NdbMutex_Lock(m_open_close_mutex);
   }
-
   const int r= m_threads.open(clnt);
   NdbMutex_Unlock(m_open_close_mutex);
   if (r < 0)
@@ -2261,7 +2281,6 @@ void
 TransporterFacade::start_poll(trp_client* clnt)
 {
   assert(clnt->m_poll.m_locked == true);
-  assert(clnt->m_poll.m_poll_owner == false);
   assert(clnt->m_poll.m_poll_queue == false);
   assert(clnt->m_poll.m_waiting == trp_client::PollQueue::PQ_IDLE);
   dbg2("%p->start_poll on %p", clnt, this);
@@ -2362,7 +2381,15 @@ TransporterFacade::try_become_poll_owner(trp_client* clnt, Uint32 wait_time)
      * We were proposed as new poll owner, and was first to wakeup
      */
     dbg("%p - PQ_WAITING => new poll_owner", clnt);
+    assert(clnt->m_poll.m_poll_owner == true);
   }
+  else
+  {
+    // Didn't have to compete for poll-right, takes it
+    assert(clnt->m_poll.m_poll_owner == false);
+    clnt->m_poll.m_poll_owner = true;
+  }
+
   m_poll_owner = clnt;
   unlock_poll_mutex();
   return true;
@@ -2413,7 +2440,6 @@ TransporterFacade::finish_poll(trp_client* clnt,
   /**
    * we're finished polling
    */
-  clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_IDLE;
   assert(clnt->is_locked_for_poll() == true);
   clnt->set_locked_for_poll(false);
   dbg("%p->set_locked_for_poll false", clnt);
@@ -2462,6 +2488,7 @@ TransporterFacade::try_lock_last_client(trp_client* clnt,
   bool already_locked = false;
   trp_client* new_owner = remove_last_from_poll_queue();
   *new_owner_ptr = new_owner;
+  new_owner_locked = true;
   assert(new_owner != clnt);
   if (new_owner != 0)
   {
@@ -2486,8 +2513,12 @@ TransporterFacade::try_lock_last_client(trp_client* clnt,
   }
 
   /**
-   * clear poll owner variable and unlock
+   * clear poll owner variables and unlock before
+   * possibly assigning a 'new_owner'
    */
+  assert(clnt->m_poll.m_poll_owner == true);
+  assert(m_poll_owner == clnt);
+  clnt->m_poll.m_poll_owner = false;
   m_poll_owner = 0;
   unlock_poll_mutex();
 
@@ -2528,6 +2559,10 @@ TransporterFacade::try_lock_last_client(trp_client* clnt,
  * have been aquired. If we are not already 'is_poll_owner',
  * we will try to set it within the timeout 'wait_time'.
  *
+ * If we get the poll rights withing the specified wait_time,
+ * we will repeatedly poll the receiver until either
+ * 'clnt' is woken up, or the max 'wait_time' expires.
+ *
  * Poll ownership might be release on return if not
  * 'stay_poll_owner' is requested.
  *
@@ -2540,75 +2575,99 @@ TransporterFacade::do_poll(trp_client* clnt,
                            bool stay_poll_owner)
 {
   dbg("do_poll(%p)", clnt);
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
   clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_WAITING;
   assert(clnt->m_poll.m_locked == true);
-  assert(clnt->m_poll.m_poll_owner == false);
   assert(clnt->m_poll.m_poll_queue == false);
+  assert(is_poll_owner == clnt->m_poll.m_poll_owner); //Obsolete arg?
   if (!is_poll_owner)
   {
     if (!try_become_poll_owner(clnt, wait_time))
       return false;
   }
+  assert(clnt->m_poll.m_poll_owner == true);
+
+  bool new_owner_locked = false;
+  bool continue_poll = true;
 
   /**
    * We have the poll "right" and we poll until data is received. After
    * receiving data we will check if all data is received,
    * if not we poll again.
    */
-  clnt->m_poll.m_poll_owner = true;
-  clnt->m_poll.start_poll(clnt);
-  dbg("%p->external_poll", clnt);
-  external_poll(wait_time);
+  do  
+  {  
+    clnt->m_poll.start_poll(clnt);
+    dbg("%p->external_poll", clnt);
+    external_poll(wait_time);
 
-  Uint32 cnt_woken = 0;
-  Uint32 cnt = clnt->m_poll.m_locked_cnt - 1; // skip self
-  trp_client ** arr = clnt->m_poll.m_locked_clients + 1; // skip self
-  clnt->m_poll.m_poll_owner = false;
-  finish_poll(clnt, cnt, cnt_woken, arr);
+    Uint32 cnt_woken = 0;
+    Uint32 cnt = clnt->m_poll.m_locked_cnt - 1; // skip self
+    trp_client ** arr = clnt->m_poll.m_locked_clients + 1; // skip self
+    finish_poll(clnt, cnt, cnt_woken, arr);
 
-  lock_poll_mutex();
+    // Continue polling more results after this one?
+    continue_poll = (clnt->m_poll.m_waiting==trp_client::PollQueue::PQ_WAITING);
+    if (continue_poll)
+    {
+      // Check for poll-timeout
+      const NDB_TICKS end = NdbTick_getCurrentTicks();
+      const Uint32 waited_ms = NdbTick_Elapsed(start,end).milliSec();
+      continue_poll = (waited_ms < wait_time);
+    }
 
-  if ((cnt + 1) > m_num_active_clients)
-  {
-    m_num_active_clients = cnt + 1;
-  }
-  /**
-   * now remove all woken from poll queue
-   * note: poll mutex held
-   */
-  remove_from_poll_queue(arr, cnt_woken);
+    lock_poll_mutex();
 
-  bool new_owner_locked = true;
-  trp_client * new_owner = NULL;
-  if (stay_poll_owner)
-  {
-    unlock_poll_mutex();
-  }
-  else
-  {
-    try_lock_last_client(clnt,
-                         new_owner_locked,
-                         &new_owner,
-                         cnt_woken + 1);
-  }
+    if ((cnt + 1) > m_num_active_clients)
+    {
+      m_num_active_clients = cnt + 1;
+    }
+    /**
+     * Now remove all woken from poll queue
+     * note: poll mutex held
+     */
+    remove_from_poll_queue(arr, cnt_woken);
 
-  /**
-   * Now wake all the woken clients
-   */
-  unlock_and_signal(arr, cnt_woken);
+    if (stay_poll_owner || continue_poll)
+    {
+      unlock_poll_mutex();
+    }
+    else
+    {
+      /**
+       * Current client now gives up poll-rights.
+       * We *try* to find a 'new_owner' while we still have
+       * the poll_mutex
+       */
+      trp_client * unused_new_owner;
+      try_lock_last_client(clnt,
+                           new_owner_locked,
+                           &unused_new_owner,
+                           cnt_woken + 1);
+      //NOTE: poll_mutex was unlocked by try_lock_last_client()
+    }
 
-  /**
-   * And unlock the rest that we delivered messages to
-   */
-  for (Uint32 i = cnt_woken; i < cnt; i++)
-  {
-    dbg("unlock (%p)", arr[i]);
-    NdbMutex_Unlock(arr[i]->m_mutex);
-  }
+    /**
+     * Now wake all the woken clients
+     */
+    unlock_and_signal(arr, cnt_woken);
 
-  if (stay_poll_owner)
-  {
+    /**
+     * And unlock the rest that we delivered messages to
+     */
+    for (Uint32 i = cnt_woken; i < cnt; i++)
+    {
+      dbg("unlock (%p)", arr[i]);
+      NdbMutex_Unlock(arr[i]->m_mutex);
+    }
     clnt->m_poll.m_locked_cnt = 0;
+  } while (continue_poll);
+
+  clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_IDLE;
+
+  if (stay_poll_owner)
+  {
+    assert(clnt->m_poll.m_poll_owner == true);
     dbg("%p->do_poll return", clnt);
     return true;
   }
@@ -2705,7 +2764,6 @@ void
 TransporterFacade::complete_poll(trp_client* clnt)
 {
   dbg2("%p->complete_poll on %p", clnt, this);
-  assert(clnt->m_poll.m_poll_owner == false);
   assert(clnt->m_poll.m_poll_queue == false);
   assert(clnt->m_poll.m_waiting == trp_client::PollQueue::PQ_IDLE);
   clnt->flush_send_buffers();

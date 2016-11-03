@@ -18,6 +18,7 @@
 #include "Dbacc.hpp"
 
 #include <AttributeHeader.hpp>
+#include <Bitmask.hpp>
 #include <signaldata/AccFrag.hpp>
 #include <signaldata/AccScan.hpp>
 #include <signaldata/NextScan.hpp>
@@ -395,6 +396,8 @@ void Dbacc::initialiseScanRec()
     ptrAss(scanPtr, scanRec);
     scanPtr.p->scanNextfreerec = scanPtr.i + 1;
     scanPtr.p->scanState = ScanRec::SCAN_DISCONNECT;
+    scanPtr.p->activeLocalFrag = RNIL;
+    scanPtr.p->initContainer();
   }//for
   scanPtr.i = cscanRecSize - 1;
   ptrAss(scanPtr, scanRec);
@@ -922,8 +925,8 @@ void Dbacc::sendAcckeyconf(Signal* signal) const
   signal->theData[0] = operationRecPtr.p->userptr;
   signal->theData[1] = operationRecPtr.p->m_op_bits & Operationrec::OP_MASK;
   signal->theData[2] = operationRecPtr.p->fid;
-  signal->theData[3] = operationRecPtr.p->localdata[0];
-  signal->theData[4] = operationRecPtr.p->localdata[1];
+  signal->theData[3] = operationRecPtr.p->localdata.m_page_no;
+  signal->theData[4] = operationRecPtr.p->localdata.m_page_idx;
 }//Dbacc::sendAcckeyconf()
 
 /* ******************--------------------------------------------------------------- */
@@ -1031,8 +1034,8 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 	}
 	opbits |= Operationrec::OP_STATE_RUNNING;
 	opbits |= Operationrec::OP_RUN_QUEUE;
-        c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata[0],
-                                operationRecPtr.p->localdata[1],
+        c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata.m_page_no,
+                                operationRecPtr.p->localdata.m_page_idx,
                                 fragrecptr.p->tupFragptr);
         sendAcckeyconf(signal);
         if (! (opbits & Operationrec::OP_DIRTY_READ)) {
@@ -1041,7 +1044,6 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 	  // the operation.
 	  /*---------------------------------------------------------------*/
           Uint32 eh = elemPageptr.p->word32[elemptr];
-          operationRecPtr.p->scanBits = ElementHeader::getScanBits(eh);
           operationRecPtr.p->reducedHashValue = ElementHeader::getReducedHashValue(eh);
           operationRecPtr.p->elementPage = elemPageptr.i;
           operationRecPtr.p->elementContainer = elemConptr;
@@ -1342,8 +1344,7 @@ checkop:
 
 conf:
   nextOp.p->m_op_bits = nextbits;
-  nextOp.p->localdata[0] = lastOp.p->localdata[0];
-  nextOp.p->localdata[1] = lastOp.p->localdata[1];
+  nextOp.p->localdata = lastOp.p->localdata;
   
   if (nextop == ZSCAN_OP && (nextbits & Operationrec::OP_LOCK_REQ) == 0)
   {
@@ -1418,8 +1419,8 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
     }//if
     if (return_result == ZPARALLEL_QUEUE) {
       jam();
-      c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata[0],
-                              operationRecPtr.p->localdata[1],
+      c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata.m_page_no,
+                              operationRecPtr.p->localdata.m_page_idx,
                               fragrecptr.p->tupFragptr);
       sendAcckeyconf(signal);
       return;
@@ -1437,16 +1438,15 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
   else 
   {
     if (! (lockOwnerPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED) &&
-	! Local_key::isInvalid(lockOwnerPtr.p->localdata[0],
-                               lockOwnerPtr.p->localdata[1]))
+	! lockOwnerPtr.p->localdata.isInvalid())
     {
       jam();
       /* ---------------------------------------------------------------
        * It is a dirty read. We do not lock anything. Set state to
        *IDLE since no COMMIT call will arrive.
        * ---------------------------------------------------------------*/
-      c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata[0],
-                              operationRecPtr.p->localdata[1],
+      c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata.m_page_no,
+                              operationRecPtr.p->localdata.m_page_idx,
                               fragrecptr.p->tupFragptr);
       sendAcckeyconf(signal);
       operationRecPtr.p->m_op_bits = Operationrec::OP_EXECUTED_DIRTY_READ;
@@ -1514,7 +1514,6 @@ void Dbacc::insertelementLab(Signal* signal,
   
   insertLockOwnersList(operationRecPtr);
 
-  operationRecPtr.p->scanBits = 0;	/* NOT ANY ACTIVE SCAN */
   operationRecPtr.p->reducedHashValue = fragrecptr.p->level.reduce(operationRecPtr.p->hashValue);
   const Uint32 tidrElemhead = ElementHeader::setLocked(operationRecPtr.i);
   Page8Ptr idrPageptr;
@@ -1525,17 +1524,19 @@ void Dbacc::insertelementLab(Signal* signal,
   /* ----------------------------------------------------------------------- */
   /* WE SET THE LOCAL KEY TO MINUS ONE TO INDICATE IT IS NOT YET VALID.      */
   /* ----------------------------------------------------------------------- */
-  const Uint32 localKey = ~(Uint32)0;
-  operationRecPtr.p->localdata[0] = localKey;
-  operationRecPtr.p->localdata[1] = localKey;
+  Local_key localKey;
+  localKey.setInvalid();
+  operationRecPtr.p->localdata = localKey;
   Uint32 conptr;
-  insertElement(Element(tidrElemhead, localKey),
+  insertElement(Element(tidrElemhead, localKey.m_page_no),
                 operationRecPtr,
                 idrPageptr,
                 tidrPageindex,
                 isforward,
-                conptr);
-  c_tup->prepareTUPKEYREQ(localKey, localKey, fragrecptr.p->tupFragptr);
+                conptr,
+                Operationrec::ANY_SCANBITS,
+                false);
+  c_tup->prepareTUPKEYREQ(localKey.m_page_no, localKey.m_page_idx, fragrecptr.p->tupFragptr);
   sendAcckeyconf(signal);
   return;
 }//Dbacc::insertelementLab()
@@ -2027,8 +2028,7 @@ checkop:
     }
     
     opbits |= Operationrec::OP_STATE_RUNNING;
-    operationRecPtr.p->localdata[0] = lastOpPtr.p->localdata[0];
-    operationRecPtr.p->localdata[1] = lastOpPtr.p->localdata[1];
+    operationRecPtr.p->localdata = lastOpPtr.p->localdata;
     retValue = ZPARALLEL_QUEUE;
   }
   
@@ -2135,8 +2135,7 @@ checkop:
 #endif
     
     opbits |= Operationrec::OP_STATE_RUNNING;
-    operationRecPtr.p->localdata[0] = lastOpPtr.p->localdata[0];
-    operationRecPtr.p->localdata[1] = lastOpPtr.p->localdata[1];
+    operationRecPtr.p->localdata = lastOpPtr.p->localdata;
     retValue = ZPARALLEL_QUEUE;
   }
   opbits |= (lastbits & Operationrec::OP_ACC_LOCK_MODE);
@@ -2202,13 +2201,12 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
 {
   Page8Ptr ulkPageidptr;
   Uint32 tulkLocalPtr;
-  Uint32 tlocalkey1, tlocalkey2;
+  Local_key localkey;
 
   jamEntry();
   operationRecPtr.i = signal->theData[0];
-  tlocalkey1 = signal->theData[1];
-  tlocalkey2 = signal->theData[2];
-  Uint32 localref = Local_key::ref(tlocalkey1, tlocalkey2);
+  localkey.m_page_no = signal->theData[1];
+  localkey.m_page_idx = signal->theData[2];
   ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   fragrecptr.i = operationRecPtr.p->fragptr;
@@ -2221,10 +2219,9 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
     ptrCheckGuard(ulkPageidptr, cpagesize, page8);
     dbgWord32(ulkPageidptr, tulkLocalPtr, tlocalkey1);
     arrGuard(tulkLocalPtr, 2048);
-    operationRecPtr.p->localdata[0] = tlocalkey1;
-    operationRecPtr.p->localdata[1] = tlocalkey2;
+    operationRecPtr.p->localdata = localkey;
     ndbrequire(fragrecptr.p->localkeylen == 1);
-    ulkPageidptr.p->word32[tulkLocalPtr] = localref;
+    ulkPageidptr.p->word32[tulkLocalPtr] = localkey.m_page_no;
     return;
   }//if
   ndbrequire(false);
@@ -2257,8 +2254,8 @@ Dbacc::removerow(Uint32 opPtrI, const Local_key* key)
 
 #ifdef VM_TRACE
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
-  ndbrequire(operationRecPtr.p->localdata[0] == key->m_page_no);
-  ndbrequire(operationRecPtr.p->localdata[1] == key->m_page_idx);
+  ndbrequire(operationRecPtr.p->localdata.m_page_no == key->m_page_no);
+  ndbrequire(operationRecPtr.p->localdata.m_page_idx == key->m_page_idx);
 #endif
 }//Dbacc::execACCMINUPDATE()
 
@@ -2289,6 +2286,15 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
      (Toperation != ZSCAN_OP))
   {
     fragrecptr.p->m_commit_count++;
+#ifdef ERROR_INSERT
+    bool force_expand_shrink = false;
+    if (ERROR_INSERTED(3004) &&
+        fragrecptr.p->fragmentid == 0 &&
+        fragrecptr.p->level.getSize() != ERROR_INSERT_EXTRA)
+    {
+      force_expand_shrink = true;
+    }
+#endif
     if (Toperation != ZINSERT) {
       if (Toperation != ZDELETE) {
 	return;
@@ -2301,7 +2307,12 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 #endif
 	fragrecptr.p->noOfElements--;
 	fragrecptr.p->slack += fragrecptr.p->elementLength;
-	if (fragrecptr.p->slack > fragrecptr.p->slackCheck) { 
+#ifdef ERROR_INSERT
+        if (force_expand_shrink || fragrecptr.p->slack > fragrecptr.p->slackCheck)
+#else
+        if (fragrecptr.p->slack > fragrecptr.p->slackCheck)
+#endif
+        {
           /* TIME FOR JOIN BUCKETS PROCESS */
 	  if (fragrecptr.p->expandCounter > 0) {
             if (!fragrecptr.p->expandOrShrinkQueued)
@@ -2318,7 +2329,12 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       jam();                                                /* EXPAND PROCESS HANDLING */
       fragrecptr.p->noOfElements++;
       fragrecptr.p->slack -= fragrecptr.p->elementLength;
+#ifdef ERROR_INSERT
+      if ((force_expand_shrink || fragrecptr.p->slack < 0) &&
+          !fragrecptr.p->level.isFull())
+#else
       if (fragrecptr.p->slack < 0 && !fragrecptr.p->level.isFull())
+#endif
       {
 	/* IT MEANS THAT IF SLACK < ZERO */
         if (!fragrecptr.p->expandOrShrinkQueued)
@@ -2519,6 +2535,251 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
 /*                                                                                   */
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */
+
+/**
+ * HASH TABLE MODULE
+ *
+ * Each partition (fragment) consist of a linear hash table in Dbacc.
+ * The linear hash table can expand and shrink by one bucket at a time,
+ * moving data from only one bucket.
+ *
+ * The operations supported are:
+ *
+ * [] insert one new element
+ * [] delete one element
+ * [] lookup one element
+ * [] expand by splitting one bucket creating a new top bucket
+ * [] shrink by merge top bucket data into a merge bucket
+ * [] scan
+ *
+ * SCANS INTERACTION WITH EXPAND AND SHRINK
+ *
+ * Since expanding and shrinking can occur during the scan, and elements
+ * move around one need to take extra care so that elements are scanned
+ * exactly once.  Elements deleted or inserted during scan should be
+ * scanned at most once, there reinserted data always counts as a different
+ * element.
+ *
+ * Scans are done in one or two laps.  The first lap scans buckets from
+ * bottom (bucket 0) to top.  During this lap expanding and shrinking may
+ * occur.  In the second lap one rescan buckets that got merged after they
+ * was scanned in lap one, and now expanding and shrinking are not allowed.
+ *
+ * Neither is a expand or shrink involving the currently scanned bucket
+ * allowed.
+ *
+ * During lap one the table can be seen consisting of five kinds of buckets:
+ *
+ * [] unscanned, note that these have no defined scan bits, since the scan
+ *    bits are left overs from earlier scans.
+ * [] current, exactly one bucket
+ * [] scanned, all buckets below current
+ * [] expanded, these buckets have not been scanned in lap one, but may
+ *    contain scanned elements.  Anyway they always have well defined scan
+ *    bits also for unscanned elements.
+ * [] merged and scanned, these are buckets scanned in lap one but have
+ *    been merged after they got scanned, and may contain unscanned
+ *    elements.  These buckets must be rescanned during lap two of scan.
+ *    Note that we only keep track of a first and last bucket to rescan
+ *    even if there are some buckets in between that have not been merged.
+ *
+ * The diagram below show the possible regions of buckets.  The names to
+ * the right are the data members that describes the limits of the regions.
+ *
+ *  +--------------------------+
+ *  | Expanded buckets.  May   | Fragmentrec::level.getTop()
+ *  | contain both scanned and |
+ *  | unscanned data.          |
+ *  |                          |
+ *  +--------------------------+
+ *  | Unscanned data with      | ScanRec::startNoOfBuckets
+ *  | undefined scan bits.     |
+ *  |                          | ScanRec::nextBucketIndex + 1
+ *  +--------------------------+
+ *  | Currently scanned data.  | ScanRec::nextBucketIndex
+ *  +--------------------------+
+ *  | Scanned buckets.         |
+ *  |                          |
+ *  +--------------------------+
+ *  | Merged buckets after     | ScanRec::maxBucketIndexToRescan
+ *  | scan start - need rescan.|
+ *  |                          | ScanRec::minBucketIndexToRescan
+ *  +--------------------------+
+ *  |                          |
+ *  | Scanned buckets.         | 0
+ *  +--------------------------+
+ *
+ * When scan starts, all buckets are unscanned and have undefined scan bits.
+ * On start scanning of an unscanned bucket with undefined scan bits all
+ * scan bits for the bucket are cleared.  ScanRec::startNoOfBuckets keeps
+ * track of the last bucket with undefined scan bits, note that
+ * startNoOfBuckets may decrease if table shrinks below it.
+ *
+ * During the second lap the buckets from minBucketIndexToRescan to
+ * maxBucketIndexToRescan inclusive, are scanned, and no bucket need to have
+ * its scan bits cleared prior to scan.
+ *
+ * SCAN AND EXPAND
+ *
+ * After expand, the new top bucket will always have defined scan bits.
+ *
+ * If the split bucket have undefined scan bits the buckets scan bits are
+ * cleared before split.
+ *
+ * The expanded bucket may only contain scanned elements if the split
+ * bucket was a scanned bucket below the current bucket.  This fact comes
+ * from noting that once the split bucket are below current bucket, the
+ * following expand can not have a split bucket above current bucket, since
+ * next split bucket is either the next bucket, or the bottom bucket due to
+ * how the linear hash table grow.  And since expand are not allowed when
+ * split bucket would be the current bucket all expand bucket with scanned
+ * elements must come from buckets below current bucket.
+ *
+ * SCAN AND SHRINK
+ *
+ * Shrink merge back the top bucket into the bucket it was split from in
+ * the corresponding expand.  This implies that we will never merge back a
+ * bucket with scanned elements into an unscanned bucket, with or without
+ * defined scan bits.
+ *
+ * If the top bucket have undefined scan bits they are cleared before merge,
+ * even if it is into another bucket with undefined scan bits.  This is to
+ * ensure that an element is not inserted in a bucket that have scan bits
+ * set that are not allowed in bucket, for details why see under BUCKET
+ * INVARIANTS.
+ *
+ * Whenever top bucket have undefined scan bits one need to decrease
+ * startNoOfBuckets that indicates the last bucket with undefined scan
+ * bits.  If the top bucket reappear by expand it will have defined
+ * scan bits which possibly indicate scan elements, these must not be
+ * cleared prior scan.
+ *
+ * If merge destination are below current bucket, it must be added for
+ * rescan.  Note that we only keep track of lowest and highest bucket
+ * number to rescan even if some buckets in between are not merged and do
+ * not need rescan.
+ *
+ * CONTAINERS
+ *
+ * Each bucket is a linked list of containers.  Only the first head
+ * container may be empty.
+ *
+ * Containers are located in 8KiB pages.  Each page have 72 buffers with
+ * 28 words.  Each buffer may host up to two containers.  One headed at
+ * buffers lowest address, called left end, and one headed at buffers high
+ * words, the right end.  The left end container grows forward towards
+ * higher addresses, and the right end container grows backwards.
+ *
+ * Each bucket has its first container at a unique logical address, the
+ * logical page number is bucket number divided by 64 with the remainder
+ * index one of the first 64 left end containers on page.  A dynamic array
+ * are used to map the logical page number to physical page number.
+ *
+ * The pages which host the head containers of buckets are called normal
+ * pages.  When a container is full a new container is allocated, first it
+ * looks for one of the eight left end containers that are on same page.
+ * If no one is free, one look for a free right end container on same page.
+ * Otherwise one look for an overflow container on an overflow page.  New
+ * overflow pages are allocated if needed.
+ *
+ * SCAN BITS
+ *
+ * To keep track of which elements have been scanned several means are used.
+ * Every container header have scan bits, if a scan bit is set it means that
+ * all elements in that container have been scanned by the corresponding
+ * scan.
+ *
+ * If a container is currently scanned, that is some elements are scanned
+ * and some not, each element in the container have a scan bit in the scan
+ * record (ScanRec::elemScanned).  The next scanned element is looked for
+ * in the current container, if none found, the next container is used, and
+ * then the next bucket.
+ *
+ * A scan may only scan one container at a time.
+ *
+ * BUCKETS INVARIANTS
+ *
+ * To be able to guarantee that only one container at a time are currently
+ * scanned, there is an important invariant:
+ *
+ * [] No container may have a scan bit set that preceding container have
+ *    not set.  That is, container are scanned in order within bucket, and
+ *    no inserted element may be put in such that the invariant breaks.
+ *
+ * Also a condition that all operations on buckets must satisfy is:
+ *
+ * [] It is not allowed to insert an element with more scan bits set than
+ *    the buckets head container have (unless it is for a new top bucket).
+ *
+ *    This is too avoid extra complexity that would arise if such an
+ *    element was inserted.  A new container can not be inserted preceding
+ *    the bucket head container since it has an fixed logical address.  The
+ *    alternative would be to create a new bucket after the bucket head
+ *    container and move every element from head container to the new
+ *    container.
+ *
+ * How the condition is fulfilled are:
+ *
+ * [] Shrink, where top bucket have undefined scan bits.
+ *
+ *    Top buckets scan bits are first cleared prior to merge.
+ *
+ * [] Shrink, where destination bucket have undefined scan bits.
+ *
+ *    In this case top bucket must also have undefined scan bits (see SCAN
+ *    AND SHRINK above) and both top and destination bucket have their scan
+ *    bits cleared before merge.
+ *
+ * [] Shrink, where destination bucket is scanned, below current.
+ *
+ *    The only way the top bucket can have scanned elements is that it is
+ *    expanded from a scanned bucket, below current.  Since that must be the
+ *    shrink destination bucket, no element can have more scan bits set than
+ *    the destination buckets head container.
+ *
+ * [] Expand.
+ *
+ *    The new top bucket is always a new bucket and head containers scan bits
+ *    are taken from split source bucket.
+ *
+ * [] Insert.
+ *
+ *    A new element may be inserted in any container with free space, and it
+ *    inherits the containers scan bits.  If a new container is needed it is
+ *    put last with container scan bits copied from preceding container.
+ *
+ * [] Delete.
+ *
+ *    Deleting an element, replaces the deleted element with the last
+ *    element with same scan bits as the deleted element.  If a container
+ *    becomes empty it is unlinked, unless it is the head container which
+ *    always must remain.
+ *
+ *    Since the first containers in a bucket are more likely to be on the
+ *    same (normal) page, it is better to unlink a container towards the
+ *    end of bucket.  If the deleted element is the last one in its
+ *    container, but not the head container, and there are no other element
+ *    in bucket with same scan bits that can replace the deleted element.
+ *    It is allowed to use another element with fewer bits as replacement
+ *    and clear scan bits of the container accordingly.
+ *
+ *    The reason the bucket head container may not have some of its scan
+ *    bits cleared, is that it could later result in a need to insert back
+ *    an element with more scan bits set.  The scenario for that is:
+ *
+ *    1) Split a merged bucket, A, into a new bucket B, moving some
+ *       elements with some scan bits set.
+ *
+ *    2) Delete some elements in bucket A, leaving only elements with no
+ *       scan bits set.
+ *
+ *    3) Shrink table and merge back bucket B into bucket A, if we have
+ *       cleared the head container of bucket A, this would result in
+ *       inserting elements with more scan bits set then bucket A head
+ *       container.
+ *
+ */
+
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */
 /*                                                                                   */
@@ -2564,6 +2825,9 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
 /*               FRAGRECPTR                                                          */
 /*               IDR_OPERATION_REC_PTR                                               */
 /*               TIDR_KEY_LEN                                                        */
+/*               conScanMask - ANY_SCANBITS or scan bits container must              */
+/*                 have. Note elements inserted are never more scanned than          */
+/*                 container.                                                        */
 /*                                                                                   */
 /*       OUTPUT:                                                                     */
 /*               TIDR_PAGEINDEX (PAGE INDEX OF INSERTED ELEMENT)                     */
@@ -2576,13 +2840,17 @@ void Dbacc::insertElement(const Element   elem,
                           Page8Ptr&       pageptr,
                           Uint32&         conidx,
                           bool&           isforward,
-                          Uint32&         conptr)
+                          Uint32&         conptr,
+                          Uint16          conScanMask,
+                          const bool      newBucket)
 {
   Page8Ptr inrNewPageptr;
   Uint32 tidrResult;
+  Uint16 scanmask;
+  bool newContainer = newBucket;
 
+  ContainerHeader containerhead;
   do {
-    ContainerHeader containerhead;
     insertContainer(elem,
                     oprecptr,
                     pageptr,
@@ -2590,8 +2858,11 @@ void Dbacc::insertElement(const Element   elem,
                     isforward,
                     conptr,
                     containerhead,
+                    conScanMask,
+                    newContainer,
                     tidrResult);
-    if (tidrResult != ZFALSE) {
+    if (tidrResult != ZFALSE)
+    {
       jam();
       return;
       /* INSERTION IS DONE, OR */
@@ -2617,8 +2888,11 @@ void Dbacc::insertElement(const Element   elem,
       }//if
       ndbrequire(conidx <= Container::MAX_CONTAINER_INDEX);
     } else {
+      scanmask = containerhead.getScanBits();
       break;
     }//if
+    // Only first container can be a new container
+    newContainer = false;
   } while (1);
   Uint32 newPageindex;;
   Uint32 newBuftype;
@@ -2660,14 +2934,39 @@ void Dbacc::insertElement(const Element   elem,
     ndbrequire(newBuftype == ZLEFT || newBuftype == ZRIGHT);
   }
   Uint32 containerptr = getContainerPtr(newPageindex, isforward);
-  ContainerHeader containerhead;
-  containerhead.initInUse();
-  inrNewPageptr.p->word32[containerptr] = containerhead;
+  ContainerHeader newcontainerhead;
+  newcontainerhead.initInUse();
+  Uint32 nextPtrI;
+  if (containerhead.haveNext())
+  {
+    nextPtrI = pageptr.p->word32[conptr+1];
+    newcontainerhead.setNext(containerhead.getNextEnd(),
+                          containerhead.getNextIndexNumber(),
+                          inrNewPageptr.i == nextPtrI);
+  }
+  else
+  {
+    nextPtrI = RNIL;
+    newcontainerhead.clearNext();
+  }
+  inrNewPageptr.p->word32[containerptr] = newcontainerhead;
+  inrNewPageptr.p->word32[containerptr + 1] = nextPtrI;
   addnewcontainer(pageptr, conptr, newPageindex,
     newBuftype, nextOnSamePage, inrNewPageptr.i);
-
   pageptr = inrNewPageptr;
   conidx = newPageindex;
+  if (conScanMask == Operationrec::ANY_SCANBITS)
+  {
+    /**
+     * ANY_SCANBITS indicates that this is an insert of a new element, not
+     * an insert from expand or shrink.  In that case the inserted element
+     * and the new container will inherit scan bits from previous container.
+     * This makes the element look as scanned as possible still preserving
+     * the invariant that containers and element towards the end of bucket
+     * has less scan bits set than those towards the beginning.
+     */
+    conScanMask = scanmask;
+  }
   insertContainer(elem,
                   oprecptr,
                   pageptr,
@@ -2675,44 +2974,50 @@ void Dbacc::insertElement(const Element   elem,
                   isforward,
                   conptr,
                   containerhead,
+                  conScanMask,
+                  true,
                   tidrResult);
   ndbrequire(tidrResult == ZTRUE);
 }//Dbacc::insertElement()
 
-/* --------------------------------------------------------------------------------- */
-/* INSERT_CONTAINER                                                                  */
-/*           INPUT:                                                                  */
-/*               IDR_PAGEPTR (POINTER TO THE ACTIVE PAGE REC)                        */
-/*               TIDR_PAGEINDEX (INDEX OF THE CONTAINER)                             */
-/*               TIDR_FORWARD (DIRECTION FORWARD OR BACKWARD)                        */
-/*               TIDR_ELEMHEAD (HEADER OF ELEMENT TO BE INSERTED                     */
-/*               CKEYS(ARRAY OF TUPLE KEYS)                                          */
-/*               CLOCALKEY(ARRAY 0F LOCAL KEYS).                                     */
-/*               TIDR_KEY_LEN                                                        */
-/*               FRAGRECPTR                                                          */
-/*               IDR_OPERATION_REC_PTR                                               */
-/*           OUTPUT:                                                                 */
-/*               TIDR_RESULT (ZTRUE FOR SUCCESS AND ZFALSE OTHERWISE)                */
-/*               containerhead (HEADER OF CONTAINER)                            */
-/*               TIDR_CONTAINERPTR (POINTER TO CONTAINER HEADER)                     */
-/*                                                                                   */
-/*           DESCRIPTION:                                                            */
-/*               THE FREE AREA OF THE CONTAINER WILL BE CALCULATED. IF IT IS         */
-/*               LARGER THAN OR EQUAL THE ELEMENT LENGTH. THE ELEMENT WILL BE        */
-/*               INSERT IN THE CONTAINER AND CONTAINER HEAD WILL BE UPDATED.         */
-/*               THIS ROUTINE ALWAYS DEALS WITH ONLY ONE CONTAINER AND DO NEVER      */
-/*               START ANYTHING OUTSIDE OF THIS CONTAINER.                           */
-/*                                                                                   */
-/*       SHORT FORM: IDR                                                             */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::insertContainer(const Element    elem,
-                            OperationrecPtr  oprecptr,
-                            Page8Ptr&        pageptr,
-                            const Uint32     conidx,
-                            const bool       isforward,
-                            Uint32&          conptr,
-                            ContainerHeader& containerhead,
-                            Uint32&          result)
+/**
+ * insertContainer puts an element into a container if it has free space and
+ * the requested scan bits match.
+ *
+ * If it is a new element inserted the requested scan bits given by
+ * conScanMask can be ANY_SCANBITS or a valid set of bits.  If it is
+ * ANY_SCANBITS the containers scan bits are not checked.  If it is set to
+ * valid scan bits the container is a newly created empty container.
+ *
+ * The buckets header container may never be removed.  Nor should any scan
+ * bit of it be cleared, unless for expand there the first inserted element
+ * determines the bucket header containers scan bits.  newContainer indicates
+ * that that current insert is part of populating a new bucket with expand.
+ *
+ * In case the container is empty it is either the bucket header container
+ * or a new container created by caller (insertElement).
+ *
+ * @param[in]   elem
+ * @param[in]   oprecptr
+ * @param[in]   pageptr
+ * @param[in]   conidx
+ * @param[in]   isforward
+ * @param[out]  conptr
+ * @param[out]  containerhead
+ * @param[in]   conScanMask
+ * @param[in]   newContainer
+ * @param[out]  result
+ */
+void Dbacc::insertContainer(const Element          elem,
+                            const OperationrecPtr  oprecptr,
+                            const Page8Ptr         pageptr,
+                            const Uint32           conidx,
+                            const bool             isforward,
+                            Uint32&                conptr,
+                            ContainerHeader&       containerhead,
+                            Uint16                 conScanMask,
+                            const bool             newContainer,
+                            Uint32&                result)
 {
   Uint32 tidrContainerlen;
   Uint32 tidrConfreelen;
@@ -2743,7 +3048,32 @@ void Dbacc::insertContainer(const Element    elem,
     tidrIndex = (conptr - tidrContainerlen) +
                 (Container::HEADER_SIZE - fragrecptr.p->elementLength);
   }//if
-  if (tidrContainerlen > (ZBUF_SIZE - 3)) { // TODO: use elementLength
+  const Uint16 activeScanMask = fragrecptr.p->activeScanMask;
+  const Uint16 conscanmask = containerhead.getScanBits();
+  if(tidrContainerlen > Container::HEADER_SIZE || !newContainer)
+  {
+    if (conScanMask != Operationrec::ANY_SCANBITS &&
+        ((conscanmask & ~conScanMask) & activeScanMask) != 0)
+    {
+      /* Container have more scan bits set than requested */
+      /* Continue to next container. */
+      return;
+    }
+  }
+  if (tidrContainerlen == Container::HEADER_SIZE && newContainer)
+  {
+    /**
+     * Only the first header container in a bucket or a newly created bucket
+     * in insertElement can be empty.
+     *
+     * Set container scan bits as requested.
+     */
+    ndbrequire(conScanMask != Operationrec::ANY_SCANBITS);
+    containerhead.copyScanBits(conScanMask & activeScanMask);
+    pageptr.p->word32[conptr] = containerhead;
+  }
+  if (tidrContainerlen >= (ZBUF_SIZE - fragrecptr.p->elementLength))
+  {
     return;
   }//if
   tidrConfreelen = ZBUF_SIZE - tidrContainerlen;
@@ -2821,7 +3151,7 @@ void Dbacc::insertContainer(const Element    elem,
   }
   else
   {
-    ndbrequire(!ElementHeader::getLocked(elemhead));
+    ndbassert(!ElementHeader::getLocked(elemhead));
   }
   /* --------------------------------------------------------------------------------- */
   /*       WE CHOOSE TO UNDO LOG INSERTS BY WRITING THE BEFORE VALUE TO THE UNDO LOG.  */
@@ -3214,7 +3544,7 @@ Dbacc::getElement(const AccKeyReq* signal,
         bool possible_match;
         tgeElementHeader = elemPageptr.p->word32[elemptr];
         tgeRemLen = tgeRemLen - TelemLen;
-	Uint32 localkey1, localkey2;
+	Local_key localkey;
 	lockOwnerPtr.i = RNIL;
 	lockOwnerPtr.p = NULL;
         LHBits16 reducedHashValue;
@@ -3224,16 +3554,14 @@ Dbacc::getElement(const AccKeyReq* signal,
           ptrCheckGuard(lockOwnerPtr, coprecsize, operationrec);
           possible_match = lockOwnerPtr.p->hashValue.match(operationRecPtr.p->hashValue);
           reducedHashValue = lockOwnerPtr.p->reducedHashValue;
-	  localkey1 = lockOwnerPtr.p->localdata[0];
-	  localkey2 = lockOwnerPtr.p->localdata[1];
+	  localkey = lockOwnerPtr.p->localdata;
         } else {
           jam();
           reducedHashValue = ElementHeader::getReducedHashValue(tgeElementHeader);
           const Uint32 pos = elemptr + 1;
           ndbrequire(localkeylen == 1);
-          localkey1 = elemPageptr.p->word32[pos];
-          localkey2 = Local_key::ref2page_idx(localkey1);
-          localkey1 = Local_key::ref2page_id(localkey1);
+          localkey.m_page_no = elemPageptr.p->word32[pos];
+          localkey.m_page_idx = ElementHeader::getPageIdx(tgeElementHeader);
           possible_match = true;
         }
         if (possible_match &&
@@ -3243,19 +3571,18 @@ Dbacc::getElement(const AccKeyReq* signal,
           bool found;
           if (! searchLocalKey) 
 	  {
-            Uint32 len = readTablePk(localkey1, localkey2, tgeElementHeader,
+            Uint32 len = readTablePk(localkey.m_page_no, localkey.m_page_idx, tgeElementHeader,
 				     lockOwnerPtr);
             found = (len == operationRecPtr.p->xfrmtupkeylen) &&
 	      (memcmp(Tkeydata, ckeys, len << 2) == 0);
           } else {
             jam();
-            found = (localkey1 == Tkeydata[0] && localkey2 == Tkeydata[1]);
+            found = (localkey.m_page_no == Tkeydata[0] && Uint32(localkey.m_page_idx) == Tkeydata[1]);
           }
           if (found) 
 	  {
             jam();
-            operationRecPtr.p->localdata[0] = localkey1;
-            operationRecPtr.p->localdata[1] = localkey2;
+            operationRecPtr.p->localdata = localkey;
             return ZTRUE;
           }
         }
@@ -3316,20 +3643,19 @@ Dbacc::getElement(const AccKeyReq* signal,
 void
 Dbacc::report_dealloc(Signal* signal, const Operationrec* opPtrP)
 {
-  Uint32 localKey1 = opPtrP->localdata[0];
-  Uint32 localKey2 = opPtrP->localdata[1];
+  Local_key localKey = opPtrP->localdata;
   Uint32 opbits = opPtrP->m_op_bits;
   Uint32 userptr= opPtrP->userptr;
   Uint32 scanInd = 
     ((opbits & Operationrec::OP_MASK) == ZSCAN_OP) || 
     (opbits & Operationrec::OP_LOCK_REQ);
   
-  if (! Local_key::isInvalid(localKey1, localKey2))
+  if (! localKey.isInvalid())
   {
     signal->theData[0] = fragrecptr.p->myfid;
     signal->theData[1] = fragrecptr.p->myTableId;
-    signal->theData[2] = localKey1;
-    signal->theData[3] = localKey2;
+    signal->theData[2] = localKey.m_page_no;
+    signal->theData[3] = localKey.m_page_idx;
     signal->theData[4] = userptr;
     signal->theData[5] = scanInd;
     EXECUTE_DIRECT(DBLQH, GSN_TUP_DEALLOCREQ, signal, 6);
@@ -3361,6 +3687,32 @@ void Dbacc::commitdelete(Signal* signal)
   lastPrevpageptr.i = RNIL;
   ptrNull(lastPrevpageptr);
   tlastPrevconptr = 0;
+
+  /**
+   * Position last on delete container before call to getLastAndRemove.
+   */
+  Page8Ptr delPageptr;
+  delPageptr.i = operationRecPtr.p->elementPage;
+  ptrCheckGuard(delPageptr, cpagesize, page8);
+  const Uint32 delConptr = operationRecPtr.p->elementContainer;
+
+  while (lastPageptr.i != delPageptr.i ||
+         tlastContainerptr != delConptr)
+  {
+    lastPrevpageptr = lastPageptr;
+    tlastPrevconptr = tlastContainerptr;
+    ContainerHeader lasthead(lastPageptr.p->word32[tlastContainerptr]);
+    ndbrequire(lasthead.haveNext());
+    if (!lasthead.isNextOnSamePage())
+    {
+      lastPageptr.i = lastPageptr.p->word32[tlastContainerptr + 1];
+      ptrCheckGuard(lastPageptr, cpagesize, page8);
+    }
+    tlastPageindex = lasthead.getNextIndexNumber();
+    lastIsforward = lasthead.getNextEnd() == ZLEFT;
+    tlastContainerptr = getContainerPtr(tlastPageindex, lastIsforward);
+  }
+
   getLastAndRemove(lastPrevpageptr,
                    tlastPrevconptr,
                    lastPageptr,
@@ -3369,24 +3721,99 @@ void Dbacc::commitdelete(Signal* signal)
                    lastIsforward,
                    tlastElementptr);
 
-  Page8Ptr delPageptr;
-  delPageptr.i = operationRecPtr.p->elementPage;
-  ptrCheckGuard(delPageptr, cpagesize, page8);
   const Uint32 delElemptr = operationRecPtr.p->elementPointer;
-  /* --------------------------------------------------------------------------------- */
-  // Here we have to take extreme care since we do not want locks to end up after the
-  // log execution. Thus it is necessary to put back the element in unlocked shape.
-  // We thus update the element header to ensure we log an unlocked element. We do not
-  // need to restore it later since it is deleted immediately anyway.
-  /* --------------------------------------------------------------------------------- */
-  const Uint32 eh = ElementHeader::setUnlocked(0, LHBits16());
-  delPageptr.p->word32[delElemptr] = eh;
+  /*
+   * If last element is in same container as delete element, and that container
+   * have scans in progress, one must make sure the last element still have the
+   * same scan state, or clear if it is the one deleted.
+   * If last element is not in same container as delete element, that element
+   * can not have any scans in progress, in that case the container scanbits
+   * should have been fewer than delete containers which is not allowed for last.
+   */
+  if ((lastPageptr.i == delPageptr.i) &&
+      (tlastContainerptr == delConptr))
+  {
+    ContainerHeader conhead(delPageptr.p->word32[delConptr]);
+    /**
+     * If the deleted element was the only element in container
+     * getLastAndRemove may have released the container already.
+     * In that case header is still valid to read but it will
+     * not be in use, but free.
+     */
+    if (conhead.isInUse() && conhead.isScanInProgress())
+    {
+      /**
+       * Initialize scanInProgress with the active scans which have not
+       * completly scanned the container.  Then check which scan actually
+       * currently scan the container.
+       */
+      Uint16 scansInProgress =
+          fragrecptr.p->activeScanMask & ~conhead.getScanBits();
+      scansInProgress = delPageptr.p->checkScans(scansInProgress, delConptr);
+      for(int i = 0; scansInProgress != 0; i++, scansInProgress >>= 1)
+      {
+        /**
+         * For each scan in progress in container, move the scan bit for
+         * last element to the delete elements place.  If it is the last
+         * element that is deleted, the scan bit will be cleared by
+         * moveScanBit.
+         */
+        if ((scansInProgress & 1) != 0)
+        {
+          ScanRecPtr scanPtr;
+          scanPtr.i = fragrecptr.p->scan[i];
+          ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+          scanPtr.p->moveScanBit(delElemptr, tlastElementptr);
+        }
+      }
+    }
+  }
+  else
+  {
+    /**
+     * The last element which is to be moved into deleted elements place
+     * are in different containers.
+     *
+     * Since both containers have the same scan bits that implies that there
+     * are no scans in progress in the last elements container, otherwise
+     * the delete container should have an extra scan bit set.
+     */
+#ifdef VM_TRACE
+    ContainerHeader conhead(lastPageptr.p->word32[tlastContainerptr]);
+    ndbassert(!conhead.isInUse() || !conhead.isScanInProgress());
+    conhead = ContainerHeader(delPageptr.p->word32[delConptr]);
+#else
+    ContainerHeader conhead(delPageptr.p->word32[delConptr]);
+#endif
+    if (conhead.isScanInProgress())
+    {
+      /**
+       * Initialize scanInProgress with the active scans which have not
+       * completly scanned the container.  Then check which scan actually
+       * currently scan the container.
+       */
+      Uint16 scansInProgress = fragrecptr.p->activeScanMask & ~conhead.getScanBits();
+      scansInProgress = delPageptr.p->checkScans(scansInProgress, delConptr);
+      for(int i = 0; scansInProgress != 0; i++, scansInProgress >>= 1)
+      {
+        if ((scansInProgress & 1) != 0)
+        {
+          ScanRecPtr scanPtr;
+          scanPtr.i = fragrecptr.p->scan[i];
+          ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+          scanPtr.p->clearScanned(delElemptr);
+        }
+      }
+    }
+  }
   if (operationRecPtr.p->elementPage == lastPageptr.i) {
     if (operationRecPtr.p->elementPointer == tlastElementptr) {
       jam();
       /* --------------------------------------------------------------------------------- */
       /*  THE LAST ELEMENT WAS THE ELEMENT TO BE DELETED. WE NEED NOT COPY IT.             */
+      /*  Setting it to an invalid value only for sanity, the value should never be read.  */
       /* --------------------------------------------------------------------------------- */
+      delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
       return;
     }//if
   }//if
@@ -3394,7 +3821,9 @@ void Dbacc::commitdelete(Signal* signal)
   /*  THE DELETED ELEMENT IS NOT THE LAST. WE READ THE LAST ELEMENT AND OVERWRITE THE  */
   /*  DELETED ELEMENT.                                                                 */
   /* --------------------------------------------------------------------------------- */
-  const Uint32 delConptr = operationRecPtr.p->elementContainer;
+#if defined(VM_TRACE) || !defined(NDEBUG)
+  delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
+#endif
   deleteElement(delPageptr,
                 delConptr,
                 delElemptr,
@@ -3427,9 +3856,11 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
   {
     const Uint32 tdeElemhead = lastPageptr.p->word32[lastElemptr];
     ndbrequire(fragrecptr.p->elementLength == 2);
+    ndbassert(!ElementHeader::isValid(delPageptr.p->word32[delElemptr]));
     delPageptr.p->word32[delElemptr] = lastPageptr.p->word32[lastElemptr];
     delPageptr.p->word32[delElemptr + 1] =
       lastPageptr.p->word32[lastElemptr + 1];
+    ContainerHeader delConhead = delPageptr.p->word32[delConptr];
     if (ElementHeader::getLocked(tdeElemhead)) {
       /* --------------------------------------------------------------------------------- */
       /* THE LAST ELEMENT IS LOCKED AND IS THUS REFERENCED BY AN OPERATION RECORD. WE NEED */
@@ -3440,13 +3871,8 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
       deOperationRecPtr.p->elementPage = delPageptr.i;
       deOperationRecPtr.p->elementContainer = delConptr;
       deOperationRecPtr.p->elementPointer = delElemptr;
-      /* --------------------------------------------------------------------------------- */
-      // We need to take extreme care to not install locked records after system restart.
-      // An undo of the delete will reinstall the moved record. We have to ensure that the
-      // lock is removed to ensure that no such thing happen.
-      /* --------------------------------------------------------------------------------- */
-      Uint32 eh = ElementHeader::setUnlocked(0, LHBits16());
-      lastPageptr.p->word32[lastElemptr] = eh;
+      /*  Writing an invalid value only for sanity, the value should never be read.  */
+      lastPageptr.p->word32[lastElemptr] = ElementHeader::setInvalid();
     }//if
     return;
   }
@@ -3485,38 +3911,67 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
                              bool& lastIsforward,
                              Uint32& tlastElementptr)
 {
+  /**
+   * Should find the last container with same scanbits as the first.
+   */
   ContainerHeader containerhead(lastPageptr.p->word32[tlastContainerptr]);
   Uint32 tlastContainerlen = containerhead.getLength();
- GLR_LOOP_10:
-  if (containerhead.getNextEnd() != 0) {
+  /**
+   * getLastAndRemove are always called prior delete of element in first
+   * container, and that can not be empty.
+   */
+  ndbassert(tlastContainerlen != Container::HEADER_SIZE);
+  const Uint16 activeScanMask = fragrecptr.p->activeScanMask;
+  const Uint16 conScanMask = containerhead.getScanBits();
+  while (containerhead.getNextEnd() != 0)
+  {
     jam();
+    Uint32 nextIndex = containerhead.getNextIndexNumber();
+    Uint32 nextEnd = containerhead.getNextEnd();
+    bool nextOnSamePage = containerhead.isNextOnSamePage();
+    Page8Ptr nextPage;
+    if (nextOnSamePage)
+    {
+      nextPage = lastPageptr;
+    }
+    else
+    {
+      jam();
+      nextPage.i = lastPageptr.p->word32[tlastContainerptr + 1];
+      ptrCheckGuard(nextPage, cpagesize, page8);
+    }
+    const bool nextIsforward = nextEnd == ZLEFT;
+    const Uint32 nextConptr = getContainerPtr(nextIndex, nextIsforward);
+    const ContainerHeader nextHead(nextPage.p->word32[nextConptr]);
+    const Uint16 nextScanMask = nextHead.getScanBits();
+    if (((conScanMask ^ nextScanMask) & activeScanMask) != 0)
+    {
+      /**
+       * Next container have different active scan bits,
+       * current container is the last one with wanted scan bits.
+       * Stop searching!
+       */
+
+      ndbassert(((nextScanMask & ~conScanMask) & activeScanMask) == 0);
+      break;
+    }
     lastPrevpageptr.i = lastPageptr.i;
     lastPrevpageptr.p = lastPageptr.p;
     tlastPrevconptr = tlastContainerptr;
-    tlastPageindex = containerhead.getNextIndexNumber();
-    if (!containerhead.isNextOnSamePage()) {
-      jam();
-      arrGuard(tlastContainerptr + 1, 2048);
-      lastPageptr.i = lastPageptr.p->word32[tlastContainerptr + 1];
-      ptrCheckGuard(lastPageptr, cpagesize, page8);
-    }//if
-    if (containerhead.getNextEnd() == ZLEFT) {
-      jam();
-      lastIsforward = true;
-    } else if (containerhead.getNextEnd() == ZRIGHT) {
-      jam();
-      lastIsforward = false;
-    } else {
-      ndbrequire(false);
-      return;
-    }//if
-    tlastContainerptr = getContainerPtr(tlastPageindex, lastIsforward);
-    arrGuard(tlastContainerptr, 2048);
+    tlastPageindex = nextIndex;
+    if (!nextOnSamePage)
+    {
+      lastPageptr = nextPage;
+    }
+    lastIsforward = nextIsforward;
+    tlastContainerptr = nextConptr;
     containerhead = lastPageptr.p->word32[tlastContainerptr];
     tlastContainerlen = containerhead.getLength();
-    ndbrequire(tlastContainerlen >= ((Uint32)Container::HEADER_SIZE + fragrecptr.p->elementLength));
-    goto GLR_LOOP_10;
-  }//if
+    ndbassert(tlastContainerlen >= ((Uint32)Container::HEADER_SIZE + fragrecptr.p->elementLength));
+  }
+  /**
+   * Last container found.
+   */
   tlastContainerlen = tlastContainerlen - fragrecptr.p->elementLength;
   if (lastIsforward)
   {
@@ -3554,9 +4009,11 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
       }//if
     }//if
   }//if
-  if (tlastContainerlen <= 2) {
-    ndbrequire(tlastContainerlen == 2);
-    if (lastPrevpageptr.i != RNIL) {
+  if (tlastContainerlen <= Container::HEADER_SIZE)
+  {
+    ndbrequire(tlastContainerlen == Container::HEADER_SIZE);
+    if (lastPrevpageptr.i != RNIL)
+    {
       jam();
       /* --------------------------------------------------------------------------------- */
       /*  THE LAST CONTAINER IS EMPTY AND IS NOT THE FIRST CONTAINER WHICH IS NOT REMOVED. */
@@ -3564,11 +4021,52 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
       /*  CONTAINER IN FREE CONTAINER LIST OF THE PAGE.                                    */
       /* --------------------------------------------------------------------------------- */
       ndbrequire(tlastPrevconptr < 2048);
-      Uint32 tglrTmp = ContainerHeader(lastPrevpageptr.p->word32[tlastPrevconptr]).clearNext();
-      dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp);
-      lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp;
-      ContainerHeader conhead(lastPageptr.p->word32[tlastContainerptr]);
-      ndbrequire(conhead.isInUse());
+      ContainerHeader prevConhead(lastPrevpageptr.p->word32[tlastPrevconptr]);
+      ndbrequire(containerhead.isInUse());
+      if (!containerhead.haveNext())
+      {
+         Uint32 tglrTmp = prevConhead.clearNext();
+         dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp);
+         lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp;
+      }
+      else
+      {
+        Uint32 nextPagei = (containerhead.isNextOnSamePage()
+                            ? lastPageptr.i
+                            : lastPageptr.p->word32[tlastContainerptr+1]);
+        Uint32 tglrTmp = prevConhead.setNext(containerhead.getNextEnd(),
+                                             containerhead.getNextIndexNumber(),
+                                             (nextPagei == lastPrevpageptr.i));
+        dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp);
+        lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp;
+        lastPrevpageptr.p->word32[tlastPrevconptr+1] = nextPagei;
+      }
+      /**
+       * Any scans currently scanning the last container must be evicted from
+       * container since it is about to be deleted.  Scans will look for next
+       * unscanned container at next call to getScanElement.
+       */
+      if (containerhead.isScanInProgress())
+      {
+        Uint16 scansInProgress =
+            fragrecptr.p->activeScanMask & ~containerhead.getScanBits();
+        scansInProgress = lastPageptr.p->checkScans(scansInProgress,
+                                                    tlastContainerptr);
+        Uint16 scanbit = 1;
+        for(int i = 0 ;
+            scansInProgress != 0 ;
+            i++, scansInProgress>>=1, scanbit<<=1)
+        {
+          if ((scansInProgress & 1) != 0)
+          {
+            ScanRecPtr scanPtr;
+            scanPtr.i = fragrecptr.p->scan[i];
+            ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+            scanPtr.p->leaveContainer(lastPageptr.i, tlastContainerptr);
+            lastPageptr.p->clearScanContainer(scanbit, tlastContainerptr);
+          }
+        }
+      }
       if (lastIsforward)
       {
         jam();
@@ -3582,11 +4080,10 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
       return;
     }//if
   }//if
-  ContainerHeader conthead = containerhead;
-  conthead.setLength(tlastContainerlen);
-  dbgWord32(lastPageptr, tlastContainerptr, conthead);
+  containerhead.setLength(tlastContainerlen);
+  dbgWord32(lastPageptr, tlastContainerptr, containerhead);
   arrGuard(tlastContainerptr, 2048);
-  lastPageptr.p->word32[tlastContainerptr] = conthead;
+  lastPageptr.p->word32[tlastContainerptr] = containerhead;
 }//Dbacc::getLastAndRemove()
 
 /* --------------------------------------------------------------------------------- */
@@ -4080,7 +4577,10 @@ void Dbacc::abortOperation(Signal* signal)
 
         taboElementptr = operationRecPtr.p->elementPointer;
         aboPageidptr.i = operationRecPtr.p->elementPage;
-        tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->scanBits, operationRecPtr.p->reducedHashValue);
+        ndbassert(!operationRecPtr.p->localdata.isInvalid());
+        tmp2Olq = ElementHeader::setUnlocked(
+                      operationRecPtr.p->localdata.m_page_idx,
+                      operationRecPtr.p->reducedHashValue);
         ptrCheckGuard(aboPageidptr, cpagesize, page8);
         dbgWord32(aboPageidptr, taboElementptr, tmp2Olq);
         arrGuard(taboElementptr, 2048);
@@ -4239,7 +4739,10 @@ void Dbacc::commitOperation(Signal* signal)
       
       coPageidptr.i = operationRecPtr.p->elementPage;
       tcoElementptr = operationRecPtr.p->elementPointer;
-      tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->scanBits, operationRecPtr.p->reducedHashValue);
+      ndbassert(!operationRecPtr.p->localdata.isInvalid());
+      tmp2Olq = ElementHeader::setUnlocked(
+                    operationRecPtr.p->localdata.m_page_idx,
+                    operationRecPtr.p->reducedHashValue);
       ptrCheckGuard(coPageidptr, cpagesize, page8);
       dbgWord32(coPageidptr, tcoElementptr, tmp2Olq);
       arrGuard(tcoElementptr, 2048);
@@ -4456,14 +4959,12 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
 	{
 	  jam();
 	  report_dealloc(signal, opPtr.p);
-	  newOwner.p->localdata[0] = ~(Uint32)0;
-	  newOwner.p->localdata[1] = ~(Uint32)0;
+	  newOwner.p->localdata.setInvalid();
 	}
 	else
 	{
 	  jam();
-	  newOwner.p->localdata[0] = opPtr.p->localdata[0];
-	  newOwner.p->localdata[1] = opPtr.p->localdata[1];
+	  newOwner.p->localdata = opPtr.p->localdata;
 	}
 	action = START_NEW;
       }
@@ -4505,14 +5006,12 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     if (opbits & Operationrec::OP_ELEMENT_DISAPPEARED)
     {
       report_dealloc(signal, opPtr.p);
-      newOwner.p->localdata[0] = ~(Uint32)0;
-      newOwner.p->localdata[1] = ~(Uint32)0;
+      newOwner.p->localdata.setInvalid();
     }
     else
     {
       jam();
-      newOwner.p->localdata[0] = opPtr.p->localdata[0];
-      newOwner.p->localdata[1] = opPtr.p->localdata[1];
+      newOwner.p->localdata = opPtr.p->localdata;
     }
     
     lastP = newOwner;
@@ -4558,7 +5057,6 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     newOwner.p->elementPage = opPtr.p->elementPage;
     newOwner.p->elementPointer = opPtr.p->elementPointer;
     newOwner.p->elementContainer = opPtr.p->elementContainer;
-    newOwner.p->scanBits = opPtr.p->scanBits;
     newOwner.p->reducedHashValue = opPtr.p->reducedHashValue;
     newOwner.p->m_op_bits |= (opbits & Operationrec::OP_ELEMENT_DISAPPEARED);
     if (opbits & Operationrec::OP_ELEMENT_DISAPPEARED)
@@ -4837,16 +5335,16 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
   Uint32 TPageIndex;
   Uint32 TDirInd;
   Uint32 TSplit;
-  Uint32 TreleaseInd = 0;
   Uint32 TreleaseScanBucket;
-  Uint32 TreleaseScanIndicator[MAX_PARALLEL_SCANS_PER_FRAG];
   Page8Ptr TPageptr;
   ScanRecPtr TscanPtr;
+  Uint16 releaseScanMask = 0;
 
   TSplit = splitBucket;
-  for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
-    TreleaseScanIndicator[Ti] = 0;
-    if (fragrecptr.p->scan[Ti] != RNIL) {
+  for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++)
+  {
+    if (fragrecptr.p->scan[Ti] != RNIL)
+    {
       //-------------------------------------------------------------
       // A scan is ongoing on this particular local fragment. We have
       // to check its current state.
@@ -4864,15 +5362,22 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
 	    //-------------------------------------------------------------
             TreturnCode = 1;
             return TreturnCode;
-          } else if (TSplit > TscanPtr.p->nextBucketIndex) {
+          }
+          else if (TSplit > TscanPtr.p->nextBucketIndex)
+          {
             jam();
-	    //-------------------------------------------------------------
-	    // This bucket has not yet been scanned. We must reset the scanned
-	    // bit indicator for this scan on this bucket.
-	    //-------------------------------------------------------------
-            TreleaseScanIndicator[Ti] = 1;
-            TreleaseInd = 1;
-          } else {
+            ndbassert(TSplit <= TscanPtr.p->startNoOfBuckets);
+            if (TSplit <= TscanPtr.p->startNoOfBuckets)
+            {
+	      //-------------------------------------------------------------
+	      // This bucket has not yet been scanned. We must reset the scanned
+	      // bit indicator for this scan on this bucket.
+	      //-------------------------------------------------------------
+              releaseScanMask |= TscanPtr.p->scanMask;
+            }
+          }
+          else
+          {
             jam();
           }//if
         } else if (TscanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP) {
@@ -4895,21 +5400,12 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
       }//if
     }//if
   }//for
-  if (TreleaseInd == 1) {
-    TreleaseScanBucket = TSplit;
-    TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
-    TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
-    TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
-    ptrCheckGuard(TPageptr, cpagesize, page8);
-    for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
-      if (TreleaseScanIndicator[Ti] == 1) {
-        jam();
-        scanPtr.i = fragrecptr.p->scan[Ti];
-        ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
-        releaseScanBucket(TPageptr, TPageIndex);
-      }//if
-    }//for
-  }//if
+  TreleaseScanBucket = TSplit;
+  TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
+  TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
+  TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
+  ptrCheckGuard(TPageptr, cpagesize, page8);
+  releaseScanBucket(TPageptr, TPageIndex, releaseScanMask);
   return TreturnCode;
 }//Dbacc::checkScanExpand()
 
@@ -4927,7 +5423,25 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   fragrecptr.p->expandOrShrinkQueued = false;
-  if (fragrecptr.p->slack > 0) {
+#ifdef ERROR_INSERT
+  bool force_expand_shrink = false;
+  if (ERROR_INSERTED(3004) && fragrecptr.p->fragmentid == 0)
+  {
+    if (fragrecptr.p->level.getSize() > ERROR_INSERT_EXTRA)
+    {
+      return execSHRINKCHECK2(signal);
+    }
+    else if (fragrecptr.p->level.getSize() == ERROR_INSERT_EXTRA)
+    {
+      return;
+    }
+    force_expand_shrink = true;
+  }
+  if (!force_expand_shrink && fragrecptr.p->slack > 0)
+#else
+  if (fragrecptr.p->slack > 0)
+#endif
+  {
     jam();
     /* IT MEANS THAT IF SLACK > ZERO */
     /*--------------------------------------------------------------*/
@@ -5065,7 +5579,19 @@ void Dbacc::endofexpLab(Signal* signal) const
   Uint32 noOfBuckets = fragrecptr.p->level.getSize();
   Uint32 Thysteres = fragrecptr.p->maxloadfactor - fragrecptr.p->minloadfactor;
   fragrecptr.p->slackCheck = Int64(noOfBuckets) * Thysteres;
+#ifdef ERROR_INSERT
+  bool force_expand_shrink = false;
+  if (ERROR_INSERTED(3004) &&
+      fragrecptr.p->fragmentid == 0 &&
+      fragrecptr.p->level.getSize() != ERROR_INSERT_EXTRA)
+  {
+    force_expand_shrink = true;
+  }
+  if ((force_expand_shrink || fragrecptr.p->slack < 0) &&
+      !fragrecptr.p->level.isFull())
+#else
   if (fragrecptr.p->slack < 0 && !fragrecptr.p->level.isFull())
+#endif
   {
     jam();
     /* IT MEANS THAT IF SLACK < ZERO */
@@ -5098,10 +5624,9 @@ LHBits32 Dbacc::getElementHash(OperationrecPtr& oprec)
   if (oprec.p->hashValue.valid_bits() < fragrecptr.p->MAX_HASH_VALUE_BITS)
   {
     jam();
-    Uint32 localkey[2];
-    localkey[0] = oprec.p->localdata[0];
-    localkey[1] = oprec.p->localdata[1];
-    Uint32 len = readTablePk(localkey[0], localkey[1], ElementHeader::setLocked(oprec.i), oprec);
+    Local_key localkey;
+    localkey = oprec.p->localdata;
+    Uint32 len = readTablePk(localkey.m_page_no, localkey.m_page_idx, ElementHeader::setLocked(oprec.i), oprec);
     if (len > 0)
       oprec.p->hashValue = LHBits32(md5_hash((Uint64*)ckeys, len));
   }
@@ -5114,15 +5639,14 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr)
   assert(ElementHeader::getUnlocked(*elemptr));
 
   Uint32 elemhead = *elemptr;
-  Uint32 localkey[2];
+  Local_key localkey;
   elemptr += 1;
   ndbrequire(fragrecptr.p->localkeylen == 1);
-  localkey[0] = *elemptr;
-  localkey[1] = Local_key::ref2page_idx(localkey[0]);
-  localkey[0] = Local_key::ref2page_id(localkey[0]);
+  localkey.m_page_no = *elemptr;
+  localkey.m_page_idx = ElementHeader::getPageIdx(elemhead);
   OperationrecPtr oprec;
   oprec.i = RNIL;
-  Uint32 len = readTablePk(localkey[0], localkey[1], elemhead, oprec);
+  Uint32 len = readTablePk(localkey.m_page_no, localkey.m_page_idx, elemhead, oprec);
   if (len > 0)
   {
     jam();
@@ -5190,6 +5714,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   Uint32 elemStep;
   const Uint32 elemLen = fragrecptr.p->elementLength;
   OperationrecPtr oprecptr;
+  bool newBucket = true;
  EXP_CONTAINER_LOOP:
   Uint32 conptr = getContainerPtr(conidx, isforward);
   if (isforward)
@@ -5285,6 +5810,9 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   {
     ndbrequire(fragrecptr.p->localkeylen == 1);
     const Uint32 localkey = pageptr.p->word32[elemptr + 1];
+#if defined(VM_TRACE) || !defined(NDEBUG)
+    pageptr.p->word32[elemptr] = ElementHeader::setInvalid();
+#endif
     Uint32 tidrPageindex = fragrecptr.p->expReceiveIndex;
     Page8Ptr idrPageptr;
     idrPageptr.i = fragrecptr.p->expReceivePageptr;
@@ -5295,10 +5823,13 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
                   idrPageptr,
                   tidrPageindex,
                   tidrIsforward,
-                  tidrContainerptr);
+                  tidrContainerptr,
+                  containerhead.getScanBits(),
+                  newBucket);
     fragrecptr.p->expReceiveIndex = tidrPageindex;
     fragrecptr.p->expReceivePageptr = idrPageptr.i;
     fragrecptr.p->expReceiveIsforward = tidrIsforward;
+    newBucket = false;
   }
  REMOVE_LAST_LOOP:
   jam();
@@ -5406,10 +5937,13 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
                     idrPageptr,
                     tidrPageindex,
                     tidrIsforward,
-                    tidrContainerptr);
+                    tidrContainerptr,
+                    containerhead.getScanBits(),
+                    newBucket);
       fragrecptr.p->expReceiveIndex = tidrPageindex;
       fragrecptr.p->expReceivePageptr = idrPageptr.i;
       fragrecptr.p->expReceiveIsforward = tidrIsforward;
+      newBucket = false;
     }
     goto REMOVE_LAST_LOOP;
   }//if
@@ -5469,26 +6003,30 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
   Uint32 TmergeSource;
   Uint32 TreleaseScanBucket;
   Uint32 TreleaseInd = 0;
-  Uint32 TreleaseScanIndicator[MAX_PARALLEL_SCANS_PER_FRAG];
+  enum Actions { ExtendRescan, ReduceUndefined };
+  Bitmask<1> actions[MAX_PARALLEL_SCANS_PER_FRAG];
+  Uint16 releaseDestScanMask = 0;
+  Uint16 releaseSourceScanMask = 0;
   Page8Ptr TPageptr;
-  ScanRecPtr TscanPtr;
+  ScanRecPtr scanPtr;
 
   TmergeDest = destBucket;
   TmergeSource = sourceBucket;
-  for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
-    TreleaseScanIndicator[Ti] = 0;
+  for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++)
+  {
+    actions[Ti].clear();
     if (fragrecptr.p->scan[Ti] != RNIL) {
-      TscanPtr.i = fragrecptr.p->scan[Ti];
-      ptrCheckGuard(TscanPtr, cscanRecSize, scanRec);
-      if (TscanPtr.p->activeLocalFrag == fragrecptr.i) {
+      scanPtr.i = fragrecptr.p->scan[Ti];
+      ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+      if (scanPtr.p->activeLocalFrag == fragrecptr.i) {
 	//-------------------------------------------------------------
 	// A scan is ongoing on this particular local fragment. We have
 	// to check its current state.
 	//-------------------------------------------------------------
-        if (TscanPtr.p->scanBucketState ==  ScanRec::FIRST_LAP) {
+        if (scanPtr.p->scanBucketState ==  ScanRec::FIRST_LAP) {
           jam();
-          if ((TmergeDest == TscanPtr.p->nextBucketIndex) ||
-              (TmergeSource == TscanPtr.p->nextBucketIndex)) {
+          if ((TmergeDest == scanPtr.p->nextBucketIndex) ||
+              (TmergeSource == scanPtr.p->nextBucketIndex)) {
             jam();
 	    //-------------------------------------------------------------
 	    // We are currently scanning one of the buckets involved in the
@@ -5497,12 +6035,47 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
 	    //-------------------------------------------------------------
             TreturnCode = 1;
             return TreturnCode;
-          } else if (TmergeDest < TscanPtr.p->nextBucketIndex) {
+          }
+          else if (TmergeDest < scanPtr.p->nextBucketIndex)
+          {
             jam();
-            TreleaseScanIndicator[Ti] = 1;
+            /**
+             * Merge bucket into scanned bucket.  Mark for rescan.
+             */
+            actions[Ti].set(ExtendRescan);
+            if (TmergeSource == scanPtr.p->startNoOfBuckets)
+            {
+              /**
+               * Merge unscanned bucket with undefined scan bits into scanned
+               * bucket.  Source buckets scan bits must be cleared.
+               */
+              actions[Ti].set(ReduceUndefined);
+              releaseSourceScanMask |= scanPtr.p->scanMask;
+            }
             TreleaseInd = 1;
           }//if
-        } else if (TscanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP) {
+          else
+          {
+            /**
+             * Merge unscanned bucket with undefined scan bits into unscanned
+             * bucket with undefined scan bits.
+             */
+            if (TmergeSource == scanPtr.p->startNoOfBuckets)
+            {
+              actions[Ti].set(ReduceUndefined);
+              releaseSourceScanMask |= scanPtr.p->scanMask;
+              TreleaseInd = 1;
+            }
+            if (TmergeDest <= scanPtr.p->startNoOfBuckets)
+            {
+              jam();
+              // Destination bucket is not scanned by scan
+              releaseDestScanMask |= scanPtr.p->scanMask;
+            }
+          }
+        }
+        else if (scanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP)
+        {
           jam();
 	  //-------------------------------------------------------------
 	  // We are performing a second lap to handle buckets that was
@@ -5511,12 +6084,14 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
 	  //-------------------------------------------------------------
           TreturnCode = 1;
           return TreturnCode;
-        } else if (TscanPtr.p->scanBucketState ==  ScanRec::SCAN_COMPLETED) {
+        } else if (scanPtr.p->scanBucketState ==  ScanRec::SCAN_COMPLETED) {
           jam();
 	  //-------------------------------------------------------------
 	  // The scan is completed and we can thus go ahead and perform
 	  // the split.
 	  //-------------------------------------------------------------
+          releaseDestScanMask |= scanPtr.p->scanMask;
+          releaseSourceScanMask |= scanPtr.p->scanMask;
         } else {
           jam();
           sendSystemerror(__LINE__);
@@ -5525,35 +6100,54 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
       }//if
     }//if
   }//for
+
+  TreleaseScanBucket = TmergeSource;
+  TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
+  TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
+  TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
+  ptrCheckGuard(TPageptr, cpagesize, page8);
+  releaseScanBucket(TPageptr, TPageIndex, releaseSourceScanMask);
+
+  TreleaseScanBucket = TmergeDest;
+  TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
+  TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
+  TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
+  ptrCheckGuard(TPageptr, cpagesize, page8);
+  releaseScanBucket(TPageptr, TPageIndex, releaseDestScanMask);
+
   if (TreleaseInd == 1) {
     jam();
-    TreleaseScanBucket = TmergeSource;
-    TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
-    TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
-    TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
-    ptrCheckGuard(TPageptr, cpagesize, page8);
     for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
-      if (TreleaseScanIndicator[Ti] == 1) {
+      if (!actions[Ti].isclear())
+      {
         jam();
         scanPtr.i = fragrecptr.p->scan[Ti];
         ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
-        releaseScanBucket(TPageptr, TPageIndex);
-        if (TmergeDest < scanPtr.p->minBucketIndexToRescan) {
-          jam();
-	  //-------------------------------------------------------------
-	  // We have to keep track of the starting bucket to Rescan in the
-	  // second lap.
-	  //-------------------------------------------------------------
-          scanPtr.p->minBucketIndexToRescan = TmergeDest;
-        }//if
-        if (TmergeDest > scanPtr.p->maxBucketIndexToRescan) {
-          jam();
-	  //-------------------------------------------------------------
-	  // We have to keep track of the ending bucket to Rescan in the
-	  // second lap.
-	  //-------------------------------------------------------------
-          scanPtr.p->maxBucketIndexToRescan = TmergeDest;
-        }//if
+        if (actions[Ti].get(ReduceUndefined))
+        {
+          scanPtr.p->startNoOfBuckets --;
+        }
+        if (actions[Ti].get(ExtendRescan))
+        {
+          if (TmergeDest < scanPtr.p->minBucketIndexToRescan)
+          {
+            jam();
+	    //-------------------------------------------------------------
+	    // We have to keep track of the starting bucket to Rescan in the
+	    // second lap.
+	    //-------------------------------------------------------------
+            scanPtr.p->minBucketIndexToRescan = TmergeDest;
+          }//if
+          if (TmergeDest > scanPtr.p->maxBucketIndexToRescan)
+          {
+            jam();
+	    //-------------------------------------------------------------
+	    // We have to keep track of the ending bucket to Rescan in the
+	    // second lap.
+	    //-------------------------------------------------------------
+            scanPtr.p->maxBucketIndexToRescan = TmergeDest;
+          }//if
+        }
       }//if
     }//for
   }//if
@@ -5567,7 +6161,26 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   fragrecptr.p->expandOrShrinkQueued = false;
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
-  if (fragrecptr.p->slack <= fragrecptr.p->slackCheck) {
+#ifdef ERROR_INSERT
+  bool force_expand_shrink = false;
+  if (ERROR_INSERTED(3004) && fragrecptr.p->fragmentid == 0)
+  {
+    if (fragrecptr.p->level.getSize() < ERROR_INSERT_EXTRA)
+    {
+      return execEXPANDCHECK2(signal);
+    }
+    else if (fragrecptr.p->level.getSize() == ERROR_INSERT_EXTRA)
+    {
+      return;
+    }
+    force_expand_shrink = true;
+  }
+  if (!force_expand_shrink &&
+      fragrecptr.p->slack <= fragrecptr.p->slackCheck)
+#else
+  if (fragrecptr.p->slack <= fragrecptr.p->slackCheck)
+#endif
+  {
     jam();
     /* TIME FOR JOIN BUCKETS PROCESS */
     /*--------------------------------------------------------------*/
@@ -5575,7 +6188,12 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
-  if (fragrecptr.p->slack < 0) {
+#ifdef ERROR_INSERT
+  if (!force_expand_shrink && fragrecptr.p->slack < 0)
+#else
+  if (fragrecptr.p->slack < 0)
+#endif
+  {
     jam();
     /*--------------------------------------------------------------*/
     /* THE SLACK IS NEGATIVE, IN THIS CASE WE WILL NOT NEED ANY     */
@@ -5730,6 +6348,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     Page8Ptr rlPageptr;
     rlPageptr.i = prevPageptr;
     ptrCheckGuard(rlPageptr, cpagesize, page8);
+    ndbassert(!containerhead.isScanInProgress());
     if (cexcPrevisforward)
     {
       jam();
@@ -5790,7 +6409,19 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       }
     }//if
   }//if
-  if (fragrecptr.p->slack > 0) {
+#ifdef ERROR_INSERT
+  bool force_expand_shrink = false;
+  if (ERROR_INSERTED(3004) &&
+      fragrecptr.p->fragmentid == 0 &&
+      fragrecptr.p->level.getSize() != ERROR_INSERT_EXTRA)
+  {
+    force_expand_shrink = true;
+  }
+  if (force_expand_shrink || fragrecptr.p->slack > 0)
+#else
+  if (fragrecptr.p->slack > 0)
+#endif
+  {
     jam();
     /*--------------------------------------------------------------*/
     /* THE SLACK IS POSITIVE, IN THIS CASE WE WILL CHECK WHETHER    */
@@ -5799,7 +6430,12 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
     Uint32 noOfBuckets = fragrecptr.p->level.getSize();
     Uint32 Thysteresis = fragrecptr.p->maxloadfactor - fragrecptr.p->minloadfactor;
     fragrecptr.p->slackCheck = Int64(noOfBuckets) * Thysteresis;
-    if (fragrecptr.p->slack > Thysteresis) {
+#ifdef ERROR_INSERT
+    if (force_expand_shrink || fragrecptr.p->slack > Thysteresis)
+#else
+    if (fragrecptr.p->slack > Thysteresis)
+#endif
+    {
       /*--------------------------------------------------------------*/
       /*       IT IS STILL NECESSARY TO SHRINK THE FRAGMENT MORE. THIS*/
       /*       CAN HAPPEN WHEN A NUMBER OF SHRINKS GET REJECTED       */
@@ -5927,6 +6563,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
     }//if
     ndbrequire(tgeRemLen == Container::HEADER_SIZE);
     ContainerHeader containerhead = gePageptr.p->word32[tgeContainerptr];
+    ndbassert((containerhead.getScanBits() & ~fragrecptr.p->activeScanMask) == 0);
     tgeNextptrtype = containerhead.getNextEnd();
     if (tgeNextptrtype == 0)
     {
@@ -6011,7 +6648,9 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
                   idrPageptr,
                   tidrPageindex,
                   tidrIsforward,
-                  tidrContainerptr);
+                  tidrContainerptr,
+                  ContainerHeader(pageptr.p->word32[conptr]).getScanBits(),
+                  false);
     /* --------------------------------------------------------------- */
     /*       TAKE CARE OF RESULT FROM INSERT_ELEMENT.                  */
     /* --------------------------------------------------------------- */
@@ -6102,6 +6741,7 @@ void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)const
   regFragPtr.p->sparsepages.init();
   regFragPtr.p->fullpages.init();
   regFragPtr.p->m_noOfAllocatedPages = 0;
+  regFragPtr.p->activeScanMask = 0;
 }//Dbacc::initFragGeneral()
 
 
@@ -6233,6 +6873,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     jam();
     fragrecptr.i = scanPtr.p->activeLocalFrag;
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+    ndbassert(fragrecptr.p->activeScanMask & scanPtr.p->scanMask);
     /* ---------------------------------------------------------------------
      * THE SCAN PROCESS IS FINISHED. RELOCK ALL LOCKED EL. 
      * RELESE ALL INVOLVED REC.
@@ -6340,7 +6981,8 @@ void Dbacc::checkNextBucketLab(Signal* signal)
         gnsPageidptr.i = getPagePtr(fragrecptr.p->directory, pagei);
         ptrCheckGuard(gnsPageidptr, cpagesize, page8);
       }//if
-      releaseScanBucket(gnsPageidptr, conidx);
+      ndbassert(!scanPtr.p->isInContainer());
+      releaseScanBucket(gnsPageidptr, conidx, scanPtr.p->scanMask);
     }//if
     signal->theData[0] = scanPtr.i;
     signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
@@ -6375,8 +7017,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       ElementHeader::getOpPtrI(nsPageptr.p->word32[tnsElementptr]);
     ptrCheckGuard(queOperPtr, coprecsize, operationrec);
     if (queOperPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED ||
-	Local_key::isInvalid(queOperPtr.p->localdata[0],
-                             queOperPtr.p->localdata[1]))
+	queOperPtr.p->localdata.isInvalid())
     {
       jam();
       /* ------------------------------------------------------------------ */
@@ -6463,8 +7104,10 @@ void Dbacc::initScanFragmentPart()
   //    larger than.
   // Reset the scan indicator on the first bucket.
   /* ----------------------------------------------------------------------- */
+  ndbassert(scanPtr.p->activeLocalFrag == RNIL);
   scanPtr.p->activeLocalFrag = fragrecptr.i;
   scanPtr.p->nextBucketIndex = 0;	/* INDEX OF SCAN BUCKET */
+  ndbassert(!scanPtr.p->isInContainer());
   scanPtr.p->scanBucketState = ScanRec::FIRST_LAP;
   scanPtr.p->startNoOfBuckets = fragrecptr.p->level.getTop();
   scanPtr.p->minBucketIndexToRescan = 0xFFFFFFFF;
@@ -6472,7 +7115,10 @@ void Dbacc::initScanFragmentPart()
   cnfPageidptr.i = getPagePtr(fragrecptr.p->directory, 0);
   ptrCheckGuard(cnfPageidptr, cpagesize, page8);
   const Uint32 conidx = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
-  releaseScanBucket(cnfPageidptr, conidx);
+  ndbassert(!(fragrecptr.p->activeScanMask & scanPtr.p->scanMask));
+  ndbassert(!scanPtr.p->isInContainer());
+  releaseScanBucket(cnfPageidptr, conidx, scanPtr.p->scanMask);
+  fragrecptr.p->activeScanMask |= scanPtr.p->scanMask;
 }//Dbacc::initScanFragmentPart()
 
 /* -------------------------------------------------------------------------
@@ -6488,6 +7134,43 @@ void Dbacc::releaseScanLab(Signal* signal)
 
   fragrecptr.i = scanPtr.p->activeLocalFrag;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+  ndbassert(fragrecptr.p->activeScanMask & scanPtr.p->scanMask);
+
+  /**
+   * Dont leave partial scanned bucket as partial scanned.
+   * Elements scanbits must match containers scanbits.
+   */
+  if ((scanPtr.p->scanBucketState ==  ScanRec::FIRST_LAP &&
+       scanPtr.p->nextBucketIndex <= fragrecptr.p->level.getTop()) ||
+      (scanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP &&
+       scanPtr.p->nextBucketIndex <= scanPtr.p->maxBucketIndexToRescan))
+  {
+    jam();
+    Uint32 conidx = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
+    Uint32 pagei = fragrecptr.p->getPageNumber(scanPtr.p->nextBucketIndex);
+    Page8Ptr pageptr;
+    pageptr.i = getPagePtr(fragrecptr.p->directory, pagei);
+    ptrCheckGuard(pageptr, cpagesize, page8);
+
+    Uint32 inPageI;
+    Uint32 inConptr;
+    if(scanPtr.p->getContainer(inPageI, inConptr))
+    {
+      Page8Ptr page;
+      page.i = inPageI;
+      ptrCheckGuard(page, cpagesize, page8);
+      ContainerHeader conhead(page.p->word32[inConptr]);
+      scanPtr.p->leaveContainer(inPageI, inConptr);
+      page.p->clearScanContainer(scanPtr.p->scanMask, inConptr);
+      if (!page.p->checkScanContainer(inConptr))
+      {
+        conhead.clearScanInProgress();
+        page.p->word32[inConptr] = Uint32(conhead);
+      }
+    }
+    releaseScanBucket(pageptr, conidx, scanPtr.p->scanMask);
+  }
+
   for (tmp = 0; tmp < MAX_PARALLEL_SCANS_PER_FRAG; tmp++) {
     jam();
     if (fragrecptr.p->scan[tmp] == scanPtr.i) {
@@ -6500,6 +7183,8 @@ void Dbacc::releaseScanLab(Signal* signal)
   signal->theData[0] = scanPtr.p->scanUserptr;
   signal->theData[1] = RNIL;
   signal->theData[2] = RNIL;
+  fragrecptr.p->activeScanMask &= ~scanPtr.p->scanMask;
+  scanPtr.p->activeLocalFrag = RNIL;
   releaseScanRec();
   EXECUTE_DIRECT(blockNo,
                  GSN_NEXT_SCANCONF,
@@ -6695,6 +7380,7 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
 
   fragrecptr.i = scanPtr.p->activeLocalFrag;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+  ndbassert(fragrecptr.p->activeScanMask & scanPtr.p->scanMask);
   checkNextBucketLab(signal);
   return;
 }//Dbacc::execACC_CHECK_SCAN()
@@ -6775,24 +7461,86 @@ bool Dbacc::getScanElement(Page8Ptr& pageptr,
                            Uint32& elemptr,
                            Uint32& islocked) const
 {
+  /* Input is always the bucket header container */
   isforward = true;
+  /* Check if scan is already active in a container */
+  Uint32 inPageI;
+  Uint32 inConptr;
+  if (scanPtr.p->getContainer(inPageI, inConptr))
+  {
+    // TODO: in VM_TRACE double check container is in bucket!
+    pageptr.i = inPageI;
+    ptrCheckGuard(pageptr, cpagesize, page8);
+    conptr = inConptr;
+    ContainerHeader conhead(pageptr.p->word32[conptr]);
+    ndbassert(conhead.isScanInProgress());
+    ndbassert((conhead.getScanBits() & scanPtr.p->scanMask)==0);
+    getContainerIndex(conptr, conidx, isforward);
+  }
+  else // if first bucket is not in scan nor scanned , start it
+  {
+    Uint32 conptr = getContainerPtr(conidx, isforward);
+    ContainerHeader containerhead(pageptr.p->word32[conptr]);
+    if (!(containerhead.getScanBits() & scanPtr.p->scanMask))
+    {
+      if(!containerhead.isScanInProgress())
+      {
+        containerhead.setScanInProgress();
+        pageptr.p->word32[conptr] = containerhead;
+      }
+      scanPtr.p->enterContainer(pageptr.i, conptr);
+      pageptr.p->setScanContainer(scanPtr.p->scanMask, conptr);
+    }
+  }
  NEXTSEARCH_SCAN_LOOP:
   conptr = getContainerPtr(conidx, isforward);
   ContainerHeader containerhead(pageptr.p->word32[conptr]);
   Uint32 conlen = containerhead.getLength();
-  if (searchScanContainer(pageptr,
-                          conptr,
-                          isforward,
-                          conlen,
-                          elemptr,
-                          islocked))
+  if (containerhead.getScanBits() & scanPtr.p->scanMask)
+  { // Already scanned, go to next.
+    ndbassert(!containerhead.isScanInProgress());
+  }
+  else
+  {
+    ndbassert(containerhead.isScanInProgress());
+    if (searchScanContainer(pageptr,
+                            conptr,
+                            isforward,
+                            conlen,
+                            elemptr,
+                            islocked))
+    {
+      jam();
+      return true;
+    }//if
+  }
+  if ((containerhead.getScanBits() & scanPtr.p->scanMask) == 0)
+  {
+    containerhead.setScanBits(scanPtr.p->scanMask);
+    scanPtr.p->leaveContainer(pageptr.i, conptr);
+    pageptr.p->clearScanContainer(scanPtr.p->scanMask, conptr);
+    if (!pageptr.p->checkScanContainer(conptr))
+    {
+      containerhead.clearScanInProgress();
+    }
+    pageptr.p->word32[conptr] = Uint32(containerhead);
+  }
+  if (containerhead.haveNext())
   {
     jam();
-    return true;
-  }//if
-  if (containerhead.getNextEnd() != 0) {
-    jam();
     nextcontainerinfo(pageptr, conptr, containerhead, conidx, isforward);
+    conptr=getContainerPtr(conidx,isforward);
+    containerhead=pageptr.p->word32[conptr];
+    if ((containerhead.getScanBits() & scanPtr.p->scanMask) == 0)
+    {
+      if(!containerhead.isScanInProgress())
+      {
+        containerhead.setScanInProgress();
+      }
+      pageptr.p->word32[conptr] = Uint32(containerhead);
+      scanPtr.p->enterContainer(pageptr.i, conptr);
+      pageptr.p->setScanContainer(scanPtr.p->scanMask, conptr);
+    } // else already scanned, get next
     goto NEXTSEARCH_SCAN_LOOP;
   }//if
   pageptr.p->word32[conptr] = Uint32(containerhead);
@@ -6835,11 +7583,23 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr,
   tisoLocalPtr = elemptr + 1;
 
   arrGuard(tisoLocalPtr, 2048);
-  Uint32 Tkey1 = pageptr.p->word32[tisoLocalPtr];
+  Local_key key;
+  key.m_page_no = pageptr.p->word32[tisoLocalPtr];
+  if(ElementHeader::getUnlocked(pageptr.p->word32[elemptr]))
+  {
+    key.m_page_idx = ElementHeader::getPageIdx(pageptr.p->word32[elemptr]);
+  }
+  else
+  {
+    OperationrecPtr oprec;
+    oprec.i = ElementHeader::getOpPtrI(pageptr.p->word32[elemptr]);
+    ptrCheckGuard(oprec, coprecsize, operationrec);
+    ndbassert(oprec.p->localdata.m_page_no == key.m_page_no);
+    key.m_page_idx = oprec.p->localdata.m_page_idx;
+  }
   tisoLocalPtr = tisoLocalPtr + 1;
   ndbrequire(localkeylen == 1)
-  operationRecPtr.p->localdata[0] = Local_key::ref2page_id(Tkey1);
-  operationRecPtr.p->localdata[1] = Local_key::ref2page_idx(Tkey1);
+  operationRecPtr.p->localdata = key;
   operationRecPtr.p->hashValue.clear();
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
   operationRecPtr.p->xfrmtupkeylen = 0; // not used
@@ -6992,15 +7752,26 @@ void Dbacc::putReadyScanQueue(Uint32 scanRecIndex) const
  *
  * @param[in]  pageptr  Page of first container of bucket
  * @param[in]  conidx   Index within page to first container of bucket
+ * @param[in]  scanMask Scan bit mask for scan bits that should be cleared
  * ------------------------------------------------------------------------- */
-void Dbacc::releaseScanBucket(Page8Ptr pageptr, Uint32 conidx) const
+void Dbacc::releaseScanBucket(Page8Ptr pageptr,
+                              Uint32 conidx,
+                              Uint16 scanMask) const
 {
+  scanMask |= (~fragrecptr.p->activeScanMask &
+               ((1 << MAX_PARALLEL_SCANS_PER_FRAG) - 1));
   bool isforward = true;
  NEXTRELEASESCANLOOP:
   Uint32 conptr = getContainerPtr(conidx, isforward);
   ContainerHeader containerhead(pageptr.p->word32[conptr]);
   Uint32 conlen = containerhead.getLength();
-  releaseScanContainer(pageptr, conptr, isforward, conlen);
+  const Uint16 isScanned = containerhead.getScanBits() & scanMask;
+  releaseScanContainer(pageptr, conptr, isforward, conlen, scanMask, isScanned);
+  if (isScanned)
+  {
+    containerhead.clearScanBits(isScanned);
+    pageptr.p->word32[conptr] = Uint32(containerhead);
+  }
   if (containerhead.getNextEnd() != 0) {
     jam();
     nextcontainerinfo(pageptr, conptr, containerhead, conidx, isforward);
@@ -7016,9 +7787,15 @@ void Dbacc::releaseScanBucket(Page8Ptr pageptr, Uint32 conidx) const
  * @param[in]  conptr   Pointer within page to container.
  * @param[in]  forward  Container growing direction.
  * @param[in]  conlen   Containers current size.
+ * @param[in]  scanMask   Scan bits that should be cleared if set
+ * @param[in]  allScanned All elements should have this bits set (debug)
  * ------------------------------------------------------------------------- */
-void Dbacc::releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
-    bool isforward, Uint32 conlen) const
+void Dbacc::releaseScanContainer(const Page8Ptr pageptr,
+                                 const Uint32 conptr,
+                                 const bool isforward,
+                                 const Uint32 conlen,
+                                 const Uint16 scanMask,
+                                 const Uint16 allScanned) const
 {
   OperationrecPtr rscOperPtr;
   Uint32 trscElemStep;
@@ -7047,25 +7824,8 @@ void Dbacc::releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
     trscElementptr = conptr - trscElemlen;
     trscElemStep = 0 - trscElemlen;
   }//if
-  do {
-    arrGuard(trscElementptr, 2048);
-    const Uint32 eh = pageptr.p->word32[trscElementptr];
-    const Uint32 scanMask = scanPtr.p->scanMask;
-    if (ElementHeader::getUnlocked(eh)) {
-      jam();
-      const Uint32 tmp = ElementHeader::clearScanBit(eh, scanMask);
-      dbgWord32(pageptr, trscElementptr, tmp);
-      pageptr.p->word32[trscElementptr] = tmp;
-    } else {
-      jam();
-      rscOperPtr.i = ElementHeader::getOpPtrI(eh);
-      ptrCheckGuard(rscOperPtr, coprecsize, operationrec);
-      rscOperPtr.p->scanBits &= ~scanMask;
-    }//if
-    trscElemlens = trscElemlens - trscElemlen;
-    trscElementptr = trscElementptr + trscElemStep;
-  } while (trscElemlens > 1);
-  if (trscElemlens != 0) {
+  if (trscElemlens % trscElemlen != 0)
+  {
     jam();
     sendSystemerror(__LINE__);
   }//if
@@ -7123,12 +7883,24 @@ bool Dbacc::searchScanContainer(Page8Ptr pageptr,
                                 Uint32& islocked) const
 {
   OperationrecPtr operPtr;
-  Uint32 scanBits;
   Uint32 elemlens;
   Uint32 elemlen;
   Uint32 elemStep;
   Uint32 Telemptr;
   Uint32 Tislocked;
+
+#ifdef VM_TRACE
+  ContainerHeader chead(pageptr.p->word32[conptr]);
+  ndbassert((chead.getScanBits()&scanPtr.p->scanMask)==0);
+  ndbassert(chead.isScanInProgress());
+  ndbassert(scanPtr.p->isInContainer());
+  {
+    Uint32 pagei; Uint32 cptr;
+    ndbassert(scanPtr.p->getContainer(pagei, cptr));
+    ndbassert(pageptr.i==pagei);
+    ndbassert(conptr==cptr);
+  }
+#endif
 
   if (conlen < 4) {
     jam();
@@ -7152,31 +7924,20 @@ bool Dbacc::searchScanContainer(Page8Ptr pageptr,
  SCANELEMENTLOOP001:
   arrGuard(Telemptr, 2048);
   const Uint32 eh = pageptr.p->word32[Telemptr];
+  bool found=false;
+  if (!scanPtr.p->isScanned(Telemptr))
+  {
+    found=true;
+    scanPtr.p->setScanned(Telemptr);
+  }
   Tislocked = ElementHeader::getLocked(eh);
-  if (!Tislocked){
-    jam();
-    scanBits = ElementHeader::getScanBits(eh);
-    if ((scanPtr.p->scanMask & scanBits) == 0) {
-      jam();
-      const Uint32 tmp = ElementHeader::setScanBit(eh, scanPtr.p->scanMask);
-      dbgWord32(pageptr, Telemptr, tmp);
-      pageptr.p->word32[Telemptr] = tmp;
-      elemptr = Telemptr;
-      islocked = Tislocked;
-      return true;
-    }//if
-  } else {
-    jam();
-    operPtr.i = ElementHeader::getOpPtrI(eh);
-    ptrCheckGuard(operPtr, coprecsize, operationrec);
-    if ((operPtr.p->scanBits & scanPtr.p->scanMask) == 0) {
-      jam();
-      operPtr.p->scanBits |= scanPtr.p->scanMask;
-      elemptr = Telemptr;
-      islocked = Tislocked;
-      return true;
-    }//if
-  }//if
+  if (found)
+  {
+    elemptr = Telemptr;
+    islocked = Tislocked;
+    return true;
+  }
+  ndbassert(!found);
   /* THE ELEMENT IS ALREADY SENT. */
   /* SEARCH FOR NEXT ONE */
   elemlens = elemlens - elemlen;
@@ -7193,10 +7954,9 @@ bool Dbacc::searchScanContainer(Page8Ptr pageptr,
 /* --------------------------------------------------------------------------------- */
 void Dbacc::sendNextScanConf(Signal* signal)
 {
-  const Uint32 localKey1 = operationRecPtr.p->localdata[0];
-  const Uint32 localKey2 = operationRecPtr.p->localdata[1];
+  const Local_key localKey = operationRecPtr.p->localdata;
 
-  c_tup->prepareTUPKEYREQ(localKey1, localKey2, fragrecptr.p->tupFragptr);
+  c_tup->prepareTUPKEYREQ(localKey.m_page_no, localKey.m_page_idx, fragrecptr.p->tupFragptr);
 
   const Uint32 scanUserPtr = scanPtr.p->scanUserptr;
   const Uint32 opPtrI = operationRecPtr.i;
@@ -7211,8 +7971,8 @@ void Dbacc::sendNextScanConf(Signal* signal)
   signal->theData[0] = scanUserPtr;
   signal->theData[1] = opPtrI;
   signal->theData[2] = fid;
-  signal->theData[3] = localKey1;
-  signal->theData[4] = localKey2;
+  signal->theData[3] = localKey.m_page_no;
+  signal->theData[4] = localKey.m_page_idx;
   EXECUTE_DIRECT(refToMain(blockRef), GSN_NEXT_SCANCONF, signal, 5);
   return;
 }//Dbacc::sendNextScanConf()
@@ -7233,7 +7993,6 @@ void Dbacc::setlock(Page8Ptr pageptr, Uint32 elemptr) const
 
   arrGuard(elemptr, 2048);
   tselTmp1 = pageptr.p->word32[elemptr];
-  operationRecPtr.p->scanBits = ElementHeader::getScanBits(tselTmp1);
   operationRecPtr.p->reducedHashValue = ElementHeader::getReducedHashValue(tselTmp1);
 
   tselTmp1 = ElementHeader::setLocked(operationRecPtr.i);
@@ -7953,8 +8712,8 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
 	      tmpOpPtr.p->prevLockOwnerOp, tmpOpPtr.p->nextParallelQue);
     infoEvent("prevSerialQue=%d, scanRecPtr=%d",
 	      tmpOpPtr.p->prevSerialQue, tmpOpPtr.p->scanRecPtr);
-    infoEvent("m_op_bits=0x%x, scanBits=%d, reducedHashValue=%x ",
-              tmpOpPtr.p->m_op_bits, tmpOpPtr.p->scanBits, tmpOpPtr.p->reducedHashValue.pack());
+    infoEvent("m_op_bits=0x%x, reducedHashValue=%x ",
+              tmpOpPtr.p->m_op_bits, tmpOpPtr.p->reducedHashValue.pack());
     return;
   }
 

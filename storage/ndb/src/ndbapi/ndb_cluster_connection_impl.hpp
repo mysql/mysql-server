@@ -110,7 +110,7 @@ private:
   /**
    * Select the "closest" node
    */
-  Uint32 select_node(const Uint16* nodes, Uint32 cnt, Uint32 skip = 0);
+  Uint32 select_node(const Uint16* nodes, Uint32 cnt);
 
   int connect(int no_retries,
               int retry_delay_in_seconds,

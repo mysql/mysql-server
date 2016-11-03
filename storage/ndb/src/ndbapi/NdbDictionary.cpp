@@ -762,6 +762,12 @@ NdbDictionary::Table::getFragmentCount() const
   return m_impl.getFragmentCount();
 }
 
+Uint32
+NdbDictionary::Table::getRealFragmentCount() const
+{
+  return m_impl.getRealFragmentCount();
+}
+
 void
 NdbDictionary::Table::setFragmentCountType(NdbDictionary::Object::FragmentCountType arg)
 {
@@ -1065,8 +1071,23 @@ NdbDictionary::Table::getPartitionId(Uint32 hashValue) const
   }
   case NdbDictionary::Object::HashMapPartition:
   {
-    Uint32 cnt = m_impl.m_hash_map.size();
-    return m_impl.m_hash_map[hashValue % cnt];
+    if (!m_impl.m_fully_replicated)
+    {
+      Uint32 cnt = m_impl.m_hash_map.size();
+      return m_impl.m_hash_map[hashValue % cnt];
+    }
+    else
+    {
+      /**
+       * Using old interface we will go to the real fragment.
+       * The new startTransaction interface goes to any node
+       * for fully replicated tables.
+       */
+      Uint32 realCnt = m_impl.m_realFragmentCount;
+      assert(realCnt != 0);
+      assert(realCnt <= m_impl.m_hash_map.size());
+      return m_impl.m_hash_map[hashValue % realCnt];
+    }
   }
   default:
     return 0;
@@ -1091,6 +1112,18 @@ NdbDictionary::Column::StorageType
 NdbDictionary::Table::getStorageType() const
 {
   return (NdbDictionary::Column::StorageType)m_impl.m_storageType;
+}
+
+void
+NdbDictionary::Table::setFullyReplicated(bool val)
+{
+  m_impl.m_fully_replicated = val;
+}
+
+bool
+NdbDictionary::Table::getFullyReplicated() const
+{
+  return m_impl.m_fully_replicated;
 }
 
 /*****************************************************************
@@ -4214,6 +4247,9 @@ NdbOut& operator <<(NdbOut& ndbout, NdbDictionary::Object::Type const type)
   case NdbDictionary::Object::ReorgTrigger:
     ndbout << "ReorgTrigger";
     break;
+  case NdbDictionary::Object::FullyReplicatedTrigger:
+    ndbout << "FullyReplicatedTrigger";
+    break;
   case NdbDictionary::Object::HashMap:
     ndbout << "HashMap";
     break;
@@ -4319,6 +4355,7 @@ NdbOut& operator <<(class NdbOut&, NdbDictionary::Table const& tab)
   ndbout << "Row GCI: " << tab.getRowGCIIndicator() << endl;
   ndbout << "SingleUserMode: " << (Uint32) tab.getSingleUserMode() << endl;
   ndbout << "ForceVarPart: " << tab.getForceVarPart() << endl;
+  ndbout << "RealFragmentCount: " << tab.getRealFragmentCount() << endl;
   ndbout << "FragmentCount: " << tab.getFragmentCount() << endl;
   ndbout << "FragmentCountType: " << tab.getFragmentCountTypeString() << endl;
   ndbout << "ExtraRowGciBits: " << tab.getExtraRowGciBits() << endl;
@@ -4335,8 +4372,14 @@ NdbOut& operator <<(class NdbOut&, NdbDictionary::Table const& tab)
     ndbout << "readbackup";
     first = false;
   }
+  if (tab.getFullyReplicated())
+  {
+    if (!first)
+      ndbout << ", ";
+    ndbout << "fullyreplicated";
+    first = false;
+  }
   ndbout << endl;
-
   return ndbout;
 }
 

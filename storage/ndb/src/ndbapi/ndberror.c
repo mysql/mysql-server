@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -589,11 +589,13 @@ ErrorBundle ErrorCodes[] = {
   { 792,  DMEC, SE, "Default value for primary key column not supported" },
   { 794,  DMEC, AE, "Schema feature requires data node upgrade" },
   { 796,  DMEC, SE, "Out of schema transaction memory" },
+  { 798,  DMEC, AE, "A disk table must not be specified as no logging" },
 
   /**
    * FunctionNotImplemented
    */
   { 4003, DMEC, NI, "Function not implemented yet" },
+  { 797,  DMEC, NI, "Wrong fragment count for fully replicated table" },
 
   /**
    * Backup error codes
