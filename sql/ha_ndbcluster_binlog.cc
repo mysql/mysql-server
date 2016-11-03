@@ -805,6 +805,18 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd,
   DBUG_ENTER("ndbcluster_binlog_log_query");
   DBUG_PRINT("enter", ("db: %s  table_name: %s  query: %s",
                        db, table_name, query));
+
+  DBUG_EXECUTE_IF("ndb_binlog_random_tableid",
+  {
+    /**
+     * Simulate behaviour immediately after mysql_main() init:
+     *   We do *not* set the random seed, which according to 'man rand'
+     *   is equivalent of setting srand(1). In turn this will result
+     *   in the same sequence of random numbers being produced on all mysqlds.
+     */ 
+    srand(1);
+  });
+
   enum SCHEMA_OP_TYPE type;
   /* Use random table_id and table_version  */
   const uint32 table_id = (uint32)rand();
@@ -1865,6 +1877,19 @@ int ndbcluster_log_schema_op(THD *thd,
     ndb_schema_object= ndb_get_schema_object(key, true);
     ndb_schema_object->table_id= ndb_table_id;
     ndb_schema_object->table_version= ndb_table_version;
+
+    DBUG_EXECUTE_IF("ndb_binlog_random_tableid",
+    {
+      /**
+       * Try to trigger a race between late incomming slock ack for schema operations
+       * having its coordinator on another node, which we would otherwise have discarded
+       * as no matching ndb_schema_object existed,
+       * and another schema op with same 'key', coordinated by this node.
+       * Thus causing a mixup betweeen these, and the schema distribution getting
+       * totally out of synch.
+       */
+      NdbSleep_MilliSleep(50);
+    });
   }
 
   const NdbError *ndb_error= 0;
@@ -2895,6 +2920,21 @@ class Ndb_schema_event_handler {
 
     char key[FN_REFLEN + 1];
     build_table_filename(key, sizeof(key) - 1, schema->db, schema->name, "", 0);
+
+    // Try to create a race between SLOCK acks handled after another
+    // schema operation could have been started.
+    DBUG_EXECUTE_IF("ndb_binlog_random_tableid",
+    {
+      NDB_SCHEMA_OBJECT *p= ndb_get_schema_object(key, false);
+      if (p == NULL)
+      {
+        NdbSleep_MilliSleep(10);
+      }
+      else
+      {
+        ndb_free_schema_object(&p);
+      }
+    });
 
     /* Ack to any SQL thread waiting for schema op to complete */
     NDB_SCHEMA_OBJECT *ndb_schema_object= ndb_get_schema_object(key, false);
