@@ -145,6 +145,8 @@ dd_mdl_acquire(
 	return(ret);
 }
 
+#ifdef UNIV_DEBUG
+
 /** Verify a metadata lock.
 @param[in,out]	thd	current thread
 @param[in]	db	schema name
@@ -182,6 +184,7 @@ dd_mdl_verify(
 	return(ret);
 }
 
+#endif /* UNIV_DEBUG */
 
 /** Release a metadata lock.
 @param[in,out]	thd	current thread
