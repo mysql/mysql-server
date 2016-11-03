@@ -421,6 +421,10 @@ struct view {
     "reserved, used, max "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>resources`"
   },
+  {"restart_info",
+   "SELECT * "
+   "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>restart_info`"
+  },
   /* server_locks view, reflecting server_operations view */
   {"server_locks",
    "SELECT map.mysql_connection_id, l.* "

@@ -444,7 +444,7 @@ DECLARE_NDBINFO_TABLE(RESTART_INFO, 22) =
        "Times of restart phases in seconds and current state" },
   {
     {"node_id",                                             Ndbinfo::Number,
-     "node_id" },
+     "node id" },
     {"node_restart_status",                                 Ndbinfo::String,
      "Current state of node recovery"},
     {"node_restart_status_int",                             Ndbinfo::Number,
