@@ -387,10 +387,10 @@ static void init_blackhole_psi_keys()
   const char* category= "blackhole";
   int count;
 
-  count= array_elements(all_blackhole_mutexes);
+  count= static_cast<int>(array_elements(all_blackhole_mutexes));
   mysql_mutex_register(category, all_blackhole_mutexes, count);
 
-  count= array_elements(all_blackhole_memory);
+  count= static_cast<int>(array_elements(all_blackhole_memory));
   mysql_memory_register(category, all_blackhole_memory, count);
 }
 #endif

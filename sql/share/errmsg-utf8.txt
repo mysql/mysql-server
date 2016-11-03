@@ -7536,7 +7536,7 @@ ER_JSON_KEY_TOO_BIG 22032
   eng "The JSON object contains a key name that is too long."
 
 ER_JSON_USED_AS_KEY 42000
-  eng "JSON column '%-.192s' cannot be used in key specification."
+  eng "JSON column '%-.192s' supports indexing only via generated columns on a specified JSON path."
 
 ER_JSON_VACUOUS_PATH 42000
   eng "The path expression '$' is not allowed in this context."

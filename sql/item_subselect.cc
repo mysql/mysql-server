@@ -1265,7 +1265,7 @@ void Item_singlerow_subselect::no_rows_in_result()
     no_rows= true;
 }
 
-uint Item_singlerow_subselect::cols()
+uint Item_singlerow_subselect::cols() const
 {
   return engine->cols();
 }

@@ -23,6 +23,7 @@
 #include <my_getopt.h>
 #include <my_global.h>
 #include <mysys_err.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "../mysys/mysys_priv.h"

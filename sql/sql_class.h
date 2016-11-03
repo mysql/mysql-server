@@ -137,6 +137,16 @@ typedef struct st_mysql_lock MYSQL_LOCK;
 #define thd_proc_info(thd, msg) \
   set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 
+extern "C"
+void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                    const char *src_function, const char *src_file,
+                    int src_line);
+extern "C"
+void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
+                   const char *src_function, const char *src_file,
+                   int src_line);
+
 #define THD_STAGE_INFO(thd, stage) \
   (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
 
@@ -2644,6 +2654,11 @@ public:
     utime_after_lock= my_micro_time();
     MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi, (utime_after_lock - start_utime));
   }
+  inline bool is_fsp_truncate_mode() const
+  {
+    return (variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL);
+  }
+
   /**
    Evaluate the current time, and if it exceeds the long-query-time
    setting, mark the query as slow.

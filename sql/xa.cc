@@ -1073,7 +1073,7 @@ static void init_transaction_cache_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(transaction_cache_mutexes);
+  count= static_cast<int>(array_elements(transaction_cache_mutexes));
   mysql_mutex_register(category, transaction_cache_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

@@ -98,6 +98,8 @@ use mtr_results;
 use IO::Socket::INET;
 use IO::Select;
 
+push @INC, ".";
+
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
@@ -163,7 +165,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -4129,6 +4131,9 @@ sub mysql_install_db {
   mtr_tofile($bootstrap_sql_file,
              sql_to_bootstrap(mtr_grab_file("include/mtr_check.sql")));
 
+  # Set blacklist option early so it works during bootstrap
+  $ENV{'TSAN_OPTIONS'}= "suppressions=$basedir/mysql-test/tsan.supp" if $opt_sanitize;
+
   if ( $opt_manual_boot_gdb )
   {
     # The configuration has been set up and user has been prompted for
@@ -7287,6 +7292,8 @@ sub valgrind_exit_reports() {
       $found_report= 1 if $line =~ /^==\d+==ERROR:.*/;
       # Various UBSAN runtime errors
       $found_report= 1 if $line =~ /.*runtime error: .*/;
+      # TSAN errors
+      $found_report= 1 if $line =~ /^WARNING: ThreadSanitizer: .*/;
 
       if ($ignore_report && $found_report) {
         $ignore_report= 0;
@@ -7302,6 +7309,7 @@ sub valgrind_exit_reports() {
         $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
         $err_in_report= 1 if $line =~ /still reachable: [1-9]/;
 	$err_in_report= 1 if $line =~ /.*runtime error: .*/;
+        $err_in_report= 1 if $line =~ /^WARNING: ThreadSanitizer: .*/;
       }
     }
 

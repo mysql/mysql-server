@@ -432,10 +432,10 @@ static void init_slave_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_slave_threads);
+  count= static_cast<int>(array_elements(all_slave_threads));
   mysql_thread_register(category, all_slave_threads, count);
 
-  count= array_elements(all_slave_memory);
+  count= static_cast<int>(array_elements(all_slave_memory));
   mysql_memory_register(category, all_slave_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

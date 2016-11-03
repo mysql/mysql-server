@@ -35,7 +35,6 @@
 #include "binlog_config.h"
 #include "bounded_queue.h"
 #include "cmp_varlen_keys.h"
-#include "current_thd.h"                // current_thd
 #include "debug_sync.h"
 #include "decimal.h"
 #include "derror.h"
@@ -1465,20 +1464,22 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
             memset(to-1, 0, sort_field->length+1);
           else      // The return value is null but the result may NOT be null.
           {
+            /* purecov: begin deadcode */
             /*
               This assert should only trigger if we have an item marked
               as null when in fact it cannot be null.
               (ret_value == nullptr, null_value == true
               and maybe_null == false).
             */
-            DBUG_ASSERT(!item->null_value);
-            DBUG_ASSERT(current_thd->is_error());
+            DBUG_ASSERT(0);
+            DBUG_PRINT("warning",
+                       ("Got null on something that shouldn't be null"));
             /*
-               If the assert did not trigger it means we raised an error during
-               item evaluation. Avoid a crash by filling the field with zeroes
+               Avoid a crash by filling the field with zeroes
                and break as the error will be reported later in find_all_keys.
             */
             memset(to, 0, sort_field->length);
+            /* purecov: end */
           }
           break;
         }

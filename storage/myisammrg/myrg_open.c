@@ -15,9 +15,11 @@
 
 /* open a MyISAM MERGE table */
 
-#include "myrg_def.h"
-#include <stddef.h>
 #include <errno.h>
+#include <stddef.h>
+
+#include "myrg_def.h"
+#include "typelib.h"
 
 /*
 	open a MyISAM MERGE table

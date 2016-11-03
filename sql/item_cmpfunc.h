@@ -182,7 +182,7 @@ public:
 
   Item_bool_func(THD *thd, Item_bool_func *item) : Item_int_func(thd, item),
     m_created_by_in2exists(item->m_created_by_in2exists) {}
-  bool is_bool_func() { return 1; }
+  bool is_bool_func() const { return true; }
   virtual bool resolve_type(THD *thd)
   {
     decimals= 0;
@@ -492,7 +492,7 @@ public:
   }
 
   bool is_null() { return MY_TEST(args[0]->is_null() || args[1]->is_null()); }
-  const CHARSET_INFO *compare_collation()
+  const CHARSET_INFO *compare_collation() const
   { return cmp.cmp_collation.collation; }
   void top_level_item() { abort_on_null= TRUE; }
   void cleanup()
@@ -938,8 +938,9 @@ public:
                          SELECT_LEX *removed_select);
   virtual bool resolve_type(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
-  bool is_bool_func() { return 1; }
-  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  bool is_bool_func() const { return true; }
+  const CHARSET_INFO *compare_collation() const
+  { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
   bool gc_subst_analyzer(uchar **arg) { return true; }
 
@@ -1635,7 +1636,8 @@ public:
   const char *func_name() const { return "case"; }
   virtual void print(String *str, enum_query_type query_type);
   Item *find_item(String *str);
-  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() const
+  { return cmp_collation.collation; }
   void cleanup();
 };
 
@@ -1719,8 +1721,9 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
-  bool is_bool_func() { return 1; }
-  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  bool is_bool_func() const { return true; }
+  const CHARSET_INFO *compare_collation() const
+  { return cmp_collation.collation; }
   bool gc_subst_analyzer(uchar **arg) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
@@ -1845,7 +1848,7 @@ public:
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   Item *neg_transformer(THD *thd);
-  const CHARSET_INFO *compare_collation()
+  const CHARSET_INFO *compare_collation() const
   { return args[0]->collation.collation; }
 };
 
@@ -1902,7 +1905,7 @@ public:
   { return abort_on_null ? not_null_tables_cache : 0; }
   Item *neg_transformer(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
-  const CHARSET_INFO *compare_collation()
+  const CHARSET_INFO *compare_collation() const
   { return args[0]->collation.collation; }
   void top_level_item() { abort_on_null=1; }
 
@@ -2006,7 +2009,8 @@ public:
     print_op(str, query_type);
   }
 
-  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() const
+  { return cmp_collation.collation; }
 };
 
 
@@ -2205,7 +2209,7 @@ public:
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual void print(String *str, enum_query_type query_type);
-  const CHARSET_INFO *compare_collation() 
+  const CHARSET_INFO *compare_collation() const
   { return fields.head()->collation.collation; }
 
   virtual bool equality_substitution_analyzer(uchar **arg) { return true; }

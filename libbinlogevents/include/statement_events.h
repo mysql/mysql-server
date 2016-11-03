@@ -212,7 +212,8 @@ namespace binary_log
     MODE_NO_AUTO_CREATE_USER==0x20000000
     MODE_HIGH_NOT_PRECEDENCE==0x40000000
     MODE_PAD_CHAR_TO_FULL_LENGTH==0x80000000
-    </pre>
+    MODE_TIME_TRUNCATE_FRACTIONAL==0x100000000
+   </pre>
     All these flags are replicated from the server.  However, all
     flags except @c MODE_NO_DIR_IN_CREATE are honored by the slave;
     the slave always preserves its old value of @c

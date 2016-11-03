@@ -154,16 +154,6 @@ bool PT_group::contextualize(Parse_context *pc)
   switch (olap) {
   case UNSPECIFIED_OLAP_TYPE:
     break;
-  case CUBE_TYPE:
-    if (select->linkage == GLOBAL_OPTIONS_TYPE)
-    {
-      my_error(ER_WRONG_USAGE, MYF(0), "WITH CUBE",
-               "global union parameters");
-      return true;
-    }
-    select->olap= CUBE_TYPE;
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "CUBE");
-    return true;
   case ROLLUP_TYPE:
     if (select->linkage == GLOBAL_OPTIONS_TYPE)
     {

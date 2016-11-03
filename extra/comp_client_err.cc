@@ -14,11 +14,12 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
+#include <errmsg.h>
+#include <m_string.h>
+#include <my_getopt.h>
 #include <my_global.h>
 #include <my_sys.h>
-#include <m_string.h>
-#include <errmsg.h>
-#include <my_getopt.h>
+#include <stdio.h>
 
 static const char *INFILE= "errmsg.h";
 static const char *OUTFILE= "mysqlclient_ername.h";

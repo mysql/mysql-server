@@ -386,6 +386,7 @@ THD::THD(bool enable_plugins)
    initial_status_var(NULL),
    status_var_aggregated(false),
    query_plan(this),
+   m_current_stage_key(0),
    current_mutex(NULL),
    current_cond(NULL),
    in_sub_stmt(0),
@@ -456,7 +457,6 @@ THD::THD(bool enable_plugins)
                  global_system_variables.query_prealloc_size);
   stmt_arena= this;
   thread_stack= 0;
-  m_current_stage_key= 0;
   m_catalog.str= "std";
   m_catalog.length= 3;
   m_security_ctx= &m_main_security_ctx;
@@ -516,7 +516,6 @@ THD::THD(bool enable_plugins)
 
   /* Variables with default values */
   proc_info="login";
-  m_current_stage_key= 0;
   where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
   unmasked_server_id = server_id;

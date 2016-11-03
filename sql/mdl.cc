@@ -85,16 +85,16 @@ static void init_mdl_psi_keys(void)
 {
   int count;
 
-  count= array_elements(all_mdl_mutexes);
+  count= static_cast<int>(array_elements(all_mdl_mutexes));
   mysql_mutex_register("sql", all_mdl_mutexes, count);
 
-  count= array_elements(all_mdl_rwlocks);
+  count= static_cast<int>(array_elements(all_mdl_rwlocks));
   mysql_rwlock_register("sql", all_mdl_rwlocks, count);
 
-  count= array_elements(all_mdl_conds);
+  count= static_cast<int>(array_elements(all_mdl_conds));
   mysql_cond_register("sql", all_mdl_conds, count);
 
-  count= array_elements(all_mdl_memory);
+  count= static_cast<int>(array_elements(all_mdl_memory));
   mysql_memory_register("sql", all_mdl_memory, count);
 
   MDL_key::init_psi_keys();
@@ -131,7 +131,8 @@ void MDL_key::init_psi_keys()
   int count;
   PSI_stage_info *info MY_ATTRIBUTE((unused));
 
-  count= array_elements(MDL_key::m_namespace_to_wait_state_name);
+  count=
+    static_cast<int>(array_elements(MDL_key::m_namespace_to_wait_state_name));
   for (i= 0; i<count; i++)
   {
     /* mysql_stage_register wants an array of pointers, registering 1 by 1. */

@@ -121,12 +121,6 @@ IF(MSVC)
 	    "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO} /INCREMENTAL:NO")
   ENDFOREACH()
   
-  # Mark 32 bit executables large address aware so they can 
-  # use > 2GB address space
-  IF(CMAKE_SIZEOF_VOID_P MATCHES 4)
-    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
-  ENDIF()
-  
   # Speed up multiprocessor build
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")

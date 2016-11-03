@@ -135,7 +135,11 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
       return FALSE;
     }
     keys.reset(new Keys_container(logger.get()));
-    IKeyring_io *keyring_io= new Buffered_file_io(logger.get());
+    std::vector<std::string> allowedFileVersionsToInit;
+    //this keyring will work with keyring files in the following versions:
+    allowedFileVersionsToInit.push_back(keyring::keyring_file_version_2_0);
+    allowedFileVersionsToInit.push_back(keyring::keyring_file_version_1_0);
+    IKeyring_io *keyring_io= new Buffered_file_io(logger.get(), &allowedFileVersionsToInit);
     if (keys->init(keyring_io, keyring_file_data_value))
     {
       is_keys_container_initialized = FALSE;

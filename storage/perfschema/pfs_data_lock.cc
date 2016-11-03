@@ -195,7 +195,7 @@ void PFS_data_cache::clear()
 }
 
 PFS_data_lock_container::PFS_data_lock_container()
-  : m_filter(NULL)
+  : m_logical_row_index(0), m_filter(NULL)
 {}
 
 PFS_data_lock_container::~PFS_data_lock_container()
@@ -358,22 +358,44 @@ void PFS_data_lock_container::add_lock_row(
 
 void PFS_data_lock_container::clear()
 {
+  m_logical_row_index = 0;
+  m_rows.clear();
+  m_cache.clear();
+}
+
+void PFS_data_lock_container::shrink()
+{
+  /* Keep rows numbering. */
+  m_logical_row_index += m_rows.size();
+  /* Discard existing data. */
   m_rows.clear();
   m_cache.clear();
 }
 
 row_data_lock *PFS_data_lock_container::get_row(unsigned int index)
 {
-  if (index < m_rows.size())
+  if (index < m_logical_row_index)
   {
-    return & m_rows[index];
+    /*
+      This row existed, before a call to ::shrink().
+      The caller should not ask for it again.
+    */
+    DBUG_ASSERT(false);
+    return NULL;
+  }
+
+  unsigned int physical_index= index - m_logical_row_index;
+
+  if (physical_index < m_rows.size())
+  {
+    return & m_rows[physical_index];
   }
 
   return NULL;
 }
 
 PFS_data_lock_wait_container::PFS_data_lock_wait_container()
-  : m_filter(NULL)
+  : m_logical_row_index(0), m_filter(NULL)
 {}
 
 PFS_data_lock_wait_container::~PFS_data_lock_wait_container()
@@ -531,11 +553,32 @@ void PFS_data_lock_wait_container::clear()
   m_cache.clear();
 }
 
+void PFS_data_lock_wait_container::shrink()
+{
+  /* Keep rows numbering. */
+  m_logical_row_index += m_rows.size();
+  /* Discard existing data. */
+  m_rows.clear();
+  m_cache.clear();
+}
+
 row_data_lock_wait *PFS_data_lock_wait_container::get_row(unsigned int index)
 {
-  if (index < m_rows.size())
+  if (index < m_logical_row_index)
   {
-    return & m_rows[index];
+    /*
+      This row existed, before a call to ::shrink().
+      The caller should not ask for it again.
+    */
+    DBUG_ASSERT(false);
+    return NULL;
+  }
+
+  unsigned int physical_index= index - m_logical_row_index;
+
+  if (physical_index < m_rows.size())
+  {
+    return & m_rows[physical_index];
   }
 
   return NULL;

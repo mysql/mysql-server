@@ -25,8 +25,6 @@ SET(HEADERS_ABI
   my_command.h
   mysql_time.h 
   my_list.h
-  my_alloc.h
-  typelib.h 
   mysql/plugin.h
   mysql/plugin_audit.h
   mysql/plugin_ftparser.h

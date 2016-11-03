@@ -1,0 +1,38 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+USE test;
+CREATE PROCEDURE insert_into_t1()
+BEGIN
+DECLARE x INT;
+SET x=1;
+WHILE x<200 DO
+INSERT INTO t1 VALUES (x);
+SET x=x+1;
+END WHILE;
+end$$
+
+[connection server1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,group_replication_before_commit_hook_wait';
+CALL insert_into_t1();
+[connection server_1]
+include/stop_group_replication.inc
+SET DEBUG_SYNC='now SIGNAL continue_commit';
+SET @@GLOBAL.DEBUG= @debug_save;
+[connection server1]
+include/assert.inc [Stored procedure is executed on server1 with server1 UUID.]
+[connection server2]
+include/assert.inc [Stored procedure is not replicated here. It has only group transactions.]
+[connection server1]
+DROP PROCEDURE insert_into_t1;
+DROP TABLE t1;
+[connection server2]
+DROP PROCEDURE insert_into_t1;
+DROP TABLE t1;
+include/stop_group_replication.inc
+include/group_replication_end.inc

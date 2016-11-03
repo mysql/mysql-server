@@ -85,7 +85,7 @@ void my_init_persist_psi_keys(void)
 #endif
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  count= array_elements(all_persist_mutexes);
+  count= static_cast<int>(array_elements(all_persist_mutexes));
   PSI_MUTEX_CALL(register_mutex)(category, all_persist_mutexes, count);
 #endif
 }

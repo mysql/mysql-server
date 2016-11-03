@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned lin
     EventLogger::EventTextFunction textF;
     EventLoggerBase::event_lookup(NDB_LE_TransporterError,
                                   cat, threshold, severity, textF);
-    Uint32 TE_words[3] = {0, remoteNodeId, errorCode};
+    Uint32 TE_words[3] = {0, remoteNodeId, (Uint32) errorCode};
     g_eventLogger->getText(msg + offs, sz - offs, textF, TE_words, 3);
     nb = strlen(msg + offs);
     if (nb < 0) goto log_it;

@@ -25,7 +25,7 @@
 #include "mysqld_error.h" /* For lookup */
 #include "pfs_server.h"
 
-static const int NUM_SECTIONS=
+static const int NUM_SECTIONS =
   sizeof(errmsg_section_start) / sizeof(errmsg_section_start[0]);
 
 extern uint max_server_errors;

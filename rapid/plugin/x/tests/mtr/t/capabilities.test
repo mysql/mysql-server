@@ -31,26 +31,7 @@ Mysqlx.Connection.CapabilitiesSet {
 
 -->recvtype Mysqlx.Error
 
--->echo try setting Read only plugin.version capabilities,expect error
-Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "plugin.version"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_STRING
-          v_string {
-            value: "1.0.0"
-          }
-        }
-      }
-    }
-  }
-}
--->recvtype Mysqlx.Error
-
--->echo try setting read only doc.formats capabilites
+-->echo try setting read only doc.formats capabilities
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {

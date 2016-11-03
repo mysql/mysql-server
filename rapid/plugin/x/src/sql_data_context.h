@@ -17,8 +17,8 @@
  * 02110-1301  USA
  */
 
-#ifndef _SQL_DATA_CONTEXT_H_
-#define _SQL_DATA_CONTEXT_H_
+#ifndef XPL_SQL_DATA_CONTEXT_H_
+#define XPL_SQL_DATA_CONTEXT_H_
 
 #include "ngs_common/connection_type.h"
 #include "ngs/protocol_encoder.h"
@@ -82,20 +82,13 @@ public:
 
   virtual ~Sql_data_context();
 
-  Sql_data_context(const Sql_data_context &) = delete;
-  Sql_data_context &operator=(const Sql_data_context &) = delete;
-
   ngs::Error_code init();
-  void deinit();
-
   ngs::Error_code init(const int client_port, const ngs::Connection_type type);
+  void            deinit();
+
   virtual ngs::Error_code authenticate(const char *user, const char *host, const char *ip, const char *db, On_user_password_hash password_hash_cb, bool allow_expired_passwords, ngs::IOptions_session_ptr &options_session, const ngs::Connection_type type);
 
-  ngs::Protocol_encoder &proto()
-  {
-    return *m_proto;
-  }
-
+  ngs::Protocol_encoder &proto() { return *m_proto; }
   MYSQL_SESSION mysql_session() const { return m_mysql_session; }
 
   uint64_t mysql_session_id() const;
@@ -112,6 +105,13 @@ public:
   bool wait_api_ready(ngs::function<bool()> exiting);
   bool password_expired() const { return m_password_expired; }
 
+  // Get data which are parts of the string printed by
+  // USER() function
+  std::string get_user_name() const;
+  std::string get_host_or_ip() const;
+
+  // Get data which are part of string printed by
+  // CURRENT_USER() function
   std::string get_authenticated_user_name() const;
   std::string get_authenticated_user_host() const;
   bool        has_authenticated_user_a_super_priv() const;
@@ -134,10 +134,12 @@ public:
                                                          bool compact_metadata, Result_info &r_info);
 
 private:
+  Sql_data_context(const Sql_data_context &) = delete;
+  Sql_data_context &operator=(const Sql_data_context &) = delete;
+
   ngs::Error_code execute_sql(Command_delegate &deleg, const char *sql, size_t length, Result_info &r_info);
 
   ngs::Error_code switch_to_user(const char *username, const char *hostname, const char *address, const char *db);
-  ngs::Error_code query_user(const char *user, const char *host, const char *ip, On_user_password_hash &hash_verification_cb, ngs::IOptions_session_ptr &options_session, const ngs::Connection_type type);
 
   static void default_completion_handler(void *ctx, unsigned int sql_errno, const char *err_msg);
 
@@ -165,4 +167,4 @@ private:
 
 #undef MYSQL_CLIENT
 
-#endif // _SQL_DATA_CONTEXT_H_
+#endif // XPL_SQL_DATA_CONTEXT_H_

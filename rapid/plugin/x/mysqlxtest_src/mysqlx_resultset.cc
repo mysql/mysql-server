@@ -30,7 +30,6 @@
 #include "ngs_common/protocol_protobuf.h"
 #include "mysqlx_resultset.h"
 #include "mysqlx_protocol.h"
-#include "mysqlx_crud.h"
 #include "mysqlx_row.h"
 #include "mysqlx_error.h"
 
@@ -65,29 +64,6 @@ using namespace mysqlx;
 static void throw_server_error(const Mysqlx::Error &error)
 {
   throw Error(error.code(), error.msg());
-}
-
-
-Document::Document()
-{
-  m_expression = false;
-}
-
-Document::Document(const std::string &doc, bool expression, const std::string& id)
-  : m_data(new std::string(doc)), m_expression(expression), m_id(id)
-{
-}
-
-Document::Document(const Document &doc)
-  : m_data(doc.m_data), m_expression(doc.m_expression), m_id(doc.m_id)
-{
-}
-
-void Document::reset(const std::string &doc, bool expression, const std::string &id)
-{
-  m_data.reset(new std::string(doc));
-  m_expression = expression;
-  m_id = id;
 }
 
 Result::Result(ngs::shared_ptr<XProtocol>owner, bool expect_data, bool expect_ok)

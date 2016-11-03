@@ -268,7 +268,7 @@ void xpl::Server::plugin_system_variables_changed()
   m_wscheduler->set_idle_worker_timeout(Plugin_system_variables::idle_worker_thread_timeout * 1000);
 
   m_config->max_message_size = Plugin_system_variables::max_allowed_packet;
-  m_config->connect_timeout = ngs::seconds(Plugin_system_variables::connect_timeout);
+  m_config->connect_timeout = ngs::chrono::seconds(Plugin_system_variables::connect_timeout);
 }
 
 

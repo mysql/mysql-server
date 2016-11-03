@@ -359,7 +359,7 @@ static void init_ssl_locks()
   int i= 0;
 #ifdef HAVE_PSI_INTERFACE
   const char* category= "sql";
-  int count= array_elements(openssl_rwlocks);
+  int count= static_cast<int>(array_elements(openssl_rwlocks));
   mysql_rwlock_register(category, openssl_rwlocks, count);
 #endif
 

@@ -40,7 +40,6 @@ namespace Mysqlx
 namespace mysqlx
 {
   class Result;
-  class Schema;
   class XProtocol;
   class ArgumentValue;
   struct Ssl_config;
@@ -55,14 +54,11 @@ namespace mysqlx
     ngs::shared_ptr<Result> executeStmt(const std::string &ns, const std::string &stmt,
                                           const std::vector<ArgumentValue> &args);
 
-    ngs::shared_ptr<Schema> getSchema(const std::string &name);
-
     ngs::shared_ptr<XProtocol> protocol() { return m_connection; }
 
     void close();
   private:
     ngs::shared_ptr<XProtocol> m_connection;
-    std::map<std::string, ngs::shared_ptr<Schema> > m_schemas;
   };
   typedef ngs::shared_ptr<Session> SessionRef;
 

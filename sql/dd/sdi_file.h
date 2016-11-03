@@ -16,15 +16,20 @@
 #ifndef DD__SDI_FILE_INCLUDED
 #define DD__SDI_FILE_INCLUDED
 
+#include "my_global.h"
+#include "dd/string_type.h"     // dd::String_type
 
 class THD;
 struct st_mysql_const_lex_string;
+struct handlerton;
 
 namespace dd {
-  class Entity_object;
-  class Schema;
+class Entity_object;
+class Schema;
+class Table;
 
 namespace sdi_file {
+const size_t FILENAME_PREFIX_CHARS= 16;
 String_type sdi_filename(const dd::Entity_object *eo,
                          const String_type &schema);
 bool store(THD *thd, const st_mysql_const_lex_string &sdi,

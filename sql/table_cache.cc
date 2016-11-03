@@ -95,7 +95,8 @@ void Table_cache::destroy()
 void Table_cache::init_psi_keys()
 {
 #ifdef HAVE_PSI_INTERFACE
-  mysql_mutex_register("sql", m_mutex_keys, array_elements(m_mutex_keys));
+  mysql_mutex_register("sql", m_mutex_keys,
+                       static_cast<int>(array_elements(m_mutex_keys)));
 #endif
 }
 

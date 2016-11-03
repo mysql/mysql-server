@@ -94,9 +94,9 @@ void partitioning_init()
 {
 #ifdef HAVE_PSI_INTERFACE
   int count;
-  count= array_elements(all_partitioning_memory);
+  count= static_cast<int>(array_elements(all_partitioning_memory));
   mysql_memory_register("sql", all_partitioning_memory, count);
-  count= array_elements(all_partitioning_mutex);
+  count= static_cast<int>(array_elements(all_partitioning_mutex));
   mysql_mutex_register("sql", all_partitioning_mutex, count);
 #endif
 }

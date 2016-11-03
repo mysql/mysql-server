@@ -25,6 +25,7 @@
 #endif
 #endif
 
+#include <stdio.h>
 #include <my_global.h>
 #include <mysql/service_my_snprintf.h>
 #include <mysql/service_mysql_alloc.h>

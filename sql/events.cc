@@ -1061,19 +1061,19 @@ static void init_events_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_events_mutexes);
+  count= static_cast<int>(array_elements(all_events_mutexes));
   mysql_mutex_register(category, all_events_mutexes, count);
 
-  count= array_elements(all_events_conds);
+  count= static_cast<int>(array_elements(all_events_conds));
   mysql_cond_register(category, all_events_conds, count);
 
-  count= array_elements(all_events_threads);
+  count= static_cast<int>(array_elements(all_events_threads));
   mysql_thread_register(category, all_events_threads, count);
 
-  count= array_elements(all_events_stages);
+  count= static_cast<int>(array_elements(all_events_stages));
   mysql_stage_register(category, all_events_stages, count);
 
-  count= array_elements(all_events_memory);
+  count= static_cast<int>(array_elements(all_events_memory));
   mysql_memory_register(category, all_events_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

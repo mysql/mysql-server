@@ -204,7 +204,7 @@ static void init_rewriter_psi_keys()
   const char* category= "rewriter";
   int count;
 
-  count= array_elements(all_rewrite_rwlocks);
+  count= static_cast<int>(array_elements(all_rewrite_rwlocks));
   mysql_rwlock_register(category, all_rewrite_rwlocks, count);
 }
 #endif

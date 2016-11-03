@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/sdi.h"
+#include "dd/impl/sdi.h"
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
@@ -384,6 +384,7 @@ sdi_t serialize(const Tablespace &tablespace)
                            nullptr);
 }
 
+
 template <class Dd_type>
 bool generic_deserialize(THD *thd, const sdi_t &sdi,
                          const String_type &object_type_name, Dd_type *dst)
@@ -444,6 +445,7 @@ bool deserialize(THD *thd, const sdi_t &sdi, Tablespace *dst_tablespace)
 }
 
 
+namespace {
 /**
   Templated convenience wrapper which first attempts to resolve the
   handlerton using the data dictionary object's engine() string.
@@ -451,7 +453,9 @@ bool deserialize(THD *thd, const sdi_t &sdi, Tablespace *dst_tablespace)
   @param thd
   @param ddt    Data dictionary object
 
-  @retval handlerton pointer on success, nullptr otherwise
+  @return handlerton pointer for this object
+    @retval handlerton pointer on success
+    @retval nullptr on error
 */
 
 template <typename DDT>
@@ -466,89 +470,113 @@ static handlerton *resolve_hton(THD *thd, const DDT &ddt)
   return nullptr;
 }
 
-Sdi_updater::Sdi_updater(const Schema *schema)
-  : m_prev_sdi_fname(sdi_file::sdi_filename(schema, empty_))
-{}
 
+/**
+  Covenience function for acquiring the schema and invoking a closure
+  which uses the schema object.
 
-Sdi_updater::Sdi_updater(const Table *table, const String_type &old_schema_name)
-  : m_prev_sdi_fname(sdi_file::sdi_filename(table, old_schema_name))
-{}
-
-static bool update_sdi(THD*, const dd::Schema*);
-bool Sdi_updater::operator()(THD *thd, const Schema *new_schema) const
+  @param thd
+  @param key key to use when acquiring Schema object
+  @param clos closure to invoke with the Schema object
+  @return error status
+    @retval false on success
+    @retval true otherwise
+ */
+template <class AKT, class CLOS>
+bool with_schema(THD *thd, const AKT &key, CLOS &&clos)
 {
-  if (update_sdi(thd, new_schema))
+  cache::Dictionary_client *dc= thd->dd_client();
+  cache::Dictionary_client::Auto_releaser releaser(dc);
+
+  const Schema *s= nullptr;
+  if (dc->acquire(key, &s))
   {
     return true;
   }
-  return checked_return(sdi_file::remove(m_prev_sdi_fname));
+  return clos(s);
 }
 
-bool Sdi_updater::operator()(THD *thd, const Table *table,
-  const Schema *new_schema) const
+
+/**
+  Predicate which returns true if an n-character prefix of two
+  character ranges are equal.
+
+  @param begin1 beginning of first range
+  @param end1 end of first range
+  @param begin2 beginning of second range
+  @param end2 end of second range
+  @param n number of characters to compare
+  @param csi character set to use (defaults to system_charset_info)
+  @return true if prefix compares equal, false otherwise
+ */
+
+template <class CHAR_IT>
+bool equal_prefix_chars(CHAR_IT &&begin1, CHAR_IT &&end1,
+                        CHAR_IT &&begin2, CHAR_IT &&end2,
+                        size_t n, const CHARSET_INFO *csi= system_charset_info)
 {
-  if (store_sdi(thd, table, new_schema))
+  size_t char_count= 0;
+  for (size_t rem_bytes= 0;
+       char_count < n && begin1 < end1 && begin2 < end2;
+       ++begin1, ++begin2)
   {
-    return true;
+    if (*begin1 != *begin2)
+    {
+      return false;
+    }
+    if (rem_bytes == 0)
+    {
+      rem_bytes= my_mbcharlen(csi, *begin1);
+    }
+    --rem_bytes;
+
+    if (rem_bytes == 0)
+    {
+      ++char_count;
+    }
   }
-  return (!m_prev_sdi_fname.empty() &&
-          checked_return(sdi_file::remove(m_prev_sdi_fname)));
+  return ((begin1 == end1 && begin2 == end2) || char_count == n);
 }
 
 
-Sdi_updater make_sdi_updater(const Schema *schema)
+/**
+  Convenience function for comparing a prefix of the names of two DD objects.
+  @param a first DD object
+  @param b second DD object
+  @param prefix_chars number characters in prefix to compare
+  @return true if prefix compares equal, false otherwise
+ */
+template <class DDT>
+bool equal_prefix_chars_name(const DDT &a, const DDT &b, size_t prefix_chars)
 {
-  return Sdi_updater(schema);
+  return equal_prefix_chars(a.name().begin(), a.name().end(),
+                            b.name().begin(), b.name().end(), prefix_chars);
+}
 }
 
-Sdi_updater make_sdi_updater(THD *thd, const Table *table, const Schema *schema)
-{
-  const handlerton *hton= resolve_hton(thd, *table);
-  return (hton->sdi_set == nullptr ?
-          Sdi_updater(table, schema->name()) : Sdi_updater());
-}
 
-Sdi_updater make_sdi_updater(THD *thd, const View *, const Schema *)
-{
-  return Sdi_updater();
-}
+namespace sdi {
 
-
-bool store_sdi(THD *thd, const dd::Schema *s)
+bool store(THD *thd, const Schema *s)
 {
-  dd::sdi_t sdi= dd::serialize(*s);
+  sdi_t sdi= serialize(*s);
   if (sdi.empty())
   {
     return checked_return(true);
   }
 
-  // Note! When storing a schema for the first time it does not
-  // contain any tables, so it is not possible to locate a handlerton
-  // which the operation can be delegated to. Consequently, we store the
-  // SDI as a file in this case.
-  return checked_return(sdi_file::store(thd, lex_cstring_handle(sdi), s));
-}
+  cache::Dictionary_client *dc= thd->dd_client();
+  cache::Dictionary_client::Auto_releaser releaser(dc);
 
-
-static bool update_sdi(THD *thd, const dd::Schema *s)
-{
-  dd::sdi_t sdi= dd::serialize(*s);
-  if (sdi.empty())
-  {
-    return checked_return(true);
-  }
-
-  dd::cache::Dictionary_client *dc= thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
-
-  std::vector<const dd::Abstract_table*> tables;
+  // This may actually be an update, so the schema need not be empty
+  typedef std::vector<const Abstract_table*> sc_type;
+  sc_type tables;
   if (dc->fetch_schema_components(s, &tables))
   {
     return checked_return(true);
   }
 
-  for (const dd::Abstract_table *at : tables)
+  for (const Abstract_table *at : tables)
   {
     const Table *tbl= dynamic_cast<const Table*>(at);
     if (!tbl)
@@ -574,22 +602,32 @@ static bool update_sdi(THD *thd, const dd::Schema *s)
 }
 
 
-bool store_sdi(THD *thd, const dd::Table *t, const dd::Schema *s)
+bool store(THD *thd, const Table *t)
 {
-  dd::sdi_t sdi= dd::serialize(thd, *t, s->name());
-  if (sdi.empty())
-  {
-    return checked_return(true);
-  }
-  handlerton *hton= resolve_hton(thd, *t);
-  return checked_return(hton->store_table_sdi(thd, hton,
-                                              lex_cstring_handle(sdi), t, s));
+  return with_schema
+    (thd, t->schema_id(),
+     [&](const Schema *s) {
+      DBUG_ASSERT(s != nullptr);
+      sdi_t sdi= serialize(thd, *t, s->name());
+      if (sdi.empty())
+      {
+        return checked_return(true);
+      }
+      DBUG_EXECUTE_IF("abort_rename_after_update",
+      { my_error(ER_ERROR_ON_WRITE, MYF(0), "error inject", 42,
+                 "simulated write error");
+        return true;});
+      handlerton *hton= resolve_hton(thd, *t);
+      return checked_return
+        (hton->store_table_sdi(thd, hton,
+                               lex_cstring_handle(sdi), t, s));
+    });
 }
 
 
-bool store_sdi(THD *thd, const dd::Tablespace *ts)
+bool store(THD *thd, const Tablespace *ts)
 {
-  dd::sdi_t sdi= dd::serialize(*ts);
+  sdi_t sdi= serialize(*ts);
   if (sdi.empty())
   {
     return checked_return(true);
@@ -599,61 +637,72 @@ bool store_sdi(THD *thd, const dd::Tablespace *ts)
                                               ts));
 }
 
-bool remove_sdi(THD *thd, const dd::Schema *s)
+bool drop(THD *thd, const Schema *s)
 {
-  cache::Dictionary_client *dc= thd->dd_client();
-  cache::Dictionary_client::Auto_releaser releaser(dc);
-
-  std::vector<const dd::Abstract_table*> tables;
-  if (dc->fetch_schema_components(s, &tables))
-  {
-    return checked_return(true);
-  }
-
-  for (const dd::Abstract_table *at : tables)
-  {
-    const Table *tbl= dynamic_cast<const Table*>(at);
-    if (!tbl)
-    {
-      continue;
-    }
-
-    handlerton *hton= resolve_hton(thd, *tbl);
-    if (hton->remove_schema_sdi &&
-        hton->remove_schema_sdi(thd, hton, s, tbl))
-    {
-      return checked_return(true);
-    }
-  }
-
-  // Finally, remove SDI file
   return checked_return(sdi_file::remove(thd, s));
 }
 
-
-
-
-bool remove_sdi(THD *thd, const dd::Table *t,
-                const dd::Schema *s)
+bool drop(THD *thd, const Table *t)
 {
-  handlerton *hton= resolve_hton(thd, *t);
-  return checked_return(hton->remove_table_sdi(thd, hton, t, s));
+  return with_schema(thd, t->schema_id(),
+                     [&](const Schema *s) {
+                       DBUG_ASSERT(s != nullptr);
+                       handlerton *hton= resolve_hton(thd, *t);
+                       return checked_return(hton->remove_table_sdi(thd, hton, t, s));
+                     });
+}
+
+bool drop(THD *thd, const Tablespace *ts)
+{
+  return checked_return(sdi_tablespace::remove(resolve_hton(thd, *ts), ts));
+}
+
+bool drop_after_update(THD *thd, const Schema *old_s,
+                       const Schema *new_s)
+{
+  // Currently this test is not really necessary since the schema sdi
+  // file name cannot change.
+  return equal_prefix_chars_name(*old_s, *new_s,
+                                 sdi_file::FILENAME_PREFIX_CHARS) ?
+    false : checked_return(sdi_file::remove(thd, old_s));
+}
+
+bool drop_after_update(THD *thd, const Table *old_t, const Table *new_t)
+{
+  if ((old_t->schema_id() == new_t->schema_id() &&
+       equal_prefix_chars_name(*old_t, *new_t, sdi_file::FILENAME_PREFIX_CHARS))
+      // Hack to avoid calling resolve_hton() during unit tests
+      // reslove_hton() will crash in unit tests because the
+      // plugin_LOCK mutex has not been initialized.
+      // Reviewers: Please feel free to suggest alternative solutions.
+       || old_t->engine() == "innodb")
+  {
+    return false;
+  }
+
+  handlerton *old_hton= resolve_hton(thd, *old_t);
+  if (old_hton->sdi_set)
+  {
+    return false;
+  }
+
+  return with_schema(thd, old_t->schema_id(),
+                     [&](const Schema *s) {
+                       DBUG_ASSERT(s != nullptr);
+                       return checked_return(sdi_file::remove(thd, nullptr,
+                                                              old_t, s));
+                     });
+}
 }
 
 
-bool remove_sdi(THD *thd, const dd::Tablespace *ts)
-{
-  handlerton *hton= resolve_hton(thd, *ts);
-  return checked_return(sdi_tablespace::remove(hton, ts));
-}
-
-
+// WL#7524
 bool import_sdi(THD *thd, Schema *schema)
 {
-  dd::cache::Dictionary_client &dc= *thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
+  cache::Dictionary_client &dc= *thd->dd_client();
+  cache::Dictionary_client::Auto_releaser releaser(&dc);
 
-  if (dc.store(schema) || store_sdi(thd, schema))
+  if (dc.store(schema))
   {
     return true;
   }
@@ -661,10 +710,11 @@ bool import_sdi(THD *thd, Schema *schema)
 }
 
 
+// WL#7524
 bool import_sdi(THD *thd, Table *table)
 {
-  dd::cache::Dictionary_client &dc= *thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
+  cache::Dictionary_client &dc= *thd->dd_client();
+  cache::Dictionary_client::Auto_releaser releaser(&dc);
 
   const Schema *schema= nullptr;
   if (dc.acquire(table->schema_id(), &schema))
@@ -675,19 +725,20 @@ bool import_sdi(THD *thd, Table *table)
   {
     return true;
   }
-  if (dc.store(table) || store_sdi(thd, table, schema))
+  if (dc.store(table))
   {
     return true;
   }
   return false;
 }
 
+// WL#7524
 bool import_sdi(THD *thd, Tablespace *tablespace)
 {
-  dd::cache::Dictionary_client &dc= *thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
+  cache::Dictionary_client &dc= *thd->dd_client();
+  cache::Dictionary_client::Auto_releaser releaser(&dc);
 
-  if (dc.store(tablespace) || store_sdi(thd, tablespace))
+  if (dc.store(tablespace))
   {
     return true;
   }

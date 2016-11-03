@@ -720,8 +720,20 @@ public:
   int get_weight_level() const { return weight_lv; }
 
   // TODO: These should be private.
-  uint char_index{0};   /* nth character under scan               */
-  int char_scanned{0};  /* how many char we scanned               */
+
+  /**
+    How many characters (possibly multibyte) we have scanned so far.
+    This includes characters with zero weight. Note that this is reset
+    once we get to the end of the string and restart the scanning for
+    the next weight level.
+  */
+  uint char_index{0};
+
+  /**
+    The same as char_index, but counts only the first scan
+    (for the primary level), not the successive levels.
+  */
+  int char_scanned{0};
 
 protected:
   int weight_lv{0}; /* 0 = Primary, 1 = Secondary, 2 = Tertiary */
@@ -739,13 +751,13 @@ protected:
   const uchar *sbeg_dup; /* Backup of beginning of input string */
 
 protected:
-  inline int next_implicit() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next_implicit());
   uint16 *contraction_find(my_wc_t *wc);
   uint16 *previous_context_find(my_wc_t wc0, my_wc_t wc1);
 
   // FIXME: Should these just be a specialization in uca_scanner_900?
   void my_put_jamo_weights(my_wc_t *hangul_jamo, int jamo_cnt);
-  inline int next_implicit_900() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next_implicit_900());
 };
 
 /*
@@ -764,7 +776,7 @@ struct uca_scanner_any : public my_uca_scanner
       : my_uca_scanner(cs, level, str, length, max_char_toscan),
         mb_wc(mb_wc) {}
 
-  inline int next() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next());
 
 private:
   const Mb_wc mb_wc;
@@ -782,13 +794,35 @@ public:
       : my_uca_scanner(cs, level, str, length, max_char_toscan),
         mb_wc(mb_wc) {}
 
-  inline int next() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next());
+
+  /**
+    For each weight in sequence, call "func", which should have
+    a function signature of "bool func(int weight)". Stops the
+    iteration early if "func" returns false.
+
+    This is morally equivalent to
+
+      int weight;
+      while ((weight= next()) >= 0)
+      {
+        if (!func(weight)) break;
+      }
+
+    except that it might employ optimizations internally to speed up
+    the process. These optimizations will not modify the number of calls
+    to func() (or their order), but might affect the internal scanner
+    state during the calls, so func() should not try to read from
+    the scanner except by calling public member functions.
+  */
+  template<class T>
+  ALWAYS_INLINE(void for_each_weight(T func));
 
 private:
   const Mb_wc mb_wc;
 
-  inline int next_raw() MY_ATTRIBUTE((always_inline));
-  inline int next_raw_single_level() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next_raw());
+  ALWAYS_INLINE(int next_raw_single_level());
   inline int more_weight();
   uint16 apply_case_first(uint16 weight);
 };
@@ -1607,6 +1641,75 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw_single_level()
   wbeg+= MY_UCA_900_CE_SIZE;
   num_of_ce_handled++;
   return rtn;
+}
+
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+template<class T>
+inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(T func)
+{
+  if (cs->tailoring || cs->mbminlen != 1)
+  {
+    // Slower, generic path.
+    int s_res;
+    while ((s_res= next()) >= 0)
+    {
+      if (!func(s_res)) return;
+    }
+    return;
+  }
+
+  /*
+    Fast path. TODO: See if we can accept some character sets
+    with tailorings.
+  */
+  const uint16 *ascii_wpage= cs->uca->level->weights[0] + weight_lv;
+  uint ascii_wlen= cs->uca->level->lengths[0];
+
+  for ( ;; )
+  {
+    /*
+      We could have more weights left from the previous call to next()
+      (if any) that we need to deal with.
+    */
+    int s_res;
+    while ((s_res= more_weight()) >= 0)
+    {
+      if (!func(s_res)) return;
+    }
+
+    /*
+      Loop in a simple fast path as long as we only have ASCII characters.
+      ASCII characters always have just a single weight and consist of
+      only a single byte, so we can skip a lot of the checks we'd otherwise
+      have to do.
+    */
+    const uchar *sbeg_copy= sbeg;
+    const uchar *send_local=
+      std::min(send, sbeg + (max_char_toscan - char_index));
+    while (sbeg < send_local && *sbeg < 0x80)
+    {
+      const int s_res= ascii_wpage[*sbeg++ * ascii_wlen];
+      if (s_res && !func(s_res))
+      {
+        char_index+= sbeg - sbeg_copy;
+        if (LEVELS_FOR_COMPARE == 1 || weight_lv == 0)
+          char_scanned+= sbeg - sbeg_copy;
+        return;
+      }
+    }
+    char_index+= sbeg - sbeg_copy;
+    if (LEVELS_FOR_COMPARE == 1 || weight_lv == 0)
+      char_scanned+= sbeg - sbeg_copy;
+
+    // Do a single character in the generic path.
+    s_res= next();
+    if (s_res == 0)
+    {
+      // Level separator, so we have to update our page pointer.
+      ++ascii_wpage;
+    }
+    if (s_res < 0 || !func(s_res)) return;
+  }
 }
 
 /**
@@ -4859,7 +4962,6 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
                                       const uchar *s, size_t slen,
                                       ulong *n1, ulong *n2)
 {
-  int   s_res;
   ulong tmp1;
   ulong tmp2;
 
@@ -4870,16 +4972,13 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
   tmp1= *n1;
   tmp2= *n2;
 
-  while ((s_res= scanner.next()) >= 0)
-  {
-    if (s_res > 0)
-    {
-      tmp1^= (((tmp1 & 63) + tmp2) * (s_res >> 8))+ (tmp1 << 8);
-      tmp2+= 3;
-      tmp1^= (((tmp1 & 63) + tmp2) * (s_res & 0xFF))+ (tmp1 << 8);
-      tmp2+= 3;
-    }
-  }
+  scanner.for_each_weight([&](int s_res) {
+    tmp1^= (((tmp1 & 63) + tmp2) * (s_res >> 8)) + (tmp1 << 8);
+    tmp2+= 3;
+    tmp1^= (((tmp1 & 63) + tmp2) * (s_res & 0xFF)) + (tmp1 << 8);
+    tmp2+= 3;
+    return true;
+  });
 
   *n1= tmp1;
   *n2= tmp2;
@@ -5058,33 +5157,61 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
                                        uint flags)
 {
   uchar *d0= dst;
-  uchar *de= dst + dstlen;
-  int   s_res;
+  uchar *dst_end= dst + dstlen;
   uint  weight_cnt[3]= {0};
+  uint  *weight_cnt_ptr= weight_cnt;
   uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> scanner(
     mb_wc, cs, &cs->uca->level[0], src, srclen, nweights);
 
-  while (dst < de && (s_res= scanner.next()) >= 0)
+  uchar *dst_even_end= dst_end;
+  if ((dstlen % 2) == 1)
   {
-    *dst++= s_res >> 8;
-    if (dst < de)
-      *dst++= s_res & 0xFF;
-    if (LEVELS_FOR_COMPARE == 1)
-    {
-      // scanner.next() skips ignorable characters, and thus can never
-      // return a primary weight of zero.
-      DBUG_ASSERT(s_res);
-      weight_cnt[0]++;
-    }
-    else
-    {
-      if (s_res)
-        weight_cnt[scanner.get_weight_level()]++;
-      else
-        weight_cnt[scanner.get_weight_level() - 1]++;
-    }
+    /*
+      Odd number of bytes; run the fast path only for the even number,
+      which makes for less checking inside the hot loop.
+    */
+    dst_even_end= dst_end - 1;
   }
+
+  uint weights_scanned_this_level= 0;
+  if (dst != dst_even_end)
+  {
+    scanner.for_each_weight([&](int s_res) {
+      *dst++= s_res >> 8;
+      *dst++= s_res & 0xFF;
+
+      ++weights_scanned_this_level;
+      if (LEVELS_FOR_COMPARE != 1 && s_res == 0)
+      {
+        // Changed level, so record the number of emitted weights.
+        *weight_cnt_ptr++= weights_scanned_this_level;
+        weights_scanned_this_level= 0;
+      }
+      return (dst < dst_even_end);
+    });
+  }
+
+  // Deal with the final byte, if applicable.
+  if (dst == dst_even_end && dst_even_end != dst_end)
+  {
+    scanner.for_each_weight([&](int s_res) {
+      *dst++= s_res >> 8;  // Write only one byte.
+
+      ++weights_scanned_this_level;
+      if (LEVELS_FOR_COMPARE != 1 && s_res == 0)
+      {
+        // Changed level, so record the number of emitted weights.
+        *weight_cnt_ptr++= weights_scanned_this_level;
+        weights_scanned_this_level= 0;
+      }
+      return false;
+    });
+  }
+
+  DBUG_ASSERT(scanner.char_scanned >= 0);
+  DBUG_ASSERT(nweights >= static_cast<uint>(scanner.char_scanned));
   nweights-= scanner.char_scanned;
+  *weight_cnt_ptr= weights_scanned_this_level;
 
   /*
     For case / accent insensitive collation, padding space's weight will be
@@ -5098,9 +5225,10 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
   */
   uint space_cnt[3]= {0};
   my_calc_pad_space_uca_900(cs, weight_cnt, nweights, flags, dstlen,
-                            de - dst, space_cnt);
-  dst+= my_insert_space_weight(cs, weight_cnt, space_cnt, d0, de);
-  dst+= my_add_space_weight_to_maxlen(cs, scanner.get_weight_level(), de, dst, flags);
+                            dst_end - dst, space_cnt);
+  dst+= my_insert_space_weight(cs, weight_cnt, space_cnt, d0, dst_end);
+  dst+= my_add_space_weight_to_maxlen(
+    cs, scanner.get_weight_level(), dst_end, dst, flags);
   my_strxfrm_desc_and_reverse(d0, dst, flags, 0);
   return dst - d0;
 }

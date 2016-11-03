@@ -463,15 +463,40 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR})
 
+# warning C4348
+# boost::spirit::terminal<boost::spirit::tag::lit>::result_helper': 
+#       redefinition of default parameter
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    gis/srs/srs.cc
+    gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "/wd4348")
+ENDIF()
+
+# warning 4244 4267
+# conversion from 'coordinate_type' to 'const promoted_type
+# conversion from 'boost::geometry::signed_size_type' to 'int'
+# etc. etc.
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    item_geofunc_buffer.cc
+    item_geofunc_internal.cc
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "/wd4244" "/wd4267")
+ENDIF()
+
 ADD_COMPILE_FLAGS(
   ../extra/lz4/xxhash.c
   COMPILE_FLAGS -DXXH_NAMESPACE=MY_
 )
 
-# Fixes "C1128: number of sections exceeded object file format limit" in MSVC /MD
-# The flag /bigobj is not added if the build is not WINDOWS_RUNTIME_MD (/MD)
-IF(WINDOWS_RUNTIME_MD AND CMAKE_SIZEOF_VOID_P MATCHES 8)
-  ADD_COMPILE_FLAGS(item_geofunc_setops.cc COMPILE_FLAGS "/bigobj")
+# Fixes "C1128: number of sections exceeded object file format limit" in MSVC
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "/bigobj")
 ENDIF()
 
 #

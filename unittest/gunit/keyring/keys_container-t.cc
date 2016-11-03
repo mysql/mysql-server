@@ -20,9 +20,9 @@
 #include <mysql/plugin_keyring.h>
 #include <keys_container.h>
 #include "mock_logger.h"
+#include "buffered_file_io_10.h"
 #include <fstream>
 #include "i_serialized_object.h"
-#include "buffered_file_io.h"
 
 #if !defined(MERGE_UNITTESTS)
 #ifdef HAVE_PSI_INTERFACE
@@ -54,9 +54,9 @@ namespace keyring__keys_container_unittest
     if (!file.is_open())
       return FALSE;
     file.seekg(0, file.end);
-    if (file.tellg() < 3)
+    if (file.tellg() < (3+32)) //tag + sha256
       return FALSE; // File do not contains tag
-    file.seekg(-3, file.end);
+    file.seekg(-(3+32), file.end);
     file.read(tag, 3);
     tag[3]= '\0';
     file.close();
@@ -86,7 +86,8 @@ namespace keyring__keys_container_unittest
       delete logger;
     }
     void create_keyring_file(const char *file_name, const char *keyring_buffer);
-    void generate_keyring_file_with_correct_structure(const char *file_name);
+    void generate_keyring_file_with_correct_ver_1_0_structure(const char *file_name);
+    void generate_keyring_file_with_correct_ver_2_0_structure(const char *file_name);
     void generate_keyring_file_with_incorrect_file_version(const char *file_name);
     void generate_keyring_file_with_incorrect_TAG(const char *file_name);
   protected:
@@ -107,15 +108,22 @@ namespace keyring__keys_container_unittest
     file.close();
   }
 
-  void Keys_container_test::generate_keyring_file_with_correct_structure(const char *file_name)
+  void Keys_container_test::generate_keyring_file_with_correct_ver_1_0_structure(const char *file_name)
   {
     static const char *keyring_buffer= "Keyring file version:1.0EOF";
     create_keyring_file(file_name, keyring_buffer);
   }
 
+  void Keys_container_test::generate_keyring_file_with_correct_ver_2_0_structure(const char *file_name)
+  {
+    static const char *keyring_buffer= "Keyring file version:2.0EOF"
+                                       "01234567890123456789012345678901";
+    create_keyring_file(file_name, keyring_buffer);
+  }
+
   void Keys_container_test::generate_keyring_file_with_incorrect_file_version(const char *file_name)
   {
-    static const char *keyring_buffer= "Keyring file version:2.0EOF";
+    static const char *keyring_buffer= "Keyring file version:3.0EOF";
     create_keyring_file(file_name, keyring_buffer);
   }
 
@@ -125,12 +133,27 @@ namespace keyring__keys_container_unittest
     create_keyring_file(file_name, keyring_buffer);
   }
 
-  TEST_F(Keys_container_test, InitWithFileWithCorrectStruct)
+  TEST_F(Keys_container_test, InitWithFileWithCorrect_1_0_Struct)
   {
-    const char *keyring_correct_struct= "./keyring_correct_struct";
+    const char *keyring_correct_struct= "./keyring_correct_1_0_struct";
     remove(keyring_correct_struct);
-    generate_keyring_file_with_correct_structure(keyring_correct_struct);
-    IKeyring_io *keyring_io= new Buffered_file_io(logger);
+    std::vector<std::string> allowedFileVersionsToInit;
+    //this keyring will work with keyring files in the following versions:
+    allowedFileVersionsToInit.push_back(keyring::keyring_file_version_2_0);
+    allowedFileVersionsToInit.push_back(keyring::keyring_file_version_1_0);
+    generate_keyring_file_with_correct_ver_1_0_structure(keyring_correct_struct);
+    IKeyring_io *keyring_io= new Buffered_file_io(logger, &allowedFileVersionsToInit);
+    EXPECT_EQ(keys_container->init(keyring_io, keyring_correct_struct), 0);
+    remove(keyring_correct_struct);
+    delete sample_key; //unused in this test
+  }
+
+  TEST_F(Keys_container_test, InitWithFileWithCorrect_2_0_Struct)
+  {
+    const char *keyring_correct_struct= "./keyring_correct_2_0_struct";
+    remove(keyring_correct_struct);
+    generate_keyring_file_with_correct_ver_2_0_structure(keyring_correct_struct);
+    Buffered_file_io *keyring_io= new Buffered_file_io(logger);
     EXPECT_EQ(keys_container->init(keyring_io, keyring_correct_struct), 0);
     remove(keyring_correct_struct);
     delete sample_key; //unused in this test
@@ -143,29 +166,33 @@ namespace keyring__keys_container_unittest
     const char *keyring_incorrect_version= "./keyring_incorrect_version";
     remove(keyring_incorrect_version);
     generate_keyring_file_with_incorrect_file_version(keyring_incorrect_version);
-    IKeyring_io *keyring_io= new Buffered_file_io(logger);
+    Buffered_file_io *keyring_io= new Buffered_file_io(logger);
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file version")));
+                log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file")));
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
+                log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content."
+                                          " The keyring might be malformed")));
     EXPECT_EQ(keys_container->init(keyring_io, keyring_incorrect_version), 1);
     remove(keyring_incorrect_version);
     delete sample_key; //unused in this test
   }
+#endif  // HAVE_UBSAN
 
   TEST_F(Keys_container_test, InitWithFileWithIncorrectTAG)
   {
     const char *keyring_incorrect_tag= "./keyring_incorrect_tag";
     remove(keyring_incorrect_tag);
     generate_keyring_file_with_incorrect_TAG(keyring_incorrect_tag);
-    IKeyring_io *keyring_io= new Buffered_file_io(logger);
+    Buffered_file_io *keyring_io= new Buffered_file_io(logger);
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
+                log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file")));
+    EXPECT_CALL(*((Mock_logger *)logger),
+                log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content."
+                                          " The keyring might be malformed")));
     EXPECT_EQ(keys_container->init(keyring_io, keyring_incorrect_tag), 1);
     remove(keyring_incorrect_tag);
     delete sample_key; //unused in this test
   }
-#endif  // HAVE_UBSAN
 
   TEST_F(Keys_container_test, StoreFetchRemove)
   {
@@ -277,7 +304,7 @@ namespace keyring__keys_container_unittest
     ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
 
     my_free(fetched_key->release_key_data());
-}
+  }
 
   TEST_F(Keys_container_test, StoreTwiceTheSame)
   {
@@ -289,13 +316,114 @@ namespace keyring__keys_container_unittest
     ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
   }
 
+  class Buffered_file_io_20 : public Buffered_file_io
+  {
+  public:
+    Buffered_file_io_20(ILogger *logger) : Buffered_file_io(logger)
+    {}
+    void set_memory_needed_for_buffer(size_t memory_needed_for_buffer)
+    {
+      this->memory_needed_for_buffer= memory_needed_for_buffer;
+    }
+  };
+
+  TEST_F(Keys_container_test, StoreKeyInVer10StoreKeyInVer20FetchKeyInVer20)
+  {
+    size_t memory_needed_for_buffer;
+    {
+      Buffered_file_io_10 keyring_io_10(logger);
+      EXPECT_EQ(keys_container->init(&keyring_io_10, file_name), 0);
+      EXPECT_EQ(keys_container->store_key(sample_key), 0);
+      memory_needed_for_buffer= keyring_io_10.get_memory_needed_for_buffer();
+    }
+    Buffered_file_io_20 *keyring_io_20= new Buffered_file_io_20(logger);
+    EXPECT_EQ(keyring_io_20->init(&file_name), 0);
+    keyring_io_20->set_memory_needed_for_buffer(memory_needed_for_buffer);
+    keys_container->set_keyring_io(keyring_io_20);
+
+    std::string key_data1("Robi1");
+    Key key_1_id("Roberts_key1", NULL, "Robert",NULL,0);
+    Key *key1= new Key("Roberts_key1", "AES", "Robert", key_data1.c_str(), key_data1.length()+1);
+    EXPECT_EQ(keys_container->store_key(key1), 0);
+
+    Key key_id("Roberts_key", NULL, "Robert",NULL,0);
+    IKey* fetched_key= keys_container->fetch_key(&key_id);
+    ASSERT_TRUE(fetched_key != NULL);
+    std::string expected_key_signature= "Roberts_keyRobert";
+    EXPECT_STREQ(fetched_key->get_key_signature()->c_str(), expected_key_signature.c_str());
+    EXPECT_EQ(fetched_key->get_key_signature()->length(), expected_key_signature.length());
+    uchar *key_data_fetched= fetched_key->get_key_data();
+    size_t key_data_fetched_size= fetched_key->get_key_data_size();
+    EXPECT_STREQ(sample_key_data.c_str(), reinterpret_cast<const char*>(key_data_fetched));
+    ASSERT_TRUE(sample_key_data.length()+1 == key_data_fetched_size);
+
+    keys_container->remove_key(&key_id);
+
+    IKey* fetched_key_1= keys_container->fetch_key(&key_1_id);
+    ASSERT_TRUE(fetched_key_1 != NULL);
+    expected_key_signature= "Roberts_key1Robert";
+    EXPECT_STREQ(fetched_key_1->get_key_signature()->c_str(), expected_key_signature.c_str());
+    EXPECT_EQ(fetched_key_1->get_key_signature()->length(), expected_key_signature.length());
+    key_data_fetched= fetched_key_1->get_key_data();
+    key_data_fetched_size= fetched_key_1->get_key_data_size();
+    EXPECT_STREQ(key_data1.c_str(), reinterpret_cast<const char*>(key_data_fetched));
+    ASSERT_TRUE(key_data1.length()+1 == key_data_fetched_size);
+
+    keys_container->remove_key(&key_1_id);
+
+    my_free(fetched_key->release_key_data());
+    my_free(fetched_key_1->release_key_data());
+  }
+
+  TEST_F(Keys_container_test, CheckIfKeyIsNotDumpedIntoKeyringFileIfKeyringFileDoesnotExist)
+  {
+    IKeyring_io *keyring_io= new Buffered_file_io(logger);
+    EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
+    EXPECT_EQ(keys_container->store_key(sample_key), 0);
+    remove("./keyring");
+    std::string key_data1("Robi1");
+    Key *key1= new Key("Roberts_key1", "AES", "Robert", key_data1.c_str(), key_data1.length()+1);
+    EXPECT_CALL(*((Mock_logger *)logger),
+                log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
+    //it should not be possible to store_key if the keyring file does not exist
+    EXPECT_EQ(keys_container->store_key(key1), 1);
+    delete key1;
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), 0);
+  }
+
+  TEST_F(Keys_container_test, CheckIfKeyIsNotDumpedIntoKeyringFileIfKeyringFileHasInvalidDigest)
+  {
+    IKeyring_io *keyring_io= new Buffered_file_io(logger);
+    EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
+    EXPECT_EQ(keys_container->store_key(sample_key), 0);
+
+    std::string fake_dgst("01237890990912938012938012283019"); //sha-256 dgst
+    std::fstream keyring_file("keyring");
+    keyring_file.seekp(-fake_dgst.length(), std::ios_base::end);
+    keyring_file.write(fake_dgst.c_str(), fake_dgst.length());
+    keyring_file.close();
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), TRUE);
+
+    std::string key_data1("Robi1");
+    Key *key1= new Key("Roberts_key1", "AES", "Robert", key_data1.c_str(), key_data1.length()+1);
+    EXPECT_CALL(*((Mock_logger *)logger),
+                log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
+    EXPECT_CALL(*((Mock_logger *)logger),
+                log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file")));
+
+    //it should not be possible to store_key if the keyring file was changed
+    EXPECT_EQ(keys_container->store_key(key1), 1);
+    delete key1;
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), TRUE);
+  }
+
   class Buffered_file_io_dont_remove_backup : public Buffered_file_io
   {
   public:
     Buffered_file_io_dont_remove_backup(ILogger *logger)
       : Buffered_file_io(logger) {}
 
-    my_bool remove_backup()
+    my_bool remove_backup(myf myFlags)
     {
       return FALSE;
     }
@@ -579,8 +707,6 @@ namespace keyring__keys_container_unittest
     my_free(fetchedKey2->release_key_data());
   }
 
-// HAVE_UBSAN: undefined behaviour in gmock.
-#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_test_dont_close, BackupfileIsMalformedCheckItIsIgnoredAndDeleted)
   {
     ILogger *logger= new Mock_logger();
@@ -595,7 +721,6 @@ namespace keyring__keys_container_unittest
     ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
     EXPECT_EQ(keys_container->store_key(sample_key2), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
-    //Now we have correct backup file
     EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
     ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
 
@@ -607,6 +732,8 @@ namespace keyring__keys_container_unittest
     keys_container= new Keys_container(logger);
 
     //Check that backup file was ignored (as backup file is malformed)
+    EXPECT_CALL(*((Mock_logger *)logger),
+                log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file")));
     EXPECT_CALL(*((Mock_logger *)logger), log(MY_WARNING_LEVEL, StrEq("Found malformed keyring backup file - removing it")));
     EXPECT_EQ(keys_container->init(keyring_io_2, file_name), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
@@ -630,7 +757,6 @@ namespace keyring__keys_container_unittest
     my_free(fetchedKey->release_key_data());
     my_free(fetchedKey2->release_key_data());
   }
-#endif  // HAVE_UBSAN
 
   TEST_F(Keys_container_test_dont_close, CheckIfBackupIsCreatedAfterEachOperationAndIsUsedWhenKeyringDoesNotExist)
   {
@@ -643,8 +769,16 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), TRUE);
     ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
 
-    remove("./keyring");
+    remove("./keyring.backup");
+    rename("keyring", "keyring.backup");
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == FALSE);
     //Now keyring file should be recreated based on keyring.backup
+    delete keys_container;
+    keyring_io= new Buffered_file_io_dont_remove_backup(logger);
+    keys_container= new Keys_container(logger);
+    EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
+
+    ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
     EXPECT_EQ(keys_container->store_key(sample_key2), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
 
@@ -729,8 +863,6 @@ namespace keyring__keys_container_unittest
     EXPECT_CALL(*keyring_io, has_next_serialized_object()).WillOnce(Return(FALSE));
   }
 
-// HAVE_UBSAN: undefined behaviour in gmock.
-#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_with_mocked_io_test, ErrorFromIODuringInitOnGettingSerializedObject)
   {
     keyring_io= new Mock_keyring_io();
@@ -806,10 +938,7 @@ namespace keyring__keys_container_unittest
     delete invalid_key;
     delete sample_key; //unused in this test
   }
-#endif  // HAVE_UBSAN
 
-// HAVE_UBSAN: undefined behaviour in gmock.
-#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_with_mocked_io_test, ErrorFromSerializerOnFlushToBackupWhenStoringKey)
   {
     keyring_io= new Mock_keyring_io();
@@ -823,11 +952,10 @@ namespace keyring__keys_container_unittest
     {
       InSequence dummy;
 
-      ISerialized_object *null_serialized_object= NULL;
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,NULL,NONE))
-        .WillOnce(Return(null_serialized_object));
+        .WillOnce(Return((ISerialized_object*)NULL));
       EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
     }
     EXPECT_EQ(keys_container->store_key(sample_key), 1);
@@ -837,10 +965,7 @@ namespace keyring__keys_container_unittest
     delete sample_key;
     delete mock_serializer;
   }
-#endif  // HAVE_UBSAN
 
-// HAVE_UBSAN: undefined behaviour in gmock.
-#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_with_mocked_io_test, ErrorFromSerializerOnFlushToKeyringWhenStoringKey)
   {
     keyring_io= new Mock_keyring_io();
@@ -855,7 +980,6 @@ namespace keyring__keys_container_unittest
 
     {
       InSequence dummy;
-      ISerialized_object *null_serialized_object= NULL;
       //flush to backup
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
@@ -866,7 +990,7 @@ namespace keyring__keys_container_unittest
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,sample_key,STORE_KEY))
-        .WillOnce(Return(null_serialized_object));
+        .WillOnce(Return((ISerialized_object*)NULL));
       EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
     }
     EXPECT_EQ(keys_container->store_key(sample_key), 1);
@@ -913,12 +1037,11 @@ namespace keyring__keys_container_unittest
 
     {
       InSequence dummy;
-      ISerialized_object *null_serialized_object= NULL;
 
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,NULL,NONE))
-        .WillOnce(Return(null_serialized_object));
+        .WillOnce(Return((ISerialized_object*)NULL));
       EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
     }
     EXPECT_EQ(keys_container->remove_key(sample_key), 1);
@@ -969,7 +1092,6 @@ namespace keyring__keys_container_unittest
 
     {
       InSequence dummy;
-      ISerialized_object *null_serialized_object= NULL;
       //flush to backup
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
@@ -980,7 +1102,7 @@ namespace keyring__keys_container_unittest
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,sample_key,REMOVE_KEY))
-        .WillOnce(Return(null_serialized_object));
+        .WillOnce(Return((ISerialized_object*)NULL));
       EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
     }
 
@@ -990,10 +1112,7 @@ namespace keyring__keys_container_unittest
     delete logger;
     delete mock_serializer;
   }
-#endif  // HAVE_UBSAN
 
-// HAVE_UBSAN: undefined behaviour in gmock.
-#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_with_mocked_io_test, StoreAndRemoveKey)
   {
     keyring_io= new Mock_keyring_io();
@@ -1137,7 +1256,6 @@ namespace keyring__keys_container_unittest
 
     {
       InSequence dummy;
-      ISerialized_object *null_serialized_object= NULL;
       //flush to backup
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
@@ -1148,7 +1266,7 @@ namespace keyring__keys_container_unittest
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,sample_key,REMOVE_KEY))
-        .WillOnce(Return(null_serialized_object));
+        .WillOnce(Return((ISerialized_object*)NULL));
       EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
     }
 
@@ -1158,7 +1276,6 @@ namespace keyring__keys_container_unittest
     delete logger;
     delete mock_serializer;
   }
-#endif  // HAVE_UBSAN
 
   TEST_F(Keys_container_with_mocked_io_test, Store2KeysAndRemoveThem)
   {

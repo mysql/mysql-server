@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,17 +102,17 @@ TEST_F(FieldDateTest, StoreLegalStringValues)
 
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("2001-01-01"),
+    test_store_string(&field_date, STRING_WITH_LEN("2001-01-01"), 0,
                       "2001-01-01", 0, TYPE_OK);
   }
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("0000-00-00"),
+    test_store_string(&field_date, STRING_WITH_LEN("0000-00-00"), 0,
                       "0000-00-00", 0, TYPE_OK);
   }
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("0001-00-00"),
+    test_store_string(&field_date, STRING_WITH_LEN("0001-00-00"), 0,
                       "0001-00-00", 0, TYPE_OK);
   }
 }
@@ -129,7 +129,7 @@ TEST_F(FieldDateTest, StoreIllegalStringValues)
   // Truncates time
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("2001-01-01 00:00:01"),
+    test_store_string(&field_date, STRING_WITH_LEN("2001-01-01 00:00:01"), 0,
                       "2001-01-01",
                       WARN_DATA_TRUNCATED, TYPE_NOTE_TIME_TRUNCATED);
   }
@@ -137,7 +137,7 @@ TEST_F(FieldDateTest, StoreIllegalStringValues)
   // Bad year
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("99999-01-01"),
+    test_store_string(&field_date, STRING_WITH_LEN("99999-01-01"), 0,
                       "0000-00-00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
@@ -145,21 +145,24 @@ TEST_F(FieldDateTest, StoreIllegalStringValues)
   // Bad month
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("2001-13-01"), "0000-00-00",
+    test_store_string(&field_date, STRING_WITH_LEN("2001-13-01"), 0,
+                      "0000-00-00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
 
   // Bad day
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("2001-01-32"), "0000-00-00",
+    test_store_string(&field_date, STRING_WITH_LEN("2001-01-32"), 0,
+                      "0000-00-00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
 
   // Not a date
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("foo"), "0000-00-00",
+    test_store_string(&field_date, STRING_WITH_LEN("foo"), 0,
+                      "0000-00-00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
 }

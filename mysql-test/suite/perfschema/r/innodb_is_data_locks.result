@@ -9,9 +9,10 @@ id	x
 0	0
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
 from performance_schema.data_locks
-where object_name="t1_is";
+where object_name="t1_is"
+  order by lock_type, lock_mode, lock_status, lock_data;
 object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
-test	t1_is	TABLE	IS	GRANTED	NULL
 test	t1_is	RECORD	S	GRANTED	0
+test	t1_is	TABLE	IS	GRANTED	NULL
 unlock tables;
 drop table t1_is;

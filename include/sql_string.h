@@ -485,8 +485,26 @@ public:
   bool append_with_prefill(const char *s, size_t arg_length, 
 			   size_t full_length, char fill_char);
   bool append_parenthesized(long nr, int radix= 10);
-  int strstr(const String &search,size_t offset=0); // Returns offset to substring or -1
-  int strrstr(const String &search,size_t offset=0); // Returns offset to substring or -1
+  /**
+    Search for a substring.
+
+    @param search    substring to search for
+    @param offset    starting point, bytes from the start of the string
+
+    @return byte offset to the substring from the start of this string
+    @retval -1 if the substring is not found starting from the offset
+  */
+  int strstr(const String &search, size_t offset= 0) const;
+  /**
+    Reverse search for a substring.
+
+    @param search    substring to search for
+    @param offset    starting point, bytes from the start of the string
+
+    @return byte offset to the substring from the start of this string
+    @retval -1 if the substring is not found starting from the offset
+  */
+  int strrstr(const String &search, size_t offset= 0) const;
   /**
    * Returns substring of given characters lenght, starting at given character offset.
    * Note that parameter indexes are character indexes and not byte indexes.
@@ -515,7 +533,7 @@ public:
   friend int stringcmp(const String *a,const String *b);
   friend String *copy_if_not_alloced(String *to, String *from, size_t from_length);
   size_t numchars() const;
-  size_t charpos(size_t i, size_t offset=0);
+  size_t charpos(size_t i, size_t offset= 0) const;
 
   int reserve(size_t space_needed)
   {
@@ -666,8 +684,8 @@ public:
 };
 
 
-static inline bool check_if_only_end_space(const CHARSET_INFO *cs, char *str, 
-                                           char *end)
+static inline bool check_if_only_end_space(const CHARSET_INFO *cs,
+                                           const char *str, const char *end)
 {
   return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
 }

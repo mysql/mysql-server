@@ -425,7 +425,7 @@ enum sub_select_type
 
 enum olap_type 
 {
-  UNSPECIFIED_OLAP_TYPE, CUBE_TYPE, ROLLUP_TYPE
+  UNSPECIFIED_OLAP_TYPE, ROLLUP_TYPE
 };
 
 /* 

@@ -26,7 +26,7 @@
 #include <vector>
 #include <memory>
 
-#include "ngs_common/posix_time.h"
+#include "ngs_common/chrono.h"
 #include "my_global.h"
 
 #include "ngs_common/connection_vio.h"
@@ -104,13 +104,13 @@ private:
   void wait_for_clients_closure();
   void go_through_all_clients(ngs::function<void (Client_ptr)> callback);
   bool timeout_for_clients_validation();
-  void validate_client_state(ptime &oldest_object_time_of_life, const ptime& time_of_release, Client_ptr);
+  void validate_client_state(chrono::time_point &oldest_object_time_of_life, const chrono::time_point& time_of_release, Client_ptr);
   void wait_for_next_client();
 
   // accept one connection, create a connection object for the client and tell it to
   // start reading input
   void on_accept(Connection_acceptor_interface &acceptor);
-  void start_client_supervision_timer(const time_duration &oldest_object_time_ms);
+  void start_client_supervision_timer(const chrono::duration &oldest_object_time_ms);
   void restart_client_supervision_timer();
 
   bool on_check_terminated_workers();

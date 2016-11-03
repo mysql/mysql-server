@@ -1235,6 +1235,9 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
   */
   if (error)
   {
+    sql_print_warning("Resolving dependency for the view '%s.%s' failed. "
+                      "View is no more valid to use", db_name.c_str(),
+                      view_name.c_str());
     update_view_status(thd, db_name.c_str(), view_name.c_str(), false);
     error= false;
   }
@@ -2647,15 +2650,16 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
                                        char *event_name)
 {
   const dd::Event *event= nullptr;
+  dd::Event *new_event= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  if (thd->dd_client()->acquire<dd::Event>(event_db_name, event_name,
-                                           &event))
+  if (thd->dd_client()->acquire(event_db_name, event_name, &event) ||
+      thd->dd_client()->acquire_for_modification(event_db_name,
+                                                 event_name,
+                                                 &new_event))
     return true;
   if (event == nullptr)
     return true;
-
-  std::unique_ptr<dd::Event> new_event(event->clone());
 
   if (!table->field[ET_FIELD_LAST_EXECUTED]->is_null())
   {
@@ -2671,13 +2675,16 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
   new_event->set_created(table->field[ET_FIELD_CREATED]->val_int());
   new_event->set_last_altered(table->field[ET_FIELD_MODIFIED]->val_int());
 
-  if (thd->dd_client()->update(&event, new_event.get()))
+  if (thd->dd_client()->update(&event, new_event))
   {
     trans_rollback_stmt(thd);
     return true;
   }
 
-  return (trans_commit_stmt(thd) || trans_commit(thd));
+  bool error= trans_commit_stmt(thd) || trans_commit(thd);
+  // TODO: Remove this call in WL#7743?
+  thd->dd_client()->remove_uncommitted_objects<Event>(!error);
+  return error;
 }
 
 
@@ -3150,7 +3157,33 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table)
                       thd->variables.sql_mode, params, returns, body, &chistics,
                       definer_user_name_holder, definer_host_name_holder,
                       created, modified, creation_ctx))
-     goto err;
+  {
+    /*
+      Parsing of routine body failed, report a warning and use empty
+      routine body.
+    */
+    sql_print_warning("Parsing '%s.%s' routine body failed. "
+                      "Creating routine without parsing routine body",
+                      sp_db_str.str, sp_name_str.str);
+
+    LEX_CSTRING sr_body;
+    if (routine_type == enum_sp_type::FUNCTION)
+      sr_body= { STRING_WITH_LEN("RETURN NULL") };
+    else
+      sr_body= { STRING_WITH_LEN("BEGIN END") };
+
+    if (db_load_routine(thd, routine_type, sp_db_str.str, sp_db_str.length,
+                        sp_name_str.str, sp_name_str.length, &sp,
+                        thd->variables.sql_mode, params, returns, sr_body.str,
+                        &chistics, definer_user_name_holder,
+                        definer_host_name_holder, created,
+                        modified, creation_ctx))
+      goto err;
+
+    // Set actual routine body.
+    sp->m_body.str= const_cast<char*>(body);
+    sp->m_body.length= strlen(body);
+  }
 
   // Create entry for SP/SF in DD table.
   if (sp_create_routine(thd, sp, &user_info))
@@ -3561,12 +3594,13 @@ bool check_for_dd_tables()
     const System_tables::Types *table_type= System_tables::instance()->
       find_type(schema_name, table_name);
 
-    bool is_stats_table= (table_type != nullptr) &&
-                         (*table_type != System_tables::Types::CORE);
-    is_stats_table &= (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
-                      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
+    bool is_innodb_stats_table= (table_type != nullptr) &&
+                                (*table_type == System_tables::Types::SUPPORT);
+    is_innodb_stats_table &=
+      (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
+      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
 
-    if (is_stats_table)
+    if (is_innodb_stats_table)
       continue;
 
     char path[FN_REFLEN+1];
@@ -3609,12 +3643,13 @@ void drop_dd_tables_and_sdi_files(THD *thd,
     const System_tables::Types *table_type= System_tables::instance()->
       find_type(schema_name, table_name);
 
-    bool is_stats_table= (table_type != nullptr) &&
-                         (*table_type != System_tables::Types::CORE);
-    is_stats_table &= (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
-                      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
+    bool is_innodb_stats_table= (table_type != nullptr) &&
+                                (*table_type == System_tables::Types::SUPPORT);
+    is_innodb_stats_table &=
+      (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
+      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
 
-    if (is_stats_table)
+    if (is_innodb_stats_table)
       continue;
 
     String_type query;

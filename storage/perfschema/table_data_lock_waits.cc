@@ -147,6 +147,7 @@ void table_data_lock_waits::reset_position(void)
   m_pos.reset();
   m_next_pos.reset();
   m_pk_pos.reset();
+  m_container.clear();
 }
 
 int table_data_lock_waits::rnd_next(void)
@@ -193,7 +194,7 @@ int table_data_lock_waits::rnd_next(void)
         break;
       }
 
-      m_container.clear();
+      m_container.shrink();
       iterator_done= it->scan(& m_container);
     }
   }

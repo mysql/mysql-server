@@ -109,6 +109,11 @@ enum enum_session_track_gtids {
 #define MODE_HIGH_NOT_PRECEDENCE        (MODE_NO_AUTO_CREATE_USER*2)
 #define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
 #define MODE_PAD_CHAR_TO_FULL_LENGTH    (1ULL << 31)
+/*
+  If this mode is set the fractional seconds which cannot fit in given fsp will
+  be truncated.
+*/
+#define MODE_TIME_TRUNCATE_FRACTIONAL   (1ULL << 32)
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you

@@ -26,7 +26,6 @@
 #include <stdexcept>
 #include <string>
 
-#include <boost/config.hpp>
 
 namespace mysqlx
 {
@@ -35,9 +34,6 @@ namespace mysqlx
   public:
     Error(int err = 0, const std::string &message = "")
     :_message(message), _error(err)
-    { }
-
-    virtual ~Error() BOOST_NOEXCEPT_OR_NOTHROW
     { }
 
     int error() const { return _error; }

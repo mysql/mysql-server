@@ -106,10 +106,10 @@ static PSI_cond_info all_per_thread_conds[]=
 void Per_thread_connection_handler::init()
 {
 #ifdef HAVE_PSI_INTERFACE
-  int count= array_elements(all_per_thread_mutexes);
+  int count= static_cast<int>(array_elements(all_per_thread_mutexes));
   mysql_mutex_register("sql", all_per_thread_mutexes, count);
 
-  count= array_elements(all_per_thread_conds);
+  count= static_cast<int>(array_elements(all_per_thread_conds));
   mysql_cond_register("sql", all_per_thread_conds, count);
 #endif
 

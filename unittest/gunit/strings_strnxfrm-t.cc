@@ -49,6 +49,40 @@
 
 namespace strnxfrm_unittest {
 
+namespace {
+
+// A function to compare two arrays and print them out in its entirety
+// (for easier context) if they are not equal.
+void expect_arrays_equal(const uchar *expected, const uchar *got, size_t len)
+{
+  int num_err= 0;
+  for (size_t i= 0; i < len && num_err < 5; ++i)
+  {
+    EXPECT_EQ(expected[i], got[i]);
+    if (expected[i] != got[i])
+      ++num_err;
+  }
+  if (num_err)
+  {
+    fprintf(stderr, "Expected:\n");
+    for (size_t i= 0; i < len; ++i)
+    {
+      fprintf(stderr, " %c%02x", expected[i] != got[i] ? '*' : ' ', expected[i]);
+      if ((i % 8) == 7 || i == len - 1)
+        fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\nGot:\n");
+    for (size_t i= 0; i < len; ++i) {
+      fprintf(stderr, " %c%02x", expected[i] != got[i] ? '*' : ' ', got[i]);
+      if ((i % 8) == 7 || i == len - 1)
+        fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+  }
+}
+
+}  // namespace
+
 #if defined(GTEST_HAS_PARAM_TEST)
 
 #if !defined(DBUG_OFF)
@@ -162,9 +196,35 @@ TEST(StrXfrmTest, SimpleUTF8Correctness)
 
   for (size_t maxlen= 0; maxlen < sizeof(buf); ++maxlen) {
     memset(buf, 0xff, sizeof(buf));
-    my_strnxfrm(&my_charset_utf8_bin, buf, maxlen, reinterpret_cast<const uchar *>(src), strlen(src));
-    EXPECT_EQ(0, memcmp(buf, full_answer_with_pad, maxlen))
-      << "Wrong answer for maxlen " << maxlen;
+    my_strnxfrm(&my_charset_utf8_bin, buf, maxlen,
+      pointer_cast<const uchar *>(src), strlen(src));
+    expect_arrays_equal(full_answer_with_pad, buf, maxlen);
+  }
+}
+
+/*
+  This test is disabled because there is currently a bug where the padding
+  isn't correctly added for an odd number of bytes.
+*/
+TEST(StrXfrmTest, DISABLED_SimpleUTF8MB4Correctness)
+{
+  const char* src= "abc æøå 日本語";
+  unsigned char buf[34];
+
+  static const unsigned char full_answer_with_pad[34] = {
+    0x1c, 0x47, 0x1c, 0x60, 0x1c, 0x7a,  // abc
+    0x02, 0x09,  // space
+    0x1c, 0x47, 0x1c, 0xaa, 0x1d, 0xdd, 0x1c, 0x47,  // æøå
+    0x02, 0x09,  // space
+    0xfb, 0x40, 0xe5, 0xe5, 0xfb, 0x40, 0xe7, 0x2c, 0xfb, 0x41, 0x8a, 0x9e,  // 日本語
+    0x02, 0x09, 0x02, 0x09  // space for padding
+  };
+
+  for (size_t maxlen= 0; maxlen < sizeof(buf); ++maxlen) {
+    memset(buf, 0xff, sizeof(buf));
+    my_strnxfrm(&my_charset_utf8mb4_0900_ai_ci, buf, maxlen,
+      pointer_cast<const uchar *>(src), strlen(src));
+    expect_arrays_equal(full_answer_with_pad, buf, maxlen);
   }
 }
 
@@ -328,10 +388,7 @@ static void BM_SimpleUTF8MB4(size_t num_iterations)
   }
   StopBenchmarkTiming();
 
-  for (size_t i= 0; i < sizeof(dest); ++i) {
-    EXPECT_EQ(expected[i], dest[i])
-      << "Weights differ in position " << i;
-  }
+  expect_arrays_equal(expected, dest, sizeof(dest));
 }
 BENCHMARK(BM_SimpleUTF8MB4);
 
@@ -384,10 +441,7 @@ static void BM_MixedUTF8MB4(size_t num_iterations)
   }
   StopBenchmarkTiming();
 
-  for (size_t i= 0; i < sizeof(dest); ++i) {
-    EXPECT_EQ(expected[i], dest[i])
-      << "Weights differ in position " << i;
-  }
+  expect_arrays_equal(expected, dest, sizeof(dest));
 }
 BENCHMARK(BM_MixedUTF8MB4);
 
@@ -504,10 +558,7 @@ static void BM_MixedUTF8MB4_AS_CS(size_t num_iterations)
   StopBenchmarkTiming();
 
   EXPECT_EQ(616u, ret);
-  for (size_t i= 0; i < ret; ++i) {
-    EXPECT_EQ(expected[i], dest[i])
-      << "Weights differ in position " << i;
-  }
+  expect_arrays_equal(expected, dest, ret);
 }
 BENCHMARK(BM_MixedUTF8MB4_AS_CS);
 

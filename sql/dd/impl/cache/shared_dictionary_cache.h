@@ -150,8 +150,8 @@ public:
   // Shutdown the shared maps.
   static void shutdown();
 
-  // Reset dd::Schema and dd::Table cache
-  static void reset_schema_cache();
+  // Reset the shared cache. Optionally keep the core DD table meta data.
+  static void reset(bool keep_dd_entities);
 
   /**
     Get an element from the cache, given the key.
@@ -269,19 +269,6 @@ public:
   template <typename T>
   void replace(Cache_element<T> *element, const T *object)
   { m_map<T>()->replace(element, object); }
-
-
-  /**
-    Alter stickiness of an element.
-
-    @tparam  T         Dictionary object type.
-    @param   element   Element pointer.
-    @param   sticky    New stickiness to assign.
-  */
-
-  template <typename T>
-  void set_sticky(Cache_element<T> *element, bool sticky)
-  { m_map<T>()->set_sticky(element, sticky); }
 
 
   /**

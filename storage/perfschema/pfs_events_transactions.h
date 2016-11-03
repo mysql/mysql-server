@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -54,9 +54,22 @@ struct PSI_xid
   /** XID raw data, not \0-terminated */
   char data[MYSQL_XIDDATASIZE];
 
-  PSI_xid() {null();}
-  bool is_null() { return formatID == -1; }
-  void null() { formatID= -1; gtrid_length= 0; bqual_length= 0;}
+  PSI_xid()
+  {
+    null();
+  }
+  bool
+  is_null()
+  {
+    return formatID == -1;
+  }
+  void
+  null()
+  {
+    formatID = -1;
+    gtrid_length = 0;
+    bqual_length = 0;
+  }
 };
 typedef struct PSI_xid PSI_xid;
 
@@ -93,8 +106,10 @@ struct PFS_events_transactions : public PFS_events
 
 bool xid_printable(PSI_xid *xid, size_t offset, size_t length);
 
-void insert_events_transactions_history(PFS_thread *thread, PFS_events_transactions *transaction);
-void insert_events_transactions_history_long(PFS_events_transactions *transaction);
+void insert_events_transactions_history(PFS_thread *thread,
+                                        PFS_events_transactions *transaction);
+void insert_events_transactions_history_long(
+  PFS_events_transactions *transaction);
 
 extern bool flag_events_transactions_current;
 extern bool flag_events_transactions_history;
@@ -105,7 +120,8 @@ extern PFS_cacheline_uint32 events_transactions_history_long_index;
 extern PFS_events_transactions *events_transactions_history_long_array;
 extern ulong events_transactions_history_long_size;
 
-int init_events_transactions_history_long(uint events_transactions_history_long_sizing);
+int init_events_transactions_history_long(
+  uint events_transactions_history_long_sizing);
 void cleanup_events_transactions_history_long();
 
 void reset_events_transactions_current();
@@ -121,4 +137,3 @@ void aggregate_user_transactions(PFS_user *user);
 void aggregate_host_transactions(PFS_host *host);
 
 #endif
-

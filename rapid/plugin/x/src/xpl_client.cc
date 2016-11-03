@@ -87,7 +87,6 @@ ngs::Capabilities_configurator *Client::capabilities_configurator()
 
   // add our capabilities
   caps->add_handler(ngs::allocate_shared<ngs::Capability_readonly_value>("node_type", "mysql"));
-  caps->add_handler(ngs::allocate_shared<ngs::Capability_readonly_value>("plugin.version", MYSQLX_PLUGIN_VERSION_STRING));
   caps->add_handler(ngs::allocate_shared<Cap_handles_expired_passwords>(ngs::ref(*this)));
 
   return caps;

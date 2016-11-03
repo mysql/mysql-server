@@ -1376,19 +1376,14 @@ int MYSQLlex(YYSTYPE *yylval, YYLTYPE *yylloc, THD *thd)
   switch(token) {
   case WITH:
     /*
-      Parsing 'WITH' 'ROLLUP' or 'WITH' 'CUBE' requires 2 look ups,
+      Parsing 'WITH' 'ROLLUP' requires 2 look ups,
       which makes the grammar LALR(2).
-      Replace by a single 'WITH_ROLLUP' or 'WITH_CUBE' token,
+      Replace by a single 'WITH_ROLLUP' token,
       to transform the grammar into a LALR(1) grammar,
       which sql_yacc.yy can process.
     */
     token= lex_one_token(yylval, thd);
     switch(token) {
-    case CUBE_SYM:
-      yylloc->cpp.end= lip->get_cpp_ptr();
-      yylloc->raw.end= lip->get_ptr();
-      lip->add_digest_token(WITH_CUBE_SYM, yylval);
-      return WITH_CUBE_SYM;
     case ROLLUP_SYM:
       yylloc->cpp.end= lip->get_cpp_ptr();
       yylloc->raw.end= lip->get_ptr();
@@ -3266,9 +3261,6 @@ void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type)
     print_order(str, group_list.first, query_type);
     switch (olap)
     {
-      case CUBE_TYPE:
-	str->append(STRING_WITH_LEN(" with cube"));
-	break;
       case ROLLUP_TYPE:
 	str->append(STRING_WITH_LEN(" with rollup"));
 	break;

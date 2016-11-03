@@ -132,6 +132,19 @@ InnoDB performance_schema tables interface to MySQL.
 static const char *g_engine = "INNODB";
 static const size_t g_engine_length = 6;
 
+inline
+trx_t*
+get_next_trx(
+	const trx_t*	trx,
+	bool		read_write)
+{
+	if (read_write) {
+		return(UT_LIST_GET_NEXT(trx_list, trx));
+	} else {
+		return(UT_LIST_GET_NEXT(mysql_trx_list, trx));
+	}
+}
+
 /** Pass of a given scan. */
 enum scan_pass
 {
@@ -222,6 +235,8 @@ public:
 	*/
 	bool trx_id_in_range(trx_id_t trx_id)
 	{
+		ut_ad(trx_id < TRX_ID_MAX);
+
 		if ((m_start_trx_id_range <= trx_id)
 		    && (trx_id < m_end_trx_id_range)) {
 			return true;
@@ -417,7 +432,7 @@ discard_trx(
 */
 const trx_t*
 fetch_trx_in_trx_list(
-	ulint		trx_id,
+	trx_id_t	trx_id,
 	bool		read_write,
 	trx_ut_list_t*	trx_list)
 {
@@ -428,13 +443,13 @@ fetch_trx_in_trx_list(
 
 	for (trx = UT_LIST_GET_FIRST(*trx_list);
 	     trx != NULL;
-	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+	     trx = get_next_trx(trx, read_write)) {
 
 		if (discard_trx(trx, read_write)) {
 			continue;
 		}
 
-		if (trx->id == trx_id) {
+		if (trx_id == trx_get_id_for_print(trx)) {
 			return trx;
 		}
 	}
@@ -832,19 +847,6 @@ Innodb_data_lock_iterator::fetch(
 	return true;
 }
 
-inline
-trx_t*
-get_next_trx(
-	const trx_t*	trx,
-	bool		read_write)
-{
-	if (read_write) {
-		return(UT_LIST_GET_NEXT(trx_list, trx));
-	} else {
-		return(UT_LIST_GET_NEXT(mysql_trx_list, trx));
-	}
-}
-
 /** Scan a trx list.
 @param[in] container		The container to fill
 @param[in] with_lock_data	True if column LOCK_DATA
@@ -861,6 +863,7 @@ Innodb_data_lock_iterator::scan_trx_list(
 	trx_ut_list_t*			trx_list)
 {
 	const trx_t*	trx;
+	trx_id_t	trx_id;
 	size_t		found = 0;
 
 	ut_ad(lock_mutex_own());
@@ -873,7 +876,9 @@ Innodb_data_lock_iterator::scan_trx_list(
 			continue;
 		}
 
-		if (! m_scan_state.trx_id_in_range(trx->id)) {
+		trx_id = trx_get_id_for_print(trx);
+
+		if (! m_scan_state.trx_id_in_range(trx_id)) {
 			continue;
 		}
 
@@ -950,7 +955,7 @@ Innodb_data_lock_iterator::scan_trx(
 
 	wait_lock = trx->lock.wait_lock;
 
-	trx_id = trx->id;
+	trx_id = trx_get_id_for_print(trx);
 
 	if (! container->accept_transaction_id(trx_id)) {
 		return 0;
@@ -978,9 +983,7 @@ Innodb_data_lock_iterator::scan_trx(
 				if (  (lock_rec_get_space_id(lock)
 				       != filter_space_id)
 				   || (lock_rec_get_page_no(lock)
-				       != filter_page_id)
-				   || (lock_rec_find_set_bit(lock)
-				       != filter_heap_id)) {
+				       != filter_page_id)) {
 					continue;
 				}
 				break;
@@ -1063,50 +1066,54 @@ Innodb_data_lock_iterator::scan_trx(
 
 			while (heap_no != ULINT_UNDEFINED) {
 
-				print_record_lock_id(
-					lock,
-					heap_no,
-					engine_lock_id,
-					sizeof(engine_lock_id));
-				engine_lock_id_length = strlen(engine_lock_id);
+				if (! with_filter
+				    || (heap_no == filter_heap_id)) {
 
-				if (container->accept_lock_id(
+					print_record_lock_id(
+						lock,
+						heap_no,
 						engine_lock_id,
-						engine_lock_id_length)) {
-					if (with_lock_data) {
-						p_s_fill_lock_data(
-							& lock_data_str,
-							lock,
-							heap_no,
-							container);
-					} else {
-						lock_data_str = NULL;
+						sizeof(engine_lock_id));
+					engine_lock_id_length = strlen(engine_lock_id);
+
+					if (container->accept_lock_id(
+							engine_lock_id,
+							engine_lock_id_length)) {
+						if (with_lock_data) {
+							p_s_fill_lock_data(
+								& lock_data_str,
+								lock,
+								heap_no,
+								container);
+						} else {
+							lock_data_str = NULL;
+						}
+
+						container->add_lock_row(
+							g_engine,
+							g_engine_length,
+							engine_lock_id,
+							engine_lock_id_length,
+							trx_id,
+							thread_id,
+							event_id,
+							table_schema,
+							table_schema_length,
+							table_name,
+							table_name_length,
+							partition_name,
+							partition_name_length,
+							subpartition_name,
+							subpartition_name_length,
+							index_name,
+							index_name_length,
+							identity,
+							lock_mode_str,
+							lock_type_str,
+							lock_status_str,
+							lock_data_str);
+						found++;
 					}
-
-					container->add_lock_row(
-						g_engine,
-						g_engine_length,
-						engine_lock_id,
-						engine_lock_id_length,
-						trx_id,
-						thread_id,
-						event_id,
-						table_schema,
-						table_schema_length,
-						table_name,
-						table_name_length,
-						partition_name,
-						partition_name_length,
-						subpartition_name,
-						subpartition_name_length,
-						index_name,
-						index_name_length,
-						identity,
-						lock_mode_str,
-						lock_type_str,
-						lock_status_str,
-						lock_data_str);
-					found++;
 				}
 
 				heap_no = lock_rec_find_next_set_bit(
@@ -1269,6 +1276,7 @@ Innodb_data_lock_wait_iterator::scan_trx_list(
 	trx_ut_list_t*				trx_list)
 {
 	const trx_t*	trx;
+	trx_id_t	trx_id;
 	size_t		found = 0;
 
 	ut_ad(lock_mutex_own());
@@ -1281,7 +1289,9 @@ Innodb_data_lock_wait_iterator::scan_trx_list(
 			continue;
 		}
 
-		if (! m_scan_state.trx_id_in_range(trx->id)) {
+		trx_id = trx_get_id_for_print(trx);
+
+		if (! m_scan_state.trx_id_in_range(trx_id)) {
 			continue;
 		}
 
@@ -1396,7 +1406,7 @@ Innodb_data_lock_wait_iterator::scan_trx(
 		}
 	}
 
-	requesting_trx_id = trx->id;
+	requesting_trx_id = trx_get_id_for_print(trx);
 	if (! container->accept_requesting_transaction_id(
 		requesting_trx_id)) {
 		return 0;

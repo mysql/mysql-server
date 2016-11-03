@@ -20,6 +20,7 @@ insert into mytable values (3, 'tomato', 1.80, '{"color":"red"}');
 insert into mytable values (4, 'mango', 3.14, '{"color":"green"}');
 insert into mytable values (5, 'orange', 0.90, '{"color":"orange"}');
 -->endsql
+
 Mysqlx.Crud.Delete {
   collection {
     name: "mycoll"
@@ -27,9 +28,8 @@ Mysqlx.Crud.Delete {
   }
   data_model: DOCUMENT
 }
+-->recvresult
 
-## expect Mysqlx.Error
--->recv
 Mysqlx.Crud.Delete {
   collection {
     name: "mycoll"
@@ -37,9 +37,8 @@ Mysqlx.Crud.Delete {
   }
   data_model: TABLE
 }
+-->recvresult
 
-## expect Mysqlx.Error
--->recv
 Mysqlx.Crud.Delete {
   collection {
     name: ""
@@ -47,9 +46,9 @@ Mysqlx.Crud.Delete {
   }
   data_model: DOCUMENT
 }
+-->expecterror 5113
+-->recvresult
 
-## expect Mysqlx.Error
--->recv
 Mysqlx.Crud.Delete {
   collection {
     name: ""
@@ -57,18 +56,14 @@ Mysqlx.Crud.Delete {
   }
   data_model: TABLE
 }
+-->expecterror 5113
+-->recvresult
 
-## expect Mysqlx.Error
--->recv
-
-## Cleanup
--->sql
-drop schema if exists xtest;
--->endsql
 EOF
 
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/delete_del_missing_arg.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/delete_del_missing_arg.tmp
 
 ## Postamble
+drop schema if exists xtest;
 uninstall plugin mysqlx;

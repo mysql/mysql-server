@@ -61,6 +61,8 @@ ADD_CONVENIENCE_LIBRARY(strings ${STRINGS_SOURCES})
 ADD_EXECUTABLE(conf_to_src conf_to_src.cc)
 TARGET_LINK_LIBRARIES(conf_to_src strings)
 
+ADD_EXECUTABLE(uca9dump uca9-dump.cc)
+
 IF(MSVC)
    INSTALL_DEBUG_TARGET(strings DESTINATION ${INSTALL_LIBDIR}/debug)
 ENDIF()

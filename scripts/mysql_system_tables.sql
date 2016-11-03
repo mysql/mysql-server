@@ -763,8 +763,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.KEY_COLUMN_
      sch.name ", @collate_tolower, " AS TABLE_SCHEMA,
      tbl.name ", @collate_tolower, " AS TABLE_NAME,
      col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
-     fkcu.ordinal_position AS ORDINAL_POSITION,
-     icu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,
+     fkcu.ordinal_position  AS ORDINAL_POSITION,
+     fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,
      fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,
      fk.referenced_table_name AS REFERENCED_TABLE_NAME,
      fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME
@@ -773,9 +773,6 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.KEY_COLUMN_
      JOIN mysql.schemata sch ON fk.schema_id= sch.id
      JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
      JOIN mysql.columns col ON fkcu.column_id=col.id
-     JOIN mysql.indexes idx ON fk.unique_constraint_id=idx.id
-     JOIN mysql.index_column_usage icu ON idx.id=icu.index_id
-     AND icu.column_id=col.id
    WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden)");
 PREPARE stmt FROM @str;
 EXECUTE stmt;

@@ -506,7 +506,7 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
     Uint32 category = (Uint32) dst->category;
     switch(category)
     {
-    case NDB_MGM_ILLEGAL_EVENT_CATEGORY:
+    case (Uint32) NDB_MGM_ILLEGAL_EVENT_CATEGORY:
       category = (Uint32) LogLevel::llInvalid;
       break;
     default:

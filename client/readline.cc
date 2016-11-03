@@ -17,10 +17,12 @@
 
 /* readline for batch mode */
 
-#include <my_global.h>
-#include <my_sys.h>
 #include <m_string.h>
 #include <my_dir.h>
+#include <my_global.h>
+#include <my_sys.h>
+#include <stdio.h>
+
 #include "my_readline.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"

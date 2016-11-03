@@ -6142,13 +6142,13 @@ bool mysql_create_table_no_lock(THD *thd,
     found, we create it inside SE on later steps.
   */
 
-  bool is_stats_table= (!strcmp(db, "mysql")) &&
-                       ((!(strcmp(table_name, "innodb_table_stats")) ||
-                        !(strcmp(table_name, "innodb_index_stats"))));
+  bool is_innodb_stats_table= (!strcmp(db, "mysql")) &&
+    ((!(strcmp(table_name, "innodb_table_stats")) ||
+     !(strcmp(table_name, "innodb_index_stats"))));
 
   bool no_ha_table= false;
   if ((!opt_initialize || dd_upgrade_skip_se ||
-      (dd_upgrade_flag && is_stats_table)) &&
+      (dd_upgrade_flag && is_innodb_stats_table)) &&
       dd::get_dictionary()->is_dd_table_name(db, table_name))
     no_ha_table= true;
 
@@ -7895,6 +7895,40 @@ bool mysql_compare_tables(TABLE *table,
 }
 
 
+/**
+   Report a zero date warning if no default value is supplied
+   for the DATE/DATETIME 'NOT NULL' field and 'NO_ZERO_DATE'
+   sql_mode is enabled.
+
+   @param thd                Thread handle.
+   @param datetime_field     DATE/DATETIME column definition.
+*/
+static void push_zero_date_warning(THD *thd, Create_field *datetime_field)
+{
+  uint f_length= 0;
+  enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
+
+  switch (datetime_field->sql_type)
+  {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+    f_length= MAX_DATE_WIDTH; // "0000-00-00";
+    t_type= MYSQL_TIMESTAMP_DATE;
+    break;
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
+    f_length= MAX_DATETIME_WIDTH; // "0000-00-00 00:00:00";
+    t_type= MYSQL_TIMESTAMP_DATETIME;
+    break;
+  default:
+    DBUG_ASSERT(false);  // Should not get here.
+  }
+  make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
+                               ErrConvString(my_zero_datetime6, f_length),
+                               t_type, datetime_field->field_name);
+}
+
+
 /*
   Manages enabling/disabling of indexes for ALTER TABLE
 
@@ -8148,7 +8182,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (lock_tables(thd, table_list, alter_ctx->tables_opened, 0))
     goto cleanup;
 
-  if (alter_ctx->error_if_not_empty & Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
+  if (alter_ctx->error_if_not_empty)
   {
     // We should have upgraded from MDL_SHARED_UPGRADABLE to a lock
     // blocking writes for it to be safe to check ha_records().
@@ -8169,8 +8203,25 @@ static bool mysql_inplace_alter_table(THD *thd,
     ha_rows tmp= 0;
     if (table_list->table->file->ha_records(&tmp) || tmp > 0)
     {
-      my_error(ER_INVALID_USE_OF_NULL, MYF(0));
-      goto cleanup;
+      if (alter_ctx->error_if_not_empty &
+          Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
+      {
+        my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+      }
+      else if ((alter_ctx->error_if_not_empty &
+                Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
+               (thd->variables.sql_mode & MODE_NO_ZERO_DATE))
+      {
+        /*
+          Report a warning if the NO ZERO DATE MODE is enabled. The
+          warning will be promoted to an error if strict mode is
+          also enabled.
+        */
+        push_zero_date_warning(thd, alter_ctx->datetime_field);
+      }
+
+      if (thd->is_error())
+        goto cleanup;
     }
 
     // Empty table, so don't allow inserts during inplace operation.
@@ -8223,16 +8274,17 @@ static bool mysql_inplace_alter_table(THD *thd,
     dd::Schema_MDL_locker mdl_locker(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Table *new_dd_tab= nullptr;
+    dd::Table *altered_table_def= nullptr;
     if (mdl_locker.ensure_locked(alter_ctx->new_db) ||
         thd->dd_client()->acquire(alter_ctx->new_db, alter_ctx->tmp_name,
-                                  &new_dd_tab))
+                                  &new_dd_tab) ||
+        thd->dd_client()->acquire_for_modification(alter_ctx->new_db, alter_ctx->tmp_name,
+                                  &altered_table_def))
       goto cleanup;
-
-    std::unique_ptr<dd::Table> altered_table_def(new_dd_tab->clone());
 
     if (table->file->ha_prepare_inplace_alter_table(altered_table,
                                                     ha_alter_info,
-                                                    altered_table_def.get()))
+                                                    altered_table_def))
     {
       goto rollback;
     }
@@ -8242,8 +8294,10 @@ static bool mysql_inplace_alter_table(THD *thd,
       updating SDI here. This will happen anyway during further operations
       on new table version in this statement.
     */
-    if (thd->dd_client()->update(&new_dd_tab, altered_table_def.get()))
+    if (thd->dd_client()->update(&new_dd_tab, altered_table_def))
       goto rollback;
+    // TODO: Remove this call in WL#7743?
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
 
   /*
@@ -9034,8 +9088,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
          def->sql_type == MYSQL_TYPE_DATETIME ||
          def->sql_type == MYSQL_TYPE_DATETIME2) &&
          !alter_ctx->datetime_field &&
-         !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
-         thd->is_strict_mode())
+         !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)))
     {
         alter_ctx->datetime_field= def;
         alter_ctx->error_if_not_empty|=
@@ -10753,27 +10806,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     /* Mark that we have created table in storage engine. */
     no_ha_table= false;
 
-    // Retain stickiness if non-tmp table.
-    if (!table->s->tmp_table)
-    {
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-      const dd::Table *src= nullptr;
-      const dd::Table *dst= nullptr;
-      if (thd->dd_client()->acquire(alter_ctx.db, alter_ctx.table_name, &src) ||
-          thd->dd_client()->acquire(alter_ctx.new_db, alter_ctx.tmp_name, &dst))
-      {
-        DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
-        goto err_new_table_cleanup;
-      }
-
-      // Tables must be present in cache.
-      DBUG_ASSERT(src != nullptr && dst != nullptr);
-
-      // Set stickiness as appropriate.
-      if (thd->dd_client()->is_sticky(src))
-        thd->dd_client()->set_sticky(dst, true);
-    }
-
     if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     {
       if (!open_table_uncached(thd, alter_ctx.get_tmp_path(),
@@ -11123,41 +11155,18 @@ err_new_table_cleanup:
   {
     my_error(ER_INVALID_USE_OF_NULL, MYF(0));
   }
+
+  /*
+    No default value was provided for a DATE/DATETIME field, the
+    current sql_mode doesn't allow the '0000-00-00' value and
+    the table to be altered isn't empty.
+    Report error here.
+  */
   if ((alter_ctx.error_if_not_empty &
        Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
+      (thd->variables.sql_mode & MODE_NO_ZERO_DATE) &&
       thd->get_stmt_da()->current_row_for_condition())
-  {
-    /*
-      No default value was provided for a DATE/DATETIME field, the
-      current sql_mode doesn't allow the '0000-00-00' value and
-      the table to be altered isn't empty.
-      Report error here.
-    */
-    uint f_length;
-    enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
-    switch (alter_ctx.datetime_field->sql_type)
-    {
-      case MYSQL_TYPE_DATE:
-      case MYSQL_TYPE_NEWDATE:
-        f_length= MAX_DATE_WIDTH; // "0000-00-00";
-        t_type= MYSQL_TIMESTAMP_DATE;
-        break;
-      case MYSQL_TYPE_DATETIME:
-      case MYSQL_TYPE_DATETIME2:
-        f_length= MAX_DATETIME_WIDTH; // "0000-00-00 00:00:00";
-        t_type= MYSQL_TIMESTAMP_DATETIME;
-        break;
-      default:
-        /* Shouldn't get here. */
-        f_length= 0;
-        DBUG_ASSERT(0);
-    }
-    make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(my_zero_datetime6, f_length),
-                                 t_type,
-                                 alter_ctx.datetime_field->field_name);
-  }
-
+    push_zero_date_warning(thd, alter_ctx.datetime_field);
   DBUG_RETURN(true);
 
 err_with_mdl:
@@ -11362,8 +11371,18 @@ copy_data_between_tables(THD * thd,
       error= 1;
       break;
     }
-    /* Return error if source table isn't empty. */
-    if (alter_ctx->error_if_not_empty)
+    /*
+      Return error if source table isn't empty.
+
+      For a DATE/DATETIME field, return error only if strict mode
+      and No ZERO DATE mode is enabled.
+    */
+    if ((alter_ctx->error_if_not_empty &
+         Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT) ||
+        ((alter_ctx->error_if_not_empty &
+          Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
+         (thd->variables.sql_mode & MODE_NO_ZERO_DATE) &&
+         thd->is_strict_mode()))
     {
       error= 1;
       break;

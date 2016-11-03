@@ -44,9 +44,6 @@ namespace xpl
     }
     virtual ~Command_delegate() {}
 
-    Command_delegate(const Command_delegate &) = delete;
-    Command_delegate &operator=(const Command_delegate &) = delete;
-
     ngs::Error_code get_error() const
     {
       if (m_sql_errno == 0)
@@ -411,6 +408,9 @@ namespace xpl
     }
 
   private:
+    Command_delegate(const Command_delegate &) = delete;
+    Command_delegate &operator=(const Command_delegate &) = delete;
+
     static int call_start_result_metadata(void *ctx, uint num_cols, uint flags,
                                           const CHARSET_INFO *resultcs)
     {

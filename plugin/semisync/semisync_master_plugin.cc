@@ -22,6 +22,7 @@
 #include "semisync_master.h"
 #include "semisync_master_ack_receiver.h"
 #include "sql_class.h"                          // THD
+#include "typelib.h"
 
 ReplSemiSyncMaster repl_semisync;
 Ack_receiver ack_receiver;
@@ -560,19 +561,19 @@ static void init_semisync_psi_keys(void)
   const char* category= "semisync";
   int count;
 
-  count= array_elements(all_semisync_mutexes);
+  count= static_cast<int>(array_elements(all_semisync_mutexes));
   mysql_mutex_register(category, all_semisync_mutexes, count);
 
-  count= array_elements(all_semisync_conds);
+  count= static_cast<int>(array_elements(all_semisync_conds));
   mysql_cond_register(category, all_semisync_conds, count);
 
-  count= array_elements(all_semisync_stages);
+  count= static_cast<int>(array_elements(all_semisync_stages));
   mysql_stage_register(category, all_semisync_stages, count);
 
-  count= array_elements(all_semisync_memory);
+  count= static_cast<int>(array_elements(all_semisync_memory));
   mysql_memory_register(category, all_semisync_memory, count);
 
-  count= array_elements(all_semisync_threads);
+  count= static_cast<int>(array_elements(all_semisync_threads));
   mysql_thread_register(category, all_semisync_threads, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

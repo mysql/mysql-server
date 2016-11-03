@@ -51,17 +51,17 @@ inline int my_decimal_get_binary_size(uint precision, uint scale)
 #endif
 
 #define DTIMAP(x, y, z) \
-  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
+  { DictTabInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DTIMAP2(x, y, z, u, v) \
-  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+  { DictTabInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
 
 #define DTIMAPS(x, y, z, u, v) \
-  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+  { DictTabInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
 
 #define DTIMAPB(x, y, z, u, v, l) \
-  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
-                     my_offsetof(x, l) }
+  { DictTabInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+      (unsigned) my_offsetof(x, l) }
 
 #define DTIBREAK(x) \
   { DictTabInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
@@ -694,17 +694,17 @@ public:
 };
 
 #define DFGIMAP(x, y, z) \
-  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
+  { DictFilegroupInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DFGIMAP2(x, y, z, u, v) \
-  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+  { DictFilegroupInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
 
 #define DFGIMAPS(x, y, z, u, v) \
-  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+  { DictFilegroupInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
 
 #define DFGIMAPB(x, y, z, u, v, l) \
-  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
-                     my_offsetof(x, l) }
+  { DictFilegroupInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+      (unsigned) my_offsetof(x, l) }
 
 #define DFGIBREAK(x) \
   { DictFilegroupInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
@@ -815,17 +815,17 @@ struct DictFilegroupInfo {
 };
 
 #define DHMIMAP(x, y, z) \
-  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
+  { DictHashMapInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DHMIMAP2(x, y, z, u, v) \
-  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+  { DictHashMapInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
 
 #define DHMIMAPS(x, y, z, u, v) \
-  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+  { DictHashMapInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
 
 #define DHMIMAPB(x, y, z, u, v, l) \
-  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
-                     my_offsetof(x, l) }
+  { DictHashMapInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+      (unsigned) my_offsetof(x, l) }
 
 #define DHMIBREAK(x) \
   { DictHashMapInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
@@ -917,17 +917,17 @@ class NdbOut&
 operator<<(class NdbOut& out, const DictForeignKeyInfo::ForeignKey& fk);
 
 #define DFKIMAP(x, y, z) \
-  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
+  { DictForeignKeyInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DFKIMAP2(x, y, z, u, v) \
-  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+  { DictForeignKeyInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
 
 #define DFKIMAPS(x, y, z, u, v) \
-  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+  { DictForeignKeyInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
 
 #define DFKIMAPB(x, y, z, u, v, l) \
-  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
-                     my_offsetof(x, l) }
+  { DictForeignKeyInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+      (unsigned) my_offsetof(x, l) }
 
 #define DFKIBREAK(x) \
   { DictForeignKeyInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }

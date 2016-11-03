@@ -43,8 +43,7 @@ EOF
 -->assert_eq %MSG%	%MSG_LENGTH%%MSG_TYPE%
 
 -->binsend %MSG_LENGTH%%MSG_TYPE%
--->recvtype Mysqlx.Connection.Capabilities
-
+-->recvtype Mysqlx.Connection.Capabilities be-quiet
 -->binsend %MSG_LENGTH%\xff
 -->recvtype Mysqlx.Error
 

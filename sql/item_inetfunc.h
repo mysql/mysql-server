@@ -100,7 +100,7 @@ public:
   virtual longlong val_int();
 
 protected:
-  virtual bool calc_value(const String *arg) = 0;
+  virtual bool calc_value(const String *arg) const= 0;
 };
 
 
@@ -201,7 +201,7 @@ public:
   { return "is_ipv4"; }
 
 protected:
-  virtual bool calc_value(const String *arg);
+  virtual bool calc_value(const String *arg) const;
 };
 
 
@@ -221,7 +221,7 @@ public:
   { return "is_ipv6"; }
 
 protected:
-  virtual bool calc_value(const String *arg);
+  virtual bool calc_value(const String *arg) const;
 };
 
 
@@ -241,7 +241,7 @@ public:
   { return "is_ipv4_compat"; }
 
 protected:
-  virtual bool calc_value(const String *arg);
+  virtual bool calc_value(const String *arg) const;
 };
 
 
@@ -261,7 +261,7 @@ public:
   { return "is_ipv4_mapped"; }
 
 protected:
-  virtual bool calc_value(const String *arg);
+  virtual bool calc_value(const String *arg) const;
 };
 
 #endif // ITEM_INETFUNC_INCLUDED

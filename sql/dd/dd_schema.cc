@@ -22,7 +22,6 @@
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::get_dictionary
 #include "dd/dictionary.h"                    // dd::Dictionary
-#include "dd/sdi.h"                           // dd::store_sdi
 #include "dd/types/schema.h"                  // dd::Schema
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "m_ctype.h"
@@ -69,28 +68,11 @@ bool create_schema(THD *thd, const char *schema_name,
 
   Disable_gtid_state_update_guard disabler(thd);
 
-  // If this is the dd schema, "store" it temporarily in the shared cache.
-  if (get_dictionary()->is_dd_schema_name(schema_name))
-  {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-    // Always reset id to 1 if we are creating DD schema from bootstrap thread
-    bool reset_id= thd->is_dd_system_thread();
-
-    thd->dd_client()->add_and_reset_id(sch_obj, reset_id);
-    thd->dd_client()->set_sticky(sch_obj, true);
-    // Note that the object is now owned by the shared cache, so we cannot
-    // delete it here.
-    return false;
-  }
-
   // Wrap the pointer in a unique_ptr to ease memory management.
   std::unique_ptr<dd::Schema> wrapped_sch_obj(sch_obj);
 
   // Store the schema. Error will be reported by the dictionary subsystem.
-  if (thd->dd_client()->store(wrapped_sch_obj.get()) ||
-      dd::store_sdi(thd, wrapped_sch_obj.get()))
-
+  if (thd->dd_client()->store(wrapped_sch_obj.get()))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -110,24 +92,20 @@ bool alter_schema(THD *thd, const char *schema_name,
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
   // Get dd::Schema object.
-  const dd::Schema *sch_obj= NULL;
-  if (client->acquire<dd::Schema>(schema_name, &sch_obj))
+  const dd::Schema *old_sch_obj= nullptr;
+  dd::Schema *new_sch_obj= nullptr;
+  if (client->acquire<dd::Schema>(schema_name, &old_sch_obj) ||
+      client->acquire_for_modification<dd::Schema>(schema_name, &new_sch_obj))
   {
     // Error is reported by the dictionary subsystem.
     return true;
   }
 
-  if (!sch_obj)
+  if (!old_sch_obj)
   {
     my_error(ER_NO_SUCH_DB, MYF(0), schema_name);
     return true;
   }
-
-  Sdi_updater update_sdi= make_sdi_updater(sch_obj);
-
-  // Clone the schema object. The clone is owned here, and must be deleted
-  // eventually.
-  std::unique_ptr<dd::Schema> new_sch_obj(sch_obj->clone());
 
   // Set new collation ID.
   new_sch_obj->set_default_collation_id(charset_info->number);
@@ -135,7 +113,7 @@ bool alter_schema(THD *thd, const char *schema_name,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Update schema.
-  if (client->update(&sch_obj, new_sch_obj.get()))
+  if (client->update(&old_sch_obj, new_sch_obj))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -143,30 +121,10 @@ bool alter_schema(THD *thd, const char *schema_name,
     return true;
   }
 
-  if (update_sdi(thd, new_sch_obj.get()))
-  {
-    // At this point the cache already contains the new value, and
-    // aborting the transaction will not undo this automatically. To
-    // remedy this the schema is dropped to remove it from the
-    // cache. This will obviously also remove it from the DD
-    // tables, but this is ok since the removal will be rolled back
-    // when the transaction aborts. Since there is exclusive MDL on
-    // the schema, other threads will not see the removal, but will
-    // have to reload the schema into the cache when they get MDL.
-#ifndef DBUG_OFF
-    bool drop_error=
-#endif /* DBUG_OFF */
-      client->drop(sch_obj);
-    DBUG_ASSERT(drop_error == false);
-
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    return true;
-  }
-
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  bool error= trans_commit_stmt(thd) || trans_commit(thd);
+  // TODO: Remove this call in WL#7743?
+  client->remove_uncommitted_objects<Schema>(!error);
+  return error;
 }
 
 
@@ -198,8 +156,7 @@ bool drop_schema(THD *thd, const char *schema_name)
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop the schema.
-  if (dd::remove_sdi(thd, sch_obj) ||
-      client->drop(sch_obj))
+  if (client->drop(sch_obj))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.

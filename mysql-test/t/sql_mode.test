@@ -319,7 +319,7 @@ select @@sql_mode;
 set sql_mode=16384+(65536*4);
 select @@sql_mode;
 --error 1231
-set sql_mode=2147483648*2; # that mode does not exist
+set sql_mode=4294967296*2; # that mode does not exist
 select @@sql_mode;
 
 #

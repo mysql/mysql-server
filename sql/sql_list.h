@@ -331,6 +331,7 @@ public:
   inline list_node* last_node() { return *last; }
   inline list_node* first_node() { return first;}
   inline void *head() { return first->info; }
+  inline const void *head() const { return first->info; }
   inline void **head_ref() { return first != &end_of_list ? &first->info : 0; }
   inline void *back() { return (*last)->info; }
   inline bool is_empty() const { return first == &end_of_list ; }
@@ -549,7 +550,9 @@ public:
   {
     return base_list::push_front((void *) a, mem_root);
   }
-  inline T* head() {return (T*) base_list::head(); }
+  inline T* head() { return static_cast<T *>(base_list::head()); }
+  inline const T *head() const
+  { return static_cast<const T *>(base_list::head()); }
   inline T** head_ref() {return (T**) base_list::head_ref(); }
   inline T* back() {return (T*) base_list::back(); }
   inline T* pop()  {return (T*) base_list::pop(); }

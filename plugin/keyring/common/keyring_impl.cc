@@ -51,10 +51,10 @@ void keyring_init_psi_keys(void)
   const char *category = "keyring";
   int count;
 
-  count= array_elements(all_keyring_memory);
+  count= static_cast<int>(array_elements(all_keyring_memory));
   mysql_memory_register(category, all_keyring_memory, count);
 
-  count= array_elements(all_keyring_rwlocks);
+  count= static_cast<int>(array_elements(all_keyring_rwlocks));
   mysql_rwlock_register(category, all_keyring_rwlocks, count);
 }
 #endif //HAVE_PSI_INTERFACE

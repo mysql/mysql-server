@@ -1,0 +1,72 @@
+################################################################################
+# This test does basic check around UNINSTALL and INSTALL PLUGIN commands.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Bootstrap start GR.
+#  - Verify that GR specific two P_S tables are not empty.
+# 2. Uninstall plugin.
+#  - Then uninstall it again twice; expect ER_SP_DOES_NOT_EXIST.
+#  - Verify that GR specific two P_S tables are empty.
+# 3. Install plugin.
+#  - Then try installing it again twice; expect ER_UDF_EXISTS.
+#  - Verify that GR specific two P_S tables are are not empty.
+################################################################################
+--source include/force_restart.inc
+--source ../inc/have_group_replication_plugin_base.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo
+--echo # 1. Bootstrap start GR.
+--echo #    Verify that group replication specific P_S tables are not empty.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $assert_text= P_S table replication_group_members should not be empty
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.replication_group_members]" = 1
+--source include/assert.inc
+
+--let $assert_text= P_S table replication_group_member_stats should not be empty
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.replication_group_member_stats]" = 1
+--source include/assert.inc
+
+--echo
+--echo # 2. Uninstall plugin.
+--echo #    Then uninstall it again twice; expect ER_SP_DOES_NOT_EXIST.
+--echo #    Verify that group replication specific P_S tables are empty.
+UNINSTALL PLUGIN group_replication;
+
+--error ER_SP_DOES_NOT_EXIST
+UNINSTALL PLUGIN group_replication;
+
+--let $assert_text= P_S table replication_group_members should be empty
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.replication_group_members]" = 0
+--source include/assert.inc
+
+--let $assert_text= P_S table replication_group_member_stats should be empty
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.replication_group_member_stats]" = 0
+--source include/assert.inc
+
+--echo
+--echo # 3. Install plugin.
+--echo #    Then Install it again twice; expect ER_UDF_EXISTS.
+--echo #    Verify that GR specific two P_S tables are are not empty.
+--replace_result $GROUP_REPLICATION GROUP_REPLICATION
+--eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+
+--replace_result $GROUP_REPLICATION GROUP_REPLICATION
+--error ER_UDF_EXISTS
+--eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+
+--let $assert_text= P_S table replication_group_members should not be empty
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.replication_group_members]" = 1
+--source include/assert.inc
+
+--let $assert_text= P_S table replication_group_member_stats should not be empty
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.replication_group_member_stats]" = 1
+--source include/assert.inc
+
+--source ../inc/group_replication_end.inc

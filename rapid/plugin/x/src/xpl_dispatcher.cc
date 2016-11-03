@@ -150,7 +150,7 @@ ngs::Error_code on_expect_open(xpl::Session &session, xpl::Expectation_stack &ex
 
   ngs::Error_code error = expect.open(msg);
   if (!error)
-    session.proto().send_ok("");
+    session.proto().send_ok();
   return error;
 }
 
@@ -161,7 +161,7 @@ ngs::Error_code on_expect_close(xpl::Session &session, xpl::Expectation_stack &e
 
   ngs::Error_code error = expect.close();
   if (!error)
-    session.proto().send_ok("");
+    session.proto().send_ok();
   return error;
 }
 
@@ -185,6 +185,15 @@ ngs::Error_code do_dispatch_command(xpl::Session &session, xpl::Crud_command_han
 
     case Mysqlx::ClientMessages::CRUD_DELETE:
       return crudh.execute_crud_delete(session, static_cast<const Mysqlx::Crud::Delete&>(*command.message()));
+
+    case Mysqlx::ClientMessages::CRUD_CREATE_VIEW:
+      return crudh.execute_create_view(session, static_cast<const Mysqlx::Crud::CreateView&>(*command.message()));
+
+    case Mysqlx::ClientMessages::CRUD_MODIFY_VIEW:
+      return crudh.execute_modify_view(session, static_cast<const Mysqlx::Crud::ModifyView&>(*command.message()));
+
+    case Mysqlx::ClientMessages::CRUD_DROP_VIEW:
+      return crudh.execute_drop_view(session, static_cast<const Mysqlx::Crud::DropView&>(*command.message()));
 
     case Mysqlx::ClientMessages::EXPECT_OPEN:
       return on_expect_open(session, expect, static_cast<const Mysqlx::Expect::Open&>(*command.message()));

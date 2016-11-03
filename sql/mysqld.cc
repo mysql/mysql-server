@@ -9755,32 +9755,32 @@ static void init_server_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_server_mutexes);
+  count= static_cast<int>(array_elements(all_server_mutexes));
   mysql_mutex_register(category, all_server_mutexes, count);
 
-  count= array_elements(all_server_rwlocks);
+  count= static_cast<int>(array_elements(all_server_rwlocks));
   mysql_rwlock_register(category, all_server_rwlocks, count);
 
-  count= array_elements(all_server_conds);
+  count= static_cast<int>(array_elements(all_server_conds));
   mysql_cond_register(category, all_server_conds, count);
 
-  count= array_elements(all_server_threads);
+  count= static_cast<int>(array_elements(all_server_threads));
   mysql_thread_register(category, all_server_threads, count);
 
-  count= array_elements(all_server_files);
+  count= static_cast<int>(array_elements(all_server_files));
   mysql_file_register(category, all_server_files, count);
 
-  count= array_elements(all_server_stages);
+  count= static_cast<int>(array_elements(all_server_stages));
   mysql_stage_register(category, all_server_stages, count);
 
-  count= array_elements(all_server_sockets);
+  count= static_cast<int>(array_elements(all_server_sockets));
   mysql_socket_register(category, all_server_sockets, count);
 
   register_server_memory_keys();
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   init_sql_statement_info();
-  count= array_elements(sql_statement_info);
+  count= static_cast<int>(array_elements(sql_statement_info));
   mysql_statement_register(category, sql_statement_info, count);
 
   init_sp_psi_keys();

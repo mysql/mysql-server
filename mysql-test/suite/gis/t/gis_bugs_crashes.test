@@ -282,7 +282,8 @@ SELECT MBRTOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(5 0,5 10),GEOME
 --echo # BUG#19784515 : ASSERTION `DIM1 >= 0 && DIM1 <= 2 && DIM2 >= 0 && DIM2 <= 2' FAILED
 --echo ######################################################################################################
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
+--error ER_GIS_INVALID_DATA
 SELECT MBRWITHIN(
     ST_CENTROID(
         ST_UNION(
@@ -471,7 +472,7 @@ SELECT ST_ISEMPTY(ST_INTERSECTION(
                                                        '((4 9,8 -7,1 -10,9 6,-4 8,-7 1,3 -3,8 2,-10 3,-8 8,-3 1,2 0, 4 9)))'),
                           ST_GEOMFROMTEXT('LINESTRING(0 -3,8 9,10 -3,-8 7,4 4,8 -8,10 6,5 7)')))));
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
 SELECT ST_ISEMPTY(ST_INTERSECTION(
                       ST_CONVEXHULL(
                           ST_GEOMFROMTEXT('POLYGON((0 10,-4 7,10 5,-8 -6,9 1,4 7,5 0,-3 -1,9 10,-7 -5, 0 10))')),
@@ -496,7 +497,8 @@ SELECT ST_ISEMPTY(ST_UNION(
                           ST_GEOMFROMTEXT('LINESTRING(-6 -6,-7 1,5 5,-1 0,5 5,-8 -6,10 -9,7 9,-2 -7,10 -1,-3 10)'),
                           ST_GEOMFROMTEXT('MULTILINESTRING((10 10,2 -9,-8 2,9 -2,-10 -4,10 7,-10 8,-4 7,-9 3,8 8))'))));
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
+--error ER_GIS_INVALID_DATA
 SELECT ST_SRID(
     ST_INTERSECTION(
         ST_UNION(
@@ -957,77 +959,6 @@ SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTILINESTRING((2 5, 7 5, 8 3, 6 3, 4 0),(4
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTILINESTRING((5 0,5 5,5 10),(0 0,10 10))'), ST_GEOMFROMTEXT('LINESTRING(1 1,5 5,4 4)'));
 
 --echo ######################################################################################################
---echo # BUG#20357097 : ASSERTION `INDEX >= 0 && UNSIGNED(INDEX) < INFO.COUNT' FAILED
---echo ######################################################################################################
-
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
-SELECT ST_ASTEXT(
-    ST_ENVELOPE(
-        ST_UNION(
-            ST_UNION(
-                ST_ENVELOPE(
-                    ST_CONVEXHULL(
-                        ST_ENVELOPE(
-                            ST_GEOMFROMTEXT('MULTILINESTRING((-3 -4,0 9,3 -2,4 9,-6 -8,-6 4,-10 7,-9 6,-10 6,-8 2,8 2,7 -5),'
-                                                            '(-6 6,8 0,9 -7,-7 -7,1 -2),'
-                                                            '(-2 -8,7 3,-1 8,1 5,-1 -5,-10 -6,2 2,-2 -9,0 5,2 7,6 8,6 -3,9 7,7 -8))')))),
-                ST_UNION(
-                    ST_ENVELOPE(
-                        ST_UNION(
-                            ST_ENVELOPE(
-                                ST_GEOMFROMTEXT('MULTIPOINT(4 0,-2 3,-1 -4,3 0,0 1,5 3,-4 -3,-7 -3,3 3)')),
-                            ST_ENVELOPE(
-                                ST_ENVELOPE(
-                                    ST_GEOMFROMTEXT('MULTILINESTRING((-3 3,8 10,7 5,-7 0,-10 -4,1 2,-3 -2,-5 8,-3 6,3 8,8 10,3 -4,9 -6,4 -2,6 0),'
-                                                                    '(10 -4,3 5,4 -3,6 -10,5 3,-10 8))'))))),
-                    ST_CONVEXHULL(
-                        ST_ENVELOPE(
-                            ST_UNION(
-                                ST_INTERSECTION(
-                                    ST_ENVELOPE(
-                                        ST_UNION(
-                                            ST_CONVEXHULL(
-                                                ST_ENVELOPE(
-                                                    ST_CONVEXHULL(
-                                                        ST_INTERSECTION(
-                                                            ST_GEOMFROMTEXT('MULTILINESTRING((8 7,6 1,-3 -7,7 3,-4 2,-6 -8,-4 -8,6 -7,10 -7,-5 10,-3 4),'
-                                                                                            '(-1 3,-7 7,-10 -2,-4 -5,-3 -7,-2 -8,-6 -7),'
-                                                                                            '(-6 -6,-3 -1,1 10,2 3,7 4,-7 7,-2 5,-10 -3,-6 0,-6 6,-8 -5,-5 7,0 -3,-6 5))'),
-                                                            ST_GEOMFROMTEXT('POINT(2 4)'))))),
-                                            ST_CONVEXHULL(
-                                                ST_UNION(
-                                                    ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
-                                                                        'POLYGON((7 4,1 0,-4 -9,-9 8,7 4)))'),
-                                                    ST_GEOMFROMTEXT('MULTILINESTRING((-2 -3,-4 -9,-7 -8,-4 6,4 2,4 -6,7 -6,9 9,-5 10,-6 -9,0 -5,2 2,-3 5,4 -4),'
-                                                                                    '(1 3,5 -10,6 -6,-2 -4,-5 6,7 -9,-8 -7,5 3,7 -6,-9 -4,10 7,5 9,-7 -2,4 -2),'
-                                                                                    '(8 5,4 5,0 -7))'))))),
-                                    ST_CONVEXHULL(
-                                        ST_GEOMFROMTEXT('LINESTRING(9 4,-9 -9,9 9)'))),
-                                ST_CONVEXHULL(
-                                    ST_INTERSECTION(
-                                        ST_ENVELOPE(
-                                            ST_ENVELOPE(
-                                                ST_CONVEXHULL(
-                                                    ST_ENVELOPE(
-                                                        ST_CONVEXHULL(
-                                                            ST_GEOMFROMTEXT('MULTIPOINT(-7 -5,-10 -8,3 7,3 8,3 -1,7 -4,-9 -9,-7 2,-6 0)')))))),
-                                        ST_INTERSECTION(
-                                            ST_UNION(
-                                                ST_GEOMFROMTEXT('LINESTRING(-10 -4,9 -4,-5 5,8 8)'),
-                                                ST_GEOMFROMTEXT('MULTIPOLYGON(((-10 -1,6 9,8 9,-10 -1)),'
-                                                                             '((3 2,5 1,9 10,-7 -9,-9 4,3 2)),'
-                                                                             '((2 8,10 -9,3 -10,-9 -7,7 -9,9 9,-9 0,-9 -5,2 7,-7 -2,-2 -9,-1 -9,2 -2,2 4,1 -6,2 8)))')),
-                                            ST_UNION(
-                                                ST_GEOMFROMTEXT('LINESTRING(-8 -10,-4 3,10 -7,9 -2,-8 -8,1 -10,1 -1)'),
-                                                ST_GEOMFROMTEXT('MULTIPOLYGON(((-3 3,-9 -6,2 4,1 -9,-3 -7,-8 7,9 -9,3 10,-8 2,-5 -3,-3 -1,1 7,-8 4,-3 3)),'
-                                                                             '((-1 8,4 -4,8 1,2 9,-5 -10,5 -5,-7 9,7 3,-1 8)),'
-                                                                             '((2 -4,6 -1,5 -4,3 2,3 10,8 0,-6 4,2 7,8 -6,-2 6,-9 3,2 -4)),'
-                                                                             '((-8 4,-6 2,-1 1,-1 4,7 8,-1 -10,-3 4,-3 4,7 -4,-7 6,4 1,-10 -7,-10 -7,-2 -1, -8 4)))')))))))))),
-            ST_UNION(
-                ST_GEOMFROMTEXT('POLYGON((-7 -6,3 -7,-2 -4,8 -10,3 -3,-7 4,-8 2,-10 7,-7 -7,10 -10,-9 2, -7 -6))'),
-                ST_GEOMFROMTEXT('LINESTRING(8 0,9 -7,4 -9,10 -1,6 0)')))));
-
---echo ######################################################################################################
 --echo # More GIS crashes/assertion failure test cases
 --echo ######################################################################################################
 
@@ -1150,7 +1081,7 @@ SELECT MBROVERLAPS(ST_INTERSECTION(
                        ST_GEOMFROMTEXT('LINESTRING(7 3,-2 10.0002,1 6,3 7)',10)));
 
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(
                      ST_GEOMFROMTEXT('POLYGON((6 8, 4 1, 6 8, -0.2 2,6 6.3, 3 7, 4 7.1, 6 8))'),
                      ST_GEOMFROMTEXT('MULTIPOLYGON(((6 4,3 3,-8.4 6,-.0 4,6 4)))')));
@@ -1194,7 +1125,8 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT(
                                               POINT(1,5),POINT(-3.6,5),POINT(6,3),POINT(2,8),POINT(7,1.2),POINT(2,8)))))));
 
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
+--error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_INTERSECTION(
                      ST_GEOMFROMWKB(
                          GEOMETRYCOLLECTION(
@@ -1412,7 +1344,8 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'), ST_
 --echo # BUG#20142402 : ASSERTION FAILURE IN GIS_GEOMETRY_COLLECTION::APPEND_GEOMETRY FUNCTION
 --echo ######################################################################################################
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
+--error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
       ST_GEOMFROMTEXT('LINESTRING(6 -6,4 -2,5 -1,1 1,-10 10,-1 -10,-8 8,-4 -9,-4 -3,1 -9,5 -2,-4 0,3 5,0 -5)'),
       ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
@@ -1712,7 +1645,8 @@ SELECT ST_ASTEXT(ST_INTERSECTION(
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTILINESTRING((5 7,0.8 2,9 3,5 7),(5 3,-3 1))'))),
                                  ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('POLYGON((1 5,+.8 -0.7654,1 5))')))));
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
+--error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(
     ST_SYMDIFFERENCE(
         ST_GEOMFROMTEXT('POLYGON((0 4,-8 -1,1 9,0 4))'),
@@ -1959,6 +1893,7 @@ SELECT ST_ASTEXT(ST_INTERSECTION(
         ST_ASWKB(
             ST_GEOMFROMTEXT('LINESTRING(0 -5, 5 10.0002)')))));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(
     ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                         'MULTIPOINT(1 1, 5 -3, 10.0002 1, -1032.34324 5, 9 1.1, 4.5 4, 5 0, -5.1 3),'
@@ -1992,7 +1927,7 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
                        LINESTRING(POINT(10.0002,2), POINT(9,-1032.34324), POINT(.3,8), POINT(0,5), POINT(8,1), POINT(4,.4), POINT(2,8)),
                        LINESTRING(POINT(6,7), POINT(+.1,7), POINT(0,-.5))))));
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(
     ST_GEOMFROMWKB(
         ST_ASWKB(

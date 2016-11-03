@@ -42,6 +42,7 @@
 #include "my_regex.h" /* Our own version of regex */
 #include "my_thread_local.h"
 #include "mysql/service_my_snprintf.h"
+#include "typelib.h"
 #ifndef _WIN32
 #include <sys/wait.h>
 #endif

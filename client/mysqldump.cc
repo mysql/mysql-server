@@ -40,26 +40,26 @@
 
 #define DUMP_VERSION "10.13"
 
+#include <hash.h>
+#include <m_ctype.h>
+#include <m_string.h>
 #include <my_global.h>
 #include <my_sys.h>
 #include <my_user.h>
-#include <m_string.h>
-#include <m_ctype.h>
-#include <hash.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"
 #include "my_default.h"
 #include "mysql.h"
-#include "mysql_version.h"
-#include "mysqld_error.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-
+#include "mysql_version.h"
+#include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "template_utils.h"
-
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "typelib.h"
 
 /* Exit codes */
 
@@ -149,6 +149,7 @@ static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int   first_error=0;
 #include <sslopt-vars.h>
+
 FILE *md_result_file= 0;
 FILE *stderror_file=0;
 
@@ -532,6 +533,7 @@ static struct my_option my_long_options[] =
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
+
   {"tab",'T',
    "Create tab-separated textfile for each table to given path. (Create .sql "
    "and .txt files.) NOTE: This only works if mysqldump is run on the same "
@@ -860,6 +862,7 @@ get_one_option(int optid, const struct my_option *opt,
     debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
+
   case 'V': print_version(); exit(0);
   case 'X':
     opt_xml= 1;

@@ -61,10 +61,10 @@ SELECT @@session.max_length_for_sort_data;
 ################################################################
 
 SET @@global.max_length_for_sort_data = DEFAULT;
-SELECT @@global.max_length_for_sort_data = 1024;
+SELECT @@global.max_length_for_sort_data = 4096;
 
 SET @@session.max_length_for_sort_data = DEFAULT;
-SELECT @@session.max_length_for_sort_data = 1024;
+SELECT @@session.max_length_for_sort_data = 4096;
 
 
 

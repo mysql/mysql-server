@@ -427,7 +427,6 @@ public:
   {}
 
   String *val_str(String *);
-  void fix_length_and_dec() {}
   bool fix_fields(THD *thd, Item **ref);
   const char *func_name() const
   {
@@ -1400,7 +1399,6 @@ public:
   const char *func_name() const { return "current_role"; }
   virtual bool resolve_type(THD *thd) { return false; }
   virtual bool fix_fields(THD *thd, Item **ref);
-  virtual void fix_length_and_dec() {}
   virtual String *val_str(String *str);
 };
 

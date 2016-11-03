@@ -1,0 +1,26 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+#
+# Check that member is up and running successfully.
+SELECT MEMBER_STATE FROM performance_schema.replication_group_members;
+MEMBER_STATE
+ONLINE
+#
+# Verify the GR compatible values of prerequisite variables.
+# Curently there are 9 prerequisite variables.
+#
+include/assert.inc [GR compatible value of binlog_checksum is None]
+include/assert.inc [GR compatible value of binlog_format is ROW]
+include/assert.inc [GR compatible value of enforce_gtid_consistency is ON]
+include/assert.inc [GR compatible value of gtid_mode is ON]
+include/assert.inc [GR compatible value of log_bin is 1/ON]
+include/assert.inc [GR compatible value of log_slave_updates is 1/ON]
+include/assert.inc [GR compatible value of master_info_repository is TABLE]
+include/assert.inc [GR compatible value of relay_log_info_repository is TABLE]
+include/assert.inc [GR compatible values of transaction_write_set_extraction are XXHASH64 and MURMUR32]
+include/group_replication_end.inc

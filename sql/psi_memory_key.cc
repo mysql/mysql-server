@@ -302,7 +302,7 @@ static PSI_memory_info all_server_memory[]=
 void register_server_memory_keys()
 {
   const char* category= "sql";
-  int count= array_elements(all_server_memory);
+  int count= static_cast<int>(array_elements(all_server_memory));
   mysql_memory_register(category, all_server_memory, count);
 }
 

@@ -1,0 +1,88 @@
+################################################################################
+# Verify that group_replication_force_members does behave as expected
+# when:
+#   DBA tries to set group_replication_force_members
+#   in parallel on the same server.
+#
+# Test:
+# 0. The test requires one server: M1.
+# 1. Block during set value to group_replication_force_members using
+#    DEBUG point.
+# 2. Try set group_replication_force_members in a parallel session, it
+#    will fail.
+# 3. Resume set value to group_replication_force_members.
+# 4. Try set group_replication_force_members on M1 again, it will
+#    succeed.
+# 5. Clean up.
+################################################################################
+--source include/have_debug_sync.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There is one group_replication_force_members operation already ongoing");
+SET SESSION sql_log_bin= 1;
+
+
+--echo
+--echo ############################################################
+--echo # 1. Block during set value to
+--echo #    group_replication_force_members (server_1).
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,group_replication_wait_on_check_force_members';
+--send SET GLOBAL group_replication_force_members= ""
+
+# Wait until server_1 connection reaches the debug sync point.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Try set group_replication_force_members in a
+--echo #    parallel session (server1), it will fail.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_force_members= "";
+
+
+--echo
+--echo ############################################################
+--echo # 3. Resume set value to
+--echo #    group_replication_force_members on server_1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+
+--let $assert_text= group_replication_force_members is empty
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_force_members]" = ""
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Try set group_replication_force_members on
+--echo #    server1 again, it will succeed.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_force_members= "";
+
+--let $assert_text= group_replication_force_members is empty
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_force_members]" = ""
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Clean up.
+--source ../inc/group_replication_end.inc

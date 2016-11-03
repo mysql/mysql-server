@@ -20,7 +20,7 @@
 
 namespace keyring
 {
-  inline void Buffer::free()
+  void Buffer::free()
   {
     if (data != NULL)
     {

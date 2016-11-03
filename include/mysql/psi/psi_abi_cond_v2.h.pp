@@ -23,8 +23,8 @@ struct PSI_cond_bootstrap
   void* (*get_interface)(int version);
 };
 typedef struct PSI_cond_bootstrap PSI_cond_bootstrap;
-typedef struct PSI_placeholder PSI_mutex_service_t;
-typedef struct PSI_placeholder PSI_mutex_info;
-typedef struct PSI_placeholder PSI_mutex_locker_state;
+typedef struct PSI_placeholder PSI_cond_service_t;
+typedef struct PSI_placeholder PSI_cond_info;
+typedef struct PSI_placeholder PSI_cond_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI_cond_service_t *psi_cond_service;
 C_MODE_END

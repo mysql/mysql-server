@@ -102,10 +102,10 @@ static void vtoken_init_psi_keys(void)
   const char* category= "vtoken";
   int count;
 
-  count= array_elements(all_vtoken_rwlocks);
+  count= static_cast<int>(array_elements(all_vtoken_rwlocks));
   PSI_RWLOCK_CALL(register_rwlock)(category, all_vtoken_rwlocks, count);
 
-  count= array_elements(all_vtoken_memory);
+  count= static_cast<int>(array_elements(all_vtoken_memory));
   PSI_MEMORY_CALL(register_memory)(category, all_vtoken_memory, count);
 }
 

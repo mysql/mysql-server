@@ -14,7 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <gtest/gtest.h>
-#include "../../sql/dd/sdi.h"
+#include "../../sql/dd/impl/sdi.h"
 
 #include "../../sql/dd/types/object_type.h"
 #include "../../sql/dd/dd.h"

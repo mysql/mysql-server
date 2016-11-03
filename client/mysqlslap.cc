@@ -80,13 +80,11 @@ TODO:
 #define SELECT_TYPE_REQUIRES_PREFIX 5
 #define DELETE_TYPE_REQUIRES_PREFIX 6
 
-#include "client_priv.h"
-#include "my_default.h"
-#include <mysqld_error.h>
 #include <my_dir.h>
+#include <mysqld_error.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <sslopt-vars.h>
+#include <stdarg.h>
 #include <sys/types.h>
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -96,6 +94,10 @@ TODO:
 #endif
 #include <ctype.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+
+#include "client_priv.h"
+#include "my_default.h"
+#include "typelib.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 
@@ -707,6 +709,7 @@ static struct my_option my_long_options[] =
   {"sql_mode", 0, "Specify sql-mode to run mysqlslap tool.", &sql_mode,
     &sql_mode, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
+
   {"user", 'u', "User for login if not current user.", &user,
     &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v',
@@ -797,6 +800,7 @@ get_one_option(int optid, const struct my_option *opt,
     opt_csv_str= argument;
     break;
 #include <sslopt-case.h>
+
   case 'V':
     print_version();
     exit(0);

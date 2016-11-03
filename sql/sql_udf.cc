@@ -156,10 +156,10 @@ static void init_udf_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_udf_rwlocks);
+  count= static_cast<int>(array_elements(all_udf_rwlocks));
   mysql_rwlock_register(category, all_udf_rwlocks, count);
 
-  count= array_elements(all_udf_memory);
+  count= static_cast<int>(array_elements(all_udf_memory));
   mysql_memory_register(category, all_udf_memory, count);
 }
 #endif
