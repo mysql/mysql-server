@@ -539,6 +539,10 @@ struct view {
     "SELECT * "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>table_replicas`"
   },
+  { "tc_time_track_stats",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>tc_time_track_stats`"
+  },
   { "threadblocks",
     "SELECT t.node_id, t.thr_no, b.block_name, t.block_instance "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>threadblocks` t "
