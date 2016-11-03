@@ -4721,7 +4721,7 @@ int runRestartToDynamicOrder(NDBT_Context* ctx, NDBT_Step* step)
   if (reverseSideA)
     ndbout_c("  %s reversed", (oddPresident?"odds": "evens"));
 
-    if (reverseSideB)
+  if (reverseSideB)
     ndbout_c("  %s reversed", (oddPresident?"evens": "odds"));
 
   Vector<Uint32>* sideA;
