@@ -361,8 +361,9 @@ struct view {
     "  SUM(total*entry_size) AS total,"
     "  SUM(total) AS total_pages "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>pools` "
-    "WHERE block_number IN (248, 254) AND "
+    "WHERE ( block_number IN (248, 254) AND "
     "  (pool_name = \"Index memory\" OR pool_name = \"Data memory\") "
+    ") OR pool_name = \"Long message buffer\" "
     "GROUP BY node_id, memory_type"
   },
   { "nodes",
