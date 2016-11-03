@@ -14935,16 +14935,19 @@ create_table_info_t::create_table_update_global_dd(
 
 		std::unique_ptr<dd::Tablespace> dd_space(
 			dd::create_object<dd::Tablespace>());
+		char* filename = fil_space_get_first_path(table->space);
 
 		/* This means user table and file_per_table */
 		if (innobase_create_dd_tablespace(
 			client, m_thd, dd_space.get(), table->space,
-			fil_space_get_first_path(table->space))) {
+			filename)) {
 
+			ut_free(filename);
 			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 
+		ut_free(filename);
 		dd_space_id = dd_space.get()->id();
 	} else if (!is_dd_table && table->space != 0
 		   && table->space != srv_tmp_space.space_id()) {
@@ -15217,12 +15220,15 @@ innobase_get_dd_tablespace_id(
 
 		/* This means user table and file_per_table */
 		bool	ret;
+		char*	filename =
+			fil_space_get_first_path(table->space);
 
 		mutex_exit(&dict_sys->mutex);
 		ret = innobase_create_dd_tablespace(
-			client, thd, dd_space.get(), table->space,
-			fil_space_get_first_path(table->space));
+			client, thd, dd_space.get(), table->space, filename);
 		mutex_enter(&dict_sys->mutex);
+
+		ut_free(filename);
 		if (ret) {
 			return(false);
 		}
