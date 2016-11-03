@@ -4148,7 +4148,7 @@ DropDDObjectsVerify(NDBT_Context* ctx, NDBT_Step* step){
   if (pDict->listObjects(list) == -1)
     return NDBT_FAILED;
 
-    bool ddFound  = false;
+  bool ddFound  = false;
   for (i = 0; i <list.count; i++){
     switch(list.elements[i].type){
       case NdbDictionary::Object::Tablespace:
