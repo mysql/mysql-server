@@ -1833,10 +1833,10 @@ int ndbcluster_log_schema_op(THD *thd,
   if (ndb_table_id == 0 && ndb_table_version == 0)
   {
     static uint32 seq_id = 0;
-    pthread_mutex_lock(&ndbcluster_mutex);
+    mysql_mutex_lock(&ndbcluster_mutex);
     ndb_table_id = ++seq_id;
     ndb_table_version = node_id;
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&ndbcluster_mutex);
   }
 
   NDB_SCHEMA_OBJECT *ndb_schema_object;
