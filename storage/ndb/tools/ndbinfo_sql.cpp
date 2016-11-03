@@ -333,13 +333,18 @@ struct view {
   },
   {
     "memory_per_fragment",
+    /*
+     * The test for name.type<=6 is there to elimiate matching non-table
+     * objects (triggers, files etc.), since the 'id' of these may collide
+     * with table ids.
+     */
     "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name," 
     "types.type_name AS type, table_id, node_id, block_instance, "
-    "fragment_num, fixed_elem_count, fixed_elem_size_bytes, "
-    "fixed_elem_alloc_bytes, fixed_elem_free_bytes,  "
+    "fragment_num, fixed_elem_alloc_bytes, fixed_elem_free_bytes, "
+    "fixed_elem_size_bytes, fixed_elem_count, "
     "FLOOR(fixed_elem_free_bytes/fixed_elem_size_bytes) AS "
-    "fixed_elem_free_count, var_elem_count, var_elem_alloc_bytes, "
-    "var_elem_free_bytes, hash_index_alloc_bytes "
+    "fixed_elem_free_count, var_elem_alloc_bytes, var_elem_free_bytes, "
+    "var_elem_count, hash_index_alloc_bytes "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>frag_mem_use` AS space "
     "JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` "
     "AS name ON name.id=space.table_id AND name.type<=6 JOIN "
