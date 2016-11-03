@@ -17,6 +17,9 @@
 # 3. Clean Up.
 ###############################################################################
 
+# Ensure that plugin is installed.
+--source ../inc/have_group_replication_plugin_base.inc
+
 --let plugins = KEYRING_PLUGIN,GROUP_REPLICATION
 --source include/check_plugin_dir.inc
 
