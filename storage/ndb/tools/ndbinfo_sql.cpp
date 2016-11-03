@@ -250,6 +250,18 @@ struct view {
   { "disk_write_speed_aggregate",
     "SELECT * FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_aggregate`"
   },
+  { "disk_write_speed_aggregate_node",
+    "SELECT"
+    " node_id,"
+    " SUM(backup_lcp_speed_last_sec) AS backup_lcp_speed_last_sec,"
+    " SUM(redo_speed_last_sec) AS redo_speed_last_sec,"
+    " SUM(backup_lcp_speed_last_10sec) AS backup_lcp_speed_last_10sec,"
+    " SUM(redo_speed_last_10sec) AS redo_speed_last_10sec,"
+    " SUM(backup_lcp_speed_last_60sec) AS backup_lcp_speed_last_60sec,"
+    " SUM(redo_speed_last_60sec) AS redo_speed_last_60sec "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_aggregate` "
+    "GROUP by node_id"
+  },
   { "disk_write_speed_base",
     "SELECT * FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_base`"
   },
