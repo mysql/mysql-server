@@ -8,5 +8,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-
-tablespace_location : WL#9525 disables it, waiting for FK fix(server issue).

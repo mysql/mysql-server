@@ -24,10 +24,9 @@ analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too 
 
 
 # Disabled list(Due to server issues)
-innodb_upd_stats_if_needed_not_inited : WL#9525 disables it, waiting for FK fix
+create_tablespace         : WL#9525 disables it, waiting for tablespace fix 
 
 (Due to InnoDB issues)
-virtual_fk_restart        : WL#9533 disables it, waiting for FK fix
 
 innodb-wl5980-discard     : WL#9525 disables it, waiting for discard tablespace fix
 
@@ -38,8 +37,6 @@ innodb-wl6445-1           : WL#9525 disables it, waiting for FTS fix
 
 
 create_tablespace_debug   : WL#9525 disables it, it is related to other SEs, maybe just remove it
-
-update_time_wl6658        : WL#9525 disables it, waiting for FK fix
 
 innodb-multiple-tablespaces : WL#9525 disables it, DATA DIRECTORY should be stored properly
 

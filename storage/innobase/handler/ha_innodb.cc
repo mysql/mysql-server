@@ -7177,6 +7177,17 @@ dd_copy_from_table_share(
 const dd::Column*
 dd_find_column(dd::Table* dd_table, const char* name);
 
+/** Instantiate index related metadata
+@param[in]	dd_part		Global DD table metadata
+@param[in]	m_form		MySQL table definition
+@param[in,out]	m_table		InnoDB table definition
+@param[in]	name		table name
+@param[in]	m_create_info	create table information
+@param[in]	zip_allowed	if compression is allowed
+@param[in]	strict		if report error in strict mode
+@param[in]	m_thd		THD instance
+@param[in]	m_skip_mdl	whether to skip MDL lock
+@return 0 if successful, otherwise error number */
 inline
 int
 create_key_metadata(
@@ -7907,6 +7918,179 @@ dd_tablespace_is_implicit(
         delete dd_space;
         return(fail);
 }
+/** Load foreign key constraint for the table. Note, it could also open
+the foreign table, if this table is referenced by the foreign table
+@param[in,out]	client		data dictionary client
+@param[in]	table		MySQL table definition
+@param[in]	norm_name	Table Name
+@param[in,out]	uncached	NULL if the table should be added to the cache;
+				if not, *uncached=true will be assigned
+				when ib_table was allocated but not cached
+				(used during delete_table and rename_table)
+@param[out]	ib_table	InnoDB table handle
+@param[in]	dd_table	Global DD table or partition object
+@param[in]	thd		thread THD */
+static
+void
+dd_table_load_fk(
+        dd::cache::Dictionary_client*   client,
+        const TABLE*                    table,
+	const char*			norm_name,
+        bool*                           uncached,
+        dict_table_t*			m_table,
+        const dd::Table*                dd_table,
+	THD*				thd)
+{
+	/* Now fill in the foreign key info */
+	for (const dd::Foreign_key* key : dd_table->foreign_keys()) {
+		char	buf[2 * NAME_CHAR_LEN * 5 + 2 + 1];
+
+		dd::String_type	db_name = key->referenced_table_schema_name();
+		dd::String_type	tb_name = key->referenced_table_name();
+
+		bool	truncated;
+		build_table_filename(buf, sizeof(buf),
+				     db_name.c_str(), tb_name.c_str(),
+				     NULL, 0, &truncated);
+		ut_ad(!truncated);
+		char            norm_name[FN_REFLEN];
+		normalize_table_name(norm_name, buf);
+
+		dict_foreign_t* foreign = dict_mem_foreign_create();
+		foreign->foreign_table_name = mem_heap_strdup(
+			foreign->heap, m_table->name.m_name);
+
+		dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
+
+		foreign->referenced_table_name = mem_heap_strdup(
+			foreign->heap, norm_name);
+		dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
+
+		foreign->id = mem_heap_strdup(
+			foreign->heap, key->name().c_str());
+
+		switch (key->update_rule()) {
+		case dd::Foreign_key::RULE_NO_ACTION:
+		case dd::Foreign_key::RULE_RESTRICT:
+		case dd::Foreign_key::RULE_SET_DEFAULT:
+			foreign->type = DICT_FOREIGN_ON_UPDATE_NO_ACTION;
+			break;
+		case dd::Foreign_key::RULE_CASCADE:
+			foreign->type = DICT_FOREIGN_ON_UPDATE_CASCADE;
+			break;
+		case dd::Foreign_key::RULE_SET_NULL:
+			foreign->type = DICT_FOREIGN_ON_UPDATE_SET_NULL;
+			break;
+		default:
+			ut_ad(0);
+		}
+
+		switch (key->delete_rule()) {
+		case dd::Foreign_key::RULE_NO_ACTION:
+		case dd::Foreign_key::RULE_RESTRICT:
+		case dd::Foreign_key::RULE_SET_DEFAULT:
+			foreign->type |= DICT_FOREIGN_ON_DELETE_NO_ACTION;
+			break;
+		case dd::Foreign_key::RULE_CASCADE:
+			foreign->type |= DICT_FOREIGN_ON_DELETE_CASCADE;
+			break;
+		case dd::Foreign_key::RULE_SET_NULL:
+			foreign->type |= DICT_FOREIGN_ON_DELETE_SET_NULL;
+			break;
+		default:
+			ut_ad(0);
+		}
+
+		foreign->n_fields = key->elements().size();
+
+		foreign->foreign_col_names = static_cast<const char**>(
+			mem_heap_alloc(foreign->heap,
+				       foreign->n_fields * sizeof(void*)));
+
+		foreign->referenced_col_names = static_cast<const char**>(
+			mem_heap_alloc(foreign->heap,
+				       foreign->n_fields * sizeof(void*)));
+
+		ulint	num_ref = 0;
+
+		for (const dd::Foreign_key_element* key_e : key->elements()) {
+			dd::String_type	ref_col_name
+				 = key_e->referenced_column_name();
+
+			foreign->referenced_col_names[num_ref]
+				= mem_heap_strdup(foreign->heap,
+						  ref_col_name.c_str());
+			ut_ad(ref_col_name.c_str());
+
+			const dd::Column*	f_col =  &key_e->column();
+			foreign->foreign_col_names[num_ref]
+				= mem_heap_strdup(
+					foreign->heap, f_col->name().c_str());
+		}
+
+		mutex_enter(&dict_sys->mutex);
+#ifdef UNIV_DEBUG
+		dict_table_t*   for_table;
+
+		for_table = dict_table_check_if_in_cache_low(
+			foreign->foreign_table_name_lookup);
+
+		ut_ad(for_table);
+#endif
+
+		/* Fill in foreign->foreign_table and index, then add to
+		dict_table_t */
+		dberr_t	err = dict_foreign_add_to_cache(
+			foreign, NULL, FALSE, DICT_ERR_IGNORE_NONE);	
+		ut_ad(err == DB_SUCCESS);
+		mutex_exit(&dict_sys->mutex);
+
+		/* Set up the FK virtual column info */
+		dict_mem_table_free_foreign_vcol_set(m_table);
+		dict_mem_table_fill_foreign_vcol_set(m_table);
+	}
+
+	/* TODO: NewDD: Temporary ignore system table until WL#6049 inplace */
+	if (!strstr(norm_name, "mysql")) {
+		std::vector<dd::String_type>	child_schema;
+		std::vector<dd::String_type>	child_name;
+		client->fetch_fk_children_uncached(table->s->db.str,
+			table->s->table_name.str, &child_schema, &child_name);
+		std::vector<dd::String_type>::iterator it = child_name.begin();
+		for (auto& db_name : child_schema) {
+			dd::String_type	tb_name = *it;
+			char	buf[2 * NAME_CHAR_LEN * 5 + 2 + 1];
+			bool	truncated;
+			build_table_filename(
+				buf, sizeof(buf), db_name.c_str(),
+				tb_name.c_str(), NULL, 0, &truncated);
+			ut_ad(!truncated);
+			char            full_name[FN_REFLEN];
+			normalize_table_name(full_name, buf);
+			MDL_ticket*	mdl = nullptr;
+
+			/* Load the foreign table first */
+			dict_table_t*	foreign_table =
+				dd_table_open_on_name(
+					thd, &mdl, full_name,
+					DICT_ERR_IGNORE_NONE);
+
+#ifdef UNIV_DEBUG
+			bool found = false;
+			for (auto &fk : foreign_table->foreign_set) {
+				if (fk->referenced_table == m_table) {
+					found = true;
+				}
+			}
+
+			ut_ad(found);
+#endif
+			ut_ad(it != child_name.end());
+			++it;
+			dd_table_close(foreign_table, thd, &mdl);
+		}
+	}
+}
 
 /** Open or load a table definition based on a Global DD object.
 @param[in,out]	client		data dictionary client
@@ -8076,6 +8260,10 @@ dd_open_table(
 
 	mutex_exit(&dict_sys->mutex);
 
+	if (exist == NULL) {
+		dd_table_load_fk(client, table, norm_name, uncached,
+				 m_table, dd_table, thd);
+	}
 	mem_heap_free(heap);
 
 	return(m_table);
@@ -8132,8 +8320,8 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 	ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
 	if (ib_table == NULL) {
-//		if (strstr(name, "mysql") == nullptr
-//		    && strstr(name, "sys") == nullptr) {
+		/* TODO: NewDD: Ignore the InnoDB system table, as they are
+		not registered with newDD */
 		if (strstr(name, "sys") == nullptr) {
 			bool	open_from_dd;
 
@@ -13355,7 +13543,7 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("indexes", 3),
 	INNODB_DD_TABLE("index_column_usage", 3),
 	INNODB_DD_TABLE("column_type_elements", 1),
-	INNODB_DD_TABLE("foreign_keys", 4),
+	INNODB_DD_TABLE("foreign_keys", 5),
 	INNODB_DD_TABLE("foreign_key_column_usage", 3),
 	INNODB_DD_TABLE("table_partitions", 6),
 	INNODB_DD_TABLE("table_partition_values", 1),
