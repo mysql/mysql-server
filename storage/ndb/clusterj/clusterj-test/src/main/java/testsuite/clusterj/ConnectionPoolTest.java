@@ -205,6 +205,7 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
         failOnError();
     }
 
+    @org.junit.Ignore("testNegativeConnectionPoolIllegalNodeids takes too long")
     public void testNegativeConnectionPoolIllegalNodeids() {
         Properties modifiedProperties = new Properties();
         modifiedProperties.putAll(props);
