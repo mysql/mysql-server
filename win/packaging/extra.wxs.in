@@ -463,9 +463,24 @@
         <RegistryValue Root='HKLM'
            Key='SOFTWARE\@MANUFACTURER@\@CPACK_WIX_PACKAGE_NAME@'
            Name='DATADIR' Value='[DATADIR]' Type='string' KeyPath='yes'/>
+          <CreateFolder>
+            <util:PermissionEx User="NetworkService" GenericAll="yes" />
+          </CreateFolder>
+      </Component>
+
+      <Component Id="C.datadir.permissions" Directory="DATADIR">
+         <Condition>
+          <!--
+             Skip setting permissions for LogonUser, if package is installed by
+             service user (e.g LocalSystem)
+          -->
+          <![CDATA[ (UserSID <> "S-1-5-18") AND (UserSID <> "S-1-5-19") AND (UserSID <> "S-1-5-20") ]]>
+         </Condition>
+         <RegistryValue Root='HKLM'
+           Key='SOFTWARE\Monty Program AB\@CPACK_WIX_PACKAGE_NAME@'
+           Name='InstalledBy' Value='[USER_DOMAIN]\[LogonUser]' Type='string' KeyPath='yes'/>
         <CreateFolder>
           <util:PermissionEx User="[LogonUser]" Domain="[USER_DOMAIN]" GenericAll="yes" />
-          <util:PermissionEx User="NetworkService" GenericAll="yes" />
         </CreateFolder>
       </Component>
 
