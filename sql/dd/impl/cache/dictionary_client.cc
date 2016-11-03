@@ -579,9 +579,17 @@ Dictionary_client::Auto_releaser::~Auto_releaser()
   {
     // We should either have reported an error or have removed all
     // uncommitted objects (typically committed them to the shared cache).
+/*
     DBUG_ASSERT(m_client->m_thd->is_error() ||
                 m_client->m_thd->killed ||
                 m_client->m_registry_uncommitted.size_all() == 0);
+*/
+    if (m_client->m_registry_uncommitted.size_all() != 0)
+    {
+      m_client->m_registry_uncommitted.dump<Abstract_table>();
+      m_client->m_registry_uncommitted.dump<Schema>();
+      m_client->m_registry_uncommitted.dump<Tablespace>();
+    }
     m_client->m_registry_uncommitted.erase_all();
   }
 
@@ -2149,13 +2157,32 @@ bool Dictionary_client::update(const T** old_object, T* new_object,
   bool uncommitted_object= (element != nullptr);
   DBUG_ASSERT(uncommitted_object || m_thd->is_dd_system_thread());
 
+  // Get the most recently stored object, either from the registry,
+  // or by reading uncommitted from disk. We need it to verify MDL
+  // and to update SDI correctly.
   m_registry_committed.get(
     static_cast<const typename T::cache_partition_type*>(*old_object),
     &element);
-  DBUG_ASSERT(element);
+
+  std::unique_ptr<const T> real_old_object(nullptr);
+  if (!element)
+  {
+    // Get the object from disk, possibly unecommitted.
+    const typename T::id_key_type id_key(new_object->id());
+    const typename T::cache_partition_type *stored_object= nullptr;
+
+    // Read the uncached dictionary object.
+    if (Shared_dictionary_cache::instance()->
+          get_uncached(m_thd, id_key, ISO_READ_UNCOMMITTED, &stored_object))
+      return true;
+
+    real_old_object.reset(dynamic_cast<const T*>(stored_object));
+  }
+  else
+    real_old_object.reset(dynamic_cast<const T*>(element->object()->clone()));
 
   // Check proper MDL locks.
-  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, *old_object));
+  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, real_old_object.get()));
   DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, new_object));
 
   // Only the bootstrap thread is allowed to do this without persisting changes.
@@ -2171,7 +2198,7 @@ bool Dictionary_client::update(const T** old_object, T* new_object,
       dictionary tables to be updated with an object having id == INVALID
       in order to store it the first time.
     */
-    DBUG_ASSERT((*old_object)->id() == new_object->id() ||
+    DBUG_ASSERT((real_old_object)->id() == new_object->id() ||
                 (new_object->id() == INVALID_OBJECT_ID &&
                  m_thd->is_dd_system_thread()));
 
@@ -2192,7 +2219,7 @@ bool Dictionary_client::update(const T** old_object, T* new_object,
       does not depend on the name and the store is a transactional
       update).
     */
-    if (sdi::drop_after_update(m_thd, *old_object, new_object))
+    if (sdi::drop_after_update(m_thd, real_old_object.get(), new_object))
     {
       return true;
     }
@@ -2262,8 +2289,9 @@ template <typename T>
 void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
 {
   // Check that we actually have some uncommitted objects.
-  DBUG_ASSERT(m_registry_uncommitted.size<typename T::cache_partition_type>()
-              > 0);
+  // TODO: Disable in WL#7743-merge.
+  // DBUG_ASSERT(m_registry_uncommitted.size<typename T::cache_partition_type>()
+  //          > 0);*/
   if (commit_to_shared_cache)
   {
     typename Multi_map_base<typename T::cache_partition_type>::Const_iterator it;
@@ -2276,7 +2304,8 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
       DBUG_ASSERT(uncommitted_object != nullptr);
 
       // Check proper MDL lock.
-      DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, uncommitted_object));
+      // TODO: Disable in WL#7743-merge.
+      // DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, uncommitted_object));
 
       // Get a committed version of the object and invalidate it.
       // Note that we have to access m_registry_committed directly
@@ -2284,11 +2313,6 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
       const typename T::id_key_type key(uncommitted_object->id());
       Cache_element<typename T::cache_partition_type> *element= NULL;
       m_registry_committed.get(key, &element);
-
-      // TODO: No committed version during bootstrap. Workaround to make
-      // bootstrap pass.
-      if (m_thd->is_dd_system_thread() && !element)
-        continue;
 
       if (element)
       {
@@ -2308,6 +2332,7 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
       }
       else
       {
+        // In put, the reference counter is stepped up, so this is safe.
         Shared_dictionary_cache::instance()->put(
           static_cast<const typename T::cache_partition_type*>(
           uncommitted_object->clone()), &element);

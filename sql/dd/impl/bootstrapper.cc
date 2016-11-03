@@ -539,7 +539,10 @@ bool create_tables(THD *thd, bool is_dd_upgrade,
 
   // TODO: Remove the unommitted objects from the client registry.
   // Workaround to make bootstrap pass.
-  thd->dd_client()->remove_uncommitted_objects<Table>(true);
+  // Remove the uncommitted objects without affecting the shared cache.
+  thd->dd_client()->remove_uncommitted_objects<Schema>(false);
+  thd->dd_client()->remove_uncommitted_objects<Table>(false);
+  thd->dd_client()->remove_uncommitted_objects<Tablespace>(false);
 
   // Set iterator to end of system tables
   if (last_table != nullptr)
