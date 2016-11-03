@@ -123,7 +123,7 @@ struct view {
     "if(`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`op_flags` & 0xc0 = 0,"
     "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`prev_serial_op_id`"
     ", NULL) as `waiting_for` "
-    "from `<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`"
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`"
   },
   { "cluster_operations",
     "SELECT"
@@ -248,10 +248,10 @@ struct view {
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_types`"
   },
   { "disk_write_speed_aggregate",
-    "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_aggregate`"
+    "SELECT * FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_aggregate`"
   },
   { "disk_write_speed_base",
-    "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_base`"
+    "SELECT * FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_base`"
   },
   { "diskpagebuffer",
      "SELECT node_id, block_instance, "
@@ -554,7 +554,7 @@ struct view {
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>threads`"
   },
   { "threadstat",
-    "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>threadstat`"
+    "SELECT * FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>threadstat`"
   },
   { "transporters",
     "SELECT node_id, remote_node_id, "
