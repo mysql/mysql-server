@@ -7261,25 +7261,12 @@ create_key_metadata(
 		case FTS_EXIST_DOC_ID_INDEX:
 			break;
 		case FTS_NOT_EXIST_DOC_ID_INDEX:
-			/* Fixme: find fts doc id colmun when its name
-			is not FTS_DOC_ID_INDEX_NAME */
-			const dd::Column* fts_doc_id = dd_find_column(
-				const_cast<dd::Table*>(dd_part),
-				FTS_DOC_ID_COL_NAME);
-
 			dict_index_t*	doc_id_index;
-			if (fts_doc_id != nullptr) {
-				doc_id_index = dict_mem_index_create(
-					m_table->name.m_name,
-					FTS_DOC_ID_INDEX_NAME,
-					0, DICT_UNIQUE, 1);
-				doc_id_index->add_field(FTS_DOC_ID_COL_NAME, 0);
-			} else {
-				doc_id_index = dict_mem_index_create(
-					m_table->name.m_name,
-					FTS_DOC_ID_INDEX_NAME,
-					0, DICT_UNIQUE, 0);
-			}
+			doc_id_index = dict_mem_index_create(
+				m_table->name.m_name,
+				FTS_DOC_ID_INDEX_NAME,
+				0, DICT_UNIQUE, 1);
+			doc_id_index->add_field(FTS_DOC_ID_COL_NAME, 0);
 
 			dberr_t	new_err = dict_index_add_to_cache(
 				m_table, doc_id_index,
@@ -7413,6 +7400,17 @@ dd_subpart_name(const dd::Partition* part)
         return(part->parent() ? part->name().c_str() : nullptr);
 }
 
+bool
+create_table_check_doc_id_col(
+/*==========================*/
+	THD*		thd,		/*!< in: MySQL thread handle */
+	const TABLE*	form,		/*!< in: information on table
+					columns and indexes */
+	ulint*		doc_id_col);	/*!< out: Doc ID column number if
+					there exist a FTS_DOC_ID column,
+					ULINT_UNDEFINED if column is of the
+					wrong type/name/size */
+
 /** Create the internal InnoDB table definition, without any indexes.
 @tparam		Table		dd::Table or dd::Partition
 @param[in]	dd_part		Global Data Dictionary metadata,
@@ -7481,8 +7479,12 @@ create_table_metadata(
 
 	const bool	fulltext = dd_part != nullptr
 		&& dd_table_contains_fulltext(dd_part);
-	const unsigned  doc_id_col = 0;
-	const bool	add_doc_id = fulltext && doc_id_col >= n_mysql_cols;
+	ulint		doc_id_col;
+	bool		add_doc_id = false;
+	if (fulltext
+	    && !create_table_check_doc_id_col(m_thd, m_form, &doc_id_col)) {
+		add_doc_id = true;
+	}
 	const unsigned	n_cols = n_mysql_cols + add_doc_id;
 
 	bool		is_redundant;
@@ -7768,14 +7770,7 @@ create_table_metadata(
 
 	if (add_doc_id) {
 		/* Add the hidden FTS_DOC_ID column. */
-		//m_table->add_column(std::min(doc_id_col, n_mysql_cols),
-		//		    heap, FTS_DOC_ID_COL_NAME,
-		//		    DATA_INT,
-		//		    DATA_NOT_NULL | DATA_UNSIGNED
-		//		    | DATA_BINARY_TYPE | DATA_FTS_DOC_ID,
-		//		    sizeof(doc_id_t));
-		dict_mem_table_add_col(m_table, heap, FTS_DOC_ID_COL_NAME,
-					DATA_INT, DATA_NOT_NULL | DATA_UNSIGNED | DATA_BINARY_TYPE | DATA_FTS_DOC_ID, sizeof(doc_id_t));
+		fts_add_doc_id_column(m_table, heap);
 	}
 
 #if 0 /* Virtual column */
@@ -11921,11 +11916,10 @@ ha_innobase::position(
 Check whether there exist a column named as "FTS_DOC_ID", which is
 reserved for InnoDB FTS Doc ID
 @return true if there exist a "FTS_DOC_ID" column */
-static
 bool
 create_table_check_doc_id_col(
 /*==========================*/
-	trx_t*		trx,		/*!< in: InnoDB transaction handle */
+	THD*		thd,		/*!< in: MySQL thread handle */
 	const TABLE*	form,		/*!< in: information on table
 					columns and indexes */
 	ulint*		doc_id_col)	/*!< out: Doc ID column number if
@@ -11961,7 +11955,7 @@ create_table_check_doc_id_col(
 				*doc_id_col = i;
 			} else {
 				push_warning_printf(
-					trx->mysql_thd,
+					thd,
 					Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: FTS_DOC_ID column must be"
@@ -11995,7 +11989,7 @@ innodb_base_col_setup(
 		const Field* base_field = field->table->field[i];
 
 		if (!base_field->is_virtual_gcol()
-        && bitmap_is_set(&field->gcol_info->base_columns_map, i)) {
+	            && bitmap_is_set(&field->gcol_info->base_columns_map, i)) {
 			ulint   z;
 
 			for (z = 0; z < table->n_cols; z++) {
@@ -12121,7 +12115,8 @@ create_table_info_t::create_table_def()
 	ut_ad(trx_state_eq(m_trx, TRX_STATE_NOT_STARTED));
 
 	/* Check whether there already exists a FTS_DOC_ID column */
-	if (create_table_check_doc_id_col(m_trx, m_form, &doc_id_col)){
+	if (create_table_check_doc_id_col(m_trx->mysql_thd,
+					  m_form, &doc_id_col)){
 
 		/* Raise error if the Doc ID column is of wrong type or name */
 		if (doc_id_col == ULINT_UNDEFINED) {
@@ -15643,16 +15638,10 @@ innobase_fts_drop_dd_table(
 	const char*	name,
 	bool		file_per_table)
 {
-	/* Get db/schema name and table_name */
-	char    db_name[MAX_DATABASE_NAME_LEN + 1];
-	char    table_name[MAX_TABLE_NAME_LEN + 1];
-	ulint   db_namelen = dict_get_db_name_len(name);
-	ulint   table_namelen = strlen(name) - db_namelen - 1;
+	char    db_name[NAME_LEN + 1];
+	char    table_name[NAME_LEN + 1];
 
-	strncpy(db_name, name, db_namelen);
-	db_name[db_namelen] = '\0';
-	strncpy(table_name, name + db_namelen + 1, table_namelen);
-	table_name[table_namelen] = '\0';
+	innobase_parse_tbl_name(name, db_name, table_name);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
