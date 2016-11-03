@@ -495,7 +495,7 @@ DECLARE_NDBINFO_TABLE(TC_TIME_TRACK_STATS, 15) =
 { { "tc_time_track_stats", 15, 0,
       "Time tracking of transaction, key operations and scan ops" },
   {
-    {"node_id",                     Ndbinfo::Number, "node_id"},
+    {"node_id",                     Ndbinfo::Number, "node id"},
     {"block_number",                Ndbinfo::Number, "Block number"},
     {"block_instance",              Ndbinfo::Number, "Block instance"},
     {"comm_node_id",                Ndbinfo::Number, "node_id of API or DB"},
