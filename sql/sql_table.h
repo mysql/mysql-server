@@ -29,8 +29,11 @@ class Create_field;
 class THD;
 class handler;
 struct TABLE;
+struct TABLE_SHARE;
 struct TABLE_LIST;
 struct handlerton;
+class KEY;
+class FOREIGN_KEY;
 
 typedef struct st_ha_check_opt HA_CHECK_OPT;
 typedef struct st_ha_create_information HA_CREATE_INFO;
@@ -167,6 +170,39 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 bool *is_trans);
 int mysql_discard_or_import_tablespace(THD *thd,
                                        TABLE_LIST *table_list);
+
+/**
+  Prepare Create_field and Key_spec objects for ALTER and upgrade.
+  @param[in,out]  thd          thread handle. Used as a memory pool
+                               and source of environment information.
+  @param[in]      table        the source table, open and locked
+                               Used as an interface to the storage engine
+                               to acquire additional information about
+                               the original table.
+  @param[in,out]  create_info  A blob with CREATE/ALTER TABLE
+                               parameters
+  @param[in,out]  alter_info   Another blob with ALTER/CREATE parameters.
+                               Originally create_info was used only in
+                               CREATE TABLE and alter_info only in ALTER TABLE.
+                               But since ALTER might end-up doing CREATE,
+                               this distinction is gone and we just carry
+                               around two structures.
+  @param[in,out]  alter_ctx    Runtime context for ALTER TABLE.
+  @param[in]      used_fields  used_fields from HA_CREATE_INFO.
+  @param[in]      upgrade_flag True if upgrading data directory.
+
+  @retval TRUE   error, out of memory or a semantical error in ALTER
+                 TABLE instructions
+  @retval FALSE  success
+
+*/
+bool prepare_fields_and_keys(THD *thd, TABLE *table,
+                             HA_CREATE_INFO *create_info,
+                             Alter_info *alter_info,
+                             Alter_table_ctx *alter_ctx,
+                             const uint &used_fields,
+                             bool upgrade_flag);
+
 bool mysql_prepare_alter_table(THD *thd, TABLE *table,
                                HA_CREATE_INFO *create_info,
                                Alter_info *alter_info,
@@ -244,6 +280,46 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
                           List<Create_field> *create_list,
                           int *select_field_pos, handler *file,
                           Create_field *sql_field, int field_no);
+
+
+/**
+  Prepares the table and key structures for table creation.
+
+  @param thd                       Thread object.
+  @param error_schema_name         Schema name of the table to create/alter, only
+                                   error reporting.
+  @param error_table_name          Name of table to create/alter, only used for
+                                   error reporting.
+  @param create_info               Create information (like MAX_ROWS).
+  @param alter_info                List of columns and indexes to create
+  @param file                      The handler for the new table.
+  @param[out] key_info_buffer      An array of KEY structs for the indexes.
+  @param[out] key_count            The number of elements in the array.
+  @param[out] fk_key_info_buffer   An array of FOREIGN_KEY structs for the
+                                   foreign keys.
+  @param[out] fk_key_count         The number of elements in the array.
+  @param[in] existing_fks          An array of pre-existing FOREIGN KEYS
+                                   (in case of ALTER).
+  @param[in] existing_fks_count    The number of pre-existing foreign keys.
+  @param select_field_count        The number of fields coming from a select table.
+
+  @retval false   OK
+  @retval true    error
+*/
+
+bool mysql_prepare_create_table(THD *thd,
+                                const char* error_schema_name,
+                                const char* error_table_name,
+                                HA_CREATE_INFO *create_info,
+                                Alter_info *alter_info,
+                                handler *file, KEY **key_info_buffer,
+                                uint *key_count,
+                                FOREIGN_KEY **fk_key_info_buffer,
+                                uint *fk_key_count,
+                                FOREIGN_KEY *existing_fks,
+                                uint existing_fks_count,
+                                int select_field_count);
+
 
 size_t explain_filename(THD* thd, const char *from, char *to, size_t to_length,
                         enum_explain_filename_mode explain_mode);

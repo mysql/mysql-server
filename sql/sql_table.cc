@@ -161,16 +161,6 @@ static bool check_engine(THD *thd, const char *db_name,
 static bool prepare_set_field(THD *thd, Create_field *sql_field);
 static bool prepare_enum_field(THD *thd, Create_field *sql_field);
 
-static bool
-mysql_prepare_create_table(THD *thd, const char *error_schema_name,
-                           const char *error_table_name,
-                           HA_CREATE_INFO *create_info,
-                           Alter_info *alter_info,
-                           handler *file, KEY **key_info_buffer,
-                           uint *key_count, FOREIGN_KEY **fk_key_info_buffer,
-                           uint *fk_key_count, FOREIGN_KEY *existing_fks,
-                           uint existing_fk_count, int select_field_count);
-
 static
 bool validate_comment_length(THD *thd, const char *comment_str,
                              size_t *comment_len, uint max_len,
@@ -5103,43 +5093,19 @@ static bool check_promoted_index(const handler *file,
 }
 
 
-/**
-  Prepares the table and key structures for table creation.
-
-  @param thd                       Thread object.
-  @param error_schema_name         Schema name of the table to create/alter, only
-                                   error reporting.
-  @param error_table_name          Name of table to create/alter, only used for
-                                   error reporting.
-  @param create_info               Create information (like MAX_ROWS).
-  @param alter_info                List of columns and indexes to create
-  @param file                      The handler for the new table.
-  @param[out] key_info_buffer      An array of KEY structs for the indexes.
-  @param[out] key_count            The number of elements in the array.
-  @param[out] fk_key_info_buffer   An array of FOREIGN_KEY structs for the
-                                   foreign keys.
-  @param[out] fk_key_count         The number of elements in the array.
-  @param[in] existing_fks          An array of pre-existing FOREIGN KEYS
-                                   (in case of ALTER).
-  @param[in] existing_fks_count    The number of pre-existing foreign keys.
-  @param select_field_count        The number of fields coming from a select table.
-
-  @retval false   OK
-  @retval true    error
-*/
-
-static bool mysql_prepare_create_table(THD *thd,
-                                       const char* error_schema_name,
-                                       const char* error_table_name,
-                                       HA_CREATE_INFO *create_info,
-                                       Alter_info *alter_info,
-                                       handler *file, KEY **key_info_buffer,
-                                       uint *key_count,
-                                       FOREIGN_KEY **fk_key_info_buffer,
-                                       uint *fk_key_count,
-                                       FOREIGN_KEY *existing_fks,
-                                       uint existing_fks_count,
-                                       int select_field_count)
+// Prepares the table and key structures for table creation.
+bool mysql_prepare_create_table(THD *thd,
+                                const char* error_schema_name,
+                                const char* error_table_name,
+                                HA_CREATE_INFO *create_info,
+                                Alter_info *alter_info,
+                                handler *file, KEY **key_info_buffer,
+                                uint *key_count,
+                                FOREIGN_KEY **fk_key_info_buffer,
+                                uint *fk_key_count,
+                                FOREIGN_KEY *existing_fks,
+                                uint existing_fks_count,
+                                int select_field_count)
 {
   DBUG_ENTER("mysql_prepare_create_table");
 
@@ -8692,6 +8658,7 @@ static void to_lex_cstring(MEM_ROOT *mem_root,
   @param[in]      alter_info       Info about ALTER TABLE statement.
   @param[in,out]  alter_ctx        Runtime context for ALTER TABLE.
   @param[in]      new_create_list  List of new columns, used for rename check.
+  @param[in]      upgrade_flag  if upgrading the data directory
 */
 
 static
@@ -8700,7 +8667,8 @@ void remember_preexisting_foreign_keys_and_triggers(
         TABLE *table,
         Alter_info *alter_info,
         Alter_table_ctx *alter_ctx,
-        List<Create_field> *new_create_list)
+        List<Create_field> *new_create_list,
+        bool upgrade_flag)
 {
   // FKs and triggers are not supported for temporary tables.
   if (table->s->tmp_table)
@@ -8716,6 +8684,10 @@ void remember_preexisting_foreign_keys_and_triggers(
     // Should not happen, we know the table exists and can be opened.
     DBUG_ASSERT(false);
   }
+
+  // Table will not exist if we are upgrading the data directory.
+  if (upgrade_flag && (src_table == nullptr))
+    return;
 
   if (src_table->has_trigger())
     src_table->clone_triggers(&alter_ctx->trg_info);
@@ -8800,53 +8772,13 @@ void remember_preexisting_foreign_keys_and_triggers(
 }
 
 
-/**
-  Prepare column and key definitions for CREATE TABLE in ALTER TABLE.
-
-  This function transforms parse output of ALTER TABLE - lists of
-  columns and keys to add, drop or modify into, essentially,
-  CREATE TABLE definition - a list of columns and keys of the new
-  table. While doing so, it also performs some (bug not all)
-  semantic checks.
-
-  This function is invoked when we know that we're going to
-  perform ALTER TABLE via a temporary table -- i.e. in-place ALTER TABLE
-  is not possible, perhaps because the ALTER statement contains
-  instructions that require change in table data, not only in
-  table definition or indexes.
-
-  @param[in,out]  thd         thread handle. Used as a memory pool
-                              and source of environment information.
-  @param[in]      table       the source table, open and locked
-                              Used as an interface to the storage engine
-                              to acquire additional information about
-                              the original table.
-  @param[in,out]  create_info A blob with CREATE/ALTER TABLE
-                              parameters
-  @param[in,out]  alter_info  Another blob with ALTER/CREATE parameters.
-                              Originally create_info was used only in
-                              CREATE TABLE and alter_info only in ALTER TABLE.
-                              But since ALTER might end-up doing CREATE,
-                              this distinction is gone and we just carry
-                              around two structures.
-  @param[in,out]  alter_ctx   Runtime context for ALTER TABLE.
-
-  @return
-    Fills various create_info members based on information retrieved
-    from the storage engine.
-    Sets create_info->varchar if the table has a VARCHAR column.
-    Prepares alter_info->create_list and alter_info->key_list with
-    columns and keys of the new table.
-  @retval TRUE   error, out of memory or a semantical error in ALTER
-                 TABLE instructions
-  @retval FALSE  success
-*/
-
-bool
-mysql_prepare_alter_table(THD *thd, TABLE *table,
-                          HA_CREATE_INFO *create_info,
-                          Alter_info *alter_info,
-                          Alter_table_ctx *alter_ctx)
+// Prepare Create_field and Key_spec objects for ALTER and upgrade.
+bool prepare_fields_and_keys(THD *thd, TABLE *table,
+                             HA_CREATE_INFO *create_info,
+                             Alter_info *alter_info,
+                             Alter_table_ctx *alter_ctx,
+                             const uint &used_fields,
+                             bool upgrade_flag)
 {
   /* New column definitions are added here */
   List<Create_field> new_create_list;
@@ -8876,46 +8808,9 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   List_iterator<Create_field> find_it(new_create_list);
   List_iterator<Create_field> field_it(new_create_list);
   List<Key_part_spec> key_parts;
-  uint db_create_options= (table->s->db_create_options
-                           & ~(HA_OPTION_PACK_RECORD));
-  uint used_fields= create_info->used_fields;
   KEY *key_info=table->key_info;
 
-  DBUG_ENTER("mysql_prepare_alter_table");
-
-  /* Let new create options override the old ones */
-  if (!(used_fields & HA_CREATE_USED_MIN_ROWS))
-    create_info->min_rows= table->s->min_rows;
-  if (!(used_fields & HA_CREATE_USED_MAX_ROWS))
-    create_info->max_rows= table->s->max_rows;
-  if (!(used_fields & HA_CREATE_USED_AVG_ROW_LENGTH))
-    create_info->avg_row_length= table->s->avg_row_length;
-  if (!(used_fields & HA_CREATE_USED_DEFAULT_CHARSET))
-    create_info->default_table_charset= table->s->table_charset;
-  if (!(used_fields & HA_CREATE_USED_AUTO) && table->found_next_number_field)
-  {
-    /* Table has an autoincrement, copy value to new table */
-    table->file->info(HA_STATUS_AUTO);
-    create_info->auto_increment_value= table->file->stats.auto_increment_value;
-  }
-  if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
-    create_info->key_block_size= table->s->key_block_size;
-
-  if (!(used_fields & HA_CREATE_USED_STATS_SAMPLE_PAGES))
-    create_info->stats_sample_pages= table->s->stats_sample_pages;
-
-  if (!(used_fields & HA_CREATE_USED_STATS_AUTO_RECALC))
-    create_info->stats_auto_recalc= table->s->stats_auto_recalc;
-
-  if (!(used_fields & HA_CREATE_USED_TABLESPACE))
-    create_info->tablespace= table->s->tablespace;
-
-  if (create_info->storage_media == HA_SM_DEFAULT)
-    create_info->storage_media= table->s->default_storage_media;
-
-  /* Creation of federated table with LIKE clause needs connection string */
-  if (!(used_fields & HA_CREATE_USED_CONNECTION))
-    create_info->connect_string= table->s->connect_string;
+  DBUG_ENTER("prepare_fields_and_keys");
 
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   Create_field *def;
@@ -9238,7 +9133,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
           BLOBs may have cfield->length == 0, which is why we test it before
           checking whether cfield->length < key_part_length (in chars).
-          
+
           In case of TEXTs we check the data type maximum length *in bytes*
           to key part length measured *in characters* (i.e. key_part_length
           devided to mbmaxlen). This is because it's OK to have:
@@ -9411,7 +9306,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   }
 
   remember_preexisting_foreign_keys_and_triggers(thd, table, alter_info,
-                                                 alter_ctx, &new_create_list);
+                                                 alter_ctx, &new_create_list,
+                                                 upgrade_flag);
 
   if (rename_key_list.size() > 0)
   {
@@ -9427,26 +9323,88 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   }
 
 
+  alter_info->create_list.swap(new_create_list);
+  alter_info->key_list.clear();
+  alter_info->key_list.resize(new_key_list.size());
+  std::copy(new_key_list.begin(), new_key_list.end(), alter_info->key_list.begin());
+  alter_info->drop_list.clear();
+  alter_info->drop_list.resize(new_drop_list.size());
+  std::copy(new_drop_list.begin(), new_drop_list.end(), alter_info->drop_list.begin());
 
-  if (!create_info->comment.str)
+  DBUG_RETURN(false);
+}
+
+/**
+  Prepare column and key definitions for CREATE TABLE in ALTER TABLE.
+
+  This function transforms parse output of ALTER TABLE - lists of
+  columns and keys to add, drop or modify into, essentially,
+  CREATE TABLE definition - a list of columns and keys of the new
+  table. While doing so, it also performs some (bug not all)
+  semantic checks.
+
+  This function is invoked when we know that we're going to
+  perform ALTER TABLE via a temporary table -- i.e. in-place ALTER TABLE
+  is not possible, perhaps because the ALTER statement contains
+  instructions that require change in table data, not only in
+  table definition or indexes.
+
+  @param[in,out]  thd         thread handle. Used as a memory pool
+                              and source of environment information.
+  @param[in]      table       the source table, open and locked
+                              Used as an interface to the storage engine
+                              to acquire additional information about
+                              the original table.
+  @param[in,out]  create_info A blob with CREATE/ALTER TABLE
+                              parameters
+  @param[in,out]  alter_info  Another blob with ALTER/CREATE parameters.
+                              Originally create_info was used only in
+                              CREATE TABLE and alter_info only in ALTER TABLE.
+                              But since ALTER might end-up doing CREATE,
+                              this distinction is gone and we just carry
+                              around two structures.
+  @param[in,out]  alter_ctx   Runtime context for ALTER TABLE.
+
+  @return
+    Fills various create_info members based on information retrieved
+    from the storage engine.
+    Sets create_info->varchar if the table has a VARCHAR column.
+    Prepares alter_info->create_list and alter_info->key_list with
+    columns and keys of the new table.
+  @retval TRUE   error, out of memory or a semantical error in ALTER
+                 TABLE instructions
+  @retval FALSE  success
+*/
+
+bool
+mysql_prepare_alter_table(THD *thd, TABLE *table,
+                          HA_CREATE_INFO *create_info,
+                          Alter_info *alter_info,
+                          Alter_table_ctx *alter_ctx)
+{
+  uint db_create_options= (table->s->db_create_options
+                           & ~(HA_OPTION_PACK_RECORD));
+  uint used_fields= create_info->used_fields;
+
+  DBUG_ENTER("mysql_prepare_alter_table");
+
+  // Prepare data in HA_CREATE_INFO shared by ALTER and upgrade code.
+  create_info->init_create_options_from_share(table->s, used_fields);
+
+  if (!(used_fields & HA_CREATE_USED_AUTO) && table->found_next_number_field)
   {
-    create_info->comment.str= table->s->comment.str;
-    create_info->comment.length= table->s->comment.length;
+    /* Table has an autoincrement, copy value to new table */
+    table->file->info(HA_STATUS_AUTO);
+    create_info->auto_increment_value= table->file->stats.auto_increment_value;
   }
 
-  if (!create_info->compress.str)
-  {
-    create_info->compress.str= table->s->compress.str;
-    create_info->compress.length= table->s->compress.length;
-  }
-
-  if (!create_info->encrypt_type.str)
-  {
-    create_info->encrypt_type.str= table->s->encrypt_type.str;
-    create_info->encrypt_type.length= table->s->encrypt_type.length;
-  }
+  if (prepare_fields_and_keys(thd, table, create_info,
+                              alter_info, alter_ctx,
+                              used_fields, false))
+    DBUG_RETURN(true);
 
   table->file->update_create_info(create_info);
+
   if ((create_info->table_options &
        (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS)) ||
       (used_fields & HA_CREATE_USED_PACK_KEYS))
@@ -9466,14 +9424,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
   if (table->s->tmp_table)
     create_info->options|=HA_LEX_CREATE_TMP_TABLE;
-
-  alter_info->create_list.swap(new_create_list);
-  alter_info->key_list.clear();
-  alter_info->key_list.resize(new_key_list.size());
-  std::copy(new_key_list.begin(), new_key_list.end(), alter_info->key_list.begin());
-  alter_info->drop_list.clear();
-  alter_info->drop_list.resize(new_drop_list.size());
-  std::copy(new_drop_list.begin(), new_drop_list.end(), alter_info->drop_list.begin());
 
   DBUG_RETURN(false);
 }
