@@ -101,20 +101,7 @@ FOREACH(X xcom_vp)
                     ARGS -E chdir ${gen_xdr_dir} rpcgen  -C -h -o ${x_gen_h} ${x_tmp_x_canonical_name}
                 COMMAND ${CMAKE_COMMAND} -E remove -f ${x_gen_c}
                 COMMAND ${CMAKE_COMMAND}
-                    ARGS -E chdir ${gen_xdr_dir} rpcgen  -C -c -o ${x_gen_c} ${x_tmp_x_canonical_name}
-
-                # copy back the generated source if they are different
-                # perhaps we have made changes to xcom_vp.x (?)
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                  ${x_gen_h} ${x_vanilla_h}
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                  ${x_gen_c} ${x_vanilla_c}
-                DEPENDS
-                  ${x_vanilla_x}
-                  ${x_vanilla_plat_h}
-                  ${CMAKE_CURRENT_SOURCE_DIR}/xcom_proto_enum.h
-                  ${CMAKE_CURRENT_SOURCE_DIR}/xcom_limits.h
-                COMMENT "Generating ${x_gen_h} ${x_gen_c} from ${x_vanilla_x} into ${gen_xdr_dir}.")
+                    ARGS -E chdir ${gen_xdr_dir} rpcgen  -C -c -o ${x_gen_c} ${x_tmp_x_canonical_name})
   ENDIF()
 
   SET(GEN_RPC_H_FILES ${GEN_RPC_H_FILES} ${x_gen_h})
