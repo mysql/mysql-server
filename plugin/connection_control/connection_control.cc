@@ -62,10 +62,10 @@ MYSQL_PLUGIN connection_control_plugin_info= 0;
   For connection event, notify Connection_event_coordinator
   which in turn will notify subscribers.
 
-  @param thd [in]            Handle to THD
-  @param event_class [in]    Event class.
+  @param [in] thd            Handle to THD
+  @param [in] event_class    Event class.
                              We are interested in MYSQL_AUDIT_CONNECTION_CLASS.
-  @param event [in]          mysql_event_connection handle
+  @param [in] event          mysql_event_connection handle
 */
 
 static int
@@ -98,7 +98,7 @@ connection_control_notify(MYSQL_THD thd,
 /**
   Plugin initialization function
 
-  @param plugin_info [in]  MYSQL_PLUGIN information
+  @param [in] plugin_info  MYSQL_PLUGIN information
 
   @returns initialization status
     @retval 0 Success
