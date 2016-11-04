@@ -928,6 +928,18 @@ create table stress (
   d19 double not null
   ) ENGINE=ndbcluster;
 
+drop table if exists `hope`;
+create table `hope` (
+  partition_id int,
+  id int,
+  int_col1 int NOT NULL,
+  int_col2 int NOT NULL,
+  str_col1 varchar(3000),
+  str_col2 varchar(3000),
+  str_col3 varchar(3000),
+  PRIMARY KEY (partition_id, id)
+  ) ENGINE=ndbcluster partition by key (partition_id);
+
 create database if not exists test2;
 use test2;
 drop table if exists t_basic2;
