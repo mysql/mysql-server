@@ -7,6 +7,9 @@ connect (server2,127.0.0.1,root,,test,$MYSQLD2_PORT,);
 connect (server3,127.0.0.1,root,,test,$MYSQLD3_PORT,);
 connect (server4,127.0.0.1,root,,test,$MYSQLD4_PORT,);
 
+disable_query_log;
+disable_result_log;
+
 set @save_debug= @@global.debug;
 
 --connection server1
@@ -18,7 +21,7 @@ set global debug='+d,ndb_binlog_random_tableid';
 --connection server4
 set global debug='+d,ndb_binlog_random_tableid';
 
-let $1=20;
+let $1=10;
 while ($1)
 {
   --connection server1
@@ -50,6 +53,9 @@ set global debug= @save_debug;
 set global debug= @save_debug;
 --connection server4
 set global debug= @save_debug;
+
+enable_query_log;
+enable_result_log;
 
 --connection server1
 DROP DATABASE IF EXISTS tmp_db;
