@@ -142,14 +142,6 @@ const char *fts_default_stopword[] =
 	NULL
 };
 
-/** For storing table info when checking for orphaned tables. */
-struct fts_aux_table_t {
-	table_id_t	id;		/*!< Table id */
-	table_id_t	parent_id;	/*!< Parent table id */
-	table_id_t	index_id;	/*!< Table FT index id */
-	char*		name;		/*!< Name of the table */
-};
-
 /** FTS auxiliary table suffixes that are common to all FT indexes. */
 const char* fts_common_tables[] = {
 	"BEING_DELETED",
@@ -6050,7 +6042,6 @@ fts_savepoint_rollback(
 @param[in]	name	Table name
 @param[in]	len	Length of table name
 @return true if the name matches an auxiliary table name pattern */
-static
 bool
 fts_is_aux_table_name(
 	fts_aux_table_t*	table,

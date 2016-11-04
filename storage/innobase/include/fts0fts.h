@@ -1084,5 +1084,24 @@ fts_trx_t*
 fts_trx_create(
 	trx_t*	trx);
 
+/** For storing table info when checking for orphaned tables. */
+struct fts_aux_table_t {
+        table_id_t      id;             /*!< Table id */
+        table_id_t      parent_id;      /*!< Parent table id */
+        table_id_t      index_id;       /*!< Table FT index id */
+        char*           name;           /*!< Name of the table */
+};
+
+/** Check if a table is an FTS auxiliary table name.
+@param[out]	table	FTS table info
+@param[in]	name	Table name
+@param[in]	len	Length of table name
+@return true if the name matches an auxiliary table name pattern */
+bool
+fts_is_aux_table_name(
+	fts_aux_table_t*	table,
+	const char*		name,
+	ulint			len);
+
 #endif /*!< fts0fts.h */
 

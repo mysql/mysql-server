@@ -672,9 +672,16 @@ dd_table_open_on_id(
 		}
 	}
 
+
 	if (ib_table != nullptr) {
+		/* TODO: NewDD: Better there is a table flag for AUX table */
+		fts_aux_table_t	aux_table;
+
 		if (table_id > 16 && !dict_table_is_sdi(table_id)
-		    && !ib_table->ibd_file_missing) {
+		    && !ib_table->ibd_file_missing
+		    && !fts_is_aux_table_name(
+			&aux_table, ib_table->name.m_name,
+			strlen(ib_table->name.m_name))) {
 			if (!ib_table->stat_initialized) {
 				dict_stats_init(ib_table);
 			}
