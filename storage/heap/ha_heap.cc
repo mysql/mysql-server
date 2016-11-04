@@ -122,8 +122,6 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   }
 
   ref_length= sizeof(HEAP_PTR);
-  /* Initialize variables for the opened table */
-  set_keys_for_scanning();
   /*
     We cannot run update_key_stats() here because we do not have a
     lock on the table. The 'records' count might just be changed
@@ -168,34 +166,6 @@ const char *ha_heap::table_type() const
   return (table->in_use->variables.sql_mode & MODE_MYSQL323) ?
     "HEAP" : "MEMORY";
 }
-
-
-/*
-  Compute which keys to use for scanning
-
-  SYNOPSIS
-    set_keys_for_scanning()
-    no parameter
-
-  DESCRIPTION
-    Set the bitmap btree_keys, which is used when the upper layers ask
-    which keys to use for scanning. For each btree index the
-    corresponding bit is set.
-
-  RETURN
-    void
-*/
-
-void ha_heap::set_keys_for_scanning(void)
-{
-  btree_keys.clear_all();
-  for (uint i= 0 ; i < table->s->keys ; i++)
-  {
-    if (table->key_info[i].algorithm == HA_KEY_ALG_BTREE)
-      btree_keys.set_bit(i);
-  }
-}
-
 
 /**
   Update index statistics for the table.
@@ -510,8 +480,7 @@ int ha_heap::disable_indexes(uint mode)
 
   if (mode == HA_KEY_SWITCH_ALL)
   {
-    if (!(error= heap_disable_indexes(file)))
-      set_keys_for_scanning();
+    error= heap_disable_indexes(file);
   }
   else
   {
@@ -557,8 +526,7 @@ int ha_heap::enable_indexes(uint mode)
 
   if (mode == HA_KEY_SWITCH_ALL)
   {
-    if (!(error= heap_enable_indexes(file)))
-      set_keys_for_scanning();
+    error= heap_enable_indexes(file);
   }
   else
   {

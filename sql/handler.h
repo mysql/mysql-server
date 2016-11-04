@@ -100,9 +100,6 @@ namespace AQP {
 
 extern ulong savepoint_alloc_size;
 
-extern MYSQL_PLUGIN_IMPORT const Key_map key_map_empty;
-extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
-
 /*
   We preallocate data for several storage engine plugins.
   so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +

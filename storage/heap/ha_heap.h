@@ -26,7 +26,6 @@ class ha_heap: public handler
 {
   HP_INFO *file;
   HP_SHARE *internal_share;
-  Key_map btree_keys;
   /* number of records changed since last statistics update */
   uint    records_changed;
   uint    key_stat_version;

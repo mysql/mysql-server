@@ -654,7 +654,6 @@ private:
   bool m_lock_tuple;
   NDB_SHARE *m_share;
   NDB_INDEX_DATA  m_index[MAX_KEY];
-  Key_map btree_keys;
   static const size_t fk_root_block_size= 1024;
   MEM_ROOT m_fk_mem_root;
   struct Ndb_fk_data *m_fk_data;
