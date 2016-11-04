@@ -85,11 +85,12 @@ class ScanFilterImpl implements ScanFilter {
     }
 
     public void cmpByte(BinaryCondition condition, Column storeColumn, byte value) {
-        ByteBuffer buffer = bufferManager.borrowBuffer(1);
+        // Bit types can use Byte and need 4 bytes for storage
+        ByteBuffer buffer = bufferManager.borrowBuffer(4);
         Utility.convertValue(buffer, storeColumn, value);
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
                 storeColumn.getColumnId(), buffer, buffer.limit());
-        bufferManager.returnBuffer(1, buffer);
+        bufferManager.returnBuffer(4, buffer);
         handleError(returnCode, ndbScanFilter);
     }
 
@@ -135,11 +136,12 @@ class ScanFilterImpl implements ScanFilter {
     }
 
     public void cmpShort(BinaryCondition condition, Column storeColumn, short value) {
-        ByteBuffer buffer = bufferManager.borrowBuffer(2);
+        // Bit types can use Short and need 4 bytes for storage
+        ByteBuffer buffer = bufferManager.borrowBuffer(4);
         Utility.convertValue(buffer, storeColumn, value);
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
                 storeColumn.getColumnId(), buffer, buffer.limit());
-        bufferManager.returnBuffer(2, buffer);
+        bufferManager.returnBuffer(4, buffer);
         handleError(returnCode, ndbScanFilter);
     }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,10 @@ public interface Table {
 
     String getName();
 
+    /** Get the key for this table, including projected column identifier
+     */
+    String getKey();
+
     /** Get the names of the primary key columns */
     String[] getPrimaryKeyColumnNames();
 
@@ -40,6 +44,12 @@ public interface Table {
 
     /** Get the names of all columns for this table */
     String[] getColumnNames();
+
+    /** Get the names of all projected columns for this table */
+    String[] getProjectedColumnNames();
+
+    /** Set the names of all projected columns for this table */
+    void setProjectedColumnNames(String[] names);
 
     /** Get the autoincrement column; null if no autoincrement column defined */
     Column getAutoIncrementColumn();
