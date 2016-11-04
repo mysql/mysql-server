@@ -2150,74 +2150,8 @@ FULLTEXT KEY c4_fts (c4, c5));
 SELECT COLUMN_NAME, IS_NULLABLE,
 DATA_TYPE, COLLATION_NAME, COLUMN_KEY
 FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA='test';
+WHERE TABLE_SCHEMA='test' ORDER BY COLUMN_NAME;
 COLUMN_NAME	IS_NULLABLE	DATA_TYPE	COLLATION_NAME	COLUMN_KEY
-word	NO		latin1_swedish_ci	
-first_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-doc_count	NO		NULL	
-ilist	NO		NULL	
-word	NO		latin1_swedish_ci	
-first_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-doc_count	NO		NULL	
-ilist	NO		NULL	
-word	NO		latin1_swedish_ci	
-first_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-doc_count	NO		NULL	
-ilist	NO		NULL	
-word	NO		latin1_swedish_ci	
-first_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-doc_count	NO		NULL	
-ilist	NO		NULL	
-word	NO		latin1_swedish_ci	
-first_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-doc_count	NO		NULL	
-ilist	NO		NULL	
-word	NO		latin1_swedish_ci	
-first_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-doc_count	NO		NULL	
-ilist	NO		NULL	
-word	NO		latin1_swedish_ci	
-first_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-doc_count	NO		NULL	
-ilist	NO		NULL	
-word	NO		latin1_swedish_ci	
-first_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-doc_count	NO		NULL	
-ilist	NO		NULL	
-word	NO		latin1_swedish_ci	
-first_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-doc_count	NO		NULL	
-ilist	NO		NULL	
-word	NO		latin1_swedish_ci	
-first_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-doc_count	NO		NULL	
-ilist	NO		NULL	
-word	NO		latin1_swedish_ci	
-first_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-doc_count	NO		NULL	
-ilist	NO		NULL	
-word	NO		latin1_swedish_ci	
-first_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-doc_count	NO		NULL	
-ilist	NO		NULL	
-doc_id	NO		NULL	
-doc_id	NO		NULL	
-key	NO		latin1_swedish_ci	
-value	NO		latin1_swedish_ci	
-doc_id	NO		NULL	
-doc_id	NO		NULL	
 c1	NO	int	NULL	PRI
 c2	YES	int	NULL	MUL
 c3	YES	char	latin1_swedish_ci	MUL
@@ -2225,6 +2159,72 @@ c4	YES	char	latin1_swedish_ci	MUL
 c5	YES	char	latin1_swedish_ci	
 c6	NO	point	NULL	PRI
 c7	NO	geometry	NULL	MUL
+doc_count	NO		NULL	
+doc_count	NO		NULL	
+doc_count	NO		NULL	
+doc_count	NO		NULL	
+doc_count	NO		NULL	
+doc_count	NO		NULL	
+doc_count	NO		NULL	
+doc_count	NO		NULL	
+doc_count	NO		NULL	
+doc_count	NO		NULL	
+doc_count	NO		NULL	
+doc_count	NO		NULL	
+doc_id	NO		NULL	
+doc_id	NO		NULL	
+doc_id	NO		NULL	
+doc_id	NO		NULL	
+first_doc_id	NO		NULL	
+first_doc_id	NO		NULL	
+first_doc_id	NO		NULL	
+first_doc_id	NO		NULL	
+first_doc_id	NO		NULL	
+first_doc_id	NO		NULL	
+first_doc_id	NO		NULL	
+first_doc_id	NO		NULL	
+first_doc_id	NO		NULL	
+first_doc_id	NO		NULL	
+first_doc_id	NO		NULL	
+first_doc_id	NO		NULL	
+ilist	NO		NULL	
+ilist	NO		NULL	
+ilist	NO		NULL	
+ilist	NO		NULL	
+ilist	NO		NULL	
+ilist	NO		NULL	
+ilist	NO		NULL	
+ilist	NO		NULL	
+ilist	NO		NULL	
+ilist	NO		NULL	
+ilist	NO		NULL	
+ilist	NO		NULL	
+key	NO		latin1_swedish_ci	
+last_doc_id	NO		NULL	
+last_doc_id	NO		NULL	
+last_doc_id	NO		NULL	
+last_doc_id	NO		NULL	
+last_doc_id	NO		NULL	
+last_doc_id	NO		NULL	
+last_doc_id	NO		NULL	
+last_doc_id	NO		NULL	
+last_doc_id	NO		NULL	
+last_doc_id	NO		NULL	
+last_doc_id	NO		NULL	
+last_doc_id	NO		NULL	
+value	NO		latin1_swedish_ci	
+word	NO		latin1_swedish_ci	
+word	NO		latin1_swedish_ci	
+word	NO		latin1_swedish_ci	
+word	NO		latin1_swedish_ci	
+word	NO		latin1_swedish_ci	
+word	NO		latin1_swedish_ci	
+word	NO		latin1_swedish_ci	
+word	NO		latin1_swedish_ci	
+word	NO		latin1_swedish_ci	
+word	NO		latin1_swedish_ci	
+word	NO		latin1_swedish_ci	
+word	NO		latin1_swedish_ci	
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 c1	int(11)	NO	PRI	NULL	
