@@ -948,7 +948,13 @@ try_again:
 		/* Need server fully up for virtual column computation */
 		if (!mysqld_server_started) {
 
-			dict_table_close(node->table, FALSE, FALSE);
+			if (node->table->id < 16
+			    || dict_table_is_sdi(node->table->id)) {
+				dict_table_close(node->table, FALSE, FALSE);
+				node->table = NULL;
+			} else  {
+				dd_table_close(node->table, thd, &node->mdl);
+			}
 			if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 				return(false);
 			}
@@ -970,7 +976,12 @@ try_again:
 	if (node->table->ibd_file_missing) {
 		/* We skip purge of missing .ibd files */
 
-		dict_table_close(node->table, FALSE, FALSE);
+		if (node->table->id < 16 || dict_table_is_sdi(node->table->id)) {
+			dict_table_close(node->table, FALSE, FALSE);
+			node->table = NULL;
+		} else  {
+	                dd_table_close(node->table, thd, &node->mdl);
+                }
 
 		node->table = NULL;
 
