@@ -4,7 +4,7 @@
 
 [mysqld.2]
 
-group_replication_recovery_retry_count= 86400
+loose-group_replication_recovery_retry_count= 86400
 
 [mysqld.3]
 
