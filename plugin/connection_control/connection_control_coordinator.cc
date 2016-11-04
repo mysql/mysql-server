@@ -42,10 +42,10 @@ namespace connection_control
       2. Set of variables for which subscriber would like to receive update
       3. Set of stats for which subscriber would like to send update
 
-    @param subscriber [in]    Handle to Connection_event_observers
-    @param events [in]        Event mask supplied by subscriber
-    @param sys_vars [in]      opt_connection_control vector
-    @param status_vars [in]   stats_connection_control vector
+    @param [in] subscriber    Handle to Connection_event_observers
+    @param [in] events        Event mask supplied by subscriber
+    @param [in] sys_vars      opt_connection_control vector
+    @param [in] status_vars   stats_connection_control vector
 
     @returns subscription status
       @retval false Subscription successful
@@ -160,9 +160,9 @@ namespace connection_control
 
       Note : If we receive error from a subscriber, we log it and move on.
 
-      @param thd [in]               THD handle
-      @param error_handler [in]     Error handler class
-      @param connection_event [in]  Event information
+      @param [in] thd               THD handle
+      @param [in] error_handler     Error handler class
+      @param [in] connection_event  Event information
   */
 
   void
@@ -197,9 +197,9 @@ namespace connection_control
 
     Note : If we receive error from a subscriber, we log it and move on.
 
-    @param error_hanlder [in]     Error handler class
-    @param opt_connection_control Variable information
-    @param new_value [in]         New value for variable
+    @param [in] error_hanlder          Error handler class
+    @param [in] opt_connection_control Variable information
+    @param [in] new_value              New value for variable
   */
 
   void
@@ -230,9 +230,9 @@ namespace connection_control
   /**
     Update a status variable
 
-    @param observer [in]   Requestor
-    @param status_var [in] Status variable to be updated
-    @param action [in]     Operation to be performed on status variable
+    @param [in] observer   Requestor
+    @param [in] status_var Status variable to be updated
+    @param [in] action     Operation to be performed on status variable
 
     @returns status of the operation
       @retval false Success
