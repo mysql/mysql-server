@@ -855,6 +855,14 @@ extern my_bool my_gethwaddr(uchar *to);
 #define MAP_NOSYNC      0
 #endif
 
+/*
+  Not defined in FreeBSD 11.
+  Was never implemented in FreeBSD, so we just set it to 0.
+*/
+#ifndef MAP_NORESERVE
+#define MAP_NORESERVE 0
+#endif
+
 #ifdef HAVE_MMAP64
 #define my_mmap(a,b,c,d,e,f)    mmap64(a,b,c,d,e,f)
 #else
