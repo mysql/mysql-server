@@ -1,7 +1,7 @@
 !include ../my.cnf
 
 [mysqld]
-group_replication_auto_increment_increment= 1
+loose-group_replication_auto_increment_increment= 1
 
 [mysqld.3]
 
