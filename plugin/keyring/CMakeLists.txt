@@ -32,6 +32,7 @@ MYSQL_ADD_PLUGIN(keyring_file
                  checker/checker_ver_1_0.cc
                  checker/checker_ver_2_0.cc
                  file_io.cc
+                 LINK_LIBRARIES ${SSL_LIBRARIES}
                  MODULE_ONLY
                  MODULE_OUTPUT_NAME "keyring_file")
 
