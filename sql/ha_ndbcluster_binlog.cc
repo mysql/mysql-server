@@ -714,6 +714,13 @@ ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
   */
   Ndb_local_connection mysqld(my_thd);
   const bool ignore_no_such_table = true;
+
+  // Set needed isolation level to be independent from server settings
+  my_thd->variables.tx_isolation= ISO_REPEATABLE_READ;
+  // Turn autocommit on
+  // This is needed to ensure calls to mysqld.delete_rows commits.
+  my_thd->variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
+
   if(mysqld.delete_rows(STRING_WITH_LEN("mysql"),
                         STRING_WITH_LEN("ndb_binlog_index"),
                         ignore_no_such_table,
@@ -4063,6 +4070,8 @@ class Ndb_binlog_index_table_util
     int error= 0;
     ndb_binlog_index_row *first= row;
     TABLE *ndb_binlog_index= 0;
+    // Save previous option settings
+    ulonglong option_bits= thd->variables.option_bits;
 
     /*
       Assume this function is not called with an error set in thd
@@ -4090,6 +4099,8 @@ class Ndb_binlog_index_table_util
     // Set all columns to be written
     ndb_binlog_index->use_all_columns();
 
+    // Turn off autocommit to do all writes in one transaction
+    thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
     do
     {
       ulonglong epoch= 0, orig_epoch= 0;
@@ -4216,21 +4227,45 @@ class Ndb_binlog_index_table_util
 
   add_ndb_binlog_index_err:
     /*
-      Explicitly commit or rollback the writes(although we normally
-      use a non transactional engine for the ndb_binlog_index table)
+      Explicitly commit or rollback the writes.
+      If we fail to commit we rollback.
+      Note, trans_rollback_stmt() is defined to never fail.
     */
     thd->get_stmt_da()->set_overwrite_status(true);
-    thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+    if (error)
+    {
+      // Error, rollback
+      trans_rollback_stmt(thd);
+    }
+    else
+    {
+      assert(!thd->is_error());
+      // Commit
+      const bool failed= trans_commit_stmt(thd);
+      if (failed ||
+          thd->transaction_rollback_request)
+      {
+        /*
+          Transaction failed to commit or
+          was rolled back internally by the engine
+          print an error message in the log and return the
+          error, which will cause replication to stop.
+        */
+        error= thd->get_stmt_da()->mysql_errno();
+        sql_print_error("NDB Binlog: Failed committing transaction to ndb_binlog_index "
+                        "with error %d.",
+                        error);
+        trans_rollback_stmt(thd);
+      }
+    }
+
     thd->get_stmt_da()->set_overwrite_status(false);
+
+    // Restore previous option settings
+    thd->variables.option_bits= option_bits;
 
     // Close the tables this thread has opened
     close_thread_tables(thd);
-
-    /*
-      There should be no need for rolling back transaction due to deadlock
-      (since ndb_binlog_index is non transactional).
-    */
-    DBUG_ASSERT(! thd->transaction_rollback_request);
 
     // Release MDL locks on the opened table
     thd->mdl_context.release_transactional_locks();

@@ -707,6 +707,14 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @cmd="ALTER TABLE ndb_binlog_index
+  ENGINE=InnoDB STATS_PERSISTENT=0";
+
+SET @str = IF(@have_ndb_binlog_index = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 --
 -- Check for non-empty host table and issue a warning
 --
