@@ -542,68 +542,69 @@ index_id	table_id	type	n_fields	space	name
 57	31	3	1	17	PRIMARY
 58	31	2	2	17	schema_id
 59	31	2	2	17	table_id
-60	31	0	1	17	unique_constraint_id
-61	32	3	2	18	PRIMARY
-62	32	2	3	18	foreign_key_id
-63	32	0	1	18	column_id
-64	33	3	1	19	PRIMARY
-65	33	2	2	19	table_id
-66	33	2	3	19	table_id_2
-67	33	2	2	19	engine
-68	33	0	1	19	engine_2
-69	33	0	1	19	tablespace_id
-70	34	3	3	20	PRIMARY
-71	35	3	2	21	PRIMARY
-72	35	0	1	21	index_id
-73	35	0	1	21	tablespace_id
-74	36	3	2	22	PRIMARY
-75	37	3	4	23	schema_name
-76	38	3	1	24	PRIMARY
-77	38	2	2	24	schema_id
-78	38	0	1	24	client_collation_id
-79	38	0	1	24	connection_collation_id
-80	38	0	1	24	schema_collation_id
-81	39	3	1	25	PRIMARY
-82	39	2	3	25	schema_id
-83	39	0	1	25	result_collation_id
-84	39	0	1	25	client_collation_id
-85	39	0	1	25	connection_collation_id
-86	39	0	1	25	schema_collation_id
-87	40	3	1	26	PRIMARY
-88	40	2	2	26	routine_id
-89	40	0	1	26	collation_id
-90	41	3	2	27	PRIMARY
-91	42	3	1	28	PRIMARY
-92	42	2	2	28	schema_id
-93	42	2	4	28	table_id
-94	42	0	1	28	client_collation_id
-95	42	0	1	28	connection_collation_id
-96	42	0	1	28	schema_collation_id
-99	45	3	3	31	PRIMARY
-100	45	0	1	31	User
-101	46	3	2	32	PRIMARY
-102	47	3	4	33	PRIMARY
-103	48	3	4	34	PRIMARY
-104	49	3	1	35	PRIMARY
-105	50	3	1	36	PRIMARY
-106	51	3	1	37	PRIMARY
-107	52	3	4	38	PRIMARY
-108	52	0	1	38	Grantor
-109	53	3	5	39	PRIMARY
-117	58	3	1	44	PRIMARY
-118	59	3	1	45	PRIMARY
-119	60	3	2	46	PRIMARY
-120	61	3	2	47	PRIMARY
-121	62	3	1	48	PRIMARY
-122	63	3	5	49	PRIMARY
-123	63	0	1	49	Grantor
-124	64	3	1	50	PRIMARY
-128	68	3	2	54	PRIMARY
-129	69	3	1	55	PRIMARY
-130	70	3	3	56	PRIMARY
-131	71	3	3	57	PRIMARY
-132	72	3	4	58	PRIMARY
-133	72	0	1	58	Grantor
+60	31	0	3	17	referenced_table_catalog
+61	31	0	1	17	unique_constraint_id
+62	32	3	2	18	PRIMARY
+63	32	2	3	18	foreign_key_id
+64	32	0	1	18	column_id
+65	33	3	1	19	PRIMARY
+66	33	2	2	19	table_id
+67	33	2	3	19	table_id_2
+68	33	2	2	19	engine
+69	33	0	1	19	engine_2
+70	33	0	1	19	tablespace_id
+71	34	3	3	20	PRIMARY
+72	35	3	2	21	PRIMARY
+73	35	0	1	21	index_id
+74	35	0	1	21	tablespace_id
+75	36	3	2	22	PRIMARY
+76	37	3	4	23	schema_name
+77	38	3	1	24	PRIMARY
+78	38	2	2	24	schema_id
+79	38	0	1	24	client_collation_id
+80	38	0	1	24	connection_collation_id
+81	38	0	1	24	schema_collation_id
+82	39	3	1	25	PRIMARY
+83	39	2	3	25	schema_id
+84	39	0	1	25	result_collation_id
+85	39	0	1	25	client_collation_id
+86	39	0	1	25	connection_collation_id
+87	39	0	1	25	schema_collation_id
+88	40	3	1	26	PRIMARY
+89	40	2	2	26	routine_id
+90	40	0	1	26	collation_id
+91	41	3	2	27	PRIMARY
+92	42	3	1	28	PRIMARY
+93	42	2	2	28	schema_id
+94	42	2	4	28	table_id
+95	42	0	1	28	client_collation_id
+96	42	0	1	28	connection_collation_id
+97	42	0	1	28	schema_collation_id
+100	45	3	3	31	PRIMARY
+101	45	0	1	31	User
+102	46	3	2	32	PRIMARY
+103	47	3	4	33	PRIMARY
+104	48	3	4	34	PRIMARY
+105	49	3	1	35	PRIMARY
+106	50	3	1	36	PRIMARY
+107	51	3	1	37	PRIMARY
+108	52	3	4	38	PRIMARY
+109	52	0	1	38	Grantor
+110	53	3	5	39	PRIMARY
+118	58	3	1	44	PRIMARY
+119	59	3	1	45	PRIMARY
+120	60	3	2	46	PRIMARY
+121	61	3	2	47	PRIMARY
+122	62	3	1	48	PRIMARY
+123	63	3	5	49	PRIMARY
+124	63	0	1	49	Grantor
+125	64	3	1	50	PRIMARY
+129	68	3	2	54	PRIMARY
+130	69	3	1	55	PRIMARY
+131	70	3	3	56	PRIMARY
+132	71	3	3	57	PRIMARY
+133	72	3	4	58	PRIMARY
+134	72	0	1	58	Grantor
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
 WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable',
 'name', 'help_topic_id', 'help_keyword_id', 'help_category_id')
@@ -660,98 +661,101 @@ index_id	pos	name
 56	1	element_index
 58	0	schema_id
 59	0	table_id
-60	0	unique_constraint_id
-61	0	foreign_key_id
-61	1	ordinal_position
+60	0	referenced_table_catalog
+60	1	referenced_table_schema
+60	2	referenced_table_name
+61	0	unique_constraint_id
 62	0	foreign_key_id
-62	1	column_id
-62	2	referenced_column_name
-63	0	column_id
-65	0	table_id
+62	1	ordinal_position
+63	0	foreign_key_id
+63	1	column_id
+63	2	referenced_column_name
+64	0	column_id
 66	0	table_id
-66	1	level
-66	2	number
-67	0	engine
-67	1	se_private_id
+67	0	table_id
+67	1	level
+67	2	number
 68	0	engine
-69	0	tablespace_id
-70	0	partition_id
-70	1	list_num
-70	2	column_num
+68	1	se_private_id
+69	0	engine
+70	0	tablespace_id
 71	0	partition_id
-71	1	index_id
-72	0	index_id
-73	0	tablespace_id
-74	0	schema_name
+71	1	list_num
+71	2	column_num
+72	0	partition_id
+72	1	index_id
+73	0	index_id
+74	0	tablespace_id
 75	0	schema_name
-75	3	column_name
-77	0	schema_id
-78	0	client_collation_id
-79	0	connection_collation_id
-80	0	schema_collation_id
-82	0	schema_id
-82	1	type
-83	0	result_collation_id
-84	0	client_collation_id
-85	0	connection_collation_id
-86	0	schema_collation_id
-88	0	routine_id
-88	1	ordinal_position
-89	0	collation_id
-90	0	parameter_id
-90	1	element_index
-92	0	schema_id
-93	0	table_id
-93	1	event_type
-93	2	action_timing
-93	3	action_order
-94	0	client_collation_id
-95	0	connection_collation_id
-96	0	schema_collation_id
-99	1	Db
-99	2	User
-100	0	User
-101	1	User
-102	1	USER
-102	2	DEFAULT_ROLE_HOST
-102	3	DEFAULT_ROLE_USER
-103	0	FROM_HOST
-103	1	FROM_USER
-103	2	TO_HOST
-103	3	TO_USER
-106	0	Server_name
-107	1	Db
-107	2	User
-108	0	Grantor
-109	1	Db
-109	2	User
-109	4	Column_name
-118	0	Time_zone_id
+76	0	schema_name
+76	3	column_name
+78	0	schema_id
+79	0	client_collation_id
+80	0	connection_collation_id
+81	0	schema_collation_id
+83	0	schema_id
+83	1	type
+84	0	result_collation_id
+85	0	client_collation_id
+86	0	connection_collation_id
+87	0	schema_collation_id
+89	0	routine_id
+89	1	ordinal_position
+90	0	collation_id
+91	0	parameter_id
+91	1	element_index
+93	0	schema_id
+94	0	table_id
+94	1	event_type
+94	2	action_timing
+94	3	action_order
+95	0	client_collation_id
+96	0	connection_collation_id
+97	0	schema_collation_id
+100	1	Db
+100	2	User
+101	0	User
+102	1	User
+103	1	USER
+103	2	DEFAULT_ROLE_HOST
+103	3	DEFAULT_ROLE_USER
+104	0	FROM_HOST
+104	1	FROM_USER
+104	2	TO_HOST
+104	3	TO_USER
+107	0	Server_name
+108	1	Db
+108	2	User
+109	0	Grantor
+110	1	Db
+110	2	User
+110	4	Column_name
 119	0	Time_zone_id
-119	1	Transition_time
 120	0	Time_zone_id
-120	1	Transition_type_id
-121	0	Transition_time
-122	1	Db
-122	2	User
-122	3	Routine_name
-122	4	Routine_type
-123	0	Grantor
-124	0	component_id
-125	0	Channel_name
+120	1	Transition_time
+121	0	Time_zone_id
+121	1	Transition_type_id
+122	0	Transition_time
+123	1	Db
+123	2	User
+123	3	Routine_name
+123	4	Routine_type
+124	0	Grantor
+125	0	component_id
 126	0	Channel_name
 127	0	Channel_name
-128	0	source_uuid
-128	1	interval_start
-129	0	cost_name
+128	0	Channel_name
+129	0	source_uuid
+129	1	interval_start
 130	0	cost_name
-130	1	engine_name
-130	2	device_type
-131	2	column_name
-132	1	User
-132	2	Proxied_host
-132	3	Proxied_user
-133	0	Grantor
+131	0	cost_name
+131	1	engine_name
+131	2	device_type
+132	2	column_name
+133	1	User
+133	2	Proxied_host
+133	3	Proxied_user
+134	0	Grantor
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
