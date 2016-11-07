@@ -491,10 +491,12 @@ ADD_COMPILE_FLAGS(
   COMPILE_FLAGS -DXXH_NAMESPACE=MY_
 )
 
-# Fixes "C1128: number of sections exceeded object file format limit" in MSVC /MD
-# The flag /bigobj is not added if the build is not WINDOWS_RUNTIME_MD (/MD)
-IF(WINDOWS_RUNTIME_MD)
-  ADD_COMPILE_FLAGS(item_geofunc_setops.cc COMPILE_FLAGS "/bigobj")
+# Fixes "C1128: number of sections exceeded object file format limit" in MSVC
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "/bigobj")
 ENDIF()
 
 #

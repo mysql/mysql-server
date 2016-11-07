@@ -24,3 +24,4 @@ no_binlog_gtid_next_partially_failed_stmts_error     : WL#7743 DROP TABLES seman
 dd_table_access           : WL7743 Need help from Sivert to implement INPLACE ALTER for sticky tables
 dd_upgrade_test           : WL7743 Problem with stickiness
 index_merge_delete        :Bug#21373532 2016-07-29 Anitha Test fails very frequently on PB2
+mysqld--defaults-file @darwin : Bug#24579973 2016-11-03 Anitha Test fails on Mac OS 10.12

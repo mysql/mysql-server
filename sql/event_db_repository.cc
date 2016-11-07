@@ -76,7 +76,7 @@ static bool index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   if (mdl_locker.ensure_locked(db))
     DBUG_RETURN(true);
 
-  if (thd->dd_client()->acquire<dd::Schema>(db, &sch_obj))
+  if (thd->dd_client()->acquire(db, &sch_obj))
   {
     /*
       Ignore any error so that information schema display a empty row.
@@ -407,7 +407,7 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj= nullptr;
 
-  if (thd->dd_client()->acquire<dd::Schema>(schema.str, &sch_obj))
+  if (thd->dd_client()->acquire(schema.str, &sch_obj))
     DBUG_RETURN(true);
   if (sch_obj == nullptr)
   {

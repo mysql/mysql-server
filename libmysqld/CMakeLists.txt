@@ -156,21 +156,12 @@ ADD_COMPILE_FLAGS(
   COMPILE_FLAGS -DXXH_NAMESPACE=MY_
 )
 
-# Fixes "C1128: number of sections exceeded object file format limit" in MSVC /MD
-# The flag /bigobj is not added if the build is not /MD
+# Fixes "C1128: number of sections exceeded object file format limit" in MSVC
 IF(WIN32)
-  FOREACH(flag 
-     CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO 
-     CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
-     CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
-     CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
-    
-     STRING(FIND ${${flag}} "/MD" POS)
-     IF(NOT (${POS} MATCHES "-1"))
-       ADD_COMPILE_FLAGS(../sql/item_geofunc_setops.cc COMPILE_FLAGS "/bigobj")
-       BREAK()
-     ENDIF()  
-  ENDFOREACH()
+  ADD_COMPILE_FLAGS(
+    ../sql/item_geofunc.cc
+    ../sql/item_geofunc_setops.cc
+    COMPILE_FLAGS "/bigobj")
 ENDIF()
 
 #

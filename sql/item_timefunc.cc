@@ -3490,7 +3490,7 @@ bool Item_func_last_day::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
 
 bool Item_func_internal_update_time::resolve_type(THD *thd)
 {
-  thd= current_thd;
+  DBUG_ASSERT(thd == current_thd);
   uint8 dec= 0;
   fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, dec);
   maybe_null= 1;
@@ -3547,7 +3547,7 @@ bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
 
 bool Item_func_internal_check_time::resolve_type(THD *thd)
 {
-  thd= current_thd;
+  DBUG_ASSERT(thd == current_thd);
   uint8 dec= 0;
   fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, dec);
   maybe_null= 1;

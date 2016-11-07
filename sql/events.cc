@@ -618,7 +618,7 @@ bool Events::lock_schema_events(THD *thd, const char *db)
 
   // Acquire Schema object
   const dd::Schema *sch_obj= nullptr;
-  if (thd->dd_client()->acquire<dd::Schema>(db, &sch_obj))
+  if (thd->dd_client()->acquire(db, &sch_obj))
     DBUG_RETURN(true);
   if (sch_obj == nullptr)
   {

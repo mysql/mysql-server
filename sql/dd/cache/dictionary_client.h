@@ -434,30 +434,6 @@ public:
 
 
   /**
-    Retrieve an object by its name without caching it.
-
-    The object is not cached but owned by the current auto releaser who
-    makes sure it is deleted. The object must not be released, and may not
-    be used as a parameter to the other dictionary client methods since it is
-    not known by the object registry.
-
-    @note This is needed when acquiring objects during bootstrap to make
-          sure we get objects from the DD tables in order to replace the
-          temporarily generated meta data.
-
-    @tparam       T            Dictionary object type.
-    @param        object_name  Name of the object to be retrieved.
-    @param [out]  object       Dictionary object, if present; otherwise NULL.
-
-    @retval       false        No error.
-    @retval       true         Error (from reading the dictionary tables).
-   */
-
-  template <typename T>
-  bool acquire_uncached(const String_type &object_name, T** object);
-
-
-  /**
     Retrieve an object by its schema- and object name.
 
     @note We will acquire an IX-lock on the schema name unless we already
@@ -513,7 +489,6 @@ public:
                                 const String_type &object_name,
                                 T** object);
 
-
   /**
     Retrieve an object by its schema- and object name.
 
@@ -545,62 +520,6 @@ public:
   template <typename T>
   bool acquire(const String_type &schema_name, const String_type &object_name,
                const typename T::cache_partition_type** object);
-
-
-  /**
-    Retrieve an object by its schema- and object name without caching it.
-
-    The object is not cached but owned by the current auto releaser who
-    makes sure it is deleted. The object must not be released, and may not
-    be used as a parameter to the other dictionary client methods since it is
-    not known by the object registry.
-
-    @note This is needed when acquiring objects during bootstrap to make
-          sure we get objects from the DD tables in order to replace the
-          temporarily generated meta data.
-
-    @tparam       T             Dictionary object type.
-    @param        schema_name   Name of the schema containing the table.
-    @param        object_name   Name of the object.
-    @param [out]  object        Dictionary object, if present; otherwise NULL.
-
-    @retval       false   No error.
-    @retval       true    Error (from handling a cache miss).
-  */
-
-  template <typename T>
-  bool acquire_uncached(const String_type &schema_name,
-                        const String_type &object_name,
-                        T** object);
-
-
-  /**
-    Retrieve a possibly uncommitted object by its schema- and object name
-    without caching it.
-
-    The object is not cached, hence, it is owned by the caller, who must
-    make sure it is deleted. The object must not be released, and may not
-    be used as a parameter to the other dictionary client methods since it is
-    not known by the object registry.
-
-    When the object is read from the persistent tables, the transaction
-    isolation level is READ UNCOMMITTED. This is necessary to be able to
-    read uncommitted data from an earlier stage of the same session.
-
-    @tparam       T             Dictionary object type.
-    @param        schema_name   Name of the schema containing the table.
-    @param        object_name   Name of the object.
-    @param [out]  object        Dictionary object, if present; otherwise NULL.
-
-    @retval       false   No error.
-    @retval       true    Error (from handling a cache miss).
-  */
-
-  template <typename T>
-  bool acquire_uncached_uncommitted(const String_type &schema_name,
-                                    const String_type &object_name,
-                                    const T** object);
-
 
   /**
     Retrieve a table object by its se private id.
@@ -847,9 +766,9 @@ public:
     added neither to the dictionary client's object registry nor the shared
     cache.
 
-   @note A precondition is that the object has not been acquired from the
-         shared cache. For storing an object which is already in the cache,
-         please use update().
+    @note A precondition is that the object has not been acquired from the
+          shared cache. For storing an object which is already in the cache,
+          please use update().
 
     @tparam T       Dictionary object type.
     @param  object  Object to be stored.
@@ -863,38 +782,35 @@ public:
 
 
   /**
-    Replace a dictionary object by another and store the new one.
+    Update a persisted dictionary object, but keep the shared cache unchanged.
 
-    This function will replace one dictionary object by another. The new object
-    is also stored to the DD tables. The old object is deleted and may not be
-    accessed after calling this function. The element wrapper is still present
-    in the local object registry (and the shared cache), now with the new object
-    being wrapped, and must be released eventually as usual.
+    This function will store a dictionary object to the DD tables after
+    verifying that an object with the same id already exists. The old object,
+    which is present in the shared dictionary cache, is not modified. To make
+    the changes visible in the shared cache, please call
+    remove_uncommuitted_objects().
 
-    @note The new_object will be cloned, and the clone will be owned by the
-          shared cache. The new_object pointer submitted to this function must
-          be deleted explicitly by the caller.
+    @note A precondition is that the object has been acquired from the
+          shared cache indirectly by acquire_for_modification(). For storing
+          an object which is not in the cache, please use store().
 
-    @note The old_object pointer will be reset to point to the new_object clone
-          being owned by the cache.
+    @note The new_object pointer submitted to this function, is owned by the
+          caller, who must delete the object explicitly.
+
+    @todo Remove the old_object pointer, and get the old object from the
+          registry of committed objects in the implementation of the function.
 
     @tparam          T          Dictionary object type.
-    @param  [in,out] old_object Old object, present in the cache, to be
-                                replaced. Will be set to point to the new
-                                cached object (upon success) or stay pointing
-                                to the old object (upon failure).
-    @param           new_object New object, not present in the cache, to replace
-                                the old one.
-    @param           persist    Store update persistently, default is true.
-                                Only the bootstrap thread is allowed to
-                                override this.
+    @param           old_object Old object, present in the cache.
+    @param           new_object New object, not present in the cache, to be
+                                stored persistently.
 
     @retval          false      The operation was successful.
     @retval          true       There was an error.
   */
 
   template <typename T>
-  bool update(const T** old_object, T* new_object, bool persist= true);
+  bool update(const T** old_object, T* new_object);
 
 
   /**
@@ -964,49 +880,6 @@ public:
 
 
   /**
-    This function is a wrapper to the function below.
-
-    It calls add_and_reset_id() with value 'false' for the
-    second parameter.
-
-    @tparam T        Dictionary object type.
-    @param  object   Object to be added to the shared cache
-                     and the object registry.
-  */
-
-  template <typename T>
-  void add_and_reset_id(T* object);
-
-
-  /**
-    Add a new dictionary object and assign an id.
-
-    This function will add the object to the dictionary client's object
-    registry and the shared cache. The object is not stored into the persistent
-    dd tables. The newly added object's element is returned to the dictionary
-    client and added to the local registry. The object must be released
-    afterwards,
-
-    The id should reset to 1 if we have cleared DD cache.
-
-    @note This function is only to be used during server start.
-
-    @note The new object will be owned by the shared cache. Thus, the
-          dictionary user may not delete the object. Instead, the
-          object must be released in the same way as other dictionary
-          objects.
-
-    @tparam T        Dictionary object type.
-    @param  reset_id Reset id to 1
-    @param  object   Object to be added to the shared cache
-                     and the object registry.
-  */
-
-  template <typename T>
-  void add_and_reset_id(T* object, bool reset_id);
-
-
-  /**
     Remove table statistics entries from mysql.table_stats and
     mysql.index_stats.
 
@@ -1018,37 +891,6 @@ public:
   */
   bool remove_table_dynamic_statistics(const String_type &schema_name,
                                        const String_type &table_name);
-
-  /**
-    Make a dictionary object sticky or not in the cache.
-
-    The object must be present in the local object registry.
-
-    @tparam T       Dictionary object type.
-    @param  object  Object to have its stickiness altered.
-    @param  sticky  Whether the object should be sticky or not.
-  */
-
-  template <typename T>
-  void set_sticky(const T* object, bool sticky);
-
-
-  /**
-    Return the stickiness of an object.
-
-    The object must be present in the local object registry.
-
-    @note The function reads the stickiness directly from the cache element
-          in the client's object registry without locking or atomic read.
-
-    @tparam T       Dictionary object type.
-    @param  object  Object for which to check stickiness.
-
-    @return  Whether the object is sticky or not.
-  */
-
-  template <typename T>
-  bool is_sticky(const T* object) const;
 
 
   /**

@@ -246,7 +246,7 @@ public:
   */
   void no_rows_in_result() override;
 
-  uint cols() override;
+  uint cols() const override;
   /**
     @note that this returns the i-th element of the SELECT list.
     To check for nullability, look at this->maybe_null and not

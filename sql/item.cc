@@ -3004,7 +3004,7 @@ table_map Item_field::used_tables() const
 
 bool Item_field::used_tables_for_level(uchar *arg)
 {
-  TABLE_LIST *tr= field->table->pos_in_table_list;
+  const TABLE_LIST *tr= field->table->pos_in_table_list;
   // Used by resolver only, so can never reach a "const" table.
   DBUG_ASSERT(!tr->table->const_table);
   Used_tables *const ut= pointer_cast<Used_tables *>(arg);
@@ -3420,19 +3420,18 @@ void Item_string::print(String *str, enum_query_type query_type)
 }
 
 
-double 
-double_from_string_with_check (const CHARSET_INFO *cs,
-                               const char *cptr, char *end)
+double
+double_from_string_with_check(const CHARSET_INFO *cs,
+                              const char *cptr, const char *end)
 {
   int error;
-  char *org_end;
   double tmp;
 
-  org_end= end;
-  tmp= my_strntod(cs, (char*) cptr, end - cptr, &end, &error);
-  if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
+  char* endptr= const_cast<char *>(end);
+  tmp= my_strntod(cs, const_cast<char *>(cptr), end - cptr, &endptr, &error);
+  if (error || (end != endptr && !check_if_only_end_space(cs, endptr, end)))
   {
-    ErrConvString err(cptr, org_end - cptr, cs);
+    ErrConvString err(cptr, end - cptr, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
@@ -3451,21 +3450,21 @@ double Item_string::val_real()
 }
 
 
-longlong 
-longlong_from_string_with_check (const CHARSET_INFO *cs,
-                                 const char *cptr, char *end)
+longlong
+longlong_from_string_with_check(const CHARSET_INFO *cs,
+                                const char *cptr, const char *end)
 {
   int err;
   longlong tmp;
-  char *org_end= end;
+  char *endptr= const_cast<char*>(end);
 
-  tmp= (*(cs->cset->strtoll10))(cs, cptr, &end, &err);
+  tmp= (*(cs->cset->strtoll10))(cs, cptr, &endptr, &err);
   /*
     TODO: Give error if we wanted a signed integer and we got an unsigned
     one
   */
   if ((err > 0 ||
-       (end != org_end && !check_if_only_end_space(cs, end, org_end))))
+       (end != endptr && !check_if_only_end_space(cs, endptr, end))))
   {
     ErrConvString err(cptr, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -4196,7 +4195,7 @@ bool Item_param::basic_const_item() const
 
 
 Item *
-Item_param::clone_item()
+Item_param::clone_item() const
 {
   /* see comments in the header file */
   switch (state) {
@@ -4210,7 +4209,7 @@ Item_param::clone_item()
     return new Item_float(item_name, value.real, decimals, max_length);
   case STRING_VALUE:
   case LONG_DATA_VALUE:
-    return new Item_string(item_name, str_value.c_ptr_quick(), str_value.length(),
+    return new Item_string(item_name, str_value.ptr(), str_value.length(),
                            str_value.charset());
   case TIME_VALUE:
     break;
@@ -6827,7 +6826,7 @@ bool Item_int::eq(const Item *arg, bool binary_cmp) const
 }
 
 
-Item *Item_int_with_ref::clone_item()
+Item *Item_int_with_ref::clone_item() const
 {
   DBUG_ASSERT(ref->const_item());
   /*
@@ -6840,7 +6839,7 @@ Item *Item_int_with_ref::clone_item()
 }
 
 
-Item *Item_time_with_ref::clone_item()
+Item *Item_time_with_ref::clone_item() const
 {
   DBUG_ASSERT(ref->const_item());
   /*
@@ -6852,7 +6851,7 @@ Item *Item_time_with_ref::clone_item()
 }
 
 
-Item *Item_datetime_with_ref::clone_item()
+Item *Item_datetime_with_ref::clone_item() const
 {
   DBUG_ASSERT(ref->const_item());
   /*
@@ -7315,7 +7314,7 @@ public:
   {
     return m_value.coerce_time(ltime, item_name.ptr());
   }
-  Item *clone_item()
+  Item *clone_item() const
   {
     Json_wrapper wr(m_value.clone_dom(current_thd));
     return new Item_json(&wr, item_name, collation);
@@ -10133,7 +10132,7 @@ bool Item_cache_row::cache_value()
 }
 
 
-void Item_cache_row::illegal_method_call(const char *method)
+void Item_cache_row::illegal_method_call(const char *method) const
 {
   DBUG_ENTER("Item_cache_row::illegal_method_call");
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));

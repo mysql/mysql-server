@@ -1004,20 +1004,14 @@ public:
 static void  fill_create_info_for_upgrade(HA_CREATE_INFO *create_info,
                                           const TABLE *table)
 {
+  /*
+    Storage Engine names will be resolved when reading .frm file.
+    We can assume here that SE is present and initialized.
+  */
   create_info->db_type= table->s->db_type();
-  create_info->min_rows= table->s->min_rows;
-  create_info->max_rows= table->s->max_rows;
-  create_info->avg_row_length= table->s->avg_row_length;
-  create_info->default_table_charset= table->s->table_charset;
-  create_info->key_block_size= table->s->key_block_size;
-  create_info->stats_sample_pages= table->s->stats_sample_pages;
-  create_info->stats_auto_recalc= table->s->stats_auto_recalc;
-  create_info->tablespace= table->s->tablespace;
-  create_info->storage_media= table->s->default_storage_media;
-  create_info->connect_string= table->s->connect_string;
-  create_info->comment= table->s->comment;
-  create_info->compress= table->s->compress;
-  create_info->encrypt_type= table->s->encrypt_type;
+
+  create_info->init_create_options_from_share(table->s, 0);
+
   create_info->row_type= table->s->row_type;
 
   // DD framework handles only these options
@@ -1236,6 +1230,9 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
   */
   if (error)
   {
+    sql_print_warning("Resolving dependency for the view '%s.%s' failed. "
+                      "View is no more valid to use", db_name.c_str(),
+                      view_name.c_str());
     update_view_status(thd, db_name.c_str(), view_name.c_str(), false);
     error= false;
   }
@@ -1426,7 +1423,7 @@ static bool migrate_tablespace_to_dd(THD *thd, const char *name,
     return false;
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire<dd::Tablespace>(name, &ts_obj))
+  if (thd->dd_client()->acquire(name, &ts_obj))
     return true;
 
   // Tablespace object found in the DD, return.
@@ -1547,35 +1544,9 @@ static bool fill_partition_info_for_upgrade(THD *thd,
   // If partition information is present in TABLE_SHARE
   if (share->partition_info_str_len && table->file)
   {
-    Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
-    Query_arena backup_arena;
-    Query_arena part_func_arena(&table->mem_root,
-                                Query_arena::STMT_INITIALIZED);
-    thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
-    thd->stmt_arena= &part_func_arena;
-
-    bool tmp;
-    bool work_part_info_used;
-
-    tmp= mysql_unpack_partition(thd, share->partition_info_str,
-                                share->partition_info_str_len,
-                                table, false,
-                                frm_context->default_part_db_type,
-                                &work_part_info_used);
-    if (tmp)
-    {
-      thd->stmt_arena= backup_stmt_arena_ptr;
-      thd->restore_active_arena(&part_func_arena, &backup_arena);
-      return true;
-    }
-
-    table->part_info->is_auto_partitioned= share->auto_partitioned;
-    tmp= fix_partition_func(thd, table, false);
-
-    thd->stmt_arena= backup_stmt_arena_ptr;
-    thd->restore_active_arena(&part_func_arena, &backup_arena);
-
-    if (tmp)
+    // Parse partition expression and create Items.
+    if (unpack_partition_info(thd, table, share,
+        frm_context->default_part_db_type, false))
       return true;
 
     // dd::create_dd_user_table() uses thd->part_info to get partition values.
@@ -1587,7 +1558,7 @@ static bool fill_partition_info_for_upgrade(THD *thd,
       For this scenario, free_items() will be called by destructor of
       Table_upgrade_guard.
     */
-    share->m_part_info->item_free_list= part_func_arena.free_list;
+    share->m_part_info->item_free_list= table->part_info->item_free_list;
   }
   return false;
 }
@@ -1736,7 +1707,118 @@ static bool add_triggers_to_table(THD *thd,
 
 
 /**
+  Open table in SE to get FK information.
+
+  @param[in]  thd          Thread handle.
+  @param[in]  schema_name  Database name
+  @param[in]  table_name   Table name.
+  @param[in]  share        TABLE_SHARE object
+  @param[out] table        TABLE object
+  @param[in]  table_guard  Table_upgrade_guard object
+  @param[in]  mem_root     MEM_ROOT object
+
+  @retval false  ON SUCCESS
+  @retval true   ON FAILURE
+*/
+
+static bool open_table_for_fk_info(THD *thd,
+                                   const String_type &schema_name,
+                                   const String_type &table_name,
+                                   TABLE_SHARE *share,
+                                   TABLE *table,
+                                   Table_upgrade_guard *table_guard,
+                                   MEM_ROOT *mem_root)
+{
+  uint i= 0;
+  KEY *key_info= nullptr;
+  /*
+    Open only tables which support Foreign key to retrieve FK information.
+    This is temporary workaround until we move to reading data directly from
+    InnoDB sys tables.
+  */
+  if (ha_check_storage_engine_flag(share->db_type(),
+                                   HTON_SUPPORTS_FOREIGN_KEYS))
+  {
+    // Fix the index information for opening table
+    key_info= share->key_info;
+    for (i=0 ; i < share->keys ; i++,key_info++)
+    {
+      if (!my_strcasecmp(system_charset_info, key_info->name, primary_key_name))
+        key_info->name= primary_key_name;
+      // The algorithm was HA_KEY_ALG_UNDEF in 5.7.
+      if (key_info->algorithm == HA_KEY_ALG_SE_SPECIFIC)
+      {
+        // FULLTEXT indexes are marked as HA_KEY_ALG_FULLTEXT.
+        if (key_info->flags & HA_SPATIAL)
+          key_info->algorithm= HA_KEY_ALG_RTREE;
+        else
+          key_info->algorithm= table->file->get_default_index_algorithm();
+      }
+      else if (!(key_info->flags & HA_FULLTEXT))
+      {
+        /*
+          If explicit algorithm is not supported by SE, replace it with
+          default one. Don't mark key algorithm as explicitly specified
+          in this case.
+        */
+        if (table->file->is_index_algorithm_supported(key_info->algorithm))
+        {
+          // Mark key algorithm as explicitly specified
+          key_info->is_algorithm_explicit= true;
+        }
+        else
+        {
+          key_info->algorithm= table->file->get_default_index_algorithm();
+        }
+      }
+    }
+
+    /*
+      open_table_from_share() will memset 0 for the table object.
+      Copy mem_root object as TABLE object is allocated with its own mem_root.
+    */
+    memcpy((char *)mem_root, (char*) &table->mem_root, sizeof(*mem_root));
+    table_guard->update_mem_root(mem_root);
+
+    // open_table_from_share needs a valid SELECT_LEX to parse generated columns
+    LEX *lex_saved= thd->lex;
+    LEX lex;
+    thd->lex= &lex;
+    lex_start(thd);
+
+    if (open_table_from_share(thd, share, share->table_name.str,
+                              (uint) (HA_OPEN_KEYFILE |
+                                      HA_OPEN_RNDFILE |
+                                      HA_GET_INDEX |
+                                      HA_TRY_READ_ONLY),
+                                      EXTRA_RECORD | OPEN_NO_DD_TABLE,
+                              thd->open_options, table, FALSE,
+                              NULL))
+    {
+      sql_print_error("Error in opening table %s.%s",
+                      schema_name.c_str(), table_name.c_str());
+      lex_end(&lex);
+      thd->lex= lex_saved;
+      return true;
+    }
+    lex_end(&lex);
+    thd->lex= lex_saved;
+    table_guard->set_is_table_open(true);
+  }
+  return false;
+}
+
+
+/**
   Fix generated columns.
+
+  @param[in]  thd            Thread handle.
+  @param[in]  table          TABLE object.
+  @param[in]  create_fields  List of Create_fields
+
+  @retval false  ON SUCCESS
+  @retval true   ON FAILURE
+
 */
 
 static bool fix_generated_columns_for_upgrade(THD *thd,
@@ -1857,7 +1939,7 @@ static bool migrate_table_to_dd(THD *thd,
   memcpy((char*) &table->mem_root, (char*) &mem_root, sizeof(mem_root));
 
   // Object to handle cleanup.
-  Table_upgrade_guard table_handler(thd, table, &table->mem_root);
+  Table_upgrade_guard table_guard(thd, table, &table->mem_root);
 
   // Dont upgrade tables, we are fixing dependency for views.
   if (!share.is_view && is_fix_view_cols_and_deps)
@@ -1879,7 +1961,7 @@ static bool migrate_table_to_dd(THD *thd,
     return true;
   }
   table->file= file;
-  table_handler.update_handler(file);
+  table_guard.update_handler(file);
 
   if (table->file->set_ha_share_ref(&share.ha_share))
   {
@@ -1920,68 +2002,81 @@ static bool migrate_table_to_dd(THD *thd,
     return true;
   }
 
-  // Fill create_info to be passed to the DD framework.
-  HA_CREATE_INFO create_info;
-  fill_create_info_for_upgrade(&create_info, table);
+  uint i= 0;
+  KEY *key_info= share.key_info;
 
-  // Prepare the field information for DD.
-  List<Create_field> create_fields;
-
-  for (ptr= share.field ; (field= *ptr); ptr++)
+  /*
+    Mark all the keys visible and supported algorithm explicit.
+    Unsupported algorithms will get fixed by prepare_key() call.
+  */
+  key_info= share.key_info;
+  for (i=0 ; i < share.keys ; i++,key_info++)
   {
-    Create_field *def= new Create_field(field, field);
-    create_fields.push_back(def);
+    key_info->is_visible= true;
+    /*
+      Fulltext and Spatical indexes will get fixed by
+      mysql_prepare_create_table()
+    */
+    if (key_info->algorithm != HA_KEY_ALG_SE_SPECIFIC &&
+        !(key_info->flags & HA_FULLTEXT) &&
+        !(key_info->flags & HA_SPATIAL) &&
+        table->file->is_index_algorithm_supported(key_info->algorithm))
+          key_info->is_algorithm_explicit= true;
   }
 
-  int select_field_pos= create_fields.elements;
+  // Fill create_info to be passed to the DD framework.
+  HA_CREATE_INFO create_info;
+  Alter_info alter_info;
+  alter_info.reset();
+  Alter_table_ctx alter_ctx;
+
+  /*
+    Replace thd->mem_root as prepare_fields_and_keys() and
+    mysql_prepare_create_table() allocates memory in thd->mem_root.
+  */
+  MEM_ROOT *mem_root_backup= thd->mem_root;
+  thd->mem_root= &table->mem_root;
+
+  fill_create_info_for_upgrade(&create_info, table);
+
+  if (prepare_fields_and_keys(thd, table, &create_info,
+                              &alter_info, &alter_ctx,
+                              create_info.used_fields, true))
+  {
+    thd->mem_root= mem_root_backup;
+    return true;
+  }
+
+  // Fix keys and indexes.
+  KEY *key_info_buffer;
+  uint key_count;
+  FOREIGN_KEY *dummy_fk_key_info= NULL;
+  uint fk_key_count= 0;
+
+  if (mysql_prepare_create_table(thd, schema_name.c_str(), table_name.c_str(),
+                                 &create_info, &alter_info,
+                                 file, &key_info_buffer, &key_count,
+                                 &dummy_fk_key_info, &fk_key_count,
+                                 alter_ctx.fk_info, alter_ctx.fk_count,
+                                 0))
+  {
+    thd->mem_root= mem_root_backup;
+    return true;
+  }
+
+  // Restore thd mem_root
+  thd->mem_root= mem_root_backup;
+
+  int select_field_pos= alter_info.create_list.elements;
   create_info.null_bits= 0;
   Create_field *sql_field;
-  List_iterator<Create_field> it_create(create_fields);
+  List_iterator<Create_field> it_create(alter_info.create_list);
 
   for (int field_no= 0; (sql_field=it_create++) ; field_no++)
   {
-    if (prepare_create_field(thd, &create_info, &create_fields,
+    if (prepare_create_field(thd, &create_info, &alter_info.create_list,
                              &select_field_pos, table->file, sql_field, field_no))
       return true;
-  }
-
-  // TODO:: Construct Key object and then use prepare_key() to
-  // construct proper KEY consumable by dd::create_dd_user_table().
-
-  // Fix the index information for DD.
-  KEY *key_info= share.key_info;
-  for (uint i=0 ; i < share.keys ; i++,key_info++)
-  {
-    if (!my_strcasecmp(system_charset_info, key_info->name, primary_key_name))
-      key_info->name= primary_key_name;
-    // The algorithm was HA_KEY_ALG_UNDEF in 5.7.
-    if (key_info->algorithm == HA_KEY_ALG_SE_SPECIFIC)
-    {
-      // FULLTEXT indexes are marked as HA_KEY_ALG_FULLTEXT.
-      if (key_info->flags & HA_SPATIAL)
-        key_info->algorithm= HA_KEY_ALG_RTREE;
-      else
-        key_info->algorithm= table->file->get_default_index_algorithm();
-    }
-    else if (!(key_info->flags & HA_FULLTEXT))
-    {
-      /*
-        If explicit algorithm is not supported by SE, replace it with
-        default one. Don't mark key algorithm as explicitly specified
-        in this case.
-      */
-      if (table->file->is_index_algorithm_supported(key_info->algorithm))
-      {
-        // Mark key algorithm as explicitly specified
-        key_info->is_algorithm_explicit= true;
-      }
-      else
-      {
-        key_info->algorithm= table->file->get_default_index_algorithm();
-      }
-    }
-    // Mark the index visible
-    key_info->is_visible= true;
   }
 
   if (fill_partition_info_for_upgrade(thd, &share, &frm_context, table))
@@ -2042,72 +2137,18 @@ static bool migrate_table_to_dd(THD *thd,
     }
   }
 
-  /*
-    Open only tables which support Foreign key to retrieve FK information.
-    This is temporary workaround until we move to reading data directly from
-    InnoDB sys tables.
-  */
-  if (ha_check_storage_engine_flag(share.db_type(),
-                                   HTON_SUPPORTS_FOREIGN_KEYS))
-  {
-    /*
-      open_table_from_share() will memset 0 for the table object.
-      Copy mem_root object as TABLE object is allocated with its own mem_root.
-    */
-    memcpy((char *)&mem_root, (char*) &table->mem_root, sizeof(mem_root));
-    table_handler.update_mem_root(&mem_root);
-
-    // open_table_from_share needs a valid SELECT_LEX to parse generated columns
-    LEX *lex_saved= thd->lex;
-    LEX lex;
-    thd->lex= &lex;
-    lex_start(thd);
-
-    if (open_table_from_share(thd, &share, share.table_name.str,
-                              (uint) (HA_OPEN_KEYFILE |
-                                      HA_OPEN_RNDFILE |
-                                      HA_GET_INDEX |
-                                      HA_TRY_READ_ONLY),
-                                      EXTRA_RECORD | OPEN_NO_DD_TABLE,
-                              thd->open_options, table, false,
-                              nullptr))
-    {
-      sql_print_error("Error in opening table %s.%s",
-                      schema_name.c_str(), table_name.c_str());
-      lex_end(&lex);
-      thd->lex= lex_saved;
-      return true;
-    }
-    lex_end(&lex);
-    thd->lex= lex_saved;
-    table_handler.set_is_table_open(true);
-  }
-
-  /*
-    fieldnr can't be set before open_table_from_share()
-    as the function expects the value same as in TABLE_SHARE.
-    fieldnr value descibes association of keys and fields.
-    dd::create_dd_user_table expects the value as prepared
-    during CREATE TABLE statement.
-  */
-  key_info= share.key_info;
-  for (uint i=0 ; i < share.keys ; i++,key_info++)
-  {
-    KEY_PART_INFO *key_part= key_info->key_part;
-    for (uint j=0 ; j < key_info->user_defined_key_parts ; j++,key_part++)
-    {
-      key_part->fieldnr= key_part->fieldnr - 1;
-    }
-  }
+  // Open table to get Foreign key information
+  if (open_table_for_fk_info(thd, schema_name, table_name,
+                             &share, table, &table_guard,
+                             &mem_root))
+    return true;
 
   /*
     Generated columns are fixed here as open_table_from_share()
     asserts that Field objects in TABLE_SHARE doesn't have
     expressions assigned.
-
-    TODO:: This is a workaround which needs to be addressed by follow-up WL.
   */
-  if (fix_generated_columns_for_upgrade(thd, table, create_fields))
+  if (fix_generated_columns_for_upgrade(thd, table, alter_info.create_list))
   {
     sql_print_error("Error in processing generated columns");
     return true;
@@ -2150,17 +2191,17 @@ static bool migrate_table_to_dd(THD *thd,
   Disable_autocommit_guard autocommit_guard(thd);
 
   if (!dd::create_dd_user_table(thd,
-                                schema_name,
-                                table_name,
-                                &create_info,
-                                create_fields,
-                                share.key_info,
-                                share.keys,
-                                Alter_info::ENABLE,
-                                fk_key_info_buffer,
-                                fk_number,
-                                table->file,
-                                true))
+                               schema_name,
+                               table_name,
+                               &create_info,
+                               alter_info.create_list,
+                               key_info_buffer,
+                               key_count,
+                               Alter_info::ENABLE,
+                               fk_key_info_buffer,
+                               fk_number,
+                               table->file,
+                               true))
   {
     sql_print_error("Error in Creating DD entry for %s.%s",
                     schema_name.c_str(), table_name.c_str());
@@ -3167,7 +3208,33 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table)
                       thd->variables.sql_mode, params, returns, body, &chistics,
                       definer_user_name_holder, definer_host_name_holder,
                       created, modified, creation_ctx))
-     goto err;
+  {
+    /*
+      Parsing of routine body failed, report a warning and use empty
+      routine body.
+    */
+    sql_print_warning("Parsing '%s.%s' routine body failed. "
+                      "Creating routine without parsing routine body",
+                      sp_db_str.str, sp_name_str.str);
+
+    LEX_CSTRING sr_body;
+    if (routine_type == enum_sp_type::FUNCTION)
+      sr_body= { STRING_WITH_LEN("RETURN NULL") };
+    else
+      sr_body= { STRING_WITH_LEN("BEGIN END") };
+
+    if (db_load_routine(thd, routine_type, sp_db_str.str, sp_db_str.length,
+                        sp_name_str.str, sp_name_str.length, &sp,
+                        thd->variables.sql_mode, params, returns, sr_body.str,
+                        &chistics, definer_user_name_holder,
+                        definer_host_name_holder, created,
+                        modified, creation_ctx))
+      goto err;
+
+    // Set actual routine body.
+    sp->m_body.str= const_cast<char*>(body);
+    sp->m_body.length= strlen(body);
+  }
 
   // Create entry for SP/SF in DD table.
   if (sp_create_routine(thd, sp, &user_info))
@@ -3578,12 +3645,13 @@ bool check_for_dd_tables()
     const System_tables::Types *table_type= System_tables::instance()->
       find_type(schema_name, table_name);
 
-    bool is_stats_table= (table_type != nullptr) &&
-                         (*table_type != System_tables::Types::CORE);
-    is_stats_table &= (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
-                      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
+    bool is_innodb_stats_table= (table_type != nullptr) &&
+                                (*table_type == System_tables::Types::SUPPORT);
+    is_innodb_stats_table &=
+      (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
+      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
 
-    if (is_stats_table)
+    if (is_innodb_stats_table)
       continue;
 
     char path[FN_REFLEN+1];
@@ -3626,12 +3694,13 @@ void drop_dd_tables_and_sdi_files(THD *thd,
     const System_tables::Types *table_type= System_tables::instance()->
       find_type(schema_name, table_name);
 
-    bool is_stats_table= (table_type != nullptr) &&
-                         (*table_type != System_tables::Types::CORE);
-    is_stats_table &= (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
-                      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
+    bool is_innodb_stats_table= (table_type != nullptr) &&
+                                (*table_type == System_tables::Types::SUPPORT);
+    is_innodb_stats_table &=
+      (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
+      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
 
-    if (is_stats_table)
+    if (is_innodb_stats_table)
       continue;
 
     String_type query;

@@ -67,13 +67,12 @@ void Shared_dictionary_cache::shutdown()
 
 
 // Don't call this function anywhere except upgrade scenario.
-void Shared_dictionary_cache::reset_schema_cache()
+void Shared_dictionary_cache::reset(bool keep_dd_entities)
 {
-
-  instance()->m_map<Abstract_table>()->shutdown();
-  instance()->m_map<Schema>()->shutdown();
-  instance()->m_map<Abstract_table>()->set_capacity(max_connections);
-  instance()->m_map<Schema>()->set_capacity(schema_def_size);
+  shutdown();
+  if (!keep_dd_entities)
+    Storage_adapter::instance()->erase_all();
+  init();
 }
 
 

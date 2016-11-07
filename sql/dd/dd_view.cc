@@ -511,7 +511,7 @@ bool create_view(THD *thd,
   // Check if the schema exists.
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
   const dd::Schema *sch_obj= nullptr;
-  if (client->acquire<dd::Schema>(schema_name, &sch_obj))
+  if (client->acquire(schema_name, &sch_obj))
   {
     // Error is reported by the dictionary subsystem.
     return true;
@@ -694,9 +694,9 @@ bool update_view_status(THD *thd, const char *schema_name,
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
   const dd::View *old_view= nullptr;
   dd::View *new_view= nullptr;
-  if (client->acquire<dd::View>(schema_name, view_name, &old_view) ||
-      client->acquire_for_modification<dd::View>(schema_name, view_name,
-                                                 &new_view))
+  if (client->acquire(schema_name, view_name, &old_view) ||
+      client->acquire_for_modification(schema_name, view_name,
+                                       &new_view))
     return true;
   if (old_view == nullptr)
     return false;

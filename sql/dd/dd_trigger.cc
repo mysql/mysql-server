@@ -210,12 +210,12 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
     });
 
   if (schema_mdl_locker.ensure_locked(new_trigger->get_db_name().str) ||
-      dd_client->acquire<Table>(new_trigger->get_db_name().str,
-                                new_trigger->get_subject_table_name().str,
-                                &old_table) ||
-      dd_client->acquire_for_modification<Table>(new_trigger->get_db_name().str,
-                                                 new_trigger->get_subject_table_name().str,
-                                                 &new_table))
+      dd_client->acquire(new_trigger->get_db_name().str,
+                         new_trigger->get_subject_table_name().str,
+                         &old_table) ||
+      dd_client->acquire_for_modification(new_trigger->get_db_name().str,
+                                          new_trigger->get_subject_table_name().str,
+                                          &new_table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -350,7 +350,7 @@ bool load_triggers(THD *thd,
 
   const Table *table= nullptr;
   if (schema_mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Table>(schema_name, table_name, &table))
+      dd_client->acquire(schema_name, table_name, &table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -481,7 +481,7 @@ bool load_trigger_names(THD *thd,
 
   const Table *table= nullptr;
   if (schema_mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Table>(schema_name, table_name, &table))
+      dd_client->acquire(schema_name, table_name, &table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -530,41 +530,13 @@ bool table_has_triggers(THD *thd, const char *schema_name,
   const Table *table= nullptr;
 
   if (schema_mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Table>(schema_name, table_name, &table))
+      dd_client->acquire(schema_name, table_name, &table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
   }
 
   *table_has_trigger= (table != nullptr && table->has_trigger());
-
-  DBUG_RETURN(false);
-}
-
-
-bool table_has_triggers_uncommitted(THD *thd, const char *schema_name,
-                                    const char *table_name,
-                                    bool *table_has_trigger)
-{
-  DBUG_ENTER("table_has_triggers");
-
-  if (get_dictionary()->is_dd_table_name(schema_name, table_name))
-  {
-    *table_has_trigger= false;
-    DBUG_RETURN(false);
-  }
-
-  const Table *table= nullptr;
-  if (thd->dd_client()->acquire_uncached_uncommitted<dd::Table>(schema_name,
-                          table_name, &table))
-  {
-    // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
-  }
-
-  *table_has_trigger= (table != nullptr && table->has_trigger());
-
-  delete table;
 
   DBUG_RETURN(false);
 }
@@ -582,7 +554,7 @@ bool check_trigger_exists(THD *thd,
 
   const Schema *sch_obj= nullptr;
   if (mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Schema>(schema_name, &sch_obj))
+      dd_client->acquire(schema_name, &sch_obj))
     return true;
 
   if (sch_obj == nullptr)
@@ -620,9 +592,8 @@ bool drop_trigger(THD *thd,
   Table *new_table= nullptr;
 
   if (schema_mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Table>(schema_name, table_name, &old_table) ||
-      dd_client->acquire_for_modification<Table>(schema_name, table_name,
-                                                 &new_table))
+      dd_client->acquire(schema_name, table_name, &old_table) ||
+      dd_client->acquire_for_modification(schema_name, table_name, &new_table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -679,9 +650,8 @@ bool drop_all_triggers(THD *thd,
   Table *new_table= nullptr;
 
   if (schema_mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Table>(schema_name, table_name, &old_table) ||
-      dd_client->acquire_for_modification<Table>(schema_name, table_name,
-                                                 &new_table))
+      dd_client->acquire(schema_name, table_name, &old_table) ||
+      dd_client->acquire_for_modification(schema_name, table_name, &new_table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -748,7 +718,7 @@ bool get_table_name_for_trigger(THD *thd,
 
   const Schema *sch_obj= nullptr;
   if (mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Schema>(schema_name, &sch_obj))
+      dd_client->acquire(schema_name, &sch_obj))
     return true;
 
   if (sch_obj == nullptr)

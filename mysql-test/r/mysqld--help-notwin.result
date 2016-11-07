@@ -1384,7 +1384,7 @@ max-error-count 64
 max-execution-time 0
 max-heap-table-size 16777216
 max-join-size 18446744073709551615
-max-length-for-sort-data 1024
+max-length-for-sort-data 4096
 max-points-in-geometry 65536
 max-prepared-stmt-count 16382
 max-relay-log-size 0

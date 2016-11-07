@@ -1728,7 +1728,7 @@ Json_dom *Json_wrapper::to_dom(const THD *thd)
 }
 
 
-Json_dom *Json_wrapper::clone_dom(const THD *thd)
+Json_dom *Json_wrapper::clone_dom(const THD *thd) const
 {
   // If we already have a DOM, return a clone of it.
   if (m_is_dom)

@@ -273,7 +273,7 @@ private:
 
 
   /**
-    Helper function to evict all unused and sticky elements from the free list
+    Helper function to evict all unused elements from the free list
     and the cache. Used during e.g. shutdown.
 
     @param  lock      Autolocker to use for signing up for auto delete.
@@ -450,16 +450,6 @@ public:
   */
 
   void replace(Cache_element<T> *element, const T* object);
-
-
-  /**
-    Alter stickiness of an element.
-
-    @param   element   Element pointer.
-    @param   sticky    New stickiness.
-  */
-
-  void set_sticky(Cache_element<T> *element, bool sticky);
 
 
   /**

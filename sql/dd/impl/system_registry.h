@@ -30,6 +30,8 @@
 #include "my_global.h"
 #include "mysqld_error.h"                      // ER_NO_SYSTEM_TABLE_...
 
+class Plugin_tablespace;
+
 namespace dd {
 
 class Object_table;
@@ -117,7 +119,7 @@ public:
   @tparam   P   Property type.
   @tparam   F   Function to map from property to name.
   @tparam   D   Boolean flag to decide whether the wrapped objects
-                are owned externally.
+                are owned by the registry.
 */
 
 template <typename K, typename T, typename P, const char *F(P), bool D>
@@ -363,11 +365,24 @@ public:
 class System_tables
 {
 public:
-  // Classification of system tables.
+  /*
+    Classification of tables based on WL#6391.
+
+    - An INERT table can never change.
+    - The dd::Table objects representing the CORE tables must be present
+      to handle a cache miss for an arbitrary table.
+    - The dd::Table objects representing the SECOND order tables can be
+      fetched from the dd tables as long as the core table objects are
+      present.
+    - The SUPPORT tables are not needed by the data dictionary, but the
+      server manages these based on requests from e.g. storage engines.
+  */
   enum class Types
   {
+    INERT,
     CORE,
-    DDSE
+    SECOND,
+    SUPPORT
   };
 
   // Map from system table type to string description, e.g. for debugging.
@@ -375,21 +390,25 @@ public:
   {
     switch (type)
     {
-      case Types::CORE: return "CORE";
-      case Types::DDSE: return "DDSE";
-      default:          return "";
+      case Types::INERT:   return "INERT";
+      case Types::CORE:    return "CORE";
+      case Types::SECOND:  return "SECOND";
+      case Types::SUPPORT: return "SUPPORT";
+      default:             return "";
     }
   }
 
   // Map from system table type to error code for localized error messages.
   static int type_name_error_code(Types type)
   {
-    switch (type)
-    {
-      case Types::CORE: return ER_NO_SYSTEM_TABLE_ACCESS_FOR_DICTIONARY_TABLE;
-      case Types::DDSE: return ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE;
-      default:          return ER_NO_SYSTEM_TABLE_ACCESS_FOR_TABLE;
-    }
+    if (type == Types::INERT || type == Types::CORE || type == Types::SECOND)
+      return ER_NO_SYSTEM_TABLE_ACCESS_FOR_DICTIONARY_TABLE;
+
+    if (type == Types::SUPPORT)
+      return ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE;
+
+    DBUG_ASSERT(false);
+    return ER_NO_SYSTEM_TABLE_ACCESS_FOR_TABLE;
   }
 
 private:
@@ -534,22 +553,15 @@ public:
   tablespaces, i.e., the tablespaces that are predefined in the DDSE, or
   needed by the SQL layer.
 
-  @note The registry currently only stores the tablespace names and their
-        (dummy) classification.
-
   The singleton contains an instance of the Entity_registry class, and
   has methods that mostly delegate to this instance.
- */
+*/
 
 class System_tablespaces
 {
 public:
-  // Dummy class acting as meta data placeholder.
-  class System_tablespace
-  { };
-
   // Classification of system tablespaces.
-  enum Types
+  enum class Types
   {
     DD,                 // For storing the DD tables.
     PREDEFINED_DDSE     // Needed by the DDSE.
@@ -570,8 +582,8 @@ private:
   // The actual registry is referred and delegated to rather than
   // being inherited from.
   typedef Entity_registry<std::pair<const String_type, const String_type>,
-          System_tablespace, Types,
-          type_name, true> System_tablespace_registry_type;
+          const Plugin_tablespace, Types,
+          type_name, false> System_tablespace_registry_type;
   System_tablespace_registry_type m_registry;
 
 public:
@@ -581,14 +593,12 @@ public:
   static System_tablespaces *instance();
 
   // Add a new system tablespace by delegation to the wrapped registry.
-  void add(const String_type &tablespace_name, Types type)
-  {
-    m_registry.add("", tablespace_name, type,
-                   new (std::nothrow) System_tablespace());
-  }
+  void add(const String_type &tablespace_name, Types type,
+           const Plugin_tablespace *space)
+  { m_registry.add("", tablespace_name, type, space); }
 
   // Find a system tablespace by delegation to the wrapped registry.
-  const System_tablespace *find(const String_type &tablespace_name) const
+  const Plugin_tablespace *find(const String_type &tablespace_name) const
   { return m_registry.find_entity("", tablespace_name); }
 
   Const_iterator begin() const

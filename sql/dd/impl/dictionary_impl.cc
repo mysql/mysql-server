@@ -243,7 +243,7 @@ bool Dictionary_impl::is_dd_table_access_allowed(
 
   // Access allowed for external DD tables and for DML on DDSE tables.
   return (table_type == nullptr ||
-          (*table_type == System_tables::Types::DDSE && !is_ddl_statement));
+          (*table_type == System_tables::Types::SUPPORT && !is_ddl_statement));
 }
 
 ///////////////////////////////////////////////////////////////////////////

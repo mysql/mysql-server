@@ -34,6 +34,7 @@ namespace keyring
     my_off_t seek(File file, my_off_t pos, int whence, myf flags);
     my_off_t tell(File file, myf flags);
     int fstat(File file, MY_STAT *stat_area, myf myFlags);
+    int sync(File file, myf myFlags);
     my_bool truncate(File file, myf myFlags);
     my_bool remove(const char *filename, myf myFlags);
   protected:

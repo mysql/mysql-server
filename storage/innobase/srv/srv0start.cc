@@ -759,24 +759,33 @@ srv_undo_tablespaces_init(
 			prev_space_id = srv_undo_space_id_start - 1;
 		}
 
-		/* Check if any of the UNDO tablespace needs fix-up because
-		server crashed while truncate was active on UNDO tablespace.*/
 		for (i = 0; i < n_undo_tablespaces; ++i) {
+			space_id_t	space_id = undo_tablespace_ids[i];
 
+			/* This file may have been discovered and opened
+			when processing the redo log.  Flush and close
+			that handle if it exists. Also, free up the memory
+			object because it was not created as an undo
+			tablespace. It will be reopened below. */
+			fil_space_t* space
+				= fil_space_acquire_silent(space_id);
+			if (space != nullptr) {
+				fil_space_release(space);
+				fil_flush(space_id);
+				fil_space_close(space_id);
+				fil_space_free(space_id, false);
+			}
+			/* Fix up any UNDO tablespace that was in the
+			process of being truncated when the server crashed.
+			The truncation will need to be completed. */
 			undo::Truncate	undo_trunc;
-
-			fil_flush(undo_tablespace_ids[i]);
-
-			fil_space_close(undo_tablespace_ids[i]);
-
-			if (undo_trunc.needs_fix_up(undo_tablespace_ids[i])) {
+			if (undo_trunc.needs_fix_up(space_id)) {
 
 				char	name[OS_FILE_MAX_PATH];
 
-				snprintf(name, sizeof(name),
-					    "%s%cundo%03u",
-					    srv_undo_dir, OS_PATH_SEPARATOR,
-					    undo_tablespace_ids[i]);
+				snprintf(name, sizeof(name), "%s%cundo%03u",
+					 srv_undo_dir, OS_PATH_SEPARATOR,
+					 space_id);
 
 				os_file_delete(innodb_data_file_key, name);
 
@@ -792,7 +801,7 @@ srv_undo_tablespaces_init(
 				}
 
 				undo::Truncate::s_fix_up_spaces.push_back(
-					undo_tablespace_ids[i]);
+					space_id);
 			}
 		}
 	} else {
@@ -837,6 +846,10 @@ srv_undo_tablespaces_init(
 		prev_space_id = undo_tablespace_ids[i];
 
 		++*n_opened;
+
+		/* Now that space and node exist, open this undo
+		tablespace file so that it stays open until shutdown. */
+		ut_a(fil_space_open(undo_tablespace_ids[i]));
 	}
 
 	/* Open any extra unused undo tablespaces. These must be contiguous.
@@ -870,6 +883,10 @@ srv_undo_tablespaces_init(
 		++n_undo_tablespaces;
 
 		++*n_opened;
+
+		/* Now that space and node exist, open this undo
+		tablespace file so that it stays open until shutdown. */
+		ut_a(fil_space_open(id));
 	}
 
 	/** Explictly specify the srv_undo_space_id_start

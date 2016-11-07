@@ -3779,7 +3779,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
 
   {
     const dd::Schema *sch_obj= NULL;
-    if (thd->dd_client()->acquire<dd::Schema>(db_name->str, &sch_obj))
+    if (thd->dd_client()->acquire(db_name->str, &sch_obj))
       return 1;
 
     if (!sch_obj)
@@ -8473,7 +8473,7 @@ TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 
   const dd::Schema *sch_obj= nullptr;
   if (mdl_locker.ensure_locked(trg_name->m_db.str) ||
-      dd_client->acquire<dd::Schema>(trg_name->m_db.str, &sch_obj))
+      dd_client->acquire(trg_name->m_db.str, &sch_obj))
     return nullptr;
 
   if (sch_obj == nullptr)

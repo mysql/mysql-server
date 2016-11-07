@@ -871,7 +871,7 @@ call p_verify_status_increment(5, 0, 2, 0);
 alter table t3 rename t4;
 call p_verify_status_increment(5, 0, 3, 0);
 rename table t4 to t3;
-call p_verify_status_increment(8, 0, 5, 0);
+call p_verify_status_increment(7, 0, 5, 0);
 truncate table t3;
 call p_verify_status_increment(2, 0, 4, 0);
 create view v1 as select * from t2;

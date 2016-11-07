@@ -316,8 +316,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
   // Fail if the target table already exists
   const dd::Abstract_table *new_table= nullptr;
-  if (thd->dd_client()->acquire<dd::Abstract_table>(new_db,
-                          new_alias, &new_table))
+  if (thd->dd_client()->acquire(new_db, new_alias, &new_table))
     DBUG_RETURN(true);                         // This error cannot be skipped
   if (new_table)
   {
@@ -327,8 +326,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
   // Get the table type of the old table, and fail if it does not exist
   const dd::Abstract_table *old_table_def=nullptr;
-  if (thd->dd_client()->acquire<dd::Abstract_table>(ren_table->db, old_alias,
-                                                    &old_table_def))
+  if (thd->dd_client()->acquire(ren_table->db, old_alias, &old_table_def))
     DBUG_RETURN(!skip_error);
 
   if (!old_table_def)

@@ -2221,10 +2221,6 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
 
   if (!table_def)
   {
-    // No special handling needed for system tables like timezones, help etc.
-    // because their meta data objects are sticky in the cache. Previously,
-    // these objects had to be retrieved from a separate registry.
-
     // Make sure the schema exists.
     bool exists= false;
     if (dd::schema_exists(thd, share->db.str, &exists))
@@ -2259,9 +2255,9 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
       */
       share->is_view= true;
       const dd::View *tmp_view= nullptr;
-      if (thd->dd_client()->acquire<dd::View>(share->db.str,
-                                              share->table_name.str,
-                                              &tmp_view))
+      if (thd->dd_client()->acquire(share->db.str,
+                                    share->table_name.str,
+                                    &tmp_view))
       {
         DBUG_ASSERT(thd->is_error() || thd->killed);
         DBUG_RETURN(true);
@@ -2280,9 +2276,9 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
     }
     else // BASE_TABLE
     {
-      (void) thd->dd_client()->acquire<dd::Table>(share->db.str,
-                                                  share->table_name.str,
-                                                  &table_def);
+      (void) thd->dd_client()->acquire(share->db.str,
+                                       share->table_name.str,
+                                       &table_def);
     }
   }
 

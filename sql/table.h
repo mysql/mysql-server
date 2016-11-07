@@ -3062,6 +3062,27 @@ bool unpack_gcol_info(THD *thd,
                       bool *error_reported);
 
 
+/**
+   Unpack the partition expression. Parse the partition expression
+   to produce an Item.
+
+  @param[in] thd                Thread handler
+  @param[in] outparam           Table object
+  @param[in] share              TABLE_SHARE object
+  @param[in] engine_type        Engine type of the partitions.
+  @param[in] is_create_table    Indicates that table is opened as part of
+                                CREATE or ALTER and does not yet exist in SE
+
+  @retval TRUE Failure.
+  @retval FALSE Success.
+*/
+
+bool unpack_partition_info(THD *thd,
+                           TABLE *outparam,
+                           TABLE_SHARE *share,
+                           handlerton *engine_type,
+                           bool is_create_table);
+
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table,

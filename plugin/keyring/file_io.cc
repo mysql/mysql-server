@@ -121,6 +121,20 @@ my_off_t File_io::tell(File file, myf myFlags)
   return position;
 }
 
+int File_io::sync(File file, myf myFlags)
+{
+  int result= my_sync(file, MYF(0));
+
+  if(result && (myFlags & MY_WME))
+  {
+    char error_buffer[MYSYS_STRERROR_SIZE];
+    my_warning(EE_SYNC, my_filename(file),
+               my_errno(), my_strerror(error_buffer, sizeof(error_buffer),
+               my_errno()));
+  }
+  return result;
+}
+
 int File_io::fstat(File file, MY_STAT *stat_area, myf myFlags)
 {
   int result= my_fstat(file, stat_area);
@@ -169,14 +183,17 @@ my_bool File_io::truncate(File file, myf myFlags)
   {
     my_osmaperr(GetLastError());
     set_my_errno(errno);
-    char error_buffer[MYSYS_STRERROR_SIZE];
-    my_warning(EE_CANT_SEEK, my_filename(file), my_errno(),
-               my_strerror(error_buffer, sizeof(error_buffer), my_errno()));
-    return TRUE;
-  }
+//    char error_buffer[MYSYS_STRERROR_SIZE];
+//    my_warning(EE_CANT_SEEK, my_filename(file), my_errno(),
+//               my_strerror(error_buffer, sizeof(error_buffer), my_errno()));
+//    return TRUE;
+//  }
 #elif defined(HAVE_FTRUNCATE)
   if (ftruncate(file, (off_t) 0) && (myFlags & MY_WME))
   {
+#else
+  DBUG_ASSERT(0);
+#endif
     std::stringstream error_message;
     error_message << "Could not truncate file " << my_filename(file)
                   << ". OS retuned this error: " << strerror(errno);
@@ -186,9 +203,9 @@ my_bool File_io::truncate(File file, myf myFlags)
                    error_message.str().c_str());
     return TRUE;
   }
-#else
-  DBUG_ASSERT(0);
-#endif
+//#else
+//  DBUG_ASSERT(0);
+//#endif
   return FALSE;
 }
 
