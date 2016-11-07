@@ -24,6 +24,7 @@ class Certification_handler : public Event_handler
 {
 public:
   Certification_handler();
+  virtual ~Certification_handler();
   int handle_event(Pipeline_event *ev,Continuation *cont);
   int handle_action(Pipeline_action *action);
   int initialize();
