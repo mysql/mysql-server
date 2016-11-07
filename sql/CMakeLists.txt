@@ -162,6 +162,18 @@ SET(DD_SOURCES
   dd/info_schema/stats.cc
 )
 
+SET(SQL_GIS_SOURCES
+  geometry_rtree.cc
+  gis/srs/srs.cc
+  gis/srs/wkt_parser.cc
+  item_geofunc.cc
+  item_geofunc_buffer.cc
+  item_geofunc_internal.cc
+  item_geofunc_relchecks.cc
+  item_geofunc_relchecks_bgwrap.cc
+  item_geofunc_setops.cc
+)
+
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
   auth/auth_common.cc
@@ -195,9 +207,6 @@ SET(SQL_SHARED_SOURCES
   filesort.cc
   filesort_utils.cc
   aggregate_check.cc
-  geometry_rtree.cc
-  gis/srs/srs.cc
-  gis/srs/wkt_parser.cc
   gstream.cc
   handler.cc
   histograms/equi_height.cc
@@ -211,12 +220,6 @@ SET(SQL_SHARED_SOURCES
   item_cmpfunc.cc 
   item_create.cc
   item_func.cc
-  item_geofunc.cc
-  item_geofunc_buffer.cc
-  item_geofunc_internal.cc
-  item_geofunc_relchecks.cc
-  item_geofunc_relchecks_bgwrap.cc
-  item_geofunc_setops.cc
   item_json_func.cc
   item_row.cc 
   item_strfunc.cc
@@ -379,7 +382,7 @@ SET(SQL_SHARED_SOURCES
   ${DD_SOURCES}
 )
 
-SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
+SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} ${SQL_GIS_SOURCES} PARENT_SCOPE)
 
 SET(SQL_SOURCE
   ${GEN_SOURCES}
@@ -446,15 +449,7 @@ SET(SQL_BOOST_SOURCES
   auth/role_tables.cc
   sql_reload.cc
   handler.cc
-  geometry_rtree.cc
-  gis/srs/srs.cc
-  gis/srs/wkt_parser.cc
-  item_geofunc.cc
-  item_geofunc_buffer.cc
-  item_geofunc_internal.cc
-  item_geofunc_relchecks.cc
-  item_geofunc_relchecks_bgwrap.cc
-  item_geofunc_setops.cc
+  ${SQL_GIS_SOURCES}
   item_json_func.cc
   spatial.cc
 )
@@ -576,15 +571,23 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
-ADD_CONVENIENCE_LIBRARY(sql ${SQL_SOURCE})
-ADD_DEPENDENCIES(sql GenServerSource)
-ADD_DEPENDENCIES(sql GenDigestServerSource)
-ADD_DEPENDENCIES(sql GenBootstrapPriv)
-ADD_DEPENDENCIES(sql GenSysSchema)
-DTRACE_INSTRUMENT(sql)
-TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
+ADD_CONVENIENCE_LIBRARY(sql_main ${SQL_SOURCE})
+ADD_DEPENDENCIES(sql_main GenServerSource)
+ADD_DEPENDENCIES(sql_main GenDigestServerSource)
+ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
+ADD_DEPENDENCIES(sql_main GenSysSchema)
+DTRACE_INSTRUMENT(sql_main)
+
+TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
   ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio regex
   binlogevents_static  ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
+
+ADD_CONVENIENCE_LIBRARY(sql_gis ${SQL_GIS_SOURCES})
+ADD_DEPENDENCIES(sql_gis GenServerSource)
+ADD_DEPENDENCIES(sql_gis GenDigestServerSource)
+ADD_DEPENDENCIES(sql_gis GenBootstrapPriv)
+ADD_DEPENDENCIES(sql_gis GenSysSchema)
+ADD_DEPENDENCIES(sql_gis GenError)
 
 #
 # On Windows platform we compile in the clinet-side Windows Native Authentication
@@ -592,7 +595,7 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
 #
 IF(WIN32)
   ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
-  TARGET_LINK_LIBRARIES(sql auth_win_client)
+  TARGET_LINK_LIBRARIES(sql_main auth_win_client)
 ENDIF()
 
 SET (BINLOG_SOURCE rpl_gtid_misc.cc
@@ -657,7 +660,7 @@ IF(NOT DISABLE_SHARED)
     # Set module definition file.
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def")
 
-    FOREACH (CORELIB sql binlog slave mysys mysys_ssl dbug regex strings
+    FOREACH (CORELIB sql_main binlog slave mysys mysys_ssl dbug regex strings
         vio binlogevents_static)
       GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
       IF (NOT LOC)
@@ -673,14 +676,14 @@ IF(NOT DISABLE_SHARED)
       COMMAND echo ${_PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
                   ${_PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-    ADD_DEPENDENCIES(sql GenError)
+    ADD_DEPENDENCIES(sql_main GenError)
   ENDIF()
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
-TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql mysys mysys_ssl binlogevents_static)
-
-DTRACE_INSTRUMENT(mysqld) 
+TARGET_LINK_LIBRARIES(mysqld
+  sql_main sql_gis binlog rpl master slave sql_main sql_gis mysys mysys_ssl
+  binlogevents_static)
 
 SET(WITH_MYSQLD_LDFLAGS "" CACHE STRING "Additional linker flags for mysqld")
 MARK_AS_ADVANCED(WITH_MYSQLD_LDFLAGS)
