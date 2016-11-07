@@ -256,7 +256,7 @@ t2	CREATE TABLE `t2` (
 0 rows affected
 RUN DROP DATABASE IF EXISTS xplugintest
 
-10 rows affected
+21 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
