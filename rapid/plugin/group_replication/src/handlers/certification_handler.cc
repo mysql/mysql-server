@@ -30,6 +30,12 @@ Certification_handler::Certification_handler()
    transaction_context_pevent(NULL)
 {}
 
+Certification_handler::~Certification_handler()
+{
+  delete transaction_context_pevent;
+  delete transaction_context_packet;
+}
+
 int
 Certification_handler::initialize()
 {
@@ -177,6 +183,7 @@ Certification_handler::get_transaction_context(Pipeline_event *pevent,
                                                  fdle, pevent->get_cache());
   Log_event *transaction_context_event= NULL;
   error= transaction_context_pevent->get_LogEvent(&transaction_context_event);
+  transaction_context_packet= NULL;
   DBUG_EXECUTE_IF("certification_handler_force_error_on_pipeline", error= 1;);
   if (error || (transaction_context_event == NULL))
   {
@@ -185,7 +192,6 @@ Certification_handler::get_transaction_context(Pipeline_event *pevent,
                 " required transaction info for certification");
     DBUG_RETURN(1);
   }
-  transaction_context_packet= NULL;
 
   *tcle= static_cast<Transaction_context_log_event*>(transaction_context_event);
   if ((*tcle)->read_snapshot_version())
