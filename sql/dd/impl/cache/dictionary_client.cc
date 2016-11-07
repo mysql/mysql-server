@@ -2034,26 +2034,24 @@ size_t Dictionary_client::release()
 template <typename T>
 bool Dictionary_client::drop(const T *object)
 {
-  // Lookup in the local registry using the partition type.
-  Cache_element<typename T::cache_partition_type> *element= NULL;
-  m_registry_committed.get(
-    static_cast<const typename T::cache_partition_type*>(object),
-    &element);
-  DBUG_ASSERT(element);
-
   // Check proper MDL lock.
   DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
 
   if (Storage_adapter::drop(m_thd, object) == false)
   {
-    // Remove the element from the chain of auto releasers.
-    (void) m_current_releaser->remove(element);
-
-    // Remove the element from the local registry.
-    m_registry_committed.remove(element);
-    // Could also be in the uncommitted registry
-    typename T::cache_partition_type *modified= nullptr;
     const typename T::id_key_type id_key(object->id());
+
+    // Lookup in the local registry using the partition type.
+    Cache_element<typename T::cache_partition_type> *element= NULL;
+    // Uncommitted object which was acquired for modification might have
+    // corrupted name.... So lookup by id. (see mysql_rename_table()
+    // problem)
+    m_registry_committed.get(
+      id_key,
+      &element);
+
+    // Could be in the uncommitted registry
+    typename T::cache_partition_type *modified= nullptr;
     acquire_uncommitted(id_key, &modified);
     if (modified != nullptr)
     {
@@ -2067,8 +2065,19 @@ bool Dictionary_client::drop(const T *object)
       delete uc_element;
     }
 
-    // Remove the element from the cache, delete the wrapper and the object.
-    Shared_dictionary_cache::instance()->drop(element);
+    if (element)
+    {
+      // Remove the element from the chain of auto releasers.
+      (void) m_current_releaser->remove(element);
+      // Remove the element from the local registry.
+      m_registry_committed.remove(element);
+      // Remove the element from the cache, delete the wrapper and the object.
+      Shared_dictionary_cache::instance()->drop(element);
+    }
+    else
+      Shared_dictionary_cache::instance()->
+        drop_if_present<typename T::id_key_type,
+                        typename T::cache_partition_type>(id_key);
 
     return false;
   }
@@ -2319,28 +2328,37 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
         DBUG_ASSERT(element->object() != nullptr);
 
         // Remove the element from the chain of auto releasers.
-        Auto_releaser *actual_releaser= m_current_releaser->remove(element);
+        (void) m_current_releaser->remove(element);
         m_registry_committed.remove(element);
 
-        Shared_dictionary_cache::instance()->replace(element,
-        static_cast<const typename T::cache_partition_type*>(
-          uncommitted_object->clone()));
-
-        m_registry_committed.put(element);
-        if (actual_releaser)
-          actual_releaser->auto_release(element);
+        // Remove the element from the cache, delete the wrapper and the object.
+        Shared_dictionary_cache::instance()->drop(element);
       }
       else
       {
-        // In put, the reference counter is stepped up, so this is safe.
-        Shared_dictionary_cache::instance()->put(
-          static_cast<const typename T::cache_partition_type*>(
-          uncommitted_object->clone()), &element);
-
-        m_registry_committed.put(element);
-        // Sign up for auto release.
-        m_current_releaser->auto_release(element);
+        Shared_dictionary_cache::instance()->
+          drop_if_present<typename T::id_key_type,
+                          typename T::cache_partition_type>(uncommitted_object->id());
       }
+    }
+    for (it= m_registry_uncommitted.begin<typename T::cache_partition_type>();
+         it != m_registry_uncommitted.end<typename T::cache_partition_type>();
+         it++)
+    {
+      T* uncommitted_object=
+        const_cast<T*>(dynamic_cast<const T*>(it->second->object()));
+      DBUG_ASSERT(uncommitted_object != nullptr);
+
+      Cache_element<typename T::cache_partition_type> *element= NULL;
+
+      // In put, the reference counter is stepped up, so this is safe.
+      Shared_dictionary_cache::instance()->put(
+          static_cast<const typename T::cache_partition_type*>(
+            uncommitted_object->clone()), &element);
+
+      m_registry_committed.put(element);
+      // Sign up for auto release.
+      m_current_releaser->auto_release(element);
     }
   } // commit_to_shared_cache
   m_registry_uncommitted.erase<typename T::cache_partition_type>();
@@ -2535,6 +2553,7 @@ template bool Dictionary_client::acquire_uncached(const String_type&,
 template bool Dictionary_client::acquire_uncached_uncommitted(const String_type&,
                                                               const String_type&,
                                                               const Abstract_table**);
+template void Dictionary_client::remove_uncommitted_objects<Abstract_table>(bool);
 template bool Dictionary_client::drop(const Abstract_table*);
 template bool Dictionary_client::drop_uncached(const Abstract_table*);
 template bool Dictionary_client::store(Abstract_table*);

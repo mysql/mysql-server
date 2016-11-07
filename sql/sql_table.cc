@@ -4044,13 +4044,8 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                               db, table_name, "", flags);
 
 
-  /*
-    Use READ UNCOMMITTED so this function can be used in implementation
-    of atomic ALTER TABLE.
-  */
   const dd::Table *table_def= 0;
-  if (thd->dd_client()->acquire_uncached_uncommitted<dd::Table>(db,
-                            table_name, &table_def))
+  if (thd->dd_client()->acquire<dd::Table>(db, table_name, &table_def))
     DBUG_RETURN(true);
 
   /* We try to remove non-existing tables in some scenarios. */
@@ -4070,14 +4065,11 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   // in the DD while missing from the SE, but not the opposite.
   if (!dd::get_dictionary()->is_dd_table_name(db, table_name) &&
       dd::drop_table<dd::Table>(thd, db, table_name, table_def,
-                                !(flags & NO_DD_COMMIT), true))
+                                !(flags & NO_DD_COMMIT), false))
   {
-    delete table_def;
     DBUG_ASSERT(thd->is_error() || thd->killed);
     DBUG_RETURN(true);
   }
-
-  delete table_def;
 
   DBUG_RETURN(false);
 }
@@ -7087,6 +7079,8 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     if (!result)
       result= trans_commit_stmt(thd) || trans_commit_implicit(thd);
 
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(!result);
+
     // Update view metadata.
     if (!result)
       result= update_referencing_views_metadata(thd, create_table);
@@ -7379,8 +7373,6 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
       delete file;
       DBUG_RETURN(true);
     }
-
-    thd->dd_client()->object_renamed(to_table_def);
   }
   delete file;
 
@@ -7684,6 +7676,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   {
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err;
+
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
 
     // Update view metadata.
     if (update_referencing_views_metadata(thd, table))
@@ -9428,6 +9422,8 @@ static bool mysql_inplace_alter_table(THD *thd,
 
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto cleanup2;
+
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
 
   }
@@ -9539,6 +9535,8 @@ static bool mysql_inplace_alter_table(THD *thd,
     */
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto cleanup2;
+
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
 
     /* Call SE DDL post-commit hook. */
     if (db_type->post_ddl)
@@ -10938,6 +10936,9 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
   int error= 0;
   handlerton *old_db_type= table->s->db_type();
   bool atomic_ddl= (old_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   DBUG_ENTER("simple_rename_or_index_change");
 
   if (keys_onoff != Alter_info::LEAVE_AS_IS)
@@ -11020,9 +11021,12 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     if (!error && atomic_ddl)
       error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 
+
     if (!error)
       my_ok(thd);
   }
+
+  thd->dd_client()->remove_uncommitted_objects<dd::Table>(!error);
 
   // Update referencing views metadata.
   if (!error)
@@ -12204,6 +12208,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
+
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
 
 
@@ -12379,6 +12385,8 @@ end_inplace_noop:
   if (atomic_replace &&
       (trans_commit_stmt(thd) || trans_commit_implicit(thd)))
     goto err_with_mdl;
+
+  thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
 
   if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       new_db_type->post_ddl)

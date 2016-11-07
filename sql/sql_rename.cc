@@ -222,6 +222,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   if (!error && !int_commit_done)
     error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 
+  thd->dd_client()->remove_uncommitted_objects<dd::Abstract_table>(!error);
+
   if (!error)
   {
     for (ren_table= table_list; ren_table;

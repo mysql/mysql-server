@@ -2285,14 +2285,22 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
     return nullptr;
   }
 
-  if (commit_dd_changes && (trans_commit_stmt(thd) || trans_commit(thd)))
-    return nullptr;
-
   thd->dd_client()->register_uncommitted_object(tab_obj->clone());
+
+  if (commit_dd_changes)
+  {
+    if (trans_commit_stmt(thd) || trans_commit(thd))
+    {
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
+      return nullptr;
+    }
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+  }
 
   return tab_obj;
 }
@@ -2404,13 +2412,21 @@ bool add_foreign_keys_and_triggers(THD *thd,
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
     DBUG_RETURN(true);
   }
 
-  if (commit_dd_changes &&
-      (trans_commit_stmt(thd) || trans_commit(thd)))
-    DBUG_RETURN(true);
+  if (commit_dd_changes)
+
+  {
+    if (trans_commit_stmt(thd) || trans_commit(thd))
+    {
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
+      DBUG_RETURN(true);
+    }
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+  }
 
   DBUG_RETURN(false);
 }
@@ -2627,6 +2643,7 @@ bool rename_table(THD *thd,
   {
     if (commit_dd_changes)
     {
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
@@ -2636,8 +2653,16 @@ bool rename_table(THD *thd,
 
   thd->dd_client()->object_renamed(new_tab);
 
-  return commit_dd_changes &&
-         (trans_commit_stmt(thd) || trans_commit(thd));
+  if (commit_dd_changes)
+  {
+    if (trans_commit_stmt(thd) || trans_commit(thd))
+    {
+      thd->dd_client()->remove_uncommitted_objects<T>(false);
+      return true;
+    }
+    thd->dd_client()->remove_uncommitted_objects<T>(true);
+  }
+  return false;
 }
 
 
@@ -2659,16 +2684,27 @@ bool rename_table(THD *thd,
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
     return true;
   }
+
+  thd->dd_client()->object_renamed(to_table_def);
 
   DBUG_EXECUTE_IF("alter_table_after_rename_1",
                    DBUG_SET("-d,alter_table_after_rename_1");
                    DEBUG_SYNC(thd, "after_rename_in_dd"););
 
-  return commit_dd_changes &&
-         (trans_commit_stmt(thd) || trans_commit(thd));
+  if (commit_dd_changes)
+  {
+    if (trans_commit_stmt(thd) || trans_commit(thd))
+    {
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
+      return true;
+    }
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+  }
+  return false;
 }
 
 
@@ -2904,12 +2940,21 @@ bool update_keys_disabled(THD *thd,
     {
       trans_rollback_stmt(thd);
       trans_rollback(thd);
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
     return true;
   }
 
-  return commit_dd_changes &&
-         (trans_commit_stmt(thd) || trans_commit(thd));
+  if (commit_dd_changes)
+  {
+    if (trans_commit_stmt(thd) || trans_commit(thd))
+    {
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
+      return true;
+    }
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+  }
+  return false;
 }
 
 
@@ -3086,12 +3131,21 @@ bool move_triggers(THD *thd,
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
     return true;
   }
 
-  return commit_dd_changes &&
-         (trans_commit_stmt(thd) || trans_commit(thd));
+  if (commit_dd_changes)
+  {
+    if (trans_commit_stmt(thd) || trans_commit(thd))
+    {
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
+      return true;
+    }
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+  }
+  return false;
 }
 
 } // namespace dd

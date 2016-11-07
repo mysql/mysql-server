@@ -5192,6 +5192,10 @@ int ha_create_table(THD *thd, const char *path,
       if(thd->dd_client()->update<dd::Table>(&old_table_def, new_table_def))
         error= 1;
     }
+    else
+    {
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
+    }
   }
   (void) closefrm(&table, 0);
 err:

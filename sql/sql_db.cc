@@ -407,6 +407,8 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if (!create_info->default_table_charset)
     create_info->default_table_charset= thd->variables.collation_server;
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   // We rely on the caller to rollback transaction in case of error.
   if (dd::alter_schema(thd, db, create_info->default_table_charset))
   {
@@ -428,6 +430,8 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   */
   if (trans_commit_stmt(thd) || trans_commit(thd))
     DBUG_RETURN(true);
+
+  thd->dd_client()->remove_uncommitted_objects<dd::Schema>(true);
 
   /* Change options if current database is being altered. */
   if (thd->db().str && !strcmp(thd->db().str,db))

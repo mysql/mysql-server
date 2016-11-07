@@ -900,9 +900,6 @@ bool populate_tables(THD *thd)
 // Execute alter table statements to add cyclic foreign keys.
 bool add_cyclic_foreign_keys(THD *thd)
 {
-   // TODO: Disabling FKs as a workaround to make bootstrap pass.
-   return false;
-
   // Iterate over DD tables, add foreign keys.
   for (System_tables::Const_iterator it= System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it)
