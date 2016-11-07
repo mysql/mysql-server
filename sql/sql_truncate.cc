@@ -516,6 +516,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   bool binlog_stmt;
   bool binlog_is_trans;
   handlerton *hton= nullptr;
+  bool is_temporary;
   DBUG_ENTER("Sql_cmd_truncate_table::truncate_table");
 
   DBUG_ASSERT((!table_ref->table) ||
@@ -525,7 +526,9 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   m_ticket_downgrade= NULL;
 
   /* If it is a temporary table, no need to take locks. */
-  if (is_temporary_table(table_ref))
+  is_temporary= is_temporary_table(table_ref);
+
+  if (is_temporary)
   {
     TABLE *tmp_table= table_ref->table;
 
@@ -646,7 +649,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   if (error)
     trans_rollback_stmt(thd);
 
-  if (!is_temporary_table(table_ref) &&
+  if (!is_temporary &&
       (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       hton->post_ddl)
     hton->post_ddl(thd);
