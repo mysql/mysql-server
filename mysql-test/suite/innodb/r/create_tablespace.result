@@ -173,6 +173,7 @@ test/t_utf8_2	s_cöĿǖmň	161	5	Dynamic	0	General
 test/t_utf8_3	s_வணக்கம்	161	5	Dynamic	0	General
 # Directory listing of MYSQLD_DATADIR/
 #sql_1.ibd
+mysql.ibd
 s_utf8.ibd
 s_utf8_a.ibd
 s_utf8_b.ibd
@@ -208,25 +209,19 @@ Error	1031	Table storage engine for 'innodb_system' doesn't have this option
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 's_InnoDB_System.ibd';
 DROP TABLESPACE `InnoDB_System`;
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 'ibdata1';
-ERROR HY000: Incorrect File Name 'ibdata1'.
+ERROR 23000: Duplicate entry 'ibdata1' for key 'file_name'
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	Incorrect File Name 'ibdata1'.
-Error	3121	An IBD filepath must end with `.ibd`.
-Error	1528	Failed to create TABLESPACE InnoDB_System
-Error	1031	Table storage engine for 'InnoDB_System' doesn't have this option
+Error	1062	Duplicate entry 'ibdata1' for key 'file_name'
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 'ibdata1.ibd';
 DROP TABLESPACE `InnoDB_System`;
 CREATE TABLESPACE `innodb_temporary` ADD DATAFILE 's_bad.ibd';
-ERROR 42000: InnoDB: `innodb_temporary` is a reserved tablespace name.
+ERROR HY000: Tablespace 'innodb_temporary' exists.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3119	InnoDB: `innodb_temporary` is a reserved tablespace name.
-Error	1813	InnoDB: A tablespace named `innodb_temporary` already exists.
-Error	1528	Failed to create TABLESPACE innodb_temporary
 Error	1813	Tablespace 'innodb_temporary' exists.
 DROP TABLESPACE `innodb_temporary`;
-ERROR HY000: Tablespace innodb_temporary doesn't exist.
+ERROR 42000: InnoDB: `innodb_temporary` is a reserved tablespace name.
 CREATE TABLESPACE `InnoDB_Temporary` ADD DATAFILE 's_InnoDB_Temporary.ibd';
 DROP TABLESPACE `InnoDB_Temporary`;
 CREATE TABLESPACE `innodb_custom` ADD DATAFILE 's_bad.ibd';
@@ -338,6 +333,7 @@ s1_remote	TABLESPACE	InnoDB	NORMAL	s1_remote	MYSQL_TMP_DIR/s1.ibd.ibd
 s2_remote	TABLESPACE	InnoDB	NORMAL	s2_remote	MYSQL_TMP_DIR/s2_#_dir/.MYSQLD_DATADIR/s2_#_dir/s2.ibd
 s4_def	TABLESPACE	InnoDB	NORMAL	s4_def	MYSQL_TMP_DIR/tablespace.ibd/s4.ibd
 # Directory listing of MYSQLD_DATADIR/
+mysql.ibd
 s1_#_hash.ibd
 s_def.ibd
 # Directory listing of MYSQL_TMP_DIR/
@@ -457,6 +453,7 @@ test/t_def_in_def	s_def	161	5	Dynamic	0	General
 test/t_dyn_in_def	s_def	161	5	Dynamic	0	General
 test/t_red_in_def	s_def	128	5	Redundant	0	General
 # Directory of MYSQLD_DATADIR/
+mysql.ibd
 s_def.ibd
 # Directory of MYSQLD_DATADIR/test/
 #
@@ -487,6 +484,7 @@ s_def	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_def.ibd
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_def	TABLESPACE	InnoDB	NORMAL	s_def	MYSQLD_DATADIR/s_def.ibd
 # Directory listing of MYSQLD_DATADIR/
+mysql.ibd
 s_def.ibd
 # Directory listing of MYSQLD_DATADIR/test/
 #
@@ -677,6 +675,7 @@ test/t_def_as_remote	test/t_def_as_remote	97	5	Dynamic	0	Single
 test/t_dyn_as_file_per_table	test/t_dyn_as_file_per_table	33	5	Dynamic	0	Single
 test/t_red_as_file_per_table	test/t_red_as_file_per_table	0	5	Redundant	0	Single
 # Directory listing of MYSQLD_DATADIR/
+mysql.ibd
 s_def.ibd
 # Directory listing of MYSQLD_DATADIR/test/
 t_com_as_file_per_table.ibd
@@ -730,6 +729,7 @@ test/t_dyn_was_file_per_table	s_multiple	161	5	Dynamic	0	General
 test/t_red_was_file_per_table	s_multiple	128	5	Redundant	0	General
 # Directory listing of MYSQLD_DATADIR/
 multiple.ibd
+mysql.ibd
 s_def.ibd
 # Directory listing of MYSQLD_DATADIR/test/
 #
@@ -766,6 +766,7 @@ test/t_dyn_to_file_per_table	test/t_dyn_to_file_per_table	33	5	Dynamic	0	Single
 test/t_red_to_file_per_table	test/t_red_to_file_per_table	0	5	Redundant	0	Single
 # Directory listing of MYSQLD_DATADIR/
 multiple.ibd
+mysql.ibd
 s_def.ibd
 # Directory listing of MYSQLD_DATADIR/test/
 t_com_to_file_per_table.ibd

@@ -1810,7 +1810,9 @@ dict_check_sys_tablespaces(
 				<< " because it could not be opened.";
 		}
 
-		max_space_id = ut_max(max_space_id, space_id);
+		if (!dict_sys_t::is_reserved(space_id)) {
+			max_space_id = ut_max(max_space_id, space_id);
+		}
 
 		ut_free(filepath);
 	}
@@ -1940,7 +1942,7 @@ dict_check_sys_tables(
 	     rec = dict_getnext_system(&pcur, &mtr)) {
 		const byte*	field;
 		ulint		len;
-		char*		space_name;
+		const char*	space_name;
 		table_name_t	table_name;
 		table_id_t	table_id;
 		space_id_t	space_id;
@@ -1995,7 +1997,9 @@ dict_check_sys_tables(
 		the space name must be the table_name, and the filepath can be
 		discovered in the default location.*/
 		char*	shared_space_name = dict_space_get_name(space_id, NULL);
-		space_name = shared_space_name == NULL
+		space_name = space_id == dict_sys_t::space_id
+			? dict_sys_t::dd_space_name
+			: shared_space_name == NULL
 			? table_name.m_name
 			: shared_space_name;
 
@@ -2015,7 +2019,9 @@ dict_check_sys_tables(
 		location) or this path is the same file but looks different,
 		fil_ibd_open() will update the dictionary with what is
 		opened. */
-		char*	filepath = dict_get_first_path(space_id);
+		char*	filepath = space_id == dict_sys_t::space_id
+			? mem_strdup(dict_sys_t::dd_space_file_name)
+			: dict_get_first_path(space_id);
 
 		/* Check that the .ibd file exists. */
 		bool	is_encrypted = flags2 & DICT_TF2_ENCRYPTION;
@@ -2036,7 +2042,9 @@ dict_check_sys_tables(
 				<< " because it could not be opened.";
 		}
 
-		max_space_id = ut_max(max_space_id, space_id);
+		if (!dict_sys_t::is_reserved(space_id)) {
+			max_space_id = ut_max(max_space_id, space_id);
+		}
 
 		ut_free(table_name.m_name);
 		ut_free(shared_space_name);
@@ -2799,7 +2807,10 @@ dict_load_tablespace(
 	char*	shared_space_name = NULL;
 	char*	space_name;
 	if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-		if (srv_sys_tablespaces_open) {
+		if (table->space == dict_sys_t::space_id) {
+			shared_space_name = mem_strdup(
+				dict_sys_t::dd_space_name);
+		} else if (srv_sys_tablespaces_open) {
 			shared_space_name =
 				dict_space_get_name(table->space, NULL);
 
@@ -3017,7 +3028,12 @@ err_exit:
 		: ignore_err;
 	err = dict_load_indexes(table, heap, index_load_err);
 
-	dict_table_load_dynamic_metadata(table);
+	/* TODO: To remove this along with this function.
+	Currently, there are still functions calling this,
+	thus this workaround */
+	if (dict_sys->table_metadata != NULL) {
+		dict_table_load_dynamic_metadata(table);
+	}
 
 	/* Re-check like we do in dict_load_indexes() */
 	if (!srv_load_corrupted

@@ -150,10 +150,11 @@ SELECT * FROM tab2 ORDER BY col_7;
 --echo # stop the server
 --source include/shutdown_mysqld.inc
 
---echo [1(c)]: Rewrite into new checksum=none for all *.ibd file and ibdata1
---exec $INNOCHECKSUM --write=none  $MYSQLD_DATADIR/test/tab1.ibd
---exec $INNOCHECKSUM --write=none  $MYSQLD_DATADIR/test/tab2.ibd
+--echo [1(c)]: Rewrite into new checksum=none for all *.ibd file, ibdata1 and mysql.ibd
+--exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/ibdata1
+--exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/mysql.ibd
 perl;
 foreach (glob("$ENV{MYSQLD_DATADIR}/undo*")) {
 	system("$ENV{INNOCHECKSUM} --no-check --write=NONE $_")

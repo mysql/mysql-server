@@ -1213,9 +1213,7 @@ bool
 dict_table_is_table_buffer(
 	const dict_table_t*	table)
 {
-	const dict_index_t*	index = table->first_index();
-
-	return(index != NULL && index->id == DICT_TBL_BUFFER_ID);
+	return(table == dict_sys->table_metadata);
 }
 
 /** Check if the table is in a shared tablespace (System or General).

@@ -53,9 +53,6 @@ Data dictionary interface */
 class THD;
 class MDL_ticket;
 
-/** Number of hard coded table */
-static constexpr table_id_t NUM_HARD_CODED_TABLES = 27;
-
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
 

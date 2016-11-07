@@ -15,6 +15,7 @@ help_keyword
 help_relation
 help_topic
 innodb_index_stats
+innodb_table_metadata
 innodb_table_stats
 plugin
 procs_priv
@@ -59,6 +60,7 @@ help_keyword
 help_relation
 help_topic
 innodb_index_stats
+innodb_table_metadata
 innodb_table_stats
 plugin
 procs_priv

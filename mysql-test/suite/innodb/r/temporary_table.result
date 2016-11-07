@@ -363,7 +363,7 @@ SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
 CREATE TABLE space_id(
-id INT
+id INT UNSIGNED
 ) ENGINE = InnoDB;
 INSERT INTO space_id SELECT space FROM information_schema.innodb_temp_table_info;
 SELECT count(*) AS `Expect 1` FROM space_id;

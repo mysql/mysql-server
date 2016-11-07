@@ -1039,11 +1039,8 @@ srv_open_tmp_tablespace(
 	ib::info() << "Creating shared tablespace for temporary tables";
 
 	bool		create_new_temp_space = true;
-	space_id_t	temp_space_id = SPACE_UNKNOWN;
 
-	dict_hdr_get_new_id(NULL, NULL, &temp_space_id, NULL, true);
-
-	tmp_space->set_space_id(temp_space_id);
+	tmp_space->set_space_id(dict_sys_t::temp_space_id);
 
 	RECOVERY_CRASH(100);
 
@@ -1072,9 +1069,6 @@ srv_open_tmp_tablespace(
 
 		mtr_t		mtr;
 		page_no_t	size = tmp_space->get_sum_of_sizes();
-
-		ut_a(temp_space_id != SPACE_UNKNOWN);
-		ut_a(tmp_space->space_id() == temp_space_id);
 
 		/* Open this shared temp tablespace in the fil_system so that
 		it stays open until shutdown. */
@@ -2232,16 +2226,49 @@ files_checked:
 	return(DB_SUCCESS);
 }
 
+/** Applier of dynamic metadata */
+struct metadata_applier
+{
+        /** Default constructor */
+        metadata_applier() {}
+        /** Visitor.
+        @param[in]      table   table to visit */
+        void operator()(dict_table_t* table) const
+        {
+                ut_ad(dict_sys->table_metadata != NULL);
+		ib_uint64_t	autoinc = table->autoinc;
+                dict_table_load_dynamic_metadata(table);
+		/* TODO: Do it in a better way. This judgement is for
+		those tables which were not opened by ha_innobase::open(),
+		thus innobase_initialize_autoinc() was not called */
+		if (autoinc != table->autoinc && table->autoinc != ~0ULL) {
+			++table->autoinc;
+		}
+        }
+};
+
+/** Apply the dynamic metadata to all tables */
+static
+void
+apply_dynamic_metadata()
+{
+        const metadata_applier  applier;
+
+        dict_sys->for_each_table(applier);
+
+        if (srv_dict_metadata != NULL) {
+                srv_dict_metadata->apply();
+                UT_DELETE(srv_dict_metadata);
+                srv_dict_metadata = NULL;
+        }
+}
+
 /** On a restart, initialize the remaining InnoDB subsystems so that
 any tables (including data dictionary tables) can be accessed. */
 void
 srv_dict_recover_on_restart()
 {
-	if (srv_dict_metadata != NULL) {
-		srv_dict_metadata->apply();
-		UT_DELETE(srv_dict_metadata);
-		srv_dict_metadata = NULL;
-	}
+	apply_dynamic_metadata();
 
 	trx_resurrect_locks();
 
@@ -2260,33 +2287,6 @@ srv_dict_recover_on_restart()
 		srv_sys_tablespaces_open = true;
 		dberr_t	err = dict_create_or_check_sys_tablespace();
 		ut_a(err == DB_SUCCESS); // FIXME: remove in WL#7141
-
-		/* The following call is necessary for the insert
-		buffer to work with multiple tablespaces. We must
-		know the mapping between space id's and .ibd file
-		names.
-
-		In a crash recovery, we check that the info in data
-		dictionary is consistent with what we already know
-		about space id's from the calls to fil_ibd_load().
-
-		In a normal startup, we create the space objects for
-		every table in the InnoDB data dictionary that has
-		an .ibd file.
-
-		We also determine the maximum tablespace id used. */
-
-		/* This flag indicates that when a tablespace
-		is opened, we also read the header page and
-		validate the contents to the data
-		dictionary. This is time consuming, especially
-		for databases with lots of ibd files.  So only
-		do it after a crash and not forcing recovery.
-		Open rw transactions at this point is not a
-		good reason to validate. */
-		bool validate = recv_needed_recovery
-			&& srv_force_recovery == 0;
-		dict_check_tablespaces_and_store_max_id(validate);
 	}
 
 	/* We can't start any (DDL) transactions if UNDO logging has

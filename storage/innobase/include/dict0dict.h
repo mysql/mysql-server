@@ -28,6 +28,7 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0dict_h
 
 #include "univ.i"
+#include "dd/object_id.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0mem.h"
@@ -1458,10 +1459,90 @@ struct dict_sys_t{
 	UT_LIST_BASE_NODE_T(dict_table_t)
 			table_non_LRU;	/*!< List of tables that can't be
 					evicted from the cache */
-};
 
-/** Clustered index id of DDTableBuffer */
-#define	DICT_TBL_BUFFER_ID	0xFFFFFFFFFF000000ULL
+	/** Iterate each table.
+        @tparam Functor visitor
+        @param[in,out]  functor to be invoked on each table */
+        template<typename Functor>
+        void for_each_table(Functor& functor)
+        {
+		mutex_enter(&mutex);
+
+                hash_table_t* hash = table_id_hash;
+
+                for (ulint i = 0; i < hash->n_cells; i++) {
+                        for (dict_table_t* table = static_cast<dict_table_t*>(
+                                     HASH_GET_FIRST(hash, i));
+                             table;
+                             table = static_cast<dict_table_t*>(
+                                     HASH_GET_NEXT(id_hash, table))) {
+                                functor(table);
+                        }
+                }
+
+                mutex_exit(&mutex);
+        }
+
+	/** Check if a tablespace id is a reserved one
+	@param[in]	space	tablespace id to check
+	@return true if a reserved tablespace id, otherwise false */
+	static bool is_reserved(space_id_t space)
+	{ return(space >= dict_sys_t::reserved_space_id); }
+
+	/** Check if a table is hardcoded.
+        @param[in]      id      table ID
+        @retval true    if the table is a persistent hard-coded table
+                        (dict_table_t::is_temporary() will not hold)
+        @retval false   if the table is not hard-coded
+                        (it can be persistent or temporary) */
+        static bool is_hardcoded(table_id_t id)
+        {
+		/* TODO: Remove this 16 once we get rid of SYS_* tables */
+                return(id < NUM_HARD_CODED_TABLES + 16);
+        }
+
+	/** Number of hard coded table */
+	static constexpr table_id_t	NUM_HARD_CODED_TABLES = 30;
+
+	/** The first reserved tablespace ID.
+	This is also the ID of the redo log pseudo-tablespace. */
+	static constexpr space_id_t	reserved_space_id = 0xFFFFFFF0;
+
+	/** The data dictionary tablespace ID */
+	static constexpr space_id_t	space_id = 0xFFFFFFFE;
+
+	/** The innodb_temporary tablespace ID.
+	TODO: Remove srv_tmp_space and implement
+	CREATE/DROP TEMPORARY TABLESPACE. */
+	static constexpr space_id_t	temp_space_id = 0xFFFFFFFD;
+
+	/** The dd::Tablespace::id of the dictionary tablespace */
+	static constexpr dd::Object_id	dd_space_id = 1;
+
+	/** The dd::Tablespace::id of innodb_system */
+	static constexpr dd::Object_id	dd_sys_space_id = 2;
+
+        /** The dd::Tablespace::id of innodb_temporary. */
+        static constexpr dd::Object_id	dd_temp_space_id = 3;
+
+	/** The name of the data dictionary tablespace. */
+	static const char*		dd_space_name;
+
+	/** The file name of the data dictionary tablespace */
+	static const char*		dd_space_file_name;
+
+	/** The name of the hard-coded system tablespace. */
+	static const char*		sys_space_name;
+
+	/** The name of the predefined temporary tablespace. */
+	static const char*		temp_space_name;
+
+	/** The file name of the predefined temporary tablespace */
+	static const char*		temp_space_file_name;
+
+	/** The hard-coded tablespace name innodb_file_per_table. */
+	static const char*		file_per_table_name;
+};
 
 /** Structure for persisting dynamic metadata of data dictionary */
 struct dict_persist_t {
@@ -1540,8 +1621,8 @@ void
 dict_close(void);
 /*============*/
 
-/** Wrapper for the system table used to buffer the persistent dynamic
-metadata.
+/** Wrapper for the mysql.innodb_table_metadata used to buffer the persistent
+dynamic metadata.
 This should be a table with only clustered index, no delete-marked records,
 no locking, no undo logging, no purge, no adaptive hash index.
 We should always use low level btr functions to access and modify the table.
@@ -1613,24 +1694,47 @@ private:
 
 private:
 
-	/** the clustered index of this system table */
+	/** The clustered index of this system table */
 	dict_index_t*		m_index;
 
-	/** the heap used in replace() method only, which should be
-	freed by replace() before return. This is actually protected
-	by dict_persist->mutex */
-	mem_heap_t*		m_replace_heap;
+	/** The heap used for dynamic allocations, which should always
+	be freed before return */
+	mem_heap_t*		m_dynamic_heap;
 
-	/** the heap used to create the search tuple and replace tuple */
+	/** The heap used to create the search tuple and replace tuple */
 	mem_heap_t*		m_heap;
 
-	/** the tuple used to search for specified table, it's protected
+	/** The tuple used to search for specified table, it's protected
 	by dict_persist->mutex */
 	dtuple_t*		m_search_tuple;
 
-	/** the tuple used to replace for specified table, it's protected
+	/** The tuple used to replace for specified table, it's protected
 	by dict_persist->mutex */
 	dtuple_t*		m_replace_tuple;
+
+private:
+
+	/** Column number of mysql.innodb_table_metadata.table_id */
+	static constexpr unsigned	TABLE_ID_COL_NO = 0;
+
+	/** Column number of mysql.innodb_table_metadata.metadata */
+	static constexpr unsigned	METADATA_COL_NO = 1;
+
+	/** Number of user columns */
+	static constexpr unsigned	N_USER_COLS = METADATA_COL_NO + 1;
+
+	/** Number of columns */
+	static constexpr unsigned	N_COLS = N_USER_COLS + DATA_N_SYS_COLS;
+
+	/** Clustered index field number of
+        mysql.innodb_table_metadata.table_id */
+        static constexpr unsigned	TABLE_ID_FIELD_NO = TABLE_ID_COL_NO;
+	/** Clustered index field number of
+	mysql.innodb_table_metadata.metadata */
+	static constexpr unsigned	METADATA_FIELD_NO = METADATA_COL_NO + 2;
+
+	/** Number of fields in the clustered index */
+	static constexpr unsigned	N_FIELDS = METADATA_FIELD_NO + 1;
 };
 
 /** Mark the dirty_status of a table as METADATA_DIRTY, and add it to the

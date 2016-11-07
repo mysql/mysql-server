@@ -6,7 +6,7 @@ column_stats	CREATE TABLE `column_stats` (
   `column_name` varchar(64) COLLATE utf8_bin NOT NULL,
   `histogram` json NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`,`column_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Column statistics'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Column statistics'
 INSERT INTO mysql.column_stats
 (database_name,
 table_name,

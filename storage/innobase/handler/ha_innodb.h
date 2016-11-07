@@ -22,19 +22,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 system clustered index when there is no primary key. */
 extern const char innobase_index_reserve_name[];
 
-/* "innodb_file_per_table" tablespace name  is reserved by InnoDB in order
-to explicitly create a file_per_table tablespace for the table. */
-extern const char reserved_file_per_table_space_name[];
-
-/* "innodb_system" tablespace name is reserved by InnoDB for the
-system tablespace which uses space_id 0 and stores extra types of
-system pages like UNDO and doublewrite. */
-extern const char reserved_system_space_name[];
-
-/* "innodb_temporary" tablespace name is reserved by InnoDB for the
-predefined shared temporary tablespace. */
-extern const char reserved_temporary_space_name[];
-
 extern thread_local dd::Object_id thread_local_dd_space_id;
 
 /* Structure defines translation table between mysql index and InnoDB
@@ -100,9 +87,6 @@ public:
 	}
 
 	Table_flags table_flags() const;
-
-	/** The storage engine handlerton name. */
-	static const char* hton_name;
 
 	ulong index_flags(uint idx, uint part, bool all_parts) const;
 
@@ -775,8 +759,6 @@ innobase_index_name_is_reserved(
 						be created. */
 	MY_ATTRIBUTE((warn_unused_result));
 
-extern const char reserved_file_per_table_space_name[];
-
 /** Check if the explicit tablespace targeted is file_per_table.
 @param[in]	create_info	Metadata for the table to create.
 @return true if the table is intended to use a file_per_table tablespace. */
@@ -787,7 +769,7 @@ tablespace_is_file_per_table(
 {
 	return(create_info->tablespace != NULL
 	       && (0 == strcmp(create_info->tablespace,
-			       reserved_file_per_table_space_name)));
+			       dict_sys_t::file_per_table_name)));
 }
 
 /** Check if table will be explicitly put in an existing shared general
@@ -802,7 +784,7 @@ const HA_CREATE_INFO*	create_info)
 	return(create_info->tablespace != NULL
 		&& create_info->tablespace[0] != '\0'
 		&& (0 != strcmp(create_info->tablespace,
-		reserved_file_per_table_space_name)));
+		dict_sys_t::file_per_table_name)));
 }
 
 /** Check if table will be explicitly put in a general tablespace.
@@ -816,11 +798,11 @@ const HA_CREATE_INFO*	create_info)
 	return(create_info->tablespace != NULL
 		&& create_info->tablespace[0] != '\0'
 		&& (0 != strcmp(create_info->tablespace,
-				reserved_file_per_table_space_name))
+				dict_sys_t::file_per_table_name))
 		&& (0 != strcmp(create_info->tablespace,
-				reserved_temporary_space_name))
+				dict_sys_t::temp_space_name))
 		&& (0 != strcmp(create_info->tablespace,
-				reserved_system_space_name)));
+				dict_sys_t::sys_space_name)));
 }
 
 /** Parse hint for table and its indexes, and update the information
@@ -1198,13 +1180,15 @@ innobase_build_v_templ_callback(
 the table virtual columns' template */
 typedef void (*my_gcolumn_templatecallback_t)(const TABLE*, void*);
 
-void
-innobase_set_dd_tablespace_name(
-	dd::Tablespace*	dd_space,
-	space_id_t	space);
-
+/** Create metadata for implicit tablespace
+@param[in,out]  dd_client       data dictionary client
+@param[in,out]  thd             THD
+@param[in,out]  dd_space        tablespace metadata
+@param[in]      space           InnoDB tablespace ID
+@retval false   on success
+@retval true    on failure */
 bool
-innobase_create_dd_tablespace(
+innobase_create_implicit_dd_tablespace(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd,
 	dd::Tablespace*			dd_space,

@@ -72,7 +72,7 @@ SELECT pk,ST_AsText(linestring_key),ST_AsText(linestring_nokey)
 FROM tab1 ORDER BY pk;
 SELECT * FROM tab2 ORDER BY col_7;
 # stop the server
-[1(c)]: Rewrite into new checksum=none for all *.ibd file and ibdata1
+[1(c)]: Rewrite into new checksum=none for all *.ibd file, ibdata1 and mysql.ibd
 # restart: --innodb_checksum_algorithm=strict_none --default_storage_engine=InnoDB
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
 VALUES (4, ST_GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '), ST_GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '));

@@ -1346,7 +1346,8 @@ fil_space_create(
 
 	if (fil_type_is_data(purpose)
 	    && !recv_recovery_on
-	    && id > fil_system->max_assigned_id) {
+	    && id > fil_system->max_assigned_id
+	    && !dict_sys_t::is_reserved(id)) {
 
 		if (!fil_system->space_id_reuse_warned) {
 			fil_system->space_id_reuse_warned = true;
@@ -1864,6 +1865,11 @@ fil_set_max_space_id_if_bigger(
 /*===========================*/
 	space_id_t	max_id)	/*!< in: maximum known id */
 {
+	/* Always skip the reserved tablespace IDs */
+	if (dict_sys_t::is_reserved(max_id)) {
+		return;
+	}
+
 	if (max_id >= SRV_LOG_SPACE_FIRST_ID) {
 		ib::fatal() << "Max tablespace id is too high, " << max_id;
 	}
@@ -2009,8 +2015,6 @@ fil_op_write_log(
 
 	/* TODO: support user-created multi-file tablespaces */
 	ut_ad(first_page_no == 0 || space_id == TRX_SYS_SPACE);
-	/* fil_name_parse() requires this */
-	ut_ad(strchr(path, OS_PATH_SEPARATOR) != NULL);
 
 	log_ptr = mlog_open(mtr, 11 + 4 + 2 + 1);
 
@@ -3249,7 +3253,8 @@ fil_ibd_create(
 
 	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
 	ut_ad(!srv_read_only_mode);
-	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
+	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID
+	     || dict_sys_t::is_reserved(space_id));
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	ut_a(fsp_flags_is_valid(flags));
 

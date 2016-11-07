@@ -2599,8 +2599,8 @@ ha_innopart::update_part_elem(
 		}
 	} else {
 		const char*   tablespace_name = ib_table->space == 0
-			? reserved_system_space_name
-			: reserved_file_per_table_space_name;
+			? dict_sys_t::sys_space_name
+			: dict_sys_t::file_per_table_name;
 
 		if (part_elem->tablespace_name != NULL) {
 			if (0 != strcmp(part_elem->tablespace_name,

@@ -2251,6 +2251,9 @@ template bool Dictionary_client::fetch_global_components(
 template bool Dictionary_client::fetch_global_components(
     std::vector<const Schema*>*) const;
 
+template bool Dictionary_client::fetch_global_components(
+    std::vector<const Tablespace*>*) const;
+
 template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
     const Schema*,
     std::vector<String_type>*) const;

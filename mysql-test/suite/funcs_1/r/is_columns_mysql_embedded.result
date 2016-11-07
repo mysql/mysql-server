@@ -88,6 +88,8 @@ def	mysql	innodb_index_stats	stat_name	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	u
 def	mysql	innodb_index_stats	stat_value	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned					
 def	mysql	innodb_index_stats	sample_size	7	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned					
 def	mysql	innodb_index_stats	stat_description	8	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_bin	varchar(1024)					
+def	mysql	innodb_table_metadata	table_id	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI				
+def	mysql	innodb_table_metadata	metadata	2	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob					
 def	mysql	innodb_table_stats	database_name	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI				
 def	mysql	innodb_table_stats	table_name	2	NULL	NO	varchar	199	597	NULL	NULL	NULL	utf8	utf8_bin	varchar(199)	PRI				
 def	mysql	innodb_table_stats	last_update	3	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP			
@@ -408,6 +410,8 @@ NULL	mysql	innodb_index_stats	last_update	timestamp	NULL	NULL	NULL	NULL	timestam
 NULL	mysql	innodb_index_stats	stat_value	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	innodb_index_stats	sample_size	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 3.0000	mysql	innodb_index_stats	stat_description	varchar	1024	3072	utf8	utf8_bin	varchar(1024)
+NULL	mysql	innodb_table_metadata	table_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+1.0000	mysql	innodb_table_metadata	metadata	blob	65535	65535	NULL	NULL	blob
 3.0000	mysql	innodb_table_stats	database_name	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	mysql	innodb_table_stats	table_name	varchar	199	597	utf8	utf8_bin	varchar(199)
 NULL	mysql	innodb_table_stats	last_update	timestamp	NULL	NULL	NULL	NULL	timestamp

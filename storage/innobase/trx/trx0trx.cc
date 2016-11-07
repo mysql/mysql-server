@@ -793,8 +793,8 @@ trx_resurrect_locks()
 
 				if (table->ibd_file_missing
 				    || table->is_temporary()) {
+					dd_table_close(table, NULL, NULL);
 					mutex_enter(&dict_sys->mutex);
-					dict_table_close(table, TRUE, FALSE);
 					dict_table_remove_from_cache(table);
 					mutex_exit(&dict_sys->mutex);
 					continue;
@@ -812,7 +812,7 @@ trx_resurrect_locks()
 					    trx_get_id_for_print(trx),
 					    table->name.m_name));
 
-				dict_table_close(table, FALSE, FALSE);
+				dd_table_close(table, NULL, NULL);
 			}
 		}
 	}

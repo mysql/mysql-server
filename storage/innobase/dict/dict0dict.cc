@@ -93,6 +93,24 @@ extern bool	srv_missing_dd_table_buffer;
 /** the dictionary system */
 dict_sys_t*	dict_sys	= NULL;
 
+/** The name of the data dictionary tablespace. */
+const char*	dict_sys_t::dd_space_name = "mysql";
+
+/** The file name of the data dictionary tablespace */
+const char*	dict_sys_t::dd_space_file_name = "mysql.ibd";
+
+/** The name of the hard-coded system tablespace. */
+const char*	dict_sys_t::sys_space_name = "innodb_system";
+
+/** The name of the predefined temporary tablespace. */
+const char*	dict_sys_t::temp_space_name = "innodb_temporary";
+
+/** The file name of the predefined temporary tablespace */
+const char*	dict_sys_t::temp_space_file_name = "ibtmp1";
+
+/** The hard-coded tablespace name innodb_file_per_table. */
+const char*	dict_sys_t::file_per_table_name = "innodb_file_per_table";
+
 /** the dictionary persisting structure */
 dict_persist_t*	dict_persist	= NULL;
 
@@ -7049,8 +7067,6 @@ dict_table_extent_size(
 /** Default constructor */
 DDTableBuffer::DDTableBuffer()
 {
-	ut_ad(mutex_own(&dict_sys->mutex));
-
 	init();
 
 	/* Check if we need to recover it, in case of crash */
@@ -7085,15 +7101,15 @@ DDTableBuffer::create_tuples()
 	id_buf = static_cast<byte*>(mem_heap_alloc(m_heap, 8));
 	memset(id_buf, 0, sizeof *id_buf);
 
-	m_replace_tuple = dtuple_create(m_heap, 2 + DATA_N_SYS_COLS);
+	m_replace_tuple = dtuple_create(m_heap, N_COLS);
 	dict_table_copy_types(m_replace_tuple, m_index->table);
 
-	dfield = dtuple_get_nth_field(m_replace_tuple, 0);
+	dfield = dtuple_get_nth_field(m_replace_tuple, TABLE_ID_FIELD_NO);
 	dfield_set_data(dfield, id_buf, 8);
 
-	/* Initialize system fields, we always write fake value 0. */
+	/* Initialize system fields, we always write fake value. */
 	sys_buf = static_cast<byte*>(mem_heap_alloc(m_heap, 8));
-	memset(sys_buf, 0, sizeof *sys_buf);
+	memset(sys_buf, 0xFF, 8);
 
 	col = m_index->table->get_sys_col(DATA_ROW_ID);
 	dfield = dtuple_get_nth_field(m_replace_tuple, dict_col_get_no(col));
@@ -7112,58 +7128,16 @@ DDTableBuffer::create_tuples()
 void
 DDTableBuffer::init()
 {
-	dict_table_t*	table;
-	const char*	table_name = "SYS_TABLE_INFO_BUFFER";
-
-	table = dict_mem_table_create(table_name, DICT_HDR_SPACE, 2, 0, 0, 0);
-
-	dict_mem_table_add_col(table, table->heap, "TABLE_ID",
-			       DATA_BINARY, DATA_NOT_NULL, 8);
-	dict_mem_table_add_col(table, table->heap, "METADATA",
-			       DATA_BLOB, DATA_NOT_NULL, 0);
-
-	/* This table doesn't need system fields in fact, but we still
-	add them so that we don't break the rule that system fields exist
-	in tables. */
-	dict_table_add_system_columns(table, table->heap);
-
-	m_index = dict_mem_index_create(table_name, "CLUST_IND",
-					DICT_HDR_SPACE,
-					DICT_CLUSTERED | DICT_UNIQUE, 2);
-
-	m_index->add_field("TABLE_ID", 0);
-
-	m_index->add_field("METADATA", 0);
-
-	bool	found;
-	found = dict_index_find_cols(table, m_index, NULL);
-	ut_a(found);
-
-	m_index->id = DICT_TBL_BUFFER_ID;
-	m_index->table = table;
-	m_index->n_uniq = 1;
-
-	/* Accessing this table would be protected by dict_persist->mutex,
-	and this table should be a very low-level table, we won't acquire
-	other latches/locks higher than SYS_LOG and we can disable the locking
-	when we access this table. We set it with the level of
-	SYNC_PERSIST_METADATA_BUFFER, which is right above SYNC_INDEX_TREE,
-	as commented in dict_persist_t. */
-	rw_lock_create(index_tree_rw_lock_key, &m_index->lock,
-		       SYNC_PERSIST_METADATA_BUFFER);
-
-	m_index->page = FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO;
-	m_index->search_info = btr_search_info_create(m_index->heap);
+	ut_ad(dict_table_is_comp(dict_sys->table_metadata));
+	m_index = dict_sys->table_metadata->first_index();
+	ut_ad(m_index->next() == NULL);
+	ut_ad(m_index->n_uniq == 1);
 	/* We don't need AHI for this table */
 	m_index->disable_ahi = true;
 	m_index->cached = true;
 
-	/* We would check the clustered index id of the table to see if
-	it's the DDTableBuffer table */
-	UT_LIST_ADD_LAST(table->indexes, m_index);
-
 	m_heap = mem_heap_create(500);
-	m_replace_heap = mem_heap_create(1000);
+	m_dynamic_heap = mem_heap_create(1000);
 
 	create_tuples();
 }
@@ -7176,7 +7150,7 @@ DDTableBuffer::init_tuple_with_id(
 	dtuple_t*	tuple,
 	table_id_t	id)
 {
-	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
+	dfield_t*	dfield = dtuple_get_nth_field(tuple, TABLE_ID_FIELD_NO);
 	void*		data = dfield->data;
 
 	mach_write_to_8(data, id);
@@ -7187,18 +7161,8 @@ DDTableBuffer::init_tuple_with_id(
 void
 DDTableBuffer::close()
 {
-	dict_table_t*	table = m_index->table;
-
-	rw_lock_free(&m_index->lock);
-
-	UT_LIST_REMOVE(table->indexes, m_index);
-	dict_mem_index_free(m_index);
-	m_index = NULL;
-
-	dict_mem_table_free(table);
-
 	mem_heap_free(m_heap);
-	mem_heap_free(m_replace_heap);
+	mem_heap_free(m_dynamic_heap);
 
 	m_search_tuple = NULL;
 	m_replace_tuple = NULL;
@@ -7214,28 +7178,34 @@ DDTableBuffer::update_set_metadata(
 	const dtuple_t*	entry,
 	const rec_t*	rec)
 {
+	ulint		offsets[N_FIELDS + 1 + REC_OFFS_HEADER_SIZE];
 	upd_field_t*	upd_field;
 	const dfield_t*	dfield;
 	const byte*	data;
 	ulint		len;
 	upd_t*		update;
 
-	data = rec_get_nth_field_old(rec, 1, &len);
-	dfield = dtuple_get_nth_field(entry, 1);
+	rec_offs_init(offsets);
+        rec_offs_set_n_fields(offsets, N_FIELDS);
+        rec_init_offsets_comp_ordinary(rec, false, m_index, offsets);
+        ut_ad(!rec_get_deleted_flag(rec, true));
+
+	data = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, &len);
+	dfield = dtuple_get_nth_field(entry, METADATA_FIELD_NO);
 
 	if (dfield_data_is_binary_equal(dfield, len, data)) {
-
+		/* We don't need to update if all fields are equal. */
 		return(NULL);
 	}
 
-	update = upd_create(dtuple_get_n_fields(entry), m_replace_heap);
+	update = upd_create(dtuple_get_n_fields(entry), m_dynamic_heap);
 
 	/* There are only 2 fields in one row. Since the first field
 	TABLE_ID should be equal, we can set the second METADATA field
 	as diff directly */
-	upd_field = upd_get_nth_field(update, 0);
+	upd_field = upd_get_nth_field(update, TABLE_ID_FIELD_NO);
 	dfield_copy(&upd_field->new_val, dfield);
-	upd_field_set_field_no(upd_field, 1, m_index, NULL);
+	upd_field_set_field_no(upd_field, METADATA_FIELD_NO, m_index, NULL);
 	update->n_fields = 1;
 	ut_ad(update->validate());
 
@@ -7264,12 +7234,12 @@ DDTableBuffer::replace(
 	init_tuple_with_id(m_search_tuple, id);
 
 	init_tuple_with_id(m_replace_tuple, id);
-	dfield = dtuple_get_nth_field(m_replace_tuple, 1);
+	dfield = dtuple_get_nth_field(m_replace_tuple, METADATA_COL_NO);
 	dfield_set_data(dfield, metadata, len);
 	/* Other system fields have been initialized */
 
 	entry = row_build_index_entry(m_replace_tuple, NULL, m_index,
-				      m_replace_heap);
+				      m_dynamic_heap);
 
 	/* Start to search for the to-be-replaced tuple */
 	mtr.start();
@@ -7295,44 +7265,39 @@ DDTableBuffer::replace(
 			entry, 0, NULL, false);
 		ut_a(error == DB_SUCCESS);
 
-		mem_heap_empty(m_replace_heap);
+		mem_heap_empty(m_dynamic_heap);
 
 		return(DB_SUCCESS);
 	}
 
-	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(&pcur), 0));
+	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(&pcur), true));
 
 	/* Prepare to update the record. */
 	ulint*		cur_offsets = NULL;
 
-	upd_t*	update = update_set_metadata(entry,  btr_pcur_get_rec(&pcur));
+	upd_t*	update = update_set_metadata(entry, btr_pcur_get_rec(&pcur));
 
-	if (update == NULL) {
+	if (update != NULL) {
 
-		/* We don't need to update if all fields are equal. */
-		mtr.commit();
-		mem_heap_empty(m_replace_heap);
+		big_rec_t*		big_rec;
+		static const ulint	flags = (BTR_CREATE_FLAG
+						 | BTR_NO_LOCKING_FLAG
+						 | BTR_NO_UNDO_LOG_FLAG
+						 | BTR_KEEP_POS_FLAG
+						 | BTR_KEEP_SYS_FLAG);
 
-		return(DB_SUCCESS);
+		error = btr_cur_pessimistic_update(
+			flags, btr_pcur_get_btr_cur(&pcur),
+			&cur_offsets, &m_dynamic_heap,
+			m_dynamic_heap, &big_rec, update,
+			0, NULL, 0, &mtr);
+		ut_a(error == DB_SUCCESS);
+		/* We don't have big rec in this table */
+		ut_ad(!big_rec);
 	}
 
-	big_rec_t*		big_rec;
-	static const ulint	flags = (BTR_CREATE_FLAG
-					 | BTR_NO_LOCKING_FLAG
-					 | BTR_NO_UNDO_LOG_FLAG
-					 | BTR_KEEP_POS_FLAG
-					 | BTR_KEEP_SYS_FLAG);
-
-	error = btr_cur_pessimistic_update(flags, btr_pcur_get_btr_cur(&pcur),
-					   &cur_offsets, &m_replace_heap,
-					   m_replace_heap, &big_rec, update,
-					   0, NULL, 0, &mtr);
-	ut_a(error == DB_SUCCESS);
-	/* We don't have big rec in this table */
-	ut_ad(!big_rec);
-
 	mtr.commit();
-	mem_heap_empty(m_replace_heap);
+	mem_heap_empty(m_dynamic_heap);
 
 	return(DB_SUCCESS);
 }
@@ -7358,22 +7323,18 @@ DDTableBuffer::remove(
 		      BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
 		      &pcur, &mtr);
 
-	if (page_rec_is_infimum(btr_pcur_get_rec(&pcur))
-	    || btr_pcur_get_low_match(&pcur) < m_index->n_uniq) {
+	if (!page_rec_is_infimum(btr_pcur_get_rec(&pcur))
+	    && btr_pcur_get_low_match(&pcur) == m_index->n_uniq) {
 
-		/* The record was not found, no need to delete */
-		mtr.commit();
+		mtr.set_named_space(m_index->space);
 
-		return(DB_SUCCESS);
+		DEBUG_SYNC_C("delete_metadata_before");
+
+		btr_cur_pessimistic_delete(
+			&error, false, btr_pcur_get_btr_cur(&pcur),
+			BTR_CREATE_FLAG, false, &mtr);
+		ut_ad(error == DB_SUCCESS);
 	}
-
-	mtr.set_named_space(m_index->space);
-
-	DEBUG_SYNC_C("delete_metadata_before");
-
-	btr_cur_pessimistic_delete(&error, false, btr_pcur_get_btr_cur(&pcur),
-				   BTR_CREATE_FLAG, false, &mtr);
-	ut_ad(error == DB_SUCCESS);
 
 	mtr.commit();
 
@@ -7415,11 +7376,16 @@ DDTableBuffer::get(
 				    __FILE__, __LINE__, &mtr);
 
 	if (cursor.low_match == dtuple_get_n_fields(m_search_tuple)) {
-		ut_ad(!rec_get_deleted_flag(btr_cur_get_rec(&cursor), 0));
+		ulint		offsets[N_FIELDS + 1 + REC_OFFS_HEADER_SIZE];
+		rec_offs_init(offsets);
+		rec_offs_set_n_fields(offsets, N_FIELDS);
+		rec_t*		rec = btr_cur_get_rec(&cursor);
+		rec_init_offsets_comp_ordinary(rec, false, m_index, offsets);
+		ut_ad(!rec_get_deleted_flag(rec, true));
 
 		/* Get the METADATA field */
-		field = rec_get_nth_field_old(
-				btr_cur_get_rec(&cursor), 1, &len);
+		field = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO,
+					  &len);
 
 		ut_ad(len != UNIV_SQL_NULL);
 	} else {

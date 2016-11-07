@@ -946,6 +946,13 @@ ha_innobase::prepare_inplace_alter_table(
 	ut_ad(old_dd_tab != NULL);
 	ut_ad(new_dd_tab != NULL);
 
+	/* TODO: Check this */
+	//if (dict_sys_t::is_hardcoded(m_prebuilt->table->id)) {
+	//	ut_ad(!m_prebuilt->table->is_temporary());
+	//	my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
+	//	DBUG_RETURN(HA_ERR_UNSUPPORTED);
+        //}
+
 	if (altered_table->found_next_number_field != NULL) {
 		dd_set_autoinc(new_dd_tab->se_private_data(),
 			       ha_alter_info->create_info
@@ -4413,9 +4420,7 @@ prepare_inplace_alter_table_global_dd(
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-		/* TODO: Remove the DD tables checking */
-		if (dict_table_is_file_per_table(old_table)
-		    && strstr(old_table->name.m_name, "mysql/") == NULL) {
+		if (dict_table_is_file_per_table(old_table)) {
 			dd::Object_id	old_space_id =
 				(*old_dd_tab->indexes().begin())
 				->tablespace_id();
@@ -4443,9 +4448,7 @@ prepare_inplace_alter_table_global_dd(
 
 		dd::Object_id	dd_space_id;
 
-		/* TODO: Remove the DD tables checking */
-		if (dict_table_is_file_per_table(new_table)
-		    && strstr(new_table->name.m_name, "mysql/") == NULL) {
+		if (dict_table_is_file_per_table(new_table)) {
 			std::unique_ptr<dd::Tablespace> dd_space(
 				dd::create_object<dd::Tablespace>());
 			/* Replace the table name with the final correct one */
@@ -4457,7 +4460,7 @@ prepare_inplace_alter_table_global_dd(
 
 			ut_free(path);
 
-			if (innobase_create_dd_tablespace(
+			if (innobase_create_implicit_dd_tablespace(
 				    client, thd, dd_space.get(),
 				    new_table->space, filename)) {
 				ut_a(false);
@@ -4469,9 +4472,7 @@ prepare_inplace_alter_table_global_dd(
 			dd_space_id = 1;
 		} else {
 			dd_space_id = new_dd_tab->tablespace_id();
-			ut_ad(dd_space_id != dd::INVALID_OBJECT_ID
-			      || strstr(new_table->name.m_name, "mysql/")
-				 != NULL);
+			ut_ad(dd_space_id != dd::INVALID_OBJECT_ID);
 		}
 
 		create_table_info_t::set_table_options(
@@ -4487,12 +4488,6 @@ prepare_inplace_alter_table_global_dd(
 
 		dd::Object_id	dd_space_id = (*old_dd_tab->indexes().begin())
 			->tablespace_id();
-
-		if (new_table->space == 0) {
-			dd_space_id = 1;
-		} else {
-			/* TODO: shared tablespace, nothing to do for now */
-		}
 
                 /* Now all index metadata are ready in dict_index_t(s),
 		copy them into dd::Index(es) */

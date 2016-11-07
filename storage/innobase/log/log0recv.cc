@@ -36,6 +36,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "mem0mem.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
+#include "dict0dd.h"
 #include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "page0cur.h"
@@ -436,7 +437,8 @@ fil_name_parse(
 	os_normalize_path(name);
 
 	if (len > sizeof "/a.ibd" && !memcmp(end_ptr - 5, DOT_IBD, 5)
-	    && memchr(name, OS_PATH_SEPARATOR, len - 1) != NULL) {
+	    && (memchr(name, OS_PATH_SEPARATOR, len - 1) != NULL
+		|| strcmp(name, "mysql.ibd") == 0)) {
 		/* User-defined tablespace (*.ibd file) */
 		if (first_page_no != 0) {
 			corrupt = true;
@@ -657,8 +659,6 @@ MetadataRecover::apply()
 
 	PersistentTables::iterator	iter;
 
-	mutex_enter(&dict_sys->mutex);
-
 	for (iter = m_tables.begin();
 	     iter != m_tables.end();
 	     ++iter) {
@@ -667,13 +667,16 @@ MetadataRecover::apply()
 		PersistentTableMetadata*metadata = iter->second;
 		dict_table_t*		table;
 
-		table = dict_table_open_on_id(
-			table_id, true, DICT_TABLE_OP_LOAD_TABLESPACE);
+		table = dd_table_open_on_id(table_id, NULL, NULL);
+		//table = dict_table_open_on_id(
+		//	table_id, true, DICT_TABLE_OP_LOAD_TABLESPACE);
 
 		/* If the table is NULL, it might be already dropped */
 		if (table == NULL) {
 			continue;
 		}
+
+		mutex_enter(&dict_sys->mutex);
 
 		/* At this time, the metadata in DDTableBuffer has
 		already been applied to table object, we can apply
@@ -710,11 +713,10 @@ MetadataRecover::apply()
 		}
 
 		mutex_exit(&dict_persist->mutex);
+		mutex_exit(&dict_sys->mutex);
 
-		dict_table_close(table, true, false);
+		dd_table_close(table, NULL, NULL);
 	}
-
-	mutex_exit(&dict_sys->mutex);
 }
 
 /********************************************************//**

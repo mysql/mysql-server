@@ -261,7 +261,7 @@ dd_table_open_on_dd_obj(
 	const ulint		fold		= ut_fold_ull(table_id);
 #ifdef UNIV_DEBUG
 	const bool		is_temp
-		= (table_id > NUM_HARD_CODED_TABLES)
+		= (table_id > dict_sys_t::NUM_HARD_CODED_TABLES)
 		&& !dd_table.is_persistent();
 #endif
 
