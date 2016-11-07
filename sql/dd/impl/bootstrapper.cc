@@ -446,8 +446,8 @@ bool create_dd_schema(THD *thd)
 {
   return execute_query(thd, dd::String_type("CREATE SCHEMA ") +
                             dd::String_type(MYSQL_SCHEMA_NAME.str) +
-                            dd::String_type(" DEFAULT COLLATE ") +
-                            dd::String_type(default_charset_info->name))
+                            dd::String_type(" DEFAULT COLLATE '") +
+                            dd::String_type(default_charset_info->name)+"'")
   || execute_query(thd, dd::String_type("USE ") +
                           dd::String_type(MYSQL_SCHEMA_NAME.str));
 }
