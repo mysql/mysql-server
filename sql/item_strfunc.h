@@ -518,6 +518,22 @@ public:
 };
 
 
+class Item_func_ltrim : public Item_func_trim
+{
+public:
+  Item_func_ltrim(const POS &pos, Item *a) : Item_func_trim(pos, a, TRIM_LTRIM)
+  {}
+};
+
+
+class Item_func_rtrim : public Item_func_trim
+{
+public:
+  Item_func_rtrim(const POS &pos, Item *a) : Item_func_trim(pos, a, TRIM_RTRIM)
+  {}
+};
+
+
 /*
   Item_func_password -- new (4.1.1) PASSWORD() function implementation.
   Returns strcat('*', octet2hex(sha1(sha1(password)))). '*' stands for new

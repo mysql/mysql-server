@@ -1265,11 +1265,11 @@ public:
 
 class Item_func_units :public Item_real_func
 {
-  char *name;
+  const char *name;
   double mul,add;
 public:
-  Item_func_units(const POS &pos, char *name_arg, Item *a, double mul_arg,
-                  double add_arg)
+  Item_func_units(const POS &pos, const char *name_arg, Item *a,
+                  double mul_arg, double add_arg)
     :Item_real_func(pos, a),name(name_arg),mul(mul_arg),add(add_arg)
   {}
   double val_real();
