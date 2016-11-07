@@ -1390,6 +1390,11 @@ public:
                         Item *a, Item *b, bool is_time_format_arg)
     :Item_str_func(pos, a, b), is_time_format(is_time_format_arg)
   {}
+
+  Item_func_date_format(const POS &pos, Item *a, Item *b)
+    : Item_func_date_format(pos, a, b, false)
+  {}
+
   String *val_str(String *str);
   const char *func_name() const
     { return is_time_format ? "time_format" : "date_format"; }
@@ -1653,6 +1658,10 @@ public:
   {
     sign= neg_arg ? -1 : 1;
   }
+
+  Item_func_add_time(const POS &pos, Item *a, Item *b)
+    : Item_func_add_time(pos, a, b, false, false)
+  {}
 
   virtual bool resolve_type(THD *thd);
   void print(String *str, enum_query_type query_type);
