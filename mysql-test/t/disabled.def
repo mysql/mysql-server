@@ -55,3 +55,4 @@ roles-upgrade                    : Waiting for wl#9532
 component-upgrade                : Waiting for wl#9532
 bug14826854                      : Waiting for wl#9532
 grant_user_lock                  : Waiting for wl#9532
+grant_alter_user                 : Waiting for wl#9532
