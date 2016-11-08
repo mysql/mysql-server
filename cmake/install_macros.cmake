@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2016 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -244,7 +244,7 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
   SET(INSTALL_LOCATION)
 ENDFUNCTION()
 
-# Optionally install mysqld/client/embedded from debug build run. outside of the current build dir 
+# Optionally install mysqld/client from debug build run. outside of the current build dir
 # (unless multi-config generator is used like Visual Studio or Xcode). 
 # For Makefile generators we default Debug build directory to ${buildroot}/../debug.
 GET_FILENAME_COMPONENT(BINARY_PARENTDIR ${CMAKE_BINARY_DIR} PATH)

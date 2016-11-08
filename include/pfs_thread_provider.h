@@ -85,6 +85,8 @@ void pfs_delete_thread_v1(PSI_thread *thread);
 int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
                                       const void *from_cs);
 
+void pfs_get_thread_event_id_v1(ulonglong *internal_thread_id,
+                                ulonglong *event_id);
 C_MODE_END
 
 #endif /* HAVE_PSI_THREAD_INTERFACE */

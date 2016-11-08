@@ -36,17 +36,12 @@ MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES}
   STORAGE_ENGINE 
   MANDATORY
   LINK_LIBRARIES mysys myisam_sys
-  RECOMPILE_FOR_EMBEDDED)
+)
 
-IF (WITH_EMBEDDED_SERVER)
-  SET(MYISAM_NOPFS myisam_embedded)
-  TARGET_LINK_LIBRARIES(myisam_embedded mysys myisam_sys)
-ELSE()
-  ADD_CONVENIENCE_LIBRARY(myisam_nopfs ${MYISAM_SOURCES})
-  ADD_DEPENDENCIES(myisam_nopfs GenError)
-  TARGET_LINK_LIBRARIES(myisam_nopfs mysys myisam_sys)
-  SET(MYISAM_NOPFS myisam_nopfs)
-ENDIF()
+ADD_CONVENIENCE_LIBRARY(myisam_nopfs ${MYISAM_SOURCES})
+ADD_DEPENDENCIES(myisam_nopfs GenError)
+TARGET_LINK_LIBRARIES(myisam_nopfs mysys myisam_sys)
+SET(MYISAM_NOPFS myisam_nopfs)
 
 MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
 TARGET_LINK_LIBRARIES(myisam_ftdump ${MYISAM_NOPFS} mysys_ssl)

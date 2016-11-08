@@ -28,6 +28,8 @@ Created 5/7/1996 Heikki Tuuri
 #include <mysql/service_thd_engine_lock.h>
 #include <set>
 
+#include "mysql/psi/psi_thread.h"
+
 #include "btr0btr.h"
 #include "current_thd.h"
 #include "dict0boot.h"

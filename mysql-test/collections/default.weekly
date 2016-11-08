@@ -22,9 +22,6 @@ perl mysql-test-run.pl --comment=all-binlogformat-mix --vardir=var-binlogformat-
 ## Running default suites other than rpl and binlog with binlog-format row
 perl mysql-test-run.pl --comment=all-binlogformat-row --vardir=var-binlogformat-row --force --timer --debug-server --parallel=auto --suite=main,sys_vars,federated,gis,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,innodb,innodb_fts,innodb_gis,innodb_zip,innodb_undo,json,x --mysqld=--log-bin --mysqld=--binlog_format=row
 
-# embedded
-# --debug-server is not used for embedded runs since debug build of embedded server is not available
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=embedded-big  --vardir=var-embedded-big  --embedded-server
 # ps-protocol
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol --skip-test-list=collections/disabled-weekly.list
 

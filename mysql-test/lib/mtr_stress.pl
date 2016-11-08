@@ -1,7 +1,6 @@
 # -*- cperl -*-
-# Copyright (c) 2004-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-# Use is subject to license terms.
-# 
+# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -40,12 +39,9 @@ sub run_stress_test ()
 
   mtr_report("Starting stress testing\n");
 
-  if ( ! $::glob_use_embedded_server )
+  if ( ! mysqld_start($::master->[0],[],[]) )
   {
-    if ( ! mysqld_start($::master->[0],[],[]) )
-    {
-      mtr_error("Can't start the mysqld server");
-    }
+    mtr_error("Can't start the mysqld server");
   }
 
   my $stress_basedir=File::Spec->catdir($::opt_vardir, "stress");
@@ -189,10 +185,7 @@ sub run_stress_test ()
        args           => \$args,
       );
 
-  if ( ! $::glob_use_embedded_server )
-  {
-    stop_all_servers();
-  }
+  stop_all_servers();
 }
 
 1;

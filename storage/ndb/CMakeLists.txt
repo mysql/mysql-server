@@ -137,7 +137,7 @@ ENDIF()
 
 IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
-    ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
+    ${is_default_plugin} STATIC_ONLY
     LINK_LIBRARIES ndbclient_static)
 ENDIF()
 

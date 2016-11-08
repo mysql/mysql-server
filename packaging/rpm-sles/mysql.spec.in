@@ -147,18 +147,30 @@ Obsoletes:      mysql-commercial-bench < 5.7.8
 Provides:       MySQL-server-advanced = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
+Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
+Obsoletes:      mysql-commercial-embedded < 8.0.1
+Obsoletes:      mysql-commercial-embedded-devel < 8.0.1
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-server-advanced = %{version}-%{release}
 Obsoletes:      MySQL-Cluster-server-advanced < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-commercial-server < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-server < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-embedded < 8.0.1
+Obsoletes:      mysql-cluster-community-embedded-devel < 8.0.1
 %endif
 %endif
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-server-gpl%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-Cluster-server-gpl%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-embedded-gpl < %{version}-%{release}
 %endif
 Obsoletes:      mysql-community-bench < 5.7.8
+Obsoletes:      mysql-community-embedded < 8.0.1
+Obsoletes:      mysql-community-embedded-devel < 8.0.1
+Obsoletes:      MySQL-embedded < %{version}-%{release}
+Obsoletes:      mysql-embedded < %{version}-%{release}
+Obsoletes:      mysql-embedded-devel < %{version}-%{release}
 Obsoletes:      community-mysql-bench
 Obsoletes:      mysql-bench
 Provides:       MySQL-server = %{version}-%{release}
@@ -168,6 +180,8 @@ Obsoletes:      mysql-tools < %{version}-%{release}
 Obsoletes:      mariadb-bench
 Obsoletes:      mariadb-server
 Obsoletes:      mariadb-galera-server
+Obsoletes:      mariadb-embedded
+Obsoletes:      mariadb-embedded-devel
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql-tools = %{version}-%{release}
 %if 0%{?systemd}
@@ -245,8 +259,8 @@ Obsoletes:      mysql-cluster-community-common < %{version}-%{release}
 Provides:       mysql-common = %{version}-%{release}
 
 %description    common
-This packages contains common files needed by MySQL client library,
-MySQL database server, and MySQL embedded server.
+This packages contains common files needed by MySQL client library and
+MySQL database server
 
 
 %package        test
@@ -343,63 +357,6 @@ Provides:       libmysqlclient21 = %{version}-%{release}
 This package contains the shared libraries for MySQL client
 applications.
 
-%package        embedded
-Summary:        MySQL embedded library
-Group:          Applications/Databases
-Requires:       %{name}-common = %{version}-%{release}
-%if 0%{?commercial}
-Provides:       MySQL-embedded-advanced = %{version}-%{release}
-Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
-Obsoletes:      mysql-community-embedded < %{version}-%{release}
-%if 0%{?cluster}
-Provides:       MySQL-Cluster-embedded-advanced = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-embedded-advanced < %{version}-%{release}
-Obsoletes:      mysql-commercial-embedded < %{version}-%{release}
-Obsoletes:      mysql-cluster-community-embedded < %{version}-%{release}
-%endif
-%endif
-%if 0%{?cluster}
-Provides:       MySQL-Cluster-embedded-gpl = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-embedded-gpl < %{version}-%{release}
-%endif
-Obsoletes:      mariadb-embedded
-Provides:       MySQL-embedded = %{version}-%{release}
-Obsoletes:      MySQL-embedded < %{version}-%{release}
-Obsoletes:      mysql-embedded < %{version}-%{release}
-Provides:       mysql-embedded = %{version}-%{release}
-
-%description    embedded
-This package contains the MySQL server as an embedded library.
-
-The embedded MySQL server library makes it possible to run a full-featured
-MySQL server inside the client application. The main benefits are increased
-speed and more simple management for embedded applications.
-
-The API is identical for the embedded MySQL version and the
-client/server version.
-
-For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
-
-%package        embedded-devel
-Summary:        Development header files and libraries for MySQL as an embeddable library
-Group:          Applications/Databases
-Requires:       %{name}-devel >= %{min}
-Requires:       %{name}-embedded >= %{min}
-%if 0%{?commercial}
-Obsoletes:      mysql-community-embedded-devel < %{version}-%{release}
-%if 0%{?cluster}
-Obsoletes:      mysql-commercial-embedded-devel < %{version}-%{release}
-Obsoletes:      mysql-cluster-community-embedded-devel < %{version}-%{release}
-%endif
-%endif
-Obsoletes:      mariadb-embedded-devel
-Obsoletes:      mysql-embedded-devel < %{version}-%{release}
-Provides:       mysql-embedded-devel = %{version}-%{release}
-
-%description    embedded-devel
-This package contains files needed for developing applications using
-the embedded version of the MySQL server.
-
 %if 0%{?cluster}
 %package        management-server
 Summary:        MySQL Cluster Management Server Daemon
@@ -413,7 +370,7 @@ information to all nodes in the cluster.
 Summary:        MySQL Cluster Data Node Daemon
 Group:          Applications/Databases
 %description    data-node
-This package contains MySQL Cluster Data Node Daemon, it's the process
+This package contains MySQL Cluster Data Node Daemon, its the process
 that is used to handle all the data in tables using the NDB Cluster
 storage engine. It comes in two variants: ndbd and ndbmtd, the former
 is single threaded while the latter is multi-threaded.
@@ -500,7 +457,7 @@ fi
 %{?sles11:export CC=/usr/bin/gcc-4.8}
 %{?sles11:export CXX=/usr/bin/g++-4.8}
 
-# Build debug versions of mysqld and libmysqld.a
+# Build debug versions of mysqld
 mkdir debug
 (
   cd debug
@@ -532,8 +489,6 @@ mkdir debug
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysql/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
-           -DWITH_EMBEDDED_SERVER=1 \
-           -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            -DWITH_NUMA=ON \
            %{?ssl_option} \
            %{?mecab_option} \
@@ -573,8 +528,6 @@ mkdir release
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysql/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
-           -DWITH_EMBEDDED_SERVER=1 \
-           -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            -DWITH_NUMA=ON \
            %{?ssl_option} \
            %{?mecab_option} \
@@ -623,7 +576,6 @@ install -p -m 0644 packaging/rpm-common/my_config.h %{buildroot}/%{_includedir}/
 rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
-rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql 
 rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
 
@@ -634,6 +586,8 @@ rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
 # Remove removed manpages here until they are removed from the docs repo
 rm -f  %{buildroot}%{_mandir}/man1/mysql_plugin.1
 rm -f  %{buildroot}%{_mandir}/man1/mysql_install_db.1
+rm -f  %{buildroot}%{_mandir}/man1/mysql_client_test_embedded.1*
+rm -f  %{buildroot}%{_mandir}/man1/mysqltest_embedded.1*
 
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
@@ -706,10 +660,6 @@ fi
 
 %postun libs-compat -p /sbin/ldconfig
 %endif
-
-%post embedded -p /sbin/ldconfig
-
-%postun embedded -p /sbin/ldconfig
 
 %files server
 %defattr(-, root, root, -)
@@ -1008,9 +958,7 @@ fi
 %doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
-%attr(755, root, root) %{_bindir}/mysql_client_test_embedded
 %attr(755, root, root) %{_bindir}/mysqltest
-%attr(755, root, root) %{_bindir}/mysqltest_embedded
 %attr(755, root, root) %{_bindir}/mysqlxtest
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
@@ -1088,23 +1036,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
 %attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*
 %attr(644, root, root) %{_mandir}/man1/mysql-test-run.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test_embedded.1*
 %attr(644, root, root) %{_mandir}/man1/mysqltest.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest_embedded.1*
-
-%files embedded
-%defattr(-, root, root, -)
-%doc %{?license_files_server}
-%dir %attr(755, root, root) %{_libdir}/mysql
-%attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%attr(755, root, root) %{_libdir}/mysql/libmysqld.so.*
-
-%files embedded-devel
-%defattr(-, root, root, -)
-%doc %{?license_files_server}
-%attr(644, root, root) %{_libdir}/mysql/libmysqld.a
-%attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
-%attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %if 0%{?cluster}
 %files management-server
