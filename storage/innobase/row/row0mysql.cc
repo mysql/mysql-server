@@ -4331,7 +4331,9 @@ row_drop_table_for_mysql(
 
 	if (!table->is_temporary()) {
 
-		dict_stats_recalc_pool_del(table);
+		if (srv_dict_stats_thread_active) {
+			dict_stats_recalc_pool_del(table);
+		}
 
 		/* Remove stats for this table and all of its indexes from the
 		persistent storage if it exists and if there are stats for this

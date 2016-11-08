@@ -7960,6 +7960,7 @@ create_table_metadata(
 		m_table->flags |= (zip_ssize << DICT_TF_POS_ZIP_SSIZE);
 	}
 
+	m_table->flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
 	if (fulltext) {
 		m_table->flags2 |= DICT_TF2_FTS;
 		m_table->fts = fts_create(m_table);

@@ -528,7 +528,6 @@ CALL mtr.add_suppression("Skip re-populating collations and character sets table
 let $restart_parameters = restart: --innodb-read-only --read-only;
 --source include/restart_mysqld.inc
 USE testdb_wl6445;
-show tables;
 select * from t1 where i = 4;
 # check if root user able to modify
 --ERROR ER_CANT_LOCK
@@ -622,6 +621,7 @@ eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
 eval SET GLOBAL innodb_flush_log_at_trx_commit = $innodb_flush_log_at_trx_commit_orig;
 call mtr.add_suppression("deleting orphaned .ibd file");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
