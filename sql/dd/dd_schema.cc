@@ -47,7 +47,7 @@ bool schema_exists(THD *thd, const char *schema_name, bool *exists)
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch= NULL;
   bool error= mdl_handler.ensure_locked(schema_name) ||
-              thd->dd_client()->acquire<dd::Schema>(schema_name, &sch);
+              thd->dd_client()->acquire(schema_name, &sch);
   DBUG_ASSERT(exists);
   *exists= (sch != NULL);
   // Error has been reported by the dictionary subsystem.
@@ -94,8 +94,8 @@ bool alter_schema(THD *thd, const char *schema_name,
   // Get dd::Schema object.
   const dd::Schema *old_sch_obj= nullptr;
   dd::Schema *new_sch_obj= nullptr;
-  if (client->acquire<dd::Schema>(schema_name, &old_sch_obj) ||
-      client->acquire_for_modification<dd::Schema>(schema_name, &new_sch_obj))
+  if (client->acquire(schema_name, &old_sch_obj) ||
+      client->acquire_for_modification(schema_name, &new_sch_obj))
   {
     // Error is reported by the dictionary subsystem.
     return true;
@@ -136,7 +136,7 @@ bool drop_schema(THD *thd, const char *schema_name)
   // Get the schema.
   const dd::Schema *sch_obj= NULL;
   DEBUG_SYNC(thd, "before_acquire_in_drop_schema");
-  if (client->acquire<dd::Schema>(schema_name, &sch_obj))
+  if (client->acquire(schema_name, &sch_obj))
   {
     // Error is reported by the dictionary subsystem.
     return true;

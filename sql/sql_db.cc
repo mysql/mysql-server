@@ -150,7 +150,7 @@ bool get_default_db_collation(THD *thd,
   const dd::Schema *sch_obj= NULL;
 
   if (mdl_handler.ensure_locked(db_name) ||
-      thd->dd_client()->acquire<dd::Schema>(db_name, &sch_obj))
+      thd->dd_client()->acquire(db_name, &sch_obj))
     return true;
 
   DEBUG_SYNC(thd, "acquired_schema_while_getting_collation");
@@ -819,7 +819,7 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
   }
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj= NULL;
-  if (thd->dd_client()->acquire<dd::Schema>(db, &sch_obj))
+  if (thd->dd_client()->acquire(db, &sch_obj))
     DBUG_RETURN(true);
 
   DBUG_ASSERT(sch_obj);

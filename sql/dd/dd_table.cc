@@ -1363,7 +1363,7 @@ static bool fill_dd_tablespace_id_or_name(THD *thd,
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Tablespace* ts_obj= NULL;
     DEBUG_SYNC(thd, "before_acquire_in_fill_dd_tablespace_id_or_name");
-    if (thd->dd_client()->acquire<dd::Tablespace>(tablespace_name, &ts_obj))
+    if (thd->dd_client()->acquire(tablespace_name, &ts_obj))
     {
       // acquire() always fails with a error being reported.
       DBUG_RETURN(true);
@@ -2192,7 +2192,7 @@ bool create_dd_user_table(THD *thd,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj= NULL;
   if (mdl_locker.ensure_locked(schema_name.c_str()) ||
-      thd->dd_client()->acquire<dd::Schema>(schema_name, &sch_obj))
+      thd->dd_client()->acquire(schema_name, &sch_obj))
   {
     // Error is reported by the dictionary subsystem.
     return true;
@@ -2273,7 +2273,7 @@ dd::Table *create_tmp_table(THD *thd,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj= NULL;
   if (mdl_locker.ensure_locked(schema_name.c_str()) ||
-      thd->dd_client()->acquire<dd::Schema>(schema_name, &sch_obj))
+      thd->dd_client()->acquire(schema_name, &sch_obj))
   {
     // Error is reported by the dictionary subsystem.
     return NULL;
@@ -2312,9 +2312,8 @@ bool add_foreign_keys_and_triggers(THD *thd,
 
   const dd::Table *old_table= nullptr;
   dd::Table *new_table= nullptr;
-  if (client->acquire<dd::Table>(schema_name, table_name, &old_table) ||
-      client->acquire_for_modification<dd::Table>(schema_name, table_name,
-                                                  &new_table))
+  if (client->acquire(schema_name, table_name, &old_table) ||
+      client->acquire_for_modification(schema_name, table_name, &new_table))
     DBUG_RETURN(true);
 
   if (fk_keys > 0 &&
@@ -2346,7 +2345,7 @@ bool drop_table(THD *thd, const char *schema_name, const char *name)
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
   const dd::Schema *sch= NULL;
   if (mdl_locker.ensure_locked(schema_name) ||
-      client->acquire<dd::Schema>(schema_name, &sch))
+      client->acquire(schema_name, &sch))
   {
     // Error is reported by the dictionary subsystem.
     return true;
@@ -2359,7 +2358,7 @@ bool drop_table(THD *thd, const char *schema_name, const char *name)
   }
 
   const T *at= NULL;
-  if (client->acquire<T>(schema_name, name, &at))
+  if (client->acquire(schema_name, name, &at))
   {
     // Error is reported by the dictionary subsystem.
     return true;
@@ -2397,7 +2396,7 @@ bool table_exists(dd::cache::Dictionary_client *client,
   // Tables exist if they can be acquired.
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
   const T *tab_obj= NULL;
-  if (client->acquire<T>(schema_name, name, &tab_obj))
+  if (client->acquire(schema_name, name, &tab_obj))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -2456,13 +2455,13 @@ bool rename_table(THD *thd,
   // Acquire all objects.
   if (from_mdl_locker.ensure_locked(from_schema_name) ||
       to_mdl_locker.ensure_locked(to_schema_name) ||
-      thd->dd_client()->acquire<dd::Schema>(from_schema_name, &from_sch) ||
-      thd->dd_client()->acquire<dd::Schema>(to_schema_name, &to_sch) ||
-      thd->dd_client()->acquire<T>(to_schema_name, to_table_name, &to_tab) ||
-      thd->dd_client()->acquire<T>(from_schema_name, from_table_name,
-                                   &from_tab) ||
-      thd->dd_client()->acquire_for_modification<T>(from_schema_name, from_table_name,
-                                                    &new_tab))
+      thd->dd_client()->acquire(from_schema_name, &from_sch) ||
+      thd->dd_client()->acquire(to_schema_name, &to_sch) ||
+      thd->dd_client()->acquire(to_schema_name, to_table_name, &to_tab) ||
+      thd->dd_client()->acquire(from_schema_name, from_table_name,
+                                &from_tab) ||
+      thd->dd_client()->acquire_for_modification(from_schema_name, from_table_name,
+                                                 &new_tab))
   {
     // Error is reported by the dictionary subsystem.
     return true;
@@ -2539,7 +2538,7 @@ bool abstract_table_type(dd::cache::Dictionary_client *client,
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
   // Get hold of the dd::Table object.
   const dd::Abstract_table *table= NULL;
-  if (client->acquire<dd::Abstract_table>(schema_name, table_name, &table))
+  if (client->acquire(schema_name, table_name, &table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -2588,7 +2587,7 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   // Get hold of the dd::Table object.
   const dd::Table *table= NULL;
-  if (thd->dd_client()->acquire<dd::Table>(schema_name, table_name, &table))
+  if (thd->dd_client()->acquire(schema_name, table_name, &table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -2632,7 +2631,7 @@ bool table_storage_engine(THD *thd, const TABLE_LIST *table_list,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   // Get hold of the dd::Table object.
   const dd::Table *table= NULL;
-  if (thd->dd_client()->acquire<dd::Table>(schema_name, table_name, &table))
+  if (thd->dd_client()->acquire(schema_name, table_name, &table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -2712,7 +2711,7 @@ bool update_keys_disabled(THD *thd,
 
   // Check if source and destination schema exists
   const dd::Schema *sch= nullptr;
-  if (client->acquire<dd::Schema>(schema_name, &sch))
+  if (client->acquire(schema_name, &sch))
   {
     return true;
   }
@@ -2725,9 +2724,8 @@ bool update_keys_disabled(THD *thd,
   // Get 'from' table object
   const dd::Table *old_tab_obj= nullptr;
   dd::Table *new_tab_obj= nullptr;
-  if (client->acquire<dd::Table>(schema_name, table_name, &old_tab_obj) ||
-      client->acquire_for_modification<dd::Table>(schema_name, table_name,
-                                                  &new_tab_obj))
+  if (client->acquire(schema_name, table_name, &old_tab_obj) ||
+      client->acquire_for_modification(schema_name, table_name, &new_tab_obj))
   {
     return true;
   }
@@ -2826,7 +2824,7 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
               share->db.str, share->table_name.str, MDL_EXCLUSIVE));
 
   if (mdl_locker.ensure_locked(share->db.str) ||
-      thd->dd_client()->acquire<dd::Schema>(share->db.str, &sch) ||
+      thd->dd_client()->acquire(share->db.str, &sch) ||
       thd->dd_client()->acquire(share->db.str, share->table_name.str,
                                 &old_table_def) ||
       thd->dd_client()->acquire_for_modification(share->db.str,
@@ -2886,14 +2884,13 @@ bool move_triggers(THD *thd,
   // Acquire all objects.
   if (from_mdl_locker.ensure_locked(from_schema_name) ||
       to_mdl_locker.ensure_locked(to_schema_name) ||
-      client->acquire<dd::Schema>(from_schema_name, &from_sch) ||
-      client->acquire<dd::Schema>(to_schema_name, &to_sch) ||
-      client->acquire<dd::Table>(to_schema_name, to_name, &old_to_tab) ||
-      client->acquire<dd::Table>(from_schema_name, from_name, &old_from_tab) ||
-      client->acquire_for_modification<dd::Table>(to_schema_name, to_name,
-                                                  &new_to_tab) ||
-      client->acquire_for_modification<dd::Table>(from_schema_name, from_name,
-                                                  &new_from_tab))
+      client->acquire(from_schema_name, &from_sch) ||
+      client->acquire(to_schema_name, &to_sch) ||
+      client->acquire(to_schema_name, to_name, &old_to_tab) ||
+      client->acquire(from_schema_name, from_name, &old_from_tab) ||
+      client->acquire_for_modification(to_schema_name, to_name, &new_to_tab) ||
+      client->acquire_for_modification(from_schema_name, from_name,
+                                       &new_from_tab))
   {
     // Error is reported by the dictionary subsystem.
     return true;

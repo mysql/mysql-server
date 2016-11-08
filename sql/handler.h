@@ -1757,6 +1757,20 @@ typedef struct st_ha_create_information
   */
   bool m_hidden;
 
+  /**
+    Fill HA_CREATE_INFO to be used by ALTER as well as upgrade code.
+    This function separates code from mysql_prepare_alter_table() to be
+    used by upgrade code as well to reduce code duplication.
+    For ALTER code path, this lets new create options override the old
+    ones.
+
+    @param[in]  share        TABLE_SHARE object
+    @param[in]  used_fields  If a given create option is not flagged, old
+                             value be copied from the TABLE_SHARE.
+  */
+
+  void init_create_options_from_share(const TABLE_SHARE *share,
+                                      uint used_fields);
 } HA_CREATE_INFO;
 
 

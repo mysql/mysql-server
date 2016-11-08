@@ -173,7 +173,7 @@ private:
 
     // If the schema acquisition fails, we cannot assure that we have a lock,
     // and therefore return false.
-    if (thd->dd_client()->acquire<dd::Schema>(table->schema_id(), &schema))
+    if (thd->dd_client()->acquire(table->schema_id(), &schema))
       return false;
 
     // Skip check for temporary tables.
@@ -233,7 +233,7 @@ private:
 
     // If the schema acquisition fails, we cannot assure that we have a lock,
     // and therefore return false.
-    if (thd->dd_client()->acquire<dd::Schema>(event->schema_id(), &schema))
+    if (thd->dd_client()->acquire(event->schema_id(), &schema))
       return false;
 
     char lc_event_name[NAME_LEN + 1];
@@ -277,7 +277,7 @@ private:
 
     // If the schema acquisition fails, we cannot assure that we have a lock,
     // and therefore return false.
-    if (thd->dd_client()->acquire<dd::Schema>(routine->schema_id(), &schema))
+    if (thd->dd_client()->acquire(routine->schema_id(), &schema))
       return false;
 
     MDL_key::enum_mdl_namespace mdl_namespace= MDL_key::FUNCTION;
@@ -1260,7 +1260,7 @@ bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
   if (table_id == INVALID_OBJECT_ID)
     return false;
 
-  if (acquire_uncached<Table>(table_id, table))
+  if (acquire_uncached(table_id, table))
   {
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
@@ -1452,7 +1452,7 @@ bool Dictionary_client::get_table_name_by_se_private_id(
 
   // Acquire the schema uncached to get the schema name. Like above, we
   // cannot lock it in advance since we do not know its name.
-  if (acquire_uncached<Schema>(tab_obj->schema_id(), &sch_obj))
+  if (acquire_uncached(tab_obj->schema_id(), &sch_obj))
   {
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
@@ -1500,7 +1500,7 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
     return false;
 
   // Acquire the schema to get the schema name.
-  if (acquire_uncached<Schema>(tab_obj->schema_id(), &sch_obj))
+  if (acquire_uncached(tab_obj->schema_id(), &sch_obj))
   {
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
@@ -2146,7 +2146,7 @@ template bool Dictionary_client::fetch_referencing_views_object_id<View_routine>
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Abstract_table**);
-template bool Dictionary_client::acquire<Abstract_table>(const String_type&,
+template bool Dictionary_client::acquire(const String_type&,
                                          const String_type&,
                                          const Abstract_table**);
 template bool Dictionary_client::drop(const Abstract_table*);
@@ -2160,8 +2160,7 @@ template bool Dictionary_client::acquire_for_modification(Object_id,
                                                           dd::Charset**);
 template void Dictionary_client::remove_uncommitted_objects<Charset>(bool);
 template void Dictionary_client::object_renamed(dd::Charset*);
-template bool Dictionary_client::acquire<dd::Charset>(String_type const&,
-                                                      dd::Charset const**);
+template bool Dictionary_client::acquire(String_type const&, Charset const**);
 template bool Dictionary_client::acquire_for_modification(String_type const&,
                                                           dd::Charset**);
 

@@ -119,7 +119,7 @@ Variable_name	Value
 performance_schema_max_table_instances	0
 show global variables like "performance_schema_max_table_handles";
 Variable_name	Value
-performance_schema_max_table_handles	1000
+performance_schema_max_table_handles	-1
 drop table if exists test.instrument_me;
 create table test.instrument_me(a int);
 insert into test.instrument_me values (1), (2), (3);

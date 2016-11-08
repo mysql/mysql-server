@@ -2604,6 +2604,65 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   DBUG_RETURN(error);
 }
 
+
+// Prepare HA_CREATE_INFO to be used by ALTER as well as upgrade code.
+void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
+                                                    uint used_fields)
+{
+  if (!(used_fields & HA_CREATE_USED_MIN_ROWS))
+    min_rows= share->min_rows;
+
+  if (!(used_fields & HA_CREATE_USED_MAX_ROWS))
+    max_rows= share->max_rows;
+
+  if (!(used_fields & HA_CREATE_USED_AVG_ROW_LENGTH))
+    avg_row_length= share->avg_row_length;
+
+  if (!(used_fields & HA_CREATE_USED_DEFAULT_CHARSET))
+    default_table_charset= share->table_charset;
+
+  if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
+    key_block_size= share->key_block_size;
+
+  if (!(used_fields & HA_CREATE_USED_STATS_SAMPLE_PAGES))
+    stats_sample_pages= share->stats_sample_pages;
+
+  if (!(used_fields & HA_CREATE_USED_STATS_AUTO_RECALC))
+    stats_auto_recalc= share->stats_auto_recalc;
+
+  if (!(used_fields & HA_CREATE_USED_TABLESPACE))
+    tablespace= share->tablespace;
+
+  if (storage_media == HA_SM_DEFAULT)
+    storage_media= share->default_storage_media;
+
+  /* Creation of federated table with LIKE clause needs connection string */
+  if (!(used_fields & HA_CREATE_USED_CONNECTION))
+    connect_string= share->connect_string;
+
+  if (!(used_fields & HA_CREATE_USED_COMMENT))
+  {
+    // Assert to check that used_fields flag and comment are in sync.
+    DBUG_ASSERT(!comment.str);
+    comment= share->comment;
+  }
+
+  if (!(used_fields & HA_CREATE_USED_COMPRESS))
+  {
+    // Assert to check that used_fields flag and compress are in sync
+    DBUG_ASSERT(!compress.str);
+    compress= share->compress;
+  }
+
+  if (!(used_fields & HA_CREATE_USED_ENCRYPT))
+  {
+    // Assert to check that used_fields flag and encrypt_type are in sync
+    DBUG_ASSERT(!encrypt_type.str);
+    encrypt_type= share->encrypt_type;
+  }
+}
+
+
 /****************************************************************************
 ** General handler functions
 ****************************************************************************/

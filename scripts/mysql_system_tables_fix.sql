@@ -823,3 +823,48 @@ ALTER TABLE user ADD Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAUL
 ALTER TABLE user MODIFY Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_role_priv;
 UPDATE user SET Create_role_priv= 'Y', Drop_role_priv= 'Y' WHERE Create_user_priv = 'Y';
 
+--
+-- Change engine of the firewall tables to InnoDB
+--
+SET @had_firewall_whitelist =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_whitelist' AND
+           table_type = 'BASE TABLE');
+SET @cmd="ALTER TABLE mysql.firewall_whitelist ENGINE=InnoDB";
+SET @str = IF(@had_firewall_whitelist > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_firewall_users =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_users' AND
+           table_type = 'BASE TABLE');
+SET @cmd="ALTER TABLE mysql.firewall_users ENGINE=InnoDB";
+SET @str = IF(@had_firewall_users > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- Change engine of the audit log tables to InnoDB
+--
+SET @had_audit_log_filter =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'audit_log_filter' AND
+           table_type = 'BASE TABLE');
+SET @cmd="ALTER TABLE mysql.audit_log_filter ENGINE=InnoDB";
+SET @str = IF(@had_audit_log_filter > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_audit_log_user =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'audit_log_user' AND
+           table_type = 'BASE TABLE');
+SET @cmd="ALTER TABLE mysql.audit_log_user ENGINE=InnoDB";
+SET @str = IF(@had_audit_log_user > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;

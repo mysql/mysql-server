@@ -39,10 +39,9 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 ENDIF()
 
 
-ADD_DEFINITIONS(${GMOCK_CFLAGS} -DBOOST_ALL_NO_LIB -DBOOST_NO_AUTO_PTR -DUSE_MYSQLX_FULL_PROTO -DXPLUGIN_UNIT_TESTS)
+ADD_DEFINITIONS(${GMOCK_CFLAGS} -DUSE_MYSQLX_FULL_PROTO -DXPLUGIN_UNIT_TESTS)
 
 INCLUDE_DIRECTORIES(SYSTEM
-    ${BOOST_INCLUDE_DIR}
     ${PROTOBUF_INCLUDE_DIRS}
     ${SSL_INCLUDE_DIRS}
     ${LIBEVENT_INCLUDE_DIR}
@@ -82,17 +81,19 @@ FILE(
   "${PROJECT_SOURCE_DIR}/rapid/plugin/x/mysqlxtest_src/mysqlx_row.cc"
 )
 
-ADD_EXECUTABLE(xplugin_unit_tests
+SET(unit_tests_EXE xplugin_unit_tests)
+
+ADD_EXECUTABLE(${unit_tests_EXE}
   ${unit_tests_SRC} ${xplugin_SRC} ${protobuf_SRC}
 )
 
-ADD_DEPENDENCIES(xplugin_unit_tests mysqlxtest)
+ADD_DEPENDENCIES(${unit_tests_EXE} mysqlxtest)
 
 # New warning in Visual Studio 2008
 # '%$S': virtual function overrides '%$pS', previous versions of the compiler
 # did not override when parameters only differed by const/volatile qualifiers
 IF(WIN32)
-  SET_TARGET_PROPERTIES(xplugin_unit_tests PROPERTIES COMPILE_FLAGS "/wd4373")
+  SET_TARGET_PROPERTIES(${unit_tests_EXE} PROPERTIES COMPILE_FLAGS "/wd4373")
 ENDIF(WIN32)
 
 # assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
@@ -105,7 +106,7 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
 ENDIF()
 
 TARGET_LINK_LIBRARIES(
-  xplugin_unit_tests
+  ${unit_tests_EXE}
   gtest
   regex
   gmock
@@ -118,5 +119,5 @@ TARGET_LINK_LIBRARIES(
   ${GCOV_LDFLAGS}
 )
 
-INCLUDE(TestGroups.txt)
+ADD_TEST(xplugin ${unit_tests_EXE})
 

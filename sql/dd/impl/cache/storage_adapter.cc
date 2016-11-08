@@ -42,6 +42,7 @@
 #include "dd/types/table_stat.h"              // Table_stat
 #include "dd/types/view.h"                    // View
 #include "debug_sync.h"                       // DEBUG_SYNC
+#include "log.h"                              // sql_print_error
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -326,13 +327,53 @@ bool Storage_adapter::core_sync(THD *thd,
 {
   DBUG_ASSERT(thd->is_dd_system_thread());
   DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);
+
+  // Copy the name, needed for error output. The object has to be
+  // dropped before get().
+  String_type name(object->name());
   core_drop(thd, object);
   const typename T::cache_partition_type* new_obj= nullptr;
 
-  // Fetch the object from persistent tables. The object was dropped
-  // from the core registry above, so we know get() will fetch it
-  // from the tables.
-  bool ret= get(thd, key, ISO_READ_COMMITTED, &new_obj);
+  /*
+    Fetch the object from persistent tables. The object was dropped
+    from the core registry above, so we know get() will fetch it
+    from the tables.
+
+    There is a theoretical possibility of get() failing or sending
+    back a nullptr if there has been a corruption or wrong usage
+    (e.g. dropping a DD table), leaving one or more DD tables
+    inaccessible. Assume, e.g., that the 'mysql.tables' table has
+    been dropped. Then, the following will happen during restart:
+
+    1. After creating the scaffolding, the meta data representing
+       the DD tables is kept in the shared cache, secured by a
+       scoped auto releaser in 'sync_meta_data()' in the bootstrapper
+       (this is to make sure the meta data is not evicted during
+       synchronization).
+    2. We sync the DD tables, starting with 'mysql.character_sets'
+       (because it is the first entry in the System_table_registry).
+    3. Here in core_sync(), the entry in the core registry is
+       removed. Then, we call get(), which will read the meta data
+       from the persistent DD tables.
+    4. While trying to fetch the meta data for the first table to
+       be synced (i.e., 'mysql.character_sets'), we first open
+       the tables that are needed to read the meta data for a table
+       (i.e., we open the core tables). One of these tables is the
+       'mysql.tables' table.
+    5. While opening these tables, the server will fetch the meta
+       data for them. The meta data for 'mysql.tables' is indeed
+       found (because it was created as part of the scaffolding
+       with the meta data now being in the shared cache), however,
+       when opening the table in the storage engine, we get a
+       failure because the SE knows nothing about this table, and
+       is unable to open it.
+  */
+  if (get(thd, key, ISO_READ_COMMITTED, &new_obj) || new_obj == nullptr)
+  {
+    sql_print_error("Unable to start server. Cannot find the meta data for "
+                    "data dictionary table '%s'.", name.c_str());
+    return true;
+  }
 
   Cache_element<typename T::cache_partition_type> *element=
     new Cache_element<typename T::cache_partition_type>();
@@ -340,7 +381,7 @@ bool Storage_adapter::core_sync(THD *thd,
   element->recreate_keys();
   Mutex_lock lock(&m_lock);
   m_core_registry.put(element);
-  return ret;
+  return false;
 }
 
 

@@ -13,4 +13,5 @@ perfschema.idx_compare_events_waits_current : Bug#24688694 2016-09-19 Marc Frequ
 perfschema.idx_data_lock_waits              : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
 perfschema.idx_events_waits_current         : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
 perfschema.stage_mdl_function               : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
+perfschema.innodb_is_data_locks             : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
 

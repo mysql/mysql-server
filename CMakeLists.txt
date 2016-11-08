@@ -34,7 +34,9 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 # CMake has OLD as default even if OLD is deprecated.
 # See cmake --help-policy CMP0018 / CMP0022
 CMAKE_POLICY(SET CMP0018 NEW)
-CMAKE_POLICY(SET CMP0022 NEW)
+# Temporarily set to OLD.
+# TODO: switch to NEW and INTERFACE_LINK_LIBRARIES
+CMAKE_POLICY(SET CMP0022 OLD)
 
 # We use the LOCATION target property (CMP0026)
 # and get_target_property() for non-existent targets (CMP0045)
