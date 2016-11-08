@@ -67,7 +67,9 @@ public:
     CPUSTAT_50MS_TABLEID =       25,
     CPUSTAT_1SEC_TABLEID =       26,
     CPUSTAT_20SEC_TABLEID =      27,
-    CPUSTAT_TABLEID =            28
+    CPUSTAT_TABLEID =            28,
+    FRAG_LOCKS_TABLEID =         29,
+    ACC_OPERATIONS_TABLEID =     30
   };
 
   struct Table {

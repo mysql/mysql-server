@@ -927,7 +927,7 @@ public:
      * Get real fragment count, no setter, is set by NDB, always
      * equal to getFragmentCount except for fully replicated tables.
      */
-    Uint32 getRealFragmentCount() const;
+    Uint32 getPartitionCount() const;
 
     /**
      * Set fragment count using cluster agnostics defines
@@ -2267,6 +2267,9 @@ public:
 	  schema(0),
           name(0) {
         }
+        /* qsort compare functions */
+        static int compareByName(const void * p, const void * q);
+        static int compareById(const void * p, const void * q);
       };
       unsigned count;           ///< Number of elements in list
       Element * elements;       ///< Pointer to array of elements
@@ -2284,6 +2287,8 @@ public:
           elements = 0;
         }
       }
+      void sortById();
+      void sortByName();
     };
 
     /** 

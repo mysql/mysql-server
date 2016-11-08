@@ -45,6 +45,7 @@
 #include <signaldata/PrepDropTab.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTab.hpp>
+#include <signaldata/AlterTable.hpp>
 #include <signaldata/CreateTrig.hpp>
 #include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrig.hpp>
@@ -227,6 +228,10 @@ void Dbtc::execCONTINUEB(Signal* signal)
   UintR Tdata5 = signal->theData[6];
 #endif
   switch (tcase) {
+  case TcContinueB::ZSCAN_FOR_READ_BACKUP:
+    jam();
+    scan_for_read_backup(signal, Tdata0, Tdata1, Tdata2);
+    return;
   case TcContinueB::ZRETURN_FROM_QUEUED_DELIVERY:
     jam();
     ndbrequire(false);
@@ -526,7 +531,13 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   if (req->readBackup)
   {
     jam();
+    D("Set ReadBackup Flag for table " << tabptr.i);
     tabptr.p->m_flags |= TableRecord::TR_READ_BACKUP;
+    tabptr.p->m_flags |= TableRecord::TR_DELAY_COMMIT;
+  }
+  else
+  {
+    D("No ReadBackup Flag for table " << tabptr.i);
   }
 
   if (req->fullyReplicated)
@@ -665,6 +676,92 @@ Dbtc::execDROP_TAB_REQ(Signal* signal)
 	     PrepDropTabConf::SignalLength, JBB);
 }
 
+void Dbtc::scan_for_read_backup(Signal *signal,
+                                Uint32 start_api_ptr,
+                                Uint32 senderData,
+                                Uint32 senderRef)
+{
+  ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
+  const Uint32 apiMaxIndex = capiConnectFilesize;
+  Uint32 api_ptr;
+
+  Uint32 loop_count = 0;
+  for (api_ptr = start_api_ptr;
+       api_ptr < apiMaxIndex && loop_count++ < 256;
+       api_ptr++, loop_count++)
+  {
+    ApiConnectRecord * const regApiPtr = &localApiConnectRecord[api_ptr];
+    switch (regApiPtr->apiConnectstate)
+    {
+      case CS_STARTED:
+      {
+        if (regApiPtr->firstTcConnect == RNIL)
+        {
+          /**
+           * No transaction have started, safe to ignore these transactions.
+           * If it starts up the delayed commit flag will be set.
+           */
+          jam();
+        }
+        else
+        {
+          /* Transaction is ongoing, set delayed commit flag. */
+          jam();
+          regApiPtr->m_flags |= ApiConnectRecord::TF_LATE_COMMIT;
+        }
+        break;
+      }
+      case CS_RECEIVING:
+      {
+        /**
+         * Transaction is still ongoing and hasn't started commit, we will
+         * set delayed commit flag.
+         */
+        jam();
+        regApiPtr->m_flags |= ApiConnectRecord::TF_LATE_COMMIT;
+        break;
+      }
+      default:
+      {
+        jam();
+        /**
+         * The transaction is either:
+         * 1) Committing
+         * 2) Scanning
+         * 3) Aborting
+         *
+         * In neither of those cases we want to set the delayed commit flag.
+         * Committing has already started, so we don't want to mix delayed
+         * and not delayed in the same transaction. Scanning has no commit
+         * phase so delayed commit flag is uninteresting. Aborting
+         * transactions have no impact on data, so thus no delayed commit
+         * is required.
+         */
+        break;
+      }
+    }
+  }
+  if (api_ptr == apiMaxIndex)
+  {
+    jam();
+    /**
+     * We're done and will return ALTER_TAB_CONF
+     */
+    AlterTabConf *conf = (AlterTabConf*)signal->getDataPtrSend();
+    conf->senderRef = cownref;
+    conf->senderData = senderData;
+    conf->connectPtr = RNIL;
+    sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
+               AlterTabConf::SignalLength, JBB);
+    return;
+  }
+  signal->theData[0] = TcContinueB::ZSCAN_FOR_READ_BACKUP;
+  signal->theData[1] = api_ptr;
+  signal->theData[2] = senderData;
+  signal->theData[3] = senderRef;
+  sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);
+}
+
 void Dbtc::execALTER_TAB_REQ(Signal * signal)
 {
   const AlterTabReq* req = (const AlterTabReq*)signal->getDataPtr();
@@ -683,13 +780,89 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
   switch (requestType) {
   case AlterTabReq::AlterTablePrepare:
     jam();
+    if (AlterTableReq::getReadBackupFlag(req->changeMask))
+    {
+      if ((tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0)
+      {
+        /**
+         * Table had Read Backup flag set and is now clearing it.
+         * No special handling we simply reset the flags in the
+         * commit phase. No more handling is needed in prepare
+         * phase.
+         */
+        D("Prepare to change ReadBackup Flag, already set for table"
+          << tabPtr.i);
+      }
+      else
+      {
+        /**
+         * Table have not set the Read Backup flag yet. We will set
+         * it in a safe manner. We do this by first ensuring that
+         * all current ongoing transactions delay their report of
+         * commit (we do this since we don't know which transactions
+         * are using this particular table and it is a very
+         * temporary delay for these transactions currently ongoing
+         * and the delay isn't very long either, no blocking will
+         * occur here.
+         *
+         * We also set delayed commit flag on this table immediately
+         * here to ensure that all transactions on this table is now
+         * delayed.
+         *
+         * This means that when we return done on the prepare phase
+         * the only transactions that are not delayed is the ones
+         * that was committing already when we came here. These
+         * have time until we're back here to commit to complete
+         * that phase. So would be a very extreme case and possibly
+         * even impossible case that not all these transactions
+         * are completed yet.
+         *
+         * Finally in the commit phase we activate the Read Backup
+         * flag also such that reads can start using the backup
+         * replicas for reading.
+         */
+        D("Prepare to set ReadBackup Flag for table: " << tabPtr.i);
+        tabPtr.p->m_flags |= TableRecord::TR_DELAY_COMMIT;
+        scan_for_read_backup(signal, 0, senderData, senderRef);
+        return;
+      }
+    }
     break;
   case AlterTabReq::AlterTableRevert:
     jam();
     tabPtr.p->currentSchemaVersion = tableVersion;
+
+    if (AlterTableReq::getReadBackupFlag(req->changeMask))
+    {
+      if ((tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP) == 0)
+      {
+        /**
+         * We have set the DELAY_COMMIT flag, so need to reset here
+         * since ALTER TABLE was reverted.
+         */
+        D("Revert ReadBackup Flag settings for table " << tabPtr.i);
+        tabPtr.p->m_flags &= (~(TableRecord::TR_DELAY_COMMIT));
+      }
+    }
     break;
   case AlterTabReq::AlterTableCommit:
     jam();
+    if (AlterTableReq::getReadBackupFlag(req->changeMask))
+    {
+      if ((tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0)
+      {
+        jam();
+        D("Commit clear ReadBackup Flag for table: " << tabPtr.i);
+        tabPtr.p->m_flags &= (~(TableRecord::TR_DELAY_COMMIT));
+        tabPtr.p->m_flags &= (~(TableRecord::TR_READ_BACKUP));
+      }
+      else
+      {
+        jam();
+        D("Commit set ReadBackup Flag for table: " << tabPtr.i);
+        tabPtr.p->m_flags |= TableRecord::TR_READ_BACKUP;
+      }
+    }
     tabPtr.p->currentSchemaVersion = newTableVersion;
     break;
   default:
@@ -3724,7 +3897,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     regTcPtr->lastReplicaNo = 0;
     regTcPtr->noOfNodes = 1;
   }
-  else {
+  else
+  {
     UintR TlastReplicaNo;
     jam();
     TlastReplicaNo = tnoOfBackup + tnoOfStandby;
@@ -3733,7 +3907,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     if (regTcPtr->tcNodedata[0] == getOwnNodeId())
       c_counters.clocalWriteCount++;
 
-    if (TreadBackup)
+    if ((localTabptr.p->m_flags & TableRecord::TR_DELAY_COMMIT) != 0)
     {
       jam();
       /**
@@ -15162,6 +15336,17 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     if(signal->getLength() > 1){
       set_timeout_value(signal->theData[1]);
     }
+    else
+    {
+      /* Reset to configured value */
+      const ndb_mgm_configuration_iterator * p = 
+        m_ctx.m_config.getOwnConfigIterator();
+      ndbrequire(p != 0);
+      
+      Uint32 val = 3000;
+      ndb_mgm_get_int_parameter(p, CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &val);
+      set_timeout_value(val);
+    }
   }
 
   if (dumpState->args[0] == DumpStateOrd::TcSetApplTransactionTimeout){
@@ -20685,6 +20870,16 @@ Dbtc::time_track_complete_scan_frag(
 {
   HostRecordPtr hostPtr;
   /* Scan frag operations are recorded on the DB node */
+  if (!NdbTick_IsValid(scanFragPtr->m_start_ticks))
+  {
+    /**
+     * We can come here immediately after a conf message with a closed
+     * message. So essentially we can get two SCAN_FRAGCONF after each
+     * other without sending any SCAN_NEXTREQ in between.
+     */
+    jam();
+    return;
+  }
   Uint32 pos =
     time_track_calculate_histogram_position(scanFragPtr->m_start_ticks);
   Uint32 dbNodeId = refToNode(scanFragPtr->lqhBlockref);

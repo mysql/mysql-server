@@ -73,9 +73,11 @@ table_id	table_name	comment
 26	cpustat_1sec	Thread CPU stats at 1 second intervals
 27	cpustat_20sec	Thread CPU stats at 20 seconds intervals
 28	cpustat	Thread CPU stats for last second
+29	frag_locks	Per fragment lock information
+30	acc_operations	ACC operation info
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-29
+31
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -104,6 +106,8 @@ table_id	table_name	comment
 26	cpustat_1sec	Thread CPU stats at 1 second intervals
 27	cpustat_20sec	Thread CPU stats at 20 seconds intervals
 28	cpustat	Thread CPU stats for last second
+29	frag_locks	Per fragment lock information
+30	acc_operations	ACC operation info
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
@@ -123,6 +127,7 @@ table_id
 2
 SELECT table_id, table_name FROM ndb$tables ORDER BY table_name;
 table_id	table_name
+30	acc_operations
 1	columns
 23	config_values
 8	counters
@@ -134,6 +139,7 @@ table_id	table_name
 10	diskpagebuffer
 19	disk_write_speed_aggregate
 18	disk_write_speed_base
+29	frag_locks
 17	frag_mem_use
 20	frag_operations
 6	logbuffers
@@ -216,6 +222,8 @@ table_id
 26
 27
 28
+29
+30
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -379,6 +387,15 @@ ERROR 42000: The used table type doesn't support BLOB/TEXT columns
 ## 6) Table with autoincrement not supported
 CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
 ERROR 42000: The used table type doesn't support AUTO_INCREMENT columns
+
+## Restore original ndb$test table to avoid test side-effects
+CREATE TABLE ndb$test (
+  node_id int(10) unsigned DEFAULT NULL,
+  block_number int(10) unsigned DEFAULT NULL,
+  block_instance int(10) unsigned DEFAULT NULL,
+  counter int(10) unsigned DEFAULT NULL,
+  counter2 bigint(20) unsigned DEFAULT NULL
+) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='for testing';
 
 select distinct node_id
 from ndbinfo.diskpagebuffer;
@@ -550,55 +567,6 @@ node_id	int(10) unsigned	YES		NULL
 thr_no	int(10) unsigned	YES		NULL	
 thread_name	varchar(256)	YES		NULL	
 thread_description	varchar(256)	YES		NULL	
-
-desc cpustat_50ms;
-Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
-OS_user_time	int(10) unsigned	YES		NULL	
-OS_system_time	int(10) unsigned	YES		NULL	
-OS_idle_time	int(10) unsigned	YES		NULL	
-exec_time	int(10) unsigned	YES		NULL	
-sleep_time	int(10) unsigned	YES		NULL	
-send_time	int(10) unsigned	YES		NULL	
-buffer_full_time	int(10) unsigned	YES		NULL	
-elapsed_time	int(10) unsigned	YES		NULL	
-desc cpustat_1sec;
-Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
-OS_user_time	int(10) unsigned	YES		NULL	
-OS_system_time	int(10) unsigned	YES		NULL	
-OS_idle_time	int(10) unsigned	YES		NULL	
-exec_time	int(10) unsigned	YES		NULL	
-sleep_time	int(10) unsigned	YES		NULL	
-send_time	int(10) unsigned	YES		NULL	
-buffer_full_time	int(10) unsigned	YES		NULL	
-elapsed_time	int(10) unsigned	YES		NULL	
-desc cpustat_20sec;
-Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
-OS_user_time	int(10) unsigned	YES		NULL	
-OS_system_time	int(10) unsigned	YES		NULL	
-OS_idle_time	int(10) unsigned	YES		NULL	
-exec_time	int(10) unsigned	YES		NULL	
-sleep_time	int(10) unsigned	YES		NULL	
-send_time	int(10) unsigned	YES		NULL	
-buffer_full_time	int(10) unsigned	YES		NULL	
-elapsed_time	int(10) unsigned	YES		NULL	
-desc cpustat;
-Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
-OS_user	int(10) unsigned	YES		NULL	
-OS_system	int(10) unsigned	YES		NULL	
-OS_idle	int(10) unsigned	YES		NULL	
-thread_exec	int(10) unsigned	YES		NULL	
-thread_sleeping	int(10) unsigned	YES		NULL	
-thread_send	int(10) unsigned	YES		NULL	
-thread_buffer_full	int(10) unsigned	YES		NULL	
-elapsed_time	int(10) unsigned	YES		NULL	
 
 desc cluster_transactions;
 Field	Type	Null	Key	Default	Extra
@@ -977,8 +945,14 @@ create view frag_ops as select
   sum(tot_scan_bytes_returned) as tot_scan_bytes_returned, 
   sum(tot_scan_prog_bytes) as tot_scan_prog_bytes,
   sum(tot_scan_bound_bytes) as tot_scan_bound_bytes,
-  sum(tot_scan_inst_exec) as tot_scan_inst_exec, 
-  sum(conc_frag_scans) as conc_frag_scans,
+  sum(tot_scan_inst_exec) as tot_scan_inst_exec,
+  # Ignore concurrent frag_scans, as all tests below expect them to be 0
+  # but this is not stable as LCP scans are counted as concurrent
+  # frag scans while they are running (but not counted as tot_frag_scans
+  # when they complete).
+  # Arguably it is useful to see a live LCP scan, and this test has no
+  # use for conc_frag_scans!=0, so avoid looking at it for determinism
+  #sum(conc_frag_scans) as conc_frag_scans,
   sum(conc_qd_frag_scans) as conc_qd_frag_scans, 
   sum(tot_commits) as tot_commits
   from ndbinfo.operations_per_fragment
@@ -1044,7 +1018,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	64
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	400
 fq_name	ndbinfo/def/NDB$BLOB_
@@ -1069,7 +1042,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	0
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	200
 fq_name	PRIMARY
@@ -1094,7 +1066,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	0
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	0
 fq_name	ix1$unique
@@ -1119,7 +1090,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	0
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	200
 fq_name	ndbinfo/def/t2
@@ -1144,7 +1114,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	32
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	6
 explain select count(*) from t1 where d<10;
@@ -1225,7 +1194,6 @@ tot_scan_bytes_returned	7116
 tot_scan_prog_bytes	288
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	305
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	450
 fq_name	ndbinfo/def/NDB$BLOB_
@@ -1250,7 +1218,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	0
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	246
 fq_name	PRIMARY
@@ -1275,7 +1242,6 @@ tot_scan_bytes_returned	588
 tot_scan_prog_bytes	768
 tot_scan_bound_bytes	9888
 tot_scan_inst_exec	58
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	0
 fq_name	ix1$unique
@@ -1300,7 +1266,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	0
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	250
 fq_name	ndbinfo/def/t2
@@ -1325,7 +1290,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	32
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	6
 explain select count(*)

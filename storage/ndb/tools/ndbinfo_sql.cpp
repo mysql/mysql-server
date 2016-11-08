@@ -391,6 +391,77 @@ struct view {
     "SELECT node_id, config_param, config_value "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_values`"
   },
+  { "cpustat_50ms",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>cpustat_50ms`"
+  },
+  { "cpustat_1sec",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>cpustat_1sec`"
+  },
+  { "cpustat_20sec",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>cpustat_20sec`"
+  },
+  { "cpustat",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>cpustat`"
+  },
+  {
+    "locks_per_fragment",
+    "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, "
+    "types.type_name AS type, table_id, node_id, block_instance, fragment_num, "
+    "ex_req, ex_imm_ok, ex_wait_ok, ex_wait_fail, "
+    "sh_req, sh_imm_ok, sh_wait_ok, sh_wait_fail, "
+    "wait_ok_millis, wait_fail_millis "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>frag_locks` AS locks "
+    "JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` AS name "
+    "ON name.id=locks.table_id AND name.type<=6 "
+    "JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_types` AS types ON name.type=types.type_id "
+    "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` AS parent_name "
+    "ON name.parent_obj_id=parent_name.id AND "
+    "name.parent_obj_type=parent_name.type"
+  },
+  {
+    "cluster_locks",
+    "SELECT "
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`node_id` AS `node_id`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`block_instance` AS `block_instance`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`tableid` AS `tableid`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`fragmentid` AS `fragmentid`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`rowid` AS `rowid`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`transid0` + "
+    "(`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`transid1` << 32) AS `transid`,"
+    /* op_flags meanings come from DbaccMain.cpp */
+    /* 'S'hared or 'X'clusive */
+    "(case (`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`op_flags` & 0x10) "
+    "when 0 then \"S\" else \"X\" end) AS `mode`,"
+    /* 'W'aiting or 'H'olding */
+    "(case (`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`op_flags` & 0x80) "
+    "when 0 then \"W\" else \"H\" end) AS `state`,"
+    /* '*' indicates operation 'owning' the lock - an internal detail, can help
+     * understanding
+     */
+    "(case (`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`op_flags` & 0x40) "
+    "when 0 then \"\" else \"*\" end) as `detail`,"
+    "case (`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`op_flags` & 0xf) "
+    "when 0 then \"READ\" when 1 then \"UPDATE\" when 2 then \"INSERT\""
+    "when 3 then \"DELETE\" when 5 then \"READ\" when 6 then \"REFRESH\""
+    "when 7 then \"UNLOCK\" when 8 then \"SCAN\" ELSE\"<unknown>\" END as `op`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`duration_millis` as `duration_millis`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`acc_op_id` AS `lock_num`,"
+    "if(`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`op_flags` & 0xc0 = 0,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`prev_serial_op_id`"
+    ", NULL) as `waiting_for` "
+    "from `<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`"
+  },
+  /* server_locks view, reflecting server_operations view */
+  {"server_locks",
+   "SELECT map.mysql_connection_id, l.* "
+   "FROM `<NDBINFO_DB>`.cluster_locks l "
+   "JOIN information_schema.ndb_transid_mysql_connection_map map"
+   " ON (map.ndb_transid >> 32) = (l.transid >> 32)"
+  }
 };
 
 size_t num_views = sizeof(views)/sizeof(views[0]);

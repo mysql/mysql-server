@@ -495,6 +495,7 @@ public:
     EmulatedJamBuffer* jamBuffer;
     Uint32 * watchDogCounter;
     SectionSegmentPool::Cache * sectionPoolCache;
+    NDB_TICKS* pHighResTimer;
   };
   /* Setup state of a block object for executing in a particular thread. */
   void assignToThread(ThreadContext ctx);
@@ -637,7 +638,10 @@ protected:
   const char * getThreadName();
   const char * getThreadDescription();
 
-  NDB_TICKS getHighResTimer();
+  NDB_TICKS getHighResTimer() const 
+  {
+    return *m_pHighResTimer;
+  }
 
   /**********************************************************
    * Send signal - dialects
@@ -1054,6 +1058,9 @@ private:
   EmulatedJamBuffer *m_jamBuffer;
   /* For multithreaded ndb, the thread-specific watchdog counter. */
   Uint32 *m_watchDogCounter;
+
+  /* Read-only high res timer pointer */
+  const NDB_TICKS* m_pHighResTimer;
 
   SectionSegmentPool::Cache * m_sectionPoolCache;
   

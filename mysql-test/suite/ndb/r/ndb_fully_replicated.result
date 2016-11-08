@@ -72,7 +72,7 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-RealFragmentCount: 4
+PartitionCount: 4
 FragmentCount: 16
 FragmentCountType: ONE_PER_LDM_PER_NODE_GROUP
 ExtraRowGciBits: 0
@@ -86,10 +86,10 @@ b Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
 c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
-b(b, a) - OrderedIndex
-a$unique(a, b) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 a(a, b) - OrderedIndex
+a$unique(a, b) - UniqueHashIndex
+b(b, a) - OrderedIndex
 
 NDBT_ProgramExit: 0 - OK
 
@@ -108,7 +108,7 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-RealFragmentCount: 4
+PartitionCount: 4
 FragmentCount: 16
 FragmentCountType: ONE_PER_LDM_PER_NODE_GROUP
 ExtraRowGciBits: 0
@@ -122,10 +122,10 @@ b Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
 c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
-a(a, b) - OrderedIndex
-b(b, a) - OrderedIndex
-a$unique(a, b) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
+a(a, b) - OrderedIndex
+a$unique(a, b) - UniqueHashIndex
+b(b, a) - OrderedIndex
 
 NDBT_ProgramExit: 0 - OK
 

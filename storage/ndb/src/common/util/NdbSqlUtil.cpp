@@ -989,9 +989,6 @@ NdbSqlUtil::ndb_strnxfrm(struct charset_info_st * cs,
                          uchar *dst, size_t dstlen,
                          const uchar *src, size_t srclen)
 {
-#if NDB_MYSQL_VERSION_D < NDB_MAKE_VERSION(5,6,0)
-  return (*cs->coll->strnxfrm)(cs, dst, dstlen, src, srclen);
-#else
   /*
     strnxfrm has got two new parameters in 5.6, we are using the
     defaults for those and can thus easily calculate them from
@@ -999,7 +996,6 @@ NdbSqlUtil::ndb_strnxfrm(struct charset_info_st * cs,
   */
   return  (*cs->coll->strnxfrm)(cs, dst, dstlen, (uint)dstlen,
                                 src, srclen, MY_STRXFRM_PAD_WITH_SPACE);
-#endif
 }
 
 // workaround

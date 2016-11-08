@@ -62,13 +62,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             CharsetMapImpl.cpp
             parse_mask.cpp
 )
-SET(NDBGENERAL_LIBS ndbtrace ${ZLIB_LIBRARY} mysys)
-# Some parts of mysys has been split into it's own library
-# called mysys_ssl, existence of new library is indicated
-# by new include file my_default.h detected in ndb_configure.cmake
-IF(HAVE_MY_DEFAULT_H)
-  LIST(APPEND NDBGENERAL_LIBS mysys_ssl) 
-ENDIF()
+SET(NDBGENERAL_LIBS ndbtrace ${ZLIB_LIBRARY} mysys mysys_ssl)
 TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
 
 FOREACH(tests BaseString Bitmask SparseBitmask Parser HashMap2 LinkedStack)

@@ -24,6 +24,8 @@
 #include "ndb_event_data.h"
 #include "ndb_name_util.h"
 #include "ndb_share.h"
+#include "table.h"
+#include "field.h"
 
 extern Ndb* g_ndb;
 
@@ -31,7 +33,7 @@ void
 NDB_SHARE::destroy(NDB_SHARE* share)
 {
   thr_lock_delete(&share->lock);
-  native_mutex_destroy(&share->mutex);
+  mysql_mutex_destroy(&share->mutex);
 
   // ndb_index_stat_free() should have cleaned up:
   assert(share->index_stat_list == NULL);
@@ -254,6 +256,41 @@ Ndb_event_data* NDB_SHARE::get_event_data_ptr() const
   }
 
   return NULL;
+}
+
+
+void NDB_SHARE::set_binlog_flags_for_table(TABLE* table)
+{
+  if (! table)
+  {
+    flags |= NSF_NO_BINLOG;
+    return;
+  }
+
+  const int n_fields = table->s->fields;
+  bitmap_init(&stored_columns, 0, n_fields, FALSE);
+  if (table->s->primary_key == MAX_KEY)
+    flags |= NSF_HIDDEN_PK;
+
+  if (table->has_virtual_gcol())
+  {
+    for(int i = 0 ; i < n_fields; i++)
+    {
+      Field * field = table->field[i];
+      if (field->stored_in_db)
+      {
+        bitmap_set_bit(&stored_columns, i);
+        if (field->flags & BLOB_FLAG)
+          flags|= NSF_BLOB_FLAG;
+      }
+    }
+  }
+  else
+  {
+    bitmap_set_all(&stored_columns);  // all columns are stored
+    if (table->s->blob_fields != 0)
+      flags|= NSF_BLOB_FLAG;
+  }
 }
 
 

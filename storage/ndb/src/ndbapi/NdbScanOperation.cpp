@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2824,7 +2824,7 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
   AttributeMask readMask;
   record->copyMask(readMask.rep.data, mask);
 
-  if (opType == ReadRequest)
+  if (opType == ReadRequest || opType == ReadExclusive)
   {
     op->theLockMode= theLockMode;
     /*
@@ -2860,6 +2860,7 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
   switch (opType)
   {
   case ReadRequest:
+  case ReadExclusive:
   case UpdateRequest:
     if (unlikely(record->flags & NdbRecord::RecHasBlob))
     {
@@ -4138,7 +4139,14 @@ NdbScanOperation::lockCurrentTuple(NdbTransaction *takeOverTrans,
     bzero(empty_mask, sizeof(empty_mask));
     result_mask= &empty_mask[0];
   }
-  return takeOverScanOpNdbRecord(NdbOperation::ReadRequest, takeOverTrans,
+  OperationType takeoverOpType = NdbOperation::ReadRequest;
+
+  if (theLockMode == LM_Exclusive)
+  {
+    takeoverOpType = NdbOperation::ReadExclusive;
+  }
+    
+  return takeOverScanOpNdbRecord(takeoverOpType, takeOverTrans,
                                  result_rec, result_row, 
                                  result_mask, opts, sizeOfOptions);
 }

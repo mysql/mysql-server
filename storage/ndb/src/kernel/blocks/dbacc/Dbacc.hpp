@@ -403,13 +403,6 @@ struct Fragmentrec {
   State rootState;
   
 //-----------------------------------------------------------------------------
-// These variables keep track of allocated pages, the number of them and the
-// start file page of them. Used during local checkpoints.
-//-----------------------------------------------------------------------------
-  Uint32 datapages[8];
-  Uint32 activeDataPage;
-
-//-----------------------------------------------------------------------------
 // Temporary variables used during shrink and expand process.
 //-----------------------------------------------------------------------------
   Uint32 expReceivePageptr;
@@ -420,7 +413,7 @@ struct Fragmentrec {
   Uint32 expSenderPageptr;
 
 //-----------------------------------------------------------------------------
-// List of lock owners and list of lock waiters to support LCP handling
+// List of lock owners currently used only for self-check
 //-----------------------------------------------------------------------------
   Uint32 lockOwnersList;
 
@@ -481,19 +474,6 @@ struct Fragmentrec {
   Uint32 nextfreefrag;
 
 //-----------------------------------------------------------------------------
-// This variable is used during restore to keep track of page id of read pages.
-// During read of bucket pages this is used to calculate the page id and also
-// to verify that the page id of the read page is correct. During read of over-
-// flow pages it is only used to keep track of the number of pages read.
-//-----------------------------------------------------------------------------
-  Uint32 nextAllocPage;
-
-//-----------------------------------------------------------------------------
-// Number of pages read from file during restore
-//-----------------------------------------------------------------------------
-  Uint32 noOfExpectedPages;
-
-//-----------------------------------------------------------------------------
 // Fragment State, mostly applicable during LCP and restore
 //-----------------------------------------------------------------------------
   State fragState;
@@ -535,6 +515,158 @@ struct Fragmentrec {
 
   // Number of Page8 pages allocated for the hash index.
   Int32 m_noOfAllocatedPages;
+
+//-----------------------------------------------------------------------------
+// Lock stats
+//-----------------------------------------------------------------------------
+// Used to track row lock activity on this fragment
+  struct LockStats 
+  {
+    /* Exclusive row lock counts */
+
+    /*   Total requests received */
+    Uint64 m_ex_req_count;
+
+    /*   Total requests immediately granted */
+    Uint64 m_ex_imm_ok_count;
+
+    /*   Total requests granted after a wait */
+    Uint64 m_ex_wait_ok_count;
+
+    /*   Total requests failed after a wait */
+    Uint64 m_ex_wait_fail_count;
+    
+
+    /* Shared row lock counts */
+
+    /*   Total requests received */
+    Uint64 m_sh_req_count;
+
+    /*   Total requests immediately granted */
+    Uint64 m_sh_imm_ok_count;
+
+    /*   Total requests granted after a wait */
+    Uint64 m_sh_wait_ok_count;
+
+    /*   Total requests failed after a wait */
+    Uint64 m_sh_wait_fail_count;
+
+    /* Wait times */
+
+
+    /*   Total time spent waiting for a lock
+     *   which was eventually granted
+     */
+    Uint64 m_wait_ok_millis;
+
+    /*   Total time spent waiting for a lock
+     *   which was not eventually granted
+     */
+    Uint64 m_wait_fail_millis;
+    
+    void init()
+    {
+      m_ex_req_count       = 0;
+      m_ex_imm_ok_count    = 0;
+      m_ex_wait_ok_count   = 0;
+      m_ex_wait_fail_count = 0;
+    
+      m_sh_req_count       = 0;
+      m_sh_imm_ok_count    = 0;
+      m_sh_wait_ok_count   = 0;
+      m_sh_wait_fail_count = 0;
+
+      m_wait_ok_millis     = 0;
+      m_wait_fail_millis   = 0;
+    };
+
+    // req_start_imm_ok
+    // A request was immediately granted (No contention)
+    void req_start_imm_ok(bool ex,
+                          NDB_TICKS& op_timestamp,
+                          const NDB_TICKS now)
+    {
+      if (ex)
+      {
+        m_ex_req_count++;
+        m_ex_imm_ok_count++;
+      }
+      else
+      {
+        m_sh_req_count++;
+        m_sh_imm_ok_count++;
+      }
+
+      /* Hold-time starts */
+      op_timestamp = now;
+    }
+
+    // req_start
+    // A request was not granted immediately
+    void req_start(bool ex, 
+                   NDB_TICKS& op_timestamp, 
+                   const NDB_TICKS now)
+    {
+      if (ex)
+      {
+        m_ex_req_count++;
+      }
+      else
+      {
+        m_sh_req_count++;
+      }
+
+      /* Wait-time starts */
+      op_timestamp = now;
+    }
+
+    // wait_ok
+    // A request that had to wait is now granted
+    void wait_ok(bool ex, NDB_TICKS& op_timestamp, const NDB_TICKS now)
+    {
+      assert(NdbTick_IsValid(op_timestamp)); /* Set when starting to wait */
+      if (ex)
+      {
+        m_ex_wait_ok_count++;
+      }
+      else
+      {
+        m_sh_wait_ok_count++;
+      }
+
+      const Uint64 wait_millis = NdbTick_Elapsed(op_timestamp,
+                                                 now).milliSec();
+      m_wait_ok_millis += wait_millis;
+      
+      /* Hold-time starts */
+      op_timestamp = now;
+    }
+    
+    // wait_fail
+    // A request that had to wait has now been
+    // aborted.  May or may not be due to TC
+    // timeout
+    void wait_fail(bool ex, NDB_TICKS& wait_start, const NDB_TICKS now)
+    {
+      assert(NdbTick_IsValid(wait_start));
+      if (ex)
+      {
+        m_ex_wait_fail_count++;
+      }
+      else
+      {
+        m_sh_wait_fail_count++;
+      }
+      
+      const Uint64 wait_millis = NdbTick_Elapsed(wait_start,
+                                                 now).milliSec();
+      m_wait_fail_millis += wait_millis;
+      /* Debugging */
+      NdbTick_Invalidate(&wait_start);
+    }
+  };
+
+  LockStats m_lockStats;
 
 public:
   Uint32 getPageNumber(Uint32 bucket_number) const;
@@ -583,6 +715,7 @@ struct Operationrec {
   Uint32 userblockref;
   enum { ANY_SCANBITS = Uint16(0xffff) };
   LHBits16 reducedHashValue;
+  NDB_TICKS m_lockTime;
 
   enum OpBits {
     OP_MASK                 = 0x0000F // 4 bits for operation type
@@ -946,7 +1079,6 @@ private:
   void checkNextFragmentLab(Signal* signal);
   void endofexpLab(Signal* signal) const;
   void endofshrinkbucketLab(Signal* signal);
-  void senddatapagesLab(Signal* signal) const;
   void sttorrysignalLab(Signal* signal) const;
   void sendholdconfsignalLab(Signal* signal) const;
   void accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;

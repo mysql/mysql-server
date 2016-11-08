@@ -1145,8 +1145,11 @@ start_process(atrt_process & proc){
       num_of_parts -= 2;
       basedir.assign(dir_parts, sep);
     }
-    proc.m_proc.m_args.appfmt(" --basedir=%s", basedir.c_str());
-    g_logger.info("appended '--basedir=%s' to mysqld process", basedir.c_str());
+    if (proc.m_proc.m_args.indexOf("--basedir=") == -1)
+    {
+      proc.m_proc.m_args.appfmt(" --basedir=%s", basedir.c_str());
+      g_logger.info("appended '--basedir=%s' to mysqld process", basedir.c_str());
+    }
   }
   BaseString save_args(proc.m_proc.m_args);
   {

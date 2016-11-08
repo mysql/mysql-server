@@ -763,9 +763,9 @@ NdbDictionary::Table::getFragmentCount() const
 }
 
 Uint32
-NdbDictionary::Table::getRealFragmentCount() const
+NdbDictionary::Table::getPartitionCount() const
 {
-  return m_impl.getRealFragmentCount();
+  return m_impl.getPartitionCount();
 }
 
 void
@@ -1083,7 +1083,7 @@ NdbDictionary::Table::getPartitionId(Uint32 hashValue) const
        * The new startTransaction interface goes to any node
        * for fully replicated tables.
        */
-      Uint32 realCnt = m_impl.m_realFragmentCount;
+      Uint32 realCnt = m_impl.m_partitionCount;
       assert(realCnt != 0);
       assert(realCnt <= m_impl.m_hash_map.size());
       return m_impl.m_hash_map[hashValue % realCnt];
@@ -4161,6 +4161,50 @@ NdbDictionary::Dictionary::dropForeignKey(const ForeignKey& fk)
   return ret;
 }
 
+int
+NdbDictionary::Dictionary::List::Element::compareById(const void * p, const void * q)
+{
+  const Element* x = static_cast<const Element*>(p);
+  const Element* y = static_cast<const Element*>(q);
+  int cmp = (x->id < y->id) ? -1 : (x->id > y->id) ? + 1 : 0;
+  if (cmp != 0)
+    return cmp;
+  /**
+   * Trigger object can have same id as the other schema objects.
+   * Use type to give a stable ordering between trigger object and other
+   * objects.
+   */
+  cmp = (x->type < y->type) ? -1 : (x->type > y->type) ? + 1 : 0;
+  return cmp;
+}
+
+int
+NdbDictionary::Dictionary::List::Element::compareByName(const void * p, const void * q)
+{
+  const Element* x = static_cast<const Element*>(p);
+  const Element* y = static_cast<const Element*>(q);
+  int cmp = strcmp(x->database, y->database);
+  if (cmp != 0)
+    return cmp;
+  cmp = strcmp(x->schema, y->schema);
+  if (cmp != 0)
+    return cmp;
+  cmp = strcmp(x->name, y->name);
+  return cmp;
+}
+
+void
+NdbDictionary::Dictionary::List::sortById()
+{
+  qsort(elements, count, sizeof(Element), Element::compareById);
+}
+
+void
+NdbDictionary::Dictionary::List::sortByName()
+{
+  qsort(elements, count, sizeof(Element), Element::compareByName);
+}
+
 NdbOut& operator <<(NdbOut& ndbout, NdbDictionary::Object::FragmentType const fragtype)
 {
   switch (fragtype)
@@ -4355,7 +4399,7 @@ NdbOut& operator <<(class NdbOut&, NdbDictionary::Table const& tab)
   ndbout << "Row GCI: " << tab.getRowGCIIndicator() << endl;
   ndbout << "SingleUserMode: " << (Uint32) tab.getSingleUserMode() << endl;
   ndbout << "ForceVarPart: " << tab.getForceVarPart() << endl;
-  ndbout << "RealFragmentCount: " << tab.getRealFragmentCount() << endl;
+  ndbout << "PartitionCount: " << tab.getPartitionCount() << endl;
   ndbout << "FragmentCount: " << tab.getFragmentCount() << endl;
   ndbout << "FragmentCountType: " << tab.getFragmentCountTypeString() << endl;
   ndbout << "ExtraRowGciBits: " << tab.getExtraRowGciBits() << endl;
@@ -4469,6 +4513,7 @@ void NdbDictionary::Dictionary::print(NdbOut& ndbout, NdbDictionary::Table const
   List list;
   if (listDependentObjects(list, tab) == 0)
   {
+    list.sortById();
     for (j= 0; j < list.count; j++) {
       List::Element& elt = list.elements[j];
       if (elt.type != NdbDictionary::Object::UniqueHashIndex &&

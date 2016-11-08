@@ -35,6 +35,7 @@
 #include "ndb_conflict.h"
 #include "partitioning/partition_handler.h"
 #include "table.h"
+#include "ndb_table_map.h"
 
 #define NDB_IGNORE_VALUE(x) (void)x
 
@@ -135,7 +136,6 @@ struct st_ndb_status {
 };
 
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
-
 
 class ha_ndbcluster: public handler, public Partition_handler
 {
@@ -516,16 +516,16 @@ private:
   int next_result(uchar *buf); 
   int close_scan();
   void unpack_record(uchar *dst_row, const uchar *src_row);
-
+  void unpack_record_and_set_generated_fields(TABLE *, uchar *dst_row,
+                                              const uchar *src_row);
   void set_dbname(const char *pathname);
   void set_tabname(const char *pathname);
 
   const NdbDictionary::Column *get_hidden_key_column() {
-    return m_table->getColumn(table_share->fields);
+    return m_table->getColumn(m_table_map->get_hidden_key_column());
   }
   const NdbDictionary::Column *get_partition_id_column() {
-    Uint32 index= table_share->fields + (table_share->primary_key == MAX_KEY);
-    return m_table->getColumn(index);
+    return m_table->getColumn(m_table_map->get_partition_id_column());
   }
 
   uchar *get_buffer(Thd_ndb *thd_ndb, uint size);
@@ -641,6 +641,7 @@ private:
   void set_part_info(partition_info *part_info, bool early);
   /* End of Partition_handler API */
 
+  Ndb_table_map* m_table_map;
   Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;
   const NdbDictionary::Table *m_table;

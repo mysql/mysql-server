@@ -901,6 +901,7 @@ void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) const
   operationRecPtr.p->elementPage = RNIL;
   operationRecPtr.p->scanRecPtr = RNIL;
   operationRecPtr.p->m_op_bits = opbits;
+  NdbTick_Invalidate(&operationRecPtr.p->m_lockTime);
 
   // bit to mark lock operation
   // undo log is not run via ACCKEYREQ
@@ -1055,6 +1056,14 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 	  
 	  opbits |= Operationrec::OP_LOCK_OWNER;
 	  insertLockOwnersList(operationRecPtr);
+
+          fragrecptr.p->
+            m_lockStats.req_start_imm_ok((opbits & 
+                                          Operationrec::OP_LOCK_MODE) 
+                                         != ZREADLOCK,
+                                         operationRecPtr.p->m_lockTime,
+                                         getHighResTimer());
+          
         } else {
           jam();
 	  /*---------------------------------------------------------------*/
@@ -1288,6 +1297,21 @@ upgrade:
    * Currently no grouping of ops in serie queue
    */
   ndbrequire(nextOp.p->nextParallelQue == RNIL);
+
+  /**
+   * Track end-of-wait
+   */
+  {
+    FragmentrecPtr frp;
+    frp.i = nextOp.p->fragptr;
+    ptrCheckGuard(frp, cfragmentsize, fragmentrec);
+    
+    frp.p->m_lockStats.wait_ok(((nextbits & 
+                                 Operationrec::OP_LOCK_MODE) 
+                                != ZREADLOCK),
+                               nextOp.p->m_lockTime,
+                               getHighResTimer());
+  }
   
 checkop:
   Uint32 errCode = 0;
@@ -1422,10 +1446,22 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
       c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata.m_page_no,
                               operationRecPtr.p->localdata.m_page_idx,
                               fragrecptr.p->tupFragptr);
+
+      fragrecptr.p->m_lockStats.req_start_imm_ok((bits & 
+                                                  Operationrec::OP_LOCK_MODE) 
+                                                 != ZREADLOCK,
+                                                 operationRecPtr.p->m_lockTime,
+                                                 getHighResTimer());
+
       sendAcckeyconf(signal);
       return;
     } else if (return_result == ZSERIAL_QUEUE) {
       jam();
+      fragrecptr.p->m_lockStats.req_start((bits & 
+                                           Operationrec::OP_LOCK_MODE) 
+                                          != ZREADLOCK,
+                                          operationRecPtr.p->m_lockTime,
+                                          getHighResTimer());
       signal->theData[0] = RNIL;
       return;
     } else {
@@ -1536,6 +1572,9 @@ void Dbacc::insertelementLab(Signal* signal,
                 conptr,
                 Operationrec::ANY_SCANBITS,
                 false);
+  fragrecptr.p->m_lockStats.req_start_imm_ok(true /* Exclusive */,
+                                             operationRecPtr.p->m_lockTime,
+                                             getHighResTimer());
   c_tup->prepareTUPKEYREQ(localKey.m_page_no, localKey.m_page_idx, fragrecptr.p->tupFragptr);
   sendAcckeyconf(signal);
   return;
@@ -4389,6 +4428,18 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
 
   ndbassert((opbits & Operationrec::OP_LOCK_OWNER) == 0);
   ndbassert((opbits & Operationrec::OP_RUN_QUEUE) == 0);
+
+  {
+    FragmentrecPtr frp;
+    frp.i = opPtr.p->fragptr;
+    ptrCheckGuard(frp, cfragmentsize, fragmentrec);
+
+    frp.p->m_lockStats.wait_fail((opbits & 
+                                  Operationrec::OP_LOCK_MODE) 
+                                 != ZREADLOCK,
+                                 opPtr.p->m_lockTime,
+                                 getHighResTimer());
+  }
   
   if (prevP.i != RNIL)
   {
@@ -5117,6 +5168,17 @@ Dbacc::startNew(Signal* signal, OperationrecPtr newOwner)
   if (op == ZSCAN_OP && (opbits & Operationrec::OP_LOCK_REQ) == 0)
     goto scan;
 
+  /* Waiting op now runnable... */
+  {
+    FragmentrecPtr frp;
+    frp.i = newOwner.p->fragptr;
+    ptrCheckGuard(frp, cfragmentsize, fragmentrec);
+    frp.p->m_lockStats.wait_ok((opbits & Operationrec::OP_LOCK_MODE) 
+                               != ZREADLOCK,
+                               operationRecPtr.p->m_lockTime,
+                               getHighResTimer());
+  }
+
   if (deleted)
   {
     jam();
@@ -5288,16 +5350,12 @@ void Dbacc::insertLockOwnersList(const OperationrecPtr& insOperPtr) const
 void Dbacc::allocOverflowPage()
 {
   tresult = 0;
-  if (cfreepages.isEmpty())
-  {
-    jam();  
-    zpagesize_error("Dbacc::allocOverflowPage");
-    tresult = ZPAGESIZE_ERROR;
-    return;
-  }//if
   Page8Ptr spPageptr;
   seizePage(spPageptr);
-  ndbrequire(tresult <= ZLIMIT_OF_ERROR);
+  if (tresult > ZLIMIT_OF_ERROR)
+  {
+    return;
+  }
   {
     LocalContainerPageList sparselist(*this, fragrecptr.p->sparsepages);
     sparselist.addLast(spPageptr);
@@ -6732,16 +6790,16 @@ void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)const
 
   regFragPtr.p->lockOwnersList = RNIL;
 
-  regFragPtr.p->activeDataPage = 0;
   regFragPtr.p->hasCharAttr = ZFALSE;
   regFragPtr.p->dirRangeFull = ZFALSE;
-  regFragPtr.p->nextAllocPage = 0;
   regFragPtr.p->fragState = FREEFRAG;
 
   regFragPtr.p->sparsepages.init();
   regFragPtr.p->fullpages.init();
   regFragPtr.p->m_noOfAllocatedPages = 0;
   regFragPtr.p->activeScanMask = 0;
+
+  regFragPtr.p->m_lockStats.init();
 }//Dbacc::initFragGeneral()
 
 
@@ -7006,6 +7064,12 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   if (!tnsIsLocked){
     if (!scanPtr.p->scanReadCommittedFlag) {
       jam();
+      /* Immediate lock grant as element unlocked */
+      fragrecptr.p->m_lockStats.
+        req_start_imm_ok(scanPtr.p->scanLockMode != ZREADLOCK,
+                         operationRecPtr.p->m_lockTime,
+                         getHighResTimer());
+      
       setlock(nsPageptr, tnsElementptr);
       insertLockOwnersList(operationRecPtr);
       operationRecPtr.p->m_op_bits |= 
@@ -7024,6 +7088,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       // If the lock owner indicates the element is disappeared then 
       // we will not report this tuple. We will continue with the next tuple.
       /* ------------------------------------------------------------------ */
+      /* FC : Is this correct, shouldn't we wait for lock holder commit? */
       operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
       releaseOpRec();
       scanPtr.p->scanOpsAllocated--;
@@ -7046,6 +7111,10 @@ void Dbacc::checkNextBucketLab(Signal* signal)
 	 * WE PLACED THE OPERATION INTO A SERIAL QUEUE AND THUS WE HAVE TO 
 	 * WAIT FOR THE LOCK TO BE RELEASED. WE CONTINUE WITH THE NEXT ELEMENT
 	 * ----------------------------------------------------------------- */
+        fragrecptr.p->
+          m_lockStats.req_start(scanPtr.p->scanLockMode != ZREADLOCK,
+                                operationRecPtr.p->m_lockTime,
+                                getHighResTimer());
         putOpScanLockQue();	/* PUT THE OP IN A QUE IN THE SCAN REC */
         signal->theData[0] = scanPtr.i;
         signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
@@ -7067,6 +7136,11 @@ void Dbacc::checkNextBucketLab(Signal* signal)
         return;
       }//if
       ndbassert(return_result == ZPARALLEL_QUEUE);
+      /* We got into the parallel queue - immediate grant */
+      fragrecptr.p->m_lockStats.
+        req_start_imm_ok(scanPtr.p->scanLockMode != ZREADLOCK,
+                         operationRecPtr.p->m_lockTime,
+                         getHighResTimer());
     }//if
   }//if
   /* ----------------------------------------------------------------------- */
@@ -7305,9 +7379,21 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     takeOutReadyScanQueue();
     fragrecptr.i = operationRecPtr.p->fragptr;
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+
+    /* Scan op that had to wait for a lock is now runnable */
+    fragrecptr.p->m_lockStats.wait_ok(scanPtr.p->scanLockMode != ZREADLOCK,
+                                      operationRecPtr.p->m_lockTime,
+                                      getHighResTimer());
+
     if (operationRecPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED) 
     {
       jam();
+      /**
+       * Despite aborting, this is an 'ok' wait.
+       * This op is waking up to find the entity it locked has gone.
+       * As a 'QueuedOp', we are in the parallel queue of the element, so 
+       * at the abort below we don't double-count abort as a failure.
+       */
       abortOperation(signal);
       operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
       releaseOpRec();
@@ -7603,6 +7689,7 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr,
   operationRecPtr.p->hashValue.clear();
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
   operationRecPtr.p->xfrmtupkeylen = 0; // not used
+  NdbTick_Invalidate(&operationRecPtr.p->m_lockTime);
 }//Dbacc::initScanOpRec()
 
 /* ----------------------------------------------------------------------------
@@ -8567,6 +8654,170 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+  case Ndbinfo::FRAG_LOCKS_TABLEID:
+  {
+    Uint32 tableid = cursor->data[0];
+    
+    for (;tableid < ctablesize; tableid++)
+    {
+      TabrecPtr tabPtr;
+      tabPtr.i = tableid;
+      ptrAss(tabPtr, tabrec);
+      if (tabPtr.p->fragholder[0] != RNIL)
+      {
+        jam();
+        // Loop over all fragments for this table.
+        for (Uint32 f = 0; f < NDB_ARRAY_SIZE(tabPtr.p->fragholder); f++)
+        {
+          if (tabPtr.p->fragholder[f] != RNIL)
+          {
+            jam();
+            FragmentrecPtr frp;
+            frp.i = tabPtr.p->fragptrholder[f];
+            ptrCheckGuard(frp, cfragmentsize, fragmentrec);
+            
+            const Fragmentrec::LockStats& ls = frp.p->m_lockStats;
+            
+            Ndbinfo::Row row(signal, req);
+            row.write_uint32(getOwnNodeId());
+            row.write_uint32(instance());
+            row.write_uint32(tableid);
+            row.write_uint32(tabPtr.p->fragholder[f]);
+
+            row.write_uint64(ls.m_ex_req_count);
+            row.write_uint64(ls.m_ex_imm_ok_count);
+            row.write_uint64(ls.m_ex_wait_ok_count);
+            row.write_uint64(ls.m_ex_wait_fail_count);
+            
+            row.write_uint64(ls.m_sh_req_count);
+            row.write_uint64(ls.m_sh_imm_ok_count);
+            row.write_uint64(ls.m_sh_wait_ok_count);
+            row.write_uint64(ls.m_sh_wait_fail_count);
+
+            row.write_uint64(ls.m_wait_ok_millis);
+            row.write_uint64(ls.m_wait_fail_millis);
+
+            ndbinfo_send_row(signal, req, row, rl);
+          }
+        }
+      }
+
+      /*
+        If a break is needed, break on a table boundary, 
+        as we use the table id as a cursor.
+      */
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, tableid + 1);
+        return;
+      }
+    }
+    break;
+  }
+  case Ndbinfo::ACC_OPERATIONS_TABLEID:
+  {
+    jam();
+    /* Take a break periodically when scanning records */
+    Uint32 maxToCheck = 1024;
+    NDB_TICKS now = getHighResTimer();
+    OperationrecPtr opRecPtr;
+    opRecPtr.i = cursor->data[0];
+
+    while (opRecPtr.i < coprecsize)
+    {
+      ptrCheckGuard(opRecPtr, coprecsize, operationrec);
+     
+      /**
+       * ACC holds lock requests/operations in a 2D queue 
+       * structure.
+       * The lock owning operation is directly linked from the
+       * PK hash element.  Only one operation is the 'owner'
+       * at any one time.
+       * 
+       * The lock owning operation may have other operations
+       * concurrently holding the lock, for example other
+       * operations in the same transaction, or, for shared
+       * reads, in other transactions.
+       * These operations are in the 'parallel' queue of the
+       * lock owning operation, linked from its 
+       * nextParallelQue member.
+       *
+       * Non-compatible lock requests must wait until some/
+       * all of the current lock holder(s) have released the
+       * lock before they can run.  They are held in the
+       * 'serial' queue, lined from the lockOwner's 
+       * nextSerialQue member.
+       * 
+       * Note also : Only one operation per row can 'run' 
+       * in LDM at any one time, but this serialisation 
+       * is not considered as locking overhead.
+       *
+       * Note also : These queue members are part of overlays
+       * and are not always guaranteed to be valid, m_op_bits
+       * often must be consulted too.
+       */
+      if (opRecPtr.p->m_op_bits != Operationrec::OP_INITIAL)
+      {
+        jam();
+
+        FragmentrecPtr fp;
+        fp.i = opRecPtr.p->fragptr;
+        ptrCheckGuard(fp, cfragmentsize, fragmentrec);
+
+        const Uint32 tableId = fp.p->myTableId;
+        const Uint32 fragId = fp.p->myfid;
+        const Uint64 rowId = 
+          Uint64(opRecPtr.p->localdata.m_page_no) << 32 |
+          Uint64(opRecPtr.p->localdata.m_page_idx);
+        /* Send as separate attrs, as in cluster_operations */
+        const Uint32 transId0 = opRecPtr.p->transId1;
+        const Uint32 transId1 = opRecPtr.p->transId2;
+        const Uint32 prevSerialQue = opRecPtr.p->prevSerialQue;
+        const Uint32 nextSerialQue = opRecPtr.p->nextSerialQue;
+        const Uint32 prevParallelQue = opRecPtr.p->prevParallelQue;
+        const Uint32 nextParallelQue = opRecPtr.p->nextParallelQue;
+        const Uint32 flags = opRecPtr.p->m_op_bits;
+        /* Ignore Uint32 overflow at ~ 50 days */
+        const Uint32 durationMillis = 
+          (Uint32) NdbTick_Elapsed(opRecPtr.p->m_lockTime,
+                                   now).milliSec();
+        const Uint32 userPtr = opRecPtr.p->userptr;
+
+        /* Live operation */
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(getOwnNodeId());
+        row.write_uint32(instance());
+        row.write_uint32(tableId);
+        row.write_uint32(fragId);
+        row.write_uint64(rowId);
+        row.write_uint32(transId0);
+        row.write_uint32(transId1);
+        row.write_uint32(opRecPtr.i);
+        row.write_uint32(flags);
+        row.write_uint32(prevSerialQue);
+        row.write_uint32(nextSerialQue);
+        row.write_uint32(prevParallelQue);
+        row.write_uint32(nextParallelQue);
+        row.write_uint32(durationMillis);
+        row.write_uint32(userPtr);
+
+        ndbinfo_send_row(signal, req, row, rl);
+      }
+      maxToCheck--;
+      opRecPtr.i++;
+
+      if (rl.need_break(req) || maxToCheck == 0)
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, opRecPtr.i);
+        return;
+      }
+    }
+
+    break;
   }
   default:
     break;

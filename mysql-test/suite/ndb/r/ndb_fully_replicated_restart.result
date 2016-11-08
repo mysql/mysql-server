@@ -28,7 +28,7 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-RealFragmentCount: 8
+PartitionCount: 8
 FragmentCount: 8
 FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
@@ -42,10 +42,10 @@ b Varchar(255;latin1_swedish_ci) PRIMARY KEY AT=SHORT_VAR ST=MEMORY
 c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a, b) - UniqueHashIndex
-b(b) - OrderedIndex
-c(c) - OrderedIndex
 PRIMARY(a, b) - OrderedIndex
+c(c) - OrderedIndex
 c$unique(c) - UniqueHashIndex
+b(b) - OrderedIndex
 
 NDBT_ProgramExit: 0 - OK
 

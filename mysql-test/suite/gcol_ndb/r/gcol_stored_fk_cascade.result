@@ -1,0 +1,69 @@
+create table purchase_order_v1 (
+id int not null primary key,
+sequence_no int not null,
+user varchar(30),
+unique index (sequence_no)
+) engine = ndb;
+create table order_item_v1  (
+id int not null auto_increment primary key,
+order_seq_no int not null, 
+description varchar(40),
+quantity int not null,
+unit_cost decimal(6, 2),
+foreign key (order_seq_no) references purchase_order_v1 (sequence_no) 
+on delete cascade on update cascade
+) engine = ndb;
+insert into purchase_order_v1 values (1,1,"jdd");
+insert into order_item_v1 values(default, 1, "10mm hex nut", 1000, .04);
+update purchase_order_v1 set sequence_no = 2 where id = 1;
+select * from order_item_v1 ;
+id	order_seq_no	description	quantity	unit_cost
+1	2	10mm hex nut	1000	0.04
+create table purchase_order_v2 (
+id int not null primary key,
+sequence_no int as (id) stored unique,
+user varchar(30)
+) engine = ndb;
+create table order_item_v2  (
+id int not null auto_increment primary key,
+order_seq_no int not null, 
+description varchar(40),
+quantity int not null,
+unit_cost decimal(6, 2),
+foreign key (order_seq_no) references purchase_order_v2 (sequence_no) 
+on delete cascade on update cascade
+) engine = ndb;
+insert into purchase_order_v2 (id, user) values (1, "jdd");
+insert into order_item_v2 values(default, 1, "10mm hex nut", 1000, .04);
+select * from purchase_order_v2 ;
+id	sequence_no	user
+1	1	jdd
+select * from order_item_v2;
+id	order_seq_no	description	quantity	unit_cost
+1	1	10mm hex nut	1000	0.04
+update purchase_order_v2 set id = 2 where id = 1;
+select * from order_item_v2 ;
+id	order_seq_no	description	quantity	unit_cost
+create table order_item_v3  (
+id int not null auto_increment primary key,
+order_seq_no int not null, 
+description varchar(40),
+quantity int not null,
+unit_cost decimal(6, 2),
+gcol int as (100 + order_seq_no) stored, 
+foreign key (order_seq_no) references purchase_order_v1 (sequence_no) 
+on delete cascade on update cascade
+) engine = ndb;
+insert into order_item_v3 values(default, 2, "10mm hex nut", 1000, .04, default);
+select * from order_item_v3;
+id	order_seq_no	description	quantity	unit_cost	gcol
+1	2	10mm hex nut	1000	0.04	102
+update purchase_order_v1 set sequence_no = 3 where id = 1;
+select * from order_item_v3;
+id	order_seq_no	description	quantity	unit_cost	gcol
+1	3	10mm hex nut	1000	0.04	102
+drop table order_item_v3;
+drop table order_item_v2;
+drop table order_item_v1;
+drop table purchase_order_v2;
+drop table purchase_order_v1;

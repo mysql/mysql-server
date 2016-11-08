@@ -1,0 +1,1074 @@
+use ndbinfo;
+Create a view which should be deterministic
+and exclude runtime specifics
+create view ndbinfo.ordered_locks as
+select mode, state, detail, op, 
+if(ifnull(waiting_for, 0xffffff00) = 0xffffff00, 0, 1) as waiting 
+from ndbinfo.cluster_locks
+order by
+node_id, block_instance, tableid, fragmentid, rowid, transid;
+create table test.t1 (a int primary key, b int, c int, key(c)) engine=ndb;
+insert into test.t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5);
+Show no locks held by an open transaction + committed reads
+of various types
+Show no locks to begin with
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+-------------
+CommittedRead
+-------------
+PK read, CR
+begin;
+select * from test.t1 where a=1;
+a	b	c
+1	1	1
+Should be no locks held.
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+rollback;
+ACC scan, CR
+begin;
+select * from test.t1 where b=4;
+a	b	c
+4	4	4
+Should be no locks held.
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+rollback;
+TUX scan, CR
+begin;
+select * from test.t1 where c > 4;
+a	b	c
+5	5	5
+Should be no locks held.
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+rollback;
+----------
+SharedRead
+----------
+PK read, Shared
+begin;
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+One lock on primary
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+S	H	*	READ	0
+rollback;
+ACC scan, Shared
+begin;
+select * from test.t1 where b=4 lock in share mode;
+a	b	c
+4	4	4
+One taken-over lock on primary
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+S	H	*	READ	0
+rollback;
+TUX scan, Shared
+begin;
+select * from test.t1 where c > 4 lock in share mode;
+a	b	c
+5	5	5
+One taken-over lock on primary
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+S	H	*	READ	0
+rollback;
+Multiple rows
+PK read, Shared
+begin;
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+select * from test.t1 where a=2 lock in share mode;
+a	b	c
+2	2	2
+select * from test.t1 where a=3 lock in share mode;
+a	b	c
+3	3	3
+select * from test.t1 where a=4 lock in share mode;
+a	b	c
+4	4	4
+select * from test.t1 where a=5 lock in share mode;
+a	b	c
+5	5	5
+Expect 5 row locks on primaries
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+S	H	*	READ	0
+S	H	*	READ	0
+S	H	*	READ	0
+S	H	*	READ	0
+S	H	*	READ	0
+rollback;
+ACC scan, Shared
+begin;
+select * from test.t1 lock in share mode;
+Expect 5 row locks on primaries
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+S	H	*	READ	0
+S	H	*	READ	0
+S	H	*	READ	0
+S	H	*	READ	0
+S	H	*	READ	0
+rollback;
+TUX scan, Shared
+begin;
+select * from test.t1 lock in share mode;
+Expect 5 row locks on primaries
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+S	H	*	READ	0
+S	H	*	READ	0
+S	H	*	READ	0
+S	H	*	READ	0
+S	H	*	READ	0
+rollback;
+--------------
+Exclusive Read
+--------------
+PK read, Exclusive
+begin;
+select * from test.t1 where a=1 for update;
+a	b	c
+1	1	1
+One lock on primary
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	READ	0
+rollback;
+ACC scan, Exclusive
+begin;
+select * from test.t1 where b=4 for update;
+a	b	c
+4	4	4
+One taken-over lock on primary
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	READ	0
+rollback;
+TUX scan, Exclusive
+begin;
+select * from test.t1 where c > 4 for update;
+a	b	c
+5	5	5
+One taken-over lock on primary
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	READ	0
+rollback;
+Multiple rows
+PK read, Exclusive
+begin;
+select * from test.t1 where a=1 for update;
+a	b	c
+1	1	1
+select * from test.t1 where a=2 for update;
+a	b	c
+2	2	2
+select * from test.t1 where a=3 for update;
+a	b	c
+3	3	3
+select * from test.t1 where a=4 for update;
+a	b	c
+4	4	4
+select * from test.t1 where a=5 for update;
+a	b	c
+5	5	5
+Expect 5 row locks on primaries
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	READ	0
+X	H	*	READ	0
+X	H	*	READ	0
+X	H	*	READ	0
+X	H	*	READ	0
+rollback;
+ACC scan, Exclusive
+begin;
+select * from test.t1 for update;
+Expect 5 row locks on primaries
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	READ	0
+X	H	*	READ	0
+X	H	*	READ	0
+X	H	*	READ	0
+X	H	*	READ	0
+rollback;
+TUX scan, Exclusive
+begin;
+select * from test.t1 for update;
+Expect 5 row locks on primaries
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	READ	0
+X	H	*	READ	0
+X	H	*	READ	0
+X	H	*	READ	0
+X	H	*	READ	0
+rollback;
+-----------
+DML (I/U/D)
+-----------
+Insert
+begin;
+insert into test.t1 values (6,6,6);
+Expect 1 lock per replica
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	INSERT	0
+X	H	*	INSERT	0
+rollback;
+Update by PK
+begin;
+update test.t1 set b=50 where a=5;
+Expect 1 lock per replica
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+rollback;
+Update by ACC scan
+begin;
+update test.t1 set c=123 where b > 0;
+Expect 5 locks per replica
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+rollback;
+Update by TUX scan
+begin;
+update test.t1 set b=123 where c > 0;
+Expect 5 locks per replica
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+rollback;
+Delete by PK
+begin;
+delete from test.t1 where a=3;
+Expect 1 lock per replica
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+rollback;
+Delete by ACC scan
+begin;
+delete from test.t1 where b > 0;
+Expect 5 locks per replica
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+rollback;
+Update by TUX scan
+begin;
+delete from test.t1 where c > 0;
+Expect 5 locks per replica
+select * from ndbinfo.ordered_locks;
+mode	state	detail	op	waiting
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+rollback;
+----------------
+Multi op per row
+----------------
+Shared PK read
+begin;
+select * from test.t1 where a=2 lock in share mode;
+a	b	c
+2	2	2
+select * from test.t1 where a=2 lock in share mode;
+a	b	c
+2	2	2
+select * from test.t1 where a=2 lock in share mode;
+a	b	c
+2	2	2
+Expect 3 locks held on primary, only one is holder
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+S	H		READ	0
+S	H		READ	0
+S	H	*	READ	0
+rollback;
+Shared and Exclusive PK read
+begin;
+select * from test.t1 where a=2 lock in share mode;
+a	b	c
+2	2	2
+select * from test.t1 where a=2 for update;
+a	b	c
+2	2	2
+select * from test.t1 where a=2 lock in share mode;
+a	b	c
+2	2	2
+Expect 3 locks held on primary, only one is holder
+Holder is Shared, others are Xclusive
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		READ	0
+X	H		READ	0
+S	H	*	READ	0
+rollback;
+Multi Exclusive PK read
+begin;
+select * from test.t1 where a=2 for update;
+a	b	c
+2	2	2
+select * from test.t1 where a=2 for update;
+a	b	c
+2	2	2
+select * from test.t1 where a=2 for update;
+a	b	c
+2	2	2
+Expect 3 locks held on primary, only one is holder
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		READ	0
+X	H		READ	0
+X	H	*	READ	0
+rollback;
+Multi scan shared
+begin;
+select * from test.t1 where a > 4 lock in share mode;
+select * from test.t1 where a > 4 lock in share mode;
+select * from test.t1 where a > 4 lock in share mode;
+Expect 3 locks held on 1 row, only one is holder
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+S	H		READ	0
+S	H		READ	0
+S	H	*	READ	0
+rollback;
+Multi scan mixed
+begin;
+select * from test.t1 where a > 4 lock in share mode;
+select * from test.t1 where a > 4 for update;
+select * from test.t1 where a > 4 lock in share mode;
+Expect 3 locks held on 1 row, only one is holder
+Holder is shared
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		READ	0
+X	H		READ	0
+S	H	*	READ	0
+rollback;
+Multi scan exclusive
+begin;
+select * from test.t1 where a > 4 for update;
+select * from test.t1 where a > 4 for update;
+select * from test.t1 where a > 4 for update;
+Expect 3 locks held on 1 row, only one is holder
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		READ	0
+X	H		READ	0
+X	H	*	READ	0
+rollback;
+ReadSh-Update PK
+begin;
+select * from test.t1 where a=2 lock in share mode;
+update test.t1 set b=20 where a=2;
+Expect 1 Primary S Read + 1 per replica EX Update
+S is holder on primary replica, EX on Backup
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		UPDATE	0
+S	H	*	READ	0
+X	H	*	UPDATE	0
+rollback;
+ReadEx-Update PK
+begin;
+select * from test.t1 where a=2 for update;
+update test.t1 set b=20 where a=2;
+Expect 1 Primary EX Read + 1 per replica EX Update
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		UPDATE	0
+X	H	*	READ	0
+X	H	*	UPDATE	0
+rollback;
+ReadSh-Delete PK
+begin;
+select * from test.t1 where a=2 lock in share mode;
+delete from test.t1 where a=2;
+Expect 1 Primary S Read + 1 per replica EX Delete
+S is holder on primary replica, EX on Backup
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		DELETE	0
+X	H	*	DELETE	0
+S	H	*	READ	0
+rollback;
+ReadEx-Update PK
+begin;
+select * from test.t1 where a=2 for update;
+delete from test.t1 where a=2;
+Expect 1 Primary EX Read + 1 per replica EX Delete
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		DELETE	0
+X	H	*	DELETE	0
+X	H	*	READ	0
+rollback;
+Insert-Update PK
+begin;
+insert into test.t1 values (6,6,6);
+update test.t1 set b=60 where a=6;
+Expect 2 locks per replica, held by Insert
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		UPDATE	0
+X	H		UPDATE	0
+X	H	*	INSERT	0
+X	H	*	INSERT	0
+rollback;
+Insert-Delete PK
+begin;
+insert into test.t1 values (6,6,6);
+delete from test.t1 where a=6;
+Expect 2 locks per replica, held by Insert
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		DELETE	0
+X	H		DELETE	0
+X	H	*	INSERT	0
+X	H	*	INSERT	0
+rollback;
+Update-Update PK
+begin;
+update test.t1 set b=45 where a=3;
+update test.t1 set b=46 where a=3;
+Expect 2 locks per replica
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		UPDATE	0
+X	H		UPDATE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+rollback;
+Update-Delete PK
+begin;
+update test.t1 set b=45 where a=3;
+delete from test.t1 where a=3;
+Expect 2 locks per replica held by Update
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		DELETE	0
+X	H		DELETE	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+rollback;
+Delete-Insert PK
+begin;
+delete from test.t1 where a=4;
+insert into test.t1 values (4,44,44);
+Expect 2 locks per replica held by Delete
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		INSERT	0
+X	H		INSERT	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+rollback;
+Delete-Insert-Delete PK
+begin;
+delete from test.t1 where a=4;
+insert into test.t1 values (4,44,44);
+delete from test.t1 where a=4;
+Expect 3 locks per replica held by Delete
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		DELETE	0
+X	H		DELETE	0
+X	H		INSERT	0
+X	H		INSERT	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+rollback;
+Insert-Delete-Insert PK
+begin;
+insert into test.t1 values (6,66,66);
+delete from test.t1 where a=6;
+insert into test.t1 values (6,7,8);
+Expect 3 locks per replica, held by Insert
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	H		DELETE	0
+X	H		DELETE	0
+X	H		INSERT	0
+X	H		INSERT	0
+X	H	*	INSERT	0
+X	H	*	INSERT	0
+rollback;
+-----------------
+Multi-transaction
+-----------------
+Shared reads PK
+begin;
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+begin;
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+begin;
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+Expect 3 row locks taken, one is owner
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+S	H		READ	0
+S	H		READ	0
+S	H	*	READ	0
+Expect 3 transactions
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+3
+rollback;
+rollback;
+rollback;
+**********
+Contention
+**********
+PK SH vs PK EX
+begin;
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+begin;
+select * from test.t1 where a=1 for update;;
+Expect : X waiting for SH lock
+2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	W		READ	1
+S	H	*	READ	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+rollback;
+a	b	c
+1	1	1
+rollback;
+PK EX vs PK SH
+begin;
+select * from test.t1 where a=1 for update;
+a	b	c
+1	1	1
+begin;
+select * from test.t1 where a=1 lock in share mode;;
+Expect : SH waiting for X lock
+2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+S	W		READ	1
+X	H	*	READ	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+rollback;
+a	b	c
+1	1	1
+rollback;
+PK EX vs PK EX
+begin;
+select * from test.t1 where a=1 for update;
+a	b	c
+1	1	1
+begin;
+select * from test.t1 where a=1 for update;;
+Expect : X waiting for X lock
+2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	W		READ	1
+X	H	*	READ	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+rollback;
+a	b	c
+1	1	1
+rollback;
+Insert vs PK SH read
+begin;
+insert into test.t1 values (7,7,7);
+begin;
+select * from test.t1 where a=7 lock in share mode;;
+Expect : S waiting for X lock
+2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+S	W		READ	1
+X	H	*	INSERT	0
+X	H	*	INSERT	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+rollback;
+a	b	c
+rollback;
+Update vs PK SH read
+begin;
+update test.t1 set b=55 where a=5;
+begin;
+select * from test.t1 where a=5 lock in share mode;;
+Expect : S waiting for X lock
+2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+S	W		READ	1
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+rollback;
+a	b	c
+5	5	5
+rollback;
+PK SH read vs Update
+begin;
+select * from test.t1 where a=5 lock in share mode;
+a	b	c
+5	5	5
+begin;
+update test.t1 set b=55 where a=5;;
+Expect : X waiting for S lock
+2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	W		UPDATE	1
+S	H	*	READ	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+rollback;
+rollback;
+Delete vs PK SH read
+begin;
+delete from test.t1 where a=5;
+begin;
+select * from test.t1 where a=5 lock in share mode;;
+Expect : S waiting for X lock
+2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+S	W		READ	1
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+rollback;
+a	b	c
+5	5	5
+rollback;
+PK SH read vs Delete
+begin;
+select * from test.t1 where a=5 lock in share mode;
+a	b	c
+5	5	5
+begin;
+delete from test.t1 where a=5;;
+Expect : X waiting for S lock
+2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+mode	state	detail	op	waiting
+X	W		DELETE	1
+S	H	*	READ	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+rollback;
+rollback;
+PK SH read vs EX scan
+begin;
+select * from test.t1 where a=5 lock in share mode;
+a	b	c
+5	5	5
+begin;
+select * from test.t1 order by a for update;;
+Expect : 5-1 X locks from scan
+1   X lock waiting from scan
+1   S lock held by read
+2 transactions
+select mode, state, detail, waiting from ndbinfo.ordered_locks order by detail, mode, op;
+mode	state	detail	waiting
+X	W		1
+S	H	*	0
+X	H	*	0
+X	H	*	0
+X	H	*	0
+X	H	*	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+rollback;
+a	b	c
+1	1	1
+2	2	2
+3	3	3
+4	4	4
+5	5	5
+rollback;
+PK EX read vs SH scan
+begin;
+select * from test.t1 where a=5 for update;
+a	b	c
+5	5	5
+begin;
+select * from test.t1 order by a lock in share mode;;
+Expect : 5-1 S locks from scan
+1   S lock waiting from scan
+1   X lock held by read
+2 transactions
+select mode, state, detail, waiting from ndbinfo.ordered_locks order by detail, mode, op;
+mode	state	detail	waiting
+S	W		1
+S	H	*	0
+S	H	*	0
+S	H	*	0
+S	H	*	0
+X	H	*	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+rollback;
+a	b	c
+1	1	1
+2	2	2
+3	3	3
+4	4	4
+5	5	5
+rollback;
+SH read, SH read, SH upgrade (blocked)
+begin;
+select * from test.t1 where a=5 lock in share mode;
+a	b	c
+5	5	5
+begin;
+select * from test.t1 where a=5 lock in share mode;
+a	b	c
+5	5	5
+Upgrade attempt will block as other trans has
+shared lock on row
+select * from test.t1 where a=5 for update;;
+2 shared locks on row
+1 ex read waiting
+2 transactions
+select * from ndbinfo.ordered_locks order by detail, mode, op;
+mode	state	detail	op	waiting
+S	H		READ	0
+X	W		READ	1
+S	H	*	READ	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+rollback;
+a	b	c
+5	5	5
+rollback;
+drop table test.t1;
+***********
+Blob tables
+***********
+create table test.t1 (a int primary key, b int, c text) engine=ndb;
+insert into test.t1 values (1, 1, repeat('SSG',300));
+Show PK CR leaves no locks 
+begin;
+select a,b,length(c) from test.t1 where a=1;
+a	b	length(c)
+1	1	900
+select * from ndbinfo.ordered_locks order by detail, mode, op;
+mode	state	detail	op	waiting
+rollback;
+Show PK SH lock
+begin;
+select a,b,length(c) from test.t1 where a=1 lock in share mode;
+a	b	length(c)
+1	1	900
+Expect Shared lock on main table row only
+select * from ndbinfo.ordered_locks order by detail, mode, op;
+mode	state	detail	op	waiting
+S	H	*	READ	0
+rollback;
+Show PK EX lock
+begin;
+select a,b,length(c) from test.t1 where a=1 for update;
+a	b	length(c)
+1	1	900
+Expect Exclusive lock on main table row only
+select * from ndbinfo.ordered_locks order by detail, mode, op;
+mode	state	detail	op	waiting
+X	H	*	READ	0
+rollback;
+Show insert locks
+begin;
+insert into test.t1 values (2,2,repeat('TSG', 300));
+Expect Exclusive locks on all replicas of main + part row
+select * from ndbinfo.ordered_locks order by detail, mode, op;
+mode	state	detail	op	waiting
+X	H		UPDATE	0
+X	H		UPDATE	0
+X	H	*	INSERT	0
+X	H	*	INSERT	0
+X	H	*	INSERT	0
+X	H	*	INSERT	0
+rollback;
+Show update locks
+begin;
+update test.t1 set c=repeat('FSG', 300) where a=1;
+Expect Exclusive locks on all replicas of main + part row
+Various : Reads, Updates on main, Updates on parts
+Part(s) may have delete + insert rather than update
+select * from ndbinfo.ordered_locks order by detail,op;
+mode	state	detail	op	waiting
+X	H		INSERT	0
+X	H		INSERT	0
+X	H		READ	0
+X	H		UPDATE	0
+X	H		UPDATE	0
+X	H		UPDATE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	READ	0
+X	H	*	UPDATE	0
+rollback;
+Show delete locks
+begin;
+delete from test.t1 where a=1;
+Expect Exclusive locks on all replicas of main + part row
+select * from ndbinfo.ordered_locks order by detail,op;
+mode	state	detail	op	waiting
+X	H		DELETE	0
+X	H		READ	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	READ	0
+rollback;
+Show CR takes a lock transiently
+Take exclusive lock
+begin;
+select a,b,length(c) from test.t1 where a=1 for update;
+a	b	length(c)
+1	1	900
+select a,b,length(c) from test.t1 where a=1;;
+Expect Shared waiting for Exclusive on main table row.
+select * from ndbinfo.ordered_locks order by detail,op;
+mode	state	detail	op	waiting
+S	W		READ	1
+X	H	*	READ	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+rollback;
+a	b	length(c)
+1	1	900
+rollback;
+drop table test.t1;
+***********
+Unique keys
+***********
+create table test.t1 (a int primary key, b int, c int, unique(c)) engine=ndb;
+insert into test.t1 values (5,5,5);
+Show UK CR takes shared locks
+begin;
+select * from test.t1 where c=5;
+a	b	c
+5	5	5
+select * from ndbinfo.ordered_locks order by detail,op;
+mode	state	detail	op	waiting
+S	H	*	READ	0
+S	H	*	READ	0
+select count(distinct tableid) from ndbinfo.cluster_locks;
+count(distinct tableid)
+2
+rollback;
+Show UK EX read
+begin;
+select * from test.t1 where c=5 for update;
+a	b	c
+5	5	5
+select * from ndbinfo.ordered_locks order by detail,op;
+mode	state	detail	op	waiting
+X	H	*	READ	0
+X	H	*	READ	0
+select count(distinct tableid) from ndbinfo.cluster_locks;
+count(distinct tableid)
+2
+rollback;
+Show UK update, not of UK column
+begin;
+update test.t1 set b=55 where c=5;
+select * from ndbinfo.ordered_locks order by detail,op;
+mode	state	detail	op	waiting
+X	H	*	READ	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+select count(distinct tableid) from ndbinfo.cluster_locks;
+count(distinct tableid)
+2
+rollback;
+Show UK update, of UK column
+begin;
+update test.t1 set c=55 where c=5;
+Read by UK @ primary
+Read @ UK
+Update of main @ both
+Delete of old UK @ both
+Insert of new UK @ both 
+select * from ndbinfo.ordered_locks order by detail,op;
+mode	state	detail	op	waiting
+X	H		DELETE	0
+X	H		UPDATE	0
+X	H	*	DELETE	0
+X	H	*	INSERT	0
+X	H	*	INSERT	0
+X	H	*	READ	0
+X	H	*	READ	0
+X	H	*	UPDATE	0
+select count(distinct tableid) from ndbinfo.cluster_locks;
+count(distinct tableid)
+2
+rollback;
+Show UK delete
+begin;
+delete from test.t1 where c=5;
+select * from ndbinfo.ordered_locks order by detail,op;
+mode	state	detail	op	waiting
+X	H		DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	DELETE	0
+X	H	*	READ	0
+select count(distinct tableid) from ndbinfo.cluster_locks;
+count(distinct tableid)
+2
+rollback;
+Show PK update vs UK update
+begin;
+update test.t1 set b=400 where a=5;
+begin;
+update test.t1 set b=444 where c=5;;
+Expect PK update holding lock@each replica
+Expect UK read holding lock on UK table + waiting for
+lock on UK table primary
+select * from ndbinfo.ordered_locks order by detail,op;
+mode	state	detail	op	waiting
+X	W		UPDATE	1
+X	H	*	READ	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
+select count(distinct transid) from ndbinfo.cluster_locks;
+count(distinct transid)
+2
+select count(distinct tableid) from ndbinfo.cluster_locks;
+count(distinct tableid)
+2
+rollback;
+rollback;
+drop table test.t1;
+********
+Deadlock
+********
+create table test.t1 (a int primary key, b int) engine=ndb;
+insert into test.t1 values (1,1), (2,2);
+begin;
+select * from test.t1 where a=1 for update;
+a	b
+1	1
+begin;
+select * from test.t1 where a=2 for update;
+a	b
+2	2
+select * from test.t1 where a=2 for update;;
+select * from test.t1 where a=1 for update;;
+Show using cluster_locks to find the deadlock
+
+create view transaction_dependencies as
+select a.transid as waiting_transid, b.transid as holding_transid 
+from ndbinfo.cluster_locks a join 
+ndbinfo.cluster_locks b
+on a.node_id = b.node_id and
+a.block_instance = b.block_instance and
+a.waiting_for = b.lock_num;
+select * from transaction_dependencies;
+create view second_level_dependencies as
+select a.waiting_transid as waiting_transid, 
+b.holding_transid as holding_transid,
+a.holding_transid as other
+from transaction_dependencies a join transaction_dependencies b
+on a.holding_transid = b.waiting_transid;
+select * from second_level_dependencies;
+create view 2_way_deadlocks_found as
+select * 
+from second_level_dependencies
+where waiting_transid = holding_transid;
+select * from 2_way_deadlocks_found;
+create view unique_2_way_deadlocks as
+select distinct
+if (waiting_transid < other,
+waiting_transid,
+other),
+if (waiting_transid < other,
+other,
+waiting_transid)
+from 2_way_deadlocks_found;
+select * from unique_2_way_deadlocks;
+select count(1)
+from unique_2_way_deadlocks;
+count(1)
+1
+drop view unique_2_way_deadlocks;
+drop view 2_way_deadlocks_found;
+drop view second_level_dependencies;
+drop view transaction_dependencies;
+rollback;
+rollback;
+drop table test.t1;
+drop view ndbinfo.ordered_locks;

@@ -556,7 +556,7 @@ DECLARE_NDBINFO_TABLE(CPUSTAT_50MS, 11) =
     {"thr_no",                                              Ndbinfo::Number,
      "thread number"},
     {"OS_user_time",                                        Ndbinfo::Number,
-     "User time n microseconds as reported by OS" },
+     "User time in microseconds as reported by OS" },
     {"OS_system_time",                                      Ndbinfo::Number,
      "System time in microseconds as reported by OS" },
     {"OS_idle_time",                                        Ndbinfo::Number,
@@ -585,7 +585,7 @@ DECLARE_NDBINFO_TABLE(CPUSTAT_1SEC, 11) =
     {"thr_no",                                              Ndbinfo::Number,
      "thread number"},
     {"OS_user_time",                                        Ndbinfo::Number,
-     "User time n microseconds as reported by OS" },
+     "User time in microseconds as reported by OS" },
     {"OS_system_time",                                      Ndbinfo::Number,
      "System time in microseconds as reported by OS" },
     {"OS_idle_time",                                        Ndbinfo::Number,
@@ -614,7 +614,7 @@ DECLARE_NDBINFO_TABLE(CPUSTAT_20SEC, 11) =
     {"thr_no",                                              Ndbinfo::Number,
      "thread number"},
     {"OS_user_time",                                        Ndbinfo::Number,
-     "User time n microseconds as reported by OS" },
+     "User time in microseconds as reported by OS" },
     {"OS_system_time",                                      Ndbinfo::Number,
      "System time in microseconds as reported by OS" },
     {"OS_idle_time",                                        Ndbinfo::Number,
@@ -663,6 +663,64 @@ DECLARE_NDBINFO_TABLE(CPUSTAT, 11) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(FRAG_LOCKS, 14) =
+{ { "frag_locks", 14, 0,
+    "Per fragment lock information" },
+  {
+    {"node_id",                 Ndbinfo::Number,
+       "node id"},
+    {"block_instance",          Ndbinfo::Number,    
+       "LQH instance no"},
+    {"table_id",                Ndbinfo::Number,    
+       "Table identity"},
+    {"fragment_num",            Ndbinfo::Number,    
+       "Fragment number"},
+    {"ex_req",                  Ndbinfo::Number64,  
+       "Exclusive row lock request count"},
+    {"ex_imm_ok",               Ndbinfo::Number64,
+       "Exclusive row lock immediate grants"},
+    {"ex_wait_ok",              Ndbinfo::Number64,
+       "Exclusive row lock grants with wait"},
+    {"ex_wait_fail",            Ndbinfo::Number64,
+       "Exclusive row lock failed grants"},
+    {"sh_req",                  Ndbinfo::Number64,  
+       "Shared row lock request count"},
+    {"sh_imm_ok",               Ndbinfo::Number64,
+       "Shared row lock immediate grants"},
+    {"sh_wait_ok",              Ndbinfo::Number64,
+       "Shared row lock grants with wait"},
+    {"sh_wait_fail",            Ndbinfo::Number64,
+       "Shared row lock failed grants"},
+    {"wait_ok_millis",          Ndbinfo::Number64,
+       "Time spent waiting before successfully "
+       "claiming a lock"},
+    {"wait_fail_millis",        Ndbinfo::Number64,
+       "Time spent waiting before failing to "
+       "claim a lock"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(ACC_OPERATIONS, 15) =
+{ { "acc_operations", 15, 0, "ACC operation info" },
+  {
+    {"node_id",                     Ndbinfo::Number,   "node_id"},
+    {"block_instance",              Ndbinfo::Number,   "Block instance"},
+    {"tableid",                     Ndbinfo::Number,   "Table id"},
+    {"fragmentid",                  Ndbinfo::Number,   "Fragment id"},
+    {"rowid",                       Ndbinfo::Number64, "Row id in fragment"},
+    {"transid0",                    Ndbinfo::Number,   "Transaction id"},
+    {"transid1",                    Ndbinfo::Number,   "Transaction id"},
+    {"acc_op_id",                   Ndbinfo::Number,   "Operation id"},
+    {"op_flags",                    Ndbinfo::Number,   "Operation flags"},
+    {"prev_serial_op_id",           Ndbinfo::Number,   "Prev serial op id"},
+    {"next_serial_op_id",           Ndbinfo::Number,   "Next serial op id"},
+    {"prev_parallel_op_id",         Ndbinfo::Number,   "Prev parallel op id"},
+    {"next_parallel_op_id",         Ndbinfo::Number,   "Next parallel op id"},
+    {"duration_millis",             Ndbinfo::Number,   "Duration of wait/hold"},
+    {"user_ptr",                    Ndbinfo::Number,   "Lock requestor context"}
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -700,7 +758,9 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(CPUSTAT_50MS),
   DBINFOTBL(CPUSTAT_1SEC),
   DBINFOTBL(CPUSTAT_20SEC),
-  DBINFOTBL(CPUSTAT)
+  DBINFOTBL(CPUSTAT),
+  DBINFOTBL(FRAG_LOCKS),
+  DBINFOTBL(ACC_OPERATIONS)
 };
 
 static int no_ndbinfo_tables =

@@ -3632,6 +3632,21 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`locks_per_fragment`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`cluster_locks`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`server_locks`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # Drop any old lookup tables in ndbinfo
 SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$blocks`','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -3862,7 +3877,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat_50ms` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "thread_number",`OS_user_time` INT UNSIGNED COMMENT "User time in microseconds as reported by OS",`OS_system_time` INT UNSIGNED COMMENT "System time in microseconds as reported by OS",`OS_idle_time` INT UNSIGNED COMMENT "Idle time in microseconds as reported by OS",`exec_time` INT UNSIGNED COMMENT "Execution time in microseconds as calculated by thread",`sleep_time` INT UNSIGNED COMMENT "Sleep time in microseconds as calculated by thread",`send_time` INT UNSIGNED COMMENT "Send time in microseconds as calculated by thread",`buffer_full_time` INT UNSIGNED COMMENT "Time spent with buffer full in microseconds as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats at 50 milliseconds intervals" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat_50ms` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`OS_user_time` INT UNSIGNED COMMENT "User time in microseconds as reported by OS",`OS_system_time` INT UNSIGNED COMMENT "System time in microseconds as reported by OS",`OS_idle_time` INT UNSIGNED COMMENT "Idle time in microseconds as reported by OS",`exec_time` INT UNSIGNED COMMENT "Execution time in microseconds as calculated by thread",`sleep_time` INT UNSIGNED COMMENT "Sleep time in microseconds as calculated by thread",`spin_time` INT UNSIGNED COMMENT "Spin time in microseconds as calculated by thread",`send_time` INT UNSIGNED COMMENT "Send time in microseconds as calculated by thread",`buffer_full_time` INT UNSIGNED COMMENT "Time spent with buffer full in microseconds as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats at 50 milliseconds intervals" ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3873,7 +3888,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat_1sec` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "thread_number",`OS_user_time` INT UNSIGNED COMMENT "User time in microseconds as reported by OS",`OS_system_time` INT UNSIGNED COMMENT "System time in microseconds as reported by OS",`OS_idle_time` INT UNSIGNED COMMENT "Idle time in microseconds as reported by OS",`exec_time` INT UNSIGNED COMMENT "Execution time in microseconds as calculated by thread",`sleep_time` INT UNSIGNED COMMENT "Sleep time in microseconds as calculated by thread",`send_time` INT UNSIGNED COMMENT "Send time in microseconds as calculated by thread",`buffer_full_time` INT UNSIGNED COMMENT "Time spent with buffer full in microseconds as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats at 1 second intervals" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat_1sec` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`OS_user_time` INT UNSIGNED COMMENT "User time in microseconds as reported by OS",`OS_system_time` INT UNSIGNED COMMENT "System time in microseconds as reported by OS",`OS_idle_time` INT UNSIGNED COMMENT "Idle time in microseconds as reported by OS",`exec_time` INT UNSIGNED COMMENT "Execution time in microseconds as calculated by thread",`sleep_time` INT UNSIGNED COMMENT "Sleep time in microseconds as calculated by thread",`spin_time` INT UNSIGNED COMMENT "Spin time in microseconds as calculated by thread",`send_time` INT UNSIGNED COMMENT "Send time in microseconds as calculated by thread",`buffer_full_time` INT UNSIGNED COMMENT "Time spent with buffer full in microseconds as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats at 1 second intervals" ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3884,7 +3899,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat_20sec` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "thread_number",`OS_user_time` INT UNSIGNED COMMENT "User time in microseconds as reported by OS",`OS_system_time` INT UNSIGNED COMMENT "System time in microseconds as reported by OS",`OS_idle_time` INT UNSIGNED COMMENT "Idle time in microseconds as reported by OS",`exec_time` INT UNSIGNED COMMENT "Execution time in microseconds as calculated by thread",`sleep_time` INT UNSIGNED COMMENT "Sleep time in microseconds as calculated by thread",`send_time` INT UNSIGNED COMMENT "Send time in microseconds as calculated by thread",`buffer_full_time` INT UNSIGNED COMMENT "Time spent with buffer full in microseconds as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats at 20 seconds intervals" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat_20sec` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`OS_user_time` INT UNSIGNED COMMENT "User time in microseconds as reported by OS",`OS_system_time` INT UNSIGNED COMMENT "System time in microseconds as reported by OS",`OS_idle_time` INT UNSIGNED COMMENT "Idle time in microseconds as reported by OS",`exec_time` INT UNSIGNED COMMENT "Execution time in microseconds as calculated by thread",`sleep_time` INT UNSIGNED COMMENT "Sleep time in microseconds as calculated by thread",`spin_time` INT UNSIGNED COMMENT "Spin time in microseconds as calculated by thread",`send_time` INT UNSIGNED COMMENT "Send time in microseconds as calculated by thread",`buffer_full_time` INT UNSIGNED COMMENT "Time spent with buffer full in microseconds as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats at 20 seconds intervals" ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3895,10 +3910,33 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "thread_number",`OS_user` INT UNSIGNED COMMENT "Percentage time spent in user mode as reported by OS",`OS_system` INT UNSIGNED COMMENT "Percentage time spent in system mode as reported by OS",`OS_idle` INT UNSIGNED COMMENT "Perncentage time spent in idle mode as reported by OS",`thread_exec` INT UNSIGNED COMMENT "Percetage time spent executing as calculated by thread",`thread_sleeping` INT UNSIGNED COMMENT "Percentage time spent sleeping as calculated by thread",`thread_send` INT UNSIGNED COMMENT "Percentage time spent sending as calculated by thread",`thread_buffer_full` INT UNSIGNED COMMENT "Percentage time spent in buffer full as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats for last second" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`OS_user` INT UNSIGNED COMMENT "Percentage time spent in user mode as reported by OS",`OS_system` INT UNSIGNED COMMENT "Percentage time spent in system mode as reported by OS",`OS_idle` INT UNSIGNED COMMENT "Percentage time spent in idle mode as reported by OS",`thread_exec` INT UNSIGNED COMMENT "Percentage time spent executing as calculated by thread",`thread_sleeping` INT UNSIGNED COMMENT "Percentage time spent sleeping as calculated by thread",`thread_spinning` INT UNSIGNED COMMENT "Percentage time spent spinning as calculated by thread",`thread_send` INT UNSIGNED COMMENT "Percentage time spent sending as calculated by thread",`thread_buffer_full` INT UNSIGNED COMMENT "Percentage time spent in buffer full as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats for last second" ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
+# ndbinfo.ndb$frag_locks
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$frag_locks`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$frag_locks` (`node_id` INT UNSIGNED COMMENT "node id",`block_instance` INT UNSIGNED COMMENT "LQH instance no",`table_id` INT UNSIGNED COMMENT "Table identity",`fragment_num` INT UNSIGNED COMMENT "Fragment number",`ex_req` BIGINT UNSIGNED COMMENT "Exclusive row lock request count",`ex_imm_ok` BIGINT UNSIGNED COMMENT "Exclusive row lock immediate grants",`ex_wait_ok` BIGINT UNSIGNED COMMENT "Exclusive row lock grants with wait",`ex_wait_fail` BIGINT UNSIGNED COMMENT "Exclusive row lock failed grants",`sh_req` BIGINT UNSIGNED COMMENT "Shared row lock request count",`sh_imm_ok` BIGINT UNSIGNED COMMENT "Shared row lock immediate grants",`sh_wait_ok` BIGINT UNSIGNED COMMENT "Shared row lock grants with wait",`sh_wait_fail` BIGINT UNSIGNED COMMENT "Shared row lock failed grants",`wait_ok_millis` BIGINT UNSIGNED COMMENT "Time spent waiting before successfully claiming a lock",`wait_fail_millis` BIGINT UNSIGNED COMMENT "Time spent waiting before failing to claim a lock") COMMENT="Per fragment lock information" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.ndb$acc_operations
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$acc_operations`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$acc_operations` (`node_id` INT UNSIGNED COMMENT "node_id",`block_instance` INT UNSIGNED COMMENT "Block instance",`tableid` INT UNSIGNED COMMENT "Table id",`fragmentid` INT UNSIGNED COMMENT "Fragment id",`rowid` BIGINT UNSIGNED COMMENT "Row id in fragment",`transid0` INT UNSIGNED COMMENT "Transaction id",`transid1` INT UNSIGNED COMMENT "Transaction id",`acc_op_id` INT UNSIGNED COMMENT "Operation id",`op_flags` INT UNSIGNED COMMENT "Operation flags",`prev_serial_op_id` INT UNSIGNED COMMENT "Prev serial op id",`next_serial_op_id` INT UNSIGNED COMMENT "Next serial op id",`prev_parallel_op_id` INT UNSIGNED COMMENT "Prev parallel op id",`next_parallel_op_id` INT UNSIGNED COMMENT "Next parallel op id",`duration_millis` INT UNSIGNED COMMENT "Duration of wait/hold",`user_ptr` INT UNSIGNED COMMENT "Lock requestor context") COMMENT="ACC operation info" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 
 # ndbinfo.ndb$transactions
 SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$transactions`','SET @dummy = 0');
@@ -4333,6 +4371,24 @@ DROP PREPARE stmt;
 
 # ndbinfo.config_values
 SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`config_values` AS SELECT node_id, config_param, config_value FROM `ndbinfo`.`ndb$config_values`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.locks_per_fragment
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`locks_per_fragment` AS SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, types.type_name AS type, table_id, node_id, block_instance, fragment_num, ex_req, ex_imm_ok, ex_wait_ok, ex_wait_fail, sh_req, sh_imm_ok, sh_wait_ok, sh_wait_fail, wait_ok_millis, wait_fail_millis FROM `ndbinfo`.`ndb$frag_locks` AS locks JOIN `ndbinfo`.`ndb$dict_obj_info` AS name ON name.id=locks.table_id AND name.type<=6 JOIN `ndbinfo`.`ndb$dict_obj_types` AS types ON name.type=types.type_id LEFT JOIN `ndbinfo`.`ndb$dict_obj_info` AS parent_name ON name.parent_obj_id=parent_name.id AND name.parent_obj_type=parent_name.type','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.cluster_locks
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`cluster_locks` AS SELECT `ndbinfo`.`ndb$acc_operations`.`node_id` AS `node_id`,`ndbinfo`.`ndb$acc_operations`.`block_instance` AS `block_instance`,`ndbinfo`.`ndb$acc_operations`.`tableid` AS `tableid`,`ndbinfo`.`ndb$acc_operations`.`fragmentid` AS `fragmentid`,`ndbinfo`.`ndb$acc_operations`.`rowid` AS `rowid`,`ndbinfo`.`ndb$acc_operations`.`transid0` + (`ndbinfo`.`ndb$acc_operations`.`transid1` << 32) AS `transid`,(case (`ndbinfo`.`ndb$acc_operations`.`op_flags` & 0x10) when 0 then "S" else "X" end) AS `mode`,(case (`ndbinfo`.`ndb$acc_operations`.`op_flags` & 0x80) when 0 then "W" else "H" end) AS `state`,(case (`ndbinfo`.`ndb$acc_operations`.`op_flags` & 0x40) when 0 then "" else "*" end) as `detail`,case (`ndbinfo`.`ndb$acc_operations`.`op_flags` & 0xf) when 0 then "READ" when 1 then "UPDATE" when 2 then "INSERT"when 3 then "DELETE" when 5 then "READ" when 6 then "REFRESH"when 7 then "UNLOCK" when 8 then "SCAN" ELSE"<unknown>" END as `op`,`ndbinfo`.`ndb$acc_operations`.`duration_millis` as `duration_millis`,`ndbinfo`.`ndb$acc_operations`.`acc_op_id` AS `lock_num`,if(`ndbinfo`.`ndb$acc_operations`.`op_flags` & 0xc0 = 0,`ndbinfo`.`ndb$acc_operations`.`prev_serial_op_id`, NULL) as `waiting_for` from `ndbinfo`.`ndb$acc_operations`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.server_locks
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`server_locks` AS SELECT map.mysql_connection_id, l.* FROM `ndbinfo`.cluster_locks l JOIN information_schema.ndb_transid_mysql_connection_map map ON (map.ndb_transid >> 32) = (l.transid >> 32)','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;

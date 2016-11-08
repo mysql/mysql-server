@@ -17,10 +17,6 @@
 
 #include "ndb_local_schema.h"
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-
 #include "sql_class.h"
 #include "sql_table.h"
 #include "mdl.h"

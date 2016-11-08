@@ -170,7 +170,12 @@ ParseThreadConfiguration::find_type()
   skipblank();
 
   char *name = m_curr_str;
-  assert(name[0] != 0);
+  if(name[0] == 0) // The entry after comma is empty
+  {
+    m_err_msg.assfmt("Missing thread name");
+    return PARSE_END_ENTRIES;
+  }
+
   char *end = name;
   while(isalpha(end[0]) ||
         end[0] == '_')
@@ -337,6 +342,13 @@ ParseThreadConfiguration::parse_params(char *str,
       return -1;
     }
     m_curr_str++;
+    skipblank();
+
+    if(* m_curr_str == 0)
+    {
+      m_err_msg.assfmt("Missing parameter after comma");
+      return -1;
+    }
   }
   m_curr_str = save;
   return 0;

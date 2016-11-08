@@ -35,7 +35,7 @@ static const char *ha_ndb_ext=".ndb";
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
-extern native_mutex_t ndbcluster_mutex;
+extern mysql_mutex_t ndbcluster_mutex;
 extern HASH ndbcluster_open_tables;
 
 /*
