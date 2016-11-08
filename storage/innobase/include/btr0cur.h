@@ -658,7 +658,6 @@ btr_estimate_number_of_different_key_vals(
 /*======================================*/
 	dict_index_t*	index);	/*!< in: index */
 
-
 /** Copies an externally stored field of a record to mem heap.
 @param[in]	rec		record in a clustered index; must be
 				protected by a lock or a page latch

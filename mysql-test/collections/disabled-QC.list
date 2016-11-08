@@ -1,8 +1,0 @@
-ndb.ndb_join_pushdown_bka         : Result mismatch when running with Query Cache enabled (#scan) 
-ndb.ndb_join_pushdown_default     : Result mismatch when running with Query Cache enabled (#scan)
-ndb.ndb_join_pushdown_nobnl       : Result mismatch when running with Query Cache enabled (#scan)
-ndb.ndb_join_pushdown_none        : Result mismatch when running with Query Cache enabled (#scan)
-ndb.ndb_partition_hash                  : Result mismatch when running with Query Cache enabled (#scan)
-ndb.ndb_partition_key                    : Result mismatch when running with Query Cache enabled (#scan)
-ndb.ndb_partition_list                     : Result mismatch when running with Query Cache enabled (#scan)
-ndb.ndb_partition_range                 : Result mismatch when running with Query Cache enabled (#scan)
