@@ -1,7 +1,17 @@
 # Testing that purging rows in ndb_binlog_index doesn't block parallel inserts
 --source include/have_ndb.inc
 --source include/have_log_bin.inc
---source include/have_ndb_binlog_index_innodb.inc
+
+# Require that ndb_binlog_index is using Innodb
+let $using_innodb =
+  `select engine = 'InnoDB'
+     from information_schema.tables
+       where table_name = 'ndb_binlog_index'`;
+# echo using_innodb: $using_innodb;
+if (!$using_innodb)
+{
+  die The ndb_binlog_index table is not using Innodb;
+}
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
