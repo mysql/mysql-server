@@ -9349,28 +9349,17 @@ static bool mysql_inplace_alter_table(THD *thd,
   // QQ: Perhaps move to separate helper function e.g. dd::replace_table()
   //     after solving problem with system tables.
   //
-  if (!dd::get_dictionary()->is_dd_table_name(alter_ctx->db, alter_ctx->alias))
-  {
-    altered_table_def->set_schema_id(old_table_def->schema_id());
-    altered_table_def->set_name(alter_ctx->alias);
-    altered_table_def->set_hidden(false);
+  altered_table_def->set_schema_id(old_table_def->schema_id());
+  altered_table_def->set_name(alter_ctx->alias);
+  altered_table_def->set_hidden(false);
 
-    if (thd->dd_client()->drop(old_table_def))
-      goto cleanup2;
+  if (thd->dd_client()->drop(old_table_def))
+    goto cleanup2;
 
-    if (thd->dd_client()->update(&old_altered_table_def, altered_table_def))
-      goto cleanup2;
+  if (thd->dd_client()->update(&old_altered_table_def, altered_table_def))
+    goto cleanup2;
 
-    thd->dd_client()->object_renamed(altered_table_def);
-  }
-  else
-  {
-    // WL7743/TODO: Sivert's help is needed to handle this case.
-    //              We need to be able to replace sticky table in the cache
-    //              with an object which is not related to it.
-    if (thd->dd_client()->drop(altered_table_def))
-      goto cleanup2;
-  }
+  thd->dd_client()->object_renamed(altered_table_def);
 
   if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
   {
