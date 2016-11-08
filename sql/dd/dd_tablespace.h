@@ -16,8 +16,6 @@
 #ifndef DD_TABLESPACE_INCLUDED
 #define DD_TABLESPACE_INCLUDED
 
-#include <memory>                    // unique_ptr
-
 #include "lock.h"                    // Tablespace_hash_set
 #include "my_alloc.h"
 #include "my_global.h"
@@ -80,13 +78,11 @@ bool get_tablespace_name(THD *thd, const T *obj,
   @param commit_dd_changes  Indicates that we need to commit
                             changes to data-dictionary.
 
-  @returns Uncached dd::Tablespace object for tablespace created
-           (nullptr in case of failure).
+  @return false - On success.
+  @return true - On failure.
 */
-dd::Tablespace* create_tablespace(THD *thd,
-                                  st_alter_tablespace *ts_info,
-                                  handlerton *hton,
-                                  bool commit_dd_changes);
+bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
+                       handlerton *hton, bool commit_dd_changes);
 
 /**
   Drop Tablespace from Data Dictionary.
@@ -96,14 +92,12 @@ dd::Tablespace* create_tablespace(THD *thd,
                             the tablespace to be dropped.
   @param commit_dd_changes  Indicates that we need to commit
                             changes to data-dictionary.
-  @param uncached           Indicates whether dd::Tablespace
-                            object is uncached.
 
   @return false - On success.
   @return true - On failure.
 */
 bool drop_tablespace(THD *thd, const Tablespace *tablespace,
-                     bool commit_dd_changes, bool uncached);
+                     bool commit_dd_changes);
 
 /**
   Update tablespace description in Data Dictionary.

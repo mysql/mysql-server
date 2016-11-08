@@ -15,6 +15,7 @@
 
 #include "dd_tablespace.h"
 
+#include <memory>
 #include <stddef.h>
 #include <string>
 
@@ -174,9 +175,8 @@ bool get_tablespace_name(THD *thd, const T *obj,
 }
 
 
-dd::Tablespace*
-create_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                  handlerton *hton, bool commit_dd_changes)
+bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
+                       handlerton *hton, bool commit_dd_changes)
 {
   DBUG_ENTER("dd_create_tablespace");
 
@@ -186,12 +186,12 @@ create_tablespace(THD *thd, st_alter_tablespace *ts_info,
   if (thd->dd_client()->acquire(ts_info->tablespace_name, &ts))
   {
     // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(nullptr);
+    DBUG_RETURN(true);
   }
   if (ts)
   {
     my_error(ER_TABLESPACE_EXISTS, MYF(0), ts_info->tablespace_name);
-    DBUG_RETURN(nullptr);
+    DBUG_RETURN(true);
   }
 
   // Create new tablespace.
@@ -212,7 +212,7 @@ create_tablespace(THD *thd, st_alter_tablespace *ts_info,
                                 TABLESPACE_COMMENT_MAXLEN,
                                 ER_TOO_LONG_TABLESPACE_COMMENT,
                                 ts_info->tablespace_name))
-      DBUG_RETURN(nullptr);
+      DBUG_RETURN(true);
 
     tablespace->set_comment(String_type(comment.str, comment.length));
   }
@@ -220,7 +220,7 @@ create_tablespace(THD *thd, st_alter_tablespace *ts_info,
   if (strlen(ts_info->data_file_name) > FN_REFLEN)
   {
     my_error(ER_PATH_LENGTH, MYF(0), "DATAFILE");
-    DBUG_RETURN(nullptr);
+    DBUG_RETURN(true);
   }
 
   // Add datafile
@@ -237,30 +237,36 @@ create_tablespace(THD *thd, st_alter_tablespace *ts_info,
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
-    DBUG_RETURN(nullptr);
+    DBUG_RETURN(true);
   }
 
-  if (commit_dd_changes &&
-      (trans_commit_stmt(thd) || trans_commit(thd)))
-    DBUG_RETURN(nullptr);
+  thd->dd_client()->register_uncommitted_object(tablespace.release());
 
-  thd->dd_client()->register_uncommitted_object(tablespace.get());
+  if (commit_dd_changes)
+  {
+    if (trans_commit_stmt(thd) || trans_commit(thd))
+    {
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
+      DBUG_RETURN(true);
+    }
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+  }
 
-  DBUG_RETURN(tablespace.release());
+  DBUG_RETURN(false);
 }
 
 
 bool drop_tablespace(THD *thd, const dd::Tablespace* tablespace,
-                     bool commit_dd_changes, bool uncached)
+                     bool commit_dd_changes)
 {
   DBUG_ENTER("dd_drop_tablespace");
 
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop tablespace
-  if ((uncached ? thd->dd_client()->drop_uncached(tablespace) :
-                  thd->dd_client()->drop(tablespace)))
+  if (thd->dd_client()->drop(tablespace))
   {
     if (commit_dd_changes)
     {
@@ -292,12 +298,22 @@ bool update_tablespace(THD *thd, const dd::Tablespace *old_tablespace,
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
     DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(commit_dd_changes &&
-              (trans_commit_stmt(thd) || trans_commit(thd)));
+  if (commit_dd_changes)
+  {
+    if (trans_commit_stmt(thd) || trans_commit(thd))
+    {
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
+      DBUG_RETURN(true);
+    }
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+  }
+
+  DBUG_RETURN(false);
 }
 
 // ALTER TABLESPACE is only supported by NDB for now.

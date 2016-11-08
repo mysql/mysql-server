@@ -489,6 +489,7 @@ public:
                                 const String_type &object_name,
                                 T** object);
 
+
   /**
     Retrieve an object by its schema- and object name.
 
@@ -520,6 +521,7 @@ public:
   template <typename T>
   bool acquire(const String_type &schema_name, const String_type &object_name,
                const typename T::cache_partition_type** object);
+
 
   /**
     Retrieve a table object by its se private id.
@@ -739,24 +741,6 @@ public:
 
   template <typename T>
   bool drop(const T *object);
-
-  /**
-    Remove and delete entries corresponding to uncached object from
-    the data-dictionary and its cache (if any).
-
-    @note This function assumes that object is not in the local
-          registry (i.e. was not acquired by current client).
-          It is responsibility of caller to free memory occupied
-          by the uncached object.
-
-    @tparam T       Dictionary object type.
-    @param  object  Object to be dropped.
-
-    @retval false   The operation was successful.
-    @retval true    There was an error.
-  */
-  template <typename T>
-  bool drop_uncached(const T *object);
 
 
   /**

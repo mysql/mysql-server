@@ -1437,7 +1437,7 @@ static bool migrate_tablespace_to_dd(THD *thd, const char *name,
   */
   ts_info.data_file_name= name;
 
-  return !dd::create_tablespace(thd, &ts_info, hton, true);
+  return dd::create_tablespace(thd, &ts_info, hton, true);
 }
 
 

@@ -1916,32 +1916,6 @@ bool Dictionary_client::drop(const T *object)
   return true;
 }
 
-template <typename T>
-bool Dictionary_client::drop_uncached(const T *object)
-{
-  // Check proper MDL lock.
-  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
-
-  // Check that object is not present in the local registry.
-  Cache_element<typename T::cache_partition_type> *element= NULL;
-  m_registry_committed.get(
-    static_cast<const typename T::cache_partition_type*>(object),
-    &element);
-  DBUG_ASSERT(! element);
-
-  if (Storage_adapter::drop(m_thd, object) == false)
-  {
-    // Remove the element from the cache.
-    Shared_dictionary_cache::instance()->
-      drop_if_present<typename T::id_key_type,
-                      typename T::cache_partition_type>(object->id());
-    return false;
-  }
-
-  DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
-
-  return true;
-}
 
 // Store a new dictionary object.
 template <typename T>
@@ -2252,7 +2226,6 @@ template bool Dictionary_client::acquire(const String_type&,
                                          const Abstract_table**);
 template void Dictionary_client::remove_uncommitted_objects<Abstract_table>(bool);
 template bool Dictionary_client::drop(const Abstract_table*);
-template bool Dictionary_client::drop_uncached(const Abstract_table*);
 template bool Dictionary_client::store(Abstract_table*);
 template bool Dictionary_client::update(const Abstract_table**,
                                         Abstract_table*);
@@ -2332,7 +2305,6 @@ template bool Dictionary_client::acquire_for_modification(const String_type&,
 template void Dictionary_client::remove_uncommitted_objects<Table>(bool);
 template void Dictionary_client::object_renamed(Table*);
 template bool Dictionary_client::drop(const Table*);
-template bool Dictionary_client::drop_uncached(const Table*);
 template bool Dictionary_client::store(Table*);
 template bool Dictionary_client::update(const Table**, Table*);
 
@@ -2351,7 +2323,6 @@ template bool Dictionary_client::acquire_for_modification(Object_id,
 template void Dictionary_client::remove_uncommitted_objects<Tablespace>(bool);
 template void Dictionary_client::object_renamed(dd::Tablespace*);
 template bool Dictionary_client::drop(const Tablespace*);
-template bool Dictionary_client::drop_uncached(const Tablespace*);
 template bool Dictionary_client::store(Tablespace*);
 template bool Dictionary_client::update(const Tablespace**, Tablespace*);
 template void Dictionary_client::dump<Tablespace>() const;
@@ -2371,7 +2342,6 @@ template bool Dictionary_client::acquire_for_modification(const String_type&,
 template void Dictionary_client::remove_uncommitted_objects<View>(bool);
 template void Dictionary_client::object_renamed(View*);
 template bool Dictionary_client::drop(const View*);
-template bool Dictionary_client::drop_uncached(const View*);
 template bool Dictionary_client::store(View*);
 template bool Dictionary_client::update(const View**, View*);
 

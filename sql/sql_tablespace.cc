@@ -173,10 +173,22 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
         present in the data-dictionary and not present in SE. But this can be
         easily fixed by doing DROP TABLESPACE.
       */
-      if (!(new_ts_def= dd::create_tablespace(thd, ts_info, hton,
-                              !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL))))
+      if (dd::create_tablespace(thd, ts_info, hton,
+                                !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL)))
         goto err;
-      old_ts_def= new_ts_def;
+
+      if (thd->dd_client()->acquire<dd::Tablespace>(ts_info->tablespace_name,
+                                                    &old_ts_def) ||
+          thd->dd_client()->acquire_for_modification<dd::Tablespace>(
+                              ts_info->tablespace_name, &new_ts_def))
+        DBUG_RETURN(true);
+
+      if (!old_ts_def || !new_ts_def)
+      {
+        DBUG_ASSERT(0);
+        my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), ts_info->tablespace_name);
+        DBUG_RETURN(true);
+      }
       break;
 
     case DROP_TABLESPACE:
@@ -315,7 +327,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
           For engines which don't support atomic DDL addition of tablespace to
           data-dictionary has been committed already so we need to revert it.
         */
-        (void) dd::drop_tablespace(thd, new_ts_def, true, true);
+        (void) dd::drop_tablespace(thd, new_ts_def, true);
       }
       if (ts_info->ts_cmd_type == DROP_TABLESPACE &&
           (error == HA_ERR_TABLESPACE_MISSING)
@@ -330,7 +342,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
           To allow user to do manual clean-up we drop tablespace from the
           dictionary even if SE says it is missing (but still report error).
         */
-        (void) dd::drop_tablespace(thd, old_ts_def, true, false);
+        (void) dd::drop_tablespace(thd, old_ts_def, true);
       }
       goto err;
     }
@@ -338,8 +350,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
     if (ts_info->ts_cmd_type == DROP_TABLESPACE)
     {
       if (dd::drop_tablespace(thd, old_ts_def,
-                              !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL),
-                              false))
+                              !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL)))
         goto err;
     }
     else if (ts_info->ts_cmd_type == ALTER_TABLESPACE ||

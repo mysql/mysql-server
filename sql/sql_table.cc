@@ -3259,7 +3259,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                           After all replication might be broken after that...
         */
         error= dd::drop_table<dd::Table>(thd, table->db, table->table_name,
-                                         table_def, true, false);
+                                         table_def, true);
 
         error|= update_referencing_views_metadata(thd, table);
       }
@@ -3545,7 +3545,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       */
       if (!dd_upgrade_flag &&
           (dd::drop_table<dd::Table>(thd, table->db, table->table_name,
-                                     table_def, false, false) ||
+                                     table_def, false) ||
            update_referencing_views_metadata(thd, table)))
         DBUG_RETURN(1);
 
@@ -4053,7 +4053,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   // in the DD while missing from the SE, but not the opposite.
   if (!dd::get_dictionary()->is_dd_table_name(db, table_name) &&
       dd::drop_table<dd::Table>(thd, db, table_name, table_def,
-                                !(flags & NO_DD_COMMIT), false))
+                                !(flags & NO_DD_COMMIT)))
   {
     DBUG_ASSERT(thd->is_error() || thd->killed);
     DBUG_RETURN(true);

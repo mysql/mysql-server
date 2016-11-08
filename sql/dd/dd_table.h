@@ -202,14 +202,13 @@ bool drop_table(THD *thd,
   @param name               Name of the table to be removed.
   @param table_def          dd::Table object for the table to be removed.
   @param commit_dd_changes  Indicates whether change needs to be committed.
-  @param uncached           Indicates whether dd::Table object is cached.
 
   @retval false on success
   @retval true on failure
 */
 template <typename T>
 bool drop_table(THD *thd, const char *schema_name, const char *name,
-                const T *table_def, bool commit_dd_changes, bool uncached);
+                const T *table_def, bool commit_dd_changes);
 
 /**
   Check if a table or view exists

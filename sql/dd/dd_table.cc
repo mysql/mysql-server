@@ -95,8 +95,7 @@ template bool dd::drop_table<dd::Table>(THD *thd,
                                         const char *schema_name,
                                         const char *name,
                                         const dd::Table *table_def,
-                                        bool commit_dd_changes,
-                                        bool uncached);
+                                        bool commit_dd_changes);
 
 template bool dd::table_exists<dd::Abstract_table>(
                                       dd::cache::Dictionary_client *client,
@@ -2479,7 +2478,7 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
 
 template <typename T>
 bool drop_table(THD *thd, const char *schema_name, const char *name,
-                const T *table_def, bool commit_dd_changes, bool uncached)
+                const T *table_def, bool commit_dd_changes)
 {
   /*
     WL7743/TODO: Find out why do we need this (main.lock fails
@@ -2505,8 +2504,7 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop the table/view
-  if ((uncached ? thd->dd_client()->drop_uncached(table_def) :
-                  thd->dd_client()->drop(table_def)) ||
+  if (thd->dd_client()->drop(table_def) ||
       thd->dd_client()->remove_table_dynamic_statistics(schema_name, name))
   {
     if (commit_dd_changes)
