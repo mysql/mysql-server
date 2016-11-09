@@ -157,7 +157,8 @@ int Applier_handler::handle_event(Pipeline_event *event,Continuation *cont)
   {
     error= channel_interface.queue_packet((const char*)p->payload, p->len);
 
-    if (event->get_event_type() == binary_log::GTID_LOG_EVENT)
+    if (event->get_event_type() == binary_log::GTID_LOG_EVENT &&
+        local_member_info->get_recovery_status() == Group_member_info::MEMBER_ONLINE)
     {
       applier_module->get_pipeline_stats_member_collector()
           ->increment_transactions_waiting_apply();

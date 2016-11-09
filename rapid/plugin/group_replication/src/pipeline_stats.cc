@@ -205,14 +205,8 @@ Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
 }
 
 
-/*
-  m_transactions_waiting_apply is initialized with -1 to take
-  View_change_log_event transaction into account, that despite
-  being queued on applier channel is applied through recovery
-  channel.
-*/
 Pipeline_stats_member_collector::Pipeline_stats_member_collector()
-  : m_transactions_waiting_apply(-1), m_transactions_certified(0),
+  : m_transactions_waiting_apply(0), m_transactions_certified(0),
     m_transactions_applied(0), m_transactions_local(0)
 {}
 
@@ -455,7 +449,7 @@ Flow_control_module::flow_control_step()
       if (holds > 0)
       {
         uint num_writing_members= 0;
-        int64 min_certifier_capacity= MAXTPS, min_applier_capacity= MAXTPS;
+        int64 min_certifier_capacity= MAXTPS, min_applier_capacity= MAXTPS, safe_capacity= MAXTPS;
 
         Flow_control_module_info::iterator it= m_info.begin();
         while (it != m_info.end())
@@ -471,14 +465,22 @@ Flow_control_module::flow_control_step()
           else
           {
             if (flow_control_certifier_threshold_var > 0
+                && it->second.get_delta_transactions_certified() > 0
                 && it->second.get_transactions_waiting_certification() - flow_control_certifier_threshold_var > 0
                 && min_certifier_capacity > it->second.get_delta_transactions_certified())
               min_certifier_capacity= it->second.get_delta_transactions_certified();
 
+            if (it->second.get_delta_transactions_certified() > 0)
+              safe_capacity= std::min(safe_capacity, it->second.get_delta_transactions_certified());
+
             if (flow_control_applier_threshold_var > 0
+                && it->second.get_delta_transactions_applied() > 0
                 && it->second.get_transactions_waiting_apply() - flow_control_applier_threshold_var > 0
                 && min_applier_capacity > it->second.get_delta_transactions_applied())
               min_applier_capacity= it->second.get_delta_transactions_applied();
+
+            if (it->second.get_delta_transactions_applied() > 0)
+              safe_capacity= std::min(safe_capacity, it->second.get_delta_transactions_applied());
 
             if (it->second.get_delta_transactions_local() > 0)
               num_writing_members++;
@@ -492,6 +494,10 @@ Flow_control_module::flow_control_step()
         int64 min_capacity= (min_certifier_capacity > 0 && min_certifier_capacity < min_applier_capacity)
                              ? min_certifier_capacity : min_applier_capacity;
 
+        // Minimum capacity will never be less than lim_throttle.
+        int64 lim_throttle= 0.05 * std::min(flow_control_certifier_threshold_var,
+                                            flow_control_applier_threshold_var);
+        min_capacity= std::max(std::min(min_capacity, safe_capacity), lim_throttle);
         quota_size= (min_capacity * HOLD_FACTOR) / num_writing_members - extra_quota;
         my_atomic_store64(&m_quota_size, quota_size > 1 ? quota_size : 1);
       }
@@ -510,6 +516,8 @@ Flow_control_module::flow_control_step()
     }
 
     case FCM_DISABLED:
+      my_atomic_store64(&m_quota_size, 0);
+      my_atomic_store64(&m_quota_used, 0);
       break;
 
     default:
