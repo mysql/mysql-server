@@ -2162,7 +2162,7 @@ Val::cmpchars(const Par& par, const uchar* buf1, uint len1, const uchar* buf2, u
   const Chs* chs = col.m_chs;
   CHARSET_INFO* cs = chs->m_cs;
   // Use character set collation-dependent compare function
-  const int k = (*cs->coll->strnncollsp)(cs, buf1, len1, buf2, len2, false);
+  const int k = (*cs->coll->strnncollsp)(cs, buf1, len1, buf2, len2);
   return k < 0 ? -1 : k > 0 ? +1 : 0;
 }
 
