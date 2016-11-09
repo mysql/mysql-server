@@ -2429,7 +2429,7 @@ fil_space_system_check(
 
 /** Check if an undo tablespace was opened during crash recovery.
 Change name to undo_name if already opened during recovery.
-@param[in]	name		tablespace name
+@param[in]	file_name	undo tablespace file name
 @param[in]	undo_name	undo tablespace name
 @param[in]	space_id	undo tablespace id
 @retval DB_SUCCESS		if it was already opened
@@ -2438,57 +2438,47 @@ Change name to undo_name if already opened during recovery.
 
 dberr_t
 fil_space_undo_check_if_opened(
-	const char*	name,
+	const char*	file_name,
 	const char*	undo_name,
 	space_id_t	space_id)
 {
-	dberr_t		err	= DB_SUCCESS;
-
 	mutex_enter(&fil_system->mutex);
 
 	fil_space_t*	space	= fil_space_get_by_id(space_id);
-	ut_ad(space == NULL || space->purpose == FIL_TYPE_TABLESPACE);
-	ut_ad(space == NULL || UT_LIST_GET_LEN(space->chain) == 1);
-
-	if (space == NULL) {
-		err = DB_TABLESPACE_NOT_FOUND;
-	} else if (space->flags
-		   != fsp_flags_set_page_size(0, univ_page_size)
-		   || strcmp(space->name, name)) {
-		ib::error()
-			<< "Cannot load UNDO tablespace '" << name
-			<< "' (" << space_id
-			<< ") because tablespace '"
-			<< UT_LIST_GET_FIRST(space->chain)->name
-			<< "' was loaded during redo log apply with flags "
-			<< space->flags;
-		err = DB_ERROR;
-	} else {
-		if (fil_space_belongs_in_lru(space)) {
-			fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
-
-			if (node->is_open) {
-				ut_a(UT_LIST_GET_LEN(fil_system->LRU) > 0);
-				ut_d(UT_LIST_CHECK(fil_system->LRU));
-
-				/* The node is in the LRU list, remove it */
-				UT_LIST_REMOVE(fil_system->LRU, node);
-				ut_d(UT_LIST_CHECK(fil_system->LRU));
-			}
-		}
-		/* Correct undo tablespace name loaded during recovery. */
-		HASH_DELETE(fil_space_t, name_hash, fil_system->name_hash,
-			    ut_fold_string(space->name), space);
-		ut_free(space->name);
-
-		space->name = mem_strdup(undo_name);
-		HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
-			    ut_fold_string(space->name), space);
+	if (space == nullptr) {
+		mutex_exit(&fil_system->mutex);
+		return(DB_TABLESPACE_NOT_FOUND);
 	}
+
+	/* The file_name that we opened before must be the same as what we
+	need to open now.  If not, maybe the srv_undo_directory has changed. */
+	if (strcmp(space->name, file_name)) {
+		ib::error() << "Cannot load UNDO tablespace. '"
+			<< space->name
+			<< "' was discovered during REDO recovery, but '"
+			<< file_name
+			<< "' should be opened instead.";
+		mutex_exit(&fil_system->mutex);
+		return(DB_ERROR);
+	}
+	if (space->flags != fsp_flags_set_page_size(0, univ_page_size)) {
+		ib::error() << "Cannot load UNDO tablespace '"
+			<< file_name << "' with flags=" << space->flags;
+		mutex_exit(&fil_system->mutex);
+		return(DB_ERROR);
+	}
+	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
+	ut_ad(UT_LIST_GET_LEN(space->chain) == 1);
 
 	mutex_exit(&fil_system->mutex);
 
-	return(err);
+	/* Flush and close the REDO recovery handle. Also, free up the
+	memory object because it was not created as an undo tablespace. */
+	fil_flush(space_id);
+	fil_space_close(space_id);
+	fil_space_free(space_id, false);
+
+	return(DB_TABLESPACE_NOT_FOUND);
 }
 
 /*******************************************************************//**
