@@ -5501,17 +5501,6 @@ ha_innobase::max_supported_key_length() const
 }
 
 /****************************************************************//**
-Returns the key map of keys that are usable for scanning.
-@return key_map_full */
-
-const Key_map*
-ha_innobase::keys_to_use_for_scanning()
-/*===================================*/
-{
-	return(&key_map_full);
-}
-
-/****************************************************************//**
 Determines if table caching is supported.
 @return HA_CACHE_TBL_ASKTRANSACT */
 

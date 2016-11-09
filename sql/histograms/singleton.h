@@ -94,7 +94,7 @@ private:
 
   /// The buckets for this histogram [key, cumulative frequency].
   std::map<const T, double, Histogram_comparator,
-           Memroot_allocator<std::pair<T, double> > > m_buckets;
+           Memroot_allocator<std::pair<const T, double>>> m_buckets;
 public:
   /**
     Singleton constructor.

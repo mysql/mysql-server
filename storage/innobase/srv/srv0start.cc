@@ -237,7 +237,7 @@ srv_file_check_mode(
 
 	} else if (err == DB_SUCCESS) {
 
-		/* Note: stat.rw_perm is only valid of files */
+		/* Note: stat.rw_perm is only valid on files */
 
 		if (stat.type == OS_FILE_TYPE_FILE) {
 
@@ -588,17 +588,16 @@ srv_undo_tablespace_open(
 	snprintf(undo_name, sizeof(undo_name),
 		   "innodb_undo%03u", static_cast<unsigned>(space_id));
 
-	if (!srv_file_check_mode(name)) {
-		ib::error() << "UNDO tablespaces must be " <<
-			(srv_read_only_mode ? "writable" : "readable") << "!";
-
-		return(DB_ERROR);
-	}
-
 	err = fil_space_undo_check_if_opened(name, undo_name, space_id);
-
 	if (err != DB_TABLESPACE_NOT_FOUND) {
 		return(err);
+	}
+
+	if (!srv_file_check_mode(name)) {
+		ib::error() << "UNDO tablespaces must be " <<
+			(srv_read_only_mode ? "readable" : "writable") << "!";
+
+		return(DB_ERROR);
 	}
 
 	fh = os_file_create(
@@ -762,30 +761,21 @@ srv_undo_tablespaces_init(
 		for (i = 0; i < n_undo_tablespaces; ++i) {
 			space_id_t	space_id = undo_tablespace_ids[i];
 
-			/* This file may have been discovered and opened
-			when processing the redo log.  Flush and close
-			that handle if it exists. Also, free up the memory
-			object because it was not created as an undo
-			tablespace. It will be reopened below. */
-			fil_space_t* space
-				= fil_space_acquire_silent(space_id);
-			if (space != nullptr) {
-				fil_space_release(space);
-				fil_flush(space_id);
-				fil_space_close(space_id);
-				fil_space_free(space_id, false);
-			}
 			/* Fix up any UNDO tablespace that was in the
 			process of being truncated when the server crashed.
 			The truncation will need to be completed. */
 			undo::Truncate	undo_trunc;
 			if (undo_trunc.needs_fix_up(space_id)) {
 
-				char	name[OS_FILE_MAX_PATH];
+				/* Flush any changes recovered in REDO */
+				fil_flush(space_id);
+				fil_space_close(space_id);
 
+				char		name[OS_FILE_MAX_PATH];
 				snprintf(name, sizeof(name), "%s%cundo%03u",
 					 srv_undo_dir, OS_PATH_SEPARATOR,
 					 space_id);
+				os_normalize_path(name);
 
 				os_file_delete(innodb_data_file_key, name);
 

@@ -50,6 +50,7 @@
   elapsed_time= (time2 - time1) - overhead
 */
 
+#include <atomic>
 #include <stdio.h>
 
 #include "my_config.h"
@@ -233,10 +234,10 @@ ulonglong my_timer_microseconds(void)
 {
 #if defined(HAVE_GETTIMEOFDAY)
   {
-    static ulonglong last_value= 0;
+    static std::atomic<ulonglong> atomic_last_value { 0 };
     struct timeval tv;
     if (gettimeofday(&tv, NULL) == 0)
-      last_value= (ulonglong) tv.tv_sec * 1000000 + (ulonglong) tv.tv_usec;
+      atomic_last_value= (ulonglong) tv.tv_sec * 1000000 + (ulonglong) tv.tv_usec;
     else
     {
       /*
@@ -245,9 +246,9 @@ ulonglong my_timer_microseconds(void)
         We are not trying again or looping, just returning the best value possible
         under the circumstances ...
       */
-      last_value++;
+      atomic_last_value++;
     }
-    return last_value;
+    return atomic_last_value;
   }
 #elif defined(_WIN32)
   {

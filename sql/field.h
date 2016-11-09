@@ -677,8 +677,12 @@ public:
   /* Field is part of the following keys */
   Key_map key_start;                /* Keys that starts with this field */
   Key_map part_of_key;              /* All keys that includes this field */
-  Key_map part_of_key_not_clustered;/* ^ but only for non-clustered keys */
   Key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
+  /**
+    All keys that include this field, but not extended by the storage engine to
+    include primary key columns.
+  */
+  Key_map part_of_key_not_extended;
 
   /**
     Flags for Proto_field::auto_flags / Create_field::auto_flags bitmaps.
@@ -1597,6 +1601,19 @@ public:
     TRUE   - If field is char/varchar/.. and is part of write set.
 */
   virtual bool is_updatable() const { return FALSE; }
+
+  /**
+    Check whether field is part of the index taking the index extensions flag
+    into account.
+
+    @param[in]     thd             THD object
+    @param[in]     cur_index       Index of the key
+
+    @retval true  Field is part of the key
+    @retval false otherwise
+
+  */
+  bool is_part_of_actual_key(THD *thd, uint cur_index);
 
   friend class Copy_field;
   friend class Item_avg_field;

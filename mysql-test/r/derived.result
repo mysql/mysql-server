@@ -3958,3 +3958,26 @@ g_f1	g_f2	g_f3
 21	22	test2
 31	32	test3
 DROP TABLE t1, t2;
+# Bug#24364448: Assert m_opr_handle != null in
+#               ha_innobase_inmem::keys_to_use_for_scanning
+CREATE TABLE K (col_int int(11), col_varchar varchar(255));
+INSERT INTO K VALUES (NULL,'m'), (NULL,'z');
+CREATE TABLE H (col_varchar varchar(255));
+INSERT INTO H VALUES ('m'), ('z');
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+FLUSH STATUS;
+SELECT t1.col_int
+FROM (SELECT * FROM K) t1 JOIN (SELECT * FROM H) t2 USING(col_varchar)
+WHERE t1.col_int IS NULL
+ORDER BY t1.col_int;
+col_int
+NULL
+NULL
+SHOW STATUS LIKE 'Created_tmp%';
+Variable_name	Value
+Created_tmp_disk_tables	0
+Created_tmp_files	0
+Created_tmp_tables	2
+SET @@optimizer_switch=@optimizer_switch_saved;
+DROP TABLE K, H;
