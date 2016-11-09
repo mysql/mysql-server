@@ -30,11 +30,10 @@
   the entry.
 */
 
-#include "my_bitmap.h"
 #include "my_global.h"
-#include "thr_mutex.h"
-#include "thr_cond.h"
-#include <mysql/psi/mysql_thread.h>
+#include "my_bitmap.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 
 struct NDB_SCHEMA_OBJECT {
   mysql_mutex_t mutex; //Protects NDB_SCHEMA_OBJ and 'cond'
