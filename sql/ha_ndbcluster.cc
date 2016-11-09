@@ -7653,7 +7653,7 @@ void ha_ndbcluster::position(const uchar *record)
     else
       key_length= ref_length;
 #ifndef DBUG_OFF
-    int hidden_no= table->s->stored_fields;
+    const int hidden_no= Ndb_table_map::num_stored_fields(table);
     const NDBTAB *tab= m_table;  
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     DBUG_ASSERT(hidden_col->getPrimaryKey() && 

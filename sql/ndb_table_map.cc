@@ -25,7 +25,7 @@ Ndb_table_map::Ndb_table_map(struct TABLE * mysqlTable,
                              const NdbDictionary::Table * ndbTable) :
   m_ndb_table(ndbTable),
   m_array_size(mysqlTable->s->fields),
-  m_stored_fields(mysqlTable->s->stored_fields),
+  m_stored_fields(num_stored_fields(mysqlTable)),
   m_hidden_pk((mysqlTable->s->primary_key == MAX_KEY) ? 1 : 0),
   m_trivial(m_array_size == m_stored_fields)
 {
@@ -132,4 +132,24 @@ bool Ndb_table_map::has_virtual_gcol(const TABLE* table)
       return true;
   }
   return false;
+}
+
+
+uint Ndb_table_map::num_stored_fields(const TABLE* table)
+{
+  if (table->vfield == NULL)
+  {
+    // Table has no virtual fields, just return number of fields
+    return table->s->fields;
+  }
+
+  // Table has virtual fields, loop through and subtract those
+  // which are not stored
+  uint num_stored_fields = table->s->fields;
+  for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+  {
+    if (!(*vfield_ptr)->stored_in_db)
+      num_stored_fields--;
+  }
+  return num_stored_fields;
 }

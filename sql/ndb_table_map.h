@@ -98,7 +98,12 @@ public:
   */
   static bool has_virtual_gcol(const struct TABLE* table);
 
-
+  /*
+    Adapter function for returning the number of
+    stored fields in the TABLE*(i.e those who are
+    not virtual).
+  */
+  static uint num_stored_fields(const TABLE* table);
 private:
   const NdbDictionary::Table * m_ndb_table;
   MY_BITMAP m_moved_fields;

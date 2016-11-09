@@ -5158,7 +5158,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
       op->mergeEvents(TRUE); // currently not inherited from event
 
     const uint n_columns= ndbtab->getNoOfColumns();
-    const uint n_stored_fields= table->s->stored_fields;
+    const uint n_stored_fields= Ndb_table_map::num_stored_fields(table);
     const uint val_length= sizeof(NdbValue) * n_columns;
 
     /*
