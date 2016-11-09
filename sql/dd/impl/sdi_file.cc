@@ -13,26 +13,24 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_config.h"
+#include "dd/sdi_file.h"
 
+#include "my_config.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#include <sstream>
-#include <string>
 
-#include "dd/string_type.h"       // dd::String_type
-#include "dd/impl/sdi_utils.h"    // dd::sdi_util::checked_return
-#include "dd/types/entity_object.h"
-#include "dd/types/schema.h"      // dd::Schema
-#include "dd/types/table.h"       // dd::Table
+#include "dd/impl/sdi_utils.h"      // dd::sdi_util::checked_return
+#include "dd/types/entity_object.h" // dd::Entity_object
+#include "dd/types/schema.h"        // dd::Schema
+#include "dd/types/table.h"         // dd::Table
+
 #include "handler.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h" // mysql_file_create
@@ -42,7 +40,6 @@
 #include "sql_table.h"            // build_table_filename
 #include "table.h"
 
-class THD;
 
 /**
   @file
@@ -136,9 +133,9 @@ String_type sdi_filename(const dd::Entity_object *eo,
   const CHARIT begin= eo->name().begin();
   const CHARIT end= eo->name().end();
   CHARIT i= begin;
-  int count= 0;
+  size_t count= 0;
 
-  while (i != end && count < 16)
+  while (i != end && count < dd::sdi_file::FILENAME_PREFIX_CHARS)
   {
     i += my_mbcharlen(system_charset_info, *i);
     ++count;

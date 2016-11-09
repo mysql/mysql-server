@@ -2888,20 +2888,114 @@ parse_err:
   DBUG_RETURN(TRUE);
 }
 
+
+// Unpack partition
+bool unpack_partition_info(THD *thd,
+                           TABLE *outparam,
+                           TABLE_SHARE *share,
+                           handlerton *engine_type,
+                           bool is_create_table)
+{
+  /*
+    Currently we still need to run the parser for extracting
+    Item trees (for partition expression and COLUMNS values).
+    To avoid too big refactoring in this patch, we still generate
+    the syntax when reading the DD (read_from_dd_partitions) and
+    parse it for each TABLE instance.
+    TODO:
+    To avoid multiple copies of information, we should try to
+    point to the TABLE_SHARE where possible:
+    - partition names etc. I.e. reuse the partition_elements!
+    This is not possible with columns partitions, since they use
+    Item for storing the values!?
+    Also make sure that part_state is never altered without proper locks
+    (like MDL exclusive locks on the table! since they would be shared by all
+    instances of a table!)
+    TODO: Use field images instead?
+    TODO: Look on how DEFAULT values will be stored in the new DD
+    and reuse that if possible!
+    TODO: wl#7840 to get a more light weight parsing of expressions
+    Create a new partition_info object on the table's mem_root,
+    by parsing a minimalistic string generated from the share.
+    And then fill in the missing parts from the part_info on the share.
+  */
+
+  /*
+    In this execution we must avoid calling thd->change_item_tree since
+    we might release memory before statement is completed. We do this
+    by changing to a new statement arena. As part of this arena we also
+    set the memory root to be the memory root of the table since we
+    call the parser and fix_fields which both can allocate memory for
+    item objects. We keep the arena to ensure that we can release the
+    free_list when closing the table object.
+    SEE Bug #21658
+  */
+
+  Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
+  Query_arena backup_arena;
+  Query_arena part_func_arena(&outparam->mem_root,
+                              Query_arena::STMT_INITIALIZED);
+  thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
+  thd->stmt_arena= &part_func_arena;
+  bool tmp;
+  bool work_part_info_used;
+
+  tmp= mysql_unpack_partition(thd, share->partition_info_str,
+                              share->partition_info_str_len,
+                              outparam, is_create_table,
+                              engine_type,
+                              &work_part_info_used);
+  if (tmp)
+  {
+    thd->stmt_arena= backup_stmt_arena_ptr;
+    thd->restore_active_arena(&part_func_arena, &backup_arena);
+    return true;
+  }
+  outparam->part_info->is_auto_partitioned= share->auto_partitioned;
+  DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
+  /*
+    We should perform the fix_partition_func in either local or
+    caller's arena depending on work_part_info_used value.
+  */
+  if (!work_part_info_used)
+    tmp= fix_partition_func(thd, outparam, is_create_table);
+  thd->stmt_arena= backup_stmt_arena_ptr;
+  thd->restore_active_arena(&part_func_arena, &backup_arena);
+  if (!tmp)
+  {
+    if (work_part_info_used)
+      tmp= fix_partition_func(thd, outparam, is_create_table);
+  }
+  outparam->part_info->item_free_list= part_func_arena.free_list;
+  // TODO: Compare with share->part_info for validation of code!
+  DBUG_ASSERT(!share->m_part_info ||
+              share->m_part_info->column_list ==
+                outparam->part_info->column_list);
+  DBUG_ASSERT(!share->m_part_info ||
+              outparam->part_info->list_of_part_fields ==
+                share->m_part_info->list_of_part_fields);
+  return tmp;
+}
+
+
 /**
   Open a table based on a TABLE_SHARE
 
-  @param thd			Thread handler
-  @param share		Table definition
-  @param alias    Alias for table
-  @param db_stat	Open flags (for example HA_OPEN_KEYFILE|
-    			        HA_OPEN_RNDFILE..) can be 0 (example in
-                  ha_example_table)
-  @param prgflag   		READ_ALL etc..
-  @param ha_open_flags HA_OPEN_ABORT_IF_LOCKED etc..
-  @param outparam      Result table.
-  @param is_create_table Indicates that table is opened as part
-                         of CREATE or ALTER and does not yet exist in SE.
+  @param thd              Thread handler
+  @param share            Table definition
+  @param alias            Alias for table
+  @param db_stat          Open flags (for example HA_OPEN_KEYFILE|
+                          HA_OPEN_RNDFILE..) can be 0 (example in
+                          ha_example_table)
+  @param prgflag          READ_ALL etc..
+  @param ha_open_flags    HA_OPEN_ABORT_IF_LOCKED etc..
+  @param outparam         Result table.
+  @param is_create_table  Indicates that table is opened as part
+                          of CREATE or ALTER and does not yet exist in SE.
+  @param table_def_param  dd::Table object describing the table to be
+                          opened in SE. Can be nullptr, which case this
+                          function will try to retrieve such object from
+                          the data-dictionary before opening table in SE.
 
   @retval 0	ok
   @retval 1	Error (see open_table_error)
@@ -2914,7 +3008,7 @@ parse_err:
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table,
-                          const dd::Table *table_def)
+                          const dd::Table *table_def_param)
 {
   int error;
   uint records, i, bitmap_size;
@@ -3078,100 +3172,24 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
   }
 
-  if (share->partition_info_str_len && outparam->file)
+  // Parse partition expression and create Items
+  if (share->partition_info_str_len && outparam->file &&
+      unpack_partition_info(thd, outparam, share,
+                            share->m_part_info->default_engine_type,
+                            is_create_table))
   {
-    /*
-      Currently we still need to run the parser for extracting
-      Item trees (for partition expression and COLUMNS values).
-      To avoid too big refactoring in this patch, we still generate
-      the syntax when reading the DD (read_from_dd_partitions) and
-      parse it for each TABLE instance.
-      TODO:
-      To avoid multiple copies of information, we should try to
-      point to the TABLE_SHARE where possible:
-      - partition names etc. I.e. reuse the partition_elements!
-      This is not possible with columns partitions, since they use
-      Item for storing the values!?
-      Also make sure that part_state is never altered without proper locks
-      (like MDL exclusive locks on the table! since they would be shared by all
-      instances of a table!)
-      TODO: Use field images instead?
-      TODO: Look on how DEFAULT values will be stored in the new DD
-      and reuse that if possible!
-      TODO: wl#7840 to get a more light weight parsing of expressions
-      Create a new partition_info object on the table's mem_root,
-      by parsing a minimalistic string generated from the share.
-      And then fill in the missing parts from the part_info on the share.
-    */
-  /*
-    In this execution we must avoid calling thd->change_item_tree since
-    we might release memory before statement is completed. We do this
-    by changing to a new statement arena. As part of this arena we also
-    set the memory root to be the memory root of the table since we
-    call the parser and fix_fields which both can allocate memory for
-    item objects. We keep the arena to ensure that we can release the
-    free_list when closing the table object.
-    SEE Bug #21658
-  */
-
-    Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
-    Query_arena backup_arena;
-    Query_arena part_func_arena(&outparam->mem_root,
-                                Query_arena::STMT_INITIALIZED);
-    thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
-    thd->stmt_arena= &part_func_arena;
-    bool tmp;
-    bool work_part_info_used;
-
-    tmp= mysql_unpack_partition(thd, share->partition_info_str,
-                                share->partition_info_str_len,
-                                outparam, is_create_table,
-                                share->m_part_info->default_engine_type,
-                                &work_part_info_used);
-    if (tmp)
+    if (is_create_table)
     {
-      thd->stmt_arena= backup_stmt_arena_ptr;
-      thd->restore_active_arena(&part_func_arena, &backup_arena);
-      goto partition_err;
+      /*
+        During CREATE/ALTER TABLE it is ok to receive errors here.
+        It is not ok if it happens during the opening of an frm
+        file as part of a normal query.
+      */
+      error_reported= TRUE;
     }
-    outparam->part_info->is_auto_partitioned= share->auto_partitioned;
-    DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
-    /*
-      We should perform the fix_partition_func in either local or
-      caller's arena depending on work_part_info_used value.
-    */
-    if (!work_part_info_used)
-      tmp= fix_partition_func(thd, outparam, is_create_table);
-    thd->stmt_arena= backup_stmt_arena_ptr;
-    thd->restore_active_arena(&part_func_arena, &backup_arena);
-    if (!tmp)
-    {
-      if (work_part_info_used)
-        tmp= fix_partition_func(thd, outparam, is_create_table);
-    }
-    outparam->part_info->item_free_list= part_func_arena.free_list;
-    // TODO: Compare with share->part_info for validation of code!
-    DBUG_ASSERT(!share->m_part_info ||
-                share->m_part_info->column_list ==
-                  outparam->part_info->column_list);
-    DBUG_ASSERT(!share->m_part_info ||
-                outparam->part_info->list_of_part_fields ==
-                  share->m_part_info->list_of_part_fields);
-partition_err:
-    if (tmp)
-    {
-      if (is_create_table)
-      {
-        /*
-          During CREATE/ALTER TABLE it is ok to receive errors here.
-          It is not ok if it happens during the opening of an frm
-          file as part of a normal query.
-        */
-        error_reported= TRUE;
-      }
-      goto err;
-    }
+    goto err;
   }
+
   /* Check generated columns against table's storage engine. */
   if (share->vfields && outparam->file &&
       !(outparam->file->ha_table_flags() & HA_GENERATED_COLUMNS))
@@ -3238,21 +3256,21 @@ partition_err:
   error= 2;
   if (db_stat)
   {
-    const dd::Table *dd_tab= table_def;
+    const dd::Table *table_def= table_def_param;
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-    if (!dd_tab && !(prgflag & OPEN_NO_DD_TABLE))
+    if (!table_def && !(prgflag & OPEN_NO_DD_TABLE))
     {
 
       if (thd->dd_client()->acquire<dd::Table>(share->db.str,
                                                share->table_name.str,
-                                               &dd_tab))
+                                               &table_def))
       {
         error_reported= true;
         goto err;
       }
 
-      if (!dd_tab)
+      if (!table_def)
       {
         error= 1;
         set_my_errno(ENOENT);
@@ -3270,7 +3288,7 @@ partition_err:
                             (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
                              HA_OPEN_ABORT_IF_LOCKED :
                              HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags),
-                          dd_tab))))
+                          table_def))))
     {
       /* Set a flag if the table is crashed and it can be auto. repaired */
       share->crashed= ((ha_err == HA_ERR_CRASHED_ON_USAGE) &&

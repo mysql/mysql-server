@@ -492,12 +492,17 @@ enum_sp_return_code remove_routine(THD *thd, const Routine *routine,
 {
   DBUG_ENTER("dd::remove_routine");
 
+  Disable_gtid_state_update_guard disabler(thd);
+
   // Drop routine.
   if(thd->dd_client()->drop(routine))
   {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
     DBUG_RETURN(SP_DROP_FAILED);
   }
 
@@ -515,7 +520,11 @@ enum_sp_return_code alter_routine(THD *thd, const Routine *routine,
 
   cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  std::unique_ptr<Routine> new_routine(routine->clone());
+  Routine *new_routine= nullptr;
+  if (thd->dd_client()->acquire_for_modification(routine->id(),
+                                                 &new_routine))
+    DBUG_RETURN(SP_ALTER_FAILED);
+
   // Set last altered time.
   MYSQL_TIME curtime;
   thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
@@ -574,7 +583,7 @@ enum_sp_return_code alter_routine(THD *thd, const Routine *routine,
     new_routine->set_comment(chistics->comment.str);
 
   // Update routine.
-  if (thd->dd_client()->update(&routine, new_routine.get()))
+  if (thd->dd_client()->update(&routine, new_routine))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -583,6 +592,8 @@ enum_sp_return_code alter_routine(THD *thd, const Routine *routine,
   }
 
   bool error= (trans_commit_stmt(thd) || trans_commit(thd));
+  // TODO: Remove this call in WL#7743?
+  thd->dd_client()->remove_uncommitted_objects<Routine>(!error);
   DBUG_RETURN(error ? SP_INTERNAL_ERROR : SP_OK);
 }
 

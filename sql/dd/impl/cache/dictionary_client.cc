@@ -23,6 +23,7 @@
 #include "dd/impl/bootstrapper.h"            // bootstrap_stage
 #include "dd/impl/dictionary_impl.h"
 #include "dd/impl/object_key.h"
+#include "dd/impl/sdi.h"                     // dd::sdi::drop_after_update
 #include "dd/impl/raw/object_keys.h"         // Primary_id_key, ...
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/raw/raw_record_set.h"      // Raw_record_set
@@ -173,7 +174,7 @@ private:
 
     // If the schema acquisition fails, we cannot assure that we have a lock,
     // and therefore return false.
-    if (thd->dd_client()->acquire<dd::Schema>(table->schema_id(), &schema))
+    if (thd->dd_client()->acquire(table->schema_id(), &schema))
       return false;
 
     // Skip check for temporary tables.
@@ -233,7 +234,7 @@ private:
 
     // If the schema acquisition fails, we cannot assure that we have a lock,
     // and therefore return false.
-    if (thd->dd_client()->acquire<dd::Schema>(event->schema_id(), &schema))
+    if (thd->dd_client()->acquire(event->schema_id(), &schema))
       return false;
 
     char lc_event_name[NAME_LEN + 1];
@@ -277,7 +278,7 @@ private:
 
     // If the schema acquisition fails, we cannot assure that we have a lock,
     // and therefore return false.
-    if (thd->dd_client()->acquire<dd::Schema>(routine->schema_id(), &schema))
+    if (thd->dd_client()->acquire(routine->schema_id(), &schema))
       return false;
 
     MDL_key::enum_mdl_namespace mdl_namespace= MDL_key::FUNCTION;
@@ -573,6 +574,26 @@ Dictionary_client::Auto_releaser::~Auto_releaser()
   // Restore the client's previous releaser.
   m_client->m_current_releaser= m_prev;
 
+  // Delete any remaining uncommitted objects if we only have the default
+  // releaser left. If any objects remain, we probably aborted the transaction.
+  if (m_client->m_current_releaser == &m_client->m_default_releaser)
+  {
+    // We should either have reported an error or have removed all
+    // uncommitted objects (typically committed them to the shared cache).
+/*
+    DBUG_ASSERT(m_client->m_thd->is_error() ||
+                m_client->m_thd->killed ||
+                m_client->m_registry_uncommitted.size_all() == 0);
+*/
+    if (m_client->m_registry_uncommitted.size_all() != 0)
+    {
+      m_client->m_registry_uncommitted.dump<Abstract_table>();
+      m_client->m_registry_uncommitted.dump<Schema>();
+      m_client->m_registry_uncommitted.dump<Tablespace>();
+    }
+    m_client->m_registry_uncommitted.erase_all();
+  }
+
   // Delete any objects retrieved by acquire_uncached().
   delete_container_pointers(m_uncached_objects);
 }
@@ -594,10 +615,12 @@ void Dictionary_client::Auto_releaser::dump() const
 
 // Get a dictionary object.
 template <typename K, typename T>
-bool Dictionary_client::acquire(const K &key, const T **object, bool *local)
+bool Dictionary_client::acquire(const K &key, const T **object,
+                                bool *local_committed, bool *local_uncommitted)
 {
   DBUG_ASSERT(object);
-  DBUG_ASSERT(local);
+  DBUG_ASSERT(local_committed);
+  DBUG_ASSERT(local_uncommitted);
   *object= NULL;
 
   DBUG_EXECUTE_IF("fail_while_acquiring_dd_object",
@@ -606,12 +629,32 @@ bool Dictionary_client::acquire(const K &key, const T **object, bool *local)
     return true;
   });
 
-  // Lookup in the local registry.
+  // Lookup in registry of uncommitted objects
+  T *uncommitted_object= nullptr;
+  acquire_uncommitted(key, &uncommitted_object);
+  if (uncommitted_object)
+  {
+    *local_committed= false;
+    *local_uncommitted= true;
+    *object= uncommitted_object;
+    return false;
+  }
+  *local_uncommitted= false;
+
+  // Lookup in the registry of committed objects.
   Cache_element<T> *element= NULL;
-  m_registry.get(key, &element);
+  m_registry_committed.get(key, &element);
   if (element)
   {
-    *local= true;
+    // Check if an uncommitted object with the same id exists.
+    // If so, the object has been renamed and we should return nothing.
+    const typename T::id_key_type id_key(element->object()->id());
+    acquire_uncommitted(id_key, &uncommitted_object);
+    if (uncommitted_object)
+      return false;
+
+    // Object has not been renamed
+    *local_committed= true;
     *object= element->object();
     // Check proper MDL lock.
     DBUG_ASSERT(MDL_checker::is_read_locked(m_thd, *object));
@@ -619,7 +662,7 @@ bool Dictionary_client::acquire(const K &key, const T **object, bool *local)
   }
 
   // The element is not present locally.
-  *local= false;
+  *local_committed= false;
 
   // Get the object from the shared cache.
   if (Shared_dictionary_cache::instance()->get(m_thd, key, &element))
@@ -631,15 +674,38 @@ bool Dictionary_client::acquire(const K &key, const T **object, bool *local)
   // Add the element to the local registry and assign the output object.
   if (element)
   {
+    // Recheck that we haven't renamed this object.
+    const typename T::id_key_type id_key(element->object()->id());
+    acquire_uncommitted(id_key, &uncommitted_object);
+    if (uncommitted_object)
+      return false;
+
     DBUG_ASSERT(element->object() && element->object()->id());
     // Sign up for auto release.
-    m_registry.put(element);
+    m_registry_committed.put(element);
     m_current_releaser->auto_release(element);
     *object= element->object();
     // Check proper MDL lock.
     DBUG_ASSERT(MDL_checker::is_read_locked(m_thd, *object));
   }
   return false;
+}
+
+
+template <typename K, typename T>
+void Dictionary_client::acquire_uncommitted(const K &key, T **object)
+{
+  DBUG_ASSERT(object);
+  *object= nullptr;
+
+  Cache_element<T> *element= NULL;
+  m_registry_uncommitted.get(key, &element);
+  if (element)
+  {
+    *object= const_cast<T*>(element->object()); // TODO: Const cast
+    // Check proper MDL lock.
+    DBUG_ASSERT(MDL_checker::is_read_locked(m_thd, *object));
+  }
 }
 
 
@@ -668,8 +734,8 @@ size_t Dictionary_client::release(Object_registry *registry)
     registry->remove(element);
 
     // Remove the element from the client's object registry.
-    if (registry != &m_registry)
-      m_registry.remove(element);
+    if (registry != &m_registry_committed)
+      m_registry_committed.remove(element);
     else
       (void) m_current_releaser->remove(element);
 
@@ -770,8 +836,10 @@ bool Dictionary_client::acquire(Object_id id, const T** object)
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
 
-  bool present= false;
-  bool error= acquire(key, &cached_object, &present);
+  bool local_committed= false;
+  bool local_uncommitted= false;
+  bool error= acquire(key, &cached_object,
+                      &local_committed, &local_uncommitted);
 
   if (!error)
   {
@@ -781,8 +849,46 @@ bool Dictionary_client::acquire(Object_id id, const T** object)
     *object= dynamic_cast<const T*>(cached_object);
 
     // Don't auto release the object here if it is returned.
-    if (!present && *object)
+    if (!local_committed && !local_uncommitted && *object)
       releaser.transfer_release(cached_object);
+  }
+  else
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+
+  return error;
+}
+
+
+template <typename T>
+bool Dictionary_client::acquire_for_modification(Object_id id, T** object)
+{
+  const typename T::id_key_type key(id);
+  const typename T::cache_partition_type *cached_object= NULL;
+
+  // We must be sure the object is released correctly if dynamic cast fails.
+  Auto_releaser releaser(this);
+
+  bool local_committed= false;
+  bool local_uncommitted= false;
+  bool error= acquire(key, &cached_object,
+                      &local_committed, &local_uncommitted);
+
+  if (!error)
+  {
+    // Dynamic cast may legitimately return NULL if we e.g. asked
+    // for a dd::Table and got a dd::View in return.
+    DBUG_ASSERT(object);
+    const T* casted= dynamic_cast<const T*>(cached_object);
+
+    if (!casted)
+      *object= nullptr;
+    else if (local_uncommitted)
+      *object= const_cast<T*>(casted);
+    else
+    {
+      *object= casted->clone();
+      return register_uncommitted_object<T>(*object);
+    }
   }
   else
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
@@ -878,8 +984,10 @@ bool Dictionary_client::acquire(const String_type &object_name,
   Auto_releaser releaser(this);
   const typename T::cache_partition_type *cached_object= NULL;
 
-  bool local= false;
-  error= acquire(key, &cached_object, &local);
+  bool local_committed= false;
+  bool local_uncommitted = false;
+  error= acquire(key, &cached_object,
+                 &local_committed, &local_uncommitted);
 
   if (!error)
   {
@@ -889,7 +997,7 @@ bool Dictionary_client::acquire(const String_type &object_name,
     *object= dynamic_cast<const T*>(cached_object);
 
     // Don't auto release the object here if it is returned.
-    if (!local && *object)
+    if (!local_committed && !local_uncommitted && *object)
       releaser.transfer_release(cached_object);
   }
   else
@@ -899,10 +1007,9 @@ bool Dictionary_client::acquire(const String_type &object_name,
 }
 
 
-// Retrieve an object by its name without caching it.
 template <typename T>
-bool Dictionary_client::acquire_uncached(const String_type &object_name,
-                                         T** object)
+bool Dictionary_client::acquire_for_modification(const String_type &object_name,
+                                                 T** object)
 {
   // Create the name key for the object.
   typename T::name_key_type key;
@@ -912,27 +1019,32 @@ bool Dictionary_client::acquire_uncached(const String_type &object_name,
     my_error(ER_INVALID_DD_OBJECT_NAME, MYF(0), object_name.c_str());
     return true;
   }
-  const typename T::cache_partition_type *stored_object= NULL;
 
-  // Read the uncached dictionary object.
-  error= Shared_dictionary_cache::instance()->
-                get_uncached(m_thd, key, ISO_READ_COMMITTED, &stored_object);
+  // We must be sure the object is released correctly if dynamic cast fails.
+  Auto_releaser releaser(this);
+  const typename T::cache_partition_type *cached_object= NULL;
+
+  bool local_committed= false;
+  bool local_uncommitted= false;
+  error= acquire(key, &cached_object,
+                 &local_committed, &local_uncommitted);
+
   if (!error)
   {
-    // We do not verify proper MDL locking here since the
-    // returned object is owned by the caller.
-
     // Dynamic cast may legitimately return NULL if we e.g. asked
     // for a dd::Table and got a dd::View in return.
     DBUG_ASSERT(object);
-    // TODO: Replace const_cast by directly using Storage_adapter
-    *object= const_cast<T*>(dynamic_cast<const T*>(stored_object));
+    const T* casted= dynamic_cast<const T*>(cached_object);
 
-    // Delete the object if dynamic cast fails.
-    if (stored_object && !*object)
-      delete stored_object;
+    if (!casted)
+      *object= nullptr;
+    else if (local_uncommitted)
+      *object= const_cast<T*>(casted);
     else
-      m_current_releaser->auto_delete<T>(*object);
+    {
+      *object= casted->clone();
+      return register_uncommitted_object<T>(*object);
+    }
   }
   else
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
@@ -979,8 +1091,10 @@ bool Dictionary_client::acquire(const String_type &schema_name,
   // Acquire the dictionary object.
   const typename T::cache_partition_type *cached_object= NULL;
 
-  bool local= false;
-  error= acquire(key, &cached_object, &local);
+  bool local_committed= false;
+  bool local_uncommitted= false;
+  error= acquire(key, &cached_object,
+                 &local_committed, &local_uncommitted);
 
   if (!error)
   {
@@ -990,8 +1104,72 @@ bool Dictionary_client::acquire(const String_type &schema_name,
     *object= dynamic_cast<const T*>(cached_object);
 
     // Don't auto release the object here if it is returned.
-    if (!local && *object)
+    if (!local_committed && !local_uncommitted && *object)
       releaser.transfer_release(cached_object);
+  }
+  else
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+
+  return error;
+}
+
+
+template <typename T>
+bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
+                                                 const String_type &object_name,
+                                                 T** object)
+{
+  // We must make sure the schema is released and unlocked in the right order.
+  Schema_MDL_locker mdl_locker(m_thd);
+  Auto_releaser releaser(this);
+
+  DBUG_ASSERT(object);
+  *object= NULL;
+
+  // Get the schema object by name.
+  const Schema *schema= NULL;
+  bool error= mdl_locker.ensure_locked(schema_name.c_str()) ||
+              acquire(schema_name, &schema);
+
+  // If there was an error, or if we found no valid schema, return here.
+  if (error)
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    return true;
+  }
+
+  // A non existing schema is not reported as an error.
+  if (!schema)
+    return false;
+
+  // Create the name key for the object.
+  typename T::name_key_type key;
+  T::update_name_key(&key, schema->id(), object_name);
+
+  // Acquire the dictionary object.
+  const typename T::cache_partition_type *cached_object= NULL;
+
+  bool local_committed= false;
+  bool local_uncommitted= false;
+  error= acquire(key, &cached_object,
+                 &local_committed, &local_uncommitted);
+
+  if (!error)
+  {
+    // Dynamic cast may legitimately return NULL if we e.g. asked
+    // for a dd::Table and got a dd::View in return.
+    DBUG_ASSERT(object);
+    const T* casted= dynamic_cast<const T*>(cached_object);
+
+    if (!casted)
+      *object= nullptr;
+    else if (local_uncommitted)
+      *object= const_cast<T*>(casted);
+    else
+    {
+      *object= casted->clone();
+      return register_uncommitted_object<T>(*object);
+    }
   }
   else
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
@@ -1037,146 +1215,17 @@ bool Dictionary_client::acquire(const String_type &schema_name,
   T::update_name_key(&key, schema->id(), object_name);
 
   // Acquire the dictionary object.
-  bool local= false;
-  error= acquire(key, object, &local);
+  bool local_committed= false;
+  bool local_uncommitted= false;
+  error= acquire(key, object,
+                 &local_committed, &local_uncommitted);
 
   if (!error)
   {
     // No downcasting is necessary here.
     // Don't auto release the object here if it is returned.
-    if (!local && *object)
+    if (!local_committed && !local_uncommitted && *object)
       releaser.transfer_release(*object);
-  }
-  else
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
-
-  return error;
-}
-
-
-// Retrieve an object by its schema- and object name without caching it.
-template <typename T>
-bool Dictionary_client::acquire_uncached(const String_type &schema_name,
-                                         const String_type &object_name,
-                                         T** object)
-{
-  bool error= false;
-  Object_id schema_id= INVALID_OBJECT_ID;
-
-  {
-    // We must make sure the schema is released and unlocked in the right order.
-    Schema_MDL_locker mdl_locker(m_thd);
-    Auto_releaser releaser(this);
-
-    DBUG_ASSERT(object);
-    *object= NULL;
-
-    // Get the schema object by name.
-    const Schema *schema= NULL;
-    bool error= mdl_locker.ensure_locked(schema_name.c_str()) ||
-                acquire(schema_name, &schema);
-
-    // If there was an error, or if we found no valid schema, return here.
-    if (error)
-    {
-      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-      return true;
-    }
-
-    // A non existing schema is not reported as an error.
-    if (!schema)
-      return false;
-
-    schema_id= schema->id();
-  }
-
-  // Create the name key for the object.
-  typename T::name_key_type key;
-  T::update_name_key(&key, schema_id, object_name);
-
-  // Read the uncached dictionary object.
-  const typename T::cache_partition_type *stored_object= NULL;
-  error= Shared_dictionary_cache::instance()->
-           get_uncached(m_thd, key, ISO_READ_COMMITTED, &stored_object);
-
-  if (!error)
-  {
-    // We do not verify proper MDL locking here since the
-    // returned object is owned by the caller.
-
-    // Dynamic cast may legitimately return NULL if we e.g. asked
-    // for a dd::Table and got a dd::View in return.
-    DBUG_ASSERT(object);
-    // TODO: Replace const_cast by directly using Storage_adapter
-    *object= const_cast<T*>(dynamic_cast<const T*>(stored_object));
-
-    // Delete the object if dynamic cast fails.
-    if (stored_object && !*object)
-      delete stored_object;
-    else
-      m_current_releaser->auto_delete<T>(*object);
-  }
-  else
-    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-
-  return error;
-}
-
-
-// Retrieve an object by its schema and object name without caching it.
-// Use isolation level ISO_READ_UNCOMMITTED for reading the object.
-template <typename T>
-bool Dictionary_client::acquire_uncached_uncommitted(
-                          const String_type &schema_name,
-                          const String_type &object_name,
-                          const T** object)
-{
-  // We must make sure the schema is released and unlocked in the right order.
-  Schema_MDL_locker mdl_locker(m_thd);
-  Auto_releaser releaser(this);
-
-  DBUG_ASSERT(object);
-  *object= NULL;
-
-  // Get the schema object by name.
-  const Schema *schema= NULL;
-  bool error= mdl_locker.ensure_locked(schema_name.c_str()) ||
-              acquire(schema_name, &schema);
-
-  // If there was an error, or if we found no valid schema, return here.
-  if (error)
-  {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
-    return true;
-  }
-
-  // A non existing schema is not reported as an error.
-  if (!schema)
-    return false;
-
-  // Create the name key for the object.
-  typename T::name_key_type key;
-  T::update_name_key(&key, schema->id(), object_name);
-
-  // Read the uncached dictionary object using ISO_READ_UNCOMMITTED
-  // isolation level.
-  const typename T::cache_partition_type *stored_object= NULL;
-  error= Shared_dictionary_cache::instance()->
-           get_uncached(m_thd, key, ISO_READ_UNCOMMITTED, &stored_object);
-
-  if (!error)
-  {
-    // We do not verify proper MDL locking here since the
-    // returned object is owned by the caller.
-
-    // Dynamic cast may legitimately return NULL if we e.g. asked
-    // for a dd::Table and got a dd::View in return.
-    DBUG_ASSERT(object);
-    *object= dynamic_cast<const T*>(stored_object);
-
-    // Delete the object if dynamic cast fails.
-    if (stored_object && !*object)
-      delete stored_object;
   }
   else
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
@@ -1255,7 +1304,7 @@ bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
   if (table_id == INVALID_OBJECT_ID)
     return false;
 
-  if (acquire_uncached<Table>(table_id, table))
+  if (acquire_uncached(table_id, table))
   {
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
@@ -1276,6 +1325,10 @@ static bool get_index_statistics_entries(THD *thd,
                                   std::vector<String_type> &index_names,
                                   std::vector<String_type> &column_names)
 {
+  /*
+    Use READ UNCOMMITTED isolation, so this method works correctly when
+    called from the middle of atomic ALTER TABLE statement.
+  */
   dd::Transaction_ro trx(thd, ISO_READ_UNCOMMITTED);
 
   // Open the DD tables holding dynamic table statistics.
@@ -1353,7 +1406,7 @@ bool Dictionary_client::remove_table_dynamic_statistics(
   // Iterate and drop each index statistic entry, if exists.
   if (!index_names.empty())
   {
-    const Index_stat *idx_stat;
+    const Index_stat *idx_stat= nullptr;
     std::vector<String_type>::iterator it_idxs= index_names.begin();
     std::vector<String_type>::iterator it_cols= column_names.begin();
     while(it_idxs != index_names.end())
@@ -1365,6 +1418,10 @@ bool Dictionary_client::remove_table_dynamic_statistics(
                                                *it_idxs,
                                                *it_cols));
 
+      /*
+        Use READ UNCOMMITTED isolation, so this method works correctly when
+        called from the middle of atomic ALTER TABLE statement.
+      */
       if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, &idx_stat))
       {
         DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
@@ -1372,7 +1429,8 @@ bool Dictionary_client::remove_table_dynamic_statistics(
       }
 
       // Drop the entry.
-      if (Storage_adapter::drop(m_thd, const_cast<Index_stat*>(idx_stat)))
+      if (idx_stat &&
+          Storage_adapter::drop(m_thd, const_cast<Index_stat*>(idx_stat)))
       {
         DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
         return true;
@@ -1395,7 +1453,11 @@ bool Dictionary_client::remove_table_dynamic_statistics(
   std::unique_ptr<Table_stat::name_key_type> key(
     tables::Table_stats::create_object_key(schema_name, table_name));
 
-  const Table_stat *tab_stat;
+  /*
+    Use READ UNCOMMITTED isolation, so this method works correctly when
+    called from the middle of atomic ALTER TABLE statement.
+  */
+  const Table_stat *tab_stat= nullptr;
   if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, &tab_stat))
   {
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
@@ -1403,7 +1465,8 @@ bool Dictionary_client::remove_table_dynamic_statistics(
   }
 
   // Drop the entry.
-  if (tab_stat && Storage_adapter::drop(m_thd, const_cast<Table_stat*>(tab_stat)))
+  if (tab_stat &&
+      Storage_adapter::drop(m_thd, const_cast<Table_stat*>(tab_stat)))
   {
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;
@@ -1445,7 +1508,7 @@ bool Dictionary_client::get_table_name_by_se_private_id(
 
   // Acquire the schema uncached to get the schema name. Like above, we
   // cannot lock it in advance since we do not know its name.
-  if (acquire_uncached<Schema>(tab_obj->schema_id(), &sch_obj))
+  if (acquire_uncached(tab_obj->schema_id(), &sch_obj))
   {
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
@@ -1493,7 +1556,7 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
     return false;
 
   // Acquire the schema to get the schema name.
-  if (acquire_uncached<Schema>(tab_obj->schema_id(), &sch_obj))
+  if (acquire_uncached(tab_obj->schema_id(), &sch_obj))
   {
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
@@ -1912,33 +1975,57 @@ bool Dictionary_client::fetch_fk_children_uncached(
 
 // Mark all objects acquired by this client as not being used anymore.
 size_t Dictionary_client::release()
-{ return release(&m_registry); }
+{ return release(&m_registry_committed); }
 
 
 // Remove and delete an object from the cache and the dd tables.
 template <typename T>
 bool Dictionary_client::drop(const T *object)
 {
-  // Lookup in the local registry using the partition type.
-  Cache_element<typename T::cache_partition_type> *element= NULL;
-  m_registry.get(
-    static_cast<const typename T::cache_partition_type*>(object),
-    &element);
-  DBUG_ASSERT(element);
-
   // Check proper MDL lock.
   DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
 
   if (Storage_adapter::drop(m_thd, object) == false)
   {
-    // Remove the element from the chain of auto releasers.
-    (void) m_current_releaser->remove(element);
+    const typename T::id_key_type id_key(object->id());
 
-    // Remove the element from the local registry.
-    m_registry.remove(element);
+    // Lookup in the local registry using the partition type.
+    Cache_element<typename T::cache_partition_type> *element= NULL;
+    // Uncommitted object which was acquired for modification might have
+    // corrupted name.... So lookup by id. (see mysql_rename_table()
+    // problem)
+    m_registry_committed.get(
+      id_key,
+      &element);
 
-    // Remove the element from the cache, delete the wrapper and the object.
-    Shared_dictionary_cache::instance()->drop(element);
+    // Could be in the uncommitted registry
+    typename T::cache_partition_type *modified= nullptr;
+    acquire_uncommitted(id_key, &modified);
+    if (modified != nullptr)
+    {
+      Cache_element<typename T::cache_partition_type> *uc_element= nullptr;
+      m_registry_uncommitted.get(
+       static_cast<const typename T::cache_partition_type*>(modified),
+       &uc_element);
+      DBUG_ASSERT(uc_element != nullptr);
+      m_registry_uncommitted.remove(uc_element);
+      delete uc_element->object();
+      delete uc_element;
+    }
+
+    if (element)
+    {
+      // Remove the element from the chain of auto releasers.
+      (void) m_current_releaser->remove(element);
+      // Remove the element from the local registry.
+      m_registry_committed.remove(element);
+      // Remove the element from the cache, delete the wrapper and the object.
+      Shared_dictionary_cache::instance()->drop(element);
+    }
+    else
+      Shared_dictionary_cache::instance()->
+        drop_if_present<typename T::id_key_type,
+                        typename T::cache_partition_type>(id_key);
 
     return false;
   }
@@ -1948,32 +2035,6 @@ bool Dictionary_client::drop(const T *object)
   return true;
 }
 
-template <typename T>
-bool Dictionary_client::drop_uncached(const T *object)
-{
-  // Check proper MDL lock.
-  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
-
-  // Check that object is not present in the local registry.
-  Cache_element<typename T::cache_partition_type> *element= NULL;
-  m_registry.get(
-    static_cast<const typename T::cache_partition_type*>(object),
-    &element);
-  DBUG_ASSERT(! element);
-
-  if (Storage_adapter::drop(m_thd, object) == false)
-  {
-    // Remove the element from the cache.
-    Shared_dictionary_cache::instance()->
-      drop_if_present<typename T::id_key_type,
-                      typename T::cache_partition_type>(object->id());
-    return false;
-  }
-
-  DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
-
-  return true;
-}
 
 // Store a new dictionary object.
 template <typename T>
@@ -1981,14 +2042,16 @@ bool Dictionary_client::store(T* object)
 {
   // Make sure the object is not being used by this client.
   Cache_element<typename T::cache_partition_type> *element= NULL;
-  m_registry.get(
+  m_registry_committed.get(
     static_cast<const typename T::cache_partition_type*>(object),
     &element);
   DBUG_ASSERT(!element);
 
   // Check proper MDL lock.
   DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
-  return Storage_adapter::store(m_thd, object);
+  bool error= Storage_adapter::store(m_thd, object);
+
+  return error;
 }
 
 // Store a new dictionary object.
@@ -2001,10 +2064,9 @@ bool Dictionary_client::store(Index_stat* object)
 { return Storage_adapter::store<Index_stat>(m_thd, object); }
 
 
-// Replace a dictionary object by another and store it.
+// Update a persisted dictionary object, but keep the shared cache unchanged.
 template <typename T>
-bool Dictionary_client::update(const T** old_object, T* new_object,
-                               bool persist)
+bool Dictionary_client::update(const T** old_object, T* new_object)
 {
   DBUG_ASSERT(*old_object);
   DBUG_ASSERT(new_object);
@@ -2013,187 +2075,194 @@ bool Dictionary_client::update(const T** old_object, T* new_object,
   Cache_element<typename T::cache_partition_type> *element= NULL;
 
 #ifndef DBUG_OFF
-  m_registry.get(
+  m_registry_committed.get(
     static_cast<const typename T::cache_partition_type*>(new_object),
     &element);
   DBUG_ASSERT(!element);
 #endif
 
-  m_registry.get(
+  m_registry_uncommitted.get(
+    static_cast<const typename T::cache_partition_type*>(new_object),
+    &element);
+  bool uncommitted_object= (element != nullptr);
+  DBUG_ASSERT(uncommitted_object || m_thd->is_dd_system_thread());
+
+  // Get the most recently stored object, either from the registry,
+  // or by reading uncommitted from disk. We need it to verify MDL
+  // and to update SDI correctly.
+  m_registry_committed.get(
     static_cast<const typename T::cache_partition_type*>(*old_object),
     &element);
-  DBUG_ASSERT(element);
+
+  std::unique_ptr<const T> real_old_object(nullptr);
+  if (!element)
+  {
+    // Get the object from disk, possibly unecommitted.
+    const typename T::id_key_type id_key(new_object->id());
+    const typename T::cache_partition_type *stored_object= nullptr;
+
+    // Read the uncached dictionary object.
+    if (Shared_dictionary_cache::instance()->
+          get_uncached(m_thd, id_key, ISO_READ_UNCOMMITTED, &stored_object))
+      return true;
+
+    real_old_object.reset(dynamic_cast<const T*>(stored_object));
+  }
+  else
+    real_old_object.reset(dynamic_cast<const T*>(element->object()->clone()));
 
   // Check proper MDL locks.
-  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, *old_object));
+  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, real_old_object.get()));
   DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, new_object));
 
-  // Only the bootstrap thread is allowed to do this without persisting changes.
-  DBUG_ASSERT(persist || m_thd->is_dd_system_thread());
+  /*
+    The object must maintain its id, otherwise, the update will not become
+    an update, but instead, the new object will be added alongside the
+    old one.
+  */
+  DBUG_ASSERT((*old_object)->id() == new_object->id());
 
-  if (persist)
+  /*
+    We first store the new object. If store() fails, there is not a
+    lot to do except returning true.
+  */
+  if (store(new_object))
+    return true;
+
+  /*
+    Remove the old sdi after store() has successfully written the
+    new one. Note that this is a noop unless we are writing the SDI
+    to file and the name of the new object is different. (If the
+    names are identical the old file will be over-written by
+    store(). If we are storing the SDI in a tablespace the key
+    does not depend on the name and the store is a transactional
+    update).
+  */
+  if (sdi::drop_after_update(m_thd, *old_object, new_object))
   {
-    /*
-      The object must maintain its id, otherwise, the update will not become
-      an update, but instead, the new object will be added alongside the
-      old one. The exception to this is that during bootstrap, we allow the
-      dictionary tables to be updated with an object having id == INVALID
-      in order to store it the first time.
-    */
-    DBUG_ASSERT((*old_object)->id() == new_object->id() ||
-                (new_object->id() == INVALID_OBJECT_ID &&
-                 m_thd->is_dd_system_thread()));
-
-    /*
-      We first store the new object. If store() fails, there is not a
-      lot to do except returning true. In this case, the shared cache will
-      stay unchanged.
-    */
-    if (store(new_object))
-      return true;
+    return true;
   }
-
-  // If we succeed in storing the new object, we must update the shared
-  // cache accordingly. First, we remove the element from the chain of auto
-  // releasers and from the local registry.
-  Auto_releaser *actual_releaser= m_current_releaser->remove(element);
-  m_registry.remove(element);
-
-  // Then, we must replace the object in the shared cache and re-create the
-  // keys. Note that we will take a clone of the new_object and add the clone
-  // to the cache. This is to ensure that the original new_object pointer
-  // remains owned by the caller of this function, while the clone is being
-  // owned by the cache.
-  T *new_object_clone= new_object->clone();
-  Shared_dictionary_cache::instance()->replace(element,
-    static_cast<const typename T::cache_partition_type*>(new_object_clone));
-
-  // Put back the element, with its new keys, into the local registry.
-  m_registry.put(element);
-
-  // Put back the element into the correct auto releaser.
-  if (actual_releaser)
-    actual_releaser->auto_release(element);
-
-  // And finally, we set *old_object to point to the new cached clone of
-  // new_object. The dynamic cast should never fail in this case.
-  *old_object= dynamic_cast<const T*>(element->object());
-  DBUG_ASSERT(*old_object == new_object_clone);
 
   return false;
 }
 
 
-// Update a modified dictionary object and remove it from the cache.
-// Needed by WL#7743.
-/* purecov: begin deadcode */
 template <typename T>
-bool Dictionary_client::update_uncached_and_invalidate(T* object)
+bool Dictionary_client::register_uncommitted_object(T* object)
 {
-  // Check proper MDL lock.
-  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
-
-  // Object should not be present in local registry.
-  Cache_element<typename T::cache_partition_type> *element= NULL;
-  m_registry.get(
+  Cache_element<typename T::cache_partition_type> *element= nullptr;
+#ifndef DBUG_OFF
+  // Make sure we do not sign up a shared object for auto delete.
+  m_registry_committed.get(
     static_cast<const typename T::cache_partition_type*>(object),
     &element);
-  DBUG_ASSERT(! element);
+  DBUG_ASSERT(element == nullptr);
+#endif
 
-  // Store the updated object first.
-  if (Storage_adapter::store(m_thd, object) == false)
+  // store() should have been called before if this is a
+  // new object so that it has a proper ID already.
+  DBUG_ASSERT(object->id() != INVALID_OBJECT_ID);
+
+  element= new Cache_element<typename T::cache_partition_type>();
+  element->set_object(object);
+  element->recreate_keys();
+  m_registry_uncommitted.put(element);
+
+  return false;
+}
+
+
+template <typename T>
+void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
+{
+  // Check that we actually have some uncommitted objects.
+  // TODO: Disable in WL#7743-merge.
+  // DBUG_ASSERT(m_registry_uncommitted.size<typename T::cache_partition_type>()
+  //          > 0);*/
+  if (commit_to_shared_cache)
   {
-    // Drop the element from the shared cache.
-    Shared_dictionary_cache::instance()->
-      drop_if_present<typename T::id_key_type,
-                      typename T::cache_partition_type>(object->id());
-    return false;
-  }
+    typename Multi_map_base<typename T::cache_partition_type>::Const_iterator it;
+    for (it= m_registry_uncommitted.begin<typename T::cache_partition_type>();
+         it != m_registry_uncommitted.end<typename T::cache_partition_type>();
+         it++)
+    {
+      T* uncommitted_object=
+        const_cast<T*>(dynamic_cast<const T*>(it->second->object()));
+      DBUG_ASSERT(uncommitted_object != nullptr);
 
-  return true;
-}
-/* purecov: end */
+      // Check proper MDL lock.
+      // TODO: Disable in WL#7743-merge.
+      // DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, uncommitted_object));
 
+      // Get a committed version of the object and invalidate it.
+      // Note that we have to access m_registry_committed directly
+      // instead of using acquire() to avoid finding the uncommitted object.
+      const typename T::id_key_type key(uncommitted_object->id());
+      Cache_element<typename T::cache_partition_type> *element= NULL;
+      m_registry_committed.get(key, &element);
 
-// Add a new dictionary object.
-template <typename T>
-void Dictionary_client::add_and_reset_id(T* object)
-{
-  bool reset_id= false;
-  add_and_reset_id(object, reset_id);
-}
+      if (element)
+      {
+        DBUG_ASSERT(element->object() != nullptr);
 
-// Add a new dictionary object.
-template <typename T>
-void Dictionary_client::add_and_reset_id(T* object, bool reset_id)
-{
-  // This may be called only during the initial stages of bootstrapping.
-  DBUG_ASSERT(m_thd->is_dd_system_thread() &&
-              bootstrap::stage() < bootstrap::BOOTSTRAP_CREATED);
+        // Remove the element from the chain of auto releasers.
+        (void) m_current_releaser->remove(element);
+        m_registry_committed.remove(element);
 
-  // Make sure the object is not being used by this client.
-  Cache_element<typename T::cache_partition_type> *element= NULL;
-  m_registry.get(
-    static_cast<const typename T::cache_partition_type*>(object),
-    &element);
-  DBUG_ASSERT(!element);
+        // Remove the element from the cache, delete the wrapper and the object.
+        Shared_dictionary_cache::instance()->drop(element);
+      }
+      else
+      {
+        Shared_dictionary_cache::instance()->
+          drop_if_present<typename T::id_key_type,
+                          typename T::cache_partition_type>(uncommitted_object->id());
+      }
+    }
+    for (it= m_registry_uncommitted.begin<typename T::cache_partition_type>();
+         it != m_registry_uncommitted.end<typename T::cache_partition_type>();
+         it++)
+    {
+      T* uncommitted_object=
+        const_cast<T*>(dynamic_cast<const T*>(it->second->object()));
+      DBUG_ASSERT(uncommitted_object != nullptr);
 
-  // We only add objects that have not received an id yet.
-  DBUG_ASSERT(object->id() == INVALID_OBJECT_ID);
+      Cache_element<typename T::cache_partition_type> *element= NULL;
 
-  // Assign a temporary unique id. This is needed to have unique cache keys.
-  static dd::Object_id next_id= 1;
+      // In put, the reference counter is stepped up, so this is safe.
+      Shared_dictionary_cache::instance()->put(
+          static_cast<const typename T::cache_partition_type*>(
+            uncommitted_object->clone()), &element);
 
-  // Reset id to 1 in the case we have cleared DD objects from Cache
-  if (reset_id)
-    next_id= 1;
-
-  dynamic_cast<dd::Entity_object_impl*>(object->impl())->set_id(next_id++);
-
-  // Add it to the shared cache.
-  Shared_dictionary_cache::instance()->put(
-    static_cast<const typename T::cache_partition_type*>(object),
-    &element);
-
-  // Make sure we get the same object in return.
-  DBUG_ASSERT(element && element->object() == object);
-
-  // Add the element to the local registry.
-  m_registry.put(element);
-
-  // Sign up for auto release.
-  m_current_releaser->auto_release(element);
-}
-
-
-// Make a dictionary object sticky or not in the cache.
-template <typename T>
-void Dictionary_client::set_sticky(const T* object, bool sticky)
-{
-  // Check that the object is present.
-  Cache_element<typename T::cache_partition_type> *element= NULL;
-  m_registry.get(
-    static_cast<const typename T::cache_partition_type*>(object),
-    &element);
-  DBUG_ASSERT(element);
-
-  // Alter the element's stickiness in the shared cache.
-  Shared_dictionary_cache::instance()->set_sticky(element, sticky);
+      m_registry_committed.put(element);
+      // Sign up for auto release.
+      m_current_releaser->auto_release(element);
+    }
+  } // commit_to_shared_cache
+  m_registry_uncommitted.erase<typename T::cache_partition_type>();
 }
 
 
-// Return the stickiness of an object.
 template <typename T>
-bool Dictionary_client::is_sticky(const T* object) const
+void Dictionary_client::object_renamed(T* object)
 {
-  // Check that the object is present.
-  Cache_element<typename T::cache_partition_type> *element= NULL;
-  m_registry.get(
+  Cache_element<typename T::cache_partition_type> *element= nullptr;
+#ifndef DBUG_OFF
+  // Make sure we do not rename a shared object.
+  m_registry_committed.get(
     static_cast<const typename T::cache_partition_type*>(object),
     &element);
-  DBUG_ASSERT(element);
+  DBUG_ASSERT(element == nullptr);
+#endif
 
-  return element->sticky();
+  m_registry_uncommitted.get(
+    static_cast<const typename T::cache_partition_type*>(object),
+    &element);
+  DBUG_ASSERT(element != nullptr);
+  DBUG_ASSERT(element->object() == object);
+  m_registry_uncommitted.remove(element);
+  element->recreate_keys();
+  m_registry_uncommitted.put(element);
 }
 
 
@@ -2205,7 +2274,7 @@ void Dictionary_client::dump() const
 #ifndef DBUG_OFF
   fprintf(stderr, "================================\n");
   fprintf(stderr, "Dictionary client\n");
-  m_registry.dump<T>();
+  m_registry_committed.dump<T>();
   fprintf(stderr, "================================\n");
 #endif
 }
@@ -2274,70 +2343,62 @@ template bool Dictionary_client::fetch_referencing_views_object_id<View_routine>
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Abstract_table**);
-template bool Dictionary_client::acquire<Abstract_table>(const String_type&,
+template bool Dictionary_client::acquire(const String_type&,
                                          const String_type&,
                                          const Abstract_table**);
-template bool Dictionary_client::acquire_uncached(const String_type&,
-                                                  const String_type&,
-                                                  Abstract_table**);
-template bool Dictionary_client::acquire_uncached_uncommitted(const String_type&,
-                                                              const String_type&,
-                                                              const Abstract_table**);
+template void Dictionary_client::remove_uncommitted_objects<Abstract_table>(bool);
 template bool Dictionary_client::drop(const Abstract_table*);
-template bool Dictionary_client::drop_uncached(const Abstract_table*);
 template bool Dictionary_client::store(Abstract_table*);
-template void Dictionary_client::add_and_reset_id(Abstract_table*);
-template void Dictionary_client::add_and_reset_id(Abstract_table*, bool);
 template bool Dictionary_client::update(const Abstract_table**,
-                                        Abstract_table*, bool);
-template void Dictionary_client::set_sticky(const Abstract_table*, bool);
-template bool Dictionary_client::is_sticky(const Abstract_table*) const;
+                                        Abstract_table*);
 template void Dictionary_client::dump<Abstract_table>() const;
 
 template bool Dictionary_client::acquire(Object_id, dd::Charset const**);
-template bool Dictionary_client::acquire<dd::Charset>(String_type const&,
-                                                      dd::Charset const**);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          dd::Charset**);
+template void Dictionary_client::remove_uncommitted_objects<Charset>(bool);
+template void Dictionary_client::object_renamed(dd::Charset*);
+template bool Dictionary_client::acquire(String_type const&, Charset const**);
+template bool Dictionary_client::acquire_for_modification(String_type const&,
+                                                          dd::Charset**);
 
 template bool Dictionary_client::drop(const Charset*);
 template bool Dictionary_client::store(Charset*);
-template void Dictionary_client::add_and_reset_id(Charset*);
-template void Dictionary_client::add_and_reset_id(Charset*, bool);
-template bool Dictionary_client::update(const Charset**, Charset*, bool);
-template void Dictionary_client::set_sticky(const Charset*, bool);
-template bool Dictionary_client::is_sticky(const Charset*) const;
+template bool Dictionary_client::update(const Charset**, Charset*);
 template void Dictionary_client::dump<Charset>() const;
 
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Charset**);
 template bool Dictionary_client::acquire(Object_id, dd::Collation const**);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          dd::Collation **);
+template void Dictionary_client::remove_uncommitted_objects<Collation>(bool);
+template void Dictionary_client::object_renamed(dd::Collation*);
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Collation**);
 template bool Dictionary_client::acquire(const String_type &,
                                          const Collation**);
+template bool Dictionary_client::acquire_for_modification(const String_type &,
+                                                          Collation**);
 template bool Dictionary_client::drop(const Collation*);
 template bool Dictionary_client::store(Collation*);
-template void Dictionary_client::add_and_reset_id(Collation*);
-template void Dictionary_client::add_and_reset_id(Collation*, bool);
-template bool Dictionary_client::update(const Collation**, Collation*, bool);
-template void Dictionary_client::set_sticky(const Collation*, bool);
-template bool Dictionary_client::is_sticky(const Collation*) const;
+template bool Dictionary_client::update(const Collation**, Collation*);
 template void Dictionary_client::dump<Collation>() const;
 
-/* purecov: begin deadcode */
-template bool Dictionary_client::acquire(Object_id, dd::Schema const**);
-/* purecov: end */
+template bool Dictionary_client::acquire(Object_id, Schema const**);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          Schema**);
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Schema**);
-template bool Dictionary_client::acquire_uncached(const String_type&,
-                                                  Schema**);
+template bool Dictionary_client::acquire_for_modification(const String_type&,
+                                                          Schema**);
+template void Dictionary_client::remove_uncommitted_objects<Schema>(bool);
+template void Dictionary_client::object_renamed(dd::Schema*);
+
 template bool Dictionary_client::drop(const Schema*);
 template bool Dictionary_client::store(Schema*);
-template void Dictionary_client::add_and_reset_id(Schema*);
-template void Dictionary_client::add_and_reset_id(Schema*, bool);
-template bool Dictionary_client::update(const Schema**, Schema*, bool);
-template void Dictionary_client::set_sticky(const Schema*, bool);
-template bool Dictionary_client::is_sticky(const Schema*) const;
+template bool Dictionary_client::update(const Schema**, Schema*);
 template void Dictionary_client::dump<Schema>() const;
 
 template bool Dictionary_client::acquire(Object_id,
@@ -2347,83 +2408,64 @@ template bool Dictionary_client::acquire_uncached(
     Spatial_reference_system**);
 template bool Dictionary_client::drop(const Spatial_reference_system*);
 template bool Dictionary_client::store(Spatial_reference_system*);
-template void Dictionary_client::add_and_reset_id(Spatial_reference_system*);
-template void Dictionary_client::add_and_reset_id(Spatial_reference_system*,
-                                                  bool);
 template bool Dictionary_client::update(const Spatial_reference_system**,
-                                        Spatial_reference_system*, bool);
-template void Dictionary_client::set_sticky(const Spatial_reference_system*,
-                                            bool);
-template bool Dictionary_client::is_sticky(const Spatial_reference_system*)
-    const;
+                                        Spatial_reference_system*);
 template void Dictionary_client::dump<Spatial_reference_system>() const;
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Table**);
 template bool Dictionary_client::acquire(Object_id,
                                          const Table**);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          Table**);
 template bool Dictionary_client::acquire(const String_type&,
                                          const String_type&,
                                          const Table**);
-template bool Dictionary_client::acquire_uncached(const String_type&,
-                                                  const String_type&,
-                                                  Table**);
-template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
-                                                              const Tablespace**);
-template bool Dictionary_client::acquire_uncached_uncommitted(const String_type&,
-                                                              const String_type&,
-                                                              const Table**);
+template bool Dictionary_client::acquire_for_modification(const String_type&,
+                                                          const String_type&,
+                                                          Table**);
+template void Dictionary_client::remove_uncommitted_objects<Table>(bool);
+template void Dictionary_client::object_renamed(Table*);
 template bool Dictionary_client::drop(const Table*);
-template bool Dictionary_client::drop_uncached(const Table*);
 template bool Dictionary_client::store(Table*);
-template bool Dictionary_client::update_uncached_and_invalidate(Table*);
-template void Dictionary_client::add_and_reset_id(Table*);
-template void Dictionary_client::add_and_reset_id(Table*, bool);
-template bool Dictionary_client::update(const Table**, Table*, bool);
-template void Dictionary_client::set_sticky(const Table*, bool);
-template bool Dictionary_client::is_sticky(const Table*) const;
+template bool Dictionary_client::update(const Table**, Table*);
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Tablespace**);
 template bool Dictionary_client::acquire(const String_type&,
                                          const Tablespace**);
-template bool Dictionary_client::acquire_uncached(const String_type&,
-                                                  Tablespace**);
+
+
+template bool Dictionary_client::acquire_for_modification(const String_type&,
+                                                          Tablespace**);
 template bool Dictionary_client::acquire(Object_id,
                                          const Tablespace**);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          Tablespace**);
+template void Dictionary_client::remove_uncommitted_objects<Tablespace>(bool);
+template void Dictionary_client::object_renamed(dd::Tablespace*);
 template bool Dictionary_client::drop(const Tablespace*);
-template bool Dictionary_client::drop_uncached(const Tablespace*);
 template bool Dictionary_client::store(Tablespace*);
-template bool Dictionary_client::update_uncached_and_invalidate(Tablespace*);
-template void Dictionary_client::add_and_reset_id(Tablespace*);
-template void Dictionary_client::add_and_reset_id(Tablespace*, bool);
-template bool Dictionary_client::update(const Tablespace**, Tablespace*, bool);
-template void Dictionary_client::set_sticky(const Tablespace*, bool);
-template bool Dictionary_client::is_sticky(const Tablespace*) const;
+template bool Dictionary_client::update(const Tablespace**, Tablespace*);
 template void Dictionary_client::dump<Tablespace>() const;
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   View**);
 template bool Dictionary_client::acquire(Object_id,
                                          const View**);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          View**);
 template bool Dictionary_client::acquire(const String_type&,
                                          const String_type&,
                                          const View**);
-template bool Dictionary_client::acquire_uncached(const String_type&,
-                                                  const String_type&,
-                                                  View**);
-template bool Dictionary_client::acquire_uncached_uncommitted(const String_type&,
-                                                              const String_type&,
-                                                              const View**);
+template bool Dictionary_client::acquire_for_modification(const String_type&,
+                                                          const String_type&,
+                                                          View**);
+template void Dictionary_client::remove_uncommitted_objects<View>(bool);
+template void Dictionary_client::object_renamed(View*);
 template bool Dictionary_client::drop(const View*);
-template bool Dictionary_client::drop_uncached(const View*);
 template bool Dictionary_client::store(View*);
-template bool Dictionary_client::update_uncached_and_invalidate(View*);
-template void Dictionary_client::add_and_reset_id(View*);
-template void Dictionary_client::add_and_reset_id(View*, bool);
-template bool Dictionary_client::update(const View**, View*, bool);
-template void Dictionary_client::set_sticky(const View*, bool);
-template bool Dictionary_client::is_sticky(const View*) const;
+template bool Dictionary_client::update(const View**, View*);
 
 template bool Dictionary_client::store(Table_stat*);
 template bool Dictionary_client::store(Index_stat*);
@@ -2432,17 +2474,19 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Event**);
 template bool Dictionary_client::acquire(Object_id,
                                          const Event**);
-template bool Dictionary_client::acquire<Event>(const String_type&,
-                                                const String_type&,
-                                                const Event**);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          Event**);
+template void Dictionary_client::remove_uncommitted_objects<Event>(bool);
+template void Dictionary_client::object_renamed(Event*);
+template bool Dictionary_client::acquire(const String_type&,
+                                         const String_type&,
+                                         const Event**);
+template bool Dictionary_client::acquire_for_modification(const String_type&,
+                                                          const String_type&,
+                                                          Event**);
 template bool Dictionary_client::drop(const Event*);
 template bool Dictionary_client::store(Event*);
-template bool Dictionary_client::update(const Event**, Event*, bool);
-template void Dictionary_client::add_and_reset_id(Event*);
-template void Dictionary_client::add_and_reset_id(Event*, bool);
-template void Dictionary_client::set_sticky(const Event*, bool);
-template bool Dictionary_client::is_sticky(const Event*) const;
-
+template bool Dictionary_client::update(const Event**, Event*);
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Function**);
@@ -2453,30 +2497,29 @@ template bool Dictionary_client::acquire(const String_type&,
                                          const Function**);
 template bool Dictionary_client::drop(const Function*);
 template bool Dictionary_client::store(Function*);
-template bool Dictionary_client::update(const Function**, Function*,  bool);
-template void Dictionary_client::add_and_reset_id(Function*);
-template void Dictionary_client::add_and_reset_id(Function*, bool);
-template void Dictionary_client::set_sticky(const Function*, bool);
-template bool Dictionary_client::is_sticky(const Function*) const;
-
+template bool Dictionary_client::update(const Function**, Function*);
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Procedure**);
 template bool Dictionary_client::acquire(Object_id,
                                          const Procedure**);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          Procedure**);
+template void Dictionary_client::remove_uncommitted_objects<Procedure>(bool);
+template void Dictionary_client::object_renamed(Procedure*);
 template bool Dictionary_client::acquire(const String_type&,
                                          const String_type&,
                                          const Procedure**);
+template bool Dictionary_client::acquire_for_modification(const String_type&,
+                                                          const String_type&,
+                                                          Procedure**);
 template bool Dictionary_client::drop(const Procedure*);
 template bool Dictionary_client::store(Procedure*);
-template bool Dictionary_client::update(const Procedure**, Procedure*, bool);
-template void Dictionary_client::add_and_reset_id(Procedure*);
-template void Dictionary_client::add_and_reset_id(Procedure*, bool);
-template void Dictionary_client::set_sticky(const Procedure*, bool);
-template bool Dictionary_client::is_sticky(const Procedure*) const;
+template bool Dictionary_client::update(const Procedure**, Procedure*);
 
 template bool Dictionary_client::drop(const Routine*);
-template bool Dictionary_client::update(const Routine**, Routine*, bool);
+template void Dictionary_client::remove_uncommitted_objects<Routine>(bool);
+template bool Dictionary_client::update(const Routine**, Routine*);
 
 template bool Dictionary_client::acquire<Function>(
   const String_type&,
@@ -2489,6 +2532,8 @@ template bool Dictionary_client::acquire<Procedure>(
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Routine**);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          Routine**);
 /**
  @endcond
 */

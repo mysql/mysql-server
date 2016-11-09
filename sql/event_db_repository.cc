@@ -76,7 +76,7 @@ static bool index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   if (mdl_locker.ensure_locked(db))
     DBUG_RETURN(true);
 
-  if (thd->dd_client()->acquire<dd::Schema>(db, &sch_obj))
+  if (thd->dd_client()->acquire(db, &sch_obj))
   {
     /*
       Ignore any error so that information schema display a empty row.
@@ -309,8 +309,8 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   }
 
   const dd::Event *event= nullptr;
-  if (thd->dd_client()->acquire<dd::Event>(parse_data->dbname.str,
-                                           parse_data->name.str, &event))
+  if (thd->dd_client()->acquire(parse_data->dbname.str,
+                                parse_data->name.str, &event))
     DBUG_RETURN(true);
 
   if (event == nullptr)
@@ -366,7 +366,7 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
 
   const dd::Event *event_ptr= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire<dd::Event>(db.str, name.str, &event_ptr))
+  if (thd->dd_client()->acquire(db.str, name.str, &event_ptr))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -407,7 +407,7 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj= nullptr;
 
-  if (thd->dd_client()->acquire<dd::Schema>(schema.str, &sch_obj))
+  if (thd->dd_client()->acquire(schema.str, &sch_obj))
     DBUG_RETURN(true);
   if (sch_obj == nullptr)
   {
@@ -429,7 +429,7 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
        Dictionary_client::drop() works with uncached objects.
     */
     const dd::Event *event_obj2;
-    if (thd->dd_client()->acquire<dd::Event>(schema.str, event_obj->name(), &event_obj2))
+    if (thd->dd_client()->acquire(schema.str, event_obj->name(), &event_obj2))
       DBUG_RETURN(true);
 
     if (dd::drop_event(thd, event_obj2, false))
@@ -465,7 +465,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  if (thd->dd_client()->acquire<dd::Event>(dbname.str, name.str, &event_obj))
+  if (thd->dd_client()->acquire(dbname.str, name.str, &event_obj))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -514,7 +514,7 @@ update_timing_fields_for_event(THD *thd, LEX_STRING event_db_name,
 
   const dd::Event *event_ptr= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire<dd::Event>(event_db_name.str, event_name.str, &event_ptr))
+  if (thd->dd_client()->acquire(event_db_name.str, event_name.str, &event_ptr))
     DBUG_RETURN(true);
   if (event_ptr == nullptr)
     DBUG_RETURN(true);

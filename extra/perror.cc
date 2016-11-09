@@ -18,15 +18,16 @@
 
 #define PERROR_VERSION "2.11"
 
+#include <errno.h>
+#include <m_string.h>
+#include <my_getopt.h>
 #include <my_global.h>
 #include <my_sys.h>
-#include <m_string.h>
-#include <errno.h>
-#include <my_getopt.h>
+#include <stdio.h>
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-#include "../storage/ndb/src/ndbapi/ndberror.c"
-#include "../storage/ndb/src/kernel/error/ndbd_exit_codes.c"
 #include "../storage/ndb/include/mgmapi/mgmapi_error.h"
+#include "../storage/ndb/src/kernel/error/ndbd_exit_codes.c"
+#include "../storage/ndb/src/ndbapi/ndberror.c"
 #endif
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
@@ -159,6 +160,7 @@ typedef struct
 static st_error global_error_names[] =
 {
 #include <mysqld_ername.h>
+
   { 0, 0, 0, 0, 0, 0 }
 };
 

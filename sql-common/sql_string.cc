@@ -678,14 +678,14 @@ size_t String::numchars() const
   return m_charset->cset->numchars(m_charset, m_ptr, m_ptr + m_length);
 }
 
-size_t String::charpos(size_t i, size_t offset)
+size_t String::charpos(size_t i, size_t offset) const
 {
   if (i <= 0)
     return i;
   return m_charset->cset->charpos(m_charset, m_ptr + offset, m_ptr + m_length, i);
 }
 
-int String::strstr(const String &s, size_t offset)
+int String::strstr(const String &s, size_t offset) const
 {
   if (s.length()+offset <= m_length)
   {
@@ -716,7 +716,7 @@ skip:
 ** Search string from end. Offset is offset to the end of string
 */
 
-int String::strrstr(const String &s, size_t offset)
+int String::strrstr(const String &s, size_t offset) const
 {
   if (s.length() <= offset && offset <= m_length)
   {

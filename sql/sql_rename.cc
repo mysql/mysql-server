@@ -21,6 +21,7 @@
 
 #include <string.h>
 
+#include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 #include "dd/dd_table.h"      // dd::table_exists
 #include "dd/types/abstract_table.h" // dd::Abstract_table
 #include "dd_sql_view.h"      // View_metadata_updater
@@ -44,7 +45,6 @@
 #include "table.h"
 #include "transaction.h"      // trans_commit_stmt
 
-#include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 
 struct handlerton;
 
@@ -54,9 +54,14 @@ static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 
 static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 
-/*
-  Every two entries in the table_list form a pair of original name and
-  the new name.
+/**
+  Rename tables from the list.
+
+  @param thd          Thread context.
+  @param table_list   Every two entries in the table_list form
+                      a pair of original name and the new name.
+
+  @return True - on failure, false - on success.
 */
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
@@ -81,6 +86,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   }
 
   mysql_ha_rm_tables(thd, table_list);
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   if (query_logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
       query_logger.is_log_table_enabled(QUERY_LOG_SLOW))
@@ -215,6 +222,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   if (!error && !int_commit_done)
     error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 
+  thd->dd_client()->remove_uncommitted_objects<dd::Abstract_table>(!error);
+
   if (!error)
   {
     for (ren_table= table_list; ren_table;
@@ -280,6 +289,9 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
   @param[in]      skip_error        Whether to skip errors.
   @param[in/out]  int_commit_done   Whether intermediate commits
                                     were done.
+  @param[in/out]  post_ddl_htons    Set of SEs supporting atomic DDL
+                                    for which post-DDL hooks needs
+                                    to be called.
 
   @return False on success, True if rename failed.
 */
@@ -303,23 +315,25 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   DBUG_ASSERT(new_alias);
 
   // Fail if the target table already exists
-  const dd::Abstract_table *new_table;
-  if (thd->dd_client()->acquire_uncached_uncommitted<dd::Abstract_table>(new_db,
-                          new_alias, &new_table))
+  const dd::Abstract_table *new_table= nullptr;
+  if (thd->dd_client()->acquire(new_db, new_alias, &new_table))
     DBUG_RETURN(true);                         // This error cannot be skipped
   if (new_table)
   {
-    delete new_table;
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
     DBUG_RETURN(true);                         // This error cannot be skipped
   }
 
   // Get the table type of the old table, and fail if it does not exist
-  std::unique_ptr<dd::Abstract_table> old_table_def;
-  if (!(old_table_def=
-          dd::acquire_uncached_uncommitted_table<dd::Abstract_table>(thd,
-                ren_table->db, old_alias)))
+  const dd::Abstract_table *old_table_def=nullptr;
+  if (thd->dd_client()->acquire(ren_table->db, old_alias, &old_table_def))
     DBUG_RETURN(!skip_error);
+
+  if (!old_table_def)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), ren_table->db, old_alias);
+    DBUG_RETURN(!skip_error);
+  }
 
   // So here we know the source table exists and the target table does
   // not exist. Next is to act based on the table type.
@@ -401,6 +415,9 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   @param[in]      skip_error        Whether to skip errors.
   @param[in/out]  int_commit_done   Whether intermediate commits
                                     were done.
+  @param[in/out]  post_ddl_htons    Set of SEs supporting atomic DDL
+                                    for which post-DDL hooks needs
+                                    to be called.
 
   @note
     Take a table/view name from and odd list element and rename it to a

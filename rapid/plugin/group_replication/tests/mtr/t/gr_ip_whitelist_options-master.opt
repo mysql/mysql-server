@@ -1,0 +1,1 @@
+--no-console --log_error=$MYSQLTEST_VARDIR/tmp/group_replication_ip_whitelist_options_mysqld.1.err

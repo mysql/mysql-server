@@ -5199,7 +5199,7 @@ Field_temporal::store_lldiv_t(const lldiv_t *lld, int *warnings)
   error= convert_number_to_TIME(lld->quot, 0, static_cast<int>(lld->rem),
                                 &ltime, warnings);
   if (error == TYPE_OK || error == TYPE_NOTE_TRUNCATED)
-    error= store_internal_with_round(&ltime, warnings);
+    error= store_internal_adjust_frac(&ltime, warnings);
   else if (!*warnings)
   {
     DBUG_ASSERT(warnings != 0); // Must be set by convert_number_to_TIME
@@ -5275,9 +5275,8 @@ Field_temporal::store(const char *str, size_t len, const CHARSET_INFO *cs)
   else
   {
     error= time_warning_to_type_conversion_status(status.warnings);
-
-    const type_conversion_status tmp_error= store_internal_with_round(&ltime,
-                                                           &status.warnings);
+    const type_conversion_status tmp_error=
+      store_internal_adjust_frac(&ltime, &status.warnings);
 
     // Return the most serious error of the two, see type_conversion_status
     if (tmp_error > error)
@@ -5447,7 +5446,9 @@ Field_temporal_with_date::convert_number_to_TIME(longlong nr,
   }
 
   ltime->second_part= 0;
-  if (datetime_add_nanoseconds_with_round(ltime, nanoseconds, warnings))
+  if (datetime_add_nanoseconds_adjust_frac(ltime, nanoseconds, warnings,
+                                           (date_flags() &
+                                            TIME_FRAC_TRUNCATE)))
   {
     reset();
     return TYPE_WARN_OUT_OF_RANGE;
@@ -5479,7 +5480,7 @@ Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
       reset();
     }
     else
-      error= store_internal_with_round(ltime, &warnings);
+      error= store_internal_adjust_frac(ltime, &warnings);
     break;
   case MYSQL_TIMESTAMP_TIME:
   {
@@ -5487,7 +5488,7 @@ Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
     THD *thd= table ? table->in_use : current_thd;
     MYSQL_TIME ltime2;
     time_to_datetime(thd, ltime, &ltime2);
-    error= store_internal_with_round(&ltime2, &warnings);
+    error= store_internal_adjust_frac(&ltime2, &warnings);
     break;
   }
   case MYSQL_TIMESTAMP_NONE:
@@ -5530,10 +5531,11 @@ bool Field_temporal_with_date::send_binary(Protocol *protocol)
 
 
 type_conversion_status
-Field_temporal_with_date::store_internal_with_round(MYSQL_TIME *ltime,
-                                                    int *warnings)
+Field_temporal_with_date::store_internal_adjust_frac(MYSQL_TIME *ltime,
+                                                     int *warnings)
 {
-  if (my_datetime_round(ltime, dec, warnings))
+  if (my_datetime_adjust_frac(ltime, dec, warnings,
+                              (date_flags() & TIME_FRAC_TRUNCATE)))
   {
     reset();
     return time_warning_to_type_conversion_status(*warnings);
@@ -5701,6 +5703,9 @@ my_time_flags_t Field_timestamp::date_flags(const THD *thd)
   my_time_flags_t date_flags= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
     date_flags|= TIME_NO_ZERO_DATE;
+  if (thd->variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL)
+    date_flags|= TIME_FRAC_TRUNCATE;
+
   return date_flags;
 }
 
@@ -5899,6 +5904,9 @@ my_time_flags_t Field_timestampf::date_flags(const THD *thd)
   my_time_flags_t date_flags= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
     date_flags|= TIME_NO_ZERO_DATE;
+  if (thd->variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL)
+    date_flags|= TIME_FRAC_TRUNCATE;
+
   return date_flags;
 }
 
@@ -6005,7 +6013,7 @@ Field_time_common::convert_str_to_TIME(const char *str, size_t len,
                                        MYSQL_TIME *ltime,
                                        MYSQL_TIME_STATUS *status)
 {
-  return str_to_time(cs, str, len, ltime, 0, status);
+  return str_to_time(cs, str, len, ltime, date_flags(), status);
 }
 
 
@@ -6033,11 +6041,11 @@ Field_time_common::convert_number_to_TIME(longlong nr, bool unsigned_val,
   if ((ltime->neg|= (nanoseconds < 0)))
     nanoseconds= -nanoseconds;
   ltime->second_part= 0;
-  bool round_error= time_add_nanoseconds_with_round(ltime, nanoseconds,
-                                                    warnings);
 
-  return round_error ? time_warning_to_type_conversion_status(*warnings)
-                     : TYPE_OK;
+  bool error= time_add_nanoseconds_adjust_frac(ltime, nanoseconds, warnings,
+                                               (date_flags() &
+                                                TIME_FRAC_TRUNCATE));
+  return error ? time_warning_to_type_conversion_status(*warnings) : TYPE_OK;
 }
 
 
@@ -6054,14 +6062,14 @@ Field_time_common::store_time(MYSQL_TIME *ltime,
     return TYPE_WARN_OUT_OF_RANGE;
   }
   int warnings= 0;
-  return store_internal_with_round(ltime, &warnings);
+  return store_internal_adjust_frac(ltime, &warnings);
 }
 
 
 type_conversion_status
-Field_time_common::store_internal_with_round(MYSQL_TIME *ltime, int *warnings)
+Field_time_common::store_internal_adjust_frac(MYSQL_TIME *ltime, int *warnings)
 {
-  if (my_time_round(ltime, dec))
+  if (my_time_adjust_frac(ltime, dec, (date_flags() & TIME_FRAC_TRUNCATE)))
     return TYPE_WARN_OUT_OF_RANGE;
 
   return store_internal(ltime, warnings);
@@ -6134,6 +6142,15 @@ bool Field_time_common::send_binary(Protocol *protocol)
   return protocol->store_time(&ltime, 0);
 }
 
+
+my_time_flags_t Field_time_common::date_flags(const THD *thd)
+{
+  my_time_flags_t date_flags= 0;
+  if (thd->variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL)
+    date_flags= TIME_FRAC_TRUNCATE;
+
+  return date_flags;
+}
 
 /****************************************************************************
 ** time type
@@ -6486,6 +6503,9 @@ my_time_flags_t Field_newdate::date_flags(const THD *thd)
     date_flags|= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_INVALID_DATES)
     date_flags|= TIME_INVALID_DATES;
+  if (thd->variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL)
+    date_flags|= TIME_FRAC_TRUNCATE;
+
   return date_flags;
 }
 
@@ -6637,6 +6657,9 @@ my_time_flags_t Field_datetime::date_flags(const THD *thd)
     date_flags|= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_INVALID_DATES)
     date_flags|= TIME_INVALID_DATES;
+  if (thd->variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL)
+    date_flags|= TIME_FRAC_TRUNCATE;
+
   return date_flags;
 }
 
@@ -6831,6 +6854,9 @@ my_time_flags_t Field_datetimef::date_flags(const THD *thd)
     date_flags|= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_INVALID_DATES)
     date_flags|= TIME_INVALID_DATES;
+  if (thd->variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL)
+    date_flags|= TIME_FRAC_TRUNCATE;
+
   return date_flags;
 }
 
@@ -10300,7 +10326,7 @@ void Create_field::create_length_to_internal_length(void)
 }
 
 
-/*
+/**
   Calculate key length for field from its type, length and other attributes.
 
   @note for string fields "length" parameter is assumed to take into account

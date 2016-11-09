@@ -24,13 +24,19 @@ namespace keyring {
 class IKeys_container : public Keyring_alloc
 {
 public:
+  IKeys_container() : keyring_io(NULL)
+  {}
+
   virtual my_bool init(IKeyring_io* keyring_io, std::string keyring_storage_url)= 0;
   virtual my_bool store_key(IKey *key)= 0;
   virtual IKey* fetch_key(IKey *key)= 0;
   virtual my_bool remove_key(IKey *key)= 0;
   virtual std::string get_keyring_storage_url()= 0;
+  virtual void set_keyring_io(IKeyring_io *keyring_io)= 0;
 
   virtual ~IKeys_container() {};
+protected:
+  IKeyring_io *keyring_io;
 };
 
 }//namespace keyring

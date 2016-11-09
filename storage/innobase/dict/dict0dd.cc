@@ -407,7 +407,7 @@ dd_table_open_on_id_low(
 	}
 #endif /* UNIV_DEBUG */
 
-	dd::Table*					dd_table;
+	const dd::Table*				dd_table;
 	const dd::Partition*				dd_part	= nullptr;
 	dd::cache::Dictionary_client*			dc
 		= dd::get_dd_client(thd);
@@ -465,7 +465,7 @@ dd_table_open_on_id_low(
 			ut_ad(*mdl != nullptr);
 		}
 
-		if (dc->acquire_uncached(schema, tablename, &dd_table)
+		if (dc->acquire(schema, tablename, &dd_table)
 		    || dd_table == nullptr) {
 			if (mdl != nullptr) {
 				dd_mdl_release(thd, mdl);
@@ -480,9 +480,9 @@ dd_table_open_on_id_low(
 			&& dd_table->engine() == handler_name;
 
 		if (same_name && is_part) {
-			auto end = dd_table->partitions()->end();
+			auto end = dd_table->partitions().end();
 			auto i = std::search_n(
-				dd_table->partitions()->begin(), end, 1,
+				dd_table->partitions().begin(), end, 1,
 				table_id,
 				[](const dd::Partition* p, table_id_t id)
 				{

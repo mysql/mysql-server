@@ -284,17 +284,7 @@ int ha_recover(HASH *commit_list)
 }
 
 
-/**
-  Rollback the active XA transaction.
-
-  @note Resets rm_error before calling ha_rollback(), so
-        the thd->transaction.xid structure gets reset
-        by ha_rollback() / THD::transaction::cleanup().
-
-  @return true if the rollback failed, false otherwise.
-*/
-
-static bool xa_trans_force_rollback(THD *thd)
+bool xa_trans_force_rollback(THD *thd)
 {
   /*
     We must reset rm_error before calling ha_rollback(),
@@ -311,14 +301,7 @@ static bool xa_trans_force_rollback(THD *thd)
 }
 
 
-/**
-  Reset some transaction state information and delete corresponding
-  Transaction_ctx object from cache.
-
-  @param thd    Current thread
-*/
-
-static void cleanup_trans_state(THD *thd)
+void cleanup_trans_state(THD *thd)
 {
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->server_status&=
@@ -697,15 +680,7 @@ bool Sql_cmd_xa_start::execute(THD *thd)
 
   if (!st)
   {
-    if (thd->binlog_applier_need_detach_trx())
-    {
-      /*
-        In case of slave thread applier or processing binlog by client,
-        detach the "native" thd's trx in favor of dynamically created.
-      */
-      plugin_foreach(thd, detach_native_trx,
-                     MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
-    }
+    thd->rpl_detach_engine_ha_data();
     my_ok(thd);
   }
 
@@ -817,7 +792,7 @@ bool Sql_cmd_xa_prepare::execute(THD *thd)
 
   if (!st)
   {
-    if (!thd->binlog_applier_has_detached_trx() ||
+    if (!thd->rpl_unflag_detached_engine_ha_data() ||
         !(st= applier_reset_xa_trans(thd)))
       my_ok(thd);
   }
@@ -1098,7 +1073,7 @@ static void init_transaction_cache_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(transaction_cache_mutexes);
+  count= static_cast<int>(array_elements(transaction_cache_mutexes));
   mysql_mutex_register(category, transaction_cache_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
@@ -1267,6 +1242,30 @@ void transaction_cache_delete(Transaction_ctx *transaction)
 
 
 /**
+  The function restores previously saved storage engine transaction context.
+
+  @param     thd     Thread context
+*/
+static void attach_native_trx(THD *thd)
+{
+  Ha_trx_info *ha_info=
+    thd->get_transaction()->ha_trx_info(Transaction_ctx::SESSION);
+  Ha_trx_info *ha_info_next;
+
+  if (ha_info)
+  {
+    for (; ha_info; ha_info= ha_info_next)
+    {
+      handlerton *hton= ha_info->ht();
+      reattach_engine_ha_data_to_thd(thd, hton);
+      ha_info_next= ha_info->next();
+      ha_info->reset();
+    }
+  }
+}
+
+
+/**
   This is a specific to "slave" applier collection of standard cleanup
   actions to reset XA transaction states at the end of XA prepare rather than
   to do it at the transaction commit, see @c ha_commit_one_phase.
@@ -1330,39 +1329,13 @@ my_bool detach_native_trx(THD *thd, plugin_ref plugin, void *unused)
   handlerton *hton= plugin_data<handlerton *>(plugin);
 
   if (hton->replace_native_transaction_in_thd)
+  {
+    /* Ensure any active backup engine ha_data won't be overwritten */
+    DBUG_ASSERT(!thd->get_ha_data(hton->slot)->ha_ptr_backup);
+
     hton->replace_native_transaction_in_thd(thd, NULL,
                                             &thd->get_ha_data(hton->slot)->ha_ptr_backup);
+  }
 
   return FALSE;
-}
-
-/**
-  The function restores previously saved storage engine transaction context.
-
-  @param     thd     Thread context
-*/
-static void attach_native_trx(THD *thd)
-{
-  Ha_trx_info *ha_info=
-    thd->get_transaction()->ha_trx_info(Transaction_ctx::SESSION);
-  Ha_trx_info *ha_info_next;
-
-  if (ha_info)
-  {
-    for (; ha_info; ha_info= ha_info_next)
-    {
-      handlerton *hton= ha_info->ht();
-      if (hton->replace_native_transaction_in_thd)
-      {
-        /* restore the saved original engine transaction's link with thd */
-        void **trx_backup= &thd->get_ha_data(hton->slot)->ha_ptr_backup;
-
-        hton->
-          replace_native_transaction_in_thd(thd, *trx_backup, NULL);
-        *trx_backup= NULL;
-      }
-      ha_info_next= ha_info->next();
-      ha_info->reset();
-    }
-  }
 }

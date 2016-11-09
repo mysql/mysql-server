@@ -23,7 +23,7 @@
 #include <stdint.h>
 #include <list>
 
-#include "ngs_common/posix_time.h"
+#include "ngs_common/chrono.h"
 
 
 namespace ngs
@@ -32,16 +32,16 @@ namespace ngs
 class Protocol_config
 {
 public:
-  uint32_t  default_max_frame_size;
+  uint32_t default_max_frame_size;
   uint32_t max_message_size;
 
-  seconds  connect_timeout;
-  milliseconds connect_timeout_hysteresis;
+  chrono::seconds connect_timeout;
+  chrono::milliseconds connect_timeout_hysteresis;
 
   Protocol_config()
   : default_max_frame_size(16*1024*1024),
     max_message_size(16*1024*1024),
-    connect_timeout(not_a_date_time),
+    connect_timeout(0),
     connect_timeout_hysteresis(100)
   {
   }

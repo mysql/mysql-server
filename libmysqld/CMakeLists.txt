@@ -40,11 +40,17 @@ SET(GEN_YACC_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
 )
 
 SET(GEN_SOURCES
   ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-  ${CMAKE_BINARY_DIR}/sql/lex_hash.h 
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
+  COMMAND gen_lex_hash > lex_hash.h
+  DEPENDS gen_lex_hash
 )
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_YACC_SOURCES}
@@ -122,26 +128,40 @@ ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
+# warning C4348
+# boost::spirit::terminal<boost::spirit::tag::lit>::result_helper': 
+#       redefinition of default parameter
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    ../sql/gis/srs/srs.cc
+    ../sql/gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "/wd4348")
+ENDIF()
+
+# warning 4244 4267
+# conversion from 'coordinate_type' to 'const promoted_type
+# conversion from 'boost::geometry::signed_size_type' to 'int'
+# etc. etc.
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    ../sql/item_geofunc.cc
+    ../sql/item_geofunc_buffer.cc
+    ../sql/item_geofunc_internal.cc
+    ../sql/item_geofunc_setops.cc
+    COMPILE_FLAGS "/wd4244" "/wd4267")
+ENDIF()
+
 ADD_COMPILE_FLAGS(
   ../extra/lz4/xxhash.c
   COMPILE_FLAGS -DXXH_NAMESPACE=MY_
 )
 
-# Fixes "C1128: number of sections exceeded object file format limit" in MSVC /MD
-# The flag /bigobj is not added if the build is not /MD
-IF(WIN32 AND CMAKE_SIZEOF_VOID_P MATCHES 8)
-  FOREACH(flag 
-     CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO 
-     CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
-     CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
-     CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
-    
-     STRING(FIND ${${flag}} "/MD" POS)
-     IF(NOT (${POS} MATCHES "-1"))
-       ADD_COMPILE_FLAGS(../sql/item_geofunc_setops.cc COMPILE_FLAGS "/bigobj")
-       BREAK()
-     ENDIF()  
-  ENDFOREACH()
+# Fixes "C1128: number of sections exceeded object file format limit" in MSVC
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    ../sql/item_geofunc.cc
+    ../sql/item_geofunc_setops.cc
+    COMPILE_FLAGS "/bigobj")
 ENDIF()
 
 #

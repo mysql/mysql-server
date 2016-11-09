@@ -46,7 +46,6 @@ public:
   virtual void set(longlong nr)=0;
   virtual enum_field_types field_type() const=0;
   void set(const char *str) { set(str, strlen(str), default_charset()); }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -73,7 +72,6 @@ public:
   {
     return get_time_from_int(ltime);
   }
-  unsigned int size_of() { return sizeof(*this);}
 };
 
 
@@ -114,7 +112,6 @@ public:
     return null_value ? (String*) 0 : &str_value;
   }
   my_decimal *val_decimal(my_decimal *);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 /* The procedure class definitions */

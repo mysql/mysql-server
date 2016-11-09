@@ -62,7 +62,7 @@ static int heap_init(void *p)
 
 static handler *heap_create_handler(handlerton *hton,
                                     TABLE_SHARE *table,
-                                    bool partitioned,
+                                    bool,
                                     MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_heap(hton, table);
@@ -93,7 +93,7 @@ ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
 #define HEAP_STATS_UPDATE_THRESHOLD 10
 
 int ha_heap::open(const char *name, int mode, uint test_if_locked,
-                  const dd::Table *)
+                  const dd::Table*)
 {
   internal_table= MY_TEST(test_if_locked & HA_OPEN_INTERNAL_TABLE);
   if (internal_table || (!(file= heap_open(name, mode)) && my_errno() == ENOENT))
@@ -464,7 +464,7 @@ int ha_heap::delete_all_rows()
 }
 
 
-int ha_heap::truncate(dd::Table *)
+int ha_heap::truncate(dd::Table*)
 {
   int error= delete_all_rows();
   return error ? error : reset_auto_increment(0);
@@ -612,7 +612,7 @@ THR_LOCK_DATA **ha_heap::store_lock(THD*,
   not when doing a CREATE on the table.
 */
 
-int ha_heap::delete_table(const char *name, const dd::Table *)
+int ha_heap::delete_table(const char *name, const dd::Table*)
 {
   int error= heap_delete_table(name);
   return error == ENOENT ? 0 : error;
@@ -627,7 +627,7 @@ void ha_heap::drop_table(const char*)
 
 
 int ha_heap::rename_table(const char * from, const char * to,
-                          const dd::Table *, dd::Table *)
+                          const dd::Table*, dd::Table*)
 {
   return heap_rename(from,to);
 }
@@ -776,8 +776,7 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
 
 
 int ha_heap::create(const char *name, TABLE *table_arg,
-		    HA_CREATE_INFO *create_info,
-                    dd::Table *)
+                    HA_CREATE_INFO *create_info, dd::Table*)
 {
   int error;
   my_bool created;

@@ -278,16 +278,20 @@ public:
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param[in,out]	new_dd_tab	dd::Table object for the new version of
-	the table. To be adjusted by this call.
+	@param[in]	old_table_def	dd::Table object describing old
+	version of the table.
+	@parami[in,out]	new_table_def	dd::Table object for the new version
+	of the table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
 	@retval	true	Failure.
 	@retval	false	Success. */
 	bool
 	prepare_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		const dd::Table*	old_dd_tab,
-		dd::Table*		new_dd_tab);
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 
 	/** Alter the table structure in-place.
 	Alter the table structure in-place with operations
@@ -297,14 +301,20 @@ public:
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
+	@param[in]	old_table_def	dd::Table object describing old
+	version of the table.
+	@parami[in,out]	new_table_def	dd::Table object for the new version
+	of the table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
 	@retval	true	Failure.
 	@retval	false	Success. */
 	bool
 	inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		const dd::Table*	old_dd_tab,
-		dd::Table*		new_dd_tab);
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 
 	/** Commit or rollback.
 	Commit or rollback the changes made during
@@ -315,9 +325,15 @@ public:
 	prepare_inplace_alter_table(). (E.g concurrent writes were
 	blocked during prepare, but might not be during commit).
 	@param[in]	altered_table	TABLE object for new version of table.
-	@param[in]	ha_alter_info	Structure describing changes to be done
+	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param[in,out]	commit		true => Commit, false => Rollback.
+	@param[in]	commit		true => Commit, false => Rollback.
+	@param[in]	old_table_def	dd::Table object describing old
+	version of the table.
+	@parami[in,out]	new_table_def	dd::Table object for the new version
+	of the table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
 	@retval	true	Failure.
 	@retval	false	Success. */
 	bool
@@ -325,8 +341,8 @@ public:
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
 		bool			commit,
-		const dd::Table*	old_dd_tab,
-		dd::Table*		new_dd_tab);
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 	/** @} */
 
 	// TODO: should we implement init_table_handle_for_HANDLER() ?
@@ -402,7 +418,7 @@ public:
 		const char*		name,
 		TABLE*			form,
 		HA_CREATE_INFO*		create_info,
-		dd::Table*		dd_tab);
+		dd::Table*		table_def);
 
 	/** Drop a table.
 	@param[in]	name		table name
@@ -414,7 +430,7 @@ public:
 		const dd::Table*	dd_table);
 
 	int
-	truncate(dd::Table *dd_tab);
+	truncate(dd::Table *table_def);
 
 	/** Rename a table.
 	@param[in]	from		table name before rename
@@ -1098,6 +1114,7 @@ private:
 	@param[in]	name		table name
 	@param[in]	mode		access mode
 	@param[in]	test_if_locked	test if the file to be opened is locked
+	@param[in]	table_def	dd::Table describing table to be opened
 	@retval 1 if error
 	@retval 0 if success */
 	int
@@ -1105,7 +1122,7 @@ private:
 		const char*	name,
 		int		mode,
 		uint		test_if_locked,
-		const dd::Table*	dd_tab);
+		const dd::Table*	table_def);
 
 	int
 	close();

@@ -55,6 +55,8 @@ typedef struct st_innobase_share {
 /** Prebuilt structures in an InnoDB table handle used within MySQL */
 struct row_prebuilt_t;
 
+namespace dd { namespace cache { class Dictionary_client; } }
+
 /** The class defining a handle to an InnoDB table */
 class ha_innobase: public handler
 {
@@ -98,7 +100,7 @@ public:
 
 	const Key_map* keys_to_use_for_scanning();
 
-	int open(const char *name, int, uint, const dd::Table *dd_tab);
+	int open(const char *name, int, uint, const dd::Table *table_def);
 
 	/** Opens dictionary table object using table name. For partition, we need to
 	try alternative lower/upper case names to support moving data files across
@@ -258,29 +260,46 @@ public:
 	@param[in]	name		table name in filename-safe encoding
 	@param[in]	form		table structure
 	@param[in]	create_info	more information on the table
-	@param[in,out]	dd_table	data dictionary cache object
+	@param[in,out]	table_def	dd::Table describing table to be created.
+	Can be adjusted by SE, the changes will be saved into data-dictionary at
+	statement commit time.
 	@return error number
 	@retval 0 on success */
 	int create(
 		const char*		name,
 		TABLE*			form,
 		HA_CREATE_INFO*		create_info,
-		dd::Table*		dd_tab);
+		dd::Table*		table_def);
 
 	/** Drop a table.
 	@param[in]	name		table name
-	@param[in,out]	dd_table	data dictionary table
+	@param[in]	table_def	dd::Table describing table to
+	be dropped
 	@return	error number
 	@retval 0 on success */
-	virtual int delete_table(
+	int delete_table(
 		const char*		name,
-		const dd::Table*	dd_table);
-
-	/** DROP and CREATE an InnoDB table.
-	@param[in,out]	dd_tab		dd::Table of the table to be truncated
+		const dd::Table*	table_def);
+protected:
+	/** Dropping a table.
+	@param[in]	name		table name
+	@param[in]	table_def	dd::Table describing table to
+	be dropped
+	@param[in]	sqlcom	type of operation that the DROP is part of
 	@return	error number
 	@retval 0 on success */
-	int truncate(dd::Table *dd_tab);
+	int delete_table(
+		const char*		name,
+		const dd::Table*	table_def,
+		enum enum_sql_command	sqlcom);
+public:
+	/** DROP and CREATE an InnoDB table.
+	@param[in,out]	table_def	dd::Table describing table to be
+	truncated. Can be adjusted by SE, the changes will be saved into
+	the data-dictionary at statement commit time.
+	@return	error number
+	@retval 0 on success */
+	int truncate(dd::Table *table_def);
 
 	int rename_table(const char* from, const char* to,
 		const dd::Table *from_table,
@@ -368,17 +387,19 @@ public:
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param[in]	old_dd_tab	dd::Table object representing old
-	version of the table
-	@param[in,out]	new_dd_tab	dd::Table object representing new
-	version of the table
-	@retval	true Failure
-	@retval	false Success */
+	@param old_table_def dd::Table object describing old version
+	of the table.
+	@param new_table_def dd::Table object for the new version of the
+	table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
+
+	@retval true Failure, false Success */
 	bool prepare_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		const dd::Table*	old_dd_tab,
-		dd::Table*		new_dd_tab);
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 
 	/** Alter the table structure in-place with operations
 	specified using HA_ALTER_FLAGS and Alter_inplace_information.
@@ -388,17 +409,19 @@ public:
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param[in]	old_dd_tab	dd::Table object representing old
-	version of the table
-	@param[in,out]	new_dd_tab	dd::Table object representing new
-	version of the table
-	@retval	true Failure
-	@retval	false Success */
+	@param old_table_def dd::Table object describing old version
+	of the table.
+	@param new_table_def dd::Table object for the new version of the
+	table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
+
+	@retval true Failure, false Success */
 	bool inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		const dd::Table*	old_dd_tab,
-		dd::Table*		new_dd_tab);
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 
 	/** Commit or rollback the changes made during
 	prepare_inplace_alter_table() and inplace_alter_table() inside
@@ -411,19 +434,20 @@ public:
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param[in]	commit		True to commit or false to rollback.
-	@param[in]	old_dd_tab	dd::Table object representing old
-	version of the table
-	@param[in,out]	new_dd_tab	dd::Table object representing new
-	version of the table
-	@retval	true Failure
-	@retval	false Success */
+	@param commit true => Commit, false => Rollback.
+	@param old_table_def dd::Table object describing old version
+	of the table.
+	@param new_table_def dd::Table object for the new version of the
+	table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
+	@retval true Failure, false Success */
 	bool commit_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
 		bool			commit,
-		const dd::Table*	old_dd_tab,
-		dd::Table*		new_dd_tab);
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 	/** @} */
 
 	bool check_if_incompatible_data(
@@ -566,7 +590,7 @@ protected:
 		Table*			dd_tab,
 		bool			file_per_table);
 
-	/** Drop a table.
+	/** Implementation of dropping a table.
 	@param[in]	name		table name
 	@param[in,out]	dd_table	data dictionary table
 	@param[in]	sqlcom		type of operation that the DROP
@@ -574,7 +598,7 @@ protected:
 	@return	error number
 	@retval	0 on success */
 	template<typename Table>
-        int delete_table(
+        int delete_table_impl(
 		const char*		name,
 		const Table*		dd_table,
 		enum enum_sql_command	sqlcom);
@@ -640,10 +664,11 @@ protected:
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
 	@param[in]	commit		True to commit or false to rollback.
-	@param[in]	old_dd_tab	dd::Table object representing old
-	version of the table
-	@param[in,out]	new_dd_tab	dd::Table object representing new
-	version of the table
+	@param[1n]	old_dd_tab      Table object describing old version
+	of the table.
+	@param[in]      new_dd_tab	Table object for the new version of the
+	table. Can be adjusted by this call. Changes to the table definition
+	will be persisted in the data-dictionary at statement version of it.
 	@retval	true Failure
 	@retval	false Success */
 	template<typename Table>

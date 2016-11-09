@@ -17,7 +17,11 @@
  * 02110-1301  USA
  */
 
-#include "ngs_common/protocol_protobuf.h" // has to come before boost includes, because of build issue in Solaris (unqualified map used, which clashes with some other map defined in Solaris headers)
+
+// "ngs_common/protocol_protobuf.h" has to come before boost includes, because of build
+// issue in Solaris (unqualified map used, which clashes with some other map defined
+// in Solaris headers)
+#include "ngs_common/protocol_protobuf.h"
 #include "ngs_common/connection_vio.h"
 
 #include "ngs/protocol/buffer.h"
@@ -90,6 +94,12 @@ bool Protocol_encoder::send_result(const Error_code &result)
     error.set_severity(result.severity == Error_code::FATAL ? Mysqlx::Error::FATAL : Mysqlx::Error::ERROR);
     return send_message(Mysqlx::ServerMessages::ERROR, error);
   }
+}
+
+
+bool Protocol_encoder::send_ok()
+{
+  return send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok());
 }
 
 

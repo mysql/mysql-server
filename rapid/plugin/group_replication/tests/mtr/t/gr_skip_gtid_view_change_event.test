@@ -1,0 +1,99 @@
+################################################################################
+# Support to SKIP group gtid
+#
+# CASE IV - Test for the gtid event generated during view change event.
+#
+# The GTID generated during VIEW_CHANGE should also skip the already executed
+# group_gtid to avoid error.
+#
+# Test:
+# 0) The test requires two servers: M1 and M2.
+# 1) Bootstrap start a group on M1.
+# 2) On M1 execute a transaction with GTID_NEXT=UUID_GROUP:2. M1 will have:
+#    GTID EXECUTED = UUID_GROUP:1-2.
+# 3) Start GR on M2.
+# 4) Check gtid_executed=UUID_GROUP:1-3 on M1.
+# 5) Verify sequence of events in binlog on both M1 and M2.
+# 6) Check gtid_executed=UUID_GROUP:1-3 on M2.
+# 7) Clean up.
+################################################################################
+
+--let $group_replication_group_name= 32e13b0c-01d2-11e6-a992-02420ef39c5b
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+# The sequence of events that make up a View Change
+--let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+--eval SET GTID_NEXT= "$group_replication_group_name:2"
+CREATE TABLE t1 (i INT PRIMARY KEY);
+SET GTID_NEXT='AUTOMATIC';
+
+# Asserting the value of the already executed gtid on the server1.
+--let $assert_text= GTID_EXECUTED must contain two transactions, one from view change and other being the create table.
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-2")
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Here start will trigger the new view change event to be generated with the
+# next sequence number of the server1. This should also skip the already
+# executed gtid.
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Checking that the new GTID added to the gtid executed set is UUID_GROUP:3
+# i.e. For the view change event triggered by the server2 joining the group.
+--let $assert_text= GTID_EXECUTED must contain three transactions, the new one from the insert.
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-3")
+--source include/assert.inc
+
+# View change (s1) # Create table # View change (s2)
+--let $event_sequence= $vcle_seq # !Gtid_transaction # $vcle_seq
+--source include/assert_binlog_events.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# View change (s1) # Create table # View change (s2)
+--let $event_sequence= $vcle_seq # !Gtid_transaction # $vcle_seq
+--source include/assert_binlog_events.inc
+
+--let $assert_text= GTID_EXECUTED must contain three transactions, the new one from the insert.
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-3")
+--source include/assert.inc
+
+# Cleanup
+
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+
+--source ../inc/group_replication_end.inc

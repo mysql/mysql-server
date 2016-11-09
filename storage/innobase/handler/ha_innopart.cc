@@ -1047,10 +1047,11 @@ done:
 
 /** Open a partitioned InnoDB table.
 @param[in]	name	table name
+@param[in]	table_def	dd::Table describing table to be opened
 @retval 1 if error
 @retval 0 if success */
 int
-ha_innopart::open(const char* name, int, uint,const dd::Table* dd_tab)
+ha_innopart::open(const char* name, int, uint,const dd::Table* table_def)
 {
 	dict_table_t*	ib_table;
 	char		norm_name[FN_REFLEN];
@@ -2776,14 +2777,16 @@ create_table_info_t::set_remote_path_flags()
 partitions, columns and indexes etc.
 @param[in]	create_info	Additional create information, like
 create statement string.
-#param[in,out]	dd_tab		data dictionary table
+@parami[in,out]	table_def	dd::Table object for table to be created.
+Can be adjusted by this call. Changes to the table definition will be
+persisted in the data-dictionary at statement commit time.
 @return	0 or error number. */
 int
 ha_innopart::create(
 	const char*	name,
 	TABLE*		form,
 	HA_CREATE_INFO*	create_info,
-	dd::Table*	dd_tab)
+	dd::Table*	table_def)
 {
 	int		error;
 	/** {database}/{tablename} */
@@ -2821,7 +2824,7 @@ ha_innopart::create(
 	}
 
 	if (form->found_next_number_field) {
-		dd_set_autoinc(dd_tab->se_private_data(),
+		dd_set_autoinc(table_def->se_private_data(),
 			       create_info->auto_increment_value);
 	}
 
@@ -2903,7 +2906,7 @@ ha_innopart::create(
 	row_mysql_lock_data_dictionary(info.trx());
 
 	ulint	i = 0;
-	for (const auto dd_part : *dd_tab->partitions()) {
+	for (const auto dd_part : *table_def->partitions()) {
 		if (!dd_part_is_stored(dd_part)) {
 			continue;
 		}
@@ -2958,7 +2961,7 @@ ha_innopart::create(
 	create_info->data_file_name = NULL;
 	create_info->index_file_name = NULL;
 
-	for (auto dd_part : *dd_tab->partitions()) {
+	for (auto dd_part : *table_def->partitions()) {
 		if (!dd_part_is_stored(dd_part)) {
 			continue;
 		}
@@ -3041,7 +3044,7 @@ ha_innopart::delete_table(
 			DBUG_RETURN(error);
 		}
 
-		error = ha_innobase::delete_table<dd::Partition>(
+		error = ha_innobase::delete_table_impl<dd::Partition>(
 			partition_name, dd_part, SQLCOM_DROP_TABLE);
 
 		if (error != 0) {
@@ -3287,20 +3290,27 @@ ha_innopart::extra(
 }
 
 /** Deletes all rows of a partitioned InnoDB table.
+@param[in,out]	table_def	dd::Table object for table to be truncated.
+Can be adjusted by this call. Changes to the table definition will be
+persisted in the data-dictionary at statement commit time.
 @return	0 or error number. */
 int
-ha_innopart::truncate(dd::Table *dd_tab)
+ha_innopart::truncate(dd::Table *table_def)
 {
 	DBUG_ENTER("ha_innopart::truncate");
 	ut_ad(m_part_info->num_partitions_used() == m_tot_parts);
-	DBUG_RETURN(truncate_partition_low(dd_tab));
+
+	return(truncate_partition_low(table_def));
 }
 
-/** Truncate partition.
-Called from Partition_handler::trunctate_partition() or truncate().
-@param[in,out]	dd_table	data dictionary table
-@return	error number
-@retval	0 on success */
+/** Delete all rows in the requested partitions.
+Done by deleting the partitions and recreate them again.
+TODO: Add DDL_LOG handling to avoid missing partitions in case of crash.
+@param[in,out]	table_def	dd::Table object for partitioned table
+which partitions need to be truncated. Can be adjusted by this call.
+Changes to the table definition will be persisted in the data-dictionary
+at statement commit time.
+@return	0 or error number. */
 int
 ha_innopart::truncate_partition_low(dd::Table *dd_table)
 {
@@ -3422,7 +3432,7 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 		info->min_rows = 0;
 
 		/* TODO: Add DDL_LOG to avoid missing partitions on crash. */
-		error = ha_innobase::delete_table<dd::Partition>(
+		error = ha_innobase::delete_table_impl<dd::Partition>(
 			name, dd_part, SQLCOM_TRUNCATE);
 		if (error == 0) {
 			error = ha_innobase::create_table_impl(
@@ -3433,7 +3443,7 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 			break;
 		}
 	}
-	
+
 	mem_heap_free(heap);
 	open(table_name, 0, 0, NULL);
 

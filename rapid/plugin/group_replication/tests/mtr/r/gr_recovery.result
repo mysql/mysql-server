@@ -1,0 +1,84 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup a new group
+#
+server1
+include/start_and_bootstrap_group_replication.inc
+# Add some data for recovery
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+COMMIT;
+INSERT INTO t1 VALUES (3);
+#
+# 1) Testing the recovery of a new member
+#
+#Add 2 more members
+server2
+include/start_group_replication.inc
+server3
+include/start_group_replication.inc
+#After recovery all members must see 3 other members
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+#After recovery all members must have the data present in the donor.
+include/assert.inc [On all members, the table should exist and have 3 elements]
+include/assert.inc [On all members, the table should exist and have 3 elements]
+include/assert.inc [On all members, the table should exist and have 3 elements]
+#Test if the group responds to requests
+server1
+INSERT INTO t1 VALUES (4);
+server2
+INSERT INTO t1 VALUES (5);
+server3
+include/rpl_sync.inc
+#All members must have the same GTID set
+include/assert.inc [On member 3, all executed GTID should belong to the group]
+include/assert.inc [On member 2, all executed GTID should belong to the group]
+include/assert.inc [On member 1, all executed GTID should belong to the group]
+#Check if the data is the same on joiner and donor
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+#
+# 2) Testing recovery on a member that left and now returns
+#
+#Stop the member 1, who never went through recovery
+server1
+include/stop_group_replication.inc
+#Add some data to the future donor
+server2
+INSERT INTO t1 VALUES (6);
+server1
+include/start_group_replication.inc
+include/assert.inc [On the recovered member, the table should contain 6 elements]
+#Test if the group responds to requests
+server2
+INSERT INTO t1 VALUES (7);
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+#
+# 3) Testing a second recovery round on a member
+#
+#Stop the member 2 making it go through recovery again
+include/stop_group_replication.inc
+#Add some data to the future donor
+server1
+INSERT INTO t1 VALUES (8);
+server2
+include/start_group_replication.inc
+include/assert.inc [On the recovered member, the table should contain 8 elements]
+#Test if the group responds to requests
+INSERT INTO t1 VALUES (9);
+server1
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+#
+# Cleaning up
+#
+DROP TABLE t1;
+include/group_replication_end.inc

@@ -1062,7 +1062,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
   /*
     Check if we're in subquery that is a candidate for flattening into a
     semi-join (which is done in flatten_subqueries()). The requirements are:
-      1. Subquery predicate is an IN/=ANY subquery predicate
+      1. Subquery predicate is a deterministic IN/=ANY subquery predicate
       2. Subquery is a single SELECT (not a UNION)
       3. Subquery does not have GROUP BY
       4. Subquery does not use aggregate functions or HAVING
@@ -1088,6 +1088,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
       leaf_table_count &&                                               // 7
       in_predicate->exec_method ==
                            Item_exists_subselect::EXEC_UNSPECIFIED &&   // 8
+      !(in_predicate->left_expr->used_tables() & RAND_TABLE_BIT) &&     // 1
       outer->leaf_table_count &&                                        // 9
       !((active_options() | outer->active_options()) &
        SELECT_STRAIGHT_JOIN))                                           //10

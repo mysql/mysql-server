@@ -21,6 +21,10 @@ eval select $con1_thread_id into @con1_thread_id;
 update performance_schema.threads set instrumented = 'NO' where processlist_id = connection_id();
 truncate table performance_schema.events_stages_history_long;
 
+--echo # Create and drop a basic table to populate the DD cache with
+--echo # the DD table objects.
+create table t1(a int);
+drop table t1;
 
 connection con1;
 --echo # Run some statements and see that we have different stage names for

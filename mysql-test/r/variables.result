@@ -595,6 +595,7 @@ set wait_timeout=100;
 set global log_warnings=1;
 Warnings:
 Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+set sort_buffer_size=default;
 set global max_allowed_packet        =@my_max_allowed_packet;
 select @@session.insert_id;
 @@session.insert_id
@@ -1804,8 +1805,8 @@ End of 5.5 tests
 # Bug#57035 'ulonglong sql_mode' stored into ulong, is risky and causes
 #           compiler warning
 #
-SET @@sql_mode= 4294967296;
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
+SET @@sql_mode= 8589934592;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '8589934592'
 #
 # Bug #59860: log-slow-admin-statements and log-slow-slave-statements not displayed
 #

@@ -39,7 +39,7 @@ static int plugin_init(MYSQL_PLUGIN)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_rewrite_memory);
+  count= static_cast<int>(array_elements(all_rewrite_memory));
   mysql_memory_register(category, all_rewrite_memory, count);
   return 0; /* success */
 }

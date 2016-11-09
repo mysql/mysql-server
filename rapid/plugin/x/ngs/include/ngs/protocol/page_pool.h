@@ -35,9 +35,7 @@ namespace ngs
 
   class Page_pool;
 
-  // A 4KB aligned buffer to be used for reading data from sockets.
-  // Multiple buffers can be combined into a single boost::buffer, which is
-  // all filled at once by the boost async read method
+  // 4KB aligned buffer to be used for reading data from sockets.
   class Page
   {
   public:
@@ -113,14 +111,11 @@ namespace ngs
 
   class Page_pool
   {
-  public:
+   public:
     /* Unlimited allocation, no caching */
     Page_pool(const int32_t page_size = BUFFER_PAGE_SIZE);
     Page_pool(const Pool_config &pool_config);
     ~Page_pool();
-
-    Page_pool(const Page_pool &) = delete;
-    Page_pool &operator=(const Page_pool &) = delete;
 
     Resource<Page> allocate();
 
@@ -131,6 +126,9 @@ namespace ngs
     };
 
   private:
+    Page_pool(const Page_pool &) = delete;
+    Page_pool &operator=(const Page_pool &) = delete;
+
     class Page_memory_managed : public Page
     {
     public:
@@ -203,8 +201,6 @@ namespace ngs
   {
     return m_res;
   }
-
-
 } // namespace ngs
 
 #endif // _NGS_PAGE_POOL_H_

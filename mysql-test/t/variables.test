@@ -411,6 +411,7 @@ set tmp_table_size=100;
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set global log_warnings=1;
+set sort_buffer_size=default;
 
 #restore the variable, since it introduces a degree of unpredictability
 set global max_allowed_packet        =@my_max_allowed_packet;
@@ -1620,7 +1621,7 @@ set session collation_database=2048;
 # the statement below will succeed.
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@sql_mode= 4294967296;
+SET @@sql_mode= 8589934592;
 
 --echo #
 --echo # Bug #59860: log-slow-admin-statements and log-slow-slave-statements not displayed

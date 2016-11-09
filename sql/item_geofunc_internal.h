@@ -33,14 +33,13 @@
 #include <boost/geometry/core/tags.hpp>
 #include <boost/geometry/index/rtree.hpp>
 
-#include "dd/cache/dictionary_client.h"
 #include "gis_bg_traits.h"
 #include "item_geofunc.h"
 #include "my_global.h"
 #include "spatial.h"
-#include "sql_class.h" // THD
-#include "sql_string.h"
 
+class String;
+class THD;
 namespace dd {
 class Spatial_reference_system;
 }  // namespace dd
@@ -64,8 +63,6 @@ class Srs_fetcher
 {
 private:
   THD *m_thd;
-  dd::cache::Dictionary_client *m_ddc;
-  dd::cache::Dictionary_client::Auto_releaser m_releaser;
 
   /**
     Take an MDL lock on an SRID.
@@ -79,7 +76,7 @@ private:
 
 public:
   Srs_fetcher(THD *thd)
-    :m_thd(thd), m_ddc(m_thd->dd_client()), m_releaser(m_ddc)
+    :m_thd(thd)
   {}
 
   /**
@@ -92,6 +89,8 @@ public:
     @retval true Locking failed. An error has already been flagged.
   */
   bool acquire(Geometry::srid_t srid, const dd::Spatial_reference_system **srs);
+
+  static bool srs_exists(THD *thd, Geometry::srid_t srid, bool *exists);
 };
 
 

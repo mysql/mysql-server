@@ -141,7 +141,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
     hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
     mysql_mutex_lock(&LOCK_open);
-    share= get_table_share(thd, table_list, key, key_length, false, false,
+    share= get_table_share(thd, table_list, key, key_length, false,
                            hash_value);
     mysql_mutex_unlock(&LOCK_open);
     if (share == NULL)
@@ -181,6 +181,16 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   /* A MERGE table must not come here. */
   DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
 
+  /*
+    Storage engines supporting atomic DDL do not come here either.
+
+    If we are to have storage engine which supports atomic DDL on one
+    hand and REPAIR ... USE_FRM on another then the below code related
+    to table re-creation in SE needs to be adjusted to at least
+    commit the transaction.
+  */
+  DBUG_ASSERT(!(table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL));
+
   // Name of data file
   strxmov(from, table->s->normalized_path.str, ext[1], NullS);
   if (!mysql_file_stat(key_file_misc, from, &stat_info, MYF(0)))
@@ -212,8 +222,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 			     "Failed renaming data file");
     goto end;
   }
-  if (dd::recreate_table(thd, table_list->db, table_list->table_name,
-                         true /* WL7743/TODO: REPAIR*/))
+  if (dd::recreate_table(thd, table_list->db, table_list->table_name))
   {
     error= send_check_errmsg(thd, table_list, "repair",
 			     "Failed generating table from .frm file");
@@ -716,6 +725,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (dd::info_schema::update_table_stats(thd, table) ||
           dd::info_schema::update_index_stats(thd, table))
       {
+        // Play safe, rollback possible changes to the data-dictionary.
+        trans_rollback_stmt(thd);
+        trans_rollback_implicit(thd);
+        /*
+          QQ: Should we try to do statement and transaction rollback in case
+              of any error as part of WL7743 ? What about SEs which don't
+              support atomic DDL?
+        */
         result_code= HA_ADMIN_STATS_UPD_ERR;
         goto send_result;
       }

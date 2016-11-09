@@ -16,7 +16,7 @@
 #ifndef PFS_COLUMN_VALUES_H
 #define PFS_COLUMN_VALUES_H
 
-#include "m_string.h"                           /* LEX_STRING */
+#include "m_string.h" /* LEX_STRING */
 
 /**
   @file storage/perfschema/pfs_column_values.h
@@ -63,4 +63,3 @@ extern LEX_STRING memory_instrument_prefix;
 extern LEX_STRING error_class_name;
 
 #endif
-

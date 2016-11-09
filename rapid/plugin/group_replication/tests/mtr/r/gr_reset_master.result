@@ -1,0 +1,44 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#Test a reset command before start.
+RESET MASTER;
+include/start_and_bootstrap_group_replication.inc
+include/start_group_replication.inc
+#Create a table and insert some data
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+include/sync_slave_sql_with_master.inc
+INSERT INTO t1 VALUES (3);
+include/sync_slave_sql_with_master.inc
+#Both members must have the same GTID set
+include/assert.inc [On member 2, all executed GTID should belong to the group]
+include/assert.inc [On member 1, all executed GTID should belong to the group]
+#Stop and reset both members
+include/stop_group_replication.inc
+RESET MASTER;
+include/stop_group_replication.inc
+RESET MASTER;
+#Restart both members
+include/start_and_bootstrap_group_replication.inc
+include/start_group_replication.inc
+#Both members must have an empty gtid set
+include/assert.inc [On member 2, there should only 2 transactions from view changes]
+include/assert.inc [On member 1, there should only 2 transactions from view changes]
+#Insert some data to test that the group is still running
+INSERT INTO t1 VALUES (4);
+include/sync_slave_sql_with_master.inc
+INSERT INTO t1 VALUES (5);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [On member 2, the table should exist and have 5 elements]
+include/assert.inc [On member 1, the table should exist and have 5 elements]
+# Run RESET MASTER while Group Replication is running must fail
+RESET MASTER;
+ERROR HY000: RESET MASTER is not allowed because Group Replication is running.
+# Clean up
+DROP TABLE t1;
+include/group_replication_end.inc

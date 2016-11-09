@@ -1,0 +1,60 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+#1. Create table, insert some data
+
+[connection server1]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 (a) VALUES (10),(20);
+include/rpl_sync.inc
+
+#2. Execute dependent DDL and DML (one after the other)
+#   in different sessions, on same member
+
+BEGIN;
+INSERT INTO t1 (a) values (30);
+UPDATE t1 set a= 1 where a= 10;
+DELETE FROM t1 WHERE a= 20;
+UPDATE t1 set a= 3 where a= 30;
+COMMIT;
+[connection server_1]
+ALTER TABLE t1 add column b varchar(10) DEFAULT 'empty';
+include/rpl_sync.inc
+SELECT * FROM t1;
+a	b
+1	empty
+3	empty
+# 2.3 Check that t1 on Server1, Server2 has same data
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+# 3. Execute dependent DDL and DML (concurrently)
+#    in different sessions, on same member
+
+[connection server1]
+BEGIN;
+INSERT INTO t1 (a,b) values (2, 'two');
+UPDATE t1 set b= 'one' WHERE a= 1;
+UPDATE t1 set b= 'three' WHERE a=3;
+[connection server_1]
+SELECT * FROM t1;
+a	b
+1	empty
+3	empty
+ALTER TABLE t1 DROP b;
+[connection server1]
+COMMIT;
+[connection server_1]
+SELECT * FROM t1;
+a
+1
+2
+3
+include/rpl_sync.inc
+# 3.3 Check that t1 on Server1, Server2 has same data
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

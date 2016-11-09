@@ -1,0 +1,53 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not compatible with Group Replication");
+SET SESSION sql_log_bin=1;
+CREATE TABLE t1 (c1 INT UNIQUE KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT, KEY `c1` (`c1`)) ENGINE=InnoDB;
+CREATE TABLE t3 (c1 INT UNIQUE NULL) ENGINE=InnoDB;
+include/rpl_sync.inc
+#
+# Testing all tables that will fail.
+#
+INSERT INTO t3 VALUES(1);
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t3 SET c1 = 2;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t3;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t2 VALUES(1);
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t2 SET c1 = 2;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t2;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t1 VALUES(1);
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t1 SET c1 = 2;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t1;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+include/rpl_sync.inc
+# Now, lets repeat all the tests with group replication stopped.
+include/stop_group_replication.inc
+include/stop_group_replication.inc
+INSERT INTO t3 VALUES(1);
+UPDATE t3 SET c1 = 2;
+DELETE FROM t3;
+DROP TABLE t3;
+INSERT INTO t2 VALUES(1);
+UPDATE t2 SET c1 = 2;
+DELETE FROM t2;
+DROP TABLE t2;
+INSERT INTO t1 VALUES(1);
+UPDATE t1 SET c1 = 2;
+DELETE FROM t1;
+DROP TABLE t1;
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+include/group_replication_end.inc

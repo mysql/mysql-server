@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -158,7 +158,7 @@ int main(int argc, char** argv){
     bool found = false;
     for (int o = 0; _ops[o].name != 0; o++)
     {
-      if (strcasecmp(list[i].c_str(), _ops[o].name) == 0)
+      if (native_strcasecmp(list[i].c_str(), _ops[o].name) == 0)
       {
         found = true;
         mask |= _ops[o].option;

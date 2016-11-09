@@ -157,13 +157,13 @@ static void init_tina_psi_keys(void)
   const char* category= "csv";
   int count;
 
-  count= array_elements(all_tina_mutexes);
+  count= static_cast<int>(array_elements(all_tina_mutexes));
   mysql_mutex_register(category, all_tina_mutexes, count);
 
-  count= array_elements(all_tina_files);
+  count= static_cast<int>(array_elements(all_tina_files));
   mysql_file_register(category, all_tina_files, count);
 
-  count= array_elements(all_tina_memory);
+  count= static_cast<int>(array_elements(all_tina_memory));
   mysql_memory_register(category, all_tina_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
@@ -517,7 +517,7 @@ static my_off_t find_eoln_buff(Transparent_file *data_buff, my_off_t begin,
 
 static handler *tina_create_handler(handlerton *hton,
                                     TABLE_SHARE *table,
-                                    bool partitioned,
+                                    bool,
                                     MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_tina(hton, table);

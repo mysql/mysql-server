@@ -39,6 +39,7 @@
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_double2ulonglong.h"
 #include "my_global.h"
 #include "my_sys.h"
 #include "my_thread_local.h"   // my_errno
@@ -52,10 +53,8 @@
 #include "thr_lock.h"          // thr_lock_type
 #include "typelib.h"
 
-#include "mysql/psi/psi_table.h"
-#include "dd/types/table.h"
-
 class Alter_info;
+class Create_field;
 class Field;
 class Item;
 class Partition_handler;
@@ -90,10 +89,6 @@ namespace dd {
 typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
-namespace dd {
-  class Table;
-  class Partition;
-}
 
 typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
                              const char *file, size_t file_len,
@@ -1006,6 +1001,16 @@ typedef int (*commit_by_xid_t)(handlerton *hton, XID *xid);
 
 typedef int (*rollback_by_xid_t)(handlerton *hton, XID *xid);
 
+/**
+  Create handler object for the table in the storage engine.
+
+  @param hton         Handlerton object for the storage engine.
+  @param table        TABLE_SHARE for the table, can be NULL if caller
+                      didn't perform full-blown open of table definition.
+  @param partitioned  Indicates whether table is partitioned.
+  @param mem_root     Memory root to be used for allocating handler
+                      object.
+*/
 typedef handler *(*create_t)(handlerton *hton, TABLE_SHARE *table,
                              bool partitioned, MEM_ROOT *mem_root);
 
@@ -1052,6 +1057,24 @@ typedef uint (*partition_flags_t)();
 typedef int (*get_tablespace_t)(THD* thd, LEX_CSTRING db_name, LEX_CSTRING table_name,
                                 LEX_CSTRING *tablespace_name);
 
+/**
+  Create/drop or alter tablespace in the storage engine.
+
+  @param          hton        Hadlerton of the SE.
+  @param          thd         Thread context.
+  @param          ts_info     Description of tablespace and specific
+                              operation on it.
+  @param          old_ts_def  dd::Tablespace object describing old version
+                              of tablespace.
+  @param [in/out] new_ts_def  dd::Tablespace object describing new version
+                              of tablespace. Engines which support atomic DDL
+                              can adjust this object. The updated information
+                              will be saved to the data-dictionary.
+
+  @return Operation status.
+    @retval == 0  Success.
+    @retval != 0  Error (handler error code returned).
+*/
 typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
                                   st_alter_tablespace *ts_info,
                                   const dd::Tablespace *old_ts_def,
@@ -1793,6 +1816,20 @@ typedef struct st_ha_create_information
   */
   bool m_hidden;
 
+  /**
+    Fill HA_CREATE_INFO to be used by ALTER as well as upgrade code.
+    This function separates code from mysql_prepare_alter_table() to be
+    used by upgrade code as well to reduce code duplication.
+    For ALTER code path, this lets new create options override the old
+    ones.
+
+    @param[in]  share        TABLE_SHARE object
+    @param[in]  used_fields  If a given create option is not flagged, old
+                             value be copied from the TABLE_SHARE.
+  */
+
+  void init_create_options_from_share(const TABLE_SHARE *share,
+                                      uint used_fields);
 } HA_CREATE_INFO;
 
 
@@ -2603,9 +2640,6 @@ public:
 };
 
 
-class Create_field;
-
-
 /**
   Wrapper for struct ft_hints.
 */
@@ -3329,6 +3363,8 @@ protected:
   /*
     Helper methods which simplify custom clone() implementations by
     storage engines.
+
+    WL7743/TODO: Check with InnoDB guys if we really need these methods.
   */
   handler* ha_clone_prepare(MEM_ROOT *mem_root) const;
   void ha_open_psi();
@@ -3376,7 +3412,7 @@ public:
   { return is_record_buffer_wanted(max_rows); }
 
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked,
-              const dd::Table *dd_tab);
+              const dd::Table *table_def);
   int ha_close(void);
   int ha_index_init(uint idx, bool sorted);
   int ha_index_end();
@@ -3429,7 +3465,7 @@ public:
   int ha_bulk_update_row(const uchar *old_data, uchar *new_data,
                          uint *dup_key_found);
   int ha_delete_all_rows();
-  int ha_truncate(dd::Table *dd_tab);
+  int ha_truncate(dd::Table *table_def);
   int ha_optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int ha_analyze(THD* thd, HA_CHECK_OPT* check_opt);
   bool ha_check_and_repair(THD *thd);
@@ -3443,7 +3479,7 @@ public:
   void ha_drop_table(const char *name);
 
   int ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
-                dd::Table *dd_tab);
+                dd::Table *table_def);
 
 
   /**
@@ -4576,24 +4612,50 @@ public:
    *) a) If the previous step succeeds, handler::ha_commit_inplace_alter_table() is
          called to allow the storage engine to do any final updates to its structures,
          to make all earlier changes durable and visible to other connections.
+         Engines that support atomic DDL only prepare for the commit during this step
+         but do not finalize it. Real commit happens later when the whole statement is
+         committed. Also in some situations statement might be rolled back after call
+         to commit_inplace_alter_table() for such storage engines.
       b) If we have failed to upgrade lock or any errors have occured during the
          handler functions calls (including commit), we call
          handler::ha_commit_inplace_alter_table()
          to rollback all changes which were done during previous steps.
 
-  Phase 3 : Final
-  ===============
-
-  In this phase we:
-
-  *) Update SQL-layer data-dictionary by installing .FRM file for the new version
-     of the table.
-  *) Inform the storage engine about this change by calling the
-     handler::ha_notify_table_changed() method.
-  *) Destroy the Alter_inplace_info and handler_ctx objects.
+   All the above calls to SE are provided with dd::Table objects describing old and
+   new version of table being altered. Engines which support atomic DDL are allowed
+   to adjust object corresponding to the new version. During phase 3 these changes
+   are saved to the data-dictionary.
 
 
-  WL7743/TODO: Update this description after dust settles.
+   Phase 3 : Final
+   ===============
+
+   In this phase we:
+
+   a) For engines which don't support atomic DDL:
+
+      *) Update the SQL-layer data-dictionary by replacing description of old
+         version of the table with its new version. This change is immediately
+         committed.
+      *) Inform the storage engine about this change by calling the
+         handler::ha_notify_table_changed() method.
+      *) Process the RENAME clause by calling handler::ha_rename_table() and
+         updating the data-dictionary accordingly. Again this change is
+         immediately committed.
+      *) Destroy the Alter_inplace_info and handler_ctx objects.
+
+   b) For engines which support atomic DDL:
+
+      *) Update the SQL-layer data-dictionary by replacing description of old
+         version of the table with its new version.
+      *) Process the RENAME clause by calling handler::ha_rename_table() and
+         updating the data-dictionary accordingly.
+      *) Commit the statement/transaction.
+      *) Finalize atomic DDL operation by calling handlerton::post_ddl() hook
+         for the storage engine.
+      *) Additionally inform the storage engine about completion of ALTER TABLE
+         for the table by calling the handler::ha_notify_table_changed() method.
+      *) Destroy the Alter_inplace_info and handler_ctx objects.
  */
 
  /**
@@ -4635,8 +4697,8 @@ public:
  */
  bool ha_prepare_inplace_alter_table(TABLE *altered_table,
                                      Alter_inplace_info *ha_alter_info,
-                                     const dd::Table *old_dd_tab,
-                                     dd::Table *new_dd_tab);
+                                     const dd::Table *old_table_def,
+                                     dd::Table *new_table_def);
 
 
  /**
@@ -4645,11 +4707,11 @@ public:
  */
  bool ha_inplace_alter_table(TABLE *altered_table,
                              Alter_inplace_info *ha_alter_info,
-                             const dd::Table *old_dd_tab,
-                             dd::Table *new_dd_tab)
+                             const dd::Table *old_table_def,
+                             dd::Table *new_table_def)
  {
    return inplace_alter_table(altered_table, ha_alter_info,
-                              old_dd_tab, new_dd_tab);
+                              old_table_def, new_table_def);
  }
 
 
@@ -4661,16 +4723,12 @@ public:
  bool ha_commit_inplace_alter_table(TABLE *altered_table,
                                     Alter_inplace_info *ha_alter_info,
                                     bool commit,
-                                    const dd::Table *old_dd_tab,
-                                    dd::Table *new_dd_tab);
+                                    const dd::Table *old_table_def,
+                                    dd::Table *new_table_def);
 
 
  /**
     Public function wrapping the actual handler call.
-
-    @param    ha_alter_info     Structure describing changes to be done
-                                by ALTER TABLE and holding data used
-                                during in-place alter.
 
     @see notify_table_changed()
  */
@@ -4705,10 +4763,13 @@ protected:
     @param    ha_alter_info     Structure describing changes to be done
                                 by ALTER TABLE and holding data used
                                 during in-place alter.
-    @param    old_dd_tab        dd::Table object describing old version of
+    @param    old_table_def     dd::Table object describing old version of
                                 the table.
-    @param    new_dd_tab        dd::Table object for the new version of the
-                                table. Can be adjusted by this call.
+    @param    new_table_def     dd::Table object for the new version of the
+                                table. Can be adjusted by this call if SE
+                                supports atomic DDL. These changes to the
+                                table definition will be persisted in the
+                                data-dictionary at statement commit time.
 
     @retval   true              Error
     @retval   false             Success
@@ -4717,8 +4778,8 @@ protected:
  prepare_inplace_alter_table(TABLE *altered_table MY_ATTRIBUTE((unused)),
                              Alter_inplace_info
                              *ha_alter_info MY_ATTRIBUTE((unused)),
-                             const dd::Table *old_dd_tab MY_ATTRIBUTE((unused)),
-                             dd::Table *new_dd_tab MY_ATTRIBUTE((unused)))
+                             const dd::Table *old_table_def MY_ATTRIBUTE((unused)),
+                             dd::Table *new_table_def MY_ATTRIBUTE((unused)))
  { return false; }
 
 
@@ -4737,10 +4798,13 @@ protected:
     @param    ha_alter_info     Structure describing changes to be done
                                 by ALTER TABLE and holding data used
                                 during in-place alter.
-    @param    old_dd_tab        dd::Table object describing old version of
+    @param    old_table_def     dd::Table object describing old version of
                                 the table.
-    @param    new_dd_tab        dd::Table object for the new version of the
-                                table. Can be adjusted by this call.
+    @param    new_table_def     dd::Table object for the new version of the
+                                table. Can be adjusted by this call if SE
+                                supports atomic DDL. These changes to the
+                                table definition will be persisted in the
+                                data-dictionary at statement commit time.
 
     @retval   true              Error
     @retval   false             Success
@@ -4748,8 +4812,8 @@ protected:
  virtual bool
  inplace_alter_table(TABLE *altered_table MY_ATTRIBUTE((unused)),
                      Alter_inplace_info *ha_alter_info MY_ATTRIBUTE((unused)),
-                     const dd::Table *old_dd_tab MY_ATTRIBUTE((unused)),
-                     dd::Table *new_dd_tab MY_ATTRIBUTE((unused)))
+                     const dd::Table *old_table_def MY_ATTRIBUTE((unused)),
+                     dd::Table *new_table_def MY_ATTRIBUTE((unused)))
  { return false; }
 
 
@@ -4787,10 +4851,13 @@ protected:
                                 by ALTER TABLE and holding data used
                                 during in-place alter.
     @param    commit            True => Commit, False => Rollback.
-    @param    old_dd_tab        dd::Table object describing old version of
+    @param    old_table_def     dd::Table object describing old version of
                                 the table.
-    @param    new_dd_tab        dd::Table object for the new version of the
-                                table. Can be adjusted by this call.
+    @param    new_table_def     dd::Table object for the new version of the
+                                table. Can be adjusted by this call if SE
+                                supports atomic DDL. These changes to the
+                                table definition will be persisted in the
+                                data-dictionary at statement commit time.
 
     @retval   true              Error
     @retval   false             Success
@@ -4800,8 +4867,8 @@ protected:
                             Alter_inplace_info
                             *ha_alter_info MY_ATTRIBUTE((unused)),
                             bool commit MY_ATTRIBUTE((unused)),
-                            const dd::Table *old_dd_tab MY_ATTRIBUTE((unused)),
-                            dd::Table *new_dd_tab MY_ATTRIBUTE((unused)))
+                            const dd::Table *old_table_def MY_ATTRIBUTE((unused)),
+                            dd::Table *new_table_def MY_ATTRIBUTE((unused)))
  {
   /* Nothing to commit/rollback, mark all handlers committed! */
   ha_alter_info->group_commit_ctx= NULL;
@@ -4810,15 +4877,21 @@ protected:
 
 
  /**
-    Notify the storage engine that the table structure (.FRM) has been updated.
+    Notify the storage engine that the table definition has been updated.
 
-    @param    ha_alter_info     Structure describing changes to be done
-                                by ALTER TABLE and holding data used
+    @param    ha_alter_info     Structure describing changes done by
+                                ALTER TABLE and holding data used
                                 during in-place alter.
 
     @note No errors are allowed during notify_table_changed().
 
-    WL7743/TODO: Check if this method needed for InnoDB/atomic DDL.
+    @note For storage engines supporting atomic DDL this method is invoked
+          after the whole ALTER TABLE is completed and committed.
+          Particularly this means that for ALTER TABLE statements with RENAME
+          clause TABLE/handler object used for invoking this method will be
+          associated with new table name. If storage engine needs to know
+          the old schema and table name in this method for some reason it
+          has to use ha_alter_info object to figure it out.
  */
  virtual void notify_table_changed(Alter_inplace_info *ha_alter_info) { };
 
@@ -4851,6 +4924,19 @@ protected:
 
     These methods can be overridden, but their default implementation
     provide useful functionality.
+
+    @param [in]     from            Path for the old table name.
+    @param [in]     to              Path for the new table name.
+    @param [in]     from_table_def  Old version of definition for table
+                                    being renamed (i.e. prior to rename).
+    @param [in/out] to_table_def    New version of definition for table
+                                    being renamed. Storage engines which
+                                    support atomic DDL (i.e. having
+                                    HTON_SUPPORTS_ATOMIC_DDL flag set)
+                                    are allowed to adjust this object.
+
+    @retval   >0               Error.
+    @retval    0               Success.
   */
   virtual int rename_table(const char *from, const char *to,
                            const dd::Table *from_table_def,
@@ -4866,6 +4952,9 @@ protected:
     point. Called for base as well as temporary tables.
 
     @param    name             Full path of table name.
+    @param    table_def        dd::Table describing table being deleted
+                               (can be NULL for temporary tables created
+                               by optimizer).
 
     @retval   >0               Error.
     @retval    0               Success.
@@ -4882,7 +4971,7 @@ private:
   */
 
   virtual int open(const char *name, int mode, uint test_if_locked,
-                   const dd::Table *dd_tab)=0;
+                   const dd::Table *table_def) = 0;
   virtual int close(void)=0;
   virtual int index_init(uint idx, bool sorted MY_ATTRIBUTE((unused)))
   {
@@ -5083,7 +5172,7 @@ public:
   /**
     Quickly remove all rows from a table.
 
-    @param[in/out]  dd_tab  dd::Table object for table being truncated.
+    @param[in/out]  table_def  dd::Table object for table being truncated.
 
     @remark This method is responsible for implementing MySQL's TRUNCATE
             TABLE statement, which is a DDL operation. As such, a engine
@@ -5106,10 +5195,10 @@ public:
             log).
 
     @note   Changes to dd::Table object done by this method will be saved
-            to data-dictionary only if storage engine supporting atomic
-            DDL (i.e. with HTON_SUPPORTS_ATOMIC_DDL flag).
+            to data-dictionary only if storage engine supports atomic DDL
+            (i.e. has HTON_SUPPORTS_ATOMIC_DDL flag set).
   */
-  virtual int truncate(dd::Table *dd_tab)
+  virtual int truncate(dd::Table *table_def)
   { return HA_ERR_WRONG_COMMAND; }
   virtual int optimize(THD*, HA_CHECK_OPT*)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
@@ -5164,18 +5253,50 @@ public:
   virtual void drop_table(const char *name);
 
   /**
-    @note   Changes to dd::Table object done by this method will be saved
-            to data-dictionary only if storage engine supporting atomic
-            DDL (i.e. with HTON_SUPPORTS_ATOMIC_DDL flag).
+    Create table (implementation).
+
+    @param  [in]      path      Path to table file (without extension).
+    @param  [in]      form      TABLE object describing the table to be
+                                created.
+    @param  [in]      info      HA_CREATE_INFO describing table.
+    @param  [in/out]  table_def dd::Table object describing the table
+                                to be created. This object can be
+                                adjusted by storage engine if it
+                                supports atomic DDL (i.e. has
+                                HTON_SUPPORTS_ATOMIC_DDL flag set).
+                                These changes will be persisted in the
+                                data-dictionary. Can be NULL for
+                                temporary tables created by optimizer.
+
+    @retval  0      Success.
+    @retval  non-0  Error.
   */
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
-                     dd::Table *dd_tab) = 0;
+                     dd::Table *table_def) = 0;
 
   virtual bool get_se_private_data(dd::Table *dd_table MY_ATTRIBUTE((unused)),
                                    uint dd_version MY_ATTRIBUTE((unused)),
                                    bool reset_id MY_ATTRIBUTE((unused)))
   { return false; }
 
+  /**
+    Adjust definition of table to be created by adding implicit columns
+    and indexes necessary for the storage engine.
+
+    @param  [in]      create_info   HA_CREATE_INFO describing the table.
+    @param  [in]      create_list   List of columns in the table.
+    @param  [in]      key           Array of KEY objects describing table
+                                    indexes.
+    @param  [in]      key_count     Number of indexes in the table.
+    @param  [in/out]  table_def     dd::Table object describing the table
+                                    to be created. Implicit columns and
+                                    indexes are to be added to this object.
+                                    Adjusted table description will be
+                                    saved into the data-dictionary.
+
+    @retval  0      Success.
+    @retval  non-0  Error.
+  */
   virtual int get_extra_columns_and_keys(const HA_CREATE_INFO *create_info,
                                          const List<Create_field> *create_list,
                                          const KEY *key_info, uint key_count,
@@ -5425,8 +5546,7 @@ int ha_create_table(THD *thd, const char *path,
                     HA_CREATE_INFO *create_info,
                     bool update_create_info,
                     bool is_temp_table,
-                    dd::Table *table_def,
-                    bool force_dd_commit);
+                    dd::Table *tmp_table_def);
 
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
                     const char *db, const char *alias,

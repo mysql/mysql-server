@@ -65,7 +65,7 @@ public:
   { return (double) rows /  20.0+1; }
 
   int open(const char *name, int mode, uint test_if_locked,
-           const dd::Table *dd_tab);
+           const dd::Table *table_def);
   int close(void);
   void set_keys_for_scanning(void);
   int write_row(uchar * buf);
@@ -94,7 +94,7 @@ public:
   int reset();
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  int truncate(dd::Table *dd_tab);
+  int truncate(dd::Table *table_def);
   int reset_auto_increment(ulonglong value);
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);
@@ -106,7 +106,7 @@ public:
                    const dd::Table *from_table_def,
                    dd::Table *to_table_def);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab);
+             dd::Table *table_def);
   void update_create_info(HA_CREATE_INFO *create_info);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,

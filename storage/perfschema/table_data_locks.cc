@@ -167,6 +167,7 @@ void table_data_locks::reset_position(void)
   m_pos.reset();
   m_next_pos.reset();
   m_pk_pos.reset();
+  m_container.clear();
 }
 
 int table_data_locks::rnd_next(void)
@@ -213,7 +214,7 @@ int table_data_locks::rnd_next(void)
         break;
       }
 
-      m_container.clear();
+      m_container.shrink();
       /*
         TODO: avoid requesting column LOCK_DATA is not used.
       */

@@ -17,15 +17,16 @@
 
 #define RESOLVE_VERSION "2.3"
 
-#include <my_global.h>
 #include <m_ctype.h>
-#include <my_sys.h>
 #include <m_string.h>
 #include <my_getopt.h>
+#include <my_global.h>
+#include <my_sys.h>
+#include <stdio.h>
 
 #ifndef WIN32
-#  include <sys/types.h>
 #  include <netdb.h>
+#  include <sys/types.h>
 #endif
 #ifdef HAVE_SYS_SOCKET_H
 #  include <sys/socket.h>

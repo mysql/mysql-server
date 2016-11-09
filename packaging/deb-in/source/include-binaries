@@ -24,6 +24,7 @@ debian/extra/auth_test_plugin-plugin
 debian/extra/component_example_component1-plugin
 debian/extra/component_example_component2-plugin
 debian/extra/component_example_component3-plugin
+debian/extra/group_replication-plugin
 debian/extra/ha_example-plugin
 debian/extra/innodb_engine-plugin
 debian/extra/keyring_file-plugin
@@ -69,4 +70,5 @@ debian/extra/test_security_context-plugin
 debian/extra/test_services_plugin_registry-plugin
 debian/extra/validate_password-plugin
 debian/extra/version_token-plugin
+debian/extra/connection_control-plugin
 @DEB_INCLUDE_BINARIES_EXTRA@

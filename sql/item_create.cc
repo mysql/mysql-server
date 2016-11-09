@@ -77,7 +77,9 @@
 /**
   Adapter for native functions with a variable number of arguments.
   The main use of this class is to discard the following calls:
-  <code>foo(expr1 AS name1, expr2 AS name2, ...)</code>
+
+  `foo(expr1 AS name1, expr2 AS name2, ...)`
+
   which are syntactically correct (the syntax can refer to a UDF),
   but semantically invalid for native functions.
 */
@@ -106,27 +108,58 @@ protected:
 
 
 /**
-  Adapter for functions that takes exactly zero arguments.
-*/
+  General function factory. This template can be used for instantiating
+  functions with any number of arguments.
 
-class Create_func_arg0 : public Create_func
+  @tparam Product The function that this factory instantiates. It is a
+  descendant of Item_func.
+
+  @tparam Min_argcount The minimal number of arguments required to call the
+  function. If the parameter count is less, an SQL error is raised and nullptr
+  is returned.
+
+  @tparam Max_argcount The maximum number of arguments required to call the
+  function. If the parameter count is greater, an SQL error is raised and
+  nullptr is returned.
+*/
+template<typename Product, int Min_argcount, int Max_argcount= Min_argcount>
+class Function_factory : public Create_func
+{
+  static Function_factory<Product, Min_argcount, Max_argcount> s_singleton;
+};
+
+
+/**
+  Specialized Function_factory for functions that take zero arguments.
+
+  @tparam Product The function that this factory instantiates. It is a
+  descendant of Item_func.
+*/
+template<typename Product>
+class Function_factory<Product, 0, 0> : public Create_func
 {
 public:
-  virtual Item *create_func(THD *thd, LEX_STRING name, PT_item_list *item_list);
+  static Function_factory<Product, 0, 0> s_singleton;
 
-  /**
-    Builder method, with no arguments.
-    @param thd The current thread
-    @return An item representing the function call
-  */
-  virtual Item *create(THD *thd) = 0;
-
-protected:
-  /** Constructor. */
-  Create_func_arg0() {}
-  /** Destructor. */
-  virtual ~Create_func_arg0() {}
+  Item *create_func(THD *thd, LEX_STRING function_name, PT_item_list *item_list)
+    override
+  {
+    if (item_list != nullptr)
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), function_name.str);
+      return nullptr;
+    }
+    return new (thd->mem_root) Product(POS());
+  }
 };
+
+
+template<typename Product, int Min_argc, int Max_argc>
+Function_factory<Product, Min_argc, Max_argc>
+Function_factory<Product, Min_argc, Max_argc>::s_singleton;
+
+template<typename Product>
+Function_factory<Product, 0, 0> Function_factory<Product, 0, 0>::s_singleton;
 
 
 /**
@@ -627,19 +660,6 @@ public:
 protected:
   Create_func_concat_ws() {}
   virtual ~Create_func_concat_ws() {}
-};
-
-
-class Create_func_connection_id : public Create_func_arg0
-{
-public:
-  virtual Item *create(THD *thd);
-
-  static Create_func_connection_id s_singleton;
-
-protected:
-  Create_func_connection_id() {}
-  virtual ~Create_func_connection_id() {}
 };
 
 
@@ -1156,19 +1176,6 @@ public:
 protected:
   Create_func_floor() {}
   virtual ~Create_func_floor() {}
-};
-
-
-class Create_func_found_rows : public Create_func_arg0
-{
-public:
-  virtual Item *create(THD *thd);
-
-  static Create_func_found_rows s_singleton;
-
-protected:
-  Create_func_found_rows() {}
-  virtual ~Create_func_found_rows() {}
 };
 
 
@@ -2493,19 +2500,6 @@ protected:
 };
 
 
-class Create_func_pi : public Create_func_arg0
-{
-public:
-  virtual Item *create(THD *thd);
-
-  static Create_func_pi s_singleton;
-
-protected:
-  Create_func_pi() {}
-  virtual ~Create_func_pi() {}
-};
-
-
 class Create_func_pointfromgeohash : public Create_func_arg2
 {
 public:
@@ -2582,19 +2576,6 @@ public:
 protected:
   Create_func_rand() {}
   virtual ~Create_func_rand() {}
-};
-
-
-class Create_func_release_all_locks : public Create_func_arg0
-{
-public:
-  virtual Item *create(THD *thd);
-
-  static Create_func_release_all_locks s_singleton;
-
-protected:
-  Create_func_release_all_locks() {}
-  virtual ~Create_func_release_all_locks() {}
 };
 
 
@@ -3054,32 +3035,6 @@ protected:
 };
 
 
-class Create_func_uuid : public Create_func_arg0
-{
-public:
-  virtual Item *create(THD *thd);
-
-  static Create_func_uuid s_singleton;
-
-protected:
-  Create_func_uuid() {}
-  virtual ~Create_func_uuid() {}
-};
-
-
-class Create_func_uuid_short : public Create_func_arg0
-{
-public:
-  virtual Item *create(THD *thd);
-
-  static Create_func_uuid_short s_singleton;
-
-protected:
-  Create_func_uuid_short() {}
-  virtual ~Create_func_uuid_short() {}
-};
-
-
 class Create_func_validate_password_strength : public Create_func_arg1
 {
 public:
@@ -3090,19 +3045,6 @@ public:
 protected:
   Create_func_validate_password_strength() {}
   virtual ~Create_func_validate_password_strength() {}
-};
-
-
-class Create_func_version : public Create_func_arg0
-{
-public:
-  virtual Item *create(THD *thd);
-
-  static Create_func_version s_singleton;
-
-protected:
-  Create_func_version() {}
-  virtual ~Create_func_version() {}
 };
 
 
@@ -3543,27 +3485,6 @@ protected:
 };
 
 
-class Create_func_current_role : public Create_func_arg0
-{
-public:
-  virtual Item *create(THD *thd);
-
-  static Create_func_current_role s_singleton;
-protected:
-  Create_func_current_role() {}
-  virtual ~Create_func_current_role() {}
-};
-
-class Create_func_roles_graphml : public Create_func_arg0
-{
-public:
-	virtual Item *create(THD *thd);
-	static Create_func_roles_graphml s_singleton;
-protected:
-	Create_func_roles_graphml() {}
-	virtual ~Create_func_roles_graphml() {}
-};
-
 /*
 =============================================================================
   IMPLEMENTATION
@@ -3648,20 +3569,6 @@ Create_native_func::create_func(THD *thd, LEX_STRING name,
                                 PT_item_list *item_list)
 {
   return create_native(thd, name, item_list);
-}
-
-
-Item*
-Create_func_arg0::create_func(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-{
-  if (item_list != NULL)
-  {
-    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
-    return NULL;
-  }
-
-  return create(thd);
 }
 
 
@@ -4040,15 +3947,6 @@ Item*
 Create_func_compress::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_compress(POS(), arg1);
-}
-
-
-Create_func_connection_id Create_func_connection_id::s_singleton;
-
-Item*
-Create_func_connection_id::create(THD *thd)
-{
-  return new (thd->mem_root) Item_func_connection_id(POS());
 }
 
 
@@ -4592,14 +4490,6 @@ Create_func_floor::create(THD *thd, Item *arg1)
   return new (thd->mem_root) Item_func_floor(POS(), arg1);
 }
 
-
-Create_func_found_rows Create_func_found_rows::s_singleton;
-
-Item*
-Create_func_found_rows::create(THD *thd)
-{
-  return new (thd->mem_root) Item_func_found_rows(POS());
-}
 
 
 Create_func_from_base64 Create_func_from_base64::s_singleton;
@@ -6065,7 +5955,6 @@ Create_func_bin_to_uuid::create_native(THD *thd, LEX_STRING name,
   return func;
 }
 
-
 Create_func_is_uuid Create_func_is_uuid::s_singleton;
 
 Item*
@@ -6391,17 +6280,6 @@ Create_func_period_diff::create(THD *thd, Item *arg1, Item *arg2)
 }
 
 
-Create_func_pi Create_func_pi::s_singleton;
-
-Item*
-Create_func_pi::create(THD *thd)
-{
-  return new (thd->mem_root) Item_static_float_func(POS(),
-                                                    NAME_STRING("pi()"),
-                                                    M_PI, 6, 8);
-}
-
-
 Create_func_pointfromgeohash Create_func_pointfromgeohash::s_singleton;
 
 Item*
@@ -6481,15 +6359,6 @@ Create_func_rand::create_native(THD *thd, LEX_STRING name,
   }
 
   return func;
-}
-
-
-Create_func_release_all_locks Create_func_release_all_locks::s_singleton;
-
-Item*
-Create_func_release_all_locks::create(THD *thd)
-{
-  return new (thd->mem_root) Item_func_release_all_locks(POS());
 }
 
 
@@ -6898,25 +6767,6 @@ Create_func_unix_timestamp::create_native(THD *thd, LEX_STRING name,
   return func;
 }
 
-
-Create_func_uuid Create_func_uuid::s_singleton;
-
-Item*
-Create_func_uuid::create(THD *thd)
-{
-  return new (thd->mem_root) Item_func_uuid(POS());
-}
-
-
-Create_func_uuid_short Create_func_uuid_short::s_singleton;
-
-Item*
-Create_func_uuid_short::create(THD *thd)
-{
-  return new (thd->mem_root) Item_func_uuid_short(POS());
-}
-
-
 Create_func_validate_password_strength
                      Create_func_validate_password_strength::s_singleton;
 
@@ -6925,15 +6775,6 @@ Create_func_validate_password_strength::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_validate_password_strength(POS(),
                                                                   arg1);
-}
-
-
-Create_func_version Create_func_version::s_singleton;
-
-Item*
-Create_func_version::create(THD *thd)
-{
-  return new (thd->mem_root) Item_func_version(POS());
 }
 
 
@@ -7103,23 +6944,6 @@ Create_func_year_week::create_native(THD *thd, LEX_STRING name,
   }
 
   return func;
-}
-
-
-Create_func_current_role Create_func_current_role::s_singleton;
-
-Item*
-Create_func_current_role::create(THD *thd)
-{
-  return new (thd->mem_root) Item_func_current_role(POS());
-}
-
-Create_func_roles_graphml Create_func_roles_graphml::s_singleton;
-
-Item*
-Create_func_roles_graphml::create(THD *thd)
-{
-	return new (thd->mem_root) Item_func_roles_graphml(POS());
 }
 
 
@@ -7719,6 +7543,14 @@ struct Native_func_registry
 
 #define BUILDER(F) & F::s_singleton
 
+/**
+  Shorthand macro to reference the singleton instance.
+
+  @param F The Item_func
+  @param N xxx
+*/
+#define SQL_FN(F, N) &Function_factory<F, N>::s_singleton
+
 #define GEOM_BUILDER(F) & F::s_singleton
 
 /*
@@ -7756,13 +7588,13 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("COMPRESS") }, BUILDER(Create_func_compress)},
   { { C_STRING_WITH_LEN("CONCAT") }, BUILDER(Create_func_concat)},
   { { C_STRING_WITH_LEN("CONCAT_WS") }, BUILDER(Create_func_concat_ws)},
-  { { C_STRING_WITH_LEN("CONNECTION_ID") }, BUILDER(Create_func_connection_id)},
+  { { C_STRING_WITH_LEN("CONNECTION_ID") }, SQL_FN(Item_func_connection_id, 0)},
   { { C_STRING_WITH_LEN("CONV") }, BUILDER(Create_func_conv)},
   { { C_STRING_WITH_LEN("CONVERT_TZ") }, BUILDER(Create_func_convert_tz)},
   { { C_STRING_WITH_LEN("COS") }, BUILDER(Create_func_cos)},
   { { C_STRING_WITH_LEN("COT") }, BUILDER(Create_func_cot)},
   { { C_STRING_WITH_LEN("CRC32") }, BUILDER(Create_func_crc32)},
-  { { C_STRING_WITH_LEN("CURRENT_ROLE") }, BUILDER(Create_func_current_role)},
+  { { C_STRING_WITH_LEN("CURRENT_ROLE") }, SQL_FN(Item_func_current_role, 0)},
   { { C_STRING_WITH_LEN("DATEDIFF") }, BUILDER(Create_func_datediff)},
   { { C_STRING_WITH_LEN("DATE_FORMAT") }, BUILDER(Create_func_date_format)},
   { { C_STRING_WITH_LEN("DAYNAME") }, BUILDER(Create_func_dayname)},
@@ -7782,7 +7614,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("FIELD") }, BUILDER(Create_func_field)},
   { { C_STRING_WITH_LEN("FIND_IN_SET") }, BUILDER(Create_func_find_in_set)},
   { { C_STRING_WITH_LEN("FLOOR") }, BUILDER(Create_func_floor)},
-  { { C_STRING_WITH_LEN("FOUND_ROWS") }, BUILDER(Create_func_found_rows)},
+  { { C_STRING_WITH_LEN("FOUND_ROWS") }, SQL_FN(Item_func_found_rows, 0)},
   { { C_STRING_WITH_LEN("FROM_BASE64") }, BUILDER(Create_func_from_base64)},
   { { C_STRING_WITH_LEN("FROM_DAYS") }, BUILDER(Create_func_from_days)},
   { { C_STRING_WITH_LEN("FROM_UNIXTIME") }, BUILDER(Create_func_from_unixtime)},
@@ -7865,17 +7697,17 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ORD") }, BUILDER(Create_func_ord)},
   { { C_STRING_WITH_LEN("PERIOD_ADD") }, BUILDER(Create_func_period_add)},
   { { C_STRING_WITH_LEN("PERIOD_DIFF") }, BUILDER(Create_func_period_diff)},
-  { { C_STRING_WITH_LEN("PI") }, BUILDER(Create_func_pi)},
+  { { C_STRING_WITH_LEN("PI") }, SQL_FN(Item_func_pi, 0)},
   { { C_STRING_WITH_LEN("POW") }, BUILDER(Create_func_pow)},
   { { C_STRING_WITH_LEN("POWER") }, BUILDER(Create_func_pow)},
   { { C_STRING_WITH_LEN("QUOTE") }, BUILDER(Create_func_quote)},
   { { C_STRING_WITH_LEN("RADIANS") }, BUILDER(Create_func_radians)},
   { { C_STRING_WITH_LEN("RAND") }, BUILDER(Create_func_rand)},
   { { C_STRING_WITH_LEN("RANDOM_BYTES") }, BUILDER(Create_func_random_bytes) },
-  { { C_STRING_WITH_LEN("RELEASE_ALL_LOCKS") }, BUILDER(Create_func_release_all_locks) },
+  { { C_STRING_WITH_LEN("RELEASE_ALL_LOCKS") }, SQL_FN(Item_func_release_all_locks, 0) },
   { { C_STRING_WITH_LEN("RELEASE_LOCK") }, BUILDER(Create_func_release_lock) },
   { { C_STRING_WITH_LEN("REVERSE") }, BUILDER(Create_func_reverse)},
-  { { C_STRING_WITH_LEN("ROLES_GRAPHML") }, BUILDER(Create_func_roles_graphml) },
+  { { C_STRING_WITH_LEN("ROLES_GRAPHML") }, SQL_FN(Item_func_roles_graphml, 0) },
   { { C_STRING_WITH_LEN("ROUND") }, BUILDER(Create_func_round)},
   { { C_STRING_WITH_LEN("RPAD") }, BUILDER(Create_func_rpad)},
   { { C_STRING_WITH_LEN("RTRIM") }, BUILDER(Create_func_rtrim)},
@@ -7993,11 +7825,11 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("UNIX_TIMESTAMP") }, BUILDER(Create_func_unix_timestamp)},
   { { C_STRING_WITH_LEN("UPDATEXML") }, BUILDER(Create_func_xml_update)},
   { { C_STRING_WITH_LEN("UPPER") }, BUILDER(Create_func_upper)},
-  { { C_STRING_WITH_LEN("UUID") }, BUILDER(Create_func_uuid)},
-  { { C_STRING_WITH_LEN("UUID_SHORT") }, BUILDER(Create_func_uuid_short)},
+  { { C_STRING_WITH_LEN("UUID") }, SQL_FN(Item_func_uuid, 0)},
+  { { C_STRING_WITH_LEN("UUID_SHORT") }, SQL_FN(Item_func_uuid_short, 0)},
   { { C_STRING_WITH_LEN("UUID_TO_BIN") }, BUILDER(Create_func_uuid_to_bin)},
   { { C_STRING_WITH_LEN("VALIDATE_PASSWORD_STRENGTH") }, BUILDER(Create_func_validate_password_strength)},
-  { { C_STRING_WITH_LEN("VERSION") }, BUILDER(Create_func_version)},
+  { { C_STRING_WITH_LEN("VERSION") }, SQL_FN(Item_func_version, 0)},
   { { C_STRING_WITH_LEN("WEEKDAY") }, BUILDER(Create_func_weekday)},
   { { C_STRING_WITH_LEN("WEEKOFYEAR") }, BUILDER(Create_func_weekofyear)},
   { { C_STRING_WITH_LEN("YEARWEEK") }, BUILDER(Create_func_year_week)},

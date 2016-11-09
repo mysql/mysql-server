@@ -3378,7 +3378,7 @@ Acl_cache::Acl_cache() : m_role_graph_version(0L)
 {
   const char* category= "sql";
   int count;
-  count= array_elements(all_acl_cache_mutexes);
+  count= static_cast<int>(array_elements(all_acl_cache_mutexes));
   mysql_mutex_register(category, all_acl_cache_mutexes, count);
   lf_hash_init(&m_cache, sizeof(Acl_hash_entry), LF_HASH_UNIQUE,
                0, /* key offset */

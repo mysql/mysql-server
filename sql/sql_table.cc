@@ -56,6 +56,7 @@
 #include "key_spec.h"                 // Key_part_spec
 #include "lock.h"                     // mysql_lock_remove, lock_tablespace_names
 #include "log.h"                      // sql_print_error
+#include "log_event.h"                // Query_log_event
 #include "m_ctype.h"
 #include "m_string.h"                 // my_stpncpy
 #include "mdl.h"
@@ -134,12 +135,6 @@
 #include "pfs_table_provider.h"  // IWYU pragma: keep
 #include "mysql/psi/mysql_table.h"
 
-#include "log_event.h"                // Query_log_event
-#include "partitioning/partition_handler.h" // Partition_handler
-#include "dd/types/schema.h"
-#include "dd/impl/types/table_impl.h"
-#include "dd/impl/properties_impl.h"
-#include "dd/sdi.h"                   // dd::remove_sdi
 
 using std::max;
 using std::min;
@@ -167,15 +162,6 @@ static bool check_engine(THD *thd, const char *db_name,
 
 static bool prepare_set_field(THD *thd, Create_field *sql_field);
 static bool prepare_enum_field(THD *thd, Create_field *sql_field);
-
-static bool
-mysql_prepare_create_table(THD *thd, const char *error_table_name,
-                           HA_CREATE_INFO *create_info,
-                           Alter_info *alter_info,
-                           handler *file, KEY **key_info_buffer,
-                           uint *key_count, FOREIGN_KEY **fk_key_info_buffer,
-                           uint *fk_key_count, FOREIGN_KEY *existing_fks,
-                           uint existing_fk_count, int select_field_count);
 
 static uint blob_length_by_type(enum_field_types type);
 
@@ -2084,41 +2070,32 @@ static bool rea_create_table(THD *thd, const char *path,
 {
   DBUG_ENTER("rea_create_table");
 
-  std::unique_ptr<dd::Table> table_ptr(nullptr);
+  std::unique_ptr<dd::Table> tmp_table_ptr(nullptr);
 
   *tmp_table_def= NULL;
 
   // Add table details into new DD, both for user tables and dd tables
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    table_ptr= dd::create_tmp_table(thd, db, table_name,
-                                    create_info, create_fields,
-                                    key_info, keys, keys_onoff, file);
-    if (!table_ptr)
+    tmp_table_ptr= dd::create_tmp_table(thd, db, table_name,
+                                        create_info, create_fields,
+                                        key_info, keys, keys_onoff, file);
+    if (!tmp_table_ptr)
       DBUG_RETURN(true);
   }
   else
   {
-    /*
-      Don't store SDI if engine supports atomic DDL. We would have to store
-      it once again anyway after SE updates dd::Table object during call
-      to handler::create() method. Also storage of SDIs in InnoDB can't work
-      correctly until SE adjusts some attributes.
-    */
-    table_ptr= dd::create_table(thd, db, table_name,
-                                create_info,
-                                create_fields,
-                                key_info,
-                                keys,
-                                keys_onoff,
-                                fk_key_info,
-                                fk_keys,
-                                file,
-                                !(create_info->db_type->flags &
-                                  HTON_SUPPORTS_ATOMIC_DDL),
-                                !(create_info->db_type->flags &
-                                  HTON_SUPPORTS_ATOMIC_DDL));
-    if (!table_ptr)
+    if (!dd::create_table(thd, db, table_name,
+                          create_info,
+                          create_fields,
+                          key_info,
+                          keys,
+                          keys_onoff,
+                          fk_key_info,
+                          fk_keys,
+                          file,
+                          !(create_info->db_type->flags &
+                            HTON_SUPPORTS_ATOMIC_DDL)))
       DBUG_RETURN(true);
   }
 
@@ -2132,14 +2109,14 @@ static bool rea_create_table(THD *thd, const char *path,
       *post_ddl_ht= create_info->db_type;
 
     if(ha_create_table(thd, path, db, table_name, create_info,
-                       false, false, table_ptr.get(), false))
+                       false, false, tmp_table_ptr.get()))
     {
       goto err;
     }
   }
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-    *tmp_table_def= table_ptr.release();
+    *tmp_table_def= tmp_table_ptr.release();
 
   DBUG_RETURN(false);
 
@@ -2248,7 +2225,7 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   DBUG_ASSERT(shadow_name);
   if (flags & WSDI_WRITE_SHADOW)
   {
-    if (mysql_prepare_create_table(lpt->thd,
+    if (mysql_prepare_create_table(lpt->thd, lpt->db,
                                    lpt->table_name,
                                    lpt->create_info,
                                    lpt->alter_info,
@@ -2308,7 +2285,7 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                             not_used1,
                             not_used2,
                             lpt->table->file,
-                            true, true))
+                            true))
       {
         DBUG_RETURN(true);
       }
@@ -2889,9 +2866,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Abstract_table *abstract_table_def= NULL;
-    if (thd->dd_client()->acquire<dd::Abstract_table>(table->db,
-                                                      table->table_name,
-                                                      &abstract_table_def))
+    if (thd->dd_client()->acquire(table->db, table->table_name,
+                                  &abstract_table_def))
     {
       /* Error should have been reported by data-dictionary subsystem. */
       DBUG_RETURN(1);
@@ -2912,9 +2888,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       else if (result == 0)
       {
         // Table was discovered. Re-try to retrieve its definition.
-        if (thd->dd_client()->acquire<dd::Abstract_table>(table->db,
-                                                          table->table_name,
-                                                          &abstract_table_def))
+        if (thd->dd_client()->acquire(table->db, table->table_name,
+                                      &abstract_table_def))
           DBUG_RETURN(1);
       }
       else // result < 0
@@ -3284,7 +3259,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                           After all replication might be broken after that...
         */
         error= dd::drop_table<dd::Table>(thd, table->db, table->table_name,
-                                         table_def, true, false);
+                                         table_def, true);
 
         error|= update_referencing_views_metadata(thd, table);
       }
@@ -3570,7 +3545,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       */
       if (!dd_upgrade_flag &&
           (dd::drop_table<dd::Table>(thd, table->db, table->table_name,
-                                     table_def, false, false) ||
+                                     table_def, false) ||
            update_referencing_views_metadata(thd, table)))
         DBUG_RETURN(1);
 
@@ -4056,9 +4031,9 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   (void) build_table_filename(path, sizeof(path) - 1,
                               db, table_name, "", flags);
 
+
   const dd::Table *table_def= 0;
-  if (thd->dd_client()->acquire_uncached_uncommitted<dd::Table>(db,
-                            table_name, &table_def))
+  if (thd->dd_client()->acquire<dd::Table>(db, table_name, &table_def))
     DBUG_RETURN(true);
 
   /* We try to remove non-existing tables in some scenarios. */
@@ -4078,14 +4053,11 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   // in the DD while missing from the SE, but not the opposite.
   if (!dd::get_dictionary()->is_dd_table_name(db, table_name) &&
       dd::drop_table<dd::Table>(thd, db, table_name, table_def,
-                                !(flags & NO_DD_COMMIT), true))
+                                !(flags & NO_DD_COMMIT)))
   {
-    delete table_def;
     DBUG_ASSERT(thd->is_error() || thd->killed);
     DBUG_RETURN(true);
   }
-
-  delete table_def;
 
   DBUG_RETURN(false);
 }
@@ -4519,11 +4491,13 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
 /**
   Check if there is a duplicate key. Report a warning for every duplicate key.
 
-  @param thd              Thread context.
-  @param key              Key to be checked.
-  @param key_info         Array with all keys for the table.
-  @param key_count        Number of keys in the table.
-  @param alter_info       Alter_info structure describing ALTER TABLE.
+  @param thd                Thread context.
+  @param error_schema_name  Schema name of the table used for error reporting.
+  @param error_table_name   Table name used for error reporting.
+  @param key                Key to be checked.
+  @param key_info           Array with all keys for the table.
+  @param key_count          Number of keys in the table.
+  @param alter_info         Alter_info structure describing ALTER TABLE.
 
   @note Unlike has_index_def_changed() and similar code in
         mysql_compare_tables() this function compares KEY objects for the same
@@ -4533,10 +4507,10 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
   @retval false           Ok.
   @retval true            Error.
 */
-
-static bool check_duplicate_key(THD *thd, const KEY *key,
-                                const KEY *key_info, uint key_count,
-                                const Alter_info *alter_info)
+static bool check_duplicate_key(THD *thd, const char *error_schema_name,
+                                const char *error_table_name,
+                                const KEY *key, const KEY *key_info,
+                                uint key_count, Alter_info *alter_info)
 {
   const KEY *k;
   const KEY *k_end= key_info + key_count;
@@ -4616,9 +4590,7 @@ static bool check_duplicate_key(THD *thd, const KEY *key,
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_DUP_INDEX, ER_THD(thd, ER_DUP_INDEX),
-                          key->name,
-                          thd->lex->query_tables->db,
-                          thd->lex->query_tables->table_name);
+                          key->name, error_schema_name, error_table_name);
       if (thd->is_error())
       {
         // An error was reported.
@@ -4636,7 +4608,6 @@ static bool check_duplicate_key(THD *thd, const KEY *key,
   used key packing (optimization implemented only by MyISAM) under erroneous
   assumption that they have BLOB type.
 */
-
 static bool is_phony_blob(enum_field_types sql_type, uint decimals)
 {
   const uint FIELDFLAG_BLOB= 1024;
@@ -5929,40 +5900,19 @@ static bool check_promoted_index(const handler *file,
 }
 
 
-/**
-  Prepares the table and key structures for table creation.
-
-  @param thd                       Thread object.
-  @param error_table_name          Name of table to create/alter, only used for
-                                   error reporting.
-  @param create_info               Create information (like MAX_ROWS).
-  @param alter_info                List of columns and indexes to create
-  @param file                      The handler for the new table.
-  @param[out] key_info_buffer      An array of KEY structs for the indexes.
-  @param[out] key_count            The number of elements in the array.
-  @param[out] fk_key_info_buffer   An array of FOREIGN_KEY structs for the
-                                   foreign keys.
-  @param[out] fk_key_count         The number of elements in the array.
-  @param[in] existing_fks          An array of pre-existing FOREIGN KEYS
-                                   (in case of ALTER).
-  @param[in] existing_fks_count    The number of pre-existing foreign keys.
-  @param select_field_count        The number of fields coming from a select table.
-
-  @retval false   OK
-  @retval true    error
-*/
-
-static bool mysql_prepare_create_table(THD *thd,
-                                       const char* error_table_name,
-                                       HA_CREATE_INFO *create_info,
-                                       Alter_info *alter_info,
-                                       handler *file, KEY **key_info_buffer,
-                                       uint *key_count,
-                                       FOREIGN_KEY **fk_key_info_buffer,
-                                       uint *fk_key_count,
-                                       FOREIGN_KEY *existing_fks,
-                                       uint existing_fks_count,
-                                       int select_field_count)
+// Prepares the table and key structures for table creation.
+bool mysql_prepare_create_table(THD *thd,
+                                const char* error_schema_name,
+                                const char* error_table_name,
+                                HA_CREATE_INFO *create_info,
+                                Alter_info *alter_info,
+                                handler *file, KEY **key_info_buffer,
+                                uint *key_count,
+                                FOREIGN_KEY **fk_key_info_buffer,
+                                uint *fk_key_count,
+                                FOREIGN_KEY *existing_fks,
+                                uint existing_fks_count,
+                                int select_field_count)
 {
   DBUG_ENTER("mysql_prepare_create_table");
 
@@ -6180,7 +6130,8 @@ static bool mysql_prepare_create_table(THD *thd,
        dup_check_key != keys_to_check.end();
        dup_check_key++)
   {
-    if (check_duplicate_key(thd, *dup_check_key, *key_info_buffer, *key_count,
+    if (check_duplicate_key(thd, error_schema_name, error_table_name,
+                            *dup_check_key, *key_info_buffer, *key_count,
                             alter_info))
       DBUG_RETURN(true);
   }
@@ -6667,7 +6618,7 @@ bool create_table_impl(THD *thd,
     }
   }
 
-  if (mysql_prepare_create_table(thd, error_table_name,
+  if (mysql_prepare_create_table(thd, db, error_table_name,
                                  create_info, alter_info,
                                  file,
                                  key_info, key_count,
@@ -6879,17 +6830,9 @@ bool create_table_impl(THD *thd,
 
     init_tmp_table_share(thd, &share, db, 0, table_name, path);
 
-    /*
-      Since changes to data-dictionary might not be committed yet, we have to
-      use acquire_uncached_uncommitted_table() to get table definition here.
-    */
-    std::unique_ptr<dd::Table> table_def;
-    bool result= (!(table_def=
-                      dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
-                            db, table_name)) ||
-                  open_table_def(thd, &share, false, table_def.get()) ||
-                  open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
-                                        0, &table, true, table_def.get()));
+    bool result= open_table_def(thd, &share, false, nullptr) ||
+                 open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
+                                        0, &table, true, nullptr);
 
     /*
       Assert that the change list is empty as no partition function currently
@@ -6996,13 +6939,13 @@ bool mysql_create_table_no_lock(THD *thd,
     found, we create it inside SE on later steps.
   */
 
-  bool is_stats_table= (!strcmp(db, "mysql")) &&
-                       ((!(strcmp(table_name, "innodb_table_stats")) ||
-                        !(strcmp(table_name, "innodb_index_stats"))));
+  bool is_innodb_stats_table= (!strcmp(db, "mysql")) &&
+    ((!(strcmp(table_name, "innodb_table_stats")) ||
+     !(strcmp(table_name, "innodb_index_stats"))));
 
   bool no_ha_table= false;
   if ((!opt_initialize || dd_upgrade_skip_se ||
-      (dd_upgrade_flag && is_stats_table)) &&
+      (dd_upgrade_flag && is_innodb_stats_table)) &&
       dd::get_dictionary()->is_dd_table_name(db, table_name))
     no_ha_table= true;
 
@@ -7035,6 +6978,8 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   uint not_used;
   handlerton *post_ddl_ht= nullptr;
   DBUG_ENTER("mysql_create_table");
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /*
     Open or obtain "X" MDL lock on the table being created.
@@ -7097,6 +7042,8 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     */
     if (!result)
       result= trans_commit_stmt(thd) || trans_commit_implicit(thd);
+
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(!result);
 
     // Update view metadata.
     if (!result)
@@ -7211,6 +7158,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *from_sch= NULL;
   const dd::Schema *to_sch= NULL;
+  const dd::Table *from_table_def= NULL;
+  dd::Table *to_table_def= NULL;
 
   if (from_mdl_locker.ensure_locked(old_db) ||
       to_mdl_locker.ensure_locked(new_db) ||
@@ -7242,8 +7191,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
       call can be used by atomic ALTER TABLE implementation.
     */
     const dd::Abstract_table *conf_tab= NULL;
-    if (thd->dd_client()->acquire_uncached_uncommitted<dd::Abstract_table>(new_db,
-                            new_name, &conf_tab))
+    if (thd->dd_client()->acquire(new_db, new_name, &conf_tab))
     {
       // Error is reported by the dictionary subsystem.
       DBUG_RETURN(true);
@@ -7251,7 +7199,6 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 
     if (conf_tab)
     {
-      delete conf_tab;
       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name);
       DBUG_RETURN(true);
     }
@@ -7277,14 +7224,13 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     Use uncommitted read, so this call can be used by atomic multi-table
     RENAME TABLE and atomic ALTER TABLE implementations.
   */
-  std::unique_ptr<dd::Table> from_table_def;
-  if (!(from_table_def= dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
-                              old_db, old_name)))
-  {
+  if (thd->dd_client()->acquire<dd::Table>(old_db, old_name,
+                                          &from_table_def) ||
+      thd->dd_client()->acquire_for_modification<dd::Table>(old_db,
+                          old_name, &to_table_def))
     DBUG_RETURN(true);
-  }
 
-  std::unique_ptr<dd::Table> to_table_def(from_table_def->clone());
+  std::unique_ptr<dd::Table> from_table_def_save(from_table_def->clone());
 
   // Set schema id and table name.
   to_table_def->set_schema_id(to_sch->id());
@@ -7336,8 +7282,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 
   int error= 0;
   if (!(flags & NO_HA_TABLE))
-    error= file->ha_rename_table(from_base, to_base, from_table_def.get(),
-                                 to_table_def.get());
+    error= file->ha_rename_table(from_base, to_base, from_table_def_save.get(),
+                                 to_table_def);
 
   thd->variables.option_bits= save_bits;
 
@@ -7362,10 +7308,21 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   }
   else
   {
-    if (dd::rename_table<dd::Table>(thd, from_sch, from_table_def.get(),
-                                    to_sch, to_table_def.get(),
-                                    (flags & FN_TO_IS_TMP),
-                                    !(flags & NO_DD_COMMIT)))
+    /*
+      Note that before WL#7743 we have renamed table in the data-dictionary
+      before renaming it in storage engine. However with WL#7743 engines
+      supporting atomic DDL are allowed to update dd::Table object describing
+      new version of table in handler::rename_table(). Hence it should saved
+      after this call.
+      So to avoid extra calls to DD layer and to keep code simple the
+      renaming of table in the DD was moved past rename in SE for all SEs.
+      From crash-safety point of view order doesn't matter for engines
+      supporting atomic DDL. And for engines which can't do atomic DDL in
+      either case there are scenarios in which DD and SE get out of sync.
+    */
+    if (dd::rename_table(thd, from_sch, from_table_def, to_sch, to_table_def,
+                         (flags & FN_TO_IS_TMP),
+                         !(flags & NO_DD_COMMIT)))
     {
       /*
         WL7743/TODO: What should we do for SEs supporting atomic DDL?
@@ -7373,8 +7330,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                      this case...
        */
       if (!(flags & NO_HA_TABLE))
-        (void) file->ha_rename_table(to_base, from_base, to_table_def.get(),
-                                     from_table_def.get());
+        (void) file->ha_rename_table(to_base, from_base, to_table_def,
+                                     from_table_def_save.get());
       delete file;
       DBUG_RETURN(true);
     }
@@ -7522,6 +7479,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   local_create_info.data_file_name= local_create_info.index_file_name= NULL;
   local_create_info.alias= create_info->alias;
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   if (mysql_create_table_no_lock(thd, table->db, table->table_name,
                                  &local_create_info, &local_alter_info,
                                  0, &is_trans, &post_ddl_ht))
@@ -7584,8 +7543,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         char buf[2048];
         String query(buf, sizeof(buf), system_charset_info);
         query.length(0);  // Have to zero it since constructor doesn't
-        Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN |
-                                       MYSQL_OPEN_UNCOMMITTED);
+        // FIXME ?
+        Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         bool new_table= FALSE; // Whether newly created table is open.
 
         /*
@@ -7679,6 +7638,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   {
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err;
+
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
 
     // Update view metadata.
     if (update_referencing_views_metadata(thd, table))
@@ -8768,6 +8729,7 @@ bool mysql_compare_tables(TABLE *table,
   /* Create the prepared information. */
   if (mysql_prepare_create_table(thd,
                                  "", // Not used
+                                 "", // Not used
                                  create_info,
                                  &tmp_alter_info,
                                  table->file, &key_info_buffer,
@@ -8872,6 +8834,40 @@ bool mysql_compare_tables(TABLE *table,
 
   *metadata_equal= true; // Tables are compatible
   DBUG_RETURN(false);
+}
+
+
+/**
+   Report a zero date warning if no default value is supplied
+   for the DATE/DATETIME 'NOT NULL' field and 'NO_ZERO_DATE'
+   sql_mode is enabled.
+
+   @param thd                Thread handle.
+   @param datetime_field     DATE/DATETIME column definition.
+*/
+static void push_zero_date_warning(THD *thd, Create_field *datetime_field)
+{
+  uint f_length= 0;
+  enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
+
+  switch (datetime_field->sql_type)
+  {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+    f_length= MAX_DATE_WIDTH; // "0000-00-00";
+    t_type= MYSQL_TIMESTAMP_DATE;
+    break;
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
+    f_length= MAX_DATETIME_WIDTH; // "0000-00-00 00:00:00";
+    t_type= MYSQL_TIMESTAMP_DATETIME;
+    break;
+  default:
+    DBUG_ASSERT(false);  // Should not get here.
+  }
+  make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
+                               ErrConvString(my_zero_datetime6, f_length),
+                               t_type, datetime_field->field_name);
 }
 
 
@@ -9128,7 +9124,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (lock_tables(thd, table_list, alter_ctx->tables_opened, 0))
     goto cleanup;
 
-  if (alter_ctx->error_if_not_empty & Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
+  if (alter_ctx->error_if_not_empty)
   {
     // We should have upgraded from MDL_SHARED_UPGRADABLE to a lock
     // blocking writes for it to be safe to check ha_records().
@@ -9149,8 +9145,25 @@ static bool mysql_inplace_alter_table(THD *thd,
     ha_rows tmp= 0;
     if (table_list->table->file->ha_records(&tmp) || tmp > 0)
     {
-      my_error(ER_INVALID_USE_OF_NULL, MYF(0));
-      goto cleanup;
+      if (alter_ctx->error_if_not_empty &
+          Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
+      {
+        my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+      }
+      else if ((alter_ctx->error_if_not_empty &
+                Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
+               (thd->variables.sql_mode & MODE_NO_ZERO_DATE))
+      {
+        /*
+          Report a warning if the NO ZERO DATE MODE is enabled. The
+          warning will be promoted to an error if strict mode is
+          also enabled.
+        */
+        push_zero_date_warning(thd, alter_ctx->datetime_field);
+      }
+
+      if (thd->is_error())
+        goto cleanup;
     }
 
     // Empty table, so don't allow inserts during inplace operation.
@@ -9186,20 +9199,23 @@ static bool mysql_inplace_alter_table(THD *thd,
   }
 
   {
-  dd::Schema_MDL_locker mdl_locker(thd);
+  dd::Schema_MDL_locker mdl_locker_1(thd), mdl_locker_2(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  const dd::Table *old_table_def;
-  if (mdl_locker.ensure_locked(table->s->db.str) ||
+  const dd::Table *old_table_def= nullptr;
+  if (mdl_locker_1.ensure_locked(table->s->db.str) ||
       thd->dd_client()->acquire<dd::Table>(table->s->db.str,
                                            table->s->table_name.str,
                                            &old_table_def))
     goto cleanup;
 
-  std::unique_ptr<dd::Table> altered_table_def;
-  if (!(altered_table_def=
-          dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
-                alter_ctx->new_db, alter_ctx->tmp_name)))
+  const dd::Table *old_altered_table_def= nullptr;
+  dd::Table *altered_table_def= nullptr;
+  if (mdl_locker_2.ensure_locked(alter_ctx->new_db) ||
+      thd->dd_client()->acquire(alter_ctx->new_db, alter_ctx->tmp_name,
+                                &old_altered_table_def) ||
+      thd->dd_client()->acquire_for_modification(alter_ctx->new_db,
+                          alter_ctx->tmp_name, &altered_table_def))
     goto cleanup;
 
   /*
@@ -9212,7 +9228,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (table->file->ha_prepare_inplace_alter_table(altered_table,
                                                   ha_alter_info,
                                                   old_table_def,
-                                                  altered_table_def.get()))
+                                                  altered_table_def))
   {
     goto rollback;
   }
@@ -9245,7 +9261,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (table->file->ha_inplace_alter_table(altered_table,
                                           ha_alter_info,
                                           old_table_def,
-                                          altered_table_def.get()))
+                                          altered_table_def))
   {
     goto rollback;
   }
@@ -9265,7 +9281,7 @@ static bool mysql_inplace_alter_table(THD *thd,
                                                  ha_alter_info,
                                                  false,
                                                  old_table_def,
-                                                 altered_table_def.get());
+                                                 altered_table_def);
       my_error(ER_UNKNOWN_ERROR, MYF(0));
       thd->count_cuted_fields= CHECK_FIELD_IGNORE;
       goto cleanup;
@@ -9297,7 +9313,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (table->file->ha_commit_inplace_alter_table(altered_table,
                                                  ha_alter_info,
                                                  true, old_table_def,
-                                                 altered_table_def.get()))
+                                                 altered_table_def))
   {
     goto rollback;
   }
@@ -9335,69 +9351,24 @@ static bool mysql_inplace_alter_table(THD *thd,
   //
   if (!dd::get_dictionary()->is_dd_table_name(alter_ctx->db, alter_ctx->alias))
   {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Schema *old_sch= NULL;
-    const dd::Schema *new_sch= NULL;
-
-    /*
-      Note that altered table definition was created in a new schema,
-      so typical roles are reversed here!
-    */
-    if (thd->dd_client()->acquire<dd::Schema>(alter_ctx->db, &old_sch) ||
-        thd->dd_client()->acquire<dd::Schema>(alter_ctx->new_db, &new_sch))
-      goto cleanup2;
-    if (!old_sch)
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx->db);
-      goto cleanup2;
-    }
-    if (!new_sch)
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx->new_db);
-      goto cleanup2;
-    }
-
-    /*
-      For engines which support atomic DDL we don't have SDI stored yet.
-      Use Sdi_updater which only does store_sdi() for them.
-    */
-    dd::Sdi_updater update_sdi=
-        (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) ?
-        dd::Sdi_updater() :
-        make_sdi_updater(thd, altered_table_def.get(),
-                         new_sch);
-
     altered_table_def->set_schema_id(old_table_def->schema_id());
     altered_table_def->set_name(alter_ctx->alias);
     altered_table_def->set_hidden(false);
 
-    if (dd::remove_sdi(thd, old_table_def, old_sch) ||
-        thd->dd_client()->drop(old_table_def))
+    if (thd->dd_client()->drop(old_table_def))
       goto cleanup2;
 
-    if (thd->dd_client()->update_uncached_and_invalidate(
-                            altered_table_def.get()) ||
-        update_sdi(thd, altered_table_def.get(), old_sch))
+    if (thd->dd_client()->update(&old_altered_table_def, altered_table_def))
       goto cleanup2;
+
+    thd->dd_client()->object_renamed(altered_table_def);
   }
   else
   {
     // WL7743/TODO: Sivert's help is needed to handle this case.
     //              We need to be able to replace sticky table in the cache
     //              with an object which is not related to it.
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Schema *new_sch= NULL;
-    if (thd->dd_client()->acquire<dd::Schema>(alter_ctx->new_db, &new_sch))
-      goto cleanup2;
-    if (!new_sch)
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx->new_db);
-      goto cleanup2;
-    }
-
-    if ((!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
-         dd::remove_sdi(thd, altered_table_def.get(), new_sch)) ||
-        thd->dd_client()->drop_uncached(altered_table_def.get()))
+    if (thd->dd_client()->drop(altered_table_def))
       goto cleanup2;
   }
 
@@ -9413,6 +9384,8 @@ static bool mysql_inplace_alter_table(THD *thd,
 
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto cleanup2;
+
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
 
   }
@@ -9525,6 +9498,8 @@ static bool mysql_inplace_alter_table(THD *thd,
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto cleanup2;
 
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+
     /* Call SE DDL post-commit hook. */
     if (db_type->post_ddl)
       db_type->post_ddl(thd);
@@ -9564,13 +9539,15 @@ rollback:
     thd->dd_client()->acquire<dd::Table>(table->s->db.str,
                                          table->s->table_name.str,
                                          &old_table_def);
-    std::unique_ptr<dd::Table> altered_table_def=
-      dd::acquire_uncached_uncommitted_table<dd::Table>(thd, alter_ctx->new_db,
-                                                        alter_ctx->tmp_name);
+    dd::Table *altered_table_def;
+    thd->dd_client()->acquire_for_modification<dd::Table>(alter_ctx->new_db,
+                                                          alter_ctx->tmp_name,
+                                                          &altered_table_def);
+
     table->file->ha_commit_inplace_alter_table(altered_table,
                                                ha_alter_info,
                                                false, old_table_def,
-                                               altered_table_def.get());
+                                               altered_table_def);
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   }
 
@@ -9588,6 +9565,10 @@ cleanup2:
   }
 
   (void) trans_rollback_stmt(thd);
+  // Full rollback in case we have THD::transaction_rollback_request.
+  (void) trans_rollback(thd);
+
+  thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
 
   if ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       db_type->post_ddl)
@@ -9805,6 +9786,7 @@ static void to_lex_cstring(MEM_ROOT *mem_root,
   @param[in]      alter_info       Info about ALTER TABLE statement.
   @param[in,out]  alter_ctx        Runtime context for ALTER TABLE.
   @param[in]      new_create_list  List of new columns, used for rename check.
+  @param[in]      upgrade_flag  if upgrading the data directory
 */
 
 static
@@ -9813,7 +9795,8 @@ void remember_preexisting_foreign_keys_and_triggers(
         TABLE *table,
         Alter_info *alter_info,
         Alter_table_ctx *alter_ctx,
-        List<Create_field> *new_create_list)
+        List<Create_field> *new_create_list,
+        bool upgrade_flag)
 {
   // FKs and triggers are not supported for temporary tables.
   if (table->s->tmp_table)
@@ -9829,6 +9812,10 @@ void remember_preexisting_foreign_keys_and_triggers(
     // Should not happen, we know the table exists and can be opened.
     DBUG_ASSERT(false);
   }
+
+  // Table will not exist if we are upgrading the data directory.
+  if (upgrade_flag && (src_table == nullptr))
+    return;
 
   if (src_table->has_trigger())
     src_table->clone_triggers(&alter_ctx->trg_info);
@@ -9913,53 +9900,13 @@ void remember_preexisting_foreign_keys_and_triggers(
 }
 
 
-/**
-  Prepare column and key definitions for CREATE TABLE in ALTER TABLE.
-
-  This function transforms parse output of ALTER TABLE - lists of
-  columns and keys to add, drop or modify into, essentially,
-  CREATE TABLE definition - a list of columns and keys of the new
-  table. While doing so, it also performs some (bug not all)
-  semantic checks.
-
-  This function is invoked when we know that we're going to
-  perform ALTER TABLE via a temporary table -- i.e. in-place ALTER TABLE
-  is not possible, perhaps because the ALTER statement contains
-  instructions that require change in table data, not only in
-  table definition or indexes.
-
-  @param[in,out]  thd         thread handle. Used as a memory pool
-                              and source of environment information.
-  @param[in]      table       the source table, open and locked
-                              Used as an interface to the storage engine
-                              to acquire additional information about
-                              the original table.
-  @param[in,out]  create_info A blob with CREATE/ALTER TABLE
-                              parameters
-  @param[in,out]  alter_info  Another blob with ALTER/CREATE parameters.
-                              Originally create_info was used only in
-                              CREATE TABLE and alter_info only in ALTER TABLE.
-                              But since ALTER might end-up doing CREATE,
-                              this distinction is gone and we just carry
-                              around two structures.
-  @param[in,out]  alter_ctx   Runtime context for ALTER TABLE.
-
-  @return
-    Fills various create_info members based on information retrieved
-    from the storage engine.
-    Sets create_info->varchar if the table has a VARCHAR column.
-    Prepares alter_info->create_list and alter_info->key_list with
-    columns and keys of the new table.
-  @retval TRUE   error, out of memory or a semantical error in ALTER
-                 TABLE instructions
-  @retval FALSE  success
-*/
-
-bool
-mysql_prepare_alter_table(THD *thd, TABLE *table,
-                          HA_CREATE_INFO *create_info,
-                          Alter_info *alter_info,
-                          Alter_table_ctx *alter_ctx)
+// Prepare Create_field and Key_spec objects for ALTER and upgrade.
+bool prepare_fields_and_keys(THD *thd, TABLE *table,
+                             HA_CREATE_INFO *create_info,
+                             Alter_info *alter_info,
+                             Alter_table_ctx *alter_ctx,
+                             const uint &used_fields,
+                             bool upgrade_flag)
 {
   /* New column definitions are added here */
   List<Create_field> new_create_list;
@@ -9989,46 +9936,9 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   List_iterator<Create_field> find_it(new_create_list);
   List_iterator<Create_field> field_it(new_create_list);
   List<Key_part_spec> key_parts;
-  uint db_create_options= (table->s->db_create_options
-                           & ~(HA_OPTION_PACK_RECORD));
-  uint used_fields= create_info->used_fields;
   KEY *key_info=table->key_info;
 
-  DBUG_ENTER("mysql_prepare_alter_table");
-
-  /* Let new create options override the old ones */
-  if (!(used_fields & HA_CREATE_USED_MIN_ROWS))
-    create_info->min_rows= table->s->min_rows;
-  if (!(used_fields & HA_CREATE_USED_MAX_ROWS))
-    create_info->max_rows= table->s->max_rows;
-  if (!(used_fields & HA_CREATE_USED_AVG_ROW_LENGTH))
-    create_info->avg_row_length= table->s->avg_row_length;
-  if (!(used_fields & HA_CREATE_USED_DEFAULT_CHARSET))
-    create_info->default_table_charset= table->s->table_charset;
-  if (!(used_fields & HA_CREATE_USED_AUTO) && table->found_next_number_field)
-  {
-    /* Table has an autoincrement, copy value to new table */
-    table->file->info(HA_STATUS_AUTO);
-    create_info->auto_increment_value= table->file->stats.auto_increment_value;
-  }
-  if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
-    create_info->key_block_size= table->s->key_block_size;
-
-  if (!(used_fields & HA_CREATE_USED_STATS_SAMPLE_PAGES))
-    create_info->stats_sample_pages= table->s->stats_sample_pages;
-
-  if (!(used_fields & HA_CREATE_USED_STATS_AUTO_RECALC))
-    create_info->stats_auto_recalc= table->s->stats_auto_recalc;
-
-  if (!(used_fields & HA_CREATE_USED_TABLESPACE))
-    create_info->tablespace= table->s->tablespace;
-
-  if (create_info->storage_media == HA_SM_DEFAULT)
-    create_info->storage_media= table->s->default_storage_media;
-
-  /* Creation of federated table with LIKE clause needs connection string */
-  if (!(used_fields & HA_CREATE_USED_CONNECTION))
-    create_info->connect_string= table->s->connect_string;
+  DBUG_ENTER("prepare_fields_and_keys");
 
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   Create_field *def;
@@ -10201,8 +10111,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
          def->sql_type == MYSQL_TYPE_DATETIME ||
          def->sql_type == MYSQL_TYPE_DATETIME2) &&
          !alter_ctx->datetime_field &&
-         !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
-         thd->is_strict_mode())
+         !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)))
     {
         alter_ctx->datetime_field= def;
         alter_ctx->error_if_not_empty|=
@@ -10352,7 +10261,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
           BLOBs may have cfield->length == 0, which is why we test it before
           checking whether cfield->length < key_part_length (in chars).
-          
+
           In case of TEXTs we check the data type maximum length *in bytes*
           to key part length measured *in characters* (i.e. key_part_length
           devided to mbmaxlen). This is because it's OK to have:
@@ -10525,7 +10434,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   }
 
   remember_preexisting_foreign_keys_and_triggers(thd, table, alter_info,
-                                                 alter_ctx, &new_create_list);
+                                                 alter_ctx, &new_create_list,
+                                                 upgrade_flag);
 
   if (rename_key_list.size() > 0)
   {
@@ -10541,26 +10451,88 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   }
 
 
+  alter_info->create_list.swap(new_create_list);
+  alter_info->key_list.clear();
+  alter_info->key_list.resize(new_key_list.size());
+  std::copy(new_key_list.begin(), new_key_list.end(), alter_info->key_list.begin());
+  alter_info->drop_list.clear();
+  alter_info->drop_list.resize(new_drop_list.size());
+  std::copy(new_drop_list.begin(), new_drop_list.end(), alter_info->drop_list.begin());
 
-  if (!create_info->comment.str)
+  DBUG_RETURN(false);
+}
+
+/**
+  Prepare column and key definitions for CREATE TABLE in ALTER TABLE.
+
+  This function transforms parse output of ALTER TABLE - lists of
+  columns and keys to add, drop or modify into, essentially,
+  CREATE TABLE definition - a list of columns and keys of the new
+  table. While doing so, it also performs some (bug not all)
+  semantic checks.
+
+  This function is invoked when we know that we're going to
+  perform ALTER TABLE via a temporary table -- i.e. in-place ALTER TABLE
+  is not possible, perhaps because the ALTER statement contains
+  instructions that require change in table data, not only in
+  table definition or indexes.
+
+  @param[in,out]  thd         thread handle. Used as a memory pool
+                              and source of environment information.
+  @param[in]      table       the source table, open and locked
+                              Used as an interface to the storage engine
+                              to acquire additional information about
+                              the original table.
+  @param[in,out]  create_info A blob with CREATE/ALTER TABLE
+                              parameters
+  @param[in,out]  alter_info  Another blob with ALTER/CREATE parameters.
+                              Originally create_info was used only in
+                              CREATE TABLE and alter_info only in ALTER TABLE.
+                              But since ALTER might end-up doing CREATE,
+                              this distinction is gone and we just carry
+                              around two structures.
+  @param[in,out]  alter_ctx   Runtime context for ALTER TABLE.
+
+  @return
+    Fills various create_info members based on information retrieved
+    from the storage engine.
+    Sets create_info->varchar if the table has a VARCHAR column.
+    Prepares alter_info->create_list and alter_info->key_list with
+    columns and keys of the new table.
+  @retval TRUE   error, out of memory or a semantical error in ALTER
+                 TABLE instructions
+  @retval FALSE  success
+*/
+
+bool
+mysql_prepare_alter_table(THD *thd, TABLE *table,
+                          HA_CREATE_INFO *create_info,
+                          Alter_info *alter_info,
+                          Alter_table_ctx *alter_ctx)
+{
+  uint db_create_options= (table->s->db_create_options
+                           & ~(HA_OPTION_PACK_RECORD));
+  uint used_fields= create_info->used_fields;
+
+  DBUG_ENTER("mysql_prepare_alter_table");
+
+  // Prepare data in HA_CREATE_INFO shared by ALTER and upgrade code.
+  create_info->init_create_options_from_share(table->s, used_fields);
+
+  if (!(used_fields & HA_CREATE_USED_AUTO) && table->found_next_number_field)
   {
-    create_info->comment.str= table->s->comment.str;
-    create_info->comment.length= table->s->comment.length;
+    /* Table has an autoincrement, copy value to new table */
+    table->file->info(HA_STATUS_AUTO);
+    create_info->auto_increment_value= table->file->stats.auto_increment_value;
   }
 
-  if (!create_info->compress.str)
-  {
-    create_info->compress.str= table->s->compress.str;
-    create_info->compress.length= table->s->compress.length;
-  }
-
-  if (!create_info->encrypt_type.str)
-  {
-    create_info->encrypt_type.str= table->s->encrypt_type.str;
-    create_info->encrypt_type.length= table->s->encrypt_type.length;
-  }
+  if (prepare_fields_and_keys(thd, table, create_info,
+                              alter_info, alter_ctx,
+                              used_fields, false))
+    DBUG_RETURN(true);
 
   table->file->update_create_info(create_info);
+
   if ((create_info->table_options &
        (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS)) ||
       (used_fields & HA_CREATE_USED_PACK_KEYS))
@@ -10580,14 +10552,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
   if (table->s->tmp_table)
     create_info->options|=HA_LEX_CREATE_TMP_TABLE;
-
-  alter_info->create_list.swap(new_create_list);
-  alter_info->key_list.clear();
-  alter_info->key_list.resize(new_key_list.size());
-  std::copy(new_key_list.begin(), new_key_list.end(), alter_info->key_list.begin());
-  alter_info->drop_list.clear();
-  alter_info->drop_list.resize(new_drop_list.size());
-  std::copy(new_drop_list.begin(), new_drop_list.end(), alter_info->drop_list.begin());
 
   DBUG_RETURN(false);
 }
@@ -10918,6 +10882,9 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
   int error= 0;
   handlerton *old_db_type= table->s->db_type();
   bool atomic_ddl= (old_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   DBUG_ENTER("simple_rename_or_index_change");
 
   if (keys_onoff != Alter_info::LEAVE_AS_IS)
@@ -10958,14 +10925,11 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
         keys were disabled.
        */
       if (dd::update_keys_disabled(thd, table_list->db, table_list->table_name,
-                                   keys_onoff))
+                                   keys_onoff, !atomic_ddl))
       {
-        table->file->print_error(error, MYF(0));
-        ha_rollback_trans(thd, false);
+        // Error should have been reported by DD layer already.
         error= -1;
       }
-      else
-        ha_commit_trans(thd, false, true);
     }
   }
 
@@ -11003,9 +10967,12 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     if (!error && atomic_ddl)
       error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 
+
     if (!error)
       my_ok(thd);
   }
+
+  thd->dd_client()->remove_uncommitted_objects<dd::Table>(!error);
 
   // Update referencing views metadata.
   if (!error)
@@ -11016,9 +10983,12 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
   {
     /*
       We need rollback possible changes to data-dictionary before releasing
-      metadata lock.
+      or downgrading metadata lock.
+
+      Also do full rollback in case we have THD::transaction_rollback_request.
     */
     trans_rollback_stmt(thd);
+    trans_rollback(thd);
   }
 
   if (atomic_ddl && old_db_type->post_ddl)
@@ -11712,6 +11682,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
   }
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   tmp_disable_binlog(thd);
 
   error= create_table_impl(thd, alter_ctx.new_db, alter_ctx.tmp_name,
@@ -11727,7 +11699,17 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   reenable_binlog(thd);
 
   if (error)
+  {
+    /*
+      Play it safe, rollback possible changes to the data-dictionary,
+      so failed mysql_alter_table()/mysql_recreate_table() do not
+      require rollback in the caller. Also do full rollback in unlikely
+      case we have THD::transaction_rollback_request.
+    */
+    trans_rollback_stmt(thd);
+    trans_rollback(thd);
     DBUG_RETURN(true);
+  }
 
   /*
     Atomic replacement of the table is possible only if both old and new
@@ -11775,21 +11757,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     // We assume that the table is non-temporary.
     DBUG_ASSERT(!table->s->tmp_table);
 
-    /*
-      Use uncommitted read since changes to data-dictionary might
-      be not committed yet.
-    */
-    std::unique_ptr<dd::Table> altered_table_def;
-    if (!(altered_table_def=
-            dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
-                  alter_ctx.new_db, alter_ctx.tmp_name)))
-      goto err_new_table_cleanup;
-
     if (!(altered_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
                                              alter_ctx.new_db,
                                              alter_ctx.tmp_name,
                                              true, false,
-                                             altered_table_def.get())))
+                                             nullptr)))
       goto err_new_table_cleanup;
 
     /* Set markers for fields in TABLE object for altered table. */
@@ -11828,13 +11800,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       else
       {
         dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-        const dd::Schema *sch_obj;
-        if (thd->dd_client()->acquire<dd::Schema>(alter_ctx.new_db, &sch_obj))
+        const dd::Table *tab_obj= nullptr;
+        if (thd->dd_client()->acquire<dd::Table>(alter_ctx.new_db,
+                                                 alter_ctx.tmp_name,
+                                                 &tab_obj))
           goto err_new_table_cleanup;
 
-        if (!sch_obj)
+        if (!tab_obj)
         {
-          my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx.new_db);
+          my_error(ER_NO_SUCH_TABLE, MYF(0), alter_ctx.new_db,
+                                             alter_ctx.tmp_name);
           goto err_new_table_cleanup;
         }
 
@@ -11842,7 +11817,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
           We need to revert changes to data-dictionary but
           still commit statement in this case.
         */
-        if (thd->dd_client()->drop_uncached(altered_table_def.get()))
+        if (thd->dd_client()->drop(tab_obj))
           goto err_new_table_cleanup;
       }
       goto end_inplace_noop;
@@ -11971,24 +11946,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   {
-    /*
-      Get table object for non-temporary tables use uncommitted read
-      since changes to data-dictionary might be not yet committed.
-
-      QQ: merge table_def and tmp_table_def?
-    */
-    std::unique_ptr<dd::Table> table_def;
-
-    if (!tmp_table_def &&
-        !(table_def= dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
-                           alter_ctx.new_db, alter_ctx.tmp_name)))
-      goto err_new_table_cleanup;
-
     if (ha_create_table(thd, alter_ctx.get_tmp_path(),
                         alter_ctx.new_db, alter_ctx.tmp_name,
-                        create_info, false, false,
-                        tmp_table_def ? tmp_table_def : table_def.get(),
-                        false))
+                        create_info, false, false, tmp_table_def))
       goto err_new_table_cleanup;
 
     /* Mark that we have created table in storage engine. */
@@ -12027,9 +11987,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     {
       /* table is a normal table: Create temporary table in same directory */
       /* Open our intermediate table. */
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::Table *table_def= nullptr;
+      if (thd->dd_client()->acquire<dd::Table>(alter_ctx.new_db,
+                                               alter_ctx.tmp_name,
+                                               &table_def))
+        goto err_new_table_cleanup;
+
       new_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
                                      alter_ctx.new_db, alter_ctx.tmp_name,
-                                     true, true, table_def.get());
+                                     true, true, table_def);
     }
     if (!new_table)
       goto err_new_table_cleanup;
@@ -12187,6 +12154,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
+
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
 
 
@@ -12363,6 +12332,8 @@ end_inplace_noop:
       (trans_commit_stmt(thd) || trans_commit_implicit(thd)))
     goto err_with_mdl;
 
+  thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+
   if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       new_db_type->post_ddl)
     new_db_type->post_ddl(thd);
@@ -12434,6 +12405,8 @@ err_new_table_cleanup:
     }
 #endif
     trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
     if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
         new_db_type->post_ddl)
       new_db_type->post_ddl(thd);
@@ -12443,41 +12416,18 @@ err_new_table_cleanup:
   {
     my_error(ER_INVALID_USE_OF_NULL, MYF(0));
   }
+
+  /*
+    No default value was provided for a DATE/DATETIME field, the
+    current sql_mode doesn't allow the '0000-00-00' value and
+    the table to be altered isn't empty.
+    Report error here.
+  */
   if ((alter_ctx.error_if_not_empty &
        Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
+      (thd->variables.sql_mode & MODE_NO_ZERO_DATE) &&
       thd->get_stmt_da()->current_row_for_condition())
-  {
-    /*
-      No default value was provided for a DATE/DATETIME field, the
-      current sql_mode doesn't allow the '0000-00-00' value and
-      the table to be altered isn't empty.
-      Report error here.
-    */
-    uint f_length;
-    enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
-    switch (alter_ctx.datetime_field->sql_type)
-    {
-      case MYSQL_TYPE_DATE:
-      case MYSQL_TYPE_NEWDATE:
-        f_length= MAX_DATE_WIDTH; // "0000-00-00";
-        t_type= MYSQL_TIMESTAMP_DATE;
-        break;
-      case MYSQL_TYPE_DATETIME:
-      case MYSQL_TYPE_DATETIME2:
-        f_length= MAX_DATETIME_WIDTH; // "0000-00-00 00:00:00";
-        t_type= MYSQL_TIMESTAMP_DATETIME;
-        break;
-      default:
-        /* Shouldn't get here. */
-        f_length= 0;
-        DBUG_ASSERT(0);
-    }
-    make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(my_zero_datetime6, f_length),
-                                 t_type,
-                                 alter_ctx.datetime_field->field_name);
-  }
-
+    push_zero_date_warning(thd, alter_ctx.datetime_field);
   DBUG_RETURN(true);
 
 err_with_mdl:
@@ -12493,6 +12443,8 @@ err_with_mdl:
   thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
 
   trans_rollback_stmt(thd);
+  // Full rollback in case we have THD::transaction_rollback_request.
+  trans_rollback(thd);
   if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       new_db_type->post_ddl)
     new_db_type->post_ddl(thd);
@@ -12708,8 +12660,18 @@ copy_data_between_tables(THD * thd,
       error= 1;
       break;
     }
-    /* Return error if source table isn't empty. */
-    if (alter_ctx->error_if_not_empty)
+    /*
+      Return error if source table isn't empty.
+
+      For a DATE/DATETIME field, return error only if strict mode
+      and No ZERO DATE mode is enabled.
+    */
+    if ((alter_ctx->error_if_not_empty &
+         Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT) ||
+        ((alter_ctx->error_if_not_empty &
+          Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
+         (thd->variables.sql_mode & MODE_NO_ZERO_DATE) &&
+         thd->is_strict_mode()))
     {
       error= 1;
       break;

@@ -896,10 +896,10 @@ a	t1.a in (select t2.a from t2)
 explain extended SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	a	a	5	func	4	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	a	a	5	func	4	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in t2 on a checking NULL having <is_not_null_test>(`test`.`t2`.`a`)))) AS `t1.a in (select t2.a from t2)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in t2 on a checking NULL where ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`)) having <is_not_null_test>(`test`.`t2`.`a`)))) AS `t1.a in (select t2.a from t2)` from `test`.`t1`
 CREATE TABLE t3 (a int(11) default '0');
 INSERT INTO t3 VALUES (1),(2),(3);
 SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
@@ -1387,31 +1387,31 @@ a3	1
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using index; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))))) AS `s1 NOT IN (SELECT s1 FROM t2)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or isnull(`test`.`t2`.`s1`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))))) AS `s1 NOT IN (SELECT s1 FROM t2)` from `test`.`t1`
 explain extended select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using index; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))) AS `s1 = ANY (SELECT s1 FROM t2)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or isnull(`test`.`t2`.`s1`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))) AS `s1 = ANY (SELECT s1 FROM t2)` from `test`.`t1`
 explain extended select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using index; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))))) AS `s1 <> ALL (SELECT s1 FROM t2)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or isnull(`test`.`t2`.`s1`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))))) AS `s1 <> ALL (SELECT s1 FROM t2)` from `test`.`t1`
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	3	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where (`test`.`t2`.`s1` < 'a2') having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))))) AS `s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where ((`test`.`t2`.`s1` < 'a2') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or isnull(`test`.`t2`.`s1`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))))) AS `s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')` from `test`.`t1`
 drop table t1,t2;
 create table t2 (a int, b int);
 create table t3 (a int);
@@ -2879,9 +2879,9 @@ INSERT INTO t2 VALUES (1),(2),(3);
 EXPLAIN SELECT a, a IN (SELECT a FROM t1) FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	4	100.00	Using index; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true)))) AS `a IN (SELECT a FROM t1)` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true)))) AS `a IN (SELECT a FROM t1)` from `test`.`t2`
 SELECT a, a IN (SELECT a FROM t1) FROM t2;
 a	a IN (SELECT a FROM t1)
 1	1
@@ -4367,7 +4367,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true)))) AS `z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true)))) AS `z` from `test`.`t2`
 flush status;
 select oref, a from t2 where a in (select a from t1 where oref=t2.oref);
 oref	a
@@ -4694,7 +4694,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	idx	idx	5	func	4	10.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie`), true)))) AS `z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie`) or isnull(`test`.`t1`.`ie`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie`), true)))) AS `z` from `test`.`t2`
 select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 oref	a	z
 ee	NULL	NULL
@@ -6444,7 +6444,7 @@ EXPLAIN
 SELECT i FROM t1 WHERE (1) NOT IN (SELECT i FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	NULL	index_subquery	k	k	5	const	2	100.00	Using index
+2	SUBQUERY	t2	NULL	index_subquery	k	k	5	const	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where 0
 DROP TABLE t2;
@@ -8243,5 +8243,46 @@ WHERE t1.t1_id = 1 GROUP BY t2.t2_val;
 CMS	t2_val	t1_id
 2.50	1	1
 DROP TABLE t1, t2, t3;
+#
+# Bug#13915291 NOT IN (SUBQUERY) GIVES WRONG RESULT WHEN PREFIX INDEX OF INNER TABLE IS USED
+#
+CREATE TABLE t1 (
+a1 char(8) DEFAULT NULL,
+a2 char(8) DEFAULT NULL,
+KEY a1 (a1(2))
+);
+CREATE TABLE t2 (
+b1 char(8) DEFAULT NULL,
+b2 char(8) DEFAULT NULL
+);
+INSERT INTO t1 VALUES
+('1 - 00', '2 - 00'),('1 - 01', '2 - 01'),('1 - 02', '2 - 02');
+INSERT INTO t2 VALUES
+('1 - 01', '2 - 01'),('1 - 01', '2 - 01'),
+('1 - 02', '2 - 02'),('1 - 02', '2 - 02'),('1 - 03', '2 - 03');
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT a1 FROM t1 WHERE a1 > '1';
+a1
+1 - 00
+1 - 01
+1 - 02
+SELECT * FROM t2 WHERE b1 NOT IN ('1 - 00', '1 - 01', '1 - 02');
+b1	b2
+1 - 03	2 - 03
+EXPLAIN SELECT * FROM t2 WHERE b1 NOT IN
+(SELECT a1 FROM t1 FORCE INDEX(a1) WHERE a1 > '1');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a1	a1	3	func	6	100.00	Using where; Full scan on NULL key
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`b1`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`b1`) in t1 on a1 checking NULL where ((`test`.`t1`.`a1` > '1') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b1`) = `test`.`t1`.`a1`) or isnull(`test`.`t1`.`a1`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a1`), true))))))
+SELECT * FROM t2 WHERE b1 NOT IN
+(SELECT a1 FROM t1 FORCE INDEX(a1) WHERE a1 > '1');
+b1	b2
+1 - 03	2 - 03
+DROP TABLE t1,t2;
 set optimizer_switch=default;
 set optimizer_switch=default;

@@ -1,0 +1,1 @@
+--no-console --log_error=$MYSQLTEST_VARDIR/tmp/group_replication_group_name_error_on_boot.err

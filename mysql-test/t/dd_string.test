@@ -3,6 +3,13 @@
 --echo #
 --echo # Checking dd string memory use with PFS
 --echo #
+
+--echo # Create and drop a basic table to populate the
+--echo # shared cache with DD table objects.
+CREATE TABLE t1(i int);
+DROP TABLE t1;
+
+--echo #
 --echo # Truncating memory events table to avoid noise
 TRUNCATE TABLE performance_schema.memory_summary_global_by_event_name;
 
@@ -61,10 +68,10 @@ CREATE TABLE percents (EVENT_NAME VARCHAR(512), ALLOC_PCT DECIMAL(10,3),
 INSERT INTO percents
   SELECT
     baseline.EVENT_NAME,
-    100 * diffs.COUNT_ALLOC_DIFF / baseline.COUNT_ALLOC,
-    100 * diffs.COUNT_FREE_DIFF / baseline.COUNT_FREE,
-    100 * diffs.SUM_NUMBER_OF_BYTES_ALLOC_DIFF / baseline.SUM_NUMBER_OF_BYTES_ALLOC,
-    100 * diffs.SUM_NUMBER_OF_BYTES_FREE_DIFF / baseline.SUM_NUMBER_OF_BYTES_FREE
+    100 * ROUND(diffs.COUNT_ALLOC_DIFF / baseline.COUNT_ALLOC, 5),
+    100 * ROUND(diffs.COUNT_FREE_DIFF / baseline.COUNT_FREE, 5),
+    100 * ROUND(diffs.SUM_NUMBER_OF_BYTES_ALLOC_DIFF / baseline.SUM_NUMBER_OF_BYTES_ALLOC, 5),
+    100 * ROUND(diffs.SUM_NUMBER_OF_BYTES_FREE_DIFF / baseline.SUM_NUMBER_OF_BYTES_FREE, 5)
   FROM diffs, baseline
   WHERE diffs.EVENT_NAME = baseline.EVENT_NAME;
 
@@ -88,7 +95,7 @@ FROM baseline JOIN (after_create, diffs, percents) ON
 WHERE percents.ALLOC_PCT > 13;
 
 --echo #
---echo # Checking increase in the number of bytes allocated (threshold 100%)
+--echo # Checking increase in the number of bytes allocated (threshold 11%)
 --echo #
 SELECT
   baseline.EVENT_NAME AS 'PSI MEMORY EVENT NAME',
@@ -96,12 +103,12 @@ SELECT
   after_create.SUM_NUMBER_OF_BYTES_ALLOC AS 'POST ALLOC BYTES',
   diffs.SUM_NUMBER_OF_BYTES_ALLOC_DIFF AS DELTA,
   percents.BYTES_ALLOC_PCT AS PCT_CHANGE,
-  'Exceeds threshold of +10%' AS REASON
+  'Exceeds threshold of +11%' AS REASON
 FROM baseline JOIN (after_create, diffs, percents) ON
   (baseline.EVENT_NAME = after_create.EVENT_NAME AND
    baseline.EVENT_NAME = diffs.EVENT_NAME AND
    baseline.EVENT_NAME = percents.EVENT_NAME)
-WHERE percents.BYTES_ALLOC_PCT > 10;
+WHERE percents.BYTES_ALLOC_PCT > 11;
 
 --echo #
 --echo # Cleaning up

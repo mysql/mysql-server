@@ -18,6 +18,8 @@
 #ifndef NDB_EVENT_DATA_H
 #define NDB_EVENT_DATA_H
 
+#include <stdio.h>
+
 #include "my_global.h" // my_alloc.h
 #include "my_alloc.h" // MEM_ROOT
 

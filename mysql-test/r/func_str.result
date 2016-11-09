@@ -5132,3 +5132,71 @@ DROP PROCEDURE sub1;
 DROP VIEW view1;
 DROP VIEW view2;
 DROP TABLE dd_table;
+#
+# Bug#24911350 LOCATE('HE','HELLO',NULL) SHOULD RETURN NULL INSTEAD OF 0
+#
+select locate('he','hello',null),locate('he',null,2),locate(null,'hello',2);
+locate('he','hello',null)	locate('he',null,2)	locate(null,'hello',2)
+NULL	NULL	NULL
+select locate(null,'hello',null),locate('he',null,null);
+locate(null,'hello',null)	locate('he',null,null)
+NULL	NULL
+select left('hello',null),left(null,1),left(null,null);
+left('hello',null)	left(null,1)	left(null,null)
+NULL	NULL	NULL
+select right('hello',null),right(null,1),right(null,null);
+right('hello',null)	right(null,1)	right(null,null)
+NULL	NULL	NULL
+select mid('hello',1,null),mid('hello',null,1),mid(null,1,1);
+mid('hello',1,null)	mid('hello',null,1)	mid(null,1,1)
+NULL	NULL	NULL
+select substr('hello',null,2),substr('hello',2,null),substr(null,1,2);
+substr('hello',null,2)	substr('hello',2,null)	substr(null,1,2)
+NULL	NULL	NULL
+select substr(null,null,null),mid(null,null,null);
+substr(null,null,null)	mid(null,null,null)
+NULL	NULL
+select substring_index('the king of the the null','the',null);
+substring_index('the king of the the null','the',null)
+NULL
+select substring_index('the king of the the null',null,3);
+substring_index('the king of the the null',null,3)
+NULL
+select substring_index(null,'the',3);
+substring_index(null,'the',3)
+NULL
+select substring_index(null,null,3);
+substring_index(null,null,3)
+NULL
+select substring_index(null,null,null);
+substring_index(null,null,null)
+NULL
+select insert(null,2,1,'hi'),insert('txs',null,1,'hi');
+insert(null,2,1,'hi')	insert('txs',null,1,'hi')
+NULL	NULL
+select insert('txs',2,null,'hi'),insert('txs',2,1,null);
+insert('txs',2,null,'hi')	insert('txs',2,1,null)
+NULL	NULL
+select insert('txs',null,null,'hi'),insert(null,null,null,null);
+insert('txs',null,null,'hi')	insert(null,null,null,null)
+NULL	NULL
+#
+# Bug #24930038 BITWISE SHIFT: ASSERTION FAILED: NULL_VALUE OR LOST CONNECTION TO SERVER ERROR
+#
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT REPEAT(0x1111, 2100000) >> 1;
+REPEAT(0x1111, 2100000) >> 1
+
+Warnings:
+Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+SELECT (~(REPEAT(0xb822, 0x6fc221)));
+(~(REPEAT(0xb822, 0x6fc221)))
+
+Warnings:
+Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+SET SQL_MODE=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

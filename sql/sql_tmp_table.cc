@@ -2135,7 +2135,7 @@ static bool open_tmp_table(TABLE *table)
   int error;
   if ((error=table->file->ha_open(table, table->s->table_name.str,O_RDWR,
                                   HA_OPEN_TMP_TABLE | HA_OPEN_INTERNAL_TABLE,
-                                  NULL)))
+                                  nullptr)))
   {
     table->file->print_error(error,MYF(0)); /* purecov: inspected */
     table->db_stat=0;
@@ -2322,7 +2322,7 @@ static bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
 
   int error;
   if ((error= table->file->create(share->table_name.str, table,
-                                  &create_info, NULL)))
+                                  &create_info, nullptr)))
   {
     table->file->print_error(error,MYF(0));    /* purecov: inspected */
     /*
@@ -2440,7 +2440,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
 
   if (open_tmp_table(table))
   {
-    table->file->ha_delete_table(table->s->table_name.str, NULL);
+    table->file->ha_delete_table(table->s->table_name.str, nullptr);
     return TRUE;
   }
 
@@ -2472,7 +2472,7 @@ free_tmp_table(THD *thd, TABLE *entry)
     if (entry->db_stat)
       entry->file->ha_drop_table(entry->s->table_name.str);
     else
-      entry->file->ha_delete_table(entry->s->table_name.str, NULL);
+      entry->file->ha_delete_table(entry->s->table_name.str, nullptr);
     delete entry->file;
     entry->file= NULL;
 
@@ -2703,7 +2703,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
     (void) table->file->ha_rnd_end();
   (void) new_table.file->ha_close();
  err1:
-  new_table.file->ha_delete_table(new_table.s->table_name.str, NULL);
+  new_table.file->ha_delete_table(new_table.s->table_name.str, nullptr);
  err2:
   delete new_table.file;
   thd_proc_info(thd, save_proc_info);

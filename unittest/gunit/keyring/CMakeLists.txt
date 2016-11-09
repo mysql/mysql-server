@@ -19,6 +19,12 @@ IF(NOT GMOCK_FOUND)
 ENDIF()
 
 INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(${SSL_INCLUDE_DIRS})
+
+IF(SSL_DEFINES)
+  ADD_DEFINITIONS(${SSL_DEFINES})
+ENDIF()
+
 
 INCLUDE_DIRECTORIES(
   ${GMOCK_INCLUDE_DIRS}
@@ -33,6 +39,7 @@ SET(TESTS
   keyring-api
   keys_container
   buffered_file_io
+  file_io
 )
 
 IF (MERGE_UNITTESTS)
@@ -56,6 +63,13 @@ IF (MERGE_UNITTESTS)
        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/digest.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_factory.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_ver_1_0.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_ver_2_0.cc
+       ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/buffered_file_io_10.cc
        )
 
   IF(WIN32)
@@ -84,6 +98,13 @@ ELSE()
         ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/digest.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_factory.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_ver_1_0.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_ver_2_0.cc
+        ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/buffered_file_io_10.cc
         )
     IF(WIN32)
       LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)

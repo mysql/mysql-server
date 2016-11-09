@@ -4426,8 +4426,7 @@ prepare_inplace_alter_table_global_dd(
 				->tablespace_id();
 
 			const dd::Tablespace*	old_dd_space = NULL;
-			if (client->acquire_uncached_uncommitted<
-				    dd::Tablespace>(old_space_id,
+			if (client->acquire<dd::Tablespace>(old_space_id,
 						    &old_dd_space)) {
 				ut_a(false);
 				return(true);
@@ -4440,7 +4439,7 @@ prepare_inplace_alter_table_global_dd(
 				return(true);
 			}
 
-			if (client->drop_uncached(old_dd_space)) {
+			if (client->drop(old_dd_space)) {
 				ut_a(false);
 				return(true);
 			}
@@ -5675,8 +5674,7 @@ version of the table
 @param[in,out]	new_dd_tab	dd::Table object representing new
 version of the table
 @retval	true Failure
-@retval	false Success
-*/
+@retval	false Success */
 template<typename Table>
 bool
 ha_innobase::prepare_inplace_alter_table_impl(
@@ -6510,13 +6508,13 @@ get_error_key_name(
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in,out]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
-@param[in]	old_dd_tab	dd::Table object representing old
-version of the table
-@param[in,out]	new_dd_tab	dd::Table object representing new
-version of the table
-@retval true Failure
-@retval false Success
-*/
+@param old_table_def dd::Table object describing old version
+of the table.
+@param new_table_def dd::Table object for the new version of the
+table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement
+commit time.
+@retval true Failure */
 template<typename Table>
 bool
 ha_innobase::inplace_alter_table_impl(
@@ -8487,13 +8485,14 @@ do {								\
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in,out]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
-@param[in]	commit		True to commit or false to rollback.
-@param[in]	old_dd_tab	dd::Table object representing old
-version of the table
-@param[in,out]	new_dd_tab	dd::Table object representing new
-version of the table
-@retval	true Failure
-@retval	false Success */
+@param commit true => Commit, false => Rollback.
+@param old_table_def dd::Table object describing old version
+of the table.
+@param new_table_def dd::Table object for the new version of the
+table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement
+commit time.
+@retval true Failure, false Success */
 template<typename Table>
 bool
 ha_innobase::commit_inplace_alter_table_impl(
@@ -9382,14 +9381,20 @@ This will be invoked before inplace_alter_table().
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
+@param[in]	old_table_def	dd::Table object describing old version
+of the table.
+@param[in/out]	new_table_def	dd::Table object for the new version of
+the table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement commit
+time.
 @retval true Failure.
 @retval false Success. */
 bool
 ha_innopart::prepare_inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab)
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	THD* thd;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -9438,7 +9443,7 @@ ha_innopart::prepare_inplace_alter_table(
 	}
 
 	if (altered_table->found_next_number_field != NULL) {
-		dd_set_autoinc(new_dd_tab->se_private_data(),
+		dd_set_autoinc(new_table_def->se_private_data(),
 			       ha_alter_info->create_info
 			       ->auto_increment_value);
 	}
@@ -9449,8 +9454,8 @@ ha_innopart::prepare_inplace_alter_table(
 	const char*     save_data_file_name =
 		ha_alter_info->create_info->data_file_name;
 
-	auto	oldp = old_dd_tab->partitions().begin();
-	auto	newp = new_dd_tab->partitions()->begin();
+	auto	oldp = old_table_def->partitions().begin();
+	auto	newp = new_table_def->partitions()->begin();
 
 	for (uint i = 0; i < m_tot_parts; ++oldp, ++newp) {
 		ut_ad(dd_part_is_stored(*oldp) == dd_part_is_stored(*newp));
@@ -9510,14 +9515,20 @@ on the return value from check_if_supported_inplace_alter().
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
+@param[in]	old_table_def	dd::Table object describing old version
+of the table.
+@param[in/out]	new_table_def	dd::Table object for the new version of
+the table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement commit
+time.
 @retval true Failure.
 @retval false Success. */
 bool
 ha_innopart::inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab)
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	bool res = true;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -9529,8 +9540,8 @@ ha_innopart::inplace_alter_table(
 		return(false);
 	}
 
-	auto	oldp = old_dd_tab->partitions().begin();
-	auto	newp = new_dd_tab->partitions()->begin();
+	auto	oldp = old_table_def->partitions().begin();
+	auto	newp = new_table_def->partitions()->begin();
 
 	for (uint i = 0; i < m_tot_parts; ++oldp, ++newp) {
 		ut_ad(dd_part_is_stored(*oldp) == dd_part_is_stored(*newp));
@@ -9573,6 +9584,12 @@ blocked during prepare, but might not be during commit).
 @param[in]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
 @param[in]	commit		true => Commit, false => Rollback.
+@param[in]	old_table_def	dd::Table object describing old version
+of the table.
+@param[in/out]	new_table_def	dd::Table object for the new version of
+the table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement commit
+time.
 @retval true Failure.
 @retval false Success. */
 bool
@@ -9580,8 +9597,8 @@ ha_innopart::commit_inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
 	bool			commit,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab)
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	bool res = false;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -9594,7 +9611,7 @@ ha_innopart::commit_inplace_alter_table(
 		ut_ad(!commit);
 		return(false);
 	}
- 
+
 	ut_ad(ctx_parts->prebuilt_array[0] == m_prebuilt);
 
 	if (commit) {
@@ -9602,9 +9619,13 @@ ha_innopart::commit_inplace_alter_table(
 		ut_ad(ha_alter_info->group_commit_ctx == ctx_parts->ctx_array);
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[0];
 		set_partition(0);
-		res = ha_innobase::commit_inplace_alter_table(
-			altered_table, ha_alter_info, commit,
-			old_dd_tab, new_dd_tab);
+
+		res = ha_innobase::commit_inplace_alter_table(altered_table,
+							ha_alter_info,
+							commit,
+							old_table_def,
+							new_table_def);
+
 		ut_ad(res || !ha_alter_info->group_commit_ctx);
 		goto end;
 	}
@@ -9616,7 +9637,8 @@ ha_innopart::commit_inplace_alter_table(
 		set_partition(i);
 		if (ha_innobase::commit_inplace_alter_table(altered_table,
 						ha_alter_info, commit,
-						old_dd_tab, new_dd_tab)) {
+						old_table_def,
+						new_table_def)) {
 			res = true;
 		}
 		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);

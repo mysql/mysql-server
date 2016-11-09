@@ -1,0 +1,47 @@
+################################################################################
+# The intent of this test is to verify if the validations that were
+# created within the Group Replication plugin in the startup process
+# are fully functional.
+#
+# It will test the static variables:
+# - gtid_mode. It will be set to OFF in order to fail.
+#
+# Test:
+# 0. The test requires one server.
+#  - Set gtid_mode to OFF in option file.
+#  - Install plugin at startup.
+# 1. START GROUP_REPLICATION must fail due to GR incompatible gtid_mode.
+################################################################################
+
+--source include/have_binlog_format_row.inc
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+--source include/not_gtid_enabled.inc
+
+# The section below is present in "have_group_replication_plugin.inc."
+# But since this test is evaluating the absence of certain configurations, one
+# is not able to use that file since it enforces the existence of such
+# parameters in the server.
+
+if (`SELECT @@have_dynamic_loading != 'YES'`) {
+  --skip Requires dynamic loading
+}
+
+if (!`select count(*) from information_schema.plugins where PLUGIN_NAME like 'group_replication'`)
+{
+  --skip Needs Group Replication plugin
+}
+
+--let $assert_text= Gtid Mode is disabled
+--let $assert_cond= "[SELECT @@GLOBAL.gtid_mode]" = "OFF"
+--source include/assert.inc
+
+--echo #
+--echo # Test if gtid_mode with the wrong value will fail.
+--echo #
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+call mtr.add_suppression("Gtid mode should be ON for Group Replication");
+

@@ -1,0 +1,30 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# Start group_replication on the first two nodes and check if the group
+# of two members is running.
+include/start_and_bootstrap_group_replication.inc
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+# Add the debug point on the third member to ensure that the major
+# version of that node is higher than that of the group. It should be able to
+# join the group but in read only mode.
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_major_version';
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+# Verify that the server 3 joining the group is in super_read_only mode
+# and cannot execute writes.
+CREATE TABLE t1 (i INT PRIMARY KEY NOT NULL);
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= @debug_saved;
+# The server's super_read_only mode should be 0 here.
+include/assert.inc [The super_read_only mode should be 0 here.]
+CREATE TABLE t1 (i INT PRIMARY KEY NOT NULL);
+DROP TABLE t1;
+RESET MASTER;
+include/group_replication_end.inc

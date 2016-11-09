@@ -3779,7 +3779,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
 
   {
     const dd::Schema *sch_obj= NULL;
-    if (thd->dd_client()->acquire<dd::Schema>(db_name->str, &sch_obj))
+    if (thd->dd_client()->acquire(db_name->str, &sch_obj))
       return 1;
 
     if (!sch_obj)
@@ -4297,7 +4297,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
   mysql_mutex_lock(&LOCK_open);
   share= get_table_share(thd, &table_list, key,
-                         key_length, true, false, hash_value);
+                         key_length, true, hash_value);
   if (!share)
   {
     res= 0;
@@ -8477,7 +8477,7 @@ TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 
   const dd::Schema *sch_obj= nullptr;
   if (mdl_locker.ensure_locked(trg_name->m_db.str) ||
-      dd_client->acquire<dd::Schema>(trg_name->m_db.str, &sch_obj))
+      dd_client->acquire(trg_name->m_db.str, &sch_obj))
     return nullptr;
 
   if (sch_obj == nullptr)

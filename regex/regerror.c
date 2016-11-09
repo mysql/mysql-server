@@ -1,10 +1,11 @@
-#include <my_global.h>
-#include <m_string.h>
 #include <m_ctype.h>
+#include <m_string.h>
+#include <my_global.h>
+#include <stdio.h>
 
 #include "my_regex.h"
-#include "utils.h"
 #include "regerror.ih"
+#include "utils.h"
 
 /*
  = #define	MY_REG_NOMATCH	 1

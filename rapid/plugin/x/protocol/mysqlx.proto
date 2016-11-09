@@ -73,6 +73,10 @@ message ClientMessages {
 
     EXPECT_OPEN = 24;
     EXPECT_CLOSE = 25;
+
+    CRUD_CREATE_VIEW = 30;
+    CRUD_MODIFY_VIEW = 31;
+    CRUD_DROP_VIEW = 32;
   }
 }
 

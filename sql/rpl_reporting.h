@@ -23,6 +23,7 @@
 
 #include "my_compiler.h"
 #include "my_global.h"
+#include "my_loglevel.h"
 #include "my_sys.h"                   // my_time
 #include "mysql/psi/mysql_mutex.h"
 

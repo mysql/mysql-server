@@ -84,10 +84,6 @@
 #include "transaction_info.h"
 #include "trigger_def.h"
 
-#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
-#include "dd/dd_table.h"              // dd::acquire_uncache_uncommitted_table
-#include "dd/dd_schema.h"             // dd::Schema_MDL_locker
-#include "dd/sdi.h"                   // dd::store_sdi
 
 static bool check_view_insertability(THD *thd, TABLE_LIST *view,
                                      const TABLE_LIST *insert_table_ref);
@@ -2441,6 +2437,9 @@ void Query_result_insert::abort_result_set()
   @param [in] items             The source table columns. Corresponding column
                                 definitions (Create_field's) will be added to
                                 the end of alter_info->create_list.
+  @param  [out] post_ddl_ht     Set to handlerton for table's SE, if this SE
+                                supports atomic DDL, so caller can call SE
+                                post DDL hook after committing transaction.
 
   @note
     This function assumes that either table exists and was pre-opened and
@@ -2584,8 +2583,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
         }
 #endif
 
-        Open_table_context ot_ctx(thd, (MYSQL_OPEN_REOPEN |
-                                        MYSQL_OPEN_UNCOMMITTED));
+        // FIXME?
+        Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         /*
           Here we open the destination table, on which we already have
           an exclusive metadata lock.
@@ -2679,6 +2678,9 @@ int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ASSERT(create_table->table == NULL);
 
   DEBUG_SYNC(thd,"create_table_select_before_check_if_exists");
+
+  m_releaser= std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser>(
+                new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values, &m_post_ddl_ht)))
@@ -3073,14 +3075,16 @@ bool Query_result_create::send_eof()
 
     if (m_post_ddl_ht)
       m_post_ddl_ht->post_ddl(thd);
+
+    m_releaser.reset();
   }
   return tmp;
 }
 
 
 /**
-  Close a and drop (if necessary) a just created table in
-  CREATE TABLE ... SELECT in case of error.
+  Close and drop just created table in CREATE TABLE ... SELECT in case
+  of error.
 
   @note Here we assume that the table to be closed is open only by the
         calling thread, so we needn't wait until other threads close the
@@ -3191,6 +3195,8 @@ void Query_result_create::abort_result_set()
     if (m_post_ddl_ht)
       m_post_ddl_ht->post_ddl(thd);
   }
+
+  m_releaser.reset();
 
   DBUG_VOID_RETURN;
 }

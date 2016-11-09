@@ -1,0 +1,58 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Setup the members with a recovery user that does
+#    require SSL.
+[connection server1]
+SET SESSION sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+SET SESSION sql_log_bin=1;
+[connection server2]
+CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+
+############################################################
+# 2. Start Group Replication on both members and assert that
+#    GCS SSL is enabled.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"' in the input file: 1
+[connection server2]
+include/start_group_replication.inc
+Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"' in the input file: 1
+
+############################################################
+# 3. Stop and start Group Replication on member 2 to stress
+#    SSL destroy and initialization procedures
+[connection server2]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"' in the input file: 2
+
+############################################################
+# 4. Execute some transactions to validate that group is
+#    properly working.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+[connection server2]
+INSERT INTO t1 VALUES (2);
+include/rpl_sync.inc
+[connection server1]
+include/assert.inc ['There are 2 values on table t1']
+[connection server2]
+include/assert.inc ['There are 2 values on table t1']
+
+############################################################
+# 5. Clean up.
+[connection server1]
+DROP TABLE t1;
+SET SESSION sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+SET SESSION sql_log_bin=1;
+include/group_replication_end.inc

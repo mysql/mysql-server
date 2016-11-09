@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ const char* Message_data::message_type_strings[]={
 };
 
 const int Message_data::message_type_strings_count=
-  array_elements(Message_data::message_type_strings);
+  static_cast<int>(array_elements(Message_data::message_type_strings));
 
 
 void Warning_data::print_error(std::string program_name) const

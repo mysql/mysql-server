@@ -1206,7 +1206,7 @@ public:
     @param thd current session
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
-  Json_dom *clone_dom(const THD *thd);
+  Json_dom *clone_dom(const THD *thd) const;
 
   /**
     Get the wrapped contents in binary value form.

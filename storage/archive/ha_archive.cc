@@ -145,7 +145,7 @@ static handler *archive_create_handler(handlerton *hton,
 
 static handler *archive_create_handler(handlerton *hton,
                                        TABLE_SHARE *table,
-                                       bool partitioned,
+                                       bool,
                                        MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_archive(hton, table);
@@ -189,17 +189,17 @@ static void init_archive_psi_keys(void)
   int count MY_ATTRIBUTE((unused));
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  count= array_elements(all_archive_mutexes);
+  count= static_cast<int>(array_elements(all_archive_mutexes));
   mysql_mutex_register(category, all_archive_mutexes, count);
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
 #ifdef HAVE_PSI_FILE_INTERFACE
-  count= array_elements(all_archive_files);
+  count= static_cast<int>(array_elements(all_archive_files));
   mysql_file_register(category, all_archive_files, count);
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  count= array_elements(all_archive_memory);
+  count= static_cast<int>(array_elements(all_archive_memory));
   mysql_memory_register(category, all_archive_memory, count);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
@@ -566,7 +566,7 @@ int ha_archive::init_archive_reader()
   We open the file we will read from.
 */
 int ha_archive::open(const char *name, int, uint open_options,
-                     const dd::Table *)
+                     const dd::Table*)
 {
   int rc= 0;
   DBUG_ENTER("ha_archive::open");
@@ -654,7 +654,7 @@ int ha_archive::close(void)
 
 int ha_archive::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info,
-                       dd::Table *dd_tab)
+                       dd::Table *table_def)
 {
   char name_buff[FN_REFLEN];
   char linkname[FN_REFLEN];
@@ -771,7 +771,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   DBUG_RETURN(0);
 
 error2:
-  delete_table(name, dd_tab);
+  delete_table(name, table_def);
 error:
   /* Return error number, if we got one */
   DBUG_RETURN(error ? error : -1);
@@ -1665,7 +1665,7 @@ int ha_archive::end_bulk_insert()
   This is done for security reasons. In a later version we will enable this by 
   allowing the user to select a different row format.
 */
-int ha_archive::truncate(dd::Table *dd_tab)
+int ha_archive::truncate(dd::Table*)
 {
   DBUG_ENTER("ha_archive::truncate");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);

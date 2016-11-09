@@ -52,3 +52,4 @@ mysqldump                        : WL#9532 disables it, because it tries to modi
 mysqlcheck                       : WL#9532 disables it, because it tries to modify the DD tables.
 
 wl6443_deprecation               : WL#9532 disables it, because it creates temporary table in DD tablespaces.
+mysqld--defaults-file @darwin : Bug#24579973 2016-11-03 Anitha Test fails on Mac OS 10.12

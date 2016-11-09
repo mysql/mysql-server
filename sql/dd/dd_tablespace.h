@@ -20,7 +20,6 @@
 #include "my_alloc.h"
 #include "my_global.h"
 
-#include <memory>                    // unique_ptr
 
 class THD;
 class st_alter_tablespace;
@@ -78,17 +77,12 @@ bool get_tablespace_name(THD *thd, const T *obj,
   @param hton               Handlerton in which tablespace reside.
   @param commit_dd_changes  Indicates that we need to commit
                             changes to data-dictionary.
-  @param store_sdi          Indicates whether we need to store
-                            SDI for the tablespace.
 
-  @returns Uncached dd::Tablespace object for tablespace created
-           (nullptr in case of failure).
+  @return false - On success.
+  @return true - On failure.
 */
-std::unique_ptr<Tablespace> create_tablespace(THD *thd,
-                                              st_alter_tablespace *ts_info,
-                                              handlerton *hton,
-                                              bool commit_dd_changes,
-                                              bool store_sdi);
+bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
+                       handlerton *hton, bool commit_dd_changes);
 
 /**
   Drop Tablespace from Data Dictionary.
@@ -98,14 +92,12 @@ std::unique_ptr<Tablespace> create_tablespace(THD *thd,
                             the tablespace to be dropped.
   @param commit_dd_changes  Indicates that we need to commit
                             changes to data-dictionary.
-  @param uncached           Indicates whether dd::Tablespace
-                            object is uncached.
 
   @return false - On success.
   @return true - On failure.
 */
 bool drop_tablespace(THD *thd, const Tablespace *tablespace,
-                     bool commit_dd_changes, bool uncached);
+                     bool commit_dd_changes);
 
 /**
   Update tablespace description in Data Dictionary.
@@ -119,7 +111,8 @@ bool drop_tablespace(THD *thd, const Tablespace *tablespace,
   @return false - On success.
   @return true - On failure.
 */
-bool update_tablespace(THD *thd, Tablespace *tablespace,
+bool update_tablespace(THD *thd, const Tablespace *old_tablespace,
+                       Tablespace *tablespace,
                        bool commit_dd_changes);
 
 /**

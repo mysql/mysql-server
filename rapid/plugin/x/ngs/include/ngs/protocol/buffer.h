@@ -41,9 +41,6 @@ namespace ngs
 
     virtual ~Buffer();
 
-    Buffer(const Buffer &) = delete;
-    Buffer &operator=(const Buffer &) = delete;
-
     Alloc_result reserve(size_t space);
     Alloc_result add_pages(unsigned int npages);
 
@@ -68,6 +65,10 @@ namespace ngs
     size_t m_length;
     Page_pool& m_page_pool;
     Page_list m_pages;
+
+  private:
+    Buffer(const Buffer &) = delete;
+    Buffer &operator=(const Buffer &) = delete;
   };
 
 } // namespace ngs

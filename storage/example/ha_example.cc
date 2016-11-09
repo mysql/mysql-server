@@ -87,10 +87,11 @@
     -Brian
 */
 
-#include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
 #include "ha_example.h"
 #include "probes_mysql.h"
+#include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
 #include "sql_plugin.h"
+#include "typelib.h"
 
 static handler *example_create_handler(handlerton *hton,
                                        TABLE_SHARE *table,
@@ -155,7 +156,7 @@ err:
 
 static handler* example_create_handler(handlerton *hton,
                                        TABLE_SHARE *table,
-                                       bool partitioned,
+                                       bool,
                                        MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_example(hton, table);
@@ -667,7 +668,7 @@ int ha_example::delete_all_rows()
   Truncate_statement in sql_truncate.cc
   Remarks in handler::truncate.
 */
-int ha_example::truncate(dd::Table *dd_tab)
+int ha_example::truncate(dd::Table*)
 {
   DBUG_ENTER("ha_example::truncate");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);

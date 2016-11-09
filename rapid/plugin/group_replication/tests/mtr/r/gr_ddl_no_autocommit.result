@@ -1,0 +1,188 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+#############################################################
+# EXECUTE SEVERAL DDL STATEMENTS WHEN AUTOCOMMIT= 0
+#############################################################
+CREATE TABLE tt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE=InnoDB;
+CREATE TABLE tt_2 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE=InnoDB;
+INSERT INTO tt_1(ddl_case) VALUES(0);
+INSERT INTO tt_2(ddl_case) VALUES(0);
+SET AUTOCOMMIT= 0;
+
+#############################################################
+# DDL case: 4
+INSERT INTO tt_1(ddl_case) VALUES (4);
+CREATE TRIGGER tr AFTER INSERT ON tt_1 FOR EACH ROW UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER tr AFTER INSERT ON tt_1 FOR EACH ROW UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case
+
+#############################################################
+# DDL case: 3
+INSERT INTO tt_1(ddl_case) VALUES (3);
+DROP TRIGGER tr;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; DROP TRIGGER tr
+
+#############################################################
+# DDL case: 2
+INSERT INTO tt_1(ddl_case) VALUES (2);
+CREATE INDEX ix ON tt_1(ddl_case);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE INDEX ix ON tt_1(ddl_case)
+
+#############################################################
+# DDL case: 1
+INSERT INTO tt_1(ddl_case) VALUES (1);
+DROP INDEX ix ON tt_1;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; DROP INDEX ix ON tt_1
+SET AUTOCOMMIT= 1;
+
+#############################################################
+# CHECK CONSISTENCY
+#############################################################
+include/rpl_sync.inc
+include/diff_tables.inc [server1:tt_1,server2:tt_1]
+include/assert.inc ['server1 and server2 GTID_EXECUTED must be equal']
+
+#############################################################
+# BINLOG CONTENT
+#############################################################
+SERVER 1
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE tt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE=InnoDB
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE tt_2 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE=InnoDB
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER tr AFTER INSERT ON tt_1 FOR EACH ROW UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; DROP TRIGGER tr
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE INDEX ix ON tt_1(ddl_case)
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; DROP INDEX ix ON tt_1
+SERVER 2
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE tt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE=InnoDB
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE tt_2 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE=InnoDB
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER tr AFTER INSERT ON tt_1 FOR EACH ROW UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; DROP TRIGGER tr
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE INDEX ix ON tt_1(ddl_case)
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; DROP INDEX ix ON tt_1
+
+#############################################################
+# CLEAN
+#############################################################
+DROP TABLE tt_1;
+DROP TABLE tt_2;
+include/group_replication_end.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -417,6 +417,16 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( RedoStatus,          "no_logfiles",  10, no_logfiles),
   ROW( RedoStatus,          "logfilesize",  11, logfilesize),
  
+  ROW( EventBufferStatus2, "usage",        1, usage),
+  ROW( EventBufferStatus2, "alloc",        2, alloc),
+  ROW( EventBufferStatus2, "max",          3, max),
+  ROW( EventBufferStatus2, "latest_consumed_epoch_l", 4, latest_consumed_epoch_l),
+  ROW( EventBufferStatus2, "latest_consumed_epoch_h", 5, latest_consumed_epoch_h),
+  ROW( EventBufferStatus2, "latest_buffered_epoch_l",  6, latest_buffered_epoch_l),
+  ROW( EventBufferStatus2, "latest_buffered_epoch_h",  7, latest_buffered_epoch_h),
+  ROW( EventBufferStatus2, "ndb_reference", 8, ndb_reference),
+  ROW( EventBufferStatus2, "report_reason", 9, report_reason),
+
   { NDB_LE_ILLEGAL_TYPE, 0, 0, 0, 0, 0}
 };
 
@@ -504,7 +514,7 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
     Uint32 category = (Uint32) dst->category;
     switch(category)
     {
-    case NDB_MGM_ILLEGAL_EVENT_CATEGORY:
+    case (Uint32) NDB_MGM_ILLEGAL_EVENT_CATEGORY:
       category = (Uint32) LogLevel::llInvalid;
       break;
     default:

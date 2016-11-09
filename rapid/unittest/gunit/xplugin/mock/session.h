@@ -116,7 +116,7 @@ public:
   MOCK_CONST_METHOD0(client_id_num, Client_id ());
   MOCK_CONST_METHOD0(client_port, int ());
 
-  MOCK_CONST_METHOD0(get_accept_time, ngs::ptime ());
+  MOCK_CONST_METHOD0(get_accept_time, ngs::chrono::time_point ());
   MOCK_CONST_METHOD0(get_state, Client_state ());
 
   MOCK_METHOD0(session, ngs::shared_ptr<ngs::Session_interface> ());
@@ -194,7 +194,13 @@ public:
   {
   }
 
-  MOCK_METHOD8(authenticate, ngs::Error_code (const char *user, const char *host, const char *ip, const char *db, On_user_password_hash cb_password_hash, bool, ngs::IOptions_session_ptr &, const ngs::Connection_type));
+  MOCK_METHOD8(authenticate, ngs::Error_code (const char *, const char *, const char *, const char *, On_user_password_hash , bool, ngs::IOptions_session_ptr &, const ngs::Connection_type));
+  MOCK_METHOD5(execute_sql_and_collect_results, ngs::Error_code (
+      const char *,
+      std::size_t,
+      std::vector<Command_delegate::Field_type> &,
+      Buffering_command_delegate::Resultset &,
+      Result_info &));
 };
 
 

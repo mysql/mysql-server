@@ -114,26 +114,6 @@ bool table_has_triggers(THD *thd, const char *schema_name,
 
 
 /**
-  Check in the data dictionary if there is any trigger associated with a table,
-  use uncommitted read from the data-dictionary for the check.
-
-  @param [in]  thd                thread handle
-  @param [in]  schema_name        name of schema
-  @param [in]  table_name         subject table name
-  @param [out] table_has_trigger  true in case there is trigger(s) for a table,
-                                  else false
-
-  @return Operation status
-    @retval true   Failure
-    @retval false  Success
-
-*/
-
-bool table_has_triggers_uncommitted(THD *thd, const char *schema_name,
-                                    const char *table_name,
-                                    bool *table_has_trigger);
-
-/**
   Check if a trigger exists with specified name in specified schema.
 
   @param [in]  thd             thread handle

@@ -18,13 +18,14 @@
   Miscellaneous global dependencies (implementation).
 */
 
-#include "my_global.h"
-#include "my_sys.h"
-#include "pfs_global.h"
-#include "pfs_builtin_memory.h"
-
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "my_global.h"
+#include "my_sys.h"
+#include "pfs_builtin_memory.h"
+#include "pfs_global.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>

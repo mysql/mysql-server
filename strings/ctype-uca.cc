@@ -35,13 +35,14 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
-#include <iterator>
 #include <bitset>
+#include <iterator>
 
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mb_wc.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "mysql/service_my_snprintf.h"
 #include "str_uca_type.h"
 #include "template_utils.h"
@@ -689,15 +690,18 @@ static Coll_param vi_coll_param= {
 
 static constexpr uint16 nochar[]= {0,0};
 
-/*
+/**
   Unicode Collation Algorithm:
   Collation element (weight) scanner, 
   for consequent scan of collations
   weights from a string.
+
+  Only meant as a base class; instantiate uca_scanner_any or uca_scanner_900
+  instead of this.
 */
 class my_uca_scanner
 {
-public:
+protected:
   /* Note, no need to initialize wbeg */
   my_uca_scanner(const CHARSET_INFO *cs_arg,
                  const MY_UCA_WEIGHT_LEVEL *level_arg,
@@ -706,13 +710,33 @@ public:
   : wbeg(nochar), sbeg(str), send(str + length), level(level_arg),
     cs(cs_arg), max_char_toscan(max_char_toscan_arg), sbeg_dup(str) {}
 
-  // TODO: These should be private.
 public:
-  uint char_index{0};   /* nth character under scan               */
-  int char_scanned{0};  /* how many char we scanned               */
-  int weight_lv{0};     /* 0 = Primary, 1 = Secondary, 2 = Tertiary */
+  /**
+    Get the level the scanner is currently working on. The string
+    can be scanned multiple times (if the collation requires multi-level
+    comparisons, e.g. for accent or case sensitivity); first to get
+    primary weights, then from the start again for secondary, etc.
+  */
+  int get_weight_level() const { return weight_lv; }
+
+  // TODO: These should be private.
+
+  /**
+    How many characters (possibly multibyte) we have scanned so far.
+    This includes characters with zero weight. Note that this is reset
+    once we get to the end of the string and restart the scanning for
+    the next weight level.
+  */
+  uint char_index{0};
+
+  /**
+    The same as char_index, but counts only the first scan
+    (for the primary level), not the successive levels.
+  */
+  int char_scanned{0};
 
 protected:
+  int weight_lv{0}; /* 0 = Primary, 1 = Secondary, 2 = Tertiary */
   const uint16 *wbeg;	/* Beginning of the current weight string */
   const uchar  *sbeg;	/* Beginning of the input string          */
   const uchar  *send;	/* End of the input string                */
@@ -727,13 +751,13 @@ protected:
   const uchar *sbeg_dup; /* Backup of beginning of input string */
 
 protected:
-  inline int next_implicit() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next_implicit());
   uint16 *contraction_find(my_wc_t *wc);
   uint16 *previous_context_find(my_wc_t wc0, my_wc_t wc1);
 
-  // FIXME: Should these just be a specialization in my_uca_scanner_900?
+  // FIXME: Should these just be a specialization in uca_scanner_900?
   void my_put_jamo_weights(my_wc_t *hangul_jamo, int jamo_cnt);
-  inline int next_implicit_900() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next_implicit_900());
 };
 
 /*
@@ -752,13 +776,13 @@ struct uca_scanner_any : public my_uca_scanner
       : my_uca_scanner(cs, level, str, length, max_char_toscan),
         mb_wc(mb_wc) {}
 
-  inline int next() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next());
 
 private:
   const Mb_wc mb_wc;
 };
 
-template<class Mb_wc>
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
 class uca_scanner_900 : public my_uca_scanner
 {
 public:
@@ -770,12 +794,35 @@ public:
       : my_uca_scanner(cs, level, str, length, max_char_toscan),
         mb_wc(mb_wc) {}
 
-  inline int next() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next());
+
+  /**
+    For each weight in sequence, call "func", which should have
+    a function signature of "bool func(int weight)". Stops the
+    iteration early if "func" returns false.
+
+    This is morally equivalent to
+
+      int weight;
+      while ((weight= next()) >= 0)
+      {
+        if (!func(weight)) break;
+      }
+
+    except that it might employ optimizations internally to speed up
+    the process. These optimizations will not modify the number of calls
+    to func() (or their order), but might affect the internal scanner
+    state during the calls, so func() should not try to read from
+    the scanner except by calling public member functions.
+  */
+  template<class T>
+  ALWAYS_INLINE(void for_each_weight(T func));
 
 private:
   const Mb_wc mb_wc;
 
-  inline int next_raw() MY_ATTRIBUTE((always_inline));
+  ALWAYS_INLINE(int next_raw());
+  ALWAYS_INLINE(int next_raw_single_level());
   inline int more_weight();
   uint16 apply_case_first(uint16 weight);
 };
@@ -1378,8 +1425,8 @@ inline int uca_scanner_any<Mb_wc>::next()
   return *wbeg++;
 }
 
-template<class Mb_wc>
-inline int uca_scanner_900<Mb_wc>::more_weight()
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::more_weight()
 {
   /*
     Check if the weights for the previous character have been
@@ -1402,9 +1449,15 @@ inline int uca_scanner_900<Mb_wc>::more_weight()
   return -1;
 }
 
-template<class Mb_wc>
-inline int uca_scanner_900<Mb_wc>::next_raw()
+// Generic version that can handle any number of levels.
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
 {
+  if (LEVELS_FOR_COMPARE == 1)
+  {
+    return next_raw_single_level();
+  }
+
   int remain_weight= more_weight();
   if (remain_weight >= 0)
     return remain_weight;
@@ -1416,23 +1469,22 @@ inline int uca_scanner_900<Mb_wc>::next_raw()
     int mblen= 0;
 
     /* Get next character */
-    if (max_char_toscan > 0 &&
-        char_index >= max_char_toscan)
+    if (char_index >= max_char_toscan)
     {
       sbeg= sbeg_dup;
       weight_lv++;
       char_index= 0;
-      if (weight_lv < cs->levels_for_compare)
+      if (weight_lv < LEVELS_FOR_COMPARE)
         return 0; //Add level seperator
     }
-    while (weight_lv < cs->levels_for_compare)
+    while (weight_lv < LEVELS_FOR_COMPARE)
     {
       if (((mblen= mb_wc(wc, sbeg, send)) > 0))
         break;
       sbeg= sbeg_dup;
       weight_lv++;
       char_index= 0;
-      if (weight_lv < cs->levels_for_compare)
+      if (weight_lv < LEVELS_FOR_COMPARE)
         return 0; //Add level seperator
     }
     if (mblen <= 0)
@@ -1504,6 +1556,162 @@ inline int uca_scanner_900<Mb_wc>::next_raw()
   return rtn;
 }
 
+// Specialized, faster version for only one level.
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw_single_level()
+{
+  int remain_weight= more_weight();
+  if (remain_weight >= 0)
+    return remain_weight;
+
+  do
+  {
+    uint16 *wpage;
+    my_wc_t wc[MY_UCA_MAX_CONTRACTION];
+    int mblen= 0;
+
+    /* Get next character */
+    if (char_index >= max_char_toscan ||
+        (mblen= mb_wc(wc, sbeg, send)) <= 0)
+    {
+      weight_lv++;
+      return -1;
+    }
+
+    sbeg+= mblen;
+    char_index++;
+    char_scanned++;
+    if (wc[0] > level->maxchar)
+    {
+      /* Return 0xFFFD as weight for all characters outside BMP */
+      wbeg= nochar;
+      num_of_ce_handled= num_of_ce= 0;
+      weight_lv= 0;
+      return 0xFFFD;
+    }
+
+    if (my_uca_have_contractions_quick(level))
+    {
+      uint16 *cweight;
+      /*
+        If we have scanned a character which can have previous context,
+        and there were some more characters already before,
+        then reconstruct codepoint of the previous character
+        from "page" and "code" into w[1], and verify that {wc[1], wc[0]}
+        together form a real previous context pair.
+        Note, we support only 2-character long sequences with previous
+        context at the moment. CLDR does not have longer sequences.
+      */
+      if (my_uca_can_be_previous_context_tail(&level->contractions,
+                                              wc[0]) &&
+          wbeg != nochar &&     /* if not the very first character */
+          my_uca_can_be_previous_context_head(&level->contractions,
+                                              (wc[1]= ((page << 8) +
+                                                        code))) &&
+          (cweight= previous_context_find(wc[1], wc[0])))
+      {
+        page= code= 0; /* Clear for the next character */
+        return *cweight;
+      }
+      else if (my_uca_can_be_contraction_head(&level->contractions,
+                                              wc[0]))
+      {
+        /* Check if w[0] starts a contraction */
+        if ((cweight= contraction_find(wc)))
+          return *cweight;
+      }
+    }
+
+    /* Process single character */
+    page= wc[0] >> 8;
+    code= wc[0] & 0xFF;
+
+    /* If weight page for w[0] does not exist, then calculate algoritmically */
+    if (!(wpage= level->weights[page]))
+      return next_implicit();
+
+    /* Calculate pointer to w[0]'s weight, using page and offset */
+    wbeg= wpage + code * level->lengths[page];
+    num_of_ce= *(wbeg + level->lengths[page] - 1);
+    num_of_ce_handled= 0;
+    wbeg+= weight_lv;
+  } while (!wbeg[0]); /* Skip ignorable characters */
+
+  uint16 rtn= *wbeg;
+  wbeg+= MY_UCA_900_CE_SIZE;
+  num_of_ce_handled++;
+  return rtn;
+}
+
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+template<class T>
+inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(T func)
+{
+  if (cs->tailoring || cs->mbminlen != 1)
+  {
+    // Slower, generic path.
+    int s_res;
+    while ((s_res= next()) >= 0)
+    {
+      if (!func(s_res)) return;
+    }
+    return;
+  }
+
+  /*
+    Fast path. TODO: See if we can accept some character sets
+    with tailorings.
+  */
+  const uint16 *ascii_wpage= cs->uca->level->weights[0] + weight_lv;
+  uint ascii_wlen= cs->uca->level->lengths[0];
+
+  for ( ;; )
+  {
+    /*
+      We could have more weights left from the previous call to next()
+      (if any) that we need to deal with.
+    */
+    int s_res;
+    while ((s_res= more_weight()) >= 0)
+    {
+      if (!func(s_res)) return;
+    }
+
+    /*
+      Loop in a simple fast path as long as we only have ASCII characters.
+      ASCII characters always have just a single weight and consist of
+      only a single byte, so we can skip a lot of the checks we'd otherwise
+      have to do.
+    */
+    const uchar *sbeg_copy= sbeg;
+    const uchar *send_local=
+      std::min(send, sbeg + (max_char_toscan - char_index));
+    while (sbeg < send_local && *sbeg < 0x80)
+    {
+      const int s_res= ascii_wpage[*sbeg++ * ascii_wlen];
+      if (s_res && !func(s_res))
+      {
+        char_index+= sbeg - sbeg_copy;
+        if (LEVELS_FOR_COMPARE == 1 || weight_lv == 0)
+          char_scanned+= sbeg - sbeg_copy;
+        return;
+      }
+    }
+    char_index+= sbeg - sbeg_copy;
+    if (LEVELS_FOR_COMPARE == 1 || weight_lv == 0)
+      char_scanned+= sbeg - sbeg_copy;
+
+    // Do a single character in the generic path.
+    s_res= next();
+    if (s_res == 0)
+    {
+      // Level separator, so we have to update our page pointer.
+      ++ascii_wpage;
+    }
+    if (s_res < 0 || !func(s_res)) return;
+  }
+}
+
 /**
   Change a weight according to the reorder parameters.
   @param   wt_rec     Weight boundary for each character group and gap
@@ -1541,8 +1749,9 @@ static bool is_tertiary_weight_upper_case(uint16 weight)
   return false;
 }
 
-template<class Mb_wc>
-uint16 uca_scanner_900<Mb_wc>::apply_case_first(uint16 weight)
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+uint16 uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::apply_case_first(
+    uint16 weight)
 {
   /*
     We only apply case weight change here when the character is not tailored.
@@ -1561,8 +1770,8 @@ uint16 uca_scanner_900<Mb_wc>::apply_case_first(uint16 weight)
   return weight;
 }
 
-template<class Mb_wc>
-inline int uca_scanner_900<Mb_wc>::next()
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next()
 {
   int res= next_raw();
   Coll_param *param= cs->coll_param;
@@ -1767,7 +1976,7 @@ static int my_strnncollsp_uca(const CHARSET_INFO *cs,
   return ( s_res - t_res );
 }
 
-template<class Mb_wc>
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
 static int my_strnncollsp_uca_900_tmpl(const CHARSET_INFO *cs,
                                        const Mb_wc mb_wc,
                                        const uchar *s, size_t slen,
@@ -1776,8 +1985,10 @@ static int my_strnncollsp_uca_900_tmpl(const CHARSET_INFO *cs,
   int s_res= 0;
   int t_res= 0;
 
-  uca_scanner_900<Mb_wc> sscanner(mb_wc, cs, &cs->uca->level[0], s, slen, slen);
-  uca_scanner_900<Mb_wc> tscanner(mb_wc, cs, &cs->uca->level[0], t, tlen, tlen);
+  uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> sscanner(
+    mb_wc, cs, &cs->uca->level[0], s, slen, slen);
+  uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> tscanner(
+    mb_wc, cs, &cs->uca->level[0], t, tlen, tlen);
 
   /*
     We compare 2 strings in same level first. If only string A's scanner
@@ -1785,7 +1996,7 @@ static int my_strnncollsp_uca_900_tmpl(const CHARSET_INFO *cs,
     current level is longer than A's. We'll compare B's remaining weights
     with space.
   */
-  for (int current_lv= 0; current_lv < cs->levels_for_compare; ++current_lv)
+  for (int current_lv= 0; current_lv < LEVELS_FOR_COMPARE; ++current_lv)
   {
     /* Run the scanners until one of them runs out of current lv */
     do
@@ -1793,17 +2004,17 @@ static int my_strnncollsp_uca_900_tmpl(const CHARSET_INFO *cs,
       s_res= sscanner.next();
       t_res= tscanner.next();
     } while (s_res == t_res && s_res >= 0 &&
-             sscanner.weight_lv == current_lv &&
-             tscanner.weight_lv == current_lv);
+             sscanner.get_weight_level() == current_lv &&
+             tscanner.get_weight_level() == current_lv);
     /* Two scanners run to next level at same time */
-    if (sscanner.weight_lv == tscanner.weight_lv)
+    if (sscanner.get_weight_level() == tscanner.get_weight_level())
     {
       if (s_res == t_res && s_res >= 0)
         continue;
       break;
     }
 
-    if (tscanner.weight_lv > current_lv)
+    if (tscanner.get_weight_level() > current_lv)
     {
       uint16 *space_weight= cs->uca->level[0].weights[0] +
                             0x20 * cs->uca->level[0].lengths[0];
@@ -1813,13 +2024,13 @@ static int my_strnncollsp_uca_900_tmpl(const CHARSET_INFO *cs,
         if (s_res != space_weight[current_lv])
           return (s_res - space_weight[current_lv]);
         s_res= sscanner.next();
-      } while (s_res >= 0 && sscanner.weight_lv == current_lv);
-      if (sscanner.weight_lv > current_lv && s_res == t_res)
+      } while (s_res >= 0 && sscanner.get_weight_level() == current_lv);
+      if (sscanner.get_weight_level() > current_lv && s_res == t_res)
         continue;
       break;
     }
 
-    if (sscanner.weight_lv > current_lv)
+    if (sscanner.get_weight_level() > current_lv)
     {
       uint16 *space_weight= cs->uca->level[0].weights[0] +
                             0x20 * cs->uca->level[0].lengths[0];
@@ -1829,8 +2040,8 @@ static int my_strnncollsp_uca_900_tmpl(const CHARSET_INFO *cs,
         if (space_weight[current_lv] != t_res)
           return (space_weight[current_lv] - t_res);
         t_res= tscanner.next();
-      } while (t_res >= 0 && tscanner.weight_lv == current_lv);
-      if (tscanner.weight_lv > current_lv && s_res == t_res)
+      } while (t_res >= 0 && tscanner.get_weight_level() == current_lv);
+      if (tscanner.get_weight_level() > current_lv && s_res == t_res)
         continue;
       break;
     }
@@ -1839,15 +2050,110 @@ static int my_strnncollsp_uca_900_tmpl(const CHARSET_INFO *cs,
   return ( s_res - t_res );
 }
 
+// Simpler version of my_strnncollsp_uca_900_tmpl for only a single level.
+// (Avoids calling get_weight_level(), which saves time.)
+template<class Mb_wc>
+static int my_strnncollsp_uca_900_tmpl_single_level(const CHARSET_INFO *cs,
+                                                    const Mb_wc mb_wc,
+                                                    const uchar *s, size_t slen,
+                                                    const uchar *t, size_t tlen)
+{
+  int s_res= 0;
+  int t_res= 0;
+
+  uca_scanner_900<Mb_wc, 1> sscanner(
+    mb_wc, cs, &cs->uca->level[0], s, slen, slen);
+  uca_scanner_900<Mb_wc, 1> tscanner(
+    mb_wc, cs, &cs->uca->level[0], t, tlen, tlen);
+
+  do
+  {
+    s_res= sscanner.next();
+    t_res= tscanner.next();
+  } while (s_res == t_res && s_res >= 0);
+
+  if (s_res != t_res && s_res >= 0 && t_res >= 0)
+  {
+    // Most common case: Both scanners still have weights left,
+    // but they are different.
+    return ( s_res - t_res );
+  }
+
+  if (s_res < 0 && t_res < 0)
+  {
+    // Both ended at the same time, without ever showing a difference.
+    return 0;
+  }
+
+  uint16 space_weight= *(cs->uca->level[0].weights[0] +
+                         0x20 * cs->uca->level[0].lengths[0]);
+
+  if (t_res < 0)
+  {
+    /* compare the first string to spaces */
+    do
+    {
+      if (s_res != space_weight)
+        return (s_res - space_weight);
+      s_res= sscanner.next();
+    } while (s_res >= 0);
+
+    // The first string ran out without showing anything but spaces.
+    return 0;
+  }
+
+  DBUG_ASSERT(s_res < 0);
+
+  /* compare the second string to spaces */
+  do
+  {
+    if (space_weight != t_res)
+      return (space_weight - t_res);
+    t_res= tscanner.next();
+  } while (t_res >= 0);
+
+  // The second string ran out without showing anything but spaces.
+  return 0;
+}
+
+
 static int my_strnncollsp_uca_900(const CHARSET_INFO *cs,
                                   const uchar *s, size_t slen,
                                   const uchar *t, size_t tlen)
 {
-  if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk) {
-    return my_strnncollsp_uca_900_tmpl(cs, Mb_wc_utf8mb4(), s, slen, t, tlen);
-  } else {
+  if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
+  {
+    switch (cs->levels_for_compare) {
+    case 1:
+      return my_strnncollsp_uca_900_tmpl_single_level<Mb_wc_utf8mb4>(
+        cs, Mb_wc_utf8mb4(), s, slen, t, tlen);
+    case 2:
+      return my_strnncollsp_uca_900_tmpl<Mb_wc_utf8mb4, 2>(
+        cs, Mb_wc_utf8mb4(), s, slen, t, tlen);
+    default:
+      DBUG_ASSERT(false);
+    case 3:
+      return my_strnncollsp_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
+        cs, Mb_wc_utf8mb4(), s, slen, t, tlen);
+    }
+  }
+  else
+  {
     Mb_wc_through_function_pointer mb_wc(cs);
-    return my_strnncollsp_uca_900_tmpl(cs, mb_wc, s, slen, t, tlen);
+    switch (cs->levels_for_compare)
+    {
+    case 1:
+      return my_strnncollsp_uca_900_tmpl_single_level<decltype(mb_wc)>(
+        cs, mb_wc, s, slen, t, tlen);
+    case 2:
+      return my_strnncollsp_uca_900_tmpl<decltype(mb_wc), 2>(
+        cs, mb_wc, s, slen, t, tlen);
+    default:
+      DBUG_ASSERT(false);
+    case 3:
+      return my_strnncollsp_uca_900_tmpl<decltype(mb_wc), 3>(
+        cs, mb_wc, s, slen, t, tlen);
+    }
   }
 }
 
@@ -4564,7 +4870,7 @@ static int my_strnncoll_any_uca(const CHARSET_INFO *cs,
   }
 
   Mb_wc_through_function_pointer mb_wc(cs);
-  return my_strnncoll_uca<uca_scanner_any<Mb_wc_through_function_pointer>>(
+  return my_strnncoll_uca<uca_scanner_any<decltype(mb_wc)>>(
     cs, mb_wc, s, slen, t, tlen, t_is_prefix);
 }
 
@@ -4615,43 +4921,64 @@ static int my_strnncoll_uca_900(const CHARSET_INFO *cs,
 {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
   {
-    return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4>>(
-      cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
+    switch (cs->levels_for_compare)
+    {
+    case 1:
+      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 1>>(
+        cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
+    case 2:
+      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 2>>(
+        cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
+    default:
+      DBUG_ASSERT(false);
+    case 3:
+      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 3>>(
+        cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
+    }
   }
 
   Mb_wc_through_function_pointer mb_wc(cs);
-  return my_strnncoll_uca<uca_scanner_900<Mb_wc_through_function_pointer>>(
-    cs, mb_wc, s, slen, t, tlen, t_is_prefix);
+  switch (cs->levels_for_compare)
+  {
+  case 1:
+    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 1>>(
+      cs, mb_wc, s, slen, t, tlen, t_is_prefix);
+  case 2:
+    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 2>>(
+      cs, mb_wc, s, slen, t, tlen, t_is_prefix);
+  default:
+    DBUG_ASSERT(false);
+  case 3:
+    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 3>>(
+      cs, mb_wc, s, slen, t, tlen, t_is_prefix);
+  }
 }
 
 }  // extern "C"
 
-template<class Mb_wc>
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
 static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
                                       const Mb_wc mb_wc,
                                       const uchar *s, size_t slen,
                                       ulong *n1, ulong *n2)
 {
-  int   s_res;
   ulong tmp1;
   ulong tmp2;
 
   slen= cs->cset->lengthsp(cs, (char*) s, slen);
-  uca_scanner_900<Mb_wc> scanner(mb_wc, cs, &cs->uca->level[0], s, slen, slen);
+  uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> scanner(
+    mb_wc, cs, &cs->uca->level[0], s, slen, slen);
 
   tmp1= *n1;
   tmp2= *n2;
 
-  while ((s_res= scanner.next()) >= 0)
-  {
-    if (s_res > 0)
-    {
-      tmp1^= (((tmp1 & 63) + tmp2) * (s_res >> 8))+ (tmp1 << 8);
-      tmp2+= 3;
-      tmp1^= (((tmp1 & 63) + tmp2) * (s_res & 0xFF))+ (tmp1 << 8);
-      tmp2+= 3;
-    }
-  }
+  scanner.for_each_weight([&](int s_res) {
+    tmp1^= (((tmp1 & 63) + tmp2) * (s_res >> 8)) + (tmp1 << 8);
+    tmp2+= 3;
+    tmp1^= (((tmp1 & 63) + tmp2) * (s_res & 0xFF)) + (tmp1 << 8);
+    tmp2+= 3;
+    return true;
+  });
 
   *n1= tmp1;
   *n2= tmp2;
@@ -4665,11 +4992,37 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
 {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
   {
-    return my_hash_sort_uca_900_tmpl(cs, Mb_wc_utf8mb4(), s, slen, n1, n2);
+    switch (cs->levels_for_compare)
+    {
+    case 1:
+      return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 1>(
+        cs, Mb_wc_utf8mb4(), s, slen, n1, n2);
+    case 2:
+      return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 2>(
+        cs, Mb_wc_utf8mb4(), s, slen, n1, n2);
+    default:
+      DBUG_ASSERT(false);
+    case 3:
+      return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
+        cs, Mb_wc_utf8mb4(), s, slen, n1, n2);
+    }
   }
 
   Mb_wc_through_function_pointer mb_wc(cs);
-  return my_hash_sort_uca_900_tmpl(cs, mb_wc, s, slen, n1, n2);
+  switch (cs->levels_for_compare)
+  {
+  case 1:
+    return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 1>(
+      cs, mb_wc, s, slen, n1, n2);
+  case 2:
+    return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 2>(
+      cs, mb_wc, s, slen, n1, n2);
+  default:
+    DBUG_ASSERT(false);
+  case 3:
+    return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 3>(
+      cs, mb_wc, s, slen, n1, n2);
+  }
 }
 
 /**
@@ -4796,7 +5149,7 @@ static size_t my_add_space_weight_to_maxlen(const CHARSET_INFO *cs,
 }
 }  // extern "C"
 
-template<class Mb_wc>
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
 static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
                                        const Mb_wc mb_wc,
                                        uchar *dst, size_t dstlen, uint nweights,
@@ -4804,23 +5157,61 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
                                        uint flags)
 {
   uchar *d0= dst;
-  uchar *de= dst + dstlen;
-  int   s_res;
+  uchar *dst_end= dst + dstlen;
   uint  weight_cnt[3]= {0};
-  uca_scanner_900<Mb_wc> scanner(
+  uint  *weight_cnt_ptr= weight_cnt;
+  uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> scanner(
     mb_wc, cs, &cs->uca->level[0], src, srclen, nweights);
 
-  while (dst < de && (s_res= scanner.next()) >= 0)
+  uchar *dst_even_end= dst_end;
+  if ((dstlen % 2) == 1)
   {
-    *dst++= s_res >> 8;
-    if (dst < de)
-      *dst++= s_res & 0xFF;
-    if (s_res)
-      weight_cnt[scanner.weight_lv]++;
-    else
-      weight_cnt[scanner.weight_lv - 1]++;
+    /*
+      Odd number of bytes; run the fast path only for the even number,
+      which makes for less checking inside the hot loop.
+    */
+    dst_even_end= dst_end - 1;
   }
+
+  uint weights_scanned_this_level= 0;
+  if (dst != dst_even_end)
+  {
+    scanner.for_each_weight([&](int s_res) {
+      *dst++= s_res >> 8;
+      *dst++= s_res & 0xFF;
+
+      ++weights_scanned_this_level;
+      if (LEVELS_FOR_COMPARE != 1 && s_res == 0)
+      {
+        // Changed level, so record the number of emitted weights.
+        *weight_cnt_ptr++= weights_scanned_this_level;
+        weights_scanned_this_level= 0;
+      }
+      return (dst < dst_even_end);
+    });
+  }
+
+  // Deal with the final byte, if applicable.
+  if (dst == dst_even_end && dst_even_end != dst_end)
+  {
+    scanner.for_each_weight([&](int s_res) {
+      *dst++= s_res >> 8;  // Write only one byte.
+
+      ++weights_scanned_this_level;
+      if (LEVELS_FOR_COMPARE != 1 && s_res == 0)
+      {
+        // Changed level, so record the number of emitted weights.
+        *weight_cnt_ptr++= weights_scanned_this_level;
+        weights_scanned_this_level= 0;
+      }
+      return false;
+    });
+  }
+
+  DBUG_ASSERT(scanner.char_scanned >= 0);
+  DBUG_ASSERT(nweights >= static_cast<uint>(scanner.char_scanned));
   nweights-= scanner.char_scanned;
+  *weight_cnt_ptr= weights_scanned_this_level;
 
   /*
     For case / accent insensitive collation, padding space's weight will be
@@ -4834,9 +5225,10 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
   */
   uint space_cnt[3]= {0};
   my_calc_pad_space_uca_900(cs, weight_cnt, nweights, flags, dstlen,
-                            de - dst, space_cnt);
-  dst+= my_insert_space_weight(cs, weight_cnt, space_cnt, d0, de);
-  dst+= my_add_space_weight_to_maxlen(cs, scanner.weight_lv, de, dst, flags);
+                            dst_end - dst, space_cnt);
+  dst+= my_insert_space_weight(cs, weight_cnt, space_cnt, d0, dst_end);
+  dst+= my_add_space_weight_to_maxlen(
+    cs, scanner.get_weight_level(), dst_end, dst, flags);
   my_strxfrm_desc_and_reverse(d0, dst, flags, 0);
   return dst - d0;
 }
@@ -4847,13 +5239,40 @@ static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs,
                                   uchar *dst, size_t dstlen, uint nweights,
                                   const uchar *src, size_t srclen, uint flags)
 {
-  if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk) {
-    return my_strnxfrm_uca_900_tmpl(cs, Mb_wc_utf8mb4(), dst, dstlen, nweights,
-                                    src, srclen, flags);
-  } else {
+  if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
+  {
+    switch (cs->levels_for_compare)
+    {
+    case 1:
+      return my_strnxfrm_uca_900_tmpl<Mb_wc_utf8mb4, 1>(
+        cs, Mb_wc_utf8mb4(), dst, dstlen, nweights, src, srclen, flags);
+    case 2:
+      return my_strnxfrm_uca_900_tmpl<Mb_wc_utf8mb4, 2>(
+        cs, Mb_wc_utf8mb4(), dst, dstlen, nweights, src, srclen, flags);
+    default:
+      DBUG_ASSERT(false);
+    case 3:
+      return my_strnxfrm_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
+        cs, Mb_wc_utf8mb4(), dst, dstlen, nweights, src, srclen, flags);
+    }
+  }
+  else
+  {
     Mb_wc_through_function_pointer mb_wc(cs);
-    return my_strnxfrm_uca_900_tmpl(cs, mb_wc, dst, dstlen, nweights,
-                                    src, srclen, flags);
+    switch (cs->levels_for_compare)
+    {
+    case 1:
+      return my_strnxfrm_uca_900_tmpl<decltype(mb_wc), 1>(
+        cs, mb_wc, dst, dstlen, nweights, src, srclen, flags);
+    case 2:
+      return my_strnxfrm_uca_900_tmpl<decltype(mb_wc), 2>(
+        cs, mb_wc, dst, dstlen, nweights, src, srclen, flags);
+    default:
+      DBUG_ASSERT(false);
+    case 3:
+      return my_strnxfrm_uca_900_tmpl<decltype(mb_wc), 3>(
+        cs, mb_wc, dst, dstlen, nweights, src, srclen, flags);
+    }
   }
 }
 
@@ -4870,7 +5289,7 @@ static int my_strnncoll_ucs2_uca(const CHARSET_INFO *cs,
                                  my_bool t_is_prefix)
 {
   Mb_wc_through_function_pointer mb_wc(cs);
-  return my_strnncoll_uca<uca_scanner_any<Mb_wc_through_function_pointer>>(
+  return my_strnncoll_uca<uca_scanner_any<decltype(mb_wc)>>(
     cs, mb_wc, s, slen, t, tlen, t_is_prefix);
 }
 

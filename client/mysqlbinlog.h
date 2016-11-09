@@ -16,7 +16,10 @@
 #ifndef MYSQLBINLOG_INCLUDED
 #define MYSQLBINLOG_INCLUDED
 
-#include "my_global.h"
+#include <stdarg.h>
+
+#include "my_compiler.h"
+#include "my_inttypes.h"
 
 class Format_description_log_event;
 

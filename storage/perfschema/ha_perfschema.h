@@ -126,10 +126,11 @@ public:
     @param name the table to open
     @param mode unused
     @param test_if_locked unused
+    @param table_def unused
     @return 0 on success
   */
   int open(const char *name, int mode, uint test_if_locked,
-           const dd::Table *dd_tab);
+           const dd::Table *table_def);
 
   /**
     Close a table handle.
@@ -194,7 +195,7 @@ public:
 
   int delete_all_rows(void);
 
-  int truncate(dd::Table *dd_tab);
+  int truncate(dd::Table *table_def);
 
   int delete_table(const char *from, const dd::Table *table_def);
 
@@ -204,7 +205,7 @@ public:
 
   int create(const char *name, TABLE *form,
              HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab);
+             dd::Table *table_def);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);

@@ -16557,7 +16557,7 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
       replicaPtr.i = fragPtr.p->oldStoredReplicas;
       while (replicaPtr.i != RNIL)
       {
-        ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
+        c_replicaRecordPool.getPtr(replicaPtr);
         g_eventLogger->info("[1/3] frag %u, replica %u @%p, SYSFILE @%p",
           fragPtr.i, replicaPtr.i, replicaPtr.p, SYSFILE);
         g_eventLogger->info("[2/3] frag %u, replica %u, node %u, replicaLastGci %u,%u",
@@ -22976,7 +22976,6 @@ void Dbdih::setNodeGroups()
   NodeGroupRecordPtr NGPtr;
   NodeRecordPtr sngNodeptr;
   Uint32 Ti;
-
   for (Ti = 0; Ti < cnoOfNodeGroups; Ti++) {
     NGPtr.i = c_node_groups[Ti];
     ptrAss(NGPtr, nodeGroupRecord);
@@ -23015,6 +23014,44 @@ void Dbdih::setNodeGroups()
       break;
     }//switch
   }//for
+  sngNodeptr.i = getOwnNodeId();
+  ptrCheckGuard(sngNodeptr, MAX_NDB_NODES, nodeRecord);
+  NGPtr.i = sngNodeptr.p->nodeGroup;
+  if (NGPtr.i == ZNIL)
+  {
+    jam();
+    return;
+  }
+  ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+  if (NGPtr.p->nodeCount <= 1)
+  {
+    /**
+     * Only one replica in this node group, so no neighbour.
+     * Could also be a node in a new nodegroup, so effectively
+     * it is part of no nodegroup and thus has no neighbours
+     * in this case either.
+     */
+    jam();
+    return;
+  }
+  ndbrequire(NGPtr.p->nodeCount <= MAX_REPLICAS);
+  /**
+   * Inform scheduler of our neighbour node to ensure the best
+   * possible communication with this node. If more than two
+   * replicas we will still only have one neighbour, so we will
+   * have most communication with this neighbour node.
+   */
+  for (Uint32 i = 0; i < NGPtr.p->nodeCount; i++)
+  {
+    jam();
+    Uint32 nodeId = NGPtr.p->nodesInGroup[i];
+    if (nodeId != getOwnNodeId())
+    {
+      jam();
+      ndbrequire(nodeId != 0 && nodeId < MAX_NODES);
+      setNeighbourNode(nodeId);
+    }
+  }
 }//Dbdih::setNodeGroups()
 
 /*************************************************************************/

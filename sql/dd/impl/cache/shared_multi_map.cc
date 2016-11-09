@@ -39,9 +39,8 @@ Cache_element<T> *Shared_multi_map<T>::use_if_present(const K &key)
   // Use the element if present.
   if (e)
   {
-    // Remove the element from the free list, unless it is sticky,
-    // in which case it will not be in the free list at all.
-    if (e->usage() == 0 && !e->sticky())
+    // Remove the element from the free list.
+    if (e->usage() == 0)
       m_free_list.remove(e);
 
     // Mark the element as being used, and return it.
@@ -66,7 +65,6 @@ void Shared_multi_map<T>::remove(Cache_element<T> *element,
   // The element must be present, and its usage must be 1 (this thread).
   DBUG_ASSERT(e == element);
   DBUG_ASSERT(e->usage() == 1);
-  DBUG_ASSERT(!e->sticky());
 
   // Get all keys that were created within the element.
   const typename T::id_key_type *id_key= element->id_key();
@@ -117,23 +115,11 @@ void Shared_multi_map<T>::rectify_free_list(Autolocker *lock)
 }
 
 
-//  Helper function to evict all unused and sticky elements.
+// Helper function to evict all unused elements.
 template <typename T>
 void Shared_multi_map<T>::evict_all_unused(Autolocker *lock)
 {
   mysql_mutex_assert_owner(&m_lock);
-  // Iterate over the reverse map, make objects unsticky and add to free list.
-  for (typename Multi_map_base<T>::Iterator it=
-         m_map<const T*>()->begin();
-      it != m_map<const T*>()->end(); it++)
-    if (it->second->sticky())
-    {
-      it->second->set_sticky(false);
-      if (it->second->usage() == 0)
-        m_free_list.add_last(it->second);
-    }
-
-  // Evict all objects from the free list.
   while (m_free_list.length())
   {
     Cache_element<T> *e= m_free_list.get_lru();
@@ -190,12 +176,14 @@ bool Shared_multi_map<T>::get(const K &key, Cache_element<T> **element)
 
     *element= use_if_present(key);
 
-    // Here, we return anyway, even if *element == NULL because this
-    // may happen if another thread tried to load the object, but found
-    // that it did not exist in the DD tables. In this case, the other
-    // thread would signal the condition variable without adding
-    // the object to the map, since there was no object to add.
-    return false;
+    // Here, we return only if element is non-null. An absent element
+    // does not mean that the object does not exist, it might have been
+    // evicted after the thread handling the first cache miss added
+    // it to the cache, before this waiting thread was alerted. Thus,
+    // we need to handle this situation as a cache miss if the element
+    // is absent.
+    if (*element)
+      return false;
   }
 
   // Mark the key as being missed.
@@ -356,8 +344,8 @@ void Shared_multi_map<T>::release(Cache_element<T> *element)
   // Release the element.
   element->release();
 
-  // If the element is not used, and not sticky, add it to the free list.
-  if (element->usage() == 0 && !element->sticky())
+  // If the element is not used, add it to the free list.
+  if (element->usage() == 0)
   {
     m_free_list.add_last(element);
     rectify_free_list(&lock);
@@ -370,10 +358,6 @@ template <typename T>
 void Shared_multi_map<T>::drop(Cache_element<T> *element)
 {
   Autolocker lock(this);
-
-  // If the element is sticky, remove stickiness.
-  if (element->sticky())
-    element->set_sticky(false);
   remove(element, &lock);
 }
 
@@ -389,9 +373,6 @@ void Shared_multi_map<T>::drop_if_present(const K &key)
 
   if (element)
   {
-    // If the element is sticky, remove stickiness.
-    if (element->sticky())
-      element->set_sticky(false);
     remove(element, &lock);
   }
 }
@@ -427,27 +408,6 @@ void Shared_multi_map<T>::replace(Cache_element<T> *element, const T* object)
 
   // Add the element again, now with the newly generated keys.
   Multi_map_base<T>::add_single_element(element);
-}
-
-
-// Alter stickiness of an element.
-template <typename T>
-void Shared_multi_map<T>::set_sticky(Cache_element<T> *element, bool sticky)
-{
-  Autolocker lock(this);
-
-#ifndef DBUG_OFF
-  // The object must be present, and its usage must be 1 (this thread).
-  Cache_element<T> *e= NULL;
-  m_map<const T*>()->get(element->object(), &e);
-  DBUG_ASSERT(e == element);
-  DBUG_ASSERT(e->usage() == 1);
-  DBUG_ASSERT(e->sticky() == !sticky);
-#endif
-
-  element->set_sticky(sticky);
-  // Here, we know the usage is > 0, so we do not need to consider
-  // adding the element to the free list.
 }
 
 
@@ -505,6 +465,8 @@ template void Shared_multi_map<Charset>::
   put<Charset::aux_key_type>
     (const Charset::aux_key_type*, const Charset*,
       Cache_element<Charset> **);
+template void Shared_multi_map<Charset>::
+  drop_if_present<Charset::id_key_type>(const Charset::id_key_type&);
 
 template class Shared_multi_map<Collation>;
 template bool Shared_multi_map<Collation>::
@@ -531,6 +493,8 @@ template void Shared_multi_map<Collation>::
   put<Collation::aux_key_type>
     (const Collation::aux_key_type*, const Collation*,
       Cache_element<Collation> **);
+template void Shared_multi_map<Collation>::
+  drop_if_present<Collation::id_key_type>(const Collation::id_key_type&);
 
 template class Shared_multi_map<Event>;
 template bool Shared_multi_map<Event>::
@@ -557,6 +521,8 @@ template void Shared_multi_map<Event>::
 put<Event::aux_key_type>
 (const Event::aux_key_type*, const Event*,
  Cache_element<Event> **);
+template void Shared_multi_map<Event>::
+  drop_if_present<Event::id_key_type>(const Event::id_key_type&);
 
 template class Shared_multi_map<Routine>;
 template bool Shared_multi_map<Routine>::
@@ -583,6 +549,8 @@ template void Shared_multi_map<Routine>::
   put<Routine::aux_key_type>
     (const Routine::aux_key_type*, const Routine*,
       Cache_element<Routine> **);
+template void Shared_multi_map<Routine>::
+  drop_if_present<Routine::id_key_type>(const Routine::id_key_type&);
 
 template class Shared_multi_map<Schema>;
 template bool Shared_multi_map<Schema>::
@@ -609,6 +577,8 @@ template void Shared_multi_map<Schema>::
   put<Schema::aux_key_type>
     (const Schema::aux_key_type*, const Schema*,
       Cache_element<Schema> **);
+template void Shared_multi_map<Schema>::
+  drop_if_present<Schema::id_key_type>(const Schema::id_key_type&);
 
 template class Shared_multi_map<Spatial_reference_system>;
 template bool Shared_multi_map<Spatial_reference_system>::
@@ -642,6 +612,9 @@ template void Shared_multi_map<Spatial_reference_system>::
     (const Spatial_reference_system::aux_key_type*,
      const Spatial_reference_system*,
      Cache_element<Spatial_reference_system> **);
+template void Shared_multi_map<Spatial_reference_system>::
+  drop_if_present<Spatial_reference_system::id_key_type>(
+    const Spatial_reference_system::id_key_type&);
 
 template class Shared_multi_map<Tablespace>;
 template bool Shared_multi_map<Tablespace>::

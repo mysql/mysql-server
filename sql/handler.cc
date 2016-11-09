@@ -41,9 +41,12 @@
 #include "binlog_event.h"
 #include "check_stack.h"
 #include "current_thd.h"
+#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "dd/dd.h"                    // dd::get_dictionary
+#include "dd/dd_schema.h"             // dd::Schema_MDL_locker
 #include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
 #include "dd/sdi_file.h"              // dd::sdi_file::store
+#include "dd/types/table.h"           // dd::Table
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_DEFAULT
@@ -109,16 +112,6 @@
 #include "transaction_info.h"
 #include "xa.h"
 
-#include <dd/dictionary.h>
-
-#include "dd/dd.h"
-#include "dd/types/object_type.h"
-#include "dd/types/schema.h"
-#include "dd/types/table.h"
-#include "dd/types/partition.h"
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd_schema.h"             // dd::Schema_MDL_locker
-#include "dd/sdi.h"                   // dd::store_sdi
 
 /**
   @def MYSQL_TABLE_IO_WAIT
@@ -628,6 +621,18 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
 } /* ha_checktype */
 
 
+/**
+  Create handler object for the table in the storage engine.
+
+  @param share        TABLE_SHARE for the table, can be NULL if caller
+                      didn't perform full-blown open of table definition.
+  @param partitioned  Indicates whether table is partitioned.
+  @param alloc        Memory root to be used for allocating handler object.
+  @param db_type      Table's storage engine.
+
+  @note This function will try to use default storage engine if one which
+        was specified through db_type parameter is not available.
+*/
 handler *get_new_handler(TABLE_SHARE *share, bool partitioned,
                          MEM_ROOT *alloc, handlerton *db_type)
 {
@@ -1378,6 +1383,16 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 
   if (all)
   {
+    /*
+      Ensure no active backup engine data exists, unless the current transaction
+      is from replication and in active xa state.
+    */
+    DBUG_ASSERT(thd->get_ha_data(ht_arg->slot)->ha_ptr_backup == NULL ||
+                (thd->get_transaction()->xid_state()->
+                 has_state(XID_STATE::XA_ACTIVE)));
+    DBUG_ASSERT(thd->get_ha_data(ht_arg->slot)->ha_ptr_backup == NULL ||
+                (thd->is_binlog_applier() || thd->slave_thread));
+
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     if (thd->tx_read_only)
       thd->server_status|= SERVER_STATUS_IN_TRANS_READONLY;
@@ -1879,23 +1894,22 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
   Transaction_ctx::enum_trx_scope trx_scope=
     all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
   Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
-  bool restore_backup_trx= false;
 
   DBUG_ENTER("ha_commit_low");
 
   if (ha_info)
   {
+    bool restore_backup_ha_data= false;
     /*
-      binlog applier thread can execute XA COMMIT and it would
-      have to restore its local thread native transaction
-      context, previously saved at XA START.
+      At execution of XA COMMIT ONE PHASE binlog or slave applier
+      reattaches the engine ha_data to THD, previously saved at XA START.
     */
-    if (thd->lex->sql_command == SQLCOM_XA_COMMIT &&
-        thd->binlog_applier_has_detached_trx())
+    if (all && thd->rpl_unflag_detached_engine_ha_data())
     {
-      DBUG_ASSERT(all && static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
+      DBUG_ASSERT(thd->lex->sql_command == SQLCOM_XA_COMMIT);
+      DBUG_ASSERT(static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
                   get_xa_opt() == XA_ONE_PHASE);
-      restore_backup_trx= true;
+      restore_backup_ha_data= true;
     }
 
     for (; ha_info; ha_info= ha_info_next)
@@ -1911,14 +1925,8 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       }
       thd->status_var.ha_commit_count++;
       ha_info_next= ha_info->next();
-
-      if (restore_backup_trx && ht->replace_native_transaction_in_thd)
-      {
-        void **trx_backup= &thd->get_ha_data(ht->slot)->ha_ptr_backup;
-
-        ht->replace_native_transaction_in_thd(thd, *trx_backup, NULL);
-        *trx_backup= NULL;
-      }
+      if (restore_backup_ha_data)
+        reattach_engine_ha_data_to_thd(thd, ht);
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
     trn_ctx->reset_scope(trx_scope);
@@ -1965,6 +1973,19 @@ int ha_rollback_low(THD *thd, bool all)
 
   if (ha_info)
   {
+    bool restore_backup_ha_data= false;
+    /*
+      Similarly to the commit case, the binlog or slave applier
+      reattaches the engine ha_data to THD.
+    */
+    if (all && thd->rpl_unflag_detached_engine_ha_data())
+    {
+      DBUG_ASSERT(trn_ctx->xid_state()->get_state() != XID_STATE::XA_NOTR ||
+                  thd->killed == THD::KILL_CONNECTION);
+
+      restore_backup_ha_data= true;
+    }
+
     for (; ha_info; ha_info= ha_info_next)
     {
       int err;
@@ -1978,6 +1999,8 @@ int ha_rollback_low(THD *thd, bool all)
       }
       thd->status_var.ha_rollback_count++;
       ha_info_next= ha_info->next();
+      if (restore_backup_ha_data)
+        reattach_engine_ha_data_to_thd(thd, ht);
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
     trn_ctx->reset_scope(trx_scope);
@@ -2529,9 +2552,20 @@ public:
 };
 
 
-/** @brief
-  This should return ENOENT if the file doesn't exists.
-  The .frm file will be deleted only if we return 0 or ENOENT
+/**
+  Delete table from the storage engine.
+
+  @param thd                Thread context.
+  @param table_type         Handlerton for table's SE.
+  @param path               Path to table (without extension).
+  @param db                 Table database.
+  @param alias              Table name.
+  @param table_def          dd::Table object describing the table.
+  @param generate_warning   Indicates whether errors during deletion
+                            should be reported as warnings.
+
+  @return  0 - in case of success, non-0 in case of failure, ENOENT
+           if the file doesn't exists.
 */
 int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
                     const char *db, const char *alias,
@@ -2604,6 +2638,65 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
   DBUG_RETURN(error);
 }
+
+
+// Prepare HA_CREATE_INFO to be used by ALTER as well as upgrade code.
+void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
+                                                    uint used_fields)
+{
+  if (!(used_fields & HA_CREATE_USED_MIN_ROWS))
+    min_rows= share->min_rows;
+
+  if (!(used_fields & HA_CREATE_USED_MAX_ROWS))
+    max_rows= share->max_rows;
+
+  if (!(used_fields & HA_CREATE_USED_AVG_ROW_LENGTH))
+    avg_row_length= share->avg_row_length;
+
+  if (!(used_fields & HA_CREATE_USED_DEFAULT_CHARSET))
+    default_table_charset= share->table_charset;
+
+  if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
+    key_block_size= share->key_block_size;
+
+  if (!(used_fields & HA_CREATE_USED_STATS_SAMPLE_PAGES))
+    stats_sample_pages= share->stats_sample_pages;
+
+  if (!(used_fields & HA_CREATE_USED_STATS_AUTO_RECALC))
+    stats_auto_recalc= share->stats_auto_recalc;
+
+  if (!(used_fields & HA_CREATE_USED_TABLESPACE))
+    tablespace= share->tablespace;
+
+  if (storage_media == HA_SM_DEFAULT)
+    storage_media= share->default_storage_media;
+
+  /* Creation of federated table with LIKE clause needs connection string */
+  if (!(used_fields & HA_CREATE_USED_CONNECTION))
+    connect_string= share->connect_string;
+
+  if (!(used_fields & HA_CREATE_USED_COMMENT))
+  {
+    // Assert to check that used_fields flag and comment are in sync.
+    DBUG_ASSERT(!comment.str);
+    comment= share->comment;
+  }
+
+  if (!(used_fields & HA_CREATE_USED_COMPRESS))
+  {
+    // Assert to check that used_fields flag and compress are in sync
+    DBUG_ASSERT(!compress.str);
+    compress= share->compress;
+  }
+
+  if (!(used_fields & HA_CREATE_USED_ENCRYPT))
+  {
+    // Assert to check that used_fields flag and encrypt_type are in sync
+    DBUG_ASSERT(!encrypt_type.str);
+    encrypt_type= share->encrypt_type;
+  }
+}
+
 
 /****************************************************************************
 ** General handler functions
@@ -2759,13 +2852,16 @@ PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
   @param        name                  Full path of table name.
   @param        mode                  Open mode flags.
   @param        test_if_locked        ?
+  @param        table_def             dd::Table object describing table
+                                      being open. Can be NULL for temporary
+                                      tables created by optimizer.
 
   @retval >0    Error.
   @retval  0    Success.
 */
 
 int handler::ha_open(TABLE *table_arg, const char *name, int mode,
-                     int test_if_locked, const dd::Table *dd_tab)
+                     int test_if_locked, const dd::Table *table_def)
 {
   int error;
   DBUG_ENTER("handler::ha_open");
@@ -2780,13 +2876,13 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   DBUG_PRINT("info", ("old m_lock_type: %d F_UNLCK %d", m_lock_type, F_UNLCK));
   DBUG_ASSERT(alloc_root_inited(&table->mem_root));
 
-  if ((error=open(name, mode, test_if_locked, dd_tab)))
+  if ((error= open(name, mode, test_if_locked, table_def)))
   {
     if ((error == EACCES || error == EROFS) && mode == O_RDWR &&
 	(table->db_stat & HA_TRY_READ_ONLY))
     {
       table->db_stat|=HA_READ_ONLY;
-      error=open(name, O_RDONLY, test_if_locked, dd_tab);
+      error= open(name, O_RDONLY, test_if_locked, table_def);
     }
   }
   if (error)
@@ -4662,13 +4758,13 @@ handler::ha_delete_all_rows()
 */
 
 int
-handler::ha_truncate(dd::Table *dd_tab)
+handler::ha_truncate(dd::Table *table_def)
 {
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
   mark_trx_read_write();
 
-  return truncate(dd_tab);
+  return truncate(table_def);
 }
 
 
@@ -4776,23 +4872,23 @@ handler::ha_discard_or_import_tablespace(my_bool discard)
 
 bool handler::ha_prepare_inplace_alter_table(TABLE *altered_table,
                                              Alter_inplace_info *ha_alter_info,
-                                             const dd::Table *old_dd_tab,
-                                             dd::Table *new_dd_tab)
+                                             const dd::Table *old_table_def,
+                                             dd::Table *new_table_def)
 {
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   mark_trx_read_write();
 
   return prepare_inplace_alter_table(altered_table, ha_alter_info,
-                                     old_dd_tab, new_dd_tab);
+                                     old_table_def, new_table_def);
 }
 
 
 bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
                                             Alter_inplace_info *ha_alter_info,
                                             bool commit,
-                                            const dd::Table *old_dd_tab,
-                                            dd::Table *new_dd_tab)
+                                            const dd::Table *old_table_def,
+                                            dd::Table *new_table_def)
 {
    /*
      At this point we should have an exclusive metadata lock on the table.
@@ -4807,7 +4903,7 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
                !commit);
 
    return commit_inplace_alter_table(altered_table, ha_alter_info, commit,
-                                     old_dd_tab, new_dd_tab);
+                                     old_table_def, new_table_def);
 }
 
 
@@ -4935,12 +5031,12 @@ handler::ha_drop_table(const char *name)
 
 int
 handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
-                   dd::Table *dd_tab)
+                   dd::Table *table_def)
 {
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   mark_trx_read_write();
 
-  return create(name, form, info, dd_tab);
+  return create(name, form, info, table_def);
 }
 
 
@@ -5054,10 +5150,10 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
                              cases when this info is not available from
                              HA_CREATE_INFO).
   @param table_def           Data-dictionary object describing table to
-                             be used for table creation.
-  @param force_dd_commit     Indicates whether we need to force commit
-                             of changes to data-dictionary (WL7743/TODO - this
-                             parameter should not be necessary in the end).
+                             be used for table creation. Can be adjusted
+                             by storage engine if it supports atomic DDL.
+                             For non-temporary tables these changes will
+                             be saved to the data-dictionary by this call.
 
   @retval
    0  ok
@@ -5069,8 +5165,7 @@ int ha_create_table(THD *thd, const char *path,
                     HA_CREATE_INFO *create_info,
                     bool update_create_info,
                     bool is_temp_table,
-                    dd::Table *table_def,
-                    bool force_dd_commit)
+                    dd::Table *tmp_table_def)
 {
   int error= 1;
   TABLE table;
@@ -5086,7 +5181,23 @@ int ha_create_table(THD *thd, const char *path,
 
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
 
-  if (open_table_def(thd, &share, false, table_def))
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  const dd::Table *old_table_def= nullptr;
+  dd::Table *new_table_def= nullptr;
+
+  if (!tmp_table_def)
+  {
+
+    if (thd->dd_client()->acquire<dd::Table>(db, table_name,
+                                             &old_table_def) ||
+        thd->dd_client()->acquire_for_modification(db, table_name,
+                                                   &new_table_def))
+    goto err;
+  }
+
+  if (open_table_def(thd, &share, false, tmp_table_def ?
+                                         tmp_table_def : old_table_def))
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
@@ -5094,7 +5205,8 @@ int ha_create_table(THD *thd, const char *path,
 #endif
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
-                            TRUE, table_def))
+                            TRUE, tmp_table_def ? tmp_table_def :
+                                                  old_table_def))
   {
 #ifdef HAVE_PSI_TABLE_INTERFACE
     PSI_TABLE_CALL(drop_table_share)
@@ -5108,7 +5220,9 @@ int ha_create_table(THD *thd, const char *path,
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
-  error= table.file->ha_create(name, &table, create_info, table_def);
+  error= table.file->ha_create(name, &table, create_info,
+                               tmp_table_def ? tmp_table_def :
+                                               new_table_def);
 
   if (error)
   {
@@ -5135,50 +5249,12 @@ int ha_create_table(THD *thd, const char *path,
     {
       Disable_gtid_state_update_guard disabler(thd);
 
-      if(thd->dd_client()->update_uncached_and_invalidate(table_def))
-      {
-        if (force_dd_commit)
-        {
-          trans_rollback_stmt(thd);
-          // Full rollback in case we have THD::transaction_rollback_request.
-          trans_rollback(thd);
-        }
+      if(thd->dd_client()->update<dd::Table>(&old_table_def, new_table_def))
         error= 1;
-      }
-      else
-      {
-        dd::Schema_MDL_locker mdl_locker(thd);
-        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-        const dd::Schema *sch_obj;
-
-        if (mdl_locker.ensure_locked(db) ||
-            thd->dd_client()->acquire<dd::Schema>(db, &sch_obj))
-        {
-          if (force_dd_commit)
-          {
-            trans_rollback_stmt(thd);
-            // Full rollback in case we have THD::transaction_rollback_request.
-            trans_rollback(thd);
-          }
-          error= 1;
-        }
-        else if (!sch_obj ||
-                 dd::store_sdi(thd, table_def, sch_obj))
-        {
-          if (!sch_obj)
-            my_error(ER_BAD_DB_ERROR, MYF(0), db);
-          if (force_dd_commit)
-          {
-            trans_rollback_stmt(thd);
-            // Full rollback in case we have THD::transaction_rollback_request.
-            trans_rollback(thd);
-          }
-          error= 1;
-        }
-        else
-          error= (force_dd_commit &&
-                  (trans_commit_stmt(thd) || trans_commit(thd)));
-      }
+    }
+    else
+    {
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
   }
   (void) closefrm(&table, 0);

@@ -1485,9 +1485,6 @@ public:
   void update_field() override {};
   void cleanup() override;
   void print(String *str, enum_query_type query_type) override;
-
-protected:
-  virtual bool may_have_named_parameters() const { return true; }
 };
 
 

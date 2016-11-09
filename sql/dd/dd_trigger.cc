@@ -201,7 +201,8 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
   cache::Dictionary_client *dd_client= thd->dd_client();
   cache::Dictionary_client::Auto_releaser releaser(dd_client);
 
-  const Table *table= nullptr;
+  const Table *old_table= nullptr;
+  Table *new_table= nullptr;
 
   DBUG_EXECUTE_IF("create_trigger_fail", {
       my_error(ER_LOCK_DEADLOCK, MYF(0));
@@ -209,25 +210,24 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
     });
 
   if (schema_mdl_locker.ensure_locked(new_trigger->get_db_name().str) ||
-      dd_client->acquire<Table>(new_trigger->get_db_name().str,
-                                new_trigger->get_subject_table_name().str,
-                                &table))
+      dd_client->acquire(new_trigger->get_db_name().str,
+                         new_trigger->get_subject_table_name().str,
+                         &old_table) ||
+      dd_client->acquire_for_modification(new_trigger->get_db_name().str,
+                                          new_trigger->get_subject_table_name().str,
+                                          &new_table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
   }
 
-  if (table == nullptr)
+  if (old_table == nullptr)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0),
              new_trigger->get_db_name().str,
              new_trigger->get_subject_table_name().str);
     DBUG_RETURN(true);
   }
-
-  // Clone the object to be modified, and make sure the clone is deleted
-  // by wrapping it in a unique_ptr.
-  std::unique_ptr<Table> new_table(table->clone());
 
   Trigger *dd_trig_obj;
 
@@ -272,13 +272,16 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
     Store the dd::Table object. All the trigger objects are stored
     in mysql.triggers. Errors will be reported by the dictionary subsystem.
   */
-  if (dd_client->update(&table, new_table.get()))
+  if (dd_client->update(&old_table, new_table))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
     trans_rollback(thd);
     DBUG_RETURN(true);
   }
+
+  // TODO: Remove this call in WL#7743?
+  dd_client->remove_uncommitted_objects<Table>(true);
 
   DBUG_RETURN(false);
 }
@@ -347,7 +350,7 @@ bool load_triggers(THD *thd,
 
   const Table *table= nullptr;
   if (schema_mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Table>(schema_name, table_name, &table))
+      dd_client->acquire(schema_name, table_name, &table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -478,7 +481,7 @@ bool load_trigger_names(THD *thd,
 
   const Table *table= nullptr;
   if (schema_mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Table>(schema_name, table_name, &table))
+      dd_client->acquire(schema_name, table_name, &table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -527,41 +530,13 @@ bool table_has_triggers(THD *thd, const char *schema_name,
   const Table *table= nullptr;
 
   if (schema_mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Table>(schema_name, table_name, &table))
+      dd_client->acquire(schema_name, table_name, &table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
   }
 
   *table_has_trigger= (table != nullptr && table->has_trigger());
-
-  DBUG_RETURN(false);
-}
-
-
-bool table_has_triggers_uncommitted(THD *thd, const char *schema_name,
-                                    const char *table_name,
-                                    bool *table_has_trigger)
-{
-  DBUG_ENTER("table_has_triggers");
-
-  if (get_dictionary()->is_dd_table_name(schema_name, table_name))
-  {
-    *table_has_trigger= false;
-    DBUG_RETURN(false);
-  }
-
-  const Table *table= nullptr;
-  if (thd->dd_client()->acquire_uncached_uncommitted<dd::Table>(schema_name,
-                          table_name, &table))
-  {
-    // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
-  }
-
-  *table_has_trigger= (table != nullptr && table->has_trigger());
-
-  delete table;
 
   DBUG_RETURN(false);
 }
@@ -579,7 +554,7 @@ bool check_trigger_exists(THD *thd,
 
   const Schema *sch_obj= nullptr;
   if (mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Schema>(schema_name, &sch_obj))
+      dd_client->acquire(schema_name, &sch_obj))
     return true;
 
   if (sch_obj == nullptr)
@@ -613,25 +588,23 @@ bool drop_trigger(THD *thd,
   cache::Dictionary_client *dd_client= thd->dd_client();
   cache::Dictionary_client::Auto_releaser releaser(dd_client);
 
-  const Table *table= nullptr;
+  const Table *old_table= nullptr;
+  Table *new_table= nullptr;
 
   if (schema_mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Table>(schema_name, table_name, &table))
+      dd_client->acquire(schema_name, table_name, &old_table) ||
+      dd_client->acquire_for_modification(schema_name, table_name, &new_table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
   }
 
-  if (table == nullptr)
+  if (old_table == nullptr)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0),
              schema_name, table_name);
     DBUG_RETURN(true);
   }
-
-  // Clone the object to be modified, and make sure the clone is deleted
-  // by wrapping it in a unique_ptr.
-  std::unique_ptr<Table> new_table(table->clone());
 
   const Trigger *dd_trig_obj= new_table->get_trigger(trigger_name);
 
@@ -646,12 +619,15 @@ bool drop_trigger(THD *thd,
     Store the Table object. All the trigger objects are stored
     in mysql.triggers.
   */
-  if (dd_client->update(&table, new_table.get()))
+  if (dd_client->update(&old_table, new_table))
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
     DBUG_RETURN(true);
   }
+
+  // TODO: Remove this call in WL#7743?
+  dd_client->remove_uncommitted_objects<Table>(true);
 
   *trigger_found= true;
   DBUG_RETURN(false);
@@ -670,16 +646,18 @@ bool drop_all_triggers(THD *thd,
   cache::Dictionary_client *dd_client= thd->dd_client();
   cache::Dictionary_client::Auto_releaser releaser(dd_client);
 
-  const Table *table= nullptr;
+  const Table *old_table= nullptr;
+  Table *new_table= nullptr;
 
   if (schema_mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Table>(schema_name, table_name, &table))
+      dd_client->acquire(schema_name, table_name, &old_table) ||
+      dd_client->acquire_for_modification(schema_name, table_name, &new_table))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
   }
 
-  if (table == nullptr)
+  if (old_table == nullptr)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0),
              schema_name, table_name);
@@ -688,8 +666,6 @@ bool drop_all_triggers(THD *thd,
 
   List_iterator_fast<::Trigger> it(*triggers);
   ::Trigger *t;
-
-  std::unique_ptr<Table> new_table(table->clone());
 
   while ((t= it++))
   {
@@ -714,15 +690,17 @@ bool drop_all_triggers(THD *thd,
     Store the dd::Table object. All the trigger objects are removed from
     mysql.triggers.
   */
-  if (dd_client->update(&table, new_table.get()))
+  if (dd_client->update(&old_table, new_table))
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
     DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(trans_commit_stmt(thd) ||
-              trans_commit(thd));
+  bool error= trans_commit_stmt(thd) || trans_commit(thd);
+  // TODO: Remove this call in WL#7743?
+  dd_client->remove_uncommitted_objects<Table>(!error);
+  DBUG_RETURN(error);
 }
 
 
@@ -740,7 +718,7 @@ bool get_table_name_for_trigger(THD *thd,
 
   const Schema *sch_obj= nullptr;
   if (mdl_locker.ensure_locked(schema_name) ||
-      dd_client->acquire<Schema>(schema_name, &sch_obj))
+      dd_client->acquire(schema_name, &sch_obj))
     return true;
 
   if (sch_obj == nullptr)

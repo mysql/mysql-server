@@ -172,7 +172,7 @@ bool check_table_triggers_are_not_in_the_same_schema(THD *thd,
   // Check if there is at least one trigger for the given table.
 
   bool table_has_trigger;
-  if (dd::table_has_triggers_uncommitted(thd, db_name, table_name, &table_has_trigger))
+  if (dd::table_has_triggers(thd, db_name, table_name, &table_has_trigger))
     return true;
 
   if (!table_has_trigger)

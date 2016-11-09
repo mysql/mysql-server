@@ -17,8 +17,8 @@
 #include "dd/cache/dictionary_client.h"  // dd::Dictionary_client
 #include "dd/dd_tablespace.h"            // dd::get_tablespace_name
 #include "dd/impl/sdi_utils.h"           // sdi_utils::checked_return
+#include "dd/impl/sdi.h"                 // dd::serialize
 #include "dd/properties.h"               // dd::Properties
-#include "dd/sdi.h"                      // dd::serialize
 #include "dd/string_type.h"              // dd::String_type
 #include "dd/types/schema.h"             // dd::Schema
 #include "dd/types/table.h"              // dd::Table
@@ -148,6 +148,14 @@ bool store(THD *thd, handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
 bool store(THD *thd, handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
            const dd::Table *table, const dd::Schema *schema)
 {
+  if (table->se_private_id() == INVALID_OBJECT_ID)
+  {
+    // OK this is a preliminary store of the object - before SE has
+    // added SE-specific data. Cannot, and should not, store sdi at
+    // this point. TODO: Push this check down to SE.
+    return false;
+  }
+
   dd::cache::Dictionary_client::Auto_releaser scope_releaser(thd->dd_client());
 
   // FIXME: Iterate across dictionary to see if this is the first
@@ -172,7 +180,7 @@ bool store(THD *thd, handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
 
   const dd::sdi_key_t schema_key= get_sdi_key(*schema);
   bool schema_sdi_stored= false;
-  for (auto k : sdikeys.m_vec)
+  for (const auto &k : sdikeys.m_vec)
   {
     if (k == schema_key)
     {

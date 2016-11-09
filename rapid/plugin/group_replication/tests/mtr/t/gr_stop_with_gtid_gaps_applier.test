@@ -1,0 +1,164 @@
+################################################################################
+# Validate that when a member is stopped with holes on applier
+# relay log gtids, those holes will be filled by the next
+# transactions.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Bootstrap start a group on M1. Start GR on M2.
+# 2. Stop applier channel in order to delay the execution of remote transactions
+#    on M1.
+# 3. Create a table on M2 with a specified GTID. GTID_EXECUTED must contain a
+#    hole on M2. Wait until statement reaches M1 relay log.
+# 4. Shutdown the group i.e. stop GR on M1 and M2.
+#  - M2: Drop table t1, remove applier thread channel and reset master.
+# 5. Bootstrap start a group on M1. GTID_EXECUTED must contain no holes.
+#  - UUID_GROUP:3 is used for the view on M1.
+#  - M1: Assert check events sequence in binlog.
+#  - M1: Check received_transaction_set must contain no holes.
+#  - M2: gtid_executed must be empty.
+#  - M2: Start GR. Then, gtid_executed must contain no holes.
+# 6. Clean up.
+################################################################################
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+# The sequence of events that make up a View Change
+--let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+
+
+--echo
+--echo ############################################################
+--echo # 1. Start a group with two members on which server 1 is the
+--echo #    bootstrap member.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Stop applier channel in order to delay the execution of
+--echo #    remote transactions on member 1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Create a table on member 2 with a specified GTID.
+--echo #    This statement will not be applied on member 1.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= GTID_EXECUTED must contain two transactions from the members join
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-2")
+--source include/assert.inc
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GTID_NEXT= "$group_replication_group_name:4"
+CREATE TABLE t1 (i INT PRIMARY KEY);
+SET GTID_NEXT="AUTOMATIC";
+
+--let $assert_text= GTID_EXECUTED must contain a hole
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-2:4")
+--source include/assert.inc
+
+# Wait until statement reaches member 1 relay log.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT received_transaction_set="$group_replication_group_name:1-2:4" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier";
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Shutdown the group.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+# Server 2 will contain one more GTID then server 1, which will fill
+# the GTID hole, to test this scenario we will assume that server 2
+# did crash and group was bootstrap from server 1.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+DROP TABLE t1;
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET MASTER;
+
+
+--echo
+--echo ############################################################
+--echo # 5. Bootstrap the group again.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+--let $assert_text= GTID_EXECUTED must contain no holes
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-4")
+--source include/assert.inc
+
+# GTID group_replication_group_name:3 was used for the view on
+# which server1 did bootstrap the group again.
+# View change (s1) # View change (s2) # Create table # View change (s1)
+--let $event_sequence= $vcle_seq # $vcle_seq # !Gtid_transaction # $vcle_seq
+--source include/assert_binlog_events.inc
+
+--let $received_set= `SELECT received_transaction_set FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier"`
+--let $assert_text= gtid received set must contain no holes
+--let $assert_cond= GTID_IS_EQUAL("$received_set","$group_replication_group_name:1-4")
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= GTID_EXECUTED must be empty
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"")
+--source include/assert.inc
+
+--source include/start_group_replication.inc
+--let $assert_text= GTID_EXECUTED must contain no holes
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-5")
+--source include/assert.inc
+
+# View change (s1) # View change (s2) # Create table # View change (s1) # View change (s2)
+--let $event_sequence= $vcle_seq # $vcle_seq # !Gtid_transaction # $vcle_seq # $vcle_seq
+--source include/assert_binlog_events.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Cleanup.
+DROP TABLE t1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+
+--source ../inc/group_replication_end.inc

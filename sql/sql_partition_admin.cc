@@ -23,7 +23,7 @@
 #include "auth_common.h"                    // check_access
 #include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
 #include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
-#include "dd/sdi.h"                         // dd::store_sdi
+#include "dd/types/table.h"                 // dd::Table
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "handler.h"
 #include "log.h"
@@ -645,48 +645,45 @@ bool Sql_cmd_alter_table_exchange_partition::
     DBUG_RETURN(true);
   }
 
-  std::unique_ptr<dd::Table> part_table_def, swap_table_def;
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *old_part_table_def, *old_swap_table_def;
+  dd::Table *part_table_def, *swap_table_def;
 
+  if (thd->dd_client()->acquire<dd::Table>(table_list->db,
+                                           table_list->table_name,
+                                           &old_part_table_def) ||
+      thd->dd_client()->acquire<dd::Table>(swap_table_list->db,
+                                           swap_table_list->table_name,
+                                           &old_swap_table_def) ||
+      thd->dd_client()->acquire_for_modification<dd::Table>(table_list->db,
+                          table_list->table_name, &part_table_def) ||
+      thd->dd_client()->acquire_for_modification<dd::Table>(swap_table_list->db,
+                          swap_table_list->table_name, &swap_table_def))
+    DBUG_RETURN(true);
+
+  if (!old_part_table_def || !part_table_def)
   {
-    // Ensure that we release cached objects before we invalidate cache below.
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Table *old_part_table_def, *old_swap_table_def;
+    /* Impossible since table was successfully opened above. */
+    DBUG_ASSERT(0);
+    my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
+             table_list->table_name);
+    DBUG_RETURN(true);
+  }
 
-    if (thd->dd_client()->acquire<dd::Table>(table_list->db,
-                                             table_list->table_name,
-                                             &old_part_table_def) ||
-        thd->dd_client()->acquire<dd::Table>(swap_table_list->db,
-                                             swap_table_list->table_name,
-                                             &old_swap_table_def))
-      DBUG_RETURN(true);
-
-    if (!old_part_table_def)
-    {
-      /* Impossible since table was successfully opened above. */
-      DBUG_ASSERT(0);
-      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
-               table_list->table_name);
-      DBUG_RETURN(true);
-    }
-
-    if (!old_swap_table_def)
-    {
-      /* Impossible since table was successfully opened above. */
-      DBUG_ASSERT(0);
-      my_error(ER_NO_SUCH_TABLE, MYF(0), swap_table_list->db,
-               swap_table_list->table_name);
-      DBUG_RETURN(true);
-    }
-
-    part_table_def= std::unique_ptr<dd::Table>(old_part_table_def->clone());
-    swap_table_def= std::unique_ptr<dd::Table>(old_swap_table_def->clone());
+  if (!old_swap_table_def || !swap_table_def)
+  {
+    /* Impossible since table was successfully opened above. */
+    DBUG_ASSERT(0);
+    my_error(ER_NO_SUCH_TABLE, MYF(0), swap_table_list->db,
+             swap_table_list->table_name);
+    DBUG_RETURN(true);
   }
 
   int ha_error= part_handler->exchange_partition(part_file_name,
                                                  swap_file_name,
                                                  swap_part_id,
-                                                 part_table_def.get(),
-                                                 swap_table_def.get());
+                                                 part_table_def,
+                                                 swap_table_def);
 
   // Play safe. Invalidate query cache even in case of failure.
   table_list->table= NULL;
@@ -748,11 +745,6 @@ bool Sql_cmd_alter_table_exchange_partition::
   {
     if (part_table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL)
     {
-      dd::Schema_MDL_locker part_mdl_locker(thd);
-      dd::Schema_MDL_locker swap_mdl_locker(thd);
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-      const dd::Schema *part_sch_obj= NULL;
-      const dd::Schema *swap_sch_obj= NULL;
       handlerton *hton= part_table->file->ht;
 
       // Close TABLE instances which marked as old earlier.
@@ -783,36 +775,17 @@ bool Sql_cmd_alter_table_exchange_partition::
       std::unique_ptr<THD, decltype(rollback_post_ddl_reopen_lambda)>
         rollback_post_ddl_reopen_guard(thd, rollback_post_ddl_reopen_lambda);
 
-      if (!thd->dd_client()->update_uncached_and_invalidate(
-                               part_table_def.get()) &&
-          !thd->dd_client()->update_uncached_and_invalidate(
-                               swap_table_def.get()) &&
-          !write_bin_log(thd, true, thd->query().str, thd->query().length,
-                         true) &&
-          !part_mdl_locker.ensure_locked(table_list->db) &&
-          !thd->dd_client()->acquire<dd::Schema>(table_list->db,
-                                                 &part_sch_obj) &&
-          part_sch_obj &&
-          !swap_mdl_locker.ensure_locked(swap_table_list->db) &&
-          !thd->dd_client()->acquire<dd::Schema>(swap_table_list->db,
-                                                 &swap_sch_obj) &&
-          swap_sch_obj)
+      if (thd->dd_client()->update(&old_part_table_def, part_table_def) ||
+          thd->dd_client()->update<dd::Table>(&old_swap_table_def,
+                                              swap_table_def) ||
+          write_bin_log(thd, true, thd->query().str, thd->query().length,
+                        true))
       {
-        if (dd::store_sdi(thd, part_table_def.get(), part_sch_obj) ||
-            dd::store_sdi(thd, swap_table_def.get(), swap_sch_obj))
-          DBUG_RETURN(true);
-
-        if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
-          DBUG_RETURN(true);
-      }
-      else
-      {
-        if (!part_sch_obj)
-          my_error(ER_BAD_DB_ERROR, MYF(0), table_list->db);
-        else if (swap_sch_obj)
-          my_error(ER_BAD_DB_ERROR, MYF(0), swap_table_list->db);
         DBUG_RETURN(true);
       }
+
+      if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+        DBUG_RETURN(true);
     }
     else
     {
@@ -960,30 +933,26 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   if (lock_tables(thd, first_table, table_counter, 0))
     DBUG_RETURN(true);
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *old_table_def= nullptr;
+  dd::Table *table_def= nullptr;
 
-  std::unique_ptr<dd::Table> table_def;
+  if (thd->dd_client()->acquire<dd::Table>(first_table->db,
+                                           first_table->table_name,
+                                           &old_table_def) ||
+      thd->dd_client()->acquire_for_modification<dd::Table>(first_table->db,
+                          first_table->table_name, &table_def))
+    DBUG_RETURN(true);
 
+  if (!old_table_def || !table_def)
   {
-    // Ensure that we release cached object before we invalidate cache below.
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Table *old_table_def= 0;
-
-    if (thd->dd_client()->acquire<dd::Table>(first_table->db,
-                                             first_table->table_name,
-                                             &old_table_def))
-      DBUG_RETURN(true);
-
-    if (!old_table_def)
-    {
-      /* Impossible since table was successfully opened above. */
-      DBUG_ASSERT(0);
-      my_error(ER_NO_SUCH_TABLE, MYF(0), first_table->db,
-               first_table->table_name);
-      DBUG_RETURN(true);
-    }
-
-    table_def= std::unique_ptr<dd::Table>(old_table_def->clone());
+    /* Impossible since table was successfully opened above. */
+    DBUG_ASSERT(0);
+    my_error(ER_NO_SUCH_TABLE, MYF(0), first_table->db,
+             first_table->table_name);
+    DBUG_RETURN(true);
   }
+
 
   /*
     Under locked table modes this might still not be an exclusive
@@ -998,7 +967,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
                    first_table->table_name, FALSE);
 
   /* Invoke the handler method responsible for truncating the partition. */
-  if ((error= part_handler->truncate_partition(table_def.get())))
+  if ((error= part_handler->truncate_partition(table_def)))
   {
     first_table->table->file->print_error(error, MYF(0));
   }
@@ -1017,23 +986,10 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     */
     if (!error)
     {
-      dd::Schema_MDL_locker mdl_locker(thd);
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-      const dd::Schema *sch_obj;
-
-      if (thd->dd_client()->update_uncached_and_invalidate(table_def.get()) ||
+      if (thd->dd_client()->update<dd::Table>(&old_table_def, table_def) ||
           write_bin_log(thd, true, thd->query().str, thd->query().length,
-                        true) ||
-          mdl_locker.ensure_locked(first_table->db) ||
-          thd->dd_client()->acquire<dd::Schema>(first_table->db, &sch_obj))
+                        true))
         error= 1;
-      else if (!sch_obj)
-      {
-        my_error(ER_BAD_DB_ERROR, MYF(0), first_table->db);
-        error= 1;
-      }
-      else
-        error= dd::store_sdi(thd, table_def.get(), sch_obj);
     }
   }
   else

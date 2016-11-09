@@ -96,7 +96,6 @@ static ORDER *create_distinct_group(THD *thd,
                                     bool *all_order_by_fields_used);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
-static Item *remove_additional_cond(Item* conds);
 static void trace_table_dependencies(Opt_trace_context * trace,
                                      JOIN_TAB *join_tabs,
                                      uint table_count);
@@ -1076,10 +1075,6 @@ int JOIN::replace_index_subquery()
         first_join_tab->ref().items[0]->item_name.ptr() == in_left_expr_name)
     {
       found_engine= true;
-      /*
-        This uses test_if_ref(), which needs access to JOIN_TAB::join_cond() so
-        it must be done before we get rid of JOIN_TAB.
-      */
       remove_subq_pushed_predicates();
     }
     else if (first_join_tab->type() == JT_REF &&
@@ -1091,10 +1086,13 @@ int JOIN::replace_index_subquery()
   }
   else if (first_join_tab->type() == JT_REF_OR_NULL &&
            first_join_tab->ref().items[0]->item_name.ptr() == in_left_expr_name &&
-           having_cond->item_name.ptr() == in_having_cond)
+           having_cond->created_by_in2exists())
   {
     found_engine= true;
-    where_cond= remove_additional_cond(where_cond);
+    /*
+      Injected conditions are more complex than in cases above so we don't try
+      to simplify them.
+    */
   }
 
   if (!found_engine)
@@ -8681,7 +8679,7 @@ part_of_refkey(TABLE *table, TABLE_REF *ref, Field *field)
   usage/modifications of test_if_ref().
 */
 
-static bool test_if_ref(Item *root_cond, 
+static bool test_if_ref(const Item *root_cond,
                         Item_field *left_item,Item *right_item)
 {
   if (left_item->depended_from)
@@ -10640,42 +10638,6 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   Opt_trace_object(&thd->opt_trace).add("added_back_ref_condition", cond);
 
   DBUG_RETURN(error ? TRUE : FALSE);
-}
-
-
-/**
-  Remove additional condition inserted by IN/ALL/ANY transformation.
-
-  @param conds   condition for processing
-
-  @return
-    new conditions
-
-  @note that this function has Bug#13915291.
-*/
-
-static Item *remove_additional_cond(Item* conds)
-{
-  // Because it uses in_additional_cond it applies only to the scalar case.
-  if (conds->item_name.ptr() == in_additional_cond)
-    return 0;
-  if (conds->type() == Item::COND_ITEM)
-  {
-    Item_cond *cnd= (Item_cond*) conds;
-    List_iterator<Item> li(*(cnd->argument_list()));
-    Item *item;
-    while ((item= li++))
-    {
-      if (item->item_name.ptr() == in_additional_cond)
-      {
-	li.remove();
-	if (cnd->argument_list()->elements == 1)
-	  return cnd->argument_list()->head();
-	return conds;
-      }
-    }
-  }
-  return conds;
 }
 
 

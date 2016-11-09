@@ -269,7 +269,7 @@ event_exists(dd::cache::Dictionary_client *dd_client,
 
   const dd::Event *event_ptr= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
-  if (dd_client->acquire<dd::Event>(schema_name, event_name, &event_ptr))
+  if (dd_client->acquire(schema_name, event_name, &event_ptr))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -401,7 +401,7 @@ bool create_event(THD *thd,
   const dd::Schema *sch_obj= nullptr;
 
   // Acquire schema object.
-  if (client->acquire<dd::Schema>(schema_name, &sch_obj))
+  if (client->acquire(schema_name, &sch_obj))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -441,8 +441,12 @@ bool update_event(THD *thd, const Event *event,
   DBUG_ENTER("dd::update_event");
   DBUG_ASSERT(event != nullptr);
 
-  // Clone the Event Object.
-  std::unique_ptr<dd::Event> new_event(event->clone());
+  dd::cache::Dictionary_client *client= thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  Event *new_event= nullptr;
+  if (client->acquire_for_modification(event->id(), &new_event))
+    DBUG_RETURN(true);
 
   // Check whether alter event was given dates that are in the past.
   if (event_data->check_dates(thd, static_cast<int>(new_event->on_completion())))
@@ -452,7 +456,7 @@ bool update_event(THD *thd, const Event *event,
   if (new_db_name != "")
   {
     const dd::Schema *to_sch_ptr;
-    if (thd->dd_client()->acquire<dd::Schema>(new_db_name, &to_sch_ptr))
+    if (client->acquire(new_db_name, &to_sch_ptr))
       DBUG_RETURN(true);
 
     if (to_sch_ptr == nullptr)
@@ -465,12 +469,12 @@ bool update_event(THD *thd, const Event *event,
   }
 
   // Set the altered event attributes.
-  set_event_attributes(thd, new_event.get(),
+  set_event_attributes(thd, new_event,
                        new_event_name != "" ? new_event_name : event->name(),
                        new_event_body, new_event_body_utf8, definer,
                        event_data, true);
 
-  if (thd->dd_client()->update(&event, new_event.get()))
+  if (client->update(&event, new_event))
   {
     trans_rollback_stmt(thd);
     // Full rollback we have THD::transaction_rollback_request.
@@ -478,7 +482,10 @@ bool update_event(THD *thd, const Event *event,
     DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
+  bool error= trans_commit_stmt(thd) || trans_commit(thd);
+  // TODO: Remove this call in WL#7743?
+  client->remove_uncommitted_objects<Event>(!error);
+  DBUG_RETURN(error);
 }
 
 bool update_event_time_and_status(THD *thd, const Event *event,
@@ -488,14 +495,19 @@ bool update_event_time_and_status(THD *thd, const Event *event,
 
   DBUG_ASSERT(event != nullptr);
 
-  std::unique_ptr<dd::Event> new_event(event->clone());
+  dd::cache::Dictionary_client *client= thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  Event *new_event= nullptr;
+  if (client->acquire_for_modification(event->id(), &new_event))
+    DBUG_RETURN(true);
 
   new_event->set_event_status_null(false);
   new_event->set_event_status(get_enum_event_status(status));
   new_event->set_last_executed_null(false);
   new_event->set_last_executed(last_executed);
 
-  if (thd->dd_client()->update(&event, new_event.get()))
+  if (client->update(&event, new_event))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -503,7 +515,10 @@ bool update_event_time_and_status(THD *thd, const Event *event,
     DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
+  bool error= trans_commit_stmt(thd) || trans_commit(thd);
+  // TODO: Remove this call in WL#7743?
+  client->remove_uncommitted_objects<Event>(!error);
+  DBUG_RETURN(error);
 }
 
 

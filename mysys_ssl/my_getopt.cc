@@ -17,16 +17,18 @@
   @file mysys_ssl/my_getopt.cc
 */
 
-#include <my_global.h>
-#include <m_string.h>
-#include <stdlib.h>
-#include <mysys_err.h>
-#include <my_getopt.h>
 #include <errno.h>
-#include <m_string.h>
-#include "my_default.h"
 #include <m_ctype.h>
+#include <m_string.h>
+#include <my_getopt.h>
+#include <my_global.h>
+#include <mysys_err.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "../mysys/mysys_priv.h"
+#include "my_default.h"
+#include "my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
 #include "typelib.h"
 

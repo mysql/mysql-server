@@ -670,6 +670,12 @@ ALTER TABLE slave_worker_info
 # The Tls_version field at slave_master_info should be added after the Channel_name field
 ALTER TABLE slave_master_info ADD Tls_version TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version';
 
+# If the order of columns Channel_name and Tls_version is wrong, this will correct the order
+# in slave_master_info table.
+ALTER TABLE slave_master_info
+  MODIFY COLUMN Tls_version TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version'
+  AFTER Channel_name;
+
 SET @have_innodb= (SELECT COUNT(engine) FROM information_schema.engines WHERE engine='InnoDB' AND support != 'NO');
 SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_table_stats STATS_PERSISTENT=0", "SET @dummy = 0");
 PREPARE stmt FROM @str;
@@ -809,3 +815,48 @@ ALTER TABLE user ADD Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAUL
 ALTER TABLE user MODIFY Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_role_priv;
 UPDATE user SET Create_role_priv= 'Y', Drop_role_priv= 'Y' WHERE Create_user_priv = 'Y';
 
+--
+-- Change engine of the firewall tables to InnoDB
+--
+SET @had_firewall_whitelist =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_whitelist' AND
+           table_type = 'BASE TABLE');
+SET @cmd="ALTER TABLE mysql.firewall_whitelist ENGINE=InnoDB";
+SET @str = IF(@had_firewall_whitelist > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_firewall_users =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_users' AND
+           table_type = 'BASE TABLE');
+SET @cmd="ALTER TABLE mysql.firewall_users ENGINE=InnoDB";
+SET @str = IF(@had_firewall_users > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- Change engine of the audit log tables to InnoDB
+--
+SET @had_audit_log_filter =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'audit_log_filter' AND
+           table_type = 'BASE TABLE');
+SET @cmd="ALTER TABLE mysql.audit_log_filter ENGINE=InnoDB";
+SET @str = IF(@had_audit_log_filter > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_audit_log_user =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'audit_log_user' AND
+           table_type = 'BASE TABLE');
+SET @cmd="ALTER TABLE mysql.audit_log_user ENGINE=InnoDB";
+SET @str = IF(@had_audit_log_user > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;

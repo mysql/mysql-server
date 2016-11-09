@@ -1,0 +1,40 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+set sql_log_bin=0;
+call mtr.add_suppression("Error in Log_event::read_log_event()");
+set sql_log_bin=1;
+CREATE TABLE t1(a int primary key);
+CREATE PROCEDURE dml_operations()
+BEGIN
+declare x INT;
+set x=1;
+while x<300 do
+insert into t1 values (x);
+update t1 set a=x+300 where a=x;
+delete from t1 where a<310;
+set x=x+1;
+end  while;
+end$$
+
+----call procedure----
+call dml_operations();
+
+[connection server_1]
+# killing
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+# restarting
+include/rpl_reconnect.inc
+[connection server2]
+# check that there are 2 members in the group
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server_1]
+include/start_group_replication.inc
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:t1, server2:t1, server3:t1]
+drop table t1;
+drop procedure dml_operations;
+include/group_replication_end.inc

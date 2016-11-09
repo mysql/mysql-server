@@ -222,6 +222,11 @@ public:
 
   virtual Partition_collection *partitions() = 0;
 
+  /**
+    Find and set parent partitions for subpartitions.
+
+    TODO/FIXME: Can we adjust API somehow to avoid need for this method?
+  */
   virtual void fix_partitions() = 0;
 
   /////////////////////////////////////////////////////////////////////////

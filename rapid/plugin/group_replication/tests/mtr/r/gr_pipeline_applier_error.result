@@ -1,0 +1,72 @@
+
+############################################################
+# 1.  Setup a new group with two members.
+#
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Failed to fetch transaction data containing required transaction info for applier");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("Error at event handling! Got error: 1");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+include/start_and_bootstrap_group_replication.inc
+############################################################
+# 2.  Execute some transactions on member 1 that will be
+#     applied through member 2 Group Replication applier
+#     that is forced to fail.
+#
+[connection server1]
+include/start_group_replication.inc
+
+# On member 2 we force a pipeline error on applier
+# handler.
+[connection server2]
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,applier_handler_force_error_on_pipeline';
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+# Wait until member 2 Group Replication applier errors out.
+#
+[connection server2]
+
+# Reset debug flag.
+#
+include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= @debug_saved;
+include/start_group_replication.inc
+
+############################################################
+# 3.  Commit a transaction to validate that everything is OK
+#
+[connection server1]
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+
+############################################################
+# 4.  Check that GTID_EXECUTED on server 1 contains all
+#     transactions.
+#     Also check that data is on tables.
+[connection server1]
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 1 in table t1']
+
+############################################################
+# 5.  Check that GTID_EXECUTED on server 2 contains all
+#     transactions.
+#     Also check that data is on tables.
+[connection server2]
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 1 in table t1']
+
+############################################################
+# 6.  Test cleanup.
+#
+DROP TABLE t1;
+include/group_replication_end.inc

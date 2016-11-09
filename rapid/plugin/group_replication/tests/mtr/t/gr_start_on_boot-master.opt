@@ -1,0 +1,3 @@
+--loose-group_replication_start_on_boot=ON
+--log_error=$MYSQLTEST_VARDIR/tmp/group_replication_start_on_boot.1.err
+--no-console

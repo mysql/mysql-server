@@ -32,8 +32,10 @@
 */ 
 
 #include <my_global.h>
+#include <stdio.h>
 
 #include "hash.h"
+#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "mysql.h"
 #include "mysql/client_authentication.h"
@@ -42,6 +44,7 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "template_utils.h"
+#include "typelib.h"
 
 #ifdef EMBEDDED_LIBRARY
 
@@ -155,7 +158,7 @@ void init_client_psi_keys(void)
   const char *category= "client";
   int count;
 
-  count= array_elements(all_client_memory);
+  count= static_cast<int>(array_elements(all_client_memory));
   mysql_memory_register(category, all_client_memory, count);
 }
 

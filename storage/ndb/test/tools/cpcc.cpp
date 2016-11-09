@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -306,13 +306,13 @@ Operate::evaluate(SimpleCpcClient* c, const SimpleCpcClient::Process & pp){
   Properties p;
   int res;
 
-  if(strcasecmp(cmd, "start") == 0)
+  if(native_strcasecmp(cmd, "start") == 0)
     res = c->start_process(id, p);
-  else if(strcasecmp(cmd, "stop") == 0)
+  else if(native_strcasecmp(cmd, "stop") == 0)
     res = c->stop_process(id, p);
-  else if(strcasecmp(cmd, "rm") == 0)
+  else if(native_strcasecmp(cmd, "rm") == 0)
     res = c->undefine_process(id, p);
-  else if(strcasecmp(cmd, "list") == 0){
+  else if(native_strcasecmp(cmd, "list") == 0){
     if(!sets.m_longl){
       if(host != c){
 	ndbout_c("--- %s:%d", c->getHost(), c->getPort());

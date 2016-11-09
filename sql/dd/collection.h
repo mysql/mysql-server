@@ -284,7 +284,8 @@ public:
     @details
     Iterate through DD tables to find rows that match the 'Object_key'
     supplied. Create collection item for each row we find and populate
-    the item with data read from DD.
+    the item with data read from DD. Sort items in collection by their
+    ordinal position property.
 
     @param parent - Object owning the restored object.
     @param otx - Context with information about open tables.
@@ -301,12 +302,31 @@ public:
                      Object_key *key);
 
 
+  /**
+    Populate collection with items read from DD table.
+
+    @details
+    Iterate through DD tables to find rows that match the 'Object_key'
+    supplied. Create collection item for each row we find and populate
+    the item with data read from DD. Sort items in collection using
+    comparator provided.
+
+    @param parent   Object owning the restored object.
+    @param otx      Context with information about open tables.
+    @param table    The DD table from which read rows for items.
+    @param key      The search key to be used to find rows.
+    @param comp     Comparator to be used for sorting items.
+
+    @retval True    on failure and error is reported.
+    @retval False   on success.
+  */
   template <typename Parent_item, typename Compare>
   bool restore_items(Parent_item *parent,
                      Open_dictionary_tables_ctx *otx,
                      Raw_table *table,
                      Object_key *key,
                      Compare comp);
+
   /**
     @brief
     store items in collection on to DD table.

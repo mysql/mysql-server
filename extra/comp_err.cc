@@ -24,16 +24,17 @@
   multi-language text file.
 */
 
-#include <my_global.h>
-#include <m_ctype.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <my_getopt.h>
 #include <assert.h>
+#include <m_ctype.h>
+#include <m_string.h>
 #include <my_dir.h>
+#include <my_getopt.h>
+#include <my_global.h>
+#include <my_sys.h>
 #include <mysql_version.h>
-#include "mysql/service_mysql_alloc.h"
+#include <stdio.h>
 
+#include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"
 
 #define MAX_ERROR_NAME_LENGTH 64

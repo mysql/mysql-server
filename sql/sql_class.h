@@ -137,6 +137,16 @@ typedef struct st_mysql_lock MYSQL_LOCK;
 #define thd_proc_info(thd, msg) \
   set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 
+extern "C"
+void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                    const char *src_function, const char *src_file,
+                    int src_line);
+extern "C"
+void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
+                   const char *src_function, const char *src_file,
+                   int src_line);
+
 #define THD_STAGE_INFO(thd, stage) \
   (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
 
@@ -904,19 +914,20 @@ public:
   bool is_binlog_applier() { return rli_fake && variables.pseudo_slave_mode; }
 
   /**
-    @return true  when the thread is binlog applier.
-    @note When the thread is a binlog applier it memorizes a fact of that it
-          has detached "native" engine transactions associated with it.
+    When the thread is a binlog or slave applier it detaches the engine
+    ha_data associated with it and memorizes the fact of that.
   */
-  bool binlog_applier_need_detach_trx();
+  void rpl_detach_engine_ha_data();
 
   /**
-    @return true   when the binlog applier (rli_fake) thread has detached
-                   "native" engine transaction, see @c binlog_applier_detach_trx.
-    @note The binlog applier having detached transactions resets a memo
+    @return true   when the current binlog (rli_fake) or slave (rli_slave)
+                   applier thread has detached the engine ha_data,
+                   see @c rpl_detach_engine_ha_data.
+    @note The detached transaction applier resets a memo
           mark at once with this check.
   */
-  bool binlog_applier_has_detached_trx();
+  bool rpl_unflag_detached_engine_ha_data();
+
   void reset_for_next_command();
   /*
     Constant for THD::where initialization in the beginning of every query.
@@ -2643,6 +2654,11 @@ public:
     utime_after_lock= my_micro_time();
     MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi, (utime_after_lock - start_utime));
   }
+  inline bool is_fsp_truncate_mode() const
+  {
+    return (variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL);
+  }
+
   /**
    Evaluate the current time, and if it exceeds the long-query-time
    setting, mark the query as slow.
@@ -4276,6 +4292,32 @@ private:
   ulong m_global_binlog_format;
   enum_binlog_format m_current_stmt_binlog_format;
 };
+
+
+/**
+  The function re-attaches the engine ha_data (which was previously detached by
+  detach_ha_data_from_thd) to THD.
+  This is typically done to replication applier executing
+  one of XA-PREPARE, XA-COMMIT ONE PHASE or rollback.
+
+  @param thd         thread context
+  @param hton        pointer to handlerton
+*/
+
+inline void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton)
+{
+  if (hton->replace_native_transaction_in_thd)
+  {
+    /* restore the saved original engine transaction's link with thd */
+    void **trx_backup= &thd->get_ha_data(hton->slot)->ha_ptr_backup;
+
+    hton->
+      replace_native_transaction_in_thd(thd, *trx_backup, NULL);
+    *trx_backup= NULL;
+  }
+}
+
+/*************************************************************************/
 
 #endif /* MYSQL_SERVER */
 

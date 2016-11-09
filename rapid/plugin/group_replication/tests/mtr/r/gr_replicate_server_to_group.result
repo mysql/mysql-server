@@ -1,0 +1,84 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+#  1. Setup Group Replication on server 1 and 2.
+include/start_and_bootstrap_group_replication.inc
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+
+############################################################
+#  2. Setup a asynchronous replication connection from server 3
+#     into group (server 1)
+CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=SERVER_3_PORT, MASTER_AUTO_POSITION=1;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+
+############################################################
+#  3. Execute some transactions on server 3.
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET c1=2 WHERE c1=0;
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN;
+COMMIT;
+SET GTID_NEXT= 'AUTOMATIC';
+
+############################################################
+#  4. Wait until transactions executed on server 3 are applied
+#     on group.
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+
+############################################################
+#  5. Execute a transaction on the group.
+INSERT INTO t1 VALUES (6);
+include/rpl_sync.inc
+
+############################################################
+#  6. Validate data on server 3.
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+include/assert.inc ['There is no value 6 in table t1']
+
+############################################################
+#  7. GTID_EXECUTED on server 1 must contain GTID_EXECUTED
+#     from server 3.
+#     Validate data on server 1.
+include/assert.inc [GTID_EXECUTED must contain server 3 GTID_EXECUTED]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+include/assert.inc ['There is a value 6 in table t1']
+
+############################################################
+#  8. GTID_EXECUTED on server 2 must contain GTID_EXECUTED
+#     from server 3.
+#     Validate data on server 2.
+include/assert.inc [GTID_EXECUTED must contain server 3 GTID_EXECUTED]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+include/assert.inc ['There is a value 6 in table t1']
+
+############################################################
+#  9. Clean data.
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+
+############################################################
+# 10. Stop asynchronous replication connection from server 3
+#     into group (server 1)
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL "";
+
+############################################################
+# 11. Stop Group Replication on server 1 and 2.
+include/stop_group_replication.inc
+include/stop_group_replication.inc
+include/group_replication_end.inc

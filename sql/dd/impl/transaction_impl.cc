@@ -110,6 +110,11 @@ bool Open_dictionary_tables_ctx::open_tables()
   /*
     Data-dictionary tables must use storage engine supporting attachable
     transactions.
+
+    We also disable auto-increment locking for data-dictionary tables.
+    It leads to increased chances of deadlocks during atomic DDL and
+    is not really necessary for replicating data-dictionary changes
+    (as we do not aim to replicate exact IDs in the data-dictionary).
   */
   for (TABLE_LIST *t= table_list; t; t= t->next_global)
   {

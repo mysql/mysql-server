@@ -150,8 +150,8 @@ public:
   // Shutdown the shared maps.
   static void shutdown();
 
-  // Reset dd::Schema and dd::Table cache
-  static void reset_schema_cache();
+  // Reset the shared cache. Optionally keep the core DD table meta data.
+  static void reset(bool keep_dd_entities);
 
   /**
     Get an element from the cache, given the key.
@@ -253,6 +253,19 @@ public:
   { m_map<T>()->drop(element); }
 
 
+  /**
+    Delete an element corresponding to the key from the cache if exists.
+
+    This function will find the element corresponding to the key if
+    it exists. After that it will remove the element from the cache
+    i.e. all maps, and delete the object pointed to. This means that
+    all keys associated with the element will be removed from the maps,
+    and the cache element wrapper will be deleted.
+
+    @tparam  K         Key type.
+    @tparam  T         Dictionary object type.
+    @param   key       Key to be checked.
+  */
   template <typename K, typename T>
   void drop_if_present(const K &key)
   {
@@ -275,19 +288,6 @@ public:
   template <typename T>
   void replace(Cache_element<T> *element, const T *object)
   { m_map<T>()->replace(element, object); }
-
-
-  /**
-    Alter stickiness of an element.
-
-    @tparam  T         Dictionary object type.
-    @param   element   Element pointer.
-    @param   sticky    New stickiness to assign.
-  */
-
-  template <typename T>
-  void set_sticky(Cache_element<T> *element, bool sticky)
-  { m_map<T>()->set_sticky(element, sticky); }
 
 
   /**

@@ -78,8 +78,13 @@ public:
 
   bool can_see_user(const std::string &user) const;
 
-  template<Common_status_variables::Variable Common_status_variables::*variable> void update_status();
-  template<Common_status_variables::Variable Common_status_variables::*variable> void update_status(long param);
+  template<Common_status_variables::Variable Common_status_variables::*variable>
+  void update_status();
+  template<Common_status_variables::Variable Common_status_variables::*variable>
+  void update_status(long param);
+
+  void update_status(Common_status_variables::Variable
+                     Common_status_variables::*variable);
 
 private: // reimpl ngs::Session
   virtual void on_kill();

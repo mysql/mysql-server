@@ -244,7 +244,7 @@ namespace keyring__api_unittest
     my_free(key_type);
   }
 
-  TEST_F(Keyring_api_test, KeyringFileChange)
+  TEST_F(Keyring_api_test, InitWithDifferentKeyringFile)
   {
     EXPECT_EQ(mysql_key_store("Robert_key", "AES", "Robert", sample_key_data.c_str(),
                               sample_key_data.length() + 1), 0);
@@ -263,6 +263,7 @@ namespace keyring__api_unittest
     delete[] keyring_filename;
     keyring_filename= new char[strlen("./new_keyring")+1];
     strcpy(keyring_filename, "./new_keyring");
+    remove(keyring_filename);
     keyring_file_data_value= keyring_filename;
     keyring_deinit_with_mock_logger();
     keyring_init_with_mock_logger();

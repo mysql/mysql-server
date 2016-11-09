@@ -14,10 +14,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define MYSQL_SERVER
-#include <my_global.h>
 #include <boost/optional/optional.hpp>
 #include <current_thd.h>
+#include <my_global.h>
 #include <sql_class.h> // THD
+#include <stdio.h>
 
 #define MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS 16384
 #define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS/8

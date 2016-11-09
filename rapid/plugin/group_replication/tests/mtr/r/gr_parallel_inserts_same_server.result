@@ -1,0 +1,16 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+CREATE TABLE t1 (a INT AUTO_INCREMENT, PRIMARY KEY (a), b int) engine=InnoDB;
+include/rpl_sync.inc
+#
+# Creating several entries in parallel in the same table
+#
+#
+# Test if one succeeded creating all entries in the test.
+#
+include/assert.inc [Table t1 must have 100 entries]
+DROP TABLE t1;
+include/group_replication_end.inc

@@ -8,6 +8,10 @@ connection default;
 # Reduce noise from the default connection.
 update performance_schema.threads set instrumented = 'NO' where processlist_id = connection_id();
 truncate table performance_schema.events_stages_history_long;
+# Create and drop a basic table to populate the DD cache with
+# the DD table objects.
+create table t1(a int);
+drop table t1;
 connection con1;
 # Run some statements and see that we have different stage names for
 # opening and locking system and user tables.
@@ -35,11 +39,15 @@ stage/sql/Opening system tables
 stage/sql/Locking system tables
 stage/sql/Opening system tables
 stage/sql/Locking system tables
+<<<<<<< HEAD
 stage/sql/Opening system tables
 stage/sql/Locking system tables
 stage/sql/Opening tables
+=======
+>>>>>>> mysql-trunk-wl7743-wip-3
 stage/sql/Opening system tables
 stage/sql/Locking system tables
+stage/sql/Opening tables
 stage/sql/System lock
 stage/sql/Opening system tables
 stage/sql/Locking system tables

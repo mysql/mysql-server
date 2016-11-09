@@ -87,6 +87,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0log.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
+#include "my_double2ulonglong.h"
 #include "my_psi_config.h"
 #include "os0file.h"
 #include "os0thread.h"
@@ -1375,11 +1376,12 @@ innobase_rollback_by_xid(
 /** This API handles CREATE, ALTER & DROP commands for InnoDB tablespaces.
 @param[in]	hton		Handlerton of InnoDB
 @param[in]	thd		Connection
-@param[in]	alter_info	Describies the command and how to do it.
+@param[in]	alter_info	Describes the command and how to do it.
 @param[in]	old_ts_def	Old version of dd::Tablespace object for the
-tablespace
+tablespace.
 @param[in/out]	new_ts_def	New version of dd::Tablespace object for the
-tablespace
+tablespace. Can be adjusted by SE. Changes will be persisted in the
+data-dictionary at statement commit.
 @return MySQL error code*/
 static
 int
@@ -4555,30 +4557,30 @@ innodb_init(
 	/* Register keys with MySQL performance schema */
 	int	count;
 
-	count = array_elements(all_pthread_mutexes);
+	count = static_cast<int>(array_elements(all_pthread_mutexes));
 	mysql_mutex_register("innodb", all_pthread_mutexes, count);
 
 # ifdef UNIV_PFS_MUTEX
-	count = array_elements(all_innodb_mutexes);
+	count = static_cast<int>(array_elements(all_innodb_mutexes));
 	mysql_mutex_register("innodb", all_innodb_mutexes, count);
 # endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_RWLOCK
-	count = array_elements(all_innodb_rwlocks);
+	count = static_cast<int>(array_elements(all_innodb_rwlocks));
 	mysql_rwlock_register("innodb", all_innodb_rwlocks, count);
 # endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_THREAD
-	count = array_elements(all_innodb_threads);
+	count = static_cast<int>(array_elements(all_innodb_threads));
 	mysql_thread_register("innodb", all_innodb_threads, count);
 # endif /* UNIV_PFS_THREAD */
 
 # ifdef UNIV_PFS_IO
-	count = array_elements(all_innodb_files);
+	count = static_cast<int>(array_elements(all_innodb_files));
 	mysql_file_register("innodb", all_innodb_files, count);
 # endif /* UNIV_PFS_IO */
 
-	count = array_elements(all_innodb_conds);
+	count = static_cast<int>(array_elements(all_innodb_conds));
 	mysql_cond_register("innodb", all_innodb_conds, count);
 
 	mysql_data_lock_register(& innodb_data_lock_inspector);
@@ -8314,8 +8316,7 @@ dd_tablespace_is_implicit(
         const dd::Tablespace*   dd_space;
         uint32                  id = 0;
         const bool              fail
-                = client->acquire_uncached_uncommitted<dd::Tablespace>(
-                        dd_space_id, &dd_space)
+                = client->acquire<dd::Tablespace>(dd_space_id, &dd_space)
                 || dd_space == nullptr
                 || dd_space->se_private_data().get_uint32(
                         dd_space_key_strings[DD_SPACE_ID], &id);
@@ -8585,8 +8586,7 @@ dd_open_table(
 			   == dict_sys_t::dd_temp_space_id) {
 			sid = dict_sys_t::temp_space_id;
 		} else {
-			if (client->acquire_uncached_uncommitted<
-				dd::Tablespace>(
+			if (client->acquire<dd::Tablespace>(
 				index_space_id, &index_space)) {
 				my_error(ER_TABLESPACE_MISSING, MYF(0),
 					 m_table->name.m_name);
@@ -15732,7 +15732,7 @@ innobase_get_dd_tablespace_id(
 	dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
 	const dd::Table*	dd_table = nullptr;
-	if (client->acquire_uncached_uncommitted<dd::Table>(
+	if (client->acquire<dd::Table>(
 			db_name, table_name, &dd_table)) {
 		return(false);
 	}
@@ -16194,8 +16194,7 @@ innobase_fts_drop_dd_table(
 	}
 
 	const dd::Table*	dd_table = nullptr;
-	if (client->acquire_uncached_uncommitted<dd::Table>(
-			db_name, table_name, &dd_table)) {
+	if (client->acquire<dd::Table>(db_name, table_name, &dd_table)) {
 		dd::release_mdl(thd, mdl_ticket);
 		//my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
 		return(false);
@@ -16213,8 +16212,7 @@ innobase_fts_drop_dd_table(
 			->tablespace_id();
 
 		const dd::Tablespace*	dd_space;
-		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
-			    dd_space_id, &dd_space)) {
+		if (client->acquire<dd::Tablespace>(dd_space_id, &dd_space)) {
 			ut_a(false);
 		}
 
@@ -16225,12 +16223,12 @@ innobase_fts_drop_dd_table(
 			ut_a(false);
 		}
 
-		bool fail = client->drop_uncached(dd_space);
+		bool fail = client->drop(dd_space);
 		ut_a(!fail);
 		delete dd_space;
 	}
 
-	if (client->drop_uncached(dd_table)) {
+	if (client->drop(dd_table)) {
 		dd::release_mdl(thd, mdl_ticket);
 		ut_ad(0);
 		return(false);
@@ -16508,8 +16506,8 @@ ha_innobase::get_se_private_data(
 	if (reset_id) {
 		n_tables = 0;
 		n_indexes = 18;
-		n_pages = 3;
 	}
+
 #ifdef UNIV_DEBUG
 	const uint	n_indexes_old = n_indexes;
 #endif
@@ -16583,7 +16581,9 @@ ha_innobase::get_se_private_data(
 @param[in]	name		Table name, format: "db/table_name".
 @param[in]	form		Table format; columns and index information.
 @param[in]	create_info	Create info (including create statement string).
-@param[in,out]	dd_table	data dictionary cache object
+@param[in,out]	dd_tab		dd::Table describing table to be created.
+Can be adjusted by SE, the changes will be saved into data-dictionary at
+statement commit time.
 @param[in]	file_per_table	whether to create a tablespace too
 @return	error number
 @retval 0 on success */
@@ -16593,7 +16593,7 @@ ha_innobase::create_table_impl(
 	const char*		name,
 	TABLE*			form,
 	HA_CREATE_INFO*		create_info,
-	Table*			dd_table,
+	Table*			dd_tab,
 	bool			file_per_table)
 {
 	int		error;
@@ -16650,7 +16650,7 @@ ha_innobase::create_table_impl(
 		log_buffer_flush_to_disk();
 	}
 
-	if ((error = info.create_table_update_global_dd(dd_table))) {
+	if ((error = info.create_table_update_global_dd(dd_tab))) {
 		goto cleanup;
 	}
 
@@ -16714,21 +16714,23 @@ template int ha_innobase::create_table_impl<dd::Partition>(
 @param[in]	name		table name
 @param[in]	form		table structure
 @param[in]	create_info	more information on the table
-@param[in,out]	dd_table	data dictionary cache object
+@param[in,out]	table_def	dd::Table describing table to be created.
+Can be adjusted by SE, the changes will be saved into data-dictionary at
+statement commit time.
 @return error number */
 int
 ha_innobase::create(
 	const char*		name,
 	TABLE*			form,
 	HA_CREATE_INFO*		create_info,
-	dd::Table*		dd_table)
+	dd::Table*		table_def)
 {
 	/* Determine if this CREATE TABLE will be making a file-per-table
 	tablespace.  Note that "srv_file_per_table" is not under
 	dict_sys mutex protection, and could be changed while creating the
 	table. So we read the current value here and make all further
 	decisions based on this. */
-	return(create_table_impl(name, form, create_info, dd_table,
+	return(create_table_impl(name, form, create_info, table_def,
 				 srv_file_per_table));
 }
 
@@ -16871,11 +16873,13 @@ ha_innobase::discard_or_import_tablespace(
 }
 
 /** DROP and CREATE an InnoDB table.
-@param[in,out]	dd_tab		dd::Table of the table to be truncated
+@param[in,out]	table_def	dd::Table describing table to be
+truncated. Can be adjusted by SE, the changes will be saved into
+the data-dictionary at statement commit time.
 @return	error number
 @retval 0 on success */
 int
-ha_innobase::truncate(dd::Table *dd_tab)
+ha_innobase::truncate(dd::Table *table_def)
 {
 	DBUG_ENTER("ha_innobase::truncate");
 	/* The table should have been opened in ha_innobase::open().
@@ -16935,24 +16939,23 @@ ha_innobase::truncate(dd::Table *dd_tab)
 
 	close();
 
-	int	error	= delete_table(
-		name, dd_tab, SQLCOM_TRUNCATE);
+	int	error	= delete_table_impl(name, table_def, SQLCOM_TRUNCATE);
 
 	if (!error) {
-		dd_tab->set_se_private_id(dd::INVALID_OBJECT_ID);
-		for (auto dd_index : *dd_tab->indexes()) {
+		table_def->set_se_private_id(dd::INVALID_OBJECT_ID);
+		for (auto dd_index : *table_def->indexes()) {
 			dd_index->se_private_data().clear();
 		}
 
-		error = create_table_impl(name, table, &info, dd_tab,
+		error = create_table_impl(name, table, &info, table_def,
 				file_per_table);
 	}
 
-	open(name, 0, 0, dd_tab);
+	open(name, 0, 0, table_def);
 
 	if (!error) {
 		if (table->found_next_number_field != NULL) {
-			dd_set_autoinc(dd_tab->se_private_data(), 0);
+			dd_set_autoinc(table_def->se_private_data(), 0);
 		}
 
 		dict_names_t	fk_tables;
@@ -16985,16 +16988,17 @@ ha_innobase::truncate(dd::Table *dd_tab)
 
 /** Drop a table.
 @param[in]	name		table name
-@param[in]	dd_table	data dictionary table
+@param[in]	table_def	dd::Table describing table to
+be dropped
 @return error number */
 
 int
 ha_innobase::delete_table(
 	const char*		name,
-	const dd::Table*	dd_table)
+	const dd::Table*	table_def)
 {
-	if (dd_table != NULL
-	    && dict_sys_t::is_hardcoded(dd_table->se_private_id())) {
+	if (table_def != NULL
+	    && dict_sys_t::is_hardcoded(table_def->se_private_id())) {
 		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
 		return(HA_ERR_UNSUPPORTED);
 	}
@@ -17013,20 +17017,21 @@ ha_innobase::delete_table(
 	from the data dictionary tables. */
 	DBUG_ASSERT(sqlcom != SQLCOM_TRUNCATE);
 
-	return(delete_table(name, dd_table, sqlcom));
+	return(delete_table_impl(name, table_def, sqlcom));
 }
 
 /** Drop a table.
 @param[in]	name		table name
-@param[in]	dd_table	data dictionary table
+@param[in]	dd_tab		dd::Table describing table to
+be dropped
 @param[in]	sqlcom	type of operation that the DROP is part of
 @return	error number
 @retval 0 on success */
 template<typename Table>
 int
-ha_innobase::delete_table(
+ha_innobase::delete_table_impl(
 	const char*		name,
-	const Table*		dd_table,
+	const Table*		dd_tab,
 	enum enum_sql_command	sqlcom)
 {
 	dberr_t	err;
@@ -17130,14 +17135,13 @@ ha_innobase::delete_table(
 	}
 
 	if (err == DB_SUCCESS && !tmp_table && file_per_table) {
-		dd::Object_id   dd_space_id = (*dd_table->indexes().begin())
+		dd::Object_id   dd_space_id = (*dd_tab->indexes().begin())
 			->tablespace_id();
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
 		const dd::Tablespace*	dd_space;
-		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
-			    dd_space_id, &dd_space)) {
+		if (client->acquire<dd::Tablespace>(dd_space_id, &dd_space)) {
 			ut_a(false);
 		}
 
@@ -17148,7 +17152,7 @@ ha_innobase::delete_table(
 			ut_a(false);
 		}
 
-		bool fail = client->drop_uncached(dd_space);
+		bool fail = client->drop(dd_space);
 		DBUG_EXECUTE_IF("fail_while_dropping_dd_object",
 				fail = false;);
 		ut_a(!fail);
@@ -17162,10 +17166,10 @@ ha_innobase::delete_table(
 	DBUG_RETURN(convert_error_code_to_mysql(err, 0, NULL));
 }
 
-template int ha_innobase::delete_table<dd::Table>(
+template int ha_innobase::delete_table_impl<dd::Table>(
 	const char*, const dd::Table*, enum enum_sql_command);
 
-template int ha_innobase::delete_table<dd::Partition>(
+template int ha_innobase::delete_table_impl<dd::Partition>(
 	const char*, const dd::Partition*, enum enum_sql_command);
 
 /** Validate the parameters in st_alter_tablespace
@@ -17533,7 +17537,8 @@ have_error:
 @param[in]	old_ts_def	Old version of dd::Tablespace object for the
 tablespace
 @param[in/out]	new_ts_def	New version of dd::Tablespace object for the
-tablespace
+tablespace. Can be adjusted by SE. Changes will be persisted in the
+data-dictionary at statement commit.
 @return MySQL error code*/
 static
 int
@@ -17755,8 +17760,7 @@ ha_innobase::rename_table_impl(
 		const dd::Tablespace*	space = NULL;
 		dd::Object_id		dd_space_id =
 			(*to_table->indexes().begin())->tablespace_id();
-		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
-			    dd_space_id, &space)) {
+		if (client->acquire<dd::Tablespace>(dd_space_id, &space)) {
 			ut_a(false);
 		}
 
@@ -17772,7 +17776,7 @@ ha_innobase::rename_table_impl(
 		dd::Tablespace_file*	dd_file = const_cast<
 			dd::Tablespace_file*>(*(dd_space->files().begin()));
 		dd_file->set_filename(new_path);
-		bool fail = client->update_uncached_and_invalidate(dd_space);
+		bool fail = client->update(&space, dd_space);
 		ut_a(!fail);
 
 		ut_free(new_path);
@@ -17790,34 +17794,37 @@ template dberr_t ha_innobase::rename_table_impl<dd::Partition>(
 	THD*, trx_t*, const char*, const char*,
 	const dd::Partition*, const dd::Partition*);
 
-/** Renames an InnoDB table
-@param[in]	from		old name of the table
-@param[in]	to		new name of the table
-@param[in]	from_table	dd::Table of the table with old name
-@param[in,out]	to_table	dd::Table of the table with new name
-@return	0	On success
-@retval	error number */
+/*********************************************************************//**
+Renames an InnoDB table.
+@param[in]	from	Old name of the table.
+@param[in]	to	New name of the table.
+@param[in]	from_table_def	dd::Table object describing old version
+of table.
+@param[in/out]	to_table_def	dd::Table object describing version of
+table with new name. Can be updated by SE. Changes are persisted to the
+dictionary at statement commit time.
+@return 0 or error code */
 int
 ha_innobase::rename_table(
 /*======================*/
 	const char*	from,
 	const char*	to,
-	const dd::Table	*from_table,
-	dd::Table	*to_table)
+	const dd::Table	*from_table_def,
+	dd::Table	*to_table_def)
 {
 	THD*	thd = ha_thd();
 
 	DBUG_ENTER("ha_innobase::rename_table");
-	ut_ad(from_table->se_private_id() == to_table->se_private_id());
-        ut_ad(from_table->se_private_data().raw_string()
-	      == to_table->se_private_data().raw_string());
+	ut_ad(from_table_def->se_private_id() == to_table_def->se_private_id());
+        ut_ad(from_table_def->se_private_data().raw_string()
+	      == to_table_def->se_private_data().raw_string());
 
 	if (high_level_read_only) {
 		ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
-	if (dict_sys_t::is_hardcoded(to_table->se_private_id())) {
+	if (dict_sys_t::is_hardcoded(to_table_def->se_private_id())) {
 		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
 		DBUG_RETURN(HA_ERR_UNSUPPORTED);
 	}
@@ -17836,7 +17843,7 @@ ha_innobase::rename_table(
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	dberr_t	error = rename_table_impl<dd::Table>(
-		thd, trx, from, to, from_table, to_table);
+		thd, trx, from, to, from_table_def, to_table_def);
 
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
 

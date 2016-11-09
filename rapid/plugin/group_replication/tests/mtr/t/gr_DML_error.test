@@ -1,0 +1,86 @@
+################################################################################
+# This test verifies the DML errors when replicating in a group
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both members ONLINE. Create two tables. Insert data in each table.
+# 2. Now verify that DML(INSERT/UPDATE) operations with duplicate data, error
+#    out gracefully. Thus, nothing is inserted/updated in such cases. Verify
+#    the data on both the members M1 and M2.
+################################################################################
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+--echo # Verify the statements can be binlogged correctly when error happens
+
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=innodb;
+CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE=innodb;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+--echo
+--echo # Nothing is inserted.
+--let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+--error 1062
+INSERT INTO t1 VALUES(1),(2);
+source include/show_binlog_events.inc;
+
+--let $assert_text= No new row inserted in the table
+--let $assert_cond= [SELECT count(*) FROM t1] = 1
+--source include/assert.inc
+
+--source include/rpl_sync.inc
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # Nothing is inserted.
+
+--connection server1
+--let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+--error 1062
+INSERT INTO t1 SELECT 1 UNION SELECT 2;
+--source include/show_binlog_events.inc
+
+# The row count will still be 1
+--let $assert_text= The row count will still be 1
+--let $assert_cond= [SELECT count(*) FROM t1] = 1
+--source include/assert.inc
+
+--echo # 2 rows are inserted.
+INSERT INTO t1 SELECT 3 UNION SELECT 2;
+--source include/rpl_sync.inc
+
+# The row count will be 3
+--let $assert_text= A row is inserted in the table t1
+--let $assert_cond= [SELECT count(*) FROM t1] = 3
+--source include/assert.inc
+
+--source include/diff_tables.inc
+
+--echo
+--echo # Nothing is updated.
+--connection server1
+--let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+--error 1062
+UPDATE t1 SET c1=4;
+--source include/rpl_sync.inc
+
+--connection server1
+--source include/diff_tables.inc
+--source include/show_binlog_events.inc
+
+--echo
+--echo # Nothing is updated.
+--connection server1
+--error 1062
+UPDATE t1, t2 SET t1.c1= 5, t2.c1=5;
+--source include/rpl_sync.inc
+
+--connection server1
+--source include/diff_tables.inc
+--source include/show_binlog_events.inc
+
+DROP TABLE t1, t2;
+--source ../inc/group_replication_end.inc

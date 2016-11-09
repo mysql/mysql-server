@@ -258,6 +258,11 @@ public:
     Handler level wrapper for truncating partitions, will ensure that
     mark_trx_read_write() is called and also checks locking assertions.
 
+    @param[in/out]  table_def    dd::Table object for the table. Engines
+                                 which support atomic DDL are allowed to
+                                 adjust this object. Changes will be saved
+                                 to the data-dictionary.
+
     @return Operation status.
       @retval    0  Success.
       @retval != 0  Error code.
@@ -333,14 +338,12 @@ private:
     Low-level primitive for handler, implementing
     Partition_handler::truncate_partition().
 
-    @return Operation status
-      @retval    0  Success.
-      @retval != 0  Error code.
+    @sa Partition_handler::truncate_partition().
   */
   virtual int truncate_partition_low(dd::Table *table_def)
   { return HA_ERR_WRONG_COMMAND; }
   /**
-    Truncate partition.
+    Change partitions.
 
     Low-level primitive for handler, implementing
     Partition_handler::change_partitions().
@@ -368,9 +371,7 @@ private:
 
     Low-level primitive which implementation to be provided by SE.
 
-    @return Operation status.
-      @retval    0  Success.
-      @retval != 0  Error code.
+    @sa Partition_handler::exchange_partition().
   */
   virtual int exchange_partition_low(const char *part_table_path,
                                      const char *swap_table_path,
@@ -655,7 +656,17 @@ public:
                                               ha_checksum *check_sum,
                                               uint part_id);
 
+  /**
+    Prepare for reorganizing partitions by setting up
+    partition_info::read_partitions according to the partition_info
+    mark-up.
+
+    This is helper method which can also be used by SEs implementing
+    support for reorganizing partitions through ALTER TABLE INPLACE
+    SE API.
+  */
   void prepare_change_partitions();
+
   /**
     Implement the partition changes defined by ALTER TABLE of partitions.
 

@@ -44,38 +44,38 @@
 #define PFS_AUTOSIZE_VALUE (-1)
 
 #ifndef PFS_MAX_MUTEX_CLASS
-  #define PFS_MAX_MUTEX_CLASS 220
+#define PFS_MAX_MUTEX_CLASS 220
 #endif
 #ifndef PFS_MAX_RWLOCK_CLASS
-  #define PFS_MAX_RWLOCK_CLASS 50
+#define PFS_MAX_RWLOCK_CLASS 50
 #endif
 #ifndef PFS_MAX_COND_CLASS
-  #define PFS_MAX_COND_CLASS 80
+#define PFS_MAX_COND_CLASS 80
 #endif
 #ifndef PFS_MAX_THREAD_CLASS
-  #define PFS_MAX_THREAD_CLASS 50
+#define PFS_MAX_THREAD_CLASS 50
 #endif
 #ifndef PFS_MAX_FILE_CLASS
-  #define PFS_MAX_FILE_CLASS 80
+#define PFS_MAX_FILE_CLASS 80
 #endif
 #ifndef PFS_MAX_FILE_HANDLE
-  #define PFS_MAX_FILE_HANDLE 32768
+#define PFS_MAX_FILE_HANDLE 32768
 #endif
 #ifndef PFS_MAX_SOCKET_CLASS
-  #define PFS_MAX_SOCKET_CLASS 10
+#define PFS_MAX_SOCKET_CLASS 10
 #endif
 #ifndef PFS_MAX_STAGE_CLASS
-  #define PFS_MAX_STAGE_CLASS 150
+#define PFS_MAX_STAGE_CLASS 150
 #endif
 #ifndef PFS_STATEMENTS_STACK_SIZE
-  #define PFS_STATEMENTS_STACK_SIZE 10
+#define PFS_STATEMENTS_STACK_SIZE 10
 #endif
 #ifndef PFS_MAX_MEMORY_CLASS
-  #define PFS_MAX_MEMORY_CLASS 450
+#define PFS_MAX_MEMORY_CLASS 450
 #endif
 
 #ifndef PFS_MAX_SERVER_ERRORS
-  #define PFS_MAX_SERVER_ERRORS ((total_error_count - obsolete_error_count) + 1)
+#define PFS_MAX_SERVER_ERRORS ((total_error_count - obsolete_error_count) + 1)
 #endif
 
 /** Sizing hints, from the server configuration. */
@@ -306,30 +306,31 @@ void set_embedded_performance_schema_param(PFS_global_param *param);
   @param [out] idle_bootstrap Idle instrumentation service bootstrap
   @param [out] stage_bootstrap Stage instrumentation service bootstrap
   @param [out] statement_bootstrap Statement instrumentation service bootstrap
-  @param [out] transaction_bootstrap Transaction instrumentation service bootstrap
+  @param [out] transaction_bootstrap Transaction instrumentation service
+  bootstrap
   @param [out] memory_bootstrap Memory instrumentation service bootstrap
   @param [out] error_bootstrap Error instrumentation service bootstrap
   @param [out] data_lock_bootstrap Data Lock instrumentation service bootstrap
   @returns
     @retval 0 success
 */
-int
-initialize_performance_schema(PFS_global_param *param,
-  PSI_thread_bootstrap ** thread_bootstrap,
-  PSI_mutex_bootstrap ** mutex_bootstrap,
-  PSI_rwlock_bootstrap ** rwlock_bootstrap,
-  PSI_cond_bootstrap ** cond_bootstrap,
-  PSI_file_bootstrap ** file_bootstrap,
-  PSI_socket_bootstrap ** socket_bootstrap,
-  PSI_table_bootstrap ** table_bootstrap,
-  PSI_mdl_bootstrap ** mdl_bootstrap,
-  PSI_idle_bootstrap ** idle_bootstrap,
-  PSI_stage_bootstrap ** stage_bootstrap,
-  PSI_statement_bootstrap ** statement_bootstrap,
-  PSI_transaction_bootstrap ** transaction_bootstrap,
-  PSI_memory_bootstrap ** memory_bootstrap,
-  PSI_error_bootstrap ** error_bootstrap,
-  PSI_data_lock_bootstrap ** data_lock_bootstrap);
+int initialize_performance_schema(
+  PFS_global_param *param,
+  PSI_thread_bootstrap **thread_bootstrap,
+  PSI_mutex_bootstrap **mutex_bootstrap,
+  PSI_rwlock_bootstrap **rwlock_bootstrap,
+  PSI_cond_bootstrap **cond_bootstrap,
+  PSI_file_bootstrap **file_bootstrap,
+  PSI_socket_bootstrap **socket_bootstrap,
+  PSI_table_bootstrap **table_bootstrap,
+  PSI_mdl_bootstrap **mdl_bootstrap,
+  PSI_idle_bootstrap **idle_bootstrap,
+  PSI_stage_bootstrap **stage_bootstrap,
+  PSI_statement_bootstrap **statement_bootstrap,
+  PSI_transaction_bootstrap **transaction_bootstrap,
+  PSI_memory_bootstrap **memory_bootstrap,
+  PSI_error_bootstrap **error_bootstrap,
+  PSI_data_lock_bootstrap **data_lock_bootstrap);
 
 void pfs_automated_sizing(PFS_global_param *param);
 
@@ -360,7 +361,7 @@ void init_pfs_instrument_array();
 /**
   Process one PFS_INSTRUMENT configuration string.
 */
-int add_pfs_instr_to_array(const char* name, const char* value);
+int add_pfs_instr_to_array(const char *name, const char *value);
 
 /**
   Shutdown the performance schema.

@@ -10580,7 +10580,8 @@ int ha_ndbcluster::create(const char *name,
   }
 
   if ((thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
-       thd->lex->sql_command == SQLCOM_DROP_INDEX) &&
+       thd->lex->sql_command == SQLCOM_DROP_INDEX ||
+       thd->lex->sql_command == SQLCOM_CREATE_INDEX) &&
       my_errno() == 0)
   {
     /**
@@ -11613,7 +11614,8 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
   int drop_flags = 0;
   /* Copying alter can leave #sql table which is parent of old FKs */
   if ((thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
-       thd->lex->sql_command == SQLCOM_DROP_INDEX) &&
+       thd->lex->sql_command == SQLCOM_DROP_INDEX ||
+       thd->lex->sql_command == SQLCOM_CREATE_INDEX) &&
       strncmp(table_name, "#sql", 4) == 0)
   {
     DBUG_PRINT("info", ("Using cascade constraints for ALTER of temp table"));
@@ -19386,7 +19388,8 @@ static int slave_conflict_role_check_func(THD *thd, struct st_mysql_sys_var *var
     {
       if (value->val_int(value, &tmp))
         break;
-      if (tmp < 0 || tmp >= slave_conflict_role_typelib.count)
+      if (tmp < 0 ||
+          tmp >= static_cast<long long>(slave_conflict_role_typelib.count))
         break;
       result= (long) tmp;
     }

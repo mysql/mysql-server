@@ -73,12 +73,12 @@ select concat(':',product,':'), sum(profit),avg(profit) from t1 group by product
 
 # Error handling
 
-# Cube is not yet implemented
---error 1235
+# Old, never implemented CUBE syntax
+--error ER_PARSE_ERROR
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube;
---error 1235
+--error ER_PARSE_ERROR
 explain select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube;
---error 1235
+--error ER_PARSE_ERROR
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube union all select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
 
 drop table t1,t2;
