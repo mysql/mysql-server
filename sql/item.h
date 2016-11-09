@@ -2745,7 +2745,7 @@ public:
     return field->get_time(ltime);
   }
   void make_field(Send_field *tmp_field);
-  const CHARSET_INFO *charset_for_protocol(void) const
+  const CHARSET_INFO *charset_for_protocol() const
   { return (CHARSET_INFO *)field->charset_for_protocol(); }
 };
 
@@ -2878,8 +2878,8 @@ public:
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   bool subst_argument_checker(uchar **arg);
   Item *equal_fields_propagator(uchar *arg);
-  bool set_no_const_sub(uchar *arg);
-  Item *replace_equal_field(uchar *arg);
+  bool set_no_const_sub(uchar *);
+  Item *replace_equal_field(uchar *);
   inline uint32 max_disp_length() { return field->max_display_length(); }
   Item_field *field_for_view_update() { return this; }
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
@@ -4349,7 +4349,7 @@ public:
                      alias_of_expr_arg),
     outer_ref(0), in_sum_func(0), found_in_select_list(1)
   {}
-  void save_in_result_field(bool no_conversions MY_ATTRIBUTE((unused)))
+  void save_in_result_field(bool)
   {
     outer_ref->save_org_in_field(result_field);
   }
@@ -4794,7 +4794,7 @@ class Cached_item :public Sql_alloc
 public:
   my_bool null_value;
   Cached_item() :null_value(0) {}
-  virtual bool cmp(void)=0;
+  virtual bool cmp()= 0;
   virtual ~Cached_item(); /*line -e1509 */
 };
 
@@ -4805,7 +4805,7 @@ class Cached_item_str :public Cached_item
   String value,tmp_value;
 public:
   Cached_item_str(THD *thd, Item *arg);
-  bool cmp(void);
+  bool cmp();
   ~Cached_item_str();                           // Deallocate String:s
 };
 
@@ -4828,7 +4828,7 @@ class Cached_item_real :public Cached_item
   double value;
 public:
   Cached_item_real(Item *item_par) :item(item_par),value(0.0) {}
-  bool cmp(void);
+  bool cmp();
 };
 
 class Cached_item_int :public Cached_item
@@ -4837,7 +4837,7 @@ class Cached_item_int :public Cached_item
   longlong value;
 public:
   Cached_item_int(Item *item_par) :item(item_par),value(0) {}
-  bool cmp(void);
+  bool cmp();
 };
 
 class Cached_item_temporal :public Cached_item
@@ -4846,7 +4846,7 @@ class Cached_item_temporal :public Cached_item
   longlong value;
 public:
   Cached_item_temporal(Item *item_par) :item(item_par), value(0) {}
-  bool cmp(void);
+  bool cmp();
 };
 
 
@@ -4856,7 +4856,7 @@ class Cached_item_decimal :public Cached_item
   my_decimal value;
 public:
   Cached_item_decimal(Item *item_par);
-  bool cmp(void);
+  bool cmp();
 };
 
 class Cached_item_field :public Cached_item
@@ -4886,7 +4886,7 @@ public:
     /* TODO: take the memory allocation below out of the constructor. */
     buff= (uchar*) sql_calloc(length=field->pack_length());
   }
-  bool cmp(void);
+  bool cmp();
 };
 
 class Item_default_value : public Item_field
@@ -5160,10 +5160,7 @@ public:
   { 
     return cached_field ? cached_field->eq_def (field) : FALSE;
   }
-  bool eq(const Item *item, bool binary_cmp MY_ATTRIBUTE((unused))) const
-  {
-    return this == item;
-  }
+  bool eq(const Item *item, bool) const { return this == item; }
   /**
      Check if saved item has a non-NULL value.
      Will cache value of saved item if not already done. 

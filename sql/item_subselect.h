@@ -154,7 +154,7 @@ public:
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;
   virtual bool exec();
-  bool resolve_type(THD *thd) override;
+  bool resolve_type(THD *) override;
   table_map used_tables() const override;
   table_map not_null_tables() const override { return 0; }
   bool const_item() const override;
@@ -237,7 +237,7 @@ public:
   bool val_bool() override;
   enum Item_result result_type() const override;
   enum_field_types field_type() const override;
-  bool resolve_type(THD *thd) override;
+  bool resolve_type(THD *) override;
 
   /*
     Mark the subquery as having no rows.

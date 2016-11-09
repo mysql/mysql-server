@@ -156,7 +156,7 @@ public:
 
   enum_field_types field_type() const { return MYSQL_TYPE_JSON; }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= MAX_BLOB_WIDTH;
     maybe_null= true;
@@ -279,7 +279,7 @@ public:
 
   longlong val_int();
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     maybe_null= true;
     return false;
@@ -305,7 +305,7 @@ class Item_func_json_contains :public Item_int_func
 
   longlong val_int();
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     maybe_null= true;
     return false;
@@ -339,7 +339,7 @@ public:
 
   longlong val_int();
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     maybe_null= true;
     return false;
@@ -364,7 +364,7 @@ public:
     return "json_type";
   }
 
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 
   String *val_str(String *);
 };
@@ -403,7 +403,7 @@ public:
     : Item_int_func(pos, a, b), m_path_cache(thd, 2)
   {}
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     maybe_null= true;
     return false;
@@ -735,7 +735,7 @@ public:
     return "json_quote";
   }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     maybe_null= true;
 
@@ -771,7 +771,7 @@ public:
     return "json_unquote";
   }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     maybe_null= true;
     fix_length_and_charset(args[0]->max_length, &my_charset_utf8mb4_bin);

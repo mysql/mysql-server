@@ -184,7 +184,7 @@ Item_func_buffer_strategy(const POS &pos, PT_item_list *ilist)
 }
 
 
-bool Item_func_buffer_strategy::resolve_type(THD *thd)
+bool Item_func_buffer_strategy::resolve_type(THD *)
 {
   collation.set(&my_charset_bin);
   decimals=0;

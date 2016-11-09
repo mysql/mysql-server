@@ -110,7 +110,7 @@ public:
                        OPTIMIZE_EQUAL };
   enum Type type() const { return FUNC_ITEM; }
   virtual enum Functype functype() const   { return UNKNOWN_FUNC; }
-  Item_func(void):
+  Item_func():
     allowed_arg_cols(1), arg_count(0)
   {
     args= tmp_arg;
@@ -637,7 +637,7 @@ public:
   { collation.set_numeric(); }
 
   enum Item_result result_type () const { return hybrid_type; }
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   void fix_num_length_and_dec();
   virtual void find_num_type()= 0; // To be called from resolve_type()
 
@@ -819,7 +819,7 @@ public:
   const char *func_name() const { return "cast_as_signed"; }
   longlong val_int();
   longlong val_int_from_str(int *error);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   virtual void print(String *str, enum_query_type query_type);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
   enum Functype functype() const { return TYPECAST_FUNC; }
@@ -961,7 +961,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "DIV"; }
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 
   virtual inline void print(String *str, enum_query_type query_type)
   {
@@ -1032,7 +1032,7 @@ class Item_dec_func :public Item_real_func
   Item_dec_func(const POS &pos, Item *a) :Item_real_func(pos, a) {}
 
   Item_dec_func(const POS &pos, Item *a,Item *b) :Item_real_func(pos, a,b) {}
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 };
 
 class Item_func_exp :public Item_dec_func
@@ -1160,7 +1160,7 @@ class Item_func_integer :public Item_int_func
 {
 public:
   inline Item_func_integer(Item *a) :Item_int_func(a) {}
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 };
 
 
@@ -1217,7 +1217,7 @@ public:
   double real_op();
   longlong int_op();
   my_decimal *decimal_op(my_decimal *);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 };
 
 
@@ -1274,7 +1274,7 @@ public:
   {}
   double val_real();
   const char *func_name() const { return name; }
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 };
 
 
@@ -1306,7 +1306,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);  
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   enum Item_result result_type () const
   {
     /*
@@ -1457,7 +1457,7 @@ public:
 
   const char *func_name() const { return "locate"; }
   longlong val_int();
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -1480,7 +1480,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "validate_password_strength"; }
-  virtual bool resolve_type(THD*)
+  bool resolve_type(THD *)
   {
     max_length= 10;
     maybe_null= true;
@@ -1500,7 +1500,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "field"; }
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 };
 
 
@@ -1511,7 +1511,7 @@ public:
   Item_func_ascii(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "ascii"; }
-  virtual bool resolve_type(THD*)
+  bool resolve_type(THD *)
   {
     max_length= 3;
     return false;
@@ -1539,7 +1539,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "find_in_set"; }
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 };
 
 /* Base class for all bit functions: '~', '|', '^', '&', '>>', '<<' */
@@ -1560,7 +1560,7 @@ public:
   Item_func_bit(const POS &pos, Item *a, Item *b) :Item_func(pos, a, b) {}
   Item_func_bit(const POS &pos, Item *a) :Item_func(pos, a) {}
 
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   enum Item_result result_type () const { return hybrid_type; }
 
   virtual longlong val_int();
@@ -1970,7 +1970,7 @@ public:
     return get_time_from_decimal(ltime);
   }
   enum Item_result result_type () const { return DECIMAL_RESULT; }
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 };
 
 
@@ -2015,7 +2015,7 @@ public:
     return get_time_from_string(ltime);
   }
   enum Item_result result_type () const { return STRING_RESULT; }
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 };
 
 
@@ -2200,7 +2200,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_database"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2216,7 +2216,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_table"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2232,7 +2232,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_view"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2248,7 +2248,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_column"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2265,7 +2265,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_table_rows"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2282,7 +2282,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_avg_row_length"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2299,7 +2299,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_data_length"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2316,7 +2316,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_max_data_length"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2333,7 +2333,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_index_length"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2350,7 +2350,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_data_free"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2367,7 +2367,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_auto_increment"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2384,7 +2384,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_checksum"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2400,7 +2400,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_keys_disabled"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= false;
@@ -2417,7 +2417,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_index_column_cardinality"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2434,7 +2434,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_dd_char_length"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 21;
     maybe_null= true;
@@ -2451,7 +2451,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "internal_get_view_warning_or_error"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 1;
     maybe_null= false;
@@ -2751,7 +2751,7 @@ public:
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd, Item **ref);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   virtual void print(String *str, enum_query_type query_type);
   void print_assignment(String *str, enum_query_type query_type);
   const char *func_name() const { return "set_user_var"; }
@@ -2789,7 +2789,7 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal*);
   String *val_str(String* str);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   virtual void print(String *str, enum_query_type query_type);
   enum Item_result result_type() const;
   /*
@@ -3368,7 +3368,7 @@ public:
   virtual enum Functype functype() const { return FUNC_SP; }
 
   bool fix_fields(THD *thd, Item **ref);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 
   bool is_expensive() { return true; }
 

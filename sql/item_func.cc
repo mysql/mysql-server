@@ -1409,7 +1409,7 @@ void handle_std_exception(const char *funcname)
 }
 
 
-bool Item_func_numhybrid::resolve_type(THD *thd)
+bool Item_func_numhybrid::resolve_type(THD *)
 {
   fix_num_length_and_dec();
   find_num_type();
@@ -1651,7 +1651,7 @@ void Item_func_signed::print(String *str, enum_query_type query_type)
 }
 
 
-bool Item_func_signed::resolve_type(THD *thd)
+bool Item_func_signed::resolve_type(THD *)
 {
   fix_char_length(std::min<uint32>(args[0]->max_char_length(),
                                    MY_INT64_NUM_DECIMAL_DIGITS));
@@ -2406,7 +2406,7 @@ longlong Item_func_int_div::val_int()
 }
 
 
-bool Item_func_int_div::resolve_type(THD *thd)
+bool Item_func_int_div::resolve_type(THD *)
 {
   Item_result argtype= args[0]->result_type();
   /* use precision ony for the data type it is applicable for and valid */
@@ -2645,7 +2645,7 @@ bool Item_func_abs::resolve_type(THD *thd)
 }
 
 
-bool Item_dec_func::resolve_type(THD *thd)
+bool Item_dec_func::resolve_type(THD *)
 {
   decimals= NOT_FIXED_DEC;
   max_length= float_length(decimals);
@@ -2839,7 +2839,7 @@ double Item_func_cot::val_real()
 
 // Bitwise functions
 
-bool Item_func_bit::resolve_type(THD *thd)
+bool Item_func_bit::resolve_type(THD *)
 {
   if (bit_func_returns_binary(args[0],
                               binary_result_requires_binary_second_arg() ?
@@ -3210,7 +3210,7 @@ bool Item::bit_func_returns_binary(const Item *a, const Item *b)
 
 // Conversion functions
 
-bool Item_func_integer::resolve_type(THD *thd)
+bool Item_func_integer::resolve_type(THD *)
 {
   max_length=args[0]->max_length - args[0]->decimals+1;
   uint tmp=float_length(decimals);
@@ -3373,7 +3373,7 @@ my_decimal *Item_func_floor::decimal_op(my_decimal *decimal_value)
 }
 
 
-bool Item_func_round::resolve_type(THD *thd)
+bool Item_func_round::resolve_type(THD *)
 {
   int      decimals_to_set;
   longlong val1;
@@ -3682,7 +3682,7 @@ longlong Item_func_sign::val_int()
 }
 
 
-bool Item_func_units::resolve_type(THD *thd)
+bool Item_func_units::resolve_type(THD *)
 {
   decimals= NOT_FIXED_DEC;
   max_length= float_length(decimals);
@@ -4256,7 +4256,7 @@ longlong Item_func_coercibility::val_int()
 }
 
 
-bool Item_func_locate::resolve_type(THD *thd)
+bool Item_func_locate::resolve_type(THD *)
 {
   max_length= MY_INT32_NUM_DECIMAL_DIGITS;
   return agg_arg_charsets_for_comparison(cmp_collation, args, 2);
@@ -4390,7 +4390,7 @@ longlong Item_func_field::val_int()
 }
 
 
-bool Item_func_field::resolve_type(THD *thd)
+bool Item_func_field::resolve_type(THD *)
 {
   maybe_null=0; max_length=3;
   cmp_type= args[0]->result_type();
@@ -4443,7 +4443,7 @@ longlong Item_func_ord::val_int()
 	/* Returns number of found type >= 1 or 0 if not found */
 	/* This optimizes searching in enums to bit testing! */
 
-bool Item_func_find_in_set::resolve_type(THD *thd)
+bool Item_func_find_in_set::resolve_type(THD *)
 {
   decimals=0;
   max_length=3;					// 1-999
@@ -5030,7 +5030,7 @@ String *Item_func_udf_decimal::val_str(String *str)
 }
 
 
-bool Item_func_udf_decimal::resolve_type(THD *thd)
+bool Item_func_udf_decimal::resolve_type(THD *)
 {
   fix_num_length_and_dec();
   return false;
@@ -5039,7 +5039,7 @@ bool Item_func_udf_decimal::resolve_type(THD *thd)
 
 /* Default max_length is max argument length */
 
-bool Item_func_udf_str::resolve_type(THD *thd)
+bool Item_func_udf_str::resolve_type(THD *)
 {
   max_length=0;
   for (uint i = 0; i < arg_count; i++)
@@ -7576,7 +7576,7 @@ bool Item_func_get_system_var::resolve_type(THD *thd)
 }
 
 
-void Item_func_get_system_var::print(String *str, enum_query_type query_type)
+void Item_func_get_system_var::print(String *str, enum_query_type)
 {
   str->append(item_name);
 }
@@ -8740,7 +8740,7 @@ Item_func_sp::init_result_field(THD *thd)
   @note called from Item::fix_fields.
 */
 
-bool Item_func_sp::resolve_type(THD *thd)
+bool Item_func_sp::resolve_type(THD *)
 {
   DBUG_ENTER("Item_func_sp::resolve_type");
 

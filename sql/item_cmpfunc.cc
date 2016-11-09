@@ -2118,7 +2118,7 @@ int Arg_comparator::compare_e_row()
 }
 
 
-bool Item_func_truth::resolve_type(THD *thd)
+bool Item_func_truth::resolve_type(THD *)
 {
   maybe_null= false;
   null_value= FALSE;
@@ -2734,10 +2734,10 @@ Item_row *Item_func_interval::alloc_row(const POS &pos, MEM_ROOT *mem_root,
 }
 
 
-bool Item_func_interval::resolve_type(THD *thd)
+bool Item_func_interval::resolve_type(THD *)
 {
   uint rows= row->cols();
-  
+
   //The number of columns in one argument is limited to one
   for (uint i= 0; i < rows; i++)
   {
@@ -3351,7 +3351,7 @@ void Item_func_between::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-bool Item_func_ifnull::resolve_type(THD *thd)
+bool Item_func_ifnull::resolve_type(THD *)
 {
   uint32 char_length;
   agg_result_type(&hybrid_type, &unsigned_flag, args, 2);
@@ -3574,7 +3574,7 @@ void Item_func_if::cache_type_info(Item *source)
 }
 
 
-bool Item_func_if::resolve_type(THD *thd)
+bool Item_func_if::resolve_type(THD *)
 {
   // Let IF(cond, expr, NULL) and IF(cond, NULL, expr) inherit type from expr.
   if (args[1]->type() == NULL_ITEM)
@@ -4375,7 +4375,7 @@ bool Item_func_coalesce::time_op(MYSQL_TIME *ltime)
 }
 
 
-bool Item_func_coalesce::resolve_type(THD *thd)
+bool Item_func_coalesce::resolve_type(THD *)
 {
   cached_field_type= agg_field_type(args, arg_count);
   agg_result_type(&hybrid_type, &unsigned_flag, args, arg_count);
@@ -7005,13 +7005,13 @@ longlong Item_func_xor::val_int()
     NULL if we cannot apply NOT transformation (see Item::neg_transformer()).
 */
 
-Item *Item_func_not::neg_transformer(THD *thd)	/* NOT(x)  ->  x */
+Item *Item_func_not::neg_transformer(THD *)	/* NOT(x)  ->  x */
 {
   return args[0];
 }
 
 
-Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
+Item *Item_bool_rowready_func2::neg_transformer(THD *)
 {
   Item *item= negated_item();
   return item;
@@ -7048,7 +7048,7 @@ Item *Item_func_xor::neg_transformer(THD *thd)
 /**
   a IS NULL  ->  a IS NOT NULL.
 */
-Item *Item_func_isnull::neg_transformer(THD *thd)
+Item *Item_func_isnull::neg_transformer(THD *)
 {
   Item *item= new Item_func_isnotnull(args[0]);
   return item;
@@ -7058,7 +7058,7 @@ Item *Item_func_isnull::neg_transformer(THD *thd)
 /**
   a IS NOT NULL  ->  a IS NULL.
 */
-Item *Item_func_isnotnull::neg_transformer(THD *thd)
+Item *Item_func_isnotnull::neg_transformer(THD *)
 {
   Item *item= new Item_func_isnull(args[0]);
   return item;
@@ -7083,7 +7083,7 @@ Item *Item_cond_or::neg_transformer(THD *thd)	/* NOT(a OR b OR ...)  -> */
 }
 
 
-Item *Item_func_nop_all::neg_transformer(THD *thd)
+Item *Item_func_nop_all::neg_transformer(THD *)
 {
   /* "NOT (e $cmp$ ANY (SELECT ...)) -> e $rev_cmp$" ALL (SELECT ...) */
   Item_func_not_all *new_item= new Item_func_not_all(args[0]);
@@ -7094,7 +7094,7 @@ Item *Item_func_nop_all::neg_transformer(THD *thd)
   return new_item;
 }
 
-Item *Item_func_not_all::neg_transformer(THD *thd)
+Item *Item_func_not_all::neg_transformer(THD *)
 {
   /* "NOT (e $cmp$ ALL (SELECT ...)) -> e $rev_cmp$" ANY (SELECT ...) */
   Item_func_nop_all *new_item= new Item_func_nop_all(args[0]);
@@ -7542,7 +7542,7 @@ longlong Item_equal::val_int()
   return 1;
 }
 
-bool Item_equal::resolve_type(THD *thd)
+bool Item_equal::resolve_type(THD *)
 {
   Item *item= get_first();
   eval_item= cmp_item::get_comparator(item->result_type(),

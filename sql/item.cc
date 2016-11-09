@@ -6085,8 +6085,7 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
 
   See comments in Arg_comparator::set_compare_func() for details.
 */
-
-bool Item_field::set_no_const_sub(uchar *arg)
+bool Item_field::set_no_const_sub(uchar *)
 {
   if (field->charset() != &my_charset_bin)
     no_const_subst=1;
@@ -9094,7 +9093,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
 }
 
 
-void Item_trigger_field::print(String *str, enum_query_type query_type)
+void Item_trigger_field::print(String *str, enum_query_type)
 {
   str->append((trigger_var_type == TRG_NEW_ROW) ? "NEW" : "OLD", 3);
   str->append('.');

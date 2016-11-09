@@ -795,7 +795,7 @@ Item::Type Item_subselect::type() const
 }
 
 
-bool Item_subselect::resolve_type(THD *thd)
+bool Item_subselect::resolve_type(THD *)
 {
   engine->fix_length_and_dec(0);
   return false;
@@ -1231,7 +1231,7 @@ enum_field_types Item_singlerow_subselect::field_type() const
   return engine->field_type();
 }
 
-bool Item_singlerow_subselect::resolve_type(THD *thd)
+bool Item_singlerow_subselect::resolve_type(THD *)
 {
   if ((max_columns= engine->cols()) == 1)
   {
@@ -1557,7 +1557,8 @@ bool Item_exists_subselect::resolve_type(THD *thd)
    max_columns= engine->cols();
    if (exec_method == EXEC_EXISTS)
    {
-     Prepared_stmt_arena_holder ps_arena_holder(unit->thd);
+     DBUG_ASSERT(thd == unit->thd);
+     Prepared_stmt_arena_holder ps_arena_holder(thd);
      /*
        We need only 1 row to determine existence.
        Note that if the subquery is "SELECT1 UNION SELECT2" then this is not

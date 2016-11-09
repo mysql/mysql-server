@@ -556,7 +556,7 @@ public:
   longlong val_int();
   enum Functype functype() const { return NOT_FUNC; }
   const char *func_name() const { return "not"; }
-  Item *neg_transformer(THD *thd);
+  Item *neg_transformer(THD *);
   virtual void print(String *str, enum_query_type query_type);
 
   float get_filtering_effect(table_map filter_for_table,
@@ -712,7 +712,7 @@ public:
     return 0;
   }
   bool empty_underlying_subquery();
-  Item *neg_transformer(THD *thd);
+  Item *neg_transformer(THD *);
 };
 
 
@@ -724,7 +724,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "<nop>"; }
   table_map not_null_tables() const { return not_null_tables_cache; }
-  Item *neg_transformer(THD *thd);
+  Item *neg_transformer(THD *);
 };
 
 
@@ -743,9 +743,9 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "="; }
   Item *negated_item();
-  virtual bool equality_substitution_analyzer(uchar **arg) { return true; }
-  virtual Item* equality_substitution_transformer(uchar *arg);
-  bool gc_subst_analyzer(uchar **arg) { return true; }
+  bool equality_substitution_analyzer(uchar **) { return true; }
+  Item *equality_substitution_transformer(uchar *arg);
+  bool gc_subst_analyzer(uchar **) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -768,7 +768,7 @@ public:
   enum Functype rev_functype() const { return EQUAL_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<=>"; }
-  Item *neg_transformer(THD *thd) { return 0; }
+  Item *neg_transformer(THD *) { return nullptr; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -787,7 +787,7 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return ">="; }
   Item *negated_item();
-  bool gc_subst_analyzer(uchar **arg) { return true; }
+  bool gc_subst_analyzer(uchar **) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -805,7 +805,7 @@ public:
   cond_result eq_cmp_result() const { return COND_FALSE; }
   const char *func_name() const { return ">"; }
   Item *negated_item();
-  bool gc_subst_analyzer(uchar **arg) { return true; }
+  bool gc_subst_analyzer(uchar **) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -824,7 +824,7 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<="; }
   Item *negated_item();
-  bool gc_subst_analyzer(uchar **arg) { return true; }
+  bool gc_subst_analyzer(uchar **) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -843,7 +843,7 @@ public:
   cond_result eq_cmp_result() const { return COND_FALSE; }
   const char *func_name() const { return "<"; }
   Item *negated_item();
-  bool gc_subst_analyzer(uchar **arg) { return true; }
+  bool gc_subst_analyzer(uchar **) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -901,7 +901,7 @@ public:
   inline void negate() { negated= !negated; }
   inline void top_level_item() { pred_level= 1; }
   bool is_top_level_item() const { return pred_level; }
-  Item *neg_transformer(THD *thd)
+  Item *neg_transformer(THD *)
   {
     negated= !negated;
     return this;
@@ -942,7 +942,7 @@ public:
   const CHARSET_INFO *compare_collation() const
   { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
-  bool gc_subst_analyzer(uchar **arg) { return true; }
+  bool gc_subst_analyzer(uchar **) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -1035,7 +1035,7 @@ public:
   bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool time_op(MYSQL_TIME *ltime);
   my_decimal *decimal_op(my_decimal *);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   void find_num_type() {}
   enum Item_result result_type () const { return hybrid_type; }
   const char *func_name() const { return "coalesce"; }
@@ -1059,7 +1059,7 @@ public:
   bool time_op(MYSQL_TIME *ltime);
   my_decimal *decimal_op(my_decimal *);
   bool val_json(Json_wrapper *result);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   const char *func_name() const { return "ifnull"; }
   Field *tmp_table_field(TABLE *table);
   uint decimal_precision() const;
@@ -1103,7 +1103,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   enum_field_types field_type() const { return cached_field_type; }
   bool fix_fields(THD *, Item **);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select);
   uint decimal_precision() const;
@@ -1125,7 +1125,7 @@ public:
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return cached_result_type; }
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
   const char *func_name() const { return "nullif"; }
 
@@ -1724,7 +1724,7 @@ public:
   bool is_bool_func() const { return true; }
   const CHARSET_INFO *compare_collation() const
   { return cmp_collation.collation; }
-  bool gc_subst_analyzer(uchar **arg) { return true; }
+  bool gc_subst_analyzer(uchar **) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -1847,7 +1847,7 @@ public:
                              double rows_in_table);
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
-  Item *neg_transformer(THD *thd);
+  Item *neg_transformer(THD *);
   const CHARSET_INFO *compare_collation() const
   { return args[0]->collation.collation; }
 };
@@ -1892,7 +1892,7 @@ public:
 
   longlong val_int();
   enum Functype functype() const { return ISNOTNULL_FUNC; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     decimals= 0;
     max_length= 1;
@@ -1903,7 +1903,7 @@ public:
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   table_map not_null_tables() const
   { return abort_on_null ? not_null_tables_cache : 0; }
-  Item *neg_transformer(THD *thd);
+  Item *neg_transformer(THD *);
   virtual void print(String *str, enum_query_type query_type);
   const CHARSET_INFO *compare_collation() const
   { return args[0]->collation.collation; }
@@ -2212,7 +2212,7 @@ public:
   const CHARSET_INFO *compare_collation() const
   { return fields.head()->collation.collation; }
 
-  virtual bool equality_substitution_analyzer(uchar **arg) { return true; }
+  bool equality_substitution_analyzer(uchar **) { return true; }
 
   virtual Item* equality_substitution_transformer(uchar *arg);
 
@@ -2278,7 +2278,7 @@ public:
     return item;
   }
   Item *neg_transformer(THD *thd);
-  bool gc_subst_analyzer(uchar **arg) { return true; }
+  bool gc_subst_analyzer(uchar **) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -2308,7 +2308,7 @@ public:
     return item;
   }
   Item *neg_transformer(THD *thd);
-  bool gc_subst_analyzer(uchar **arg) { return true; }
+  bool gc_subst_analyzer(uchar **) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,

@@ -1013,7 +1013,7 @@ bool Item_date_literal::eq(const Item *item, bool binary_cmp) const
 }
 
 
-void Item_date_literal::print(String *str, enum_query_type query_type)
+void Item_date_literal::print(String *str, enum_query_type)
 {
   str->append("DATE'");
   str->append(cached_time.cptr());
@@ -1030,7 +1030,7 @@ bool Item_datetime_literal::eq(const Item *item, bool binary_cmp) const
 }
 
 
-void Item_datetime_literal::print(String *str, enum_query_type query_type)
+void Item_datetime_literal::print(String *str, enum_query_type)
 {
   str->append("TIMESTAMP'");
   str->append(cached_time.cptr());
@@ -1047,7 +1047,7 @@ bool Item_time_literal::eq(const Item *item, bool binary_cmp) const
 }
 
 
-void Item_time_literal::print(String *str, enum_query_type query_type)
+void Item_time_literal::print(String *str, enum_query_type)
 {
   str->append("TIME'");
   str->append(cached_time.cptr());
@@ -2048,7 +2048,7 @@ bool Item_func_sysdate_local::get_date(MYSQL_TIME *now_time,
 }
 
 
-bool Item_func_sysdate_local::resolve_type(THD *thd)
+bool Item_func_sysdate_local::resolve_type(THD *)
 {
   if (check_precision())
     return true;
@@ -2307,7 +2307,7 @@ bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
 }
 
 
-bool Item_func_convert_tz::resolve_type(THD *thd)
+bool Item_func_convert_tz::resolve_type(THD *)
 {
   fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, 
                                           args[0]->datetime_precision());
@@ -2366,7 +2366,7 @@ void Item_func_convert_tz::cleanup()
 }
 
 
-bool Item_date_add_interval::resolve_type(THD *thd)
+bool Item_date_add_interval::resolve_type(THD *)
 {
   enum_field_types arg0_field_type;
 
@@ -2554,7 +2554,7 @@ void Item_extract::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-bool Item_extract::resolve_type(THD *thd)
+bool Item_extract::resolve_type(THD *)
 {
   maybe_null=1;					// If wrong date
   switch (int_type) {
@@ -2786,7 +2786,7 @@ err:
 }
 
 
-bool Item_func_add_time::resolve_type(THD *thd)
+bool Item_func_add_time::resolve_type(THD *)
 {
   /*
     The field type for the result of an Item_func_add_time function is defined

@@ -220,7 +220,7 @@ public:
   {}
   Item_geometry_func(const POS &pos, PT_item_list *list);
 
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   enum_field_types field_type() const  { return MYSQL_TYPE_GEOMETRY; }
   Field *tmp_table_field(TABLE *t_arg);
 };
@@ -343,7 +343,7 @@ public:
   Item_func_as_wkt(const POS &pos, Item *a): Item_str_ascii_func(pos, a) {}
   const char *func_name() const { return "st_astext"; }
   String *val_str_ascii(String *);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 };
 
 class Item_func_as_wkb: public Item_geometry_func
@@ -362,7 +362,7 @@ public:
   {}
   String *val_str_ascii(String *);
   const char *func_name() const { return "st_geometrytype"; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     // "GeometryCollection" is the longest
     fix_length_and_charset(20, default_charset());
@@ -597,7 +597,7 @@ public:
     upper_limit_output_length(100)
   {}
   String *val_str_ascii(String *);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   bool fix_fields(THD *thd, Item **ref);
   const char *func_name() const { return "st_geohash"; }
   char char_to_base32(char char_input);
@@ -964,7 +964,7 @@ public:
   {
     Item_func::print(str, query_type);
   }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     maybe_null= true;
     return false;
@@ -1004,7 +1004,7 @@ public:
     Item_func::print(str, query_type);
   }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     maybe_null= true;
     return false;
@@ -1238,7 +1238,7 @@ public:
   Item_func_buffer_strategy(const POS &pos, PT_item_list *ilist);
   const char *func_name() const { return "st_buffer_strategy"; }
   String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 };
 
 
@@ -1249,7 +1249,7 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_isempty"; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     maybe_null= true;
     return false;
@@ -1265,7 +1265,7 @@ public:
   bool issimple(Geometry *g);
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_issimple"; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     maybe_null= true;
     return false;
@@ -1279,7 +1279,7 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_isclosed"; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     maybe_null= true;
     return false;
@@ -1302,7 +1302,7 @@ public:
   Item_func_dimension(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "st_dimension"; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 10;
     maybe_null= true;
@@ -1378,7 +1378,7 @@ public:
   Item_func_numgeometries(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "st_numgeometries"; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 10;
     maybe_null= true;
@@ -1394,7 +1394,7 @@ public:
   Item_func_numinteriorring(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "st_numinteriorrings"; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 10;
     maybe_null= true;
@@ -1410,7 +1410,7 @@ public:
   Item_func_numpoints(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "st_numpoints"; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 10;
     maybe_null= true;
@@ -1472,7 +1472,7 @@ public:
   Item_func_get_srid(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "st_srid"; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 10;
     maybe_null= true;

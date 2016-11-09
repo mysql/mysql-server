@@ -450,7 +450,7 @@ public:
     Item_nodeset_func(pxml), string_cache(str_arg) { }
   String *val_nodeset(String *res)
   { return string_cache; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= MAX_BLOB_WIDTH;
     return false;
@@ -465,7 +465,7 @@ public:
   Item_func_xpath_position(Item *a)
     :Item_int_func(a) {}
   const char *func_name() const { return "xpath_position"; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 10;
     return false;
@@ -487,7 +487,7 @@ public:
   Item_func_xpath_count(Item *a)
     :Item_int_func(a) {}
   const char *func_name() const { return "xpath_count"; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     max_length= 10;
     return false;

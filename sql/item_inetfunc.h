@@ -44,7 +44,7 @@ public:
   virtual const char *func_name() const
   { return "inet_aton"; }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     decimals= 0;
     max_length= 21;
@@ -72,7 +72,7 @@ public:
   virtual const char *func_name() const
   { return "inet_ntoa"; }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     decimals= 0;
     fix_length_and_charset(3 * 8 + 7, default_charset());
@@ -139,7 +139,7 @@ public:
   virtual const char *func_name() const
   { return "inet6_aton"; }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     decimals= 0;
     fix_length_and_charset(16, &my_charset_bin);
@@ -167,7 +167,7 @@ public:
   virtual const char *func_name() const
   { return "inet6_ntoa"; }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     decimals= 0;
 

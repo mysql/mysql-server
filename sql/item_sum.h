@@ -503,7 +503,7 @@ public:
   */
   virtual void update_field()=0;
   virtual bool keep_field_type() const { return 0; }
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
   virtual Item *result_item(Field *field)
     { return new Item_field(field); }
   table_map used_tables() const { return used_tables_cache; }
@@ -801,7 +801,7 @@ public:
     return get_time_from_int(ltime);
   }
   enum Item_result result_type () const { return INT_RESULT; }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *)
   {
     decimals= 0;
     max_length= 21;
@@ -819,7 +819,7 @@ protected:
   double sum;
   my_decimal dec_buffs[2];
   uint curr_dec_buff;
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *);
 
 public:
   Item_sum_sum(const POS &pos, Item *item_par, bool distinct)
@@ -978,7 +978,7 @@ public:
   double val_real();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
-  virtual bool resolve_type(THD *thd) { return false; }
+  bool resolve_type(THD *) { return false; }
   const char *func_name() const { DBUG_ASSERT(0); return "avg_field"; }
 };
 
@@ -995,7 +995,7 @@ public:
   double val_real();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
-  bool resolve_type(THD *thd) { return false; }
+  bool resolve_type(THD *) { return false; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   enum Type type() const { return FIELD_BIT_ITEM; }
@@ -1171,7 +1171,7 @@ But, this falls prey to catastrophic cancellation.  Instead, use the recurrence 
 
 class Item_sum_variance : public Item_sum_num
 {
-  bool resolve_type(THD *thd) override;
+  bool resolve_type(THD *) override;
 
 public:
   Item_result hybrid_type;
@@ -1392,7 +1392,7 @@ public:
   bool get_time(MYSQL_TIME *ltime) override;
   void reset_field() override;
   void update_field() override;
-  bool resolve_type(THD *thd) override;
+  bool resolve_type(THD *) override;
   bool fix_fields(THD *thd, Item **ref) override;
   void cleanup() override
   {
@@ -1512,7 +1512,7 @@ class Item_sum_udf_float final : public Item_udf_sum
   {
     return get_time_from_real(ltime);
   }
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD *) override
   {
     fix_num_length_and_dec();
     return false;
@@ -1594,7 +1594,7 @@ public:
     return get_time_from_string(ltime);
   }
   enum Item_result result_type () const override { return STRING_RESULT; }
-  bool resolve_type(THD *thd) override;
+  bool resolve_type(THD *) override;
   Item *copy_or_same(THD* thd) override;
 };
 
@@ -1621,7 +1621,7 @@ public:
     return get_time_from_decimal(ltime);
   }
   enum Item_result result_type () const override { return DECIMAL_RESULT; }
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD *) override
   {
     fix_num_length_and_dec();
     return false;

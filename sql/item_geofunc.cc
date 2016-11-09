@@ -222,7 +222,7 @@ Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
 }
 
 
-bool Item_geometry_func::resolve_type(THD *thd)
+bool Item_geometry_func::resolve_type(THD *)
 {
   collation.set(&my_charset_bin);
   decimals=0;
@@ -2738,7 +2738,7 @@ String *Item_func_geohash::val_str_ascii(String *str)
 }
 
 
-bool Item_func_geohash::resolve_type(THD *thd)
+bool Item_func_geohash::resolve_type(THD *)
 {
   fix_length_and_charset(Item_func_geohash::upper_limit_output_length,
                          default_charset());
@@ -3233,7 +3233,7 @@ String *Item_func_as_wkt::val_str_ascii(String *str)
 }
 
 
-bool Item_func_as_wkt::resolve_type(THD *thd)
+bool Item_func_as_wkt::resolve_type(THD *)
 {
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   max_length=MAX_BLOB_WIDTH;

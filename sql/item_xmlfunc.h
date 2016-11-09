@@ -44,7 +44,7 @@ public:
   }
   virtual bool resolve_type(THD *thd);
   String *parse_xml(String *raw_xml, String *parsed_xml_buf);
-  bool check_gcol_func_processor(uchar *int_arg) { return false; }
+  bool check_gcol_func_processor(uchar *) { return false; }
 
 protected:
   /** 
@@ -82,8 +82,7 @@ public:
   {}
   const char *func_name() const { return "updatexml"; }
   String *val_str(String *);
-  bool check_gcol_func_processor(uchar *int_arg)
-  { return true; }
+  bool check_gcol_func_processor(uchar *) { return true; }
 };
 
 #endif /* ITEM_XMLFUNC_INCLUDED */
