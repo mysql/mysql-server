@@ -1605,8 +1605,11 @@ void Certifier::update_certified_transaction_count(bool result)
   else
     negative_cert++;
 
-  applier_module->get_pipeline_stats_member_collector()
-      ->increment_transactions_certified();
+  if (local_member_info->get_recovery_status() == Group_member_info::MEMBER_ONLINE)
+  {
+    applier_module->get_pipeline_stats_member_collector()
+        ->increment_transactions_certified();
+  }
 }
 
 ulonglong Certifier::get_positive_certified()
