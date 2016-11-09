@@ -296,7 +296,7 @@ Ndb::releaseNdbCall(NdbCall* aNdbCall)
 void releaseNdbCon(NdbTransaction* aNdbCon);
 
 Parameters:     aNdbCon: The NdbTransaction object.
-Remark:         Add a Connection object into the signal idlelist.
+Remark:         Add a Connection object into the connection idlelist.
 ***************************************************************************/
 void
 Ndb::releaseNdbCon(NdbTransaction* aNdbCon)
@@ -345,7 +345,7 @@ Ndb::releaseNdbSubroutine(NdbSubroutine* aNdbSubroutine)
 void releaseOperation(NdbOperation* anOperation);
 
 Parameters:     anOperation : The released NdbOperation object.
-Remark:         Add a NdbOperation object into the signal idlelist.
+Remark:         Add a NdbOperation object into the operation idlelist.
 ***************************************************************************/
 void
 Ndb::releaseOperation(NdbOperation* anOperation)
@@ -366,7 +366,7 @@ Ndb::releaseOperation(NdbOperation* anOperation)
 void releaseScanOperation(NdbScanOperation* aScanOperation);
 
 Parameters:     aScanOperation : The released NdbScanOperation object.
-Remark:         Add a NdbScanOperation object into the signal idlelist.
+Remark:         Add a NdbScanOperation object into the scan idlelist.
 ***************************************************************************/
 void
 Ndb::releaseScanOperation(NdbIndexScanOperation* aScanOperation)
@@ -492,7 +492,7 @@ Ndb::releaseConnectToNdb(NdbTransaction* a_con)
                                WAIT_TC_RELEASE,
                                &tSignal,
                                conn_seq);
-  if (ret_code == 0) {
+  if (likely(ret_code == 0)) {
     ;
   } else if (ret_code == -1) {
     TRACE_DEBUG("Time-out when TCRELEASE sent");

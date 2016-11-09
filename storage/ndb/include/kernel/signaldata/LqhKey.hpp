@@ -191,10 +191,14 @@ private:
   static UintR getNoTriggersFlag(const UintR & requestInfo);
   static void setNoTriggersFlag(UintR & requestInfo, UintR val);
 
+  static UintR getUtilFlag (const UintR & requestInfo);
+  static void setUtilFlag(UintR & requestInfo, UintR val);
+
   enum RequestInfo {
     RI_KEYLEN_SHIFT      =  0, RI_KEYLEN_MASK      = 1023, /* legacy for short LQHKEYREQ */
     RI_DISABLE_FK        =  0,
     RI_NO_TRIGGERS       = 1,
+    RI_UTIL_SHIFT        = 2,
     RI_LAST_REPL_SHIFT   = 10, RI_LAST_REPL_MASK   =    3,
     RI_LOCK_TYPE_SHIFT   = 12, RI_LOCK_TYPE_MASK   =    7, /* legacy before ROWID_VERSION */
     RI_GCI_SHIFT         = 12,
@@ -256,6 +260,7 @@ private:
  * D = Deferred constraints   - 1  Bit (26)
  * F = Disable FK constraints - 1  Bit (0)
  * T = no triggers            - 1  Bit (1)
+ * U = Operation came from UTIL - 1 Bit (2)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -266,7 +271,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *   FT        llgnqpdisooorrAPDcumxz
+ *   FTU       llgnqpdisooorrAPDcumxz
  *
  */
 
@@ -685,7 +690,7 @@ LqhKeyReq::getDisableFkConstraints(const UintR & requestInfo){
 inline
 void
 LqhKeyReq::setNoTriggersFlag(UintR & requestInfo, UintR val){
-  ASSERT_BOOL(val, "LqhKeyReq::setQueueOnRedoProblem");
+  ASSERT_BOOL(val, "LqhKeyReq::setNoTriggersFlag");
   requestInfo |= (val << RI_NO_TRIGGERS);
 }
 
@@ -693,6 +698,19 @@ inline
 UintR
 LqhKeyReq::getNoTriggersFlag(const UintR & requestInfo){
   return (requestInfo >> RI_NO_TRIGGERS) & 1;
+}
+
+inline
+void
+LqhKeyReq::setUtilFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setUtilFlag");
+  requestInfo |= (val << RI_UTIL_SHIFT);
+}
+
+inline
+UintR
+LqhKeyReq::getUtilFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_UTIL_SHIFT) & 1;
 }
 
 inline

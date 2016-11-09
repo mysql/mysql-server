@@ -1361,6 +1361,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_highest_sub_gcp_complete_GCI(0),
   m_latest_poll_GCI(),
   m_latest_consumed_epoch(0),
+  m_buffered_epochs(0),
   m_failure_detected(false),
   m_prevent_nodegroup_change(true),
   m_mutex(NULL),
@@ -1506,10 +1507,15 @@ void NdbEventBuffer::consume_all()   //Need m_mutex locked
 {
   m_current_data = NULL;
 
+  // Check the total #buffered epochs is consistent with the queues
+  assert(m_buffered_epochs == count_buffered_epochs());
+
   // Drop all buffered epochs with event data
   m_complete_data.clear();
   m_event_queue.clear();
- 
+
+  m_buffered_epochs = 0;
+
   /* Clean up deleted event_op and memory blocks which expired.
    * In case we consume across a failure event, include the
    * (now monotonic) GCIs across the restart.
@@ -1612,12 +1618,37 @@ NdbEventBuffer::is_exceptional_epoch(EventBufData *data)
   DBUG_RETURN_EVENT(false);
 }
 
+#ifndef NDEBUG
+Uint32
+NdbEventBuffer::count_buffered_epochs() const  //Need m_mutex locked
+{
+  Uint32 total_buffered_epochs = 0;
+  EpochData *epoch = m_complete_data.first_epoch();
+  while (epoch)
+  {
+    total_buffered_epochs++;
+    epoch = epoch->m_next;
+  }
+
+  epoch = m_event_queue.first_epoch();
+  while (epoch)
+  {
+    total_buffered_epochs++;
+    epoch = epoch->m_next;
+  }
+  return total_buffered_epochs;
+}
+#endif
+
 void
 NdbEventBuffer::remove_consumed_epoch_data(MonotonicEpoch consumedGci)
 {
   EpochData *epoch = m_event_queue.first_epoch();
   while (epoch && epoch->m_gci <= consumedGci)
   {
+    assert(m_buffered_epochs > 0);
+    m_buffered_epochs--;
+
     epoch = m_event_queue.next_epoch();
   }
 }
@@ -2363,6 +2394,7 @@ NdbEventBuffer::complete_bucket(Gci_container* bucket)
   if (completed_epoch != NULL)
   {
     m_complete_data.append(completed_epoch);
+    m_buffered_epochs++;
   }
 
   bucket->clear();
@@ -2524,7 +2556,6 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
     old_cnt = m_total_buckets;
   }
   
-  //assert(old_cnt >= cnt);
   if (unlikely(! (old_cnt >= cnt)))
   {
     crash_on_invalid_SUB_GCP_COMPLETE_REP(bucket, rep, len, old_cnt, cnt);
@@ -2538,15 +2569,15 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
     {
   do_complete:
       m_startup_hack = false;
-       bool gapBegins = false;
+      bool gapBegins = false;
 
       // if there is a gap, mark the gap boundary
-       ReportReason reason_to_report =
-         m_event_buffer_manager.onEpochCompleted(gci, gapBegins);
+      ReportReason reason_to_report =
+        m_event_buffer_manager.onEpochCompleted(gci, gapBegins);
 
       // if a new gap begins, mark the bucket.
-       if (gapBegins)
-         bucket->m_state |= Gci_container::GC_OUT_OF_MEMORY;
+      if (gapBegins)
+        bucket->m_state |= Gci_container::GC_OUT_OF_MEMORY;
 
       complete_bucket(bucket);
       m_latestGCI = gci; // before reportStatus
@@ -2574,8 +2605,8 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
                           Uint32(minGCI >> 32), Uint32(minGCI),
                           Uint32(m_latestGCI >> 32), Uint32(m_latestGCI));
       bucket->m_state = Gci_container::GC_COMPLETE;
-      bucket->m_gcp_complete_rep_count = 1; // Prevent from being reused
-      m_latest_complete_GCI = gci;
+      if (gci > m_latest_complete_GCI)
+        m_latest_complete_GCI = gci;
     }
   }
   
@@ -2684,12 +2715,12 @@ NdbEventBuffer::find_max_known_gci(Uint64 * res) const
 void
 NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
 {
-  Uint64 gci = (Uint64(rep->gci_hi) << 32) | rep->gci_lo;
-  Uint32 cnt = (rep->flags >> 16);
-  Uint64 * array = m_known_gci.getBase();
-  Uint32 mask = m_known_gci.size() - 1;
-  Uint32 minpos = m_min_gci_index;
-  Uint32 maxpos = m_max_gci_index;
+  const Uint64 gci = (Uint64(rep->gci_hi) << 32) | rep->gci_lo;
+  const Uint32 cnt = (rep->flags >> 16);
+  const Uint64 *const array = m_known_gci.getBase();
+  const Uint32 mask = m_known_gci.size() - 1;
+  const Uint32 minpos = m_min_gci_index;
+  const Uint32 maxpos = m_max_gci_index;
 
   if (rep->flags & SubGcpCompleteRep::ADD_CNT)
   {
@@ -2740,6 +2771,10 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
 
     m_total_buckets += cnt;
 
+    /* ADD_CNT make any out of order buckets incomplete */
+    m_latest_complete_GCI = 0;
+
+    /* Adjust expected 'complete_rep_count' for any buckets arrived OOO */
     pos = (pos + 1) & mask;
     for (; pos != maxpos; pos = (pos + 1) & mask)
     {
@@ -2747,6 +2782,7 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
       Gci_container* tmp = find_bucket(array[pos]);
       assert((tmp->m_state & Gci_container::GC_CHANGE_CNT) == 0);
       tmp->m_gcp_complete_rep_count += cnt;
+      tmp->m_state &= ~Gci_container::GC_COMPLETE; //If 'complete', undo it
       ndbout_c(" - increasing cnt on %u/%u by %u",
                Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci), cnt);
     }
@@ -2799,17 +2835,28 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
 
     m_total_buckets -= cnt;
 
+    /* Adjust expected 'complete_rep_count' for any buckets arrived out of order */
     pos = (pos + 1) & mask;
     for (; pos != maxpos; pos = (pos + 1) & mask)
     {
       assert(array[pos] > gci);
       Gci_container* tmp = find_bucket(array[pos]);
       assert((tmp->m_state & Gci_container::GC_CHANGE_CNT) == 0);
+      assert((tmp->m_state & Gci_container::GC_COMPLETE) == 0);
+      assert(tmp->m_gcp_complete_rep_count >= cnt);
       tmp->m_gcp_complete_rep_count -= cnt;
       ndbout_c(" - decreasing cnt on %u/%u by %u to: %u",
                Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci), 
                cnt,
                tmp->m_gcp_complete_rep_count);
+      if (tmp->m_gcp_complete_rep_count == 0)
+      {
+        ndbout_c("   completed out of order %u/%u",
+                 Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci));
+        tmp->m_state |= Gci_container::GC_COMPLETE;
+        if (array[pos] > m_latest_complete_GCI)
+          m_latest_complete_GCI = array[pos];
+      }
     }
   }
 }
@@ -4256,16 +4303,16 @@ NdbEventBuffer::reportStatus(ReportReason reason)
       goto send_report;
     }
   }
-  /*
+
   if (m_gci_slip_thresh &&
-      (m_latestGCI - m_latest_consumed_epoch >= m_gci_slip_thresh) &&
+      (m_buffered_epochs >= m_gci_slip_thresh) &&
       NdbTick_Elapsed(m_last_log_time, NdbTick_getCurrentTicks()).milliSec() >= 1000)
   {
     m_last_log_time = NdbTick_getCurrentTicks();
     reason = BUFFERED_EPOCHS_OVER_THRESHOLD;
     goto send_report;
   }
-  */
+
   return;
 
 send_report:

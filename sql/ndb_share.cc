@@ -51,6 +51,9 @@ NDB_SHARE::destroy(NDB_SHARE* share)
     delete event_data;
     event_data= 0;
   }
+
+  bitmap_free(& (share->stored_columns));
+
   // Release memory for the variable length strings held by
   // key but also referenced by db, table_name and shadow_table->db etc.
   free_key(share->key);

@@ -8000,11 +8000,12 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
     req->noOfPrimaryKeys = (Uint32)tabPtr.p->noOfPrimkey;
     req->singleUserMode = (Uint32)tabPtr.p->singleUserMode;
     req->userDefinedPartition = (tabPtr.p->fragmentType == DictTabInfo::UserDefined);
-    req->readBackup = (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_ReadBackup);
 
     if (!DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
     {
       jam();
+      req->readBackup = 
+        (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_ReadBackup);
       req->fullyReplicated =
         (Uint32)((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0);
     }
@@ -8016,6 +8017,8 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
       ndbrequire(ok);
       req->userDefinedPartition = (basePtr.p->fragmentType == DictTabInfo::UserDefined);
 
+      req->readBackup = 
+        (Uint32)!!(basePtr.p->m_bits & TableRecord::TR_ReadBackup);
       req->fullyReplicated = (Uint32)
         ((basePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0);
     }
@@ -8174,7 +8177,6 @@ Dbdict::execTC_SCHVERCONF(Signal* signal)
     req->noOfPrimaryKeys = (Uint32)tabPtr.p->noOfPrimkey;
     req->singleUserMode = (Uint32)tabPtr.p->singleUserMode;
     req->userDefinedPartition = (tabPtr.p->fragmentType == DictTabInfo::UserDefined);
-    req->readBackup = (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_ReadBackup);
 
     if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
     {
@@ -8183,12 +8185,16 @@ Dbdict::execTC_SCHVERCONF(Signal* signal)
       bool ok = find_object(basePtr, tabPtr.p->primaryTableId);
       ndbrequire(ok);
       req->userDefinedPartition = (basePtr.p->fragmentType == DictTabInfo::UserDefined);
+      req->readBackup = 
+        (Uint32)!!(basePtr.p->m_bits & TableRecord::TR_ReadBackup);
       req->fullyReplicated = (Uint32)
         ((basePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0);
     }
     else
     {
       jam();
+      req->readBackup = 
+        (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_ReadBackup);
       req->fullyReplicated =
         (Uint32)((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0);
     }

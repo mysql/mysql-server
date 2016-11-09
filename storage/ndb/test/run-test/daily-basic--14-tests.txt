@@ -39,6 +39,10 @@ cmd: testNdbApi
 args: -n MgmdSendbufferExhaust T1
 max-time: 180
 
+cmd: testNdbApi
+args: -n CloseBeforeExecute T1
+max-time: 60
+
 cmd: testBasic
 args: -r 10 -n Bug59496_case1 T2
 max-time: 180

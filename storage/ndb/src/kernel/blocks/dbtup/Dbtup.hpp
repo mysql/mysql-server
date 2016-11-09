@@ -1417,7 +1417,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( DISK_ALLOC  = 0x00040000 ); // Is disk part allocated
     STATIC_CONST( DISK_INLINE = 0x00080000 ); // Is disk inline
     STATIC_CONST( ALLOC       = 0x00100000 ); // Is record allocated now
-    STATIC_CONST( MM_SHRINK   = 0x00200000 ); // Has MM part shrunk
+    STATIC_CONST( NOT_USED_BIT= 0x00200000 ); //
     STATIC_CONST( MM_GROWN    = 0x00400000 ); // Has MM part grown
     STATIC_CONST( FREED       = 0x00800000 ); // Is freed
     STATIC_CONST( FREE        = 0x00800000 ); // alias
@@ -3281,7 +3281,7 @@ private:
 #endif
 
   void expand_tuple(KeyReqStruct*, Uint32 sizes[4], Tuple_header*org, 
-		    const Tablerec*, bool disk);
+		    const Tablerec*, bool disk, bool from_lcp_keep = false);
   void shrink_tuple(KeyReqStruct*, Uint32 sizes[2], const Tablerec*,
 		    bool disk);
   

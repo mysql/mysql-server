@@ -331,7 +331,7 @@ t1_added
 partitions added to t2 (expect 4)
 t2_added
 4
-partitions added to t3 (expect 2)
+partitions added to t3 (expect 4)
 t3_added
 2
 partitions added to t4 (expect 0)

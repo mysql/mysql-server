@@ -173,12 +173,6 @@ void Dbspj::execTC_SCHVERREQ(Signal* signal)
     tablePtr.p->m_flags |= TableRecord::TR_READ_BACKUP;
   }
 
-  if (req->readBackup)
-  {
-    jam();
-    tablePtr.p->m_flags |= TableRecord::TR_READ_BACKUP;
-  }
-
   if (req->fullyReplicated)
   {
     jam();
@@ -762,6 +756,11 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
   jamEntry();
   c_Counters.incr_counter(CI_READS_RECEIVED, 1);
 
+  if (ERROR_INSERTED(17014))
+  {
+    ndbrequire(refToNode(signal->getSendersBlockRef()) == getOwnNodeId());
+  }
+
   const LqhKeyReq* req = reinterpret_cast<const LqhKeyReq*>(signal->getDataPtr());
 
   /**
@@ -1064,6 +1063,11 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   {
     jam();
     return;
+  }
+
+  if (ERROR_INSERTED(17014))
+  {
+    ndbrequire(refToNode(signal->getSendersBlockRef()) == getOwnNodeId());
   }
 
   const ScanFragReq * req = (ScanFragReq *)&signal->theData[0];
@@ -4102,6 +4106,8 @@ Dbspj::lookup_send(Signal* signal,
     }
     else
     {
+      ndbrequire(!ERROR_INSERTED(17014));
+      
       c_Counters.incr_counter(CI_REMOTE_READS_SENT, 1);
     }
 
@@ -5004,7 +5010,8 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
   if (nodeId != getOwnNodeId() &&
       tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP)
   {
-    Uint32 cnt = (Tdata2 & 3);
+    /* Node cnt from DIH ignores primary, presumably to fit in 2 bits */
+    Uint32 cnt = (Tdata2 & 3) + 1;
     for (Uint32 i = 1; i < cnt; i++)
     {
       jam();
@@ -6286,7 +6293,8 @@ Dbspj::scanindex_sendDihGetNodesReq(Signal* signal,
          * is used reorg moving flag.
          */
         jamEntry();
-        Uint32 cnt = (conf->reqinfo & 3);
+        /* Node cnt from DIH ignores primary, presumably to fit in 2 bits */
+        Uint32 cnt = (conf->reqinfo & 3) + 1;
         Uint32 instanceKey = (conf->reqinfo >> 24) & 127;
         NodeId nodeId = conf->nodes[0];
         if (nodeId != getOwnNodeId() &&
@@ -6966,6 +6974,8 @@ Dbspj::scanIndex_send(Signal* signal,
       }
       else
       {
+        ndbrequire(!ERROR_INSERTED(17014));
+        
         c_Counters.incr_counter(CI_REMOTE_RANGE_SCANS_SENT, 1);
       }
 

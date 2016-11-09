@@ -803,6 +803,9 @@ public:
    */
   void remove_consumed(MonotonicEpoch consumedGci);
 
+  // Count the buffered epochs (in event queue and completed list).
+  Uint32 count_buffered_epochs() const;
+
   /* Consume and discard all completed events. 
    * Memory related to discarded events are released.
    */
@@ -874,6 +877,14 @@ public:
   // "latest gci" variables updated in user thread
   MonotonicEpoch m_latest_poll_GCI; // latest gci handed over to user thread
   Uint64 m_latest_consumed_epoch; // latest epoch consumed by user thread
+
+  /**
+   * m_buffered_epochs = #completed epochs - #completely consumed epochs.
+   * Updated in receiver thread when an epoch completes.
+   * User thread updates it when an epoch is completely consumed.
+   * Owned by receiver thread and user thread update needs mutex.
+  */
+  Uint32 m_buffered_epochs;
 
   bool m_failure_detected; // marker that event operations have failure events
 

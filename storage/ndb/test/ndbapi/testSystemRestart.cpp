@@ -27,6 +27,14 @@
 #include <DbUtil.hpp>
 #include <NdbMgmd.hpp>
 
+#define CHK(b,e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    ctx->stopTest(); \
+    return NDBT_FAILED; \
+  }
+
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
   int records = ctx->getNumRecords();
@@ -3216,6 +3224,129 @@ int runKillMasterNodes(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+/**************************************************************************
+ * - Cause node takeover during SR by having data changes and multiple LCPs
+ *   while a node is 'down'
+ * - Cause 'interesting' activity during SR/Takeover to find bugs in the
+ *   takeover scenario
+ */
+
+/*  runLoad(): When signalled
+ * - Create load
+ * - Drop the table
+ * - Create the table again during SR */
+
+int
+runLoad(NDBT_Context* ctx, NDBT_Step* step)
+{
+  CHK(!ctx->getPropertyWait("CreateLoad", (Uint32)1),
+      "Not signalled to create load");
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
+  CHK(myDict != NULL, pNdb->getNdbError().message);
+
+  NdbDictionary::Table tab = * ctx->getTab();
+  // Take a copy of the table struct to use after dropping the table
+  const NdbDictionary::Table *copy = new NdbDictionary::Table(tab);
+
+  int records = ctx->getNumRecords();
+
+  while (!ctx->isTestStopped() && ctx->getProperty("CreateLoad", (Uint32)1))
+  {
+    HugoTransactions hugoTrans(tab);
+    CHK(hugoTrans.loadTable(pNdb, records) == 0,
+        hugoTrans.getNdbError());
+    CHK(hugoTrans.clearTable(GETNDB(step), records) == 0,
+        hugoTrans.getNdbError());
+  }
+
+  CHK(myDict->dropTable(tab.getName()) == 0, myDict->getNdbError());
+  ctx->setProperty("TableDropped", Uint32(1));
+
+  CHK(!ctx->getPropertyWait("CreateLoad", (Uint32)1),
+      "Not signalled to create table");
+
+  int retries = 0;
+  while (!ctx->isTestStopped() && myDict->createTable(*copy)!= 0)
+  {
+    // 4009 Cluster Failure is acceptable since SR is in progress
+    CHK(myDict->getNdbError().code == 4009, myDict->getNdbError().message);
+    retries++;
+    CHK(retries < 60, "Creating table not finished within timeout"); // 1 min
+    NdbSleep_MilliSleep(1000);
+  }
+
+  ctx->setProperty("FinishedCreateTable", Uint32(1));
+
+  return NDBT_OK;
+}
+
+int
+runCheckStaleNodeTakeoverDuringSR(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  CHK(restarter.getNumDbNodes() > 1, "Need > 1 nodes to run the test");
+
+  // Flag to start load
+  ctx->setProperty("CreateLoad", Uint32(1));
+
+  // Restart a random node: Not initial, noStart, abort, no force
+  int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
+  g_err << "Restarting victim node " << victim << endl;
+
+  CHK(restarter.restartOneDbNode(victim, false, true, true) == 0,
+      "Restarting the victim  failed");
+
+  CHK(restarter.waitNodesNoStart(&victim, 1) == 0,
+      "Victim has not reached NoStart state");
+
+  // Perform multiple LCPs
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  NdbLogEventHandle handle =
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  int dump[] = { DumpStateOrd::DihStartLcpImmediately }; // 7099
+  struct ndb_logevent event;
+  int master = restarter.getMasterNodeId();
+  for (int lcp=0; lcp < 3; lcp++)
+  {
+    CHK(restarter.dumpStateOneNode(master, dump, 1) == 0,
+        "Starting LCP failed");
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_LocalCheckpointStarted);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_LocalCheckpointCompleted);
+  }
+
+  // Flag to stop the load and drop the table
+  ctx->setProperty("CreateLoad", Uint32(0));
+
+  CHK(!ctx->getPropertyWait("TableDropped", (Uint32)1),
+      "Not signalled that the table is dropped");
+
+  // Restart the nodes (SR): Not initial, noStart, abort, no force
+  CHK(restarter.restartAll(false, true, true) == 0,
+      "Starting all nodes failed");
+  CHK(restarter.waitClusterNoStart() == 0,
+      "Nodes have not reached NoStart state");
+
+  CHK(restarter.startAll() == 0,
+      "Starting all nodes failed");
+
+  // Flag to create a table while SR is in progress
+  ctx->setProperty("CreateLoad", Uint32(1));
+
+  // Evaluate the test outcome
+  CHK(restarter.waitClusterStarted() == 0, "Cluster has not started");
+  CHK(ctx->isTestStopped() ||
+      !ctx->getPropertyWait("FinishedCreateTable", (Uint32)1),
+      "Creating table after SR failed");
+
+  return NDBT_OK;
+}
+/**************************************************************************/
+
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
 	 "Basic system restart test. Focus on testing restart from REDO log.\n"
@@ -3567,6 +3698,7 @@ TESTCASE("Bug56961", "")
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug56961);
 }
+
 TESTCASE("MTR_AddNodesAndRestart1",
          "1. Insert few rows to table"
          "2. Add nodes to the cluster"
@@ -3631,6 +3763,13 @@ TESTCASE("KillMasterNodes",
          "* 2. Start without --initial option\n"){
   INITIALIZER(runWaitStarted);
   STEP(runKillMasterNodes);
+}
+TESTCASE("StaleNodeTakeoverDuringSR",
+         "Check a stale node (away for too long) "
+         "performs takeover during system restart")
+{
+  STEP(runCheckStaleNodeTakeoverDuringSR);
+  STEP(runLoad);
 }
 NDBT_TESTSUITE_END(testSystemRestart);
 

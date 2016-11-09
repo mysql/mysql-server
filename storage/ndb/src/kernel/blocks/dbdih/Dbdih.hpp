@@ -1780,9 +1780,26 @@ private:
   Uint32 cfragstoreFileSize;
   RSS_OP_SNAPSHOT(cremainingfrags);
 
-  Uint32 c_nextNodeGroup;
   NodeGroupRecord *nodeGroupRecord;
   RSS_OP_SNAPSHOT(cnghash);
+
+  Uint32 c_nextNodeGroup;
+  Uint16 c_next_replica_node[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES];
+
+  /**
+   * Temporary variables used by CREATE_FRAGMENTATION_REQ
+   */
+  Uint16
+    tmp_next_replica_node[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES];
+  Uint8
+    tmp_next_replica_node_set[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES];
+  Uint16 tmp_node_group_id[MAX_NDB_PARTITIONS];
+  Uint16 tmp_fragments_per_ldm[MAX_NDB_NODES][NDBMT_MAX_WORKER_INSTANCES];
+  Uint16 tmp_fragments_per_node[MAX_NDB_NODES];
+  void init_next_replica_node(
+    Uint16
+     (*next_replica_node)[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES],
+     Uint32 noOfReplicas);
 
   NodeRecord *nodeRecord;
 
@@ -2056,6 +2073,8 @@ private:
     2.4  C O M M O N    S T O R E D    V A R I A B L E S
     ----------------------------------------------------
   */
+  bool c_performed_copy_phase;
+
   struct DIVERIFY_queue
   {
     DIVERIFY_queue() {
@@ -2414,7 +2433,7 @@ private:
    * Available nodegroups (ids) (length == cnoOfNodeGroups)
    *   use to support nodegroups 2,4,6 (not just consequtive nodegroup ids)
    */
-  Uint32 c_node_groups[MAX_NDB_NODES];
+  Uint32 c_node_groups[MAX_NDB_NODE_GROUPS];
   Uint32 cnoOfNodeGroups;
   Uint32 crestartGci;      /* VALUE OF GCI WHEN SYSTEM RESTARTED OR STARTED */
   

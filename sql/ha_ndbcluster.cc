@@ -15133,6 +15133,7 @@ NDB_SHARE::create(const char* key, TABLE* table)
   share->op= 0;
   share->new_op= 0;
   share->event_data= 0;
+  share->stored_columns.bitmap= 0;
 
   if (ndbcluster_binlog_init_share(current_thd, share, table))
   {
@@ -20174,14 +20175,14 @@ static MYSQL_SYSVAR_ULONG(
   report_thresh_binlog_epoch_slip,   /* name */
   opt_ndb_report_thresh_binlog_epoch_slip,/* var */
   PLUGIN_VAR_RQCMDARG,
-  "Threshold on number of epochs to be behind before reporting binlog "
-  "status. E.g. 3 means that if the difference between what epoch has "
-  "been received from the storage nodes and what has been applied to "
-  "the binlog is 3 or more, a status message will be sent to the cluster "
-  "log.",
+  "Threshold for Binlog injector thread consumption lag, "
+  "before reporting the Event buffer status' message with reason "
+  "BUFFERED_EPOCHS_OVER_THRESHOLD. "
+  "The lag is defined as the number of epochs completely buffered in "
+  "the event buffer, but not consumed by the Binlog injector thread yet.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  3,                                 /* default */
+  10,                                /* default */
   0,                                 /* min */
   256,                               /* max */
   0                                  /* block */

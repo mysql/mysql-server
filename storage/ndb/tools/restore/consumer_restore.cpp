@@ -2661,7 +2661,8 @@ BackupRestore::table(const TableS & table){
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
   if(m_restore_meta)
   {
-    NdbDictionary::Table copy(*table.m_dictTable);
+    NdbDictionary::Table* tab = table.m_dictTable;
+    NdbDictionary::Table copy(*tab);
 
     copy.setName(table_name.c_str());
     Uint32 id;
@@ -2765,7 +2766,8 @@ BackupRestore::table(const TableS & table){
       ensure that memory is allocated properly in the ndb kernel
     */
     copy.setMinRows(table.getNoOfRecords());
-    if (table.getNoOfRecords() > copy.getMaxRows())
+    if (tab->getMaxRows() != 0 &&
+        table.getNoOfRecords() > copy.getMaxRows())
     {
       copy.setMaxRows(table.getNoOfRecords());
     }

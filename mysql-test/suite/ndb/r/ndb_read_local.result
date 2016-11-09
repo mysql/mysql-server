@@ -1,0 +1,367 @@
+use test;
+Test read-locality of FULLY-REPLICATED
+create table test.t1 (a int primary key, 
+b int, 
+c int, 
+d int, 
+unique(b) using hash, 
+key(c), 
+key(a,c)) 
+comment="NDB_TABLE=FULLY_REPLICATED=1" 
+engine=ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+create table test.t2 (a int primary key,
+b int,
+c int,
+d text,
+unique(b) using hash,
+key(c))
+comment="NDB_TABLE=FULLY_REPLICATED=1"
+   engine=ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+Tests on T1 (!Blobs)
+Put some data in.
+Make it more interesting for joining
+update test.t1 set c=c+1, d=d+1;
+Check 2 replicas 
+select count(distinct node_id) 
+from ndbinfo.operations_per_fragment
+where fq_name='test/def/t1'
+   and fragment_num=0;
+count(distinct node_id)
+2
+Check 1 NG (2 replicas + only 2 nodes)
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment;
+count(distinct node_id)
+2
+Test some basic NdbApi
+PK lookups
+explain select * from test.t1 where t1.a=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` = 6)
+Error insert to ensure that TC requests are purely local
+UI lookups
+explain select * from test.t1 where t1.b=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	ref	b	b	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` = 6)
+Error insert to ensure that TC requests are purely local
+OI scan
+explain select * from test.t1 where c > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t1`.`c` > 6); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`c` > 6)
+Error insert to ensure that TC requests are purely local
+Table scan
+explain select * from test.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1`
+Error insert to ensure that TC requests are purely local
+Test pushed queries (SPJ)
+Pushed pk->pk
+Lookup to get a.d, feeding pk lookup of b.a
+explain select a.a, a.d, b.d
+from 
+test.t1 a 
+join 
+test.t1 b
+on 
+a.d = b.a
+where a.a = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
+Error insert to ensure that SPJ requests are purely local
+Pushed uk->uk
+Lookup to get a.d, feeding uk lookup of b.b
+explain select a.a, a.d, b.d
+from 
+test.t1 a 
+join 
+test.t1 b
+on 
+a.d = b.b
+where a.b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
+Error insert to ensure that SPJ requests are purely local
+Pushed uk->pk
+Lookup to get a.d, feeding pk lookup of b.a
+explain select a.a, a.d, b.d
+from 
+test.t1 a 
+join 
+test.t1 b
+on 
+a.d = b.a
+where a.b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
+Error insert to ensure that SPJ requests are purely local
+Pushed scan originating sub-lookups
+Table scan to get a.d, feeding pk lookups of b.a
+explain select a.a, a.d, b.d 
+from 
+test.t1 a 
+join 
+test.t1 b
+on 
+a.d = b.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`a` = `test`.`a`.`d`)
+Error insert to ensure that SPJ requests are purely local
+select a.a, a.d, b.d 
+from 
+test.t1 a 
+join 
+test.t1 b
+on 
+a.d = b.a;
+Pushed scan originating sub-scans
+Range scan on a.a > 10 getting a.d, feeding range scans on b.c = a.d
+explain select a.a, a.d, b.d
+from 
+test.t1 a
+join 
+test.t1 b
+on 
+b.c=a.d
+where
+a.a>10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
+1	SIMPLE	b	#	ref	c	c	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`c` = `test`.`a`.`d`) and (`test`.`a`.`a` > 10))
+Error insert to ensure that SPJ requests are purely local
+select a.a, a.d, b.d
+from 
+test.t1 a
+join 
+test.t1 b
+on 
+b.c=a.d
+where
+a.a>10;
+Tests on T2 (Blobs)
+Put some data in.
+insert into test.t2 select a,b,c,repeat('BJC',300) from test.t1;
+Test some basic NdbApi
+explain select * from test.t2 where t2.a=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	eq_ref	PRIMARY	PRIMARY	4	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`a` = 6)
+Error insert to ensure that TC requests are purely local
+UI lookups
+explain select * from test.t2 where t2.b=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	ref	b	b	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 6)
+Error insert to ensure that TC requests are purely local
+drop table test.t1;
+drop table test.t2;
+Test read-locality of READ-BACKUP
+create table test.t1 (a int primary key, 
+b int, 
+c int, 
+d int, 
+unique(b) using hash, 
+key(c), 
+key(a,c)) 
+comment="NDB_TABLE=READ_BACKUP=1" 
+engine=ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+create table test.t2 (a int primary key,
+b int,
+c int,
+d text,
+unique(b) using hash,
+key(c))
+comment="NDB_TABLE=READ_BACKUP=1"
+   engine=ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+Tests on T1 (!Blobs)
+Put some data in.
+Make it more interesting for joining
+update test.t1 set c=c+1, d=d+1;
+Check 2 replicas 
+select count(distinct node_id) 
+from ndbinfo.operations_per_fragment
+where fq_name='test/def/t1'
+   and fragment_num=0;
+count(distinct node_id)
+2
+Check 1 NG (2 replicas + only 2 nodes)
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment;
+count(distinct node_id)
+2
+Test some basic NdbApi
+PK lookups
+explain select * from test.t1 where t1.a=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` = 6)
+Error insert to ensure that TC requests are purely local
+UI lookups
+explain select * from test.t1 where t1.b=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	ref	b	b	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` = 6)
+Error insert to ensure that TC requests are purely local
+OI scan
+explain select * from test.t1 where c > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t1`.`c` > 6); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`c` > 6)
+Error insert to ensure that TC requests are purely local
+Table scan
+explain select * from test.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1`
+Error insert to ensure that TC requests are purely local
+Test pushed queries (SPJ)
+Pushed pk->pk
+Lookup to get a.d, feeding pk lookup of b.a
+explain select a.a, a.d, b.d
+from 
+test.t1 a 
+join 
+test.t1 b
+on 
+a.d = b.a
+where a.a = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
+Error insert to ensure that SPJ requests are purely local
+Pushed uk->uk
+Lookup to get a.d, feeding uk lookup of b.b
+explain select a.a, a.d, b.d
+from 
+test.t1 a 
+join 
+test.t1 b
+on 
+a.d = b.b
+where a.b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
+Error insert to ensure that SPJ requests are purely local
+Pushed uk->pk
+Lookup to get a.d, feeding pk lookup of b.a
+explain select a.a, a.d, b.d
+from 
+test.t1 a 
+join 
+test.t1 b
+on 
+a.d = b.a
+where a.b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
+Error insert to ensure that SPJ requests are purely local
+Pushed scan originating sub-lookups
+Table scan to get a.d, feeding pk lookups of b.a
+explain select a.a, a.d, b.d 
+from 
+test.t1 a 
+join 
+test.t1 b
+on 
+a.d = b.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`a` = `test`.`a`.`d`)
+Error insert to ensure that SPJ requests are purely local
+select a.a, a.d, b.d 
+from 
+test.t1 a 
+join 
+test.t1 b
+on 
+a.d = b.a;
+Pushed scan originating sub-scans
+Range scan on a.a > 10 getting a.d, feeding range scans on b.c = a.d
+explain select a.a, a.d, b.d
+from 
+test.t1 a
+join 
+test.t1 b
+on 
+b.c=a.d
+where
+a.a>10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
+1	SIMPLE	b	#	ref	c	c	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`c` = `test`.`a`.`d`) and (`test`.`a`.`a` > 10))
+Error insert to ensure that SPJ requests are purely local
+select a.a, a.d, b.d
+from 
+test.t1 a
+join 
+test.t1 b
+on 
+b.c=a.d
+where
+a.a>10;
+Tests on T2 (Blobs)
+Put some data in.
+insert into test.t2 select a,b,c,repeat('BJC',300) from test.t1;
+Test some basic NdbApi
+explain select * from test.t2 where t2.a=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	eq_ref	PRIMARY	PRIMARY	4	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`a` = 6)
+Error insert to ensure that TC requests are purely local
+UI lookups
+explain select * from test.t2 where t2.b=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	ref	b	b	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 6)
+Error insert to ensure that TC requests are purely local
+drop table test.t1;
+drop table test.t2;

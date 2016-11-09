@@ -1,0 +1,47 @@
+-- source include/have_ndb.inc
+
+--let $ndb_desc_file= $MYSQLTEST_VARDIR/tmp/ndb_desc_out.txt
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY(a,b))
+  ENGINE = NDB
+  PARTITION BY KEY (a);
+
+insert into t1 values 
+       (1,1,3),(1,2,3),(1,3,3),(1,4,3),(1,5,3),(1,6,3),
+       (1,7,3),(1,8,3),(1,9,3),(1,10,3),(1,11,3),(1,12,3);
+
+select * from t1 order by b;
+
+# --exec $NDB_DESC --no-defaults -d test t1 | grep 'Max Rows'
+--exec $NDB_DESC --no-defaults -d test t1 > $ndb_desc_file
+--let $assert_text= Checking MAX_ROWS is unchanged
+--let $assert_select= Max Rows: 0
+--let $assert_file= $ndb_desc_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--source include/ndb_backup.inc
+drop table t1;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# --exec $NDB_DESC --no-defaults -d test t1 | grep 'Max Rows'
+--exec $NDB_DESC --no-defaults -d test t1 > $ndb_desc_file
+--let $assert_text= Checking MAX_ROWS is unchanged
+--let $assert_select= Max Rows: 0
+--let $assert_file= $ndb_desc_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+select * from t1 order by b;
+
+# Trigger assert from bug#22904640 with an alter table
+# not actually doing any changes to partitioniong
+ALTER TABLE t1 algorithm=inplace, REORGANIZE PARTITION;
+
+DROP TABLE t1;
+

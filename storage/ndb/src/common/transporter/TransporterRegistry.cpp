@@ -1920,7 +1920,7 @@ TransporterRegistry::do_connect(NodeId node_id)
   case DISCONNECTING:
     /**
      * NOTE (Need future work)
-     * Going directly from DISCONNECTION to CONNECTING creates
+     * Going directly from DISCONNECTING to CONNECTING creates
      * a possile race with ::update_connections(): It will
      * see either of the *ING states, and bring the connection
      * into CONNECTED or *DISCONNECTED* state. Furthermore, the
@@ -1932,12 +1932,6 @@ TransporterRegistry::do_connect(NodeId node_id)
   }
   DBUG_ENTER("TransporterRegistry::do_connect");
   DBUG_PRINT("info",("performStates[%d]=CONNECTING",node_id));
-
-  /*
-    No one else should be using the transporter now, reset
-    its send buffer
-   */
-  callbackObj->reset_send_buffer(node_id);
 
   Transporter * t = theTransporters[node_id];
   if (t != NULL)
@@ -1986,12 +1980,11 @@ TransporterRegistry::report_connect(TransporterReceiveHandle& recvdata,
 
   /*
     The send buffers was reset when this connection
-    was set to CONNECTING. In order to make sure no stray
+    was set to DISCONNECTED. In order to make sure no stray
     signals has been written to the send buffer since then
-    call 'reset_send_buffer' with the "should_be_empty" flag
-    set
+    check that the send buffers still are empty.
   */
-  callbackObj->reset_send_buffer(node_id, true);
+  assert(!callbackObj->has_data_to_send(node_id));
 
   if (recvdata.epoll_add((TCP_Transporter*)theTransporters[node_id]))
   {
@@ -2030,6 +2023,11 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
   }
 #endif
 
+  /*
+    No one else should be using the transporter now,
+    reset its send buffer and recvdata
+   */
+  callbackObj->reset_send_buffer(node_id);
   performStates[node_id] = DISCONNECTED;
   recvdata.m_recv_transporters.clear(node_id);
   recvdata.m_has_data_transporters.clear(node_id);
@@ -2729,16 +2727,11 @@ TransporterRegistry::has_data_to_send(NodeId node)
 }
 
 void
-TransporterRegistry::reset_send_buffer(NodeId node, bool should_be_empty)
+TransporterRegistry::reset_send_buffer(NodeId node)
 {
   assert(m_use_default_send_buffer);
-
-  // Make sure that buffer is already empty if the "should_be_empty"
-  // flag is set. This is done to quickly catch any stray signals
-  // written to the send buffer while not being connected
-  if (should_be_empty && !has_data_to_send(node))
+  if (!has_data_to_send(node))
     return;
-  assert(!should_be_empty);
 
   SendBuffer *b = m_send_buffers + node;
   SendBufferPage *page = b->m_first_page;

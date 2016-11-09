@@ -222,6 +222,7 @@ Thrman::execSTTOR(Signal *signal)
     m_overload_handling_activated = false;
     m_current_overload_status = (OverloadStatus)LIGHT_LOAD_CONST;
     m_warning_level = 0;
+    m_max_warning_level = 20;
     m_burstiness = 0;
     m_current_decision_stats = &c_1sec_stats;
     m_send_thread_percentage = 0;

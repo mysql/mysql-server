@@ -3751,7 +3751,8 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
 		    Uint32 sizes[2],
 		    Tuple_header* src, 
 		    const Tablerec* tabPtrP,
-		    bool disk)
+		    bool disk,
+                    bool from_lcp_keep)
 {
   Uint32 bits= src->m_header_bits;
   Uint32 extra_bits = bits;
@@ -3797,18 +3798,38 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
         Ptr<Page> var_page;
         src_data= get_ptr(&var_page, *var_ref);
         src_len= get_len(&var_page, *var_ref);
+
+        jam();
+        /**
+         * Coming here with MM_GROWN set is possible if we are coming here
+         * from handle_lcp_keep_commit. In this case we are currently
+         * performing a DELETE operation. This operation is the final
+         * operation that will be committed. It could very well have
+         * been preceeded by an UPDATE operation that did set the
+         * MM_GROWN bit. In this case it is important to get the original
+         * length from the end of the varsize part and not the page
+         * entry length which is essentially the meaning of the MM_GROWN
+         * bit.
+         *
+         * An original tuple can't have grown as we're expanding it...
+         * else we would be "re-expanding". This is the case when coming
+         * here as part of INSERT/UPDATE/REFRESH. We assert on that we
+         * don't do any "re-expanding".
+         */
+        if (bits & Tuple_header::MM_GROWN)
+        {
+          jam();
+          ndbrequire(from_lcp_keep);
+          ndbassert(src_len>0);
+          src_len= src_data[src_len-1];
+        }
         sizes[MM]= src_len;
         step= 0;
         req_struct->m_varpart_page_ptr = var_page;
-        
-        /* An original tuple cant have grown as we're expanding it...
-         * else we would be "re-expand"*/
-        ndbassert(! (bits & Tuple_header::MM_GROWN));
       }
       else
       {
         /* This is for the re-expansion of a shrunken row (update2 ...) */
-
         Varpart_copy* vp = (Varpart_copy*)src_ptr;
         src_len = vp->m_len;
         src_data= vp->m_data;
@@ -3868,9 +3889,6 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
     src_ptr = src_ptr + step;
   }
 
-  src->m_header_bits= bits & 
-    ~(Uint32)(Tuple_header::MM_SHRINK | Tuple_header::MM_GROWN);
- 
   /**
    * The source tuple only touches the header parts. The updates of the
    * tuple is applied on the new copy tuple. We still need to ensure that
@@ -4308,14 +4326,15 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
   Uint32 copy_bits= req_struct->m_tuple_ptr->m_header_bits;
   
   if(sizes[2+MM] == sizes[MM])
-    ;
+    jam();
   else if(sizes[2+MM] < sizes[MM])
   {
     if(0) ndbout_c("shrink");
-    req_struct->m_tuple_ptr->m_header_bits= copy_bits|Tuple_header::MM_SHRINK;
+    jam();
   }
   else
   {
+    jam();
     if(0) printf("grow - ");
     Ptr<Page> pagePtr = req_struct->m_varpart_page_ptr;
     Var_page* pageP= (Var_page*)pagePtr.p;
@@ -4363,6 +4382,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     {
       //ndbassert(!regOperPtr->is_first_operation());
       if (0) ndbout_c(" no grow");
+      jam();
       return 0;
     }
     Uint32 *new_var_part=realloc_var_part(&terrorCode,

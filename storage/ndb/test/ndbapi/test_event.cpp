@@ -3273,7 +3273,7 @@ runBug37338(NDBT_Context* ctx, NDBT_Step* step)
     NdbEventOperation* pOp0;
     NdbDictionary::Dictionary * dict0;
 
-    cc(&con0, &ndb0);
+    CHK(cc(&con0, &ndb0) == 0, "Establishing new cluster connection failed");
     dict0 = ndb0->getDictionary();
     if (dict0->createTable(copy) != 0)
     {

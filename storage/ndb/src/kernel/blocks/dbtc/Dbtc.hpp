@@ -986,7 +986,8 @@ public:
       SOF_DEFERRED_UK_TRIGGER = 128,  // Op has deferred trigger
       SOF_DEFERRED_FK_TRIGGER = 256,
       SOF_FK_READ_COMMITTED = 512,    // reply to TC even for dirty read
-      SOF_FULLY_REPLICATED_TRIGGER = 1024
+      SOF_FULLY_REPLICATED_TRIGGER = 1024,
+      SOF_UTIL_FLAG = 2048            // Sender to TC is DBUTIL (higher prio)
     };
     
     static inline bool isIndexOp(Uint16 flags) {
@@ -1077,7 +1078,8 @@ public:
        * EXECUTION MODE OF OPERATION                    
        * 0 = NORMAL EXECUTION, 1 = INTERPRETED EXECUTION
        */
-      Uint8  opExec;     
+      Uint8  opExec;
+      Uint8  m_read_committed_base;
     
       /* Use of Long signals */
       Uint8  isLongTcKeyReq;   /* Incoming TcKeyReq used long signal */
@@ -1428,6 +1430,7 @@ public:
      * Send opcount/total len as different words
      */
     bool m_4word_conf;
+    bool m_read_committed_base;
 
     /**
      *
