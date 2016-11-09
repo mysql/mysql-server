@@ -14,7 +14,6 @@
  #
 
 --source include/mysql_upgrade_preparation.inc
---source include/not_ndb.inc
 
 USE test;
 
@@ -31,7 +30,9 @@ SELECT COLUMN_NAME, ORDINAL_POSITION
 --echo # Scenario 1:
 --echo # Verify that the upgrade script works correctly when upgrading from the same version
 --echo # i.e. when both the columns Channel_name and Tls_version are in the correct order.
+--disable_result_log
 --exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force 2>&1
+--enable_result_log
 
 CREATE TABLE test.upgraded
 SELECT COLUMN_NAME, ORDINAL_POSITION
@@ -52,7 +53,9 @@ ALTER TABLE mysql.slave_master_info
   AFTER Tls_version;
 
 --echo # Running mysql_upgrade to update slave_master_info table
+--disable_result_log
 --exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force 2>&1
+--enable_result_log
 
 --echo # Verify that the columns Channel_name and Tls_version are now in correct order.
 CREATE TABLE test.upgraded
@@ -97,7 +100,9 @@ CREATE TABLE `mysql`.`slave_master_info` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information';
 
 --echo #Running mysql_upgrade to update slave_master_info table
+--disable_result_log
 --exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force 2>&1
+--enable_result_log
 
 --echo #Verify that the columns Channel_name and Tls_version are added and are in correct order.
 CREATE TABLE test.upgraded
