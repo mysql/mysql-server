@@ -679,6 +679,20 @@ protected:
 };
 
 
+class Create_func_as_wkb : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_as_wkb s_singleton;
+
+protected:
+  Create_func_as_wkb() {}
+  virtual ~Create_func_as_wkb() {}
+};
+
+
 class Create_func_atan : public Create_native_func
 {
 public:
@@ -1968,6 +1982,45 @@ Create_func_as_geojson::create_native(THD *thd, LEX_STRING name,
       Item *options= item_list->pop_front();
       func= new (thd->mem_root) Item_func_as_geojson(thd, POS(), geometry,
                                                      maxdecimaldigits, options);
+      break;
+    }
+  default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
+}
+
+
+
+Create_func_as_wkb Create_func_as_wkb::s_singleton;
+
+Item*
+Create_func_as_wkb::create_native(THD *thd, LEX_STRING name,
+                                  PT_item_list *item_list)
+{
+  Item* func= nullptr;
+  int arg_count= 0;
+
+  if (item_list != nullptr)
+    arg_count= item_list->elements();
+
+  switch (arg_count)
+  {
+  case 1:
+    {
+      Item *param_1= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_as_wkb(POS(), param_1);
+      break;
+    }
+  case 2:
+    {
+      Item *param_1= item_list->pop_front();
+      Item *param_2= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_as_wkb(POS(), param_1, param_2);
       break;
     }
   default:
@@ -4631,10 +4684,10 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("STRCMP") }, SQL_FN(Item_func_strcmp, 2) },
   { { C_STRING_WITH_LEN("STR_TO_DATE") }, SQL_FN(Item_func_str_to_date, 2) },
   { { C_STRING_WITH_LEN("ST_AREA") }, SQL_FN(Item_func_area, 1) },
-  { { C_STRING_WITH_LEN("ST_ASBINARY") }, SQL_FN(Item_func_as_wkb, 1) },
+  { { C_STRING_WITH_LEN("ST_ASBINARY") }, GEOM_BUILDER(Create_func_as_wkb) },
   { { C_STRING_WITH_LEN("ST_ASGEOJSON") }, GEOM_BUILDER(Create_func_as_geojson)},
   { { C_STRING_WITH_LEN("ST_ASTEXT") }, SQL_FN(Item_func_as_wkt, 1) },
-  { { C_STRING_WITH_LEN("ST_ASWKB") }, SQL_FN(Item_func_as_wkb, 1) },
+  { { C_STRING_WITH_LEN("ST_ASWKB") }, GEOM_BUILDER(Create_func_as_wkb) },
   { { C_STRING_WITH_LEN("ST_ASWKT") }, SQL_FN(Item_func_as_wkt, 1) },
   { { C_STRING_WITH_LEN("ST_BUFFER") }, GEOM_BUILDER(Create_func_buffer)},
   { { C_STRING_WITH_LEN("ST_BUFFER_STRATEGY") }, GEOM_BUILDER(Create_func_buffer_strategy)},

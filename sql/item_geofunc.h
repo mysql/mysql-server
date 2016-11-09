@@ -350,6 +350,8 @@ class Item_func_as_wkb: public Item_geometry_func
 {
 public:
   Item_func_as_wkb(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
+  Item_func_as_wkb(const POS &pos, Item *a, Item *b)
+                   : Item_geometry_func(pos, a, b) {}
   const char *func_name() const { return "st_aswkb"; }
   String *val_str(String *);
   enum_field_types field_type() const  { return MYSQL_TYPE_BLOB; }

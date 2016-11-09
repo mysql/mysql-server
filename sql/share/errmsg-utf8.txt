@@ -7859,6 +7859,30 @@ ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE
 ER_NO_SYSTEM_TABLE_ACCESS_FOR_TABLE
   eng "table"
 
+ER_INVALID_OPTION_KEY 22023
+  eng "Invalid option key '%.192s' in function %.192s."
+
+ER_INVALID_OPTION_VALUE 22023
+  eng "Invalid value '%.192s' for option '%.192s' in function '%.192s'."
+
+ER_INVALID_OPTION_KEY_VALUE_PAIR 22023
+  eng "The string '%.192s' is not a valid key %c value pair in function %.192s."
+
+ER_INVALID_OPTION_START_CHARACTER 22023
+  eng "The options argument in function %.192s starts with the invalid character '%c'."
+
+ER_INVALID_OPTION_END_CHARACTER 22023
+  eng "The options argument in function %.192s ends with the invalid character '%c'."
+
+ER_INVALID_OPTION_CHARACTERS 22023
+  eng "The options argument in function %.192s contains the invalid character sequence '%.192s'."
+
+ER_DUPLICATE_OPTION_KEY 22023
+  eng "Duplicate option key '%.192s' in funtion '%.192s'."
+
+ER_WARN_SRS_NOT_FOUND_AXIS_ORDER 01000
+  eng "There's no spatial reference system with SRID %u. The axis order is unknown."
+
 #
 #  End of 8.0 error messages.
 #

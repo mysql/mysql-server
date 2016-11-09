@@ -147,6 +147,11 @@ public:
   virtual bool is_cartesian() const override
   { return (m_parsed_definition->srs_type() == gis::srs::Srs_type::PROJECTED); }
 
+  virtual bool is_geographic() const override
+  { return m_parsed_definition->srs_type() == gis::srs::Srs_type::GEOGRAPHIC; }
+
+  virtual bool is_lat_long() const override;
+
   /////////////////////////////////////////////////////////////////////////
   // description
   /////////////////////////////////////////////////////////////////////////

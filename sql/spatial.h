@@ -626,6 +626,18 @@ public:
   virtual int interior_ring_n(uint32 num, String *result) const { return -1; }
   virtual int geometry_n(uint32 num, String *result) const { return -1; }
 
+  /**
+    Reverses the coordinates of a geometry.
+
+    Switches the coordinates of the wkb string pointed to by the Geometry.
+    Ex: Used on a POINT(5,2), the result would be POINT(2, 5).
+
+    @retval false coordinate reversal was successful
+    @retval true coordinate reversal was unsuccessful
+  */
+  virtual bool reverse_coordinates()= 0;
+
+
 public:
   static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id);
 
@@ -964,11 +976,11 @@ public:
 
   /**
     Verify that a string is a well-formed GEOMETRY string.
-   
+
     This does not check if the geometry is geometrically valid.
 
     @see Geometry_well_formed_checker
-   
+
     @param from String to check
     @param length Length of string
     @param type Expected type of geometry, or
@@ -1339,7 +1351,7 @@ public:
   }
   uint32 feature_dimension() const { return 0; }
   const Class_info *get_class_info() const;
-
+  bool reverse_coordinates() override;
 
   /************* Boost Geometry Adapter Interface *************/
 
@@ -2400,6 +2412,12 @@ public:
   void push_back(const T &val);
   void resize(size_t sz);
   void reassemble();
+  bool reverse_coordinates() override
+  {
+    DBUG_ASSERT(false);
+    return true;
+  }
+
 private:
   typedef Gis_wkb_vector<Gis_point> Linestring;
   typedef Gis_wkb_vector<Linestring> Multi_linestrings;
@@ -2431,6 +2449,7 @@ public:
   int point_n(uint32 n, String *result) const;
   uint32 feature_dimension() const { return 1; }
   const Class_info *get_class_info() const;
+  bool reverse_coordinates() override;
 
   /**** Boost Geometry Adapter Interface ******/
 
@@ -2511,7 +2530,7 @@ public:
   int interior_ring_n(uint32 num, String *result) const;
   uint32 feature_dimension() const { return 2; }
   const Class_info *get_class_info() const;
-
+  bool reverse_coordinates() override;
 
   /**** Boost Geometry Adapter Interface ******/
   typedef Gis_polygon self;
@@ -2626,7 +2645,7 @@ public:
   int geometry_n(uint32 num, String *result) const;
   uint32 feature_dimension() const { return 0; }
   const Class_info *get_class_info() const;
-
+  bool reverse_coordinates() override;
 
   /**** Boost Geometry Adapter Interface ******/
 
@@ -2667,6 +2686,7 @@ public:
   int is_closed(int *closed) const;
   uint32 feature_dimension() const { return 1; }
   const Class_info *get_class_info() const;
+  bool reverse_coordinates() override;
 
   /**** Boost Geometry Adapter Interface ******/
 
@@ -2705,7 +2725,7 @@ public:
   int geometry_n(uint32 num, String *result) const;
   uint32 feature_dimension() const { return 2; }
   const Class_info *get_class_info() const;
-
+  bool reverse_coordinates() override;
 
   /**** Boost Geometry Adapter Interface ******/
   typedef Gis_multi_polygon self;
@@ -2759,6 +2779,7 @@ public:
     DBUG_ASSERT(0);
     return 0;
   }
+  bool reverse_coordinates() override;
   const Class_info *get_class_info() const;
 };
 
