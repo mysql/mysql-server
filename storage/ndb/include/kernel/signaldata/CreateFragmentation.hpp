@@ -40,7 +40,8 @@ public:
   STATIC_CONST( SignalLength = 8 );
   
   enum RequestInfo {
-    RI_ADD_PARTITION = 0x1,
+    RI_CREATE_FRAGMENTATION = 0x0,
+    RI_ADD_FRAGMENTS = 0x1,
     RI_GET_FRAGMENTATION = 0x2
   };
 private:
@@ -51,7 +52,7 @@ private:
   Uint32 noOfFragments;
   Uint32 primaryTableId;  // use same fragmentation as this table if not RNIL
   Uint32 map_ptr_i;
-  Uint32 fragmentCountType;
+  Uint32 partitionBalance;
   Uint32 partitionCount;
 };
 

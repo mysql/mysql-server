@@ -428,7 +428,7 @@ public:
     RopeHandle ngData;
     RopeHandle rangeData;
 
-    Uint32 fragmentCountType;
+    Uint32 partitionBalance;
     Uint32 fragmentCount;
     Uint32 partitionCount;
     Uint32 m_tablespace_id;
@@ -1006,9 +1006,11 @@ private:
   void execALTER_TABLE_REQ(Signal* signal);
 
   Uint32 get_fragmentation(Signal*, Uint32 tableId);
-  Uint32 create_fragmentation(Signal* signal, TableRecordPtr,
-                              const Uint16*, Uint32 cnt,
-                              Uint32 flags = 0);
+  Uint32 create_fragmentation(Signal* signal,
+                              TableRecordPtr,
+                              const Uint16*,
+                              Uint32 cnt,
+                              Uint32 flags);
   void execCREATE_FRAGMENTATION_REQ(Signal*);
   void execCREATE_FRAGMENTATION_REF(Signal*);
   void execCREATE_FRAGMENTATION_CONF(Signal*);
@@ -2960,6 +2962,8 @@ private:
     // used for creating subops for add partitions, wrt ordered index
     bool m_sub_reorg_commit;
     bool m_sub_reorg_complete;
+    bool m_sub_read_backup;
+    Uint32 m_sub_read_backup_ptr;
     bool m_sub_add_frag;
     Uint32 m_sub_add_frag_index_ptr;
     bool m_sub_reorg_trigger;
@@ -2978,6 +2982,8 @@ private:
       m_blockNo[2] = DBSPJ;
       m_blockNo[3] = DBTC;
       m_blockIndex = 0;
+      m_sub_read_backup = false;
+      m_sub_read_backup_ptr = RNIL;
       m_sub_add_frag_index_ptr = RNIL;
       m_sub_add_frag = false;
       m_sub_reorg_commit = false;
@@ -3010,6 +3016,8 @@ private:
   //
   void alterTable_abortParse(Signal*, SchemaOpPtr);
   void alterTable_abortPrepare(Signal*, SchemaOpPtr);
+
+  void alterTable_toReadBackup(Signal *signal, SchemaOpPtr op_ptr);
 
   void alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr);
   void alterTable_fromCopyData(Signal*, Uint32 op_key, Uint32 ret);
@@ -4775,11 +4783,10 @@ public:
   NdbNodeBitmask c_sub_startstop_lock;
 
   Uint32 get_default_fragments(Signal*,
-                               Uint32 fragmentCountType =
-                                 NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE,
-                               Uint32 extra_nodegroups = 0);
-  Uint32 get_default_fragments_fully_replicated(Signal *signal,
-                                                Uint32 fragmentCountType);
+                               Uint32 partitionBalance,
+                               Uint32 extra_nodegroups);
+  Uint32 get_default_partitions_fully_replicated(Signal *signal,
+                                                 Uint32 partitionBalance);
   void wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags);
 
   void block_substartstop(Signal* signal, SchemaOpPtr op_ptr);

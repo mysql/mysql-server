@@ -2674,41 +2674,44 @@ BackupRestore::table(const TableS & table){
       copy.setTablespace(* ts);
     }
 
+    NdbDictionary::Object::PartitionBalance part_bal;
+    part_bal = copy.getPartitionBalance();
+    if (part_bal == 0)
+    {
+      /* Pre 7.5.2 */
+      if (copy.getDefaultNoPartitionsFlag())
+      {
+        part_bal = NdbDictionary::Object::PartitionBalance_ForRPByLDM;
+      }
+      else
+      {
+        part_bal = NdbDictionary::Object::PartitionBalance_Specific;
+      }
+      copy.setPartitionBalance(part_bal);
+    }
+    if (part_bal != NdbDictionary::Object::PartitionBalance_Specific)
+    {
+      /* Let the partition balance decide partition count */
+      copy.setFragmentCount(0);
+    }
     if (copy.getFragmentType() == NdbDictionary::Object::HashMapPartition)
     {
-      switch(copy.getFragmentCountType()) {
-      case NdbDictionary::Object::FragmentCount_Specific:
-      {
-        /**
-         * The only specific information we have in specific hash map
-         * partitions is really the number of fragments. Other than
-         * that we can use a new hash map. We won't be able to restore
-         * in exactly the same distribution anyways. So we set the
-         * hash map to be non-existing and thus it will be created
-         * as part of creating the table. The fragment count is already
-         * set in the copy object.
-         */
-        NdbDictionary::HashMap nullMap;
-        assert(Uint32(nullMap.getObjectId()) == RNIL);
-        assert(Uint32(nullMap.getObjectVersion()) == ~Uint32(0));
-        copy.setHashMap(nullMap);
-        break;
-      }
-      case NdbDictionary::Object::FragmentCount_OnePerLDMPerNode:
-      case NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup:
-      case NdbDictionary::Object::FragmentCount_OnePerNode:
-      case NdbDictionary::Object::FragmentCount_OnePerNodeGroup:
-        /**
-         * Use the FragmentCountType to resize table for this cluster...
-         *   set "null" hashmap
-         */
-        NdbDictionary::HashMap nullMap;
-        assert(Uint32(nullMap.getObjectId()) == RNIL);
-        assert(Uint32(nullMap.getObjectVersion()) == ~Uint32(0));
-        copy.setFragmentCount(0);
-        copy.setHashMap(nullMap);
-        break;
-      }
+      /**
+       * The only specific information we have in specific hash map
+       * partitions is really the number of fragments. Other than
+       * that we can use a new hash map. We won't be able to restore
+       * in exactly the same distribution anyways. So we set the
+       * hash map to be non-existing and thus it will be created
+       * as part of creating the table. The fragment count is already
+       * set in the copy object.
+       *
+       * Use the PartitionBalance to resize table for this cluster...
+       *   set "null" hashmap
+       */
+      NdbDictionary::HashMap nullMap;
+      assert(Uint32(nullMap.getObjectId()) == RNIL);
+      assert(Uint32(nullMap.getObjectVersion()) == ~Uint32(0));
+      copy.setHashMap(nullMap);
     }
     else if (copy.getDefaultNoPartitionsFlag())
     {

@@ -15,12 +15,58 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
-#include "mysql/plugin.h"
-#include "ndbapi/NdbApi.hpp"
+#include <my_global.h>
+#include <mysql/plugin.h>
+#include <ndbapi/NdbApi.hpp>
 #include "portlib/NdbTick.h"
-#include "my_sys.h"               // my_sleep.h
 #include "sql_thd_internal_api.h" // thd_query_unsafe
+
+#include <my_sys.h>               // my_sleep.h
+#include "sql_class.h"
+
+
+/**
+ * There is a potential for deadlocks between MDL and GSL locks:
+ *
+ * A client thread might have acquired an MDL_INTENTIONAL_EXCLUSIVE (IX)
+ * lock, and attempt to upgrade this to a MDL_EXCLUSIVE (X) locks, which
+ * requires the GSL lock to be taken.
+ *
+ * However, the GSL lock may already be held by the binlog schema-change
+ * coordinator on another mysqld. All participants has to complete
+ * the schema change op before the coordinator will release the GSL.
+ * As part of that, the participants will request a MDL-X-lock which blocks
+ * due to the other client thread holding an MDL-IX-lock. Thus, we
+ * have effectively a deadlock between the client thread and the 
+ * schema change participant.
+ *
+ * We detect, and break, such deadlock by recording whether we
+ * have an active 'IS_SCHEMA_DIST_PARTICIPANT' on this mysqld.
+ * Iff another GSL request times-out while there are active
+ * schema dist participants, we *assume* we were involved in
+ * a deadlock.
+ *
+ * The MDL code is able to handle such deadlocks by releasing the
+ * locks and retry later
+ */
+
+extern mysql_mutex_t ndbcluster_mutex;
+static const THD *thd_gsl_participant= NULL; 
+
+static void ndb_set_gsl_participant(const THD *thd)
+{
+  mysql_mutex_lock(&ndbcluster_mutex);
+  thd_gsl_participant= thd;
+  mysql_mutex_unlock(&ndbcluster_mutex);
+}
+
+static bool ndb_is_gsl_participant_active()
+{
+  mysql_mutex_lock(&ndbcluster_mutex);
+  const bool state= (thd_gsl_participant != NULL);
+  mysql_mutex_unlock(&ndbcluster_mutex);
+  return state;
+}
 
 /* perform random sleep in the range milli_sleep to 2*milli_sleep */
 static inline
@@ -35,7 +81,15 @@ void do_retry_sleep(unsigned milli_sleep)
 /*
   The lock/unlock functions use the BACKUP_SEQUENCE row in SYSTAB_0
 
-  The function will retry infintely or until the THD is killed
+  The function will retry infintely or until the THD is killed or a 
+  GSL / MDL deadlock is detected/assumed. In the later case a
+  timeout error (266) is returned. 
+
+  Returns a NdbTransaction owning the gsl-lock if it was taken.
+  NULL is returned if failed to take lock. Returned NdbError
+  will then contain the error code if lock failed due
+  to some NdbError. If there are no error code set, lock
+  was rejected by lock manager, likely due to deadlock. 
 */
 static NdbTransaction *
 gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error)
@@ -79,6 +133,24 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error)
       goto error_handler;
     else if (thd_killed(thd))
       goto error_handler;
+
+    /**
+     * Check for MDL / GSL deadlock. A deadlock is assumed if:
+     *  1) ::execute failed with a timeout error.
+     *  2) There already is another THD being an participant
+     *     in a schema distr. operation (which implies that
+     *     the coordinator already held the GSL.
+     *  3) This THD holds a lock being waited for by another THD
+     *
+     * Note: If we incorrectly assume a deadlock above, the calle
+     * will still either retry indefinitely as today, (notify_alter),
+     * or now be able to release locks gotten so far and retry later.
+     */
+    if (trans->getNdbError().code == 266 &&     // 1)
+        ndb_is_gsl_participant_active()  &&     // 2)
+        thd->mdl_context.has_locks_waited_for())// 3)
+      goto error_handler;
+
   retry:
     if (trans)
     {
@@ -153,18 +225,24 @@ private:
 
 /*
   lock/unlock calls are reference counted, so calls to lock
-  must be matched to a call to unlock even if the lock call fails
+  must be matched to a call to unlock if the lock call succeeded
 */
 static
 int
 ndbcluster_global_schema_lock(THD *thd,
-                              bool report_cluster_disconnected)
+                              bool report_cluster_disconnected,
+                              bool *victimized)
 {
   Ndb *ndb= check_ndb_in_thd(thd);
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   NdbError ndb_error;
-  if (thd_ndb->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK))
+  *victimized= false;
+
+  if (thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
+  {
+    ndb_set_gsl_participant(thd);
     return 0;
+  }
   DBUG_ENTER("ndbcluster_global_schema_lock");
 
   if (thd_ndb->global_schema_lock_count)
@@ -205,8 +283,24 @@ ndbcluster_global_schema_lock(THD *thd,
 
     DBUG_RETURN(0);
   }
+  // Else, didn't get GSL: Deadlock or failure from ndbcluster:
 
-  if (ndb_error.code != 4009 || report_cluster_disconnected)
+  /**
+   * If GSL request failed due to no cluster connection (4009),
+   * we consider the lock granted, else GSL request failed.
+   */
+  if (ndb_error.code != 4009)  //No cluster connection
+  {
+    DBUG_ASSERT(thd_ndb->global_schema_lock_count == 1);
+    thd_ndb->global_schema_lock_count= 0;
+  }
+
+  if (ndb_error.code == 266)  //Deadlock resolution
+  {
+    ndb_log_info("Failed to acquire global schema lock due to deadlock resolution");
+    *victimized= true;
+  }
+  else if (ndb_error.code != 4009 || report_cluster_disconnected)
   {
     ndb_log_warning("Failed to acquire global schema lock, error: (%d)%s",
                     ndb_error.code, ndb_error.message);
@@ -226,9 +320,13 @@ ndbcluster_global_schema_unlock(THD *thd)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   DBUG_ASSERT(thd_ndb != 0);
-  if (thd_ndb == 0 ||
-      thd_ndb->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK))
+  if (unlikely(thd_ndb == NULL))
   {
+    return 0;
+  }
+  else if (thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
+  {
+    ndb_set_gsl_participant(NULL);
     return 0;
   }
   Ndb *ndb= thd_ndb->ndb;
@@ -273,16 +371,18 @@ ndbcluster_global_schema_unlock(THD *thd)
 
 static
 bool
-notify_mdl_lock(THD *thd, bool lock)
+notify_mdl_lock(THD *thd, bool lock, bool *victimized)
 {
   DBUG_ENTER("notify_mdl_lock");
 
   if (lock)
   {
-    if (ndbcluster_global_schema_lock(thd, true) != 0)
+    if (ndbcluster_global_schema_lock(thd, true, victimized) != 0)
     {
       DBUG_PRINT("error", ("Failed to lock global schema lock"));
       /*
+        If not 'victimized' in order to avoid deadlocks:
+ 
         Ignore error to lock GSL and let execution continue
         until one of ha_ndbcluster's DDL functions use
         Thd_ndb::has_required_global_schema_lock() to verify
@@ -290,13 +390,16 @@ notify_mdl_lock(THD *thd, bool lock)
         This allows users to work with non NDB objects although
         failure to lock GSL occurs(for example because connection
         to NDB is not available).
+
+        Victimized failures are handled immediately by MDL
+        releasing, and later retrying the locks.
       */
-      DBUG_RETURN(false); // Ignore error!
+      DBUG_RETURN(*victimized == true); // Ignore error if not 'victimized'
     }
     DBUG_RETURN(false); // OK
   }
 
-
+  *victimized= false;
   if (ndbcluster_global_schema_unlock(thd) != 0)
   {
     DBUG_PRINT("error", ("Failed to unlock global schema lock"));
@@ -373,9 +476,15 @@ ndbcluster_notify_alter_table(THD *thd, const MDL_key *mdl_key,
   DBUG_ASSERT(notification == HA_NOTIFY_PRE_EVENT ||
               notification == HA_NOTIFY_POST_EVENT);
 
-  const bool result =
+  bool victimized= false;
+  bool result;
+  do
+  {
+    result =
       notify_mdl_lock(thd,
-                      notification == HA_NOTIFY_PRE_EVENT);
+                      notification == HA_NOTIFY_PRE_EVENT, &victimized);
+  }
+  while (victimized);
   DBUG_RETURN(result);
 }
 
@@ -391,6 +500,8 @@ ndbcluster_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                             lock is to be acquired/was released.
   @param notification_type  Indicates whether this is pre-acquire or
                             post-release notification.
+  @param victimized        'true' if locking failed as we were choosen
+                            as a victim in order to avoid possible deadlocks.
 
   @see notify_exclusive_mdl() in handler.h
 */
@@ -398,7 +509,8 @@ ndbcluster_notify_alter_table(THD *thd, const MDL_key *mdl_key,
 static
 bool
 ndbcluster_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
-                                ha_notification_type notification)
+                                ha_notification_type notification,
+                                bool *victimized)
 {
   DBUG_ENTER("ndbcluster_notify_exclusive_mdl");
   DBUG_PRINT("enter", ("namespace: '%s', db: '%s', name: '%s'",
@@ -410,7 +522,7 @@ ndbcluster_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
 
   const bool result =
       notify_mdl_lock(thd,
-                      notification == HA_NOTIFY_PRE_EVENT);
+                      notification == HA_NOTIFY_PRE_EVENT, victimized);
   DBUG_RETURN(result);
 }
 
@@ -432,7 +544,7 @@ void ndbcluster_global_schema_lock_deinit(handlerton* hton)
 
 
 bool
-Thd_ndb::has_required_global_schema_lock(const char* func)
+Thd_ndb::has_required_global_schema_lock(const char* func) const
 {
   if (global_schema_lock_error)
   {
@@ -473,7 +585,12 @@ Ndb_global_schema_lock_guard::~Ndb_global_schema_lock_guard()
     ndbcluster_global_schema_unlock(m_thd);
 }
 
-
+/**
+ * Set a Global Schema Lock.
+ * May fail due to either Ndb Cluster failure, or due to being
+ * 'victimized' as part of deadlock resolution. In the later case we
+ * retry the GSL locking.
+ */
 int Ndb_global_schema_lock_guard::lock(bool report_cluster_disconnected)
 {
   /* only one lock call allowed */
@@ -485,6 +602,14 @@ int Ndb_global_schema_lock_guard::lock(bool report_cluster_disconnected)
     of calls to lock and unlock need to match up.
   */
   m_locked= true;
+  bool victimized= false;
+  bool ret;
+  do
+  {
+    ret= ndbcluster_global_schema_lock(m_thd, report_cluster_disconnected,
+                                       &victimized);
+  }
+  while (victimized);
 
-  return ndbcluster_global_schema_lock(m_thd, report_cluster_disconnected);
+  return ret;
 }

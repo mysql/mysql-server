@@ -4928,7 +4928,15 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
 
   if (ERROR_INSERTED_CLEAR(5047) ||
-      ERROR_INSERTED(5079))
+      ERROR_INSERTED(5079) ||
+     (ERROR_INSERTED(5102) &&
+      LqhKeyReq::getNoTriggersFlag(Treqinfo)) ||
+     (ERROR_INSERTED(5103) &&
+      LqhKeyReq::getOperation(Treqinfo) == ZDELETE) ||
+     (ERROR_INSERTED(5104) &&
+      LqhKeyReq::getOperation(Treqinfo) == ZINSERT) ||
+     (ERROR_INSERTED(5105) &&
+      LqhKeyReq::getOperation(Treqinfo) == ZUPDATE))
   {
     jam();
     releaseSections(handle);
@@ -18650,6 +18658,11 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
 
     mark_end_of_lcp_restore(signal);
 
+    /* Log Event denoting the completion of the LCP restore */
+    signal->theData[0] = NDB_LE_LCPRestored;
+    signal->theData[1] = c_lcpId;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+
     csrExecUndoLogState = EULS_STARTED;
     lcpPtr.i = 0;
     ptrAss(lcpPtr, lcpRecord);
@@ -21827,7 +21840,8 @@ Uint32 Dblqh::checkIfExecLog(Signal* signal)
   tabptr.i = tcConnectptr.p->tableref;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   if (getFragmentrec(signal, tcConnectptr.p->fragmentid) &&
-      (table_version_major(tabptr.p->schemaVersion) == table_version_major(tcConnectptr.p->schemaVersion))) {
+      (table_version_major(tabptr.p->schemaVersion) ==
+       table_version_major(tcConnectptr.p->schemaVersion))) {
     if (fragptr.p->execSrStatus != Fragrecord::IDLE) {
       if (fragptr.p->execSrNoReplicas > logPartPtr.p->execSrExecuteIndex) {
         ndbrequire((fragptr.p->execSrNoReplicas - 1) < MAX_REPLICAS);

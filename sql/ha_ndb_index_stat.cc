@@ -20,13 +20,13 @@
 #include "ha_ndb_index_stat.h"
 #include <mysql/psi/mysql_thread.h>
 
+#include "ha_ndbcluster_connection.h"
 #include <mysql/plugin.h>
 #include <ctype.h>
 
 
 /* from other files */
 extern struct st_ndb_status g_ndb_status;
-extern mysql_mutex_t ndbcluster_mutex;
 
 // Implementation still uses its own instance
 extern Ndb_index_stat_thread ndb_index_stat_thread;
@@ -2526,19 +2526,15 @@ Ndb_index_stat_thread::do_run()
   /*
     Wait for cluster to start
   */
-  mysql_mutex_lock(&ndb_util_thread.LOCK);
-  while (!is_stop_requested() && !g_ndb_status.cluster_node_id &&
-         (ndbcluster_hton->slot != ~(uint)0))
+  while (!ndbcluster_is_connected(1))
   {
     /* ndb not connected yet */
-    mysql_cond_wait(&ndb_util_thread.COND, &ndb_util_thread.LOCK);
-  }
-  mysql_mutex_unlock(&ndb_util_thread.LOCK);
-
-  if (is_stop_requested())
-  {
-    mysql_mutex_lock(&LOCK_client_waiting);
-    goto ndb_index_stat_thread_end;
+    if (is_stop_requested())
+    {
+      /* Terminated with a stop_request */
+      mysql_mutex_lock(&LOCK_client_waiting);
+      goto ndb_index_stat_thread_end;
+    }
   }
 
   /* Get instance used for sys objects check and create */

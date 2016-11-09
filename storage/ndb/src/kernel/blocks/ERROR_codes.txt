@@ -20,7 +20,7 @@ Next DBACC 3005
 Next DBTUP 4039
 Next DBLQH 5088
 Next DBDICT 6223
-Next DBDIH 7248
+Next DBDIH 7249
 Next DBTC 8109
 Next CMVMI 9000
 Next BACKUP 10042
@@ -135,6 +135,7 @@ GCP Stop so that isolation is required to remove a node.
 7239: Delay GCP_COMMIT processing indefinitely
 7244: Delay SUB_GCP_COMPLETE_REP processing indefinitely
 7247: Delay WAIT_GCP_REQ processing indefinitely
+7248: Skip most recent LCP during a restart
 
 Related (LQH):
   5085 : Ignore request to kill via DUMP 2305
@@ -750,6 +751,7 @@ Dbdict:
 6220 Delay LIST_TABLES_REQ indefinitely
 6221 Delay INDEX_STAT_REQ indefinitely
 6222 Delay CREATE_HASH_MAP_REQ indefinitely
+6223 Only send SCHEMA_TRANS_IMPL_REQ to self preparatory to crashing
 
 Dbtup:
 4014 - handleInsert - Out of undo buffer

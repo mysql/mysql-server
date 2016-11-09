@@ -75,9 +75,16 @@ table_id	table_name	comment
 28	cpustat	Thread CPU stats for last second
 29	frag_locks	Per fragment lock information
 30	acc_operations	ACC operation info
+31	table_distribution_status	Table status in distribution handler
+32	table_fragments	Partitions of the tables
+33	table_replicas	Fragment replicas of the tables
+34	table_distribution_status_all	Table status in distribution handler
+35	table_fragments_all	Partitions of the tables
+36	table_replicas_all	Fragment replicas of the tables
+37	stored_tables	Information about stored tables
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-31
+38
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -108,6 +115,13 @@ table_id	table_name	comment
 28	cpustat	Thread CPU stats for last second
 29	frag_locks	Per fragment lock information
 30	acc_operations	ACC operation info
+31	table_distribution_status	Table status in distribution handler
+32	table_fragments	Partitions of the tables
+33	table_replicas	Fragment replicas of the tables
+34	table_distribution_status_all	Table status in distribution handler
+35	table_fragments_all	Partitions of the tables
+36	table_replicas_all	Fragment replicas of the tables
+37	stored_tables	Information about stored tables
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
@@ -150,7 +164,14 @@ table_id	table_name
 3	pools
 7	resources
 21	restart_info
+37	stored_tables
 0	tables
+31	table_distribution_status
+34	table_distribution_status_all
+32	table_fragments
+35	table_fragments_all
+33	table_replicas
+36	table_replicas_all
 22	tc_time_track_stats
 2	test
 11	threadblocks
@@ -224,6 +245,13 @@ table_id
 28
 29
 30
+31
+32
+33
+34
+35
+36
+37
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -621,6 +649,124 @@ tc_node_id	bigint(21) unsigned	YES		NULL
 tc_block_no	bigint(21) unsigned	YES		NULL	
 tc_block_instance	bigint(21) unsigned	YES		NULL	
 
+select count(*) from table_distribution_status;
+count(*)
+8
+select count(*) from ndb$table_distribution_status_all;
+count(*)
+16
+select count(*) from table_fragments;
+count(*)
+56
+select count(*) from ndb$table_fragments_all;
+count(*)
+112
+select count(*) from table_replicas;
+count(*)
+112
+select count(*) from ndb$table_replicas_all;
+count(*)
+224
+desc table_distribution_status;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+table_id	int(10) unsigned	YES		NULL	
+tab_copy_status	varchar(20)	NO			
+tab_update_status	varchar(23)	NO			
+tab_lcp_status	varchar(15)	NO			
+tab_status	varchar(13)	NO			
+tab_storage	varchar(13)	NO			
+tab_partitions	int(10) unsigned	YES		NULL	
+tab_fragments	int(10) unsigned	YES		NULL	
+current_scan_count	int(10) unsigned	YES		NULL	
+scan_count_wait	int(10) unsigned	YES		NULL	
+is_reorg_ongoing	int(10) unsigned	YES		NULL	
+desc ndb$table_distribution_status_all;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+table_id	int(10) unsigned	YES		NULL	
+tab_copy_status	int(10) unsigned	YES		NULL	
+tab_update_status	int(10) unsigned	YES		NULL	
+tab_lcp_status	int(10) unsigned	YES		NULL	
+tab_status	int(10) unsigned	YES		NULL	
+tab_storage	int(10) unsigned	YES		NULL	
+tab_type	int(10) unsigned	YES		NULL	
+tab_partitions	int(10) unsigned	YES		NULL	
+tab_fragments	int(10) unsigned	YES		NULL	
+current_scan_count	int(10) unsigned	YES		NULL	
+scan_count_wait	int(10) unsigned	YES		NULL	
+is_reorg_ongoing	int(10) unsigned	YES		NULL	
+desc table_fragments;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+table_id	int(10) unsigned	YES		NULL	
+partition_id	int(10) unsigned	YES		NULL	
+fragment_id	int(10) unsigned	YES		NULL	
+partition_order	int(10) unsigned	YES		NULL	
+log_part_id	int(10) unsigned	YES		NULL	
+no_of_replicas	int(10) unsigned	YES		NULL	
+current_primary	int(10) unsigned	YES		NULL	
+preferred_primary	int(10) unsigned	YES		NULL	
+current_first_backup	int(10) unsigned	YES		NULL	
+current_second_backup	int(10) unsigned	YES		NULL	
+current_third_backup	int(10) unsigned	YES		NULL	
+num_alive_replicas	int(10) unsigned	YES		NULL	
+num_dead_replicas	int(10) unsigned	YES		NULL	
+num_lcp_replicas	int(10) unsigned	YES		NULL	
+desc ndb$table_fragments_all;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+table_id	int(10) unsigned	YES		NULL	
+partition_id	int(10) unsigned	YES		NULL	
+fragment_id	int(10) unsigned	YES		NULL	
+partition_order	int(10) unsigned	YES		NULL	
+log_part_id	int(10) unsigned	YES		NULL	
+no_of_replicas	int(10) unsigned	YES		NULL	
+current_primary	int(10) unsigned	YES		NULL	
+preferred_primary	int(10) unsigned	YES		NULL	
+current_first_backup	int(10) unsigned	YES		NULL	
+current_second_backup	int(10) unsigned	YES		NULL	
+current_third_backup	int(10) unsigned	YES		NULL	
+num_alive_replicas	int(10) unsigned	YES		NULL	
+num_dead_replicas	int(10) unsigned	YES		NULL	
+num_lcp_replicas	int(10) unsigned	YES		NULL	
+desc table_replicas;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+table_id	int(10) unsigned	YES		NULL	
+fragment_id	int(10) unsigned	YES		NULL	
+initial_gci	int(10) unsigned	YES		NULL	
+replica_node_id	int(10) unsigned	YES		NULL	
+is_lcp_ongoing	int(10) unsigned	YES		NULL	
+num_crashed_replicas	int(10) unsigned	YES		NULL	
+last_max_gci_started	int(10) unsigned	YES		NULL	
+last_max_gci_completed	int(10) unsigned	YES		NULL	
+last_lcp_id	int(10) unsigned	YES		NULL	
+prev_lcp_id	int(10) unsigned	YES		NULL	
+prev_max_gci_started	int(10) unsigned	YES		NULL	
+prev_max_gci_completed	int(10) unsigned	YES		NULL	
+last_create_gci	int(10) unsigned	YES		NULL	
+last_replica_gci	int(10) unsigned	YES		NULL	
+is_replica_alive	int(10) unsigned	YES		NULL	
+desc ndb$table_replicas_all;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+table_id	int(10) unsigned	YES		NULL	
+fragment_id	int(10) unsigned	YES		NULL	
+initial_gci	int(10) unsigned	YES		NULL	
+replica_node_id	int(10) unsigned	YES		NULL	
+is_lcp_ongoing	int(10) unsigned	YES		NULL	
+num_crashed_replicas	int(10) unsigned	YES		NULL	
+last_max_gci_started	int(10) unsigned	YES		NULL	
+last_max_gci_completed	int(10) unsigned	YES		NULL	
+last_lcp_id	int(10) unsigned	YES		NULL	
+prev_lcp_id	int(10) unsigned	YES		NULL	
+prev_max_gci_started	int(10) unsigned	YES		NULL	
+prev_max_gci_completed	int(10) unsigned	YES		NULL	
+last_create_gci	int(10) unsigned	YES		NULL	
+last_replica_gci	int(10) unsigned	YES		NULL	
+is_replica_alive	int(10) unsigned	YES		NULL	
+
 create table t1 (a int primary key) engine = ndb;
 begin;
 insert into t1 values (1);
@@ -841,7 +987,7 @@ l2pmap_ratio
 
 select * from sum_per_tab;
 fq_name	parent_fq_name	type	fixed_elem_count	fixed_elem_size_bytes	fixed_elem_alloc_ok	fixed_elem_free_bytes_ok	var_elem_count	var_bytes_ok
-ndbinfo/def/t1	NULL	User table	2000	28	1.0	1	2000	1
+ndbinfo/def/t1	NULL	User table	2000	292	1.0	1	2000	1
 ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1400	36	1.0	1	1400	1
 sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
 sys/def/<t1 id>/ix1	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
@@ -873,7 +1019,7 @@ l2pmap_ratio
 
 select * from sum_per_tab;
 fq_name	parent_fq_name	type	fixed_elem_count	fixed_elem_size_bytes	fixed_elem_alloc_ok	fixed_elem_free_bytes_ok	var_elem_count	var_bytes_ok
-ndbinfo/def/t1	NULL	User table	1800	28	1.0	1	1800	1
+ndbinfo/def/t1	NULL	User table	1800	292	1.0	1	1800	1
 ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1400	36	1.0	1	1400	1
 sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
 sys/def/<t1 id>/ix1	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
@@ -905,7 +1051,7 @@ l2pmap_ratio
 
 select * from sum_per_tab;
 fq_name	parent_fq_name	type	fixed_elem_count	fixed_elem_size_bytes	fixed_elem_alloc_ok	fixed_elem_free_bytes_ok	var_elem_count	var_bytes_ok
-ndbinfo/def/t1	NULL	User table	1800	28	1.0	1	1800	1
+ndbinfo/def/t1	NULL	User table	1800	292	1.0	1	1800	1
 ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1568	36	1.0	1	1568	1
 sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
 sys/def/<t1 id>/ix1	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1

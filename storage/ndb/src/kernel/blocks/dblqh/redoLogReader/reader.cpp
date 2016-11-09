@@ -61,6 +61,12 @@ Uint32 *redoLogPage;
 
 unsigned NO_MBYTE_IN_FILE = 16;
 
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
+
 int main(int argc, char** argv)
 {
   ndb_init();
@@ -83,7 +89,7 @@ int main(int argc, char** argv)
   f = fopen(fileName, "rb");
   if(!f){
     perror("Error: open file");
-    exit(RETURN_ERROR);
+    ndb_end_and_exit(RETURN_ERROR);
   }
 
   {
@@ -100,7 +106,7 @@ int main(int argc, char** argv)
       startAtMbyte * REDOLOG_PAGESIZE * REDOLOG_PAGES_IN_MBYTE * sizeof(Uint32);
   if (fseek(f, tmpFileOffset, FROM_BEGINNING)) {
     perror("Error: Move in file");
-    exit(RETURN_ERROR);
+    ndb_end_and_exit(RETURN_ERROR);
   }
 
   redoLogPage = new Uint32[REDOLOG_PAGESIZE*REDOLOG_PAGES_IN_MBYTE];
@@ -357,7 +363,7 @@ int main(int argc, char** argv)
   }//for
   fclose(f);
   delete [] redoLogPage;
-  exit(RETURN_OK);
+  ndb_end_and_exit(RETURN_OK);
 }
 
 static
@@ -474,5 +480,5 @@ void doExit() {
   ndbout << "Error in redoLogReader(). Exiting!" << endl;
   if (f) fclose(f);
   delete [] redoLogPage;
-  exit(RETURN_ERROR);
+  ndb_end_and_exit(RETURN_ERROR);
 }

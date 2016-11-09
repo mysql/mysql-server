@@ -763,9 +763,12 @@ private:
 
 static const char ndbcluster_hton_name[]= "ndbcluster";
 static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
-extern int ndbcluster_terminating;
 
-#include "ndb_util_thread.h"
-extern Ndb_util_thread ndb_util_thread;
+// Global handler synchronization
+extern mysql_mutex_t ndbcluster_mutex;
+extern mysql_cond_t  ndbcluster_cond;
+
+extern int ndb_setup_complete;
+
 
 int ndb_to_mysql_error(const NdbError *ndberr);

@@ -42,7 +42,7 @@ node_id	fragment_num	block_instance
 2	6	3
 2	7	4
 alter table t1 algorithm=copy,
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select count(*) into @cnt_one_per_ldm_per_node
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -66,7 +66,7 @@ node_id	fragment_num	block_instance
 2	6	3
 2	7	4
 alter table t1 algorithm=copy,
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select count(*) into @cnt_one_per_ldm_per_nodegroup
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -82,7 +82,7 @@ node_id	fragment_num	block_instance
 2	2	3
 2	3	4
 alter table t1 algorithm=copy,
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select count(*) into @cnt_one_per_node
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -94,7 +94,7 @@ node_id	fragment_num	block_instance
 2	0	1
 2	1	2
 alter table t1 algorithm=copy,
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 select count(*) into @cnt_one_per_nodegroup
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -141,7 +141,7 @@ node_id	fragment_num	block_instance
 2	6	3
 2	7	4
 create table t2 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
-engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -162,7 +162,7 @@ node_id	fragment_num	block_instance
 2	6	3
 2	7	4
 create table t3 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
-engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP";
+engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t3' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -175,7 +175,7 @@ node_id	fragment_num	block_instance
 2	2	3
 2	3	4
 create table t4 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
-engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t4' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -184,7 +184,7 @@ node_id	fragment_num	block_instance
 2	0	4
 2	1	1
 create table t5 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
-engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t5' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -430,9 +430,9 @@ COMMENT="NDB_TABLE=NOLOGGING=0";
 ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'Cannot alter nologging inplace'
 drop table t1;
 create table t1 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
-engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 alter table t1 algorithm=inplace,
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select count(*) into @cnt_t1_3
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -447,12 +447,12 @@ select @cnt_t1_0 < @cnt_t1_4;
 0
 drop table t1;
 create table t1 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
-engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 alter table t1 algorithm=inplace,
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
 alter table t1 algorithm=copy,
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP,NOLOGGING=1";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE,NOLOGGING=1";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -466,9 +466,9 @@ t1	CREATE TABLE `t1` (
   `c` bigint(20) NOT NULL,
   `d` bigint(20) NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP,NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE,NOLOGGING=1'
 alter table t1 algorithm=inplace,
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -490,11 +490,11 @@ t1	CREATE TABLE `t1` (
   `c` bigint(20) NOT NULL,
   `d` bigint(20) NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE'
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE'
 Warnings:
 Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 alter table t1 algorithm=inplace,
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -520,11 +520,11 @@ t1	CREATE TABLE `t1` (
   `c` bigint(20) NOT NULL,
   `d` bigint(20) NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP'
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM'
 Warnings:
 Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 alter table t1 algorithm=inplace,
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -558,7 +558,7 @@ t1	CREATE TABLE `t1` (
   `c` bigint(20) NOT NULL,
   `d` bigint(20) NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE'
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM'
 Warnings:
 Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 -- t1 --
@@ -578,7 +578,7 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 8
 FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -600,7 +600,7 @@ create table t1 (a bigint primary key, b bigint storage disk) engine ndb
 comment="NDB_TABLE=NOLOGGING=1";
 ERROR HY000: Table storage engine 'NDBCLUSTER' found required create option missing
 create table t2 (a bigint primary key, b bigint unique) engine ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -612,7 +612,7 @@ node_id	fragment_num	block_instance
 1	0	3
 2	0	3
 alter table t2 algorithm=copy,
-COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -629,9 +629,9 @@ node_id	fragment_num	block_instance
 2	1	3
 drop table t2;
 create table t2 (a bigint primary key, b bigint unique) engine ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 alter table t2 algorithm=inplace,
-COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -662,10 +662,18 @@ node_id	fragment_num	block_instance
 1	1	2
 1	2	3
 1	3	4
+1	4	1
+1	5	2
+1	6	3
+1	7	4
 2	0	1
 2	1	2
 2	2	3
 2	3	4
+2	4	1
+2	5	2
+2	6	3
+2	7	4
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name like '%unique' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -673,12 +681,20 @@ node_id	fragment_num	block_instance
 1	1	2
 1	2	3
 1	3	4
+1	4	1
+1	5	2
+1	6	3
+1	7	4
 2	0	1
 2	1	2
 2	2	3
 2	3	4
+2	4	1
+2	5	2
+2	6	3
+2	7	4
 alter table t1 algorithm=inplace,
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -686,7 +702,7 @@ t1	CREATE TABLE `t1` (
   `b` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE'
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM'
 Warnings:
 Warning	1296	Got error 4502 'Table property is READ_BACKUP=1, but not in comment' from NDB
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
@@ -715,10 +731,18 @@ node_id	fragment_num	block_instance
 1	1	2
 1	2	3
 1	3	4
+1	4	1
+1	5	2
+1	6	3
+1	7	4
 2	0	1
 2	1	2
 2	2	3
 2	3	4
+2	4	1
+2	5	2
+2	6	3
+2	7	4
 drop table t1;
 create table t1 (a bigint primary key, b bigint unique) engine ndb;
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment

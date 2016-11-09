@@ -172,8 +172,8 @@ operator<<(NdbOut& out, Dbtc::ScanFragRec::ScanFragState state){
 }
 #endif
 
-extern int ErrorSignalReceive;
-extern int ErrorMaxSegmentsToSeize;
+extern Uint32 ErrorSignalReceive;
+extern Uint32 ErrorMaxSegmentsToSeize;
 
 void
 Dbtc::updateBuddyTimer(ApiConnectRecordPtr apiPtr)
@@ -780,7 +780,7 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
   switch (requestType) {
   case AlterTabReq::AlterTablePrepare:
     jam();
-    if (AlterTableReq::getReadBackupFlag(req->changeMask))
+    if (AlterTableReq::getReadBackupAnyFlag(req->changeMask))
     {
       if ((tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0)
       {
@@ -832,7 +832,7 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
     jam();
     tabPtr.p->currentSchemaVersion = tableVersion;
 
-    if (AlterTableReq::getReadBackupFlag(req->changeMask))
+    if (AlterTableReq::getReadBackupAnyFlag(req->changeMask))
     {
       if ((tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP) == 0)
       {
@@ -847,7 +847,7 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
     break;
   case AlterTabReq::AlterTableCommit:
     jam();
-    if (AlterTableReq::getReadBackupFlag(req->changeMask))
+    if (AlterTableReq::getReadBackupAnyFlag(req->changeMask))
     {
       if ((tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0)
       {
@@ -3169,17 +3169,17 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 
   if (ERROR_INSERTED(8065))
   {
-    ErrorSignalReceive= 1;
+    ErrorSignalReceive= DBTC;
     ErrorMaxSegmentsToSeize= 10;
   }
   if (ERROR_INSERTED(8066))
   {
-    ErrorSignalReceive= 1;
+    ErrorSignalReceive= DBTC;
     ErrorMaxSegmentsToSeize= 1;
   }
   if (ERROR_INSERTED(8067))
   {
-    ErrorSignalReceive= 1;
+    ErrorSignalReceive= DBTC;
     ErrorMaxSegmentsToSeize= 0;
   }
   if (ERROR_INSERTED(8068))
@@ -3190,7 +3190,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     DEBUG("Max segments to seize cleared");
   }
 #ifdef ERROR_INSERT
-  if (ErrorSignalReceive)
+  if (ErrorSignalReceive == DBTC)
     DEBUG("Max segments to seize : " 
           << ErrorMaxSegmentsToSeize);
 #endif
@@ -7275,6 +7275,17 @@ void Dbtc::execLQHKEYREF(Signal* signal)
             }
           }
           goto do_ignore;
+        }
+        case TriggerType::FULLY_REPLICATED_TRIGGER:
+        {
+          jam();
+          /**
+           * We have successfully inserted/updated/deleted in main
+           * fragment, but failed in a copy fragment. In this case
+           * we need to abort transaction. There are no error codes
+           * that makes this behaviour ok.
+           */
+          goto do_abort;
         }
         case TriggerType::REORG_TRIGGER:
           jam();
@@ -14521,7 +14532,11 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
   TlocalApiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
   ndbassert(TlocalApiConnectptr.p->m_transaction_nodes.isclear());
   ndbassert(TlocalApiConnectptr.p->apiScanRec == RNIL);
-  ndbassert(TlocalApiConnectptr.p->cascading_scans_count == 0);
+  /* ndbassert(TlocalApiConnectptr.p->cascading_scans_count == 0);
+   * Not a valid assert, as we can abort a transaction, and release a connection
+   * while triggered cascading scans are still in-flight
+   */
+  TlocalApiConnectptr.p->cascading_scans_count = 0;
   TlocalApiConnectptr.p->ndbapiBlockref = 0;
   TlocalApiConnectptr.p->transid[0] = 0;
   TlocalApiConnectptr.p->transid[1] = 0;
@@ -16731,12 +16746,37 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
        * 1 LQHKEYREQ per trigger, rather one LQHKEYREQ per node group
        * the table is stored in. This is handled in
        * executeFullyReplicatedTrigger.
+       *
+       * We add one here also for fully replicated triggers, this
+       * represents the operation to scan for fragments to update, so
+       * if there are no triggers to fire then this will be decremented
+       * even with no actual triggers being fired. In addition one will
+       * be added for each fragment that the fully replicated trigger
+       * will update.
+       *
+       * Foreign key child triggers will issue one read on the parent
+       * table, so this will always be one operation.
+       *
+       * Foreign key parent triggers will either issue one operation
+       * against a PK or UK index in which case this add is sufficient.
+       * It can also issue an index scan in which case several rows might
+       * be found. In this case the scan is the one represented by this
+       * add of the triggerExecutionCount, in addition each resulting
+       * PK UPDATE/DELETE will add one more to the triggerExecutionCount.
+       *
+       * Unique index triggers will issue one operation for DELETEs and
+       * INSERTs which is represented by this add, for updates there will
+       * be one INSERT and one DELETE issued which causes one more to be
+       * added as part of trigger execution.
+       *
+       * Finally we also have REORG triggers that fires, in this case we
+       * increment it here and if the TCKEYREQ execution decides that
+       * the reorg trigger doesn't need to be executed it will call
+       * trigger_op_finished before returning from execTCKEYREQ. Otherwise
+       * it will be called as usual on receiving LQHKEYCONF for the
+       * triggered operation.
        */
-      if (trigPtr.p->triggerType != TriggerType::FULLY_REPLICATED_TRIGGER)
-      {
-        jam();
-        opPtr.p->triggerExecutionCount++; // Default 1 LQHKEYREQ per trigger
-      }
+      opPtr.p->triggerExecutionCount++; // Default 1 LQHKEYREQ per trigger
       // Insert fired trigger in execution queue
       {
         LocalDLFifoList<TcFiredTriggerData>
@@ -18254,7 +18294,7 @@ Dbtc::trigger_op_finished(Signal* signal,
        * Continue triggering operation
        */
       jam();
-      continueTriggeringOp(signal, triggeringOp);
+      continueTriggeringOp(signal, triggeringOp, regApiPtr);
     }
   }
   else
@@ -18264,14 +18304,22 @@ Dbtc::trigger_op_finished(Signal* signal,
   }
 }
 
-void Dbtc::continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp)
+void Dbtc::continueTriggeringOp(Signal* signal,
+                                TcConnectRecord* trigOp,
+                                ApiConnectRecordPtr regApiPtr)
 {
   LqhKeyConf * lqhKeyConf = (LqhKeyConf *)signal->getDataPtr();
   copyFromToLen(&trigOp->savedState[0],
                 (UintR*)lqhKeyConf,
 		LqhKeyConf::SignalLength);
 
-  ndbassert(trigOp->savedState[LqhKeyConf::SignalLength-1] != ~Uint32(0));
+  if (unlikely(trigOp->savedState[LqhKeyConf::SignalLength-1] == ~Uint32(0)))
+  {
+    g_eventLogger->info("%u : savedState not set\n", __LINE__);
+    printLQHKEYCONF(stderr,signal->getDataPtr(),LqhKeyConf::SignalLength,DBTC);
+    dump_trans(regApiPtr);
+  }
+  ndbrequire(trigOp->savedState[LqhKeyConf::SignalLength-1] != ~Uint32(0));
   trigOp->savedState[LqhKeyConf::SignalLength-1] = ~Uint32(0);
 
   lqhKeyConf->numFiredTriggers = 0;
@@ -18585,26 +18633,32 @@ Dbtc::executeFKParentTrigger(Signal* signal,
   // by also adding fk_ptr_i to definedTriggerData
   ndbrequire(c_fk_hash.find(fkPtr, definedTriggerData->fkId));
 
-  switch (firedTriggerData->triggerEvent) {
-  case(TriggerEvent::TE_DELETE):
-    jam();
-    /**
-     * Check that before values does not exist in child-table
-     */
-    break;
-  case(TriggerEvent::TE_UPDATE):
-    jam();
-    /**
-     * Check that before values does not exist in child-table
-     */
-    break;
-  default:
-    ndbrequire(false);
-  }
-
+  /**
+   * The parent table (the referenced table in the foreign key definition
+   * was updated or had a row (no parent trigger on insert) deleted. This
+   * could lead to the action CASCADE or SET NULL.
+   *
+   * CASCADE means that in the case of an update we will update the
+   * referenced row with the new updated reference attributes.
+   * In the case of DELETE CASCADE a delete in the parent table will
+   * also be followed by a DELETE in the referencing table (child
+   * table).
+   *
+   * In the case of SET NULL for UPDATE and DELETE we will set the
+   * referencing attributes in the child table to NULL as part of
+   * trigger execution.
+   *
+   * SET DEFAULT isn't supported by MySQL at the moment, so no special
+   * code is needed to handle that.
+   *
+   * RESTRICT and NO ACTION both leads to read operations of the child
+   * table to ensure that the references are valid, if they are not
+   * found then the transaction is aborted.
+   */
   Uint32 op = ZREAD;
-  Uint32 attrValuesPtrI = RNIL; // for cascascade update/setnull
-  switch(firedTriggerData->triggerEvent){
+  Uint32 attrValuesPtrI = RNIL;
+  switch(firedTriggerData->triggerEvent)
+  {
   case TriggerEvent::TE_UPDATE:
     if (fkPtr.p->bits & CreateFKImplReq::FK_UPDATE_CASCADE)
     {
@@ -18649,14 +18703,29 @@ Dbtc::executeFKParentTrigger(Signal* signal,
     break;
   default:
     ndbrequire(false);
-  setnull:{
-      op = ZUPDATE;
-      attrValuesPtrI = fk_constructAttrInfoSetNull(fkPtr.p);
-      if (unlikely(attrValuesPtrI == RNIL))
-        goto oom;
-    }
+  setnull:
+  {
+    op = ZUPDATE;
+    attrValuesPtrI = fk_constructAttrInfoSetNull(fkPtr.p);
+    if (unlikely(attrValuesPtrI == RNIL))
+      goto oom;
+  }
   }
 
+  /**
+   * Foreign key parent triggers can only exist with indexes.
+   * If no bit is set then the index is a primary key, if
+   * no primary index exists for the reference then a unique
+   * index is choosen in which case the bit FK_CHILD_UI is set.
+   * If neither a primary index nor a unique index is present
+   * then an ordered index is used in which case the
+   * bit FK_CHILD_OI is set. If neither an ordered index is present
+   * then the foreign key creation wil fail, so here this cannot
+   * happen.
+   *
+   * The index is on the foreign key child table, that is it is
+   * required on the table that defines the foreign key.
+   */
   if (! (fkPtr.p->bits & CreateFKImplReq::FK_CHILD_OI))
   {
     jam();
@@ -18671,6 +18740,7 @@ Dbtc::executeFKParentTrigger(Signal* signal,
   }
   return;
 oom:
+  jam();
   abortTransFromTrigger(signal, *transPtr, ZGET_DATAREC_ERROR);
 }
 
@@ -18714,6 +18784,7 @@ Dbtc::fk_readFromChildTable(Signal* signal,
   guard.add(keyIVal);
   if (unlikely(err != 0))
   {
+    jam();
     abortTransFromTrigger(signal, *transPtr, err);
     return;
   }
@@ -18822,6 +18893,7 @@ Dbtc::fk_execTCINDXREQ(Signal* signal,
   TcIndexOperationPtr indexOpPtr;
   if (unlikely(!seizeIndexOperation(transPtr.p, indexOpPtr)))
   {
+    jam();
     releaseSections(handle);
     abortTransFromTrigger(signal, transPtr, 288);
     return;
@@ -18999,8 +19071,8 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   tcPtr.p->currentTriggerId = firedTriggerData->triggerId;
   tcPtr.p->triggerErrorCode = ZNOT_FOUND;
   tcPtr.p->operation = op;
-  tcPtr.p->indexOp = attrValuesPtrI;     // NOTE! 0x187
-  tcPtr.p->nextTcFailHash = transPtr->i; // NOTE! 0x188
+  tcPtr.p->indexOp = attrValuesPtrI;
+  tcPtr.p->nextTcFailHash = transPtr->i;
 
   {
     Ptr<TcDefinedTriggerData> trigPtr;
@@ -19013,7 +19085,7 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   ptrCheckGuard(childIndexPtr, ctabrecFilesize, tableRecord);
 
   /**
-   * Construct a index-scan
+   * Construct an index-scan
    */
   const Uint32 parallelism = SCAN_FROM_CHILD_PARALLELISM;
   ScanTabReq * req = CAST_PTR(ScanTabReq, signal->getDataPtrSend());
@@ -19112,6 +19184,7 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   return;
 
 oom:
+  jam();
   for (Uint32 i = 0; i < 3; i++)
   {
     if (ptr[i].i != RNIL)
@@ -19126,6 +19199,13 @@ oom:
   return;
 }
 
+/**
+ * Receive a row with key information from a foreign key scan for
+ * either an CASCADE DELETE/UPDATE or a SET NULL.
+ * For each such row we will issue an UPDATE or DELETE and this is
+ * part of the trigger execution of the foreign key parent trigger.
+ * Therefore we increment the trigger execution count afterwards.
+ */
 void
 Dbtc::execKEYINFO20(Signal* signal)
 {
@@ -19163,7 +19243,7 @@ Dbtc::execKEYINFO20(Signal* signal)
   /**
    * Validate base transaction
    */
-  Uint32 orgTransPtrI = tcPtr.p->nextTcFailHash; // NOTE: 0x188
+  Uint32 orgTransPtrI = tcPtr.p->nextTcFailHash;
   ApiConnectRecordPtr transPtr;
   transPtr.i = orgTransPtrI;
   ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord);
@@ -19292,12 +19372,21 @@ Dbtc::execKEYINFO20(Signal* signal)
    * Update counter of how many trigger executed...
    */
   opPtr.p->triggerExecutionCount++;
- }
+}
 
 void
 Dbtc::execSCAN_TABCONF(Signal* signal)
 {
   jamEntry();
+
+  if (ERROR_INSERTED(8109))
+  {
+    jam();
+    /* Hang around */
+    sendSignalWithDelay(cownref, GSN_SCAN_TABCONF, signal, 100, signal->getLength());
+    return;
+  }
+
   const ScanTabConf * conf = CAST_CONSTPTR(ScanTabConf, signal->getDataPtr());
 
   Uint32 transId[] = {
@@ -19328,7 +19417,7 @@ Dbtc::execSCAN_TABCONF(Signal* signal)
   /**
    * Validate base transaction
    */
-  Uint32 orgTransPtrI = tcPtr.p->nextTcFailHash; // NOTE: 0x188
+  Uint32 orgTransPtrI = tcPtr.p->nextTcFailHash;
   ApiConnectRecordPtr orgApiConnectPtr;
   orgApiConnectPtr.i = orgTransPtrI;
   ptrCheckGuard(orgApiConnectPtr, capiConnectFilesize, apiConnectRecord);
@@ -19513,7 +19602,7 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
 
   Uint32 errCode = tcPtr.p->triggerErrorCode;
   Uint32 triggerId = tcPtr.p->currentTriggerId;
-  Uint32 orgTransPtrI = tcPtr.p->nextTcFailHash; // NOTE: 0x188
+  Uint32 orgTransPtrI = tcPtr.p->nextTcFailHash;
 
   TcConnectRecordPtr opPtr; // triggering operation
   opPtr.i = tcPtr.p->triggeringOperation;
@@ -19521,7 +19610,7 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
   /**
    * release extra allocated resources
    */
-  if (tcPtr.p->indexOp != RNIL) // NOTE: 0x187
+  if (tcPtr.p->indexOp != RNIL)
   {
     releaseSection(tcPtr.p->indexOp);
   }
@@ -19550,7 +19639,7 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
   if (opPtr.p->apiConnect != orgApiConnectPtr.i)
   {
     jam();
-    ndbassert(false);
+    ndbrequire(false);
     /**
      * this should not happen :-)
      *
@@ -19577,6 +19666,15 @@ void
 Dbtc::execSCAN_TABREF(Signal* signal)
 {
   jamEntry();
+
+  if (ERROR_INSERTED(8109))
+  {
+    jam();
+    /* Hang around */
+    sendSignalWithDelay(cownref, GSN_SCAN_TABREF, signal, 100, signal->getLength());
+    return;
+  }
+
 
   const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, signal->getDataPtr());
 
@@ -19700,6 +19798,14 @@ Dbtc::executeFKChildTrigger(Signal* signal,
   // by also adding fk_ptr_i to definedTriggerData
   ndbrequire(c_fk_hash.find(fkPtr, definedTriggerData->fkId));
 
+  /**
+   * We are performing an INSERT or an UPDATE on the child table
+   * (the table where the foreign key is defined), we need to ensure that
+   * the referenced table have the row we are referring to here.
+   *
+   * The parent table reference must be the primary key of the table,
+   * so this is always a key lookup.
+   */
   switch (firedTriggerData->triggerEvent) {
   case(TriggerEvent::TE_INSERT):
     jam();
@@ -20449,22 +20555,15 @@ Dbtc::executeFullyReplicatedTrigger(Signal* signal,
   if (fragId == RNIL)
   {
     jam();
-    if (opPtr->p->triggerExecutionCount == 0)
-    {
-      /**
-       * This can happen in cases where there is only one node group, in this
-       * case the fully replicated trigger will have nothing to do since there
-       * are no more node groups to replicate to. We haven't incremented
-       * triggerExecutionCount for fully replicated triggers, so need to check
-       * if done here.
-       */
-      jam();
-      continueTriggeringOp(signal, opPtr->p);
-    }
     /**
-     * No more fragments to update, we're done and we can stop firing off more
-     * triggers.
+     * It is possible that the trigger is executed and done when arriving here.
+     * This can happen in cases where there is only one node group, in this
+     * case the fully replicated trigger will have nothing to do since there
+     * are no more node groups to replicate to. We haven't incremented
+     * triggerExecutionCount for fully replicated triggers, so need to check
+     * if done here.
      */
+    trigger_op_finished(signal, *transPtr, RNIL, opPtr->p, 0);
     return true;
   }
   /* Save fragId for next time we request the next fragId. */
@@ -20614,10 +20713,11 @@ Dbtc::executeFullyReplicatedTrigger(Signal* signal,
   Uint32 currState = regApiPtr->apiConnectstate;
 
   bool ok =
-    (saveState == CS_STARTED &&
-     (currState == saveState || currState == CS_RECEIVING)) ||
-    (saveState == CS_START_COMMITTING &&
-     (currState == saveState || currState == CS_REC_COMMITTING));
+    ((saveState == CS_SEND_FIRE_TRIG_REQ ||
+      saveState == CS_WAIT_FIRE_TRIG_REQ ||
+      saveState == CS_STARTED ||
+      saveState == CS_START_COMMITTING) &&
+      currState == saveState);
 
   if (ok && regApiPtr->lastTcConnect != saveOp)
   {

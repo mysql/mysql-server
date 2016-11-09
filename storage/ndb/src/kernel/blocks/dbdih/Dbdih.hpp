@@ -142,12 +142,13 @@ public:
 
   // Records
 
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい
+  /**
    * THE API CONNECT RECORD IS THE SAME RECORD POINTER AS USED IN THE TC BLOCK
    *
-   *  IT KEEPS TRACK OF ALL THE OPERATIONS CONNECTED TO THIS TRANSACTION.
-   *  IT IS LINKED INTO A QUEUE IN CASE THE GLOBAL CHECKPOINT IS CURRENTLY 
-   * ONGOING */
+   * IT KEEPS TRACK OF ALL THE OPERATIONS CONNECTED TO THIS TRANSACTION.
+   * IT IS LINKED INTO A QUEUE IN CASE THE GLOBAL CHECKPOINT IS CURRENTLY
+   * ONGOING
+   */
   struct ApiConnectRecord {
     Uint64 apiGci;
     Uint32 senderData;
@@ -155,14 +156,14 @@ public:
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
 
   /*############## CONNECT_RECORD ##############*/
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
-  /* THE CONNECT RECORD IS CREATED WHEN A TRANSACTION HAS TO START. IT KEEPS 
-     ALL INTERMEDIATE INFORMATION NECESSARY FOR THE TRANSACTION FROM THE 
-     DISTRIBUTED MANAGER. THE RECORD KEEPS INFORMATION ABOUT THE
-     OPERATIONS THAT HAVE TO BE CARRIED OUT BY THE TRANSACTION AND
-     ALSO THE TRAIL OF NODES FOR EACH OPERATION IN THE THE
-     TRANSACTION. 
-  */
+  /**
+   * THE CONNECT RECORD IS CREATED WHEN A TRANSACTION HAS TO START. IT KEEPS
+   * ALL INTERMEDIATE INFORMATION NECESSARY FOR THE TRANSACTION FROM THE
+   * DISTRIBUTED MANAGER. THE RECORD KEEPS INFORMATION ABOUT THE
+   * OPERATIONS THAT HAVE TO BE CARRIED OUT BY THE TRANSACTION AND
+   * ALSO THE TRAIL OF NODES FOR EACH OPERATION IN THE THE
+   * TRANSACTION.
+   */
   struct ConnectRecord {
     enum ConnectState {
       INUSE = 0,
@@ -198,15 +199,15 @@ public:
   };
   typedef Ptr<ConnectRecord> ConnectRecordPtr;
 
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
-  /*       THESE RECORDS ARE USED WHEN CREATING REPLICAS DURING SYSTEM      */
-  /*       RESTART. I NEED A COMPLEX DATA STRUCTURE DESCRIBING THE REPLICAS */
-  /*       I WILL TRY TO CREATE FOR EACH FRAGMENT.                          */
-  /*                                                                        */
-  /*       I STORE A REFERENCE TO THE FOUR POSSIBLE CREATE REPLICA RECORDS  */
-  /*       IN A COMMON STORED VARIABLE. I ALLOW A MAXIMUM OF 4 REPLICAS TO  */
-  /*       BE RESTARTED PER FRAGMENT.                                       */
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /**
+   *       THESE RECORDS ARE USED WHEN CREATING REPLICAS DURING SYSTEM
+   *       RESTART. I NEED A COMPLEX DATA STRUCTURE DESCRIBING THE REPLICAS
+   *       I WILL TRY TO CREATE FOR EACH FRAGMENT.
+   *
+   *       I STORE A REFERENCE TO THE FOUR POSSIBLE CREATE REPLICA RECORDS
+   *       IN A COMMON STORED VARIABLE. I ALLOW A MAXIMUM OF 4 REPLICAS TO
+   *       BE RESTARTED PER FRAGMENT.
+   */
   struct CreateReplicaRecord {
     Uint32 logStartGci[MAX_LOG_EXEC];
     Uint32 logStopGci[MAX_LOG_EXEC];
@@ -220,10 +221,10 @@ public:
   };
   typedef Ptr<CreateReplicaRecord> CreateReplicaRecordPtr;
 
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
-  /*       THIS RECORD CONTAINS A FILE DESCRIPTION. THERE ARE TWO           */
-  /*       FILES PER TABLE TO RAISE SECURITY LEVEL AGAINST DISK CRASHES.    */ 
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /**
+   *       THIS RECORD CONTAINS A FILE DESCRIPTION. THERE ARE TWO
+   *       FILES PER TABLE TO RAISE SECURITY LEVEL AGAINST DISK CRASHES.
+   */
   struct FileRecord {
     enum FileStatus {
       CLOSED = 0,
@@ -265,13 +266,13 @@ public:
   };
   typedef Ptr<FileRecord> FileRecordPtr;
 
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
-  /* THIS RECORD KEEPS THE STORAGE AND DECISIONS INFORMATION OF A FRAGMENT  */
-  /* AND ITS REPLICAS. IF FRAGMENT HAS MORE THAN ONE BACK UP                */
-  /* REPLICA THEN A LIST OF MORE NODES IS ATTACHED TO THIS RECORD.          */
-  /* EACH RECORD IN MORE LIST HAS INFORMATION ABOUT ONE BACKUP. THIS RECORD */
-  /* ALSO HAVE THE STATUS OF THE FRAGMENT.                                  */
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /**
+   * THIS RECORD KEEPS THE STORAGE AND DECISIONS INFORMATION OF A FRAGMENT
+   * AND ITS REPLICAS. IF FRAGMENT HAS MORE THAN ONE BACK UP
+   * REPLICA THEN A LIST OF MORE NODES IS ATTACHED TO THIS RECORD.
+   * EACH RECORD IN MORE LIST HAS INFORMATION ABOUT ONE BACKUP. THIS RECORD
+   * ALSO HAVE THE STATUS OF THE FRAGMENT.
+   */
   struct Fragmentstore {
     Uint16 activeNodes[MAX_REPLICAS];
     Uint32 preferredPrimary;
@@ -298,9 +299,9 @@ public:
   typedef Ptr<Fragmentstore> FragmentstorePtr;
 
   /*########### PAGE RECORD ############*/
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
-  /*       THIS RECORD KEEPS INFORMATION ABOUT NODE GROUPS.             */
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /**
+   *       THIS RECORD KEEPS INFORMATION ABOUT NODE GROUPS.
+   */
   struct NodeGroupRecord {
     Uint32 nodesInGroup[MAX_REPLICAS + 1];
     Uint32 nextReplicaNode;
@@ -312,11 +313,11 @@ public:
     Uint32 m_ref_count;
   };
   typedef Ptr<NodeGroupRecord> NodeGroupRecordPtr;
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
-  /*       THIS RECORD KEEPS INFORMATION ABOUT NODES.                   */
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
-  /*       RECORD ALIGNED TO BE 64 BYTES.                               */
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /**
+   *       THIS RECORD KEEPS INFORMATION ABOUT NODES.
+   *
+   *       RECORD ALIGNED TO BE 64 BYTES.
+   */
   enum NodefailHandlingStep {
     NF_REMOVE_NODE_FROM_TABLE = 1,
     NF_GCP_TAKE_OVER = 2,
@@ -636,34 +637,34 @@ public:
      * State for copying table description into pages
      */
     enum CopyStatus {
-      CS_IDLE,
-      CS_SR_PHASE1_READ_PAGES,
-      CS_SR_PHASE2_READ_TABLE,
-      CS_SR_PHASE3_COPY_TABLE,
-      CS_REMOVE_NODE,
-      CS_LCP_READ_TABLE,
-      CS_COPY_TAB_REQ,
-      CS_COPY_NODE_STATE,
-      CS_ADD_TABLE_MASTER,
-      CS_ADD_TABLE_SLAVE,
-      CS_INVALIDATE_NODE_LCP,
-      CS_ALTER_TABLE,
-      CS_COPY_TO_SAVE
-      ,CS_GET_TABINFO
+      CS_IDLE = 0,
+      CS_SR_PHASE1_READ_PAGES = 1,
+      CS_SR_PHASE2_READ_TABLE = 2,
+      CS_SR_PHASE3_COPY_TABLE = 3,
+      CS_REMOVE_NODE = 4,
+      CS_LCP_READ_TABLE = 5,
+      CS_COPY_TAB_REQ = 6,
+      CS_COPY_NODE_STATE = 7,
+      CS_ADD_TABLE_MASTER = 8,
+      CS_ADD_TABLE_SLAVE = 9,
+      CS_INVALIDATE_NODE_LCP = 10,
+      CS_ALTER_TABLE = 11,
+      CS_COPY_TO_SAVE = 12
+      ,CS_GET_TABINFO = 13
     };
     /**
      * State for copying pages to disk
      */
     enum UpdateState {
-      US_IDLE,
-      US_LOCAL_CHECKPOINT,
-      US_LOCAL_CHECKPOINT_QUEUED,
-      US_REMOVE_NODE,
-      US_COPY_TAB_REQ,
-      US_ADD_TABLE_MASTER,
-      US_ADD_TABLE_SLAVE,
-      US_INVALIDATE_NODE_LCP,
-      US_CALLBACK
+      US_IDLE = 0,
+      US_LOCAL_CHECKPOINT = 1,
+      US_LOCAL_CHECKPOINT_QUEUED = 2,
+      US_REMOVE_NODE = 3,
+      US_COPY_TAB_REQ = 4,
+      US_ADD_TABLE_MASTER = 5,
+      US_ADD_TABLE_SLAVE = 6,
+      US_INVALIDATE_NODE_LCP = 7,
+      US_CALLBACK = 8
     };
     enum TabLcpStatus {
       TLS_ACTIVE = 1,
@@ -1653,6 +1654,8 @@ private:
   Uint32 findLocalFragment(const TabRecord *,
                            Ptr<Fragmentstore> & fragPtr,
                            EmulatedJamBuffer *jambuf);
+  Uint32 findPartitionOrder(const TabRecord *tabPtrP,
+                            FragmentstorePtr fragPtr);
   Uint32 findFirstNewFragment(const TabRecord *,
                               Ptr<Fragmentstore> & fragPtr,
                               Uint32 fragId,
@@ -2679,7 +2682,10 @@ private:
   // MT LQH
   Uint32 c_fragments_per_node_;
   Uint32 getFragmentsPerNode();
-  Uint32 getFragmentCount(Uint32 fragmentCountType, Uint32 extraNodeGroups);
+  Uint32 getFragmentCount(Uint32 partitionBalance,
+                          Uint32 numOfNodeGroups,
+                          Uint32 numOfReplicas,
+                          Uint32 numOfLDMs) const;
   /**
    * dihGetInstanceKey
    *

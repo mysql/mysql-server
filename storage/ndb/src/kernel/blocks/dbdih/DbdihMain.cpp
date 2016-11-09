@@ -7043,6 +7043,234 @@ void Dbdih::execDBINFO_SCANREQ(Signal *signal)
     }
     break;
   }
+  case Ndbinfo::TABLE_DIST_STATUS_TABLEID:
+  case Ndbinfo::TABLE_DIST_STATUS_ALL_TABLEID:
+  {
+    jam();
+    TabRecordPtr tabPtr;
+    tabPtr.i = cursor->data[0];
+    if (!isMaster() && req.tableId == Ndbinfo::TABLE_DIST_STATUS_TABLEID)
+    {
+      jam();
+      break;
+    }
+    for ( ; tabPtr.i < ctabFileSize ; tabPtr.i++)
+    {
+      jamLine(tabPtr.i);
+      ptrAss(tabPtr, tabRecord);
+      if (tabPtr.p->tabStatus != TabRecord::TS_IDLE)
+      {
+        jam();
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(cownNodeId);
+        row.write_uint32(tabPtr.i);
+        row.write_uint32(tabPtr.p->tabCopyStatus);
+        row.write_uint32(tabPtr.p->tabUpdateState);
+        row.write_uint32(tabPtr.p->tabLcpStatus);
+        row.write_uint32(tabPtr.p->tabStatus);
+        row.write_uint32(tabPtr.p->tabStorage);
+        row.write_uint32(tabPtr.p->tableType);
+        row.write_uint32(tabPtr.p->partitionCount);
+        row.write_uint32(tabPtr.p->totalfragments);
+        row.write_uint32(tabPtr.p->m_scan_count[0]);
+        row.write_uint32(tabPtr.p->m_scan_count[1]);
+        row.write_uint32(tabPtr.p->m_scan_reorg_flag);
+        ndbinfo_send_row(signal, req, row, rl);
+        if (rl.need_break(req))
+        {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, tabPtr.i + 1);
+          return;
+        }
+      }
+    }
+    break;
+  }
+  case Ndbinfo::TABLE_FRAGMENTS_TABLEID:
+  case Ndbinfo::TABLE_FRAGMENTS_ALL_TABLEID:
+  {
+    jam();
+    TabRecordPtr tabPtr;
+    FragmentstorePtr fragPtr;
+    tabPtr.i = cursor->data[0] & 0xFFFF;
+    Uint32 fragId = cursor->data[0] >> 16;
+    if (!isMaster() && req.tableId == Ndbinfo::TABLE_FRAGMENTS_TABLEID)
+    {
+      jam();
+      break;
+    }
+    for ( ; tabPtr.i < ctabFileSize ; tabPtr.i++)
+    {
+      jamLine(tabPtr.i);
+      ptrAss(tabPtr, tabRecord);
+      if (tabPtr.p->tabStatus != TabRecord::TS_IDLE &&
+          (DictTabInfo::isTable(tabPtr.p->tableType) ||
+           DictTabInfo::isUniqueIndex(tabPtr.p->tableType)))
+      {
+        for ( ; fragId < tabPtr.p->totalfragments ; fragId++)
+        {
+          jamLine(fragId);
+          getFragstore(tabPtr.p, fragId, fragPtr);
+          Ndbinfo::Row row(signal, req);
+          row.write_uint32(cownNodeId);
+          row.write_uint32(tabPtr.i);
+          row.write_uint32(fragPtr.p->m_log_part_id);
+          row.write_uint32(fragPtr.p->fragId);
+          if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) == 0)
+          {
+            row.write_uint32(0);
+          }
+          else
+          {
+            row.write_uint32(findPartitionOrder(tabPtr.p, fragPtr));
+          }
+
+          row.write_uint32(fragPtr.p->m_log_part_id);
+          row.write_uint32(fragPtr.p->fragReplicas);
+          row.write_uint32(fragPtr.p->activeNodes[0]);
+          row.write_uint32(fragPtr.p->preferredPrimary);
+
+          if (fragPtr.p->noStoredReplicas > 1)
+          {
+            row.write_uint32(fragPtr.p->activeNodes[1]);
+          }
+          else
+          {
+            row.write_uint32(0);
+          }
+
+          if (fragPtr.p->noStoredReplicas > 2)
+          {
+            row.write_uint32(fragPtr.p->activeNodes[2]);
+          }
+          else
+          {
+            row.write_uint32(0);
+          }
+
+          if (fragPtr.p->noStoredReplicas > 3)
+          {
+            row.write_uint32(fragPtr.p->activeNodes[3]);
+          }
+          else
+          {
+            row.write_uint32(0);
+          }
+
+          row.write_uint32(fragPtr.p->noStoredReplicas);
+          row.write_uint32(fragPtr.p->noOldStoredReplicas);
+          row.write_uint32(fragPtr.p->noLcpReplicas);
+          ndbinfo_send_row(signal, req, row, rl);
+          if (rl.need_break(req))
+          {
+            jam();
+            Uint32 new_cursor = tabPtr.i + ((fragId + 1) << 16);
+            ndbinfo_send_scan_break(signal, req, rl, new_cursor);
+            return;
+          }
+        }
+      }
+      fragId = 0;
+    }
+    break;
+  }
+  case Ndbinfo::TABLE_REPLICAS_TABLEID:
+  case Ndbinfo::TABLE_REPLICAS_ALL_TABLEID:
+  {
+    jam();
+    TabRecordPtr tabPtr;
+    FragmentstorePtr fragPtr;
+    ReplicaRecordPtr replicaPtr;
+    tabPtr.i = cursor->data[0] & 0xFFFF;
+    Uint32 fragId = cursor->data[0] >> 16;
+    if (!isMaster() && req.tableId == Ndbinfo::TABLE_REPLICAS_TABLEID)
+    {
+      jam();
+      break;
+    }
+    for ( ; tabPtr.i < ctabFileSize ; tabPtr.i++)
+    {
+      jamLine(tabPtr.i);
+      ptrAss(tabPtr, tabRecord);
+      if (tabPtr.p->tabStatus != TabRecord::TS_IDLE &&
+          (DictTabInfo::isTable(tabPtr.p->tableType) ||
+           DictTabInfo::isUniqueIndex(tabPtr.p->tableType)))
+      {
+        jamLine(fragId);
+        jamLine(tabPtr.p->totalfragments);
+        jamLine(tabPtr.p->partitionCount);
+        for ( ; fragId < tabPtr.p->totalfragments ; fragId++)
+        {
+          jamLine(fragId);
+          getFragstore(tabPtr.p, fragId, fragPtr);
+          for (Uint32 i = 0; i < 2; i++)
+          {
+            if (i == 0)
+            {
+              jam();
+              replicaPtr.i = fragPtr.p->storedReplicas;
+            }
+            else
+            {
+              jam();
+              replicaPtr.i = fragPtr.p->oldStoredReplicas;
+            }
+            while (replicaPtr.i != RNIL)
+            {
+              jam();
+              Ndbinfo::Row row(signal, req);
+              c_replicaRecordPool.getPtr(replicaPtr);
+              row.write_uint32(cownNodeId);
+              row.write_uint32(tabPtr.i);
+              row.write_uint32(fragPtr.p->fragId);
+              row.write_uint32(replicaPtr.p->initialGci);
+              row.write_uint32(replicaPtr.p->procNode);
+              row.write_uint32(replicaPtr.p->lcpOngoingFlag);
+              row.write_uint32(replicaPtr.p->noCrashedReplicas);
+              Uint32 lastId = 0;
+              Uint32 maxLcpId = 0;
+              for (Uint32 j = 0; j < MAX_LCP_USED; j++)
+              {
+                jam();
+                if (replicaPtr.p->lcpStatus[j] == ZVALID)
+                {
+                  jam();
+                  if (replicaPtr.p->lcpId[j] > maxLcpId)
+                  {
+                    jam();
+                    lastId = j;
+                    maxLcpId = replicaPtr.p->lcpId[j];
+                  }
+                }
+              }
+              Uint32 prevId = prevLcpNo(lastId);
+              row.write_uint32(replicaPtr.p->maxGciStarted[lastId]);
+              row.write_uint32(replicaPtr.p->maxGciCompleted[lastId]);
+              row.write_uint32(replicaPtr.p->lcpId[lastId]);
+              row.write_uint32(replicaPtr.p->maxGciStarted[prevId]);
+              row.write_uint32(replicaPtr.p->maxGciCompleted[prevId]);
+              row.write_uint32(replicaPtr.p->lcpId[prevId]);
+              Uint32 last_replica_id = replicaPtr.p->noCrashedReplicas;
+              row.write_uint32(replicaPtr.p->createGci[last_replica_id]);
+              row.write_uint32(replicaPtr.p->replicaLastGci[last_replica_id]);
+              row.write_uint32(i == 0 ? 1 : 0);
+              ndbinfo_send_row(signal, req, row, rl);
+              replicaPtr.i = replicaPtr.p->nextPool;
+            }
+          }
+          if (rl.need_break(req))
+          {
+            jam();
+            Uint32 new_cursor = tabPtr.i + ((fragId + 1) << 16);
+            ndbinfo_send_scan_break(signal, req, rl, new_cursor);
+            return;
+          }
+        }
+        fragId = 0;
+      }
+    }
+    break;
+  }
   default:
     break;
   }
@@ -7164,10 +7392,21 @@ Dbdih::nr_start_fragment(Signal* signal,
 	   replicaPtr.p->nextLcp);
 #endif
 
-  Int32 j = replicaPtr.p->noCrashedReplicas - 1;
+  /**
+   * Search for an LCP that can be used to restore.
+   * For each LCP that is VALID we need to check if
+   * it is restorable. It is restorable if the
+   * node has a REDO log interval that can be used
+   * to restore some GCI. For this to happen we have
+   * to have a REDO log in the node that starts
+   * before the last completed GCI in the LCP and that
+   * goes on until at least until the maximum GCI
+   * started in the LCP.
+   */
   Uint32 idx = prevLcpNo(replicaPtr.p->nextLcp);
   for(i = 0; i<MAX_LCP_USED; i++, idx = prevLcpNo(idx))
   {
+    Int32 j = replicaPtr.p->noCrashedReplicas - 1;
 #if defined VM_TRACE || defined ERROR_INSERT
     ndbout_c("scanning idx: %d lcpId: %d crashed replicas: %u %s", 
              idx, replicaPtr.p->lcpId[idx],
@@ -7181,6 +7420,19 @@ Dbdih::nr_start_fragment(Signal* signal,
 #if defined VM_TRACE || defined ERROR_INSERT
       ndbout_c(" maxGciCompleted: %u maxGciStarted: %u", startGci - 1, stopGci);
 #endif
+      /* The following error insert is for Bug #23602217.
+       * It ensures that the most recent LCP is considered
+       * non-restorable. This forces the older LCP to be
+       * restored, which failed to happen previously.
+       */
+      if (ERROR_INSERTED(7248))
+      {
+        g_eventLogger->info("Inserting error to skip most recent LCP");
+        if (i == 0)
+        {
+          continue;
+        }
+      }
       for (; j>= 0; j--)
       {
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -7216,6 +7468,7 @@ Dbdih::nr_start_fragment(Signal* signal,
   {
     Uint32 startGci = replicaPtr.p->maxGciCompleted[idx] + 1;
     Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
+    Int32 j = replicaPtr.p->noCrashedReplicas - 1;
     for (;j >= 0; j--)
     {
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -10829,7 +11082,8 @@ void Dbdih::removeNodeFromTable(Signal* signal,
 }
   
 void
-Dbdih::removeNodeFromTablesComplete(Signal* signal, Uint32 nodeId){
+Dbdih::removeNodeFromTablesComplete(Signal* signal, Uint32 nodeId)
+{
   jam();
 
   /**
@@ -11957,6 +12211,127 @@ Dbdih::init_next_replica_node(
   }
 }
 
+/**
+ * CREATE_FRAGMENTATION_REQ
+ *
+ * CREATE_FRAGMENTATION_REQ returns a FRAGMENTATION structure, a.k.a.
+ * ReplicaData in Ndbapi.
+ *
+ * The FRAGMENTATION structure contains a mapping from fragment id to log part
+ * id and a node id for each fragment replica, the first node id is for primary
+ * replica.
+ *
+ * FRAGMENTATION contains of an array of Uint16 values:
+ *
+ * 0: #replicas
+ * 1: #fragments
+ * 2 + fragmentId*(1 + #replicas) + 0: log part id
+ * 2 + fragmentId*(1 + #replicas) + 1: primary replica node id
+ * 2 + fragmentId*(1 + #replicas) + 2: backup replica node id
+ * ...
+ *
+ * CREATE_FRAGMENTATION_REQ supports three request types selected by setting
+ * requestInfo in signal.
+ *
+ * requestInfo             | Description
+ * ------------------------+----------------------------------------------
+ * RI_CREATE_FRAGMENTATION | Create a new fragmentation.
+ * RI_ADD_FRAGMENTS        | Adjust a fragmentation by adding fragments.
+ * RI_GET_FRAGMENTATION    | Return the current fragmentation for a table.
+ *
+ * == Common parameters for all request types ==
+ *
+ *   senderRef - Used if response should be sent by signal, only used in old
+ *       versions before and including 5.0.96, otherwise it must be zero.  New
+ *       uses of GSN_CREATE_FRAGMENTATION_REQ must be executed using
+ *       EXECUTE_DIRECT.
+ *
+ *   senderData - Used if senderRef is non-zero.
+ *
+ *   Fragmentation is returned in theData[25..] and caller must ensure theData
+ *   is big enough for storing the fragmentation.
+ *
+ * == Values for unused parameters ==
+ *
+ *   senderRef         = 0
+ *   senderData        = RNIL
+ *   requestInfo  Must be set!
+ *   fragmentationType = 0
+ *   partitionBalance = 0
+ *   primaryTableId    = RNIL
+ *   noOfFragments     = 0
+ *   partitionCount    = 0
+ *   map_ptr_i         = RNIL
+ *
+ * == Create fragmentation (requestInfo RI_CREATE_FRAGMENTATION) ==
+ *
+ *   noOfFragments - Used by some fragmentation types, see fragmentationType
+ *       below.
+ *
+ *   partitionCount - Must be same as noOfFragments, unless fragmentation is
+ *       for a fully replicated table.  For fully replicated tables
+ *       noOfFragments must be a multiple of partitionCount.
+ *
+ *   fragmentationType - Specifies how table is partitioned into fragments.
+ *       Since MySQL Cluster 7.0 server only uses UserDefined and
+ *       HashMapPartition.  Other types can occur from restoring old Ndb
+ *       backups, or using Ndbapi directly.
+ *
+ *         AllNodesSmallTable - noOfFragments is set to 1 per LDM.
+ *
+ *         AllNodesMediumTable - noOfFragments is set to 2 per LDM.
+ *
+ *         AllNodesLargeTable - noOfFragments is set to 4 per LDM.
+ *
+ *         SingleFragment - noOfFragments is set to one.
+ *
+ *         DistrKeyHash
+ *         DistrKeyLin
+ *           If noOfFragments is zero, noOfFragments is set to 1 per LDM.
+ *           FragmentData from theData[25..] is used if noOfFragments from
+ *           signal is non-zero.
+ *
+ *         UserDefined - noOfFragment must be non zero.  FragmentData from
+ *             theData[25..] is used.
+ *
+ *         HashMapPartition - Hashmap to use is given by map_ptr_i which must
+ *             be set (not RNIL).  Both noOfFragments and partitionCount must
+ *             be set.  Further more partitionCount must be equal to hashmaps
+ *             partition count (m_fragments).
+ *             For fully replicated tables, noOfFragments should be a multiple
+ *             of partitionCount.
+ *
+ *   partitionBalance - Determines how the number of fragments depends on
+ *       cluster configuration such as number of replicas, number of
+ *       nodegroups, and, number of LDM per node.  The parameter is only used
+ *       for HashMapPartition.
+ *
+ *   FragmentData theData[25..] - An array of Uint16 mapping each fragment to
+ *       a nodegroup.  NDB_UNDEF_NODEGROUP is used to mark that no specific
+ *       nodegroup is wanted for fragment.
+ *
+ * == Adjust fragmentation by adding fragments (requestInfo RI_ADD_PARTITION) ==
+ *
+ *   primaryTableId - Id of table fragmentation to adjust, must not be RNIL.
+ *
+ *   noOfFragments - New fragment count must be set (non zero).  Old fragment
+ *       count is taken from old fragmentation for table.
+ *
+ *   partitionCount - New partition count.  For non fully replicated tables
+ *       partitionCount must be same as noOfFragments.  For fully replicated
+ *       tables partitionCount must be the same as the old partitionCount.
+ *
+ *   map_ptr_i - Is not used from signal but taken from old fragmentation.
+ *
+ *   fragmentationType - Must be HashMapPartition or DistrKeyOrderedIndex.
+ *
+ * == Get fragmentation (requestInfo RI_GET_FRAGMENTATION) ==
+ *
+ *   primaryTableId - Id of table whic fragmentation to return, must not be RNIL.
+ *
+ * No other parameters are used from signal (except for the common parameters).
+ *
+ */
 void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 {
   jamEntry();
@@ -11970,21 +12345,21 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   const Uint32 primaryTableId = req->primaryTableId;
   const Uint32 map_ptr_i = req->map_ptr_i;
   const Uint32 flags = req->requestInfo;
-  const Uint32 fragmentCountType = req->fragmentCountType;
-  const Uint32 partitionCount = req->partitionCount;
-
+  const Uint32 partitionBalance = req->partitionBalance;
+  Uint32 partitionCount = req->partitionCount;
   Uint32 err = 0;
   bool use_specific_fragment_count = false;
   const Uint32 defaultFragments =
     getFragmentsPerNode() * cnoOfNodeGroups * cnoReplicas;
-  const Uint32 maxFragments = MAX_FRAG_PER_LQH * defaultFragments;
+  const Uint32 maxFragments =
+    MAX_FRAG_PER_LQH * getFragmentsPerNode() * cnoOfNodeGroups;
 
   if (flags != CreateFragmentationReq::RI_GET_FRAGMENTATION)
   {
     D("CREATE_FRAGMENTATION_REQ: " <<
       " primaryTableId: " << primaryTableId <<
-      " fragmentCountType: " <<
-        getFragmentCountTypeString(fragmentCountType) <<
+      " partitionBalance: " <<
+        getPartitionBalanceString(partitionBalance) <<
       " fragType: " << fragType <<
       " noOfFragments: " << noOfFragments);
   }
@@ -12004,6 +12379,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       case DictTabInfo::AllNodesSmallTable:
         jam();
         noOfFragments = defaultFragments;
+        partitionCount = noOfFragments;
         set_default_node_groups(signal, noOfFragments);
         break;
       case DictTabInfo::AllNodesMediumTable:
@@ -12011,6 +12387,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         noOfFragments = 2 * defaultFragments;
         if (noOfFragments > maxFragments)
           noOfFragments = maxFragments;
+        partitionCount = noOfFragments;
         set_default_node_groups(signal, noOfFragments);
         break;
       case DictTabInfo::AllNodesLargeTable:
@@ -12018,11 +12395,13 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         noOfFragments = 4 * defaultFragments;
         if (noOfFragments > maxFragments)
           noOfFragments = maxFragments;
+        partitionCount = noOfFragments;
         set_default_node_groups(signal, noOfFragments);
         break;
       case DictTabInfo::SingleFragment:
         jam();
         noOfFragments = 1;
+        partitionCount = noOfFragments;
         use_specific_fragment_count = true;
         set_default_node_groups(signal, noOfFragments);
         break;
@@ -12042,27 +12421,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           use_specific_fragment_count = true;
         }
         break;
-      case DictTabInfo::HashMapPartition:
-      {
-        jam();
-        ndbrequire(map_ptr_i != RNIL);
-        Ptr<Hash2FragmentMap> ptr;
-        g_hash_map.getPtr(ptr, map_ptr_i);
-        if (noOfFragments == 0)
-        {
-          jam();
-          noOfFragments = ptr.p->m_fragments;
-        }
-        else if (noOfFragments != ptr.p->m_fragments)
-        {
-          jam();
-          err = CreateFragmentationRef::InvalidFragmentationType;
-          break;
-        }
-        set_default_node_groups(signal, noOfFragments);
-        break;
-      }
-      default:
+      case DictTabInfo::UserDefined:
         jam();
         use_specific_fragment_count = true;
         if (noOfFragments == 0)
@@ -12071,6 +12430,28 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           err = CreateFragmentationRef::InvalidFragmentationType;
         }
         break;
+      case DictTabInfo::HashMapPartition:
+      {
+        jam();
+        ndbrequire(map_ptr_i != RNIL);
+        Ptr<Hash2FragmentMap> ptr;
+        g_hash_map.getPtr(ptr, map_ptr_i);
+        if (noOfFragments == 0 ||
+            partitionCount != ptr.p->m_fragments ||
+            noOfFragments % partitionCount != 0)
+        {
+          jam();
+          err = CreateFragmentationRef::InvalidFragmentationType;
+          break;
+        }
+        set_default_node_groups(signal, noOfFragments);
+        break;
+      }
+      case DictTabInfo::DistrKeyOrderedIndex:
+        jam();
+      default:
+        jam();
+        err = CreateFragmentationRef::InvalidFragmentationType;
       }
       if (err)
         break;
@@ -12088,11 +12469,11 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       if ((DictTabInfo::FragmentType)fragType == DictTabInfo::HashMapPartition)
       {
         jam();
-        if (fragmentCountType != NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE)
+        if (partitionBalance != NDB_PARTITION_BALANCE_FOR_RP_BY_LDM)
         {
           jam();
           /**
-           * The default partitioned table using ONE_PER_LDM_PER_NODE will
+           * The default partitioned table using FOR_RP_BY_LDM will
            * distribute exactly one primary replica to each LDM in each node,
            * so no need to use the information from other table creations to
            * define the primary replica node mapping. For all other tables
@@ -12102,16 +12483,16 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
            */
           next_replica_node = &c_next_replica_node;
         }
-        switch (fragmentCountType)
+        switch (partitionBalance)
         {
-          case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
-          case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+          case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
           {
             /**
              * Table will only use one log part, we will try spreading over
              * different log parts, however the variable isn't persistent, so
              * recommendation is to use only small tables for these
-             * fragment count types.
+             * partition balances.
              *
              * One per node type will use one LDM per replica since fragment
              * count is higher.
@@ -12120,8 +12501,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             use_specific_fragment_count = true;
             break;
           }
-          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
-          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+          case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
           {
             /**
              * These tables will spread over all LDMs and over all node
@@ -12139,7 +12520,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             next_log_part = (~0);
             break;
           }
-          case NDB_FRAGMENT_COUNT_SPECIFIC:
+          case NDB_PARTITION_BALANCE_SPECIFIC:
           {
             jam();
             use_specific_fragment_count = true;
@@ -12418,12 +12799,12 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           }
         }
       }
-      if (flags & CreateFragmentationReq::RI_GET_FRAGMENTATION)
+      if (flags == CreateFragmentationReq::RI_GET_FRAGMENTATION)
       {
         jam();
         noOfFragments = primTabPtr.p->totalfragments;
       }
-      else if (flags & CreateFragmentationReq::RI_ADD_PARTITION)
+      else if (flags == CreateFragmentationReq::RI_ADD_FRAGMENTS)
       {
         jam();
         ndbrequire(fragType == DictTabInfo::HashMapPartition ||
@@ -12453,8 +12834,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
          *
          * So the next fragment always seeks out the most empty node group and
          * adds the fragment there. When new node groups exists and we haven't
-         * changed the fragment count type then all new fragments will end up
-         * in the new node groups. If we change fragment count type we will
+         * changed the partition balance then all new fragments will end up
+         * in the new node groups. If we change partition balance we will
          * also add new fragments to existing node groups.
          *
          * LDM Dimension:
@@ -12462,8 +12843,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
          * We will ensure that we have an even distribution on the LDMs in the
          * nodes by ensuring that we have knowledge of which LDMs we primarily
          * used in the original table. This is necessary to support ALTER TABLE
-         * from FRAGMENT_COUNT_ONE_PER_NODE to
-         * FRAGMENT_COUNT_ONE_PER_NODE_GROUP e.g. FRAGMENT_COUNT_ONE_PER_NODE
+         * from PARTITION_BALANCE_FOR_RP_BY_NODE to
+         * PARTITION_BALANCE_FOR_RA_BY_NODE e.g. PARTITION_BALANCE_FOR_RP_BY_NODE
          * could have used any LDMs. So it is important to ensure that we
          * spread evenly over all LDMs also after the ALTER TABLE. We do this
          * by always finding the LDM in the node with the minimum number of
@@ -12480,8 +12861,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
          * --------------------------
          * We make an effort to spread the primary replicas around amongst the
          * nodes in each node group and LDM. We need to spread both regarding
-         * nodes and with regard to LDM. When we use fragment count type
-         * ONE_PER_LDM_PER_NODE we will spread on all LDMs in all nodes for
+         * nodes and with regard to LDM. When we use partition balance
+         * FOR_RP_BY_LDM we will spread on all LDMs in all nodes for
          * the table itself, so we don't need to use the DIH copy of the
          * next primary replica to use. For all other tables we will start by
          * reading what is already in the table, if the table itself has
@@ -12499,17 +12880,17 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         Uint32 next_log_part = 0;
         bool use_old_variant = true;
 
-        switch(fragmentCountType)
+        switch(partitionBalance)
         {
-          case NDB_FRAGMENT_COUNT_SPECIFIC:
-          case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
-          case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+          case NDB_PARTITION_BALANCE_SPECIFIC:
+          case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
           {
             jam();
             break;
           }
-          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
-          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+          case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
           {
             jam();
             use_old_variant = false;
@@ -12555,7 +12936,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           /* Select primary replica node */
           Uint32 primary_node;
           if (tmp_next_replica_node_set[NGPtr.i][logPart] ||
-              fragmentCountType == NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE)
+              partitionBalance == NDB_PARTITION_BALANCE_FOR_RP_BY_LDM)
           {
             jam();
             Uint32 node_index = (*next_replica_node)[NGPtr.i][logPart];
@@ -12613,6 +12994,10 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 
     if(senderRef != 0)
     {
+      /**
+       * Only possible serving old client with lower version than 7.0.4
+       * (WL#3600)
+       */
       jam();
       LinearSectionPtr ptr[3];
       ptr[0].p = (Uint32*)&fragments[0];
@@ -12988,13 +13373,18 @@ Dbdih::sendAddFragreq(Signal* signal,
     req->totalFragments = fragCount;
     req->startGci = SYSFILE->newestRestorableGCI;
     req->logPartId = fragPtr.p->m_log_part_id;
-    req->changeMask = 0;
-    req->partitionId = fragId % tabPtr.p->partitionCount;
 
-    if (connectPtr.p->connectState == ConnectRecord::ALTER_TABLE)
+    if (connectPtr.p->connectState != ConnectRecord::ALTER_TABLE)
+    {
+      jam();
+      req->changeMask = 0;
+      req->partitionId = fragId % tabPtr.p->partitionCount;
+    }
+    else /* connectState == ALTER_TABLE */
     {
       jam();
       req->changeMask = connectPtr.p->m_alter.m_changeMask;
+      req->partitionId = fragId % connectPtr.p->m_alter.m_partitionCount;
     }
 
     sendSignal(DBDICT_REF, GSN_ADD_FRAGREQ, signal, 
@@ -13036,6 +13426,24 @@ Dbdih::sendAddFragreq(Signal* signal,
      * Naturally it could be executed as part of a CREATE INDEX as well, but
      * the principle is still the same.
      */
+
+    /**
+      * Don't expect to be adding tables due to e.g. user action
+      * during NR or SR, so we init the CopyFragmentList here
+      */
+    if (( getNodeState().getSystemRestartInProgress() ||
+          getNodeState().getNodeRestartInProgress() ) &&
+        (tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) != 0)
+    {
+      jam();
+      for(Uint32 fragId = 0; fragId < tabPtr.p->totalfragments; fragId++)
+      {
+        jam();
+        FragmentstorePtr fragPtr;
+        getFragstore(tabPtr.p, fragId, fragPtr);
+        insertCopyFragmentList(tabPtr.p, fragPtr.p, fragId);
+      }
+    }
 
     DiAddTabConf * const conf = (DiAddTabConf*)signal->getDataPtr();
     conf->senderData = connectPtr.p->userpointer;
@@ -13195,6 +13603,9 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
   jamEntry();
   DropTabReq* req = (DropTabReq*)signal->getDataPtr();
 
+  D("DROP_TAB_REQ: " << req->tableId);
+  CRASH_INSERTION(7248);
+
   TabRecordPtr tabPtr;
   tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
@@ -13262,6 +13673,9 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
     case TabRecord::TLS_WRITING_TO_FILE:
       ok = true;
       jam();
+      g_eventLogger->info("DROP_TAB_REQ: tab: %u, tabLcpStatus: %u",
+                          tabPtr.i,
+                          tabPtr.p->tabLcpStatus);
       break;
       return;
     case TabRecord::TLS_ACTIVE:
@@ -13270,6 +13684,9 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
 
       tabPtr.p->tabLcpStatus = TabRecord::TLS_COMPLETED;
 
+      g_eventLogger->info("DROP_TAB_REQ: tab: %u, tabLcpStatus set to %u",
+                          tabPtr.i,
+                          tabPtr.p->tabLcpStatus);
       /**
        * First check if all fragments are done
        */
@@ -14296,7 +14713,7 @@ Dbdih::execDROP_FRAG_CONF(Signal* signal)
  * scanning.
  *
  * For each row we receive we get a TRANSID_AI with the attribute information
- * and KEYINFO20 with the keyinformation. Based on this information we create
+ * and KEYINFO20 with the key information. Based on this information we create
  * a SUB_TABLE_DATA signal and pass this to TRIX for execution by DBUTIL.
  * We send it to DBUTIL in a UTIL_EXECUTE_REQ signal referring to the prepared
  * transaction in DBUTIL. Each row is executed as a separate Scan Take Over
@@ -14554,11 +14971,11 @@ loop:
        */
       thrjam(jambuf);
       g_hash_map.getPtr(ptr, map_ptr_i);
-      fragId = ptr.p->m_map[hashValue % tabPtr.p->partitionCount];
+      const Uint32 partId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
       if (anyNode == 2)
       {
         thrjam(jambuf);
-        fragId = findFirstNewFragment(tabPtr.p, fragPtr, fragId, jambuf);
+        fragId = findFirstNewFragment(tabPtr.p, fragPtr, partId, jambuf);
         if (fragId == RNIL)
         {
           conf->zero = 0;
@@ -14567,6 +14984,7 @@ loop:
           goto check_exit;
         }
       }
+      else fragId = partId;
     }
   }
   else if (tabPtr.p->method == TabRecord::LINEAR_HASH)
@@ -14685,6 +15103,28 @@ Dbdih::make_node_not_usable(NodeRecord *nodePtr)
   m_node_view_lock.write_lock();
   nodePtr->useInTransactions = false;
   m_node_view_lock.write_unlock();
+}
+
+Uint32
+Dbdih::findPartitionOrder(const TabRecord *tabPtrP,
+                          FragmentstorePtr fragPtr)
+{
+  Uint32 order = 0;
+  FragmentstorePtr tempFragPtr;
+  Uint32 fragId = fragPtr.p->m_log_part_id;
+  do
+  {
+    jam();
+    getFragstore(tabPtrP, fragId, tempFragPtr);
+    if (fragPtr.p == tempFragPtr.p)
+    {
+      jam();
+      return order;
+    }
+    fragId = tempFragPtr.p->nextCopyFragment;
+    order++;
+  } while (fragId != RNIL);
+  return RNIL;
 }
 
 Uint32
@@ -14836,7 +15276,7 @@ Dbdih::start_scan_on_table(TabRecordPtr tabPtr,
      * For Fully replicated tables the totalfragments means the total
      * number of fragments including the copy fragment. Here however
      * we should respond with the real fragment count which is either
-     * 1 or the number of LDMs dependent on which fragment count type
+     * 1 or the number of LDMs dependent on which partition balance
      * the table was created with.
      *
      * partitionCount works also for other tables. We always scan
@@ -19828,7 +20268,7 @@ void Dbdih::startNextChkpt(Signal* signal)
 	    nodePtr.p->queuedChkpt[i].fragId = curr.fragmentId;
 	    nodePtr.p->queuedChkpt[i].replicaPtr = replicaPtr.i;
 	    nodePtr.p->noOfQueuedChkpt = i + 1;
-	  } 
+	  }
 	  else 
 	  {
 	    jam();
@@ -20204,7 +20644,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
      * LCP_FRAG_REP while processing a master takeover.
      *
      * In old code we were blocked from coming here for LCP_FRAG_REPs since
-     * we enusred that we don't proceed here until all nodes have sent
+     * we ensured that we don't proceed here until all nodes have sent
      * their EMPTY_LCP_CONF to us. So we keep ndbrequire to ensure that
      * we come here only when running the new master take over code.
      */
@@ -20228,28 +20668,77 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
     
     const Uint32 outstanding = nodePtr.p->noOfStartedChkpt;
-    ndbrequire(outstanding > 0);
-    bool found = false;
-    for (Uint32 i = 0; i < outstanding; i++)
+    if (outstanding > 0)
     {
+      jam();
+      bool found = false;
+      for (Uint32 i = 0; i < outstanding; i++)
+      {
+        if (found)
+        {
+          jam();
+          nodePtr.p->startedChkpt[i - 1] = nodePtr.p->startedChkpt[i];
+          continue;
+        }
+        if(nodePtr.p->startedChkpt[i].tableId != tableId ||
+           nodePtr.p->startedChkpt[i].fragId != fragId)
+        {
+          jam();
+          continue;
+        }
+        jam();
+        found = true;
+      }
       if (found)
       {
         jam();
-        nodePtr.p->startedChkpt[i - 1] = nodePtr.p->startedChkpt[i];
-        continue;
+        nodePtr.p->noOfStartedChkpt--;
+        checkStartMoreLcp(signal, nodeId);
+        return;
       }
-      if(nodePtr.p->startedChkpt[i].tableId != tableId ||
-         nodePtr.p->startedChkpt[i].fragId != fragId)
+    }
+    const Uint32 outstanding_queued = nodePtr.p->noOfQueuedChkpt;
+    if (outstanding_queued > 0)
+    {
+      jam();
+      bool found = false;
+      for (Uint32 i = 0; i < outstanding_queued; i++)
+      {
+        if (found)
+        {
+          jam();
+          nodePtr.p->queuedChkpt[i - 1] = nodePtr.p->queuedChkpt[i];
+          continue;
+        }
+        if(nodePtr.p->queuedChkpt[i].tableId != tableId ||
+           nodePtr.p->queuedChkpt[i].fragId != fragId)
+        {
+          jam();
+          continue;
+        }
+        jam();
+        found = true;
+      }
+      if (found)
       {
         jam();
-        continue;
+        nodePtr.p->noOfQueuedChkpt--;
+        return;
       }
-      jam();
-      found = true;
     }
-    ndbrequire(found);
-    nodePtr.p->noOfStartedChkpt--;
-    checkStartMoreLcp(signal, nodeId);
+    /**
+     * In a master takeover situation we might have the fragment replica
+     * placed in the queue as well. It is possible that the old master
+     * did send LCP_FRAG_ORD and it is now arriving here.
+     *
+     * We start by checking the queued list, if it is in neither the
+     * queued nor in the started list, then the table is dropped. There
+     * is also one more obscure variant when the old master had a deeper
+     * queue than we have, in that case we could come here, to handle
+     * that we only assert on that the table is dropped.
+     */
+    ndbassert(tabPtr.p->tabStatus == TabRecord::TS_IDLE ||
+              tabPtr.p->tabStatus == TabRecord::TS_DROPPING);
   }
 }
 
@@ -20530,8 +21019,14 @@ void Dbdih::checkLcpCompletedLab(Signal* signal)
     return;
   }
   
+  /**
+   * We only wait for completion of tables that are not in a dropping state.
+   * This is to avoid that LCPs are being blocked by dropped tables. There
+   * could be bugs in reporting dropped tables properly.
+   */
   TabRecordPtr tabPtr;
-  for (tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++) {
+  for (tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++)
+  {
     //jam(); Removed as it flushed all other jam traces.
     ptrAss(tabPtr, tabRecord);
     if (tabPtr.p->tabLcpStatus != TabRecord::TLS_COMPLETED)
@@ -20547,7 +21042,7 @@ void Dbdih::checkLcpCompletedLab(Signal* signal)
   if(c_lcpState.lcpStatus == LCP_TAB_COMPLETED)
   {
     /**
-     * We'r done
+     * We're done
      */
 
     c_lcpState.setLcpStatus(LCP_TAB_SAVED, __LINE__);
@@ -23395,20 +23890,22 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   case CheckNodeGroups::GetDefaultFragments:
     jamNoBlock();
     ok = true;
-    sd->output = getFragmentCount(sd->fragmentCountType, sd->extraNodeGroups);
+    sd->output = getFragmentCount(sd->partitionBalance,
+                                  cnoOfNodeGroups + sd->extraNodeGroups,
+                                  cnoReplicas,
+                                  getFragmentsPerNode());
     break;
   case CheckNodeGroups::GetDefaultFragmentsFullyReplicated:
     jamNoBlock();
-    switch(sd->fragmentCountType)
+    switch(sd->partitionBalance)
     {
-    case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+    case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+    case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
       ok = true;
-      sd->output = getFragmentsPerNode();
-      break;
-    case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
-      ok = true;
-      sd->output = 1;
-      break;
+      sd->output = getFragmentCount(sd->partitionBalance,
+                                    1,
+                                    cnoReplicas,
+                                    getFragmentsPerNode());
     }
     break;
   }
@@ -23420,26 +23917,33 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
 }//Dbdih::execCHECKNODEGROUPSREQ()
 
 Uint32
-Dbdih::getFragmentCount(Uint32 fragmentCountType, Uint32 extraNodeGroups)
+Dbdih::getFragmentCount(Uint32 partitionBalance,
+                        Uint32 numOfNodeGroups,
+                        Uint32 numOfReplicas,
+                        Uint32 numOfLDMs) const
 {
-  /**
-   * this is actually MIN(#ldm) for each node in cluster
-   */
-  Uint32 ldms = getFragmentsPerNode();
-  Uint32 nodeGroups = cnoOfNodeGroups + extraNodeGroups;
+  switch (partitionBalance)
+  {
+  case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+    return numOfNodeGroups * numOfReplicas * numOfLDMs;
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+    return numOfNodeGroups * numOfLDMs;
+  case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+    return numOfNodeGroups * numOfReplicas;
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
+    return numOfNodeGroups;
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+    return numOfNodeGroups * numOfLDMs * 2;
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+    return numOfNodeGroups * numOfLDMs * 3;
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
+    return numOfNodeGroups * numOfLDMs * 4;
 
-  switch(fragmentCountType) {
-  case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
-    return nodeGroups * cnoReplicas * ldms;
-  case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
-    return nodeGroups * ldms;
-  case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
-    return nodeGroups * cnoReplicas;
-  case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
-    return nodeGroups;
+  case NDB_PARTITION_BALANCE_SPECIFIC:
+  default:
+    ndbrequire(false);
+    return 0;
   }
-  ndbrequire(false);
-  return 0;
 }
 
 void
@@ -26746,8 +27250,12 @@ Dbdih::dihGetInstanceKey(Uint32 tabId, Uint32 fragId)
   tTabPtr.i = tabId;
   ptrCheckGuard(tTabPtr, ctabFileSize, tabRecord);
   FragmentstorePtr tFragPtr;
+loop:
+  Uint32 tab_val = tTabPtr.p->m_lock.read_lock();
   getFragstore(tTabPtr.p, fragId, tFragPtr);
   Uint32 instanceKey = dihGetInstanceKey(tFragPtr);
+  if (unlikely(!tTabPtr.p->m_lock.read_unlock(tab_val)))
+    goto loop;
   return instanceKey;
 }
 

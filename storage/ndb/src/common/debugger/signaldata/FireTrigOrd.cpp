@@ -53,6 +53,60 @@ printFIRE_TRIG_ORD(FILE * output, const Uint32 * theData, Uint32 len,
 	  sig->getNoOfPrimaryKeyWords(),
 	  sig->getNoOfBeforeValueWords(),
 	  sig->getNoOfAfterValueWords());
+  fprintf(output, " fragId: %u ",
+          sig->fragId);
   
+  /* Variants, see DbtupTrigger.cpp */
+  if (len == FireTrigOrd::SignalWithGCILength)
+  {
+    fprintf(output, "gci_hi: %u\n", sig->m_gci_hi);
+  }
+  else if (len == FireTrigOrd::SignalLength)
+  {
+    fprintf(output, " Triggertype: %s\n",
+            TriggerInfo::triggerTypeName(sig->m_triggerType));
+    fprintf(output, " transId: (H\'%.8x, H\'%.8x)\n",
+            sig->m_transId1,
+            sig->m_transId2);
+  }
+  else if (len == FireTrigOrd::SignalLengthSuma)
+  {
+    fprintf(output, " transId: (H\'%.8x, H\'%.8x)\n",
+             sig->m_transId1,
+             sig->m_transId2);
+    fprintf(output, " gci: %u/%u Hash: %u Any: %u\n",
+            sig->m_gci_hi,
+            sig->m_gci_lo,
+            sig->m_hashValue,
+            sig->m_any_value);
+  }
+  else
+  {
+    fprintf(output, " Unexpected length\n");
+    if (len > 8)
+    {
+      fprintf(output, " -- Variable data -- \n");
+      
+      Uint32 remain = len - 8;
+      const Uint32* data = &theData[8];
+      while (remain >= 7)
+      {
+        fprintf(output, 
+                " H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x\n",
+                data[0], data[1], data[2], data[3], 
+                data[4], data[5], data[6]);
+        remain -= 7;
+        data += 7;
+      }
+      if(remain > 0){
+        for(Uint32 i = 0; i<remain; i++)
+        {
+          fprintf(output, " H\'%.8x", data[i]);
+        }
+        fprintf(output, "\n");
+      }
+    }
+  }   
+    
   return true;
 }

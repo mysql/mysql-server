@@ -417,7 +417,6 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_first_ndb_object(0),
     m_latest_error_msg(),
     m_latest_error(0),
-    m_max_trans_id(0),
     m_multi_wait_group(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
@@ -569,13 +568,13 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
 }
 
 void
-Ndb_cluster_connection::lock_ndb_objects()
+Ndb_cluster_connection::lock_ndb_objects() const
 {
   NdbMutex_Lock(m_impl.m_new_delete_ndb_mutex);
 }
 
 void
-Ndb_cluster_connection::unlock_ndb_objects()
+Ndb_cluster_connection::unlock_ndb_objects() const
 {
   NdbMutex_Unlock(m_impl.m_new_delete_ndb_mutex);
 }
@@ -601,8 +600,6 @@ Ndb_cluster_connection_impl::link_ndb_object(Ndb* p)
   p->theImpl->m_next_ndb_object = m_first_ndb_object;
   m_first_ndb_object = p;
   
-  p->theFirstTransId += m_max_trans_id;
-
   // Wake up anyone waiting for changes to the Ndb instance list
   NdbCondition_Broadcast(m_new_delete_ndb_cond);
 
@@ -634,12 +631,6 @@ Ndb_cluster_connection_impl::unlink_ndb_object(Ndb* p)
   p->theImpl->m_prev_ndb_object = 0;
   p->theImpl->m_next_ndb_object = 0;
 
-  Uint32 transId = (Uint32)p->theFirstTransId;
-  if (transId > m_max_trans_id)
-  {
-    m_max_trans_id = transId;
-  }
-
   /* This Ndb is leaving for a better place,
    * record its contribution to global warming
    * for posterity
@@ -653,6 +644,39 @@ Ndb_cluster_connection_impl::unlink_ndb_object(Ndb* p)
   NdbCondition_Broadcast(m_new_delete_ndb_cond);
 
   unlock_ndb_objects();  
+}
+
+Uint32
+Ndb_cluster_connection_impl::get_next_transid(Uint32 reference) const
+{    
+  Uint32 next = 0;
+  reference = m_transporter_facade->mapRefToIdx(reference);
+  
+  /* Access map with lock to avoid resize issues */
+  lock_ndb_objects();
+  {
+    if (reference < m_next_transids.size())
+    {
+      next = m_next_transids[reference];
+    }
+  }
+  unlock_ndb_objects();
+  
+  return next;
+}
+
+void 
+Ndb_cluster_connection_impl::set_next_transid(Uint32 reference, Uint32 value)
+{
+  reference = m_transporter_facade->mapRefToIdx(reference);
+  
+  /* Access map with lock to avoid resize issues */
+  lock_ndb_objects();
+  {
+    Uint32 zero = 0;
+    m_next_transids.set(value, reference, zero);
+  }
+  unlock_ndb_objects();
 }
 
 void
@@ -1066,16 +1090,15 @@ void Ndb_cluster_connection_impl::connect_thread()
   DBUG_ENTER("Ndb_cluster_connection_impl::connect_thread");
   int r;
   do {
+    // Wait before making a new connect attempt
     NdbSleep_SecSleep(1);
+
     if ((r = connect(0,0,0)) == 0)
       break;
     if (r == -1) {
       printf("Ndb_cluster_connection::connect_thread error\n");
       DBUG_ASSERT(false);
       m_run_connect_thread= 0;
-    } else {
-      // Wait before making a new connect attempt
-      NdbSleep_SecSleep(1);
     }
   } while (m_run_connect_thread);
   if (m_connect_callback)

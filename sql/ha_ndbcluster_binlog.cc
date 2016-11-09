@@ -444,7 +444,7 @@ get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
         if (loop == 1)
         {
           uchar *buf= buffer + offset;
-          uint32 len= 0xffffffff;  // Max uint32
+          uint32 len= buffer_size - offset;  // Size of buf
           if (ndb_blob->readData(buf, len) != 0)
             DBUG_RETURN(-1);
           DBUG_PRINT("info", ("[%u] offset: %u  buf: 0x%lx  len=%u  [ptrdiff=%d]",
@@ -462,7 +462,7 @@ get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
         uint32 len= 0;
         field_blob->set_ptr_offset(ptrdiff, len, buf);
         DBUG_PRINT("info", ("[%u] isNull=%d", i, isNull));
-        }
+      }
     }
     if (loop == 0 && offset > buffer_size)
     {
@@ -525,7 +525,6 @@ static void ndbcluster_binlog_wait(THD *thd)
     thd->proc_info = "Waiting for ndbcluster binlog update to "
 	"reach current position";
 
-    const Uint64 start_handled_epoch = ndb_latest_handled_binlog_epoch;
    /*
      Highest epoch that a transaction against Ndb has received
      as part of commit processing *in this thread*. This is a
@@ -541,6 +540,8 @@ static void ndbcluster_binlog_wait(THD *thd)
     int count = 30;
 
     mysql_mutex_lock(&injector_mutex);
+    const Uint64 start_handled_epoch = ndb_latest_handled_binlog_epoch;
+
     while (!thd->killed && count && ndb_binlog_running &&
            (ndb_latest_handled_binlog_epoch == 0 ||
             ndb_latest_handled_binlog_epoch < session_last_committed_epoch))
@@ -1040,9 +1041,6 @@ ndb_schema_table__create(THD *thd)
 }
 
 
-extern int ndb_setup_complete;
-extern mysql_cond_t COND_ndb_setup_complete;
-
 /*
    ndb_notify_tables_writable
    
@@ -1053,7 +1051,7 @@ static void ndb_notify_tables_writable()
 {
   mysql_mutex_lock(&ndbcluster_mutex);
   ndb_setup_complete= 1;
-  mysql_cond_broadcast(&COND_ndb_setup_complete);
+  mysql_cond_broadcast(&ndbcluster_cond);
   mysql_mutex_unlock(&ndbcluster_mutex);
 }
 
@@ -1156,7 +1154,7 @@ int find_all_databases(THD *thd, Thd_ndb* thd_ndb)
 
   Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
   thd_ndb_options.set(Thd_ndb::NO_LOG_SCHEMA_OP);
-  thd_ndb_options.set(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK);
+  thd_ndb_options.set(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
   while (1)
   {
     char db_buffer[FN_REFLEN];
@@ -1547,7 +1545,7 @@ setup(void)
 
     /* Signal injector thread that all is setup */
     ndb_binlog_tables_inited= TRUE;
-    mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
 
     DBUG_ASSERT(ndb_schema_dist_is_ready());
     return true;     // Setup completed -> OK
@@ -2179,7 +2177,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
 
   /* Signal ha_ndbcluster::delete/rename_table that drop is done */
   DBUG_PRINT("info", ("signal that drop is done"));
-  (void) mysql_cond_signal(&injector_cond);
+  mysql_cond_broadcast(&injector_cond);
 
   ndb_tdc_close_cached_table(thd, dbname, tabname);
 
@@ -3289,7 +3287,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
     if (tab.is_local_table())
@@ -3381,7 +3379,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     Ndb_local_schema::Table from(m_thd, schema->db, schema->name);
     if (from.is_local_table())
@@ -3459,7 +3457,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     if (check_if_local_tables_in_db(schema->db))
     {
@@ -3565,7 +3563,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
@@ -3589,7 +3587,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
@@ -3618,7 +3616,7 @@ class Ndb_schema_event_handler {
                             get_schema_type_name(schema->type));
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     const int no_print_error[1]= {0};
     char *cmd= (char *) "flush privileges";
@@ -3900,7 +3898,7 @@ public:
     {
       /* Remove all subscribers for node */
       m_schema_dist_data.report_data_node_failure(pOp->getNdbdNodeId());
-      (void) mysql_cond_signal(&injector_cond);
+      mysql_cond_broadcast(&injector_cond);
       break;
     }
 
@@ -3908,7 +3906,7 @@ public:
     {
       /* Add node as subscriber */
       m_schema_dist_data.report_subscribe(pOp->getNdbdNodeId(), pOp->getReqNodeId());
-      (void) mysql_cond_signal(&injector_cond);
+      mysql_cond_broadcast(&injector_cond);
       break;
     }
 
@@ -3916,7 +3914,7 @@ public:
     {
       /* Remove node as subscriber */
       m_schema_dist_data.report_unsubscribe(pOp->getNdbdNodeId(), pOp->getReqNodeId());
-      (void) mysql_cond_signal(&injector_cond);
+      mysql_cond_broadcast(&injector_cond);
       break;
     }
 
@@ -5288,7 +5286,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     ndb_apply_status_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
-    (void) mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
   else if (do_ndb_schema_share)
@@ -5297,7 +5295,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     ndb_schema_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
-    (void) mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
 
@@ -6493,7 +6491,7 @@ Ndb_binlog_thread::do_run()
   {
     delete thd;
     mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     DBUG_VOID_RETURN;
   }
 
@@ -6533,7 +6531,7 @@ restart_cluster_failure:
   {
     log_error("Creating Thd_ndb object failed");
     mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     goto err;
   }
 
@@ -6543,7 +6541,7 @@ restart_cluster_failure:
   {
     log_error("Creating schema Ndb object failed");
     mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     goto err;
   }
   log_info("Created schema Ndb object, reference: 0x%x, name: '%s'",
@@ -6556,7 +6554,7 @@ restart_cluster_failure:
   {
     log_error("Creating injector Ndb object failed");
     mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     goto err;
   }
   log_info("Created injector Ndb object, reference: 0x%x, name: '%s'",
@@ -6567,7 +6565,7 @@ restart_cluster_failure:
   {
     log_error("Setting ventbuffer free percent failed");
     mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     goto err;
   }
 
@@ -6592,7 +6590,7 @@ restart_cluster_failure:
 
   /* Thread start up completed  */
   mysql_mutex_unlock(&injector_mutex);
-  mysql_cond_signal(&injector_cond);
+  mysql_cond_broadcast(&injector_cond);
 
   log_verbose(1, "Wait for server start completed");
   /*
@@ -6713,7 +6711,7 @@ restart_cluster_failure:
       Prevent schema dist participant from (implicitly)
       taking GSL lock as part of taking MDL lock
     */
-    thd_ndb->set_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK);
+    thd_ndb->set_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
 
     thd->query_id= 0; // to keep valgrind quiet
   }
@@ -7364,7 +7362,6 @@ restart_cluster_failure:
           ndb_latest_applied_binlog_epoch= current_epoch;
           break;
         } //while (trans.good())
-        ndb_latest_handled_binlog_epoch= current_epoch;
 
         /*
           NOTE: There are possible more i_pOp available.
@@ -7380,7 +7377,14 @@ restart_cluster_failure:
 
     free_root(&mem_root, MYF(0));
     *root_ptr= old_root;
-    ndb_latest_handled_binlog_epoch= current_epoch;
+
+    if (current_epoch > ndb_latest_handled_binlog_epoch)
+    {
+      Mutex_guard injector_mutex_g(injector_mutex);
+      ndb_latest_handled_binlog_epoch= current_epoch;
+      // Signal ndbcluster_binlog_wait'ers
+      mysql_cond_broadcast(&injector_cond);
+    }
 
     // If all eventOp subscriptions has been teared down,
     // the binlog thread should now restart.
@@ -7499,7 +7503,7 @@ restart_cluster_failure:
   delete thd;
 
   ndb_binlog_running= FALSE;
-  (void) mysql_cond_signal(&injector_cond);
+  mysql_cond_broadcast(&injector_cond);
 
   log_info("Stopped");
 

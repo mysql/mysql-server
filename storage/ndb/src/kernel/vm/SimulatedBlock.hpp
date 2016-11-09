@@ -1408,20 +1408,20 @@ public:
   const char* debugOutTag(char* buf, int line);
 #endif
 
-  const char* getFragmentCountTypeString(Uint32 fct)
+  const char* getPartitionBalanceString(Uint32 fct)
   {
     switch (fct)
     {
-      case NDB_FRAGMENT_COUNT_SPECIFIC:
-        return "NDB_FRAGMENT_COUNT_SPECIFIC";
-      case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
-        return "NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP";
-      case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
-        return "NDB_FRAGMENT_COUNT_ONE_PER_NODE";
-      case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
-        return "NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE";
-      case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
-        return "NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP";
+      case NDB_PARTITION_BALANCE_SPECIFIC:
+        return "NDB_PARTITION_BALANCE_SPECIFIC";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_NODE";
+      case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+        return "NDB_PARTITION_BALANCE_FOR_RP_BY_NODE";
+      case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+        return "NDB_PARTITION_BALANCE_FOR_RP_BY_LDM";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM";
       default:
         ndbrequire(false);
     }

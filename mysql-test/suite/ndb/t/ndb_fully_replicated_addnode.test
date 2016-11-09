@@ -3,41 +3,51 @@
 
 CREATE TABLE t1 (
   a char(10) NOT NULL primary key,
-  b int
+  b int,
+  c blob,
+  unique key (b)
 ) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
 
+use ndbinfo;
+select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select read_backup, fully_replicated from table_info as ti join dict_obj_info as doi where ti.table_id = doi.id and doi.fq_name = 'test/def/t1';
+use test;
+
 insert into t1 values
-('1',1), ('2',2), ('3',3), ('4',4),
-('5',5), ('6',6), ('7',7), ('8',8);
+('1',1,REPEAT('1',3000)), ('2',2,REPEAT('2',3000)), ('3',3,REPEAT('3',3000)),
+('4',4,REPEAT('4',3000)), ('5',5,REPEAT('5',3000)), ('6',6,REPEAT('6',3000)),
+('7',7,REPEAT('7',3000)), ('8',8,REPEAT('8',3000));
 
 create temporary table counters_at_startup
 select counter_name, sum(val) as val
 from ndbinfo.counters
 group by counter_name;
 
-select * from t1 where a = '1';
-select * from t1 where a = '2';
-select * from t1 where a = '3';
-select * from t1 where a = '4';
-select * from t1 where a = '5';
-select * from t1 where a = '6';
-select * from t1 where a = '7';
-select * from t1 where a = '8';
+select a,b,LENGTH(c) from t1 where a = '1';
+select a,b,LENGTH(c) from t1 where a = '2';
+select a,b,LENGTH(c) from t1 where a = '3';
+select a,b,LENGTH(c) from t1 where a = '4';
+select a,b,LENGTH(c) from t1 where a = '5';
+select a,b,LENGTH(c) from t1 where a = '6';
+select a,b,LENGTH(c) from t1 where a = '7';
+select a,b,LENGTH(c) from t1 where a = '8';
 
 --sorted_result
-select * from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
 --sorted_result
-select * from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
 --sorted_result
-select * from t1 where a in ('3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('3', '4', '5', '6', '7', '8');
 --sorted_result
-select * from t1 where a in ('4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('4', '5', '6', '7', '8');
 --sorted_result
-select * from t1 where a in ('5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('5', '6', '7', '8');
 --sorted_result
-select * from t1 where a in ('6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('6', '7', '8');
 --sorted_result
-select * from t1 where a in ('7', '8');
+select a,b,LENGTH(c) from t1 where a in ('7', '8');
 
 select s1.counter_name, s2.val - s1.val as diff
 from counters_at_startup s1,
@@ -49,14 +59,32 @@ where s1.counter_name = s2.counter_name
 order by 1;
 drop table counters_at_startup;
 
---let ndb_desc_opts= -d test t1
---source suite/ndb/include/ndb_desc_print.inc
+# Due to yet unfiled bug:
+# PartitionBalance is wrong for unique index and blob table.
+# Remove this comment and re-record when indexes and blob table have:
+# PartitionBalance: FOR_RP_BY_LDM
+# Table options: readbackup, fullyreplicated
+# --let ndb_desc_opts= -b -i -d test t1
+# --source suite/ndb/include/ndb_desc_print.inc
+#
+# Explictly check table options include fully_replicated
+# Remove this explicit test than complete ndb_desc above is correct.
+let $ndb_exec_command= $NDB_DESC -b -d test t1;
+let $ndb_exec_select= row like 'Table options:%' or row like '-- % --';
+let $ndb_exec_replace= /([ _])[0-9][0-9]*/\1#/;
+source suite/ndb/include/ndb_exec.inc;
 
 ## Create nodegroup for "new" nodes 3,4
 --echo Creating nodegroup
 --exec $NDB_MGM -e "create nodegroup 3,4" > /dev/null
 
 alter table t1 algorithm=inplace, reorganize partition;
+
+use ndbinfo;
+select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, log_part_id, partition_order, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+use test;
 
 set global ndb_data_node_neighbour = 1;
 create table c as select node_id, fragment_num, tot_frag_scans
@@ -85,7 +113,7 @@ create table c as select node_id, fragment_num, tot_frag_scans
   from `ndbinfo`.`operations_per_fragment`
   where fq_name = 'test/def/t1';
 --sorted_result
-select * from t1 where a = 1;
+select a,b,LENGTH(c) from t1 where a = 1;
 select distinct o.node_id
   from `ndbinfo`.`operations_per_fragment` o join c
   on o.node_id = c.node_id and o.fragment_num = c.fragment_num
@@ -97,7 +125,7 @@ create table c as select node_id, fragment_num, tot_frag_scans
   from `ndbinfo`.`operations_per_fragment`
   where fq_name = 'test/def/t1';
 --sorted_result
-select * from t1;
+select a,b,LENGTH(c) from t1;
 select distinct o.node_id
   from `ndbinfo`.`operations_per_fragment` o join c
   on o.node_id = c.node_id and o.fragment_num = c.fragment_num
@@ -106,7 +134,7 @@ drop table c;
 
 set global ndb_data_node_neighbour = 0;
 
-select node_id, fragment_num, fixed_elem_count
+select node_id, fragment_num, fixed_elem_count > 0
 from `ndbinfo`.`memory_per_fragment`
 where fq_name = 'test/def/t1'
 order by node_id, fragment_num;
@@ -116,29 +144,29 @@ select counter_name, sum(val) as val
 from ndbinfo.counters
 group by counter_name;
 
-select * from t1 where a = '1';
-select * from t1 where a = '2';
-select * from t1 where a = '3';
-select * from t1 where a = '4';
-select * from t1 where a = '5';
-select * from t1 where a = '6';
-select * from t1 where a = '7';
-select * from t1 where a = '8';
+select a,b,LENGTH(c) from t1 where a = '1';
+select a,b,LENGTH(c) from t1 where a = '2';
+select a,b,LENGTH(c) from t1 where a = '3';
+select a,b,LENGTH(c) from t1 where a = '4';
+select a,b,LENGTH(c) from t1 where a = '5';
+select a,b,LENGTH(c) from t1 where a = '6';
+select a,b,LENGTH(c) from t1 where a = '7';
+select a,b,LENGTH(c) from t1 where a = '8';
 
 --sorted_result
-select * from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
 --sorted_result
-select * from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
 --sorted_result
-select * from t1 where a in ('3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('3', '4', '5', '6', '7', '8');
 --sorted_result
-select * from t1 where a in ('4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('4', '5', '6', '7', '8');
 --sorted_result
-select * from t1 where a in ('5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('5', '6', '7', '8');
 --sorted_result
-select * from t1 where a in ('6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('6', '7', '8');
 --sorted_result
-select * from t1 where a in ('7', '8');
+select a,b,LENGTH(c) from t1 where a in ('7', '8');
 
 select s1.counter_name, s2.val - s1.val as diff
 from counters_at_startup s1,
@@ -150,8 +178,21 @@ where s1.counter_name = s2.counter_name
 order by 1;
 drop table counters_at_startup;
 
---let ndb_desc_opts= -d test t1
---source suite/ndb/include/ndb_desc_print.inc
+# Due to Bug#13714258 UNIQUE INDEXES NOT REORGANISED BY ONLINE TABLE REORG
+# FragmentCount and HashMap are wrong for t1/b$unique.
+# Remove this comment and re-record when t1/b$unique have:
+# FragmentCount: 8
+# HashMap: DEFAULT-HASHMAP-3840-8
+# Table options: readbackup, fullyreplicated
+# --let ndb_desc_opts= -b -i -d test t1
+# --source suite/ndb/include/ndb_desc_print.inc
+#
+# Explictly check table options include fully_replicated
+# Remove this explicit test than complete ndb_desc above is correct.
+let $ndb_exec_command= $NDB_DESC -b -d test t1;
+let $ndb_exec_select= row like 'Table options:%' or row like '-- % --';
+let $ndb_exec_replace= /([ _])[0-9][0-9]*/\1#/;
+source suite/ndb/include/ndb_exec.inc;
 
 ## Create nodegroup for "new" nodes 5,6
 --echo Creating nodegroup
@@ -163,7 +204,13 @@ drop table counters_at_startup;
 
 alter table t1 algorithm=inplace, reorganize partition;
 
-select node_id, fragment_num, fixed_elem_count
+use ndbinfo;
+select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+use test;
+
+select node_id, fragment_num, fixed_elem_count > 0
 from `ndbinfo`.`memory_per_fragment`
 where fq_name = 'test/def/t1'
 order by node_id, fragment_num;

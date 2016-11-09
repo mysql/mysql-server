@@ -721,6 +721,156 @@ DECLARE_NDBINFO_TABLE(ACC_OPERATIONS, 15) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(TABLE_DIST_STATUS, 13) =
+{ { "table_distribution_status", 13, 0, "Table status in distribution handler" },
+  {
+    {"node_id",               Ndbinfo::Number,   "Node id"},
+    {"table_id",              Ndbinfo::Number,   "Table id"},
+    {"tab_copy_status",       Ndbinfo::Number,   "Copy status of the table"},
+    {"tab_update_status",     Ndbinfo::Number,   "Update status of the table"},
+    {"tab_lcp_status",        Ndbinfo::Number,   "LCP status of the table"},
+    {"tab_status",            Ndbinfo::Number,   "Create status of the table"},
+    {"tab_storage",           Ndbinfo::Number,   "Storage type of table"},
+    {"tab_type",              Ndbinfo::Number,   "Type of table"},
+    {"tab_partitions",        Ndbinfo::Number,   "Number of partitions in table"},
+    {"tab_fragments",         Ndbinfo::Number,   "Number of fragments in table"},
+    {"current_scan_count",    Ndbinfo::Number,   "Current number of active scans"},
+    {"scan_count_wait",       Ndbinfo::Number,   "Number of scans waiting for"},
+    {"is_reorg_ongoing",      Ndbinfo::Number,   "Is a table reorg ongoing on table"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(TABLE_FRAGMENTS, 15) =
+{ { "table_fragments", 15, 0, "Partitions of the tables" },
+  {
+    {"node_id",                     Ndbinfo::Number,   "node_id"},
+    {"table_id",                    Ndbinfo::Number,   "Table id"},
+    {"partition_id",                Ndbinfo::Number,   "Partition id"},
+    {"fragment_id",                 Ndbinfo::Number,   "Fragment id"},
+    {"partition_order",             Ndbinfo::Number,   "Order of fragment in partition"},
+    {"log_part_id",                 Ndbinfo::Number,   "Log part id of fragment"},
+    {"no_of_replicas",              Ndbinfo::Number,   "Number of replicas"},
+    {"current_primary",             Ndbinfo::Number,   "Current primary node id"},
+    {"preferred_primary",           Ndbinfo::Number,   "Preferred primary node id"},
+    {"current_first_backup",        Ndbinfo::Number,   "Current first backup node id"},
+    {"current_second_backup",       Ndbinfo::Number,   "Current second backup node id"},
+    {"current_third_backup",        Ndbinfo::Number,   "Current third backup node id"},
+    {"num_alive_replicas",          Ndbinfo::Number,   "Current number of alive replicas"},
+    {"num_dead_replicas",           Ndbinfo::Number,   "Current number of dead replicas"},
+    {"num_lcp_replicas",            Ndbinfo::Number,   "Number of replicas remaining to be LCP:ed"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(TABLE_REPLICAS, 16) =
+{ { "table_replicas", 16, 0, "Fragment replicas of the tables" },
+  {
+    {"node_id",                     Ndbinfo::Number,   "node_id"},
+    {"table_id",                    Ndbinfo::Number,   "Table id"},
+    {"fragment_id",                 Ndbinfo::Number,   "Fragment id"},
+    {"initial_gci",                 Ndbinfo::Number,   "Initial GCI for table"},
+    {"replica_node_id",             Ndbinfo::Number,   "Node id where replica is stored"},
+    {"is_lcp_ongoing",              Ndbinfo::Number,   "Is LCP ongoing on this fragment"},
+    {"num_crashed_replicas",        Ndbinfo::Number,   "Number of crashed replica instances"},
+    {"last_max_gci_started",        Ndbinfo::Number,   "Last LCP Max GCI started"},
+    {"last_max_gci_completed",      Ndbinfo::Number,   "Last LCP Max GCI completed"},
+    {"last_lcp_id",                 Ndbinfo::Number,   "Last LCP id"},
+    {"prev_lcp_id",                 Ndbinfo::Number,   "Previous LCP id"},
+    {"prev_max_gci_started",        Ndbinfo::Number,   "Previous LCP Max GCI started"},
+    {"prev_max_gci_completed",      Ndbinfo::Number,   "Previous LCP Max GCI completed"},
+    {"last_create_gci",             Ndbinfo::Number,   "Last Create GCI of last crashed replica instance"},
+    {"last_replica_gci",            Ndbinfo::Number,   "Last GCI of last crashed replica instance"},
+    {"is_replica_alive",            Ndbinfo::Number,   "Is replica alive or not"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(TABLE_DIST_STATUS_ALL, 13) =
+{ { "table_distribution_status_all", 13, 0, "Table status in distribution handler" },
+  {
+    {"node_id",               Ndbinfo::Number,   "Node id"},
+    {"table_id",              Ndbinfo::Number,   "Table id"},
+    {"tab_copy_status",       Ndbinfo::Number,   "Copy status of the table"},
+    {"tab_update_status",     Ndbinfo::Number,   "Update status of the table"},
+    {"tab_lcp_status",        Ndbinfo::Number,   "LCP status of the table"},
+    {"tab_status",            Ndbinfo::Number,   "Create status of the table"},
+    {"tab_storage",           Ndbinfo::Number,   "Storage type of table"},
+    {"tab_type",              Ndbinfo::Number,   "Type of table"},
+    {"tab_partitions",        Ndbinfo::Number,   "Number of partitions in table"},
+    {"tab_fragments",         Ndbinfo::Number,   "Number of fragments in table"},
+    {"current_scan_count",    Ndbinfo::Number,   "Current number of active scans"},
+    {"scan_count_wait",       Ndbinfo::Number,   "Number of scans waiting for"},
+    {"is_reorg_ongoing",      Ndbinfo::Number,   "Is a table reorg ongoing on table"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(TABLE_FRAGMENTS_ALL, 15) =
+{ { "table_fragments_all", 15, 0, "Partitions of the tables" },
+  {
+    {"node_id",                     Ndbinfo::Number,   "node_id"},
+    {"table_id",                    Ndbinfo::Number,   "Table id"},
+    {"partition_id",                Ndbinfo::Number,   "Partition id"},
+    {"fragment_id",                 Ndbinfo::Number,   "Fragment id"},
+    {"partition_order",             Ndbinfo::Number,   "Order of fragment in partition"},
+    {"log_part_id",                 Ndbinfo::Number,   "Log part id of fragment"},
+    {"no_of_replicas",              Ndbinfo::Number,   "Number of replicas"},
+    {"current_primary",             Ndbinfo::Number,   "Current primary node id"},
+    {"preferred_primary",           Ndbinfo::Number,   "Preferred primary node id"},
+    {"current_first_backup",        Ndbinfo::Number,   "Current first backup node id"},
+    {"current_second_backup",       Ndbinfo::Number,   "Current second backup node id"},
+    {"current_third_backup",        Ndbinfo::Number,   "Current third backup node id"},
+    {"num_alive_replicas",          Ndbinfo::Number,   "Current number of alive replicas"},
+    {"num_dead_replicas",           Ndbinfo::Number,   "Current number of dead replicas"},
+    {"num_lcp_replicas",            Ndbinfo::Number,   "Number of replicas remaining to be LCP:ed"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(TABLE_REPLICAS_ALL, 16) =
+{ { "table_replicas_all", 16, 0, "Fragment replicas of the tables" },
+  {
+    {"node_id",                     Ndbinfo::Number,   "node_id"},
+    {"table_id",                    Ndbinfo::Number,   "Table id"},
+    {"fragment_id",                 Ndbinfo::Number,   "Fragment id"},
+    {"initial_gci",                 Ndbinfo::Number,   "Initial GCI for table"},
+    {"replica_node_id",             Ndbinfo::Number,   "Node id where replica is stored"},
+    {"is_lcp_ongoing",              Ndbinfo::Number,   "Is LCP ongoing on this fragment"},
+    {"num_crashed_replicas",        Ndbinfo::Number,   "Number of crashed replica instances"},
+    {"last_max_gci_started",        Ndbinfo::Number,   "Last LCP Max GCI started"},
+    {"last_max_gci_completed",      Ndbinfo::Number,   "Last LCP Max GCI completed"},
+    {"last_lcp_id",                 Ndbinfo::Number,   "Last LCP id"},
+    {"prev_lcp_id",                 Ndbinfo::Number,   "Previous LCP id"},
+    {"prev_max_gci_started",        Ndbinfo::Number,   "Previous LCP Max GCI started"},
+    {"prev_max_gci_completed",      Ndbinfo::Number,   "Previous LCP Max GCI completed"},
+    {"last_create_gci",             Ndbinfo::Number,   "Last Create GCI of last crashed replica instance"},
+    {"last_replica_gci",            Ndbinfo::Number,   "Last GCI of last crashed replica instance"},
+    {"is_replica_alive",            Ndbinfo::Number,   "Is replica alive or not"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(STORED_TABLES, 20) =
+{ { "stored_tables", 20, 0, "Information about stored tables" },
+  {
+    {"node_id",                     Ndbinfo::Number,   "node_id"},
+    {"table_id",                    Ndbinfo::Number,   "Table id"},
+    {"logged_table",                Ndbinfo::Number,   "Is table logged"},
+    {"row_contains_gci",            Ndbinfo::Number,   "Does table rows contains GCI"},
+    {"row_contains_checksum",       Ndbinfo::Number,   "Does table rows contain checksum"},
+    {"temporary_table",             Ndbinfo::Number,   "Is table temporary"},
+    {"force_var_part",              Ndbinfo::Number,   "Force var part active"},
+    {"read_backup",                 Ndbinfo::Number,   "Is backup replicas read"},
+    {"fully_replicated",            Ndbinfo::Number,   "Is table fully replicated"},
+    {"extra_row_gci",               Ndbinfo::Number,   "extra_row_gci"},
+    {"extra_row_author",            Ndbinfo::Number,   "extra_row_author"},
+    {"storage_type",                Ndbinfo::Number,   "Storage type of table"},
+    {"hashmap_id",                  Ndbinfo::Number,   "Hashmap id"},
+    {"hashmap_version",             Ndbinfo::Number,   "Hashmap version"},
+    {"table_version",               Ndbinfo::Number,   "Table version"},
+    {"fragment_type",               Ndbinfo::Number,   "Type of fragmentation"},
+    {"partition_balance",           Ndbinfo::Number,   "Partition balance"},
+    {"create_gci",                  Ndbinfo::Number,   "GCI in which table was created"},
+    {"backup_locked",               Ndbinfo::Number,   "Locked for backup"},
+    {"single_user_mode",            Ndbinfo::Number,   "Is single user mode active"}
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -760,7 +910,14 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(CPUSTAT_20SEC),
   DBINFOTBL(CPUSTAT),
   DBINFOTBL(FRAG_LOCKS),
-  DBINFOTBL(ACC_OPERATIONS)
+  DBINFOTBL(ACC_OPERATIONS),
+  DBINFOTBL(TABLE_DIST_STATUS),
+  DBINFOTBL(TABLE_FRAGMENTS),
+  DBINFOTBL(TABLE_REPLICAS),
+  DBINFOTBL(TABLE_DIST_STATUS_ALL),
+  DBINFOTBL(TABLE_FRAGMENTS_ALL),
+  DBINFOTBL(TABLE_REPLICAS_ALL),
+  DBINFOTBL(STORED_TABLES)
 };
 
 static int no_ndbinfo_tables =

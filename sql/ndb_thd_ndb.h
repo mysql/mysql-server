@@ -66,12 +66,15 @@ public:
   enum Options
   {
     NO_LOG_SCHEMA_OP=  1 << 0,
-    /*
-      Do not acquire global schema lock. Normally used in schema
-      dist participant code where the schema dist client(which may be in
-      another mysqld) already has locked the GSL.
+    /* 
+      This Thd_ndb is a participant in a global schema distribution.
+      Whenver a GSL lock is required, it is acquired by the coordinator.
+      The participant can then assume that the GSL lock is already held
+      for the schema operation it is part of. Thus it should not take
+      any GSL locks itself.
     */
-    NO_GLOBAL_SCHEMA_LOCK= 1 << 1,
+    IS_SCHEMA_DIST_PARTICIPANT= 1 << 1,
+
     /*
       Gives special priorites to this Thd_ndb, allowing it to create
       schema distribution event ops before ndb_schema_dist_is_ready()
@@ -165,7 +168,7 @@ public:
   uint global_schema_lock_count;
   uint global_schema_lock_error;
   uint schema_locks_count; // Number of global schema locks taken by thread
-  bool has_required_global_schema_lock(const char* func);
+  bool has_required_global_schema_lock(const char* func) const;
 
   /**
      Epoch of last committed transaction in this session, 0 if none so far

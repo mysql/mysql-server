@@ -81,8 +81,9 @@ struct CreateTableRef {
     InvalidHashMap = 790,
     TableDefinitionTooBig = 793,
     FeatureRequiresUpgrade = 794,
-    WrongFragmentCountTypeFullyReplicated = 797,
+    WrongPartitionBalanceFullyReplicated = 797,
     NoLoggingDiskTable = 798,
+    NonDefaultPartitioningWithNoPartitions = 799,
     TooManyFragments = 1224
   };
 

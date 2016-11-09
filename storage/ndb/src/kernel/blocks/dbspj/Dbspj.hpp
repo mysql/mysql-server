@@ -548,10 +548,10 @@ public:
     void (Dbspj::*m_start)(Signal*, Ptr<Request>, Ptr<TreeNode>);
 
     /**
-     * This function is used when getting a TRANSID_AI
+     * This function is called when a waited for signal arrives.
+     * Return 'true' if this completes the wait for this treeNode
      */
-    void (Dbspj::*m_execTRANSID_AI)(Signal*,Ptr<Request>,Ptr<TreeNode>,
-				    const RowPtr&);
+    bool (Dbspj::*m_countSignal)(const Signal*,Ptr<Request>,Ptr<TreeNode>);
 
     /**
      * This function is used when getting a LQHKEYREF
@@ -1098,7 +1098,7 @@ public:
 
       RS_ABORTED    = 0x2008, // Aborted and waiting for SCAN_NEXTREQ
       RS_END = 0
-    };  //struct Request
+    };
 
     Request() {}
     Request(const ArenaHead & arena) : m_arena(arena) {}
@@ -1152,7 +1152,7 @@ public:
       Uint32 nextPool;
     };
     Uint32 prevHash;
-  };
+  }; //struct Request
 
 private:
   /**
@@ -1316,9 +1316,9 @@ private:
   Uint32 build(Build_context&,Ptr<Request>,SectionReader&,SectionReader&);
   Uint32 initRowBuffers(Ptr<Request>);
   void buildExecPlan(Ptr<Request>, Ptr<TreeNode> node, Ptr<TreeNode> next);
-  void checkPrepareComplete(Signal*, Ptr<Request>, Uint32 cnt);
-  void start(Signal*, Ptr<Request>);
-  void checkBatchComplete(Signal*, Ptr<Request>, Uint32 cnt);
+  void prepare(Signal*, Ptr<Request>);
+  void checkPrepareComplete(Signal*, Ptr<Request>);
+  void checkBatchComplete(Signal*, Ptr<Request>);
   void batchComplete(Signal*, Ptr<Request>);
   void prepareNextBatch(Signal*, Ptr<Request>);
   void sendConf(Signal*, Ptr<Request>, bool is_complete);
@@ -1443,8 +1443,7 @@ private:
   void lookup_start(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_resume(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void lookup_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
-			     const RowPtr&);
+  bool lookup_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_stop_branch(Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 err);
@@ -1478,8 +1477,7 @@ private:
                         const QueryNode*, const QueryNodeParameters*);
   void scanFrag_start(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanFrag_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanFrag_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
-			       const RowPtr &);
+  bool scanFrag_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanFrag_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
@@ -1500,8 +1498,7 @@ private:
                         DABuffer tree, Uint32 treeBits,
                         DABuffer param, Uint32 paramBits);
   void scanIndex_prepare(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
-                                const RowPtr &);
+  bool scanIndex_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanIndex_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanIndex_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanIndex_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);

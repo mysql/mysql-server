@@ -1,48 +1,20 @@
 -- source include/have_ndb.inc
--- source include/have_ndb_debug.inc
-
+-- source have_ndb_error_insert.inc
 
 --let $KEYS=40
 
 use test;
 
---echo Test read-locality of FULLY-REPLICATED
-
-create table test.t1 (a int primary key, 
-                      b int, 
-                      c int, 
-                      d int, 
-                      unique(b) using hash, 
-                      key(c), 
-                      key(a,c)) 
-  comment="NDB_TABLE=FULLY_REPLICATED=1" 
-   engine=ndb;
-
-create table test.t2 (a int primary key,
-                      b int,
-                      c int,
-                      d text,
-                      unique(b) using hash,
-                      key(c))
-  comment="NDB_TABLE=FULLY_REPLICATED=1"
-   engine=ndb;
-
---source ndb_read_local.inc
-
-drop table test.t1;
-drop table test.t2;
-
-
 --echo Test read-locality of READ-BACKUP
 
-create table test.t1 (a int primary key, 
-                      b int, 
-                      c int, 
-                      d int, 
-                      unique(b) using hash, 
-                      key(c), 
-                      key(a,c)) 
-  comment="NDB_TABLE=READ_BACKUP=1" 
+create table test.t1 (a int primary key,
+                      b int,
+                      c int,
+                      d int,
+                      unique(b) using hash,
+                      key(c),
+                      key(a,c))
+  comment="NDB_TABLE=READ_BACKUP=1"
    engine=ndb;
 
 create table test.t2 (a int primary key,
@@ -56,6 +28,92 @@ create table test.t2 (a int primary key,
 
 --source ndb_read_local.inc
 
+drop table test.t1;
+drop table test.t2;
+
+--echo Test read-locality after ALTER TABLE into READ-BACKUP
+
+create table test.t1 (a int primary key,
+                      b int,
+                      c int,
+                      d int,
+                      unique(b) using hash,
+                      key(c),
+                      key(a,c))
+   engine=ndb;
+
+create table test.t2 (a int primary key,
+                      b int,
+                      c int,
+                      d text,
+                      unique(b) using hash,
+                      key(c))
+   engine=ndb;
+
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=1";
+alter table t2 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=1";
+
+let $ndb_desc_opts= -b -i -d test t2;
+source suite/ndb/include/ndb_desc_print.inc;
+--source ndb_read_local.inc
+
+drop table test.t1;
+drop table test.t2;
+
+--echo Test read-locality of FULLY-REPLICATED
+
+create table test.t1 (a int primary key,
+                      b int,
+                      c int,
+                      d int,
+                      unique(b) using hash,
+                      key(c),
+                      key(a,c))
+  comment="NDB_TABLE=FULLY_REPLICATED=1"
+   engine=ndb;
+
+create table test.t2 (a int primary key,
+                      b int,
+                      c int,
+                      d text,
+                      unique(b) using hash,
+                      key(c))
+  comment="NDB_TABLE=FULLY_REPLICATED=1"
+   engine=ndb;
+
+--source ndb_read_local.inc
+
+# Bug#XXX Read backup for fully replicated unique index tables are broken with more
+# than one node group
+let $bug_ui = 1;
+
+# Bug#YYY Read backup for fully replicated blob tables are broken with more than one
+# node group
+let $bug_blob = 1;
+
+--exec $NDB_MGM --verbose=0 -e'create nodegroup 3,4'
+# Due to Bug#13714258 UNIQUE INDEXES NOT REORGANISED BY ONLINE TABLE REORG
+# inplace reorganize partition can not be used.  As work around recreate tables
+# using copy instead.
+# Tests on table t2 are focused on blobs and not unique index and inplace works
+# good enough.
+# Remove this comment and use inplace reorganize partition when bug is fixed.
+#alter table t1 algorithm=inplace, reorganize partition;
+alter table t1 algorithm=copy, reorganize partition;
+alter table t2 algorithm=inplace, reorganize partition;
+
+--source ndb_read_local.inc
+
+--exec $NDB_MGM --verbose=0 -e'create nodegroup 5,6'
+# Due to Bug#13714258 UNIQUE INDEXES NOT REORGANISED BY ONLINE TABLE REORG
+# inplace reorganize partition can not be used.  As work around recreate tables
+# using copy instead.
+# Remove this comment and use inplace reorganize partition when bug is fixed.
+#alter table t1 algorithm=inplace, reorganize partition;
+alter table t1 algorithm=copy, reorganize partition;
+alter table t2 algorithm=inplace, reorganize partition;
+
+--source ndb_read_local.inc
 
 drop table test.t1;
 drop table test.t2;

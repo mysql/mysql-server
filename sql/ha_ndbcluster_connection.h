@@ -31,6 +31,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
                        uint recv_thread_activation_threshold,
                        uint data_node_neighbour);
 
+bool ndbcluster_is_connected(uint max_wait_sec);
 void ndbcluster_disconnect(void);
 
 Ndb_cluster_connection *ndb_get_cluster_connection();

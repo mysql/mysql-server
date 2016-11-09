@@ -159,7 +159,7 @@ b int unsigned not null,
 c int unsigned,
 UNIQUE (b, c) USING HASH	
 ) engine=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
 Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
 insert t2 values(1,1,NULL),(2,2,2),(3,3,NULL),(4,4,4),(5,5,NULL),(6,6,6),(7,7,NULL),(8,3,NULL),(9,3,NULL);
@@ -891,10 +891,10 @@ a
 set optimizer_switch = @old_os;
 drop table t1;
 create table t1 (pk int primary key, a int) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t2 (pk int primary key, uq int, a int, 
 unique key ix(uq,a) USING HASH) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
 Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
 insert into t2 values
@@ -921,13 +921,13 @@ drop table t1,t2;
 CREATE TABLE t1 (
 i int
 ) ENGINE=ndbcluster
-COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 INSERT INTO t1 VALUES (1);
 CREATE TABLE t2 (
 col_int_unique int,
 UNIQUE KEY ix1 (col_int_unique) USING HASH
 ) ENGINE=ndbcluster
-COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
 Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
 INSERT INTO t2 VALUES (42);

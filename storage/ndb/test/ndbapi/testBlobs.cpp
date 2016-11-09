@@ -565,7 +565,7 @@ createTable(int storageType)
     const Uint32 numPartitions= numReplicas * numNgs * numFragsPerNode;
     
     tab.setFragmentCount(numPartitions);
-    tab.setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
+    tab.setPartitionBalance(NdbDictionary::Object::PartitionBalance_Specific);
     for (Uint32 i=0; i<numPartitions; i++)
     {
       frag_ng_mappings[i]= i % numNgs;

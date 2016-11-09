@@ -100,8 +100,9 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   bt.m_tablespace_id = t->m_tablespace_id;
   bt.m_tablespace_version = t->m_tablespace_version;
   bt.setFragmentType(t->getFragmentType());
-  bt.setFragmentCountType(t->getFragmentCountType());
+  bt.setPartitionBalance(t->getPartitionBalance());
   bt.setReadBackupFlag(t->getReadBackupFlag());
+  bt.setFullyReplicated(t->getFullyReplicated());
 
   if (t->getFragmentType() == NdbDictionary::Object::HashMapPartition)
   {
@@ -2785,7 +2786,12 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
             setErrorCode(tOp);
             DBUG_RETURN(-1);
           }
-        } 
+        }
+        if (isReadOp() && theNdbOp->getReadCommittedBase())
+        {
+          DBUG_PRINT("info", ("Set ReadCommittedBase on UI lookup"));
+          tOp->setReadCommittedBase();
+        }
       }
       DBUG_PRINT("info", ("Index op : added op before to read table key"));
     }

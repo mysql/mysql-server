@@ -840,18 +840,25 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       3 * noOfUniqueHashIndexes + /* for unique hash indexes, I/U/D */
       3 * NDB_MAX_ACTIVE_EVENTS + /* for events in suma, I/U/D */
       3 * noOfTables +            /* for backup, I/U/D */
+      3 * noOfTables +            /* for Fully replicated tables, I/U/D */
       noOfOrderedIndexes;         /* for ordered indexes, C */
     if (noOfTriggers < neededNoOfTriggers)
     {
       noOfTriggers= neededNoOfTriggers;
       it2.set(CFG_DB_NO_TRIGGERS, noOfTriggers);
     }
+    g_eventLogger->info("MaxNoOfTriggers set to %u", noOfTriggers);
   }
 
   /**
    * Do size calculations
    */
   ConfigValuesFactory cfg(ownConfig);
+
+  /**
+   * Ensure that Backup doesn't fail due to lack of trigger resources
+   */
+  cfg.put(CFG_TUP_NO_TRIGGERS, noOfTriggers + 3 * noOfTables);
 
   Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
                            noOfUniqueHashIndexes;

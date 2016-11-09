@@ -812,17 +812,23 @@ Dbtup::checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
       jam();
       switch(trigPtr.p->triggerType){
       case TriggerType::SECONDARY_INDEX:
+        jam();
         NoOfFiredTriggers::setDeferredUKBit(req_struct->num_fired_triggers);
         break;
       case TriggerType::FK_PARENT:
       case TriggerType::FK_CHILD:
+        jam();
         NoOfFiredTriggers::setDeferredFKBit(req_struct->num_fired_triggers);
         break;
       default:
+        jam();
         ndbassert(false);
       }
       if (NoOfFiredTriggers::getDeferredAllSet(req_struct->num_fired_triggers))
+      {
+        jam();
         return;
+      }
     }
     triggerList.next(trigPtr);
   }
@@ -851,6 +857,7 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
   switch (save_type) {
   case ZUPDATE:
   case ZINSERT:
+    jam();
     req_struct->m_tuple_ptr =get_copy_tuple(&regOperPtr->m_copy_tuple_location);
     break;
   }
@@ -859,20 +866,25 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
    * Set correct operation type and fix change mask
    * Note ALLOC is set in "orig" tuple
    */
-  if (save_ptr->m_header_bits & Tuple_header::ALLOC) {
-    if (save_type == ZDELETE) {
+  if (save_ptr->m_header_bits & Tuple_header::ALLOC)
+  {
+    if (save_type == ZDELETE)
+    {
       // insert + delete = nothing
       jam();
       return;
       goto end;
     }
+    jam();
     regOperPtr->op_type = ZINSERT;
   }
-  else if (save_type == ZINSERT) {
+  else if (save_type == ZINSERT)
+  {
     /**
      * Tuple was not created but last op is INSERT.
      * This is possible only on DELETE + INSERT
      */
+    jam();
     regOperPtr->op_type = ZUPDATE;
   }
 
@@ -897,14 +909,10 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
     break;
   }
 
-  if (req_struct->m_deferred_constraints == false)
-  {
-    constraint_list = 0;
-  }
-
   if (deferred_list->isEmpty() &&
       (constraint_list == 0 || constraint_list->isEmpty()))
   {
+    jam();
     goto end;
   }
 
@@ -914,11 +922,13 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
   set_commit_change_mask_info(regTablePtr, req_struct, regOperPtr);
   if (!deferred_list->isEmpty())
   {
+    jam();
     fireDeferredTriggers(req_struct, * deferred_list, regOperPtr, disk);
   }
 
   if (constraint_list && !constraint_list->isEmpty())
   {
+    jam();
     fireDeferredConstraints(req_struct, * constraint_list, regOperPtr, disk);
   }
 
@@ -1125,16 +1135,42 @@ Dbtup::fireDeferredConstraints(KeyReqStruct *req_struct,
   while (trigPtr.i != RNIL) {
     jam();
     if (trigPtr.p->monitorAllAttributes ||
-        trigPtr.p->attributeMask.overlaps(req_struct->changeMask)) {
+        trigPtr.p->attributeMask.overlaps(req_struct->changeMask))
+    {
       jam();
-      executeTrigger(req_struct,
-                     trigPtr.p,
-                     regOperPtr,
-                     disk);
+      switch (trigPtr.p->triggerType)
+      {
+      case TriggerType::SECONDARY_INDEX:
+      case TriggerType::FK_PARENT:
+      case TriggerType::FK_CHILD:
+        jam();
+        /**
+         * Unique index triggers have to do pre-commit checks when
+         * running in a slave cluster.
+         * Also foreign key triggers are handled in pre-commit stage.
+         */
+        executeTrigger(req_struct,
+                       trigPtr.p,
+                       regOperPtr,
+                       disk);
+        break;
+      case TriggerType::FULLY_REPLICATED_TRIGGER:
+      case TriggerType::REORG_TRIGGER:
+        /**
+         * Fully replicated triggers and reorg triggers should not be
+         * executed in pre-commit phase since they are about replicating
+         * writes and not about pre-commit checks.
+         */
+        jam();
+        break;
+      default:
+        ndbrequire(false);
+        break;
+      }
     }//if
     triggerList.next(trigPtr);
   }//while
-}//Dbtup::fireDeferredTriggers()
+}//Dbtup::fireDeferredConstraints()
 
 void
 Dbtup::fireDeferredTriggers(KeyReqStruct *req_struct,
@@ -1415,17 +1451,34 @@ out:
   else if (unlikely(triggerType == TriggerType::REORG_TRIGGER))
   {
     if (!check_fire_reorg(req_struct, fragstatus))
+    {
+      jam();
       return;
+    }
+    jam();
   }
   else if (unlikely(triggerType == TriggerType::FULLY_REPLICATED_TRIGGER))
   {
     if (!check_fire_fully_replicated(req_struct, fragstatus))
+    {
+      jam();
       return;
+    }
+    jam();
   }
   else if (unlikely(regFragPtr.p->fragStatus != Fragrecord::FS_ONLINE))
   {
     if (!check_fire_trigger(regFragPtr.p, trigPtr, req_struct, regOperPtr))
+    {
+      jam();
       return;
+    }
+    jam();
+  }
+  else
+  {
+    jam();
+    jamLine((Uint16)triggerType);
   }
 
   if (!readTriggerInfo(trigPtr,
@@ -1438,7 +1491,8 @@ out:
                        noAfterWords,
                        beforeBuffer,
                        noBeforeWords,
-                       disk)) {
+                       disk))
+  {
     jam();
     return;
   }

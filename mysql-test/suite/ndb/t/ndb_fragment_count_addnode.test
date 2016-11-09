@@ -8,22 +8,22 @@ select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 
 create table t2 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
 
 create table t3 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t3' order by node_id, fragment_num, block_instance;
 
 create table t4 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t4' order by node_id, fragment_num, block_instance;
 
 create table t5 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t5' order by node_id, fragment_num, block_instance;
 
@@ -112,6 +112,16 @@ select @cnt_t2_1 > @cnt_t2_0;
 select @cnt_t3_1 > @cnt_t3_0;
 select @cnt_t4_1 > @cnt_t4_0;
 select @cnt_t5_1 > @cnt_t5_0;
+
+let $i = 200;
+--disable_query_log
+while ($i) {
+  eval insert into t1 values ($i, '$i');
+  dec $i;
+}
+--enable_query_log
+--let ndb_desc_opts= -p -d test t1
+--source suite/ndb/include/ndb_desc_print.inc
 
 drop table t1,t2,t3,t4,t5;
 

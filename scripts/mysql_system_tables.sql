@@ -3567,6 +3567,26 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`table_distribution_status`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`table_fragments`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`table_replicas`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`table_info`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`cluster_transactions`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -3643,6 +3663,11 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`server_locks`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`dict_obj_info`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3937,6 +3962,82 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+# ndbinfo.ndb$table_distribution_status
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$table_distribution_status`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_distribution_status` (`node_id` INT UNSIGNED COMMENT "Node id",`table_id` INT UNSIGNED COMMENT "Table id",`tab_copy_status` INT UNSIGNED COMMENT "Copy status of the table",`tab_update_status` INT UNSIGNED COMMENT "Update status of the table",`tab_lcp_status` INT UNSIGNED COMMENT "LCP status of the table",`tab_status` INT UNSIGNED COMMENT "Create status of the table",`tab_storage` INT UNSIGNED COMMENT "Storage type of table",`tab_type` INT UNSIGNED COMMENT "Type of table",`tab_partitions` INT UNSIGNED COMMENT "Number of partitions in table",`tab_fragments` INT UNSIGNED COMMENT "Number of fragments in table",`current_scan_count` INT UNSIGNED COMMENT "Current number of active scans",`scan_count_wait` INT UNSIGNED COMMENT "Number of scans waiting for",`is_reorg_ongoing` INT UNSIGNED COMMENT "Is a table reorg ongoing on table") COMMENT="Table status in distribution handler" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.ndb$table_fragments
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$table_fragments`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_fragments` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`partition_id` INT UNSIGNED COMMENT "Partition id",`fragment_id` INT UNSIGNED COMMENT "Fragment id",`partition_order` INT UNSIGNED COMMENT "Order of fragment in partition",`log_part_id` INT UNSIGNED COMMENT "Log part id of fragment",`no_of_replicas` INT UNSIGNED COMMENT "Number of replicas",`current_primary` INT UNSIGNED COMMENT "Current primary node id",`preferred_primary` INT UNSIGNED COMMENT "Preferred primary node id",`current_first_backup` INT UNSIGNED COMMENT "Current first backup node id",`current_second_backup` INT UNSIGNED COMMENT "Current second backup node id",`current_third_backup` INT UNSIGNED COMMENT "Current third backup node id",`num_alive_replicas` INT UNSIGNED COMMENT "Current number of alive replicas",`num_dead_replicas` INT UNSIGNED COMMENT "Current number of dead replicas",`num_lcp_replicas` INT UNSIGNED COMMENT "Number of replicas remaining to be LCP:ed") COMMENT="Partitions of the tables" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.ndb$table_replicas
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$table_replicas`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_replicas` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`fragment_id` INT UNSIGNED COMMENT "Fragment id",`initial_gci` INT UNSIGNED COMMENT "Initial GCI for table",`replica_node_id` INT UNSIGNED COMMENT "Node id where replica is stored",`is_lcp_ongoing` INT UNSIGNED COMMENT "Is LCP ongoing on this fragment",`num_crashed_replicas` INT UNSIGNED COMMENT "Number of crashed replica instances",`last_max_gci_started` INT UNSIGNED COMMENT "Last LCP Max GCI started",`last_max_gci_completed` INT UNSIGNED COMMENT "Last LCP Max GCI completed",`last_lcp_id` INT UNSIGNED COMMENT "Last LCP id",`prev_lcp_id` INT UNSIGNED COMMENT "Previous LCP id",`prev_max_gci_started` INT UNSIGNED COMMENT "Previous LCP Max GCI started",`prev_max_gci_completed` INT UNSIGNED COMMENT "Previous LCP Max GCI completed",`last_create_gci` INT UNSIGNED COMMENT "Last Create GCI of last crashed replica instance",`last_replica_gci` INT UNSIGNED COMMENT "Last GCI of last crashed replica instance",`is_replica_alive` INT UNSIGNED COMMENT "Is replica alive or not") COMMENT="Fragment replicas of the tables" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.ndb$table_distribution_status_all
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$table_distribution_status_all`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_distribution_status_all` (`node_id` INT UNSIGNED COMMENT "Node id",`table_id` INT UNSIGNED COMMENT "Table id",`tab_copy_status` INT UNSIGNED COMMENT "Copy status of the table",`tab_update_status` INT UNSIGNED COMMENT "Update status of the table",`tab_lcp_status` INT UNSIGNED COMMENT "LCP status of the table",`tab_status` INT UNSIGNED COMMENT "Create status of the table",`tab_storage` INT UNSIGNED COMMENT "Storage type of table",`tab_type` INT UNSIGNED COMMENT "Type of table",`tab_partitions` INT UNSIGNED COMMENT "Number of partitions in table",`tab_fragments` INT UNSIGNED COMMENT "Number of fragments in table",`current_scan_count` INT UNSIGNED COMMENT "Current number of active scans",`scan_count_wait` INT UNSIGNED COMMENT "Number of scans waiting for",`is_reorg_ongoing` INT UNSIGNED COMMENT "Is a table reorg ongoing on table") COMMENT="Table status in distribution handler" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.ndb$table_fragments_all
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$table_fragments_all`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_fragments_all` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`partition_id` INT UNSIGNED COMMENT "Partition id",`fragment_id` INT UNSIGNED COMMENT "Fragment id",`partition_order` INT UNSIGNED COMMENT "Order of fragment in partition",`log_part_id` INT UNSIGNED COMMENT "Log part id of fragment",`no_of_replicas` INT UNSIGNED COMMENT "Number of replicas",`current_primary` INT UNSIGNED COMMENT "Current primary node id",`preferred_primary` INT UNSIGNED COMMENT "Preferred primary node id",`current_first_backup` INT UNSIGNED COMMENT "Current first backup node id",`current_second_backup` INT UNSIGNED COMMENT "Current second backup node id",`current_third_backup` INT UNSIGNED COMMENT "Current third backup node id",`num_alive_replicas` INT UNSIGNED COMMENT "Current number of alive replicas",`num_dead_replicas` INT UNSIGNED COMMENT "Current number of dead replicas",`num_lcp_replicas` INT UNSIGNED COMMENT "Number of replicas remaining to be LCP:ed") COMMENT="Partitions of the tables" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.ndb$table_replicas_all
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$table_replicas_all`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_replicas_all` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`fragment_id` INT UNSIGNED COMMENT "Fragment id",`initial_gci` INT UNSIGNED COMMENT "Initial GCI for table",`replica_node_id` INT UNSIGNED COMMENT "Node id where replica is stored",`is_lcp_ongoing` INT UNSIGNED COMMENT "Is LCP ongoing on this fragment",`num_crashed_replicas` INT UNSIGNED COMMENT "Number of crashed replica instances",`last_max_gci_started` INT UNSIGNED COMMENT "Last LCP Max GCI started",`last_max_gci_completed` INT UNSIGNED COMMENT "Last LCP Max GCI completed",`last_lcp_id` INT UNSIGNED COMMENT "Last LCP id",`prev_lcp_id` INT UNSIGNED COMMENT "Previous LCP id",`prev_max_gci_started` INT UNSIGNED COMMENT "Previous LCP Max GCI started",`prev_max_gci_completed` INT UNSIGNED COMMENT "Previous LCP Max GCI completed",`last_create_gci` INT UNSIGNED COMMENT "Last Create GCI of last crashed replica instance",`last_replica_gci` INT UNSIGNED COMMENT "Last GCI of last crashed replica instance",`is_replica_alive` INT UNSIGNED COMMENT "Is replica alive or not") COMMENT="Fragment replicas of the tables" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.ndb$stored_tables
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$stored_tables`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$stored_tables` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`logged_table` INT UNSIGNED COMMENT "Is table logged",`row_contains_gci` INT UNSIGNED COMMENT "Does table rows contains GCI",`row_contains_checksum` INT UNSIGNED COMMENT "Does table rows contain checksum",`temporary_table` INT UNSIGNED COMMENT "Is table temporary",`force_var_part` INT UNSIGNED COMMENT "Force var part active",`read_backup` INT UNSIGNED COMMENT "Is backup replicas read",`fully_replicated` INT UNSIGNED COMMENT "Is table fully replicated",`extra_row_gci` INT UNSIGNED COMMENT "extra_row_gci",`extra_row_author` INT UNSIGNED COMMENT "extra_row_author",`storage_type` INT UNSIGNED COMMENT "Storage type of table",`hashmap_id` INT UNSIGNED COMMENT "Hashmap id",`hashmap_version` INT UNSIGNED COMMENT "Hashmap version",`table_version` INT UNSIGNED COMMENT "Table version",`fragment_type` INT UNSIGNED COMMENT "Type of fragmentation",`partition_balance` INT UNSIGNED COMMENT "Partition balance",`create_gci` INT UNSIGNED COMMENT "GCI in which table was created",`backup_locked` INT UNSIGNED COMMENT "Locked for backup",`single_user_mode` INT UNSIGNED COMMENT "Is single user mode active") COMMENT="Information about stored tables" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 # ndbinfo.ndb$transactions
 SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$transactions`','SET @dummy = 0');
@@ -4267,6 +4368,30 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+# ndbinfo.table_distribution_status
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`table_distribution_status` AS SELECT node_id AS node_id, table_id AS table_id, CASE tab_copy_status WHEN 0 THEN "IDLE" WHEN 1 THEN "SR_PHASE1_READ_PAGES" WHEN 2 THEN "SR_PHASE2_READ_TABLE" WHEN 3 THEN "SR_PHASE3_COPY_TABLE" WHEN 4 THEN "REMOVE_NODE" WHEN 5 THEN "LCP_READ_TABLE" WHEN 6 THEN "COPY_TAB_REQ" WHEN 7 THEN "COPY_NODE_STATE" WHEN 8 THEN "ADD_TABLE_MASTER" WHEN 9 THEN "ADD_TABLE_SLAVE" WHEN 10 THEN "INVALIDATE_NODE_LCP" WHEN 11 THEN "ALTER_TABLE" WHEN 12 THEN "COPY_TO_SAVE" WHEN 13 THEN "GET_TABINFO"  ELSE "Invalid value" END AS tab_copy_status, CASE tab_update_status WHEN 0 THEN "IDLE" WHEN 1 THEN "LOCAL_CHECKPOINT" WHEN 2 THEN "LOCAL_CHECKPOINT_QUEUED" WHEN 3 THEN "REMOVE_NODE" WHEN 4 THEN "COPY_TAB_REQ" WHEN 5 THEN "ADD_TABLE_MASTER" WHEN 6 THEN "ADD_TABLE_SLAVE" WHEN 7 THEN "INVALIDATE_NODE_LCP" WHEN 8 THEN "CALLBACK"  ELSE "Invalid value" END AS tab_update_status, CASE tab_lcp_status WHEN 1 THEN "ACTIVE" WHEN 2 THEN "wRITING_TO_FILE" WHEN 3 THEN "COMPLETED"  ELSE "Invalid value" END AS tab_lcp_status, CASE tab_status WHEN 0 THEN "IDLE" WHEN 1 THEN "ACTIVE" WHEN 2 THEN "CREATING" WHEN 3 THEN "DROPPING"  ELSE "Invalid value" END AS tab_status, CASE tab_storage WHEN 0 THEN "NOLOGGING" WHEN 1 THEN "NORMAL" WHEN 2 THEN "TEMPORARY"  ELSE "Invalid value" END AS tab_storage, tab_partitions AS tab_partitions, tab_fragments AS tab_fragments, current_scan_count AS current_scan_count, scan_count_wait AS scan_count_wait, is_reorg_ongoing AS is_reorg_ongoing FROM `ndbinfo`.`ndb$table_distribution_status`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.table_fragments
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`table_fragments` AS SELECT * FROM `ndbinfo`.`ndb$table_fragments`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.table_replicas
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`table_replicas` AS SELECT * FROM `ndbinfo`.`ndb$table_replicas`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.table_info
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`table_info` AS  SELECT  table_id AS table_id,  logged_table AS logged_table,  row_contains_gci AS row_contains_gci,  row_contains_checksum AS row_contains_checksum,  read_backup AS read_backup,  fully_replicated AS fully_replicated,  CASE storage_type WHEN 0 THEN "MEMORY" WHEN 1 THEN "DISK" WHEN 2 THEN "MEMORY"  ELSE "Invalid value" END AS storage_type, hashmap_id AS hashmap_id,  CASE partition_balance WHEN 4294967295 THEN "SPECIFIC" WHEN 4294967294 THEN "FOR_RP_BY_LDM" WHEN 4294967293 THEN "FOR_RA_BY_LDM" WHEN 4294967292 THEN "FOR_RP_BY_NODE" WHEN 4294967291 THEN "FOR_RA_BY_NODE" ELSE "Invalid value" END AS partition_balance, create_gci AS create_gci FROM `ndbinfo`.`ndb$stored_tables`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # ndbinfo.cluster_transactions
 SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`cluster_transactions` AS SELECT t.node_id, t.block_instance, t.transid0 + (t.transid1 << 32) as transid, s.state_friendly_name as state,  t.c_ops as count_operations,  t.outstanding as outstanding_operations,  t.timer as inactive_seconds,  (t.apiref & 65535) as client_node_id,  (t.apiref >> 16) as client_block_ref FROM `ndbinfo`.`ndb$transactions` t LEFT JOIN `ndbinfo`.`ndb$dbtc_apiconnect_state` s        ON s.state_int_value = t.state','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -4389,6 +4514,12 @@ DROP PREPARE stmt;
 
 # ndbinfo.server_locks
 SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`server_locks` AS SELECT map.mysql_connection_id, l.* FROM `ndbinfo`.cluster_locks l JOIN information_schema.ndb_transid_mysql_connection_map map ON (map.ndb_transid >> 32) = (l.transid >> 32)','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.dict_obj_info
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`dict_obj_info` AS  SELECT * FROM `ndbinfo`.`ndb$dict_obj_info`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;

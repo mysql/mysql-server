@@ -2584,7 +2584,7 @@ count(*)
 CREATE TABLE tx (
 a int NOT NULL,
 PRIMARY KEY (`a`)
-) comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+) comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 delete from t1;
 insert into tx values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
 insert into t1 select 1, x1.a * 10+x2.a, 1, 1 from tx as x1 cross join tx as x2;
@@ -2616,7 +2616,7 @@ c int not null,
 d int not null,
 primary key (`a`,`b`)
 ) engine=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
   partition by key(a);
 insert into t1 values
 (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
@@ -2684,7 +2684,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 drop table t1;
 set new=default;
 create table t1 (a int, b int, primary key(a) using hash) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1, 2);
 insert into t1 values (2, 3);
 insert into t1 values (3, 1);
@@ -2714,7 +2714,7 @@ This should yield 3 executes (for now...buh)
 set autocommit=on;
 drop table t1;
 create table t1 (a int, b int, primary key(a)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1, 2);
 insert into t1 values (2, 3);
 insert into t1 values (3, 1);
@@ -2765,15 +2765,15 @@ a	b	a	b
 drop table t1;
 set ndb_join_pushdown=true;
 create table t1 (a int, b int, primary key(a)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t2 (c int, d int, primary key(c)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t3 (a3 int, b3 int, c3 int not null, d3 int not null,
 primary key(a3, b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t3_hash (a3 int, b3 int, c3 int not null, d3 int not null,
 primary key(a3, b3) using hash) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (0x1f, 0x2f);
 insert into t1 values (0x2f, 0x3f);
 insert into t1 values (0x3f, 0x1f);
@@ -3390,13 +3390,13 @@ count(*)
 drop table t1,t2,t3, t3_hash;
 create table t3 (a3 int, b3 int, c3 int, d3 int,
 primary key(b3, a3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t3_hash (a3 int, b3 int, c3 int, d3 int,
 primary key(b3,a3) using hash) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t3_unq (pk int, a3 int not null, b3 int not null, c3 int, d3 int,
 primary key(pk) using hash, unique key(b3,a3) using hash) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -3487,7 +3487,7 @@ pk	a3	b3	c3	d3	pk	a3	b3	c3	d3
 drop table t3, t3_hash, t3_unq;
 create table t3 (a3 int, b3 int, c3 int, d3 int,
 primary key(a3), unique key(d3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -3599,7 +3599,7 @@ a3	b3	c3	d3	a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int not null, b3 int not null, c3 int, d3 int,
 primary key(a3), unique key(b3,d3), unique key(c3,b3), unique key(c3,d3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1,    0x1f);
 insert into t3 values (0x2f, 0x3f, 2,    0x2f);
 insert into t3 values (0x3f, 0x1f, 3,    0x3f);
@@ -3948,7 +3948,7 @@ set @a=47;
 execute stmt1 using @a;
 ERROR 42S02: Table 'test.t3' doesn't exist
 create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1,null, 2);
 insert into t1 values (2,1, null);
 insert into t1 values (3,2,2);
@@ -4049,7 +4049,7 @@ a	(select straight_join x.a from t1 as x join t1 as y on x.a=y.b where y.a = t1.
 6	1
 drop table t1;
 create table t1 (a int primary key, b int) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t2 (a int primary key, b int) engine = myisam;
 insert into t1 values(1,1), (2,2), (3,3), (4,4);
 insert into t2 values(1,1), (2,2), (3,3), (4,4);
@@ -4074,9 +4074,9 @@ a	b	a	b	a	b
 4	4	4	4	4	4
 drop table t1, t2;
 create table t1 (a int primary key, b int, c blob) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t2 (a int primary key, b int) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1,1, 'kalle');
 insert into t1 values (2,1, 'kalle');
 insert into t1 values (3,3, 'kalle');
@@ -4229,7 +4229,7 @@ a	b	c	a	b
 drop table t1, t2;
 create table t3 (a3 int, b3 tinyint, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -4247,7 +4247,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 tinyint unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -4265,7 +4265,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 smallint, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -4283,7 +4283,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 smallint unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -4301,7 +4301,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 mediumint, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -4319,7 +4319,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 mediumint unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -4337,7 +4337,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 int, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -4355,7 +4355,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 int unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -4373,7 +4373,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 bigint, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -4391,7 +4391,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 bigint unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -4409,7 +4409,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 boolean, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0, 1, 0x1f);
 insert into t3 values (0x2f, 1, 2, 0x2f);
 insert into t3 values (0x3f, 0, 3, 0x3f);
@@ -4427,7 +4427,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 float, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 2.71, 1, 0x1f);
 insert into t3 values (0x2f, 3.00, 2, 0x2f);
 insert into t3 values (0x3f, 0.50, 3, 0x3f);
@@ -4445,7 +4445,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 float unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 2.71, 1, 0x1f);
 insert into t3 values (0x2f, 3.00, 2, 0x2f);
 insert into t3 values (0x3f, 0.50, 3, 0x3f);
@@ -4463,7 +4463,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 double, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 2.71, 1, 0x1f);
 insert into t3 values (0x2f, 3.14, 2, 0x2f);
 insert into t3 values (0x3f, 0.50, 3, 0x3f);
@@ -4481,7 +4481,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 double unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 2.71, 1, 0x1f);
 insert into t3 values (0x2f, 3.14, 2, 0x2f);
 insert into t3 values (0x3f, 0.50, 3, 0x3f);
@@ -4499,7 +4499,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 decimal, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -4517,7 +4517,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 decimal(12,4), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 2.71, 1, 0x1f);
 insert into t3 values (0x2f, 3.14, 2, 0x2f);
 insert into t3 values (0x3f, 0.50, 3, 0x3f);
@@ -4535,7 +4535,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 date, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, '1905-05-17', 1, 0x1f);
 insert into t3 values (0x2f, '2000-02-28', 2, 0x2f);
 insert into t3 values (0x3f, '2000-02-29', 3, 0x3f);
@@ -4553,7 +4553,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 char(16), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 'Ole', 1, 0x1f);
 insert into t3 values (0x2f, 'Dole', 2, 0x2f);
 insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
@@ -4571,7 +4571,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 varchar(16), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 'Ole', 1, 0x1f);
 insert into t3 values (0x2f, 'Dole', 2, 0x2f);
 insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
@@ -4589,7 +4589,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 varchar(512), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 'Ole', 1, 0x1f);
 insert into t3 values (0x2f, 'Dole', 2, 0x2f);
 insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
@@ -4607,7 +4607,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 binary(16), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 'Ole', 1, 0x1f);
 insert into t3 values (0x2f, 'Dole', 2, 0x2f);
 insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
@@ -4624,7 +4624,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 varbinary(16), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 'Ole', 1, 0x1f);
 insert into t3 values (0x2f, 'Dole', 2, 0x2f);
 insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
@@ -4642,7 +4642,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 int, b3 tinyint, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
@@ -4660,7 +4660,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
 create table t3 (a3 varchar(16), b3 int, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values ('Ole', 0x1f, 1, 0x1f);
 insert into t3 values ('Dole', 0x2f, 2, 0x2f);
 insert into t3 values ('Doffen', 0x3f, 2, 0x3f);
@@ -4688,7 +4688,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 Dole	47	2	47	Dole	47	2	47
 drop table t3;
 create table t1 (k int primary key, b int) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1,1), (2,1), (3,1), (4,1);
 explain
 select *
@@ -4759,7 +4759,7 @@ c int not null,
 d char(255) not null,
 primary key (`a`,`b`)
 ) engine=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 explain
 select count(*)
 from t1 
@@ -4858,13 +4858,13 @@ b int not null storage disk,
 c int not null storage memory, 
 primary key(a)) 
 tablespace ts1 storage disk engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (10, 11, 11);
 insert into t1 values (11, 12, 12);
 insert into t1 values (12, 13, 13);
 create table t2 (a int not null, 
 b int not null, primary key(a)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t2 values (10, 11);
 insert into t2 values (11, 12);
 insert into t2 values (12, 13);
@@ -4999,7 +4999,7 @@ create table t1 (
 a int primary key, 
 b int,
 c int) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1, 2, 3);
 insert into t1 values (2, 3, 4);
 insert into t1 values (3, 4, 5);
@@ -5037,7 +5037,7 @@ b int not null,
 c int not null,
 primary key(a,b))
 engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
 partition by key (a);
 insert into t1 values (10, 10, 11);
 insert into t1 values (11, 11, 12);
@@ -5093,7 +5093,7 @@ a int not null,
 b int not null,
 primary key using hash (a,b))
 engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
 partition by key (a);
 insert into t1(a,b,c,d) values (10, 10, 11, 11);
 insert into t1(a,b,c,d) values (11, 11, 12, 12);
@@ -5141,7 +5141,7 @@ b int not null,
 c int not null,
 primary key using hash (a,b,c))
 engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
 partition by key (b,a);
 insert into t2(a,b,c,d,e,f) values (1, 2, 3, 1, 2, 3);
 insert into t2(a,b,c,d,e,f) values (1, 2, 4, 1, 2, 3);
@@ -5168,7 +5168,7 @@ pruned_scan_count
 1
 drop table t2;
 create table t1 (a binary(10) primary key, b binary(10) not null) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values ('\0123456789', '1234567890');
 insert into t1 values ('1234567890', '\0123456789');
 explain
@@ -5188,7 +5188,7 @@ count(*)
 1
 drop table t1;
 create table t1 (pk int primary key, a int unique key) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1,10), (2,20), (3,30);
 set ndb_join_pushdown = false;
 explain
@@ -5231,7 +5231,7 @@ pk	a	pk	a
 NULL	NULL	2	20
 drop table t1;
 create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create index ix1 on t1(b,a);
 insert into t1 values (0,1,10,20);
 insert into t1 values (1,2,20,30);
@@ -5252,7 +5252,7 @@ pk	u	a	b	pk	u	a	b	pk	u	a	b
 1	2	20	30	2	3	30	40	1	2	20	30
 drop table t1;
 create table t1 (pk int primary key, u int not null) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (0,-1), (1,-1), (2,-1), (3,-1), (4,-1), (5,-1), (6,-1), 
 (7,-1), (8,-1), (9,-1), (10,-1), (11,-1), (12,-1), (13,-1), (14,-1), (15,-1), 
 (16,-1), (17,-1), (18,-1), (19,-1), (20,-1), (21,-1), (22,-1), (23,-1), 
@@ -5284,7 +5284,7 @@ pk	u	pk	u
 set global debug=@save_debug;
 drop table t1;
 create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create index ix1 on t1(b,a);
 create unique index ix2 on t1(u);
 insert into t1 values (0,0,10,10);
@@ -5761,19 +5761,19 @@ c int NOT NULL,
 d int NOT NULL,
 PRIMARY KEY (`a`,`b`)
 ) ENGINE=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1,1,1,1), (1,2,1,1), (1,3,1,1), (1,4,1,2);
 CREATE TABLE t2 (
 a int NOT NULL,
 PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 CREATE TABLE t3 (
 a int NOT NULL,
 b int NOT NULL,
 PRIMARY KEY (`a`,`b`)
 ) ENGINE=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t2 values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
 insert into t3 select 1, x1.a * 10+x2.a from t2 as x1 cross join t2 as x2;
 set global debug='+d,max_64rows_in_spj_batches';
@@ -6048,7 +6048,7 @@ const_pruned
 0
 drop table t1;
 create table t1 (pk int primary key, a int, b int) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create index ix1 on t1(b,a);
 insert into t1 values (0,10,10);
 insert into t1 values (1,10,20);
@@ -6159,7 +6159,7 @@ select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
 pk	a	b	pk	a	b
 drop table t1;
 create table t (pk int primary key, a int) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values 
 (1,1), (2,1),
 (4,3), (6,3),
@@ -6197,7 +6197,7 @@ pk
 2
 drop table t;
 create table t (b int, a int, primary key (a,b)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values(0,0);
 explain
 select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
@@ -6212,7 +6212,7 @@ b	a	b	a
 0	0	0	0
 drop table t;
 create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values (1,3), (3,6), (6,9), (9,1);
 explain
 select * from t as t1 join t as t2
@@ -6235,7 +6235,7 @@ pk1	pk2	pk1	pk2
 1	3	3	6
 drop table t;
 create table t (k int, uq int, unique key ix1 (uq)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values (1,3), (3,NULL), (6,9), (9,1);
 explain
 select straight_join * from t as a join t as b 
@@ -6258,7 +6258,7 @@ k	uq	k	uq
 9	1	9	1
 drop table t;
 create table t (k int primary key, uq int) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values (1,3), (3,NULL), (6,9), (9,1);
 explain
 select * from t as a left join t as b 
@@ -6284,7 +6284,7 @@ c varchar(10),
 primary key (a),
 unique key uk1 (b, c)
 ) engine=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into tc values ('aa','bb', 'x'), ('bb','cc', 'x'), ('cc', 'dd', 'x');
 explain select * from tc as x1
 right outer join tc as x2 on x1.b=x2.a   
@@ -6327,7 +6327,7 @@ c varchar(16) not null,
 d int not null,
 primary key (a,b)
 ) engine ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
   partition by key (a);
 insert into t1  values ('aaa', 1, 'aaa', 1);
 select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
@@ -6339,25 +6339,25 @@ id int NOT NULL AUTO_INCREMENT,
 t2_id int,
 PRIMARY KEY (id)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 CREATE TABLE t2 (
 id int NOT NULL AUTO_INCREMENT,
 t3_id varchar(20) DEFAULT NULL,
 PRIMARY KEY (id)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 CREATE TABLE t3 (
 id varchar(20) NOT NULL,
 PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 CREATE TABLE t4 (
 pk int NOT NULL,
 id varchar(20) NOT NULL,
 PRIMARY KEY (pk),
 UNIQUE KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 INSERT INTO t1 VALUES (20, NULL);
 INSERT INTO t1 VALUES (23, 24);
 INSERT INTO t2 VALUES (24, NULL);
@@ -6456,7 +6456,7 @@ d int,
 PRIMARY KEY (`a`,`b`),
 unique key(c)
 ) ENGINE=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values
 (1,1,1,1), 
 (1,2,2,1), 
@@ -6547,9 +6547,9 @@ count(*)
 2052
 drop table t1;
 create table t1 (pk char(10) primary key, u int not null) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t2 (pk int primary key, u int not null) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values ('wh',1);
 insert into t1 values ('ik',2);
 insert into t1 values ('cu',3);
@@ -6630,7 +6630,7 @@ b int not null,
 c int not null,
 d int not null,
 primary key(a,b,c,d)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
        partition by key (b,c);
 insert into t1 values (0x4f, 0x4f, 0x4f, 0x4f);
 explain select * from t1 as x1 
@@ -6676,7 +6676,7 @@ key (name)
 )
 default charset = utf8
 engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1, 1, 'Ole');
 insert into t1 values (2, 2, 'Dole');
 insert into t1 values (3, 3, 'Doffen');
@@ -6734,7 +6734,7 @@ index(i),
 index(j),
 index(k)
 ) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t(i,j,k) values
 (1,1,1), (1,1,1), (1,1,1),
 (2,2,2), (2,2,2), (2,2,2);
@@ -6781,7 +6781,7 @@ count(*)
 set global debug=@save_debug;
 drop table t;
 create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (4,null, 2);
 explain
 select x.a from t1 as x join t1 as y on y.a = x.b where x.a=4;
@@ -6801,7 +6801,7 @@ c int NOT NULL,
 d int NOT NULL,
 PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create unique index ix1 on t1(b,c) using hash;
 Warnings:
 Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
@@ -6834,23 +6834,23 @@ CREATE TABLE table1 (
 col_int_unique int(11), 
 PRIMARY KEY (col_int_unique)
 ) ENGINE=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 CREATE TABLE table3 (
 col_int int(11) NOT NULL DEFAULT '0',
 KEY (col_int)
 ) ENGINE=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 CREATE TABLE table4 (
 col_int int(11) DEFAULT NULL,
 pk int(11) NOT NULL,
 PRIMARY KEY (pk)
 ) ENGINE=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 CREATE TABLE table6 (
 col_int int(11) DEFAULT NULL,
 col_int_unique int(11) DEFAULT NULL
 ) ENGINE=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into table6 values
 (2,NULL), 
 (2,NULL), 
@@ -6902,7 +6902,7 @@ d int not null,
 primary key (`a`,`b`),
 key(c), key(d)
 ) engine=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values
 (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
 (1,2,5,1), (1,3,1,2), (1,4,2,3),
@@ -6984,13 +6984,13 @@ user_id int(10) unsigned NOT NULL,
 sort_number int(10) unsigned NOT NULL,
 KEY node_id (node_id,sort_number)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 CREATE TABLE ndb_user_test (
 user_id int(10) unsigned NOT NULL AUTO_INCREMENT,
 name varchar(20) NOT NULL,
 PRIMARY KEY (user_id)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8 AUTO_INCREMENT=2
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 INSERT INTO ndb_order_test (node_id, user_id, sort_number) VALUES
 (68, 1, 1398029),
 (68, 1, 549053);

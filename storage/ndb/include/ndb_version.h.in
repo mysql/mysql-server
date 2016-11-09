@@ -935,17 +935,17 @@ ndbd_isolate_ord(Uint32 x)
 }
 
 /**
- * Support for NDB_TABLE=FRAGMENT_COUNT_TYPE=...
+ * Support for NDB_TABLE=PARTITION_BALANCE=...
  * This is a table property that can change the number of fragments per
  * table and still maintaining the automatic behaviour of NDB tables.
  * Thus the real fragment number is still a function of cluster size.
  */
-#define NDBD_SUPPORT_FRAGMENT_COUNT_TYPE NDB_MAKE_VERSION(7,5,2)
+#define NDBD_SUPPORT_PARTITION_BALANCE NDB_MAKE_VERSION(7,5,2)
 
 static
 inline
 int
-ndbd_support_fragment_count_type(Uint32 x)
+ndbd_support_partition_balance(Uint32 x)
 {
   const Uint32 major = (x >> 16) & 0xFF;
   const Uint32 minor = (x >>  8) & 0xFF;
@@ -961,7 +961,7 @@ ndbd_support_fragment_count_type(Uint32 x)
     }
     else if (minor == 5)
     {
-      return x >= NDBD_SUPPORT_FRAGMENT_COUNT_TYPE;
+      return x >= NDBD_SUPPORT_PARTITION_BALANCE;
     }
   }
   return 1;

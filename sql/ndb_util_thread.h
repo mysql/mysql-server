@@ -27,10 +27,10 @@ public:
   Ndb_util_thread();
   virtual ~Ndb_util_thread();
 
+private:
   mysql_mutex_t LOCK;
   mysql_cond_t COND;
 
-private:
   virtual int do_init();
   virtual void do_run();
   virtual int do_deinit();

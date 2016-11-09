@@ -3048,9 +3048,7 @@ private:
   void   removeTdArea(Uint32 tabDesRef, Uint32 list);
   void   insertTdArea(Uint32 tabDesRef, Uint32 list);
   void   itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal);
-#if defined VM_TRACE || defined ERROR_INSERT
-  void verifytabdes();
-#endif
+  void   verifytabdes();
 
   void seizeOpRec(OperationrecPtr& regOperPtr);
   void seizeFragrecord(FragrecordPtr& regFragPtr);

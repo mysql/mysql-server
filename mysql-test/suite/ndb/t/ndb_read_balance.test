@@ -1,4 +1,7 @@
 -- source include/have_ndb.inc
+# Query cache affects SQL -> physical read mappings (extra scans)
+# So we skip this test in that case
+--source include/have_query_cache_disabled.inc
 
 --let $KEYS=40
 --let $TEST_STEP=5
@@ -11,7 +14,7 @@
 # Read Backup table
 # Force O_P_L_P_N to get Primaries on both nodes, pending
 # fix to primary node balance.
---let $comment=NDB_TABLE=READ_BACKUP=1,FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE
+--let $comment=NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM
 --let $expect=Read Backup, Mix of Primary + Backup, except where locks are used
 --source ndb_read_balance.inc
 

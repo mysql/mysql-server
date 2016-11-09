@@ -35,7 +35,7 @@ node_id	fragment_num	block_instance
 4	13	3
 4	15	4
 create table t2 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -72,7 +72,7 @@ node_id	fragment_num	block_instance
 4	13	3
 4	15	4
 create table t3 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t3' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -93,7 +93,7 @@ node_id	fragment_num	block_instance
 4	5	3
 4	7	4
 create table t4 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t4' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -106,7 +106,7 @@ node_id	fragment_num	block_instance
 4	1	1
 4	3	2
 create table t5 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t5' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -342,4 +342,63 @@ select @cnt_t4_1 > @cnt_t4_0;
 select @cnt_t5_1 > @cnt_t5_0;
 @cnt_t5_1 > @cnt_t5_0
 1
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 24
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-16-24
+-- Attributes --
+id Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+data Char(8;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(id) - UniqueHashIndex
+PRIMARY(id) - OrderedIndex
+-- Per partition info -- 
+Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
+0 ...
+1 ...
+2 ...
+3 ...
+4 ...
+5 ...
+6 ...
+7 ...
+8 ...
+9 ...
+10 ...
+11 ...
+12 ...
+13 ...
+14 ...
+15 ...
+16 ...
+17 ...
+18 ...
+19 ...
+20 ...
+21 ...
+22 ...
+23 ...
+
+
+NDBT_ProgramExit: 0 - OK
+
 drop table t1,t2,t3,t4,t5;

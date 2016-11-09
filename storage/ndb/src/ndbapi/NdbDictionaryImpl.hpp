@@ -240,7 +240,7 @@ public:
   Uint16 m_keyLenInWords;
   Uint16 m_partitionCount;
   Uint16 m_fragmentCount;
-  NdbDictionary::Object::FragmentCountType m_fragmentCountType;
+  NdbDictionary::Object::PartitionBalance m_partitionBalance;
   Uint8 m_single_user_mode;
   Uint8 m_storageType;  // NDB_STORAGETYPE_MEMORY or _DISK or DEFAULT
   Uint8 m_extra_row_gci_bits;
@@ -771,7 +771,7 @@ public:
   int create_hashmap(const NdbHashMapImpl&,
                      NdbDictObjectImpl*,
                      Uint32 flags,
-                     Uint32 fragmentCount);
+                     Uint32 partitionBalance_Count);
   int get_hashmap(NdbHashMapImpl&, Uint32 id);
   int get_hashmap(NdbHashMapImpl&, const char * name);
 
