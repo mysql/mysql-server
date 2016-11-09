@@ -764,6 +764,7 @@ bool Sql_cmd_alter_table_exchange_partition::
             reporting an error. Do this before we downgrade metadata locks.
           */
           (void) trans_rollback_stmt(thd);
+          // QQ Should we rollback txn as well?
           /*
             Call SE post DDL hook. This handles both rollback and commit cases.
           */
@@ -1007,6 +1008,17 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
       error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
     }
   }
+
+  if (!error)
+    error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+
+  if (error)
+    trans_rollback_stmt(thd);
+  // QQ: Should we also rollback txn for consistency here?
+
+  if ((first_table->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      first_table->table->file->ht->post_ddl)
+    first_table->table->file->ht->post_ddl(thd);
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the

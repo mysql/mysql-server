@@ -391,6 +391,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
 
 err:
   trans_rollback_stmt(thd);
+  // QQ play safe and rollback txn as well?
   if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       hton->post_ddl)
     hton->post_ddl(thd);

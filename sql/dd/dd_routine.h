@@ -77,6 +77,14 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp,
   @param[in]  routine           Procedure or Function to drop.
   @param[in]  commit_dd_changes Indicates whether change should be committed.
 
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
   @retval SP_OK      ON SUCCESS
   @retval non-SP_OK  ON FAILURE
 */

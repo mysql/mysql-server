@@ -192,6 +192,17 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
     if (int_commit_done)
     {
 #else
+    if (!thd->transaction_rollback_request)
+    {
+      /*
+        QQ: In case of deadlock we just leaving DD and SE in disarray.
+            Should we try to fail gracefully in this case too, perhaps
+            by rolling back transaction and performing a series of
+            SE-only changes?
+      */
+      Disable_gtid_state_update_guard disabler(thd);
+      trans_commit_stmt(thd);
+      trans_commit(thd);
       int_commit_done= true;
 #endif
       /* Reverse the table list */
@@ -207,9 +218,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 
       /* Revert the table list (for prepared statements) */
       table_list= reverse_table_list(table_list);
-#ifdef WORKAROUND_TO_BE_REMOVED_BY_WL7016_AND_WL7896
     }
-#endif
 
     error= 1;
   }
@@ -245,6 +254,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 
   if (error)
     trans_rollback_stmt(thd);
+  // QQ: Should we play safe and rollback trx as well?
 
   for (handlerton *hton : post_ddl_htons)
     hton->post_ddl(thd);
@@ -297,6 +307,10 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
   @param[in/out]  post_ddl_htons    Set of SEs supporting atomic DDL
                                     for which post-DDL hooks needs
                                     to be called.
+
+  @note Unless int_commit_done is true failure of this call requires
+        rollback of transaction before doing anything else.
+        @sa dd::rename_table().
 
   @return False on success, True if rename failed.
 */
@@ -428,6 +442,10 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
     Take a table/view name from and odd list element and rename it to a
     the name taken from list element+1. Note that the table_list may be
     empty.
+
+  @note Unless int_commit_done is true failure of this call requires
+        rollback of transaction before doing anything else.
+        @sa dd::rename_table().
 
   @return 0 - on success, pointer to problematic entry if something
           goes wrong.

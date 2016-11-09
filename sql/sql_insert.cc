@@ -2575,6 +2575,9 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
           The problem will be solved once InnoDB implements support for atomic
           DDL and statement rollback will remove the table automatically.
+
+          WL7743/TODO: Replace this code with not clearing uncommitted objects
+                       cache during rollback of transaction?
         */
         {
           Disable_gtid_state_update_guard disabler(thd);
@@ -3192,6 +3195,7 @@ void Query_result_create::abort_result_set()
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     trans_rollback_stmt(thd);
+    // QQ: Should we try to rollback txn here too?
     if (m_post_ddl_ht)
       m_post_ddl_ht->post_ddl(thd);
   }

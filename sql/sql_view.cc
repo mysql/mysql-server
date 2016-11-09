@@ -2109,6 +2109,14 @@ bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
   @param do_commit  Commit transaction after
                     updating the data-dictionary.
 
+  @note In case when do_commit is false, the caller must rollback both
+        statement and transaction on failure, before any further accesses
+        to DD. This is because such a failure might be caused by a deadlock,
+        which requires rollback before any other operations on SE (including
+        reads using attachable transactions) can be done.
+        If case when do_commit is true this function will handle transaction
+        rollback itself.
+
   @return False - success, true - error.
 */
 bool

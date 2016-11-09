@@ -565,10 +565,17 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       }
 #endif /* !EMBEDDED_LIBRARY */
 
-     /*
+      /*
         The storage engine can truncate the table by creating an
         empty table with the same structure.
+
+        Such engines are not supposed to support atomic DDL, if it is
+        the below code needs to be adjusted to reopen tables only after
+        statement commit or rollback, and to write statement to the
+        binlog transaction cache.
       */
+      DBUG_ASSERT(!(hton->flags & HTON_SUPPORTS_ATOMIC_DDL));
+
       error= dd::recreate_table(thd, table_ref->db, table_ref->table_name);
 
       if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
@@ -576,7 +583,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
       /* No need to binlog a failed truncate-by-recreate. */
       binlog_stmt= !error;
-      binlog_is_trans= (hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
+      binlog_is_trans= false;
     }
     else
     {
@@ -627,6 +634,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
   if (error)
     trans_rollback_stmt(thd);
+  // QQ: Should we also rollback txn for consistency here?
 
   if (!is_temporary &&
       (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&

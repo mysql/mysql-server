@@ -78,6 +78,14 @@ bool get_tablespace_name(THD *thd, const T *obj,
   @param commit_dd_changes  Indicates that we need to commit
                             changes to data-dictionary.
 
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
   @return false - On success.
   @return true - On failure.
 */
@@ -93,6 +101,14 @@ bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
   @param commit_dd_changes  Indicates that we need to commit
                             changes to data-dictionary.
 
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
   @return false - On success.
   @return true - On failure.
 */
@@ -107,6 +123,14 @@ bool drop_tablespace(THD *thd, const Tablespace *tablespace,
                             the tablespace.
   @param commit_dd_changes  Indicates that we need to commit
                             changes to data-dictionary.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
 
   @return false - On success.
   @return true - On failure.
