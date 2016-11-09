@@ -677,7 +677,10 @@ bool Dictionary_client::acquire(const K &key, const T **object,
     const typename T::id_key_type id_key(element->object()->id());
     acquire_uncommitted(id_key, &uncommitted_object);
     if (uncommitted_object)
+    {
+      Shared_dictionary_cache::instance()->release(element);
       return false;
+    }
 
     DBUG_ASSERT(element->object() && element->object()->id());
     // Sign up for auto release.

@@ -87,6 +87,11 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 
   mysql_ha_rm_tables(thd, table_list);
 
+  /*
+    The below Auto_releaser allows to keep uncommitted versions of data-
+    dictionary objects cached in the Dictionary_client for the whole duration
+    of the statement.
+  */
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   if (query_logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
@@ -315,21 +320,21 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   DBUG_ASSERT(new_alias);
 
   // Fail if the target table already exists
-  const dd::Abstract_table *new_table= nullptr;
-  if (thd->dd_client()->acquire(new_db, new_alias, &new_table))
+  bool exists;
+  if (dd::table_exists<dd::Abstract_table>(thd->dd_client(), new_db,
+                                           new_alias, &exists))
     DBUG_RETURN(true);                         // This error cannot be skipped
-  if (new_table)
+
+  if (exists)
   {
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
     DBUG_RETURN(true);                         // This error cannot be skipped
   }
 
   // Get the table type of the old table, and fail if it does not exist
-  const dd::Abstract_table *old_table_def=nullptr;
-  if (thd->dd_client()->acquire(ren_table->db, old_alias, &old_table_def))
-    DBUG_RETURN(!skip_error);
-
-  if (!old_table_def)
+  dd::enum_table_type table_type;
+  if (dd::abstract_table_type(thd->dd_client(), ren_table->db,
+                              old_alias, &table_type))
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), ren_table->db, old_alias);
     DBUG_RETURN(!skip_error);
@@ -337,7 +342,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
   // So here we know the source table exists and the target table does
   // not exist. Next is to act based on the table type.
-  switch (old_table_def->type())
+  switch (table_type)
   {
   case dd::enum_table_type::BASE_TABLE:
     {
