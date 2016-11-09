@@ -90,6 +90,15 @@ public:
  */
   unsigned char * get_column_mask(const MY_BITMAP * mysql_field_map);
 
+
+  /*
+   Adapter function for checking wheter a TABLE*
+   has virtual generated columns.
+   Function existed in 5.7 as table->has_virtual_gcol()
+  */
+  static bool has_virtual_gcol(const struct TABLE* table);
+
+
 private:
   const NdbDictionary::Table * m_ndb_table;
   MY_BITMAP m_moved_fields;

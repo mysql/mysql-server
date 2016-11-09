@@ -121,3 +121,15 @@ Ndb_table_map::~Ndb_table_map()
   }
 }
 
+
+bool Ndb_table_map::has_virtual_gcol(const TABLE* table)
+{
+  if (table->vfield == NULL)
+    return false;
+  for (Field **gc= table->vfield; *gc; gc++)
+  {
+    if (!(*gc)->stored_in_db)
+      return true;
+  }
+  return false;
+}

@@ -24,6 +24,7 @@
 #include "ndb_event_data.h"
 #include "ndb_name_util.h"
 #include "ndb_share.h"
+#include "ndb_table_map.h"
 #include "table.h"
 #include "field.h"
 
@@ -275,7 +276,7 @@ void NDB_SHARE::set_binlog_flags_for_table(TABLE* table)
   if (table->s->primary_key == MAX_KEY)
     flags |= NSF_HIDDEN_PK;
 
-  if (table->has_virtual_gcol())
+  if (Ndb_table_map::has_virtual_gcol(table))
   {
     for(int i = 0 ; i < n_fields; i++)
     {

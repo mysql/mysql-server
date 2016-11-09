@@ -3676,6 +3676,7 @@ int ha_ndbcluster::fetch_next_pushed()
   DBUG_RETURN(result);
 }
 
+
 /**
   Get the first record from an indexed table access being a child 
   operation in a pushed join. Fetch will be from prefetched
@@ -3694,7 +3695,7 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
   if (unlikely(!check_is_pushed()))
   {
     int res= index_read_map(buf, key, keypart_map, HA_READ_KEY_EXACT);
-    if (!res && table->has_virtual_gcol())
+    if (!res && Ndb_table_map::has_virtual_gcol(table))
       res= update_generated_read_fields(buf, table);
     DBUG_RETURN(res);
   }
@@ -3736,7 +3737,7 @@ int ha_ndbcluster::index_next_pushed(uchar *buf)
   if (unlikely(!check_is_pushed()))
   {
     int res= index_next(buf);
-    if (!res && table->has_virtual_gcol())
+    if (!res && Ndb_table_map::has_virtual_gcol(table))
       res= update_generated_read_fields(buf, table);
     DBUG_RETURN(res);
   }
@@ -7034,7 +7035,7 @@ void ha_ndbcluster::unpack_record_and_set_generated_fields(
   const uchar *src_row)
 {
   unpack_record(dst_row, src_row);
-  if(table->has_virtual_gcol())
+  if(Ndb_table_map::has_virtual_gcol(table))
   {
     update_generated_read_fields(dst_row, table);
   }
