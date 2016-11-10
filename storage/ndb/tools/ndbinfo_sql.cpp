@@ -638,7 +638,7 @@ struct lookup {
     "state_description VARCHAR(256)",
   },
   { "<TABLE_PREFIX>dict_obj_types",
-    "type_id` INT UNSIGNED, "
+    "type_id INT UNSIGNED, "
     "type_name VARCHAR(512)",
   }
 };

@@ -3331,7 +3331,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dict_obj_types` (type_id` INT UNSIGNED, type_name VARCHAR(512)) ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dict_obj_types` (type_id INT UNSIGNED, type_name VARCHAR(512)) ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
