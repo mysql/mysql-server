@@ -6998,8 +6998,6 @@ longlong Item_func_xor::val_int()
        IS NOT NULL(a)     -> IS NULL(a)
     @endverbatim
 
-  @param thd		thread handler
-
   @return
     New item or
     NULL if we cannot apply NOT transformation (see Item::neg_transformer()).
