@@ -716,22 +716,22 @@ TEST(PadCollationTest, Strxfrm)
 
   // Same with other types of spaces.
   EXPECT_EQ(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_ai_ci, "abc", "abc \u00a0"), 0);
+    &my_charset_utf8mb4_0900_ai_ci, "abc", u8"abc \u00a0"), 0);
 
   // Non-breaking space should compare _equal_ to space in ai_ci,
   // but _after_ in as_cs.
   EXPECT_EQ(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_ai_ci, "abc ", "abc\u00a0"), 0);
+    &my_charset_utf8mb4_0900_ai_ci, "abc ", u8"abc\u00a0"), 0);
   EXPECT_LT(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_as_cs, "abc ", "abc\u00a0"), 0);
+    &my_charset_utf8mb4_0900_as_cs, "abc ", u8"abc\u00a0"), 0);
   EXPECT_LT(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_as_cs, "abc", "abc\u00a0"), 0);
+    &my_charset_utf8mb4_0900_as_cs, "abc", u8"abc\u00a0"), 0);
 
   // Also in the middle of the string.
   EXPECT_EQ(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_ai_ci, "a c", "a\u00a0c"), 0);
+    &my_charset_utf8mb4_0900_ai_ci, "a c", u8"a\u00a0c"), 0);
   EXPECT_LT(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_as_cs, "a c", "a\u00a0c"), 0);
+    &my_charset_utf8mb4_0900_as_cs, "a c", u8"a\u00a0c"), 0);
 
   // Verify that space in the middle of the string isn't stripped.
   EXPECT_LT(compare_through_strxfrm(
