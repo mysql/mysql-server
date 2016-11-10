@@ -703,7 +703,6 @@ static constexpr uint16 nochar[]= {0,0};
 class my_uca_scanner
 {
 protected:
-  /* Note, no need to initialize wbeg */
   my_uca_scanner(const CHARSET_INFO *cs_arg,
                  const MY_UCA_WEIGHT_LEVEL *level_arg,
                  const uchar *str, size_t length,
@@ -738,27 +737,26 @@ public:
 
 protected:
   int weight_lv{0}; /* 0 = Primary, 1 = Secondary, 2 = Tertiary */
-  const uint16 *wbeg;	/* Beginning of the current weight string */
-  const uchar  *sbeg;	/* Beginning of the input string          */
-  const uchar  *send;	/* End of the input string                */
+  const uint16 *wbeg;   /* Beginning of the current weight string */
+  uint wbeg_stride{0};  /* Number of bytes between weights in string */
+  const uchar  *sbeg;   /* Beginning of the input string          */
+  const uchar  *send;   /* End of the input string                */
   const MY_UCA_WEIGHT_LEVEL *level;
   uint16 implicit[10];
-  int page;
-  int code;
+  my_wc_t prev_char{0};  // Previous character we scanned, if any.
   const CHARSET_INFO *cs;
-  int num_of_ce_handled{0};
-  int num_of_ce{0};
+  int num_of_ce_left{0};
   uint max_char_toscan;  /* how many char's weight we want         */
   const uchar *sbeg_dup; /* Backup of beginning of input string */
 
 protected:
-  ALWAYS_INLINE(int next_implicit());
-  uint16 *contraction_find(my_wc_t *wc);
+  ALWAYS_INLINE(int next_implicit(my_wc_t ch));
+  const uint16 *contraction_find(my_wc_t *wc);
   uint16 *previous_context_find(my_wc_t wc0, my_wc_t wc1);
 
   // FIXME: Should these just be a specialization in uca_scanner_900?
   void my_put_jamo_weights(my_wc_t *hangul_jamo, int jamo_cnt);
-  ALWAYS_INLINE(int next_implicit_900());
+  ALWAYS_INLINE(int next_implicit_900(my_wc_t ch));
 };
 
 /*
@@ -775,7 +773,10 @@ struct uca_scanner_any : public my_uca_scanner
                   const uchar *str, size_t length,
                   const uint max_char_toscan)
       : my_uca_scanner(cs, level, str, length, max_char_toscan),
-        mb_wc(mb_wc) {}
+        mb_wc(mb_wc) {
+    // UCA 9.0.0 uses a different table format from what this scanner expects.
+    DBUG_ASSERT(cs->uca == nullptr || cs->uca->version != UCA_V900);
+  }
 
   ALWAYS_INLINE(int next());
 
@@ -932,9 +933,7 @@ my_charset_get_contractions(const CHARSET_INFO *cs, int level)
 
 
 /**
-  Check if UCA level data has contractions (static version)
-  Static quick version of my_uca_have_contractions(),
-  optimized for performance purposes, also marked as "inline".
+  Check if UCA level data has contractions.
   
   @param level    Pointer to UCA level data
   
@@ -944,7 +943,7 @@ my_charset_get_contractions(const CHARSET_INFO *cs, int level)
 */
 
 static inline my_bool
-my_uca_have_contractions_quick(const MY_UCA_WEIGHT_LEVEL *level)
+my_uca_have_contractions(const MY_UCA_WEIGHT_LEVEL *level)
 {
   return (level->contractions.nitems > 0);
 }
@@ -1079,14 +1078,14 @@ my_uca_can_be_previous_context_tail(const MY_CONTRACTIONS *list, my_wc_t wc)
 */
 
 static int
-my_wmemcmp(my_wc_t *a, my_wc_t *b, size_t len)
+my_wmemcmp(const my_wc_t *a, const my_wc_t *b, size_t len)
 {
   return memcmp(a, b, len * sizeof(my_wc_t));
 }
 
 
 /**
-  Check if a string is a contraction,
+  Check if a string is a contraction of exactly the given length,
   and return its weight array on success.
 
   @param list   Pointer to UCA contraction data
@@ -1098,8 +1097,8 @@ my_wmemcmp(my_wc_t *a, my_wc_t *b, size_t len)
   @retval       ptr  - contraction weight array
 */
 
-static inline uint16 *
-my_uca_contraction_weight(const MY_CONTRACTIONS *list, my_wc_t *wc, size_t len)
+static inline const uint16 *
+my_uca_contraction_weight(const MY_CONTRACTIONS *list, const my_wc_t *wc, size_t len)
 {
   MY_CONTRACTION *c, *last;
   for (c= list->item, last= c + list->nitems; c < last; c++)
@@ -1120,14 +1119,16 @@ my_uca_contraction_weight(const MY_CONTRACTIONS *list, my_wc_t *wc, size_t len)
   a contraction part. Then try to find real contraction among the
   candidates, starting from the longest.
 
-  @param[out] wc Where to store the scanned string
+  @param[inout] wc Where to store the scanned string. wc[0] is assumed
+    already filled out with the first character (which should have the
+    MY_UCA_CNT_HEAD flag).
 
   @return         Weight array
   @retval         NULL no contraction found
   @retval         ptr  contraction weight array
 */
 
-uint16 *
+const uint16 *
 my_uca_scanner::contraction_find(my_wc_t *wc)
 {
   size_t clen= 1;
@@ -1135,7 +1136,16 @@ my_uca_scanner::contraction_find(my_wc_t *wc)
   uchar *s, *beg[MY_UCA_MAX_CONTRACTION];
   memset(beg, 0, sizeof(beg));
 
-  /* Scan all contraction candidates */
+  /*
+    Find the length of the longest possible contraction starting from
+    this point, by checking if the second character is the second character
+    in any contraction (MY_UCA_CNT_MID1), the third character is the
+    third character in any contraction, etc. This can easily yield false
+    positives (e.g., if ABC is a contraction and DEF is also a contraction,
+    we will return clen=3 here also for AE* -- the tail check isn't done
+    before further down), but it helps us narrow down the maximum length
+    efficiently.
+  */
   for (s= (uchar*)sbeg, flag= MY_UCA_CNT_MID1;
        clen < MY_UCA_MAX_CONTRACTION;
        flag<<= 1)
@@ -1143,7 +1153,14 @@ my_uca_scanner::contraction_find(my_wc_t *wc)
     int mblen;
     if ((mblen= cs->cset->mb_wc(cs, &wc[clen], s, send)) <= 0)
       break;
-    beg[clen]= s= s + mblen;
+    s+= mblen;
+    beg[clen]= s;
+
+    /*
+      NOTE: The test here will be bogus for maximum-length contractions
+      (flag overflows into MY_UCA_PREVIOUS_CONTEXT_HEAD),
+      but we'll be breaking anyway.
+    */
     if (!my_uca_can_be_contraction_part(&level->contractions,
                                         wc[clen++], flag))
       break;
@@ -1152,7 +1169,7 @@ my_uca_scanner::contraction_find(my_wc_t *wc)
   /* Find among candidates the longest real contraction */
   for ( ; clen > 1; clen--)
   {
-    uint16 *cweight;
+    const uint16 *cweight;
     if (my_uca_can_be_contraction_tail(&level->contractions,
                                        wc[clen - 1]) &&
         (cweight= my_uca_contraction_weight(&level->contractions,
@@ -1162,12 +1179,13 @@ my_uca_scanner::contraction_find(my_wc_t *wc)
       {
         cweight+= weight_lv;
         wbeg= cweight + MY_UCA_900_CE_SIZE;
-        num_of_ce= 8;
-        num_of_ce_handled= 1;
+        wbeg_stride= MY_UCA_900_CE_SIZE;
+        num_of_ce_left= 7;
       }
       else
       {
         wbeg= cweight + 1;
+        wbeg_stride= MY_UCA_900_CE_SIZE;
       }
       sbeg= beg[clen - 1];
       return cweight;
@@ -1203,11 +1221,14 @@ my_uca_scanner::previous_context_find(my_wc_t wc0, my_wc_t wc1)
       {
         wbeg= c->weight + MY_UCA_900_CE_SIZE +
                        weight_lv;
-        num_of_ce= 8;
-        num_of_ce_handled= 1;
+        wbeg_stride= MY_UCA_900_CE_SIZE;
+        num_of_ce_left= 7;
       }
       else
+      {
         wbeg= c->weight + 1;
+        wbeg_stride= MY_UCA_900_CE_SIZE;
+      }
       return c->weight + weight_lv;
     }
   }
@@ -1254,52 +1275,47 @@ void my_uca_scanner::my_put_jamo_weights(my_wc_t *hangul_jamo, int jamo_cnt)
   for (int jamoind= 0; jamoind < jamo_cnt; jamoind++)
   {
     uint16 *implicit_weight= implicit + jamoind * MY_UCA_900_CE_SIZE;
-    int page, code;
-    uint16 *jamo_weight_page;
-    uint16 *jamo_weight;
-    page= hangul_jamo[jamoind] >> 8;
-    code= hangul_jamo[jamoind] & 0xFF;
-    jamo_weight_page= level->weights[page];
-    jamo_weight= jamo_weight_page +
-                 code * level->lengths[page];
-    *implicit_weight= *jamo_weight;
-    *(implicit_weight + 1) = *(jamo_weight + 1);
-    *(implicit_weight + 2) = *(jamo_weight + 2) + 1;
+    int page= hangul_jamo[jamoind] >> 8;
+    int code= hangul_jamo[jamoind] & 0xFF;
+    const uint16 *jamo_weight_page= level->weights[page];
+    implicit_weight[0]= UCA900_WEIGHT(jamo_weight_page, 0, code);
+    implicit_weight[1]= UCA900_WEIGHT(jamo_weight_page, 1, code);
+    implicit_weight[2]= UCA900_WEIGHT(jamo_weight_page, 2, code);
   }
   implicit[9]= jamo_cnt;
 }
 
-inline int my_uca_scanner::next_implicit_900()
+inline int my_uca_scanner::next_implicit_900(my_wc_t ch)
 {
   my_wc_t hangul_jamo[HANGUL_JAMO_MAX_LENGTH];
   int jamo_cnt;
-  code= (page << 8) + code;
-  if ((jamo_cnt= my_decompose_hangul_syllable(code, hangul_jamo)))
+  if ((jamo_cnt= my_decompose_hangul_syllable(ch, hangul_jamo)))
   {
     my_put_jamo_weights(hangul_jamo, jamo_cnt);
-    num_of_ce= jamo_cnt;
-    num_of_ce_handled= 1;
+    num_of_ce_left= jamo_cnt - 1;
     wbeg= implicit + MY_UCA_900_CE_SIZE + weight_lv;
+    wbeg_stride= MY_UCA_900_CE_SIZE;
     return *(implicit + weight_lv);
   }
-  
-  if (code >= 0x17000 && code <= 0x18AFF) //Tangut character
+
+  int page;
+  if (ch >= 0x17000 && ch <= 0x18AFF) //Tangut character
   {
     page= 0xFB00;
-    implicit[3]= (code - 0x17000) | 0x8000;
+    implicit[3]= (ch - 0x17000) | 0x8000;
   }
   else
   {
-    page= page >> 7;
-    implicit[3]= (code & 0x7FFF) | 0x8000;
-    if ((code >= 0x3400 && code <= 0x4DB5) ||
-        (code >= 0x20000 && code <= 0x2A6D6) ||
-        (code >= 0x2A700 && code <= 0x2B734) ||
-        (code >= 0x2B740 && code <= 0x2B81D) ||
-        (code >= 0x2B820 && code <= 0x2CEA1))
+    page= ch >> 15;
+    implicit[3]= (ch & 0x7FFF) | 0x8000;
+    if ((ch >= 0x3400 && ch <= 0x4DB5) ||
+        (ch >= 0x20000 && ch <= 0x2A6D6) ||
+        (ch >= 0x2A700 && ch <= 0x2B734) ||
+        (ch >= 0x2B740 && ch <= 0x2B81D) ||
+        (ch >= 0x2B820 && ch <= 0x2CEA1))
       page+= 0xFB80;
-    else if ((code >= 0x4E00 && code <= 0x9FD5) ||
-             (code >= 0xFA0E && code <= 0xFA29))
+    else if ((ch >= 0x4E00 && ch <= 0x9FD5) ||
+             (ch >= 0xFA0E && ch <= 0xFA29))
       page+= 0xFB40;
     else
       page+= 0xFBC0;
@@ -1309,9 +1325,9 @@ inline int my_uca_scanner::next_implicit_900()
   implicit[4]= 0;
   implicit[5]= 0;
   implicit[9]= 2;
-  num_of_ce= 2;
-  num_of_ce_handled= 1;
+  num_of_ce_left= 1;
   wbeg= implicit + MY_UCA_900_CE_SIZE + weight_lv;
+  wbeg_stride= MY_UCA_900_CE_SIZE;
   implicit[0]= page;
 
   return *(implicit + weight_lv);
@@ -1325,21 +1341,21 @@ inline int my_uca_scanner::next_implicit_900()
 */
 
 inline int
-my_uca_scanner::next_implicit()
+my_uca_scanner::next_implicit(my_wc_t ch)
 {
   if (cs->uca->version == UCA_V900)
-    return next_implicit_900();
+    return next_implicit_900(ch);
 
-  code= (page << 8) + code;
-  implicit[0]= (code & 0x7FFF) | 0x8000;
+  implicit[0]= (ch & 0x7FFF) | 0x8000;
   implicit[1]= 0;
   wbeg= implicit;
+  wbeg_stride= MY_UCA_900_CE_SIZE;
 
-  page= page >> 7;
+  int page= ch >> 15;
 
-  if (code >= 0x3400 && code <= 0x4DB5)
+  if (ch >= 0x3400 && ch <= 0x4DB5)
     page+= 0xFB80;
-  else if (code >= 0x4E00 && code <= 0x9FA5)
+  else if (ch >= 0x4E00 && ch <= 0x9FA5)
     page+= 0xFB40;
   else
     page+= 0xFBC0;
@@ -1378,28 +1394,27 @@ inline int uca_scanner_any<Mb_wc>::next()
     {
       /* Return 0xFFFD as weight for all characters outside BMP */
       wbeg= nochar;
+      wbeg_stride= 0;
       return 0xFFFD;
     }
 
-    if (my_uca_have_contractions_quick(level))
+    if (my_uca_have_contractions(level))
     {
-      uint16 *cweight;
+      const uint16 *cweight;
       /*
         If we have scanned a character which can have previous context,
         and there were some more characters already before,
-        then reconstruct codepoint of the previous character
-        from "page" and "code" into w[1], and verify that {wc[1], wc[0]}
-        together form a real previous context pair.
+        then verify that {prev_char, wc[0]} together form
+        a real previous context pair.
         Note, we support only 2-character long sequences with previous
         context at the moment. CLDR does not have longer sequences.
       */
       if (my_uca_can_be_previous_context_tail(&level->contractions, wc[0]) &&
           wbeg != nochar &&     /* if not the very first character */
-          my_uca_can_be_previous_context_head(&level->contractions,
-                                              (wc[1]= ((page << 8) + code))) &&
-          (cweight= previous_context_find(wc[1], wc[0])))
+          my_uca_can_be_previous_context_head(&level->contractions, prev_char) &&
+          (cweight= previous_context_find(prev_char, wc[0])))
       {
-        page= code= 0; /* Clear for the next character */
+        prev_char= 0; /* Clear for the next character */
         return *cweight;
       }
       else if (my_uca_can_be_contraction_head(&level->contractions,
@@ -1412,15 +1427,17 @@ inline int uca_scanner_any<Mb_wc>::next()
     }
 
     /* Process single character */
-    page= wc[0] >> 8;
-    code= wc[0] & 0xFF;
+    prev_char= wc[0];
+    int page= wc[0] >> 8;
+    int code= wc[0] & 0xFF;
 
     /* If weight page for w[0] does not exist, then calculate algoritmically */
     if (!(wpage= level->weights[page]))
-      return next_implicit();
+      return next_implicit(wc[0]);
 
     /* Calculate pointer to w[0]'s weight, using page and offset */
     wbeg= wpage + code * level->lengths[page];
+    wbeg_stride= UCA900_DISTANCE_BETWEEN_WEIGHTS;
   } while (!wbeg[0]); /* Skip ignorable characters */
 
   return *wbeg++;
@@ -1435,16 +1452,16 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::more_weight()
     weight.
   */
 
-  while (num_of_ce_handled < num_of_ce && *wbeg == 0)
+  while (num_of_ce_left != 0 && *wbeg == 0)
   {
-    wbeg+= MY_UCA_900_CE_SIZE;
-    num_of_ce_handled++;
+    wbeg+= wbeg_stride;
+    --num_of_ce_left;
   }
-  if (num_of_ce_handled < num_of_ce)
+  if (num_of_ce_left != 0)
   {
     uint16 rtn= *wbeg;
-    wbeg+= MY_UCA_900_CE_SIZE;
-    num_of_ce_handled++;
+    wbeg+= wbeg_stride;
+    --num_of_ce_left;
     return rtn; /* return the next weight from expansion     */
   }
   return -1;
@@ -1465,7 +1482,6 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
 
   do
   {
-    uint16 *wpage;
     my_wc_t wc[MY_UCA_MAX_CONTRACTION];
     int mblen= 0;
 
@@ -1499,32 +1515,29 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
     {
       /* Return 0xFFFD as weight for all characters outside BMP */
       wbeg= nochar;
-      num_of_ce_handled= num_of_ce= 0;
+      wbeg_stride= 0;
+      num_of_ce_left= 0;
       weight_lv= 0;
       return 0xFFFD;
     }
 
-    if (my_uca_have_contractions_quick(level))
+    if (my_uca_have_contractions(level))
     {
-      uint16 *cweight;
+      const uint16 *cweight;
       /*
         If we have scanned a character which can have previous context,
         and there were some more characters already before,
-        then reconstruct codepoint of the previous character
-        from "page" and "code" into w[1], and verify that {wc[1], wc[0]}
-        together form a real previous context pair.
+        then verify that {prev_char, wc[0]} together form
+        a real previous context pair.
         Note, we support only 2-character long sequences with previous
         context at the moment. CLDR does not have longer sequences.
       */
-      if (my_uca_can_be_previous_context_tail(&level->contractions,
-                                              wc[0]) &&
+      if (my_uca_can_be_previous_context_tail(&level->contractions, wc[0]) &&
           wbeg != nochar &&     /* if not the very first character */
-          my_uca_can_be_previous_context_head(&level->contractions,
-                                              (wc[1]= ((page << 8) +
-                                                        code))) &&
-          (cweight= previous_context_find(wc[1], wc[0])))
+          my_uca_can_be_previous_context_head(&level->contractions, prev_char) &&
+          (cweight= previous_context_find(prev_char, wc[0])))
       {
-        page= code= 0; /* Clear for the next character */
+        prev_char= 0; /* Clear for the next character */
         return *cweight;
       }
       else if (my_uca_can_be_contraction_head(&level->contractions,
@@ -1537,23 +1550,24 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
     }
 
     /* Process single character */
-    page= wc[0] >> 8;
-    code= wc[0] & 0xFF;
+    prev_char= wc[0];
+    int page= wc[0] >> 8;
+    int code= wc[0] & 0xFF;
 
     /* If weight page for w[0] does not exist, then calculate algoritmically */
-    if (!(wpage= level->weights[page]))
-      return next_implicit();
+    const uint16 *wpage= level->weights[page];
+    if (!wpage)
+      return next_implicit(wc[0]);
 
     /* Calculate pointer to w[0]'s weight, using page and offset */
-    wbeg= wpage + code * level->lengths[page];
-    num_of_ce= *(wbeg + level->lengths[page] - 1);
-    num_of_ce_handled= 0;
-    wbeg+= weight_lv;
+    wbeg= UCA900_WEIGHT_ADDR(wpage, weight_lv, code);
+    wbeg_stride= UCA900_DISTANCE_BETWEEN_WEIGHTS;
+    num_of_ce_left= UCA900_NUM_OF_CE(wpage, code);
   } while (!wbeg[0]); /* Skip ignorable characters */
 
   uint16 rtn= *wbeg;
-  wbeg+= MY_UCA_900_CE_SIZE;
-  num_of_ce_handled++;
+  wbeg+= wbeg_stride;
+  --num_of_ce_left;
   return rtn;
 }
 
@@ -1567,7 +1581,6 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw_single_level()
 
   do
   {
-    uint16 *wpage;
     my_wc_t wc[MY_UCA_MAX_CONTRACTION];
     int mblen= 0;
 
@@ -1586,61 +1599,60 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw_single_level()
     {
       /* Return 0xFFFD as weight for all characters outside BMP */
       wbeg= nochar;
-      num_of_ce_handled= num_of_ce= 0;
+      wbeg_stride= 0;
+      num_of_ce_left= 0;
       weight_lv= 0;
       return 0xFFFD;
     }
 
-    if (my_uca_have_contractions_quick(level))
+    if (my_uca_have_contractions(level))
     {
-      uint16 *cweight;
+      const uint16 *cweight;
       /*
         If we have scanned a character which can have previous context,
         and there were some more characters already before,
-        then reconstruct codepoint of the previous character
-        from "page" and "code" into w[1], and verify that {wc[1], wc[0]}
-        together form a real previous context pair.
+        then verify that {prev_char, wc[0]} together form
+        a real previous context pair.
+        {prev_wc, wc[0]} together form a real previous context pair.
         Note, we support only 2-character long sequences with previous
         context at the moment. CLDR does not have longer sequences.
       */
-      if (my_uca_can_be_previous_context_tail(&level->contractions,
-                                              wc[0]) &&
+      if (my_uca_can_be_previous_context_tail(&level->contractions, wc[0]) &&
           wbeg != nochar &&     /* if not the very first character */
-          my_uca_can_be_previous_context_head(&level->contractions,
-                                              (wc[1]= ((page << 8) +
-                                                        code))) &&
-          (cweight= previous_context_find(wc[1], wc[0])))
+          my_uca_can_be_previous_context_head(&level->contractions, prev_char) &&
+          (cweight= previous_context_find(prev_char, wc[0])))
       {
-        page= code= 0; /* Clear for the next character */
+        prev_char= 0; /* Clear for the next character */
         return *cweight;
       }
-      else if (my_uca_can_be_contraction_head(&level->contractions,
-                                              wc[0]))
+      if (my_uca_can_be_contraction_head(&level->contractions, wc[0]))
       {
         /* Check if w[0] starts a contraction */
-        if ((cweight= contraction_find(wc)))
+        const uint16 *cweight= contraction_find(wc);
+        if (cweight)
           return *cweight;
       }
     }
 
     /* Process single character */
-    page= wc[0] >> 8;
-    code= wc[0] & 0xFF;
+    prev_char= wc[0];
+    int page= wc[0] >> 8;
+    int code= wc[0] & 0xFF;
 
     /* If weight page for w[0] does not exist, then calculate algoritmically */
-    if (!(wpage= level->weights[page]))
-      return next_implicit();
+    const uint16 *wpage= level->weights[page];
+    if (!wpage)
+      return next_implicit(wc[0]);
 
     /* Calculate pointer to w[0]'s weight, using page and offset */
-    wbeg= wpage + code * level->lengths[page];
-    num_of_ce= *(wbeg + level->lengths[page] - 1);
-    num_of_ce_handled= 0;
-    wbeg+= weight_lv;
+    wbeg= UCA900_WEIGHT_ADDR(wpage, weight_lv, code);
+    wbeg_stride= UCA900_DISTANCE_BETWEEN_WEIGHTS;
+    num_of_ce_left= UCA900_NUM_OF_CE(wpage, code);
   } while (!wbeg[0]); /* Skip ignorable characters */
 
   uint16 rtn= *wbeg;
-  wbeg+= MY_UCA_900_CE_SIZE;
-  num_of_ce_handled++;
+  wbeg+= wbeg_stride;
+  --num_of_ce_left;
   return rtn;
 }
 
@@ -1663,8 +1675,8 @@ inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(T func)
     Fast path. TODO: See if we can accept some character sets
     with tailorings.
   */
-  const uint16 *ascii_wpage= cs->uca->level->weights[0] + weight_lv;
-  uint ascii_wlen= cs->uca->level->lengths[0];
+  const uint16 *ascii_wpage= UCA900_WEIGHT_ADDR(
+    cs->uca->level->weights[0], /*level=*/weight_lv, /*subcode=*/0);
 
   for ( ;; )
   {
@@ -1689,7 +1701,7 @@ inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(T func)
       std::min(send, sbeg + (max_char_toscan - char_index));
     while (sbeg < send_local && *sbeg < 0x80)
     {
-      const int s_res= ascii_wpage[*sbeg++ * ascii_wlen];
+      const int s_res= ascii_wpage[*sbeg++];
       if (s_res && !func(s_res))
       {
         char_index+= sbeg - sbeg_copy;
@@ -1707,7 +1719,7 @@ inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(T func)
     if (s_res == 0)
     {
       // Level separator, so we have to update our page pointer.
-      ++ascii_wpage;
+      ascii_wpage+= UCA900_DISTANCE_BETWEEN_LEVELS;
     }
     if (s_res < 0 || !func(s_res)) return;
   }
@@ -1742,6 +1754,7 @@ my_apply_reorder_param(const Reorder_wt_rec(&wt_rec)[2 * UCA_MAX_CHAR_GRP],
   return weight;
 }
 
+// See Unicode TR35 section 3.14.1.
 static bool is_tertiary_weight_upper_case(uint16 weight)
 {
   if ((weight >= 0x08 && weight <= 0x0C) || weight == 0x0E ||
@@ -1855,30 +1868,61 @@ static int my_strnncoll_uca(const CHARSET_INFO *cs,
 static inline int
 my_space_weight(const CHARSET_INFO *cs) /* W3-TODO */
 {
-  return cs->uca->level[0].weights[0][0x20 * cs->uca->level[0].lengths[0]];
+  if (cs->uca && cs->uca->version == UCA_V900)
+    return UCA900_WEIGHT(
+      cs->uca->level[0].weights[0], /*weight_lv=*/0, 0x20);
+  else
+    return cs->uca->level[0].weights[0][0x20 * cs->uca->level[0].lengths[0]];
 }
 
 
 /**
   Helper function:
   Find address of weights of the given character.
-  
+
   @param level    Pointer to UCA level data
   @param wc       character Unicode code point
-  
+
   @return Weight array
     @retval  pointer to weight array for the given character,
-             or NULL if this page does not have implicit weights.
+             or nullptr if this page does not have implicit weights.
 */
 
 static inline uint16 *
-my_char_weight_addr(MY_UCA_WEIGHT_LEVEL *level, uint wc)
+my_char_weight_addr(MY_UCA_WEIGHT_LEVEL *level, my_wc_t wc)
 {
   uint page, ofst;
-  return wc > level->maxchar ? NULL :
+  return wc > level->maxchar ? nullptr :
          (level->weights[page= (wc >> 8)] ?
           level->weights[page] + (ofst= (wc & 0xFF)) * level->lengths[page] :
-          NULL);
+          nullptr);
+}
+
+/**
+  Helper function:
+  Find address of weights of the given character, for UCA 9.0.0 format.
+
+  @param level    Pointer to UCA level data
+  @param wc       character Unicode code point
+
+  @return Weight array
+    @retval  pointer to weight array for the given character,
+             or nullptr if this page does not have implicit weights.
+*/
+
+static inline uint16 *
+my_char_weight_addr_900(MY_UCA_WEIGHT_LEVEL *level, my_wc_t wc)
+{
+  if (wc > level->maxchar)
+    return nullptr;
+
+  uint page= wc >> 8;
+  uint ofst= wc & 0xFF;
+  uint16 *weights= level->weights[page];
+  if (weights)
+    return UCA900_WEIGHT_ADDR(weights, /*level=*/0, ofst);
+  else
+    return nullptr;
 }
 
 
@@ -1937,7 +1981,7 @@ static int my_strnncollsp_uca(const CHARSET_INFO *cs,
   
   uca_scanner_any<Mb_wc> sscanner(mb_wc, cs, &cs->uca->level[0], s, slen, slen);
   uca_scanner_any<Mb_wc> tscanner(mb_wc, cs, &cs->uca->level[0], t, tlen, tlen);
-  
+
   do
   {
     s_res= sscanner.next();
@@ -2017,13 +2061,13 @@ static int my_strnncollsp_uca_900_tmpl(const CHARSET_INFO *cs,
 
     if (tscanner.get_weight_level() > current_lv)
     {
-      uint16 *space_weight= cs->uca->level[0].weights[0] +
-                            0x20 * cs->uca->level[0].lengths[0];
+      const uint16 space_weight= UCA900_WEIGHT(
+        cs->uca->level[0].weights[0], current_lv, 0x20);
       /* compare the first string to spaces */
       do
       {
-        if (s_res != space_weight[current_lv])
-          return (s_res - space_weight[current_lv]);
+        if (s_res != space_weight)
+          return (s_res - space_weight);
         s_res= sscanner.next();
       } while (s_res >= 0 && sscanner.get_weight_level() == current_lv);
       if (sscanner.get_weight_level() > current_lv && s_res == t_res)
@@ -2033,13 +2077,13 @@ static int my_strnncollsp_uca_900_tmpl(const CHARSET_INFO *cs,
 
     if (sscanner.get_weight_level() > current_lv)
     {
-      uint16 *space_weight= cs->uca->level[0].weights[0] +
-                            0x20 * cs->uca->level[0].lengths[0];
+      const uint16 space_weight= UCA900_WEIGHT(
+        cs->uca->level[0].weights[0], current_lv, 0x20);
       /* compare the second string to spaces */
       do
       {
-        if (space_weight[current_lv] != t_res)
-          return (space_weight[current_lv] - t_res);
+        if (space_weight != t_res)
+          return (space_weight - t_res);
         t_res= tscanner.next();
       } while (t_res >= 0 && tscanner.get_weight_level() == current_lv);
       if (tscanner.get_weight_level() > current_lv && s_res == t_res)
@@ -2086,8 +2130,8 @@ static int my_strnncollsp_uca_900_tmpl_single_level(const CHARSET_INFO *cs,
     return 0;
   }
 
-  uint16 space_weight= *(cs->uca->level[0].weights[0] +
-                         0x20 * cs->uca->level[0].lengths[0]);
+  uint16 space_weight= UCA900_WEIGHT(
+    cs->uca->level[0].weights[0], /*weight_lv=*/0, 0x20);
 
   if (t_res < 0)
   {
@@ -2287,6 +2331,51 @@ my_strnxfrm_uca(const CHARSET_INFO *cs, Mb_wc mb_wc,
 }
 
 
+static int my_uca_charcmp_900(const CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
+{
+  uint16 *weight1= my_char_weight_addr_900(&cs->uca->level[0], wc1); /* W3-TODO */
+  uint16 *weight2= my_char_weight_addr_900(&cs->uca->level[0], wc2);
+
+  /* Check if some of the characters does not have implicit weights */
+  if (!weight1 || !weight2)
+    return wc1 != wc2;
+
+  /* Quickly compare first weights */
+  if (weight1[0] != weight2[0])
+    return 1;
+
+  /* Thoroughly compare all weights */
+  size_t length1= weight1[-UCA900_DISTANCE_BETWEEN_LEVELS];
+  size_t length2= weight2[-UCA900_DISTANCE_BETWEEN_LEVELS];
+
+  if (length1 != length2)
+    return 1;
+
+  if (cs->state & MY_CS_CSSORT)
+  {
+    for (size_t weightind= 0; weightind < length1 * MY_UCA_900_CE_SIZE;
+         ++weightind)
+    {
+      if (*weight1 != *weight2)
+        return 1;
+      weight1+= UCA900_DISTANCE_BETWEEN_LEVELS;
+      weight2+= UCA900_DISTANCE_BETWEEN_LEVELS;
+    }
+  }
+  else
+  {
+    for (size_t weightind= 0; weightind < length1; ++weightind)
+    {
+      if (*weight1 != *weight2)
+        return 1;
+      weight1+= UCA900_DISTANCE_BETWEEN_WEIGHTS;
+      weight2+= UCA900_DISTANCE_BETWEEN_WEIGHTS;
+    }
+  }
+
+  return 0;
+}
+
 
 /*
   This function compares if two characters are the same.
@@ -2298,40 +2387,28 @@ my_strnxfrm_uca(const CHARSET_INFO *cs, Mb_wc mb_wc,
 
 static int my_uca_charcmp(const CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
 {
+  if (wc1 == wc2)
+    return 0;
+
+  if (cs->uca != nullptr && cs->uca->version == UCA_V900)
+    return my_uca_charcmp_900(cs, wc1, wc2);
+
   size_t length1, length2;
   uint16 *weight1= my_char_weight_addr(&cs->uca->level[0], wc1); /* W3-TODO */
   uint16 *weight2= my_char_weight_addr(&cs->uca->level[0], wc2);
-  
+
   /* Check if some of the characters does not have implicit weights */
   if (!weight1 || !weight2)
     return wc1 != wc2;
-  
+
   /* Quickly compare first weights */
   if (weight1[0] != weight2[0])
     return 1;
-  
+
   /* Thoroughly compare all weights */
   length1= cs->uca->level[0].lengths[wc1 >> MY_UCA_PSHIFT]; /* W3-TODO */
   length2= cs->uca->level[0].lengths[wc2 >> MY_UCA_PSHIFT];
-  
-  if ((cs->uca->version == UCA_V900) && !(cs->state & MY_CS_CSSORT))
-  {
-    size_t weightind = 0;
-    while (weightind < length1 && weightind < length2)
-    {
-      if (weight1[weightind] == weight2[weightind])
-        weightind+= MY_UCA_900_CE_SIZE;
-      else
-        return 1;
-    }
-    if (weightind >= length1 && weightind >= length2)
-      return 0;
-    if (weightind >= length1)
-      return weight2[weightind];
-    if (weightind >= length2)
-      return weight1[weightind];
-    return 0;
-  }
+
   if (length1 > length2)
     return memcmp((const void*)weight1, (const void*)weight2, length2*2) ?
            1: weight1[length2];
@@ -2400,7 +2477,7 @@ int my_wildcmp_uca_impl(const CHARSET_INFO *cs,
       }
       else
       {
-        if (my_uca_charcmp(cs,s_wc,w_wc))
+        if (my_uca_charcmp(cs, s_wc, w_wc))
           return 1;
       }
       if (wildstr == wildend)
@@ -2463,7 +2540,7 @@ int my_wildcmp_uca_impl(const CHARSET_INFO *cs,
 			   (const uchar*)str_end)) <= 0)
             return 1;
           
-          if (!my_uca_charcmp(cs,s_wc,w_wc))
+          if (!my_uca_charcmp(cs, s_wc, w_wc))
             break;
           str+= scan;
         }
@@ -3004,7 +3081,7 @@ my_coll_rule_reset(MY_COLL_RULE *r)
 /*
   Shift methods:
   Simple: "&B < C" : weight('C') = weight('B') + 1
-  Expand: weght('C') =  { weight('B'), weight(last_non_ignorable) + 1 }
+  Expand: weight('C') =  { weight('B'), weight(last_non_ignorable) + 1 }
 */
 typedef enum
 {
@@ -3733,64 +3810,82 @@ my_coll_rule_parse(MY_COLL_RULES *rules,
 }
 
 static void
-spread_case_mask(uint16 *to, size_t tailored_ce_cnt, uint16 case_mask)
+spread_case_mask(uint16 *to, size_t to_stride, size_t tailored_ce_cnt,
+                 uint16 case_mask)
 {
   for (size_t i= 0; i < tailored_ce_cnt; ++i)
   {
-    if (to[i * MY_UCA_900_CE_SIZE + 2] > CASE_FIRST_UPPER_MASK)
-      case_mask= to[i * MY_UCA_900_CE_SIZE + 2] & 0xFF00;
-    else if (to[i * MY_UCA_900_CE_SIZE + 2])
-      to[i * MY_UCA_900_CE_SIZE + 2]|= case_mask;
+    uint16 *case_weight= &to[(i * MY_UCA_900_CE_SIZE + 2) * to_stride];
+    if (*case_weight > CASE_FIRST_UPPER_MASK)
+      case_mask= *case_weight & 0xFF00;
+    else if (*case_weight)
+      *case_weight|= case_mask;
   }
 }
 
+/*
+ If the collation is marked as [caseFirst upper], move all of the weights
+ around to accomodate that. Only tailored weights are changed; for non-tailored
+ weights, we do it on-the-fly in uca_scanner_900::apply_case_first().
+
+ [caseFirst upper] is a directive that says that case should override all
+ other tertiary case concerns (in a sense, a “level 2.5”), and furthermore,
+ that uppercase should come before lowercase. (Normally lowercase sorts
+ before uppercase.) It is currently only used in the Danish collation.
+
+ This is done by looking at the tertiary weight, inferring the case from it,
+ and then using the upper bits (which are normally unused) to signal the case.
+ The algorithm is detailed in Unicode TR35, section 3.14, although we don't
+ seem to follow it exactly.
+*/
 static void change_weight_if_case_first(CHARSET_INFO *cs, MY_COLL_RULE *r,
-                                        uint16 *to, size_t curr_len,
-                                        size_t tailored_ce_cnt)
+                                        uint16 *to, size_t to_stride,
+                                        size_t curr_len, size_t tailored_ce_cnt)
 {
-  /* We only need to implement [caseFirst upper] for Danish now. */
+  /* We only need to implement [caseFirst upper] right now. */
   if (!(cs->coll_param &&
         cs->coll_param->case_first == CASE_FIRST_UPPER &&
         cs->levels_for_compare == 3))
     return;
 
-  /* Use DUCET weight to detect character's case */
-  MY_UCA_WEIGHT_LEVEL *src= my_uca_v900.level;
-  int ce_cnt;
-  uint16 *from= NULL;
-  int changed_ce= 0;
+  DBUG_ASSERT(cs->uca->version == UCA_V900);
 
+  // How many CEs this character has with non-ignorable primary weight.
   int tailored_pri_cnt= 0;
   int origin_pri_cnt= 0;
-  uint16 case_mask= 0;
   for (size_t i= 0; i < tailored_ce_cnt; ++i)
   {
-    // If rule A has applied case weight change, and we have rule B which
-    // is inheritance of A, apply the same case weight change on the rest
-    // of rule B and return.
-    if (to[i * MY_UCA_900_CE_SIZE + 2] > CASE_FIRST_UPPER_MASK)
+    /*
+      If rule A has already applied a case weight change, and we have rule B
+      which is inherited from A, apply the same case weight change on the rest
+      of rule B and return.
+    */
+    if (to[(i * MY_UCA_900_CE_SIZE + 2) * to_stride] > CASE_FIRST_UPPER_MASK)
     {
-      spread_case_mask(to, tailored_ce_cnt, case_mask);
+      spread_case_mask(to, to_stride, tailored_ce_cnt, /*case_mask=*/0);
       return;
     }
-    if (to[i * MY_UCA_900_CE_SIZE])
+    if (to[i * MY_UCA_900_CE_SIZE * to_stride])
       tailored_pri_cnt++;
   }
   if (r->before_level == 1 || r->diff[0])
     tailored_pri_cnt--;
+
+  // Use the DUCET weight to detect the character's case.
+  MY_UCA_WEIGHT_LEVEL *src= my_uca_v900.level;
+  int changed_ce= 0;
+
   my_wc_t *curr= r->curr;
   for (size_t i= 0; i < curr_len; ++i)
   {
-    from= my_char_weight_addr(src, *curr);
-    int page, code;
-    page= *curr >> 8;
-    code= *curr & 0xFF;
+    const uint16 *from= my_char_weight_addr_900(src, *curr);
+    int page= *curr >> 8;
+    int code= *curr & 0xFF;
     curr++;
-    ce_cnt= src->weights[page] ?
-            *(src->weights[page] + (code + 1) * src->lengths[page] - 1): 0;
+    int ce_cnt= src->weights[page] ? UCA900_NUM_OF_CE(src->weights[page], code) : 0;
     for (int i_ce= 0; i_ce < ce_cnt; ++i_ce)
     {
-      if (*(from + i_ce * MY_UCA_900_CE_SIZE))
+      if (from[i_ce * UCA900_DISTANCE_BETWEEN_WEIGHTS])
         origin_pri_cnt++;
     }
   }
@@ -3802,22 +3897,22 @@ static void change_weight_if_case_first(CHARSET_INFO *cs, MY_COLL_RULE *r,
   int upper_cnt= 0;
   int lower_cnt= 0;
   curr= r->curr;
+  uint16 case_mask= 0;
   for (size_t curr_ind= 0; curr_ind < curr_len; ++curr_ind)
   {
-    from= my_char_weight_addr(src, *curr);
-    int page, code;
-    page= *curr >> 8;
-    code= *curr & 0xFF;
+    const uint16 *from= my_char_weight_addr_900(src, *curr);
+    int page= *curr >> 8;
+    int code= *curr & 0xFF;
     curr++;
-    ce_cnt= src->weights[page] ?
-            *(src->weights[page] + (code + 1) * src->lengths[page] - 1): 0;
+    int ce_cnt= src->weights[page] ? UCA900_NUM_OF_CE(src->weights[page], code) : 0;
     changed_ce= 0;
     for (int i_ce= 0; i_ce < ce_cnt; ++i_ce)
     {
-      uint16 primary_weight= *(from + i_ce * MY_UCA_900_CE_SIZE);
+      uint16 primary_weight= from[i_ce * UCA900_DISTANCE_BETWEEN_WEIGHTS];
       if (primary_weight)
       {
-        uint16 case_weight= *(from + i_ce * MY_UCA_900_CE_SIZE + 2);
+        uint16 case_weight= from[i_ce * UCA900_DISTANCE_BETWEEN_WEIGHTS +
+          2 * UCA900_DISTANCE_BETWEEN_LEVELS];
         uint16 *ce_to= 0;
         if (is_tertiary_weight_upper_case(case_weight))
         {
@@ -3837,10 +3932,10 @@ static void change_weight_if_case_first(CHARSET_INFO *cs, MY_COLL_RULE *r,
         {
           do
           {
-            ce_to= to + changed_ce * MY_UCA_900_CE_SIZE;
+            ce_to= to + changed_ce * MY_UCA_900_CE_SIZE * to_stride;
             changed_ce++;
-          }while (*ce_to == 0);
-          *(ce_to + 2)|= case_mask;
+          } while (*ce_to == 0);
+          ce_to[2 * to_stride]|= case_mask;
           case_to_copy--;
         }
       }
@@ -3850,9 +3945,9 @@ static void change_weight_if_case_first(CHARSET_INFO *cs, MY_COLL_RULE *r,
   {
     for (int i= origin_pri_cnt; i < tailored_pri_cnt; ++i)
     {
-      if (to[changed_ce * MY_UCA_900_CE_SIZE] &&
-          to[changed_ce * MY_UCA_900_CE_SIZE] < EXTRA_CE_PRI_BASE)
-        to[changed_ce * MY_UCA_900_CE_SIZE + 2]= 0;
+      if (to[changed_ce * MY_UCA_900_CE_SIZE * to_stride] &&
+          to[changed_ce * MY_UCA_900_CE_SIZE * to_stride] < EXTRA_CE_PRI_BASE)
+        to[(changed_ce * MY_UCA_900_CE_SIZE + 2) * to_stride]= 0;
     }
   }
   else
@@ -3866,42 +3961,42 @@ static void change_weight_if_case_first(CHARSET_INFO *cs, MY_COLL_RULE *r,
     bool skipped_extra_ce= false;
     for (int i= tailored_ce_cnt - 1; i >= 0; --i)
     {
-      if (to[i * MY_UCA_900_CE_SIZE] &&
-          to[i * MY_UCA_900_CE_SIZE] < EXTRA_CE_PRI_BASE)
+      if (to[i * MY_UCA_900_CE_SIZE * to_stride] &&
+          to[i * MY_UCA_900_CE_SIZE * to_stride] < EXTRA_CE_PRI_BASE)
       {
         if ((r->before_level == 1 || r->diff[0]) && !skipped_extra_ce)
         {
           skipped_extra_ce= true;
           continue;
         }
-        to[i * MY_UCA_900_CE_SIZE + 2]|= case_mask;
+        to[(i * MY_UCA_900_CE_SIZE + 2) * to_stride]|= case_mask;
         break;
       }
     }
   }
-  spread_case_mask(to, tailored_ce_cnt, case_mask);
+  spread_case_mask(to, to_stride, tailored_ce_cnt, case_mask);
 }
 
 static size_t
-my_char_weight_put_900(MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
-                       size_t to_length, MY_COLL_RULE *rule, size_t base_len,
-                       size_t curr_len)
+my_char_weight_put_900(MY_UCA_WEIGHT_LEVEL *dst, uint16 *to, size_t to_stride,
+                       size_t to_length, uint16 *to_num_ce,
+                       const MY_COLL_RULE *rule, size_t base_len, size_t curr_len)
 {
   size_t count;
-  to_length--; /* Without trailing CE number */
   int total_ce_cnt= 0;
 
-  my_wc_t *base= rule->base;
+  const my_wc_t *base= rule->base;
   for (count= 0; base_len; )
   {
-    size_t chlen;
-    uint16 *from= NULL;
+    const uint16 *from= nullptr;
+    size_t from_stride= 0;
     int ce_cnt= 0;
 
-    for (chlen= base_len; chlen > 1; chlen--)
+    for (size_t chlen= base_len; chlen > 1; chlen--)
     {
       if ((from= my_uca_contraction_weight(&dst->contractions, base, chlen)))
       {
+        from_stride= 1;
         base+= chlen;
         base_len-= chlen;
         ce_cnt= *(from + MY_UCA_MAX_WEIGHT_SIZE - 1);
@@ -3911,55 +4006,75 @@ my_char_weight_put_900(MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
 
     if (!from)
     {
-      from= my_char_weight_addr(dst, *base);
-      int page, code;
-      page= *base >> 8;
-      code= *base & 0xFF;
+      int page= *base >> 8;
+      int code= *base & 0xFF;
       base++;
       base_len--;
-      ce_cnt= dst->weights[page] ?
-              *(dst->weights[page] + (code + 1) * dst->lengths[page] - 1): 0;
+      if (dst->weights[page])
+      {
+        from= UCA900_WEIGHT_ADDR(
+          dst->weights[page], /*level=*/0, code);
+        from_stride= UCA900_DISTANCE_BETWEEN_LEVELS;
+        ce_cnt= UCA900_NUM_OF_CE(dst->weights[page], code);
+      }
     }
 
     for (int weight_ind= 0 ;
          weight_ind < ce_cnt * MY_UCA_900_CE_SIZE && count < to_length;
          weight_ind++)
     {
-      *to++= *from++;
+      *to= *from;
+      to+= to_stride;
+      from+= from_stride;
       count++;
     }
     total_ce_cnt+= ce_cnt;
   }
 
   /*
-    For shift on primary weight, there might be no enough room to do shift.
-    For example, Sihala collation rule: "&\\u0DA5 < \\u0DA4"
-    The weight of 0DA5 is: 28ED, weight of 0DA4 is: 28EC, and weight of
-    0DA6 is 28EE. If we just shift the weight of 0DA4 to be 28ED + 1, it
-    conflicts with weight of 0DA6.
+    For shift on primary weight, there might be no enough room in the tables.
+    For example, Sihala has the rule "&\\u0DA5 < \\u0DA4", which means
+    that we should move U+0DA4 after U+0DA5 (on the primary level).
+    However, there is no room after U+0DA5 in DUCET unless we wanted to
+    conflict with U+0DA6:
 
-    Before implementation of UCA9.0.0, the shift on primary weight is done
-    by make it a fake expansion when parsing the rule. It is okay because
-    only primary weight of 'last_non_ignorable' is used. But from UCA9.0.0,
-    we also want to use secondary and tertiary weight, then the weights of
-    'last_non_ignorable' may cause unexpected result. So we change the way
-    here. We'll abandon the fake expansion way and add an extra CE to
-    present all 3 levels' weight we might want to shift, and shift the
-    weight in apply_shift_900().
-    For the rule: "&\\u0DA5 < \\u0DA4", we'll make '\\u0DA4's weight as:
-    [.28ED.0020.0002][0x54A4, 0, 0].
+      0DA4  ; [.28EC.0020.0002] # SINHALA LETTER TAALUJA NAASIKYAYA
+      0DA5  ; [.28ED.0020.0002] # SINHALA LETTER TAALUJA SANYOOGA NAAKSIKYAYA
+      0DA6  ; [.28EE.0020.0002] # SINHALA LETTER SANYAKA JAYANNA
+
+    Before our implementation of UCA 9.0.0, the shift on primary weight was
+    done by making it a fake expansion when parsing the rule, where we'd expand
+    U+0DA4 to U+0DA5 U+MMMM, MMMM being 'last_non_ignorable'. (This happens
+    in my_coll_parser_scan_reset_sequence()). But from UCA 9.0.0, we also
+    support accent- and case-sensitive collations, and then, having the extra
+    weights of 'last_non_ignorable' (which is just a random character) on the
+    second and third level may cause unexpected results for algorithms that
+    use the meaning of the tertiary weight to infer case. Thus, we'll abandon
+    the fake expansion way; instead, instead add an extra CE (after the one
+    from U+0DA5, the character we are moving after) to represent all the
+    weights we might want to shift. The actual shifting happens in
+    apply_shift_900().
+
+    For the rule "&\\u0DA5 < \\u0DA4", U+0DA4's weights become
+    [.28ED.0020.0002][.54A4.0000.0000], where 0x54A4 is the value of
+    EXTRA_CE_PRI_BASE. We then apply the differences from the rule
+    (which are never negative) to the last CE, so that it becomes
+    e.g. [.54A5.0000.0000].
   */
   if ((rule->diff[0] || rule->diff[1] || rule->diff[2]) && count < to_length)
   {
-    *to++= rule->diff[0] ? EXTRA_CE_PRI_BASE: 0;
-    *to++= rule->diff[1] ? EXTRA_CE_SEC_BASE: 0;
-    *to++= rule->diff[2] ? EXTRA_CE_TER_BASE: 0;
+    *to= rule->diff[0] ? EXTRA_CE_PRI_BASE: 0;
+    to+= to_stride;
+    *to= rule->diff[1] ? EXTRA_CE_SEC_BASE: 0;
+    to+= to_stride;
+    *to= rule->diff[2] ? EXTRA_CE_TER_BASE: 0;
+    to+= to_stride;
     total_ce_cnt++;
     count+= 3;
   }
-  if (total_ce_cnt > (MY_UCA_MAX_WEIGHT_SIZE - 1) / MY_UCA_900_CE_SIZE)
-    total_ce_cnt= (MY_UCA_MAX_WEIGHT_SIZE - 1) / MY_UCA_900_CE_SIZE;
-  to[to_length - count]= total_ce_cnt;
+  total_ce_cnt= std::min(total_ce_cnt,
+                         (MY_UCA_MAX_WEIGHT_SIZE - 1) / MY_UCA_900_CE_SIZE);
+  *to_num_ce= total_ce_cnt;
 
   return total_ce_cnt;
 }
@@ -3972,7 +4087,9 @@ my_char_weight_put_900(MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
   @param cs         character set
   @param dst        destination UCA weight data
   @param to         destination address
+  @param to_stride  number of bytes between each successive weight in "to"
   @param to_length  size of destination
+  @param to_num_ce  where to put the number of CEs generated
   @param rule       The rule that contains the characters whose weight
                     are to copied
   @param base_len   The length of base character list
@@ -3983,25 +4100,21 @@ my_char_weight_put_900(MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
 */
 
 static size_t
-my_char_weight_put(CHARSET_INFO *cs, MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
-                   size_t to_length, MY_COLL_RULE *rule, size_t base_len,
-                   size_t curr_len, enum_uca_ver uca_ver)
+my_char_weight_put(const CHARSET_INFO *cs, MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
+                   size_t to_stride, size_t to_length, uint16 *to_num_ce,
+                   const MY_COLL_RULE *rule, size_t base_len, size_t curr_len, enum_uca_ver uca_ver)
 {
-  size_t count;
-  if (!to_length)
-    return 0;
   if (uca_ver == UCA_V900)
-    return my_char_weight_put_900(dst, to, to_length, rule, base_len,
-                                  curr_len);
+    return my_char_weight_put_900(dst, to, to_stride, to_length, to_num_ce,
+                                  rule, base_len, curr_len);
 
-  to_length--; /* Without trailing zero */
-  my_wc_t *base= rule->base;
-  for (count= 0; base_len; )
+  const my_wc_t *base= rule->base;
+  size_t count= 0;
+  while (base_len != 0)
   {
-    size_t chlen;
-    uint16 *from= NULL;
+    const uint16 *from= NULL;
 
-    for (chlen= base_len; chlen > 1; chlen--)
+    for (size_t chlen= base_len; chlen > 1; chlen--)
     {
       if ((from= my_uca_contraction_weight(&dst->contractions, base, chlen)))
       {
@@ -4020,7 +4133,8 @@ my_char_weight_put(CHARSET_INFO *cs, MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
 
     for ( ; from && *from && count < to_length; )
     {
-      *to++= *from++;
+      *to= *from++;
+      to+= to_stride;
       count++;
     }
   }
@@ -4032,6 +4146,7 @@ my_char_weight_put(CHARSET_INFO *cs, MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
 
 /**
   Alloc new page and copy the default UCA weights
+  @param cs       Character set
   @param loader   Character set loader
   @param src      Default UCA data to copy from
   @param dst      UCA data to copy weights to
@@ -4042,34 +4157,30 @@ my_char_weight_put(CHARSET_INFO *cs, MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
   @retval         TRUE  on error
 */
 static my_bool
-my_uca_copy_page(MY_CHARSET_LOADER *loader,
+my_uca_copy_page(CHARSET_INFO *cs,
+                 MY_CHARSET_LOADER *loader,
                  const MY_UCA_WEIGHT_LEVEL *src,
                  MY_UCA_WEIGHT_LEVEL *dst,
                  size_t page)
 {
-  uint chc, size= 256 * dst->lengths[page] * sizeof(uint16);
-  if (!(dst->weights[page]= (uint16 *) (loader->once_alloc)(size)))
+  const uint dst_size= 256 * dst->lengths[page] * sizeof(uint16);
+  if (!(dst->weights[page]= (uint16 *) (loader->once_alloc)(dst_size)))
     return TRUE;
 
   DBUG_ASSERT(src->lengths[page] <= dst->lengths[page]);
-  memset(dst->weights[page], 0, size);
-  /*
-    When using all three levels of UCA8.0.0 weight data, to
-    recognize whether we have reached the end of them, we use
-    the last number in array to mark the number of collation
-    elements.
-    For 4.0.0 and 5.2.0, the last number is always 0.
-  */
-  for (chc=0 ; chc < 256; chc++)
+  memset(dst->weights[page], 0, dst_size);
+  if (cs->uca && cs->uca->version == UCA_V900)
   {
-    if (src->lengths[page] > 0)
+    const uint src_size= 256 * src->lengths[page] * sizeof(uint16);
+    memcpy(dst->weights[page], src->weights[page], src_size);
+  }
+  else
+  {
+    for (uint chc=0 ; chc < 256; chc++)
     {
       memcpy(dst->weights[page] + chc * dst->lengths[page],
              src->weights[page] + chc * src->lengths[page],
-             (src->lengths[page] - 1) * sizeof(uint16));
-      memcpy(dst->weights[page] + (chc + 1) * dst->lengths[page] - 1,
-             src->weights[page] + (chc + 1) * src->lengths[page] - 1,
-             sizeof(uint16));
+             src->lengths[page] * sizeof(uint16));
     }
   }
   return FALSE;
@@ -4078,20 +4189,21 @@ my_uca_copy_page(MY_CHARSET_LOADER *loader,
 static bool
 apply_shift_900(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                 MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
-                uint16 *to, size_t nweights)
+                uint16 *to, size_t to_stride, size_t nweights)
 {
   /* Apply level difference. */
   if (nweights)
   {
-    to[(nweights - 1) * MY_UCA_900_CE_SIZE]+= r->diff[0];
-    to[(nweights - 1) * MY_UCA_900_CE_SIZE + 1]+= r->diff[1];
-    to[(nweights - 1) * MY_UCA_900_CE_SIZE + 2]+= r->diff[2];
+    uint16 * const last_weight_ptr = to + (nweights - 1) * to_stride * MY_UCA_900_CE_SIZE;
+    last_weight_ptr[0]+= r->diff[0];
+    last_weight_ptr[to_stride]+= r->diff[1];
+    last_weight_ptr[to_stride * 2]+= r->diff[2];
     if (r->before_level == 1) /* Apply "&[before primary]" */
     {
       int last_sec_pri_pos= 0;
       for (int i= nweights - 2; i >= 0; --i)
       {
-        if (to[i * MY_UCA_900_CE_SIZE])
+        if (to[i * to_stride * MY_UCA_900_CE_SIZE])
         {
           last_sec_pri_pos= i;
           break;
@@ -4099,7 +4211,7 @@ apply_shift_900(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
       }
       if (last_sec_pri_pos >= 0)
       {
-        to[last_sec_pri_pos * MY_UCA_900_CE_SIZE]--; /* Reset before */
+        to[last_sec_pri_pos * to_stride * MY_UCA_900_CE_SIZE]--; /* Reset before */
         if (rules->shift_after_method == my_shift_method_expand)
         {
           /*
@@ -4117,7 +4229,7 @@ apply_shift_900(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
             cases is perfectly enough.
           */
           /* W3-TODO: const may vary on levels 2,3*/
-          to[(nweights - 1) * MY_UCA_900_CE_SIZE]+= 0x1000;
+          last_weight_ptr[0]+= 0x1000;
         }
       }
       else
@@ -4141,10 +4253,12 @@ apply_shift_900(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
 static my_bool
 apply_shift(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
             MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
-            uint16 *to, size_t nweights)
+            uint16 *to, size_t to_stride, size_t nweights)
 {
   if (rules->uca->version == UCA_V900)
-    return apply_shift_900(cs, loader, rules, r, level, to, nweights);
+    return apply_shift_900(cs, loader, rules, r, level, to, to_stride, nweights);
+
+  DBUG_ASSERT(to_stride == 1);
 
   /* Apply level difference. */
   if (nweights)
@@ -4202,7 +4316,8 @@ apply_one_rule(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
   size_t nweights;
   size_t nreset= my_coll_rule_reset_length(r); /* Length of reset sequence */
   size_t nshift= my_coll_rule_shift_length(r); /* Length of shift sequence */
-  uint16 *to;
+  uint16 *to, *to_num_ce;
+  size_t to_stride;
 
   if (nshift >= 2) /* Contraction */
   {
@@ -4223,25 +4338,41 @@ apply_one_rule(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
     /* Add new contraction to the contraction list */
     to= my_uca_add_contraction(contractions, r->curr, nshift,
                                r->with_context)->weight;
+    to_stride= 1;
+    to_num_ce= &to[MY_UCA_MAX_WEIGHT_SIZE - 1];
     /* Store weights of the "reset to" character */
     dst->contractions.nitems--; /* Temporarily hide - it's incomplete */
-    nweights= my_char_weight_put(cs, dst, to, MY_UCA_MAX_WEIGHT_SIZE,
-                                 r, nreset, nshift, rules->uca->version);
+    nweights= my_char_weight_put(cs, dst, to, to_stride, MY_UCA_MAX_WEIGHT_SIZE - 1,
+                                 to_num_ce, r, nreset, nshift, rules->uca->version);
     dst->contractions.nitems++; /* Activate, now it's complete */
   }
   else
   {
     my_wc_t pagec= (r->curr[0] >> 8);
     DBUG_ASSERT(dst->weights[pagec]);
-    to= my_char_weight_addr(dst, r->curr[0]);
+    if (cs->uca && cs->uca->version == UCA_V900)
+    {
+      to= my_char_weight_addr_900(dst, r->curr[0]);
+      to_stride= UCA900_DISTANCE_BETWEEN_LEVELS;
+      to_num_ce= to - UCA900_DISTANCE_BETWEEN_LEVELS;
+    }
+    else
+    {
+      to= my_char_weight_addr(dst, r->curr[0]);
+      to_stride= 1;
+      to_num_ce= to + (dst->lengths[pagec] - 1);
+    }
     /* Store weights of the "reset to" character */
-    nweights= my_char_weight_put(cs, dst, to, dst->lengths[pagec],
-                                 r, nreset, nshift, rules->uca->version);
+    if (dst->lengths[pagec] == 0)
+      nweights= 0;
+    else
+      nweights= my_char_weight_put(cs, dst, to, to_stride, dst->lengths[pagec] - 1,
+                                   to_num_ce, r, nreset, nshift, rules->uca->version);
   }
 
-  change_weight_if_case_first(cs, r, to, nshift, nweights);
+  change_weight_if_case_first(cs, r, to, to_stride, nshift, nweights);
   /* Apply level difference. */
-  return apply_shift(cs, loader, rules, r, level, to, nweights);
+  return apply_shift(cs, loader, rules, r, level, to, to_stride, nweights);
 }
 
 
@@ -4273,6 +4404,26 @@ check_rules(MY_CHARSET_LOADER *loader,
   return FALSE;
 }
 
+static void
+synthesize_lengths_900(uchar *lengths,
+                       const uint16 * const * weights, uint npages)
+{
+  for (uint page= 0; page < npages; ++page)
+  {
+    int max_len= 0;
+    if (weights[page])
+    {
+      for (uint code= 0; code < 256; ++code)
+      {
+        max_len= std::max<int>(max_len, weights[page][code]);
+      }
+    }
+    if (max_len == 0)
+      lengths[page]= 0;
+    else
+      lengths[page]= max_len * MY_UCA_900_CE_SIZE + 1;
+  }
+}
 
 static my_bool
 init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
@@ -4289,18 +4440,20 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
     return TRUE;
 
   /* Allocate memory for pages and their lengths */
-  if (!(dst->lengths= (uchar *) (loader->once_alloc)(npages)) ||
+  if (!(dst->lengths= (uchar *) (loader->mem_malloc)(npages)) ||
       !(dst->weights= (uint16 **) (loader->once_alloc)(npages *
                                                        sizeof(uint16 *))))
     return TRUE;
 
-  /* Copy pages lengths and page pointers from the default UCA weights */ 
+  /*
+    Copy pages lengths and page pointers from the default UCA weights.
+  */
   memcpy(dst->lengths, src->lengths, npages);
   memcpy(dst->weights, src->weights, npages * sizeof(uint16 *));
 
   /*
     Calculate maximum lenghts for the pages which will be overwritten.
-    Mark pages that will be otherwriten as NULL.
+    Mark pages that will be overwritten as NULL.
     We'll allocate their own memory.
   */
   for (r= rules->rule, rlast= rules->rule + rules->nrules; r < rlast; r++)
@@ -4342,7 +4495,7 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
       calculated algorithmically.
     */
     if (!dst->weights[i] && dst->lengths[i] &&
-        (rc= my_uca_copy_page(loader, src, dst, i)))
+        (rc= my_uca_copy_page(cs, loader, src, dst, i)))
       return rc;
   }
 
@@ -4780,6 +4933,8 @@ create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
   MY_COLL_RULES rules;
   MY_UCA_INFO new_uca, *src_uca= NULL;
   int rc= 0;
+  MY_UCA_WEIGHT_LEVEL *src, *dst;
+  size_t npages;
 
   *loader->error= '\0';
 
@@ -4822,9 +4977,31 @@ create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
       cs->caseinfo= &my_unicase_default;
   }
 
-  if ((rc= init_weight_level(cs, loader, &rules, 0,
-                             &new_uca.level[0], &src_uca->level[0])))
+  /*
+    For UCA 9.0.0, we don't have a length page, but we still create one
+    temporarily so that we can keep track of much memory we need to
+    allocate for weights.
+  */
+  src= &src_uca->level[0];
+  dst= &new_uca.level[0];
+  npages= (src->maxchar + 1) / 256;
+  if (rules.uca->version == UCA_V900)
+  {
+    if (!(src->lengths= (uchar *) (loader->mem_malloc)(npages)))
+      goto ex;
+    synthesize_lengths_900(src->lengths, src->weights, npages);
+  }
+
+  if ((rc= init_weight_level(cs, loader, &rules, 0, dst, src)))
     goto ex;
+
+  if (rules.uca->version == UCA_V900)
+  {
+    (loader->mem_free)(src->lengths);
+    (loader->mem_free)(dst->lengths);
+    src->lengths= nullptr;
+    dst->lengths= nullptr;
+  }
 
   new_uca.version= src_uca->version;
   if (!(cs->uca= (MY_UCA_INFO *) (loader->once_alloc)(sizeof(MY_UCA_INFO))))

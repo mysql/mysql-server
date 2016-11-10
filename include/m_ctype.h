@@ -90,6 +90,11 @@ extern MY_UNICASE_INFO my_unicase_turkish;
 extern MY_UNICASE_INFO my_unicase_mysql500;
 extern MY_UNICASE_INFO my_unicase_unicode520;
 
+/*
+  NOTE: If you change MY_UCA_MAX_CONTRACTION, be sure to update the comment on
+  MY_UCA_CNT_MID1 in strings/uca_data.h, as it might cause us to run out of
+  bits in a byte flag.
+*/
 #define MY_UCA_MAX_CONTRACTION 6
 #define MY_UCA_MAX_WEIGHT_SIZE 25
 #define MY_UCA_WEIGHT_LEVELS   1
@@ -107,7 +112,15 @@ typedef struct my_contraction_list_t
 {
   size_t nitems;         /* Number of items in the list                  */
   MY_CONTRACTION *item;  /* List of contractions                         */
-  char *flags;           /* Character flags, e.g. "is contraction head") */
+
+  /*
+    Character flags for each character, e.g. "is contraction head"
+    (MY_UCA_CNT_HEAD). These are set per-character, but to conserve space,
+    only the lowest few bits of each character are used (so there could be
+    false positives). Specifically, the code point is ANDed with
+    MY_UCA_CNT_FLAG_MASK to index into this array.
+  */
+  char *flags;
 } MY_CONTRACTIONS;
 
 
