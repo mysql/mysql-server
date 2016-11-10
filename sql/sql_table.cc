@@ -5112,6 +5112,21 @@ bool mysql_prepare_create_table(THD *thd,
   /*
     Validation of table properties.
   */
+  LEX_STRING* connect_string = &create_info->connect_string;
+  if (connect_string->length != 0 &&
+      connect_string->length > CONNECT_STRING_MAXLEN &&
+      (system_charset_info->cset->charpos(system_charset_info,
+                                          connect_string->str,
+                                          (connect_string->str +
+                                           connect_string->length),
+                                          CONNECT_STRING_MAXLEN)
+      < connect_string->length))
+  {
+    my_error(ER_WRONG_STRING_LENGTH, MYF(0),
+             connect_string->str, "CONNECTION", CONNECT_STRING_MAXLEN);
+    DBUG_RETURN(TRUE);
+  }
+
   LEX_STRING *compress= &create_info->compress;
   if (compress->length != 0 &&
       compress->length > TABLE_COMMENT_MAXLEN &&
