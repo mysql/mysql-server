@@ -1643,13 +1643,13 @@ public:
 };
 
 /**
-  in_expr [NOT] IN (<in value list>).
+  in_expr [NOT] IN (in_value_list).
 
   The current implementation distinguishes 2 cases:
-  1) all items in <in value list> are constants and have the same
+  1) all items in in_value_list are constants and have the same
     result type. This case is handled by in_vector class.
   2) otherwise Item_func_in employs several cmp_item objects to perform
-    comparisons of in_expr and an item from <in value list>. One cmp_item
+    comparisons of in_expr and an item from in_value_list. One cmp_item
     object for each result type. Different result types are collected in the
     resolve_type() member function by means of collect_cmp_types() function.
 */
