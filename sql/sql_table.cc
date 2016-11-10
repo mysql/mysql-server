@@ -8275,7 +8275,7 @@ static bool mysql_inplace_alter_table(THD *thd,
       updating SDI here. This will happen anyway during further operations
       on new table version in this statement.
     */
-    if (thd->dd_client()->update(&new_dd_tab, altered_table_def))
+    if (thd->dd_client()->update(altered_table_def))
       goto rollback;
     // TODO: Remove this call in WL#7743?
     thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);

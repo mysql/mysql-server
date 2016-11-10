@@ -559,6 +559,13 @@ bool create_tables(THD *thd, bool is_dd_upgrade,
       return true;
   }
 
+  // TODO:
+  // Workaround that may be removed when the removal of uncommitted
+  // objects is done implicitly on commit/rollback.
+  thd->dd_client()->remove_uncommitted_objects<Schema>(false);
+  thd->dd_client()->remove_uncommitted_objects<Table>(false);
+  thd->dd_client()->remove_uncommitted_objects<Tablespace>(false);
+
   // Set iterator to end of system tables
   if (last_table != nullptr)
     *last_table= System_tables::instance()->end();
@@ -679,7 +686,8 @@ bool flush_meta_data(THD *thd)
 
     // We must set the ID to INVALID to enable storing the object.
     dd_schema_clone->set_id(INVALID_OBJECT_ID);
-    if (thd->dd_client()->store(static_cast<Schema*>(dd_schema_clone.get())))
+    if (dd::cache::Storage_adapter::instance()->store(thd,
+          static_cast<Schema*>(dd_schema_clone.get())))
       return end_transaction(thd, true);
 
     // Make sure the registry of the core DD objects is updated.
@@ -699,7 +707,7 @@ bool flush_meta_data(THD *thd)
 
       // We must set the ID to INVALID to enable storing the object.
       dd_tspace_clone->set_id(INVALID_OBJECT_ID);
-      if (thd->dd_client()->store(
+      if (dd::cache::Storage_adapter::instance()->store(thd,
             static_cast<Tablespace*>(dd_tspace_clone.get())))
         return end_transaction(thd, true);
 
@@ -732,7 +740,8 @@ bool flush_meta_data(THD *thd)
       dd_table_clone->set_schema_id(dd_schema_clone->id());
       if (dd_tspace != nullptr)
         dd_table_clone->set_tablespace_id(dd_tspace_clone->id());
-      if (thd->dd_client()->store(static_cast<Table*>(dd_table_clone.get())))
+      if (dd::cache::Storage_adapter::instance()->store(thd,
+            static_cast<Table*>(dd_table_clone.get())))
         return end_transaction(thd, true);
 
       // No need to keep non-core dd tables in the core registry.
@@ -762,7 +771,8 @@ bool flush_meta_data(THD *thd)
 
       // We must set the ID to INVALID to enable storing the object.
       tspace_clone->set_id(INVALID_OBJECT_ID);
-      if (thd->dd_client()->store(static_cast<Tablespace*>(tspace_clone.get())))
+      if (dd::cache::Storage_adapter::instance()->store(thd,
+            static_cast<Tablespace*>(tspace_clone.get())))
         return end_transaction(thd, true);
 
       // Only the DD tablespace is needed to handle cache misses, so we can
@@ -940,17 +950,16 @@ bool add_cyclic_foreign_keys(THD *thd)
       return true;
 
     // Acquire the table object, maintain table hiding.
-    const dd::Table *table= nullptr;
-    if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
-                                  (*it)->entity()->name(), &table))
+    dd::Table *table= nullptr;
+    if (thd->dd_client()->acquire_for_modification(
+          dd::String_type(MYSQL_SCHEMA_NAME.str),
+          (*it)->entity()->name(), &table))
       return true;
 
     if (table->hidden() != (*it)->entity()->hidden())
     {
-      std::unique_ptr<Table_impl> table_clone(
-              dynamic_cast<Table_impl*>(table->clone()));
-      table_clone->set_hidden((*it)->entity()->hidden());
-      if (thd->dd_client()->store(static_cast<Table*>(table_clone.get())))
+      table->set_hidden((*it)->entity()->hidden());
+      if (thd->dd_client()->update(table))
         return end_transaction(thd, true);
     }
     end_transaction(thd, false);
@@ -1465,6 +1474,12 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
 {
   bool error= false;
 
+  // We need a top level auto releaser to make sure the uncommitted objects
+  // are removed. This is done in the auto releaser destructor. When
+  // renove_uncommitted_objects() is called implicitly as part of commit/
+  // rollback, this should not be necessary.
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   // RAII to handle error messages.
   Bootstrap_error_handler bootstrap_error_handler;
 
@@ -1539,7 +1554,6 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
 
   Dictionary_impl *d= dd::Dictionary_impl::instance();
   DBUG_ASSERT(d);
-  cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /*
     ALTER innodb stats table according to new definition.

@@ -22,6 +22,7 @@
 
 #include "dd/cache/dictionary_client.h"           // dd::cache::Dictionary_...
 #include "dd/dd.h"                                // dd::create_object
+#include "dd/impl/cache/storage_adapter.h"        // Storage_adapter
 #include "dd/impl/raw/object_keys.h"              // Global_name_key
 #include "dd/impl/types/charset_impl.h"           // dd::Charset_impl
 #include "dd/impl/types/object_table_definition_impl.h"
@@ -133,7 +134,8 @@ bool Character_sets::populate(THD *thd) const
 
       // If the charset exists, it will be updated; otherwise,
       // it will be inserted.
-      error= thd->dd_client()->store(static_cast<Charset*>(new_charset));
+      error= cache::Storage_adapter::instance()->store(thd,
+               static_cast<Charset*>(new_charset));
     }
   }
   delete new_charset;

@@ -576,7 +576,7 @@ enum_sp_return_code alter_routine(THD *thd, const Routine *routine,
     new_routine->set_comment(chistics->comment.str);
 
   // Update routine.
-  if (thd->dd_client()->update(&routine, new_routine))
+  if (thd->dd_client()->update(new_routine))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.

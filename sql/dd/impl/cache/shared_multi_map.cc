@@ -362,6 +362,22 @@ void Shared_multi_map<T>::drop(Cache_element<T> *element)
 }
 
 
+// Delete an object corresponding to the key from the map if exists.
+template <typename T>
+template <typename K>
+void Shared_multi_map<T>::drop_if_present(const K &key)
+{
+  Autolocker lock(this);
+
+  Cache_element<T> *element= use_if_present(key);
+
+  if (element)
+  {
+    remove(element, &lock);
+  }
+}
+
+
 // Replace the object and re-generate the keys for an element.
 template <typename T>
 void Shared_multi_map<T>::replace(Cache_element<T> *element, const T* object)
@@ -421,6 +437,8 @@ template void Shared_multi_map<Abstract_table>::
   put<Abstract_table::aux_key_type>
     (const Abstract_table::aux_key_type*, const Abstract_table*,
       Cache_element<Abstract_table> **);
+template void Shared_multi_map<Abstract_table>::
+  drop_if_present<Abstract_table::id_key_type>(const Abstract_table::id_key_type&);
 
 template class Shared_multi_map<Charset>;
 template bool Shared_multi_map<Charset>::
@@ -447,6 +465,8 @@ template void Shared_multi_map<Charset>::
   put<Charset::aux_key_type>
     (const Charset::aux_key_type*, const Charset*,
       Cache_element<Charset> **);
+template void Shared_multi_map<Charset>::
+  drop_if_present<Charset::id_key_type>(const Charset::id_key_type&);
 
 template class Shared_multi_map<Collation>;
 template bool Shared_multi_map<Collation>::
@@ -473,6 +493,8 @@ template void Shared_multi_map<Collation>::
   put<Collation::aux_key_type>
     (const Collation::aux_key_type*, const Collation*,
       Cache_element<Collation> **);
+template void Shared_multi_map<Collation>::
+  drop_if_present<Collation::id_key_type>(const Collation::id_key_type&);
 
 template class Shared_multi_map<Event>;
 template bool Shared_multi_map<Event>::
@@ -499,6 +521,8 @@ template void Shared_multi_map<Event>::
 put<Event::aux_key_type>
 (const Event::aux_key_type*, const Event*,
  Cache_element<Event> **);
+template void Shared_multi_map<Event>::
+  drop_if_present<Event::id_key_type>(const Event::id_key_type&);
 
 template class Shared_multi_map<Routine>;
 template bool Shared_multi_map<Routine>::
@@ -525,6 +549,8 @@ template void Shared_multi_map<Routine>::
   put<Routine::aux_key_type>
     (const Routine::aux_key_type*, const Routine*,
       Cache_element<Routine> **);
+template void Shared_multi_map<Routine>::
+  drop_if_present<Routine::id_key_type>(const Routine::id_key_type&);
 
 template class Shared_multi_map<Schema>;
 template bool Shared_multi_map<Schema>::
@@ -551,6 +577,8 @@ template void Shared_multi_map<Schema>::
   put<Schema::aux_key_type>
     (const Schema::aux_key_type*, const Schema*,
       Cache_element<Schema> **);
+template void Shared_multi_map<Schema>::
+  drop_if_present<Schema::id_key_type>(const Schema::id_key_type&);
 
 template class Shared_multi_map<Spatial_reference_system>;
 template bool Shared_multi_map<Spatial_reference_system>::
@@ -584,6 +612,9 @@ template void Shared_multi_map<Spatial_reference_system>::
     (const Spatial_reference_system::aux_key_type*,
      const Spatial_reference_system*,
      Cache_element<Spatial_reference_system> **);
+template void Shared_multi_map<Spatial_reference_system>::
+  drop_if_present<Spatial_reference_system::id_key_type>(
+    const Spatial_reference_system::id_key_type&);
 
 template class Shared_multi_map<Tablespace>;
 template bool Shared_multi_map<Tablespace>::
@@ -610,6 +641,8 @@ template void Shared_multi_map<Tablespace>::
   put<Tablespace::aux_key_type>
     (const Tablespace::aux_key_type*, const Tablespace*,
       Cache_element<Tablespace> **);
+template void Shared_multi_map<Tablespace>::
+  drop_if_present<Tablespace::id_key_type>(const Tablespace::id_key_type&);
 
 } // namespace cache
 } // namespace dd

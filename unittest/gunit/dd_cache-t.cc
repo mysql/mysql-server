@@ -137,6 +137,7 @@ protected:
 #ifndef DBUG_OFF
     dd::cache::Storage_adapter::s_use_fake_storage= true;
 #endif /* !DBUG_OFF */
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd()->dd_client());
     mysql= new dd::Schema_impl();
     mysql->set_name("mysql");
     EXPECT_FALSE(thd()->dd_client()->store<dd::Schema>(mysql));
@@ -533,13 +534,13 @@ void test_acquire_for_modification(CacheStorageTest *tst, THD *thd)
     // acquire should return the same object
     EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &acquired));
     EXPECT_NE(nullp<Intrfc_type>(), acquired);
-    EXPECT_EQ(modified, acquired);
+    EXPECT_NE(modified, acquired);
     EXPECT_EQ(*modified, *acquired);
   }
   // acquire should still return the same object
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &acquired));
   EXPECT_NE(nullp<Intrfc_type>(), acquired);
-  EXPECT_EQ(modified, acquired);
+  EXPECT_NE(modified, acquired);
   EXPECT_EQ(*modified, *acquired);
 
   dc->remove_uncommitted_objects<Intrfc_type>(true);
@@ -599,13 +600,13 @@ void test_acquire_for_modification_with_schema(CacheStorageTest *tst, THD *thd)
     // acquire should return the same object
     EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &acquired));
     EXPECT_NE(nullp<Intrfc_type>(), acquired);
-    EXPECT_EQ(modified, acquired);
+    EXPECT_NE(modified, acquired);
     EXPECT_EQ(*modified, *acquired);
   }
   // acquire should still return the same object
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &acquired));
   EXPECT_NE(nullp<Intrfc_type>(), acquired);
-  EXPECT_EQ(modified, acquired);
+  EXPECT_NE(modified, acquired);
   EXPECT_EQ(*modified, *acquired);
 
   dc->remove_uncommitted_objects<Intrfc_type>(true);
@@ -655,20 +656,20 @@ void test_acquire_and_rename(CacheStorageTest *tst, THD *thd)
                                                          &old_modified));
 
   dd_unittest::set_attributes(old_modified, "new_name");
-  dc->object_renamed(old_modified);
+  dc->update(old_modified);
 
   // Should be possible to acquire with the new name.
   Intrfc_type *new_modified= NULL;
   EXPECT_FALSE(dc->acquire_for_modification<Intrfc_type>(old_modified->name(),
                                                          &new_modified));
   EXPECT_NE(nullp<Intrfc_type>(), new_modified);
-  EXPECT_EQ(new_modified, old_modified);
+  EXPECT_NE(new_modified, old_modified);
   EXPECT_EQ(*new_modified, *old_modified);
 
   const Intrfc_type *new_object= NULL;
   EXPECT_FALSE(dc->acquire<Intrfc_type>(old_modified->name(), &new_object));
   EXPECT_NE(nullp<Intrfc_type>(), new_object);
-  EXPECT_EQ(new_object, old_modified);
+  EXPECT_EQ(new_object, old_modified); // equal due to update() above.
   EXPECT_EQ(*new_object, *old_modified);
 
   // But not by the old object name.
@@ -728,7 +729,7 @@ void test_acquire_and_rename_with_schema(CacheStorageTest *tst, THD *thd)
 
   dd_unittest::set_attributes(old_modified, "schema_new_name",
                               *tst->mysql);
-  dc->object_renamed(old_modified);
+  dc->update(old_modified);
 
   // Should be possible to acquire with the new name.
   Intrfc_type *new_modified= NULL;
@@ -736,7 +737,7 @@ void test_acquire_and_rename_with_schema(CacheStorageTest *tst, THD *thd)
                                             old_modified->name(),
                                             &new_modified));
   EXPECT_NE(nullp<Intrfc_type>(), new_modified);
-  EXPECT_EQ(new_modified, old_modified);
+  EXPECT_NE(new_modified, old_modified);
   EXPECT_EQ(*new_modified, *old_modified);
 
   const Intrfc_type *new_object= NULL;
@@ -810,7 +811,7 @@ void test_acquire_and_move(CacheStorageTest *tst, THD *thd)
   // Move object to a new schema, but keep object name.
   dd_unittest::set_attributes(old_modified, created->name(),
                               *new_schema);
-  dc->object_renamed(old_modified);
+  dc->update(old_modified);
 
   // Should be possible to acquire in the new schema.
   Intrfc_type *new_modified= NULL;
@@ -818,7 +819,7 @@ void test_acquire_and_move(CacheStorageTest *tst, THD *thd)
                                             created->name(),
                                             &new_modified));
   EXPECT_NE(nullp<Intrfc_type>(), new_modified);
-  EXPECT_EQ(new_modified, old_modified);
+  EXPECT_NE(new_modified, old_modified);
   EXPECT_EQ(*new_modified, *old_modified);
 
   const Intrfc_type *new_object= NULL;
@@ -976,6 +977,23 @@ TEST_F(CacheStorageTest, AcquireAndDropProcedure)
 }
 
 
+TEST_F(CacheStorageTest, CommitNewObject)
+{
+  dd::cache::Dictionary_client *dc= thd()->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+
+  dd::Table_impl *created= new dd::Table_impl();
+  dd::Table *icreated= created;
+  created->set_schema_id(mysql->id());
+  dd_unittest::set_attributes(created, "new_object", *mysql);
+  lock_object(*created);
+  EXPECT_FALSE(dc->store(icreated));
+  EXPECT_LT(9999u, icreated->id());
+
+  dc->remove_uncommitted_objects<dd::Table>(true);
+}
+
+
 TEST_F(CacheStorageTest, GetTableBySePrivateId)
 {
   dd::cache::Dictionary_client *dc= thd()->dd_client();
@@ -1057,7 +1075,6 @@ TEST_F(CacheStorageTest, TestRename)
       EXPECT_FALSE(dc.acquire_for_modification(t->id(), &temp_table));
 
       temp_table->set_name("updated_table_name");
-      dc.object_renamed(temp_table);
 
       // Change name of columns and indexes
       for (const dd::Column *c : temp_table->columns())
@@ -1067,7 +1084,7 @@ TEST_F(CacheStorageTest, TestRename)
 
       // Store the object.
       lock_object(*temp_table);
-      dc.update(&t, temp_table);
+      dc.update(temp_table);
 
       // Enable foreign key checks
       thd()->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
@@ -1078,6 +1095,7 @@ TEST_F(CacheStorageTest, TestRename)
       EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "updated_table_name",
                                          &temp_table));
       EXPECT_NE(nullp<const dd::Table>(), temp_table);
+      EXPECT_FALSE(dc.acquire<dd::Table>(sch->name(), "updated_table_name", &t));
       if (t)
       {
         EXPECT_FALSE(dc.drop(t));
@@ -1110,6 +1128,7 @@ TEST_F(CacheStorageTest, TestSchema)
   EXPECT_FALSE(dc.store<dd::Table>(t.get()));
   EXPECT_LT(9999u, t->id());
 
+  s->set_id(-1);
   s->set_name("schema2");
   EXPECT_FALSE(dc.store<dd::Schema>(s.get()));
   EXPECT_LT(9999u, s->id());
@@ -1140,7 +1159,7 @@ TEST_F(CacheStorageTest, TestSchema)
 
       // Try to get "schema2.table1"(non existing) table.
       const dd::Table *s2_t1= NULL;
-      EXPECT_TRUE(dc.acquire<dd::Table>("schema2", "table1", &s2_t1));
+      EXPECT_FALSE(dc.acquire<dd::Table>("schema2", "table1", &s2_t1));
       EXPECT_EQ(nullp<const dd::Table>(), s2_t1);
 
       EXPECT_FALSE(dc.drop(s1_t1));
