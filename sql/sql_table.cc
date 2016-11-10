@@ -684,8 +684,8 @@ static bool read_ddl_log_file_entry(uchar *file_entry_buf,
   DBUG_ENTER("read_ddl_log_file_entry");
   DBUG_ASSERT(io_size >= size);
 
-  if (mysql_file_pread(file_id, file_entry_buf, size, io_size * entry_no,
-                       MYF(MY_WME)) != size)
+  if (mysql_file_pread(file_id, file_entry_buf, size, ((my_off_t)io_size) * entry_no,
+                       MYF(MY_FNABP)) != size)
     error= TRUE;
   DBUG_RETURN(error);
 }
