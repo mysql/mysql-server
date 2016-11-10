@@ -236,7 +236,7 @@ static CHARSET_INFO *get_checksum_charset(const char *csname)
 }
 
 
-bool Item_func_md5::resolve_type(THD *thd)
+bool Item_func_md5::resolve_type(THD *)
 {
   CHARSET_INFO *cs= get_checksum_charset(args[0]->collation.collation->csname);
   args[0]->collation.set(cs, DERIVATION_COERCIBLE);
@@ -268,7 +268,7 @@ String *Item_func_sha::val_str_ascii(String *str)
   return 0;
 }
 
-bool Item_func_sha::resolve_type(THD *thd)
+bool Item_func_sha::resolve_type(THD *)
 {
   CHARSET_INFO *cs= get_checksum_charset(args[0]->collation.collation->csname);
   args[0]->collation.set(cs, DERIVATION_COERCIBLE);
@@ -640,7 +640,7 @@ String *Item_func_aes_decrypt::val_str(String *str)
 }
 
 
-bool Item_func_aes_decrypt::resolve_type(THD *thd)
+bool Item_func_aes_decrypt::resolve_type(THD *)
 {
    max_length= args[0]->max_length;
    maybe_null= true;
@@ -670,7 +670,7 @@ bool Item_func_random_bytes::itemize(Parse_context *pc, Item **res)
 const longlong Item_func_random_bytes::MAX_RANDOM_BYTES_BUFFER= 1024;
 
 
-bool Item_func_random_bytes::resolve_type(THD *thd)
+bool Item_func_random_bytes::resolve_type(THD *)
 {
   collation.set(&my_charset_bin);
   max_length= MAX_RANDOM_BYTES_BUFFER;
@@ -718,7 +718,7 @@ String *Item_func_random_bytes::val_str(String *a)
 }
 
 
-bool Item_func_to_base64::resolve_type(THD *thd)
+bool Item_func_to_base64::resolve_type(THD *)
 {
   maybe_null= args[0]->maybe_null;
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
@@ -768,7 +768,7 @@ String *Item_func_to_base64::val_str_ascii(String *str)
 }
 
 
-bool Item_func_from_base64::resolve_type(THD *thd)
+bool Item_func_from_base64::resolve_type(THD *)
 {
   if (args[0]->max_length > (uint) base64_decode_max_arg_length())
   {
@@ -861,7 +861,7 @@ String *Item_func_concat::val_str(String *str)
 }
 
 
-bool Item_func_concat::resolve_type(THD *thd)
+bool Item_func_concat::resolve_type(THD *)
 {
   ulonglong char_length= 0;
 
@@ -1125,7 +1125,7 @@ String *Item_func_concat_ws::val_str(String *str)
 }
 
 
-bool Item_func_concat_ws::resolve_type(THD *thd)
+bool Item_func_concat_ws::resolve_type(THD *)
 {
   ulonglong char_length;
 
@@ -1193,7 +1193,7 @@ String *Item_func_reverse::val_str(String *str)
 }
 
 
-bool Item_func_reverse::resolve_type(THD *thd)
+bool Item_func_reverse::resolve_type(THD *)
 {
   if (agg_arg_charsets_for_string_result(collation, args, 1))
     return true;
@@ -1280,7 +1280,7 @@ String *Item_func_replace::val_str(String *str)
 }
 
 
-bool Item_func_replace::resolve_type(THD *thd)
+bool Item_func_replace::resolve_type(THD *)
 {
   ulonglong char_length= (ulonglong) args[0]->max_char_length();
   int diff=(int) (args[2]->max_char_length() - args[1]->max_char_length());
@@ -1374,7 +1374,7 @@ null:
 }
 
 
-bool Item_func_insert::resolve_type(THD *thd)
+bool Item_func_insert::resolve_type(THD *)
 {
   ulonglong char_length;
 
@@ -1429,7 +1429,7 @@ String *Item_str_conv::val_str(String *str)
 }
 
 
-bool Item_func_lower::resolve_type(THD *thd)
+bool Item_func_lower::resolve_type(THD *)
 {
   if (agg_arg_charsets_for_string_result(collation, args, 1))
     return true;
@@ -1441,7 +1441,7 @@ bool Item_func_lower::resolve_type(THD *thd)
   return false;
 }
 
-bool Item_func_upper::resolve_type(THD *thd)
+bool Item_func_upper::resolve_type(THD *)
 {
   if (agg_arg_charsets_for_string_result(collation, args, 1))
     return true;
@@ -1499,7 +1499,7 @@ end:
 }
 
 
-bool Item_func_left::resolve_type(THD *thd)
+bool Item_func_left::resolve_type(THD *)
 {
   if (agg_arg_charsets_for_string_result(collation, args, 1))
     return true;
@@ -1535,7 +1535,7 @@ String *Item_func_right::val_str(String *str)
 }
 
 
-bool Item_func_right::resolve_type(THD *thd)
+bool Item_func_right::resolve_type(THD *)
 {
   if (agg_arg_charsets_for_string_result(collation, args, 1))
     return true;
@@ -1593,7 +1593,7 @@ String *Item_func_substr::val_str(String *str)
 }
 
 
-bool Item_func_substr::resolve_type(THD *thd)
+bool Item_func_substr::resolve_type(THD *)
 {
   max_length=args[0]->max_length;
 
@@ -1635,8 +1635,8 @@ end:
 }
 
 
-bool Item_func_substr_index::resolve_type(THD *thd)
-{ 
+bool Item_func_substr_index::resolve_type(THD *)
+{
   if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 2))
     return true;
   fix_char_length(args[0]->max_char_length());
@@ -1779,7 +1779,7 @@ String *Item_func_substr_index::val_str(String *str)
   return (&tmp_value);
 }
 
-void Item_func_roles_graphml::print(String *str, enum_query_type query_type)
+void Item_func_roles_graphml::print(String *str, enum_query_type)
 {
   str->append(func_name());
   str->append("()");
@@ -1937,7 +1937,7 @@ String *Item_func_trim::val_str(String *str)
   return &tmp_value;
 }
 
-bool Item_func_trim::resolve_type(THD *thd)
+bool Item_func_trim::resolve_type(THD *)
 {
   if (arg_count == 1)
   {
@@ -2056,10 +2056,10 @@ static size_t calculate_password(String *str, char *buffer)
 }
 
 
-bool Item_func_password::resolve_type(THD *thd)
+bool Item_func_password::resolve_type(THD *)
 {
   maybe_null= false; // PASSWORD() never returns NULL
-  
+
   if (args[0]->const_item())
   {
     String str;
@@ -2206,7 +2206,7 @@ bool Item_func_encode::seed()
   return FALSE;
 }
 
-bool Item_func_encode::resolve_type(THD *thd)
+bool Item_func_encode::resolve_type(THD *)
 {
   max_length=args[0]->max_length;
   maybe_null=args[0]->maybe_null || args[1]->maybe_null;
@@ -2447,7 +2447,7 @@ bool Item_func_current_user::fix_fields(THD *thd, Item **ref)
 }
 
 
-bool Item_func_soundex::resolve_type(THD *thd)
+bool Item_func_soundex::resolve_type(THD *)
 {
   uint32 char_length= args[0]->max_char_length();
   if (agg_arg_charsets_for_string_result(collation, args, 1))
@@ -2631,7 +2631,7 @@ MY_LOCALE *Item_func_format::get_locale(Item *item)
   return lc;
 }
 
-bool Item_func_format::resolve_type(THD *thd)
+bool Item_func_format::resolve_type(THD *)
 {
   uint32 char_length= args[0]->max_char_length();
   uint32 max_sep_count= (char_length / 3) + (decimals ? 1 : 0) + /*sign*/1;
@@ -2769,7 +2769,7 @@ void Item_func_format::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-bool Item_func_elt::resolve_type(THD *thd)
+bool Item_func_elt::resolve_type(THD *)
 {
   uint32 char_length= 0;
   decimals=0;
@@ -2856,13 +2856,13 @@ void Item_func_make_set::split_sum_func(THD *thd,
 }
 
 
-bool Item_func_make_set::resolve_type(THD *thd)
+bool Item_func_make_set::resolve_type(THD *)
 {
   uint32 char_length= arg_count - 1; /* Separators */
 
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
     return true;
-  
+
   for (uint i=0 ; i < arg_count ; i++)
     char_length+= args[i]->max_char_length();
   fix_char_length(char_length);
@@ -3035,7 +3035,7 @@ inline String* alloc_buffer(String *res,String *str,String *tmp_value,
 }
 
 
-bool Item_func_repeat::resolve_type(THD *thd)
+bool Item_func_repeat::resolve_type(THD *)
 {
   if (agg_arg_charsets_for_string_result(collation, args, 1))
     return true;
@@ -3126,7 +3126,7 @@ String *Item_func_repeat::val_str(String *str)
 
 
 
-bool Item_func_space::resolve_type(THD *thd)
+bool Item_func_space::resolve_type(THD *)
 {
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII); 
   if (args[0]->const_item())
@@ -3196,7 +3196,7 @@ err:
 }
 
 
-bool Item_func_rpad::resolve_type(THD *thd)
+bool Item_func_rpad::resolve_type(THD *)
 {
   // Handle character set for args[0] and args[2].
   if (agg_arg_charsets_for_string_result(collation, &args[0], 2, 2))
@@ -3323,12 +3323,12 @@ String *Item_func_rpad::val_str(String *str)
 }
 
 
-bool Item_func_lpad::resolve_type(THD *thd)
+bool Item_func_lpad::resolve_type(THD *)
 {
   // Handle character set for args[0] and args[2].
   if (agg_arg_charsets_for_string_result(collation, &args[0], 2, 2))
     return true;
-  
+
   if (args[1]->const_item())
   {
     ulonglong char_length= (ulonglong) args[1]->val_int();
@@ -3350,7 +3350,7 @@ end:
 }
 
 
-bool Item_func_uuid_to_bin::resolve_type(THD *thd)
+bool Item_func_uuid_to_bin::resolve_type(THD *)
 {
   collation.set(&my_charset_bin);
   max_length= binary_log::Uuid::BYTE_LENGTH;
@@ -3398,7 +3398,7 @@ err:
 }
 
 
-bool Item_func_bin_to_uuid::resolve_type(THD *thd)
+bool Item_func_bin_to_uuid::resolve_type(THD *)
 {
   decimals= 0;
   collation.set(default_charset());
@@ -3665,7 +3665,7 @@ String *Item_func_conv_charset::val_str(String *str)
                                                    true); // truncate
 }
 
-bool Item_func_conv_charset::resolve_type(THD *thd)
+bool Item_func_conv_charset::resolve_type(THD *)
 {
   collation.set(conv_charset, DERIVATION_IMPLICIT);
   fix_char_length(args[0]->max_char_length());
@@ -3705,7 +3705,7 @@ String *Item_func_set_collation::val_str(String *str)
   return str;
 }
 
-bool Item_func_set_collation::resolve_type(THD *thd)
+bool Item_func_set_collation::resolve_type(THD *)
 {
   CHARSET_INFO *set_collation;
   const char *colname;
@@ -3851,7 +3851,7 @@ void Item_func_weight_string::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-bool Item_func_weight_string::resolve_type(THD *thd)
+bool Item_func_weight_string::resolve_type(THD *)
 {
   const CHARSET_INFO *cs= args[0]->collation.collation;
   collation.set(&my_charset_bin, args[0]->collation.derivation);
@@ -3896,6 +3896,7 @@ String *Item_func_weight_string::val_str(String *str)
   String *res;
   const CHARSET_INFO *cs= args[0]->collation.collation;
   size_t tmp_length, frm_length;
+  bool rounded_up= false;
   DBUG_ASSERT(fixed == 1);
 
   if (args[0]->result_type() != STRING_RESULT ||
@@ -3911,6 +3912,16 @@ String *Item_func_weight_string::val_str(String *str)
               result_length ? result_length :
               cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
                                     max<size_t>(res->length(), nweights));
+
+  /*
+    my_strnxfrm() with an odd number of bytes is illegal for some collations;
+    ask for one more and then truncate ourselves instead.
+  */
+  if ((tmp_length % 2) == 1)
+  {
+    ++tmp_length;
+    rounded_up= true;
+  }
 
   if(tmp_length > current_thd->variables.max_allowed_packet)
   {
@@ -3937,6 +3948,9 @@ String *Item_func_weight_string::val_str(String *str)
                                    (const uchar *) res->ptr(), res->length(),
                                    flags);
   DBUG_ASSERT(frm_length <= tmp_length);
+
+  if (rounded_up && frm_length == tmp_length)
+    --frm_length;
 
   tmp_value.length(frm_length);
   null_value= 0;
@@ -4205,7 +4219,7 @@ String *Item_char_typecast::val_str(String *str)
 }
 
 
-bool Item_char_typecast::resolve_type(THD *thd)
+bool Item_char_typecast::resolve_type(THD *)
 {
   /*
     If we convert between two ASCII compatible character sets and the
@@ -4419,7 +4433,7 @@ String* Item_func_export_set::val_str(String* str)
   return str;
 }
 
-bool Item_func_export_set::resolve_type(THD *thd)
+bool Item_func_export_set::resolve_type(THD *)
 {
   uint32 length= max(args[1]->max_char_length(), args[2]->max_char_length());
   uint32 sep_length= (arg_count > 3 ? args[3]->max_char_length() : 1);
@@ -4811,7 +4825,7 @@ static void set_clock_seq_str()
 }
 
 
-bool Item_func_uuid::resolve_type(THD *thd)
+bool Item_func_uuid::resolve_type(THD *)
 {
   collation.set(system_charset_info,
                 DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
@@ -4951,7 +4965,7 @@ String *Item_func_uuid::val_str(String *str)
 }
 
 
-bool Item_func_gtid_subtract::resolve_type(THD *thd)
+bool Item_func_gtid_subtract::resolve_type(THD *)
 {
   maybe_null= args[0]->maybe_null || args[1]->maybe_null;
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);

@@ -116,6 +116,8 @@ public:
     DBUG_ASSERT(!is_empty());
     return value.pop();
   }
+
+  Item *operator[](uint index) const { return value[index]; }
 };
 
 

@@ -78,8 +78,10 @@ IF (MERGE_UNITTESTS)
 
   ADD_EXECUTABLE(merge_keyring_file_tests-t ${SRC_FILES})
 
-  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t gunit_large strings dbug regex mysys sql)
-  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t sql binlog rpl master slave sql)
+  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
+    gunit_large strings dbug regex mysys sql_main sql_gis)
+  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
+    sql_main binlog rpl master slave sql_gis sql_main)
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t perfschema)
@@ -111,8 +113,10 @@ ELSE()
     ENDIF()
     ADD_EXECUTABLE(${test}-t ${SRC_FILES})
 
-    TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys sql)
-    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+    TARGET_LINK_LIBRARIES(${test}-t
+      gunit_large strings dbug regex mysys sql_main sql_gis)
+    TARGET_LINK_LIBRARIES(${test}-t
+      sql_main binlog rpl master slave sql_main sql_gis)
 
     IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
       TARGET_LINK_LIBRARIES(${test}-t perfschema)

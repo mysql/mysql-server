@@ -274,6 +274,7 @@ typedef struct my_collation_handler_st
 		       const uchar *, size_t, const uchar *, size_t, my_bool);
   int     (*strnncollsp)(const struct charset_info_st *,
                          const uchar *, size_t, const uchar *, size_t);
+  // Note: dstlen must be even.
   size_t  (*strnxfrm)(const struct charset_info_st *,
                       uchar *dst, size_t dstlen, uint nweights,
                       const uchar *src, size_t srclen, uint flags);

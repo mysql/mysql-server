@@ -154,7 +154,7 @@ public:
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;
   virtual bool exec();
-  bool resolve_type(THD *thd) override;
+  bool resolve_type(THD *) override;
   table_map used_tables() const override;
   table_map not_null_tables() const override { return 0; }
   bool const_item() const override;
@@ -237,7 +237,7 @@ public:
   bool val_bool() override;
   enum Item_result result_type() const override;
   enum_field_types field_type() const override;
-  bool resolve_type(THD *thd) override;
+  bool resolve_type(THD *) override;
 
   /*
     Mark the subquery as having no rows.
@@ -286,11 +286,11 @@ protected:
 public:
   Item_maxmin_subselect(THD *thd, Item_subselect *parent,
 			SELECT_LEX *select_lex, bool max, bool ignore_nulls);
-  virtual void print(String *str, enum_query_type query_type);
-  virtual void cleanup();
+  void print(String *str, enum_query_type query_type) override;
+  void cleanup() override;
   bool any_value() { return was_values; }
-  void register_value() { was_values= TRUE; }
-  void reset_value_registration() { was_values= FALSE; }
+  void register_value() { was_values= true; }
+  void reset_value_registration() override { was_values= false; }
 };
 
 /* exists subselect */
@@ -563,8 +563,8 @@ public:
 };
 
 
-/* ALL/ANY/SOME subselect */
-class Item_allany_subselect final:public Item_in_subselect
+/// ALL/ANY/SOME subselect.
+class Item_allany_subselect final : public Item_in_subselect
 {
 public:
   chooser_compare_func_creator func_creator;

@@ -2363,6 +2363,10 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
   const CHARSET_INFO *cs;
   *multi_byte_charset= false;
 
+  // Heed the contract that strnxfrm() needs an even number of bytes.
+  const uint max_sort_length_even=
+    (thd->variables.max_sort_length + 1) & ~1;
+
   for (; s_length-- ; sortorder++)
   {
     DBUG_ASSERT(sortorder->need_strxnfrm == 0);
@@ -2388,7 +2392,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
       if (sortorder->field->result_type() == STRING_RESULT &&
           !sortorder->field->is_temporal())
       {
-        set_if_smaller(sortorder->length, thd->variables.max_sort_length);
+        set_if_smaller(sortorder->length, max_sort_length_even);
       }
 
       sortorder->field_type= sortorder->field->type();
@@ -2404,7 +2408,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
       switch (sortorder->result_type) {
       case STRING_RESULT:
 	sortorder->length= sortorder->item->max_length;
-        set_if_smaller(sortorder->length, thd->variables.max_sort_length);
+        set_if_smaller(sortorder->length, max_sort_length_even);
 	if (use_strnxfrm((cs=sortorder->item->collation.collation)))
 	{ 
           // How many bytes do we need (including sort weights) for strnxfrm()?

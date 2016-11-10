@@ -102,9 +102,9 @@ delete from t1;
 insert into t1 values ('a'), ('a '), ('a\t');
 select collation(a),hex(a) from t1 order by a;
 collation(a)	hex(a)
-utf8mb4_0900_as_cs	6109
 utf8mb4_0900_as_cs	61
 utf8mb4_0900_as_cs	6120
+utf8mb4_0900_as_cs	6109
 drop table t1;
 create table t1 engine=innodb select repeat('a',50) as c1;
 alter table t1 add index(c1(5));
@@ -342,7 +342,7 @@ HEX(WEIGHT_STRING(CAST(_utf32 x'337F' AS CHAR)))
 FB40E82AFB40DF0FFB40CF1AFB40F93E000000200020002000200000001C001C001C001C
 SELECT HEX(WEIGHT_STRING(CAST(_utf32 x'FDFA' AS CHAR)));
 HEX(WEIGHT_STRING(CAST(_utf32 x'FDFA' AS CHAR)))
-2364239C23C50209230B239C239C23B10000002000200020002000200020002000200000001A001A001A001A001A001A001A001A
+2364239C23C50001230B239C239C23B10000002000200020000100200020002000200000001A001A001A001A001A001A001A001A
 select @@collation_connection;
 @@collation_connection
 utf8mb4_0900_as_cs
@@ -363,7 +363,7 @@ hex(weight_string('abc' as char(3)))
 1C471C601C7A00000020002000200000000200020002
 select hex(weight_string('abc' as char(5)));
 hex(weight_string('abc' as char(5)))
-1C471C601C7A02090209000000200020002000200020000000020002000200020002
+1C471C601C7A00000020002000200000000200020002
 select hex(weight_string('abc', 1, 2, 0xC0));
 hex(weight_string('abc', 1, 2, 0xC0))
 1C
@@ -381,7 +381,7 @@ hex(weight_string('abc', 5, 2, 0xC0))
 1C471C6000
 select hex(weight_string('abc',25, 2, 0xC0));
 hex(weight_string('abc',25, 2, 0xC0))
-1C471C60020900000020002000200000000200020002000200
+1C471C60000000200020000000020002000000000000000000
 select hex(weight_string('abc', 1, 3, 0xC0));
 hex(weight_string('abc', 1, 3, 0xC0))
 1C
@@ -399,7 +399,7 @@ hex(weight_string('abc', 5, 3, 0xC0))
 1C471C601C
 select hex(weight_string('abc',25, 3, 0xC0));
 hex(weight_string('abc',25, 3, 0xC0))
-1C471C601C7A00000020002000200000000200020002000200
+1C471C601C7A00000020002000200000000200020002000000
 select hex(weight_string('abc', 1, 4, 0xC0));
 hex(weight_string('abc', 1, 4, 0xC0))
 1C
@@ -417,7 +417,7 @@ hex(weight_string('abc', 5, 4, 0xC0))
 1C471C601C
 select hex(weight_string('abc',25, 4, 0xC0));
 hex(weight_string('abc',25, 4, 0xC0))
-1C471C601C7A00000020002000200000000200020002000200
+1C471C601C7A00000020002000200000000200020002000000
 select @@collation_connection;
 @@collation_connection
 utf8mb4_0900_as_cs
@@ -435,7 +435,7 @@ hex(weight_string(cast(_latin1 0x808080 as char) as char(3)))
 1C2A1C2A1C2A00000020002000200000000200020002
 select hex(weight_string(cast(_latin1 0x808080 as char) as char(5)));
 hex(weight_string(cast(_latin1 0x808080 as char) as char(5)))
-1C2A1C2A1C2A02090209000000200020002000200020000000020002000200020002
+1C2A1C2A1C2A00000020002000200000000200020002
 select hex(weight_string(cast(_latin1 0x808080 as char), 1, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 1, 2, 0xC0))
 1C
@@ -453,7 +453,7 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 2, 0xC0))
 1C2A1C2A00
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 2, 0xC0))
-1C2A1C2A020900000020002000200000000200020002000200
+1C2A1C2A000000200020000000020002000000000000000000
 select hex(weight_string(cast(_latin1 0x808080 as char), 1, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 1, 3, 0xC0))
 1C
@@ -471,7 +471,7 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 3, 0xC0))
 1C2A1C2A1C
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 3, 0xC0))
-1C2A1C2A1C2A00000020002000200000000200020002000200
+1C2A1C2A1C2A00000020002000200000000200020002000000
 select hex(weight_string(cast(_latin1 0x808080 as char), 1, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 1, 4, 0xC0))
 1C
@@ -489,7 +489,7 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
 1C2A1C2A1C
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
-1C2A1C2A1C2A00000020002000200000000200020002000200
+1C2A1C2A1C2A00000020002000200000000200020002000000
 select @@collation_connection;
 @@collation_connection
 utf8mb4_0900_as_cs
@@ -510,16 +510,16 @@ hex(weight_string('abc' as char(3) LEVEL 1))
 1C471C601C7A00000020002000200000000200020002
 select hex(weight_string('abc' as char(5) LEVEL 1));
 hex(weight_string('abc' as char(5) LEVEL 1))
-1C471C601C7A02090209000000200020002000200020000000020002000200020002
+1C471C601C7A00000020002000200000000200020002
 select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
 hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-020002000200020002000000200020002000200020000000090209027A1C601C471C
+020002000200000020002000200000007A1C601C471C
 select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
 hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-E3B8E39FE385FDF6FDF6FFFFFFDFFFDFFFDFFFDFFFDFFFFFFFFDFFFDFFFDFFFDFFFD
+E3B8E39FE385FFFFFFDFFFDFFFDFFFFFFFFDFFFDFFFD
 select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
 hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-FDFFFDFFFDFFFDFFFDFFFFFFDFFFDFFFDFFFDFFFDFFFFFFFF6FDF6FD85E39FE3B8E3
+FDFFFDFFFDFFFFFFDFFFDFFFDFFFFFFF85E39FE3B8E3
 CREATE TABLE t1 AS SELECT repeat('a', 10) as c LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -898,10 +898,10 @@ SELECT 'a\0' < 'a ';
 0
 SELECT 'a\t' < 'a';
 'a\t' < 'a'
-1
+0
 SELECT 'a\t' < 'a ';
 'a\t' < 'a '
-1
+0
 SELECT 'a' LIKE 'a';
 'a' LIKE 'a'
 1
