@@ -17,9 +17,7 @@
 #include "plugin_log.h"
 #include "plugin.h"
 
-Applier_handler::Applier_handler()
-  :thread_id_array(NULL), num_appliers(0)
-{}
+Applier_handler::Applier_handler() {}
 
 int Applier_handler::initialize()
 {
@@ -30,7 +28,6 @@ int Applier_handler::initialize()
 int Applier_handler::terminate()
 {
   DBUG_ENTER("Applier_handler::terminate");
-  my_free(thread_id_array);
   DBUG_RETURN(0);
 }
 
@@ -88,26 +85,12 @@ int Applier_handler::start_applier_thread()
 {
   DBUG_ENTER("Applier_handler::start_applier_thread");
 
-  //reset the thread id vars in case of applier thread restart
-  num_appliers= 0;
-  my_free(thread_id_array);
-  thread_id_array= NULL;
-
   int error= channel_interface.start_threads(false, true,
                                              NULL, false);
   if (error)
   {
       log_message(MY_ERROR_LEVEL,
                   "Error while starting the group replication applier thread");
-  }
-
-  //extract the thread ids to avoid deadlocks with checks on thread stops.
-  num_appliers= channel_interface.get_applier_thread_ids(&thread_id_array);
-  if (num_appliers <= 0)
-  {
-      log_message(MY_WARNING_LEVEL,
-                  "It was not possible to identify the group replication"
-                  " applier thread");
   }
 
   DBUG_RETURN(error);
@@ -243,33 +226,6 @@ int Applier_handler::wait_for_gtid_execution(longlong timeout)
   int error= channel_interface.wait_for_gtid_execution(timeout);
 
   DBUG_RETURN(error);
-}
-
-bool Applier_handler::is_own_event_applier(my_thread_id id)
-{
-  DBUG_ENTER("Applier_handler::is_own_event_applier");
-  //if no list exists, try anyway going direct to the channel.
-  if (num_appliers <= 0)
-  {
-    DBUG_RETURN(channel_interface.is_own_event_applier(id)); /* purecov: inspected */
-  }
-
-  if (num_appliers == 1)  //One applier, check its id
-  {
-    DBUG_RETURN(*thread_id_array == id);
-  }
-  else //The channel has  more than one applier, check if the id is in the list
-  {
-    for (int i = 0; i < num_appliers; i++)
-    {
-      unsigned long thread_id= thread_id_array[i];
-      if (thread_id == id)
-      {
-        DBUG_RETURN(true);
-      }
-    }
-  }
-  DBUG_RETURN(false);
 }
 
 int Applier_handler::is_partial_transaction_on_relay_log()

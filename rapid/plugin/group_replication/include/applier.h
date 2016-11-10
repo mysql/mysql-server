@@ -134,7 +134,6 @@ class Applier_module_interface
 public:
   virtual ~Applier_module_interface() {}
   virtual Certification_handler* get_certification_handler()= 0;
-  virtual bool is_own_event_channel(my_thread_id id)= 0;
   virtual int wait_for_applier_complete_suspension(bool *abort_flag,
                                                    bool wait_for_execution= true)= 0;
   virtual void awake_applier_module()= 0;
@@ -326,7 +325,7 @@ public:
   /**
    This method informs the applier module that an applying thread stopped
   */
-  void inform_of_applier_stop(my_thread_id thread_id, bool aborted);
+  void inform_of_applier_stop(char* channel_name, bool aborted);
 
   // Packet based interface methods
 
@@ -452,16 +451,6 @@ public:
       @retval NULL   No certification handler present
   */
   virtual Certification_handler* get_certification_handler();
-
-  /**
-     Checks if the given id matches any of  the event applying threads in the applier module handlers
-     @param id  the thread id
-
-     @return if it belongs to a thread
-       @retval true   the id matches a SQL or worker thread
-       @retval false  the id doesn't match any thread
-   */
-  virtual bool is_own_event_channel(my_thread_id id);
 
   /**
     Returns the applier module's queue size.
