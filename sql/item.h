@@ -3280,7 +3280,11 @@ public:
   enum Item_result result_type() const override { return INT_RESULT; }
   enum_field_types field_type() const override { return MYSQL_TYPE_LONGLONG; }
   longlong val_int() override { DBUG_ASSERT(fixed); return value; }
-  double val_real() override { DBUG_ASSERT(fixed); return value; }
+  double val_real() override
+  {
+    DBUG_ASSERT(fixed);
+    return static_cast<double>(value);
+  }
   my_decimal *val_decimal(my_decimal *) override;
   String *val_str(String *) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
