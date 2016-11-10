@@ -232,48 +232,44 @@ while ($idx)
   
   select * from min_baseline_diff_type;
 
-  --echo UI reads disabled due to  
-  --echo   Bug #23702848 NDB : READBACKUP BEHAVIOUR WITH UNIQUE INDEXES
-  --echo This results in fluctuating results
-#
-#  --echo 
-#  --echo Unhinted UI read, no lock
-#  --disable_result_log
-#  delete from baseline;
-#  insert into baseline select * from counters_of_interest;
-#  begin;
-#  select * from unrelated;
-#  --eval select * from test.t1 where b=$idx;
-#  commit;
-#  --enable_result_log
-#  
-#  select * from min_baseline_diff_type;
-#
-#  --echo
-#  --echo Unhinted UI read, shared lock
-#  --disable_result_log
-#  delete from baseline;
-#  insert into baseline select * from counters_of_interest;
-#  begin;
-#  select * from unrelated;
-#  --eval select * from test.t1 where b=$idx lock in share mode;
-#  commit;
-#  --enable_result_log
-#  
-#  select * from min_baseline_diff_type;
-#
-#  --echo
-#  --echo Unhinted UI read, exclusive lock
-#  --disable_result_log
-#  delete from baseline;
-#  insert into baseline select * from counters_of_interest;
-#  begin;
-#  select * from unrelated;
-#  --eval select * from test.t1 where b=$idx for update;
-#  commit;
-#  --enable_result_log
-#  
-#  select * from min_baseline_diff_type;
+  --echo 
+  --echo Unhinted UI read, no lock
+  --disable_result_log
+  delete from baseline;
+  insert into baseline select * from counters_of_interest;
+  begin;
+  select * from unrelated;
+  --eval select * from test.t1 where b=$idx;
+  commit;
+  --enable_result_log
+  
+  select * from min_baseline_diff_type;
+
+  --echo
+  --echo Unhinted UI read, shared lock
+  --disable_result_log
+  delete from baseline;
+  insert into baseline select * from counters_of_interest;
+  begin;
+  select * from unrelated;
+  --eval select * from test.t1 where b=$idx lock in share mode;
+  commit;
+  --enable_result_log
+  
+  select * from min_baseline_diff_type;
+
+  --echo
+  --echo Unhinted UI read, exclusive lock
+  --disable_result_log
+  delete from baseline;
+  insert into baseline select * from counters_of_interest;
+  begin;
+  select * from unrelated;
+  --eval select * from test.t1 where b=$idx for update;
+  commit;
+  --enable_result_log
+  
+  select * from min_baseline_diff_type;
 
   --enable_query_log
 

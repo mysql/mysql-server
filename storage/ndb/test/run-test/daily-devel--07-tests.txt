@@ -74,7 +74,6 @@ cmd: testFK
 args: -n AbortWithSlowChildScans T1
 max-time : 180
 
-
 cmd: testNodeRestart
 args: -n RestoreOlderLCP T1
 
@@ -85,4 +84,17 @@ max-time : 180
 cmd: testNdbApi
 args: -n CheckTransIdMt T1
 max-time : 180
+
+cmd: testNdbApi
+args: -n CheckDisconnectCommit T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckDisconnectComplete T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckSlowCommit T1
+max-time : 180
+
 

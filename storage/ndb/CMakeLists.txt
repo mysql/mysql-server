@@ -212,6 +212,8 @@ ELSE()
   IF(WITH_VALGRIND)
     MESSAGE(STATUS "Building NDB test programs for improved valgrind coverage")
     SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for improved valgrind coverage")
+    SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
   # Turn on NDB tests automatically for "-devbld" debug builds
   # to increase test coverage

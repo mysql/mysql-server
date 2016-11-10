@@ -16,9 +16,15 @@ d blob,
 primary key(a,b),
 key(b),
 unique (c)) engine=ndb comment='NDB_TABLE=JUNK' partition by key(a) ;
-Warnings:
-Warning	1478	NDB_TABLE= : unknown modifier: JUNK
-drop table t2;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'Syntax error in COMMENT modifier'
+CREATE TABLE t2 (
+a int,
+b varchar(255),
+c int,
+primary key(a,b),
+key(b),
+unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_LDM' partition by key(a) ;
+DROP TABLE t2;
 CREATE TABLE t2 (
 a int,
 b varchar(255),

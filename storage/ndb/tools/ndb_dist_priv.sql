@@ -75,6 +75,9 @@ begin
      like mysql.columns_priv;
    create table if not exists mysql.procs_priv_backup
      like mysql.procs_priv;
+   -- Remove possibly illegal timestamps in mysql.proxies_priv
+   update mysql.proxies_priv set Timestamp = current_timestamp
+   where Timestamp = timestamp(0);
    create table if not exists mysql.proxies_priv_backup
      like mysql.proxies_priv;
    if distributed_privileges = 1 then
@@ -247,6 +250,9 @@ begin
    alter table mysql.tables_priv algorithm = copy, engine = ndb;
    alter table mysql.columns_priv algorithm = copy, engine = ndb;
    alter table mysql.procs_priv algorithm = copy, engine = ndb;
+   -- Remove possibly illegal timestamps in mysql.proxies_priv
+   update mysql.proxies_priv set Timestamp = current_timestamp
+   where Timestamp = timestamp(0);
    alter table mysql.proxies_priv algorithm = copy, engine = ndb;
   end;
  end if;

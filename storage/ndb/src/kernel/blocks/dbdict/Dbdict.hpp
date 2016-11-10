@@ -2964,7 +2964,8 @@ private:
     bool m_sub_reorg_complete;
     bool m_sub_read_backup;
     Uint32 m_sub_read_backup_ptr;
-    bool m_sub_add_frag;
+    bool m_sub_add_ordered_index_frag;
+    bool m_sub_add_unique_index_frag;
     Uint32 m_sub_add_frag_index_ptr;
     bool m_sub_reorg_trigger;
     bool m_sub_copy_data;
@@ -2985,7 +2986,8 @@ private:
       m_sub_read_backup = false;
       m_sub_read_backup_ptr = RNIL;
       m_sub_add_frag_index_ptr = RNIL;
-      m_sub_add_frag = false;
+      m_sub_add_ordered_index_frag = false;
+      m_sub_add_unique_index_frag = false;
       m_sub_reorg_commit = false;
       m_sub_reorg_complete = false;
       m_sub_reorg_trigger = false;
@@ -3017,7 +3019,15 @@ private:
   void alterTable_abortParse(Signal*, SchemaOpPtr);
   void alterTable_abortPrepare(Signal*, SchemaOpPtr);
 
-  void alterTable_toReadBackup(Signal *signal, SchemaOpPtr op_ptr);
+  void alterTable_toReadBackup(Signal *signal,
+                               SchemaOpPtr op_ptr,
+                               TableRecordPtr indexPtr,
+                               TableRecordPtr tablePtr);
+
+  void alterTable_toAlterUniqueIndex(Signal *signal,
+                                     SchemaOpPtr op_ptr,
+                                     TableRecordPtr indexPtr,
+                                     TableRecordPtr tablePtr);
 
   void alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr);
   void alterTable_fromCopyData(Signal*, Uint32 op_key, Uint32 ret);
@@ -3027,7 +3037,7 @@ private:
   void alterTable_toLocal(Signal*, SchemaOpPtr);
   void alterTable_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
 
-  void alterTable_toAlterIndex(Signal*, SchemaOpPtr);
+  void alterTable_toAlterOrderedIndex(Signal*, SchemaOpPtr);
   void alterTable_fromAlterIndex(Signal*, Uint32 op_key, Uint32 ret);
 
   void alterTable_toReorgTable(Signal*, SchemaOpPtr, Uint32 step);

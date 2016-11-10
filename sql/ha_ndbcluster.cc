@@ -60,6 +60,7 @@
 #include "partition_info.h"
 #include "ndb_bitmap.h"
 #include <mysql/psi/mysql_thread.h>
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "../storage/ndb/include/util/SparseBitmask.hpp"
 #include "../storage/ndb/src/common/util/parse_mask.hpp"
 #include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
@@ -479,8 +480,6 @@ static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
 static ulong multi_range_fixed_size(int num_ranges);
 
 static ulong multi_range_max_entry(NDB_INDEX_TYPE keytype, ulong reclength);
-
-THD *injector_thd= 0;
 
 /* Status variables shown with 'show status like 'Ndb%' */
 
@@ -9165,7 +9164,11 @@ public:
   /**
    * parse string-with length (not necessarily NULL terminated)
    */
-  int parse(THD* thd, const char * prefix, const char * str, size_t strlen);
+  int parse(THD* thd,
+            const char * prefix,
+            const char * str,
+            size_t strlen,
+            Uint32 *end_parse_pos = NULL);
 
   /**
    * Get modifier...returns NULL if unknown
@@ -9225,6 +9228,9 @@ NDB_Modifiers::parse_modifier(THD *thd,
                         ER_ILLEGAL_HA_CREATE_OPTION,
                         "%s : modifier %s specified twice",
                         prefix, m->m_name);
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
+             "Syntax error in COMMENT modifier");
+    return -1;
   }
 
   switch(m->m_type){
@@ -9270,10 +9276,7 @@ NDB_Modifiers::parse_modifier(THD *thd,
     char * tmp = new char[len+1];
     if (tmp == 0)
     {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          "%s : unable to parse due to out of memory",
-                          prefix);
+      mem_alloc_error(len+1);
       return -1;
     }
     memcpy(tmp, start_str, len);
@@ -9301,6 +9304,8 @@ NDB_Modifiers::parse_modifier(THD *thd,
                           "%s : invalid value '%s' for %s",
                           prefix, str, m->m_name);
     }
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
+             "Syntax error in COMMENT modifier");
   }
   return -1;
 found:
@@ -9312,10 +9317,17 @@ int
 NDB_Modifiers::parse(THD *thd,
                      const char * prefix,
                      const char * _source,
-                     size_t _source_len)
+                     size_t _source_len,
+                     Uint32 *end_parse_pos)
 {
   if (_source == 0 || _source_len == 0)
+  {
+    if (end_parse_pos != NULL)
+    {
+      *end_parse_pos = 0;
+    }
     return 0;
+  }
 
   const char * source = 0;
 
@@ -9339,10 +9351,11 @@ NDB_Modifiers::parse(THD *thd,
     char * tmp = new char[_source_len+1];
     if (tmp == 0)
     {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          "%s : unable to parse due to out of memory",
-                          prefix);
+      mem_alloc_error(_source_len+1);
+      if (end_parse_pos != NULL)
+      {
+        *end_parse_pos = 0;
+      }
       return -1;
     }
     memcpy(tmp, _source, _source_len);
@@ -9355,6 +9368,10 @@ NDB_Modifiers::parse(THD *thd,
   {
     if (source != _source)
       delete [] source;
+    if (end_parse_pos != NULL)
+    {
+      *end_parse_pos = 0;
+    }
     return 0;
   }
 
@@ -9367,7 +9384,7 @@ NDB_Modifiers::parse(THD *thd,
     for (uint i = 0; i < m_len; i++)
     {
       size_t l = m_modifiers[i].m_name_len;
-      if (strncmp(pos, m_modifiers[i].m_name, l) == 0)
+      if (native_strncasecmp(pos, m_modifiers[i].m_name, l) == 0)
       {
         /**
          * Found modifier...
@@ -9381,9 +9398,7 @@ NDB_Modifiers::parse(THD *thd,
 
         if (res == -1)
         {
-          /**
-           * We continue parsing even if modifier had error
-           */
+          return -1;
         }
 
         goto next;
@@ -9406,12 +9421,27 @@ NDB_Modifiers::parse(THD *thd,
                             "%s : unknown modifier: %s",
                             prefix, pos);
       }
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
+               "Syntax error in COMMENT modifier");
+      return -1;
     }
 
 next:
     pos = end;
     if (pos && pos[0] == ',')
       pos++;
+  }
+
+  if (end_parse_pos != NULL)
+  {
+    if (pos)
+    {
+      *end_parse_pos = pos - source;
+    }
+    else
+    {
+      *end_parse_pos = _source_len;
+    }
   }
 
   if (source != _source)
@@ -9425,7 +9455,7 @@ NDB_Modifiers::get(const char * name) const
 {
   for (uint i = 0; i < m_len; i++)
   {
-    if (strcmp(name, m_modifiers[i].m_name) == 0)
+    if (native_strncasecmp(name, m_modifiers[i].m_name, m_modifiers[i].m_name_len) == 0)
     {
       return m_modifiers + i;
     }
@@ -9580,9 +9610,12 @@ create_ndb_column(THD *thd,
   const enum enum_field_types mysql_type= field->real_type();
 
   NDB_Modifiers column_modifiers(ndb_column_modifiers);
-  column_modifiers.parse(thd, "NDB_COLUMN=",
-                         field->comment.str,
-                         field->comment.length);
+  if (column_modifiers.parse(thd, "NDB_COLUMN=",
+                             field->comment.str,
+                             field->comment.length) == -1)
+  {
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+  }
 
   const NDB_Modifier * mod_maxblob = column_modifiers.get("MAX_BLOB_PART_SIZE");
 
@@ -9989,6 +10022,9 @@ create_ndb_column(THD *thd,
   DBUG_RETURN(0);
 }
 
+static const NdbDictionary::Object::PartitionBalance g_default_partition_balance =
+  NdbDictionary::Object::PartitionBalance_ForRPByLDM;
+
 void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("ha_ndbcluster::update_create_info");
@@ -10050,6 +10086,286 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
     }
   }
 
+  /**
+   * We have things that are required in the comment section of the
+   * frm-file. These are essentially table properties that we need to
+   * maintain also when we are performing an ALTER TABLE.
+   *
+   * Our design approach is that if a table is fully replicated and
+   * we alter the table, then the table should remain fully replicated
+   * unless we explicitly specify in the comment section that we should
+   * change the table property.
+   *
+   * We start by parsing the new comment string. If there are missing
+   * parts of the string we will add those parts by creating a new
+   * comment string.
+   */
+  if (thd->lex->sql_command == SQLCOM_ALTER_TABLE)
+  {
+    update_comment_info(create_info, m_table);
+  }
+  else if (thd->lex->sql_command == SQLCOM_SHOW_CREATE)
+  {
+    update_comment_info(NULL, m_table);
+  }
+  DBUG_VOID_RETURN;
+}
+
+void
+ha_ndbcluster::update_comment_info(HA_CREATE_INFO *create_info,
+                                   const NDBTAB *ndbtab)
+{
+  DBUG_ENTER("ha_ndbcluster::update_comment_info");
+  THD *thd= current_thd;
+  NDB_Modifiers table_modifiers(ndb_table_modifiers);
+  const char *ndb_table_str= "NDB_TABLE=";
+  Uint32 end_parse_comment_pos = 0;
+  char *comment_str = create_info == NULL ?
+                      table->s->comment.str :
+                      create_info->comment.str;
+  unsigned comment_len = create_info == NULL ?
+                      table->s->comment.length :
+                      create_info->comment.length;
+
+  if (table_modifiers.parse(thd,
+                            ndb_table_str,
+                            comment_str,
+                            comment_len,
+                            &end_parse_comment_pos) == -1)
+  {
+    DBUG_VOID_RETURN;
+  }
+  const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
+  const NDB_Modifier *mod_read_backup = table_modifiers.get("READ_BACKUP");
+  const NDB_Modifier *mod_fully_replicated =
+    table_modifiers.get("FULLY_REPLICATED");
+  const NDB_Modifier *mod_frags = table_modifiers.get("PARTITION_BALANCE");
+  DBUG_PRINT("info", ("Before: comment_len: %u, comment: %s end_parse_pos: %u",
+                      (unsigned int)comment_len,
+                      comment_str,
+                      end_parse_comment_pos));
+
+  bool old_nologging = !ndbtab->getLogging();
+  bool old_read_backup = ndbtab->getReadBackupFlag();
+  bool old_fully_replicated = ndbtab->getFullyReplicated();
+  NdbDictionary::Object::PartitionBalance old_part_bal =
+    ndbtab->getPartitionBalance();
+
+  /**
+   * We start by calculating how much more space we need in the comment
+   * string.
+   */
+  Uint32 extra_len = 0;
+  bool add_ndb_table = false;
+  bool add_nologging = false;
+  bool add_read_backup = false;
+  bool add_fully_replicated = false;
+  bool add_part_bal = false;
+  bool add_space_at_end = false;
+  const char *nologging_str = "NOLOGGING=1";
+  const char *read_backup_str = "READ_BACKUP=1";
+  const char *fully_replicated_str = "FULLY_REPLICATED=1";
+  const char *part_bal_str = "PARTITION_BALANCE=";
+  if (end_parse_comment_pos == 0)
+  {
+    /**
+     * There were no comment parts in string, so we also need to add
+     * the NDB_TABLE= string. We decrement by one since we also add
+     * one for the extra comma and the first comment part doesn't need
+     * any comma in this case.
+     */
+    extra_len += (strlen(ndb_table_str) - 1);
+    if (comment_len > 0)
+    {
+      extra_len++; //Add a space after added stuff if there is a comment
+      add_space_at_end = true;
+    }
+    add_ndb_table = true;
+  }
+  bool is_fully_replicated = false;
+  if ((mod_fully_replicated->m_found &&
+       mod_fully_replicated->m_val_bool) ||
+      (old_fully_replicated &&
+       !mod_fully_replicated->m_found))
+  {
+    is_fully_replicated = true;
+  }
+  if (old_nologging && !mod_nologging->m_found)
+  {
+    add_nologging = true;
+    extra_len += (strlen(nologging_str) + 1);
+    DBUG_PRINT("info", ("added nologging: extra_len: %u", extra_len));
+  }
+  if (!is_fully_replicated &&
+      old_read_backup &&
+      !mod_read_backup->m_found)
+  {
+    add_read_backup = true;
+    extra_len += (strlen(read_backup_str) + 1);
+    DBUG_PRINT("info", ("added read_backup: extra_len: %u", extra_len));
+  }
+  if (old_fully_replicated && !mod_fully_replicated->m_found)
+  {
+    add_fully_replicated = true;
+    extra_len += (strlen(fully_replicated_str) + 1);
+    DBUG_PRINT("info", ("added fully_replicated: extra_len: %u", extra_len));
+  }
+  if (!mod_frags->m_found &&
+      (old_part_bal != g_default_partition_balance) &&
+      (old_part_bal != NdbDictionary::Object::PartitionBalance_Specific))
+  {
+    add_part_bal = true;
+    extra_len += (strlen(part_bal_str) + 1);
+    DBUG_PRINT("info", ("added part_bal_str: extra_len: %u", extra_len));
+    const char *old_part_bal_str =
+      NdbDictionary::Table::getPartitionBalanceString(old_part_bal);
+    assert(old_part_bal_str != NULL);
+    extra_len += strlen(old_part_bal_str);
+    DBUG_PRINT("info", ("added old_part_bal_str: extra_len: %u, %s",
+                       extra_len,
+                       old_part_bal_str));
+  }
+  if (!(add_nologging ||
+        add_read_backup ||
+        add_fully_replicated ||
+        add_part_bal))
+  {
+    /* No change of comment is needed. */
+    DBUG_VOID_RETURN;
+  }
+  /**
+   * We have now calculated the extra length needed, so this value
+   * summed with the old comment string length plus one for the
+   * null byte will give us the new size of the comment string.
+   * We derived the position to start the introduction of added
+   * parameters from the parse call above.
+   *
+   * So the new string will be
+   * 1) The old comment string up to the position where we add stuff
+   * 2) The added stuff
+   * 3) The comment string remaining after the point where we added stuff
+   */
+  char *new_str;
+  Uint32 new_len = comment_len + extra_len + 1;
+  new_str = (char*)alloc_root(&table->s->mem_root, (size_t)new_len);
+  if (new_str == NULL)
+  {
+    mem_alloc_error(new_len);
+    DBUG_VOID_RETURN;
+  }
+  memset(new_str, 0, new_len);
+  DBUG_PRINT("info", ("new_len: %u", new_len));
+  memcpy(new_str, comment_str, end_parse_comment_pos);
+  DBUG_PRINT("info", ("new_str: %s", new_str));
+  memcpy(new_str + end_parse_comment_pos + extra_len,
+         comment_str + end_parse_comment_pos,
+         comment_len - end_parse_comment_pos);
+  char *add_str = &new_str[end_parse_comment_pos];
+  if (add_ndb_table)
+  {
+    Uint32 ndb_table_str_len = strlen(ndb_table_str);
+    memcpy(add_str, ndb_table_str, ndb_table_str_len);
+    add_str += ndb_table_str_len;
+    DBUG_PRINT("info", ("added NDB_TABLE=, new_str: %s", new_str));
+  }
+  if (add_nologging)
+  {
+    Uint32 nologging_str_len = strlen(nologging_str);
+    if (!add_ndb_table)
+    {
+      add_str[0] = ',';
+      add_str++;
+    }
+    else
+    {
+      add_ndb_table = false;
+    }
+    memcpy(add_str, nologging_str, nologging_str_len);
+    add_str += nologging_str_len;
+  }
+  if (add_read_backup)
+  {
+    if (!add_ndb_table)
+    {
+      add_str[0] = ',';
+      add_str++;
+    }
+    else
+    {
+      add_ndb_table = false;
+    }
+    Uint32 read_backup_str_len = strlen(read_backup_str);
+    memcpy(add_str, read_backup_str, read_backup_str_len);
+    add_str += read_backup_str_len;
+  }
+  if (add_fully_replicated)
+  {
+    DBUG_PRINT("info", ("add_fully_replicated"));
+    if (!add_ndb_table)
+    {
+      add_str[0] = ',';
+      add_str++;
+      DBUG_PRINT("info", ("new_str: %s", new_str));
+    }
+    else
+    {
+      add_ndb_table = false;
+      DBUG_PRINT("info", ("add_fully_replicated true"));
+    }
+    Uint32 fully_replicated_str_len = strlen(fully_replicated_str);
+    memcpy(add_str, fully_replicated_str, fully_replicated_str_len);
+    add_str += fully_replicated_str_len;
+  }
+  if (add_part_bal)
+  {
+    DBUG_PRINT("info", ("add_part_bal"));
+    if (!add_ndb_table)
+    {
+      add_str[0] = ',';
+      add_str++;
+      DBUG_PRINT("info", ("new_str: %s", new_str));
+    }
+    else
+    {
+      add_ndb_table = false;
+      DBUG_PRINT("info", ("add_part_bal true"));
+    }
+    Uint32 part_bal_str_len = strlen(part_bal_str);
+    memcpy(add_str, part_bal_str, part_bal_str_len);
+    DBUG_PRINT("info", ("new_str: %s", new_str));
+    add_str += part_bal_str_len;
+
+    const char *old_part_bal_str =
+      NdbDictionary::Table::getPartitionBalanceString(old_part_bal);
+    Uint32 old_part_bal_str_len = strlen(old_part_bal_str);
+    memcpy(add_str, old_part_bal_str, old_part_bal_str_len);
+    DBUG_PRINT("info", ("new_str: %s", new_str));
+    add_str += old_part_bal_str_len;
+  }
+  if (add_space_at_end)
+  {
+    DBUG_PRINT("info", ("added space at end"));
+    add_str[0] = ' ';
+    add_str++;
+  }
+  assert(!add_ndb_table);
+  assert(Uint32(add_str - new_str) == (extra_len + end_parse_comment_pos));
+  unsigned new_length;
+  if (create_info != NULL)
+  {
+    create_info->comment.str = new_str;
+    create_info->comment.length += extra_len;
+    new_length = create_info->comment.length;
+  }
+  else
+  {
+    table->s->comment.str = new_str;
+    table->s->comment.length += extra_len;
+    new_length = table->s->comment.length;
+  }
+  DBUG_PRINT("info", ("After: comment_len: %u, comment: %s",
+                      new_length,
+                      new_str));
   DBUG_VOID_RETURN;
 }
 
@@ -10139,46 +10455,11 @@ adjusted_frag_count(Ndb* ndb,
   return (reported_frags < requested_frags);
 }
 
-static const NdbDictionary::Object::PartitionBalance g_default_partition_balance =
-  NdbDictionary::Object::PartitionBalance_ForRPByLDM;
-
-/**
- * Default for tables with no read of backup is one per ldm per
- * node to ensure that we don't get imbalanced loads on the
- * different nodes and ldms in the cluster. For tables with
- * read backup there will be much smaller difference on usage
- * of the fragments, so here we only have one fragment per node
- * group and per ldm to avoid splitting the table into too many
- * parts.
- *
- * We won't do this for ALTER TABLE table algorithm=copy
- * since the end result of an ALTER TABLE should not
- * change by the algorithm. Also it makes no sense to
- * change the table fragmentation silently.
- */
-static const NdbDictionary::Object::PartitionBalance g_default_partition_balance_RB =
-  NdbDictionary::Object::PartitionBalance_ForRPByLDM;
-
-/**
- * For Fully replicated tables we use
- * PartitionBalance_ForRAByLDM as default setting.
- * This means that we will have one partition in each LDM
- * and that there is one copy in each data node although
- * technically each node group will have its own set of
- * partitions, these partitions are maintained using
- * the Fully replicated triggers. This means that all writes
- * always start in the main node group for the table. When
- * the update has acquired all locks it will use a trigger
- * mechanism to spread to all other nodes in the cluster.
- */
-static const NdbDictionary::Object::PartitionBalance g_default_partition_balance_FR =
-  NdbDictionary::Object::PartitionBalance_ForRAByLDM;
-
 static
 bool
 parsePartitionBalance(THD *thd,
                        const NDB_Modifier * mod,
-                       NdbDictionary::Object::PartitionBalance * fct)
+                       NdbDictionary::Object::PartitionBalance * part_bal)
 {
   if (mod->m_found == false)
     return false; // OK
@@ -10205,9 +10486,9 @@ parsePartitionBalance(THD *thd,
     return false;
   }
 
-  if (fct)
+  if (part_bal)
   {
-    * fct = ret;
+    * part_bal = ret;
   }
   return true;
 }
@@ -10247,17 +10528,21 @@ void ha_ndbcluster::append_create_info(String *packet)
   NdbDictionary::Object::PartitionBalance part_bal = tab->getPartitionBalance();
   bool logged_table = tab->getLogging();
   bool read_backup = tab->getReadBackupFlag();
+  bool fully_replicated = tab->getFullyReplicated();
 
   DBUG_PRINT("info", ("append_create_info: comment: %s, logged_table = %u,"
-                      " part_bal = %d",
+                      " part_bal = %d, read_backup = %u, fully_replicated = %u",
                       table_share->comment.length == 0 ?
                       "NULL" : table_share->comment.str,
                       logged_table,
-                      part_bal));
+                      part_bal,
+                      read_backup,
+                      fully_replicated));
   if (table_share->comment.length == 0 &&
       part_bal == NdbDictionary::Object::PartitionBalance_Specific &&
       !read_backup &&
-      logged_table)
+      logged_table &&
+      !fully_replicated)
   {
     /**
      * No comment set by user
@@ -10279,19 +10564,26 @@ void ha_ndbcluster::append_create_info(String *packet)
   bool comment_part_bal_set = false;
   bool comment_logged_table_set = false;
   bool comment_read_backup_set = false;
+  bool comment_fully_replicated_set = false;
 
   bool comment_logged_table = true;
   bool comment_read_backup = false;
+  bool comment_fully_replicated = false;
 
   if (table_share->comment.length)
   {
     /* Parse the current comment string */
     NDB_Modifiers table_modifiers(ndb_table_modifiers);
-    table_modifiers.parse(thd, "NDB_TABLE=", table_share->comment.str,
-                          table_share->comment.length);
+    if (table_modifiers.parse(thd, "NDB_TABLE=", table_share->comment.str,
+                          table_share->comment.length) == -1)
+    {
+      return;
+    }
     const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
     const NDB_Modifier *mod_read_backup = table_modifiers.get("READ_BACKUP");
     const NDB_Modifier *mod_frags = table_modifiers.get("PARTITION_BALANCE");
+    const NDB_Modifier *mod_fully_replicated =
+      table_modifiers.get("FULLY_REPLICATED");
 
     if (mod_nologging->m_found)
     {
@@ -10332,6 +10624,11 @@ void ha_ndbcluster::append_create_info(String *packet)
       }
       comment_part_bal_set = true;
     }
+    if (mod_fully_replicated->m_found)
+    {
+      comment_fully_replicated_set = true;
+      comment_fully_replicated = mod_fully_replicated->m_val_bool;
+    }
   }
   DBUG_PRINT("info", ("comment_read_backup_set: %u, comment_read_backup: %u",
                       comment_read_backup_set,
@@ -10344,10 +10641,11 @@ void ha_ndbcluster::append_create_info(String *packet)
                       comment_part_bal));
   if (!comment_read_backup_set)
   {
-    if (read_backup)
+    if (read_backup && !fully_replicated)
     {
       /**
        * No property was given in table comment, but table is using read backup
+       * Also table isn't fully replicated.
        */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_GET_ERRMSG,
@@ -10370,6 +10668,29 @@ void ha_ndbcluster::append_create_info(String *packet)
                         4502,
                         "Table property is not the same as in"
                         " comment for READ_BACKUP property",
+                        "NDB");
+  }
+  if (!comment_fully_replicated_set)
+  {
+    if (fully_replicated)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_GET_ERRMSG,
+                          ER(ER_GET_ERRMSG),
+                          4502,
+                          "Table property is FULLY_REPLICATED=1,"
+                          " but not in comment",
+                          "NDB");
+    }
+  }
+  else if (fully_replicated != comment_fully_replicated)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_GET_ERRMSG,
+                        ER(ER_GET_ERRMSG),
+                        4502,
+                        "Table property is not the same as in"
+                        " comment for FULLY_REPLICATED property",
                         "NDB");
   }
   if (!comment_logged_table_set)
@@ -10416,13 +10737,8 @@ void ha_ndbcluster::append_create_info(String *packet)
 
       /**
        * The default partition balance need not be visible in comment.
-       *
-       * The default partition balance is different whether table is
-       * READ_BACKUP or FULLY_REPLICATED or not.
        */
       const NdbDictionary::Object::PartitionBalance default_partition_balance =
-        tab->getFullyReplicated() ? g_default_partition_balance_FR :
-        read_backup ? g_default_partition_balance_RB :
         g_default_partition_balance;
 
       if (part_bal != default_partition_balance)
@@ -10671,8 +10987,11 @@ int ha_ndbcluster::create(const char *name,
   DBUG_PRINT("info", ("Start parse of table modifiers, comment = %s",
                       create_info->comment.str));
   NDB_Modifiers table_modifiers(ndb_table_modifiers);
-  table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
-                        create_info->comment.length);
+  if (table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
+                        create_info->comment.length) == -1)
+  {
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+  }
   const NDB_Modifier * mod_nologging = table_modifiers.get("NOLOGGING");
   const NDB_Modifier * mod_frags = table_modifiers.get("PARTITION_BALANCE");
   const NDB_Modifier * mod_read_backup = table_modifiers.get("READ_BACKUP");
@@ -10874,35 +11193,6 @@ int ha_ndbcluster::create(const char *name,
       }
       tab.setReadBackupFlag(true);
       tab.setFullyReplicated(true);
-
-      if (part_bal !=
-            NdbDictionary::Object::PartitionBalance_ForRAByNode &&
-          part_bal !=
-            NdbDictionary::Object::PartitionBalance_ForRAByLDM)
-      {
-        if (!mod_frags->m_found)
-        {
-          part_bal = g_default_partition_balance_FR;
-        }
-        else
-        {
-          /**
-           * PartitionBalance == PartitionBalance_ForRPByNode and
-           * PartitionBalance == PartitionBalance_ForRPByLDM
-           * isn't allowed to be mixed with FullyReplicated = true
-           * since that would make us store 2 copies of each row
-           * per node and this is quite obviously not desirable.
-           * So we can have at most 1 partition per LDM per node
-           * group. We support 1 partition per node group and one
-           * partition per LDM per node group.
-           */
-          my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-                   ndbcluster_hton_name,
-          "FULLY_REPLICATED=1 doesn't support this PARTITION_BALANCE");
-          result = HA_WRONG_CREATE_OPTION;
-          goto abort_return;
-        }
-      }
     }
     else if (use_read_backup)
     {
@@ -10915,6 +11205,10 @@ int ha_ndbcluster::create(const char *name,
   }
   tab.setSingleUserMode(single_user_mode);
 
+  if (!is_alter)
+  {
+    update_comment_info(create_info, &tab);
+  }
   // Save SDI data for this table
   if (create_serialized_meta_data(m_dbname, m_tabname, &data, &length))
   {
@@ -12431,7 +12725,7 @@ int ha_ndbcluster::delete_table(const char *name)
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
 
-  if (thd == injector_thd)
+  if (get_thd_ndb(thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
   {
     /*
       Table was dropped remotely is already
@@ -13600,11 +13894,12 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     {
       DBUG_PRINT("info", ("NDB says %s does not exists", file_name->str));
       it.remove();
-      if (thd == injector_thd)
+      if (thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
       {
 	/*
-	  Don't delete anything when called from
-	  the binlog thread. This is a kludge to avoid
+	  Don't delete anything when called from a (binlog-) thread
+	  acting as a participant in schema distribution.
+	  This is a kludge to avoid
 	  that something is deleted when "Ndb schema dist"
 	  uses find_files() to check for "local tables in db"
 	*/
@@ -13653,11 +13948,12 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-  if (thd == injector_thd)
+  if (thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
   {
     /*
-      Don't delete anything when called from
-      the binlog thread. This is a kludge to avoid
+      Don't delete anything when called from a (binlog-) thread
+      acting as a participant in schema distribution.
+      This is a kludge to avoid
       that something is deleted when "Ndb schema dist"
       uses find_files() to check for "local tables in db"
     */
@@ -13930,6 +14226,7 @@ int ndbcluster_init(void* p)
   {
     /* Don't schema-distribute 'mysqld --initialize' of data dictionary */
     sql_print_information("NDB: '--initialize' -> ndbcluster plugin disabled");
+    ((handlerton *)p)->state = SHOW_OPTION_DISABLED;
     DBUG_ASSERT(!ha_storage_engine_is_enabled(static_cast<handlerton*>(p)));
     DBUG_RETURN(0); // Return before init will disable ndbcluster-SE.
   }
@@ -14075,8 +14372,6 @@ get_share_state_string(NDB_SHARE_STATE s)
 }
 #endif
 
-int ndbcluster_binlog_end(THD *thd);
-
 static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 {
   DBUG_ENTER("ndbcluster_end");
@@ -14085,11 +14380,10 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
     DBUG_RETURN(0);
   ndbcluster_inited= 0;
 
-  /* Stop index stat thread */
+  /* Stop threads started by ndbcluster_init() */
   ndb_index_stat_thread.stop();
-
-  /* wait for util and binlog thread to finish */
-  ndbcluster_binlog_end(NULL);
+  ndb_util_thread.stop();
+  ndbcluster_binlog_end();
 
   {
     mysql_mutex_lock(&ndbcluster_mutex);
@@ -17092,11 +17386,6 @@ void Ndb_util_thread::do_wakeup()
 }
 
 
-void ndb_util_thread_stop(void)
-{
-  ndb_util_thread.stop();
-}
-
 #include "ndb_log.h"
 
 void
@@ -17107,6 +17396,7 @@ Ndb_util_thread::do_run()
   Thd_ndb *thd_ndb= NULL;
   uint share_list_size= 0;
   NDB_SHARE **share_list= NULL;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
 
   DBUG_ENTER("ndb_util_thread");
   DBUG_PRINT("enter", ("cache_check_time: %lu", opt_ndb_cache_check_time));
@@ -17123,6 +17413,11 @@ Ndb_util_thread::do_run()
   }
   THD_CHECK_SENTRY(thd);
 
+  /* We need to set thd->thread_id before thd->store_globals, or it will
+     set an invalid value for thd->variables.pseudo_thread_id.
+  */
+  thd->set_new_thread_id();
+
   thd->thread_stack= (char*)&thd; /* remember where our stack is */
   if (thd->store_globals())
     goto ndb_util_thread_fail;
@@ -17130,6 +17425,7 @@ Ndb_util_thread::do_run()
   thd->get_protocol_classic()->set_client_capabilities(0);
   thd->security_context()->skip_grants();
   thd->get_protocol_classic()->init_net((st_vio *) 0);
+  thd_manager->add_thd(thd);
 
   CHARSET_INFO *charset_connection;
   charset_connection= get_charset_by_csname("utf8",
@@ -17171,7 +17467,7 @@ Ndb_util_thread::do_run()
   while (!ndbcluster_is_connected(1))
   {
     /* ndb not connected yet */
-    if (is_stop_requested())
+    if (is_stop_requested() || thd->killed == THD::KILL_CONNECTION)
     {
       /* Terminated with a stop_request */
       mysql_mutex_lock(&LOCK);
@@ -17187,7 +17483,6 @@ Ndb_util_thread::do_run()
     goto ndb_util_thread_end;
   }
   thd_set_thd_ndb(thd, thd_ndb);
-  thd_ndb->set_option(Thd_ndb::NO_LOG_SCHEMA_OP);
 
   if (opt_ndb_extra_logging && ndb_binlog_running)
     sql_print_information("NDB Binlog: Ndb tables initially read only.");
@@ -17204,7 +17499,7 @@ Ndb_util_thread::do_run()
     mysql_cond_timedwait(&COND,
                            &LOCK,
                            &abstime);
-    if (is_stop_requested())
+    if (is_stop_requested() || thd->killed == THD::KILL_CONNECTION)
       goto ndb_util_thread_end;
     mysql_mutex_unlock(&LOCK);
 
@@ -17215,20 +17510,6 @@ Ndb_util_thread::do_run()
     */
     if (!check_ndb_in_thd(thd, false))
     {
-      set_timespec(&abstime, 1);
-      continue;
-    }
-
-    /*
-      Regularly give the ndb_binlog component chance to set it self up
-      i.e at first start it needs to create the ndb_* system tables
-      and setup event operations on those. In case of lost connection
-      to cluster, the ndb_* system tables are hopefully still there
-      but the event operations need to be recreated.
-    */
-    if (!ndb_binlog_setup(thd))
-    {
-      /* Failed to setup binlog, try again in 1 second */
       set_timespec(&abstime, 1);
       continue;
     }
@@ -17366,6 +17647,8 @@ ndb_util_thread_fail:
     Thd_ndb::release(thd_ndb);
     thd_set_thd_ndb(thd, NULL);
   }
+  thd->release_resources();
+  thd_manager->remove_thd(thd);
   delete thd;
   
   mysql_mutex_unlock(&LOCK);
@@ -18467,18 +18750,21 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
 {
   DBUG_ENTER("ha_ndbcluster::parse_comment_changes");
   NDB_Modifiers table_modifiers(ndb_table_modifiers);
-  table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
-                        create_info->comment.length);
+  if (table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
+                        create_info->comment.length) == -1)
+  {
+    DBUG_RETURN(true);
+  }
   const NDB_Modifier* mod_nologging = table_modifiers.get("NOLOGGING");
   const NDB_Modifier* mod_frags = table_modifiers.get("PARTITION_BALANCE");
   const NDB_Modifier* mod_read_backup = table_modifiers.get("READ_BACKUP");
   const NDB_Modifier* mod_fully_replicated =
     table_modifiers.get("FULLY_REPLICATED");
 
-  NdbDictionary::Object::PartitionBalance fct =
+  NdbDictionary::Object::PartitionBalance part_bal =
     g_default_partition_balance;
   if (parsePartitionBalance(thd /* for pushing warning */,
-                             mod_frags, &fct) == false)
+                             mod_frags, &part_bal) == false)
   {
     /**
      * unable to parse => modifier which is not found
@@ -18567,17 +18853,17 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
     }
     new_tab->setFragmentCount(0);
     new_tab->setFragmentData(0,0);
-    new_tab->setPartitionBalance(fct);
+    new_tab->setPartitionBalance(part_bal);
     DBUG_PRINT("info", ("parse_comment_changes: PartitionBalance: %s",
                         new_tab->getPartitionBalanceString()));
   }
   else
   {
-    fct = old_tab->getPartitionBalance();
+    part_bal = old_tab->getPartitionBalance();
   }
   if (old_tab->getFullyReplicated())
   {
-    if (fct != old_tab->getPartitionBalance())
+    if (part_bal != old_tab->getPartitionBalance())
     {
       /**
        * We cannot change partition balance inplace for fully

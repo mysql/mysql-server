@@ -780,7 +780,7 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
   switch (requestType) {
   case AlterTabReq::AlterTablePrepare:
     jam();
-    if (AlterTableReq::getReadBackupAnyFlag(req->changeMask))
+    if (AlterTableReq::getReadBackupFlag(req->changeMask))
     {
       if ((tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0)
       {
@@ -832,7 +832,7 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
     jam();
     tabPtr.p->currentSchemaVersion = tableVersion;
 
-    if (AlterTableReq::getReadBackupAnyFlag(req->changeMask))
+    if (AlterTableReq::getReadBackupFlag(req->changeMask))
     {
       if ((tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP) == 0)
       {
@@ -847,7 +847,7 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
     break;
   case AlterTabReq::AlterTableCommit:
     jam();
-    if (AlterTableReq::getReadBackupAnyFlag(req->changeMask))
+    if (AlterTableReq::getReadBackupFlag(req->changeMask))
     {
       if ((tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0)
       {
@@ -3700,7 +3700,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
        * inform DIH if TreadAny is even relevent...so it does not have to loop
        *   unless really needing to...
        */
-      if (regTcPtr->dirtyOp || regTcPtr->opSimple)
+      if (regTcPtr->dirtyOp || regTcPtr->opSimple ||
+          regCachePtr->m_read_committed_base)
       {
         jam();
         req->anyNode = 1;
@@ -5830,6 +5831,21 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
    * THE TRANSACTION HAVE NOW BEEN VERIFIED AND NOW THE COMMIT PHASE CAN START 
    **************************************************************************/
 
+  if (ERROR_INSERTED(8110))
+  {
+    jam();
+    /* Disconnect API now that commit decided upon */
+    const Uint32 apiNodeId = refToNode(regApiPtr->ndbapiBlockref);
+    if (getNodeInfo(apiNodeId).getType() == NodeInfo::API)
+    {
+      ndbout_c("Error insert 8110, disconnecting API during COMMIT");
+      signal->theData[0] = apiNodeId;
+      sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBA);
+
+      SET_ERROR_INSERT_VALUE(8089); /* Slow committing... */
+    }
+  }
+
   UintR TtcConnectptrIndex = regApiPtr->firstTcConnect;
   UintR TtcConnectFilesize = ctcConnectFilesize;
   TcConnectRecord *localTcConnectRecord = tcConnectRecord;
@@ -6080,6 +6096,13 @@ Dbtc::sendCommitLqh(Signal* signal,
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
 
+  if (ERROR_INSERTED(8113))
+  {
+    jam();
+    /* Don't actually send -> timeout */
+    return 0;
+  }
+
   Uint32 Tnode = Thostptr.i;
   Uint32 self = getOwnNodeId();
   Uint32 ret = (Tnode == self) ? 4 : 1;
@@ -6239,6 +6262,21 @@ void Dbtc::execCOMMITTED(Signal* signal)
   UintR Tlqhkeyconfrec = localCopyPtr.p->lqhkeyconfrec;
   ptrCheckGuard(localTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
   localCopyPtr.p->counter = Tlqhkeyconfrec;
+  
+  if (ERROR_INSERTED(8111))
+  {
+    jam();
+    /* Disconnect API now that entering the Complete phase */
+    const Uint32 apiNodeId = refToNode(apiConnectptr.p->ndbapiBlockref);
+    if (getNodeInfo(apiNodeId).getType() == NodeInfo::API)
+    {
+      ndbout_c("Error insert 8111, disconnecting API during COMPLETE");
+      signal->theData[0] = apiNodeId;
+      sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBA);
+
+      SET_ERROR_INSERT_VALUE(8112); /* Slow completing... */
+    }
+  }
 
   apiConnectptr = localCopyPtr;
   tcConnectptr = localTcConnectptr;
@@ -6413,28 +6451,39 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   if (tc_testbit(regApiPtr.p->m_flags, ApiConnectRecord::TF_LATE_COMMIT))
   {
     jam();
-    /**
-     * Put pointer from copyPtr to regApiPtr
-     */
-    copyPtr.p->apiCopyRecord = regApiPtr.i;
+    if (unlikely(regApiPtr.p->apiFailState == TRUE))
+    {
+      jam();
+      /* API failed during commit, no need to bother with LATE_COMMIT */
+      regApiPtr.p->m_flags &= ~ Uint32(ApiConnectRecord::TF_LATE_COMMIT);
 
-    /**
-     * Modify state of regApiPtr to prevent future operations...
-     *   timeout is already reset to 0 above so it won't be found
-     *   by timeOutLoopStartLab
-     */
-    regApiPtr.p->apiConnectstate = CS_COMMITTING;
-
-    /**
-     * save marker for sendApiCommitSignal
-     */
-    regApiPtr.p->commitAckMarker = Tmarker;
-
-    /**
-     * Set ApiConnectRecord::TF_LATE_COMMIT on copyPtr so when remember
-     *  to call sendApiCommitSignal
-     */
-    copyPtr.p->m_flags |= ApiConnectRecord::TF_LATE_COMMIT;
+      /* Normal API failure handling will find + remove COMMIT_ACK_MARKER */
+    }
+    else
+    { 
+      /**
+       * Put pointer from copyPtr to regApiPtr
+       */
+      copyPtr.p->apiCopyRecord = regApiPtr.i;
+      
+      /**
+       * Modify state of regApiPtr to prevent future operations...
+       *   timeout is already reset to 0 above so it won't be found
+       *   by timeOutLoopStartLab
+       */
+      regApiPtr.p->apiConnectstate = CS_COMMITTING;
+      
+      /**
+       * save marker for sendApiCommitSignal
+       */
+      copyPtr.p->commitAckMarker = Tmarker;
+      
+      /**
+       * Set ApiConnectRecord::TF_LATE_COMMIT on copyPtr so remember
+       *  to call sendApiCommitSignal at receive of COMPLETED signal
+       */
+      copyPtr.p->m_flags |= ApiConnectRecord::TF_LATE_COMMIT;
+    }
   }
 
 }//Dbtc::copyApi()
@@ -6492,7 +6541,9 @@ void Dbtc::complete010Lab(Signal* signal)
     Tcount += sendCompleteLqh(signal, localTcConnectptr.p);
     localTcConnectptr.i = nextTcConnect;
     if (localTcConnectptr.i != RNIL) {
-      if (Tcount < 16) {
+      if (Tcount < 16 &&
+          !ERROR_INSERTED(8112)) 
+      {
         ptrCheckGuard(localTcConnectptr,
                       TtcConnectFilesize, localTcConnectRecord);
         jam();
@@ -6506,12 +6557,23 @@ void Dbtc::complete010Lab(Signal* signal)
         signal->theData[0] = TcContinueB::ZSEND_COMPLETE_LOOP;
         signal->theData[1] = apiConnectptr.i;
         signal->theData[2] = localTcConnectptr.i;
+        if (ERROR_INSERTED(8112))
+        {
+          sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
+          return;
+        }
         sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
         return;
       }//if
     } else {
       jam();
       regApiPtr->apiConnectstate = CS_COMPLETE_SENT;
+      
+      if (ERROR_INSERTED(8112))
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+      }
+      
       return;
     }//if
   } while (1);
@@ -6527,6 +6589,13 @@ Dbtc::sendCompleteLqh(Signal* signal,
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
+
+  if (ERROR_INSERTED(8114))
+  {
+    jam();
+    /* Don't send COMPLETE to LQH ---> TIMEOUT */
+    return 0;
+  }
 
   Uint32 Tnode = Thostptr.i;
   Uint32 self = getOwnNodeId();
@@ -6969,6 +7038,63 @@ Dbtc::sendRemoveMarker(Signal* signal,
   memcpy(dataPtr, &Tdata[0], len << 2);
 }
 
+/**
+ * sendApiLateCommitSignal
+ *
+ * This is called at the end of a transaction's 
+ * COMPLETE phase when it has the TF_LATE_COMMIT flag set.
+ * The Commit notification is sent to the API, and
+ * the user ApiConnectRecord is returned to a ready state
+ * for further API interaction.
+ */
+void 
+Dbtc::sendApiLateCommitSignal(Signal* signal,
+                              Ptr<ApiConnectRecord> apiCopy)
+{
+  jam();
+  
+  apiConnectptr.i = apiCopy.p->apiCopyRecord;
+  ptrCheckGuard(apiConnectptr, capiConnectFilesize,
+                apiConnectRecord);
+  /**
+   * CS_COMMITTING on user ApiCon is inferred by 
+   * TF_LATE_COMMIT on user ApiCon
+   */
+  ndbrequire(apiConnectptr.p->apiConnectstate == CS_COMMITTING);
+  ndbrequire(tc_testbit(apiConnectptr.p->m_flags,
+                        ApiConnectRecord::TF_LATE_COMMIT));
+
+  apiCopy.p->apiCopyRecord = RNIL;
+  tc_clearbit(apiCopy.p->m_flags,
+              ApiConnectRecord::TF_LATE_COMMIT);
+  apiConnectptr.p->apiConnectstate = CS_CONNECTED;
+  tc_clearbit(apiConnectptr.p->m_flags,
+              ApiConnectRecord::TF_LATE_COMMIT);
+
+  /* Transiently re-set the commitAckMarker on the user's
+   * connectRecord so that we inform API of the need to 
+   * send a COMMIT_ACK.
+   * 
+   * TODO : Don't actually need the full CommitAckMarker, just a bit
+   */
+  ndbassert(apiConnectptr.p->commitAckMarker == RNIL);
+  apiConnectptr.p->commitAckMarker = apiCopy.p->commitAckMarker;
+  
+  sendApiCommitSignal(signal, apiConnectptr);
+  
+  apiConnectptr.p->commitAckMarker = RNIL;
+  apiCopy.p->commitAckMarker = RNIL;
+  
+  if (apiConnectptr.p->apiFailState == ZTRUE)
+  {
+    jam();
+    /**
+     * handle if API failed while we were running complete phase
+     */
+    handleApiFailState(signal, apiConnectptr.i);
+  }
+}
+
 void Dbtc::execCOMPLETED(Signal* signal) 
 {
   TcConnectRecordPtr localTcConnectptr;
@@ -7047,31 +7173,8 @@ void Dbtc::execCOMPLETED(Signal* signal)
                  ApiConnectRecord::TF_LATE_COMMIT))
   {
     jam();
-
-    apiConnectptr.i = localApiConnectptr.p->apiCopyRecord;
-    ptrCheckGuard(apiConnectptr, TapiConnectFilesize,
-                  localApiConnectRecord);
-    ndbrequire(apiConnectptr.p->apiConnectstate == CS_COMMITTING);
-    ndbrequire(tc_testbit(apiConnectptr.p->m_flags,
-                          ApiConnectRecord::TF_LATE_COMMIT));
-    localApiConnectptr.p->apiCopyRecord = RNIL;
-    tc_clearbit(localApiConnectptr.p->m_flags,
-                ApiConnectRecord::TF_LATE_COMMIT);
-    apiConnectptr.p->apiConnectstate = CS_CONNECTED;
-    tc_clearbit(apiConnectptr.p->m_flags,
-                ApiConnectRecord::TF_LATE_COMMIT);
-
-    sendApiCommitSignal(signal, apiConnectptr);
-    apiConnectptr.p->commitAckMarker = RNIL;
-
-    if (apiConnectptr.p->apiFailState == ZTRUE)
-    {
-      jam();
-      /**
-       * handle if API failed while we were running complete phase
-       */
-      handleApiFailState(signal, apiConnectptr.i);
-    }
+    
+    sendApiLateCommitSignal(signal, localApiConnectptr);
   }
   apiConnectptr = localApiConnectptr;
   releaseTransResources(signal);
@@ -11306,6 +11409,19 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
           releaseTakeOver(signal);
         } else {
           jam();
+
+          if (tc_testbit(apiConnectptr.p->m_flags,
+                         ApiConnectRecord::TF_LATE_COMMIT))
+          {
+            jam();
+
+            ApiConnectRecordPtr apiCopy = apiConnectptr;
+            
+            sendApiLateCommitSignal(signal, apiCopy);
+            
+            apiConnectptr = apiCopy;
+          }
+
           releaseTransResources(signal);
         }//if
         return;
@@ -12498,7 +12614,8 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
   scanptr.p->scanNextFragId = 0;
   scanptr.p->m_booked_fragments_count= 0;
   scanptr.p->m_read_any_node =
-    ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo) &&
+    (ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo) ||
+       scanptr.p->m_read_committed_base) &&
     ((tabPtr.p->m_flags & TableRecord::TR_FULLY_REPLICATED) != 0);
   
   /*************************************************

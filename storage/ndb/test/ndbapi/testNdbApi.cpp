@@ -34,6 +34,13 @@
   g_err.println("ERR: failed on line %u", __LINE__); \
   return -1; } 
 
+#define CHECKE(b,obj) if (!(b)) {                          \
+    g_err.println("ERR:failed on line %u with err %u %s",  \
+                  __LINE__,                                \
+                  obj.getNdbError().code,                 \
+                  obj.getNdbError().message); \
+    return -1; }
+
 static const char* ApiFailTestRun = "ApiFailTestRun";
 static const char* ApiFailTestComplete = "ApiFailTestComplete";
 static const char* ApiFailTestsRunning = "ApiFailTestsRunning";
@@ -3577,17 +3584,17 @@ runBug51775(NDBT_Context* ctx, NDBT_Step* step)
   while (pNdb->pollNdb() + res == 0);
 
   return NDBT_OK;
-}  
+}
 
-int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
+int setupOtherConnection(NDBT_Context* ctx, NDBT_Step* step)
 {
-  /* Setup a separate connection for running scan operations
-   * with that will be disconnected without affecting
+  /* Setup a separate connection for running operations
+   * that can be disconnected without affecting
    * the test framework
    */
   if (otherConnection != NULL)
   {
-    g_err.println("FragApiFail : Connection not null");
+    g_err.println("otherConnection not null");
     return NDBT_FAILED;
   }
   
@@ -3599,7 +3606,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
   
   if (otherConnection == NULL)
   {
-    g_err.println("FragApiFail : Connection is null");
+    g_err.println("otherConnection is null");
     return NDBT_FAILED;
   }
   
@@ -3607,16 +3614,43 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
   
   if (rc!= 0)
   {
-    g_err.println("FragApiFail : Connect failed with rc %d", rc);
+    g_err.println("Connect failed with rc %d", rc);
     return NDBT_FAILED;
   }
   
-  /* Check that all nodes are alive - if one has failed
-   * then probably we exposed bad API_FAILREQ handling
-   */
+  /* Check that all nodes are alive */
   if (otherConnection->wait_until_ready(10,10) != 0)
   {
-    g_err.println("FragApiFail : Cluster connection was not ready");
+    g_err.println("Cluster connection was not ready");
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+int tearDownOtherConnection(NDBT_Context* ctx, NDBT_Step* step)
+{
+  if (otherConnection == NULL)
+  {
+    g_err << "otherConnection is NULL" << endl;
+    return NDBT_OK;
+  }
+
+  delete otherConnection;
+  otherConnection = NULL;
+
+  return NDBT_OK;
+}
+
+
+int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Setup a separate connection for running scan operations
+   * that will be disconnected without affecting
+   * the test framework
+   */
+  if (setupOtherConnection(ctx, step) != NDBT_OK)
+  {
     return NDBT_FAILED;
   }
   
@@ -3692,8 +3726,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
     stepNdbs[i]= NULL;
   }
   
-  delete otherConnection;
-  otherConnection= NULL;
+  tearDownOtherConnection(ctx, step);
   
   return NDBT_OK;
 }
@@ -7028,6 +7061,242 @@ runFinaliseCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+static int reCreateTableHook(Ndb* ndb,
+                             NdbDictionary::Table & table,
+                             int when,
+                             void* arg)
+{
+  if (when == 0)
+  {
+    NDBT_Context* ctx = (NDBT_Context*) arg;
+    
+    bool readBackup = (ctx->getProperty("CreateRB", Uint32(0)) != 0);
+    bool fullyReplicated = (ctx->getProperty("CreateFR", Uint32(0)) != 0);
+
+    /* Add others as necessary... */
+
+    if (readBackup)
+    {
+      ndbout << "rCTH : Setting ReadBackup property" << endl;
+    }
+    table.setReadBackupFlag(readBackup);
+
+    if (fullyReplicated)
+    {
+      ndbout << "rCTH : Setting Fully Replicated property" << endl;
+    }
+    table.setFullyReplicated(fullyReplicated);
+  }
+
+  return 0;
+
+}
+
+int
+runReCreateTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+
+  /* Drop table by name if it exists */
+  NdbDictionary::Table tab = * ctx->getTab();
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+  
+  BaseString tabName(tab.getName());
+
+  ndbout << "Dropping table " << tabName << endl;
+  
+  pDict->dropTable(tabName.c_str());
+  
+  ndbout << "Recreating table " << tabName << endl;
+                   
+  /* Now re-create, perhaps with different options */
+  if (NDBT_Tables::createTable(pNdb,
+                               tabName.c_str(),
+                               false,
+                               false,
+                               reCreateTableHook,
+                               ctx) != 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  const NdbDictionary::Table* newTab = pDict->getTable(tabName.c_str());
+
+  if (newTab == NULL)
+  {
+    return NDBT_FAILED;
+  }
+  
+  ctx->setTab(newTab);
+
+  return NDBT_OK;
+}
+
+int runDropTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Table tab = * ctx->getTab();
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  ndbout << "Dropping table " << tab.getName() << endl;
+  
+  pDict->dropTable(tab.getName());
+
+  return NDBT_OK;
+}
+
+int runCheckLateDisconnect(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* tab = ctx->getTab();
+  HugoTransactions hugoTrans(*tab);
+  NdbRestarter restarter;
+  //Ndb* pNdb = GETNDB(step);
+  
+  Ndb otherNdb(otherConnection, "TEST_DB");
+  otherNdb.init();
+  int rc = otherNdb.waitUntilReady(10);
+  
+  if (rc != 0)
+  {
+    ndbout << "Ndb was not ready" << endl;
+    
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Loading data" << endl;
+  /* Put some data into the table */
+  if (hugoTrans.loadTable(&otherNdb,
+                          1024) != NDBT_OK)
+  {
+    ndbout << "Data load failed " << endl;
+    return NDBT_FAILED;
+  }
+  
+  const Uint32 code = ctx->getProperty("ErrorCode", Uint32(0));
+
+  ndbout << "Setting error insert : " << code << endl;
+    
+  /* TC error insert causing API disconnection 
+   * at some point
+   */
+  
+  if (restarter.insertErrorInAllNodes(code) != 0)
+  {
+    ndbout << "Failed to insert error" << endl;
+  }
+  
+  ndbout << "Updating data, expect disconnection" << endl;
+  /* Perform a bulk update */
+  /* We expect to be disconnected at the end of this... */
+  rc = hugoTrans.pkUpdateRecords(&otherNdb,
+                                 1024);
+  
+  
+  restarter.insertErrorInAllNodes(0);
+  
+  /* We rely on the test framework to detect a problem
+   * if the data nodes failed here
+   */
+  
+  return NDBT_OK;
+}
+
+int
+runCheckWriteTransaction(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  
+  HugoOperations hugoOps(*pTab);
+  Ndb* pNdb = GETNDB(step);
+  
+  CHECKE((hugoOps.startTransaction(pNdb) == NDBT_OK),
+         hugoOps);
+  
+  CHECKE((hugoOps.pkWriteRecord(pNdb,
+                                0) == NDBT_OK),
+         hugoOps);
+  CHECKE((hugoOps.execute_Commit(pNdb) == NDBT_OK),
+         hugoOps);
+  CHECKE((hugoOps.closeTransaction(pNdb) == NDBT_OK),
+         hugoOps);  
+  
+  return NDBT_OK;
+}
+
+
+int runCheckSlowCommit(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  /* Want to test the 'slow' commit protocol behaves
+   * correctly for various table types
+   */
+  for (int table_type = 0; table_type < 3; table_type++)
+  {
+    switch (table_type)
+    {
+    case 0:
+    {
+      ndbout << "Normal table" << endl;
+      ctx->setProperty("CreateRB", Uint32(0));
+      ctx->setProperty("CreateFR", Uint32(0));
+      break;
+    }
+    case 1:
+    {
+      ndbout << "ReadBackup table" << endl;
+      ctx->setProperty("CreateRB", Uint32(1));
+      ctx->setProperty("CreateFR", Uint32(0));
+      break;
+    }
+    case 2:
+    {
+      ndbout << "FullyReplicated" << endl;
+      /* Need RB set, as can create !RB FR table... */
+      ctx->setProperty("CreateRB", Uint32(1));
+      ctx->setProperty("CreateFR", Uint32(1));
+      break;
+    }
+    }
+    
+    if (runReCreateTable(ctx, step) != NDBT_OK)
+    {
+      return NDBT_FAILED;
+    }
+    
+    for (int test_type=0; test_type < 3; test_type++)
+    {
+      Uint32 errorCode = 0;
+      switch (test_type)
+      {
+      case 0:
+        /* As normal */
+        break;
+      case 1:
+        /* Timeout during commit phase */
+        errorCode = 8113; 
+        break;
+      case 2:
+        /* Timeout during complete phase */
+        errorCode = 8114;
+        break;
+      }
+      ndbout << "Inserting error " << errorCode 
+             << " in all nodes." << endl;
+      
+      restarter.insertErrorInAllNodes(errorCode);
+        
+      int ret = runCheckWriteTransaction(ctx,step);
+      
+      restarter.insertErrorInAllNodes(0);
+      if (ret != NDBT_OK)
+      {
+        return NDBT_FAILED;
+      }
+    }
+  }
+
+  return NDBT_OK;
+}
 
 
 NDBT_TESTSUITE(testNdbApi);
@@ -7385,6 +7654,34 @@ TESTCASE("CheckTransIdMt",
   STEPS(runCheckTransIdMt, CheckTransIdSteps);
   VERIFIER(runVerifyCheckTransIdMt);
   FINALIZER(runFinaliseCheckTransIdMt);
+}
+TESTCASE("CheckDisconnectCommit",
+         "Check commit post API disconnect")
+{
+  TC_PROPERTY("CreateRB", Uint32(1)); // ReadBackup
+  TC_PROPERTY("ErrorCode", Uint32(8110)); // API disconnect during COMMIT
+  INITIALIZER(runReCreateTable);
+  INITIALIZER(setupOtherConnection);
+  STEP(runCheckLateDisconnect);
+  FINALIZER(runDropTable);
+  FINALIZER(tearDownOtherConnection);
+}
+TESTCASE("CheckDisconnectComplete",
+         "Check complete post API disconnect")
+{
+  TC_PROPERTY("CreateRB", Uint32(1)); // ReadBackup
+  TC_PROPERTY("ErrorCode", Uint32(8111)); // API disconnect during COMPLETE
+  INITIALIZER(runReCreateTable);
+  INITIALIZER(setupOtherConnection);
+  STEP(runCheckLateDisconnect);
+  FINALIZER(runDropTable);
+  FINALIZER(tearDownOtherConnection);
+}
+TESTCASE("CheckSlowCommit",
+         "Check slow commit protocol + table types")
+{
+  STEP(runCheckSlowCommit);
+  FINALIZER(runDropTable);
 }
 
 

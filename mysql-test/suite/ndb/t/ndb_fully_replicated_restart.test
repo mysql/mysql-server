@@ -13,6 +13,7 @@ show warnings;
 
 # Test that invalid table comment creates a warning
 # Todo put in a different 'syntax check' testcase?
+--error 1478
 CREATE TABLE t2 (
   a int,
   b varchar(255),
@@ -22,11 +23,17 @@ CREATE TABLE t2 (
   key(b),
   unique (c)) engine=ndb comment='NDB_TABLE=JUNK' partition by key(a) ;
 
-drop table t2;
+CREATE TABLE t2 (
+  a int,
+  b varchar(255),
+  c int,
+  primary key(a,b),
+  key(b),
+  unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_LDM' partition by key(a) ;
+DROP TABLE t2;
 
 # bug#23330359 - a DICT bug on alter table
 # done in same restart test to save runtime
-
 CREATE TABLE t2 (
   a int,
   b varchar(255),

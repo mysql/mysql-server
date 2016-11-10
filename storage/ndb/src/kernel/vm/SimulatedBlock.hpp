@@ -1422,6 +1422,12 @@ public:
         return "NDB_PARTITION_BALANCE_FOR_RP_BY_LDM";
       case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
         return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4";
       default:
         ndbrequire(false);
     }

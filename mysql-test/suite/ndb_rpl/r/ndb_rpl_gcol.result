@@ -23,7 +23,7 @@ test_gcol_stored	CREATE TABLE `test_gcol_stored` (
   `misc` int(11) DEFAULT NULL,
   `gcol_str` varchar(20) GENERATED ALWAYS AS (concat('User ',`id`)) STORED,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
 --- Insert on master
 insert into test_gcol_stored (id) values (1), (2), (3), (4), (5);
 insert into test_gcol_virtual (id) values (1), (2), (3), (4), (5);

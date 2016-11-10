@@ -15,10 +15,25 @@ select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info
 select read_backup, fully_replicated from table_info as ti join dict_obj_info as doi where ti.table_id = doi.id and doi.fq_name = 'test/def/t1';
 use test;
 
-insert into t1 values
-('1',1,REPEAT('1',3000)), ('2',2,REPEAT('2',3000)), ('3',3,REPEAT('3',3000)),
-('4',4,REPEAT('4',3000)), ('5',5,REPEAT('5',3000)), ('6',6,REPEAT('6',3000)),
-('7',7,REPEAT('7',3000)), ('8',8,REPEAT('8',3000));
+let $count = 24;
+while ($count)
+{
+  eval insert into t1 values ('$count', $count, REPEAT('$count', 3000));
+  dec $count;
+}
+
+# Verify no partition is empty
+if (`select sum(fixed_elem_count = 0)
+     from `ndbinfo`.`memory_per_fragment`
+     where fq_name = 'test/def/t1'`)
+{
+  select node_id, fragment_num, fixed_elem_count > 0
+  from `ndbinfo`.`memory_per_fragment`
+  where fq_name = 'test/def/t1'
+  order by node_id, fragment_num;
+
+  die 'Some partition is empty.';
+}
 
 create temporary table counters_at_startup
 select counter_name, sum(val) as val
