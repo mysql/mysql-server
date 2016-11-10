@@ -10437,7 +10437,7 @@ void ha_ndbcluster::append_create_info(String *packet)
                       pbname);
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_GET_ERRMSG,
-                              ER(ER_GET_ERRMSG),
+                              ER_THD(thd, ER_GET_ERRMSG),
                               4503,
                               msg,
                               "NDB");
