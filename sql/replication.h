@@ -479,6 +479,9 @@ typedef struct Binlog_relay_IO_param {
   uint32 server_id;
   my_thread_id thread_id;
 
+  /* Channel name */
+  char* channel_name;
+
   /* Master host, user and port */
   char *host;
   char *user;

@@ -88,18 +88,6 @@ public:
   int wait_for_gtid_execution(longlong timeout);
 
   /**
-     Checks if the given id matches any of the event applying threads for
-     the configured channel.
-
-     @param id  the thread id
-
-     @return if the id belongs to a thread
-       @retval true   the id matches a SQL or worker thread
-       @retval false  the id doesn't match any thread
-  */
-  bool is_own_event_applier(my_thread_id id);
-
-  /**
     Checks if the channel's relay log contains partial transaction.
     @return
       @retval true  If relaylog contains partial transaction.
@@ -111,9 +99,6 @@ private:
 
   Replication_thread_api channel_interface;
 
-  ulong *thread_id_array;
-
-  int num_appliers;
 };
 
 #endif /* SQL_THREAD_APPLIER_INCLUDE */

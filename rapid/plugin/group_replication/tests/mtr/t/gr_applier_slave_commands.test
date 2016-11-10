@@ -131,7 +131,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
 
 --echo # START SLAVE SQL_THREAD with UNTIL option will work for group_replication_applier
 --disable_warnings
-START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'relay-bin.000001', RELAY_LOG_POS = 527 FOR CHANNEL 'group_replication_applier';
+START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replication_applier.000002', RELAY_LOG_POS = 10000 FOR CHANNEL 'group_replication_applier';
 --enable_warnings
 
 --disable_warnings
