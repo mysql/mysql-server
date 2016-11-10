@@ -320,18 +320,18 @@ DECLARE_NDBINFO_TABLE(DISK_WRITE_SPEED_BASE, 7) =
 { { "disk_write_speed_base", 7, 0,
       "Actual speed of disk writes per LDM thread, base data" },
   {
-    {"node_id",                     Ndbinfo::Number, "node_id"},
+    {"node_id",                     Ndbinfo::Number, "node id"},
     {"thr_no",                      Ndbinfo::Number, "LDM thread instance"},
     {"millis_ago",                  Ndbinfo::Number64,
-        "Milliseconds ago since period finished"},
+        "Milliseconds ago since this period finished"},
     {"millis_passed",               Ndbinfo::Number64,
         "Milliseconds passed in the period reported"},
     {"backup_lcp_bytes_written",    Ndbinfo::Number64,
-        "Bytes written in the period for backups and LCP"},
+        "Bytes written by backup and LCP in the period"},
     {"redo_bytes_written",               Ndbinfo::Number64,
-        "Bytes written in the period for REDO log"},
+        "Bytes written to REDO log in the period"},
     {"target_disk_write_speed",     Ndbinfo::Number64,
-        "Target disk write speed at time of measurement"},
+        "Target disk write speed in bytes per second at the measurement point"},
   }
 };
 
@@ -339,45 +339,46 @@ DECLARE_NDBINFO_TABLE(DISK_WRITE_SPEED_AGGREGATE, 16) =
 { { "disk_write_speed_aggregate", 16, 0,
       "Actual speed of disk writes per LDM thread, aggregate data" },
   {
-    {"node_id",                     Ndbinfo::Number, "node_id"},
+    {"node_id",                     Ndbinfo::Number, "node id"},
     {"thr_no",                      Ndbinfo::Number, "LDM thread instance"},
     {"backup_lcp_speed_last_sec",   Ndbinfo::Number64,
-               "Number of kBytes written by backup and LCP last second"},
+               "Number of bytes written by backup and LCP last second"},
     {"redo_speed_last_sec",         Ndbinfo::Number64,
-               "Number of kBytes written to REDO log last second"},
+               "Number of bytes written to REDO log last second"},
     {"backup_lcp_speed_last_10sec", Ndbinfo::Number64,
-               "Number of kBytes written by backup and LCP per second last"
+               "Number of bytes written by backup and LCP per second last"
                " 10 seconds"},
     {"redo_speed_last_10sec",       Ndbinfo::Number64,
-               "Number of kBytes written to REDO log per second last"
+               "Number of bytes written to REDO log per second last"
                " 10 seconds"},
     {"std_dev_backup_lcp_speed_last_10sec", Ndbinfo::Number64,
-         "Standard deviation of Number of kBytes written by backup and LCP"
+         "Standard deviation of Number of bytes written by backup and LCP"
          " per second last 10 seconds"},
     {"std_dev_redo_speed_last_10sec", Ndbinfo::Number64,
-         "Standard deviation of Number of kBytes written to REDO log"
+         "Standard deviation of Number of bytes written to REDO log"
          " per second last 10 seconds"},
     {"backup_lcp_speed_last_60sec", Ndbinfo::Number64,
-               "Number of kBytes written by backup and LCP per second last"
+               "Number of bytes written by backup and LCP per second last"
                " 60 seconds"},
     {"redo_speed_last_60sec",       Ndbinfo::Number64,
-               "Number of kBytes written to REDO log per second last"
+               "Number of bytes written to REDO log per second last"
                " 60 seconds"},
     {"std_dev_backup_lcp_speed_last_60sec", Ndbinfo::Number64,
-         "Standard deviation of Number of kBytes written by backup and LCP"
+         "Standard deviation of Number of bytes written by backup and LCP"
          " per second last 60 seconds"},
     {"std_dev_redo_speed_last_60sec", Ndbinfo::Number64,
-         "Standard deviation of Number of kBytes written to REDO log"
+         "Standard deviation of Number of bytes written to REDO log"
          " per second last 60 seconds"},
     {"slowdowns_due_to_io_lag",     Ndbinfo::Number64,
-         "Number of seconds that we got slowdown due to REDO IO lagging"},
+         "Number of seconds that we slowed down disk writes due to REDO "
+         "log IO lagging"},
     {"slowdowns_due_to_high_cpu",   Ndbinfo::Number64,
-         "Number of seconds that we got slowdown due to high CPU usage"},
+         "Number of seconds we slowed down disk writes due to high CPU usage "
+         "of LDM thread"},
     {"disk_write_speed_set_to_min", Ndbinfo::Number64,
-         "Number of seconds that we slowed down to a minimum disk write"
-         " speed"},
+         "Number of seconds we set disk write speed to a minimum"},
     {"current_target_disk_write_speed", Ndbinfo::Number64,
-         "Current target of disk write speed"},
+         "Current target of disk write speed in bytes per second"},
   }
 };
 
@@ -444,7 +445,7 @@ DECLARE_NDBINFO_TABLE(RESTART_INFO, 22) =
        "Times of restart phases in seconds and current state" },
   {
     {"node_id",                                             Ndbinfo::Number,
-     "node_id" },
+     "node id" },
     {"node_restart_status",                                 Ndbinfo::String,
      "Current state of node recovery"},
     {"node_restart_status_int",                             Ndbinfo::Number,
@@ -494,7 +495,7 @@ DECLARE_NDBINFO_TABLE(TC_TIME_TRACK_STATS, 15) =
 { { "tc_time_track_stats", 15, 0,
       "Time tracking of transaction, key operations and scan ops" },
   {
-    {"node_id",                     Ndbinfo::Number, "node_id"},
+    {"node_id",                     Ndbinfo::Number, "node id"},
     {"block_number",                Ndbinfo::Number, "Block number"},
     {"block_instance",              Ndbinfo::Number, "Block instance"},
     {"comm_node_id",                Ndbinfo::Number, "node_id of API or DB"},
