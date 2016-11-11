@@ -173,9 +173,9 @@ ERROR 42000: Incorrect parameter count in the call to native function 'ST_LONGFR
 SELECT ST_LONGFROMGEOHASH("123",);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_LONGFROMGEOHASH(,"456");
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"456")' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',"456")' at line 1
 SELECT ST_LONGFROMGEOHASH(,);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',)' at line 1
 SELECT ST_LONGFROMGEOHASH("0123456"789);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '789)' at line 1
 SELECT ST_LONGFROMGEOHASH(abcdef);
@@ -425,9 +425,9 @@ ERROR 42000: Incorrect parameter count in the call to native function 'ST_LATFRO
 SELECT ST_LATFROMGEOHASH("123",);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_LATFROMGEOHASH(,"456");
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"456")' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',"456")' at line 1
 SELECT ST_LATFROMGEOHASH(,);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',)' at line 1
 SELECT ST_LATFROMGEOHASH("0123456"789);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '789)' at line 1
 SELECT ST_LATFROMGEOHASH(abcdef);
@@ -694,9 +694,9 @@ ERROR 22003: SRID value is out of range in 'st_pointfromgeohash'
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("123",));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(,"456"));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"456"))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',"456"))' at line 1
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(,));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',))' at line 1
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("0123456"789));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '789))' at line 1
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("7zzzzzzzzzzzzzzzzzzz", ****));
@@ -1030,7 +1030,7 @@ ERROR HY000: Incorrect type for argument point in function st_geohash.
 SELECT ST_GEOHASH(-100,-45,100.1);
 ERROR HY000: Incorrect type for argument geohash max length in function st_geohash.
 SELECT ST_GEOHASH(, ,);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' ,)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', ,)' at line 1
 SELECT ST_GEOHASH(1,2,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_GEOHASH(*,0,10);
@@ -1104,7 +1104,7 @@ ERROR 42000: Incorrect parameter count in the call to native function 'ST_GEOMFR
 SELECT ST_GEOHASH((ST_GEOMFROMTEXT('POINT(0 0)'),);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_GEOHASH(,10);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '10)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',10)' at line 1
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)'),a);
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),10);

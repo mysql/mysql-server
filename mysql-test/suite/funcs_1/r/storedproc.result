@@ -6013,7 +6013,7 @@ BEGIN
 declare x char, integer default '0';
 SELECT x;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' integer default '0';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', integer default '0';
 SELECT x;
 END' at line 3
 DROP PROCEDURE IF EXISTS sp6;
@@ -6022,7 +6022,7 @@ BEGIN
 declare x1, x2 char, integer default '0', 1;
 SELECT x;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' integer default '0', 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', integer default '0', 1;
 SELECT x;
 END' at line 3
 DROP PROCEDURE IF EXISTS sp6;

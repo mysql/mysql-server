@@ -553,15 +553,15 @@ a	b
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t IGNORE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IGNORE' at line 1
 ALTER TABLE tp EXCHANGE PARTITION p0,p1 WITH TABLE t IGNORE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'p1 WITH TABLE t IGNORE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',p1 WITH TABLE t IGNORE' at line 1
 ALTER TABLE tp EXCHANGE PARTITION p0,p1 WITH TABLE t;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'p1 WITH TABLE t' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',p1 WITH TABLE t' at line 1
 ALTER TABLE tp EXCHANGE PARTITION (p0,p1) WITH TABLE t;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(p0,p1) WITH TABLE t' at line 1
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE (t,t2);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(t,t2)' at line 1
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t,t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',t2' at line 1
 ALTER TABLE tp EXCHANGE PARTITION non_existent WITH TABLE t;
 ERROR HY000: Unknown partition 'non_existent' in table 'tp'
 ALTER TABLE tsp EXCHANGE PARTITION p0 WITH TABLE t;

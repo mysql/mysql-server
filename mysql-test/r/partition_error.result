@@ -1190,7 +1190,7 @@ partition by range (a)
 partitions 2
 (partition x1 values less than (4),
 partition x2);
-ERROR 42000: Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition near '
+ERROR 42000: Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition near ',
 partition x2)' at line 8
 CREATE TABLE t1 (
 a int not null,
@@ -1383,7 +1383,7 @@ partition by list (a)
 partitions 2
 (partition x1 values in (4),
 partition x2);
-ERROR 42000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition near '
+ERROR 42000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition near ',
 partition x2)' at line 8
 CREATE TABLE t1 (
 a int not null,
@@ -1404,7 +1404,7 @@ partition by list (a)
 partitions 2
 (partition x1 values in (4,6),
 partition x2);
-ERROR 42000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition near '
+ERROR 42000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition near ',
 partition x2)' at line 8
 CREATE TABLE t1 (
 a int not null,
