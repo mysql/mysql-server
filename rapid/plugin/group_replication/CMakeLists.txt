@@ -178,7 +178,7 @@ IF(WITH_UNIT_TESTS)
   )
   SET_TARGET_PROPERTIES(gr_unit_test_resource
                         PROPERTIES
-                        COMPILE_DEFINITIONS "DISABLE_ALL_PSI")
+                        COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX")
 ENDIF()
 
 ### Setting some switches on ###
