@@ -543,7 +543,7 @@ count(*)
 desc restart_info;
 Field	Type	Null	Key	Default	Extra
 node_id	int(10) unsigned	YES		NULL	
-node_restart_status	varchar(256)	YES		NULL	
+node_restart_status	varchar(512)	YES		NULL	
 node_restart_status_int	int(10) unsigned	YES		NULL	
 secs_to_complete_node_failure	int(10) unsigned	YES		NULL	
 secs_to_allocate_node_id	int(10) unsigned	YES		NULL	
@@ -593,8 +593,8 @@ desc threads;
 Field	Type	Null	Key	Default	Extra
 node_id	int(10) unsigned	YES		NULL	
 thr_no	int(10) unsigned	YES		NULL	
-thread_name	varchar(256)	YES		NULL	
-thread_description	varchar(256)	YES		NULL	
+thread_name	varchar(512)	YES		NULL	
+thread_description	varchar(512)	YES		NULL	
 
 desc cluster_transactions;
 Field	Type	Null	Key	Default	Extra
