@@ -2926,7 +2926,7 @@ public:
 
   /**
     Pops the top protocol of the Protocol stack and sets the previous one
-    as the current protocol..
+    as the current protocol.
   */
   void pop_protocol()
   {

@@ -211,12 +211,12 @@ public:
                                      const CHARSET_INFO *resultcs);
   virtual bool end_result_metadata();
   virtual bool send_field_metadata(Send_field *field, const CHARSET_INFO *charset);
-  virtual bool flush() override { return true; }
+  virtual bool flush() { return true; }
   virtual bool send_parameters(List<Item_param> *parameters,
-                               bool is_sql_prepare) override
+                               bool is_sql_prepare)
   { return false; }
   bool store_ps_status(ulong stmt_id, uint column_count, uint param_count,
-                       ulong cond_count) override
+                       ulong cond_count)
   { return false; }
 protected:
   String *convert;
