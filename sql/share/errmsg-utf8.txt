@@ -7883,6 +7883,9 @@ ER_DUPLICATE_OPTION_KEY 22023
 ER_WARN_SRS_NOT_FOUND_AXIS_ORDER 01000
   eng "There's no spatial reference system with SRID %u. The axis order is unknown."
 
+ER_NO_ACCESS_TO_NATIVE_FCT
+  eng "Access to native function '%.64s' is rejected."
+
 #
 #  End of 8.0 error messages.
 #

@@ -422,6 +422,7 @@ THD::THD(bool enable_plugins)
    in_lock_tables(0),
    got_warning(false),
    derived_tables_processing(FALSE),
+   parsing_system_view(false),
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),
    work_part_info(NULL),

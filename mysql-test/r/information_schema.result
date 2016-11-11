@@ -2169,3 +2169,103 @@ c5	char(255)	YES		NULL
 c6	point	NO	PRI	NULL	
 c7	geometry	NO	MUL	NULL	
 DROP TABLE t1;
+#
+# Bug#24749248 - NATIVE METHODS INTRODUCED FOR I_S SHOULD NOT BE USED BY A USER DIRECTLY.
+#
+# Case 1: Invoking I_S native methods directly by a user should not be
+#         allowed.
+SELECT INTERNAL_TABLE_ROWS(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_TABLE_ROWS' is rejected.
+SELECT INTERNAL_AVG_ROW_LENGTH(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_AVG_ROW_LENGTH' is rejected.
+SELECT INTERNAL_DATA_LENGTH(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_DATA_LENGTH' is rejected.
+SELECT INTERNAL_MAX_DATA_LENGTH(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_MAX_DATA_LENGTH' is rejected.
+SELECT INTERNAL_INDEX_LENGTH(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_INDEX_LENGTH' is rejected.
+SELECT INTERNAL_DATA_FREE(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_DATA_FREE' is rejected.
+SELECT INTERNAL_AUTO_INCREMENT(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_AUTO_INCREMENT' is rejected.
+SELECT INTERNAL_UPDATE_TIME(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_UPDATE_TIME' is rejected.
+SELECT INTERNAL_CHECK_TIME(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_CHECK_TIME' is rejected.
+SELECT INTERNAL_CHECKSUM(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_CHECKSUM' is rejected.
+SELECT INTERNAL_DD_CHAR_LENGTH(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_DD_CHAR_LENGTH' is rejected.
+SELECT INTERNAL_INDEX_COLUMN_CARDINALITY(NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_INDEX_COLUMN_CARDINALITY' is rejected.
+SELECT GET_DD_INDEX_SUB_PART_LENGTH(NULL, NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'GET_DD_INDEX_SUB_PART_LENGTH' is rejected.
+SELECT GET_DD_COLUMN_PRIVILEGES(NULL, NULL, NULL);
+ERROR HY000: Access to native function 'GET_DD_COLUMN_PRIVILEGES' is rejected.
+SELECT INTERNAL_GET_VIEW_WARNING_OR_ERROR(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_GET_VIEW_WARNING_OR_ERROR' is rejected.
+SELECT INTERNAL_GET_COMMENT_OR_ERROR(NULL, NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_GET_COMMENT_OR_ERROR' is rejected.
+SELECT INTERNAL_KEYS_DISABLED(NULL);
+ERROR HY000: Access to native function 'INTERNAL_KEYS_DISABLED' is rejected.
+SELECT CAN_ACCESS_DATABASE(NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_DATABASE' is rejected.
+SELECT CAN_ACCESS_TABLE(NULL, NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+SELECT CAN_ACCESS_VIEW(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_VIEW' is rejected.
+SELECT CAN_ACCESS_COLUMN(NULL, NULL, NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_COLUMN' is rejected.
+SELECT GET_DD_CREATE_OPTIONS(NULL, NULL);
+ERROR HY000: Access to native function 'GET_DD_CREATE_OPTIONS' is rejected.
+CREATE TABLE t1(f1 INT);
+CREATE TABLE t3 AS SELECT CAN_ACCESS_TABLE("test", "t1");
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+CREATE VIEW v2 AS SELECT CAN_ACCESS_TABLE("test", "t1");
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+SELECT * FROM t1 WHERE CAN_ACCESS_TABLE("test", "t1") = 1;
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+SELECT * FROM INFORMARTION_SCHEMA.TABLES WHERE CAN_ACCESS_TABLE("test", "t1") = 1;
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+SELECT CAN_ACCESS_TABLE("test", "t1") AS f1, COLUMN_NAME AS F2  FROM INFORMATION_SCHEMA.COLUMNS;
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+PREPARE stmt FROM 'SELECT CAN_ACCESS_TABLE("test", "t1") AS f1, COLUMN_NAME AS F2  FROM INFORMATION_SCHEMA.COLUMNS';
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+# Case 2: Invoking I_S native methods should be allowed through I_S queries.
+SELECT * FROM INFORMATION_SCHEMA.TABLES where table_name='t1';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+def	test	t1	BASE TABLE	InnoDB	#	#	#	#	#	#	#	#	#	#	#	#	#	#	#	#
+SELECT t.table_schema, t.table_name, c.column_name
+FROM INFORMATION_SCHEMA.TABLES t,
+INFORMATION_SCHEMA.COLUMNS c
+WHERE t.table_schema = c.table_schema
+AND t.table_name = c.table_name
+AND t.table_name = 't1' limit 1;
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME
+test	t1	f1
+CREATE VIEW v1 AS
+SELECT t.table_schema, t.table_name, c.column_name
+FROM INFORMATION_SCHEMA.TABLES t,
+INFORMATION_SCHEMA.COLUMNS c
+WHERE t.table_schema = c.table_schema
+AND t.table_name = c.table_name
+AND t.table_name = 't1' limit 1;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t`.`TABLE_SCHEMA` AS `table_schema`,`t`.`TABLE_NAME` AS `table_name`,`c`.`COLUMN_NAME` AS `column_name` from (`information_schema`.`TABLES` `t` join `information_schema`.`COLUMNS` `c`) where ((`t`.`TABLE_SCHEMA` = `c`.`TABLE_SCHEMA`) and (`t`.`TABLE_NAME` = `c`.`TABLE_NAME`) and (`t`.`TABLE_NAME` = 't1')) limit 1	latin1	latin1_swedish_ci
+CREATE TABLE t2 AS
+SELECT t.table_schema, t.table_name, c.column_name
+FROM INFORMATION_SCHEMA.TABLES t,
+INFORMATION_SCHEMA.COLUMNS c
+WHERE t.table_schema = c.table_schema
+AND t.table_name = c.table_name
+AND t.table_name = 't1' limit 1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `TABLE_SCHEMA` varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `TABLE_NAME` varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `COLUMN_NAME` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1, t2;
+DROP VIEW v1;

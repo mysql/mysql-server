@@ -5079,6 +5079,7 @@ void THD::reset_for_next_command()
   thd->set_trans_pos(NULL, 0);
 
   thd->derived_tables_processing= false;
+  thd->parsing_system_view= false;
 
   // Need explicit setting, else demand all privileges to a table.
   thd->want_privilege= ~NO_ACCESS;

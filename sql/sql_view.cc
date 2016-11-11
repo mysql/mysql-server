@@ -1410,18 +1410,29 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     Pushing the custom error handler only for I_S views anyway.
   */
   DD_table_access_error_handler dd_access_handler;
-  bool is_system_view=
+
+  /*
+    Native methods introduced for INFORMATION_SCHEMA system views are allowed
+    to invoke from *only* INFORMATION_SCHEMA system views.
+    THD::parsing_system_view is set here to indicate that the view being parsed
+    is INFORMATION_SCHEMA system view and allowed to invoke native method. Error
+    ER_NO_ACCESS_TO_NATIVE_FCT is reported otherwise.
+  */
+  bool parsing_system_view_saved= thd->parsing_system_view;
+  thd->parsing_system_view=
       dd::get_dictionary()->is_system_view_name(view_ref->db,
                                                 view_ref->table_name);
 
-  if (is_system_view)
+  if (thd->parsing_system_view)
     thd->push_internal_handler(&dd_access_handler);
 
   // Parse the query text of the view
   result= parse_sql(thd, &parser_state, view_ref->view_creation_ctx);
 
-  if (is_system_view)
+  if (thd->parsing_system_view)
     thd->pop_internal_handler();
+
+  thd->parsing_system_view= parsing_system_view_saved;
 
   // Restore environment
   if ((old_lex->sql_command == SQLCOM_SHOW_FIELDS) ||

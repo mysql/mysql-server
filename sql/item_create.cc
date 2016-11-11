@@ -3727,6 +3727,13 @@ Create_func_get_dd_column_privileges::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 3)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -3755,6 +3762,13 @@ Create_func_get_dd_index_sub_part_length::create_native(
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 5)
   {
@@ -3785,6 +3799,13 @@ Create_func_get_dd_create_options::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 2)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -3810,6 +3831,13 @@ Create_func_can_access_database::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 1)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -3833,6 +3861,13 @@ Create_func_can_access_table::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 2)
   {
@@ -3858,6 +3893,13 @@ Create_func_can_access_view::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -3886,6 +3928,13 @@ Create_func_can_access_column::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 3)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -3912,6 +3961,13 @@ Create_func_internal_table_rows::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -3944,6 +4000,13 @@ Create_func_internal_avg_row_length::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 4)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -3973,6 +4036,13 @@ Create_func_internal_data_length::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -4005,6 +4075,13 @@ Create_func_internal_max_data_length::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 4)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4036,6 +4113,13 @@ Create_func_internal_index_length::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 4)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4065,6 +4149,13 @@ Create_func_internal_data_free::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -4097,6 +4188,13 @@ Create_func_internal_auto_increment::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 4)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4127,6 +4225,13 @@ Create_func_internal_checksum::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -4159,6 +4264,13 @@ Create_func_internal_update_time::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 4)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4189,6 +4301,13 @@ Create_func_internal_check_time::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -4221,6 +4340,13 @@ Create_func_internal_keys_disabled::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 1)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4246,6 +4372,13 @@ Create_func_internal_index_column_cardinality::create_native(
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 7)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4269,6 +4402,13 @@ Create_func_internal_get_comment_or_error::create_native(
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 5)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4290,6 +4430,13 @@ Create_func_internal_get_view_warning_or_error::create_native(
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -4972,6 +5119,13 @@ Create_func_internal_dd_char_length::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
