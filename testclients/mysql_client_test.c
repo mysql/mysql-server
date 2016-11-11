@@ -14282,14 +14282,6 @@ static void test_bug10760()
     3: check that cursors to InnoDB tables are closed (for now) by
     COMMIT/ROLLBACK.
   */
-  if (! have_innodb)
-  {
-    if (!opt_silent)
-      printf("Testing that cursors are closed at COMMIT/ROLLBACK requires "
-             "InnoDB.\n");
-  }
-  else
-  {
     stmt_text= "select id from t1 order by 1";
     rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
     check_execute(stmt, rc);
@@ -14318,7 +14310,6 @@ static void test_bug10760()
     if (!opt_silent)
       printf("Got error (as expected): %s\n", mysql_error(mysql));
 #endif
-  }
 
   mysql_stmt_close(stmt);
   rc= mysql_query(mysql, "drop table t1");
@@ -14706,12 +14697,6 @@ static void test_bug12243()
 
   myheader("test_bug12243");
 
-  if (! have_innodb)
-  {
-    if (!opt_silent)
-      printf("This test requires InnoDB.\n");
-    return;
-  }
 
   /* create tables */
   mysql_query(mysql, "drop table if exists t1");

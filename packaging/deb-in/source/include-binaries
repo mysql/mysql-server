@@ -48,6 +48,7 @@ debian/extra/libtest_sql_lock-plugin
 debian/extra/libtest_sql_processlist-plugin
 debian/extra/libtest_sql_replication-plugin
 debian/extra/libtest_sql_shutdown-plugin
+debian/extra/libtest_sql_stmt-plugin
 debian/extra/libtest_sql_sqlmode-plugin
 debian/extra/libtest_sql_stored_procedures_functions-plugin
 debian/extra/libtest_sql_views_triggers-plugin

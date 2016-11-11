@@ -1131,11 +1131,6 @@ public:
     return (Protocol_classic *) m_protocol;
   }
 
-  void set_protocol(Protocol * protocol)
-  {
-    m_protocol= protocol;
-  }
-
 private:
   Protocol *m_protocol;           // Current protocol
 
@@ -2909,6 +2904,33 @@ public:
   void pop_diagnostics_area()
   {
     m_stmt_da= get_stmt_da()->pop_diagnostics_area();
+  }
+
+
+  /**
+    Inserts the new protocol at the top of the protocol stack, and make it
+    the current protocol for this thd.
+
+    @param protocol Protocol to be inserted.
+  */
+  void push_protocol(Protocol *protocol)
+  {
+    DBUG_ASSERT(m_protocol);
+    DBUG_ASSERT(protocol);
+    m_protocol->push_protocol(protocol);
+    m_protocol= protocol;
+  }
+
+
+  /**
+    Pops the top protocol of the Protocol stack and sets the previous one
+    as the current protocol..
+  */
+  void pop_protocol()
+  {
+    DBUG_ASSERT(m_protocol);
+    m_protocol= m_protocol->pop_protocol();
+    DBUG_ASSERT(m_protocol);
   }
 
 public:

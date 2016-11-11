@@ -98,6 +98,11 @@ static struct st_test_statement test_query_plan[]=
   {"test1", false, "UPDATE tbl SET a=2"},
   {"test1", false, "ROLLBACK"},
   {"test1", false, "SELECT IF(SUM(4) = 12, 'OK', 'FAIL') FROM tbl"},
+  {"test1", true, "set @a=((2) in (select a from tbl))"},
+  {"test1", true, "SELECT @a"},
+  {"test1", true, "set @b=42"},
+  {"test1", true, "SELECT @b"},
+  {"test1", true, "SELECT @non_existing"},
   // empty cmd
   {"test1", true, ""},
 

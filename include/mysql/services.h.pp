@@ -63,12 +63,21 @@ typedef struct st_com_set_option_data
 {
   unsigned int opt_command;
 } COM_SET_OPTION_DATA;
+typedef struct st_ps_param
+{
+  unsigned char null_bit;
+  enum enum_field_types type;
+  unsigned char unsigned_type;
+  const unsigned char *value;
+  unsigned long length;
+} PS_PARAM;
 typedef struct st_com_stmt_execute_data
 {
   unsigned long stmt_id;
-  unsigned long flags;
-  unsigned char *params;
-  unsigned long params_length;
+  unsigned long open_cursor;
+  PS_PARAM *parameters;
+  unsigned long parameter_count;
+  unsigned char has_new_types;
 } COM_STMT_EXECUTE_DATA;
 typedef struct st_com_stmt_fetch_data
 {

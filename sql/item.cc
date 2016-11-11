@@ -3553,7 +3553,7 @@ default_set_param_func(Item_param *param,
                        uchar **pos MY_ATTRIBUTE((unused)),
                        ulong len MY_ATTRIBUTE((unused)))
 {
-  param->set_null();
+  param->state= Item_param::NO_VALUE;
 }
 
 
@@ -4423,8 +4423,7 @@ Item_param::set_out_param_info(Send_field *info)
   m_out_param_info is used to store information about store routine
   OUT-parameters, such as stored routine name, database, stored routine
   variable name. It is supposed to be retrieved in
-  Protocol_binary::send_out_parameters() during creation of OUT-parameter
-  result set.
+  Protocol::send_parameters() during creation of OUT-parameter result set.
 */
 
 const Send_field *
