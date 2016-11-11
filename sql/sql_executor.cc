@@ -987,6 +987,20 @@ static bool set_record_buffer(const QEP_TAB *tab)
   if (!table->file->ha_is_record_buffer_wanted(&max_rows) || max_rows == 0)
     return false;
 
+  // If we already have a buffer, reuse it.
+  if (table->m_record_buffer.max_records() > 0)
+  {
+    /*
+      Assume that the existing buffer has the shape we want. That is, the
+      record size shouldn't change for a table during execution.
+    */
+    DBUG_ASSERT(table->m_record_buffer.record_size() ==
+                record_prefix_size(tab));
+    table->m_record_buffer.reset();
+    table->file->ha_set_record_buffer(&table->m_record_buffer);
+    return false;
+  }
+
   // How many rows do we expect to fetch?
   double rows_to_fetch= tab->position()->rows_fetched;
 
