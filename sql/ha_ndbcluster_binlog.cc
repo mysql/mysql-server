@@ -6507,8 +6507,6 @@ Ndb_binlog_thread::do_run()
 
   DBUG_ENTER("ndb_binlog_thread");
 
-  mysql_mutex_lock(&injector_mutex);
-
   log_info("Starting...");
 
   thd= new THD; /* note that contructor of THD uses DBUG_ */
@@ -6523,8 +6521,6 @@ Ndb_binlog_thread::do_run()
   if (thd->store_globals())
   {
     delete thd;
-    mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_broadcast(&injector_cond);
     DBUG_VOID_RETURN;
   }
 
@@ -6561,8 +6557,6 @@ restart_cluster_failure:
   if (!(thd_ndb= Thd_ndb::seize(thd)))
   {
     log_error("Creating Thd_ndb object failed");
-    mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_broadcast(&injector_cond);
     goto err;
   }
   thd_ndb->set_option(Thd_ndb::NO_LOG_SCHEMA_OP); 
@@ -6572,8 +6566,6 @@ restart_cluster_failure:
       s_ndb->init())
   {
     log_error("Creating schema Ndb object failed");
-    mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_broadcast(&injector_cond);
     goto err;
   }
   log_info("Created schema Ndb object, reference: 0x%x, name: '%s'",
@@ -6585,8 +6577,6 @@ restart_cluster_failure:
       i_ndb->init())
   {
     log_error("Creating injector Ndb object failed");
-    mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_broadcast(&injector_cond);
     goto err;
   }
   log_info("Created injector Ndb object, reference: 0x%x, name: '%s'",
@@ -6596,8 +6586,6 @@ restart_cluster_failure:
   if (i_ndb->set_eventbuffer_free_percent(opt_ndb_eventbuffer_free_percent))
   {
     log_error("Setting ventbuffer free percent failed");
-    mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_broadcast(&injector_cond);
     goto err;
   }
 
@@ -6608,6 +6596,7 @@ restart_cluster_failure:
     Used by both sql client thread and binlog thread to interact
     with the storage
   */
+  mysql_mutex_lock(&injector_mutex);
   injector_thd= thd;
   injector_ndb= i_ndb;
   schema_ndb= s_ndb;
@@ -6617,12 +6606,10 @@ restart_cluster_failure:
   {
     ndb_binlog_running= TRUE;
   }
+  mysql_mutex_unlock(&injector_mutex);
 
   log_verbose(1, "Setup completed");
-
   /* Thread start up completed  */
-  mysql_mutex_unlock(&injector_mutex);
-  mysql_cond_broadcast(&injector_cond);
 
   log_verbose(1, "Wait for server start completed");
   /*
@@ -7507,7 +7494,6 @@ restart_cluster_failure:
 
   if (binlog_thread_state == BCCC_restart)
   {
-    mysql_mutex_lock(&injector_mutex);
     goto restart_cluster_failure;
   }
 
