@@ -274,7 +274,8 @@ public class ClusterConnectionImpl
      */
     protected NdbRecordImpl getCachedNdbRecordImpl(Table storeTable) {
         dbForNdbRecord.assertOpen("ClusterConnectionImpl.getCachedNdbRecordImpl for table");
-        String tableName = storeTable.getName();
+        // tableKey is table name plus projection indicator
+        String tableName = storeTable.getKey();
         // find the NdbRecordImpl in the global cache
         NdbRecordImpl result = ndbRecordImplMap.get(tableName);
         if (result != null) {

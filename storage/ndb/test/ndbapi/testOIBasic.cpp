@@ -545,7 +545,10 @@ Chs::Chs(CHARSET_INFO* cs) :
     // normalize
     memset(xbytes, 0, sizeof(m_chr[i].m_xbytes));
     // currently returns buffer size always
-    size_t xlen = NdbSqlUtil::ndb_strnxfrm(cs, xbytes, m_xmul * size, bytes, size);
+    const size_t dstlen = m_xmul * size;
+    const size_t xlen = (*cs->coll->strnxfrm)(
+                                cs, xbytes, dstlen, (uint)dstlen,
+                                bytes, size, MY_STRXFRM_PAD_WITH_SPACE);
     // check we got something
     ok = false;
     for (uint j = 0; j < (uint)xlen; j++) {

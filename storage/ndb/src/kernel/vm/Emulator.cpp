@@ -728,16 +728,22 @@ EmulatorData::create(){
 void
 EmulatorData::destroy(){
   if(theConfiguration)
-    delete theConfiguration; theConfiguration = 0;
+    delete theConfiguration;
+  theConfiguration = 0;
   if(theWatchDog)
-    delete theWatchDog; theWatchDog = 0;
+    delete theWatchDog;
+  theWatchDog = 0;
   if(theThreadConfig)
-    delete theThreadConfig; theThreadConfig = 0;
+    delete theThreadConfig;
+  theThreadConfig = 0;
   if(theSimBlockList)
-    delete theSimBlockList; theSimBlockList = 0;
+    delete theSimBlockList;
+  theSimBlockList = 0;
   if(m_socket_server)
-    delete m_socket_server; m_socket_server = 0;
+    delete m_socket_server;
+  m_socket_server = 0;
   NdbMutex_Destroy(theShutdownMutex);
   if (m_mem_manager)
-    delete m_mem_manager; m_mem_manager = 0;
+    delete m_mem_manager;
+  m_mem_manager = 0;
 }

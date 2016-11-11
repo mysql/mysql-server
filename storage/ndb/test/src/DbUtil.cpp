@@ -241,7 +241,7 @@ DbUtil::printError(const char *msg)
       printf("\n [MySQL-%s]", m_mysql->server_version);
     else
       printf("\n [MySQL]");
-      printf("[%d] %s\n", getErrorNumber(), getError());
+    printf("[%d] %s\n", getErrorNumber(), getError());
   }
   else if (msg)
     printf(" [MySQL] %s\n", msg);

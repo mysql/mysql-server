@@ -142,10 +142,29 @@ bool
 ndb_binlog_is_read_only(void)
 {
   /*
-    Could be called from any client thread. Need injector_mutex to 
+    Could be called from any client thread. Need a mutex to 
     protect ndb_binlog_tables_inited and ndb_binlog_is_ready.
+
+    TODO:
+    However, current 'injector_mutex' can't be used here as it
+    is locked for 10ms intervals when waiting for nextEvents().
+    As ha_ndbcluster::open() calls this method, that would have 
+    slowed down open'ing of tables too much.
+
+    As for now we just read this without lock.
+    As a longer term solution we should consider to split 
+    injector_mutex into a:
+      - injector_event_mutex, protecting nextEvent() and
+        concurrent create and drop of events.
+      - injector_data_mutex protecting global data maintained
+        by the injector thread and accessed by any client thread.
+
+    Also see:
+     - BUG#24715897: Showstopper for 7.5 GA
+     - caused by: 
+        Bug#24496910 REMOVE DEPENDENCIES BETWEEN BINLOG INJECTOR ...
   */
-  Mutex_guard injector_g(injector_mutex);
+  //Mutex_guard injector_g(injector_mutex);
   if (!ndb_binlog_tables_inited)
   {
     /* the ndb_* system tables not setup yet */
@@ -709,7 +728,8 @@ ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
   // Turn autocommit on
   // This is needed to ensure calls to mysqld.delete_rows commits.
   my_thd->variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
-
+  // Ensure that file paths on Windows are not modified by parser
+  my_thd->variables.sql_mode|= MODE_NO_BACKSLASH_ESCAPES;
   if(mysqld.delete_rows(STRING_WITH_LEN("mysql"),
                         STRING_WITH_LEN("ndb_binlog_index"),
                         ignore_no_such_table,
@@ -788,10 +808,25 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd,
   DBUG_ENTER("ndbcluster_binlog_log_query");
   DBUG_PRINT("enter", ("db: %s  table_name: %s  query: %s",
                        db, table_name, query));
+
+  DBUG_EXECUTE_IF("ndb_binlog_random_tableid",
+  {
+    /**
+     * Simulate behaviour immediately after mysql_main() init:
+     *   We do *not* set the random seed, which according to 'man rand'
+     *   is equivalent of setting srand(1). In turn this will result
+     *   in the same sequence of random numbers being produced on all mysqlds.
+     */ 
+    srand(1);
+  });
+
   enum SCHEMA_OP_TYPE type;
-  /* Use random table_id and table_version  */
-  const uint32 table_id = (uint32)rand();
-  const uint32 table_version = (uint32)rand();
+  /**
+   * Don't have any table_id/_version to uniquely identify the 
+   *  schema operation. Set the special values 0/0 which allows
+   *  ndbcluster_log_schema_op() to produce its own unique ids.
+   */
+  const uint32 table_id= 0, table_version= 0;
   switch (binlog_command)
   {
   case LOGCOM_CREATE_DB:
@@ -1791,6 +1826,24 @@ int ndbcluster_log_schema_op(THD *thd,
     abort(); /* should not happen, programming error */
   }
 
+  // Use nodeid of the primary cluster connection since that is
+  // the nodeid which the coordinator and participants listen to
+  const uint32 node_id= g_ndb_cluster_connection->node_id();
+
+  /**
+   * If table_id/_version is not specified, we have to produce
+   * our own unique identifier for the schema operation.
+   * Use a sequence counter and own node_id for uniqueness.
+   */
+  if (ndb_table_id == 0 && ndb_table_version == 0)
+  {
+    static uint32 seq_id = 0;
+    mysql_mutex_lock(&ndbcluster_mutex);
+    ndb_table_id = ++seq_id;
+    ndb_table_version = node_id;
+    mysql_mutex_unlock(&ndbcluster_mutex);
+  }
+
   NDB_SCHEMA_OBJECT *ndb_schema_object;
   {
     char key[FN_REFLEN + 1];
@@ -1798,12 +1851,22 @@ int ndbcluster_log_schema_op(THD *thd,
     ndb_schema_object= ndb_get_schema_object(key, true);
     ndb_schema_object->table_id= ndb_table_id;
     ndb_schema_object->table_version= ndb_table_version;
+
+    DBUG_EXECUTE_IF("ndb_binlog_random_tableid",
+    {
+      /**
+       * Try to trigger a race between late incomming slock ack for
+       * schema operations having its coordinator on another node,
+       * which we would otherwise have discarded as no matching
+       * ndb_schema_object existed, and another schema op with same 'key',
+       * coordinated by this node. Thus causing a mixup betweeen these,
+       * and the schema distribution getting totally out of synch.
+       */
+      NdbSleep_MilliSleep(50);
+    });
   }
 
   const NdbError *ndb_error= 0;
-  // Use nodeid of the primary cluster connection since that is
-  // the nodeid which the coordinator and participants listen to
-  const uint32 node_id= g_ndb_cluster_connection->node_id();
   Uint64 epoch= 0;
   {
     /* begin protect ndb_schema_share */
@@ -2478,7 +2541,7 @@ class Ndb_schema_event_handler {
     /**
       Create a Ndb_schema_op from event_data
     */
-    static Ndb_schema_op*
+    static const Ndb_schema_op*
     create(const Ndb_event_data* event_data,
            Uint32 any_value)
     {
@@ -2511,7 +2574,7 @@ class Ndb_schema_event_handler {
 
 
   static void
-  write_schema_op_to_binlog(THD *thd, Ndb_schema_op *schema)
+  write_schema_op_to_binlog(THD *thd, const Ndb_schema_op *schema)
   {
 
     if (!ndb_binlog_running)
@@ -2602,7 +2665,7 @@ class Ndb_schema_event_handler {
       row for this op in ndb_schema table)
   */
   int
-  ack_schema_op(Ndb_schema_op *schema) const
+  ack_schema_op(const Ndb_schema_op *schema) const
   {
     const char* const db = schema->db;
     const char* const table_name = schema->name;
@@ -2818,7 +2881,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_after_epoch(Ndb_schema_op* schema)
+  handle_after_epoch(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_after_epoch");
     DBUG_PRINT("info", ("Pushing Ndb_schema_op on list to be "
@@ -2830,7 +2893,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  ack_after_epoch(Ndb_schema_op* schema)
+  ack_after_epoch(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("ack_after_epoch");
     assert(!is_post_epoch()); // Only before epoch
@@ -2940,7 +3003,7 @@ class Ndb_schema_event_handler {
   }
 
 
-  NDB_SHARE* get_share(Ndb_schema_op* schema) const
+  NDB_SHARE* get_share(const Ndb_schema_op* schema) const
   {
     DBUG_ENTER("get_share(Ndb_schema_op*)");
     char key[FN_REFLEN + 1];
@@ -2990,7 +3053,7 @@ class Ndb_schema_event_handler {
   }
 
 
-  void handle_clear_slock(Ndb_schema_op* schema)
+  void handle_clear_slock(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_clear_slock");
 
@@ -2998,6 +3061,21 @@ class Ndb_schema_event_handler {
 
     char key[FN_REFLEN + 1];
     build_table_filename(key, sizeof(key) - 1, schema->db, schema->name, "", 0);
+
+    // Try to create a race between SLOCK acks handled after another
+    // schema operation could have been started.
+    DBUG_EXECUTE_IF("ndb_binlog_random_tableid",
+    {
+      NDB_SCHEMA_OBJECT *p= ndb_get_schema_object(key, false);
+      if (p == NULL)
+      {
+        NdbSleep_MilliSleep(10);
+      }
+      else
+      {
+        ndb_free_schema_object(&p);
+      }
+    });
 
     /* Ack to any SQL thread waiting for schema op to complete */
     NDB_SCHEMA_OBJECT *ndb_schema_object= ndb_get_schema_object(key, false);
@@ -3073,7 +3151,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_offline_alter_table_commit(Ndb_schema_op* schema)
+  handle_offline_alter_table_commit(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_offline_alter_table_commit");
 
@@ -3155,7 +3233,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_online_alter_table_prepare(Ndb_schema_op* schema)
+  handle_online_alter_table_prepare(const Ndb_schema_op* schema)
   {
     assert(is_post_epoch()); // Always after epoch
 
@@ -3174,7 +3252,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_online_alter_table_commit(Ndb_schema_op* schema)
+  handle_online_alter_table_commit(const Ndb_schema_op* schema)
   {
     assert(is_post_epoch()); // Always after epoch
 
@@ -3252,7 +3330,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_drop_table(Ndb_schema_op* schema)
+  handle_drop_table(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_drop_table");
 
@@ -3313,7 +3391,7 @@ class Ndb_schema_event_handler {
   */
 
   void
-  handle_rename_table_prepare(Ndb_schema_op* schema)
+  handle_rename_table_prepare(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_rename_table_prepare");
 
@@ -3344,7 +3422,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_rename_table(Ndb_schema_op* schema)
+  handle_rename_table(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_rename_table");
 
@@ -3422,7 +3500,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_drop_db(Ndb_schema_op* schema)
+  handle_drop_db(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_drop_db");
 
@@ -3457,7 +3535,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_truncate_table(Ndb_schema_op* schema)
+  handle_truncate_table(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_truncate_table");
 
@@ -3498,7 +3576,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_create_table(Ndb_schema_op* schema)
+  handle_create_table(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_create_table");
 
@@ -3528,7 +3606,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_create_db(Ndb_schema_op* schema)
+  handle_create_db(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_create_db");
 
@@ -3552,7 +3630,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_alter_db(Ndb_schema_op* schema)
+  handle_alter_db(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_alter_db");
 
@@ -3576,7 +3654,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_grant_op(Ndb_schema_op* schema)
+  handle_grant_op(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_grant_op");
 
@@ -3606,7 +3684,7 @@ class Ndb_schema_event_handler {
 
 
   int
-  handle_schema_op(Ndb_schema_op* schema)
+  handle_schema_op(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_schema_op");
     {
@@ -3713,7 +3791,7 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_schema_op_post_epoch(Ndb_schema_op* schema)
+  handle_schema_op_post_epoch(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_schema_op_post_epoch");
     DBUG_PRINT("enter", ("%s.%s: query: '%s'  type: %d",
@@ -3777,8 +3855,8 @@ class Ndb_schema_event_handler {
 
   bool is_post_epoch(void) const { return m_post_epoch; }
 
-  List<Ndb_schema_op> m_post_epoch_handle_list;
-  List<Ndb_schema_op> m_post_epoch_ack_list;
+  List<const Ndb_schema_op> m_post_epoch_handle_list;
+  List<const Ndb_schema_op> m_post_epoch_ack_list;
 
 public:
   Ndb_schema_event_handler(); // Not implemented
@@ -3818,7 +3896,7 @@ public:
     case NDBEVENT::TE_UPDATE:
     {
       /* ndb_schema table, row INSERTed or UPDATEed*/
-      Ndb_schema_op* schema_op=
+      const Ndb_schema_op* schema_op=
         Ndb_schema_op::create(event_data, pOp->getAnyValue());
       handle_schema_op(schema_op);
       break;
@@ -3905,7 +3983,7 @@ public:
        process any operations that should be done after
        the epoch is complete
       */
-      Ndb_schema_op* schema;
+      const Ndb_schema_op* schema;
       while ((schema= m_post_epoch_handle_list.pop()))
       {
         handle_schema_op_post_epoch(schema);

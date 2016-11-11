@@ -290,6 +290,7 @@ private:
   void threadMainReceive(void);
   NdbThread* theReceiveThread;
   trp_client* recv_client;
+  bool raise_thread_prio();
 
   friend void* runSendRequest_C(void*);
   friend void* runReceiveResponse_C(void*);

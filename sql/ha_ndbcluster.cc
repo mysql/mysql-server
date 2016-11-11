@@ -13702,16 +13702,15 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
 
   char db[FN_REFLEN];
   ha_ndbcluster::set_dbname(path, db);
-  uint32 table_id= 0, table_version= 0;
+  const uint32 table_id= 0, table_version= 0;
   /*
     Since databases aren't real ndb schema object
-    they don't have any id/version
+    they don't have any id/version to be used to 
+    uniquely identify this schema operation.
 
-    But since that id/version is used to make sure that event's on SCHEMA_TABLE
-    is correct, we set random numbers
+    ndbcluster_log_schema_op() will handle id/version == 0/0 as
+    a special case and generate its own unique identifiers.
   */
-  table_id = (uint32)rand();
-  table_version = (uint32)rand();
   ndbcluster_log_schema_op(thd,
                            thd->query().str, thd->query().length,
                            db, "", table_id, table_version,

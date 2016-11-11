@@ -1929,6 +1929,12 @@ MgmApiSession::list_session(SocketServer::Session *_s, void *data)
   {
     int l= (int)strlen(s->m_ctx->m_tokenBuffer);
     char *buf= (char*) malloc(2*l+1);
+
+    if (buf == NULL)
+    {
+        lister->m_stop = true;
+        return;
+    }
     char *b= buf;
     for(int i=0; i<l;i++)
       if(s->m_ctx->m_tokenBuffer[i]=='\n')
