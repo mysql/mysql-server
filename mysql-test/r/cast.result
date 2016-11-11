@@ -239,6 +239,42 @@ t1	CREATE TABLE `t1` (
   `c5` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT ''
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
+#
+# Bug #24934161: FAILURE OF SYNONYMY OF NCHAR AND NATIONAL CHAR
+#
+SELECT
+CAST(_gb2312 x'CAFDBEDD'     AS NATIONAL CHAR)    AS c1,
+CAST(_gb2312 x'CAFD20'       AS NATIONAL CHAR)    AS c2,
+CAST(_gb2312 x'CAFDBEDDBFE2' AS NATIONAL CHAR(2)) AS c3,
+CAST(_gb2312 x'CAFD2020'     AS NATIONAL CHAR(2)) AS c4,
+CAST(_gb2312 x'CAFD'         AS NATIONAL CHAR(2)) AS c5;
+c1	c2	c3	c4	c5
+数据	数 	数据	数 	数
+Warnings:
+Warning	1292	Truncated incorrect CHAR(6) value: '数据库'
+Warning	1292	Truncated incorrect CHAR(4) value: '数  '
+CREATE TABLE t1 SELECT
+CAST(_gb2312 x'CAFDBEDD'     AS NATIONAL CHAR)    AS c1,
+CAST(_gb2312 x'CAFD20'       AS NATIONAL CHAR)    AS c2,
+CAST(_gb2312 x'CAFDBEDDBFE2' AS NATIONAL CHAR(2)) AS c3,
+CAST(_gb2312 x'CAFD2020'     AS NATIONAL CHAR(2)) AS c4,
+CAST(_gb2312 x'CAFD'         AS NATIONAL CHAR(2)) AS c5;
+Warnings:
+Warning	1292	Truncated incorrect CHAR(6) value: '数据库'
+Warning	1292	Truncated incorrect CHAR(4) value: '数  '
+SELECT * FROM t1;
+c1	c2	c3	c4	c5
+数据	数 	数据	数 	数
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c2` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c3` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c4` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c5` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;
 SET sql_mode = default;
 create table t1 (a binary(4), b char(4) character set koi8r);
 insert into t1 values (_binary'����',_binary'����');
