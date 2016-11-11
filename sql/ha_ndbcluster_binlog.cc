@@ -195,8 +195,7 @@ static ulonglong ndb_latest_handled_binlog_epoch= 0;
 static ulonglong ndb_latest_received_binlog_epoch= 0;
 
 NDB_SHARE *ndb_apply_status_share= NULL;
-static NDB_SHARE *ndb_schema_share= NULL; //Need ndb_schema_share_mutex
-static mysql_mutex_t ndb_schema_share_mutex;
+static NDB_SHARE *ndb_schema_share= NULL; //Need injector_data_mutex
 
 extern my_bool opt_log_slave_updates;
 static my_bool g_ndb_log_slave_updates;
@@ -207,7 +206,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb);
 
 bool ndb_schema_dist_is_ready(void)
 {
-  Mutex_guard schema_share_g(ndb_schema_share_mutex);
+  Mutex_guard schema_share_g(injector_data_mutex);
   if (ndb_schema_share)
     return true;
 
@@ -887,7 +886,6 @@ int ndbcluster_binlog_end()
     mysql_mutex_destroy(&injector_event_mutex);
     mysql_mutex_destroy(&injector_data_mutex);
     mysql_cond_destroy(&injector_data_cond);
-    mysql_mutex_destroy(&ndb_schema_share_mutex);
   }
 
   DBUG_RETURN(0);
@@ -1858,7 +1856,7 @@ int ndbcluster_log_schema_op(THD *thd,
   Uint64 epoch= 0;
   {
     /* begin protect ndb_schema_share */
-    Mutex_guard ndb_schema_share_g(ndb_schema_share_mutex);
+    Mutex_guard ndb_schema_share_g(injector_data_mutex);
     if (ndb_schema_share == NULL)
     {
       ndb_free_schema_object(&ndb_schema_object);
@@ -2087,7 +2085,7 @@ end:
         break;
 
       { //Scope of ndb_schema_share protection
-        Mutex_guard ndb_schema_share_g(ndb_schema_share_mutex);
+        Mutex_guard ndb_schema_share_g(injector_data_mutex);
         if (ndb_schema_share == NULL)
           break;
       }
@@ -2855,7 +2853,7 @@ class Ndb_schema_event_handler {
     assert(event_data->ndb_value[0]);
     assert(event_data->ndb_value[1]);
 
-    Mutex_guard ndb_schema_share_g(ndb_schema_share_mutex);
+    Mutex_guard ndb_schema_share_g(injector_data_mutex);
     if (share != ndb_schema_share)
     {
       // Received event from s_ndb not pointing at the ndb_schema_share
@@ -3903,12 +3901,10 @@ public:
                               "read only on reconnect.");
 
       /* release the ndb_schema_share */
-      mysql_mutex_lock(&ndb_schema_share_mutex);
+      mysql_mutex_lock(&injector_data_mutex);
       free_share(&ndb_schema_share);
       ndb_schema_share= NULL;
-      mysql_mutex_unlock(&ndb_schema_share_mutex);
 
-      mysql_mutex_lock(&injector_data_mutex);
       ndb_binlog_tables_inited= FALSE;
       ndb_binlog_is_ready= FALSE;
       mysql_mutex_unlock(&injector_data_mutex);
@@ -4395,8 +4391,6 @@ int ndbcluster_binlog_start()
   mysql_mutex_init(PSI_INSTRUMENT_ME, &injector_event_mutex,
                    MY_MUTEX_INIT_SLOW);
   mysql_cond_init(PSI_INSTRUMENT_ME, &injector_data_cond);
-  mysql_mutex_init(PSI_INSTRUMENT_ME, &ndb_schema_share_mutex,
-                   MY_MUTEX_INIT_FAST);
   mysql_mutex_init(PSI_INSTRUMENT_ME, &injector_data_mutex,
                    MY_MUTEX_INIT_FAST);
 
@@ -5325,7 +5319,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   else if (do_ndb_schema_share)
   {
     /* ndb_share reference binlog extra */
-    Mutex_guard ndb_schema_share_g(ndb_schema_share_mutex);
+    Mutex_guard ndb_schema_share_g(injector_data_mutex);
     ndb_schema_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
@@ -6246,7 +6240,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
   DBUG_ENTER("remove_all_event_operations");
 
   /* protect ndb_schema_share */
-  mysql_mutex_lock(&ndb_schema_share_mutex);
+  mysql_mutex_lock(&injector_data_mutex);
   if (ndb_schema_share)
   {
     /* ndb_share reference binlog extra free */
@@ -6259,7 +6253,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
     free_share(&ndb_schema_share);
     ndb_schema_share= NULL;
   }
-  mysql_mutex_unlock(&ndb_schema_share_mutex);
+  mysql_mutex_unlock(&injector_data_mutex);
   /* end protect ndb_schema_share */
 
   /**
