@@ -106,8 +106,6 @@ BEGIN;
 UPDATE t1 SET a=3 WHERE a=10;
 DELETE FROM t1 where a=20;
 COMMIT;
---let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
 
 --echo
 --echo ## 3.4 Signal the waiting thread on server1 to resume.
@@ -119,6 +117,11 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo
 --echo ## 3.5 It will end up in an error stating that it was aborted, since
 --echo ##     transactions are conflicting and server2 was ordered first.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 --error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
