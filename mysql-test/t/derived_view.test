@@ -1827,6 +1827,60 @@ DROP TABLE t1,t2;
 --echo # end of 5.3 tests
 --echo #
 
+--echo #
+--echo # Bug mdev-11161: The second execution of prepared statement
+--echo #                 does not use generated key for materialized
+--echo #                 derived table / view 
+--echo # (actually this is a 5.3 bug.)               
+--echo #
+
+create table t1 (
+  mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  matintnum CHAR(6) NOT NULL,
+  test MEDIUMINT UNSIGNED NULL
+);
+create table t2 (
+  mat_id MEDIUMINT UNSIGNED NOT NULL,
+   pla_id MEDIUMINT UNSIGNED NOT NULL
+);
+insert into t1 values
+  (NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd', 4),
+  (NULL, 'e', 5), (NULL, 'f', 6), (NULL, 'g', 7), (NULL, 'h', 8),
+   (NULL, 'i', 9);
+insert into t2 values
+  (1, 100), (1, 101), (1, 102), (2, 100), (2, 103), (2, 104), 
+  (3, 101), (3, 102), (3, 105);
+
+explain
+ SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id
+   FROM t1 m2 
+        INNER JOIN
+        (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum
+           FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id
+         GROUP BY mp.pla_id) d
+        ON d.matintnum=m2.matintnum;
+
+prepare stmt1 from
+"SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id
+   FROM t1 m2 
+        INNER JOIN
+        (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum
+           FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id
+         GROUP BY mp.pla_id) d
+        ON d.matintnum=m2.matintnum";
+
+flush status;
+execute stmt1;
+show status like '%Handler_read%';
+
+flush status;
+execute stmt1;
+show status like '%Handler_read%';
+
+deallocate prepare stmt1;
+
+drop table t1,t2;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
 set join_cache_level=@exit_join_cache_level;

@@ -2496,5 +2496,88 @@ DROP TABLE t1,t2;
 #
 # end of 5.3 tests
 #
+#
+# Bug mdev-11161: The second execution of prepared statement
+#                 does not use generated key for materialized
+#                 derived table / view 
+# (actually this is a 5.3 bug.)               
+#
+create table t1 (
+mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+matintnum CHAR(6) NOT NULL,
+test MEDIUMINT UNSIGNED NULL
+);
+create table t2 (
+mat_id MEDIUMINT UNSIGNED NOT NULL,
+pla_id MEDIUMINT UNSIGNED NOT NULL
+);
+insert into t1 values
+(NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd', 4),
+(NULL, 'e', 5), (NULL, 'f', 6), (NULL, 'g', 7), (NULL, 'h', 8),
+(NULL, 'i', 9);
+insert into t2 values
+(1, 100), (1, 101), (1, 102), (2, 100), (2, 103), (2, 104), 
+(3, 101), (3, 102), (3, 105);
+explain
+SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id
+FROM t1 m2 
+INNER JOIN
+(SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum
+FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id
+GROUP BY mp.pla_id) d
+ON d.matintnum=m2.matintnum;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
+1	PRIMARY	<derived2>	ref	key0	key0	7	test.m2.matintnum	2	
+2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
+2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
+prepare stmt1 from
+"SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id
+   FROM t1 m2 
+        INNER JOIN
+        (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum
+           FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id
+         GROUP BY mp.pla_id) d
+        ON d.matintnum=m2.matintnum";
+flush status;
+execute stmt1;
+pla_id	mat_id
+102	1
+101	1
+100	1
+104	2
+103	2
+105	3
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	21
+Handler_read_last	0
+Handler_read_next	6
+Handler_read_prev	0
+Handler_read_rnd	6
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	27
+flush status;
+execute stmt1;
+pla_id	mat_id
+102	1
+101	1
+100	1
+104	2
+103	2
+105	3
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	21
+Handler_read_last	0
+Handler_read_next	6
+Handler_read_prev	0
+Handler_read_rnd	6
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	27
+deallocate prepare stmt1;
+drop table t1,t2;
 set optimizer_switch=@exit_optimizer_switch;
 set join_cache_level=@exit_join_cache_level;
