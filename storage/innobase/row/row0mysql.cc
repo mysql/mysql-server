@@ -3109,10 +3109,11 @@ row_create_index_for_mysql(
 			len = ut_max(len, field_lengths[i]);
 		}
 
-		DBUG_EXECUTE_IF(
+		// bug fix for http://bugs.mysql.com/bug.php?id=83741
+		/*DBUG_EXECUTE_IF(
 			"ib_create_table_fail_at_create_index",
 			len = DICT_MAX_FIELD_LEN_BY_FORMAT(table) + 1;
-		);
+		);*/
 
 		/* Column or prefix length exceeds maximum column length */
 		if (len > (ulint) DICT_MAX_FIELD_LEN_BY_FORMAT(table)) {
