@@ -25,3 +25,21 @@ select * from t1;
 c1
 2
 DROP TABLE t1;
+#
+# Bug #25032066: PREPARED TRANSACTION SHOULD NOT BE ROLLED BACK
+#
+CREATE TABLE t1(col1 int PRIMARY KEY, col2 int);
+INSERT INTO t1 VALUES(1, 10);
+XA START 'xid1';
+UPDATE t1 SET col2 = 20;
+XA END 'xid1';
+XA PREPARE 'xid1';
+include/start_transaction_high_prio.inc
+START TRANSACTION /* HIGH PRIORITY */;
+UPDATE t1 SET col2 = 30 WHERE col2 = 10;;
+XA COMMIT 'xid1';
+COMMIT;
+SELECT * FROM t1;
+col1	col2
+1	20
+DROP TABLE t1;

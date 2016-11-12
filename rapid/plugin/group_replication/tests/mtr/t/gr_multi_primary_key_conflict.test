@@ -82,8 +82,6 @@ UPDATE t1 SET a=3 AND b=5 WHERE a=1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 UPDATE t1 SET a=4 AND b=5 WHERE b=2;
---let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
 
 --echo
 --echo ############################################################
@@ -98,6 +96,11 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo # 6. It will end up in an error stating that it was aborted,
 --echo #    since transactions are conflicting and server2 was
 --echo #    ordered first.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 --error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
