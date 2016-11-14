@@ -1486,26 +1486,16 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
     int mblen= 0;
 
     /* Get next character */
-    if (char_index >= max_char_toscan)
+    if (char_index >= max_char_toscan ||
+        ((mblen= mb_wc(wc, sbeg, send)) <= 0))
     {
       sbeg= sbeg_dup;
       weight_lv++;
       char_index= 0;
       if (weight_lv < LEVELS_FOR_COMPARE)
         return 0; //Add level seperator
-    }
-    while (weight_lv < LEVELS_FOR_COMPARE)
-    {
-      if (((mblen= mb_wc(wc, sbeg, send)) > 0))
-        break;
-      sbeg= sbeg_dup;
-      weight_lv++;
-      char_index= 0;
-      if (weight_lv < LEVELS_FOR_COMPARE)
-        return 0; //Add level seperator
-    }
-    if (mblen <= 0)
       return -1;
+    }
 
     sbeg+= mblen;
     char_index++;
