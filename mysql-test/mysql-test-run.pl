@@ -2742,11 +2742,6 @@ sub environment_setup {
 		  ["storage/ndb/tools", "bin"],
 		  "ndb_desc");
 
-    $ENV{'NDB_DROP_TABLE'}=
-      my_find_bin($bindir,
-		  ["storage/ndb/tools", "bin"],
-		  "ndb_drop_table");
-
     $ENV{'NDB_SHOW_TABLES'}=
       my_find_bin($bindir,
 		  ["storage/ndb/tools", "bin"],
