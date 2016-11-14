@@ -1,0 +1,6 @@
+!include my.cnf
+
+[mysqld]
+# Turn on the "new flag to allow all different
+# kind of partitioning schemes for this test
+new
