@@ -719,23 +719,18 @@ public:
   */
   int get_weight_level() const { return weight_lv; }
 
-  // TODO: These should be private.
+  uint get_char_index() const { return char_index; }
 
+protected:
   /**
     How many characters (possibly multibyte) we have scanned so far.
     This includes characters with zero weight. Note that this is reset
     once we get to the end of the string and restart the scanning for
-    the next weight level.
+    the next weight level, but it is _not_ reset when we reach the
+    end of the last level.
   */
   uint char_index{0};
 
-  /**
-    The same as char_index, but counts only the first scan
-    (for the primary level), not the successive levels.
-  */
-  int char_scanned{0};
-
-protected:
   int weight_lv{0}; /* 0 = Primary, 1 = Secondary, 2 = Tertiary */
   const uint16 *wbeg;   /* Beginning of the current weight string */
   uint wbeg_stride{0};  /* Number of bytes between weights in string */
@@ -1489,18 +1484,23 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
     if (char_index >= max_char_toscan ||
         ((mblen= mb_wc(wc, sbeg, send)) <= 0))
     {
-      sbeg= sbeg_dup;
-      weight_lv++;
-      char_index= 0;
-      if (weight_lv < LEVELS_FOR_COMPARE)
-        return 0; //Add level seperator
+      if (++weight_lv < LEVELS_FOR_COMPARE)
+      {
+        /*
+          Restart scanning from the beginning of the string, and add
+          a level separator.
+        */
+        sbeg= sbeg_dup;
+        char_index= 0;
+        return 0;
+      }
+
+      // If we don't have any more levels left, we're done.
       return -1;
     }
 
     sbeg+= mblen;
     char_index++;
-    if (weight_lv == 0)
-      char_scanned++;
     if (wc[0] > level->maxchar)
     {
       /* Return 0xFFFD as weight for all characters outside BMP */
@@ -1584,7 +1584,6 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw_single_level()
 
     sbeg+= mblen;
     char_index++;
-    char_scanned++;
     if (wc[0] > level->maxchar)
     {
       /* Return 0xFFFD as weight for all characters outside BMP */
@@ -1695,14 +1694,10 @@ inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(T func)
       if (s_res && !func(s_res))
       {
         char_index+= sbeg - sbeg_copy;
-        if (LEVELS_FOR_COMPARE == 1 || weight_lv == 0)
-          char_scanned+= sbeg - sbeg_copy;
         return;
       }
     }
     char_index+= sbeg - sbeg_copy;
-    if (LEVELS_FOR_COMPARE == 1 || weight_lv == 0)
-      char_scanned+= sbeg - sbeg_copy;
 
     // Do a single character in the generic path.
     s_res= next();
@@ -2294,16 +2289,25 @@ my_strnxfrm_uca(const CHARSET_INFO *cs, Mb_wc mb_wc,
     if (dst < de)
       *dst++= s_res & 0xFF;
   }
-  nweights-= scanner.char_index;
-  
-  if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
+
+  if (dst < de && (flags & MY_STRXFRM_PAD_WITH_SPACE))
   {
-    uint space_count= MY_MIN((uint) (de - dst) / 2, nweights);
-    s_res= my_space_weight(cs);
-    for (; space_count ; space_count--)
+    /*
+      We still have space left in the output buffer, which must mean
+      that the scanner is at the end of the last level. Find out
+      how many weights we wrote per level, and add any remaining
+      spaces we need to get us up to the requested total.
+    */
+    nweights-= scanner.get_char_index();
+
+    if (nweights)
     {
-      *dst++= s_res >> 8;
-      *dst++= s_res & 0xFF;
+      uint space_count= std::min<uint>((de - dst) / 2, nweights);
+      s_res= my_space_weight(cs);
+      for (; space_count ; space_count--)
+      {
+        dst= store16be(dst, s_res);
+      }
     }
   }
   my_strxfrm_desc_and_reverse(d0, dst, flags, 0);
