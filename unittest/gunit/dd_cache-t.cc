@@ -991,6 +991,7 @@ TEST_F(CacheStorageTest, CommitNewObject)
   EXPECT_LT(9999u, icreated->id());
 
   dc->remove_uncommitted_objects<dd::Table>(true);
+  delete created;
 }
 
 
