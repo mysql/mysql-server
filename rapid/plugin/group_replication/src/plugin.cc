@@ -702,9 +702,6 @@ int plugin_group_replication_stop()
   /* first leave all joined groups (currently one) */
   leave_group();
 
-  group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                         Group_member_info::MEMBER_OFFLINE);
-
   int error= terminate_plugin_modules();
 
   group_replication_running= false;
@@ -788,6 +785,12 @@ int terminate_plugin_modules()
     Clear server sessions opened caches on transactions observer.
   */
   observer_trans_clear_io_cache_unused_list();
+
+  if (group_member_mgr != NULL && local_member_info != NULL)
+  {
+    group_member_mgr->update_member_status(local_member_info->get_uuid(),
+                                           Group_member_info::MEMBER_OFFLINE);
+  }
 
   return error;
 }

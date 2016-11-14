@@ -65,6 +65,16 @@ bool Spatial_reference_system_impl::validate() const
   return id() > UINT32_MAX;
 }
 
+
+bool Spatial_reference_system_impl::is_lat_long() const
+{
+  return (is_geographic() &&
+          (m_parsed_definition->axis_direction(0) ==
+           gis::srs::Axis_direction::NORTH ||
+           m_parsed_definition->axis_direction(0) ==
+           gis::srs::Axis_direction::SOUTH));
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 bool Spatial_reference_system_impl::restore_attributes(const Raw_record &r)

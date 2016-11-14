@@ -315,8 +315,7 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
   else if (!is_tmp_table &&
            (table_ref->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL))
   {
-    if (thd->dd_client()->update<dd::Table>(&old_non_tmp_table_def,
-                                            non_tmp_table_def))
+    if (thd->dd_client()->update<dd::Table>(non_tmp_table_def))
     {
       /* Statement rollback will revert effect of handler::truncate() as well. */
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);

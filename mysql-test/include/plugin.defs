@@ -54,7 +54,7 @@ innodb_engine      plugin/innodb_memcached/innodb_memcache INNODB_ENGINE
 validate_password  plugin/password_validation VALIDATE_PASSWORD validate_password
 rewrite_example    plugin/rewrite_example REWRITE_EXAMPLE
 rewriter           plugin/rewriter    REWRITER
-mysql_no_login     plugin/mysql_no_login      MYSQL_NO_LOGIN    mysql_no_login
+mysql_no_login     plugin/auth      MYSQL_NO_LOGIN    mysql_no_login
 test_udf_services  plugin/udf_services TESTUDFSERVICES
 group_replication  plugin/group_replication   GROUP_REPLICATION
 locking_service    sql                        LOCKING_SERVICE
@@ -83,6 +83,7 @@ libtest_sql_lock                        plugin/test_service_sql_api TEST_SQL_LOC
 libtest_sql_sqlmode                     plugin/test_service_sql_api TEST_SQL_SQLMODE
 libtest_sql_replication                 plugin/test_service_sql_api TEST_SQL_REPLICATION
 libtest_sql_errors                      plugin/test_service_sql_api TEST_SQL_ERRORS
+libtest_sql_stmt                        plugin/test_service_sql_api TEST_SQL_STMT
 # Test component
 component_example_component1    components/example  EXAMPLE_COMPONENT_1
 component_example_component2    components/example  EXAMPLE_COMPONENT_2

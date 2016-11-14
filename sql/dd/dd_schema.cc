@@ -107,7 +107,7 @@ bool alter_schema(THD *thd, const char *schema_name,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Update schema.
-  if (client->update(&old_sch_obj, new_sch_obj))
+  if (client->update(new_sch_obj))
     return true;
 
   return false;

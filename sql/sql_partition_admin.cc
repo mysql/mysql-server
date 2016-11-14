@@ -776,9 +776,8 @@ bool Sql_cmd_alter_table_exchange_partition::
       std::unique_ptr<THD, decltype(rollback_post_ddl_reopen_lambda)>
         rollback_post_ddl_reopen_guard(thd, rollback_post_ddl_reopen_lambda);
 
-      if (thd->dd_client()->update(&old_part_table_def, part_table_def) ||
-          thd->dd_client()->update<dd::Table>(&old_swap_table_def,
-                                              swap_table_def) ||
+      if (thd->dd_client()->update(part_table_def) ||
+          thd->dd_client()->update<dd::Table>(swap_table_def) ||
           write_bin_log(thd, true, thd->query().str, thd->query().length,
                         true))
       {
@@ -987,7 +986,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     */
     if (!error)
     {
-      if (thd->dd_client()->update<dd::Table>(&old_table_def, table_def) ||
+      if (thd->dd_client()->update<dd::Table>(table_def) ||
           write_bin_log(thd, true, thd->query().str, thd->query().length,
                         true))
         error= 1;

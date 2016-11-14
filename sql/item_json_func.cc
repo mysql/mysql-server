@@ -1092,7 +1092,7 @@ static uint32 compute_max_typelit()
 */
 static const uint32 typelit_max_length= compute_max_typelit();
 
-bool Item_func_json_type::resolve_type(THD *thd)
+bool Item_func_json_type::resolve_type(THD *)
 {
   maybe_null= true;
   m_value.set_charset(&my_charset_utf8mb4_bin);

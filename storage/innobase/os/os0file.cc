@@ -104,11 +104,6 @@ static const size_t	MAX_BLOCKS = 128;
 /** Block buffer size */
 #define BUFFER_BLOCK_SIZE ((ulint)(UNIV_PAGE_SIZE * 1.3))
 
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-/** Max disk sector size */
-static const ulint	MAX_SECTOR_SIZE = 4096;
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
-
 /** Disk sector size of aligning write buffer for DIRECT_IO */
 static ulint	os_io_ptr_align = UNIV_SECTOR_SIZE;
 
@@ -6290,6 +6285,10 @@ AIO::shutdown()
 }
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+
+/** Max disk sector size */
+static const ulint	MAX_SECTOR_SIZE = 4096;
+
 /**
 Try and get the FusionIO sector size. */
 void

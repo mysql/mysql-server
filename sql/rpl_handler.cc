@@ -872,6 +872,7 @@ void Binlog_relay_IO_delegate::init_param(Binlog_relay_IO_param *param,
                                           Master_info *mi)
 {
   param->mysql= mi->mysql;
+  param->channel_name= mi->get_channel();
   param->user= const_cast<char *>(mi->get_user());
   param->host= mi->host;
   param->port= mi->port;

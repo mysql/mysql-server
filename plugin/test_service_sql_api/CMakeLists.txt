@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -69,3 +69,6 @@ MYSQL_ADD_PLUGIN(test_sql_replication test_sql_replication.cc
 
 MYSQL_ADD_PLUGIN(test_sql_errors test_sql_errors.cc
   MODULE_ONLY MODULE_OUTPUT_NAME "libtest_sql_errors")
+
+MYSQL_ADD_PLUGIN(test_sql_stmt test_sql_stmt.cc
+  MODULE_ONLY MODULE_OUTPUT_NAME "libtest_sql_stmt")

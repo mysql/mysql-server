@@ -43,9 +43,7 @@ let SEARCH_PATTERN=\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error 71
 --exec $MYSQLD $args --initialize-insecure
 
 --echo # Backup datadir
---let SRC=$bugdir/data
---let DEST=$bugdir/data_backup
---source include/copy_dir.inc
+--force-cpdir $bugdir/data $bugdir/data_backup
 
 --echo # Start mysqld with non existent innodb_log_group_home_dir
 --error 1

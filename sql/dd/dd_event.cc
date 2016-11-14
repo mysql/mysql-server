@@ -474,7 +474,7 @@ bool update_event(THD *thd, const Event *event,
                        new_event_body, new_event_body_utf8, definer,
                        event_data, true);
 
-  if (client->update(&event, new_event))
+  if (client->update(new_event))
   {
     trans_rollback_stmt(thd);
     // Full rollback we have THD::transaction_rollback_request.
@@ -507,7 +507,7 @@ bool update_event_time_and_status(THD *thd, const Event *event,
   new_event->set_last_executed_null(false);
   new_event->set_last_executed(last_executed);
 
-  if (client->update(&event, new_event))
+  if (client->update(new_event))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.

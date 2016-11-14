@@ -708,7 +708,7 @@ bool update_view_status(THD *thd, const char *schema_name,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Update DD tables.
-  if (client->update(&old_view, new_view))
+  if (client->update(new_view))
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
@@ -717,7 +717,7 @@ bool update_view_status(THD *thd, const char *schema_name,
 
   bool error= trans_commit_stmt(thd) || trans_commit(thd);
   // TODO: Remove this call in WL#7743?
-  client->remove_uncommitted_objects<dd::View>(!error);
+  client->remove_uncommitted_objects<dd::Abstract_table>(!error);
   return error;
 }
 

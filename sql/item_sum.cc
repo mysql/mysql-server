@@ -418,7 +418,7 @@ void Item_sum::fix_num_length_and_dec()
 }
 
 
-bool Item_sum::resolve_type(THD *thd)
+bool Item_sum::resolve_type(THD *)
 {
   maybe_null=1;
   null_value=1;
@@ -1322,7 +1322,7 @@ Item_sum_bit::fix_fields(THD *thd, Item **ref)
 }
 
 
-bool Item_sum_bit::resolve_type(THD *thd)
+bool Item_sum_bit::resolve_type(THD *)
 {
   max_length= 0;
   if (bit_func_returns_binary(args[0], nullptr))
@@ -1611,7 +1611,7 @@ void Item_sum_sum::clear()
 }
 
 
-bool Item_sum_sum::resolve_type(THD *thd)
+bool Item_sum_sum::resolve_type(THD *)
 {
   DBUG_ENTER("Item_sum_sum::resolve_type");
   maybe_null= true;
@@ -2076,7 +2076,7 @@ Item_sum_variance::Item_sum_variance(THD *thd, Item_sum_variance *item):
 }
 
 
-bool Item_sum_variance::resolve_type(THD *thd)
+bool Item_sum_variance::resolve_type(THD *)
 {
   DBUG_ENTER("Item_sum_variance::resolve_type");
   maybe_null= true;
@@ -3403,7 +3403,7 @@ my_decimal *Item_sum_udf_int::val_decimal(my_decimal *dec)
 
 /** Default max_length is max argument length. */
 
-bool Item_sum_udf_str::resolve_type(THD *thd)
+bool Item_sum_udf_str::resolve_type(THD *)
 {
   max_length=0;
   for (uint i = 0; i < arg_count; i++)

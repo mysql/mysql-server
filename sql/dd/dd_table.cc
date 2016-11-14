@@ -2281,8 +2281,6 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
     return nullptr;
   }
 
-  thd->dd_client()->register_uncommitted_object(tab_obj->clone());
-
   if (commit_dd_changes)
   {
     if (trans_commit_stmt(thd) || trans_commit(thd))
@@ -2393,7 +2391,7 @@ bool add_foreign_keys_and_triggers(THD *thd,
 
   Disable_gtid_state_update_guard disabler(thd);
 
-  if (thd->dd_client()->update(&old_table, new_table))
+  if (thd->dd_client()->update(new_table))
   {
     if (commit_dd_changes)
     {
@@ -2624,7 +2622,7 @@ bool rename_table(THD *thd,
   new_tab->set_hidden(mark_as_hidden);
 
   // Do the update. Errors will be reported by the dictionary subsystem.
-  if (thd->dd_client()->update(&from_tab, new_tab))
+  if (thd->dd_client()->update(new_tab))
   {
     if (commit_dd_changes)
     {
@@ -2635,8 +2633,6 @@ bool rename_table(THD *thd,
     }
     return true;
   }
-
-  thd->dd_client()->object_renamed(new_tab);
 
   if (commit_dd_changes)
   {
@@ -2662,7 +2658,7 @@ bool rename_table(THD *thd,
   to_table_def->set_hidden(mark_as_hidden);
 
   // Do the update. Errors will be reported by the dictionary subsystem.
-  if (thd->dd_client()->update(&from_table_def, to_table_def))
+  if (thd->dd_client()->update(to_table_def))
   {
     if (commit_dd_changes)
     {
@@ -2673,8 +2669,6 @@ bool rename_table(THD *thd,
     }
     return true;
   }
-
-  thd->dd_client()->object_renamed(to_table_def);
 
   DBUG_EXECUTE_IF("alter_table_after_rename_1",
                    DBUG_SET("-d,alter_table_after_rename_1");
@@ -2918,7 +2912,8 @@ bool update_keys_disabled(THD *thd,
   // Save the changes
   Disable_gtid_state_update_guard disabler(thd);
 
-  if (client->update(&old_tab_obj, new_tab_obj))
+  // Update the changes
+  if (client->update(new_tab_obj))
   {
     if (commit_dd_changes)
     {
@@ -3037,7 +3032,7 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
 
   new_table_def->set_row_format(dd_get_new_row_format(correct_row_type));
 
-  if (thd->dd_client()->update(&old_table_def, new_table_def))
+  if (thd->dd_client()->update(new_table_def))
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
@@ -3106,8 +3101,7 @@ bool move_triggers(THD *thd,
   new_from_tab->drop_all_triggers();
 
   // Store from_clone and to_clone
-  if (client->update(&old_from_tab, new_from_tab) ||
-      client->update(&old_to_tab, new_to_tab))
+  if (client->update(new_from_tab) || client->update(new_to_tab))
   {
     if (commit_dd_changes)
     {

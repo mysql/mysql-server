@@ -1589,6 +1589,23 @@ bool Gis_point::get_mbr(MBR *mbr, wkb_parser *wkb) const
 }
 
 
+bool Gis_point::reverse_coordinates()
+{
+  double x;
+  double y;
+
+  if (get_x(&x) || get_y(&y))
+  {
+    return true;
+  }
+
+  float8store(get_cptr(), y);
+  float8store((get_cptr() + SIZEOF_STORED_DOUBLE), x);
+
+  return false;
+}
+
+
 const Geometry::Class_info *Gis_point::get_class_info() const
 {
   return &point_class;
@@ -1833,6 +1850,32 @@ int Gis_line_string::point_n(uint32 num, String *result) const
     return 1;
   wkb.skip_unsafe((num - 1) * POINT_DATA_SIZE);
   return create_point(result, &wkb);
+}
+
+
+bool Gis_line_string::reverse_coordinates()
+{
+  uint32 num_of_points;
+
+  if (num_points(&num_of_points))
+  {
+    return true;
+  }
+
+  for (uint32 i= 0; i < num_of_points; i++)
+  {
+    double x;
+    double y;
+
+    // +4 in below functions to skip numPoints field.
+    float8get(&x, get_cptr() + 4 + i * POINT_DATA_SIZE);
+    float8get(&y, get_cptr() + 4 + i * POINT_DATA_SIZE + SIZEOF_STORED_DOUBLE);
+
+    float8store(get_cptr() + 4 + i * POINT_DATA_SIZE, y);
+    float8store(get_cptr() + 4 + i * POINT_DATA_SIZE + SIZEOF_STORED_DOUBLE, x);
+  }
+
+  return false;
 }
 
 
@@ -2449,6 +2492,43 @@ int Gis_polygon::interior_ring_n(uint32 num, String *result) const
 }
 
 
+bool Gis_polygon::reverse_coordinates()
+{
+  uint32 current_data_offset= 0;
+  uint32 numrings;
+
+  if (num_interior_ring(&numrings))
+  {
+    return true;
+  }
+
+  numrings+= 1; //add exterior ring to number of rings.
+  current_data_offset+= 4; //add numRings header size to data offset.
+
+  for (uint32 i= 0; i < numrings; i++)
+  {
+    uint32 num_of_points= uint4korr(get_ucptr() + current_data_offset);
+    current_data_offset+= 4; // add linear ring header size to data offset.
+
+    for (uint32 j= 0; j < num_of_points; j++)
+    {
+      double x;
+      double y;
+
+      float8get(&x, get_cptr() + current_data_offset);
+      float8get(&y, get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
+
+      float8store(get_cptr() + current_data_offset, y);
+      float8store(get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE, x);
+
+      current_data_offset+= POINT_DATA_SIZE;
+    }
+  }
+
+  return false;
+}
+
+
 const Geometry::Class_info *Gis_polygon::get_class_info() const
 {
   return &polygon_class;
@@ -2730,6 +2810,37 @@ int Gis_multi_point::geometry_n(uint32 num, String *result) const
 }
 
 
+bool Gis_multi_point::reverse_coordinates()
+{
+  uint32 current_data_offset= 0;
+  uint32 num_of_points;
+  if (num_geometries(&num_of_points))
+  {
+    return true;
+  }
+
+  current_data_offset+= 4; //add number of points header to offset.
+
+  for (uint32 i= 0; i < num_of_points; i++)
+  {
+    double x;
+    double y;
+
+    current_data_offset+= WKB_HEADER_SIZE; //since each point includes a header.
+
+    float8get(&x, get_cptr() + current_data_offset);
+    float8get(&y, get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
+
+    float8store(get_cptr() + current_data_offset, y);
+    float8store(get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE, x);
+
+    current_data_offset+= POINT_DATA_SIZE;
+  }
+
+  return false;
+}
+
+
 const Geometry::Class_info *Gis_multi_point::get_class_info() const
 {
   return &multipoint_class;
@@ -2970,6 +3081,53 @@ int Gis_multi_line_string::is_closed(int *closed) const
 }
 
 
+bool Gis_multi_line_string::reverse_coordinates()
+{
+  uint32 num_of_linestrings;
+  size_t current_data_offset= 4; // Skip num_wkbLineStrings header size.
+
+  String str(get_cptr(), get_nbytes(), &my_charset_bin);
+
+  if (num_geometries(&num_of_linestrings))
+  {
+    return true;
+  }
+  for (uint32 i= 1; i <= num_of_linestrings; i++)
+  {
+    String result;
+
+    if (geometry_n(i, &result))
+    {
+      return true;
+    }
+
+    Geometry *g;
+    Geometry_buffer buffer;
+    if (!(g= Geometry::construct(&buffer, &result, false)))
+    {
+      return true;
+    }
+
+    if (g->reverse_coordinates())
+    {
+      return true;
+    }
+
+    if (str.replace(current_data_offset,
+                    result.length(),
+                    result.ptr(),
+                    result.length()))
+    {
+      return true;
+    }
+
+    current_data_offset+= result.length();
+  }
+
+  return false;
+}
+
+
 const Geometry::Class_info *Gis_multi_line_string::get_class_info() const
 {
   return &multilinestring_class;
@@ -3187,6 +3345,54 @@ int Gis_multi_polygon::geometry_n(uint32 num, String *result) const
   return result->append(start_of_polygon,
                         (uint32) (wkb.data() - start_of_polygon),
                         static_cast<size_t>(0));
+}
+
+
+bool Gis_multi_polygon::reverse_coordinates()
+{
+  uint32 num_of_polygons;
+  size_t current_data_offset= 4; // Skip num_polygons header size.
+
+  String str(get_cptr(), get_nbytes(), &my_charset_bin);
+
+  if (num_geometries(&num_of_polygons))
+  {
+    return true;
+  }
+
+  for (uint32 i= 1; i <= num_of_polygons; i++)
+  {
+    String result;
+
+    if (geometry_n(i, &result))
+    {
+      return true;
+    }
+
+    Geometry *g;
+    Geometry_buffer buffer;
+    if (!(g= Geometry::construct(&buffer, &result, false)))
+    {
+      return true;
+    }
+
+    if (g->reverse_coordinates())
+    {
+      return true;
+    }
+
+    if (str.replace(current_data_offset,
+                    result.length(),
+                    result.ptr(),
+                    result.length()))
+    {
+      return true;
+    }
+
+    current_data_offset+= result.length();
+  }
+
+  return false;
 }
 
 
@@ -3712,6 +3918,54 @@ bool Gis_geometry_collection::dimension(uint32 *res_dim,
       return true;
     set_if_bigger(*res_dim, dim);
   }
+  return false;
+}
+
+
+bool Gis_geometry_collection::reverse_coordinates()
+{
+  uint32 num_of_geometries;
+  size_t current_data_offset= 4; // Add num_of_geometries header size to offset.
+
+  String str(get_cptr(), get_nbytes(), &my_charset_bin);
+
+  if (num_geometries(&num_of_geometries))
+  {
+    return true;
+  }
+
+  for (uint32 i= 1; i <= num_of_geometries; i++)
+  {
+    String result;
+
+    if (geometry_n(i, &result))
+    {
+      return true;
+    }
+
+    Geometry *g;
+    Geometry_buffer buffer;
+    if (!(g= Geometry::construct(&buffer, &result, false)))
+    {
+      return true;
+    }
+
+    if (g->reverse_coordinates())
+    {
+      return true;
+    }
+
+    if (str.replace(current_data_offset,
+                    result.length(),
+                    result.ptr(),
+                    result.length()))
+    {
+      return true;
+    }
+
+    current_data_offset+= result.length();
+  }
+
   return false;
 }
 

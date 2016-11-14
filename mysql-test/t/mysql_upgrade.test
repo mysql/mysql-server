@@ -267,6 +267,11 @@ DROP TABLE backup_user;
 --echo # Upgrading of sys schema tests
 --echo #
 
+# Save a copy of the user/tables_priv tables, to restore later
+# Otherwise the final mysql_upgrade will REPLACE and update timestamps etc.
+--let $backup= 1
+--source include/backup_tables_priv_and_users.inc
+
 --echo # Remove the sys schema, and check the --skip-sys-schema option
 DROP DATABASE sys;
 --exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force
@@ -304,6 +309,10 @@ SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys
 DROP TABLE sys.sys_config;
 --exec $MYSQL_UPGRADE --skip-verbose --force
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'BASE TABLE';
+
+# Restore the saved contents of mysql.user and mysql.tables_priv
+--let $restore= 1
+--source include/backup_tables_priv_and_users.inc
 
 --echo #
 --echo # BUG#18985579: "CHECK TABLE .. FOR UPGRADE" FAILS TO REPORT

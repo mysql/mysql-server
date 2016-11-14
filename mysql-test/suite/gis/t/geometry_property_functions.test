@@ -1752,8 +1752,6 @@ BEGIN
     # GIS geometry property functions that do not depend on any SRS
     DO ST_ASWKT(@pt_geom);
     DO ST_ASTEXT(@pt_geom);
-    DO ST_ASBINARY(@pt_geom);
-    DO ST_ASWKB(@pt_geom);
 
     DO ST_SRID(@pt_geom);
     DO ST_ISEMPTY(@pt_geom);

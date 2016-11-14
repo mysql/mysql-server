@@ -14217,7 +14217,7 @@ static void test_bug11037()
 }
 
 /* Bug#10760: cursors, crash in a fetch after rollback. */
-
+#if 0 
 static void test_bug10760()
 {
   MYSQL_STMT *stmt;
@@ -14282,14 +14282,6 @@ static void test_bug10760()
     3: check that cursors to InnoDB tables are closed (for now) by
     COMMIT/ROLLBACK.
   */
-  if (! have_innodb)
-  {
-    if (!opt_silent)
-      printf("Testing that cursors are closed at COMMIT/ROLLBACK requires "
-             "InnoDB.\n");
-  }
-  else
-  {
     stmt_text= "select id from t1 order by 1";
     rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
     check_execute(stmt, rc);
@@ -14318,13 +14310,13 @@ static void test_bug10760()
     if (!opt_silent)
       printf("Got error (as expected): %s\n", mysql_error(mysql));
 #endif
-  }
 
   mysql_stmt_close(stmt);
   rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
   mysql_autocommit(mysql, TRUE);                /* restore default */
 }
+#endif
 
 static void test_bug12001()
 {
@@ -14706,12 +14698,6 @@ static void test_bug12243()
 
   myheader("test_bug12243");
 
-  if (! have_innodb)
-  {
-    if (!opt_silent)
-      printf("This test requires InnoDB.\n");
-    return;
-  }
 
   /* create tables */
   mysql_query(mysql, "drop table if exists t1");
@@ -20977,7 +20963,9 @@ static struct my_tests_st my_tests[]= {
   { "test_bug9735", test_bug9735 },
   { "test_bug11183", test_bug11183 },
   { "test_bug11037", test_bug11037 },
+#if 0 
   { "test_bug10760", test_bug10760 },
+#endif
   { "test_bug12001", test_bug12001 },
   { "test_bug11718", test_bug11718 },
   { "test_bug12925", test_bug12925 },

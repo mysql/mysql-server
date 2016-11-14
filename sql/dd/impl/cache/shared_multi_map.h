@@ -432,11 +432,13 @@ public:
     associated with the element will be removed from the maps, and the
     cache element wrapper will be deleted.
 
-    @param   K         Key type.
+    @tparam  K         Key type.
     @param   key       Key to be checked.
   */
+
   template <typename K>
   void drop_if_present(const K &key);
+
 
   /**
     Replace the object and re-generate the keys for an element.

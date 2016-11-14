@@ -701,8 +701,8 @@ static int check_connection(THD *thd)
   }
   vio_keepalive(net->vio, TRUE);
 
-  if (thd->get_protocol_classic()->get_packet()->alloc(
-      thd->variables.net_buffer_length))
+  if (thd->get_protocol_classic()->get_output_packet()->
+        alloc(thd->variables.net_buffer_length))
   {
     /*
       Important note:

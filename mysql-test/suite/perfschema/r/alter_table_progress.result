@@ -68,8 +68,6 @@ stage/sql/Locking system tables	NULL	NULL
 stage/sql/After create	NULL	NULL
 stage/sql/Opening system tables	NULL	NULL
 stage/sql/Locking system tables	NULL	NULL
-stage/sql/Opening system tables	NULL	NULL
-stage/sql/Locking system tables	NULL	NULL
 stage/sql/System lock	NULL	NULL
 stage/sql/copy to tmp table	5	5
 stage/sql/rename result table	NULL	NULL

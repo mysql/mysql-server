@@ -422,6 +422,7 @@ THD::THD(bool enable_plugins)
    in_lock_tables(0),
    got_warning(false),
    derived_tables_processing(FALSE),
+   parsing_system_view(false),
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),
    work_part_info(NULL),
@@ -2793,7 +2794,7 @@ bool THD::send_result_metadata(List<Item> *list, uint flags)
 
   DBUG_RETURN(m_protocol->end_result_metadata());
 
-  err:
+err:
   my_error(ER_OUT_OF_RESOURCES, MYF(0));        /* purecov: inspected */
   DBUG_RETURN(1);                               /* purecov: inspected */
 }
@@ -2842,16 +2843,17 @@ void THD::send_statement_status()
               server_status, da->last_statement_cond_count());
           break;
     case Diagnostics_area::DA_OK:
-      error= m_protocol->send_ok(
-              server_status, da->last_statement_cond_count(),
-              da->affected_rows(), da->last_insert_id(), da->message_text());
+      error=
+        m_protocol->send_ok(server_status, da->last_statement_cond_count(),
+                            da->affected_rows(), da->last_insert_id(),
+                            da->message_text());
           break;
     case Diagnostics_area::DA_DISABLED:
       break;
     case Diagnostics_area::DA_EMPTY:
     default:
       DBUG_ASSERT(0);
-          error= m_protocol->send_ok(server_status, 0, 0, 0, NULL);
+          error= m_protocol->send_ok(server_status, 0, 0, 0, nullptr);
           break;
   }
   if (!error)

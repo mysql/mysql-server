@@ -3174,7 +3174,8 @@ uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
                         uint *usable_parts);
 void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
                           uint primary_key_n, KEY *keyinfo, uint key_n,
-                          uint key_part_n, uint *usable_parts);
+                          uint key_part_n, uint *usable_parts,
+                          bool part_of_key_not_extended);
 
 const uchar *get_field_name(const uchar *arg, size_t *length);
 

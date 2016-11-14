@@ -345,6 +345,7 @@ ENDIF()
 SET(SERVER_TESTS
   copy_info
   create_field
+  dd_info_schema_native_func
   dd_properties
   dd_sdi
   dd_schema
@@ -473,10 +474,12 @@ IF (MERGE_UNITTESTS)
 
   TARGET_LINK_LIBRARIES(merge_small_tests-t
     gunit_small sqlgunitlib strings dbug regex)
-  TARGET_LINK_LIBRARIES(merge_large_tests-t sql binlog rpl master slave sql)
+  TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main binlog rpl master slave)
+  TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main sql_gis)
   TARGET_LINK_LIBRARIES(merge_large_tests-t
     gunit_large strings dbug regex mysys)
-  TARGET_LINK_LIBRARIES(merge_large_tests-t sql binlog rpl master slave sql)
+  TARGET_LINK_LIBRARIES(merge_large_tests-t
+    sql_main binlog rpl master slave sql_gis sql_main)
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
@@ -544,9 +547,11 @@ ENDIF(MERGE_UNITTESTS)
       )
     ENDIF()
     ADD_EXECUTABLE(${test}-t ${SRC_FILES})
-    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+    TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)
+    TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis)
     TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
-    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+    TARGET_LINK_LIBRARIES(${test}-t
+      sql_main binlog rpl master slave sql_gis sql_main)
 
     IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
       TARGET_LINK_LIBRARIES(${test}-t perfschema)

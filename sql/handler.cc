@@ -5248,7 +5248,7 @@ int ha_create_table(THD *thd, const char *path,
     {
       Disable_gtid_state_update_guard disabler(thd);
 
-      if(thd->dd_client()->update<dd::Table>(&old_table_def, new_table_def))
+      if(thd->dd_client()->update<dd::Table>(new_table_def))
         error= 1;
     }
     else

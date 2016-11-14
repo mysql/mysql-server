@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test for compress and uncompress functions:
 #
@@ -86,6 +81,7 @@ drop table t1;
 #
 create table t1 (a varchar(32) not null);
 insert into t1 values ('foo');
+analyze table t1;
 explain select * from t1 where uncompress(a) is null;
 select * from t1 where uncompress(a) is null;
 explain select *, uncompress(a) from t1;

@@ -976,14 +976,11 @@ bool do_command(THD *thd)
 {
   bool return_value;
   int rc;
-  const bool classic=
-    (thd->get_protocol()->type() == Protocol::PROTOCOL_TEXT ||
-     thd->get_protocol()->type() == Protocol::PROTOCOL_BINARY);
-
   NET *net= NULL;
   enum enum_server_command command;
   COM_DATA com_data;
   DBUG_ENTER("do_command");
+  DBUG_ASSERT(thd->is_classic_protocol());
 
   /*
     indicator of uninitialized lex => normal flow of errors handling
@@ -1000,18 +997,15 @@ bool do_command(THD *thd)
   thd->clear_error();				// Clear error message
   thd->get_stmt_da()->reset_diagnostics_area();
 
-  if (classic)
-  {
-    /*
-      This thread will do a blocking read from the client which
-      will be interrupted when the next command is received from
-      the client, the connection is closed or "net_wait_timeout"
-      number of seconds has passed.
-    */
-    net= thd->get_protocol_classic()->get_net();
-    my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
-    net_new_transaction(net);
-  }
+  /*
+    This thread will do a blocking read from the client which
+    will be interrupted when the next command is received from
+    the client, the connection is closed or "net_wait_timeout"
+    number of seconds has passed.
+  */
+  net= thd->get_protocol_classic()->get_net();
+  my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+  net_new_transaction(net);
 
   /*
     Synchronization point for testing of KILL_CONNECTION.
@@ -1046,20 +1040,10 @@ bool do_command(THD *thd)
 
   if (rc)
   {
-    if (classic)
-    {
-      char desc[VIO_DESCRIPTION_SIZE];
-      vio_description(net->vio, desc);
-      DBUG_PRINT("info",("Got error %d reading command from socket %s",
-                         net->error, desc));
-    }
-    else
-    {
-      DBUG_PRINT("info",("Got error %d reading command from %s protocol",
-                         rc,
-                         (thd->get_protocol()->type() ==
-                          Protocol::PROTOCOL_LOCAL) ? "local" : "plugin"));
-    }
+    char desc[VIO_DESCRIPTION_SIZE];
+    vio_description(net->vio, desc);
+    DBUG_PRINT("info",("Got error %d reading command from socket %s",
+                       net->error, desc));
     /* Instrument this broken statement as "statement/com/error" */
     thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
                                                  com_statement_info[COM_END].m_key);
@@ -1080,8 +1064,7 @@ bool do_command(THD *thd)
       return_value= TRUE;                       // We have to close it.
       goto out;
     }
-    if (classic)
-      net->error= 0;
+    net->error= 0;
     return_value= FALSE;
     goto out;
   }
@@ -1099,15 +1082,14 @@ bool do_command(THD *thd)
     DBUG_ASSERT(0);                // Should be caught earlier
 
   // Reclaim some memory
-  thd->get_protocol_classic()->get_packet()->shrink(
-      thd->variables.net_buffer_length);
+  thd->get_protocol_classic()->get_output_packet()->
+     shrink(thd->variables.net_buffer_length);
   /* Restore read timeout value */
-  if (classic)
-    my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
   return_value= dispatch_command(thd, &com_data, command);
-  thd->get_protocol_classic()->get_packet()->shrink(
-      thd->variables.net_buffer_length);
+  thd->get_protocol_classic()->get_output_packet()->
+    shrink(thd->variables.net_buffer_length);
 
 out:
   /* The statement instrumentation must be closed in all cases. */
@@ -1443,40 +1425,66 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   }
   case COM_STMT_EXECUTE:
   {
-    mysqld_stmt_execute(thd, com_data->com_stmt_execute.stmt_id,
-                        com_data->com_stmt_execute.flags,
-                        com_data->com_stmt_execute.params,
-                        com_data->com_stmt_execute.params_length);
+    /* Clear possible warnings from the previous command */
+    thd->reset_for_next_command();
+
+    Prepared_statement *stmt= nullptr;
+    if (!mysql_stmt_precheck(thd, com_data, command, &stmt))
+    {
+      PS_PARAM *parameters= com_data->com_stmt_execute.parameters;
+      mysqld_stmt_execute(thd, stmt, com_data->com_stmt_execute.has_new_types,
+                          com_data->com_stmt_execute.open_cursor, parameters);
+    }
     break;
   }
   case COM_STMT_FETCH:
   {
-    mysqld_stmt_fetch(thd, com_data->com_stmt_fetch.stmt_id,
-                      com_data->com_stmt_fetch.num_rows);
+    /* Clear possible warnings from the previous command */
+    thd->reset_for_next_command();
+
+    Prepared_statement *stmt= nullptr;
+    if (!mysql_stmt_precheck(thd, com_data, command, &stmt))
+      mysqld_stmt_fetch(thd, stmt, com_data->com_stmt_fetch.num_rows);
+
     break;
   }
   case COM_STMT_SEND_LONG_DATA:
   {
-    mysql_stmt_get_longdata(thd, com_data->com_stmt_send_long_data.stmt_id,
-                            com_data->com_stmt_send_long_data.param_number,
-                            com_data->com_stmt_send_long_data.longdata,
-                            com_data->com_stmt_send_long_data.length);
+    Prepared_statement *stmt;
+    thd->get_stmt_da()->disable_status();
+    if (!mysql_stmt_precheck(thd, com_data, command, &stmt))
+      mysql_stmt_get_longdata(thd, stmt,
+                              com_data->com_stmt_send_long_data.param_number,
+                              com_data->com_stmt_send_long_data.longdata,
+                              com_data->com_stmt_send_long_data.length);
     break;
   }
   case COM_STMT_PREPARE:
   {
-    mysqld_stmt_prepare(thd, com_data->com_stmt_prepare.query,
-                        com_data->com_stmt_prepare.length);
+    /* Clear possible warnings from the previous command */
+    thd->reset_for_next_command();
+    Prepared_statement *stmt= nullptr;
+    if (!mysql_stmt_precheck(thd, com_data, command, &stmt))
+      mysqld_stmt_prepare(thd, com_data->com_stmt_prepare.query,
+                          com_data->com_stmt_prepare.length, stmt);
     break;
   }
   case COM_STMT_CLOSE:
   {
-    mysqld_stmt_close(thd, com_data->com_stmt_close.stmt_id);
+    Prepared_statement *stmt= nullptr;
+    thd->get_stmt_da()->disable_status();
+    if (!mysql_stmt_precheck(thd, com_data, command, &stmt))
+      mysqld_stmt_close(thd, stmt);
     break;
   }
   case COM_STMT_RESET:
   {
-    mysqld_stmt_reset(thd, com_data->com_stmt_reset.stmt_id);
+    /* Clear possible warnings from the previous command */
+    thd->reset_for_next_command();
+
+    Prepared_statement *stmt= nullptr;
+    if (!mysql_stmt_precheck(thd, com_data, command, &stmt))
+      mysqld_stmt_reset(thd, stmt);
     break;
   }
   case COM_QUERY:
@@ -1824,7 +1832,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     // TODO: access of protocol_classic should be removed.
     // should be rewritten using store functions
     thd->get_protocol_classic()->write((uchar*) buff, length);
-    thd->get_protocol_classic()->flush_net();
+    thd->get_protocol()->flush();
     thd->get_stmt_da()->disable_status();
 #endif
     break;
@@ -2143,10 +2151,8 @@ bool alloc_query(THD *thd, const char *packet, size_t packet_length)
   thd->set_query(query, packet_length);
 
   /* Reclaim some memory */
-  if(thd->get_protocol()->type() == Protocol::PROTOCOL_TEXT ||
-     thd->get_protocol()->type() == Protocol::PROTOCOL_BINARY)
-
-  thd->convert_buffer.shrink(thd->variables.net_buffer_length);
+  if (thd->is_classic_protocol())
+    thd->convert_buffer.shrink(thd->variables.net_buffer_length);
 
   return FALSE;
 }
@@ -5074,6 +5080,7 @@ void THD::reset_for_next_command()
   thd->set_trans_pos(NULL, 0);
 
   thd->derived_tables_processing= false;
+  thd->parsing_system_view= false;
 
   // Need explicit setting, else demand all privileges to a table.
   thd->want_privilege= ~NO_ACCESS;

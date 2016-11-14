@@ -570,13 +570,13 @@ public:
     empty();
   }
 
-  T *operator[] (int index) const
+  T *operator[] (uint index) const
   {
     DBUG_ASSERT(index < elements);
-    T *current= first;
-    for (int i= 0; i < index; ++i)
+    list_node *current= first;
+    for (uint i= 0; i < index; ++i)
       current= current->next;
-    return current->info;
+    return static_cast<T*>(current->info);
   }
 
   using base_list::sort;

@@ -898,7 +898,7 @@ bool Srv_session::open()
   DBUG_PRINT("info",("Session=%p  THD=%p  DA=%p", this, &thd, &da));
   DBUG_ASSERT(state == SRV_SESSION_CREATED || state == SRV_SESSION_CLOSED);
 
-  thd.set_protocol(&protocol_error);
+  thd.push_protocol(&protocol_error);
   thd.push_diagnostics_area(&da);
   /*
     thd.stack_start will be set once we start attempt to attach.
@@ -1140,6 +1140,7 @@ bool Srv_session::close()
   close_mysql_tables(&thd);
 
   thd.pop_diagnostics_area();
+  thd.pop_protocol();
 
   thd.get_stmt_da()->reset_diagnostics_area();
 
@@ -1221,7 +1222,7 @@ int Srv_session::execute_command(enum enum_server_command command,
   /* Switch to different callbacks */
   Protocol_callback client_proto(callbacks, text_or_binary, callbacks_context);
 
-  thd.set_protocol(&client_proto);
+  thd.push_protocol(&client_proto);
 
   mysql_audit_release(&thd);
 
@@ -1234,7 +1235,8 @@ int Srv_session::execute_command(enum enum_server_command command,
 
   int ret= dispatch_command(&thd, data, command);
 
-  thd.set_protocol(&protocol_error);
+  thd.pop_protocol();
+  DBUG_ASSERT(thd.get_protocol() == &protocol_error);
   DBUG_RETURN(ret);
 }
 

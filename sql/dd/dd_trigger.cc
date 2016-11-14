@@ -272,7 +272,7 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
     Store the dd::Table object. All the trigger objects are stored
     in mysql.triggers. Errors will be reported by the dictionary subsystem.
   */
-  if (dd_client->update(&old_table, new_table))
+  if (dd_client->update(new_table))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -619,7 +619,7 @@ bool drop_trigger(THD *thd,
     Store the Table object. All the trigger objects are stored
     in mysql.triggers.
   */
-  if (dd_client->update(&old_table, new_table))
+  if (dd_client->update(new_table))
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
@@ -690,7 +690,7 @@ bool drop_all_triggers(THD *thd,
     Store the dd::Table object. All the trigger objects are removed from
     mysql.triggers.
   */
-  if (dd_client->update(&old_table, new_table))
+  if (dd_client->update(new_table))
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);

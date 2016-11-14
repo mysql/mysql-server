@@ -1,8 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
+# Innodb page size 16k required
+--source include/have_innodb_16k.inc
 
 # Initialise
 --disable_warnings
@@ -54,6 +51,8 @@ INSERT INTO t2 VALUES (2,'name','pass','mail','Y','v','n','adr','1','1','1');
 INSERT INTO t2 VALUES (3,'name','pass','mail','Y','v','n','adr','1','1','1');
 INSERT INTO t2 VALUES (4,'name','pass','mail','Y','v','n','adr','1','1','1');
 INSERT INTO t2 VALUES (5,'name','pass','mail','Y','v','n','adr','1','1','1');
+
+ANALYZE TABLE t1,t2;
 
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid ORDER BY NULL;
@@ -262,6 +261,7 @@ CREATE TABLE t1 (
 );
 
 INSERT INTO t1 VALUES (1,1,1),(2,2,2),(2,1,1),(3,3,3),(4,3,3),(5,3,3),(6,3,3),(7,3,3);
+ANALYZE TABLE t1;
 explain select userid,count(*) from t1 group by userid desc;
 explain select userid,count(*) from t1 group by userid desc order by null;
 select userid,count(*) from t1 group by userid desc;
@@ -416,6 +416,7 @@ create table t1 (a int not null, b int not null);
 insert into t1 values (1,1),(1,2),(3,1),(3,2),(2,2),(2,1);
 create table t2 (a int not null, b int not null, key(a));
 insert into t2 values (1,3),(3,1),(2,2),(1,1);
+analyze table t1;
 select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b;
 select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b ORDER BY NULL;
 explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b;
@@ -459,6 +460,7 @@ CREATE TABLE t1 (
   key (score)
 );
 INSERT INTO t1 VALUES (1,1),(2,2),(1,1),(3,3),(3,3),(3,3),(3,3),(3,3);
+ANALYZE TABLE t1;
 # Here we select unordered GROUP BY into a temporary talbe, 
 # and then sort it with filesort (GROUP BY in MySQL 
 # implies sorted order of results)
@@ -470,6 +472,7 @@ CREATE TABLE t1 (
   j int(11) default NULL
 );
 INSERT INTO t1 VALUES (1,2),(2,3),(4,5),(3,5),(1,5),(23,5);
+ANALYZE TABLE t1;
 --source include/turn_off_only_full_group_by.inc
 SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
 explain SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
@@ -531,7 +534,8 @@ insert into t2 select
 from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4;
 
 delete from t2  where a = 2 and b = 'val-2' order by a,b,c,d limit 30;
-
+analyze table t1,t2;
+--replace_column  10 #
 explain select c from t2 where a = 2 and b = 'val-2' group by c;
 select c from t2 where a = 2 and b = 'val-2' group by c;
 drop table t1,t2;
@@ -726,6 +730,7 @@ INSERT INTO t2 VALUES (1,1), (2,1), (6,6), (18,17), (15,25), (16,25),
 
 CREATE VIEW v1 AS select t1.a, concat(t1.b,'') AS b, t1.b as real_b from t1;
 
+--replace_column 10 #
 explain 
 SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
@@ -750,7 +755,7 @@ INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20) FROM t1;
 INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20) FROM t1;
 
 SELECT MIN(b), MAX(b) from t1;
-
+ANALYZE TABLE t1;
 EXPLAIN SELECT b, sum(1) FROM t1 GROUP BY b;
 EXPLAIN SELECT SQL_BIG_RESULT b, sum(1) FROM t1 GROUP BY b;
 SELECT b, sum(1) FROM t1 GROUP BY b;
@@ -1011,7 +1016,7 @@ INSERT INTO t1 VALUES
 (8,0,0, 'k','k'),
 (9,6,6, 't','t'),
 (10,0,0,'c','c');
-
+ANALYZE TABLE t1;
 explain SELECT COUNT(varchar_key) AS x FROM t1 WHERE pk = 8 having 'foo'='bar';
 SELECT COUNT(varchar_key) AS x FROM t1 WHERE pk = 8 having 'foo'='bar';
 drop table t1;
@@ -1072,7 +1077,7 @@ EXPLAIN SELECT a FROM t1 IGNORE INDEX ();
 # without support for large files the rowid is shorter and its size affects 
 # the cost calculations. This causes the optimizer to choose loose index
 # scan over normal index access.
---replace_column 5 # 8 # 10 # 12 #
+--replace_column 10 # 
 EXPLAIN SELECT a FROM t1 USE INDEX FOR JOIN (i2) 
   USE INDEX FOR GROUP BY (i2) GROUP BY a;
 EXPLAIN SELECT a FROM t1 FORCE INDEX FOR JOIN (i2) 
@@ -1097,7 +1102,7 @@ CREATE TABLE t2 (a INT, b INT, KEY(a));
 INSERT INTO t2 VALUES (1, 1), (2, 2), (3,3), (4,4);
 EXPLAIN SELECT a, SUM(b) FROM t2 GROUP BY a LIMIT 2; 
 EXPLAIN SELECT a, SUM(b) FROM t2 IGNORE INDEX (a) GROUP BY a LIMIT 2;
-
+ANALYZE TABLE t2;
 EXPLAIN SELECT 1 FROM t2 WHERE a IN
   (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 
@@ -1127,6 +1132,7 @@ CREATE TABLE t2(
 );
 
 INSERT INTO t2 VALUES (NULL, NULL), (NULL, NULL), (NULL, 1), (1, NULL), (1, 1), (1,2);
+ANALYZE TABLE t1,t2;
 
 EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d;
 SELECT c,b,d FROM t1 GROUP BY c,b,d;
@@ -1235,6 +1241,7 @@ SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
 --echo # should return the same result in a reverse order:
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 
+ANALYZE TABLE t1;
 --echo # execution plan should not use temporary table:
 EXPLAIN EXTENDED
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
@@ -1275,6 +1282,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t2 VALUES (1), (2);
+ANALYZE TABLE t1,t2;
 EXPLAIN SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
 SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
 EXPLAIN SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
@@ -1288,7 +1296,7 @@ DROP TABLE t1, t2;
 
 CREATE TABLE t1 (a text, b varchar(10));
 INSERT INTO t1 VALUES (repeat('1', 1300),'one'), (repeat('1', 1300),'two');
-
+ANALYZE TABLE t1;
 query_vertical EXPLAIN 
 SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
 SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
@@ -1352,6 +1360,8 @@ INSERT INTO t1 VALUES
   ( 2, 1,  6 ),
   ( 2, 2,  7 ),
   ( 2, 3,  8 );
+
+ANALYZE TABLE t1;
 
 EXPLAIN
 SELECT a, AVG(t1.b),
@@ -1530,6 +1540,7 @@ let $query=
 SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
 STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
 GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk ;
+--replace_column 10 #
 eval EXPLAIN $query;
 eval $query;
 
@@ -1607,6 +1618,7 @@ CREATE TABLE t1(
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
    (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 
+ANALYZE TABLE t1;
 let $query=SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
            FROM t1 GROUP BY field1, field2;
 
@@ -1748,6 +1760,7 @@ GROUP BY field1,
    WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
   );
 
+ANALYZE TABLE t1;
 --echo # In GROUP BY, aliases are printed as aliases.
 
 eval EXPLAIN EXTENDED $query_with_alias_in_group_by;
@@ -1797,7 +1810,7 @@ SET @@sql_mode = @old_sql_mode;
 
 CREATE TABLE t2(a INT);
 INSERT INTO t2 VALUES(3),(4);
-
+ANALYZE TABLE t1,t2;
 EXPLAIN EXTENDED SELECT
 pk AS foo, col_int_key AS bar, (SELECT a FROM t2 WHERE a=t1.pk) AS baz
 FROM t1
@@ -1841,7 +1854,7 @@ CREATE TABLE t3 (
 );
 
 CREATE VIEW view1 AS SELECT * FROM t1;
-
+ANALYZE TABLE t1,t2,t3;
 EXPLAIN EXTENDED
 SELECT
     alias1.col_datetime_key AS field1
@@ -1890,7 +1903,7 @@ field1
        table2.col_varchar_key >= table1.col_varchar_nokey 
 ORDER BY field1
 ;
-
+ANALYZE TABLE t1,t2;
 EXPLAIN EXTENDED SELECT * FROM view1;
 
 DROP TABLE t1,t2;
@@ -1900,7 +1913,7 @@ DROP VIEW view1;
 
 CREATE TABLE t1 (col_varchar_nokey varchar(1) DEFAULT NULL);
 INSERT INTO t1 VALUES ('v'),('c');
-
+ANALYZE TABLE t1;
 EXPLAIN EXTENDED SELECT (SELECT 150) AS field5
 FROM (SELECT * FROM t1) AS alias1
 GROUP BY field5;
@@ -2098,7 +2111,7 @@ INSERT INTO t1 SELECT NULL, kp1, kp2+1 from t1;
 INSERT INTO t1 SELECT NULL, kp1, kp2+2 from t1;
 INSERT INTO t1 SELECT NULL, kp1, kp2+4 from t1;
 INSERT INTO t1 SELECT NULL, kp1, kp2 from t1;
-
+ANALYZE TABLE t1;
 --disable_query_log
 --disable_result_log
 ANALYZE TABLE t1;
@@ -2391,7 +2404,7 @@ CREATE TABLE t1(
 );
 
 INSERT INTO t1 VALUES(1,2,1),(2,4,1);
-
+ANALYZE TABLE t1;
 let $query=
 SELECT a, (SELECT SUM(a + c) FROM (SELECT b as c FROM t1) AS v1) FROM t1;
 
@@ -2455,7 +2468,7 @@ INSERT INTO t1(f1, f2, f3) VALUES
 CREATE TABLE t2 (f1 VARCHAR(1) NOT NULL);
 
 FLUSH TABLES;
-
+ANALYZE TABLE t1,t2;
 EXPLAIN SELECT MIN(t1.f3 ) FROM t1
 WHERE t1.f3 IN (SELECT t2.f1 FROM t2 WHERE NOT t1.f2 IS NOT NULL) AND t1.f1 IS NULL OR
   NOT t1 . f3 < 'q';
@@ -2486,3 +2499,4 @@ SELECT SQL_BUFFER_RESULT txt, VAR_POP(i) v FROM t GROUP BY txt ORDER BY v, txt;
 SELECT SQL_BUFFER_RESULT txt, STDDEV_POP(i) s FROM t
 GROUP BY txt ORDER BY s, txt;
 DROP TABLE t;
+

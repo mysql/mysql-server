@@ -146,7 +146,6 @@ SET GTID_NEXT= 'AUTOMATIC';
 --echo #  7. Commit a transaction (T2) on group on server 2.
 --connection server2
 UPDATE t1 SET c1=2 WHERE c1=0;
---source include/rpl_sync.inc
 
 
 --echo
@@ -157,6 +156,10 @@ UPDATE t1 SET c1=2 WHERE c1=0;
 --connection server1
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET DEBUG_SYNC= 'now SIGNAL signal.resume_after_set_snapshot_version_on_transaction_context_log_event';
+
+--connection server2
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
 
 # ER_TRANSACTION_ROLLBACK_DURING_COMMIT, ER_MTS_INCONSISTENT_DATA
 --let $slave_sql_errno= 3101, 1756

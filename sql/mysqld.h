@@ -635,9 +635,6 @@ extern char default_logfile_name[FN_REFLEN];
 
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 
-extern MYSQL_PLUGIN_IMPORT const Key_map key_map_empty;
-extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
-
 /*
   Server mutex locks and condition variables.
  */
