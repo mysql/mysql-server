@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1178,9 +1178,10 @@ f_tup_errors[] =
   { NdbOperation::InsertRequest, 4019, TupError::TE_REPLICA }, //Alloc rowid error
   { NdbOperation::InsertRequest, 4020, TupError::TE_MULTI_OP }, // Size change error
   { NdbOperation::InsertRequest, 4021, TupError::TE_DISK },    // Out of disk space
-  { NdbOperation::InsertRequest, 4022, TupError::TE_OI },
-  { NdbOperation::InsertRequest, 4023, TupError::TE_OI },
-  { NdbOperation::UpdateRequest, 4030, TupError::TE_UI },
+  { NdbOperation::InsertRequest, 4022, TupError::TE_OI },  // Tux add error first
+  { NdbOperation::InsertRequest, 4023, TupError::TE_OI },  // Tux add error last
+  { NdbOperation::InsertRequest, 4030, TupError::TE_UI },
+  { NdbOperation::UpdateRequest, 4030, TupError::TE_UI },  // UI trig error
   { -1, 0, 0 }
 };
 
