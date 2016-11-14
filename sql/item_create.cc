@@ -221,6 +221,27 @@ public:
 };
 
 
+/**
+  Instantiates a function class with three arguments.
+
+  @tparam Function_class The class that implements the function. Does not need
+  to inherit Item_func.
+*/
+template<typename Function_class>
+class Instantiator<Function_class, 3>
+{
+public:
+  static const uint Min_argcount= 3;
+  static const uint Max_argcount= 3;
+
+  Item *instantiate(THD *thd, PT_item_list *args)
+  {
+    return new (thd->mem_root)
+      Function_class(POS(), (*args)[0], (*args)[1], (*args)[2]);
+  }
+};
+
+
 } // namespace
 
 
@@ -530,33 +551,6 @@ Function_factory<Instantiator_fn>::s_singleton;
 }
 
 /**
-  Adapter for functions that takes exactly three arguments.
-*/
-
-class Create_func_arg3 : public Create_func
-{
-public:
-  virtual Item *create_func(THD *thd, LEX_STRING name, PT_item_list *item_list);
-
-  /**
-    Builder method, with three arguments.
-    @param thd The current thread
-    @param arg1 The first argument of the function
-    @param arg2 The second argument of the function
-    @param arg3 The third argument of the function
-    @return An item representing the function call
-  */
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3) = 0;
-
-protected:
-  /** Constructor. */
-  Create_func_arg3() {}
-  /** Destructor. */
-  virtual ~Create_func_arg3() {}
-};
-
-
-/**
   Function builder for Stored Functions.
 */
 
@@ -744,32 +738,6 @@ public:
 protected:
   Create_func_concat_ws() {}
   virtual ~Create_func_concat_ws() {}
-};
-
-
-class Create_func_conv : public Create_func_arg3
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
-
-  static Create_func_conv s_singleton;
-
-protected:
-  Create_func_conv() {}
-  virtual ~Create_func_conv() {}
-};
-
-
-class Create_func_convert_tz : public Create_func_arg3
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
-
-  static Create_func_convert_tz s_singleton;
-
-protected:
-  Create_func_convert_tz() {}
-  virtual ~Create_func_convert_tz() {}
 };
 
 
@@ -1274,19 +1242,6 @@ protected:
 };
 
 
-class Create_func_lpad : public Create_func_arg3
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
-
-  static Create_func_lpad s_singleton;
-
-protected:
-  Create_func_lpad() {}
-  virtual ~Create_func_lpad() {}
-};
-
-
 class Create_func_uuid_to_bin : public Create_native_func
 {
 public:
@@ -1310,18 +1265,6 @@ public:
 protected:
   Create_func_bin_to_uuid() {}
   virtual ~Create_func_bin_to_uuid() {}
-};
-
-class Create_func_maketime : public Create_func_arg3
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
-
-  static Create_func_maketime s_singleton;
-
-protected:
-  Create_func_maketime() {}
-  virtual ~Create_func_maketime() {}
 };
 
 
@@ -1407,19 +1350,6 @@ protected:
 };
 
 
-class Create_func_rpad : public Create_func_arg3
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
-
-  static Create_func_rpad s_singleton;
-
-protected:
-  Create_func_rpad() {}
-  virtual ~Create_func_rpad() {}
-};
-
-
 class Create_func_srid : public Create_native_func
 {
 public:
@@ -1431,18 +1361,6 @@ public:
 protected:
   Create_func_srid() {}
   virtual ~Create_func_srid() {}
-};
-
-class Create_func_substr_index : public Create_func_arg3
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
-
-  static Create_func_substr_index s_singleton;
-
-protected:
-  Create_func_substr_index() {}
-  virtual ~Create_func_substr_index() {}
 };
 
 
@@ -1471,19 +1389,6 @@ public:
 protected:
   Create_func_x() {}
   virtual ~Create_func_x() {}
-};
-
-
-class Create_func_xml_update : public Create_func_arg3
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
-
-  static Create_func_xml_update s_singleton;
-
-protected:
-  Create_func_xml_update() {}
-  virtual ~Create_func_xml_update() {}
 };
 
 
@@ -1919,28 +1824,6 @@ Create_native_func::create_func(THD *thd, LEX_STRING name,
 }
 
 
-Item*
-Create_func_arg3::create_func(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-{
-  int arg_count= 0;
-
-  if (item_list)
-    arg_count= item_list->elements();
-
-  if (arg_count != 3)
-  {
-    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
-    return NULL;
-  }
-
-  Item *param_1= item_list->pop_front();
-  Item *param_2= item_list->pop_front();
-  Item *param_3= item_list->pop_front();
-  return create(thd, param_1, param_2, param_3);
-}
-
-
 Create_func_aes_encrypt Create_func_aes_encrypt::s_singleton;
 
 
@@ -2132,24 +2015,6 @@ Create_func_concat_ws::create_native(THD *thd, LEX_STRING name,
   }
 
   return new (thd->mem_root) Item_func_concat_ws(POS(), item_list);
-}
-
-
-Create_func_conv Create_func_conv::s_singleton;
-
-Item*
-Create_func_conv::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
-{
-  return new (thd->mem_root) Item_func_conv(POS(), arg1, arg2, arg3);
-}
-
-
-Create_func_convert_tz Create_func_convert_tz::s_singleton;
-
-Item*
-Create_func_convert_tz::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
-{
-  return new (thd->mem_root) Item_func_convert_tz(POS(), arg1, arg2, arg3);
 }
 
 
@@ -3359,15 +3224,6 @@ Create_func_log::create_native(THD *thd, LEX_STRING name,
 }
 
 
-Create_func_lpad Create_func_lpad::s_singleton;
-
-Item*
-Create_func_lpad::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
-{
-  return new (thd->mem_root) Item_func_lpad(POS(), arg1, arg2, arg3);
-}
-
-
 Create_func_uuid_to_bin Create_func_uuid_to_bin::s_singleton;
 
 Item*
@@ -3441,15 +3297,6 @@ Create_func_bin_to_uuid::create_native(THD *thd, LEX_STRING name,
   }
 
   return func;
-}
-
-
-Create_func_maketime Create_func_maketime::s_singleton;
-
-Item*
-Create_func_maketime::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
-{
-  return new (thd->mem_root) Item_func_maketime(POS(), arg1, arg2, arg3);
 }
 
 
@@ -3685,15 +3532,6 @@ Create_func_round::create_native(THD *thd, LEX_STRING name,
 }
 
 
-Create_func_rpad Create_func_rpad::s_singleton;
-
-Item*
-Create_func_rpad::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
-{
-  return new (thd->mem_root) Item_func_rpad(POS(), arg1, arg2, arg3);
-}
-
-
 Create_func_srid Create_func_srid::s_singleton;
 
 Item*
@@ -3731,16 +3569,6 @@ Create_func_srid::create_native(THD *thd, LEX_STRING name,
   }
 
   return func;
-}
-
-
-Create_func_substr_index Create_func_substr_index::s_singleton;
-
-Item*
-Create_func_substr_index::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
-{
-  return new (thd->mem_root) Item_func_substr_index(POS(), arg1, arg2,
-                                                    arg3);
 }
 
 
@@ -3811,16 +3639,6 @@ Create_func_x::create_native(THD *thd, LEX_STRING name, PT_item_list *item_list)
   }
 
   return func;
-}
-
-
-Create_func_xml_update Create_func_xml_update::s_singleton;
-
-Item*
-Create_func_xml_update::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
-{
-  return new (thd->mem_root) Item_func_xml_update(POS(), arg1, arg2,
-                                                  arg3);
 }
 
 
@@ -3909,6 +3727,13 @@ Create_func_get_dd_column_privileges::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 3)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -3937,6 +3762,13 @@ Create_func_get_dd_index_sub_part_length::create_native(
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 5)
   {
@@ -3967,6 +3799,13 @@ Create_func_get_dd_create_options::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 2)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -3992,6 +3831,13 @@ Create_func_can_access_database::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 1)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4015,6 +3861,13 @@ Create_func_can_access_table::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 2)
   {
@@ -4040,6 +3893,13 @@ Create_func_can_access_view::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -4068,6 +3928,13 @@ Create_func_can_access_column::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 3)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4094,6 +3961,13 @@ Create_func_internal_table_rows::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -4126,6 +4000,13 @@ Create_func_internal_avg_row_length::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 4)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4155,6 +4036,13 @@ Create_func_internal_data_length::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -4187,6 +4075,13 @@ Create_func_internal_max_data_length::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 4)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4218,6 +4113,13 @@ Create_func_internal_index_length::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 4)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4247,6 +4149,13 @@ Create_func_internal_data_free::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -4279,6 +4188,13 @@ Create_func_internal_auto_increment::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 4)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4309,6 +4225,13 @@ Create_func_internal_checksum::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -4341,6 +4264,13 @@ Create_func_internal_update_time::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 4)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4371,6 +4301,13 @@ Create_func_internal_check_time::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -4403,6 +4340,13 @@ Create_func_internal_keys_disabled::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 1)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4428,6 +4372,13 @@ Create_func_internal_index_column_cardinality::create_native(
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 7)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4451,6 +4402,13 @@ Create_func_internal_get_comment_or_error::create_native(
   if (item_list)
     arg_count= item_list->elements();
 
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
   if (arg_count != 5)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4472,6 +4430,13 @@ Create_func_internal_get_view_warning_or_error::create_native(
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {
@@ -4547,8 +4512,8 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("CONCAT") }, BUILDER(Create_func_concat)},
   { { C_STRING_WITH_LEN("CONCAT_WS") }, BUILDER(Create_func_concat_ws)},
   { { C_STRING_WITH_LEN("CONNECTION_ID") }, SQL_FN(Item_func_connection_id, 0) },
-  { { C_STRING_WITH_LEN("CONV") }, BUILDER(Create_func_conv)},
-  { { C_STRING_WITH_LEN("CONVERT_TZ") }, BUILDER(Create_func_convert_tz)},
+  { { C_STRING_WITH_LEN("CONV") }, SQL_FN(Item_func_conv, 3) },
+  { { C_STRING_WITH_LEN("CONVERT_TZ") }, SQL_FN(Item_func_convert_tz, 3) },
   { { C_STRING_WITH_LEN("COS") }, SQL_FN(Item_func_cos, 1) },
   { { C_STRING_WITH_LEN("COT") }, SQL_FN(Item_func_cot, 1) },
   { { C_STRING_WITH_LEN("CRC32") }, SQL_FN(Item_func_crc32, 1) },
@@ -4631,10 +4596,10 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("LOG10") }, SQL_FN(Item_func_log10, 1)},
   { { C_STRING_WITH_LEN("LOG2") }, SQL_FN(Item_func_log2, 1)},
   { { C_STRING_WITH_LEN("LOWER") }, SQL_FN(Item_func_lower, 1) },
-  { { C_STRING_WITH_LEN("LPAD") }, BUILDER(Create_func_lpad)},
+  { { C_STRING_WITH_LEN("LPAD") }, SQL_FN(Item_func_lpad, 3) },
   { { C_STRING_WITH_LEN("LTRIM") }, SQL_FN(Item_func_ltrim, 1) },
   { { C_STRING_WITH_LEN("MAKEDATE") }, SQL_FN(Item_func_makedate, 2) },
-  { { C_STRING_WITH_LEN("MAKETIME") }, BUILDER(Create_func_maketime)},
+  { { C_STRING_WITH_LEN("MAKETIME") }, SQL_FN(Item_func_maketime, 3) },
   { { C_STRING_WITH_LEN("MAKE_SET") }, BUILDER(Create_func_make_set)},
   { { C_STRING_WITH_LEN("MASTER_POS_WAIT") }, BUILDER(Create_func_master_pos_wait)},
   { { C_STRING_WITH_LEN("MBRCONTAINS") }, SQL_FACTORY(Mbr_contains_instantiator) },
@@ -4667,7 +4632,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("REVERSE") }, SQL_FN(Item_func_reverse, 1) },
   { { C_STRING_WITH_LEN("ROLES_GRAPHML") }, SQL_FN(Item_func_roles_graphml, 0) },
   { { C_STRING_WITH_LEN("ROUND") }, BUILDER(Create_func_round)},
-  { { C_STRING_WITH_LEN("RPAD") }, BUILDER(Create_func_rpad)},
+  { { C_STRING_WITH_LEN("RPAD") }, SQL_FN(Item_func_rpad, 3) },
   { { C_STRING_WITH_LEN("RTRIM") }, SQL_FN(Item_func_rtrim, 1) },
   { { C_STRING_WITH_LEN("SEC_TO_TIME") }, SQL_FN(Item_func_sec_to_time, 1) },
   { { C_STRING_WITH_LEN("SHA") }, SQL_FN(Item_func_sha, 1) },
@@ -4767,7 +4732,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_WITHIN") }, SQL_FACTORY(St_within_instantiator) },
   { { C_STRING_WITH_LEN("ST_X") }, GEOM_BUILDER(Create_func_x)},
   { { C_STRING_WITH_LEN("ST_Y") }, GEOM_BUILDER(Create_func_y)},
-  { { C_STRING_WITH_LEN("SUBSTRING_INDEX") }, BUILDER(Create_func_substr_index)},
+  { { C_STRING_WITH_LEN("SUBSTRING_INDEX") }, SQL_FN(Item_func_substr_index, 3) },
   { { C_STRING_WITH_LEN("SUBTIME") }, SQL_FACTORY(Subtime_instantiator) },
   { { C_STRING_WITH_LEN("TAN") }, SQL_FN(Item_func_tan, 1) },
   { { C_STRING_WITH_LEN("TIMEDIFF") }, SQL_FN(Item_func_timediff, 2) },
@@ -4781,7 +4746,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("UNCOMPRESSED_LENGTH") }, SQL_FN(Item_func_uncompressed_length, 1) },
   { { C_STRING_WITH_LEN("UNHEX") }, SQL_FN(Item_func_unhex, 1) },
   { { C_STRING_WITH_LEN("UNIX_TIMESTAMP") }, BUILDER(Create_func_unix_timestamp)},
-  { { C_STRING_WITH_LEN("UPDATEXML") }, BUILDER(Create_func_xml_update)},
+  { { C_STRING_WITH_LEN("UPDATEXML") }, SQL_FN(Item_func_xml_update, 3) },
   { { C_STRING_WITH_LEN("UPPER") }, SQL_FN(Item_func_upper, 1) },
   { { C_STRING_WITH_LEN("UUID") }, SQL_FN(Item_func_uuid, 0) },
   { { C_STRING_WITH_LEN("UUID_SHORT") }, SQL_FN(Item_func_uuid_short, 0) },
@@ -5154,6 +5119,13 @@ Create_func_internal_dd_char_length::create_native(THD *thd, LEX_STRING name,
 
   if (item_list)
     arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
 
   if (arg_count != 4)
   {

@@ -2323,7 +2323,7 @@ bool add_foreign_keys_and_triggers(THD *thd,
   if (trg_info != nullptr && !trg_info->empty())
     new_table->move_triggers(trg_info);
 
-  if (client->update(&old_table, new_table))
+  if (client->update(new_table))
     DBUG_RETURN(true);
 
   // TODO: Remove this call in WL#7743?
@@ -2509,7 +2509,7 @@ bool rename_table(THD *thd,
   new_tab->set_hidden(mark_as_hidden);
 
   // Do the update. Errors will be reported by the dictionary subsystem.
-  if (thd->dd_client()->update(&from_tab, new_tab))
+  if (thd->dd_client()->update(new_tab))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -2740,7 +2740,7 @@ bool update_keys_disabled(THD *thd,
                                     (keys_onoff==Alter_info::DISABLE ? 1 : 0));
 
   // Update the changes
-  if (client->update(&old_tab_obj, new_tab_obj))
+  if (client->update(new_tab_obj))
   {
     return true;
   }
@@ -2848,7 +2848,7 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
 
   new_table_def->set_row_format(dd_get_new_row_format(correct_row_type));
 
-  if (thd->dd_client()->update(&old_table_def, new_table_def))
+  if (thd->dd_client()->update(new_table_def))
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
@@ -2926,8 +2926,7 @@ bool move_triggers(THD *thd,
   new_from_tab->drop_all_triggers();
 
   // Store from_clone and to_clone
-  if (client->update(&old_from_tab, new_from_tab) ||
-      client->update(&old_to_tab, new_to_tab))
+  if (client->update(new_from_tab) || client->update(new_to_tab))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.

@@ -21,8 +21,8 @@
 package mtr_cases;
 use strict;
 
-use threads;
-use threads::shared;
+my $threads_support= eval 'use threads; 1';
+my $threads_shared_support= eval 'use threads::shared; 1';
 
 use base qw(Exporter);
 our @EXPORT= qw(collect_option collect_test_cases init_pattern
@@ -53,9 +53,7 @@ our $default_myisam= 0;
 our $suitedir;
 
 our $xplugin;
-share($xplugin);
 our $group_replication;
-share($group_replication);
 
 sub collect_option {
   my ($opt, $value)= @_;
@@ -90,7 +88,6 @@ my $do_innodb_plugin;
 
 # If "Quick collect", set to 1 once a test to run has been found.
 my $some_test_found;
-share($some_test_found);
 
 sub init_pattern {
   my ($from, $what)= @_;
@@ -121,7 +118,6 @@ sub collect_test_cases ($$$$) {
   my $opt_cases= shift;
   my $opt_skip_test_list= shift;
   my $cases= []; # Array of hash(one hash for each testcase)
-  share($suitedir) if $quick_collect;
 
   # Unit tests off by default also if using --do-test or --start-from
   $::opt_ctest= 0 if $::opt_ctest == -1 && ($do_test || $start_from);
@@ -152,7 +148,7 @@ sub collect_test_cases ($$$$) {
     $parallel= 1 if $quick_collect;
     $parallel= 1 if @$opt_cases;
 
-    if ($parallel == 1)
+    if ($parallel == 1 or !$threads_support or !$threads_shared_support)
     {
       foreach my $suite (split(",", $suites))
       {
@@ -165,6 +161,10 @@ sub collect_test_cases ($$$$) {
     }
     else
     {
+      share(\$xplugin);
+      share(\$group_replication);
+      share(\$some_test_found);
+      share(\$suitedir) if $quick_collect;
       # Array containing thread id of all the threads used for
       # collecting test cases from different test suites.
       my @collect_test_cases_thrds;
@@ -177,7 +177,7 @@ sub collect_test_cases ($$$$) {
         while($parallel <= scalar @collect_test_cases_thrds)
         {
           mtr_milli_sleep(100);
-          @collect_test_cases_thrds= threads->list(threads::running);
+          @collect_test_cases_thrds= threads->list(threads::running());
         }
         last if $some_test_found;
 
@@ -187,7 +187,7 @@ sub collect_test_cases ($$$$) {
         while($parallel <= scalar @collect_test_cases_thrds)
         {
           mtr_milli_sleep(100);
-          @collect_test_cases_thrds= threads->list(threads::running);
+          @collect_test_cases_thrds= threads->list(threads::running());
         }
       }
 

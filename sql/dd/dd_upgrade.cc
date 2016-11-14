@@ -2713,7 +2713,7 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
   new_event->set_created(table->field[ET_FIELD_CREATED]->val_int());
   new_event->set_last_altered(table->field[ET_FIELD_MODIFIED]->val_int());
 
-  if (thd->dd_client()->update(&event, new_event))
+  if (thd->dd_client()->update(new_event))
   {
     trans_rollback_stmt(thd);
     return true;

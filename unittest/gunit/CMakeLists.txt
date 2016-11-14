@@ -345,6 +345,7 @@ ENDIF()
 SET(SERVER_TESTS
   copy_info
   create_field
+  dd_info_schema_native_func
   dd_properties
   dd_sdi
   dd_schema

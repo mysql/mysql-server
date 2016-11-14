@@ -34,6 +34,10 @@ INSERT INTO t2 VALUES (2,'name','pass','mail','Y','v','n','adr','1','1','1');
 INSERT INTO t2 VALUES (3,'name','pass','mail','Y','v','n','adr','1','1','1');
 INSERT INTO t2 VALUES (4,'name','pass','mail','Y','v','n','adr','1','1','1');
 INSERT INTO t2 VALUES (5,'name','pass','mail','Y','v','n','adr','1','1','1');
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 userid	MIN(t1.score)
 1	1
@@ -257,6 +261,9 @@ key (spid),
 key (score)
 );
 INSERT INTO t1 VALUES (1,1,1),(2,2,2),(2,1,1),(3,3,3),(4,3,3),(5,3,3),(6,3,3),(7,3,3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select userid,count(*) from t1 group by userid desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using temporary; Using filesort
@@ -545,6 +552,9 @@ create table t1 (a int not null, b int not null);
 insert into t1 values (1,1),(1,2),(3,1),(3,2),(2,2),(2,1);
 create table t2 (a int not null, b int not null, key(a));
 insert into t2 values (1,3),(3,1),(2,2),(1,1);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b;
 a	b
 1	1
@@ -633,6 +643,9 @@ score smallint(5) unsigned,
 key (score)
 );
 INSERT INTO t1 VALUES (1,1),(2,2),(1,1),(3,3),(3,3),(3,3),(3,3),(3,3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT userid,count(*) FROM t1 GROUP BY userid DESC;
 userid	count(*)
 3	5
@@ -649,6 +662,9 @@ i int(11) default NULL,
 j int(11) default NULL
 );
 INSERT INTO t1 VALUES (1,2),(2,3),(4,5),(3,5),(1,5),(23,5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
 i	COUNT(DISTINCT(i))
 1	1
@@ -725,9 +741,13 @@ concat('val-', @a:=x3.a + 3*x4.a + 12*C.a), -- 120
 concat('val-', @a + 120*D.a)
 from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4;
 delete from t2  where a = 2 and b = 'val-2' order by a,b,c,d limit 30;
+analyze table t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain select c from t2 where a = 2 and b = 'val-2' group by c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	PRIMARY,a	PRIMARY	402	const,const	6	100.00	Using index condition; Using where
+1	SIMPLE	t2	NULL	ref	PRIMARY,a	PRIMARY	402	const,const	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`a` = 2) and (`test`.`t2`.`b` = 'val-2')) group by `test`.`t2`.`c`
 select c from t2 where a = 2 and b = 'val-2' group by c;
@@ -906,8 +926,8 @@ explain
 SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	b	b	2	NULL	10	100.00	Using where; Using index
-1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.b	1	100.00	NULL
+1	SIMPLE	t2	NULL	index	b	b	2	NULL	#	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.b	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select straight_join sql_no_cache `test`.`t1`.`a` AS `a`,concat(`test`.`t1`.`b`,'') AS `b`,`test`.`t1`.`b` AS `real_b` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`b`) group by `test`.`t2`.`b`
 SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
@@ -934,6 +954,9 @@ INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20) FROM t1;
 SELECT MIN(b), MAX(b) from t1;
 MIN(b)	MAX(b)
 0	19
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT b, sum(1) FROM t1 GROUP BY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	b	b	5	NULL	128	100.00	Using index
@@ -1378,6 +1401,9 @@ INSERT INTO t1 VALUES
 (8,0,0, 'k','k'),
 (9,6,6, 't','t'),
 (10,0,0,'c','c');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain SELECT COUNT(varchar_key) AS x FROM t1 WHERE pk = 8 having 'foo'='bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
@@ -1634,7 +1660,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 EXPLAIN SELECT a FROM t1 USE INDEX FOR JOIN (i2) 
 USE INDEX FOR GROUP BY (i2) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	#	PRIMARY,i2	i2	#	NULL	#	100.00	#
+1	SIMPLE	t1	NULL	index	PRIMARY,i2	i2	9	NULL	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` USE INDEX FOR GROUP BY (`i2`) USE INDEX FOR JOIN (`i2`) group by `test`.`t1`.`a`
 EXPLAIN SELECT a FROM t1 FORCE INDEX FOR JOIN (i2) 
@@ -1689,6 +1715,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,sum(`test`.`t2`.`b`) AS `SUM(b)` from `test`.`t2` IGNORE INDEX (`a`) group by `test`.`t2`.`a` limit 2
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 EXPLAIN SELECT 1 FROM t2 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1717,6 +1746,10 @@ b INT,
 UNIQUE KEY(a,b)
 );
 INSERT INTO t2 VALUES (NULL, NULL), (NULL, NULL), (NULL, 1), (1, NULL), (1, 1), (1,2);
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
@@ -1735,8 +1768,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,`test`.`t1`.`b` AS `b`,`t
 SELECT c,b,d FROM t1 GROUP BY c,b,d ORDER BY NULL;
 c	b	d
 1	1	50
-3	2	40
 3	1	4
+3	2	40
 EXPLAIN SELECT c,b,d FROM t1 ORDER BY c,b,d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
@@ -1749,7 +1782,7 @@ c	b	d
 3	2	40
 EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	c	NULL	NULL	NULL	3	100.00	Using filesort
+1	SIMPLE	t1	NULL	index	c	c	8	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`d` AS `d` from `test`.`t1` group by `test`.`t1`.`c`,`test`.`t1`.`b`
 SELECT c,b,d FROM t1 GROUP BY c,b;
@@ -1794,7 +1827,7 @@ NULL	1
 1	2
 EXPLAIN SELECT a from t2 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	10	NULL	6	100.00	Using index
+1	SIMPLE	t2	NULL	range	a	a	5	NULL	3	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` group by `test`.`t2`.`a`
 SELECT a from t2 GROUP BY a;
@@ -1900,6 +1933,9 @@ aa	COUNT(DISTINCT b)
 3	1
 2	1
 1	1
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 # execution plan should not use temporary table:
 EXPLAIN EXTENDED
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
@@ -1964,6 +2000,10 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t2 VALUES (1), (2);
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
@@ -1986,6 +2026,9 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE t1 (a text, b varchar(10));
 INSERT INTO t1 VALUES (repeat('1', 1300),'one'), (repeat('1', 1300),'two');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN 
 SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
 id	1
@@ -2074,6 +2117,9 @@ INSERT INTO t1 VALUES
 ( 2, 1,  6 ),
 ( 2, 2,  7 ),
 ( 2, 3,  8 );
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN
 SELECT a, AVG(t1.b),
 (SELECT t11.c FROM t1 t11 WHERE t11.a = t1.a AND t11.b = AVG(t1.b)) AS t11c,
@@ -2081,8 +2127,8 @@ SELECT a, AVG(t1.b),
 FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	a	a	10	NULL	9	100.00	Using index
-3	DEPENDENT SUBQUERY	t12	NULL	ref	a	a	10	func,func	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t11	NULL	ref	a	a	10	func,func	2	100.00	Using where
+3	DEPENDENT SUBQUERY	t12	NULL	ref	a	a	10	func,func	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t11	NULL	ref	a	a	10	func,func	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
@@ -2273,8 +2319,8 @@ EXPLAIN SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS al
 STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
 GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	20	90.00	Using where; Using temporary; Using filesort
-1	SIMPLE	alias2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias1.col_int_key	1	100.00	NULL
+1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	#	90.00	Using where; Using temporary; Using filesort
+1	SIMPLE	alias2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias1.col_int_key	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from `test`.`t1` `alias1` straight_join `test`.`t2` `alias2` where ((`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`) and `test`.`alias1`.`pk`) group by `field2` order by `test`.`alias1`.`col_int_key`
 SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
@@ -2348,20 +2394,20 @@ INSERT INTO t2 VALUES (10,8);
 
 EXPLAIN SELECT SQL_BUFFER_RESULT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select sql_buffer_result '8' AS `col2` from `test`.`t1` where `test`.`t1`.`col1` group by '8'
+Note	1003	/* select#1 */ select sql_buffer_result `test`.`t2`.`col2` AS `col2` from `test`.`t2` join `test`.`t1` where `test`.`t1`.`col1` group by `test`.`t2`.`col2`
 SELECT SQL_BUFFER_RESULT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
 col2
 8
 
 EXPLAIN SELECT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select '8' AS `col2` from `test`.`t1` where `test`.`t1`.`col1` group by '8'
+Note	1003	/* select#1 */ select `test`.`t2`.`col2` AS `col2` from `test`.`t2` join `test`.`t1` where `test`.`t1`.`col1` group by `test`.`t2`.`col2`
 SELECT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
 col2
 8
@@ -2377,10 +2423,13 @@ INDEX idx (col1)
 );
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
 (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
 FROM t1 GROUP BY field1, field2;;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	idx	idx	5	NULL	11	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	index	idx	idx	5	NULL	20	100.00	Using index; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`col1` AS `field1`,`test`.`t1`.`col1` AS `field2` from `test`.`t1` group by `field1`
 FLUSH STATUS;
@@ -2409,7 +2458,7 @@ field1	field2
 20	20
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 Variable_name	Value
-Sort_scan	0
+Sort_scan	1
 CREATE VIEW v1 AS SELECT * FROM t1;
 SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
 FROM v1 
@@ -2526,6 +2575,9 @@ KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key)
 );
 INSERT INTO t1 VALUES (), ();
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 # In GROUP BY, aliases are printed as aliases.
 EXPLAIN EXTENDED SELECT alias1.col_int_nokey AS field1,
 (SELECT alias2.col_int_key
@@ -2625,6 +2677,10 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 # is printed as an alias, not as the expression.
 CREATE TABLE t2(a INT);
 INSERT INTO t2 VALUES(3),(4);
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN EXTENDED SELECT
 pk AS foo, col_int_key AS bar, (SELECT a FROM t2 WHERE a=t1.pk) AS baz
 FROM t1
@@ -2637,7 +2693,7 @@ Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.pk' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.pk' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `t1`.`pk` AS `foo`,`t1`.`col_int_key` AS `bar`,(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`)) AS `baz` from `test`.`t1` group by `foo`,`t1`.`col_int_key`,`baz` order by `t1`.`pk`,`bar`,(/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `foo`,`test`.`t1`.`col_int_key` AS `bar`,(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`pk`)) AS `baz` from `test`.`t1` group by `foo`,`test`.`t1`.`col_int_key`,`baz` order by `test`.`t1`.`pk`,`bar`,(/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`pk`))
 EXPLAIN EXTENDED SELECT
 pk AS foo, col_int_key AS foo, (SELECT a FROM t2 WHERE a=t1.pk) AS foo
 FROM t1
@@ -2653,7 +2709,7 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.pk' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.pk' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.pk' of SELECT #4 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `t1`.`pk` AS `foo`,`t1`.`col_int_key` AS `foo`,(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`)) AS `foo` from `test`.`t1` group by `t1`.`pk`,`t1`.`col_int_key`,(/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`)) order by `t1`.`pk`,`t1`.`col_int_key`,(/* select#4 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `foo`,`test`.`t1`.`col_int_key` AS `foo`,(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`pk`)) AS `foo` from `test`.`t1` group by `test`.`t1`.`pk`,`test`.`t1`.`col_int_key`,(/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`pk`)) order by `test`.`t1`.`pk`,`test`.`t1`.`col_int_key`,(/* select#4 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`pk`))
 DROP TABLE t1,t2;
 #
 # Bug#13591138 - ASSERTION NAME && !IS_AUTOGENERATED_NAME IN
@@ -2678,6 +2734,11 @@ PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 );
 CREATE VIEW view1 AS SELECT * FROM t1;
+ANALYZE TABLE t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN EXTENDED
 SELECT
 alias1.col_datetime_key AS field1
@@ -2726,16 +2787,24 @@ AND
 table2.col_varchar_key >= table1.col_varchar_nokey 
 ORDER BY field1
 ;
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN EXTENDED SELECT * FROM view1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	table1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	table2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x2)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select concat(NULL,NULL) AS `field1` from `test`.`t2` `table1` join `test`.`t1` `table2` where ((NULL >= NULL) and multiple equal(NULL, NULL)) order by concat(NULL,NULL)
+Note	1003	/* select#1 */ select concat(`test`.`table1`.`col_varchar_nokey`,`test`.`table2`.`col_varchar_key`) AS `field1` from `test`.`t2` `table1` join `test`.`t1` `table2` where ((`test`.`table2`.`col_varchar_nokey` = `test`.`table1`.`col_varchar_key`) and (`test`.`table2`.`col_varchar_key` >= `test`.`table1`.`col_varchar_nokey`)) order by concat(`test`.`table1`.`col_varchar_nokey`,`test`.`table2`.`col_varchar_key`)
 DROP TABLE t1,t2;
 DROP VIEW view1;
 CREATE TABLE t1 (col_varchar_nokey varchar(1) DEFAULT NULL);
 INSERT INTO t1 VALUES ('v'),('c');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN EXTENDED SELECT (SELECT 150) AS field5
 FROM (SELECT * FROM t1) AS alias1
 GROUP BY field5;
@@ -2915,6 +2984,9 @@ INSERT INTO t1 SELECT NULL, kp1, kp2+1 from t1;
 INSERT INTO t1 SELECT NULL, kp1, kp2+2 from t1;
 INSERT INTO t1 SELECT NULL, kp1, kp2+4 from t1;
 INSERT INTO t1 SELECT NULL, kp1, kp2 from t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT kp1, SUM(kp2) FROM t1 GROUP BY kp1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	idx_noncov,idx_cov	idx_cov	10	NULL	16	100.00	Using index
@@ -3201,9 +3273,12 @@ PRIMARY KEY(a,b(1)),
 UNIQUE KEY (a,c(1))
 );
 INSERT INTO t1 VALUES(1,2,1),(2,4,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain SELECT a, (SELECT SUM(a + c) FROM (SELECT b as c FROM t1) AS v1) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	index	NULL	PRIMARY	7	NULL	2	100.00	Using index
+1	PRIMARY	t1	NULL	index	NULL	a	8	NULL	2	100.00	Using index
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -3255,12 +3330,16 @@ INSERT INTO t1(f1, f2, f3) VALUES
 (4, '2001-01-20 12:47:23.022022', 'x');
 CREATE TABLE t2 (f1 VARCHAR(1) NOT NULL);
 FLUSH TABLES;
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT MIN(t1.f3 ) FROM t1
 WHERE t1.f3 IN (SELECT t2.f1 FROM t2 WHERE NOT t1.f2 IS NOT NULL) AND t1.f1 IS NULL OR
 NOT t1 . f3 < 'q';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.f2' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select min(`test`.`t1`.`f3`) AS `MIN(t1.f3 )` from `test`.`t1` where (`test`.`t1`.`f3` >= 'q')

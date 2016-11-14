@@ -2354,6 +2354,8 @@ public:
   bool 	     got_warning;       /* Set on call to push_warning() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
+  // Set while parsing INFORMATION_SCHEMA system views.
+  bool       parsing_system_view;
 
   /** Current SP-runtime context. */
   sp_rcontext *sp_runtime_ctx;
@@ -2924,7 +2926,7 @@ public:
 
   /**
     Pops the top protocol of the Protocol stack and sets the previous one
-    as the current protocol..
+    as the current protocol.
   */
   void pop_protocol()
   {

@@ -108,10 +108,10 @@ public:
   { return false; }
 
   bool store_ps_status(ulong stmt_id, uint column_count,
-                       uint param_count, ulong cond_count) override
+                       uint param_count, ulong cond_count)
   { return false; }
   virtual bool send_parameters(List<Item_param> *parameters,
-                               bool is_sql_prepare) override
+                               bool is_sql_prepare)
   { return false; }
 
   void send_num_fields(uint) {}
