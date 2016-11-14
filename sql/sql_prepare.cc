@@ -3485,8 +3485,16 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
         result= new (mem_root) Query_fetch_protocol_binary(thd);
       else
         result= new (mem_root) Query_result_send(thd);
-
-      error= mysql_open_cursor(thd, result, &cursor);
+      if (!result)
+      {
+        error= true; // OOM
+      }
+      else if ((error= mysql_open_cursor(thd, result, &cursor)))
+      {
+        // cursor is freed inside mysql_open_cursor
+        delete result;
+        result= nullptr;
+      }
     }
     else
     {
@@ -3535,8 +3543,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   if (cur_db_changed)
     mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true);
 
-  /* Assert that if an error, no cursor is open */
-  DBUG_ASSERT(! (error && cursor));
+  // Assert that if an error, the cursor and the result are deallocated.
+  DBUG_ASSERT(!error || (cursor == nullptr && result == nullptr));
 
   if (! cursor)
     cleanup_stmt();
