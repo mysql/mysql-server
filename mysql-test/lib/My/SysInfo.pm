@@ -114,7 +114,7 @@ sub _sysctl {
 
   my $cpuinfo= {};
   $ncpu =~ s/\D//g;
-  my $list = `sysctl machdep.cpu | grep machdep\.cpu\.[^.]*: 2> $null_dev`;
+  my $list = `sysctl machdep.cpu 2> $null_dev | grep machdep\.cpu\.[^.]*: 2> $null_dev`;
   my @lines= split('\n', $list);
 
   foreach my $line (@lines) {
