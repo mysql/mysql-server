@@ -794,7 +794,7 @@ my_bool my_like_range_mb(const CHARSET_INFO *cs,
   char *min_end= min_str + res_length;
   char *max_end= max_str + res_length;
   size_t maxcharlen= res_length / cs->mbmaxlen;
-  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs, 0);
+  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs);
 
   for (; ptr != end && min_str != min_end && maxcharlen ; maxcharlen--)
   {
@@ -951,7 +951,7 @@ my_like_range_generic(const CHARSET_INFO *cs,
   char *max_end= max_str + res_length;
   size_t charlen= res_length / cs->mbmaxlen;
   size_t res_length_diff;
-  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs, 0);
+  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs);
 
   for ( ; charlen > 0; charlen--)
   {

@@ -130,20 +130,15 @@ uint16 *my_uca_contraction2_weight(const MY_CONTRACTIONS *c,
                                    my_wc_t wc1, my_wc_t wc2);
 
 
-/* Collation weights on a single level (e.g. primary, secondary, tertiarty) */
-typedef struct my_uca_level_info_st
+typedef struct uca_info_st
 {
+  enum enum_uca_ver   version;
+
+  // Collation weights.
   my_wc_t maxchar;
   uchar   *lengths;
   uint16  **weights;
   MY_CONTRACTIONS contractions;
-} MY_UCA_WEIGHT_LEVEL;
-
-
-typedef struct uca_info_st
-{
-  enum enum_uca_ver   version;
-  MY_UCA_WEIGHT_LEVEL level[MY_UCA_WEIGHT_LEVELS];
 
   /* Logical positions */
   my_wc_t first_non_ignorable;
@@ -733,8 +728,7 @@ size_t my_strxfrm_pad_desc_and_reverse(const CHARSET_INFO *cs,
 
 my_bool my_charset_is_ascii_compatible(const CHARSET_INFO *cs);
 
-const MY_CONTRACTIONS *my_charset_get_contractions(const CHARSET_INFO *cs,
-                                                   int level);
+const MY_CONTRACTIONS *my_charset_get_contractions(const CHARSET_INFO *cs);
 
 extern size_t my_vsnprintf_ex(const CHARSET_INFO *cs, char *to, size_t n,
                               const char* fmt, va_list ap);
