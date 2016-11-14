@@ -37,8 +37,6 @@ stage/sql/Opening system tables
 stage/sql/Locking system tables
 stage/sql/Opening system tables
 stage/sql/Locking system tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
 stage/sql/Opening tables
 stage/sql/System lock
 stage/sql/Opening system tables

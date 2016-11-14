@@ -585,8 +585,6 @@ enum_sp_return_code alter_routine(THD *thd, const Routine *routine,
   }
 
   bool error= (trans_commit_stmt(thd) || trans_commit(thd));
-  // TODO: Remove this call in WL#7743?
-  thd->dd_client()->remove_uncommitted_objects<Routine>(!error);
   DBUG_RETURN(error ? SP_INTERNAL_ERROR : SP_OK);
 }
 

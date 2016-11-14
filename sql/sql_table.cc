@@ -8278,7 +8278,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     if (thd->dd_client()->update(altered_table_def))
       goto rollback;
     // TODO: Remove this call in WL#7743?
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+    thd->dd_client()->commit_modified_objects();
   }
 
   /*

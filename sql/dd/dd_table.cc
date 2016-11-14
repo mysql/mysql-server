@@ -2326,10 +2326,7 @@ bool add_foreign_keys_and_triggers(THD *thd,
   if (client->update(new_table))
     DBUG_RETURN(true);
 
-  // TODO: Remove this call in WL#7743?
-  client->remove_uncommitted_objects<dd::Table>(true);
-
-  DBUG_RETURN(false);
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
@@ -2521,10 +2518,7 @@ bool rename_table(THD *thd,
                   DBUG_SET("-d,alter_table_after_rename_1");
                   DEBUG_SYNC(thd, "after_rename_in_dd"););
 
-  bool error= trans_commit_stmt(thd) || trans_commit(thd);
-  // TODO: Remove this call in WL#7743?
-  thd->dd_client()->remove_uncommitted_objects<T>(true);
-  return error;
+  return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
 
@@ -2745,12 +2739,9 @@ bool update_keys_disabled(THD *thd,
     return true;
   }
 
-  // TODO: Remove this call in WL#7743?
-  client->remove_uncommitted_objects<dd::Table>(true);
-
   // The table object will be left in cache.
 
-  return false;
+  return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
 
@@ -2855,10 +2846,7 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
     return true;
   }
 
-  bool error= trans_commit_stmt(thd) || trans_commit(thd);
-  // TODO: Remove this call in WL#7743?
-  thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
-  return error;
+  return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
 bool move_triggers(THD *thd,
@@ -2934,10 +2922,7 @@ bool move_triggers(THD *thd,
     return true;
   }
 
-  bool error= trans_commit_stmt(thd) || trans_commit(thd);
-  // TODO: Remove this call in WL#7743?
-  client->remove_uncommitted_objects<dd::Table>(!error);
-  return error;
+  return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
 } // namespace dd

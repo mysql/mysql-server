@@ -19,6 +19,7 @@
 #include <stddef.h>
 
 #include "auth_common.h"      // SUPER_ACL
+#include "dd/cache/dictionary_client.h"
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "handler.h"
 #include "log.h"              // sql_print_warning
@@ -291,6 +292,8 @@ bool trans_commit(THD *thd, bool ignore_global_read_lock)
 
   trans_track_end_trx(thd);
 
+  thd->dd_client()->commit_modified_objects();
+
   DBUG_RETURN(MY_TEST(res));
 }
 
@@ -367,12 +370,15 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock)
   Rollback the current transaction, canceling its changes.
 
   @param thd     Current thread
+  @param rollback_modified_dd_objects
+                 Should any uncommitted DD objects be removed
+                 from Dictionary_client?
 
   @retval FALSE  Success
   @retval TRUE   Failure
 */
 
-bool trans_rollback(THD *thd)
+bool trans_rollback(THD *thd, bool rollback_modified_dd_objects)
 {
   int res;
   DBUG_ENTER("trans_rollback");
@@ -395,6 +401,14 @@ bool trans_rollback(THD *thd)
   thd->tx_priority= 0;
 
   trans_track_end_trx(thd);
+
+  /*
+    TODO: When InnoDB supports Atomic DDL, we should always
+    remove uncommitted DD objects on rollback. The
+    'rollback_modified_dd_objects' argument can the be removed.
+  */
+  if (rollback_modified_dd_objects)
+    thd->dd_client()->rollback_modified_objects();
 
   DBUG_RETURN(MY_TEST(res));
 }

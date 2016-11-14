@@ -28,8 +28,8 @@ FLUSH STATUS;
 CREATE TABLE t2 SELECT max(b), a FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-Handler_read_key	11
-Handler_read_next	22
+Handler_read_key	5
+Handler_read_next	20
 FLUSH STATUS;
 SELECT * FROM (SELECT max(b), a FROM t1 GROUP BY a) b;
 max(b)	a

@@ -196,8 +196,6 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
 {
   DBUG_ENTER("dd::create_trigger");
 
-  Schema_MDL_locker schema_mdl_locker(thd);
-
   cache::Dictionary_client *dd_client= thd->dd_client();
   cache::Dictionary_client::Auto_releaser releaser(dd_client);
 
@@ -209,8 +207,7 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
       DBUG_RETURN(true);
     });
 
-  if (schema_mdl_locker.ensure_locked(new_trigger->get_db_name().str) ||
-      dd_client->acquire(new_trigger->get_db_name().str,
+  if (dd_client->acquire(new_trigger->get_db_name().str,
                          new_trigger->get_subject_table_name().str,
                          &old_table) ||
       dd_client->acquire_for_modification(new_trigger->get_db_name().str,
@@ -279,9 +276,6 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
     trans_rollback(thd);
     DBUG_RETURN(true);
   }
-
-  // TODO: Remove this call in WL#7743?
-  dd_client->remove_uncommitted_objects<Table>(true);
 
   DBUG_RETURN(false);
 }
@@ -626,9 +620,6 @@ bool drop_trigger(THD *thd,
     DBUG_RETURN(true);
   }
 
-  // TODO: Remove this call in WL#7743?
-  dd_client->remove_uncommitted_objects<Table>(true);
-
   *trigger_found= true;
   DBUG_RETURN(false);
 }
@@ -697,10 +688,7 @@ bool drop_all_triggers(THD *thd,
     DBUG_RETURN(true);
   }
 
-  bool error= trans_commit_stmt(thd) || trans_commit(thd);
-  // TODO: Remove this call in WL#7743?
-  dd_client->remove_uncommitted_objects<Table>(!error);
-  DBUG_RETURN(error);
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
