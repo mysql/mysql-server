@@ -331,6 +331,10 @@ public:
   { return Abstract_table_impl::get_column(name); }
   virtual bool update_aux_key(aux_key_type *key) const
   { return Table::update_aux_key(key); }
+  virtual bool hidden() const
+  { return Abstract_table_impl::hidden(); }
+  virtual void set_hidden(bool hidden)
+  { Abstract_table_impl::set_hidden(hidden); }
 
   /////////////////////////////////////////////////////////////////////////
   // Trigger collection.

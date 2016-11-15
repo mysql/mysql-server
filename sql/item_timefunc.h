@@ -395,7 +395,8 @@ public:
     :Item_func(pos, a), odbc_type(type_arg)
   { collation.set_numeric(); }
   longlong val_int() override;
-  double val_real() override { DBUG_ASSERT(fixed); return val_int(); }
+  double val_real() override
+  { DBUG_ASSERT(fixed); return static_cast<double>(val_int()); }
   String *val_str(String *str) override
   {
     DBUG_ASSERT(fixed == 1);
@@ -711,7 +712,7 @@ public:
     return val_int_from_date();
   }
   longlong val_date_temporal() override;
-  double val_real() override { return val_int(); }
+  double val_real() override { return static_cast<double>(val_int()); }
   const char *func_name() const override { return "date"; }
   bool resolve_type(THD *) override
   {
