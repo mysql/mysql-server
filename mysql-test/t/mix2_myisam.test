@@ -6,6 +6,9 @@
 
 --source include/have_myisam.inc
 
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
+
 let $engine_type= MyISAM;
 let $other_engine_type= MEMORY;
 # There are unfortunately only MyISAM and MEMORY all time available
