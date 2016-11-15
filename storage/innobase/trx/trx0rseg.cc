@@ -37,10 +37,10 @@ Created 3/26/1996 Heikki Tuuri
 /** Creates a rollback segment header.
 This function is called only when a new rollback segment is created in
 the database.
-@param[in]	space		space id
+@param[in]	space_id	space id
 @param[in]	page_size	page size
 @param[in]	max_size	max size in pages
-@param[in]	rseg_slot_no	rseg id == slot number in trx sys
+@param[in]	rseg_slot	rseg id == slot number in trx sys
 @param[in,out]	mtr		mini-transaction
 @return page number of the created segment, FIL_NULL if fail */
 page_no_t
@@ -156,7 +156,7 @@ trx_rseg_mem_free(
 the values for the fields are read from the segment header page.
 The caller must insert it into the correct list.
 @param[in]	id		rollback segment id
-@param[in]	space		space where the segment is placed
+@param[in]	space_id	space where the segment is placed
 @param[in]	page_no		page number of the segment header
 @param[in]	page_size	page size
 @param[in,out]	purge_queue	rseg queue

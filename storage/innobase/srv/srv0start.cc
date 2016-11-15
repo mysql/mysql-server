@@ -675,9 +675,6 @@ srv_undo_tablespace_open(
 	atomic_write = false;
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
-	ulint size = os_file_get_size(fh);
-	ut_a(size != (os_offset_t) -1);
-
 	ret = os_file_close(fh);
 	ut_a(ret);
 
@@ -693,6 +690,8 @@ srv_undo_tablespace_open(
 	ut_a(fil_validate());
 	ut_a(space);
 
+	os_offset_t size = os_file_get_size(fh);
+	ut_a(size != (os_offset_t)-1);
 	page_no_t	n_pages = static_cast<page_no_t>(
 		size / UNIV_PAGE_SIZE);
 
