@@ -4428,7 +4428,8 @@ synthesize_lengths_900(uchar *lengths,
 static my_bool
 init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                   MY_COLL_RULES *rules, int level,
-                  MY_UCA_WEIGHT_LEVEL *dst, const MY_UCA_WEIGHT_LEVEL *src)
+                  MY_UCA_WEIGHT_LEVEL *dst, const MY_UCA_WEIGHT_LEVEL *src,
+                  bool lengths_are_temporary)
 {
   MY_COLL_RULE *r, *rlast;
   int ncontractions= 0;
@@ -4440,10 +4441,24 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
     return TRUE;
 
   /* Allocate memory for pages and their lengths */
-  if (!(dst->lengths= (uchar *) (loader->mem_malloc)(npages)) ||
-      !(dst->weights= (uint16 **) (loader->once_alloc)(npages *
-                                                       sizeof(uint16 *))))
-    return TRUE;
+  if (lengths_are_temporary)
+  {
+    if (!(dst->lengths= (uchar *) (loader->mem_malloc)(npages)))
+      return TRUE;
+    if (!(dst->weights= (uint16 **) (loader->once_alloc)(npages *
+                                                         sizeof(uint16 *))))
+    {
+      (loader->mem_free)(dst->lengths);
+      return TRUE;
+    }
+  }
+  else
+  {
+    if (!(dst->lengths= (uchar *) (loader->once_alloc)(npages)) ||
+        !(dst->weights= (uint16 **) (loader->once_alloc)(npages *
+                                                         sizeof(uint16 *))))
+      return TRUE;
+  }
 
   /*
     Copy pages lengths and page pointers from the default UCA weights.
@@ -4935,6 +4950,7 @@ create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
   int rc= 0;
   MY_UCA_WEIGHT_LEVEL *src, *dst;
   size_t npages;
+  bool lengths_are_temporary;
 
   *loader->error= '\0';
 
@@ -4992,10 +5008,12 @@ create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
     synthesize_lengths_900(src->lengths, src->weights, npages);
   }
 
-  if ((rc= init_weight_level(cs, loader, &rules, 0, dst, src)))
+  lengths_are_temporary= (rules.uca->version == UCA_V900);
+  if ((rc= init_weight_level(cs, loader, &rules, 0, dst, src,
+                             lengths_are_temporary)))
     goto ex;
 
-  if (rules.uca->version == UCA_V900)
+  if (lengths_are_temporary)
   {
     (loader->mem_free)(src->lengths);
     (loader->mem_free)(dst->lengths);
