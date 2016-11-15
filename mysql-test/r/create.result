@@ -936,15 +936,9 @@ create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-<<<<<<< HEAD
-Handler_read_key	37
+Handler_read_key	23
 Handler_read_last	0
-Handler_read_next	33
-=======
-Handler_read_key	13
-Handler_read_last	0
-Handler_read_next	2
->>>>>>> mysql-trunk-wl7743-wip-3
+Handler_read_next	11
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	7

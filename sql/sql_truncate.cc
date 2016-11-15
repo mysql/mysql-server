@@ -322,6 +322,7 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
     }
 
+    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
     // WL7743/TODO/QQ: Does change of DD object means we need to invalidate
     //                 TDC/TC too?
   }

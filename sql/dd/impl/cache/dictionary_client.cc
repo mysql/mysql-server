@@ -936,7 +936,7 @@ bool Dictionary_client::acquire_uncached(Object_id id, T** object)
 /* purecov: begin deadcode */
 template <typename T>
 bool Dictionary_client::acquire_uncached_uncommitted(Object_id id,
-                                                     const T** object)
+                                                     T** object)
 {
   const typename T::id_key_type key(id);
   const typename T::cache_partition_type *stored_object= NULL;
@@ -953,11 +953,13 @@ bool Dictionary_client::acquire_uncached_uncommitted(Object_id id,
     // Dynamic cast may legitimately return NULL if we e.g. asked
     // for a dd::Table and got a dd::View in return.
     DBUG_ASSERT(object);
-    *object= dynamic_cast<const T*>(stored_object);
+    *object= const_cast<T*>(dynamic_cast<const T*>(stored_object));
 
     // Delete the object if dynamic cast fails.
     if (stored_object && !*object)
       delete stored_object;
+    else
+      m_current_releaser->auto_delete<T>(*object);
   }
   else
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
@@ -2347,6 +2349,8 @@ template bool Dictionary_client::acquire(const String_type&,
                                          const String_type&,
                                          const Abstract_table**);
 template void Dictionary_client::remove_uncommitted_objects<Abstract_table>(bool);
+//template bool Dictionary_client::acquire_uncached_uncommitted(
+//	Object_id, const Tablespace**);
 template bool Dictionary_client::drop(const Abstract_table*);
 template bool Dictionary_client::store(Abstract_table*);
 template bool Dictionary_client::update(const Abstract_table**,
@@ -2434,8 +2438,8 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Tablespace**);
 template bool Dictionary_client::acquire(const String_type&,
                                          const Tablespace**);
-
-
+template bool Dictionary_client::acquire_uncached_uncommitted(
+	Object_id,Tablespace**);
 template bool Dictionary_client::acquire_for_modification(const String_type&,
                                                           Tablespace**);
 template bool Dictionary_client::acquire(Object_id,

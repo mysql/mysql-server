@@ -251,7 +251,7 @@ dd_table_open_on_dd_obj(
 		}
 		ut_ad(skip_mdl
 		      || dd_mdl_verify(thd, db_buf, tbl_buf));
-	}	
+	}
 #endif /* UNIV_DEBUG */
 
 	int			error		= 0;
@@ -709,6 +709,7 @@ dd_table_set_discard_flag(
 	char			tbl_buf[NAME_LEN + 1];
 	MDL_ticket*		mdl;
 	const dd::Table*	dd_table = nullptr;
+	dd::Table*		new_dd_table = nullptr;
 	bool			ret = false;
 
 	DBUG_ENTER("dd_table_set_discard_flag");
@@ -734,10 +735,14 @@ dd_table_set_discard_flag(
 			ut_ad(dd_table->partitions().empty());
 			/* Clone the dd table object. The clone is owned here,
 			and must be deleted eventually. */
-			std::unique_ptr<dd::Table> new_dd_table(dd_table->clone());
+			/* Acquire the new dd tablespace for modification */
+			if (client->acquire_for_modification(
+					db_buf, tbl_buf, &new_dd_table)) {
+				ut_a(false);
+			}
 			new_dd_table->table().options().set_bool("discard",
 								 discard);
-			client->update(&dd_table, new_dd_table.get());
+			client->update(&dd_table, new_dd_table);
 			ret = true;
 		} else {
 			ret = false;
@@ -859,4 +864,67 @@ dd_table_close(
 	    && (*mdl != reinterpret_cast<MDL_ticket*>(-1))) {
 		dd_mdl_release(thd, mdl);
 	}
+}
+
+/** Update dd tablespace for rename
+@param[in]	dd_space_id	dd tablespace id
+@param[in]	new_path	new data file path
+@retval true if fail. */
+bool
+dd_tablespace_update_for_rename(
+	dd::Object_id		dd_space_id,
+	const char*		new_path)
+{
+	dd::Tablespace*		dd_space = nullptr;
+	const dd::Tablespace*	old_space = nullptr;
+	dd::Tablespace*		new_space = nullptr;
+	bool			ret = false;
+	THD*			thd = current_thd;
+
+	DBUG_ENTER("dd_tablespace_update_for_rename");
+#ifdef UNIV_DEBUG
+	btrsea_sync_check       check(false);
+	ut_ad(!sync_check_iterate(check));
+#endif
+	ut_ad(!srv_is_being_shutdown);
+	ut_ad(new_path != NULL);
+
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
+	/* Get the dd tablespace */
+
+	if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+			dd_space_id, &dd_space)) {
+		ut_a(false);
+	}
+
+	ut_a(dd_space != NULL);
+	/* Acquire mdl share lock */
+	if (dd::acquire_exclusive_tablespace_mdl(
+		    thd, dd_space->name().c_str(), false)) {
+		ut_a(false);
+	}
+
+	/* Update the new path to dd tablespace */
+	/* Acquire the old dd tablespace */
+	if (client->acquire<dd::Tablespace>(
+			dd_space_id, &old_space)) {
+		ut_a(false);
+	}
+
+	/* Acquire the new dd tablespace for modification */
+	if (client->acquire_for_modification<dd::Tablespace>(
+			dd_space_id, &new_space)) {
+		ut_a(false);
+	}
+
+	ut_ad(new_space->files().size() == 1);
+	dd::Tablespace_file*	dd_file = const_cast<
+		dd::Tablespace_file*>(*(new_space->files().begin()));
+	dd_file->set_filename(new_path);
+	bool fail = client->update(&old_space, new_space);
+	ut_a(!fail);
+
+	DBUG_RETURN(ret);
 }

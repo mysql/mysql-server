@@ -1328,8 +1328,9 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
 
   create_predefined_tablespaces(thd);
   // This will create dd::Schema object for mysql schema
-  if (create_dd_schema(thd))
-    return true;
+  // TODO: Enable while fixing upgrade code.
+  //if (create_dd_schema(thd))
+  //  return true;
 
   // Mark flag true as DD creation uses it to get version number
   opt_initialize= true;
@@ -1347,7 +1348,9 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   */
   thd->push_internal_handler(&key_error_handler);
   bootstrap_error_handler.set_log_error(false);
-  bool error =create_tables(thd, dd_upgrade_flag, nullptr);
+  bool error =false;
+  // TODO: Enable while fixing upgrade code.
+  //error= create_tables(thd, dd_upgrade_flag, nullptr);
   bootstrap_error_handler.set_log_error(true);
   thd->pop_internal_handler();
   if (error)
@@ -1362,7 +1365,10 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   bootstrap_error_handler.set_log_error(false);
 
   bool exists= false;
-  uint dd_version= d->get_actual_dd_version(thd, &exists);
+  // TODO: Enable while fixing upgrade code.
+  exists= true;
+  uint dd_version= 1;
+  //d->get_actual_dd_version(thd, &exists);
 
   // Reset log error verbosity and pop internal error handler.
   log_error_verbosity= saved_verbosity;
@@ -1377,7 +1383,8 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
         Delete dd::Schema and dd::Table objects from DD Cache to proceed for
         normal server startup.
       */
-      dd::cache::Shared_dictionary_cache::instance()->reset(false);
+      // TODO: Enable while fixing upgrade code.
+      // dd::cache::Shared_dictionary_cache::instance()->reset(false);
       opt_initialize= false;
       /*
         Ignore ER_TOO_LONG_KEY for dictionary tables during restart.

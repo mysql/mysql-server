@@ -102,6 +102,7 @@ SELECT * FROM tab2;
 let NEW_CMD = $MYSQLD --no-defaults --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR2 --innodb_undo_tablespaces=5 --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1  --secure-file-priv="" --console </dev/null>>$MYSQLTEST_VARDIR/tmp/wl7806.err 2>&1;
 
 --echo # Start the DB1 server with wrong path of undo tablespaces, expect an recovery errors
+--echo $NEW_CMD
 --error 1
 --exec $NEW_CMD
 

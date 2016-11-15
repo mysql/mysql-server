@@ -2188,12 +2188,8 @@ static std::unique_ptr<dd::Table> create_dd_system_table(THD *thd,
                                      fk_keyinfo, fk_keys, file))
     return nullptr;
 
-  // Reset id if we are creating version DD table.
-  bool reset_id= (strcmp(table_name.c_str(), "version") == 0);
-
   if (file->ha_get_se_private_data(tab_obj.get(),
-                                   dd_table.default_dd_version(thd),
-                                   reset_id))
+                                   dd_table.default_dd_version(thd)))
     return nullptr;
 
   thd->dd_client()->store(tab_obj.get());

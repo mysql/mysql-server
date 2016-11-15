@@ -514,7 +514,7 @@ public:
    */
 
   template <typename T>
-  bool acquire_uncached_uncommitted(Object_id id, const T** object);
+  bool acquire_uncached_uncommitted(Object_id id, T** object);
 
 
   /**

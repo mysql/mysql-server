@@ -3300,7 +3300,7 @@ ha_innopart::truncate(dd::Table *table_def)
 	DBUG_ENTER("ha_innopart::truncate");
 	ut_ad(m_part_info->num_partitions_used() == m_tot_parts);
 
-	return(truncate_partition_low(table_def));
+	DBUG_RETURN(truncate_partition_low(table_def));
 }
 
 /** Delete all rows in the requested partitions.

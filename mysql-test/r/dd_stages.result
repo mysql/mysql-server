@@ -39,12 +39,8 @@ stage/sql/Opening system tables
 stage/sql/Locking system tables
 stage/sql/Opening system tables
 stage/sql/Locking system tables
-<<<<<<< HEAD
 stage/sql/Opening system tables
 stage/sql/Locking system tables
-stage/sql/Opening tables
-=======
->>>>>>> mysql-trunk-wl7743-wip-3
 stage/sql/Opening system tables
 stage/sql/Locking system tables
 stage/sql/Opening tables

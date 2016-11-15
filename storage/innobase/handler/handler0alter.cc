@@ -4425,9 +4425,9 @@ prepare_inplace_alter_table_global_dd(
 				(*old_dd_tab->indexes().begin())
 				->tablespace_id();
 
-			const dd::Tablespace*	old_dd_space = NULL;
-			if (client->acquire<dd::Tablespace>(old_space_id,
-						    &old_dd_space)) {
+			dd::Tablespace*	old_dd_space = NULL;
+			if (client->acquire_uncached_uncommitted(
+					old_space_id, &old_dd_space)) {
 				ut_a(false);
 				return(true);
 			}
@@ -4448,8 +4448,6 @@ prepare_inplace_alter_table_global_dd(
 		dd::Object_id	dd_space_id;
 
 		if (dict_table_is_file_per_table(new_table)) {
-			std::unique_ptr<dd::Tablespace> dd_space(
-				dd::create_object<dd::Tablespace>());
 			/* Replace the table name with the final correct one */
 			char* path = fil_space_get_first_path(new_table->space);
 			char filename[FN_REFLEN + 1];
@@ -4460,13 +4458,11 @@ prepare_inplace_alter_table_global_dd(
 			ut_free(path);
 
 			if (innobase_create_implicit_dd_tablespace(
-				    client, thd, dd_space.get(),
-				    new_table->space, filename)) {
-				ut_a(false);
-				return(true);
+				    client, thd, new_table->space,
+				    filename, dd_space_id)) {
+//				ut_a(false);
+//				return(true);
 			}
-
-			dd_space_id = dd_space.get()->id();
 		} else if (new_table->space == 0) {
 			dd_space_id = 1;
 		} else {

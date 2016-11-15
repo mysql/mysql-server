@@ -237,13 +237,11 @@ public:
 	/** Get storage-engine private data for a data dictionary table.
 	@param[in,out]	dd_table	data dictionary table definition
 	@param[in]	dd_version	data dictionary version
-	@param[in]	reset_id	Reset hard coded values
 	@retval		true		an error occurred
 	@retval		false		success */
 	bool get_se_private_data(
 		dd::Table*	dd_table,
-		uint		dd_version,
-		bool		reset_id);
+		uint		dd_version);
 
 	/** Add hidden columns and indexes to an InnoDB table definition.
 	@param[in,out]	dd_table	data dictionary cache object
@@ -965,8 +963,11 @@ public:
 	static bool create_dd_tablespace(
 		dd::cache::Dictionary_client*	dd_client,
 		THD*				thd,
-		dd::Tablespace*			dd_space,
-		space_id_t			space);
+		const char*			dd_space_name,
+		space_id_t			space_id,
+		ulint				flags,
+		const char*			filename,
+		dd::Object_id&			dd_space_id);
 
 	static void set_table_options(
 		dd::Table&	dd_table,
@@ -1206,19 +1207,21 @@ the table virtual columns' template */
 typedef void (*my_gcolumn_templatecallback_t)(const TABLE*, void*);
 
 /** Create metadata for implicit tablespace
-@param[in,out]  dd_client       data dictionary client
-@param[in,out]  thd             THD
-@param[in,out]  dd_space        tablespace metadata
-@param[in]      space           InnoDB tablespace ID
-@retval false   on success
-@retval true    on failure */
+@param[in,out]	dd_client	data dictionary client
+@param[in,out]	thd		THD
+@param[in,out]	dd_space	tablespace metadata
+@param[in]	space		InnoDB tablespace ID
+@param[in]	filename	tablespace filename
+@param[in,out]	dd_space_id	dd tablespace id
+@retval	false	on success
+@retval	true	on failure */
 bool
 innobase_create_implicit_dd_tablespace(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd,
-	dd::Tablespace*			dd_space,
 	space_id_t			space,
-	const char*			filename);
+	const char*			filename,
+	dd::Object_id&			dd_space_id);
 
 template<typename Table>
 void

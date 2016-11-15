@@ -49,7 +49,7 @@ Data dictionary interface */
 #include "dd/types/foreign_key.h"
 #include "dd/types/foreign_key_element.h"
 
-
+using namespace dd::cache;
 class THD;
 class MDL_ticket;
 
@@ -224,6 +224,27 @@ dd_open_table(
 	const dd::Table*		dd_table,
 	bool				skip_mdl,
 	THD*				thd);
+
+/** Get dd tablespace by dd space id
+Note: It'll get an uncached dd space obj
+@param[in]	dd client	dd client
+@param[in]	dd_space_id	dd tablespace id
+@param[in,out]	dd_space	dd tablespace
+@retval false if fail. */
+bool
+dd_tablespace_get_on_id(
+	Dictionary_client*	client,
+	dd::Object_id		dd_space_id,
+	dd::Tablespace**	dd_space);
+
+/** Update dd tablespace for rename
+@param[in]	dd_space_id	dd tablespace id
+@param[in]	new_path	new data file path
+@retval false if fail. */
+bool
+dd_tablespace_update_for_rename(
+	dd::Object_id		dd_space_id,
+	const char*		new_path);
 
 /** Obtain the private handler of InnoDB session specific data.
 @param[in,out]  thd     MySQL thread handler.

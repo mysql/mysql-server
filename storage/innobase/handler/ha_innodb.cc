@@ -3728,12 +3728,13 @@ dd_open_builtin(THD* thd, const char* name, table_id_t)
 static
 bool
 create_dd_tablespace(
-        dd::cache::Dictionary_client*   dd_client,
-        THD*                            thd,
-        dd::Tablespace*                 dd_space,
-        space_id_t                      space,
-        ulint                           flags,
-        const char*                     filename);
+	dd::cache::Dictionary_client*	dd_client,
+	THD*				thd,
+	const char*			dd_space_name,
+	space_id_t			space_id,
+	ulint				flags,
+	const char*			filename,
+	dd::Object_id&			dd_space_id);
 
 /** Create metadata for a predefined tablespace at server initialization.
 @param[in,out]  dd_client       data dictionary client
@@ -3754,12 +3755,10 @@ predefine_tablespace(
         const char*                     name,
         const char*                     filename)
 {
-        std::unique_ptr<dd::Tablespace> dd_space(
-                dd::create_object<dd::Tablespace>());
-        dd_space->set_name(name);
+	dd::Object_id	dd_space_id;
 
-	return(create_dd_tablespace(dd_client, thd, dd_space.get(),
-				    space, flags, filename));
+	return(create_dd_tablespace(dd_client, thd, name,
+				    space, flags, filename, dd_space_id));
 }
 
 /** Predefine the undo tablespace metadata at server initialization.
@@ -8303,20 +8302,22 @@ dd_tablespace_is_implicit(const dd::Tablespace* dd_space, space_id_t space_id)
 
 /** Determine if a tablespace is implicit.
 @param[in,out]  client          data dictionary client
-@param[in]      dd_space_id     dd::Tablespace::id
+@param[in]      dd_space_id     dd tablespace id
 @param[out]     implicit        whether the tablespace is implicit tablespace
 @retval false   on success
 @retval true    on failure */
 bool
 dd_tablespace_is_implicit(
         dd::cache::Dictionary_client*   client,
-        dd::Object_id                   dd_space_id,
+	dd::Object_id			dd_space_id,
         bool*                           implicit)
 {
-        const dd::Tablespace*   dd_space;
-        uint32                  id = 0;
+        dd::Tablespace*		dd_space = NULL;
+        uint32			id = 0;
+
         const bool              fail
-                = client->acquire<dd::Tablespace>(dd_space_id, &dd_space)
+		= client->acquire_uncached_uncommitted<dd::Tablespace>(
+			dd_space_id, &dd_space)
                 || dd_space == nullptr
                 || dd_space->se_private_data().get_uint32(
                         dd_space_key_strings[DD_SPACE_ID], &id);
@@ -8325,9 +8326,9 @@ dd_tablespace_is_implicit(
                 *implicit = dd_tablespace_is_implicit(dd_space, id);
         }
 
-        delete dd_space;
         return(fail);
 }
+
 /** Load foreign key constraint for the table. Note, it could also open
 the foreign table, if this table is referenced by the foreign table
 @param[in,out]	client		data dictionary client
@@ -8578,7 +8579,7 @@ dd_open_table(
 		uint32			sid = 0;
 		dd::Object_id		index_space_id =
 			dd_index->tablespace_id();
-		const dd::Tablespace*	index_space = nullptr;
+		dd::Tablespace*	index_space = nullptr;
 
 		if (dd_table->tablespace_id() == dict_sys_t::dd_space_id) {
 			sid = dict_sys_t::space_id;
@@ -8586,8 +8587,8 @@ dd_open_table(
 			   == dict_sys_t::dd_temp_space_id) {
 			sid = dict_sys_t::temp_space_id;
 		} else {
-			if (client->acquire<dd::Tablespace>(
-				index_space_id, &index_space)) {
+			if (client->acquire_uncached_uncommitted<
+			    dd::Tablespace>(index_space_id, &index_space)) {
 				my_error(ER_TABLESPACE_MISSING, MYF(0),
 					 m_table->name.m_name);
 				fail = true;
@@ -15207,6 +15208,7 @@ create_table_info_t::create_table_update_dict()
 	DBUG_RETURN(0);
 }
 
+#if 0
 /** Initialize an implicit tablespace name.
 @param[in,out]	dd_space	tablespace metadata
 @param[in]	space		internal space id */
@@ -15224,14 +15226,16 @@ innobase_set_dd_tablespace_name(
 		 dict_sys_t::file_per_table_name, space);
 	dd_space->set_name(name);
 }
+#endif
 
 /* Create metadata for specified tablespace, acquiring exlcusive MDL first
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
-@param[in,out]	dd_space	tablespace metadata (with name set)
+@param[in,out]	dd_space_name	dd tablespace name
 @param[in]	space		InnoDB tablespace ID
 @param[in]	flags		InnoDB tablespace flags
 @param[in]	filename	filename of this tablespace
+@param[in,out]	dd_space_id	dd_space_id
 @retval	false	on success
 @retval	true	on failure */
 static
@@ -15239,11 +15243,19 @@ bool
 create_dd_tablespace(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd,
-	dd::Tablespace*			dd_space,
-	space_id_t			space,
+	const char*			dd_space_name,
+	space_id_t			space_id,
 	ulint				flags,
-	const char*			filename)
+	const char*			filename,
+	dd::Object_id&			dd_space_id)
 {
+	std::unique_ptr<dd::Tablespace> dd_space(
+		dd::create_object<dd::Tablespace>());
+
+	if (dd_space_name != NULL) {
+		dd_space->set_name(dd_space_name);
+	}
+
 	if (dd::acquire_exclusive_tablespace_mdl(
 		thd, dd_space->name().c_str(), true)) {
 		return(true);
@@ -15252,11 +15264,15 @@ create_dd_tablespace(
 	dd_space->set_engine(innobase_hton_name);
 	dd::Properties& p	= dd_space->se_private_data();
 	p.set_uint32(dd_space_key_strings[DD_SPACE_ID],
-		     static_cast<uint32>(space));
+		     static_cast<uint32>(space_id));
 	p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS], flags);
 	dd::Tablespace_file*	dd_file = dd_space->add_file();
 	dd_file->set_filename(filename);
-	dd_client->store(dd_space);
+
+	dd_client->store(dd_space.get());
+
+	dd_space_id = dd_space.get()->id();
+	dd_client->register_uncommitted_object(dd_space.release());
 
 	return(false);
 }
@@ -15267,22 +15283,27 @@ create_dd_tablespace(
 @param[in,out]	dd_space	tablespace metadata
 @param[in]	space		InnoDB tablespace ID
 @param[in]	filename	tablespace filename
+@param[in,out]	dd_space_id	dd tablespace id
 @retval	false	on success
 @retval	true	on failure */
 bool
 innobase_create_implicit_dd_tablespace(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd,
-	dd::Tablespace*			dd_space,
 	space_id_t			space,
-	const char*			filename)
+	const char*			filename,
+	dd::Object_id&			dd_space_id)
 {
-	innobase_set_dd_tablespace_name(dd_space, space);
+	char		space_name[11 + sizeof reserved_implicit_name];
+
+	snprintf(space_name, sizeof space_name, "%s.%u",
+		 dict_sys_t::file_per_table_name, space);
 
 	ulint   flags = fil_space_get_flags(space);
 
 	bool	fail = create_dd_tablespace(
-		dd_client, thd, dd_space, space, flags, filename);
+		dd_client, thd, space_name, space,
+		flags, filename, dd_space_id);
 
 	return(fail);
 }
@@ -15474,14 +15495,11 @@ create_table_info_t::create_table_update_global_dd(
 		ut_ad(!is_dd_table);
 		ut_ad(dd_space_id == dd::INVALID_OBJECT_ID);
 
-		std::unique_ptr<dd::Tablespace> dd_space(
-			dd::create_object<dd::Tablespace>());
 		char* filename = fil_space_get_first_path(table->space);
 
 		/* This means user table and file_per_table */
 		if (innobase_create_implicit_dd_tablespace(
-			client, m_thd, dd_space.get(), table->space,
-			filename)) {
+			client, m_thd, table->space, filename, dd_space_id)) {
 
 			ut_free(filename);
 			dict_table_close(table, FALSE, FALSE);
@@ -15489,7 +15507,6 @@ create_table_info_t::create_table_update_global_dd(
 		}
 
 		ut_free(filename);
-		dd_space_id = dd_space.get()->id();
 	} else if (!is_dd_table
 		   && table->space != TRX_SYS_SPACE
 		   && table->space != srv_tmp_space.space_id()) {
@@ -15536,6 +15553,7 @@ create_table_info_t::create_table_update_global_dd(
 	}
 
 	innobase_write_dd_table(dd_space_id, dd_table, table);
+//	client->remove_uncommitted_objects<dd::Table>(true);
 
 	dict_table_close(table, FALSE, FALSE);
 
@@ -15750,10 +15768,6 @@ innobase_get_dd_tablespace_id(
 	dd_space_id = dd::INVALID_OBJECT_ID;
 
 	if (dict_table_is_file_per_table(table)) {
-
-		std::unique_ptr<dd::Tablespace> dd_space(
-			dd::create_object<dd::Tablespace>());
-
 		/* This means user table and file_per_table */
 		bool	ret;
 		char*	filename =
@@ -15762,7 +15776,7 @@ innobase_get_dd_tablespace_id(
 		mutex_exit(&dict_sys->mutex);
 
 		ret = innobase_create_implicit_dd_tablespace(
-			client, thd, dd_space.get(), table->space, filename);
+			client, thd, table->space, filename, dd_space_id);
 
 		mutex_enter(&dict_sys->mutex);
 
@@ -15771,7 +15785,6 @@ innobase_get_dd_tablespace_id(
 			return(false);
 		}
 
-		dd_space_id = dd_space.get()->id();
 	} else if (table->space != TRX_SYS_SPACE
 		   && table->space != srv_tmp_space.space_id()) {
 		/* This is a user table that resides in shared tablesapce */
@@ -16152,7 +16165,6 @@ innobase_fts_create_one_common_dd_table(
 	}
 
 	/* Store table to dd */
-	/* Store table to dd */
 	mutex_exit(&dict_sys->mutex);
 	bool	fail = client->store(dd_table);
 	mutex_enter(&dict_sys->mutex);
@@ -16194,7 +16206,8 @@ innobase_fts_drop_dd_table(
 	}
 
 	const dd::Table*	dd_table = nullptr;
-	if (client->acquire<dd::Table>(db_name, table_name, &dd_table)) {
+	if (client->acquire<dd::Table>(
+			db_name, table_name, &dd_table)) {
 		dd::release_mdl(thd, mdl_ticket);
 		//my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
 		return(false);
@@ -16211,8 +16224,9 @@ innobase_fts_drop_dd_table(
 		dd::Object_id   dd_space_id = (*dd_table->indexes().begin())
 			->tablespace_id();
 
-		const dd::Tablespace*	dd_space;
-		if (client->acquire<dd::Tablespace>(dd_space_id, &dd_space)) {
+		dd::Tablespace*	dd_space;
+		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+				dd_space_id, &dd_space)) {
 			ut_a(false);
 		}
 
@@ -16225,7 +16239,6 @@ innobase_fts_drop_dd_table(
 
 		bool fail = client->drop(dd_space);
 		ut_a(!fail);
-		delete dd_space;
 	}
 
 	if (client->drop(dd_table)) {
@@ -16495,18 +16508,12 @@ ha_innobase::get_extra_columns_and_keys(
 bool
 ha_innobase::get_se_private_data(
 	dd::Table*	dd_table,
-	uint		dd_version,
-	bool		reset_id)
+	uint		dd_version)
 {
 	static uint	n_tables = 0;
 	/* TODO: Once SYS_* tables have been removed, no need for 18 here */
 	static uint	n_indexes = 18;
 	static uint	n_pages = 3;
-
-	if (reset_id) {
-		n_tables = 0;
-		n_indexes = 18;
-	}
 
 #ifdef UNIV_DEBUG
 	const uint	n_indexes_old = n_indexes;
@@ -17108,7 +17115,7 @@ ha_innobase::delete_table_impl(
 	bool	file_per_table = false;
 	bool	tmp_table = false;
 	{
-        	dict_table_t* tab = dd_table_open_on_name(
+		dict_table_t* tab = dd_table_open_on_name(
 			thd, NULL, norm_name, DICT_ERR_IGNORE_CORRUPT);
 
 		if (tab != NULL) {
@@ -17140,8 +17147,9 @@ ha_innobase::delete_table_impl(
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-		const dd::Tablespace*	dd_space;
-		if (client->acquire<dd::Tablespace>(dd_space_id, &dd_space)) {
+		dd::Tablespace*	dd_space;
+		if (client->acquire_uncached_uncommitted(
+				dd_space_id, &dd_space)) {
 			ut_a(false);
 		}
 
@@ -17156,7 +17164,6 @@ ha_innobase::delete_table_impl(
 		DBUG_EXECUTE_IF("fail_while_dropping_dd_object",
 				fail = false;);
 		ut_a(!fail);
-		delete dd_space;
 	}
 
 	innobase_commit_low(trx);
@@ -17754,13 +17761,19 @@ ha_innobase::rename_table_impl(
 	if (rename_dd_filename) {
 		ut_ad(new_path != NULL);
 
+		dd::Object_id		dd_space_id =
+			(*to_table->indexes().begin())->tablespace_id();
+
+		if (dd_tablespace_update_for_rename(dd_space_id, new_path)) {
+			ut_a(false);
+		}
+#if 0
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
 		const dd::Tablespace*	space = NULL;
-		dd::Object_id		dd_space_id =
-			(*to_table->indexes().begin())->tablespace_id();
-		if (client->acquire<dd::Tablespace>(dd_space_id, &space)) {
+		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+				dd_space_id, &space)) {
 			ut_a(false);
 		}
 
@@ -17778,9 +17791,9 @@ ha_innobase::rename_table_impl(
 		dd_file->set_filename(new_path);
 		bool fail = client->update(&space, dd_space);
 		ut_a(!fail);
+#endif
 
 		ut_free(new_path);
-		delete dd_space;
 	}
 
 	DBUG_RETURN(error);
