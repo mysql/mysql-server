@@ -149,3 +149,6 @@ have_numa.inc
 
 # GNU grep not supported on Solaris and Windows
 have_grep.inc
+
+# Thread stack overrun on debug/sparc when built with Developer Studio
+not_sparc_debug.inc

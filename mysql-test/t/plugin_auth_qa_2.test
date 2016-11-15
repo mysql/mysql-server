@@ -6,6 +6,11 @@
 --source include/have_plugin_interface.inc
 --source include/not_embedded.inc
 
+# Official builds include separate debug enabled plugins to be used by
+# the debug enabled server. But the non-debug *client* should not use them.
+
+let PLUGIN_AUTH_OPT=`SELECT TRIM(TRAILING '/debug' FROM '$PLUGIN_AUTH_OPT')`;
+
 CREATE DATABASE test_user_db;
 --echo ========== test 1.1.3.2 ====================================
 --echo === check contens of components of info ====================

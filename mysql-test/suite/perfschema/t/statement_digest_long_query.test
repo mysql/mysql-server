@@ -7,7 +7,7 @@
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 # Thread stack overrun on sparc
---source include/not_sparc.inc
+--source include/not_sparc_debug.inc
 
 USE performance_schema;
 truncate table events_statements_summary_by_digest;

@@ -2,6 +2,10 @@
 # Metadata lock handling for stored procedures and
 # functions.
 #
+
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
+
 --echo # 
 --echo # Test coverage for changes performed by the fix
 --echo # for Bug#30977 "Concurrent statement using stored function
