@@ -22,7 +22,7 @@ extern "C" {
 
 /* Required for FreeBSD, NetBSD and MacOS */
 #ifndef MAXHOSTNAMELEN
-  #ifdef _SC_HOST_NAME_MAX
+  #ifdef _SC_HOST_NAME_MAx
     #define MAXHOSTNAMELEN sysconf(_SC_HOST_NAME_MAX)
   #else
     #define MAXHOSTNAMELEN 1024
