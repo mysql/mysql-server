@@ -2454,11 +2454,6 @@ fil_space_undo_check_if_opened(
 	ut_ad(space == NULL || space->purpose == FIL_TYPE_TABLESPACE);
 	ut_ad(space == NULL || UT_LIST_GET_LEN(space->chain) == 1);
 
-	if (space != NULL)
-		fprintf(stderr, "lz: name1:%s, name2:%s.\n", space->name, name);
-	else
-		fprintf(stderr, "lz: space is null.\n");
-
 	if (space == NULL) {
 		err = DB_TABLESPACE_NOT_FOUND;
 	} else if (space->flags
