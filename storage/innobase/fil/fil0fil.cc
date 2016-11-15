@@ -704,7 +704,7 @@ fil_node_open_file(
 	if (node->size == 0
 	    || (space->purpose == FIL_TYPE_TABLESPACE
 		&& node == UT_LIST_GET_FIRST(space->chain)
-		&& !undo::Truncate::was_tablespace_truncated(space->id)
+		&& !undo::is_under_construction(space->id)
 		&& srv_startup_is_before_trx_rollback_phase)) {
 		/* We do not know the size of the file yet. First we
 		open the file in the normal mode, no async I/O here,
@@ -4827,14 +4827,11 @@ fil_io(
 			if (space->id != TRX_SYS_SPACE
 			    && UT_LIST_GET_LEN(space->chain) == 1
 			    && req_type.is_read()
-			    && (undo::Truncate::is_tablespace_truncated(
-				    space->id)
-				|| undo::Truncate::was_tablespace_truncated(
-				    space->id))) {
+			    && undo::is_under_construction(space->id)) {
 
 				/* Handle page which is outside the truncated
 				tablespace bounds when recovering from a crash
-				happened during a truncation */
+				that happened during a truncation */
 				mutex_exit(&fil_system->mutex);
 				return(DB_TABLESPACE_DELETED);
 			}

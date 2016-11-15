@@ -1923,7 +1923,7 @@ dict_sdi_get_table(
 	bool		dict_locked);
 
 /** Remove the SDI table from table cache.
-@param[in]	space_id	InnoDB tablesapce_id
+@param[in]	space_id	InnoDB tablespace_id
 @param[in,out]	sdi_tables	Array of sdi table
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void

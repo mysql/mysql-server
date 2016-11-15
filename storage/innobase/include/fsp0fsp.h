@@ -735,8 +735,8 @@ bool
 fsp_is_ibd_tablespace(space_id_t space_id)
 {
 	return(space_id != TRX_SYS_SPACE
-		&& !fsp_is_undo_tablespace(space_id)
-		&& !fsp_is_system_temporary(space_id));
+	       && !fsp_is_undo_tablespace(space_id)
+	       && !fsp_is_system_temporary(space_id));
 }
 
 /** Check if tablespace is file-per-table.

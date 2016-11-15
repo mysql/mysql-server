@@ -514,8 +514,8 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_TRX_UNDO_PAGE);
 	LEVEL_MAP_INSERT(SYNC_RSEG_HEADER);
 	LEVEL_MAP_INSERT(SYNC_RSEG_HEADER_NEW);
-	LEVEL_MAP_INSERT(SYNC_NOREDO_RSEG);
-	LEVEL_MAP_INSERT(SYNC_REDO_RSEG);
+	LEVEL_MAP_INSERT(SYNC_TEMP_SPACE_RSEG);
+	LEVEL_MAP_INSERT(SYNC_TRX_SYS_RSEG);
 	LEVEL_MAP_INSERT(SYNC_TRX_UNDO);
 	LEVEL_MAP_INSERT(SYNC_PURGE_LATCH);
 	LEVEL_MAP_INSERT(SYNC_TREE_NODE);
@@ -758,9 +758,8 @@ LatchDebug::check_order(
 	case SYNC_TRX_SYS_HEADER:
 
 		if (srv_is_being_started) {
-			/* This is violated during trx_sys_create_rsegs()
-			when creating additional rollback segments when
-			upgrading in innobase_start_or_create_for_mysql(). */
+			/* This is violated during single-threaded srv_start()
+			by trx_sys_create_additional_rsegs(). */
 			break;
 		}
 
@@ -786,8 +785,8 @@ LatchDebug::check_order(
 	case SYNC_LOCK_WAIT_SYS:
 	case SYNC_TRX_SYS:
 	case SYNC_IBUF_BITMAP_MUTEX:
-	case SYNC_REDO_RSEG:
-	case SYNC_NOREDO_RSEG:
+	case SYNC_TEMP_SPACE_RSEG:
+	case SYNC_TRX_SYS_RSEG:
 	case SYNC_TRX_UNDO:
 	case SYNC_PURGE_LATCH:
 	case SYNC_PURGE_QUEUE:
@@ -884,9 +883,8 @@ LatchDebug::check_order(
 
 		} else if (!srv_is_being_started) {
 
-			/* This is violated during trx_sys_create_rsegs()
-			when creating additional rollback segments during
-			upgrade. */
+			/* This is violated during single-threaded srv_start()
+			by trx_sys_create_additional_rsegs(). */
 
 			basic_check(latches, level, SYNC_IBUF_BITMAP);
 		}
@@ -909,15 +907,15 @@ LatchDebug::check_order(
 		mutex. */
 
 		ut_a(find(latches, SYNC_TRX_UNDO) != 0
-		     || find(latches, SYNC_REDO_RSEG) != 0
-		     || find(latches, SYNC_NOREDO_RSEG) != 0
+		     || find(latches, SYNC_TEMP_SPACE_RSEG) != 0
+		     || find(latches, SYNC_TRX_SYS_RSEG) != 0
 		     || basic_check(latches, level, level - 1));
 		break;
 
 	case SYNC_RSEG_HEADER:
 
-		ut_a(find(latches, SYNC_REDO_RSEG) != 0
-		     || find(latches, SYNC_NOREDO_RSEG) != 0);
+		ut_a(find(latches, SYNC_TEMP_SPACE_RSEG) != 0
+		     || find(latches, SYNC_TRX_SYS_RSEG) != 0);
 		break;
 
 	case SYNC_RSEG_HEADER_NEW:
@@ -1468,9 +1466,9 @@ sync_latch_meta_init()
 
 	LATCH_ADD(RECV_WRITER, SYNC_RECV_WRITER, recv_writer_mutex_key);
 
-	LATCH_ADD(REDO_RSEG, SYNC_REDO_RSEG, redo_rseg_mutex_key);
+	LATCH_ADD(TEMP_SPACE_RSEG, SYNC_TEMP_SPACE_RSEG, temp_space_rseg_mutex_key);
 
-	LATCH_ADD(NOREDO_RSEG, SYNC_NOREDO_RSEG, noredo_rseg_mutex_key);
+	LATCH_ADD(TRX_SYS_RSEG, SYNC_TRX_SYS_RSEG, trx_sys_rseg_mutex_key);
 
 #ifdef UNIV_DEBUG
 	/* Mutex names starting with '.' are not tracked. They are assumed

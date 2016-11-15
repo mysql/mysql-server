@@ -23,8 +23,9 @@ Rollback segment
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-#include "srv0srv.h"
 #include "mtr0log.h"
+#include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0sys.h"
 
 /** Gets a rollback segment header.
@@ -147,27 +148,61 @@ trx_rsegf_undo_find_free(
 	return(ULINT_UNDEFINED);
 }
 
-/******************************************************************//**
-Looks for a rollback segment, based on the rollback segment id.
+/** Look for a rollback segment, based on the rollback segment id.
+@param[in]	id		rollback segment id
+@param[in]	is_temp		true if rseg from Temp Tablespace else false.
 @return rollback segment */
 UNIV_INLINE
 trx_rseg_t*
 trx_rseg_get_on_id(
-/*===============*/
-	ulint	id,		/*!< in: rollback segment id */
-	bool	is_redo_rseg)	/*!< in: true if redo rseg else false. */
+	ulint	id,
+	bool	is_temp)
 {
-	ut_a(id < TRX_SYS_N_RSEGS);
+	trx_rseg_t*	rseg;
 
-	/* If redo rseg is being requested and id falls in range of
-	non-redo rseg that is from slot-1....slot-srv_tmp_undo_logs then
-	server is being upgraded from pre-5.7.2. In such case return
-	rseg from pending_purge_rseg_array array. */
-	if (is_redo_rseg && trx_sys_is_noredo_rseg_slot(id)) {
-		ut_ad(trx_sys->pending_purge_rseg_array[id] != NULL);
-		return(trx_sys->pending_purge_rseg_array[id]);
+	ut_ad(id < TRX_SYS_N_RSEGS);
+
+	/*  MySQL versions before v5.7.2 used the first 32 slots in the
+	TRX_SYS page for redo rollback segments. v5.7.2 uses these seg_ids
+	for no-redo rollback segments in the temproary tablespace.
+	v8 will once again use them for durable/redo rollback segments.
+	Upgrade from v5.7 to v8.0 requires empty UNDO logs. */
+	if (is_temp) {
+		ut_ad(id < srv_tmp_rollback_segments);
+
+		rseg = id < trx_sys->tmp_rsegs.size()
+			? trx_sys->tmp_rsegs[id] : NULL;
+
+		return(rseg);
 	}
 
-	return(trx_sys->rseg_array[id]);
+	/* The rseg vector is normally in the order of rseg_id. */
+	if (id < trx_sys->rsegs.size()) {
+		rseg = trx_sys->rsegs.at(id);
+		if (rseg->id == id) {
+			return(rseg);
+		}
+	}
+
+	/* There may be a gap of 32 missing rseg_ids in the
+	rsegs vector if the database was created in v5.6 or v5.7.
+	First, try subtracting 32 and see if we get a hit. */
+	if (id - 32 < trx_sys->rsegs.size()) {
+	    rseg = trx_sys->rsegs.at(id - 32);
+		if (rseg->id == id) {
+			return(rseg);
+		}
+	}
+
+	/* Try a search before giving up. */
+	for (Rseg_Iterator it = trx_sys->rsegs.begin();
+	     it != trx_sys->rsegs.end(); ++it) {
+		rseg = *it;
+		if (rseg->id == id) {
+			return(rseg);
+		}
+	}
+
+	return(nullptr);
 }
 

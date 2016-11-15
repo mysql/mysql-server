@@ -648,7 +648,7 @@ mtr_t::x_lock_space(space_id_t space_id, const char* file, ulint line)
 		ut_ad(space->purpose == FIL_TYPE_TEMPORARY
 		      || space->purpose == FIL_TYPE_IMPORT
 		      || space->redo_skipped_count > 0
-		      || undo::Truncate::is_tablespace_truncated(space->id));
+		      || undo::is_under_construction(space->id));
 	} else {
 		/* called from trx_rseg_create() */
 		space = m_impl.m_undo_space = fil_space_get(space_id);

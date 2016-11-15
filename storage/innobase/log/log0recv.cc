@@ -2342,7 +2342,7 @@ recv_recover_page_func(
 		was re-inited and that would lead to an error while applying
 		such action. */
 		if (recv->start_lsn >= page_lsn
-		    && !undo::Truncate::is_tablespace_truncated(recv_addr->space)) {
+		    && !undo::is_under_construction(recv_addr->space)) {
 
 			lsn_t	end_lsn;
 

@@ -98,16 +98,14 @@ char*	srv_undo_dir = NULL;
 /** The number of tablespaces to use for rollback segments. */
 ulong	srv_undo_tablespaces = 0;
 
-/** The number of UNDO tablespaces that are open and ready to use. */
-ulint	srv_undo_tablespaces_open = 0;
+/* The number of rollback segments to use for durable,
+redo-logged, non-temporary transactions */
+ulong	srv_rollback_segments = 1;
 
-/** The number of UNDO tablespaces that are active (hosting some rollback
-segment). It is quite possible that some of the tablespaces doesn't host
-any of the rollback-segment based on configuration used. */
-ulint	srv_undo_tablespaces_active = 0;
-
-/* The number of rollback segments to use */
-ulong	srv_undo_logs = 1;
+/** The number of rollback segments to use for non-durable,
+non-redo-logged, temporary transactions. These logs reside in the
+temp tablespace.*/
+ulong	srv_tmp_rollback_segments = TRX_SYS_OLD_TMP_RSEGS;
 
 /** Rate at which UNDO records should be purged. */
 ulong	srv_purge_rseg_truncate_frequency = 128;
@@ -120,11 +118,7 @@ for truncate (action is never aborted). */
 my_bool	srv_undo_log_truncate = FALSE;
 
 /** Maximum size of undo tablespace. */
-unsigned long long	srv_max_undo_log_size;
-
-/** UNDO logs that are not redo logged.
-These logs reside in the temp tablespace.*/
-const ulong		srv_tmp_undo_logs = 32;
+unsigned long long	srv_max_undo_tablespace_size;
 
 /** Default undo tablespace size in UNIV_PAGEs count (10MB). */
 const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
@@ -373,7 +367,7 @@ static ulint		srv_n_rows_deleted_old		= 0;
 static ulint		srv_n_rows_read_old		= 0;
 
 ulint	srv_truncated_status_writes	= 0;
-ulint	srv_available_undo_logs         = 0;
+ulint	srv_available_rollback_segments	= 0;
 
 /* Set the following to 0 if you want InnoDB to write messages on
 stderr on startup/shutdown. */
@@ -1451,7 +1445,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_truncated_status_writes =
 		srv_truncated_status_writes;
 
-	export_vars.innodb_available_undo_logs = srv_available_undo_logs;
+	export_vars.innodb_available_undo_logs =
+		srv_available_rollback_segments;
 
 #ifdef UNIV_DEBUG
 	rw_lock_s_lock(&purge_sys->latch);

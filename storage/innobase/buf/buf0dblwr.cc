@@ -557,8 +557,7 @@ buf_dblwr_process(void)
 
 			/* Do not report the warning if the tablespace is
 			going to be truncated. */
-			if (!undo::Truncate::is_tablespace_truncated(
-				    space_id)) {
+			if (!undo::is_under_construction(space_id)) {
 				ib::warn() << "Page " << page_no_dblwr
 					<< " in the doublewrite buffer is"
 					" not within space bounds: page "
