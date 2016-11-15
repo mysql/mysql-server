@@ -1121,7 +1121,7 @@ get_next_redo_rseg()
 	to a smaller number at runtime.  So use the smaller of these two. */
 	ulint	max_rollback_segments
 		= ut_min(static_cast<ulint>(srv_rollback_segments),
-			 trx_sys->rsegs.size());
+			 static_cast<ulint>(trx_sys->rsegs.size()));
 	ulint	slot = start % max_rollback_segments;
 	ulint	last = (start - 1) % max_rollback_segments;
 	bool	searching = true;
