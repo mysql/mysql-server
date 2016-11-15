@@ -4174,7 +4174,7 @@ my_uca_copy_page(CHARSET_INFO *cs,
     const uint src_size= 256 * src->lengths[page] * sizeof(uint16);
     memcpy(dst->weights[page], src->weights[page], src_size);
   }
-  else
+  else if (src->lengths[page] > 0)
   {
     for (uint chc=0 ; chc < 256; chc++)
     {
