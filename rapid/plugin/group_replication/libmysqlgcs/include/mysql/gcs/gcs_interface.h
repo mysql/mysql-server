@@ -197,10 +197,8 @@ public:
 
 
 /**
-  @enum available_interfaces
-
-  @brief Enum that lists all implementations of Gcs_interface available to be
-         returned
+  Enum that lists all implementations of Gcs_interface available to be
+  returned
 */
 enum enum_available_interfaces
 {

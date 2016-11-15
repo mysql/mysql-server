@@ -85,9 +85,10 @@ public:
 
 
   /**
-    Check whether any of the paramters were provided.
+    Check whether any of the parameters were provided.
 
     @param params list of parameters.
+    @param size number of parameters.
     @return True if any of the parameters is stored.
   */
 

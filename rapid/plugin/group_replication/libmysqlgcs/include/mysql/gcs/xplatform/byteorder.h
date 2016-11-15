@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
-  @file byteorder.h
+  @file rapid/plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h
   @author Neha Kumari
 
   @brief The file contains functions to convert the byte encoding of integer
