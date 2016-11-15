@@ -119,8 +119,7 @@ bool drop_tablespace(THD *thd, const Tablespace *tablespace,
   Update tablespace description in Data Dictionary.
 
   @param thd                Thread executing the operation.
-  @param tablespace         Uncached tablespace object for
-                            the tablespace.
+  @param tablespace         Tablespace object for the tablespace.
   @param commit_dd_changes  Indicates that we need to commit
                             changes to data-dictionary.
 
@@ -135,8 +134,7 @@ bool drop_tablespace(THD *thd, const Tablespace *tablespace,
   @return false - On success.
   @return true - On failure.
 */
-bool update_tablespace(THD *thd, const Tablespace *old_tablespace,
-                       Tablespace *tablespace,
+bool update_tablespace(THD *thd, Tablespace *tablespace,
                        bool commit_dd_changes);
 
 /**

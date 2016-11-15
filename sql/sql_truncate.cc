@@ -271,19 +271,15 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  const dd::Table *old_non_tmp_table_def= nullptr;
   dd::Table *non_tmp_table_def= nullptr;
 
   if (!is_tmp_table)
   {
-    if (thd->dd_client()->acquire<dd::Table>(table_ref->db,
-                                             table_ref->table_name,
-                                             &old_non_tmp_table_def) ||
-        thd->dd_client()->acquire_for_modification<dd::Table>(table_ref->db,
+    if (thd->dd_client()->acquire_for_modification<dd::Table>(table_ref->db,
                             table_ref->table_name, &non_tmp_table_def))
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
-    if (!old_non_tmp_table_def || !non_tmp_table_def)
+    if (!non_tmp_table_def)
     {
       /* Impossible since table was successfully opened above. */
       DBUG_ASSERT(0);

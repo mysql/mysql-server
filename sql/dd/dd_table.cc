@@ -2376,22 +2376,21 @@ bool add_foreign_keys_and_triggers(THD *thd,
               (trg_info != nullptr && !trg_info->empty()));
 
 
-  const dd::Table *old_table= nullptr;
-  dd::Table *new_table= nullptr;
-  if (thd->dd_client()->acquire(schema_name, table_name, &old_table) ||
-      thd->dd_client()->acquire_for_modification(schema_name, table_name, &new_table))
+  dd::Table *table_def= nullptr;
+  if (thd->dd_client()->acquire_for_modification(schema_name, table_name,
+                                                 &table_def))
     DBUG_RETURN(true);
 
   if (fk_keys > 0 &&
-      fill_dd_foreign_keys_from_create_fields(new_table, fk_keys, fk_keyinfo))
+      fill_dd_foreign_keys_from_create_fields(table_def, fk_keys, fk_keyinfo))
     DBUG_RETURN(true);
 
   if (trg_info != nullptr && !trg_info->empty())
-    new_table->move_triggers(trg_info);
+    table_def->move_triggers(trg_info);
 
   Disable_gtid_state_update_guard disabler(thd);
 
-  if (thd->dd_client()->update(new_table))
+  if (thd->dd_client()->update(table_def))
   {
     if (commit_dd_changes)
     {
@@ -2647,9 +2646,7 @@ bool rename_table(THD *thd,
 }
 
 
-bool rename_table(THD *thd,
-                  const dd::Schema *from_sch, const dd::Table *from_table_def,
-                  const dd::Schema *to_sch, dd::Table *to_table_def,
+bool rename_table(THD *thd, dd::Table *to_table_def,
                   bool mark_as_hidden, bool commit_dd_changes)
 {
   Disable_gtid_state_update_guard disabler(thd);
@@ -2892,28 +2889,26 @@ bool update_keys_disabled(THD *thd,
   }
 
   // Get 'from' table object
-  const dd::Table *old_tab_obj= nullptr;
-  dd::Table *new_tab_obj= nullptr;
-  if (client->acquire(schema_name, table_name, &old_tab_obj) ||
-      client->acquire_for_modification(schema_name, table_name, &new_tab_obj))
+  dd::Table *tab_obj= nullptr;
+  if (client->acquire_for_modification(schema_name, table_name, &tab_obj))
   {
     return true;
   }
 
-  if (!old_tab_obj || !new_tab_obj)
+  if (!tab_obj)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
     return true;
   }
 
   // Update option keys_disabled
-  new_tab_obj->options().set_uint32("keys_disabled",
-                                    (keys_onoff==Alter_info::DISABLE ? 1 : 0));
+  tab_obj->options().set_uint32("keys_disabled",
+                                (keys_onoff==Alter_info::DISABLE ? 1 : 0));
   // Save the changes
   Disable_gtid_state_update_guard disabler(thd);
 
   // Update the changes
-  if (client->update(new_tab_obj))
+  if (client->update(tab_obj))
   {
     if (commit_dd_changes)
     {
@@ -3000,8 +2995,7 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
   dd::Schema_MDL_locker mdl_locker(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch= nullptr;
-  const dd::Table *old_table_def= nullptr;
-  dd::Table *new_table_def= nullptr;
+  dd::Table *table_def= nullptr;
 
   // There should be an exclusive metadata lock on the table
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
@@ -3009,11 +3003,9 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
 
   if (mdl_locker.ensure_locked(share->db.str) ||
       thd->dd_client()->acquire(share->db.str, &sch) ||
-      thd->dd_client()->acquire(share->db.str, share->table_name.str,
-                                &old_table_def) ||
       thd->dd_client()->acquire_for_modification(share->db.str,
                                                  share->table_name.str,
-                                                 &new_table_def))
+                                                 &table_def))
     return true;
 
   if (!sch)
@@ -3023,16 +3015,16 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
     return true;
   }
 
-  if (!old_table_def || !new_table_def)
+  if (!table_def)
   {
     DBUG_ASSERT(0);
     my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
     return true;
   }
 
-  new_table_def->set_row_format(dd_get_new_row_format(correct_row_type));
+  table_def->set_row_format(dd_get_new_row_format(correct_row_type));
 
-  if (thd->dd_client()->update(new_table_def))
+  if (thd->dd_client()->update(table_def))
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
@@ -3058,8 +3050,6 @@ bool move_triggers(THD *thd,
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
   const dd::Schema *from_sch= nullptr;
   const dd::Schema *to_sch= nullptr;
-  const dd::Table *old_from_tab= nullptr;
-  const dd::Table *old_to_tab= nullptr;
   dd::Table *new_from_tab= nullptr;
   dd::Table *new_to_tab= nullptr;
 
@@ -3068,8 +3058,6 @@ bool move_triggers(THD *thd,
       to_mdl_locker.ensure_locked(to_schema_name) ||
       client->acquire(from_schema_name, &from_sch) ||
       client->acquire(to_schema_name, &to_sch) ||
-      client->acquire(to_schema_name, to_name, &old_to_tab) ||
-      client->acquire(from_schema_name, from_name, &old_from_tab) ||
       client->acquire_for_modification(to_schema_name, to_name, &new_to_tab) ||
       client->acquire_for_modification(from_schema_name, from_name,
                                        &new_from_tab))
@@ -3084,13 +3072,13 @@ bool move_triggers(THD *thd,
     return true;
   }
 
-  if (old_from_tab == nullptr)
+  if (new_from_tab == nullptr)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), from_schema_name, from_name);
     return true;
   }
 
-  if (old_to_tab == nullptr)
+  if (new_to_tab == nullptr)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), to_schema_name, to_name);
     return true;

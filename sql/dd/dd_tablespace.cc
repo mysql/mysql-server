@@ -280,8 +280,7 @@ bool drop_tablespace(THD *thd, const dd::Tablespace* tablespace,
 }
 
 
-bool update_tablespace(THD *thd, const dd::Tablespace *old_tablespace,
-                       dd::Tablespace *tablespace,
+bool update_tablespace(THD *thd, dd::Tablespace *tablespace,
                        bool commit_dd_changes)
 {
   DBUG_ENTER("dd_update_tablespace");

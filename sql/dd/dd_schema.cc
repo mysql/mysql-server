@@ -86,28 +86,26 @@ bool alter_schema(THD *thd, const char *schema_name,
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
   // Get dd::Schema object.
-  const dd::Schema *old_sch_obj= nullptr;
-  dd::Schema *new_sch_obj= nullptr;
-  if (client->acquire(schema_name, &old_sch_obj) ||
-      client->acquire_for_modification(schema_name, &new_sch_obj))
+  dd::Schema *sch_obj= nullptr;
+  if (client->acquire_for_modification(schema_name, &sch_obj))
   {
     // Error is reported by the dictionary subsystem.
     return true;
   }
 
-  if (!old_sch_obj)
+  if (!sch_obj)
   {
     my_error(ER_NO_SUCH_DB, MYF(0), schema_name);
     return true;
   }
 
   // Set new collation ID.
-  new_sch_obj->set_default_collation_id(charset_info->number);
+  sch_obj->set_default_collation_id(charset_info->number);
 
   Disable_gtid_state_update_guard disabler(thd);
 
   // Update schema.
-  if (client->update(new_sch_obj))
+  if (client->update(sch_obj))
     return true;
 
   return false;

@@ -7304,8 +7304,6 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                           old_name, &to_table_def))
     DBUG_RETURN(true);
 
-  std::unique_ptr<dd::Table> from_table_def_save(from_table_def->clone());
-
   // Set schema id and table name.
   to_table_def->set_schema_id(to_sch->id());
   to_table_def->set_name(new_name);
@@ -7356,7 +7354,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 
   int error= 0;
   if (!(flags & NO_HA_TABLE))
-    error= file->ha_rename_table(from_base, to_base, from_table_def_save.get(),
+    error= file->ha_rename_table(from_base, to_base, from_table_def,
                                  to_table_def);
 
   thd->variables.option_bits= save_bits;
@@ -7389,8 +7387,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
       supporting atomic DDL. And for engines which can't do atomic DDL in
       either case there are scenarios in which DD and SE get out of sync.
     */
-    if (dd::rename_table(thd, from_sch, from_table_def, to_sch, to_table_def,
-                         (flags & FN_TO_IS_TMP),
+    if (dd::rename_table(thd, to_table_def, (flags & FN_TO_IS_TMP),
                          !(flags & NO_DD_COMMIT)))
     {
       /*
@@ -7407,7 +7404,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 #endif
          )
         (void) file->ha_rename_table(to_base, from_base, to_table_def,
-                                     from_table_def_save.get());
+                                     const_cast<dd::Table*>(from_table_def));
       delete file;
       DBUG_RETURN(true);
     }
@@ -9286,11 +9283,8 @@ static bool mysql_inplace_alter_table(THD *thd,
                                            &old_table_def))
     goto cleanup;
 
-  const dd::Table *old_altered_table_def= nullptr;
   dd::Table *altered_table_def= nullptr;
   if (mdl_locker_2.ensure_locked(alter_ctx->new_db) ||
-      thd->dd_client()->acquire(alter_ctx->new_db, alter_ctx->tmp_name,
-                                &old_altered_table_def) ||
       thd->dd_client()->acquire_for_modification(alter_ctx->new_db,
                           alter_ctx->tmp_name, &altered_table_def))
     goto cleanup;

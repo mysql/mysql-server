@@ -362,7 +362,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
         modify data-dictionary objects in handler::create() and other
         similar calls.
       */
-      if (dd::update_tablespace(thd, old_ts_def, new_ts_def,
+      if (dd::update_tablespace(thd, new_ts_def,
                                 !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL)))
         goto err;
     }
