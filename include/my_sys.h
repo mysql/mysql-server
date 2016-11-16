@@ -598,11 +598,6 @@ int my_openlog(const char *eventSourceName, int option, int facility);
 int my_closelog();
 int my_syslog(const CHARSET_INFO *cs, enum loglevel level, const char *msg);
 
-/* implemented in my_memmem.c */
-extern void *my_memmem(const void *haystack, size_t haystacklen,
-                       const void *needle, size_t needlelen);
-
-
 #ifdef _WIN32
 extern int      my_access(const char *path, int amode);
 #else

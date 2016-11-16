@@ -71,7 +71,6 @@ SET(MYSYS_SOURCES
   my_lib.cc
   my_lock.cc
   my_malloc.cc
-  my_memmem.cc
   my_mess.cc
   my_mkdir.cc
   my_mmap.cc
