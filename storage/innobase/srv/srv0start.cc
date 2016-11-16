@@ -883,8 +883,6 @@ srv_undo_tablespaces_construct(bool create_new_db)
 	ulint			rseg_id;
 	mtr_t			mtr;
 
-	ut_ad(srv_undo_tablespaces == trx_sys_undo_spaces->size());
-
 	Space_Ids::const_iterator	it;
 	for (it = undo::s_under_construction.begin();
 	     it != undo::s_under_construction.end(); ++it) {
