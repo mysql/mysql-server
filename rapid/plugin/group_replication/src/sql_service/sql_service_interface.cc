@@ -179,11 +179,12 @@ long Sql_service_interface::execute_internal(Sql_resultset *rset,
 long Sql_service_interface::execute_query(std::string sql_string)
 {
   DBUG_ENTER("Sql_service_interface::execute");
+  DBUG_ASSERT(sql_string.length() <= UINT_MAX);
   COM_DATA cmd;
   Sql_resultset rset;
 
   cmd.com_query.query= (char *) sql_string.c_str();
-  cmd.com_query.length= sql_string.length();
+  cmd.com_query.length= static_cast<unsigned int>(sql_string.length());
 
   long err= execute_internal(&rset, m_txt_or_bin,
                              m_charset, cmd, COM_QUERY);
@@ -198,9 +199,10 @@ long Sql_service_interface::execute_query(std::string sql_string,
                                           const CHARSET_INFO *cs_charset)
 {
   DBUG_ENTER("Sql_service_interface::execute");
+  DBUG_ASSERT(sql_string.length() <= UINT_MAX);
   COM_DATA cmd;
   cmd.com_query.query= (char *) sql_string.c_str();
-  cmd.com_query.length= sql_string.length();
+  cmd.com_query.length= static_cast<unsigned int>(sql_string.length());
 
   long err= execute_internal(rset, cs_txt_or_bin,
                             cs_charset, cmd, COM_QUERY);

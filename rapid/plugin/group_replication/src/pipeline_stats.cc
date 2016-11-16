@@ -495,16 +495,16 @@ Flow_control_module::flow_control_step()
                              ? min_certifier_capacity : min_applier_capacity;
 
         // Minimum capacity will never be less than lim_throttle.
-        int64 lim_throttle= 0.05 * std::min(flow_control_certifier_threshold_var,
-                                            flow_control_applier_threshold_var);
+        int64 lim_throttle= static_cast<int64>(0.05 * std::min(flow_control_certifier_threshold_var,
+                                            flow_control_applier_threshold_var));
         min_capacity= std::max(std::min(min_capacity, safe_capacity), lim_throttle);
-        quota_size= (min_capacity * HOLD_FACTOR) / num_writing_members - extra_quota;
+        quota_size= static_cast<int64>((min_capacity * HOLD_FACTOR) / num_writing_members - extra_quota);
         my_atomic_store64(&m_quota_size, quota_size > 1 ? quota_size : 1);
       }
       else
       {
         if (quota_size > 0 && (quota_size * RELEASE_FACTOR) < MAXTPS)
-          quota_size *= RELEASE_FACTOR;
+          quota_size= static_cast<int64>(quota_size * RELEASE_FACTOR);
         else
           quota_size= 0;
 

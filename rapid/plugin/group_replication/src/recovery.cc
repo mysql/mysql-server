@@ -265,7 +265,7 @@ Recovery_module::recovery_thread_handle()
   set_recovery_thread_context();
 
   //take this before the start method returns
-  int number_of_members= group_member_mgr->get_number_of_members();
+  size_t number_of_members= group_member_mgr->get_number_of_members();
   recovery_state_transfer.initialize_group_info();
 
   mysql_mutex_lock(&run_lock);
@@ -498,7 +498,7 @@ int Recovery_module::wait_for_applier_module_recovery()
   bool applier_monitoring= true;
   while (!recovery_aborted && applier_monitoring)
   {
-    ulong queue_size = applier_module->get_message_queue_size();
+    size_t queue_size = applier_module->get_message_queue_size();
     if (queue_size <= RECOVERY_TRANSACTION_THRESHOLD)
     {
       if (recovery_completion_policy == RECOVERY_POLICY_WAIT_EXECUTED)

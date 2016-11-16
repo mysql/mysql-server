@@ -182,14 +182,14 @@ long Sql_service_command::kill_session(uint32_t session_id,
   DBUG_RETURN(srv_err);
 }
 
-long Sql_service_command::get_server_super_read_only()
+longlong Sql_service_command::get_server_super_read_only()
 {
   DBUG_ENTER("Sql_service_command::get_server_super_read_only");
 
   DBUG_ASSERT(server_interface != NULL);
 
   Sql_resultset rset;
-  long server_super_read_only= -1;
+  longlong server_super_read_only= -1;
 
   long srv_error=
       server_interface->execute_query("SELECT @@GLOBAL.super_read_only", &rset);
@@ -206,14 +206,14 @@ long Sql_service_command::get_server_super_read_only()
   DBUG_RETURN(server_super_read_only);
 }
 
-long Sql_service_command::get_server_read_only()
+longlong Sql_service_command::get_server_read_only()
 {
   DBUG_ENTER("Sql_service_command::get_server_read_only");
 
   DBUG_ASSERT(server_interface != NULL);
 
   Sql_resultset rset;
-  long server_read_only= -1;
+  longlong server_read_only= -1;
   long srv_error= server_interface->execute_query("SELECT @@GLOBAL.read_only", &rset);
   if (srv_error == 0)
   {
