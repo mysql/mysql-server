@@ -73,7 +73,7 @@ public:
     @param[in] buf raw data
     @param[in] len raw length
   */
-  Recovery_message(const uchar* buf, size_t len);
+  Recovery_message(const uchar* buf, uint64 len);
 
   /** Returns this recovery message type */
   Recovery_message_type get_recovery_message_type()
@@ -101,7 +101,7 @@ protected:
     @param[in] buffer the received data
     @param[in] length the received data size
   */
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer, uint64 length);
 
 private:
   /**The message type*/

@@ -89,7 +89,7 @@ protected:
    Implementation of the template methods
    */
   void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer, uint64 length);
 
 private:
   std::vector<uchar> data;

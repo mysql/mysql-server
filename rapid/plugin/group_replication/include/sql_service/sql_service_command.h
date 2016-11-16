@@ -132,7 +132,7 @@ public:
        0  Not in super read mode
        1  In read super mode
   */
-  long get_server_super_read_only();
+  longlong get_server_super_read_only();
 
   /*
     Method to get the value of the read_only variable on the server.
@@ -142,7 +142,7 @@ public:
        0  Not in super read mode
        1  In read super mode
   */
-  long get_server_read_only();
+  longlong get_server_read_only();
 private:
   //The internal SQL session service interface to the server
   Sql_service_interface *server_interface;

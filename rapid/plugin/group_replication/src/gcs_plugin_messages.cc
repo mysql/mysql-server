@@ -71,7 +71,7 @@ void Plugin_gcs_message::encode(std::vector<unsigned char>* buffer) const
 }
 
 void Plugin_gcs_message::decode(const unsigned char* buffer,
-                                size_t length)
+                                uint64 length)
 {
   DBUG_ENTER("Plugin_gcs_message::decode");
   const unsigned char *slider= buffer;
@@ -118,7 +118,7 @@ Plugin_gcs_message::get_cargo_type(const unsigned char* buffer)
 void
 Plugin_gcs_message::get_first_payload_item_raw_data(const unsigned char* buffer,
                                                     const unsigned char** payload_item_data,
-                                                    size_t* payload_item_length)
+                                                    uint64* payload_item_length)
 {
   DBUG_ENTER("Plugin_gcs_message::get_first_payload_item_raw_data");
   const unsigned char *slider= buffer +

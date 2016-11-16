@@ -25,13 +25,13 @@ Single_primary_message::~Single_primary_message()
 {
 }
 
-Single_primary_message::Single_primary_message(const uchar* buf, size_t len)
+Single_primary_message::Single_primary_message(const uchar* buf, uint64 len)
     : Plugin_gcs_message(CT_SINGLE_PRIMARY_MESSAGE)
 {
   decode(buf, len);
 }
 
-void Single_primary_message::decode_payload(const unsigned char* buffer, size_t length)
+void Single_primary_message::decode_payload(const unsigned char* buffer, uint64 length)
 {
   DBUG_ENTER("Single_primary_message::decode_payload");
   const unsigned char *slider= buffer;
