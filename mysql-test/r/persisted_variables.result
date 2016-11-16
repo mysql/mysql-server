@@ -340,7 +340,25 @@ SELECT @@global.general_log, @@global.autocommit,
 @@global.innodb_deadlock_detect, @@global.enforce_gtid_consistency;
 @@global.general_log	@@global.autocommit	@@global.innodb_deadlock_detect	@@global.enforce_gtid_consistency
 1	0	0	ON
-# Restart server with all defaults
+#
+# Bug#24613005: SET PERSIST STORES PREVIOUS VALUE OF
+#               INNODB_BUFFER_POOL_SIZE TO MYSQLD-AUTO.CNF
+#
+SELECT @@global.innodb_buffer_pool_size;
+@@global.innodb_buffer_pool_size
+25165824
+SET PERSIST innodb_buffer_pool_size=10*1024*1024;
+SELECT @@global.innodb_buffer_pool_size;
+@@global.innodb_buffer_pool_size
+25165824
+# Restart server
+# restart
+SELECT @@global.innodb_buffer_pool_size;
+@@global.innodb_buffer_pool_size
+25165824
+# Check mysqld-auto.cnf file.
+{ "mysql_server": {"autocommit": "OFF" , "enforce_gtid_consistency": "ON" , "general_log": "ON" , "innodb_buffer_pool_size": "25165824" , "innodb_deadlock_detect": "OFF" } }# Restart server with all defaults
+# restart
 SELECT 'END OF TEST';
 END OF TEST
 END OF TEST
