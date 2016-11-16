@@ -17140,11 +17140,8 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     jam();
     // This is a newly started transaction, clean-up from any
     // previous transaction.
-    releaseAllSeizedIndexOperations(regApiPtr);
-
+    initApiConnectRec(signal, regApiPtr, true);
     regApiPtr->apiConnectstate = CS_STARTED;
-    regApiPtr->transid[0] = tcIndxReq->transId1;
-    regApiPtr->transid[1] = tcIndxReq->transId2;
   }//if (startFlag == 1 && ...
   else if (regApiPtr->apiConnectstate == CS_ABORTING)
   {
@@ -18264,6 +18261,7 @@ bool Dbtc::seizeIndexOperation(ApiConnectRecord* regApiPtr,
     ndbassert(indexOpPtr.p->transIdAIState == ITAS_WAIT_HEADER);
     ndbassert(indexOpPtr.p->pendingTransIdAI == 0);
     ndbassert(indexOpPtr.p->transIdAISectionIVal == RNIL);
+    ndbassert(indexOpPtr.p->savedFlags == 0);
     return true;
   }
   jam();
@@ -18284,6 +18282,7 @@ void Dbtc::releaseIndexOperation(ApiConnectRecord* regApiPtr,
   indexOp->pendingTransIdAI = 0;
   releaseSection(indexOp->transIdAISectionIVal);
   indexOp->transIdAISectionIVal= RNIL;
+  indexOp->savedFlags= 0;
   regApiPtr->theSeizedIndexOperations.release(indexOp->indexOpId);
 }
 
@@ -18307,7 +18306,8 @@ void Dbtc::releaseAllSeizedIndexOperations(ApiConnectRecord* regApiPtr)
     indexOp->pendingTransIdAI = 0;
     releaseSection(indexOp->transIdAISectionIVal);
     indexOp->transIdAISectionIVal = RNIL;
-    regApiPtr->theSeizedIndexOperations.next(seizedIndexOpPtr);    
+    indexOp->savedFlags= 0;
+    regApiPtr->theSeizedIndexOperations.next(seizedIndexOpPtr);
   }
   jam();
   while (regApiPtr->theSeizedIndexOperations.releaseFirst())
