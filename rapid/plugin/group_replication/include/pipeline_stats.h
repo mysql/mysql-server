@@ -97,7 +97,7 @@ public:
     @param[in] buf raw data
     @param[in] len raw length
   */
-  Pipeline_stats_member_message(const unsigned char *buf, size_t len);
+  Pipeline_stats_member_message(const unsigned char *buf, uint64 len);
 
   /**
     Message destructor
@@ -153,7 +153,7 @@ protected:
     @param[in] buffer the received data
     @param[in] length the received data size
   */
-  void decode_payload(const unsigned char *buffer, size_t length);
+  void decode_payload(const unsigned char *buffer, uint64 length);
 
 private:
   int32 m_transactions_waiting_certification;
@@ -356,7 +356,7 @@ public:
       @retval 0      OK
       @retval !=0    Error on queue
   */
-  int handle_stats_data(const uchar *data, size_t len,
+  int handle_stats_data(const uchar *data, uint64 len,
                         const std::string& member_id);
 
   /**

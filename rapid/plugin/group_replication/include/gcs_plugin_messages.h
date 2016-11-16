@@ -199,7 +199,7 @@ public:
     @param[in] buffer the buffer to decode from.
     @param[in] length the length of the buffer.
   */
-  void decode(const unsigned char* buffer, size_t length);
+  void decode(const unsigned char* buffer, uint64 length);
 
   /**
     Return the cargo type of a given message buffer, without decode
@@ -223,7 +223,7 @@ public:
   */
   static void get_first_payload_item_raw_data(const unsigned char* buffer,
                                               const unsigned char** payload_item_data,
-                                              size_t* payload_item_length);
+                                              uint64* payload_item_length);
 
 protected:
   /**
@@ -247,7 +247,7 @@ protected:
     @param[in] buffer the buffer to decode from.
     @param[in] length the length of the buffer.
   */
-  virtual void decode_payload(const unsigned char* buffer, size_t length)= 0;
+  virtual void decode_payload(const unsigned char* buffer, uint64 length)= 0;
 
   /**
     Encodes the given payload item type and length into the buffer.

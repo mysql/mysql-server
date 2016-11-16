@@ -73,7 +73,7 @@ Group_member_info::Group_member_info(Group_member_info& other)
                                          .get_version());
 }
 
-Group_member_info::Group_member_info(const uchar* data, size_t len)
+Group_member_info::Group_member_info(const uchar* data, uint64 len)
   : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
     gcs_member_id(NULL), member_version(NULL),
     unreachable(false)
@@ -144,7 +144,7 @@ Group_member_info::encode_payload(std::vector<unsigned char>* buffer) const
 
 void
 Group_member_info::decode_payload(const unsigned char* buffer,
-                                  size_t length)
+                                  uint64 length)
 {
   DBUG_ENTER("Group_member_info::decode_payload");
   const unsigned char *slider= buffer;
@@ -442,7 +442,7 @@ Group_member_info_manager::~Group_member_info_manager()
   delete members;
 }
 
-int
+size_t
 Group_member_info_manager::get_number_of_members()
 {
   return members->size();
@@ -665,7 +665,7 @@ Group_member_info_manager::encode(vector<uchar>* to_encode)
 }
 
 vector<Group_member_info*>*
-Group_member_info_manager::decode(const uchar* to_decode, size_t length)
+Group_member_info_manager::decode(const uchar* to_decode, uint64 length)
 {
   vector<Group_member_info*>* decoded_members= NULL;
 
@@ -768,7 +768,7 @@ Group_member_info_manager_message::encode_payload(std::vector<unsigned char>* bu
 
 void
 Group_member_info_manager_message::decode_payload(const unsigned char* buffer,
-                                                  size_t length)
+                                                  uint64 length)
 {
   DBUG_ENTER("Group_member_info_manager_message::decode_payload");
   const unsigned char *slider= buffer;

@@ -139,12 +139,12 @@ public:
   virtual void awake_applier_module()= 0;
   virtual void interrupt_applier_suspension_wait()= 0;
   virtual int wait_for_applier_event_execution(ulonglong timeout)= 0;
-  virtual ulong get_message_queue_size()= 0;
+  virtual size_t get_message_queue_size()= 0;
   virtual Member_applier_state get_applier_status()= 0;
   virtual void add_suspension_packet()= 0;
   virtual void add_view_change_packet(View_change_packet *packet)= 0;
   virtual void add_single_primary_action_packet(Single_primary_action_packet *packet)= 0;
-  virtual int handle(const uchar *data, uint len)= 0;
+  virtual int handle(const uchar *data, ulong len)= 0;
   virtual int handle_pipeline_action(Pipeline_action *action)= 0;
   virtual Flow_control_module* get_flow_control_module()= 0;
   virtual int purge_applier_queue_and_restart_applier_module()= 0;
@@ -263,7 +263,7 @@ public:
       @retval 0      OK
       @retval !=0    Error on queue
   */
-  int handle(const uchar *data, uint len)
+  int handle(const uchar *data, ulong len)
   {
     this->incoming->push(new Data_packet(data, len));
     return 0;
@@ -457,7 +457,7 @@ public:
 
     @return the size of the queue
   */
-  virtual ulong get_message_queue_size()
+  virtual size_t get_message_queue_size()
   {
     return incoming->size();
   }

@@ -143,9 +143,9 @@ public:
     Checks the queue size
     @return the size of the queue
   */
-  ulong size()
+  size_t size()
   {
-    ulong qsize= 0;
+    size_t qsize= 0;
     mysql_mutex_lock(&lock);
     qsize= queue.size();
     mysql_mutex_unlock(&lock);

@@ -27,13 +27,13 @@ Recovery_message::~Recovery_message()
 {
 }
 
-Recovery_message::Recovery_message(const uchar* buf, size_t len)
+Recovery_message::Recovery_message(const uchar* buf, uint64 len)
     : Plugin_gcs_message(CT_RECOVERY_MESSAGE)
 {
   decode(buf, len);
 }
 
-void Recovery_message::decode_payload(const unsigned char* buffer, size_t length)
+void Recovery_message::decode_payload(const unsigned char* buffer, uint64 length)
 {
   DBUG_ENTER("Recovery_message::decode_payload");
   const unsigned char *slider= buffer;

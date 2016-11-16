@@ -69,7 +69,7 @@ public:
     @param[in] buf raw data
     @param[in] len raw length
   */
-  Single_primary_message(const uchar* buf, size_t len);
+  Single_primary_message(const uchar* buf, uint64 len);
 
   /** Returns this single primary message type */
   Single_primary_message_type get_single_primary_message_type()
@@ -91,7 +91,7 @@ protected:
     @param[in] buffer the received data
     @param[in] length the received data size
   */
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer, uint64 length);
 
 private:
   /**The message type*/

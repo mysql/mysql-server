@@ -170,7 +170,7 @@ public:
    * @param[in] data raw data
    * @param[in] len raw data length
    */
-  Group_member_info(const uchar* data, size_t len);
+  Group_member_info(const uchar* data, uint64 len);
 
   /**
     Destructor
@@ -316,7 +316,7 @@ public:
 
 protected:
   void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer, uint64 length);
 
 private:
   std::string hostname;
@@ -347,7 +347,7 @@ class Group_member_info_manager_interface
 public:
   virtual ~Group_member_info_manager_interface(){};
 
-  virtual int get_number_of_members()= 0;
+  virtual size_t get_number_of_members()= 0;
 
   /**
     Retrieves a registered Group member by its uuid
@@ -445,7 +445,7 @@ public:
     @return a vector of Group_member_info references
    */
   virtual std::vector<Group_member_info*>* decode(const uchar* to_decode,
-                                                  size_t length)= 0;
+                                                  uint64 length)= 0;
 };
 
 
@@ -461,7 +461,7 @@ public:
 
   virtual ~Group_member_info_manager();
 
-  int get_number_of_members();
+  size_t get_number_of_members();
 
   Group_member_info* get_group_member_info(const std::string& uuid);
 
@@ -490,7 +490,7 @@ public:
   void encode(std::vector<uchar>* to_encode);
 
   std::vector<Group_member_info*>* decode(const uchar* to_decode,
-                                          size_t length);
+                                          uint64 length);
 
 private:
   void clear_members();
@@ -580,7 +580,7 @@ public:
 
 protected:
   void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer, uint64 length);
 
 private:
   /**
