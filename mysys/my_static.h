@@ -34,8 +34,6 @@
 C_MODE_START
 extern char curr_dir[FN_REFLEN], home_dir_buff[FN_REFLEN];
 
-extern const char *soundex_map;
-
 extern USED_MEM* my_once_root_block;
 extern uint	 my_once_extra;
 

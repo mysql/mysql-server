@@ -83,11 +83,6 @@
 #include "val_int_compare.h"         // Integer_value
 #include "zconf.h"
 
-C_MODE_START
-#include "../mysys/my_static.h"			// For soundex_map
-
-C_MODE_END
-
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 #include "sql_show.h"  // grant_types
 #endif
@@ -2470,6 +2465,11 @@ static int soundex_toupper(int ch)
 {
   return (ch >= 'a' && ch <= 'z') ? ch - 'a' + 'A' : ch;
 }
+
+
+				/* ABCDEFGHIJKLMNOPQRSTUVWXYZ */
+				/* :::::::::::::::::::::::::: */
+static const char *soundex_map=   "01230120022455012623010202";
 
 
 static char get_scode(int wc)

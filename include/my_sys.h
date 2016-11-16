@@ -706,8 +706,6 @@ extern char * my_load_path(char * to, const char *path,
 extern my_bool array_append_string_unique(const char *str,
                                           const char **array, size_t size);
 extern void get_date(char * to,int timeflag,time_t use_time);
-extern void soundex(CHARSET_INFO *, char * out_pntr, char * in_pntr,
-                    pbool remove_garbage);
 
 extern my_bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,

@@ -44,7 +44,6 @@ SET(MYSYS_SOURCES
   mf_qsort.cc
   mf_radix.cc
   mf_same.cc
-  mf_soundex.cc
   mf_tempfile.cc
   mf_unixpath.cc
   mf_wcomp.cc

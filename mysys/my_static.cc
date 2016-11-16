@@ -80,11 +80,6 @@ struct st_my_file_info *my_file_info= my_file_info_default;
 	/* from mf_reccache.c */
 ulong my_default_record_cache_size=RECORD_CACHE_SIZE;
 
-	/* from soundex.c */
-				/* ABCDEFGHIJKLMNOPQRSTUVWXYZ */
-				/* :::::::::::::::::::::::::: */
-const char *soundex_map=	  "01230120022455012623010202";
-
 	/* from my_malloc */
 USED_MEM* my_once_root_block=0;			/* pointer to first block */
 uint	  my_once_extra=ONCE_ALLOC_INIT;	/* Memory to alloc / block */
