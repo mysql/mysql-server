@@ -16,11 +16,8 @@
 #ifndef DECIMAL_INCLUDED
 #define DECIMAL_INCLUDED
 
-/**
-  @file include/decimal.h
-*/
-
 #ifndef MYSQL_ABI_CHECK
+#include <stdlib.h>
 #include "my_global.h"
 #endif
 

@@ -15,6 +15,8 @@
 
 /* key handling functions */
 
+#include <stdlib.h>
+
 #include "fulltext.h"
 #include "m_ctype.h"
 

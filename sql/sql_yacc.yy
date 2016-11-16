@@ -9913,7 +9913,7 @@ cast_type:
             else
               $$.charset= $3.charset;
           }
-        | NCHAR_SYM opt_field_length
+        | nchar opt_field_length
           {
             $$.target= ITEM_CAST_CHAR;
             $$.charset= national_charset_info;

@@ -71,8 +71,8 @@ public:
   /**
     Wait for cond to be signaled during some time before unlocking mutex.
 
-    @param mutex to unlock
-    @param time to wait
+    @param mutex mutex to unlock
+    @param abstime time to wait
     @return success status
   */
 
@@ -83,7 +83,7 @@ public:
   /**
     Wait for cond to be signaled to unlock mutex.
 
-    @param mutex to unlock
+    @param mutex mutex to unlock
     @return success status
   */
 

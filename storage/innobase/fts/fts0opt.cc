@@ -25,19 +25,20 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 
 ***********************************************************************/
 
-#include "ha_prototypes.h"
+#include <stdlib.h>
 
-#include "fts0opt.h"
 #include "fts0fts.h"
-#include "row0sel.h"
-#include "que0types.h"
+#include "fts0opt.h"
 #include "fts0priv.h"
 #include "fts0types.h"
-#include "ut0wqueue.h"
+#include "ha_prototypes.h"
+#include "os0thread-create.h"
+#include "que0types.h"
+#include "row0sel.h"
 #include "srv0start.h"
 #include "ut0list.h"
+#include "ut0wqueue.h"
 #include "zlib.h"
-#include "os0thread-create.h"
 
 /** The FTS optimize thread's work queue. */
 static ib_wqueue_t* fts_optimize_wq;

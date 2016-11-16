@@ -19,6 +19,7 @@
 #include <my_getopt.h>
 #include <my_tree.h>
 #include <queues.h>
+#include <stdlib.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "my_default.h"

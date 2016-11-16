@@ -19,13 +19,6 @@
   This file defines ST_Buffer function.
 */
 
-#include <ctype.h>
-#include <string.h>
-#include <sys/types.h>
-#include <algorithm>
-#include <cmath>
-#include <vector>
-
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/buffer.hpp>
 #include <boost/geometry/strategies/agnostic/buffer_distance_symmetric.hpp>
@@ -38,6 +31,13 @@
 #include <boost/geometry/strategies/cartesian/buffer_point_square.hpp>
 #include <boost/geometry/strategies/cartesian/buffer_side_straight.hpp>
 #include <boost/iterator/iterator_facade.hpp>
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <cmath>
+#include <vector>
 
 #include "current_thd.h"
 #include "derror.h"                            // ER_THD

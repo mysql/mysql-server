@@ -22,17 +22,18 @@
   MySQL Configuration Utility
 */
 
-/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
-#include "my_config.h"
-#include <welcome_copyright_notice.h>
 #include <signal.h>
-#include <my_dir.h>
-#include <my_rnd.h>
-#include "my_aes.h"
+#include <stdlib.h>
+
 #include "client_priv.h"
+#include "my_aes.h"
+#include "my_config.h"
 #include "my_default.h"
 #include "my_default_priv.h"
+#include "my_dir.h"
+#include "my_rnd.h"
 #include "mysql/service_mysql_alloc.h"
+#include "welcome_copyright_notice.h"
 
 #define MYSQL_CONFIG_EDITOR_VERSION "1.0"
 #define MY_LINE_MAX 4096

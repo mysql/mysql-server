@@ -21,11 +21,12 @@
   @file include/m_string.h
 */
 
-#include "my_global.h"
-#include "my_byteorder.h"    /* uint8korr */
-
-#include <string.h>
 #include <mysql/mysql_lex_string.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "my_byteorder.h"    /* uint8korr */
+#include "my_global.h"
 
 #define bfill please_use_memset_rather_than_bfill
 #define bzero please_use_memset_rather_than_bzero

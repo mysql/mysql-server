@@ -23,6 +23,8 @@
 #include "dd/sdi_fwd.h"                   // RJ_Document
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
 
+class THD;
+
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////

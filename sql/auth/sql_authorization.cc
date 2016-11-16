@@ -1482,16 +1482,6 @@ bool check_readonly(THD *thd, bool err_if_readonly)
   if (thd->slave_thread)
     DBUG_RETURN(FALSE);
 
-  /* Permit replication operations. */
-  enum enum_sql_command sql_command= thd->lex->sql_command;
-  if (sql_command == SQLCOM_SLAVE_START ||
-      sql_command == SQLCOM_SLAVE_STOP ||
-      sql_command == SQLCOM_CHANGE_MASTER ||
-      sql_command == SQLCOM_START_GROUP_REPLICATION ||
-      sql_command == SQLCOM_STOP_GROUP_REPLICATION ||
-      sql_command == SQLCOM_CHANGE_REPLICATION_FILTER)
-    DBUG_RETURN(FALSE);
-
   bool is_super= thd->security_context()->check_access(SUPER_ACL);
 
   /* super_read_only=OFF and user has SUPER privilege,

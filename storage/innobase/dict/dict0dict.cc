@@ -24,19 +24,19 @@ Data dictionary system
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
-#include "ha_prototypes.h"
-#include "current_thd.h"
-#include "mysqld.h"                             // system_charset_info
+#include <stdlib.h>
 #include <strfunc.h>
-
-#include "dict0dict.h"
-#include "fts0fts.h"
-#include "fil0fil.h"
 #include <algorithm>
 #include <string>
 
-#include "row0sel.h"
+#include "current_thd.h"
+#include "dict0dict.h"
+#include "fil0fil.h"
+#include "fts0fts.h"
+#include "ha_prototypes.h"
+#include "mysqld.h"                             // system_charset_info
 #include "que0types.h"
+#include "row0sel.h"
 
 /** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 dict_index_t*	dict_ind_redundant;
@@ -47,6 +47,9 @@ extern uint	ibuf_debug;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
+#include <algorithm>
+#include <vector>
+
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0sea.h"
@@ -70,19 +73,16 @@ extern uint	ibuf_debug;
 #include "pars0sym.h"
 #include "que0que.h"
 #include "rem0cmp.h"
+#include "row0ins.h"
 #include "row0log.h"
 #include "row0merge.h"
 #include "row0mysql.h"
 #include "row0upd.h"
-#include "row0ins.h"
 #include "srv0mon.h"
 #include "srv0start.h"
 #include "sync0sync.h"
 #include "trx0undo.h"
 #include "ut0new.h"
-
-#include <vector>
-#include <algorithm>
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
@@ -7889,7 +7889,7 @@ altogether. If purge or rollback needs to access the SDI table, it can create
 the SDI table object for the table_id on demand. */
 
 /** Remove the SDI table from table cache.
-@param[in]	space_id	InnoDB tablesapce_id
+@param[in]	space_id	InnoDB tablespace_id
 @param[in,out]	sdi_tables	Array of sdi table
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void

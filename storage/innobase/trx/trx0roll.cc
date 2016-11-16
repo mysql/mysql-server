@@ -218,7 +218,7 @@ trx_rollback_low(
 			trx_undo_ptr_t*	undo_ptr = &trx->rsegs.m_redo;
 			mtr_t		mtr;
 			mtr.start();
-			mtr.set_undo_space(trx->rsegs.m_redo.rseg->space);
+			mtr.set_undo_space(trx->rsegs.m_redo.rseg->space_id);
 
 			mutex_enter(&trx->rsegs.m_redo.rseg->mutex);
 			if (undo_ptr->insert_undo != NULL) {
@@ -989,7 +989,7 @@ trx_roll_pop_top_rec_of_trx_low(
 	undo_no = trx_undo_rec_get_undo_no(undo_rec);
 
 	ut_ad(trx_roll_check_undo_rec_ordering(
-		undo_no, undo->rseg->space, trx));
+		undo_no, undo->rseg->space_id, trx));
 
 	/* We print rollback progress info if we are in a crash recovery
 	and the transaction has at least 1000 row operations to undo. */
@@ -1013,7 +1013,7 @@ trx_roll_pop_top_rec_of_trx_low(
 	}
 
 	trx->undo_no = undo_no;
-	trx->undo_rseg_space = undo->rseg->space;
+	trx->undo_rseg_space = undo->rseg->space_id;
 
 	undo_rec_copy = trx_undo_rec_copy(undo_rec, heap);
 
@@ -1043,7 +1043,7 @@ trx_roll_pop_top_rec_of_trx(
 			trx, &trx->rsegs.m_redo, limit, roll_ptr, heap);
 	}
 
-	if (undo_rec == 0 && trx_is_noredo_rseg_updated(trx)) {
+	if (undo_rec == 0 && trx_is_temp_rseg_updated(trx)) {
 		undo_rec = trx_roll_pop_top_rec_of_trx_low(
 			trx, &trx->rsegs.m_noredo, limit, roll_ptr, heap);
 	}

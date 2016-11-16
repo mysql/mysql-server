@@ -23,10 +23,11 @@ Full Text Search configuration table.
 Created 2007/5/9 Sunny Bains
 ***********************************************************************/
 
-#include "trx0roll.h"
-#include "row0sel.h"
+#include <stdlib.h>
 
 #include "fts0priv.h"
+#include "row0sel.h"
+#include "trx0roll.h"
 
 /******************************************************************//**
 Callback function for fetching the config value.

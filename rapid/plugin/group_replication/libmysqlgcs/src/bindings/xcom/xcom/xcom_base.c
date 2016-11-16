@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA */
 
-/** \file The new version of xcom is a major rewrite to allow
+/**
+  @file rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.c
+    The new version of xcom is a major rewrite to allow
     transmission of multiple messages from several sources
     simultaneously without collision. The interface to xcom is largely
     intact, one notable change is that xcom will consider the message

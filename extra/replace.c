@@ -48,6 +48,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "my_pointer_arithmetic.h"
 #include "mysql/service_mysql_alloc.h"

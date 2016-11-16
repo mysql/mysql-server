@@ -332,15 +332,24 @@ fsp_flags_is_valid(
 bool
 fsp_is_undo_tablespace(space_id_t space_id)
 {
-	/* Before this global variable is set, we do not know what the
-	undo tablespace ID range is. Assume this is not an undo space. */
-	if (srv_undo_space_id_start == 0) {
+	/* Quick elimination.  space_id==0 is most common. */
+	if (fsp_is_system_or_temp_tablespace(space_id)
+	    || space_id >= SRV_LOG_SPACE_FIRST_ID
+	    /* Before trx_sys_undo_spaces is set, we do not know
+	    what the undo tablespace ID range is. Assume this is
+	    not an undo space. */
+	    || trx_sys_undo_spaces == nullptr
+	    || trx_sys_undo_spaces->size() == 0) {
 		return(false);
 	}
 
-	return(space_id >= srv_undo_space_id_start
-		&& space_id < srv_undo_space_id_start
-			      + srv_undo_tablespaces_open);
+	/* There is a list of undo tablespaces.  Search them. */
+	Space_Ids::iterator it = std::find(
+		trx_sys_undo_spaces->begin(),
+		trx_sys_undo_spaces->end(),
+		space_id);
+
+	return(it != trx_sys_undo_spaces->end());
 }
 
 /** Check if tablespace is system temporary.
@@ -850,7 +859,7 @@ fsp_space_modify_check(
 			     || type == FIL_TYPE_TEMPORARY
 			     || type == FIL_TYPE_IMPORT
 			     || fil_space_is_redo_skipped(id)
-			     || undo::Truncate::is_tablespace_truncated(id));
+			     || undo::is_under_construction(id));
 		}
 #endif /* UNIV_DEBUG */
 		return;

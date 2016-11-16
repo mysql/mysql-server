@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_table.h>
 #include <sql_tablespace.h>
 #include <sql_thd_internal_api.h>
+#include <stdlib.h>
 #include <strfunc.h>
 
 /* Include necessary InnoDB headers */
@@ -517,8 +518,8 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0),
 	PSI_MUTEX_KEY(recv_sys_mutex, 0, 0),
 	PSI_MUTEX_KEY(recv_writer_mutex, 0, 0),
-	PSI_MUTEX_KEY(redo_rseg_mutex, 0, 0),
-	PSI_MUTEX_KEY(noredo_rseg_mutex, 0, 0),
+	PSI_MUTEX_KEY(temp_space_rseg_mutex, 0, 0),
+	PSI_MUTEX_KEY(trx_sys_rseg_mutex, 0, 0),
 #  ifdef UNIV_DEBUG
 	PSI_MUTEX_KEY(rw_lock_debug_mutex, 0, 0),
 #  endif /* UNIV_DEBUG */
@@ -957,8 +958,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_num_open_files,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"truncated_status_writes",
   (char*) &export_vars.innodb_truncated_status_writes,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"available_rollback_segments",
+  (char*) &export_vars.innodb_available_rollback_segments,SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"available_undo_logs",
-  (char*) &export_vars.innodb_available_undo_logs,        SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  (char*) &export_vars.innodb_available_undo_logs,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
 #ifdef UNIV_DEBUG
   {"purge_trx_id_age",
   (char*) &export_vars.innodb_purge_trx_id_age,           SHOW_LONG, SHOW_SCOPE_GLOBAL},
@@ -1260,17 +1263,6 @@ or configuration file. */
 static
 void
 innobase_commit_concurrency_init_default();
-/*=======================================*/
-
-/** @brief Initialize the default and max value of innodb_undo_logs.
-
-Once InnoDB is running, the default value and the max value of
-innodb_undo_logs must be equal to the available undo logs,
-given by srv_available_undo_logs. */
-static
-void
-innobase_undo_logs_init_default_max();
-/*==================================*/
 
 /*******************************************************************//**
 This function is used to prepare an X/Open XA distributed transaction.
@@ -4260,6 +4252,15 @@ innodb_init(
 	DBUG_RETURN(0);
 }
 
+/** @brief Initialize the default and max value of innodb_rollback_segments.
+Once InnoDB is running, the default value and the max value of
+innodb_rollback_segments must be equal to srv_available_rollback_segments.
+This does not include the rollback segments in the temporary tablespace
+set by srv_tmp_rollback_segments. */
+static
+void
+innodb_rollback_segments_init_default_max();
+
 /** Open or create InnoDB data files.
 @param[in]	dict_init_mode	whether to create or open the files
 @return 0 on success, 1 on failure */
@@ -4310,8 +4311,8 @@ innobase_init_files(
 
 	srv_start_threads();
 
-	/* Adjust the innodb_undo_logs config object */
-	innobase_undo_logs_init_default_max();
+	/* Adjust the innodb_rollback_segments config object */
+	innodb_rollback_segments_init_default_max();
 
 	innobase_old_blocks_pct = static_cast<uint>(
 		buf_LRU_old_ratio_update(innobase_old_blocks_pct, TRUE));
@@ -20295,19 +20296,21 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of undo tablespaces to use. ",
   NULL, NULL,
-  0L,			/* Default seting */
-  0L,			/* Minimum value */
-  95L, 0);		/* Maximum value */
+  0L,							/* Default seting */
+  0L,							/* Minimum value */
+  TRX_SYS_N_RSEGS - TRX_SYS_OLD_TMP_RSEGS - 1, 0);	/* Maximum value */
 
-static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
+/* Alias for innodb_rollback_segments. This is the number of rollback
+segments to use in the system tablespace and all undo tablespaces. */
+static MYSQL_SYSVAR_ULONG(undo_logs, srv_rollback_segments,
   PLUGIN_VAR_OPCMDARG,
-  "Number of undo logs to use.",
+  "Number of rollback segments to use for durable transactions.",
   NULL, NULL,
   TRX_SYS_N_RSEGS,	/* Default setting */
   1,			/* Minimum value */
   TRX_SYS_N_RSEGS, 0);	/* Maximum value */
 
-static MYSQL_SYSVAR_ULONGLONG(max_undo_log_size, srv_max_undo_log_size,
+static MYSQL_SYSVAR_ULONGLONG(max_undo_log_size, srv_max_undo_tablespace_size,
   PLUGIN_VAR_OPCMDARG,
   "Maximum size of UNDO tablespace in MB (If UNDO tablespace grows"
   " beyond this size it will be truncated in due course). ",
@@ -20328,10 +20331,11 @@ static MYSQL_SYSVAR_BOOL(undo_log_truncate, srv_undo_log_truncate,
   "Enable or Disable Truncate of UNDO tablespace.",
   NULL, NULL, FALSE);
 
-/* Alias for innodb_undo_logs, this config variable is deprecated. */
-static MYSQL_SYSVAR_ULONG(rollback_segments, srv_undo_logs,
+/* Alias for innodb_undo_logs.  This is the number of rollback segments
+to use in the system tablespace and all undo tablespaces. */
+static MYSQL_SYSVAR_ULONG(rollback_segments, srv_rollback_segments,
   PLUGIN_VAR_OPCMDARG,
-  "Number of undo logs to use (deprecated).",
+  "Number of rollback segments to use for durable transactions.",
   NULL, NULL,
   TRX_SYS_N_RSEGS,	/* Default setting */
   1,			/* Minimum value */
@@ -20805,19 +20809,21 @@ innobase_commit_concurrency_init_default()
 		= innobase_commit_concurrency;
 }
 
-/** @brief Initialize the default and max value of innodb_undo_logs.
-
+/** @brief Initialize the default and max value of innodb_rollback_segments.
 Once InnoDB is running, the default value and the max value of
-innodb_undo_logs must be equal to the available undo logs,
-given by srv_available_undo_logs. */
+innodb_rollback_segments must be equal to srv_available_rollback_segments.
+This allows these two settings to change srv_rollback_segments at runtime
+to a value less than the total available rollback segments.
+Then get_next_redo_rseg() will only distribute srv_rollback_segments rsegs
+to new transactions. */
 static
 void
-innobase_undo_logs_init_default_max()
-/*=================================*/
-{
-	MYSQL_SYSVAR_NAME(undo_logs).max_val
+innodb_rollback_segments_init_default_max() {
+	MYSQL_SYSVAR_NAME(rollback_segments).max_val
+		= MYSQL_SYSVAR_NAME(rollback_segments).def_val
+		= MYSQL_SYSVAR_NAME(undo_logs).max_val
 		= MYSQL_SYSVAR_NAME(undo_logs).def_val
-		= static_cast<unsigned long>(srv_available_undo_logs);
+		= static_cast<unsigned long>(srv_available_rollback_segments);
 }
 
 /****************************************************************************

@@ -31,6 +31,7 @@
 #include "mysqlbinlog.h"
 
 #include <signal.h>
+#include <stdlib.h>
 #include <algorithm>
 #include <map>
 #include <utility>
@@ -45,9 +46,9 @@
 #include "prealloced_array.h"
 #include "rpl_constants.h"
 #include "rpl_gtid.h"
-#include "sslopt-vars.h"
 #include "sql_common.h"
 #include "sql_string.h"
+#include "sslopt-vars.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 

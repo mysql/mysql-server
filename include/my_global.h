@@ -27,7 +27,6 @@
 
 #include <assert.h>
 #include <stdarg.h>
-#include <stdlib.h>
 #include <stddef.h>
 #include <math.h>
 #include <limits.h>

@@ -505,13 +505,11 @@ trx_id_t
 trx_get_id_for_print(
 	const trx_t*	trx);
 
-/****************************************************************//**
-Assign a transaction temp-tablespace bound rollback-segment. */
+/** Assign a temp-tablespace bound rollback-segment to a transaction.
+@param[in,out]	trx	transaction that involves write to temp-table. */
 void
-trx_assign_rseg(
-/*============*/
-	trx_t*		trx);		/*!< transaction that involves write
-					to temp-table. */
+trx_assign_rseg_temp(
+	trx_t*		trx);
 
 /** Create the trx_t pool */
 void

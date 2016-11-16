@@ -71,8 +71,8 @@ mysql_pfs_key_t	page_cleaner_mutex_key;
 mysql_pfs_key_t	purge_sys_pq_mutex_key;
 mysql_pfs_key_t	recv_sys_mutex_key;
 mysql_pfs_key_t	recv_writer_mutex_key;
-mysql_pfs_key_t	redo_rseg_mutex_key;
-mysql_pfs_key_t	noredo_rseg_mutex_key;
+mysql_pfs_key_t	temp_space_rseg_mutex_key;
+mysql_pfs_key_t	trx_sys_rseg_mutex_key;
 mysql_pfs_key_t page_zip_stat_per_index_mutex_key;
 # ifdef UNIV_DEBUG
 mysql_pfs_key_t	rw_lock_debug_mutex_key;

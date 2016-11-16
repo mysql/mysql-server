@@ -789,7 +789,8 @@ public:
 
   Item_sum_int(const POS &pos, PT_item_list *list) :Item_sum_num(pos, list) {}
   Item_sum_int(THD *thd, Item_sum_int *item) :Item_sum_num(thd, item) {}
-  double val_real() override { DBUG_ASSERT(fixed); return val_int(); }
+  double val_real() override
+  { DBUG_ASSERT(fixed); return static_cast<double>(val_int()); }
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override

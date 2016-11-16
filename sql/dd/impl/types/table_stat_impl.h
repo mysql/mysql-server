@@ -195,6 +195,20 @@ public:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
 
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+  virtual Object_id id() const
+  { return Entity_object_impl::id(); }
+  virtual bool is_persistent() const
+  { return Entity_object_impl::is_persistent(); }
+  virtual const String_type &name() const
+  { return Entity_object_impl::name(); }
+  virtual void set_name(const String_type &name)
+  { Entity_object_impl::set_name(name); }
+
 private:
   // Fields
   String_type m_schema_name;

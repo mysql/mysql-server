@@ -2732,10 +2732,7 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
     return true;
   }
 
-  bool error= trans_commit_stmt(thd) || trans_commit(thd);
-  // TODO: Remove this call in WL#7743?
-  thd->dd_client()->remove_uncommitted_objects<Event>(!error);
-  return error;
+  return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
 

@@ -23,8 +23,10 @@
   the file descriptior.
 */
 
-#include "vio_priv.h"
+#include <stdlib.h>
+
 #include "mysql/service_my_snprintf.h"
+#include "vio_priv.h"
 
 #ifdef FIONREAD_IN_SYS_FILIO
 # include <sys/filio.h>

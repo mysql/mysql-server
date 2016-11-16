@@ -234,10 +234,10 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("mysql_create_db");
 
-  // We need a top level auto releaser to make sure the uncommitted objects
-  // are removed. This is done in the auto releaser destructor. When
-  // remove_uncommitted_objects() is called implicitly as part of commit/
-  // rollback, this should not be necessary.
+  /*
+    Use Auto_releaser to keep uncommitted object for database until
+    trans_commit() call.
+  */
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Reject creation of the system schema except for system threads.
@@ -436,8 +436,6 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   */
   if (trans_commit_stmt(thd) || trans_commit(thd))
     DBUG_RETURN(true);
-
-  thd->dd_client()->remove_uncommitted_objects<dd::Schema>(true);
 
   /* Change options if current database is being altered. */
   if (thd->db().str && !strcmp(thd->db().str,db))

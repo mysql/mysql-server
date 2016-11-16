@@ -242,6 +242,10 @@ public:
   { return Abstract_table_impl::get_column(name); }
   Column *get_column(const String_type name)
   { return Abstract_table_impl::get_column(name); }
+  virtual bool hidden() const
+  { return Abstract_table_impl::hidden(); }
+  virtual void set_hidden(bool hidden)
+  { Abstract_table_impl::set_hidden(hidden); }
 
 private:
   enum_table_type    m_type;

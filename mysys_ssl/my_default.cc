@@ -40,6 +40,7 @@
 #include <my_aes.h>
 #include <my_dir.h>
 #include <my_getopt.h>
+#include <stdlib.h>
 
 #include "../mysys/mysys_priv.h"
 #include "m_ctype.h"

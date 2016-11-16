@@ -1931,7 +1931,10 @@ public:
     :Item_udf_func(pos, udf_arg, opt_list)
   {}
   longlong val_int() override;
-  double val_real() override { return Item_func_udf_int::val_int(); }
+  double val_real() override
+  {
+    return static_cast<double>(Item_func_udf_int::val_int());
+  }
   String *val_str(String *str) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {

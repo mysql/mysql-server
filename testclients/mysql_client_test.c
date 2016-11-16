@@ -24,6 +24,8 @@
   contains only the actual tests, plus the list of test functions to call.
 */
 
+#include <stdlib.h>
+
 #include "my_double2ulonglong.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_client_fw.c"

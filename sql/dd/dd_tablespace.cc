@@ -237,7 +237,6 @@ bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
     DBUG_RETURN(true);
   }
@@ -245,11 +244,7 @@ bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
   if (commit_dd_changes)
   {
     if (trans_commit_stmt(thd) || trans_commit(thd))
-    {
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
       DBUG_RETURN(true);
-    }
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
 
   DBUG_RETURN(false);
@@ -294,7 +289,6 @@ bool update_tablespace(THD *thd, dd::Tablespace *tablespace,
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
     DBUG_RETURN(true);
   }
@@ -302,11 +296,7 @@ bool update_tablespace(THD *thd, dd::Tablespace *tablespace,
   if (commit_dd_changes)
   {
     if (trans_commit_stmt(thd) || trans_commit(thd))
-    {
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
       DBUG_RETURN(true);
-    }
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
 
   DBUG_RETURN(false);

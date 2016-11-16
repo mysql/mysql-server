@@ -16,8 +16,10 @@
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code
    added support for long options (my_getopt) 22.5.2002 by Jani Tolonen */
 
-#include "ftdefs.h"
 #include <my_getopt.h>
+#include <stdlib.h>
+
+#include "ftdefs.h"
 
 static void usage() MY_ATTRIBUTE((noreturn));
 static void complain(int val);

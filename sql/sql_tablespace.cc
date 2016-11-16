@@ -154,11 +154,12 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
        lock_tablespace_name(thd, ts_info->tablespace_name)))
     DBUG_RETURN(true);
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   if (hton->alter_tablespace)
   {
     int error;
 
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Tablespace *old_ts_def= NULL;
     dd::Tablespace *new_ts_def;
 

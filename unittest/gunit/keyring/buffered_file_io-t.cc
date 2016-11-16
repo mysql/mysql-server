@@ -15,10 +15,12 @@
 
 #include <my_global.h>
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <mysql/plugin_keyring.h>
 #include <sql_plugin_ref.h>
-#include "keyring_key.h"
 #include "buffered_file_io.h"
+#include "keyring_key.h"
+#include "mock_logger.h"
 
 #if defined(HAVE_PSI_INTERFACE)
 #if !defined(MERGE_UNITTESTS)

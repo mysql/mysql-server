@@ -7100,8 +7100,6 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     if (!result)
       result= trans_commit_stmt(thd) || trans_commit_implicit(thd);
 
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(!result);
-
     // Update view metadata.
     if (!result)
       result= update_referencing_views_metadata(thd, create_table);
@@ -7711,8 +7709,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   {
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err;
-
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
 
     // Update view metadata.
     if (update_referencing_views_metadata(thd, table))
@@ -9442,8 +9438,6 @@ static bool mysql_inplace_alter_table(THD *thd,
 
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto cleanup2;
-
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
 
   }
@@ -9556,8 +9550,6 @@ static bool mysql_inplace_alter_table(THD *thd,
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto cleanup2;
 
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
-
     /* Call SE DDL post-commit hook. */
     if (db_type->post_ddl)
       db_type->post_ddl(thd);
@@ -9617,8 +9609,6 @@ cleanup2:
   (void) trans_rollback_stmt(thd);
   // Full rollback in case we have THD::transaction_rollback_request.
   (void) trans_rollback(thd);
-
-  thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
 
   if ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       db_type->post_ddl)
@@ -11036,8 +11026,6 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       my_ok(thd);
   }
 
-  thd->dd_client()->remove_uncommitted_objects<dd::Table>(!error);
-
   // Update referencing views metadata.
   if (!error)
     error= update_referencing_views_metadata(thd, table_list, alter_ctx->new_db,
@@ -12218,8 +12206,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
-
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
 
 
@@ -12261,7 +12247,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         during rollback.
       */
       trans_rollback_stmt(thd);
-      trans_rollback(thd);
+      trans_rollback(thd, false);
 
       if (!atomic_replace)
       {
@@ -12305,7 +12291,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         uncommitted DD objects in the cacheduring rollback.
       */
       trans_rollback_stmt(thd);
-      trans_rollback(thd);
+      trans_rollback(thd, false);
       (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                             alter_ctx.tmp_name, FN_IS_TMP | NO_DD_UPDATE);
     }
@@ -12358,7 +12344,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         uncommitted DD objects in the cacheduring rollback.
       */
       trans_rollback_stmt(thd);
-      trans_rollback(thd);
+      trans_rollback(thd, false);
       (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                             alter_ctx.tmp_name, FN_IS_TMP | NO_DD_UPDATE);
       (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
@@ -12422,8 +12408,6 @@ end_inplace_noop:
   if (atomic_replace &&
       (trans_commit_stmt(thd) || trans_commit_implicit(thd)))
     goto err_with_mdl;
-
-  thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
 
   if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       new_db_type->post_ddl)
@@ -12491,7 +12475,7 @@ err_new_table_cleanup:
       important to preserve uncommitted DD object in cache during rollback.
     */
     trans_rollback_stmt(thd);
-    trans_rollback(thd);
+    trans_rollback(thd, false);
 
     if (!(new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
     {

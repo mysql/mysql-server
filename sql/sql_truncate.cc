@@ -497,6 +497,8 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   DBUG_ASSERT((!table_ref->table) ||
               (table_ref->table && table_ref->table->s));
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   /* Initialize, or reinitialize in case of reexecution (SP). */
   m_ticket_downgrade= NULL;
 

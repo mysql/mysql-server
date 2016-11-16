@@ -22,6 +22,7 @@
 #include <mysqld_error.h>                       /* to check server error codes */
 #include <signal.h>
 #include <sql_common.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <string>

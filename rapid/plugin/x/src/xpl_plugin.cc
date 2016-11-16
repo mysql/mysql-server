@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,20 +19,19 @@
 #define MYSQL_DYNAMIC_PLUGIN 1
 #endif
 #include <my_config.h>
-
 #include <mysql/plugin.h>
 #include <mysql_version.h>
+#include <stdio.h>                            // Solaris header file bug.
+#include <stdlib.h>
+#include <limits>
 
+#include "mysqlx_version.h"
+#include "xpl_log.h"
+#include "xpl_performance_schema.h"
+#include "xpl_replication_observer.h"
+#include "xpl_server.h"
 #include "xpl_session.h"
 #include "xpl_system_variables.h"
-#include "xpl_server.h"
-#include "xpl_performance_schema.h"
-#include "mysqlx_version.h"
-#include "xpl_replication_observer.h"
-#include "xpl_log.h"
-
-#include <stdio.h>                            // Solaris header file bug.
-#include <limits>
 
 #define BYTE(X)  (X)
 #define KBYTE(X) ((X) * 1024)

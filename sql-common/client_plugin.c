@@ -33,6 +33,7 @@
 #include <my_thread.h>
 #include <mysql/client_plugin.h>
 #include <sql_common.h>
+#include <stdlib.h>
 
 #include "errmsg.h"
 #include "my_psi_config.h"

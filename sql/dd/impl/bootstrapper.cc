@@ -435,7 +435,7 @@ void create_predefined_tablespaces(THD *thd)
       space_file->set_filename(file->get_name());
       space_file->set_se_private_data_raw(file->get_se_private_data());
     }
-    thd->dd_client()->store(tablespace.get());
+    dd::cache::Storage_adapter::instance()->store(thd, tablespace.get());
   }
   bootstrap_stage= bootstrap::BOOTSTRAP_PREPARED;
 }
@@ -562,9 +562,7 @@ bool create_tables(THD *thd, bool is_dd_upgrade,
   // TODO:
   // Workaround that may be removed when the removal of uncommitted
   // objects is done implicitly on commit/rollback.
-  thd->dd_client()->remove_uncommitted_objects<Schema>(false);
-  thd->dd_client()->remove_uncommitted_objects<Table>(false);
-  thd->dd_client()->remove_uncommitted_objects<Tablespace>(false);
+  thd->dd_client()->rollback_modified_objects();
 
   // Set iterator to end of system tables
   if (last_table != nullptr)
@@ -1331,7 +1329,13 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   create_predefined_tablespaces(thd);
   // This will create dd::Schema object for mysql schema
   if (create_dd_schema(thd))
+  {
+    // TODO: If the error flag in the THD was set properly,
+    // explicit calls to rollback_modified_objects() should not
+    // be necessary.
+    thd->dd_client()->rollback_modified_objects();
     return true;
+  }
 
   // Mark flag true as DD creation uses it to get version number
   opt_initialize= true;
@@ -1353,7 +1357,11 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   bootstrap_error_handler.set_log_error(true);
   thd->pop_internal_handler();
   if (error)
+  {
+    // TODO: Remove when the THD error flag is set correctly.
+    thd->dd_client()->rollback_modified_objects();
     return true;
+  }
 
   // Disable InnoDB warning in case it does not find mysql.version table, and
   // ignore error at the SQL layer.
@@ -1392,6 +1400,11 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
       error= restart(thd);
       bootstrap_error_handler.set_log_error(true);
       thd->pop_internal_handler();
+      // TODO: Remove when the THD error flag is set correctly.
+      if (error)
+        thd->dd_client()->rollback_modified_objects();
+      else
+        thd->dd_client()->commit_modified_objects();
       return error;
     }
     else
@@ -1404,6 +1417,8 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
                       "deleting all DD tables. Start the upgrade process "
                       "again.");
       delete_dictionary_and_cleanup(thd);
+      // TODO: Remove when the THD error flag is set correctly.
+      thd->dd_client()->rollback_modified_objects();
       return true;
      }
   }
@@ -1423,6 +1438,8 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   {
     sql_print_error("Found .frm file with same name as one of the "
                     " Dictionary Tables.");
+    // TODO: Remove when the THD error flag is set correctly.
+    thd->dd_client()->rollback_modified_objects();
     return true;
   }
 
@@ -1438,6 +1455,8 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   {
     thd->pop_internal_handler();
     delete_dictionary_and_cleanup(thd, last_table);
+    // TODO: Remove when the THD error flag is set correctly.
+    thd->dd_client()->rollback_modified_objects();
     return true;
   }
   thd->pop_internal_handler();
@@ -1450,6 +1469,8 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   {
     sql_print_error("Failed to set version number in version table.");
     delete_dictionary_and_cleanup(thd);
+    // TODO: Remove when the THD error flag is set correctly.
+    thd->dd_client()->rollback_modified_objects();
     return true;
   }
 
@@ -1462,8 +1483,12 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   if (migrate_plugin_table_to_dd(thd))
   {
     delete_dictionary_and_cleanup(thd);
+    // TODO: Remove when the THD error flag is set correctly.
+    thd->dd_client()->rollback_modified_objects();
     return true;
   }
+  // TODO: Remove when the THD error flag is set correctly.
+  thd->dd_client()->commit_modified_objects();
 
   return false;
 }
@@ -1473,12 +1498,6 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
 bool upgrade_fill_dd_and_finalize(THD *thd)
 {
   bool error= false;
-
-  // We need a top level auto releaser to make sure the uncommitted objects
-  // are removed. This is done in the auto releaser destructor. When
-  // renove_uncommitted_objects() is called implicitly as part of commit/
-  // rollback, this should not be necessary.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // RAII to handle error messages.
   Bootstrap_error_handler bootstrap_error_handler;
@@ -1495,6 +1514,7 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
   // Upgrade schema and tables, create view without resolving dependency
   for (it= db_name.begin(); it != db_name.end(); it++)
   {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     bool exists= false;
     dd::schema_exists(thd, it->c_str(), &exists);
 

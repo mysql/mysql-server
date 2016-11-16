@@ -142,6 +142,7 @@ protected:
     mysql->set_name("mysql");
     EXPECT_FALSE(thd()->dd_client()->store<dd::Schema>(mysql));
     EXPECT_LT(9999u, mysql->id());
+    thd()->dd_client()->commit_modified_objects();
 
     mdl_locks_unused_locks_low_water= MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
     max_write_lock_count= ULONG_MAX;
@@ -543,7 +544,7 @@ void test_acquire_for_modification(CacheStorageTest *tst, THD *thd)
   EXPECT_NE(modified, acquired);
   EXPECT_EQ(*modified, *acquired);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &acquired));
   EXPECT_FALSE(dc->drop(acquired));
 }
@@ -609,7 +610,7 @@ void test_acquire_for_modification_with_schema(CacheStorageTest *tst, THD *thd)
   EXPECT_NE(modified, acquired);
   EXPECT_EQ(*modified, *acquired);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &acquired));
   EXPECT_FALSE(dc->drop(acquired));
 }
@@ -680,7 +681,7 @@ void test_acquire_and_rename(CacheStorageTest *tst, THD *thd)
   EXPECT_FALSE(dc->acquire<Intrfc_type>("old_name", &old_const));
   EXPECT_EQ(nullp<Intrfc_type>(), old_const);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &new_object));
   EXPECT_FALSE(dc->drop(new_object));
 }
@@ -756,7 +757,7 @@ void test_acquire_and_rename_with_schema(CacheStorageTest *tst, THD *thd)
   EXPECT_FALSE(dc->acquire(tst->mysql->name(), "schema_old_name", &old_const));
   EXPECT_EQ(nullp<Intrfc_type>(), old_const);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &new_object));
   EXPECT_FALSE(dc->drop(new_object));
 }
@@ -838,7 +839,7 @@ void test_acquire_and_move(CacheStorageTest *tst, THD *thd)
   EXPECT_FALSE(dc->acquire(tst->mysql->name(), created->name(), &old_const));
   EXPECT_EQ(nullp<Intrfc_type>(), old_const);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &new_object));
   EXPECT_FALSE(dc->drop(new_object));
 
@@ -990,7 +991,7 @@ TEST_F(CacheStorageTest, CommitNewObject)
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
-  dc->remove_uncommitted_objects<dd::Table>(true);
+  dc->commit_modified_objects();
   delete created;
 }
 

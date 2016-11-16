@@ -20,6 +20,8 @@
    to open other files during the time we flush the cache and close this file
 */
 
+#include <stdlib.h>
+
 #include "myisamdef.h"
 
 int mi_close_share(register MI_INFO *info, my_bool *closed_share)

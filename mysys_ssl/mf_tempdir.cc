@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,12 @@
   @file mysys_ssl/mf_tempdir.cc
 */
 
-#include "mysys_priv.h"
 #include <m_string.h>
-#include "prealloced_array.h"
+#include <stdlib.h>
+
 #include "mutex_lock.h"
+#include "mysys_priv.h"
+#include "prealloced_array.h"
 
 #if defined(_WIN32)
 #define DELIM ';'

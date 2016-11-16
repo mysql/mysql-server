@@ -18,15 +18,18 @@
  */
 
 #include "io/xpl_listener_unix_socket.h"
-#include "ngs_common/string_formatter.h"
-#include "ngs_common/operations_factory.h"
-#include "xpl_log.h"
+
+#include <stdlib.h>
+
 #include "mysqlx_version.h"
+#include "ngs_common/operations_factory.h"
+#include "ngs_common/string_formatter.h"
+#include "xpl_log.h"
 
 #ifdef HAVE_SYS_UN_H
-#include <sys/un.h>
-#include <sys/types.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/un.h>
 #endif
 
 namespace xpl {

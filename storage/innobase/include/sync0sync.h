@@ -89,8 +89,8 @@ extern mysql_pfs_key_t	rtr_active_mutex_key;
 extern mysql_pfs_key_t	rtr_match_mutex_key;
 extern mysql_pfs_key_t	rtr_path_mutex_key;
 extern mysql_pfs_key_t	rtr_ssn_mutex_key;
-extern mysql_pfs_key_t	redo_rseg_mutex_key;
-extern mysql_pfs_key_t	noredo_rseg_mutex_key;
+extern mysql_pfs_key_t	temp_space_rseg_mutex_key;
+extern mysql_pfs_key_t	trx_sys_rseg_mutex_key;
 extern mysql_pfs_key_t page_zip_stat_per_index_mutex_key;
 # ifdef UNIV_DEBUG
 extern mysql_pfs_key_t	rw_lock_debug_mutex_key;

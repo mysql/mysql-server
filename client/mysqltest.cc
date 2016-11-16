@@ -34,6 +34,7 @@
 #include <mysqld_error.h>
 #include <sql_common.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <violite.h>
 
 #include "client_priv.h"

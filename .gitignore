@@ -3092,7 +3092,7 @@ mysys/queues
 libmysqld/binlog.cc
 libmysqld/sql_alter.cc
 libmysqld/sql_partition_admin.cc
-generated
+generated/doxygen/*
 doxyerror.log
 VERSION.dep
 info_macros.cmake

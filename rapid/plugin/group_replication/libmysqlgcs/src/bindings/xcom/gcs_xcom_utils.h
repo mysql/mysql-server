@@ -68,9 +68,7 @@ public:
     Creates an XCom member identifier. It shall be on the format
     node_number:address:port.
 
-    @param node_number node identifier in XCom
     @param address peer address
-    @param port peer port
 
     @return member id
   */
@@ -189,7 +187,6 @@ public:
     @param nl The list of nodes to remove from the group
     @param group_id The identifier of the group from which the nodes will
            be removed
-    @param to_remove the node to remove
   */
 
   virtual int xcom_client_remove_node(node_list *nl, uint32_t group_id)= 0;
@@ -214,7 +211,6 @@ public:
     @param nl The list of nodes to remove from the group
     @param group_id The identifier of the group from which the nodes will
            be removed
-    @param to_remove the node to remove
   */
   virtual int xcom_client_remove_node(connection_descriptor* fd, node_list* nl,
                                       uint32_t group_id)= 0;
@@ -400,7 +396,7 @@ public:
     Even though this is used to connect to a local XCom, it can be used to
     connect to a standalone XCom.
 
-    @param addr The XCom address
+    @param saddr The XCom address
     @param port The XCom port
 
     @return false on success, true otherwise. If there was an error, no
@@ -441,7 +437,7 @@ public:
   /**
     Releases the handler and unlocks it.
 
-    @param fd The handler that was previously acquired
+    @param index The handler that was previously acquired
   */
 
   virtual void xcom_release_handler(int index)= 0;
@@ -476,7 +472,7 @@ public:
     the status (XCOM_COMMS_OK or XCOM_COMMS_ERROR) is written into the status
     out parameters.
 
-    @param status[out] value of the XCom communication layer status.
+    @param [out] status value of the XCom communication layer status.
                        It can be either XCOM_COMMS_OK or XCOM_COMMS_ERROR
    */
   virtual void xcom_wait_for_xcom_comms_status_change(int& status)= 0;
@@ -840,7 +836,7 @@ inline bool is_number(const std::string &s)
 /**
  Parses the string "host:port" and checks if it is correct.
 
- @param the server hostname and port in the form hostname:port.
+ @param server_and_port the server hostname and port in the form hostname:port.
  @return true if it is a valid URL, false otherwise.
  */
 bool is_valid_hostname(const std::string &server_and_port);

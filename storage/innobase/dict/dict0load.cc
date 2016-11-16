@@ -1779,9 +1779,10 @@ dict_check_sys_tablespaces(
 			continue;
 		}
 
-		/* Ignore system and file-per-table tablespaces,
+		/* Ignore system, undo and file-per-table tablespaces,
 		and tablespaces that already are in the tablespace cache. */
 		if (fsp_is_system_or_temp_tablespace(space_id)
+		    || fsp_is_undo_tablespace(space_id)
 		    || !fsp_is_shared_tablespace(fsp_flags)
 		    || fil_space_for_table_exists_in_mem(
 			    space_id, space_name, false, true, NULL, 0)) {
@@ -1967,6 +1968,7 @@ dict_check_sys_tables(
 					 &n_cols, &flags, &flags2);
 		if (flags == ULINT_UNDEFINED
 		    || fsp_is_system_or_temp_tablespace(space_id)) {
+                        ut_ad(!fsp_is_undo_tablespace(space_id));
 			ut_free(table_name.m_name);
 			continue;
 		}

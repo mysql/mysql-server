@@ -20,6 +20,8 @@
   @file include/my_dbug.h
 */
 
+#include <stdlib.h>
+
 #include "my_compiler.h"
 
 #if !defined(DBUG_OFF)
@@ -109,6 +111,7 @@ extern  const char* _db_get_func_(void);
   call abort() instead of _exit(2) (now it would cause a "test signal" popup).
 */
 #include <crtdbg.h>
+
 #define DBUG_ABORT() (_db_flush_(),\
                      (void)_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE),\
                      (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR),\

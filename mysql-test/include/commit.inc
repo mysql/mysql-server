@@ -418,7 +418,7 @@ flush status;
 --echo #
 select * from t1;
 --disable_warnings
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 commit;
 call p_verify_status_increment(1, 0, 1, 0);
 --enable_warnings
@@ -618,7 +618,7 @@ call p_verify_status_increment(4, 0, 2, 0);
 --echo #
 select f1();
 --disable_warnings
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 commit;
 call p_verify_status_increment(1, 0, 2, 0);
 --enable_warnings
@@ -867,7 +867,7 @@ if (`SELECT $PS_PROTOCOL > 0`)
   call p_verify_status_increment(8, 0, 4, 4);
 }
 alter table t3 add column (b int);
-call p_verify_status_increment(4, 0, 2, 0);
+call p_verify_status_increment(3, 0, 2, 0);
 alter table t3 rename t4;
 call p_verify_status_increment(5, 0, 3, 0);
 rename table t4 to t3;
@@ -886,7 +886,7 @@ call p_verify_status_increment(6, 0, 6, 0);
 commit;
 call p_verify_status_increment(0, 0, 0, 0);
 drop view v1;
-call p_verify_status_increment(6, 0, 3, 0);
+call p_verify_status_increment(5, 0, 3, 0);
 --enable_warnings
 
 --echo #

@@ -75,11 +75,12 @@ public:
 
     @param[in] group_member_information Information about this node in XCom
                                         format
-    @param[in] peer_member_information Information about the nodes that it
+    @param[in] xcom_peers Information about the nodes that it
                                        should get in touch to enter a group
 
     @param[in] group_identifier Group identifier object
     @param[in] xcom_proxy Proxy implementation reference
+    @param[in] gcs_engine MySQL GCS engine
     @param[in] state_exchange Reference to the State Exchange algorithm implementation
     @param[in] view_control View change control interface reference
     @param[in] boot Whether the node will be used to bootstrap the group
@@ -271,10 +272,12 @@ private:
     and in all registered client applications.
 
     @param[in] new_view_id new view identifier
-    @param[in] group_name group name
+    @param[in] group_id group id
+    @param[in] states collection of states to set in the new view
     @param[in] total all the members
     @param[in] left members that left the last view
     @param[in] join members that joined from the last view
+    @param[in] error_code Error code to set in the new view
   */
   void install_view(Gcs_xcom_view_identifier *new_view_id,
                     const Gcs_group_identifier &group_id,
@@ -284,7 +287,7 @@ private:
                     std::set<Gcs_member_identifier *> *join,
 		    Gcs_view::Gcs_view_error_code error_code=Gcs_view::OK);
 
-  /*
+  /**
     Check whether the current member is in the vector of failed members
     and in this case is considered faulty.
 
@@ -293,9 +296,9 @@ private:
   bool is_considered_faulty(
     std::vector<Gcs_member_identifier *> *failed_members);
 
-  /*
+  /**
     Notify that the current member has left the group and whether it left
-    gracefuly or not.
+    gracefully or not.
 
     @param[in] error_code that identifies whether there was any error
                when the view was received.
