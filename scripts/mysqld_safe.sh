@@ -234,7 +234,13 @@ parse_arguments() {
 
       # mysqld_safe-specific options - must be set in my.cnf ([mysqld_safe])!
       --core-file-size=*) core_file_size="$val" ;;
-      --ledir=*) ledir="$val" ;;
+      --ledir=*)
+        if [ -z "$pick_args" ]; then
+          log_error "--ledir option can only be used as command line option, found in config file"
+          exit 1
+        fi
+        ledir="$val"
+        ;;
       --malloc-lib=*) set_malloc_lib "$val" ;;
       --mysqld=*)
         if [ -z "$pick_args" ]; then
@@ -411,7 +417,15 @@ else
   relpkgdata='@pkgdatadir@'
 fi
 
-MY_PWD=`pwd`
+case "$0" in
+  /*)
+  MY_PWD='@prefix@'
+  ;;
+  *)
+  MY_PWD=`dirname $0`
+  MY_PWD=`dirname $MY_PWD`
+  ;;
+esac
 # Check for the directories we would expect from a binary release install
 if test -n "$MY_BASEDIR_VERSION" -a -d "$MY_BASEDIR_VERSION"
 then
