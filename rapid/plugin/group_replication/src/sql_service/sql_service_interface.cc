@@ -83,6 +83,8 @@ int Sql_service_interface::open_session()
   if (!wait_for_session_server(SESSION_WAIT_TIMEOUT))
   {
     m_session= srv_session_open(NULL, NULL);
+    if (m_session == NULL)
+      DBUG_RETURN(1); /* purecov: inspected */
   }
   else
   {
@@ -95,32 +97,31 @@ int Sql_service_interface::open_session()
 int Sql_service_interface::open_thread_session(void *plugin_ptr)
 {
   DBUG_ASSERT(plugin_ptr != NULL);
-  m_plugin= plugin_ptr;
 
   m_session= NULL;
   /* open a server session after server is in operating state */
   if (!wait_for_session_server(SESSION_WAIT_TIMEOUT))
   {
-    if (m_plugin)
+    /* initalize new thread to be used with server session */
+    if (srv_session_init_thread(plugin_ptr))
     {
-      /* initalize new thread to be used with server session */
-      if (srv_session_init_thread(m_plugin))
-      {
-        /* purecov: begin inspected */
-        log_message(MY_ERROR_LEVEL, "Error when initializing a session thread for"
-                                    "internal server connection.");
-        return 1;
-        /* purecov: end */
-      }
+      /* purecov: begin inspected */
+      log_message(MY_ERROR_LEVEL, "Error when initializing a session thread for"
+                                  "internal server connection.");
+      return 1;
+      /* purecov: end */
     }
 
     m_session= srv_session_open(NULL, NULL);
+    if (m_session == NULL)
+      return 1; /* purecov: inspected */
   }
   else
   {
     return 1; /* purecov: inspected */
   }
 
+  m_plugin= plugin_ptr;
   return 0;
 }
 
