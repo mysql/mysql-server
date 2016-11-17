@@ -256,7 +256,7 @@ public:
 	by ALTER TABLE and holding data used during in-place alter.
 	@param[in]	old_table_def	dd::Table object describing old
 	version of the table.
-	@parami[in,out]	new_table_def	dd::Table object for the new version
+	@param[in,out]	new_table_def	dd::Table object for the new version
 	of the table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.
@@ -279,7 +279,7 @@ public:
 	by ALTER TABLE and holding data used during in-place alter.
 	@param[in]	old_table_def	dd::Table object describing old
 	version of the table.
-	@parami[in,out]	new_table_def	dd::Table object for the new version
+	@param[in,out]	new_table_def	dd::Table object for the new version
 	of the table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.
@@ -306,7 +306,7 @@ public:
 	@param[in]	commit		true => Commit, false => Rollback.
 	@param[in]	old_table_def	dd::Table object describing old
 	version of the table.
-	@parami[in,out]	new_table_def	dd::Table object for the new version
+	@param[in,out]	new_table_def	dd::Table object for the new version
 	of the table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.

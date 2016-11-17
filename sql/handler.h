@@ -1063,7 +1063,7 @@ typedef int (*get_tablespace_t)(THD* thd, LEX_CSTRING db_name, LEX_CSTRING table
                               operation on it.
   @param          old_ts_def  dd::Tablespace object describing old version
                               of tablespace.
-  @param [in/out] new_ts_def  dd::Tablespace object describing new version
+  @param [in,out] new_ts_def  dd::Tablespace object describing new version
                               of tablespace. Engines which support atomic DDL
                               can adjust this object. The updated information
                               will be saved to the data-dictionary.
@@ -4912,7 +4912,7 @@ protected:
     @param [in]     to              Path for the new table name.
     @param [in]     from_table_def  Old version of definition for table
                                     being renamed (i.e. prior to rename).
-    @param [in/out] to_table_def    New version of definition for table
+    @param [in,out] to_table_def    New version of definition for table
                                     being renamed. Storage engines which
                                     support atomic DDL (i.e. having
                                     HTON_SUPPORTS_ATOMIC_DDL flag set)
@@ -5155,7 +5155,7 @@ public:
   /**
     Quickly remove all rows from a table.
 
-    @param[in/out]  table_def  dd::Table object for table being truncated.
+    @param[in,out]  table_def  dd::Table object for table being truncated.
 
     @remark This method is responsible for implementing MySQL's TRUNCATE
             TABLE statement, which is a DDL operation. As such, a engine
@@ -5238,11 +5238,11 @@ public:
   /**
     Create table (implementation).
 
-    @param  [in]      path      Path to table file (without extension).
+    @param  [in]      name      Table name.
     @param  [in]      form      TABLE object describing the table to be
                                 created.
     @param  [in]      info      HA_CREATE_INFO describing table.
-    @param  [in/out]  table_def dd::Table object describing the table
+    @param  [in,out]  table_def dd::Table object describing the table
                                 to be created. This object can be
                                 adjusted by storage engine if it
                                 supports atomic DDL (i.e. has
@@ -5267,10 +5267,10 @@ public:
 
     @param  [in]      create_info   HA_CREATE_INFO describing the table.
     @param  [in]      create_list   List of columns in the table.
-    @param  [in]      key           Array of KEY objects describing table
+    @param  [in]      key_info      Array of KEY objects describing table
                                     indexes.
     @param  [in]      key_count     Number of indexes in the table.
-    @param  [in/out]  table_def     dd::Table object describing the table
+    @param  [in,out]  table         dd::Table object describing the table
                                     to be created. Implicit columns and
                                     indexes are to be added to this object.
                                     Adjusted table description will be

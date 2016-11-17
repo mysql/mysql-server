@@ -1177,29 +1177,6 @@ bool Partition_helper::print_partition_error(int error, myf errflag)
   DBUG_RETURN(true);
 }
 
-/**
-  Implement the partition changes defined by ALTER TABLE of partitions.
-
-  Add and copy if needed a number of partitions, during this operation
-  only read operation is ongoing in the server. This is used by
-  ADD PARTITION all types as well as by REORGANIZE PARTITION. For
-  one-phased implementations it is used also by DROP and COALESCE
-  PARTITIONs.
-  One-phased implementation needs the new frm file, other handlers will
-  get zero length and a NULL reference here.
-
-  @param[in]  create_info       HA_CREATE_INFO object describing all
-                                fields and indexes in table
-  @param[in]  path              Complete path of db and table name
-  @param[out] copied            Output parameter where number of copied
-                                records are added
-  @param[out] deleted           Output parameter where number of deleted
-                                records are added
-
-  @return Operation status
-    @retval    0 Success
-    @retval != 0 Failure
-*/
 
 void Partition_helper::prepare_change_partitions()
 {
@@ -1252,6 +1229,31 @@ void Partition_helper::prepare_change_partitions()
     ++i;
   }
 }
+
+
+/**
+  Implement the partition changes defined by ALTER TABLE of partitions.
+
+  Add and copy if needed a number of partitions, during this operation
+  only read operation is ongoing in the server. This is used by
+  ADD PARTITION all types as well as by REORGANIZE PARTITION. For
+  one-phased implementations it is used also by DROP and COALESCE
+  PARTITIONs.
+  One-phased implementation needs the new frm file, other handlers will
+  get zero length and a NULL reference here.
+
+  @param[in]  create_info       HA_CREATE_INFO object describing all
+                                fields and indexes in table
+  @param[in]  path              Complete path of db and table name
+  @param[out] copied            Output parameter where number of copied
+                                records are added
+  @param[out] deleted           Output parameter where number of deleted
+                                records are added
+
+  @return Operation status
+    @retval    0 Success
+    @retval != 0 Failure
+*/
 
 int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
                                         const char *path,

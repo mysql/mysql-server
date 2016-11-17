@@ -82,7 +82,7 @@ public:
     @param       thd      Thread context.
     @param [out] empty    Whether the tablespace is empty.
 
-    @retutn true if error, false if success.
+    @return true if error, false if success.
   */
 
   virtual bool is_empty(THD *thd, bool *empty) const= 0;

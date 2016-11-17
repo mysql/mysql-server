@@ -2733,7 +2733,7 @@ create_table_info_t::set_remote_path_flags()
 partitions, columns and indexes etc.
 @param[in]	create_info	Additional create information, like
 create statement string.
-@parami[in,out]	table_def	dd::Table object for table to be created.
+@param[in,out]	table_def	dd::Table object for table to be created.
 Can be adjusted by this call. Changes to the table definition will be
 persisted in the data-dictionary at statement commit time.
 @return	0 or error number. */

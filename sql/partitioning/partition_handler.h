@@ -258,7 +258,7 @@ public:
     Handler level wrapper for truncating partitions, will ensure that
     mark_trx_read_write() is called and also checks locking assertions.
 
-    @param[in/out]  table_def    dd::Table object for the table. Engines
+    @param[in,out]  table_def    dd::Table object for the table. Engines
                                  which support atomic DDL are allowed to
                                  adjust this object. Changes will be saved
                                  to the data-dictionary.
@@ -299,8 +299,8 @@ public:
     @param[in]      swap_table_path   Path to non-partitioned table to be
                                       exchanged with partition.
     @param[in]      part_id           Id of partition to be exchanged.
-    @param[in/out]  part_table_def    dd::Table object for partitioned table.
-    @param[in/out]  swap_table_def    dd::Table object for non-partitioned
+    @param[in,out]  part_table_def    dd::Table object for partitioned table.
+    @param[in,out]  swap_table_def    dd::Table object for non-partitioned
                                       table.
 
     @note   Both tables are locked in exclusive mode.

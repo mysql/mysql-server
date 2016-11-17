@@ -1317,7 +1317,7 @@ innobase_rollback_by_xid(
 @param[in]	alter_info	Describes the command and how to do it.
 @param[in]	old_ts_def	Old version of dd::Tablespace object for the
 tablespace.
-@param[in/out]	new_ts_def	New version of dd::Tablespace object for the
+@param[in,out]	new_ts_def	New version of dd::Tablespace object for the
 tablespace. Can be adjusted by SE. Changes will be persisted in the
 data-dictionary at statement commit.
 @return MySQL error code*/
@@ -13684,7 +13684,7 @@ have_error:
 @param[in]	alter_info	How to do the command
 @param[in]	old_ts_def	Old version of dd::Tablespace object for the
 tablespace
-@param[in/out]	new_ts_def	New version of dd::Tablespace object for the
+@param[in,out]	new_ts_def	New version of dd::Tablespace object for the
 tablespace. Can be adjusted by SE. Changes will be persisted in the
 data-dictionary at statement commit.
 @return MySQL error code*/
@@ -13952,7 +13952,7 @@ Renames an InnoDB table.
 @param[in]	to	New name of the table.
 @param[in]	from_table_def	dd::Table object describing old version
 of table.
-@param[in/out]	to_table_def	dd::Table object describing version of
+@param[in,out]	to_table_def	dd::Table object describing version of
 table with new name. Can be updated by SE. Changes are persisted to the
 dictionary at statement commit time.
 @return 0 or error code */

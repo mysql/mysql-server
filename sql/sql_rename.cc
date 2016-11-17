@@ -300,9 +300,9 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
   @param[in]      new_table_name    The new table/view name.
   @param[in]      new_table_alias   The new table/view alias.
   @param[in]      skip_error        Whether to skip errors.
-  @param[in/out]  int_commit_done   Whether intermediate commits
+  @param[in,out]  int_commit_done   Whether intermediate commits
                                     were done.
-  @param[in/out]  post_ddl_htons    Set of SEs supporting atomic DDL
+  @param[in,out]  post_ddl_htons    Set of SEs supporting atomic DDL
                                     for which post-DDL hooks needs
                                     to be called.
 
@@ -430,9 +430,9 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   @param[in]      thd               Thread handle.
   @param[in]      table_list        List of tables to rename.
   @param[in]      skip_error        Whether to skip errors.
-  @param[in/out]  int_commit_done   Whether intermediate commits
+  @param[in,out]  int_commit_done   Whether intermediate commits
                                     were done.
-  @param[in/out]  post_ddl_htons    Set of SEs supporting atomic DDL
+  @param[in,out]  post_ddl_htons    Set of SEs supporting atomic DDL
                                     for which post-DDL hooks needs
                                     to be called.
 

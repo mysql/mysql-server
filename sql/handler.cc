@@ -5147,7 +5147,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
   @param is_temp_table       Indicates that this is temporary table (for
                              cases when this info is not available from
                              HA_CREATE_INFO).
-  @param table_def           Data-dictionary object describing table to
+  @param tmp_table_def       Data-dictionary object describing table to
                              be used for table creation. Can be adjusted
                              by storage engine if it supports atomic DDL.
                              For non-temporary tables these changes will
