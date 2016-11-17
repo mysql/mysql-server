@@ -1,5 +1,7 @@
 
 --source include/no_valgrind_without_big.inc
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
 #
 # Basic stored PROCEDURE tests
 #

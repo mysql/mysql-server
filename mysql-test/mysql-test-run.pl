@@ -1529,17 +1529,20 @@ sub command_line_setup {
   if($opt_no_skip)
   {
      $excluded_string = '';
-     my $excludenoskip = 'include/excludenoskip.list';
-     my $i_excludenoskip = '../internal/mysql-test/include/i_excludenoskip.list';
-     foreach my $excludedList ($excludenoskip,$i_excludenoskip)
+     my @noskip_exclude_lists = ('include/excludenoskip.list');
+     my $i_noskip_exclude_list =
+     '../internal/mysql-test/include/i_excludenoskip.list';
+     push (@noskip_exclude_lists,$i_noskip_exclude_list)
+       if ( -e $i_noskip_exclude_list);
+     foreach my $excludedList (@noskip_exclude_lists)
      {
        open(my $fh, '<', $excludedList)
-         or die "no-skip option cannot run without '$excludedList' $!";
+	 or die "no-skip option cannot run without '$excludedList' $!";
        while(<$fh>)
-       {
-         chomp $_;
-         $excluded_string .= $_."," unless ($_=~ /^\s*$/ or $_=~ /^#/);
-       }
+	 {
+	   chomp $_;
+	   $excluded_string .= $_."," unless ($_=~ /^\s*$/ or $_=~ /^#/);
+	 }
        close $fh;
      }
      chop $excluded_string;

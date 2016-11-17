@@ -20,7 +20,7 @@ set global innodb_buffer_pool_size = 8*1024*1024;
 ERROR HY000: Another buffer pool resize is already in progress.
 select @@global.innodb_buffer_pool_size;
 @@global.innodb_buffer_pool_size
-8388608
+12582912
 select @@global.innodb_adaptive_hash_index;
 @@global.innodb_adaptive_hash_index
 0

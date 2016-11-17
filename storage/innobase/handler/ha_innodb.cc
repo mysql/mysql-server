@@ -18285,6 +18285,8 @@ innodb_buffer_pool_size_update(
 
 	ib::info() << export_vars.innodb_buffer_pool_resize_status
 		<< " (new size: " << in_val << " bytes)";
+
+        *static_cast<longlong*>(var_ptr) = in_val;
 }
 
 /*************************************************************//**
