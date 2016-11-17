@@ -777,16 +777,25 @@ namespace undo {
 	{
 		dberr_t		err;
 		char*		log_file_name;
+		bool		exist;
+		os_file_type_t	type;
 
-		/* Step-1: Create the log file name using the pre-decided
+		/* Create the log file name using the pre-decided
 		prefix/suffix and table id of undo tablepsace to truncate. */
 		err = populate_log_file_name(space_id, log_file_name);
 		if (err != DB_SUCCESS) {
 			return;
 		}
 
-		/* Step-2: Open log file and write magic number to
-		indicate done phase. */
+		/* If this file does not exist, there is nothing to do. */
+		os_file_status(log_file_name, &exist, &type);
+		if (!exist) {
+			delete[] log_file_name;
+			return;
+		}
+
+		/* Open log file and write magic number to indicate
+		done phase. */
 		bool	ret;
 		os_file_t	handle =
 			os_file_create_simple_no_error_handling(
@@ -834,7 +843,7 @@ namespace undo {
 	/** Check if TRUNCATE_DDL_LOG file exist.
 	@param[in]	space_id	id of the undo tablespace.
 	@return true if exist else false. */
-	bool is_truncate_log_present(space_id_t space_id)
+	bool is_active_truncate_log_present(space_id_t space_id)
 	{
 		dberr_t		err;
 		char*		log_file_name;

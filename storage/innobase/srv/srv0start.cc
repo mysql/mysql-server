@@ -587,7 +587,7 @@ srv_undo_tablespace_fixup(
 {
 	undo::Tablespace	undo_space(space_id);
 
-	if (undo::is_truncate_log_present(space_id)) {
+	if (undo::is_active_truncate_log_present(space_id)) {
 
 		ib::info() << "Undo Tablespace number " << space_id
 			<< " was being truncated when mysqld quit.";
@@ -951,8 +951,10 @@ srv_undo_tablespaces_construction_list_clear()
 			space_id, BUF_REMOVE_FLUSH_WRITE, NULL);
 
 		/* Remove the truncate redo log file if it exists. */
-		undo::Truncate	undo_trunc;
-		undo_trunc.done_logging(space_id);
+		if (undo::is_active_truncate_log_present(space_id)) {
+			undo::Truncate	undo_trunc;
+			undo_trunc.done_logging(space_id);
+		}
 	}
 
 	undo::clear_construction_list();
