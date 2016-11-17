@@ -103,7 +103,7 @@ Master_info *Rpl_info_factory::create_mi(uint mi_option, const char* channel,
                            )))
     goto err;
 
-  if(init_repositories(mi_table_data, mi_file_data, mi_option, instances,
+  if(init_repositories(mi_table_data, mi_file_data, mi_option,
                        &handler_src, &handler_dest, &msg))
     goto err;
 
@@ -163,12 +163,11 @@ bool Rpl_info_factory::change_mi_repository(Master_info *mi,
 {
   Rpl_info_handler*  handler_src= mi->get_rpl_info_handler();
   Rpl_info_handler*  handler_dest= NULL;
-  uint instances= 1;
   DBUG_ENTER("Rpl_info_factory::change_mi_repository");
 
   DBUG_ASSERT(handler_src);
 
-  if (init_repositories(mi_table_data, mi_file_data, mi_option, instances,
+  if (init_repositories(mi_table_data, mi_file_data, mi_option,
                         NULL, &handler_dest, msg))
     goto err;
 
@@ -252,7 +251,7 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
     goto err;
   }
 
-  if(init_repositories(rli_table_data, rli_file_data, rli_option, instances,
+  if(init_repositories(rli_table_data, rli_file_data, rli_option,
                        &handler_src, &handler_dest, &msg))
     goto err;
 
@@ -335,13 +334,12 @@ bool Rpl_info_factory::change_rli_repository(Relay_log_info *rli,
 {
   Rpl_info_handler*  handler_src= rli->get_rpl_info_handler();
   Rpl_info_handler*  handler_dest= NULL;
-  uint instances= 1;
   DBUG_ENTER("Rpl_info_factory::change_rli_repository");
 
   DBUG_ASSERT(handler_src != NULL);
 
   if (init_repositories(rli_table_data, rli_file_data, rli_option,
-                        instances, NULL, &handler_dest, msg))
+                        NULL, &handler_dest, msg))
     goto err;
 
   if (decide_repository(rli, rli_option, &handler_src, &handler_dest,
@@ -381,8 +379,7 @@ bool Rpl_info_factory::reset_workers(Relay_log_info *rli)
 
   if (Rpl_info_table::do_reset_info(Slave_worker::get_number_worker_fields(),
                                     MYSQL_SCHEMA_NAME.str, WORKER_INFO_NAME.str,
-                                    rli->channel,
-                                    Slave_worker::get_channel_field_index()))
+                                    rli->channel))
     goto err;
 
   error= false;
@@ -453,8 +450,8 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
     goto err;
 
 
-  if(init_repositories(worker_table_data, worker_file_data, rli_option,
-                       worker_id + 1, &handler_src, &handler_dest, &msg))
+  if (init_repositories(worker_table_data, worker_file_data, rli_option,
+                        &handler_src, &handler_dest, &msg))
     goto err;
   /*
     Preparing the being set up handler with search keys early.
@@ -635,7 +632,7 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
       If there is a problem with one of the repositories we print out
       more information and exit.
     */
-    DBUG_RETURN(check_error_repository(info, *handler_src, *handler_dest,
+    DBUG_RETURN(check_error_repository(*handler_src, *handler_dest,
                                        return_check_src,
                                        return_check_dst, msg));
   }
@@ -784,7 +781,6 @@ Rpl_info_factory::check_src_repository(Rpl_info *info,
   This method is called by the decide_repository() and is used print out
   information on errors.
 
-  @param  info         Either master info or relay log info.
   @param  handler_src  Source repository from where information is
                        copied into the destination repository.
   @param  handler_dest Destination repository to where informaiton is
@@ -795,8 +791,7 @@ Rpl_info_factory::check_src_repository(Rpl_info *info,
 
   @retval TRUE  Failure
 */
-bool Rpl_info_factory::check_error_repository(Rpl_info *info,
-                                              Rpl_info_handler *handler_src,
+bool Rpl_info_factory::check_error_repository(Rpl_info_handler *handler_src,
                                               Rpl_info_handler *handler_dest,
                                               enum_return_check err_src,
                                               enum_return_check err_dst,
@@ -873,8 +868,6 @@ bool Rpl_info_factory::init_repositories(Rpl_info *info,
   @param[in] file_data     Defines information to create a file repository.
   @param[in] rep_option    Identifies the type of the repository that will
                            be used, i.e., destination repository.
-  @param[in] instance      Identifies the instance of the repository that
-                           will be used.
   @param[out] handler_src  Source repository from where information is
                            copied into the destination repository.
   @param[out] handler_dest Destination repository to where informaiton is
@@ -887,7 +880,6 @@ bool Rpl_info_factory::init_repositories(Rpl_info *info,
 bool Rpl_info_factory::init_repositories(const struct_table_data table_data,
                                          const struct_file_data file_data,
                                          uint rep_option,
-                                         uint instance,
                                          Rpl_info_handler **handler_src,
                                          Rpl_info_handler **handler_dest,
                                          const char **msg)

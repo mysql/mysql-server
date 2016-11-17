@@ -3974,7 +3974,7 @@ static void change_weight_if_case_first(CHARSET_INFO *cs, MY_COLL_RULE *r,
 static size_t
 my_char_weight_put_900(MY_UCA_WEIGHT_LEVEL *dst, uint16 *to, size_t to_stride,
                        size_t to_length, uint16 *to_num_ce,
-                       const MY_COLL_RULE *rule, size_t base_len, size_t curr_len)
+                       const MY_COLL_RULE *rule, size_t base_len)
 {
   size_t count;
   int total_ce_cnt= 0;
@@ -4077,8 +4077,7 @@ my_char_weight_put_900(MY_UCA_WEIGHT_LEVEL *dst, uint16 *to, size_t to_stride,
   Helper function:
   Copies UCA weights for a given "uint" string
   to the given location.
-  
-  @param cs         character set
+
   @param dst        destination UCA weight data
   @param to         destination address
   @param to_stride  number of bytes between each successive weight in "to"
@@ -4087,20 +4086,19 @@ my_char_weight_put_900(MY_UCA_WEIGHT_LEVEL *dst, uint16 *to, size_t to_stride,
   @param rule       The rule that contains the characters whose weight
                     are to copied
   @param base_len   The length of base character list
-  @param curr_len   The length of shift character list
   @param uca_ver    UCA version
-  
+
   @return    number of weights put
 */
 
 static size_t
-my_char_weight_put(const CHARSET_INFO *cs, MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
+my_char_weight_put(MY_UCA_WEIGHT_LEVEL *dst, uint16 *to,
                    size_t to_stride, size_t to_length, uint16 *to_num_ce,
-                   const MY_COLL_RULE *rule, size_t base_len, size_t curr_len, enum_uca_ver uca_ver)
+                   const MY_COLL_RULE *rule, size_t base_len, enum_uca_ver uca_ver)
 {
   if (uca_ver == UCA_V900)
     return my_char_weight_put_900(dst, to, to_stride, to_length, to_num_ce,
-                                  rule, base_len, curr_len);
+                                  rule, base_len);
 
   const my_wc_t *base= rule->base;
   size_t count= 0;
@@ -4181,7 +4179,7 @@ my_uca_copy_page(CHARSET_INFO *cs,
 }
 
 static bool
-apply_shift_900(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
+apply_shift_900(MY_CHARSET_LOADER *loader,
                 MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
                 uint16 *to, size_t to_stride, size_t nweights)
 {
@@ -4245,12 +4243,12 @@ apply_shift_900(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
 }
 
 static my_bool
-apply_shift(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
+apply_shift(MY_CHARSET_LOADER *loader,
             MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
             uint16 *to, size_t to_stride, size_t nweights)
 {
   if (rules->uca->version == UCA_V900)
-    return apply_shift_900(cs, loader, rules, r, level, to, to_stride, nweights);
+    return apply_shift_900(loader, rules, r, level, to, to_stride, nweights);
 
   DBUG_ASSERT(to_stride == 1);
 
@@ -4336,8 +4334,8 @@ apply_one_rule(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
     to_num_ce= &to[MY_UCA_MAX_WEIGHT_SIZE - 1];
     /* Store weights of the "reset to" character */
     dst->contractions.nitems--; /* Temporarily hide - it's incomplete */
-    nweights= my_char_weight_put(cs, dst, to, to_stride, MY_UCA_MAX_WEIGHT_SIZE - 1,
-                                 to_num_ce, r, nreset, nshift, rules->uca->version);
+    nweights= my_char_weight_put(dst, to, to_stride, MY_UCA_MAX_WEIGHT_SIZE - 1,
+                                 to_num_ce, r, nreset, rules->uca->version);
     dst->contractions.nitems++; /* Activate, now it's complete */
   }
   else
@@ -4360,13 +4358,13 @@ apply_one_rule(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
     if (dst->lengths[pagec] == 0)
       nweights= 0;
     else
-      nweights= my_char_weight_put(cs, dst, to, to_stride, dst->lengths[pagec] - 1,
-                                   to_num_ce, r, nreset, nshift, rules->uca->version);
+      nweights= my_char_weight_put(dst, to, to_stride, dst->lengths[pagec] - 1,
+                                   to_num_ce, r, nreset, rules->uca->version);
   }
 
   change_weight_if_case_first(cs, r, to, to_stride, nshift, nweights);
   /* Apply level difference. */
-  return apply_shift(cs, loader, rules, r, level, to, to_stride, nweights);
+  return apply_shift(loader, rules, r, level, to, to_stride, nweights);
 }
 
 

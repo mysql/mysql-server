@@ -615,8 +615,7 @@ public:
               unsigned long auto_increment_offset_arg,
               unsigned int number,
               unsigned long long table_map_for_update_arg,
-              int errcode,
-              unsigned int db_arg_len, unsigned int catalog_arg_len);
+              int errcode);
 
   /**
     The constructor receives a buffer and instantiates a Query_event filled in

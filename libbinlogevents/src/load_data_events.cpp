@@ -70,8 +70,8 @@ Execute_load_query_event(const char* buf,
 Delete_file_event::Delete_file_event(const char* buf, unsigned int len,
                                      const Format_description_event*
                                      description_event)
-: Binary_log_event(&buf, description_event->binlog_version,
-                    description_event->server_version), file_id(0)
+: Binary_log_event(&buf, description_event->binlog_version),
+  file_id(0)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -92,8 +92,8 @@ Delete_file_event::Delete_file_event(const char* buf, unsigned int len,
 Append_block_event::Append_block_event(const char* buf, unsigned int len,
                                        const Format_description_event*
                                        description_event)
-: Binary_log_event(&buf, description_event->binlog_version,
-                    description_event->server_version), block(0)
+: Binary_log_event(&buf, description_event->binlog_version),
+  block(0)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header

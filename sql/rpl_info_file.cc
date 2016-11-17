@@ -359,31 +359,31 @@ int Rpl_info_file::do_reset_info(const int nparam,
   DBUG_RETURN(error);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const char *value)
+bool Rpl_info_file::do_set_info(const int, const char *value)
 {
   return (my_b_printf(&info_file, "%s\n", value) > (size_t) 0 ?
           FALSE : TRUE);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const uchar *value,
+bool Rpl_info_file::do_set_info(const int, const uchar *value,
                                 const size_t size)
 {
   return (my_b_write(&info_file, value, size));
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const ulong value)
+bool Rpl_info_file::do_set_info(const int, const ulong value)
 {
   return (my_b_printf(&info_file, "%lu\n", value) > (size_t) 0 ?
           FALSE : TRUE);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const int value)
+bool Rpl_info_file::do_set_info(const int, const int value)
 {
   return (my_b_printf(&info_file, "%d\n", value) > (size_t) 0 ?
           FALSE : TRUE);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const float value)
+bool Rpl_info_file::do_set_info(const int, const float value)
 {
   /*
     64 bytes provide enough space considering that the precision is 3
@@ -404,7 +404,7 @@ bool Rpl_info_file::do_set_info(const int pos, const float value)
           FALSE : TRUE);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
+bool Rpl_info_file::do_set_info(const int, const Server_ids *value)
 {
   bool error= TRUE;
   String buffer;
@@ -421,42 +421,42 @@ err:
   return error;
 }
 
-bool Rpl_info_file::do_get_info(const int pos, char *value, const size_t size,
+bool Rpl_info_file::do_get_info(const int, char *value, const size_t size,
                                 const char *default_value)
 {
   return (init_strvar_from_file(value, size, &info_file,
                                 default_value));
 }
 
-bool Rpl_info_file::do_get_info(const int pos, uchar *value, const size_t size,
-                                const uchar *default_value)
+bool Rpl_info_file::do_get_info(const int, uchar *value, const size_t size,
+                                const uchar*)
 {
   return(my_b_read(&info_file, value, size));
 }
 
-bool Rpl_info_file::do_get_info(const int pos, ulong *value,
+bool Rpl_info_file::do_get_info(const int, ulong *value,
                                 const ulong default_value)
 {
   return (init_ulongvar_from_file(value, &info_file,
                                   default_value));
 }
 
-bool Rpl_info_file::do_get_info(const int pos, int *value,
+bool Rpl_info_file::do_get_info(const int, int *value,
                                 const int default_value)
 {
   return (init_intvar_from_file(value, &info_file,
                                 (int) default_value));
 }
 
-bool Rpl_info_file::do_get_info(const int pos, float *value,
+bool Rpl_info_file::do_get_info(const int, float *value,
                                 const float default_value)
 {
   return (init_floatvar_from_file(value, &info_file,
                                   default_value));
 }
 
-bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
-                                const Server_ids *default_value MY_ATTRIBUTE((unused)))
+bool Rpl_info_file::do_get_info(const int, Server_ids *value,
+                                const Server_ids*)
 {
   /*
     Static buffer to use most of the times. However, if it is not big

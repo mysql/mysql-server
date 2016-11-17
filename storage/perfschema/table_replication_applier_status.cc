@@ -163,7 +163,8 @@ int table_replication_applier_status::rnd_next(void)
 }
 
 
-int table_replication_applier_status::rnd_pos(const void *pos)
+int table_replication_applier_status
+  ::rnd_pos(const void *pos MY_ATTRIBUTE((unused)))
 {
   int res= HA_ERR_RECORD_DELETED;
 
@@ -186,7 +187,8 @@ int table_replication_applier_status::rnd_pos(const void *pos)
   return res;
 }
 
-int table_replication_applier_status::index_init(uint idx, bool)
+int table_replication_applier_status
+  ::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
 #ifdef HAVE_REPLICATION
   PFS_index_rpl_applier_status *result= NULL;
@@ -280,10 +282,11 @@ void table_replication_applier_status::make_row(Master_info *mi)
 }
 #endif /* HAVE_REPLICATION */
 
-int table_replication_applier_status::read_row_values(TABLE *table,
-                                       unsigned char *buf,
-                                       Field **fields,
-                                       bool read_all)
+int table_replication_applier_status
+  ::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
+                    unsigned char *buf MY_ATTRIBUTE((unused)),
+                    Field **fields MY_ATTRIBUTE((unused)),
+                    bool read_all MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_REPLICATION
   Field *f;

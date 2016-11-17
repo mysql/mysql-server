@@ -4080,7 +4080,6 @@ public:
 #endif
 
   Transaction_context_log_event(const char *buffer,
-                                uint event_len,
                                 const Format_description_event *descr_event);
 
   virtual ~Transaction_context_log_event();
@@ -4200,7 +4199,6 @@ public:
   View_change_log_event(char* view_id);
 
   View_change_log_event(const char *buffer,
-                        uint event_len,
                         const Format_description_event *descr_event);
 
   virtual ~View_change_log_event();

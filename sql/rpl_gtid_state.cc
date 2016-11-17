@@ -863,7 +863,9 @@ bool Gtid_state::update_gtids_impl_begin(THD *thd)
   return thd->is_commit_in_middle_of_statement;
 }
 
-void Gtid_state::update_gtids_impl_own_gtid_set(THD *thd, bool is_commit)
+void Gtid_state
+  ::update_gtids_impl_own_gtid_set(THD *thd MY_ATTRIBUTE((unused)),
+                                   bool is_commit MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_GTID_NEXT_LIST
   rpl_sidno prev_sidno= 0;

@@ -512,7 +512,7 @@ static void print_tokens()
 */
 static const int zerofill_expected_value = 906;
 
-int main(int argc,char **argv)
+int main(int, char **)
 {
   if (ZEROFILL_SYM < zerofill_expected_value)
   {

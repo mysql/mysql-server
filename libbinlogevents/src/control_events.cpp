@@ -30,9 +30,8 @@ namespace binary_log
 */
 Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
                            const Format_description_event *description_event)
-: Binary_log_event(&buf, description_event->binlog_version,
-                   description_event->server_version), new_log_ident(0),
-  flags(DUP_NAME)
+: Binary_log_event(&buf, description_event->binlog_version),
+  new_log_ident(0), flags(DUP_NAME)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -268,8 +267,8 @@ bool Format_description_event::is_version_before_checksum() const
 
 Start_event_v3::Start_event_v3(const char* buf, unsigned int event_len,
                                const Format_description_event *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version,
-   description_event->server_version), binlog_version(BINLOG_VERSION)
+  :Binary_log_event(&buf, description_event->binlog_version),
+   binlog_version(BINLOG_VERSION)
 {
   if (event_len < (unsigned int)description_event->common_header_len +
       ST_COMMON_HEADER_LEN_OFFSET)
@@ -466,8 +465,7 @@ Format_description_event::~Format_description_event()
 */
 Incident_event::Incident_event(const char *buf, unsigned int event_len,
                                const Format_description_event *descr_event)
-: Binary_log_event(&buf, descr_event->binlog_version,
-                   descr_event->server_version)
+: Binary_log_event(&buf, descr_event->binlog_version)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -529,8 +527,7 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
 
 Ignorable_event::Ignorable_event(const char *buf,
                                  const Format_description_event *descr_event)
- : Binary_log_event(&buf, descr_event->binlog_version,
-                    descr_event->server_version)
+ : Binary_log_event(&buf, descr_event->binlog_version)
 {}
 
 /**
@@ -544,8 +541,7 @@ Ignorable_event::Ignorable_event(const char *buf,
 Xid_event::
 Xid_event(const char* buf,
           const Format_description_event *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version,
-                    description_event->server_version)
+  :Binary_log_event(&buf, description_event->binlog_version)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -569,8 +565,7 @@ Xid_event(const char* buf,
 XA_prepare_event::
 XA_prepare_event(const char* buf,
                  const Format_description_event *description_event)
- : Binary_log_event(&buf, description_event->binlog_version,
-                    description_event->server_version)
+ : Binary_log_event(&buf, description_event->binlog_version)
 {
   uint32_t temp= 0;
   uint8_t temp_byte;
@@ -596,8 +591,7 @@ XA_prepare_event(const char* buf,
 */
 Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
                        const Format_description_event *description_event)
- : Binary_log_event(&buffer, description_event->binlog_version,
-                    description_event->server_version),
+ : Binary_log_event(&buffer, description_event->binlog_version),
     last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT)
 {
   /*
@@ -662,8 +656,7 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
 Previous_gtids_event::
 Previous_gtids_event(const char *buffer, unsigned int event_len,
                      const Format_description_event *description_event)
-: Binary_log_event(&buffer, description_event->binlog_version,
-                     description_event->server_version)
+: Binary_log_event(&buffer, description_event->binlog_version)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -684,10 +677,9 @@ Previous_gtids_event(const char *buffer, unsigned int event_len,
   in this event.
 */
 Transaction_context_event::
-Transaction_context_event(const char *buffer, unsigned int event_len,
+Transaction_context_event(const char *buffer,
                           const Format_description_event *description_event)
-: Binary_log_event(&buffer, description_event->binlog_version,
-                   description_event->server_version)
+: Binary_log_event(&buffer, description_event->binlog_version)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -814,10 +806,9 @@ View_change_event::View_change_event(char* raw_view_id)
 }
 
 View_change_event::
-View_change_event(const char *buffer, unsigned int event_len,
+View_change_event(const char *buffer,
                   const Format_description_event *description_event)
-: Binary_log_event(&buffer, description_event->binlog_version,
-                   description_event->server_version),
+: Binary_log_event(&buffer, description_event->binlog_version),
   view_id(), seq_number(0), certification_info()
 {
   //buf is advanced in Binary_log_event constructor to point to
@@ -892,8 +883,7 @@ View_change_event::~View_change_event()
 Heartbeat_event::Heartbeat_event(const char* buf, unsigned int event_len,
                                  const Format_description_event*
                                  description_event)
-: Binary_log_event(&buf, description_event->binlog_version,
-                   description_event->server_version),
+: Binary_log_event(&buf, description_event->binlog_version),
   log_ident(buf)
 {
   //buf is advanced in Binary_log_event constructor to point to

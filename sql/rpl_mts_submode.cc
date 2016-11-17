@@ -52,7 +52,7 @@
           0 no error
 */
 int
-Mts_submode_database::schedule_next_event(Relay_log_info *rli, Log_event *ev)
+Mts_submode_database::schedule_next_event(Relay_log_info*, Log_event*)
 {
   /*nothing to do here*/
   return 0;
@@ -62,7 +62,7 @@ Mts_submode_database::schedule_next_event(Relay_log_info *rli, Log_event *ev)
   Logic to attach temporary tables.
 */
 void
-Mts_submode_database::attach_temp_tables(THD *thd, const Relay_log_info* rli,
+Mts_submode_database::attach_temp_tables(THD *thd, const Relay_log_info*,
                                          Query_log_event* ev)
 {
   int i, parts;
@@ -191,11 +191,10 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
  Logic to detach the temporary tables from the worker threads upon
  event execution.
  @param thd THD instance
- @param rli Relay_log_info instance
  @param ev  Query_log_event that is being applied
 */
 void
-Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
+Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info*,
                                          Query_log_event *ev)
 {
   int i, parts;
@@ -275,15 +274,13 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
 
 /**
   Logic to get least occupied worker when the sql mts_submode= database
-  @param rli relay log info of coordinator
   @param ws  array of worker threads
-  @param ev  event for which we are searching for a worker.
   @return slave worker thread
  */
 Slave_worker *
-Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
+Mts_submode_database::get_least_occupied_worker(Relay_log_info*,
                                                 Slave_worker_array *ws,
-                                                Log_event *ev)
+                                                Log_event*)
 {
  long usage= LONG_MAX;
   Slave_worker **ptr_current_worker= NULL, *worker= NULL;
@@ -798,11 +795,10 @@ Mts_submode_logical_clock::attach_temp_tables(THD *thd, const Relay_log_info* rl
  event execution.
  @param thd THD instance
  @param rli Relay_log_info instance
- @param ev  Query_log_event that is being applied
 */
 void
-Mts_submode_logical_clock::detach_temp_tables( THD *thd, const Relay_log_info* rli,
-                                        Query_log_event * ev)
+Mts_submode_logical_clock::detach_temp_tables(THD *thd, const Relay_log_info* rli,
+                                              Query_log_event*)
 {
   DBUG_ENTER("Mts_submode_logical_clock::detach_temp_tables");
   if (!is_mts_worker(thd))

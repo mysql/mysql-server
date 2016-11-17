@@ -1004,7 +1004,7 @@ binlog_trans_log_savepos(THD *thd, my_off_t *pos)
   DBUG_VOID_RETURN;
 }
 
-static int binlog_dummy_recover(handlerton *hton, XID *xid, uint len)
+static int binlog_dummy_recover(handlerton*, XID*, uint)
 {
   return 0;
 }
@@ -1197,7 +1197,7 @@ static int binlog_init(void *p)
 }
 
 
-static int binlog_deinit(void *p)
+static int binlog_deinit(void*)
 {
   /* Using binlog as TC after the binlog has been unloaded, won't work */
   if (tc_log == &mysql_bin_log)
@@ -1207,7 +1207,7 @@ static int binlog_deinit(void *p)
 }
 
 
-static int binlog_close_connection(handlerton *hton, THD *thd)
+static int binlog_close_connection(handlerton*, THD *thd)
 {
   DBUG_ENTER("binlog_close_connection");
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
@@ -1219,7 +1219,7 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
   DBUG_RETURN(0);
 }
 
-int binlog_cache_data::write_event(THD *thd, Log_event *ev)
+int binlog_cache_data::write_event(THD*, Log_event *ev)
 {
   DBUG_ENTER("binlog_cache_data::write_event");
 
@@ -1719,7 +1719,7 @@ inline bool is_loggable_xa_prepare(THD *thd)
                           has_state(XID_STATE::XA_IDLE));
 }
 
-static int binlog_prepare(handlerton *hton, THD *thd, bool all)
+static int binlog_prepare(handlerton*, THD *thd, bool all)
 {
   DBUG_ENTER("binlog_prepare");
   if (!all)
@@ -1831,7 +1831,7 @@ inline int binlog_xa_commit_or_rollback(THD *thd, XID *xid, bool commit)
 }
 
 
-static int binlog_xa_commit(handlerton *hton,  XID *xid)
+static int binlog_xa_commit(handlerton*,  XID *xid)
 {
   (void) binlog_xa_commit_or_rollback(current_thd, xid, true);
 
@@ -1839,7 +1839,7 @@ static int binlog_xa_commit(handlerton *hton,  XID *xid)
 }
 
 
-static int binlog_xa_rollback(handlerton *hton,  XID *xid)
+static int binlog_xa_rollback(handlerton*,  XID *xid)
 {
   (void) binlog_xa_commit_or_rollback(current_thd, xid, false);
 
@@ -1901,14 +1901,9 @@ static void exec_binlog_error_action_abort(const char* err_string)
 
   @see MYSQL_BIN_LOG::commit
 
-  @param hton  The binlog handlerton.
-  @param thd   The client thread that executes the transaction.
-  @param all   This is @c true if this is a real transaction commit, and
-               @c false otherwise.
-
   @see handlerton::commit
 */
-static int binlog_commit(handlerton *hton, THD *thd, bool all)
+static int binlog_commit(handlerton*, THD*, bool)
 {
   DBUG_ENTER("binlog_commit");
   /*
@@ -1929,14 +1924,13 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   *thd, SAVEPOINT *sv)</code> function in @c TC_LOG and have that
   function execute the necessary work to rollback to a savepoint.
 
-  @param hton  The binlog handlerton.
   @param thd   The client thread that executes the transaction.
   @param all   This is @c true if this is a real transaction rollback, and
                @false otherwise.
 
   @see handlerton::rollback
 */
-static int binlog_rollback(handlerton *hton, THD *thd, bool all)
+static int binlog_rollback(handlerton*, THD *thd, bool all)
 {
   DBUG_ENTER("binlog_rollback");
   int error= 0;
@@ -2477,7 +2471,7 @@ end:
   that case there is no need to have it in the binlog).
 */
 
-static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
+static int binlog_savepoint_set(handlerton*, THD *thd, void *sv)
 {
   DBUG_ENTER("binlog_savepoint_set");
   int error= 1;
@@ -2511,7 +2505,7 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
   DBUG_RETURN(error);
 }
 
-static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
+static int binlog_savepoint_rollback(handlerton*, THD *thd, void *sv)
 {
   DBUG_ENTER("binlog_savepoint_rollback");
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
@@ -2584,13 +2578,12 @@ static uint purge_log_get_error_code(int res)
   Check whether binlog state allows to safely release MDL locks after
   rollback to savepoint.
 
-  @param hton  The binlog handlerton.
   @param thd   The client thread that executes the transaction.
 
   @return true  - It is safe to release MDL locks.
           false - If it is not.
 */
-static bool binlog_savepoint_rollback_can_release_mdl(handlerton *hton,
+static bool binlog_savepoint_rollback_can_release_mdl(handlerton*,
                                                       THD *thd)
 {
   DBUG_ENTER("binlog_savepoint_rollback_can_release_mdl");
@@ -3322,7 +3315,7 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_cond_init(m_key_update_cond, &update_cond);
   mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond);
   stage_manager.init(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
                    m_key_LOCK_flush_queue,
                    m_key_LOCK_sync_queue,
                    m_key_LOCK_commit_queue,
@@ -7815,7 +7808,6 @@ int MYSQL_BIN_LOG::wait_for_update_relay_log(THD* thd, const struct timespec *ti
   Applies to master only.
      
   NOTES
-  @param[in] thd        a THD struct
   @param[in] timeout    a pointer to a timespec;
                         NULL means to wait w/o timeout.
   @retval    0          if got signalled on update
@@ -7826,8 +7818,7 @@ int MYSQL_BIN_LOG::wait_for_update_relay_log(THD* thd, const struct timespec *ti
     LOCK_log is released by the caller.
 */
 
-int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
-                                           const struct timespec *timeout)
+int MYSQL_BIN_LOG::wait_for_update_bin_log(const struct timespec *timeout)
 {
   int ret= 0;
   DBUG_ENTER("wait_for_update_bin_log");

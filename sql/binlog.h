@@ -127,7 +127,7 @@ public:
     }
 
     void init(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
               PSI_mutex_key key_LOCK_queue
 #endif
               ) {
@@ -213,7 +213,7 @@ public:
   };
 
   void init(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
             PSI_mutex_key key_LOCK_flush_queue,
             PSI_mutex_key key_LOCK_sync_queue,
             PSI_mutex_key key_LOCK_commit_queue,
@@ -229,17 +229,17 @@ public:
     mysql_cond_init(key_COND_done, &m_cond_preempt);
 #endif
     m_queue[FLUSH_STAGE].init(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
                               key_LOCK_flush_queue
 #endif
                               );
     m_queue[SYNC_STAGE].init(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
                              key_LOCK_sync_queue
 #endif
                              );
     m_queue[COMMIT_STAGE].init(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
                                key_LOCK_commit_queue
 #endif
                                );
@@ -808,8 +808,8 @@ public:
     unlock_binlog_end_pos();
   }
 
-  int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
-  int wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
+  int wait_for_update_relay_log(THD *thd, const struct timespec * timeout);
+  int wait_for_update_bin_log(const struct timespec * timeout);
   bool do_write_cache(IO_CACHE *cache, class Binlog_event_writer *writer);
 public:
   void init_pthread_objects();

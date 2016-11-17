@@ -240,7 +240,8 @@ int table_replication_connection_configuration::rnd_next(void)
   return res;
 }
 
-int table_replication_connection_configuration::rnd_pos(const void *pos)
+int table_replication_connection_configuration
+  ::rnd_pos(const void *pos MY_ATTRIBUTE((unused)))
 {
   int res= HA_ERR_RECORD_DELETED;
 
@@ -263,7 +264,8 @@ int table_replication_connection_configuration::rnd_pos(const void *pos)
   return res;
 }
 
-int table_replication_connection_configuration::index_init(uint idx, bool)
+int table_replication_connection_configuration
+  ::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
 #ifdef HAVE_REPLICATION
   PFS_index_rpl_connection_config *result= NULL;
@@ -397,10 +399,11 @@ void table_replication_connection_configuration::make_row(Master_info *mi)
 }
 #endif /* HAVE_REPLICATION */
 
-int table_replication_connection_configuration::read_row_values(TABLE *table,
-                                                                unsigned char *,
-                                                                Field **fields,
-                                                                bool read_all)
+int table_replication_connection_configuration
+  ::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
+                    unsigned char *,
+                    Field **fields MY_ATTRIBUTE((unused)),
+                    bool read_all MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_REPLICATION
   Field *f;

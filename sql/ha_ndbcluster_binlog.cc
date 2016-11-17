@@ -5893,7 +5893,7 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
       ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
       ret = trans.write_row(logged_server_id,
                             injector::transaction::table(table, true),
-                            &b, n_fields, table->record[0],
+                            &b, table->record[0],
                             extra_row_info_ptr);
       assert(ret == 0);
     }
@@ -5938,7 +5938,7 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
       DBUG_EXECUTE("info", print_records(table, table->record[n]););
       ret = trans.delete_row(logged_server_id,
                              injector::transaction::table(table, true),
-                             &b, n_fields, table->record[n],
+                             &b, table->record[n],
                              extra_row_info_ptr);
       assert(ret == 0);
     }
@@ -5974,7 +5974,7 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
         */
         ret = trans.write_row(logged_server_id,
                               injector::transaction::table(table, true),
-                              &b, n_fields, table->record[0],// after values
+                              &b, table->record[0],// after values
                               extra_row_info_ptr);
         assert(ret == 0);
       }
@@ -5997,7 +5997,7 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
         DBUG_EXECUTE("info", print_records(table, table->record[1]););
         ret = trans.update_row(logged_server_id,
                                injector::transaction::table(table, true),
-                               &b, n_fields,
+                               &b,
                                table->record[1], // before values
                                table->record[0], // after values
                                extra_row_info_ptr);
@@ -6236,7 +6236,6 @@ injectApplyStatusWriteRow(injector::transaction& trans,
                        injector::transaction::table(apply_status_table,
                                                     true),
                        &apply_status_table->s->all_set,
-                       apply_status_table->s->fields,
                        apply_status_table->record[0]);
 
   assert(ret == 0);

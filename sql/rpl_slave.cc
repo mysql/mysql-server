@@ -1154,7 +1154,7 @@ static void recover_relay_log(Master_info *mi)
 
    If there is an error, it returns (1), otherwise returns (0).
  */
-int init_recovery(Master_info* mi, const char** errmsg)
+int init_recovery(Master_info* mi)
 {
   DBUG_ENTER("init_recovery");
 
@@ -6121,7 +6121,7 @@ static void *handle_slave_worker(void *arg)
   thd->rli_slave= w;
   thd->init_query_mem_roots();
   if ((w->deferred_events_collecting= rpl_filter->is_on()))
-    w->deferred_events= new Deferred_log_events(w);
+    w->deferred_events= new Deferred_log_events();
   DBUG_ASSERT(thd->rli_slave->info_thd == thd);
 
   /* Set applier thread InnoDB priority */
@@ -6866,8 +6866,7 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
      Notice, the size matters for mts_checkpoint_routine's progress loop.
   */
 
-  rli->gaq= new Slave_committed_queue(rli->get_group_master_log_name(),
-                                      rli->checkpoint_group, n);
+  rli->gaq= new Slave_committed_queue(rli->checkpoint_group, n);
   if (!rli->gaq->inited)
     return 1;
 
@@ -7164,7 +7163,7 @@ extern "C" void *handle_slave_sql(void *arg)
   }
   thd->init_query_mem_roots();
   if ((rli->deferred_events_collecting= rpl_filter->is_on()))
-    rli->deferred_events= new Deferred_log_events(rli);
+    rli->deferred_events= new Deferred_log_events();
   thd->rli_slave= rli;
   DBUG_ASSERT(thd->rli_slave->info_thd == thd);
 

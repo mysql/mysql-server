@@ -96,7 +96,6 @@ private:
   static bool init_repositories(const struct_table_data table_data,
                                 const struct_file_data file_data,
                                 uint option,
-                                uint instance,
                                 Rpl_info_handler **handler_src,
                                 Rpl_info_handler **handler_dest,
                                 const char **msg);
@@ -104,8 +103,7 @@ private:
   static enum_return_check check_src_repository(Rpl_info *info,
                                                 uint option,
                                                 Rpl_info_handler **handler_src);
-  static bool check_error_repository(Rpl_info *info,
-                                     Rpl_info_handler *handler_src,
+  static bool check_error_repository(Rpl_info_handler *handler_src,
                                      Rpl_info_handler *handler_dst,
                                      enum_return_check err_src,
                                      enum_return_check err_dst,

@@ -1973,7 +1973,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       goto err;
     }
 
-    if (is_relay_log_recovery && init_recovery(mi, &msg))
+    if (is_relay_log_recovery && init_recovery(mi))
     {
       error= 1;
       goto err;

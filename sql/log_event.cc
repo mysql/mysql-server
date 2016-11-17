@@ -1700,10 +1700,10 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Delete_rows_log_event(buf, event_len, description_event);
       break;
     case binary_log::TRANSACTION_CONTEXT_EVENT:
-      ev = new Transaction_context_log_event(buf, event_len, description_event);
+      ev = new Transaction_context_log_event(buf, description_event);
       break;
     case binary_log::VIEW_CHANGE_EVENT:
-      ev = new View_change_log_event(buf, event_len, description_event);
+      ev = new View_change_log_event(buf, description_event);
       break;
 #endif
     case binary_log::XA_PREPARE_LOG_EVENT:
@@ -3814,9 +3814,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
                           thd_arg->variables.auto_increment_offset,
                           thd_arg->variables.lc_time_names->number,
                           (ulonglong)thd_arg->table_map_for_update,
-                          errcode,
-                          thd_arg->db().str ? strlen(thd_arg->db().str) : 0,
-                          thd_arg->catalog().str ? strlen(thd_arg->catalog().str) : 0),
+                          errcode),
   Log_event(thd_arg,
             (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F :
              0) |
@@ -5430,7 +5428,7 @@ int Format_description_log_event::do_update_pos(Relay_log_info *rli)
 }
 
 Log_event::enum_skip_reason
-Format_description_log_event::do_shall_skip(Relay_log_info *rli)
+Format_description_log_event::do_shall_skip(Relay_log_info*)
 {
   return Log_event::EVENT_SKIP_NOT;
 }
@@ -7175,7 +7173,7 @@ int Delete_file_log_event::pack_info(Protocol *protocol)
 */
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
+int Delete_file_log_event::do_apply_event(Relay_log_info const*)
 {
   char fname[FN_REFLEN+TEMP_FILE_MAX_LEN];
   lex_start(thd);
@@ -7259,9 +7257,7 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
                           thd_arg->variables.auto_increment_offset,
                           thd_arg->variables.lc_time_names->number,
                           (ulonglong)thd_arg->table_map_for_update,
-                          errcode,
-                          thd_arg->db().str ? strlen(thd_arg->db().str) : 0,
-                          thd_arg->catalog().str ? strlen(thd_arg->catalog().str) : 0),
+                          errcode),
   Query_log_event(thd_arg, query_arg, query_length_arg, using_trans, immediate,
                   suppress_use, errcode),
   binary_log::Execute_load_query_event(thd_arg->file_id, fn_pos_start_arg,
@@ -11347,7 +11343,7 @@ Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   DBUG_RETURN(error);
 }
 
-int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli)
+int Delete_rows_log_event::do_exec_row(const Relay_log_info *const)
 {
   int error;
   DBUG_ASSERT(m_table != NULL);
@@ -12259,9 +12255,9 @@ err:
 #endif
 
 Transaction_context_log_event::
-Transaction_context_log_event(const char *buffer, uint event_len,
+Transaction_context_log_event(const char *buffer,
                               const Format_description_event *descr_event)
-  : binary_log::Transaction_context_event(buffer, event_len, descr_event),
+  : binary_log::Transaction_context_event(buffer, descr_event),
     Log_event(header(), footer())
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event (const char *, uint, const Format_description_event*)");
@@ -12496,9 +12492,8 @@ View_change_log_event::View_change_log_event(char* raw_view_id)
 
 View_change_log_event::
 View_change_log_event(const char *buffer,
-                      uint event_len,
                       const Format_description_event *descr_event)
-  : binary_log::View_change_event(buffer, event_len, descr_event),
+  : binary_log::View_change_event(buffer, descr_event),
     Log_event(header(), footer())
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(const char *,"

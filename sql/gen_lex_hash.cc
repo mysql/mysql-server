@@ -341,7 +341,7 @@ bool check_duplicates(uint group_mask)
 }
 
 
-int main(int argc,char **argv)
+int main(int, char **)
 {
 
 

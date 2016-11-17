@@ -162,7 +162,7 @@ bool Until_relay_position::check_at_start_slave()
                         m_rli->get_group_relay_log_pos());
 }
 
-bool Until_relay_position::check_before_dispatching_event(const Log_event *ev)
+bool Until_relay_position::check_before_dispatching_event(const Log_event*)
 {
   return false;
 }
@@ -248,7 +248,7 @@ bool Until_after_gtids::check_at_start_slave()
   return false;
 }
 
-bool Until_after_gtids::check_before_dispatching_event(const Log_event *ev)
+bool Until_after_gtids::check_before_dispatching_event(const Log_event*)
 {
   return false;
 }
@@ -319,7 +319,7 @@ bool Until_mts_gap::check_at_start_slave()
   return false;
 }
 
-bool Until_mts_gap::check_before_dispatching_event(const Log_event *ev)
+bool Until_mts_gap::check_before_dispatching_event(const Log_event*)
 {
   if (m_rli->mts_recovery_group_cnt == 0)
   {

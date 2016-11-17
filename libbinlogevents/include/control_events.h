@@ -465,8 +465,7 @@ public:
   */
   Stop_event(const char* buf,
              const Format_description_event *description_event)
-    :Binary_log_event(&buf, description_event->binlog_version,
-                      description_event->server_version)
+    :Binary_log_event(&buf, description_event->binlog_version)
   {}
 
 #ifndef HAVE_MYSYS
@@ -1201,7 +1200,6 @@ public:
     </pre>
 
     @param buffer             Contains the serialized event.
-    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -1211,7 +1209,7 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Transaction_context_event(const char *buffer, unsigned int event_len,
+  Transaction_context_event(const char *buffer,
                             const Format_description_event *description_event);
 
   Transaction_context_event(unsigned int thread_id_arg,
@@ -1310,7 +1308,6 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
     @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
@@ -1320,7 +1317,7 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  View_change_event(const char *buf, unsigned int event_len,
+  View_change_event(const char *buf,
                     const Format_description_event *descr_event);
 
   explicit View_change_event(char* raw_view_id);
