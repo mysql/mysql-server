@@ -7,7 +7,13 @@
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 # Thread stack overrun on sparc
---source include/not_sparc_debug.inc
+#--source include/not_sparc.inc
+# Include code directly here so test can avoid --no-skip
+let $have_sparc = `select convert(@@version_compile_machine using latin1) IN ("sparc")`;
+if ($have_sparc)
+{
+   skip Test requires: 'not_sparc';
+}
 
 USE performance_schema;
 truncate table events_statements_summary_by_digest;

@@ -152,3 +152,5 @@ have_grep.inc
 
 # Thread stack overrun on debug/sparc when built with Developer Studio
 not_sparc_debug.inc
+# This also fails with non-debug
+statement_digest_long_query.test
