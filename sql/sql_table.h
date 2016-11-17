@@ -154,11 +154,6 @@ static const uint NO_DD_COMMIT=    1 << 4;
                for all cases.
 */
 static const uint NO_TARGET_CHECK= 1 << 5;
-/**
-  Don't update data-dictionary. Only carry out operation in
-  the storage engine. This is opposite of NO_HA_TABLE.
-*/
-static const uint NO_DD_UPDATE=    1 << 6;
 
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length
