@@ -3382,13 +3382,6 @@ static bool is_number(const char *str,
 
 
 /*
-  Maximum unique log filename extension.
-  Note: setting to 0x7FFFFFFF due to atol windows
-        overflow/truncate.
- */
-#define MAX_LOG_UNIQUE_FN_EXT 0x7FFFFFFF
-
-/*
    Number of warnings that will be printed to error log
    before extension number is exhausted.
 */
@@ -3407,7 +3400,7 @@ static bool is_number(const char *str,
     nonzero if not possible to get unique filename.
 */
 
-static int find_uniq_filename(char *name)
+static int find_uniq_filename(char *name, uint32 new_index_number)
 {
   uint                  i;
   char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
@@ -3444,7 +3437,7 @@ static int find_uniq_filename(char *name)
   my_dirend(dir_info);
 
   /* check if reached the maximum possible extension number */
-  if (max_found == MAX_LOG_UNIQUE_FN_EXT)
+  if (max_found >= MAX_LOG_UNIQUE_FN_EXT)
   {
     sql_print_error("Log filename extension number exhausted: %06lu. \
 Please fix this by archiving old logs and \
@@ -3453,7 +3446,18 @@ updating the index files.", max_found);
     goto end;
   }
 
-  next= max_found + 1;
+  if (new_index_number > 0)
+  {
+    /*
+      If "new_index_number" was specified, this means we are handling a
+      "RESET MASTER TO" command and the binary log was already purged
+      so max_found should be 0.
+    */
+    DBUG_ASSERT(max_found == 0);
+    next= new_index_number;
+  }
+  else
+    next= max_found + 1;
   if (sprintf(ext_buf, "%06lu", next)<0)
   {
     error= 1;
@@ -3492,12 +3496,13 @@ end:
 }
 
 
-int MYSQL_BIN_LOG::generate_new_name(char *new_name, const char *log_name)
+int MYSQL_BIN_LOG::generate_new_name(char *new_name, const char *log_name,
+                                     uint32 new_index_number)
 {
   fn_format(new_name, log_name, mysql_data_home, "", 4);
   if (!fn_ext(log_name)[0])
   {
-    if (find_uniq_filename(new_name))
+    if (find_uniq_filename(new_name, new_index_number))
     {
       my_printf_error(ER_NO_UNIQUE_LOGFILE,
                       ER_THD(current_thd, ER_NO_UNIQUE_LOGFILE),
@@ -3535,11 +3540,12 @@ const char *MYSQL_BIN_LOG::generate_name(const char *log_name,
 
 
 bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
-                                               const char *new_name)
+                                               const char *new_name,
+                                               uint32 new_index_number)
 {
   if (new_name && !my_stpcpy(log_file_name, new_name))
     return TRUE;
-  else if (!new_name && generate_new_name(log_file_name, log_name))
+  else if (!new_name && generate_new_name(log_file_name, log_name, new_index_number))
     return TRUE;
 
   return FALSE;
@@ -3553,6 +3559,8 @@ bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
   @param log_name            The name of the log to open
   @param new_name            The new name for the logfile.
                              NULL forces generate_new_name() to be called.
+  @param new_index_number    The binary log file index number to start from
+                             after the RESET MASTER TO command is called.
 
   @return true if error, false otherwise.
 */
@@ -3562,7 +3570,8 @@ bool MYSQL_BIN_LOG::open(
                      PSI_file_key log_file_key,
 #endif
                      const char *log_name,
-                     const char *new_name)
+                     const char *new_name,
+                     uint32 new_index_number)
 {
   File file= -1;
   my_off_t pos= 0;
@@ -3578,7 +3587,7 @@ bool MYSQL_BIN_LOG::open(
     goto err;
   }
 
-  if (init_and_set_log_file_name(name, new_name) ||
+  if (init_and_set_log_file_name(name, new_name, new_index_number) ||
       DBUG_EVALUATE_IF("fault_injection_init_name", 1, 0))
     goto err;
 
@@ -4765,7 +4774,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
                                 bool null_created_arg,
                                 bool need_lock_index,
                                 bool need_sid_lock,
-                                Format_description_log_event *extra_description_event)
+                                Format_description_log_event *extra_description_event,
+                                uint32 new_index_number)
 {
   // lock_index must be acquired *before* sid_lock.
   DBUG_ASSERT(need_sid_lock || !need_lock_index);
@@ -4774,7 +4784,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
   mysql_mutex_assert_owner(get_log_lock());
 
-  if (init_and_set_log_file_name(log_name, new_name))
+  if (init_and_set_log_file_name(log_name, new_name, new_index_number))
   {
     sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
     DBUG_RETURN(1);
@@ -4820,7 +4830,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 #ifdef HAVE_PSI_INTERFACE
                       m_key_file_log,
 #endif
-                      log_name, new_name))
+                      log_name, new_name, new_index_number))
   {
 #ifdef HAVE_REPLICATION
     close_purge_index_file();
@@ -5680,7 +5690,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
                             max_size, false,
                             false/*need_lock_index=false*/,
                             false/*need_sid_lock=false*/,
-                            NULL)))
+                            NULL,
+                            thd->lex->next_binlog_file_nr)))
       goto err;
   }
   my_free((void *) save_name);

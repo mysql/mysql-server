@@ -3479,6 +3479,7 @@ public:
   bool all_privileges;
   bool contains_plaintext_password;
   enum_keep_diagnostics keep_diagnostics;
+  uint32 next_binlog_file_nr;
 
 private:
   bool m_broken; ///< see mark_broken()

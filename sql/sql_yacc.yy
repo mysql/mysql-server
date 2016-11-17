@@ -89,6 +89,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
                                              // Sql_cmd_create_trigger
 #include "sql_truncate.h"                      // Sql_cmd_truncate_table
 
+#include "binlog.h"                          // for MAX_LOG_UNIQUE_FN_EXT
+                                             // used in RESET_MASTER parsing check
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
 /* warning C4065: switch statement contains 'default' but no 'case' labels */
@@ -12291,12 +12293,28 @@ reset_option:
           SLAVE               { Lex->type|= REFRESH_SLAVE; }
           slave_reset_options opt_channel
         | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
+          master_reset_options
         | QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
         ;
 
 slave_reset_options:
           /* empty */ { Lex->reset_slave_info.all= false; }
         | ALL         { Lex->reset_slave_info.all= true; }
+        ;
+
+master_reset_options:
+          /* empty */ {}
+        | TO_SYM real_ulong_num
+          {
+            if ($2 == 0 || $2 > MAX_LOG_UNIQUE_FN_EXT)
+            {
+              my_error(ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE, MYF(0),
+                       $2, MAX_LOG_UNIQUE_FN_EXT);
+              MYSQL_YYABORT;
+            }
+            else
+              Lex->next_binlog_file_nr = $2;
+          }
         ;
 
 purge:

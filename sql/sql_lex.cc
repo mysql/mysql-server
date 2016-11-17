@@ -488,6 +488,7 @@ void LEX::reset()
   use_only_table_context= false;
   contains_plaintext_password= false;
   keep_diagnostics= DA_KEEP_NOTHING;
+  next_binlog_file_nr= 0;
 
   name.str= NULL;
   name.length= 0;

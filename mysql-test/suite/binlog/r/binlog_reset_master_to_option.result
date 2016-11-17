@@ -1,0 +1,48 @@
+call mtr.add_suppression("Next log extension.* Remaining log filename extensions.");
+RESET MASTER;
+include/assert.inc [Assert that filename is same in both file system and show binary logs]
+include/assert.inc [Assert that file is created and opened]
+RESET MASTER TO 1234;
+include/assert.inc [Assert that filename is same in both file system and show binary logs]
+include/assert.inc [Assert that file is created and opened]
+RESET MASTER TO 1.023;
+ERROR 42000: Only integers allowed as number here near '1.023' at line 1
+RESET MASTER TO -123;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-123' at line 1
+RESET MASTER TO 2147483647;
+include/assert.inc [Assert that filename is same in both file system and show binary logs]
+include/assert.inc [Assert that file is created and opened]
+RESET MASTER TO 2147483648;
+ERROR HY000: The requested value '2147483648' for the next binary log index is out of range. Please use a value between '1' and '2147483647'.
+RESET MASTER TO 0;
+ERROR HY000: The requested value '0' for the next binary log index is out of range. Please use a value between '1' and '2147483647'.
+RESET MASTER TO q;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'q' at line 1
+RESET MASTER TO "qwe";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"qwe"' at line 1
+RESET MASTER TO @;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@' at line 1
+CREATE USER user1@localhost IDENTIFIED BY 'pass1';
+RESET MASTER TO 100;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+GRANT RELOAD ON *.* TO 'user1'@'localhost';
+RESET MASTER TO 100;
+include/assert.inc [Assert that filename is same in both file system and show binary logs]
+include/assert.inc [Assert that file is created and opened]
+RESET MASTER TO 0xF;
+include/assert.inc [Assert that filename is same in both file system and show binary logs]
+include/assert.inc [Assert that file is created and opened]
+RESET MASTER TO 0x0;
+ERROR HY000: The requested value '0' for the next binary log index is out of range. Please use a value between '1' and '2147483647'.
+RESET MASTER TO 0xFFFF;
+include/assert.inc [Assert that filename is same in both file system and show binary logs]
+include/assert.inc [Assert that file is created and opened]
+RESET MASTER TO 0x7FFFFFFF;
+include/assert.inc [Assert that filename is same in both file system and show binary logs]
+include/assert.inc [Assert that file is created and opened]
+CREATE FUNCTION f1(a int) RETURNS INT RETURN (a+10);
+RESET MASTER TO f1(3);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'f1(3)' at line 1
+DROP USER 'user1'@'localhost';
+DROP FUNCTION f1;
+RESET MASTER;
