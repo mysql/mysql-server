@@ -78,6 +78,15 @@ TEST_F(StringsUTF8Test, MyStrchr)
                  valid_utf8_string + 3,'y');
   ASSERT_EQ(null_pos, pos);
 
+  // Assign an invalid utf8 char to valid_utf8_str
+  valid_utf8_string[0]= '\xED';
+  valid_utf8_string[1]= '\xA0';
+  valid_utf8_string[2]= '\xBF';
+
+  // Invalid utf8 character in str arg passed to my_strchr.
+  pos= my_strchr(system_charset_info, valid_utf8_string,
+                 valid_utf8_string + 3,'y');
+  ASSERT_EQ(null_pos, pos);
 }
 
 TEST_F(StringsUTF8Test, MyStrcasecmpMb)
@@ -96,6 +105,12 @@ TEST_F(StringsUTF8Test, MyStrcasecmpMb)
 
   // dst contain an invalid utf8 string
   utf8_dst[1]= '\xFF';
+  EXPECT_EQ(1, my_strcasecmp_mb(system_charset_info, utf8_src.c_str(),
+                                utf8_dst.c_str()));
+
+  utf8_dst[0]= '\xED';
+  utf8_dst[1]= '\xA0';
+  utf8_dst[2]= '\xBF';
   EXPECT_EQ(1, my_strcasecmp_mb(system_charset_info, utf8_src.c_str(),
                                 utf8_dst.c_str()));
 }
@@ -171,6 +186,15 @@ TEST_F(StringsUTF8Test, MyWellFormedLenUtf8)
   utf8_src[0]= '\xef';
   utf8_src[1]= '\xbf';
   utf8_src[2]= '\xbf';
+  EXPECT_EQ(0U, system_charset_info->cset->well_formed_len(system_charset_info,
+                                                           utf8_src,
+                                                           utf8_src + 2,
+                                                           1, &error));
+  ASSERT_EQ(1, error);
+
+  utf8_src[0]= '\xED';
+  utf8_src[1]= '\xA0';
+  utf8_src[2]= '\xBF';
   EXPECT_EQ(0U, system_charset_info->cset->well_formed_len(system_charset_info,
                                                            utf8_src,
                                                            utf8_src + 2,
@@ -542,6 +566,15 @@ TEST_F(StringsUTF8mb4Test, MyWellFormedLenUtf8mb4)
   utf8_src[1]= '\x8f';
   utf8_src[2]= '\xbf';
   utf8_src[3]= '\xbf';
+  EXPECT_EQ(0U, system_charset_info->cset->well_formed_len(system_charset_info,
+                                                           utf8_src,
+                                                           utf8_src + 2,
+                                                           1, &error));
+  ASSERT_EQ(1, error);
+
+  utf8_src[0]= '\xED';
+  utf8_src[1]= '\xA0';
+  utf8_src[2]= '\xBF';
   EXPECT_EQ(0U, system_charset_info->cset->well_formed_len(system_charset_info,
                                                            utf8_src,
                                                            utf8_src + 2,

@@ -693,6 +693,12 @@ hex(convert(uc using utf32))	hex(weight_string(convert(uc using utf8mb4) collate
 0000AABF		TAI VIET TONE MAI EK
 0000AAC1		TAI VIET TONE MAI THO
 0000ABEC		MEETEI MAYEK LUM IYEK
+0000003F0000003F0000003F	NULL	<Non Private Use High Surrogate, First>
+0000003F0000003F0000003F	NULL	<Non Private Use High Surrogate, Last>
+0000003F0000003F0000003F	NULL	<Private Use High Surrogate, First>
+0000003F0000003F0000003F	NULL	<Private Use High Surrogate, Last>
+0000003F0000003F0000003F	NULL	<Low Surrogate, First>
+0000003F0000003F0000003F	NULL	<Low Surrogate, Last>
 0000FB1E		HEBREW POINT JUDEO-SPANISH VARIKA
 0000FC5E		ARABIC LIGATURE SHADDA WITH DAMMATAN ISOLATED FORM
 0000FC5F		ARABIC LIGATURE SHADDA WITH KASRATAN ISOLATED FORM
@@ -29200,12 +29206,6 @@ hex(convert(uc using utf32))	hex(weight_string(convert(uc using utf8mb4) collate
 0002B81D	FB85B81D	<CJK Ideograph Extension D, Last>
 0002B820	FB85B820	<CJK Ideograph Extension E, First>
 0002CEA1	FB85CEA1	<CJK Ideograph Extension E, Last>
-0000D800	FBC1D800	<Non Private Use High Surrogate, First>
-0000DB7F	FBC1DB7F	<Non Private Use High Surrogate, Last>
-0000DB80	FBC1DB80	<Private Use High Surrogate, First>
-0000DBFF	FBC1DBFF	<Private Use High Surrogate, Last>
-0000DC00	FBC1DC00	<Low Surrogate, First>
-0000DFFF	FBC1DFFF	<Low Surrogate, Last>
 0000E000	FBC1E000	<Private Use, First>
 0000F8FF	FBC1F8FF	<Private Use, Last>
 000F0000	FBDE8000	<Plane 15 Private Use, First>
@@ -29213,6 +29213,13 @@ hex(convert(uc using utf32))	hex(weight_string(convert(uc using utf8mb4) collate
 00100000	FBE08000	<Plane 16 Private Use, First>
 0010FFFD	FBE1FFFD	<Plane 16 Private Use, Last>
 0000FFFD	FFFD	REPLACEMENT CHARACTER
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'EDA080'
+Warning	1300	Invalid utf8mb4 character string: 'EDADBF'
+Warning	1300	Invalid utf8mb4 character string: 'EDAE80'
+Warning	1300	Invalid utf8mb4 character string: 'EDAFBF'
+Warning	1300	Invalid utf8mb4 character string: 'EDB080'
+Warning	1300	Invalid utf8mb4 character string: 'EDBFBF'
 select hex(convert(uc using utf32)), hex(weight_string(convert(uc using utf8mb4) collate utf8mb4_0900_as_cs)), name from unicode order by uc collate utf8mb4_0900_as_cs, cp;
 hex(convert(uc using utf32))	hex(weight_string(convert(uc using utf8mb4) collate utf8mb4_0900_as_cs))	name
 00000000	00000000	<control>
@@ -29474,6 +29481,12 @@ hex(convert(uc using utf32))	hex(weight_string(convert(uc using utf8mb4) collate
 0000A8EF	00000000	COMBINING DEVANAGARI LETTER RA
 0000A8F0	00000000	COMBINING DEVANAGARI LETTER VI
 0000A8F1	00000000	COMBINING DEVANAGARI SIGN AVAGRAHA
+0000003F0000003F0000003F	NULL	<Non Private Use High Surrogate, First>
+0000003F0000003F0000003F	NULL	<Non Private Use High Surrogate, Last>
+0000003F0000003F0000003F	NULL	<Private Use High Surrogate, First>
+0000003F0000003F0000003F	NULL	<Private Use High Surrogate, Last>
+0000003F0000003F0000003F	NULL	<Low Surrogate, First>
+0000003F0000003F0000003F	NULL	<Low Surrogate, Last>
 0000FE00	00000000	VARIATION SELECTOR-1
 0000FE01	00000000	VARIATION SELECTOR-2
 0000FE02	00000000	VARIATION SELECTOR-3
@@ -58415,12 +58428,6 @@ hex(convert(uc using utf32))	hex(weight_string(convert(uc using utf8mb4) collate
 0002B81D	FB85B81D0000002000000002	<CJK Ideograph Extension D, Last>
 0002B820	FB85B8200000002000000002	<CJK Ideograph Extension E, First>
 0002CEA1	FB85CEA10000002000000002	<CJK Ideograph Extension E, Last>
-0000D800	FBC1D8000000002000000002	<Non Private Use High Surrogate, First>
-0000DB7F	FBC1DB7F0000002000000002	<Non Private Use High Surrogate, Last>
-0000DB80	FBC1DB800000002000000002	<Private Use High Surrogate, First>
-0000DBFF	FBC1DBFF0000002000000002	<Private Use High Surrogate, Last>
-0000DC00	FBC1DC000000002000000002	<Low Surrogate, First>
-0000DFFF	FBC1DFFF0000002000000002	<Low Surrogate, Last>
 0000E000	FBC1E0000000002000000002	<Private Use, First>
 0000F8FF	FBC1F8FF0000002000000002	<Private Use, Last>
 000F0000	FBDE80000000002000000002	<Plane 15 Private Use, First>
@@ -58428,4 +58435,11 @@ hex(convert(uc using utf32))	hex(weight_string(convert(uc using utf8mb4) collate
 00100000	FBE080000000002000000002	<Plane 16 Private Use, First>
 0010FFFD	FBE1FFFD0000002000000002	<Plane 16 Private Use, Last>
 0000FFFD	FFFD0000002000000002	REPLACEMENT CHARACTER
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'EDA080'
+Warning	1300	Invalid utf8mb4 character string: 'EDADBF'
+Warning	1300	Invalid utf8mb4 character string: 'EDAE80'
+Warning	1300	Invalid utf8mb4 character string: 'EDAFBF'
+Warning	1300	Invalid utf8mb4 character string: 'EDB080'
+Warning	1300	Invalid utf8mb4 character string: 'EDBFBF'
 drop table if exists unicode;

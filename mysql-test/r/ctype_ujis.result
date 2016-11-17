@@ -17843,10 +17843,11 @@ WHERE (head BETWEEN 'E0' AND 'EF')
 AND (middle BETWEEN '80' AND 'BF')
 AND (tail BETWEEN '80' AND 'BF')
 AND NOT (head='E0' AND middle BETWEEN '80' AND '9F')
+AND NOT (head='ED' AND middle BETWEEN 'A0' AND 'BF')
 ORDER BY head, middle, tail;
 SELECT count(*) FROM t1;
 count(*)
-65536
+63488
 SELECT HEX(a), HEX(CONVERT(a using sjis)) as b FROM t1 HAVING b<>'3F' ORDER BY BINARY a;
 HEX(a)	b
 00	00

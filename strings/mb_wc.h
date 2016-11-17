@@ -144,6 +144,23 @@ static ALWAYS_INLINE int my_mb_wc_utf8(my_wc_t *pwc, const uchar *s, const uchar
     if (s+3 > e) /* We need 3 characters */
       return MY_CS_TOOSMALL3;
 
+    /*
+      According to RFC 3629, UTF-8 should prohibit characters between
+      U+D800 and U+DFFF, which are reserved for surrogate pairs and do
+      not directly represent characters.
+      U+D800 : UTF-8 0xEDA080
+      U+DFFF : UTF-8 0xEDBFBF
+
+      We only need to test the first and second byte here. Because for
+      character encoded with UTF-8 with more than 1 bytes, the
+      non-leading byte is always in range [0x80, 0xBF]. So that U+D800
+      ~ U+DFFF uses out all the UTF-8 codes from 0xEDA0XX to 0xEDBFXX.
+      If it is not in this range, it will be filtered out by following
+      IS_CONTINUATION_BYTE macros.
+    */
+    if (c == 0xED && s[1] >= 0xA0 && s[1] <= 0xBF)
+      return MY_CS_ILSEQ;
+
     if (!(IS_CONTINUATION_BYTE(s[1]) && IS_CONTINUATION_BYTE(s[2]) &&
           (c >= 0xe1 || s[1] >= 0xa0)))
       return MY_CS_ILSEQ;
@@ -200,6 +217,23 @@ my_mb_wc_utf8mb4(my_wc_t *pwc, const uchar *s, const uchar *e)
   {
     if (s + 3 > e) /* We need 3 characters */
       return MY_CS_TOOSMALL3;
+
+    /*
+      According to RFC 3629, UTF-8 should prohibit characters between
+      U+D800 and U+DFFF, which are reserved for surrogate pairs and do
+      not directly represent characters.
+      U+D800 : UTF-8 0xEDA080
+      U+DFFF : UTF-8 0xEDBFBF
+
+      We only need to test the first and second byte here. Because for
+      character encoded with UTF-8 with more than 1 bytes, the
+      non-leading byte is always in range [0x80, 0xBF]. So that U+D800
+      ~ U+DFFF uses out all the UTF-8 codes from 0xEDA0XX to 0xEDBFXX.
+      If it is not in this range, it will be filtered out by following
+      IS_CONTINUATION_BYTE macros.
+    */
+    if (c == 0xED && s[1] >= 0xA0 && s[1] <= 0xBF)
+      return MY_CS_ILSEQ;
 
     if (!(IS_CONTINUATION_BYTE(s[1]) && IS_CONTINUATION_BYTE(s[2]) &&
           (c >= 0xe1 || s[1] >= 0xa0)))

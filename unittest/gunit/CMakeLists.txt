@@ -328,6 +328,7 @@ SET(TESTS
   stl_alloc
   strings_skip_trailing
   strings_strnxfrm
+  strings_valid_check
   strtoll
   thread_utils
   my_timer

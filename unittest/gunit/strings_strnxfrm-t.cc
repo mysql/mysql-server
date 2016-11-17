@@ -313,6 +313,7 @@ static void BM_SimpleUTF8(size_t num_iterations)
 
   const char *content= "PolyFilla27773";
   const int len= strlen(content);
+  memset(source, 0, sizeof(source));
 
   for (int k= 0, offset= 0; k < set_key_cols; ++k, offset+= key_bytes)
   {
