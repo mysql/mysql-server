@@ -5150,26 +5150,51 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
                                       const uchar *s, size_t slen,
                                       ulong *n1, ulong *n2)
 {
-  ulong tmp1;
-  ulong tmp2;
-
   slen= cs->cset->lengthsp(cs, (char*) s, slen);
   uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> scanner(
     mb_wc, cs, &cs->uca->level[0], s, slen, slen);
 
-  tmp1= *n1;
-  tmp2= *n2;
+  /*
+    A variation of the FNV-1a hash. Since ulong is different between platforms,
+    we have to use different constants (32-bit and 64-bit FNV) for the two.
+    The differences between this and standard FNV-1a as described in literature
+    are:
+
+     - We work naturally on 16-bit weights, so we XOR in the entire weight
+       instead of hashing byte-by-byte. (This is effectively a speed/quality
+       tradeoff, as it will reduce avalanche.)
+     - We use the n1 seed by XOR-ing it onto the offset basis; FNV-1a as
+       typically described does not use a seed. This should be safe, since
+       there's nothing magical about the offset basis; it's just the FNV-1a
+       hash of some human-readable text.
+
+    This is nowhere near a perfect hash function; it has suboptimal avalanche
+    characteristics, and it not multicollision resistant. In particular,
+    it fails many SMHasher tests, mostly for bias (collision tests are fine).
+    However, it is of much better quality than the home-grown hash used
+    for other collations (which fails _all_ SMHasher tests), while being
+    much faster.
+
+    We ignore the n2 seed entirely, since we don't need it. The caller is
+    responsible for doing hash folding at the end; we can't do that.
+    We always work in 64-bit precision, so that we have a result that's
+    as equal as possible between different platforms. If ulong is too small
+    for 64-bit, we just have to hope that the upper bits are not used
+    (this is basically equivalent to what all the other hash functions do).
+
+    See http://isthe.com/chongo/tech/comp/fnv/#FNV-param for constants.
+  */
+
+  uint64 h= *n1;
+  h^= 14695981039346656037ULL;
 
   scanner.for_each_weight([&](int s_res) {
-    tmp1^= (((tmp1 & 63) + tmp2) * (s_res >> 8)) + (tmp1 << 8);
-    tmp2+= 3;
-    tmp1^= (((tmp1 & 63) + tmp2) * (s_res & 0xFF)) + (tmp1 << 8);
-    tmp2+= 3;
+    h^= s_res;
+    h*= 1099511628211ULL;
     return true;
   });
 
-  *n1= tmp1;
-  *n2= tmp2;
+  *n1= static_cast<ulong>(h);
 }
 
 extern "C" {
