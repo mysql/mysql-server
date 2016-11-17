@@ -619,6 +619,36 @@ static void BM_MixedUTF8MB4_AS_CS(size_t num_iterations)
 }
 BENCHMARK(BM_MixedUTF8MB4_AS_CS);
 
+static void BM_HashSimpleUTF8MB4(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  const char *content= "This is a rather long string that contains only "
+    "simple letters that are available in ASCII. This is a common special "
+    "case that warrants a benchmark on its own, even if the character set "
+    "and collation supports much more complicated scenarios.";
+  const int len= strlen(content);
+
+  ulong nr1= 1, nr2= 4;
+
+  StartBenchmarkTiming();
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    my_charset_utf8mb4_0900_ai_ci.coll->hash_sort(&my_charset_utf8mb4_0900_ai_ci,
+      reinterpret_cast<const uchar *>(content), len, &nr1, &nr2);
+  }
+  StopBenchmarkTiming();
+
+  /*
+    Just to keep the compiler from optimizing away everything; this is highly
+    unlikely to ever happen given hash function that's not totally broken.
+    Don't test for an exact value; it will vary by platform and number
+    of iterations.
+  */
+  EXPECT_FALSE(nr1 == 0 && nr2 == 0);
+}
+BENCHMARK(BM_HashSimpleUTF8MB4);
+
 TEST(PadCollationTest, BasicTest)
 {
   constexpr char foo[] = "foo";

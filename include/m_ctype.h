@@ -311,7 +311,17 @@ typedef struct my_collation_handler_st
                 const char *s, size_t s_length,
                 my_match_t *match, uint nmatch);
   
-  /* Hash calculation */
+  /**
+    Compute a sort hash for the given key. This hash must preserve equality
+    under the given collation, so that a=b => H(a)=H(b). Note that this hash
+    is used for hash-based partitioning (PARTITION KEY), so you cannot change
+    it except when writing a new collation; it needs to be unchanged across
+    releases, so that the on-disk format does not change. (It is also used
+    for testing equality in the MEMORY storage engine.)
+
+    nr1 and nr2 are both in/out parameters. nr1 is the actual hash value;
+    nr2 holds extra state between invocations.
+  */
   void (*hash_sort)(const struct charset_info_st *cs, const uchar *key,
                     size_t len, ulong *nr1, ulong *nr2);
   my_bool (*propagate)(const struct charset_info_st *cs, const uchar *str,
