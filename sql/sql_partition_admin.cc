@@ -646,7 +646,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   }
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  dd::Table *part_table_def, *swap_table_def;
+  dd::Table *part_table_def, *swap_table_def= nullptr;
 
   if (thd->dd_client()->acquire_for_modification<dd::Table>(table_list->db,
                           table_list->table_name, &part_table_def) ||
