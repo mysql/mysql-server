@@ -15,7 +15,7 @@ d	e
 2	2
 3	3
 select is_updatable from information_schema.views where table_name='v1';
-is_updatable
+IS_UPDATABLE
 NO
 explain select d,e from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
