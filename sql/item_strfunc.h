@@ -91,20 +91,20 @@ public:
     :Item_func(pos, opt_list)
   {decimals=NOT_FIXED_DEC; }
 
-  longlong val_int();
-  double val_real();
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  longlong val_int() override;
+  double val_real() override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_string(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_string(ltime);
   }
-  enum Item_result result_type () const { return STRING_RESULT; }
+  enum Item_result result_type() const override { return STRING_RESULT; }
   void left_right_max_length();
-  bool fix_fields(THD *thd, Item **ref);
+  bool fix_fields(THD *thd, Item **ref) override;
   String *val_str_from_val_str_ascii(String *str, String *str2);
 };
 
@@ -113,7 +113,7 @@ public:
 /*
   Functions that return values with ASCII repertoire
 */
-class Item_str_ascii_func :public Item_str_func
+class Item_str_ascii_func : public Item_str_func
 {
   String ascii_buf;
 public:
@@ -136,22 +136,22 @@ public:
     :Item_str_func(pos, a,b,c)
   { collation.set_repertoire(MY_REPERTOIRE_ASCII); }
 
-  String *val_str(String *str)
+  String *val_str(String *str) override
   {
     return val_str_from_val_str_ascii(str, &ascii_buf);
   }
-  virtual String *val_str_ascii(String *)= 0;
+  virtual String *val_str_ascii(String *) override= 0;
 };
 
 
-class Item_func_md5 :public Item_str_ascii_func
+class Item_func_md5 final : public Item_str_ascii_func
 {
   String tmp_value;
 public:
   Item_func_md5(const POS &pos, Item *a) :Item_str_ascii_func(pos, a) {}
-  String *val_str_ascii(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "md5"; }
+  String *val_str_ascii(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "md5"; }
 };
 
 
@@ -159,9 +159,9 @@ class Item_func_sha :public Item_str_ascii_func
 {
 public:
   Item_func_sha(const POS &pos, Item *a) :Item_str_ascii_func(pos, a) {}
-  String *val_str_ascii(String *);    
-  virtual bool resolve_type(THD *thd);      
-  const char *func_name() const { return "sha"; }	
+  String *val_str_ascii(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "sha"; }
 };
 
 class Item_func_sha2 :public Item_str_ascii_func
@@ -170,33 +170,33 @@ public:
   Item_func_sha2(const POS &pos, Item *a, Item *b)
     :Item_str_ascii_func(pos, a, b)
   {}
-  String *val_str_ascii(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "sha2"; }
+  String *val_str_ascii(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "sha2"; }
 };
 
-class Item_func_to_base64 :public Item_str_ascii_func
+class Item_func_to_base64 final : public Item_str_ascii_func
 {
   String tmp_value;
 public:
   Item_func_to_base64(const POS &pos, Item *a) :Item_str_ascii_func(pos, a) {}
-  String *val_str_ascii(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "to_base64"; }
+  String *val_str_ascii(String *) override;
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "to_base64"; }
 };
 
-class Item_func_from_base64 :public Item_str_func
+class Item_func_from_base64 final :public Item_str_func
 {
   String tmp_value;
 public:
   Item_func_from_base64(const POS &pos, Item *a) :Item_str_func(pos, a) {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "from_base64"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "from_base64"; }
 };
 
 
-class Item_func_aes_encrypt :public Item_str_func
+class Item_func_aes_encrypt final : public Item_str_func
 {
   String tmp_value;
   typedef Item_str_func super;
@@ -208,13 +208,13 @@ public:
     :Item_str_func(pos, a, b, c)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res);
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "aes_encrypt"; }
+  bool itemize(Parse_context *pc, Item **res) override;
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "aes_encrypt"; }
 };
 
-class Item_func_aes_decrypt :public Item_str_func	
+class Item_func_aes_decrypt :public Item_str_func
 {
   typedef Item_str_func super;
 public:
@@ -225,10 +225,10 @@ public:
     :Item_str_func(pos, a, b, c)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res);
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "aes_decrypt"; }
+  bool itemize(Parse_context *pc, Item **res) override;
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "aes_decrypt"; }
 };
 
 
@@ -242,15 +242,11 @@ public:
   Item_func_random_bytes(const POS &pos, Item *a) : Item_str_func(pos, a)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res);
-  virtual bool resolve_type(THD *thd);
-  String *val_str(String *a);
+  bool itemize(Parse_context *pc, Item **res) override;
+  bool resolve_type(THD *thd) override;
+  String *val_str(String *a) override;
 
-  const char *func_name() const
-  {
-    return "random_bytes";
-  }
-
+  const char *func_name() const override { return "random_bytes"; }
 };
 
 class Item_func_concat :public Item_str_func
@@ -267,9 +263,9 @@ public:
     : Item_str_func(pos, a,b)
   {}
 
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "concat"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "concat"; }
 };
 
 class Item_func_concat_ws :public Item_str_func
@@ -283,10 +279,10 @@ public:
     : Item_str_func(pos, opt_list)
   {}
 
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "concat_ws"; }
-  table_map not_null_tables() const { return 0; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "concat_ws"; }
+  table_map not_null_tables() const override { return 0; }
 };
 
 class Item_func_reverse :public Item_str_func
@@ -296,9 +292,9 @@ public:
   Item_func_reverse(Item *a) :Item_str_func(a) {}
   Item_func_reverse(const POS &pos, Item *a) :Item_str_func(pos, a) {}
 
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "reverse"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "reverse"; }
 };
 
 
@@ -311,9 +307,9 @@ public:
   Item_func_replace(const POS &pos, Item *org,Item *find,Item *replace)
     :Item_str_func(pos, org,find,replace)
   {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "replace"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "replace"; }
 };
 
 
@@ -327,9 +323,9 @@ public:
                    Item *org, Item *start, Item *length, Item *new_str)
     :Item_str_func(pos, org,start,length,new_str)
   {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "insert"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "insert"; }
 };
 
 
@@ -341,7 +337,7 @@ protected:
   String tmp_value;
 public:
   Item_str_conv(const POS &pos, Item *item) :Item_str_func(pos, item) {}
-  String *val_str(String *);
+  String *val_str(String *) override;
 };
 
 
@@ -349,16 +345,16 @@ class Item_func_lower :public Item_str_conv
 {
 public:
   Item_func_lower(const POS &pos, Item *item) :Item_str_conv(pos, item) {}
-  const char *func_name() const { return "lower"; }
-  virtual bool resolve_type(THD *thd);
+  const char *func_name() const override { return "lower"; }
+  bool resolve_type(THD *) override;
 };
 
 class Item_func_upper :public Item_str_conv
 {
 public:
   Item_func_upper(const POS &pos, Item *item) :Item_str_conv(pos, item) {}
-  const char *func_name() const { return "upper"; }
-  virtual bool resolve_type(THD *thd);
+  const char *func_name() const override { return "upper"; }
+  bool resolve_type(THD *) override;
 };
 
 
@@ -367,9 +363,9 @@ class Item_func_left :public Item_str_func
   String tmp_value;
 public:
   Item_func_left(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "left"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "left"; }
 };
 
 
@@ -378,9 +374,9 @@ class Item_func_right :public Item_str_func
   String tmp_value;
 public:
   Item_func_right(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "right"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "right"; }
 };
 
 
@@ -397,26 +393,26 @@ public:
   Item_func_substr(const POS &pos, Item *a,Item *b,Item *c) :super(pos, a, b, c)
   {}
 
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "substr"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "substr"; }
 };
 
 
-class Item_func_substr_index :public Item_str_func
+class Item_func_substr_index final : public Item_str_func
 {
   String tmp_value;
 public:
   Item_func_substr_index(const POS &pos, Item *a,Item *b, Item *c)
     :Item_str_func(pos, a, b, c)
   {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "substring_index"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "substring_index"; }
 };
 
 
-class Item_func_roles_graphml : public Item_str_func
+class Item_func_roles_graphml final : public Item_str_func
 {
 private:
   String m_str;
@@ -426,17 +422,14 @@ public:
     : Item_str_func(pos)
   {}
 
-  String *val_str(String *);
-  bool fix_fields(THD *thd, Item **ref);
-  const char *func_name() const
-  {
-    return "ROLES_GRAPHML";
-  }
-  virtual void print(String *str, enum_query_type query_type);
-  bool resolve_type(THD *thd) { return false; }
+  String *val_str(String *) override;
+  bool fix_fields(THD *thd, Item **ref) override;
+  const char *func_name() const override { return "ROLES_GRAPHML"; }
+  void print(String *str, enum_query_type query_type) override;
+  bool resolve_type(THD *) override { return false; }
 };
 
-class Item_func_trim :public Item_str_func
+class Item_func_trim : public Item_str_func
 {
 public:
   /**
@@ -500,9 +493,9 @@ public:
       m_trim_mode == TRIM_RTRIM;
   }
 
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override;
+  const char *func_name() const override
   {
     switch(m_trim_mode) {
     case TRIM_BOTH_DEFAULT: return "trim";
@@ -514,7 +507,23 @@ public:
     }
     return NULL;
   }
-  virtual void print(String *str, enum_query_type query_type);
+  void print(String *str, enum_query_type query_type) override;
+};
+
+
+class Item_func_ltrim final : public Item_func_trim
+{
+public:
+  Item_func_ltrim(const POS &pos, Item *a) : Item_func_trim(pos, a, TRIM_LTRIM)
+  {}
+};
+
+
+class Item_func_rtrim final : public Item_func_trim
+{
+public:
+  Item_func_rtrim(const POS &pos, Item *a) : Item_func_trim(pos, a, TRIM_RTRIM)
+  {}
 };
 
 
@@ -537,9 +546,9 @@ public:
     m_hashed_password_buffer_len= 0;
     m_recalculate_password= false;
   }
-  String *val_str_ascii(String *str);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "password"; }
+  String *val_str_ascii(String *str) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "password"; }
   static char *create_password_hash_buffer(THD *thd, const char *password,
                                            size_t pass_len);
 };
@@ -553,15 +562,15 @@ public:
   Item_func_des_encrypt(const POS &pos, Item *a, Item *b)
     : Item_str_func(pos, a, b)
   {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd)
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     /* 9 = MAX ((8- (arg_len % 8)) + 1) */
     max_length = args[0]->max_length + 9;
     return false;
   }
-  const char *func_name() const { return "des_encrypt"; }
+  const char *func_name() const override { return "des_encrypt"; }
 };
 
 class Item_func_des_decrypt :public Item_str_func
@@ -572,8 +581,8 @@ public:
   Item_func_des_decrypt(const POS &pos, Item *a, Item *b)
     : Item_str_func(pos, a, b)
   {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd)
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     /* 9 = MAX ((8- (arg_len % 8)) + 1) */
@@ -582,10 +591,10 @@ public:
       max_length-= 9U;
     return false;
   }
-  const char *func_name() const { return "des_decrypt"; }
+  const char *func_name() const override { return "des_decrypt"; }
 };
 
-class Item_func_encrypt :public Item_str_func
+class Item_func_encrypt final : public Item_str_func
 {
   typedef Item_str_func super;
 
@@ -606,23 +615,22 @@ public:
     constructor_helper();
   }
 
-  virtual bool itemize(Parse_context *pc, Item **res);
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd)
+  bool itemize(Parse_context *pc, Item **res) override;
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     max_length= 13;
     return false;
   }
-  const char *func_name() const { return "encrypt"; }
-  bool check_gcol_func_processor(uchar *int_arg)
-  { return true; }
+  const char *func_name() const override { return "encrypt"; }
+  bool check_gcol_func_processor(uchar *) override { return true; }
 };
 
 #include "sql_crypt.h"
 
 
-class Item_func_encode :public Item_str_func
+class Item_func_encode : public Item_str_func
 {
 private:
   /** Whether the PRNG has already been seeded. */
@@ -635,9 +643,9 @@ public:
   Item_func_encode(const POS &pos, Item *a, Item *seed)
     :Item_str_func(pos, a, seed)
   {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "encode"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "encode"; }
 protected:
   virtual void crypto_transform(String *);
 private:
@@ -646,15 +654,15 @@ private:
 };
 
 
-class Item_func_decode :public Item_func_encode
+class Item_func_decode final : public Item_func_encode
 {
 public:
   Item_func_decode(const POS &pos, Item *a, Item *seed)
     :Item_func_encode(pos, a, seed)
   {}
-  const char *func_name() const { return "decode"; }
+  const char *func_name() const override { return "decode"; }
 protected:
-  void crypto_transform(String *);
+  void crypto_transform(String *) override;
 };
 
 
@@ -668,15 +676,14 @@ public:
   explicit Item_func_sysconst(const POS &pos) : super(pos)
   { collation.set(system_charset_info,DERIVATION_SYSCONST); }
 
-  Item *safe_charset_converter(const CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
   /*
     Used to create correct Item name in new converted item in
     safe_charset_converter, return string representation of this function
     call
   */
   virtual const Name_string fully_qualified_func_name() const = 0;
-  bool check_gcol_func_processor(uchar *int_arg)
-  { return true; }
+  bool check_gcol_func_processor(uchar *) override { return true; }
 };
 
 
@@ -687,17 +694,17 @@ class Item_func_database :public Item_func_sysconst
 public:
   explicit Item_func_database(const POS &pos) :Item_func_sysconst(pos) {}
 
-  virtual bool itemize(Parse_context *pc, Item **res);
+  bool itemize(Parse_context *pc, Item **res) override;
 
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd)
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override
   {
     max_length= MAX_FIELD_NAME * system_charset_info->mbmaxlen;
     maybe_null= true;
     return false;
   }
-  const char *func_name() const { return "database"; }
-  const Name_string fully_qualified_func_name() const
+  const char *func_name() const override { return "database"; }
+  const Name_string fully_qualified_func_name() const override
   { return NAME_STRING("database()"); }
 };
 
@@ -707,8 +714,8 @@ class Item_func_user :public Item_func_sysconst
   typedef Item_func_sysconst super;
 
 protected:
-  bool init (const char *user, const char *host);
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  bool init(const char *user, const char *host);
+  type_conversion_status save_in_field_inner(Field *field, bool) override
   {
     return save_str_value_in_field(field, &str_value);
   }
@@ -723,22 +730,22 @@ public:
     str_value.set("", 0, system_charset_info);
   }
 
-  virtual bool itemize(Parse_context *pc, Item **res);
+  bool itemize(Parse_context *pc, Item **res) override;
 
-  String *val_str(String *)
+  String *val_str(String *) override
   {
     DBUG_ASSERT(fixed == 1);
     return (null_value ? 0 : &str_value);
   }
-  bool fix_fields(THD *thd, Item **ref);
-  virtual bool resolve_type(THD *thd)
+  bool fix_fields(THD *thd, Item **ref) override;
+  bool resolve_type(THD *) override
   {
     max_length= (USERNAME_LENGTH +
                  (HOSTNAME_LENGTH + 1) * SYSTEM_CHARSET_MBMAXLEN);
     return false;
   }
-  const char *func_name() const { return "user"; }
-  const Name_string fully_qualified_func_name() const
+  const char *func_name() const override { return "user"; }
+  const Name_string fully_qualified_func_name() const override
   { return NAME_STRING("user()"); }
 };
 
@@ -750,12 +757,12 @@ class Item_func_current_user :public Item_func_user
 
 public:
   explicit Item_func_current_user(const POS &pos) : super(pos) {}
-  
-  virtual bool itemize(Parse_context *pc, Item **res);
 
-  bool fix_fields(THD *thd, Item **ref);
-  const char *func_name() const { return "current_user"; }
-  const Name_string fully_qualified_func_name() const
+  bool itemize(Parse_context *pc, Item **res) override;
+
+  bool fix_fields(THD *thd, Item **ref) override;
+  const char *func_name() const override { return "current_user"; }
+  const Name_string fully_qualified_func_name() const override
   { return NAME_STRING("current_user()"); }
 };
 
@@ -766,27 +773,27 @@ class Item_func_soundex :public Item_str_func
 public:
   Item_func_soundex(Item *a) :Item_str_func(a) {}
   Item_func_soundex(const POS &pos, Item *a) :Item_str_func(pos, a) {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "soundex"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "soundex"; }
 };
 
 
-class Item_func_elt :public Item_str_func
+class Item_func_elt final : public Item_str_func
 {
 public:
   Item_func_elt(const POS &pos, PT_item_list *opt_list)
     :Item_str_func(pos, opt_list)
   {}
-  double val_real();
-  longlong val_int();
-  String *val_str(String *str);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "elt"; }
+  double val_real() override;
+  longlong val_int() override;
+  String *val_str(String *str) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "elt"; }
 };
 
 
-class Item_func_make_set :public Item_str_func
+class Item_func_make_set final : public Item_str_func
 {
   typedef Item_str_func super;
 
@@ -798,9 +805,9 @@ public:
     :Item_str_func(pos, opt_list), item(a)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res);
-  String *val_str(String *str);
-  bool fix_fields(THD *thd, Item **ref)
+  bool itemize(Parse_context *pc, Item **res) override;
+  String *val_str(String *str) override;
+  bool fix_fields(THD *thd, Item **ref) override
   {
     DBUG_ASSERT(fixed == 0);
     bool res= ((!item->fixed && item->fix_fields(thd, &item)) ||
@@ -810,12 +817,12 @@ public:
     return res;
   }
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields);
-  virtual bool resolve_type(THD *thd);
-  void update_used_tables();
-  const char *func_name() const { return "make_set"; }
+                      List<Item> &fields) override;
+  bool resolve_type(THD *) override;
+  void update_used_tables() override;
+  const char *func_name() const override { return "make_set"; }
 
-  bool walk(Item_processor processor, enum_walk walk, uchar *arg)
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg) override
   {
     if ((walk & WALK_PREFIX) && (this->*processor)(arg))
       return true;
@@ -829,12 +836,12 @@ public:
     return ((walk & WALK_POSTFIX) && (this->*processor)(arg));
   }
 
-  Item *transform(Item_transformer transformer, uchar *arg);
-  virtual void print(String *str, enum_query_type query_type);
+  Item *transform(Item_transformer transformer, uchar *arg) override;
+  void print(String *str, enum_query_type query_type) override;
 };
 
 
-class Item_func_format :public Item_str_ascii_func
+class Item_func_format final : public Item_str_ascii_func
 {
   String tmp_str;
   MY_LOCALE *locale;
@@ -845,83 +852,83 @@ public:
   Item_func_format(const POS &pos, Item *org, Item *dec, Item *lang)
     : Item_str_ascii_func(pos, org, dec, lang)
   {}
-  
+
   MY_LOCALE *get_locale(Item *item);
-  String *val_str_ascii(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "format"; }
-  virtual void print(String *str, enum_query_type query_type);
+  String *val_str_ascii(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "format"; }
+  void print(String *str, enum_query_type query_type) override;
 };
 
 
-class Item_func_char :public Item_str_func
+class Item_func_char final : public Item_str_func
 {
 public:
   Item_func_char(const POS &pos, PT_item_list *list) :Item_str_func(pos, list)
   { collation.set(&my_charset_bin); }
   Item_func_char(const POS &pos, PT_item_list *list, const CHARSET_INFO *cs)
     : Item_str_func(pos, list)
-  { collation.set(cs); }  
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd) 
+  { collation.set(cs); }
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override
   {
     max_length= arg_count * 4;
     return false;
   }
-  const char *func_name() const { return "char"; }
+  const char *func_name() const override { return "char"; }
 };
 
 
-class Item_func_repeat :public Item_str_func
+class Item_func_repeat final : public Item_str_func
 {
   String tmp_value;
 public:
   Item_func_repeat(const POS &pos, Item *arg1,Item *arg2)
     :Item_str_func(pos, arg1,arg2)
   {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "repeat"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "repeat"; }
 };
 
 
-class Item_func_space :public Item_str_func
+class Item_func_space final : public Item_str_func
 {
 public:
   Item_func_space(const POS &pos, Item *arg1) :Item_str_func(pos, arg1) {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "space"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "space"; }
 };
 
 
-class Item_func_rpad :public Item_str_func
+class Item_func_rpad final : public Item_str_func
 {
   String tmp_value, rpad_str;
 public:
   Item_func_rpad(const POS &pos, Item *arg1, Item *arg2, Item *arg3)
     :Item_str_func(pos, arg1, arg2, arg3)
   {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "rpad"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "rpad"; }
 };
 
 
-class Item_func_lpad :public Item_str_func
+class Item_func_lpad final : public Item_str_func
 {
   String tmp_value, lpad_str;
 public:
   Item_func_lpad(const POS &pos, Item *arg1, Item *arg2, Item *arg3)
     :Item_str_func(pos , arg1, arg2, arg3)
   {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "lpad"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "lpad"; }
 };
 
 
-class Item_func_uuid_to_bin : public Item_str_func
+class Item_func_uuid_to_bin final : public Item_str_func
 {
   /// Buffer to store the binary result
   uchar m_bin_buf[binary_log::Uuid::BYTE_LENGTH];
@@ -932,13 +939,13 @@ public:
   Item_func_uuid_to_bin(const POS &pos, Item *arg1, Item *arg2)
     :Item_str_func(pos , arg1, arg2)
   {}
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "uuid_to_bin"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "uuid_to_bin"; }
 };
 
 
-class Item_func_bin_to_uuid : public Item_str_ascii_func
+class Item_func_bin_to_uuid final : public Item_str_ascii_func
 {
   /// Buffer to store the text result
   char m_text_buf[binary_log::Uuid::TEXT_LENGTH + 1];
@@ -949,20 +956,20 @@ public:
   Item_func_bin_to_uuid(const POS &pos, Item *arg1, Item *arg2)
     :Item_str_ascii_func(pos , arg1, arg2)
   {}
-  String *val_str_ascii(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "bin_to_uuid"; }
+  String *val_str_ascii(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "bin_to_uuid"; }
 };
 
 
-class Item_func_is_uuid : public Item_bool_func
+class Item_func_is_uuid final : public Item_bool_func
 {
   typedef Item_bool_func super;
 public:
     Item_func_is_uuid(const POS &pos, Item *a): Item_bool_func(pos, a) {}
-    longlong val_int();
-    const char *func_name() const { return "is_uuid"; }
-    bool resolve_type(THD *thd)
+    longlong val_int() override;
+    const char *func_name() const override { return "is_uuid"; }
+    bool resolve_type(THD *thd) override
     {
       bool res= super::resolve_type(thd);
       maybe_null= true;
@@ -971,15 +978,15 @@ public:
 };
 
 
-class Item_func_conv :public Item_str_func
+class Item_func_conv final : public Item_str_func
 {
 public:
   Item_func_conv(const POS &pos, Item *a,Item *b,Item *c)
     :Item_str_func(pos, a,b,c)
   {}
-  const char *func_name() const { return "conv"; }
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
+  const char *func_name() const override { return "conv"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override;
 };
 
 
@@ -988,9 +995,9 @@ class Item_func_hex :public Item_str_ascii_func
   String tmp_value;
 public:
   Item_func_hex(const POS &pos, Item *a) :Item_str_ascii_func(pos, a) {}
-  const char *func_name() const { return "hex"; }
-  String *val_str_ascii(String *);
-  virtual bool resolve_type(THD *thd)
+  const char *func_name() const override { return "hex"; }
+  String *val_str_ascii(String *) override;
+  bool resolve_type(THD *) override
   {
     collation.set(default_charset());
     decimals=0;
@@ -999,7 +1006,7 @@ public:
   }
 };
 
-class Item_func_unhex :public Item_str_func
+class Item_func_unhex final : public Item_str_func
 {
   String tmp_value;
 public:
@@ -1008,9 +1015,9 @@ public:
     /* there can be bad hex strings */
     maybe_null= 1; 
   }
-  const char *func_name() const { return "unhex"; }
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd)
+  const char *func_name() const override { return "unhex"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override
   {
     collation.set(&my_charset_bin);
     decimals=0;
@@ -1030,9 +1037,9 @@ protected:
 public:
   Item_func_like_range(const POS &pos, Item *a, Item *b, bool is_min_arg)
     :Item_str_func(pos, a, b), is_min(is_min_arg)
-  { maybe_null= 1; }
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd)
+  { maybe_null= true; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override
   {
     collation.set(args[0]->collation);
     decimals=0;
@@ -1042,28 +1049,28 @@ public:
 };
 
 
-class Item_func_like_range_min :public Item_func_like_range
+class Item_func_like_range_min final : public Item_func_like_range
 {
 public:
   Item_func_like_range_min(const POS &pos, Item *a, Item *b) 
     :Item_func_like_range(pos, a, b, true)
   { }
-  const char *func_name() const { return "like_range_min"; }
+  const char *func_name() const override { return "like_range_min"; }
 };
 
 
-class Item_func_like_range_max :public Item_func_like_range
+class Item_func_like_range_max final : public Item_func_like_range
 {
 public:
   Item_func_like_range_max(const POS &pos, Item *a, Item *b)
     :Item_func_like_range(pos, a, b, false)
   { }
-  const char *func_name() const { return "like_range_max"; }
+  const char *func_name() const override { return "like_range_max"; }
 };
 #endif
 
 
-class Item_char_typecast :public Item_str_func
+class Item_char_typecast final : public Item_str_func
 {
   longlong cast_length;
   const CHARSET_INFO *cast_cs, *from_cs;
@@ -1077,20 +1084,20 @@ public:
                      const CHARSET_INFO *cs_arg)
     :Item_str_func(pos, a), cast_length(length_arg), cast_cs(cs_arg)
   {}
-  enum Functype functype() const { return TYPECAST_FUNC; }
-  bool eq(const Item *item, bool binary_cmp) const;
-  const char *func_name() const { return "cast_as_char"; }
-  String *val_str(String *a);
-  virtual bool resolve_type(THD *thd);
-  virtual void print(String *str, enum_query_type query_type);
+  enum Functype functype() const override { return TYPECAST_FUNC; }
+  bool eq(const Item *item, bool binary_cmp) const override;
+  const char *func_name() const override { return "cast_as_char"; }
+  String *val_str(String *a) override;
+  bool resolve_type(THD *) override;
+  void print(String *str, enum_query_type query_type) override;
 };
 
 
-class Item_func_binary :public Item_str_func
+class Item_func_binary final : public Item_str_func
 {
 public:
   Item_func_binary(const POS &pos, Item *a) :Item_str_func(pos, a) {}
-  String *val_str(String *a)
+  String *val_str(String *a) override
   {
     DBUG_ASSERT(fixed == 1);
     String *tmp=args[0]->val_str(a);
@@ -1099,19 +1106,19 @@ public:
       tmp->set_charset(&my_charset_bin);
     return tmp;
   }
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *) override
   {
     collation.set(&my_charset_bin);
     max_length=args[0]->max_length;
     return false;
   }
-  virtual void print(String *str, enum_query_type query_type);
-  const char *func_name() const { return "cast_as_binary"; }
-  enum Functype functype() const { return TYPECAST_FUNC; }
+  void print(String *str, enum_query_type query_type) override;
+  const char *func_name() const override { return "cast_as_binary"; }
+  enum Functype functype() const override { return TYPECAST_FUNC; }
 };
 
 
-class Item_load_file :public Item_str_func
+class Item_load_file final : public Item_str_func
 {
   typedef Item_str_func super;
 
@@ -1119,22 +1126,21 @@ class Item_load_file :public Item_str_func
 public:
   Item_load_file(const POS &pos, Item *a) :Item_str_func(pos, a) {}
 
-  virtual bool itemize(Parse_context *pc, Item **res);
-  String *val_str(String *);
-  const char *func_name() const { return "load_file"; }
-  virtual bool resolve_type(THD *thd)
+  bool itemize(Parse_context *pc, Item **res) override;
+  String *val_str(String *) override;
+  const char *func_name() const override { return "load_file"; }
+  bool resolve_type(THD *) override
   {
     collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
     maybe_null= true;
     max_length= MAX_BLOB_WIDTH;
     return false;
   }
-  bool check_gcol_func_processor(uchar *int_arg)
-  { return true; }
+  bool check_gcol_func_processor(uchar *) override { return true; }
 };
 
 
-class Item_func_export_set: public Item_str_func
+class Item_func_export_set final : public Item_str_func
 {
  public:
   Item_func_export_set(const POS &pos, Item *a, Item *b, Item* c)
@@ -1147,9 +1153,9 @@ class Item_func_export_set: public Item_str_func
                        Item *a, Item *b, Item* c, Item* d, Item* e)
     :Item_str_func(pos, a, b, c, d, e)
   {}
-  String  *val_str(String *str);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "export_set"; }
+  String  *val_str(String *str) override;
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "export_set"; }
 };
 
 class Item_func_quote :public Item_str_func
@@ -1157,9 +1163,9 @@ class Item_func_quote :public Item_str_func
   String tmp_value;
 public:
   Item_func_quote(const POS &pos, Item *a) :Item_str_func(pos, a) {}
-  const char *func_name() const { return "quote"; }
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd)
+  const char *func_name() const override { return "quote"; }
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override
   {
     collation.set(args[0]->collation);
     ulong max_result_length= (ulong) args[0]->max_length * 2 +
@@ -1169,7 +1175,7 @@ public:
   }
 };
 
-class Item_func_conv_charset :public Item_str_func
+class Item_func_conv_charset final : public Item_str_func
 {
   bool use_cached_value;
   String tmp_value;
@@ -1177,7 +1183,7 @@ public:
   bool safe;
   const CHARSET_INFO *conv_charset; // keep it public
   Item_func_conv_charset(const POS &pos, Item *a, const CHARSET_INFO *cs)
-  : Item_str_func(pos, a) 
+  : Item_str_func(pos, a)
   { conv_charset= cs; use_cached_value= 0; safe= 0; }
   Item_func_conv_charset(Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const) :Item_str_func(a)
@@ -1209,13 +1215,13 @@ public:
              (cs->state & MY_CS_UNICODE));
     }
   }
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const { return "convert"; }
-  virtual void print(String *str, enum_query_type query_type);
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "convert"; }
+  void print(String *str, enum_query_type query_type) override;
 };
 
-class Item_func_set_collation :public Item_str_func
+class Item_func_set_collation final : public Item_str_func
 {
   typedef Item_str_func super;
 
@@ -1226,53 +1232,53 @@ public:
     :super(pos, a, NULL), collation_string(collation_string_arg)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res);
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  bool eq(const Item *item, bool binary_cmp) const;
-  const char *func_name() const { return "collate"; }
-  enum Functype functype() const { return COLLATE_FUNC; }
-  virtual void print(String *str, enum_query_type query_type);
-  Item_field *field_for_view_update()
+  bool itemize(Parse_context *pc, Item **res) override;
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override;
+  bool eq(const Item *item, bool binary_cmp) const override;
+  const char *func_name() const override { return "collate"; }
+  enum Functype functype() const override { return COLLATE_FUNC; }
+  void print(String *str, enum_query_type query_type) override;
+  Item_field *field_for_view_update() override
   {
     /* this function is transparent for view updating */
     return args[0]->field_for_view_update();
   }
 };
 
-class Item_func_charset :public Item_str_func
+class Item_func_charset final : public Item_str_func
 {
 public:
   Item_func_charset(const POS &pos, Item *a) :Item_str_func(pos, a) {}
-  String *val_str(String *);
-  const char *func_name() const { return "charset"; }
-  virtual bool resolve_type(THD *thd)
+  String *val_str(String *) override;
+  const char *func_name() const override { return "charset"; }
+  bool resolve_type(THD *) override
   {
      collation.set(system_charset_info);
      max_length= 64 * collation.collation->mbmaxlen; // should be enough
      maybe_null= false;
      return false;
   };
-  table_map not_null_tables() const { return 0; }
+  table_map not_null_tables() const override { return 0; }
 };
 
 class Item_func_collation :public Item_str_func
 {
 public:
   Item_func_collation(const POS &pos, Item *a) :Item_str_func(pos, a) {}
-  String *val_str(String *);
-  const char *func_name() const { return "collation"; }
-  virtual bool resolve_type(THD *thd)
+  String *val_str(String *) override;
+  const char *func_name() const override { return "collation"; }
+  bool resolve_type(THD *) override
   {
      collation.set(system_charset_info);
      max_length= 64 * collation.collation->mbmaxlen; // should be enough
      maybe_null= false;
      return false;
   };
-  table_map not_null_tables() const { return 0; }
+  table_map not_null_tables() const override { return 0; }
 };
 
-class Item_func_weight_string :public Item_str_func
+class Item_func_weight_string final : public Item_str_func
 {
   typedef Item_str_func super;
 
@@ -1293,75 +1299,75 @@ public:
     result_length= result_length_arg;
   }
 
-  virtual bool itemize(Parse_context *pc, Item **res);
+  bool itemize(Parse_context *pc, Item **res) override;
 
-  const char *func_name() const { return "weight_string"; }
-  bool eq(const Item *item, bool binary_cmp) const;
-  String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
-  virtual void print(String *str, enum_query_type query_type);
+  const char *func_name() const override { return "weight_string"; }
+  bool eq(const Item *item, bool binary_cmp) const override;
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override;
+  void print(String *str, enum_query_type query_type) override;
 };
 
-class Item_func_crc32 :public Item_int_func
+class Item_func_crc32 final : public Item_int_func
 {
   String value;
 public:
   Item_func_crc32(const POS &pos, Item *a) :Item_int_func(pos, a)
-  { unsigned_flag= 1; }
-  const char *func_name() const { return "crc32"; }
-  virtual bool resolve_type(THD *thd)
+  { unsigned_flag= true; }
+  const char *func_name() const override { return "crc32"; }
+  bool resolve_type(THD *) override
   {
     max_length= 10;
     return false;
   }
-  longlong val_int();
+  longlong val_int() override;
 };
 
-class Item_func_uncompressed_length : public Item_int_func
+class Item_func_uncompressed_length final : public Item_int_func
 {
   String value;
 public:
   Item_func_uncompressed_length(const POS &pos, Item *a) :Item_int_func(pos, a)
   {}
-  const char *func_name() const{return "uncompressed_length";}
-  virtual bool resolve_type(THD *thd)
+  const char *func_name() const override { return "uncompressed_length"; }
+  bool resolve_type(THD *) override
   {
     max_length= 10;
     return false;
   }
-  longlong val_int();
+  longlong val_int() override;
 };
 
-class Item_func_compress: public Item_str_func
+class Item_func_compress final : public Item_str_func
 {
   String buffer;
 public:
   Item_func_compress(const POS &pos, Item *a):Item_str_func(pos, a){}
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *) override
   {
     max_length= (args[0]->max_length*120)/100+12;
     return false;
   }
-  const char *func_name() const{return "compress";}
-  String *val_str(String *str);
+  const char *func_name() const override { return "compress"; }
+  String *val_str(String *str) override;
 };
 
-class Item_func_uncompress: public Item_str_func
+class Item_func_uncompress final : public Item_str_func
 {
   String buffer;
 public:
   Item_func_uncompress(const POS &pos, Item *a): Item_str_func(pos, a) {}
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *) override
   {
     maybe_null= true;
     max_length= MAX_BLOB_WIDTH;
     return false;
   }
-  const char *func_name() const{return "uncompress";}
-  String *val_str(String * str);
+  const char *func_name() const override { return "uncompress"; }
+  String *val_str(String *str) override;
 };
 
-class Item_func_uuid: public Item_str_func
+class Item_func_uuid final : public Item_str_func
 {
   typedef Item_str_func super;
 public:
@@ -1369,48 +1375,47 @@ public:
   explicit
   Item_func_uuid(const POS &pos): Item_str_func(pos) {}
 
-  virtual bool itemize(Parse_context *pc, Item **res);
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const{ return "uuid"; }
-  String *val_str(String *);
-  bool check_gcol_func_processor(uchar *int_arg)
-  { return true; }
+  bool itemize(Parse_context *pc, Item **res) override;
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "uuid"; }
+  String *val_str(String *) override;
+  bool check_gcol_func_processor(uchar *) override { return true; }
 };
 
-class Item_func_gtid_subtract: public Item_str_ascii_func
+class Item_func_gtid_subtract final : public Item_str_ascii_func
 {
   String buf1, buf2;
 public:
   Item_func_gtid_subtract(const POS &pos, Item *a, Item *b)
     :Item_str_ascii_func(pos, a, b)
   {}
-  virtual bool resolve_type(THD *thd);
-  const char *func_name() const{ return "gtid_subtract"; }
-  String *val_str_ascii(String *);
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "gtid_subtract"; }
+  String *val_str_ascii(String *) override;
 };
 
 
-class Item_func_current_role :public Item_str_func
+class Item_func_current_role final : public Item_str_func
 {
   typedef Item_str_func super;
   String m_active_role;
 public:
   explicit Item_func_current_role(const POS &pos) : Item_str_func(pos) {}
-  const char *func_name() const { return "current_role"; }
-  virtual bool resolve_type(THD *thd) { return false; }
-  virtual bool fix_fields(THD *thd, Item **ref);
-  virtual String *val_str(String *str);
+  const char *func_name() const override { return "current_role"; }
+  bool resolve_type(THD *) override { return false; }
+  bool fix_fields(THD *thd, Item **ref) override;
+  String *val_str(String *str) override;
 };
 
 
-class Item_func_get_dd_column_privileges :public Item_str_func
+class Item_func_get_dd_column_privileges final : public Item_str_func
 {
 public:
   Item_func_get_dd_column_privileges(const POS &pos, Item *a, Item *b, Item *c)
     :Item_str_func(pos, a, b, c)
   {}
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *) override
   {
     /*
       There are 14 kinds of grants, with a max length
@@ -1423,14 +1428,13 @@ public:
     return false;
   }
 
-  const char *func_name() const
-  { return "get_dd_column_privileges"; }
+  const char *func_name() const override { return "get_dd_column_privileges"; }
 
-  String *val_str(String *);
+  String *val_str(String *) override;
 };
 
 
-class Item_func_get_dd_index_sub_part_length :public Item_str_func
+class Item_func_get_dd_index_sub_part_length final : public Item_str_func
 {
 public:
   Item_func_get_dd_index_sub_part_length(
@@ -1438,7 +1442,7 @@ public:
     :Item_str_func(pos, a, b, c, d, e)
   {}
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *) override
   {
     /**
       maximum number of chars in length of uint value is max 11 so setting
@@ -1450,21 +1454,21 @@ public:
     return false;
   }
 
-  const char *func_name() const
+  const char *func_name() const override
   { return "get_dd_index_sub_part_length"; }
 
-  String *val_str(String *);
+  String *val_str(String *) override;
 };
 
 
-class Item_func_get_dd_create_options :public Item_str_func
+class Item_func_get_dd_create_options final : public Item_str_func
 {
 public:
   Item_func_get_dd_create_options(const POS &pos, Item *a, Item *b)
     :Item_str_func(pos, a, b)
   {}
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *) override
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
@@ -1474,21 +1478,20 @@ public:
     return false;
   }
 
-  const char *func_name() const
-  { return "get_dd_create_options"; }
+  const char *func_name() const override { return "get_dd_create_options"; }
 
-  String *val_str(String *);
+  String *val_str(String *) override;
 };
 
 
-class Item_func_internal_get_comment_or_error :public Item_str_func
+class Item_func_internal_get_comment_or_error final : public Item_str_func
 {
 public:
   Item_func_internal_get_comment_or_error(const POS &pos, PT_item_list *list)
     :Item_str_func(pos, list)
   {}
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *) override
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
@@ -1498,10 +1501,10 @@ public:
     return false;
   }
 
-  const char *func_name() const
+  const char *func_name() const override
   { return "internal_get_comment_or_error"; }
 
-  String *val_str(String *);
+  String *val_str(String *) override;
 };
 
 

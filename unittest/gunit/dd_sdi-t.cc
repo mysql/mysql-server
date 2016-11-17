@@ -18,6 +18,7 @@
 
 #include "../../sql/dd/types/object_type.h"
 #include "../../sql/dd/dd.h"
+#include "../../sql/dd/sdi_file.h"
 #include "../../sql/dd/impl/types/weak_object_impl.h"
 #include "../../sql/dd/impl/sdi_impl.h"
 #include "../../sql/dd/types/column.h"
@@ -34,9 +35,10 @@
 #include "../../sql/dd/types/tablespace_file.h"
 #include "../../sql/dd/types/tablespace.h"
 
-#include <dd/impl/types/entity_object_impl.h>
+#include "../../sql/dd/impl/types/entity_object_impl.h"
 #include "../../sql/dd/impl/types/column_impl.h"
 #include "../../sql/dd/impl/types/index_impl.h"
+#include "../../sql/dd/impl/types/table_impl.h"
 
 
 #include <m_string.h>
@@ -64,6 +66,7 @@ void setup_wctx(cb, const dd::Weak_object*, dd::Sdi_writer*);
 typedef void (*dcb)(dd::Sdi_rcontext*, dd::Weak_object*, dd::RJ_Document&);
 void setup_rctx(dcb, dd::Weak_object *, dd::RJ_Document &);
 
+bool equal_prefix_chars_driver(const dd::String_type &a, const dd::String_type &b, size_t prefix);
 
 // Mocking functions
 
@@ -473,4 +476,96 @@ TEST(SdiTest, Serialization_perf)
   }
 }
 #endif /* DBUG_OFF */
+
+TEST(SdiTest, CharPromotion)
+{
+  char x= 127;
+  unsigned char ux= x;
+  EXPECT_EQ(127u, ux);
+
+  unsigned short usx= x;
+  EXPECT_EQ(127u, usx);
+
+  unsigned int uix= x;
+  EXPECT_EQ(127u, usx);
+
+  unsigned char tmp= 0xe0;
+  x= static_cast<char>(tmp);
+  EXPECT_EQ(-32,x);
+
+  ux= x;
+  EXPECT_EQ(224u, ux);
+
+  usx= x;
+  short sx= x;
+  EXPECT_EQ(-32, sx);
+  unsigned short usy= sx;
+  EXPECT_EQ(usx, usy);
+  EXPECT_EQ(65504u, usx);
+
+  uix= x;
+  int ix= x;
+  EXPECT_EQ(-32, ix);
+  unsigned int uiy= ix;
+  EXPECT_EQ(uix, uiy);
+  EXPECT_EQ(4294967264u, uix);
+}
+
+TEST(SdiTest, Utf8Filename)
+{
+  dd::Table_impl x{};
+  x.set_name("\xe0\xa0\x80");
+  x.set_id(42);
+  dd::String_type path= dd::sdi_file::sdi_filename(&x, "foobar");
+  std::replace(path.begin(), path.end(), '\\', '/');
+  EXPECT_EQ("./foobar/@0800_42.SDI", path);
+}
+
+TEST(SdiTest, Utf8FilenameTrunc)
+{
+  dd::String_type name{"\xe0\xa0\x80"};
+  for (int i= 0; i < 16; ++i)
+  {
+    name.append("\xe0\xa0\x80");
+  }
+  EXPECT_EQ(51u, name.length());
+
+  dd::Table_impl x{};
+  x.set_name(name);
+  x.set_id(42);
+  dd::String_type fn= dd::sdi_file::sdi_filename(&x, "foobar");
+  std::replace(fn.begin(), fn.end(), '\\', '/');
+  EXPECT_EQ(96u, fn.length());
+  EXPECT_EQ("./foobar/@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800_42.SDI", fn);
+}
+
+TEST(SdiTest, EqualPrefixCharsAscii)
+{
+  ASSERT_TRUE(equal_prefix_chars_driver("a", "a", 16));
+  ASSERT_FALSE(equal_prefix_chars_driver("a", "b", 16));
+  ASSERT_FALSE(equal_prefix_chars_driver("aaa", "aaab", 16));
+  ASSERT_TRUE(equal_prefix_chars_driver("abcdefghijklmnon_aaa",
+                                        "abcdefghijklmnon_bbb", 16));
+
+}
+
+TEST(SdiTest, EqualPrefixCharsUtf8)
+{
+  ASSERT_TRUE(equal_prefix_chars_driver("\xe0\xa0\x80", "\xe0\xa0\x80", 16));
+  ASSERT_FALSE(equal_prefix_chars_driver("\xe0\xa0\x80", "\xf0\x90\x80\x80",
+                                         16));
+  ASSERT_FALSE(equal_prefix_chars_driver
+               (
+                "\xe0\xa0\x80\xe0\xa0\x80\xe0\xa0\x80",
+                "\xe0\xa0\x80\xe0\xa0\x80\xe0\xa0\x80\xf0\x90\x80\x80", 16));
+
+  ASSERT_TRUE
+    (
+     equal_prefix_chars_driver
+     ("abc\xe0\xa0\x80""def\xe0\xa0\x80ghi\xe0\xa0\x80jkl\xe0\xa0\x80_aaa",
+      "abc\xe0\xa0\x80""def\xe0\xa0\x80ghi\xe0\xa0\x80jkl\xe0\xa0\x80_bbb",
+      16));
+}
+
+
 } // namespace sdi_unittest

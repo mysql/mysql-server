@@ -83,17 +83,21 @@ private:
 };
 
 
-void mysqld_stmt_prepare(THD *thd, const char *query, uint length);
-void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
-                         ulong params_length);
-void mysqld_stmt_close(THD *thd, ulong stmt_id);
+bool
+mysql_stmt_precheck(THD *thd, const COM_DATA *com_data,
+                    enum enum_server_command cmd, Prepared_statement **stmt);
+void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
+                         Prepared_statement *stmt);
+void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
+                         ulong execute_flags, PS_PARAM *parameters);
+void mysqld_stmt_close(THD *thd, Prepared_statement *stmt);
 void mysql_sql_stmt_prepare(THD *thd);
 void mysql_sql_stmt_execute(THD *thd);
 void mysql_sql_stmt_close(THD *thd);
-void mysqld_stmt_fetch(THD *thd, ulong stmt_id, ulong num_rows);
-void mysqld_stmt_reset(THD *thd, ulong stmt_id);
-void mysql_stmt_get_longdata(THD *thd, ulong stmt_id, uint param_number,
-                             uchar *longdata, ulong length);
+void mysqld_stmt_fetch(THD *thd, Prepared_statement *stmt, ulong num_rows);
+void mysqld_stmt_reset(THD *thd, Prepared_statement *stmt);
+void mysql_stmt_get_longdata(THD *thd, Prepared_statement *stmt,
+                             uint param_number, uchar *longdata, ulong length);
 bool reinit_stmt_before_use(THD *thd, LEX *lex);
 bool select_like_stmt_cmd_test(THD *thd,
                                class Sql_cmd_dml *cmd,
@@ -361,7 +365,8 @@ public:
   PSI_prepared_stmt* m_prepared_stmt;
 
 private:
-  Query_fetch_protocol_binary result;
+  Query_result_send *result;
+
   uint flags;
   bool with_log;
   LEX_CSTRING m_name; /* name for named prepared statements */
@@ -396,8 +401,8 @@ public:
   bool is_sql_prepare() const { return flags & (uint) IS_SQL_PREPARE; }
   void set_sql_prepare() { flags|= (uint) IS_SQL_PREPARE; }
   bool prepare(const char *packet, size_t packet_length);
-  bool execute_loop(bool open_cursor,
-                    uchar *packet_arg, uchar *packet_end_arg);
+  bool execute_loop(String *expanded_query, bool open_cursor,
+                    PS_PARAM *parameters);
   bool execute_server_runnable(Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE
   PSI_prepared_stmt* get_PS_prepared_stmt()
@@ -407,11 +412,13 @@ public:
 #endif
   /* Destroy this statement */
   void deallocate();
+  bool set_parameters(String *expanded_query, bool has_new_types,
+                      PS_PARAM *parameters);
+  bool set_parameters(String *expanded_query);
 private:
   void setup_set_params();
   bool set_db(const LEX_CSTRING &db_length);
-  bool set_parameters(String *expanded_query,
-                      uchar *packet, uchar *packet_end);
+
   bool execute(String *expanded_query, bool open_cursor);
   bool reprepare();
   bool validate_metadata(Prepared_statement  *copy);
@@ -419,8 +426,7 @@ private:
   bool insert_params_from_vars(List<LEX_STRING>& varnames,
                                String *query);
 #ifndef EMBEDDED_LIBRARY
-  bool insert_params(uchar *null_array, uchar *read_pos, uchar *data_end,
-                     String *query);
+  bool insert_params(String *query, PS_PARAM *parameters);
 #else
   bool emb_insert_params(String *query);
 #endif

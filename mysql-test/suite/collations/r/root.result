@@ -1,13 +1,5 @@
 select hex(convert(uc using utf32)), name from unicode order by uc collate utf8mb4_0900_ai_ci, cp;
 hex(convert(uc using utf32))	name
-00000009	<control>
-0000000A	<control>
-0000000B	<control>
-0000000C	<control>
-0000000D	<control>
-00000085	<control>
-00002028	LINE SEPARATOR
-00002029	PARAGRAPH SEPARATOR
 00000000	<control>
 00000001	<control>
 00000002	<control>
@@ -1358,6 +1350,14 @@ hex(convert(uc using utf32))	name
 000E01ED	VARIATION SELECTOR-254
 000E01EE	VARIATION SELECTOR-255
 000E01EF	VARIATION SELECTOR-256
+00000009	<control>
+0000000A	<control>
+0000000B	<control>
+0000000C	<control>
+0000000D	<control>
+00000085	<control>
+00002028	LINE SEPARATOR
+00002029	PARAGRAPH SEPARATOR
 0000203E	OVERLINE
 0000FE49	DASHED OVERLINE
 0000FE4A	CENTRELINE OVERLINE
@@ -29215,14 +29215,6 @@ hex(convert(uc using utf32))	name
 0000FFFD	REPLACEMENT CHARACTER
 select hex(convert(uc using utf32)), name from unicode order by uc collate utf8mb4_0900_as_cs, cp;
 hex(convert(uc using utf32))	name
-00000009	<control>
-0000000A	<control>
-0000000B	<control>
-0000000C	<control>
-0000000D	<control>
-00000085	<control>
-00002028	LINE SEPARATOR
-00002029	PARAGRAPH SEPARATOR
 00000000	<control>
 00000001	<control>
 00000002	<control>
@@ -30573,6 +30565,14 @@ hex(convert(uc using utf32))	name
 000020E8	COMBINING TRIPLE UNDERDOT
 000020E9	COMBINING WIDE BRIDGE ABOVE
 000101FD	PHAISTOS DISC SIGN COMBINING OBLIQUE STROKE
+00000009	<control>
+0000000A	<control>
+0000000B	<control>
+0000000C	<control>
+0000000D	<control>
+00000085	<control>
+00002028	LINE SEPARATOR
+00002029	PARAGRAPH SEPARATOR
 0000203E	OVERLINE
 0000FE49	DASHED OVERLINE
 0000FE4A	CENTRELINE OVERLINE

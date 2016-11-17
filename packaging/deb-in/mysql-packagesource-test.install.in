@@ -50,6 +50,7 @@ usr/lib/mysql/plugin/libtest_sql_lock.so
 usr/lib/mysql/plugin/libtest_sql_processlist.so
 usr/lib/mysql/plugin/libtest_sql_replication.so
 usr/lib/mysql/plugin/libtest_sql_shutdown.so
+usr/lib/mysql/plugin/libtest_sql_stmt.so
 usr/lib/mysql/plugin/libtest_sql_sqlmode.so
 usr/lib/mysql/plugin/libtest_sql_stored_procedures_functions.so
 usr/lib/mysql/plugin/libtest_sql_views_triggers.so
@@ -87,6 +88,7 @@ usr/lib/mysql/plugin/debug/libtest_sql_lock.so
 usr/lib/mysql/plugin/debug/libtest_sql_processlist.so
 usr/lib/mysql/plugin/debug/libtest_sql_replication.so
 usr/lib/mysql/plugin/debug/libtest_sql_shutdown.so
+usr/lib/mysql/plugin/debug/libtest_sql_stmt.so
 usr/lib/mysql/plugin/debug/libtest_sql_sqlmode.so
 usr/lib/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so
 usr/lib/mysql/plugin/debug/libtest_sql_views_triggers.so

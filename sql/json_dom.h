@@ -344,7 +344,7 @@ struct Json_key_comparator
   Json_object class.
 */
 typedef std::map<std::string, Json_dom *, Json_key_comparator,
-  Malloc_allocator<std::pair<std::string, Json_dom *> > > Json_object_map;
+  Malloc_allocator<std::pair<const std::string, Json_dom *> > > Json_object_map;
 
 /**
   Represents a JSON container value of type "object" (ECMA), type

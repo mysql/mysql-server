@@ -367,7 +367,7 @@ my $opt_max_save_datadir= env_or_val(MTR_MAX_SAVE_DATADIR => 20);
 my $opt_max_test_fail= 0;
 #my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
-my $opt_parallel= $ENV{MTR_PARALLEL};
+our $opt_parallel= $ENV{MTR_PARALLEL};
 
 our $opt_run_non_parallel_tests;
 

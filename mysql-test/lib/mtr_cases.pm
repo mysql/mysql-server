@@ -21,8 +21,12 @@
 package mtr_cases;
 use strict;
 
+my $threads_support= eval 'use threads; 1';
+my $threads_shared_support= eval 'use threads::shared; 1';
+
 use base qw(Exporter);
-our @EXPORT= qw(collect_option collect_test_cases init_pattern $suitedir);
+our @EXPORT= qw(collect_option collect_test_cases init_pattern
+                $suitedir $group_replication $xplugin);
 
 use mtr_report;
 use mtr_match;
@@ -47,6 +51,10 @@ our $quick_collect;
 # with the change of default storage engine to InnoDB)
 our $default_myisam= 0;
 our $suitedir;
+
+our $xplugin;
+our $group_replication;
+
 sub collect_option {
   my ($opt, $value)= @_;
 
@@ -66,6 +74,7 @@ use My::Config;
 use My::Platform;
 use My::Test;
 use My::Find;
+use My::SysInfo;
 
 require "mtr_misc.pl";
 
@@ -132,11 +141,61 @@ sub collect_test_cases ($$$$) {
   # This also effects some logic in the loop following this.
   if ($opt_reorder or !@$opt_cases)
   {
-    foreach my $suite (split(",", $suites))
+    my $sys_info= My::SysInfo->new();
+    my $parallel= $sys_info->num_cpus();
+    $parallel= $::opt_parallel if ($::opt_parallel ne "auto" and
+                                   $::opt_parallel < $parallel);
+    $parallel= 1 if $quick_collect;
+    $parallel= 1 if @$opt_cases;
+
+    if ($parallel == 1 or !$threads_support or !$threads_shared_support)
     {
-      push(@$cases, collect_one_suite($suite, $opt_cases, $opt_skip_test_list));
-      last if $some_test_found;
-      push(@$cases, collect_one_suite("i_".$suite, $opt_cases, $opt_skip_test_list));
+      foreach my $suite (split(",", $suites))
+      {
+        push(@$cases, collect_one_suite($suite, $opt_cases,
+                                        $opt_skip_test_list));
+        last if $some_test_found;
+        push(@$cases, collect_one_suite("i_".$suite, $opt_cases,
+                                        $opt_skip_test_list));
+      }
+    }
+    else
+    {
+      share(\$xplugin);
+      share(\$group_replication);
+      share(\$some_test_found);
+      share(\$suitedir) if $quick_collect;
+      # Array containing thread id of all the threads used for
+      # collecting test cases from different test suites.
+      my @collect_test_cases_thrds;
+
+      foreach my $suite (split(",", $suites))
+      {
+        push(@collect_test_cases_thrds, threads->create("collect_one_suite",
+                                                        $suite, $opt_cases,
+                                                        $opt_skip_test_list));
+        while($parallel <= scalar @collect_test_cases_thrds)
+        {
+          mtr_milli_sleep(100);
+          @collect_test_cases_thrds= threads->list(threads::running());
+        }
+        last if $some_test_found;
+
+        push(@collect_test_cases_thrds, threads->create("collect_one_suite",
+                                                        "i_".$suite, $opt_cases,
+                                                        $opt_skip_test_list));
+        while($parallel <= scalar @collect_test_cases_thrds)
+        {
+          mtr_milli_sleep(100);
+          @collect_test_cases_thrds= threads->list(threads::running());
+        }
+      }
+
+      foreach my $collect_thrd(threads->list())
+      {
+        my @suite_cases= $collect_thrd->join();
+        push (@$cases, @suite_cases);
+      }
     }
   }
 
@@ -895,10 +954,8 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # Check for replicaton tests
   # ----------------------------------------------------------------------
-  if ( $suitedir =~ 'rpl' )
-  {
-    $tinfo->{'rpl_test'}= 1;
-  }
+  $tinfo->{'rpl_test'}= 1 if ($suitename =~ 'rpl');
+  $tinfo->{'grp_rpl_test'}= 1 if ($suitename =~ 'group_replication');
 
   # ----------------------------------------------------------------------
   # Check for disabled tests
@@ -1084,7 +1141,7 @@ sub collect_one_test_case {
     push(@{$tinfo->{'slave_opt'}}, "--loose-skip-log-bin");
   }
 
-  if ( $tinfo->{'rpl_test'} )
+  if ( $tinfo->{'rpl_test'} or $tinfo->{'grp_rpl_test'} )
   {
     if ( $skip_rpl )
     {
@@ -1124,16 +1181,10 @@ sub collect_one_test_case {
   }
 
   # Check for group replication tests
-  if ( $tinfo->{'grp_rpl_test'} )
-  {
-    $::group_replication= 1;
-  }
+  $group_replication= 1 if ($tinfo->{'grp_rpl_test'});
 
   # Check for xplugin tests
-  if ( $tinfo->{'xplugin_test'} )
-  {
-    $::xplugin= 1;
-  }
+  $xplugin= 1 if ($tinfo->{'xplugin_test'});
 
   if ( $tinfo->{'not_windows'} && IS_WINDOWS )
   {

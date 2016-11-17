@@ -102,9 +102,6 @@ namespace AQP {
 
 extern ulong savepoint_alloc_size;
 
-extern MYSQL_PLUGIN_IMPORT const Key_map key_map_empty;
-extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
-
 /*
   We preallocate data for several storage engine plugins.
   so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +
@@ -2963,7 +2960,6 @@ public:
   Methods:
     min_rows_for_estimate()
     get_biggest_used_partition()
-    keys_to_use_for_scanning()
     scan_time()
     read_time()
     records_in_range()
@@ -3695,17 +3691,6 @@ public:
   virtual int multi_range_read_next(char **range_info);
 
 
-  /**
-    Get keys to use for scanning.
-
-    This method is used to derive whether an index can be used for
-    index-only scanning when performing an ORDER BY query.
-    Only called from one place in sql_select.cc
-
-    @return Key_map of keys usable for scanning
-  */
-
-  virtual const Key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   bool has_transactions()
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
   virtual uint extra_rec_buf_length() const { return 0; }

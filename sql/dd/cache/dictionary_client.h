@@ -135,7 +135,6 @@ public:
     Dictionary_client *m_client;
     Object_registry m_release_registry;
     Auto_releaser *m_prev;
-    std::vector<Dictionary_object*> m_uncached_objects;
 
     /**
       Register an object to be auto released.
@@ -150,30 +149,6 @@ public:
       // Catch situations where we do not use a non-default releaser.
       DBUG_ASSERT(m_prev != NULL);
       m_release_registry.put(element);
-    }
-
-
-    /**
-      Register an uncached object to be auto deleted.
-
-      @param  object  Dictionary object to auto delete.
-    */
-    template <typename T>
-    void auto_delete(Dictionary_object *object)
-    {
-      // Catch situations where we do not use a non-default releaser.
-      DBUG_ASSERT(m_prev != NULL);
-
-#ifndef DBUG_OFF
-      // Make sure we do not sign up a shared object for auto delete.
-      Cache_element<typename T::cache_partition_type> *element= nullptr;
-      m_client->m_registry_committed.get(
-        static_cast<const typename T::cache_partition_type*>(object),
-        &element);
-      DBUG_ASSERT(element == nullptr);
-#endif
-
-      m_uncached_objects.push_back(object);
     }
 
 
@@ -233,6 +208,7 @@ public:
 
 
 private:
+  std::vector<Dictionary_object*> m_uncached_objects; // Objects to be deleted.
   Object_registry m_registry_committed;   // Registry of committed objects.
   Object_registry m_registry_uncommitted; // Registry of uncommitted objects.
   THD *m_thd;                             // Thread context, needed for cache misses.
@@ -338,6 +314,76 @@ private:
 
   size_t release(Object_registry *registry);
 
+  /**
+    Register an uncached object to be auto deleted.
+
+    @tparam T       Dictionary object type.
+    @param  object  Dictionary object to auto delete.
+  */
+
+  template <typename T>
+  void auto_delete(Dictionary_object *object)
+  {
+#ifndef DBUG_OFF
+    // Make sure we do not sign up a shared object for auto delete.
+    Cache_element<typename T::cache_partition_type> *element= nullptr;
+    m_registry_committed.get(
+      static_cast<const typename T::cache_partition_type*>(object),
+      &element);
+    DBUG_ASSERT(element == nullptr);
+
+    // Make sure we do not sign up an uncommitted object for auto delete.
+    m_registry_uncommitted.get(
+      static_cast<const typename T::cache_partition_type*>(object),
+      &element);
+    DBUG_ASSERT(element == nullptr);
+#endif
+
+    m_uncached_objects.push_back(object);
+  }
+
+
+  /**
+    Remove an object from the auto delete vector.
+
+    @tparam T       Dictionary object type.
+    @param  object  Dictionary object to keep.
+  */
+
+  template <typename T>
+  void no_auto_delete(Dictionary_object *object)
+  {
+#ifndef DBUG_OFF
+    // Make sure the object has been registered as uncommitted.
+    Cache_element<typename T::cache_partition_type> *element= nullptr;
+    m_registry_uncommitted.get(
+      static_cast<const typename T::cache_partition_type*>(object),
+      &element);
+    DBUG_ASSERT(element != nullptr);
+#endif
+    m_uncached_objects.erase(std::remove(m_uncached_objects.begin(),
+                                          m_uncached_objects.end(),
+                                          object),
+                             m_uncached_objects.end());
+  }
+
+
+  /**
+    Transfer object ownership from caller to Dictionary_client.
+
+    This is intended for objects created by the caller that should
+    be managed by Dictionary_client. Transferring an object in this
+    way will make it accessible by calling acquire().
+
+    This method takes a non-const argument as it only makes
+    sense to register objects not acquired from the shared cache.
+
+    @tparam          T          Dictionary object type.
+    @param           object     Object to transfer ownership.
+  */
+
+  template <typename T>
+  void register_uncommitted_object(T* object);
 public:
 
 
@@ -384,7 +430,7 @@ public:
   /**
     Retrieve an object by its object id without caching it.
 
-    The object is not cached but owned by the current auto releaser who
+    The object is not cached but owned by the dictionary client, who
     makes sure it is deleted. The object must not be released, and may not
     be used as a parameter to the other dictionary client methods since it is
     not known by the object registry.
@@ -399,6 +445,33 @@ public:
 
   template <typename T>
   bool acquire_uncached(Object_id id, T** object);
+
+
+  /**
+    Retrieve a possibly uncommitted object by its object id without caching it.
+
+    The object is not cached but owned by the dictionary client, who
+    makes sure it is deleted. The object must not be released, and may not
+    be used as a parameter to the other dictionary client methods since it is
+    not known by the object registry.
+
+    When the object is read from the persistent tables, the transaction
+    isolation level is READ UNCOMMITTED. This is necessary to be able to
+    read uncommitted data from an earlier stage of the same session.
+
+    @note This is needed when acquiring tablespace objects during execution
+          of ALTER TABLE.
+
+    @tparam       T       Dictionary object type.
+    @param        id      Object id to retrieve.
+    @param [out]  object  Dictionary object, if present; otherwise nullptr.
+
+    @retval       false   No error.
+    @retval       true    Error (from reading the dictionary tables).
+   */
+
+  template <typename T>
+  bool acquire_uncached_uncommitted(Object_id id, T** object);
 
 
   /**
@@ -488,34 +561,6 @@ public:
   bool acquire_for_modification(const String_type &schema_name,
                                 const String_type &object_name,
                                 T** object);
-
-
-/**
-    Retrieve a possibly uncommitted object by its object id without caching it.
-
-    The object is not cached, hence, it is owned by the caller, who must
-    make sure it is deleted. The object must not be released, and may not
-    be used as a parameter to most of the other dictionary client methods
-    since it is not known by the object registry.
-
-    When the object is read from the persistent tables, the transaction
-    isolation level is READ UNCOMMITTED. This is necessary to be able to
-    read uncommitted data from an earlier stage of the same session.
-
-    @note This is needed when acquiring tablespace objects during execution
-          of ALTER TABLE.
-
-    @tparam       T       Dictionary object type.
-    @param        id      Object id to retrieve.
-    @param [out]  object  Dictionary object, if present; otherwise NULL.
-
-    @retval       false   No error.
-    @retval       true    Error (from reading the dictionary tables).
-   */
-
-  template <typename T>
-  bool acquire_uncached_uncommitted(Object_id id, T** object);
-
 
   /**
     Retrieve an object by its schema- and object name.
@@ -807,6 +852,13 @@ public:
           shared cache. For storing an object which is already in the cache,
           please use update().
 
+    @note After calling store(), the submitted dictionary object can not be
+          used for further calls to store(). It might be used as an argument
+          to update(), but this is not recommended since calling update()
+          will imply transferring object ownership to the dictionary client.
+          Instead, please call 'acquire_for_modification()' to get a new
+          object instance to use for modification and further updates.
+
     @tparam T       Dictionary object type.
     @param  object  Object to be stored.
 
@@ -823,22 +875,19 @@ public:
 
     This function will store a dictionary object to the DD tables after
     verifying that an object with the same id already exists. The old object,
-    which is present in the shared dictionary cache, is not modified. To make
-    the changes visible in the shared cache, please call
+    which may be present in the shared dictionary cache, is not modified. To
+    make the changes visible in the shared cache, please call
     remove_uncommuitted_objects().
 
     @note A precondition is that the object has been acquired from the
           shared cache indirectly by acquire_for_modification(). For storing
-          an object which is not in the cache, please use store().
+          an object which is not already in the cache, please use store().
 
     @note The new_object pointer submitted to this function, is owned by the
-          caller, who must delete the object explicitly.
-
-    @todo Remove the old_object pointer, and get the old object from the
-          registry of committed objects in the implementation of the function.
+          auto delete vector. When registering the new object as an uncommitted
+          object, the object must be removed from the auto delete vector.
 
     @tparam          T          Dictionary object type.
-    @param           old_object Old object, present in the cache.
     @param           new_object New object, not present in the cache, to be
                                 stored persistently.
 
@@ -847,30 +896,7 @@ public:
   */
 
   template <typename T>
-  bool update(const T** old_object, T* new_object);
-
-
-  /**
-    Transfer object ownership from caller to Dictionary_client.
-
-    This is intended for objects created by the caller that should
-    be managed by Dictionary_client. Transfering an object in this
-    way will make it accessible by calling acquire().
-
-    acquire_for_modification() calls this function to register
-    the object created.
-
-    This method takes a non-const argument as it only makes
-    sense to register objects not acquired from the shared cache.
-
-    @tparam          T          Dictionary object type.
-    @param           object     Object to transfer ownership.
-
-    @retval          false      The operation was successful.
-    @retval          true       There was an error.
-  */
-  template <typename T>
-  bool register_uncommitted_object(T* object);
+  bool update(T* new_object);
 
 
   /**
@@ -897,23 +923,6 @@ public:
   void remove_uncommitted_objects(bool commit_to_shared_cache);
 
 
-  /**
-    Notify the Dictionary_client that the object has been renamed.
-
-    Calling this method is required in order to be able to find
-    the object again later using acquire() or acquire_for_modification().
-
-    This method should only be called on objects first acquired by
-    acquire_for_modification() or registered with
-    register_uncommitted_object(). It therefore takes a non-const
-    object as argument.
-
-    @tparam          T          Dictionary object type.
-    @param           object     Object that has been renamed.
-  */
-
-  template <typename T>
-  void object_renamed(T* object);
 
 
   /**

@@ -63,7 +63,7 @@ Binlog_sender::Binlog_sender(THD *thd, const char *start_file,
                              my_off_t start_pos,
                              Gtid_set *exclude_gtids, uint32 flag)
   : m_thd(thd),
-    m_packet(*thd->get_protocol_classic()->get_packet()),
+    m_packet(*thd->get_protocol_classic()->get_output_packet()),
     m_start_file(start_file),
     m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
     m_using_gtid_protocol(exclude_gtids != NULL),
@@ -419,7 +419,7 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
                     {
                       if (event_type == binary_log::XID_EVENT)
                       {
-                        thd->get_protocol_classic()->flush_net();
+                        thd->get_protocol()->flush();
                         const char act[]=
                           "now "
                           "wait_for signal.continue";
@@ -1160,7 +1160,7 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos)
 inline int Binlog_sender::flush_net()
 {
   if (DBUG_EVALUATE_IF("simulate_flush_error", 1,
-      m_thd->get_protocol_classic()->flush_net()))
+      m_thd->get_protocol()->flush()))
   {
     set_unknow_error("failed on flush_net()");
     return 1;

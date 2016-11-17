@@ -105,6 +105,15 @@ public:
   virtual void set_definition(const String_type &definition) = 0;
   virtual bool is_projected() const = 0;
   virtual bool is_cartesian() const = 0;
+  virtual bool is_geographic() const = 0;
+
+  /**
+    Check whether an SRS has latitude-longitude axis ordering.
+    
+    @retval true the axis order is latitude-longitude
+    @retval false the SRS is not geographic, or is geographic longitude-latitude
+  */
+  virtual bool is_lat_long() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // description

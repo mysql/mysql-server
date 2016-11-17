@@ -973,8 +973,6 @@ char mysql_unpacked_real_data_home[FN_REFLEN];
 size_t mysql_unpacked_real_data_home_len;
 size_t mysql_real_data_home_len, mysql_data_home_len= 1;
 uint reg_ext_length;
-const Key_map key_map_empty(0);
-Key_map key_map_full(0);                        // Will be initialized later
 char logname_path[FN_REFLEN];
 char slow_logname_path[FN_REFLEN];
 char secure_file_real_path[FN_REFLEN];
@@ -7758,7 +7756,6 @@ static int mysql_init_variables(void)
 #if defined(ENABLED_DEBUG_SYNC)
   opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-  key_map_full.set_all();
   server_uuid[0]= 0;
 
   /* Character sets */

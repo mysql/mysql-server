@@ -68,7 +68,7 @@ public:
   /**
    The protocol version number.
    */
-  static const int VERSION;
+  static const int GCS_PROTO_VERSION;
 
   /**
    The protocol version number.
@@ -162,7 +162,7 @@ private:
 
 public:
   explicit Gcs_internal_message_header()
-  : m_version(VERSION),
+  : m_version(GCS_PROTO_VERSION),
     m_fixed_header_len(WIRE_FIXED_HEADER_SIZE),
     m_msg_len(WIRE_FIXED_HEADER_SIZE),
     m_dynamic_headers_len(0),
@@ -170,7 +170,7 @@ public:
   { }
 
   explicit Gcs_internal_message_header(enum_cargo_type cargo_type)
-  : m_version(VERSION),
+  : m_version(GCS_PROTO_VERSION),
     m_fixed_header_len(WIRE_FIXED_HEADER_SIZE),
     m_msg_len(WIRE_FIXED_HEADER_SIZE),
     m_dynamic_headers_len(0),

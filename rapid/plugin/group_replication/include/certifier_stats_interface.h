@@ -13,14 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef CERTIFIER_INTERFACE
-#define CERTIFIER_INTERFACE
+#ifndef CERTIFIER_STATS_INTERFACE_INCLUDE
+#define CERTIFIER_STATS_INTERFACE_INCLUDE
 
 #include <mysql/group_replication_priv.h>
 
 class Certifier_stats
 {
 public:
+  virtual ~Certifier_stats() {}
   virtual ulonglong get_positive_certified()= 0;
   virtual ulonglong get_negative_certified()= 0;
   virtual ulonglong get_certification_info_size()= 0;
@@ -28,4 +29,4 @@ public:
   virtual void get_last_conflict_free_transaction(std::string* value)= 0;
 };
 
-#endif
+#endif /* CERTIFIER_STATS_INTERFACE_INCLUDE */

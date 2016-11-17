@@ -70,6 +70,7 @@ DROP TEMPORARY TABLE t1;
 
 
 DROP DATABASE test1;
+<<<<<<< HEAD
 
 
 --echo #
@@ -120,3 +121,5 @@ SELECT CAN_ACCESS_COLUMN(NULL, NULL, NULL, NULL);
 
 SELECT GET_DD_CREATE_OPTIONS(NULL, NULL);
 
+=======
+>>>>>>> mysql-trunk-wl7743-wip-3

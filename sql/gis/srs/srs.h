@@ -107,6 +107,15 @@ public:
     @return A new Spatial_reference_system object
   */
   virtual Spatial_reference_system *clone() = 0;
+
+  /**
+    Retrieve the axis direction of the spatial
+    reference system.
+
+    @param axis axis number, zero indexed
+    @return Axis direction
+  */
+  virtual Axis_direction axis_direction(const int axis) const= 0;
 };
 
 
@@ -190,6 +199,12 @@ public:
 
     return m_axes[0] != Axis_direction::UNSPECIFIED;
   }
+
+  Axis_direction axis_direction(const int axis) const override
+  {
+    DBUG_ASSERT(axis >= 0 && axis <= 1);
+    return m_axes[axis];
+  }
 };
 
 
@@ -235,6 +250,12 @@ public:
     @return Projection type
   */
   virtual Projection_type projection_type()= 0;
+
+  Axis_direction axis_direction(const int axis) const override
+  {
+    DBUG_ASSERT(axis >= 0 && axis <= 1);
+    return m_axes[axis];
+  }
 };
 
 

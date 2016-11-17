@@ -137,7 +137,9 @@ String_type sdi_filename(const dd::Entity_object *eo,
 
   while (i != end && count < dd::sdi_file::FILENAME_PREFIX_CHARS)
   {
-    i += my_mbcharlen(system_charset_info, *i);
+    size_t charlen= my_mbcharlen(system_charset_info, static_cast<uchar>(*i));
+    DBUG_ASSERT(charlen > 0);
+    i += charlen;
     ++count;
   }
 

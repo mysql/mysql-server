@@ -678,7 +678,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
                     plugin_name(mpvio->plugin)->length);
 
   int res= protocol->write((uchar*) buff, (size_t) (end - buff + 1)) ||
-           protocol->flush_net();
+           protocol->flush();
   DBUG_RETURN (res);
 }
 

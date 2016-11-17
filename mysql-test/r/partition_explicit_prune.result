@@ -1223,7 +1223,7 @@ HANDLER_COMMIT <handler_commit_count>
 HANDLER_EXTERNAL_LOCK <handler_external_lock_count>
 HANDLER_READ_FIRST <handler_read_first_count>
 HANDLER_READ_KEY <handler_read_key_count>
-HANDLER_READ_NEXT 9
+HANDLER_READ_NEXT 7
 HANDLER_UPDATE 3
 HANDLER_WRITE 27
 SHOW CREATE TABLE t1;

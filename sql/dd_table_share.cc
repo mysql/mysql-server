@@ -380,7 +380,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
                 keyinfo->flags|= HA_VIRTUAL_GEN_KEY;
 
               setup_key_part_field(share, handler_file, primary_key,
-                             keyinfo, key, i, &usable_parts);
+                                   keyinfo, key, i, &usable_parts, true);
 
               field->flags|= PART_KEY_FLAG;
               if (key == primary_key)

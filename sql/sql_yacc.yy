@@ -14795,6 +14795,7 @@ view_tail:
                                                     MDL_EXCLUSIVE))
               MYSQL_YYABORT;
             lex->query_tables->open_strategy= TABLE_LIST::OPEN_STUB;
+            thd->parsing_system_view= lex->query_tables->is_system_view;
           }
           view_list_opt AS view_select
         ;

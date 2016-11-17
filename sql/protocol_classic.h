@@ -36,7 +36,6 @@ typedef struct st_mysql_field MYSQL_FIELD;
 class Item_param;
 class i_string;
 template <class T> class I_List;
-template <class T> class List;
 
 #ifdef __cplusplus
 class THD;
@@ -63,8 +62,8 @@ protected:
 #endif
   uint field_count;
   uint sending_flags;
-  ulong packet_length;
-  uchar *raw_packet;
+  ulong input_packet_length;
+  uchar *input_raw_packet;
   CHARSET_INFO *result_cs;
 #ifndef EMBEDDED_LIBRARY
   bool net_store_data(const uchar *from, size_t length);
@@ -90,13 +89,15 @@ protected:
 
   virtual bool send_error(uint sql_errno, const char *err_msg,
                           const char *sql_state);
+  virtual bool store_ps_status(ulong stmt_id, uint column_count,
+                               uint param_count, ulong cond_count);
 public:
   bool bad_packet;
   Protocol_classic(): send_metadata(false), bad_packet(true) {}
   Protocol_classic(THD *thd):
         send_metadata(false),
-        packet_length(0),
-        raw_packet(NULL),
+        input_packet_length(0),
+        input_raw_packet(nullptr),
         bad_packet(true)
   {
     init(thd);
@@ -123,7 +124,6 @@ public:
   virtual bool flush();
   virtual void end_partial_result_set();
 
-  virtual bool send_out_parameters(List<Item_param> *sp_params)=0;
   virtual void start_row()=0;
   virtual bool end_row();
   virtual uint get_rw_status();
@@ -160,8 +160,6 @@ public:
   void claim_memory_ownership();
   /* Deinitialize NET */
   void end_net();
-  /* Flush NET buffer */
-  bool flush_net();
   /* Write data to NET buffer */
   bool write(const uchar *ptr, size_t len);
   /* Return last error from NET */
@@ -207,15 +205,15 @@ public:
   /* Set VIO */
   void set_vio(Vio *vio);
   /* Set packet number */
-  void set_pkt_nr(uint pkt_nr);
+  void set_output_pkt_nr(uint pkt_nr);
   /* Return packet number */
-  uint get_pkt_nr();
+  uint get_output_pkt_nr();
   /* Return packet string */
-  String *get_packet();
+  String *get_output_packet();
   /* return packet length */
-  uint get_packet_length() { return packet_length; }
+  uint get_packet_length() { return input_packet_length; }
   /* Return raw packet buffer */
-  uchar *get_raw_packet() { return raw_packet; }
+  uchar *get_raw_packet() { return input_raw_packet; }
   /* Set read timeout */
   virtual void set_read_timeout(ulong read_timeout);
   /* Set write timeout */
@@ -245,8 +243,9 @@ public:
   virtual bool store_time(MYSQL_TIME *time, uint precision);
   virtual bool store(Proto_field *field);
   virtual void start_row();
+  virtual bool send_parameters(List<Item_param> *parameters,
+                               bool is_sql_prepare);
 
-  virtual bool send_out_parameters(List<Item_param> *sp_params);
 #ifdef EMBEDDED_LIBRARY
   virtual void abort_row();
 #endif
@@ -288,9 +287,10 @@ public:
   virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs)
   { return store(from, length, cs, result_cs); }
 
-  virtual bool send_out_parameters(List<Item_param> *sp_params);
   virtual bool start_result_metadata(uint num_cols, uint flags,
                                      const CHARSET_INFO *resultcs);
+  virtual bool send_parameters(List<Item_param> *parameters,
+                               bool is_sql_prepare);
 
   virtual enum enum_protocol_type type() { return PROTOCOL_BINARY; };
 protected:

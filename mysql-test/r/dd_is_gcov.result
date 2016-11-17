@@ -95,6 +95,7 @@ t1	1	h_index	1	c	A	NULL	NULL	NULL	YES	BTREE			YES
 t1	1	r_index	1	a	A	NULL	NULL	NULL		BTREE			YES
 DROP TEMPORARY TABLE t1;
 DROP DATABASE test1;
+<<<<<<< HEAD
 #
 # C) Test all UDF's with NULL arguments.
 #
@@ -164,3 +165,5 @@ NULL
 SELECT GET_DD_CREATE_OPTIONS(NULL, NULL);
 GET_DD_CREATE_OPTIONS(NULL, NULL)
 
+=======
+>>>>>>> mysql-trunk-wl7743-wip-3

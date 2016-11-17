@@ -73,6 +73,14 @@ static const char FIELD_NAME_SEPARATOR_CHAR = ';';
   @param commit_dd_changes  Indicates whether changes to DD need to be
                             committed.
 
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
   @returns Uncached dd::Table object for table created (nullptr in
            case of failure).
 */
@@ -106,6 +114,14 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
   @param file               handler instance for the table.
   @param commit_dd_changes  Indicates whether changes to DD need to be
                             committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
 
   @returns Uncached dd::Table object for table created (nullptr in
            case of failure).
@@ -163,6 +179,14 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
   @param trg_info       Array of triggers to be added to the table.
   @param commit_dd_changes  Indicates whether change should be committed.
 
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
   @retval false on success
   @retval true on failure
 */
@@ -185,6 +209,14 @@ bool add_foreign_keys_and_triggers(THD *thd,
   @param table_name         Name of the table to be removed.
   @param commit_dd_changes  Indicates whether change needs to be committed.
 
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
   @retval false on success
   @retval true on failure
 */
@@ -202,6 +234,14 @@ bool drop_table(THD *thd,
   @param name               Name of the table to be removed.
   @param table_def          dd::Table object for the table to be removed.
   @param commit_dd_changes  Indicates whether change needs to be committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
 
   @retval false on success
   @retval true on failure
@@ -253,6 +293,14 @@ bool table_exists(dd::cache::Dictionary_client *client,
   @param  commit_dd_changes    Indicates whether change to the data
                                dictionary needs to be committed.
 
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
   @retval      true         Failure (error has been reported).
   @retval      false        Success.
 */
@@ -269,20 +317,23 @@ bool rename_table(THD *thd,
   Rename a table in the data-dictionary.
 
   @param  thd                  The dictionary client.
-  @param  from_sch             dd::Schema for table before rename.
-  @param  from_table_def       dd::Table for table before rename.
-  @param  to_sch               dd::Schema for table after rename.
   @param  to_table_def         dd::Table for table after rename.
   @param  mark_as_hidden       Mark the new table as hidden, if true.
   @param  commit_dd_changes    Indicates whether change to the data
                                dictionary needs to be committed.
 
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
   @retval      true         Failure (error has been reported).
   @retval      false        Success.
 */
-bool rename_table(THD *thd,
-                  const dd::Schema *from_sch, const dd::Table *from_table_def,
-                  const dd::Schema *to_sch, dd::Table *to_table_def,
+bool rename_table(THD *thd, dd::Table *to_table_def,
                   bool mark_as_hidden, bool commit_dd_changes);
 
 
@@ -422,6 +473,14 @@ bool recreate_table(THD *thd, const char *schema_name,
   @param[in]    commit_dd_changes   Indicates whether change to the data
                                     dictionary needs to be committed.
 
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
   @retval       false       Success
   @retval       true        Error
 */
@@ -496,6 +555,14 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type);
   Triggers from from_schema_name.from_table_name will be moved
   into to_schema_name.to_table_name. And the transaction will be
   committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
 
   @retval       false       Success
   @retval       true        Error

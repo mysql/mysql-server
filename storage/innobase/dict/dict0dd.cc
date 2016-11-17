@@ -742,7 +742,7 @@ dd_table_set_discard_flag(
 			}
 			new_dd_table->table().options().set_bool("discard",
 								 discard);
-			client->update(&dd_table, new_dd_table);
+			client->update(new_dd_table);
 			ret = true;
 		} else {
 			ret = false;
@@ -876,7 +876,6 @@ dd_tablespace_update_for_rename(
 	const char*		new_path)
 {
 	dd::Tablespace*		dd_space = nullptr;
-	const dd::Tablespace*	old_space = nullptr;
 	dd::Tablespace*		new_space = nullptr;
 	bool			ret = false;
 	THD*			thd = current_thd;
@@ -906,13 +905,6 @@ dd_tablespace_update_for_rename(
 		ut_a(false);
 	}
 
-	/* Update the new path to dd tablespace */
-	/* Acquire the old dd tablespace */
-	if (client->acquire<dd::Tablespace>(
-			dd_space_id, &old_space)) {
-		ut_a(false);
-	}
-
 	/* Acquire the new dd tablespace for modification */
 	if (client->acquire_for_modification<dd::Tablespace>(
 			dd_space_id, &new_space)) {
@@ -923,7 +915,7 @@ dd_tablespace_update_for_rename(
 	dd::Tablespace_file*	dd_file = const_cast<
 		dd::Tablespace_file*>(*(new_space->files().begin()));
 	dd_file->set_filename(new_path);
-	bool fail = client->update(&old_space, new_space);
+	bool fail = client->update(new_space);
 	ut_a(!fail);
 
 	DBUG_RETURN(ret);

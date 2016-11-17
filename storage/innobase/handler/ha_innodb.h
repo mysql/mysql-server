@@ -98,8 +98,6 @@ public:
 
 	uint max_supported_key_part_length() const;
 
-	const Key_map* keys_to_use_for_scanning();
-
 	int open(const char *name, int, uint, const dd::Table *table_def);
 
 	/** Opens dictionary table object using table name. For partition, we need to

@@ -32,22 +32,22 @@ protected:
   String tmp_value, pxml;
   Item *nodeset_func;
 public:
-  Item_xml_str_func(const POS &pos, Item *a, Item *b): 
-    Item_str_func(pos, a,b) 
+  Item_xml_str_func(const POS &pos, Item *a, Item *b):
+    Item_str_func(pos, a,b)
   {
     maybe_null= TRUE;
   }
-  Item_xml_str_func(const POS &pos, Item *a, Item *b, Item *c): 
-    Item_str_func(pos, a,b,c) 
+  Item_xml_str_func(const POS &pos, Item *a, Item *b, Item *c):
+    Item_str_func(pos, a,b,c)
   {
     maybe_null= TRUE;
   }
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type(THD *thd) override;
   String *parse_xml(String *raw_xml, String *parsed_xml_buf);
-  bool check_gcol_func_processor(uchar *int_arg) { return false; }
+  bool check_gcol_func_processor(uchar *) override { return false; }
 
 protected:
-  /** 
+  /**
     Parse the specified XPATH expression and initialize @c nodeset_func.
 
     @note This is normally called in resolve phase since we only support
@@ -62,28 +62,27 @@ protected:
 };
 
 
-class Item_func_xml_extractvalue: public Item_xml_str_func
+class Item_func_xml_extractvalue final : public Item_xml_str_func
 {
 public:
   Item_func_xml_extractvalue(const POS &pos, Item *a, Item *b)
     :Item_xml_str_func(pos, a, b)
   {}
-  const char *func_name() const { return "extractvalue"; }
-  String *val_str(String *);
+  const char *func_name() const override { return "extractvalue"; }
+  String *val_str(String *) override;
 };
 
 
-class Item_func_xml_update: public Item_xml_str_func
+class Item_func_xml_update final : public Item_xml_str_func
 {
   String tmp_value2, tmp_value3;
 public:
   Item_func_xml_update(const POS &pos, Item *a, Item *b, Item *c)
     :Item_xml_str_func(pos, a, b, c)
   {}
-  const char *func_name() const { return "updatexml"; }
-  String *val_str(String *);
-  bool check_gcol_func_processor(uchar *int_arg)
-  { return true; }
+  const char *func_name() const override { return "updatexml"; }
+  String *val_str(String *) override;
+  bool check_gcol_func_processor(uchar *) override { return true; }
 };
 
 #endif /* ITEM_XMLFUNC_INCLUDED */

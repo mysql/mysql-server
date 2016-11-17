@@ -271,19 +271,15 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  const dd::Table *old_non_tmp_table_def= nullptr;
   dd::Table *non_tmp_table_def= nullptr;
 
   if (!is_tmp_table)
   {
-    if (thd->dd_client()->acquire<dd::Table>(table_ref->db,
-                                             table_ref->table_name,
-                                             &old_non_tmp_table_def) ||
-        thd->dd_client()->acquire_for_modification<dd::Table>(table_ref->db,
+    if (thd->dd_client()->acquire_for_modification<dd::Table>(table_ref->db,
                             table_ref->table_name, &non_tmp_table_def))
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
-    if (!old_non_tmp_table_def || !non_tmp_table_def)
+    if (!non_tmp_table_def)
     {
       /* Impossible since table was successfully opened above. */
       DBUG_ASSERT(0);
@@ -315,8 +311,7 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
   else if (!is_tmp_table &&
            (table_ref->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL))
   {
-    if (thd->dd_client()->update<dd::Table>(&old_non_tmp_table_def,
-                                            non_tmp_table_def))
+    if (thd->dd_client()->update<dd::Table>(non_tmp_table_def))
     {
       /* Statement rollback will revert effect of handler::truncate() as well. */
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
@@ -566,10 +561,17 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       }
 #endif /* !EMBEDDED_LIBRARY */
 
-     /*
+      /*
         The storage engine can truncate the table by creating an
         empty table with the same structure.
+
+        Such engines are not supposed to support atomic DDL, if it is
+        the below code needs to be adjusted to reopen tables only after
+        statement commit or rollback, and to write statement to the
+        binlog transaction cache.
       */
+      DBUG_ASSERT(!(hton->flags & HTON_SUPPORTS_ATOMIC_DDL));
+
       error= dd::recreate_table(thd, table_ref->db, table_ref->table_name);
 
       if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
@@ -577,7 +579,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
       /* No need to binlog a failed truncate-by-recreate. */
       binlog_stmt= !error;
-      binlog_is_trans= (hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
+      binlog_is_trans= false;
     }
     else
     {
@@ -628,6 +630,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
   if (error)
     trans_rollback_stmt(thd);
+  // QQ: Should we also rollback txn for consistency here?
 
   if (!is_temporary &&
       (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&

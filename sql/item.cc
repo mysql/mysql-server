@@ -1993,14 +1993,14 @@ public:
     depended_from= depended_from_arg;
   }
 
-  virtual inline void print (String *str, enum_query_type query_type)
+  void print(String *str, enum_query_type query_type) override
   {
     if (ref)
       (*ref)->print(str, query_type);
     else
       Item_ident::print(str, query_type);
   }
-  virtual Ref_Type ref_type() const { return AGGREGATE_REF; }
+  Ref_Type ref_type() const override { return AGGREGATE_REF; }
 };
 
 
@@ -3553,7 +3553,7 @@ default_set_param_func(Item_param *param,
                        uchar **pos MY_ATTRIBUTE((unused)),
                        ulong len MY_ATTRIBUTE((unused)))
 {
-  param->set_null();
+  param->state= Item_param::NO_VALUE;
 }
 
 
@@ -4423,8 +4423,7 @@ Item_param::set_out_param_info(Send_field *info)
   m_out_param_info is used to store information about store routine
   OUT-parameters, such as stored routine name, database, stored routine
   variable name. It is supposed to be retrieved in
-  Protocol_binary::send_out_parameters() during creation of OUT-parameter
-  result set.
+  Protocol::send_parameters() during creation of OUT-parameter result set.
 */
 
 const Send_field *
@@ -6085,8 +6084,7 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
 
   See comments in Arg_comparator::set_compare_func() for details.
 */
-
-bool Item_field::set_no_const_sub(uchar *arg)
+bool Item_field::set_no_const_sub(uchar *)
 {
   if (field->charset() != &my_charset_bin)
     no_const_subst=1;
@@ -7255,7 +7253,7 @@ void Item_bin_string::bin_string_init(const char *str, size_t str_length)
 
 
 /// A class that represents a constant JSON value.
-class Item_json : public Item_basic_constant
+class Item_json final : public Item_basic_constant
 {
   Json_wrapper m_value;
 public:
@@ -7266,8 +7264,8 @@ public:
     item_name= name;
     collation.set(coll);
   }
-  enum Type type() const { return STRING_ITEM; }
-  enum_field_types field_type() const { return MYSQL_TYPE_JSON; }
+  enum Type type() const override { return STRING_ITEM; }
+  enum_field_types field_type() const override { return MYSQL_TYPE_JSON; }
 
   /*
     The functions below don't get called currently, because Item_json
@@ -7281,40 +7279,40 @@ public:
   */
 
   /* purecov: begin inspected */
-  enum Item_result result_type () const { return STRING_RESULT; }
-  bool val_json(Json_wrapper *result)
+  Item_result result_type() const override { return STRING_RESULT; }
+  bool val_json(Json_wrapper *result) override
   {
     *result= m_value;
     return false;
   }
-  double val_real()
+  double val_real() override
   {
     return m_value.coerce_real(item_name.ptr());
   }
-  longlong val_int()
+  longlong val_int() override
   {
     return m_value.coerce_int(item_name.ptr());
   }
-  String *val_str(String *str)
+  String *val_str(String *str) override
   {
     str->length(0);
     if (m_value.to_string(str, true, item_name.ptr()))
       return error_str();
     return str;
   }
-  my_decimal *val_decimal(my_decimal *buf)
+  my_decimal *val_decimal(my_decimal *buf) override
   {
     return m_value.coerce_decimal(buf, item_name.ptr());
   }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return m_value.coerce_date(ltime, item_name.ptr());
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return m_value.coerce_time(ltime, item_name.ptr());
   }
-  Item *clone_item() const
+  Item *clone_item() const override
   {
     Json_wrapper wr(m_value.clone_dom(current_thd));
     return new Item_json(&wr, item_name, collation);
@@ -9094,7 +9092,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
 }
 
 
-void Item_trigger_field::print(String *str, enum_query_type query_type)
+void Item_trigger_field::print(String *str, enum_query_type)
 {
   str->append((trigger_var_type == TRG_NEW_ROW) ? "NEW" : "OLD", 3);
   str->append('.');

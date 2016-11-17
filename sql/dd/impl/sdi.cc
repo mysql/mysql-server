@@ -528,7 +528,8 @@ bool equal_prefix_chars(CHAR_IT &&begin1, CHAR_IT &&end1,
     }
     if (rem_bytes == 0)
     {
-      rem_bytes= my_mbcharlen(csi, *begin1);
+      rem_bytes= my_mbcharlen(csi, static_cast<uchar>(*begin1));
+      DBUG_ASSERT(rem_bytes > 0);
     }
     --rem_bytes;
 
@@ -783,6 +784,11 @@ void setup_rctx(dcb fp, dd::Weak_object *wo, dd::RJ_Document &doc)
 {
   dd::Sdi_rcontext rctx(nullptr, 0, 0); // restore ids for comparison
   fp(&rctx, wo, doc);
+}
+
+bool equal_prefix_chars_driver(const dd::String_type &a, const dd::String_type &b, size_t prefix)
+{
+  return dd::equal_prefix_chars(a.begin(), a.end(), b.begin(), b.end(), prefix);
 }
 } // namespace sdi_unittest
 

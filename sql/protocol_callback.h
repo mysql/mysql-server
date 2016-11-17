@@ -31,6 +31,7 @@
 #include "my_global.h"
 #include "mysql/service_command.h"
 #include "protocol.h"
+#include "sql_list.h"               // List
 #include "thr_malloc.h"
 #include "violite.h"
 
@@ -399,6 +400,13 @@ public:
   */
   virtual bool send_error(uint sql_errno, const char *err_msg,
                           const char *sql_state);
+
+  virtual bool store_ps_status(ulong stmt_id, uint column_count,
+                               uint param_count, ulong cond_count);
+
+  virtual bool send_parameters(List <Item_param> *parameters,
+                               bool is_sql_prepare);
+  virtual bool flush();
 
 private:
   void *callbacks_ctx;

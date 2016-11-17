@@ -798,13 +798,13 @@ create table t2 (a int);
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
-  --replace_regex /(call p_verify_status_increment.*)6(.*6)/\1<commit_count>\2/
-  call p_verify_status_increment(6, 0, 6, 0);
+  --replace_regex /(call p_verify_status_increment.*)5(.*6)/\1<commit_count>\2/
+  call p_verify_status_increment(5, 0, 6, 0);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /(call p_verify_status_increment.*)7(.*6)/\1<commit_count>\2/
-  call p_verify_status_increment(7, 0, 6, 0);
+  --replace_regex /(call p_verify_status_increment.*)6(.*6)/\1<commit_count>\2/
+  call p_verify_status_increment(6, 0, 6, 0);
 }
 --echo # One extra transaction to load table 't2' into data-dictionary cache.
 do (select f1() from t1 where a=2);
@@ -858,16 +858,16 @@ create table t3 select a from t2;
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
- --replace_regex /8/<commit_count>/
-  call p_verify_status_increment(8, 0, 4, 4);
+ --replace_regex /7/<commit_count>/
+  call p_verify_status_increment(7, 0, 4, 4);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /9/<commit_count>/
-  call p_verify_status_increment(9, 0, 4, 4);
+  --replace_regex /8/<commit_count>/
+  call p_verify_status_increment(8, 0, 4, 4);
 }
 alter table t3 add column (b int);
-call p_verify_status_increment(5, 0, 2, 0);
+call p_verify_status_increment(4, 0, 2, 0);
 alter table t3 rename t4;
 call p_verify_status_increment(5, 0, 3, 0);
 rename table t4 to t3;

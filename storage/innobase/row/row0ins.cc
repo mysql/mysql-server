@@ -1575,6 +1575,10 @@ row_ins_check_foreign_constraint(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 
+	bool		skip_gap_lock;
+
+	skip_gap_lock = (trx->isolation_level <= TRX_ISO_READ_COMMITTED);
+
 	DBUG_ENTER("row_ins_check_foreign_constraint");
 
 	if (table->id <= 70) {
@@ -1706,6 +1710,11 @@ row_ins_check_foreign_constraint(
 
 		if (page_rec_is_supremum(rec)) {
 
+			if (skip_gap_lock) {
+
+				continue;
+			}
+
 			err = row_ins_set_shared_rec_lock(LOCK_ORDINARY, block,
 							  rec, check_index,
 							  offsets, thr);
@@ -1721,10 +1730,17 @@ row_ins_check_foreign_constraint(
 		cmp = cmp_dtuple_rec(entry, rec, offsets);
 
 		if (cmp == 0) {
+
+			ulint	lock_type;
+
+			lock_type = skip_gap_lock
+				? LOCK_REC_NOT_GAP
+				: LOCK_ORDINARY;
+
 			if (rec_get_deleted_flag(rec,
 						 rec_offs_comp(offsets))) {
 				err = row_ins_set_shared_rec_lock(
-					LOCK_ORDINARY, block,
+					lock_type, block,
 					rec, check_index, offsets, thr);
 				switch (err) {
 				case DB_SUCCESS_LOCKED_REC:
@@ -1798,9 +1814,13 @@ row_ins_check_foreign_constraint(
 		} else {
 			ut_a(cmp < 0);
 
-			err = row_ins_set_shared_rec_lock(
-				LOCK_GAP, block,
-				rec, check_index, offsets, thr);
+			err = DB_SUCCESS;
+
+			if (!skip_gap_lock) {
+				err = row_ins_set_shared_rec_lock(
+					LOCK_GAP, block,
+					rec, check_index, offsets, thr);
+			}
 
 			switch (err) {
 			case DB_SUCCESS_LOCKED_REC:

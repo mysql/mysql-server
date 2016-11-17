@@ -6085,17 +6085,6 @@ ha_innobase::max_supported_key_length() const
 }
 
 /****************************************************************//**
-Returns the key map of keys that are usable for scanning.
-@return key_map_full */
-
-const Key_map*
-ha_innobase::keys_to_use_for_scanning()
-/*===================================*/
-{
-	return(&key_map_full);
-}
-
-/****************************************************************//**
 Determines if table caching is supported.
 @return HA_CACHE_TBL_ASKTRANSACT */
 
@@ -8452,8 +8441,8 @@ dd_table_load_fk(
 		/* Fill in foreign->foreign_table and index, then add to
 		dict_table_t */
 		dberr_t	err = dict_foreign_add_to_cache(
-			foreign, NULL, FALSE, DICT_ERR_IGNORE_NONE);	
-		ut_ad(err == DB_SUCCESS);
+			foreign, NULL, FALSE, DICT_ERR_IGNORE_NONE);
+		ut_a(err == DB_SUCCESS);
 		mutex_exit(&dict_sys->mutex);
 
 		/* Set up the FK virtual column info */
@@ -15272,7 +15261,6 @@ create_dd_tablespace(
 	dd_client->store(dd_space.get());
 
 	dd_space_id = dd_space.get()->id();
-	dd_client->register_uncommitted_object(dd_space.release());
 
 	return(false);
 }
@@ -17147,20 +17135,27 @@ ha_innobase::delete_table_impl(
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-		dd::Tablespace*	dd_space;
+		dd::Tablespace*	old_dd_space;
+		const dd::Tablespace*	new_dd_space;
 		if (client->acquire_uncached_uncommitted(
-				dd_space_id, &dd_space)) {
+				dd_space_id, &old_dd_space)) {
 			ut_a(false);
 		}
 
-		ut_a(dd_space != NULL);
+		ut_a(old_dd_space != NULL);
 
 		if (dd::acquire_exclusive_tablespace_mdl(
-			    thd, dd_space->name().c_str(), false)) {
+			    thd, old_dd_space->name().c_str(), false)) {
 			ut_a(false);
 		}
 
-		bool fail = client->drop(dd_space);
+		/* Acquire the new dd tablespace for modification */
+		if (client->acquire<dd::Tablespace>(
+				old_dd_space->name(), &new_dd_space)) {
+			ut_a(false);
+		}
+
+		bool fail = client->drop(new_dd_space);
 		DBUG_EXECUTE_IF("fail_while_dropping_dd_object",
 				fail = false;);
 		ut_a(!fail);

@@ -83,11 +83,6 @@ public:
   */
   ulong index_flags(uint idx, uint part, bool all_parts) const;
 
-  const Key_map *keys_to_use_for_scanning()
-  {
-    return(&key_map_full);
-  }
-
   enum ha_key_alg get_default_index_algorithm() const
   {
     return HA_KEY_ALG_HASH;

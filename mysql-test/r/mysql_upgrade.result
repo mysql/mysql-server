@@ -1159,6 +1159,8 @@ DROP TABLE backup_user;
 #
 # Upgrading of sys schema tests
 #
+CREATE TEMPORARY TABLE tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
+CREATE TEMPORARY TABLE tmp_backup_user AS SELECT * FROM mysql.user;
 # Remove the sys schema, and check the --skip-sys-schema option
 DROP DATABASE sys;
 mysql.columns_priv                                 OK
@@ -1603,6 +1605,12 @@ sys.sys_config                                     OK
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'BASE TABLE';
 TABLE_NAME
 sys_config
+TRUNCATE TABLE mysql.tables_priv;
+INSERT INTO mysql.tables_priv (SELECT * FROM tmp_backup_tables_priv);
+DROP TEMPORARY TABLE tmp_backup_tables_priv;
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user (SELECT * FROM tmp_backup_user);
+DROP TEMPORARY TABLE tmp_backup_user;
 #
 # BUG#18985579: "CHECK TABLE .. FOR UPGRADE" FAILS TO REPORT
 #                OLD DATETIME FORMAT. 

@@ -22,6 +22,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <type_traits>
 
 #include "my_config.h"
 #ifdef HAVE_ARPA_INET_H
@@ -42,6 +43,7 @@
 #define MY_UTF8MB4_GENERAL_CI MY_UTF8MB4 "_general_ci"
 #define MY_UTF8MB4_BIN        MY_UTF8MB4 "_bin"
 
+using std::is_signed;
 
 static inline
 int my_valid_mbcharlen_utf8mb3(const uchar *s, const uchar *e)
@@ -5038,6 +5040,25 @@ my_wildcmp_unicode(const CHARSET_INFO *cs,
                                  escape, w_one, w_many, weights, 1);
 }
 
+namespace {
+
+template <class Pointee, class Offset>
+Pointee *add_with_saturate(Pointee *ptr, Offset offset)
+{
+  static_assert(!is_signed<Pointee>::value, "pointers must be unsigned");
+  static_assert(!is_signed<Offset>::value, "offset must be unsigned");
+
+  Pointee *new_ptr= ptr + offset;
+  if (new_ptr < ptr)
+  {
+    // Value wrapped around; saturate to the maximum value.
+    // Note that numeric_limits<Pointee *> is not necessarily specialized.
+    return reinterpret_cast<Pointee *>(intptr_t(-1));
+  }
+  return new_ptr;
+}
+
+}  // namespace
 
 /**
   Pad buffer with weights for space characters.
@@ -5062,7 +5083,8 @@ static size_t
 my_strxfrm_pad_nweights_unicode(uchar *str, uchar *strend, size_t nweights)
 {
   DBUG_ASSERT(str && str <= strend);
-  strend= std::min(strend, str + nweights * 2);
+  strend= std::min(strend,
+    add_with_saturate(add_with_saturate(str, nweights), nweights));
 
   uchar *str0= str;
   // Write 16 bytes of padding at a time. (Constant-sized memcpy

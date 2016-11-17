@@ -39,12 +39,12 @@ class Item_proc :public Item
 public:
   Item_proc(const char *name_par): Item()
   {
-     this->item_name.set(name_par);
+     item_name.set(name_par);
   }
-  enum Type type() const { return Item::PROC_ITEM; }
-  virtual void set(const char *str, size_t length, const CHARSET_INFO *cs)=0;
-  virtual void set(longlong nr)=0;
-  virtual enum_field_types field_type() const=0;
+  enum Type type() const override { return Item::PROC_ITEM; }
+  virtual void set(const char *str, size_t length, const CHARSET_INFO *cs)= 0;
+  virtual void set(longlong nr)= 0;
+  virtual enum_field_types field_type() const override= 0;
   void set(const char *str) { set(str, strlen(str), default_charset()); }
 };
 
@@ -55,20 +55,21 @@ class Item_proc_int :public Item_proc
 public:
   Item_proc_int(const char *name_par) :Item_proc(name_par)
   { max_length=11; }
-  enum Item_result result_type () const { return INT_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
-  void set(longlong nr) { value=nr; }
-  void set(const char *str, size_t length, const CHARSET_INFO *cs)
+  enum Item_result result_type() const override { return INT_RESULT; }
+  enum_field_types field_type() const override { return MYSQL_TYPE_LONGLONG; }
+  void set(longlong nr) override { value= nr; }
+  void set(const char *str, size_t length, const CHARSET_INFO *cs) override
   { int err; value=my_strntoll(cs,str,length,10,NULL,&err); }
-  double val_real() { return (double) value; }
-  longlong val_int() { return value; }
-  String *val_str(String *s) { s->set(value, default_charset()); return s; }
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  double val_real() override { return (double) value; }
+  longlong val_int() override { return value; }
+  String *val_str(String *s) override
+  { s->set(value, default_charset()); return s; }
+  my_decimal *val_decimal(my_decimal *) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_int(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_int(ltime);
   }
@@ -80,12 +81,12 @@ class Item_proc_string :public Item_proc
 public:
   Item_proc_string(const char *name_par,uint length) :Item_proc(name_par)
     { this->max_length=length; }
-  enum Item_result result_type () const { return STRING_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
-  void set(longlong nr) { str_value.set(nr, default_charset()); }
-  void set(const char *str, size_t length, const CHARSET_INFO *cs)
+  enum Item_result result_type() const override { return STRING_RESULT; }
+  enum_field_types field_type() const override { return MYSQL_TYPE_VARCHAR; }
+  void set(longlong nr) override { str_value.set(nr, default_charset()); }
+  void set(const char *str, size_t length, const CHARSET_INFO *cs) override
   { str_value.copy(str,length,cs); }
-  double val_real()
+  double val_real() override
   {
     int err_not_used;
     char *end_not_used;
@@ -93,25 +94,25 @@ public:
     return my_strntod(cs, (char*) str_value.ptr(), str_value.length(),
 		      &end_not_used, &err_not_used);
   }
-  longlong val_int()
-  { 
+  longlong val_int() override
+  {
     int err;
     const CHARSET_INFO *cs=str_value.charset();
     return my_strntoll(cs,str_value.ptr(),str_value.length(),10,NULL,&err);
   }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
     return get_date_from_string(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_string(ltime);
   }
-  String *val_str(String*)
+  String *val_str(String *) override
   {
-    return null_value ? (String*) 0 : &str_value;
+    return null_value ? (String *) 0 : &str_value;
   }
-  my_decimal *val_decimal(my_decimal *);
+  my_decimal *val_decimal(my_decimal *) override;
 };
 
 /* The procedure class definitions */

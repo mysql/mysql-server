@@ -821,7 +821,7 @@ fil_space_system_check(
 
 /** Check if an undo tablespace was opened during crash recovery.
 Change name to undo_name if already opened during recovery.
-@param[in]	name		tablespace name
+@param[in]	file_name	undo tablespace file name
 @param[in]	undo_name	undo tablespace name
 @param[in]	space_id	undo tablespace id
 @retval DB_SUCCESS		if it was already opened
@@ -829,7 +829,7 @@ Change name to undo_name if already opened during recovery.
 @retval DB_ERROR		if the data is inconsistent */
 dberr_t
 fil_space_undo_check_if_opened(
-	const char*	name,
+	const char*	file_name,
 	const char*	undo_name,
 	space_id_t	space_id)
 	MY_ATTRIBUTE((warn_unused_result));

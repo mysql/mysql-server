@@ -646,22 +646,15 @@ bool Sql_cmd_alter_table_exchange_partition::
   }
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Table *old_part_table_def, *old_swap_table_def;
   dd::Table *part_table_def, *swap_table_def;
 
-  if (thd->dd_client()->acquire<dd::Table>(table_list->db,
-                                           table_list->table_name,
-                                           &old_part_table_def) ||
-      thd->dd_client()->acquire<dd::Table>(swap_table_list->db,
-                                           swap_table_list->table_name,
-                                           &old_swap_table_def) ||
-      thd->dd_client()->acquire_for_modification<dd::Table>(table_list->db,
+  if (thd->dd_client()->acquire_for_modification<dd::Table>(table_list->db,
                           table_list->table_name, &part_table_def) ||
       thd->dd_client()->acquire_for_modification<dd::Table>(swap_table_list->db,
                           swap_table_list->table_name, &swap_table_def))
     DBUG_RETURN(true);
 
-  if (!old_part_table_def || !part_table_def)
+  if (!part_table_def)
   {
     /* Impossible since table was successfully opened above. */
     DBUG_ASSERT(0);
@@ -670,7 +663,7 @@ bool Sql_cmd_alter_table_exchange_partition::
     DBUG_RETURN(true);
   }
 
-  if (!old_swap_table_def || !swap_table_def)
+  if (!swap_table_def)
   {
     /* Impossible since table was successfully opened above. */
     DBUG_ASSERT(0);
@@ -764,6 +757,7 @@ bool Sql_cmd_alter_table_exchange_partition::
             reporting an error. Do this before we downgrade metadata locks.
           */
           (void) trans_rollback_stmt(thd);
+          // QQ Should we rollback txn as well?
           /*
             Call SE post DDL hook. This handles both rollback and commit cases.
           */
@@ -775,9 +769,8 @@ bool Sql_cmd_alter_table_exchange_partition::
       std::unique_ptr<THD, decltype(rollback_post_ddl_reopen_lambda)>
         rollback_post_ddl_reopen_guard(thd, rollback_post_ddl_reopen_lambda);
 
-      if (thd->dd_client()->update(&old_part_table_def, part_table_def) ||
-          thd->dd_client()->update<dd::Table>(&old_swap_table_def,
-                                              swap_table_def) ||
+      if (thd->dd_client()->update(part_table_def) ||
+          thd->dd_client()->update(swap_table_def) ||
           write_bin_log(thd, true, thd->query().str, thd->query().length,
                         true))
       {
@@ -934,17 +927,13 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     DBUG_RETURN(true);
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Table *old_table_def= nullptr;
   dd::Table *table_def= nullptr;
 
-  if (thd->dd_client()->acquire<dd::Table>(first_table->db,
-                                           first_table->table_name,
-                                           &old_table_def) ||
-      thd->dd_client()->acquire_for_modification<dd::Table>(first_table->db,
+  if (thd->dd_client()->acquire_for_modification<dd::Table>(first_table->db,
                           first_table->table_name, &table_def))
     DBUG_RETURN(true);
 
-  if (!old_table_def || !table_def)
+  if (!table_def)
   {
     /* Impossible since table was successfully opened above. */
     DBUG_ASSERT(0);
@@ -986,7 +975,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     */
     if (!error)
     {
-      if (thd->dd_client()->update<dd::Table>(&old_table_def, table_def) ||
+      if (thd->dd_client()->update<dd::Table>(table_def) ||
           write_bin_log(thd, true, thd->query().str, thd->query().length,
                         true))
         error= 1;
@@ -1007,6 +996,17 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
       error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
     }
   }
+
+  if (!error)
+    error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+
+  if (error)
+    trans_rollback_stmt(thd);
+  // QQ: Should we also rollback txn for consistency here?
+
+  if ((first_table->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      first_table->table->file->ht->post_ddl)
+    first_table->table->file->ht->post_ddl(thd);
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the

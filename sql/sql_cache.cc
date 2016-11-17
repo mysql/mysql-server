@@ -1378,7 +1378,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
       thd->server_status & SERVER_MORE_RESULTS_EXISTS;
     query_state.in_trans= thd->in_active_multi_stmt_transaction();
     query_state.autocommit= thd->server_status & SERVER_STATUS_AUTOCOMMIT;
-    query_state.pkt_nr= thd->get_protocol_classic()->get_pkt_nr();
+    query_state.pkt_nr= thd->get_protocol_classic()->get_output_pkt_nr();
     query_state.character_set_client_num=
       thd->variables.character_set_client->number;
     query_state.character_set_results_num=
@@ -1715,7 +1715,7 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
     thd->server_status & SERVER_MORE_RESULTS_EXISTS;
   query_state.in_trans= thd->in_active_multi_stmt_transaction();
   query_state.autocommit= thd->server_status & SERVER_STATUS_AUTOCOMMIT;
-  query_state.pkt_nr= thd->get_protocol_classic()->get_pkt_nr();
+  query_state.pkt_nr= thd->get_protocol_classic()->get_output_pkt_nr();
   query_state.character_set_client_num=
     thd->variables.character_set_client->number;
   query_state.character_set_results_num=
@@ -1955,7 +1955,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       break;                                    // Client aborted
     result_block = result_block->next;
     // Keep packet number updated
-    thd->get_protocol_classic()->set_pkt_nr(query->last_pkt_nr);
+    thd->get_protocol_classic()->set_output_pkt_nr(query->last_pkt_nr);
   } while (result_block != first_result_block);
 #else
   {

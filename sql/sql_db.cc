@@ -234,6 +234,12 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("mysql_create_db");
 
+  // We need a top level auto releaser to make sure the uncommitted objects
+  // are removed. This is done in the auto releaser destructor. When
+  // remove_uncommitted_objects() is called implicitly as part of commit/
+  // rollback, this should not be necessary.
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   // Reject creation of the system schema except for system threads.
   if (!thd->is_dd_system_thread() &&
       dd::get_dictionary()->is_dd_schema_name(db) &&

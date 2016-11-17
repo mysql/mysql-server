@@ -22,6 +22,7 @@
 
 #include "dd/cache/dictionary_client.h"           // dd::cache::Dictionary_...
 #include "dd/dd.h"                                // dd::create_object
+#include "dd/impl/cache/storage_adapter.h"        // Storage_adapter
 #include "dd/impl/raw/object_keys.h"              // Global_name_key
 #include "dd/impl/types/collation_impl.h"         // dd::Collation_impl
 #include "dd/impl/types/object_table_definition_impl.h"
@@ -147,7 +148,7 @@ bool Collations::populate(THD *thd) const
 
           // If the collation exists, it will be updated; otherwise,
           // it will be inserted.
-          error= thd->dd_client()->store(
+          error= cache::Storage_adapter::instance()->store(thd,
                   static_cast<Collation*>(new_collation));
         }
       }
