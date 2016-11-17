@@ -12255,13 +12255,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         We need to clear THD::transaction_rollback_request (which might
         be set due to MDL deadlock) before attempting to remove new version
         of table.
-
-        Note that in order for work-around for atomic case to work
-        it is important to keep uncommitted DD objects in the cache
-        during rollback.
       */
-      trans_rollback_stmt(thd);
-      trans_rollback(thd);
+      if (thd->transaction_rollback_request)
+      {
+        trans_rollback_stmt(thd);
+        trans_rollback(thd);
+      }
 
       if (!atomic_replace)
       {
@@ -12272,7 +12271,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       else
       {
         (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                              alter_ctx.tmp_name, FN_IS_TMP | NO_DD_UPDATE);
+                              alter_ctx.tmp_name, FN_IS_TMP);
       }
 #endif
       goto err_with_mdl;
@@ -12299,15 +12298,15 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     else
     {
       /*
-        We need to clear THD::transaction_rollback_request before attempting
-        to remove new version of table.
-        Note that in order for the workaround to work it is important to keep
-        uncommitted DD objects in the cacheduring rollback.
+        We should not try to remove new version of the table if
+        THD::transaction_rollback_request is set and we can't rollback the
+        transaction before removal, as it will wipe-out information which is
+        needed by InnoDB. To keep things simple we just ignore the problem
+        for now and let the inconsistency to creep in.
       */
-      trans_rollback_stmt(thd);
-      trans_rollback(thd);
-      (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                            alter_ctx.tmp_name, FN_IS_TMP | NO_DD_UPDATE);
+      if (! thd->transaction_rollback_request)
+        (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                              alter_ctx.tmp_name, FN_IS_TMP);
     }
 #endif
     goto err_with_mdl;
@@ -12352,19 +12351,21 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     else
     {
       /*
-        We need to clear THD::transaction_rollback_request before attempting
-        to remove new version of table.
-        Note that in order for the workaround to work it is important to keep
-        uncommitted DD objects in the cacheduring rollback.
+        We should not try to restore status quo ante if
+        THD::transaction_rollback_request is set and we can't rollback the
+        transaction before, as it will wipe-out information which is needed
+        by InnoDB. To keep things simple we just ignore the problem for now
+        and let the inconsistency to creep in.
       */
-      trans_rollback_stmt(thd);
-      trans_rollback(thd);
-      (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                            alter_ctx.tmp_name, FN_IS_TMP | NO_DD_UPDATE);
-      (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
-                                alter_ctx.db, alter_ctx.alias,
-                                FN_FROM_IS_TMP | NO_TARGET_CHECK |
-                                NO_FK_CHECKS | NO_DD_UPDATE);
+      if (! thd->transaction_rollback_request)
+      {
+        (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                              alter_ctx.tmp_name, FN_IS_TMP);
+        (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
+                                  alter_ctx.db, alter_ctx.alias,
+                                  FN_FROM_IS_TMP | NO_TARGET_CHECK |
+                                  NO_FK_CHECKS);
+      }
     }
 #endif
 
@@ -12477,22 +12478,6 @@ err_new_table_cleanup:
     if (new_table)
       close_temporary_table(thd, new_table, true, false);
 
-    /*
-      Play safe. If we have THD::transaction_rollback_request set we
-      won't be able to do cleanup even in case of non-atomic DDL,
-      until transaction is rolled back.
-
-      QQ: Perhaps ignore the problem for non-atomic case? After all
-          transactions are disabled during copying phase for such SEs.
-          And we can't get deadlock as result on DD manipulations for
-          them. Or perhaps rollback only in case of deadlock?
-
-      Note that for the below workaround for atomic case to work it is
-      important to preserve uncommitted DD object in cache during rollback.
-    */
-    trans_rollback_stmt(thd);
-    trans_rollback(thd);
-
     if (!(new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
     {
       if (no_ha_table) // Only remove from DD.
@@ -12505,10 +12490,21 @@ err_new_table_cleanup:
 #ifndef WORKAROUND_UNTIL_WL7016_IS_IMPLEMENTED
     else
     {
-      if (! no_ha_table)
+      /*
+        We should not try to remove new version of the table if
+        THD::transaction_rollback_request is set and we can't rollback the
+        transaction before removal, as it will wipe-out information which is
+        needed by InnoDB. To keep things simple we just ignore the problem
+        for now and let the inconsistency to creep in.
+      */
+      if (! thd->transaction_rollback_request && ! no_ha_table)
         // Remove from both DD and SE.
         (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                              alter_ctx.tmp_name, FN_IS_TMP | NO_DD_UPDATE);
+                              alter_ctx.tmp_name, FN_IS_TMP);
+
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
     }
 #endif
     if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
