@@ -340,7 +340,7 @@ Mysqlx.Crud.Insert {
     }}
   }
 }
--->expecterror 5014
+-->expecterror ER_X_BAD_INSERT_DATA
 -->recvresult
 -->sql
 SELECT * FROM categories_child;
@@ -506,7 +506,7 @@ Mysqlx.Crud.Insert {
     }}
   }
 }
--->expecterror 5115
+-->expecterror ER_X_DOC_ID_MISSING
 -->recvresult
 -->sql
 SELECT * FROM maincollection;
@@ -696,9 +696,9 @@ Mysqlx.Crud.Insert {
     }}
   }
 }
--->expecterror 1142,1205
+-->expecterror ER_TABLEACCESS_DENIED_ERROR,ER_LOCK_WAIT_TIMEOUT
 -->recvresult
--->expecterror 1205
+-->expecterror ER_LOCK_WAIT_TIMEOUT
 -->sql
 SELECT * FROM xplugintest.categories;
 -->endsql
@@ -743,11 +743,12 @@ END_MESSAGE
 
  print OUTPUT "-->sql\n";
  print OUTPUT "USE xplugintest;\n";
- print OUTPUT "CREATE TABLE xplugintest.test_table ( col1 INT );\n";
+ print OUTPUT "CREATE TABLE IF NOT EXISTS xplugintest.test_table ( col1 INT );\n";
 
  print OUTPUT "-->endsql\n";
  for ($i=1001;$i<=1030;$i++) {
     if ($i%5 == 0) {
+       print OUTPUT "-->expecterror ER_SUCCESS,ER_DUP_ENTRY\n";
        print OUTPUT "-->sql\n";
        print OUTPUT "INSERT INTO maincollection(doc) VALUES ('".'{\"name\":\"name_'.$i.'\"'.' , \"_id\":'.$i."}') \n";
        print OUTPUT "-->endsql\n";
@@ -757,6 +758,7 @@ END_MESSAGE
        $find = "insert_json_doc";
        $str =~ s/$find/$replace/g;
        print OUTPUT "$str\n";
+       print OUTPUT "-->expecterror ER_SUCCESS,ER_X_DOC_ID_DUPLICATE\n";
        print OUTPUT "-->recvresult\n";
     }
  }

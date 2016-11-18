@@ -43,7 +43,8 @@ select if(count(*)=0, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and h
 --source ../include/xplugin_install_and_wait.inc
 
 drop user mysqlxsys@localhost;
---error 1
+--let $expected_error_msg= Unable to switch context to user mysqlxsys \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
 
 --echo Uninstall plugin with our account gone (see if cleanup works ok)
@@ -94,7 +95,8 @@ select if(count(*)=1, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and h
 
 alter user mysqlxsys@localhost password expire;
 
---error 1
+--let $expected_error_msg= Password for mysqlxsys@localhost account has been expired \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
 
 uninstall plugin mysqlx;
@@ -105,7 +107,8 @@ GRANT SELECT ON mysql.user TO mysqlxsys@localhost;
 GRANT SUPER ON *.* TO mysqlxsys@localhost;
 ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
 --source ../include/xplugin_install_and_wait.inc
---error 1
+--let $expected_error_msg= Password for mysqlxsys@localhost account has been expired \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
 UNINSTALL PLUGIN mysqlx;
 
@@ -113,7 +116,8 @@ UNINSTALL PLUGIN mysqlx;
 CREATE USER mysqlxsys@localhost;
 ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
 --source ../include/xplugin_install_and_wait.inc
---error 1
+--let $expected_error_msg= Password for mysqlxsys@localhost account has been expired \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
 UNINSTALL PLUGIN mysqlx;
 

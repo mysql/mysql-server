@@ -95,6 +95,7 @@ static void kill_completion_handler(void *ctx, unsigned int sql_errno, const cha
 
 bool Sql_data_context::kill()
 {
+  ::sleep(10);
   if (srv_session_server_is_available())
   {
     log_debug("sqlsession init (for kill): %p [%i]", m_mysql_session, m_mysql_session ? srv_session_info_get_session_id(m_mysql_session) : -1);
@@ -112,6 +113,7 @@ bool Sql_data_context::kill()
         const char *host = MYSQLXSYS_HOST;
         if (security_context_lookup(scontext, user, host, NULL, NULL))
           log_warning("Unable to switch security context to root");
+        //log_warning("Unable to switch security context to %s", MYSQLXSYS_USER);
         else
         {
           COM_DATA data;

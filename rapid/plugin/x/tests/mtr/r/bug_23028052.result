@@ -19,7 +19,7 @@ RUN SET @@global.net_read_timeout = 100
 0 rows affected
 RUN SET @@session.net_read_timeout = 200
 While executing SET @@session.net_read_timeout = 200:
-in main, line 4:ERROR: Command not supported by pluggable protocols (code 3130)
+Got expected error: Command not supported by pluggable protocols (code 3130)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -50,7 +50,7 @@ RUN SET @@global.net_write_timeout = 100
 0 rows affected
 RUN SET @@session.net_write_timeout = 200
 While executing SET @@session.net_write_timeout = 200:
-in main, line 4:ERROR: Command not supported by pluggable protocols (code 3130)
+Got expected error: Command not supported by pluggable protocols (code 3130)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -81,7 +81,7 @@ RUN SET @@global.net_retry_count = 100
 0 rows affected
 RUN SET @@session.net_retry_count = 200
 While executing SET @@session.net_retry_count = 200:
-in main, line 4:ERROR: Command not supported by pluggable protocols (code 3130)
+Got expected error: Command not supported by pluggable protocols (code 3130)
 Mysqlx.Ok {
   msg: "bye!"
 }
