@@ -842,6 +842,7 @@ extern PSI_memory_key mi_key_memory_MYISAM_SHARE_decode_tables;
 extern PSI_memory_key mi_key_memory_preload_buffer;
 extern PSI_memory_key mi_key_memory_stPageList_pages;
 extern PSI_memory_key mi_key_memory_keycache_thread_var;
+extern PSI_memory_key key_memory_QUEUE;
 
 C_MODE_END
 

@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/queues.cc
+  @file storage/myisam/queues.cc
   Code for handling of priority Queues.
   Implementation of queues from "Algoritms in C" by Robert Sedgewick.
   An optimisation of _downheap suggested in Exercise 7.51 in "Data
@@ -23,7 +23,8 @@
   of queue_fix was implemented.
 */
 
-#include <queues.h>
+#include "queues.h"
+
 #include <stddef.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -33,9 +34,9 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h"
+#include "myisamdef.h"
 
-int resize_queue(QUEUE *queue, uint max_elements);
+static int resize_queue(QUEUE *queue, PSI_memory_key key, uint max_elements);
 
 /*
   Init queue
@@ -58,13 +59,14 @@ int resize_queue(QUEUE *queue, uint max_elements);
     1	Could not allocate memory
 */
 
-extern "C" int init_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
+extern "C" int init_queue(QUEUE *queue, PSI_memory_key psi_key,
+                          uint max_elements, uint offset_to_key,
                           pbool max_at_top,
                           int (*compare) (void *, uchar *, uchar *),
                           void *first_cmp_arg)
 {
   DBUG_ENTER("init_queue");
-  if ((queue->root= (uchar **) my_malloc(key_memory_QUEUE,
+  if ((queue->root= (uchar **) my_malloc(psi_key,
                                          (max_elements+1)*sizeof(void*),
 					 MYF(MY_WME))) == 0)
     DBUG_RETURN(1);
@@ -103,7 +105,7 @@ extern "C" int init_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
     1	Could not allocate memory
 */
 
-extern "C" int init_queue_ex(QUEUE *queue, uint max_elements,
+extern "C" int init_queue_ex(QUEUE *queue, PSI_memory_key psi_key, uint max_elements,
                              uint offset_to_key, pbool max_at_top,
                              int (*compare) (void *, uchar *, uchar *),
                              void *first_cmp_arg, uint auto_extent)
@@ -111,7 +113,7 @@ extern "C" int init_queue_ex(QUEUE *queue, uint max_elements,
   int ret;
   DBUG_ENTER("init_queue_ex");
 
-  if ((ret= init_queue(queue, max_elements, offset_to_key, max_at_top, compare,
+  if ((ret= init_queue(queue, psi_key, max_elements, offset_to_key, max_at_top, compare,
                        first_cmp_arg)))
     DBUG_RETURN(ret);
   
@@ -141,7 +143,7 @@ extern "C" int init_queue_ex(QUEUE *queue, uint max_elements,
     EE_OUTOFMEMORY	Wrong max_elements
 */
 
-extern "C" int reinit_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
+extern "C" int reinit_queue(QUEUE *queue, PSI_memory_key psi_key, uint max_elements, uint offset_to_key,
                             pbool max_at_top,
                             int (*compare) (void *, uchar *, uchar *),
                             void *first_cmp_arg)
@@ -152,7 +154,7 @@ extern "C" int reinit_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
   queue->first_cmp_arg=first_cmp_arg;
   queue->offset_to_key=offset_to_key;
   queue_set_max_at_top(queue, max_at_top);
-  resize_queue(queue, max_elements);
+  resize_queue(queue, psi_key, max_elements);
   DBUG_RETURN(0);
 }
 
@@ -174,13 +176,13 @@ extern "C" int reinit_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
     1	Error.  In this case the queue is unchanged
 */
 
-int resize_queue(QUEUE *queue, uint max_elements)
+static int resize_queue(QUEUE *queue, PSI_memory_key psi_key, uint max_elements)
 {
   uchar **new_root;
   DBUG_ENTER("resize_queue");
   if (queue->max_elements == max_elements)
     DBUG_RETURN(0);
-  if ((new_root= (uchar **) my_realloc(key_memory_QUEUE,
+  if ((new_root= (uchar **) my_realloc(psi_key,
                                        (void *)queue->root,
 				      (max_elements+1)*sizeof(void*),
 				      MYF(MY_WME))) == 0)
@@ -307,340 +309,3 @@ void queue_fix(QUEUE *queue)
   for (i= queue->elements >> 1; i > 0; i--)
     _downheap(queue, i);
 }
-
-#ifdef MAIN
- /*
-   A test program for the priority queue implementation.
-   It can also be used to benchmark changes of the implementation
-   Build by doing the following in the directory mysys
-   make queues
-   ./queues
-
-   Written by Mikael Ronström, 2005
- */
-
-static uint num_array[1025];
-static uint tot_no_parts= 0;
-static uint tot_no_loops= 0;
-static uint expected_part= 0;
-static uint expected_num= 0;
-static my_bool max_ind= 0;
-static my_bool fix_used= 0;
-static ulonglong start_time= 0;
-
-static my_bool is_divisible_by(uint num, uint divisor)
-{
-  uint quotient= num / divisor;
-  if (quotient * divisor == num)
-    return TRUE;
-  return FALSE;
-}
-
-static void calculate_next()
-{
-  uint part= expected_part, num= expected_num;
-  uint no_parts= tot_no_parts;
-  if (max_ind)
-  {
-    do
-    {
-      while (++part <= no_parts)
-      {
-        if (is_divisible_by(num, part) &&
-            (num <= ((1 << 21) + part)))
-        {
-          expected_part= part;
-          expected_num= num;
-          return;
-        }
-      }
-      part= 0;
-    } while (--num);
-  }
-  else
-  {
-    do
-    {
-      while (--part > 0)
-      {
-        if (is_divisible_by(num, part))
-        {
-          expected_part= part;
-          expected_num= num;
-          return;
-        }
-      }
-      part= no_parts + 1;
-    } while (++num);
-  }
-}
-
-static void calculate_end_next(uint part)
-{
-  uint no_parts= tot_no_parts, num;
-  num_array[part]= 0;
-  if (max_ind)
-  {
-    expected_num= 0;
-    for (part= no_parts; part > 0 ; part--)
-    {
-      if (num_array[part])
-      {
-        num= num_array[part] & 0x3FFFFF;
-        if (num >= expected_num)
-        {
-          expected_num= num;
-          expected_part= part;
-        }
-      }
-    }
-    if (expected_num == 0)
-      expected_part= 0;
-  }
-  else
-  {
-    expected_num= 0xFFFFFFFF;
-    for (part= 1; part <= no_parts; part++)
-    {
-      if (num_array[part])
-      {
-        num= num_array[part] & 0x3FFFFF;
-        if (num <= expected_num)
-        {
-          expected_num= num;
-          expected_part= part;
-        }
-      }
-    }
-    if (expected_num == 0xFFFFFFFF)
-      expected_part= 0;
-  }
-  return;
-}
-
-extern "C" {
-static int test_compare(void *null_arg, uchar *a, uchar *b)
-{
-  uint a_num= (*(uint*)a) & 0x3FFFFF;
-  uint b_num= (*(uint*)b) & 0x3FFFFF;
-  uint a_part, b_part;
-  (void) null_arg;
-  if (a_num > b_num)
-    return +1;
-  if (a_num < b_num)
-    return -1;
-  a_part= (*(uint*)a) >> 22;
-  b_part= (*(uint*)b) >> 22;
-  if (a_part < b_part)
-    return +1;
-  if (a_part > b_part)
-    return -1;
-  return 0;
-}
-} // extern C
-
-static my_bool check_num(uint num_part)
-{
-  uint part= num_part >> 22;
-  uint num= num_part & 0x3FFFFF;
-  if (part == expected_part)
-    if (num == expected_num)
-      return FALSE;
-  printf("Expect part %u Expect num 0x%x got part %u num 0x%x max_ind %u fix_used %u \n",
-          expected_part, expected_num, part, num, max_ind, fix_used);
-  return TRUE;
-}
-
-
-static void perform_insert(QUEUE *queue)
-{
-  uint i= 1, no_parts= tot_no_parts;
-  uint backward_start= 0;
-
-  expected_part= 1;
-  expected_num= 1;
- 
-  if (max_ind)
-    backward_start= 1 << 21;
-
-  do
-  {
-    uint num= (i + backward_start);
-    if (max_ind)
-    {
-      while (!is_divisible_by(num, i))
-        num--;
-      if (max_ind && (num > expected_num ||
-                      (num == expected_num && i < expected_part)))
-      {
-        expected_num= num;
-        expected_part= i;
-      }
-    }
-    num_array[i]= num + (i << 22);
-    if (fix_used)
-      queue_element(queue, i-1)= (uchar*)&num_array[i];
-    else
-      queue_insert(queue, (uchar*)&num_array[i]);
-  } while (++i <= no_parts);
-  if (fix_used)
-  {
-    queue->elements= no_parts;
-    queue_fix(queue);
-  }
-}
-
-static my_bool perform_ins_del(QUEUE *queue, my_bool max_ind)
-{
-  uint i= 0, no_loops= tot_no_loops, j= tot_no_parts;
-  do
-  {
-    uint num_part= *(uint*)queue_top(queue);
-    uint part= num_part >> 22;
-    if (check_num(num_part))
-      return TRUE;
-    if (j++ >= no_loops)
-    {
-      calculate_end_next(part);
-      queue_remove(queue, (uint) 0);
-    }
-    else
-    {
-      calculate_next();
-      if (max_ind)
-        num_array[part]-= part;
-      else
-        num_array[part]+= part;
-      queue_top(queue)= (uchar*)&num_array[part];
-      queue_replaced(queue);
-    }
-  } while (++i < no_loops);
-  return FALSE;
-}
-
-static my_bool do_test(uint no_parts, uint l_max_ind, my_bool l_fix_used)
-{
-  QUEUE queue;
-  my_bool result;
-  max_ind= l_max_ind;
-  fix_used= l_fix_used;
-  init_queue(&queue, no_parts, 0, max_ind, test_compare, NULL);
-  tot_no_parts= no_parts;
-  tot_no_loops= 1024;
-  perform_insert(&queue);
-  result= perform_ins_del(&queue, max_ind);
-  if (result)
-  {
-    printf("Error\n");
-    delete_queue(&queue);
-    return TRUE;
-  }
-  delete_queue(&queue);
-  return FALSE;
-}
-
-static void start_measurement()
-{
-  start_time= my_getsystime();
-}
-
-static void stop_measurement()
-{
-  ulonglong stop_time= my_getsystime();
-  uint time_in_micros;
-  stop_time-= start_time;
-  stop_time/= 10; /* Convert to microseconds */
-  time_in_micros= (uint)stop_time;
-  printf("Time expired is %u microseconds \n", time_in_micros);
-}
-
-static void benchmark_test()
-{
-  QUEUE queue_real;
-  QUEUE *queue= &queue_real;
-  uint i, add;
-  fix_used= TRUE;
-  max_ind= FALSE;
-  tot_no_parts= 1024;
-  init_queue(queue, tot_no_parts, 0, max_ind, test_compare, NULL);
-  /*
-    First benchmark whether queue_fix is faster than using queue_insert
-    for sizes of 16 partitions.
-  */
-  for (tot_no_parts= 2, add=2; tot_no_parts < 128;
-       tot_no_parts+= add, add++)
-  {
-    printf("Start benchmark queue_fix, tot_no_parts= %u \n", tot_no_parts);
-    start_measurement();
-    for (i= 0; i < 128; i++)
-    {
-      perform_insert(queue);
-      queue_remove_all(queue);
-    }
-    stop_measurement();
-
-    fix_used= FALSE;
-    printf("Start benchmark queue_insert\n");
-    start_measurement();
-    for (i= 0; i < 128; i++)
-    {
-      perform_insert(queue);
-      queue_remove_all(queue);
-    }
-    stop_measurement();
-  }
-  /*
-    Now benchmark insertion and deletion of 16400 elements.
-    Used in consecutive runs this shows whether the optimised _downheap
-    is faster than the standard implementation.
-  */
-  printf("Start benchmarking _downheap \n");
-  start_measurement();
-  perform_insert(queue);
-  for (i= 0; i < 65536; i++)
-  {
-    uint num, part;
-    num= *(uint*)queue_top(queue);
-    num+= 16;
-    part= num >> 22;
-    num_array[part]= num;
-    queue_top(queue)= (uchar*)&num_array[part];
-    queue_replaced(queue);
-  }
-  for (i= 0; i < 16; i++)
-    queue_remove(queue, (uint) 0);
-  queue_remove_all(queue);
-  stop_measurement();
-  delete_queue(queue);
-}
-
-int main()
-{
-#ifdef _WIN32
-  /*
-  Initialization is required on Windows prior to using my_getsystime.
-  */
-  if (my_init())
-  {
-    printf("Error in my_init\n");
-    return -1;
-  }
-#endif
-  int i, add= 1;
-  for (i= 1; i < 1024; i+=add, add++)
-  {
-    printf("Start test for priority queue of size %u\n", i);
-    if (do_test(i, 0, 1))
-      return -1;
-    if (do_test(i, 1, 1))
-      return -1;
-    if (do_test(i, 0, 0))
-      return -1;
-    if (do_test(i, 1, 0))
-      return -1;
-  }
-  benchmark_test();
-  printf("OK\n");
-  return 0;
-}
-#endif

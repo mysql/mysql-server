@@ -574,7 +574,6 @@ static PSI_memory_info all_mysys_memory[]=
   { &key_memory_my_err_head, "my_err_head", 0},
   { &key_memory_my_file_info, "my_file_info", 0},
   { &key_memory_MY_DIR, "MY_DIR", 0},
-  { &key_memory_QUEUE, "QUEUE", 0},
   { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0},
   { &key_memory_TREE, "TREE", 0}
 };

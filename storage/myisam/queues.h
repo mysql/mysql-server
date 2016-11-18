@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,13 +17,14 @@
 #define QUEUES_INCLUDED
 
 /**
-  @file include/queues.h
+  @file storage/myisam/queues.h
   Code for handling of priority Queues.
   Implementation of queues from "Algoritms in C" by Robert Sedgewick.
   By monty.
 */
 
 #include "my_global.h"                          /* uchar */
+#include "mysql/psi/psi_memory.h"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -59,13 +60,16 @@ static inline void queue_set_max_at_top(QUEUE *queue, int set_arg)
 
 typedef int (*queue_compare)(void *,uchar *, uchar *);
 
-int init_queue(QUEUE *queue,uint max_elements,uint offset_to_key,
+int init_queue(QUEUE *queue, PSI_memory_key psi_key,
+               uint max_elements,uint offset_to_key,
 	       pbool max_at_top, queue_compare compare,
 	       void *first_cmp_arg);
-int init_queue_ex(QUEUE *queue,uint max_elements,uint offset_to_key,
+int init_queue_ex(QUEUE *queue, PSI_memory_key psi_key,
+                  uint max_elements,uint offset_to_key,
 	       pbool max_at_top, queue_compare compare,
 	       void *first_cmp_arg, uint auto_extent);
-int reinit_queue(QUEUE *queue,uint max_elements,uint offset_to_key,
+int reinit_queue(QUEUE *queue, PSI_memory_key psi_key,
+                 uint max_elements,uint offset_to_key,
                  pbool max_at_top, queue_compare compare,
                  void *first_cmp_arg);
 void delete_queue(QUEUE *queue);

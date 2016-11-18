@@ -19,6 +19,7 @@
 */
 
 #include "myisamdef.h"
+#include "myisam_sys.h"
 #ifdef _WIN32
 #include <fcntl.h>
 #include <process.h>

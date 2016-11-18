@@ -32,6 +32,7 @@
 #include "my_pointer_arithmetic.h"
 #include "rt_index.h"
 #include "sp_defs.h"
+#include "myisam_sys.h"
 
 #ifdef _WIN32
 #include <fcntl.h>

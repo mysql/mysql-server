@@ -69,7 +69,6 @@ SET(MYSYS_SOURCES
   my_getwd.cc
   my_init.cc
   my_lib.cc
-  my_lock.cc
   my_malloc.cc
   my_mess.cc
   my_mkdir.cc
@@ -79,7 +78,6 @@ SET(MYSYS_SOURCES
   my_pread.cc
   my_rdtsc.cc
   my_read.cc
-  my_redel.cc
   my_rename.cc
   my_seek.cc
   my_static.cc
@@ -94,7 +92,6 @@ SET(MYSYS_SOURCES
   my_write.cc
   psi_noop.cc
   ptr_cmp.cc
-  queues.cc
   sql_chars.cc
   stacktrace.cc
   thr_cond.cc
@@ -146,10 +143,6 @@ ENDIF()
 ADD_EXECUTABLE(thr_lock thr_lock.cc)
 TARGET_LINK_LIBRARIES(thr_lock mysys)
 SET_TARGET_PROPERTIES(thr_lock PROPERTIES COMPILE_FLAGS "-DMAIN")
-ADD_EXECUTABLE(queues queues.cc)
-TARGET_LINK_LIBRARIES(queues mysys)
-SET_TARGET_PROPERTIES(queues PROPERTIES COMPILE_FLAGS "-DMAIN")
-ADD_TEST(queues_test queues)
 ADD_EXECUTABLE(mf_iocache_test mf_iocache.cc)
 TARGET_LINK_LIBRARIES(mf_iocache_test mysys)
 SET_TARGET_PROPERTIES(mf_iocache_test PROPERTIES COMPILE_FLAGS "-DMAIN")

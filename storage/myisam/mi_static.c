@@ -92,6 +92,7 @@ PSI_memory_key mi_key_memory_MYISAM_SHARE_decode_tables;
 PSI_memory_key mi_key_memory_preload_buffer;
 PSI_memory_key mi_key_memory_stPageList_pages;
 PSI_memory_key mi_key_memory_keycache_thread_var;
+PSI_memory_key key_memory_QUEUE;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
@@ -172,7 +173,8 @@ static PSI_memory_info all_myisam_memory[]=
   { &mi_key_memory_MYISAM_SHARE_decode_tables, "MYISAM_SHARE::decode_tables", 0},
   { &mi_key_memory_preload_buffer, "preload_buffer", 0},
   { &mi_key_memory_stPageList_pages, "stPageList::pages", 0},
-  { &mi_key_memory_keycache_thread_var, "keycache_thread_var", 0}
+  { &mi_key_memory_keycache_thread_var, "keycache_thread_var", 0},
+  { &key_memory_QUEUE, "QUEUE", 0},
 };
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 

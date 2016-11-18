@@ -18,14 +18,15 @@
 #include <assert.h>
 #include <my_getopt.h>
 #include <my_tree.h>
-#include <queues.h>
 #include <stdlib.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
+#include "queues.h"
 #include "my_default.h"
 #include "my_pointer_arithmetic.h"
 #include "myisamdef.h"
 #include "mysys_err.h"
+#include "myisam_sys.h"
 
 #if SIZEOF_LONG_LONG > 4
 #define BITS_SAVED 64
@@ -578,7 +579,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     Create a global priority queue in preparation for making 
     temporary Huffman trees.
   */
-  if (init_queue(&queue,256,0,0,compare_huff_elements,0))
+  if (init_queue(&queue,key_memory_QUEUE,256,0,0,compare_huff_elements,0))
     goto err;
 
   /*
@@ -1553,7 +1554,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
   if (queue.max_elements < found)
   {
     delete_queue(&queue);
-    if (init_queue(&queue,found,0,0,compare_huff_elements,0))
+    if (init_queue(&queue,key_memory_QUEUE,found,0,0,compare_huff_elements,0))
       return -1;
   }
 

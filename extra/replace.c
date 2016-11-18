@@ -53,6 +53,7 @@
 #include "my_pointer_arithmetic.h"
 #include "mysql/service_mysql_alloc.h"
 #include "typelib.h"
+#include "myisam_sys.h"
 
 #define PC_MALLOC		256	/* Bytes for pointers */
 #define PS_MALLOC		512	/* Bytes for data */

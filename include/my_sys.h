@@ -113,8 +113,6 @@ C_MODE_START
 #define MY_DELETE_OLD	256	/* my_create_with_symlink() */
 #define MY_RESOLVE_LINK 128	/* my_realpath(); Only resolve links */
 #define MY_HOLD_ORIGINAL_MODES 128  /* my_copy() holds to file modes */
-#define MY_REDEL_MAKE_BACKUP 256
-#define MY_REDEL_NO_COPY_STAT 512 /* my_redel() doesn't call my_copystat() */
 #define MY_SEEK_NOT_DONE 32	/* my_lock may have to do a seek */
 #define MY_DONT_WAIT	64	/* my_lock() don't wait if can't lock */
 #define MY_ZEROFILL	32	/* my_malloc(), fill array with zero */
@@ -541,7 +539,6 @@ extern int my_copy(const char *from,const char *to,myf MyFlags);
 extern int my_delete(const char *name,myf MyFlags);
 extern int my_getwd(char * buf,size_t size,myf MyFlags);
 extern int my_setwd(const char *dir,myf MyFlags);
-extern int my_lock(File fd,int op,my_off_t start, my_off_t length,myf MyFlags);
 extern void *my_once_alloc(size_t Size,myf MyFlags);
 extern void my_once_free(void);
 extern char *my_once_strdup(const char *src,myf myflags);
@@ -658,8 +655,6 @@ void my_message_local_stderr(enum loglevel ll,
 extern void my_message_local(enum loglevel ll, const char *format, ...);
 extern my_bool my_init(void);
 extern void my_end(int infoflag);
-extern int my_redel(const char *from, const char *to, int MyFlags);
-extern int my_copystat(const char *from, const char *to, int MyFlags);
 extern char * my_filename(File fd);
 extern MY_MODE get_file_perm(ulong perm_flags);
 extern my_bool my_chmod(const char *filename, ulong perm_flags, myf my_flags);
