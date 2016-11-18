@@ -1,7 +1,5 @@
 # For easier human reading (MTR doesn't care), please keep entries
 # in alphabetical order. This also helps with merge conflict resolution.
 
-group_replication.gr_autoincrement_parallel_insert @windows     # BUG#25039567  2016-11-03 Dhruthi test is unstable in pb2
 group_replication.gr_generated_column                           # BUG#24940226  2016-10-25 Nuno Carvalho
 group_replication.gr_nullable_unique_key_conflict               # BUG#24666169  2016-09-14 Nuno Carvalho
-group_replication.gr_parallel_insert @windows                   # BUG#25039567  2016-11-03 Dhruthi test is unstable in pb2
