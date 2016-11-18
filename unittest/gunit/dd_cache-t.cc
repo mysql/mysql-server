@@ -1153,7 +1153,7 @@ TEST_F(CacheStorageTest, TestSchema)
                                  thd()->variables.lock_wait_timeout);
 
       // Get "schema1.table1" table from cache.
-      consd dd::Table *s1_t1= NULL;
+      const dd::Table *s1_t1= NULL;
       EXPECT_FALSE(dc.acquire<dd::Table>("schema1", "table1", &s1_t1));
       EXPECT_NE(nullp<const dd::Table>(), s1_t1);
 

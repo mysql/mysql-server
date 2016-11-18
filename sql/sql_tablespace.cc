@@ -160,7 +160,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
 
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Tablespace *old_ts_def= NULL;
-    dd::Tablespace *new_ts_def;
+    dd::Tablespace *new_ts_def= nullptr;
 
     switch (ts_info->ts_cmd_type)
     {
