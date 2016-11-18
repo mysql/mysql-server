@@ -137,10 +137,6 @@ disconnect b;
 drop table t1, t2, t3;
 
 #
-# Temporarily disabled due to deadlock handling in CTS problem.
-#
---disable_parsing
-#
 # Consistent read should not be used if
 #
 # (a) isolation level is serializable OR
@@ -275,4 +271,3 @@ disconnect h;
 disconnect i;
 disconnect j;
 drop table t1, t2, t3, t5, t6, t8, t9;
---enable_parsing
