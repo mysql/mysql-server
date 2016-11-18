@@ -58,7 +58,6 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
                             return null_list;
                           };
 
-#if 0
 #define NULL_ARG        null
 #define TWO_NULL_ARGS   NULL_ARG, NULL_ARG
 #define THREE_NULL_ARGS TWO_NULL_ARGS, NULL_ARG
@@ -161,8 +160,8 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // CAN_ACCESS_TABLE(NULL, NULL)
-  CREATE_ITEM(Item_func_can_access_table, TWO_NULL_ARGS);
+  // CAN_ACCESS_TABLE(NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_can_access_table, THREE_NULL_ARGS);
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
@@ -171,8 +170,8 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // CAN_ACCESS_COLUMN(NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_can_access_column, THREE_NULL_ARGS);
+  // CAN_ACCESS_COLUMN(NULL, NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_can_access_column, FOUR_NULL_ARGS);
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
@@ -180,6 +179,5 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   CREATE_ITEM(Item_func_get_dd_create_options, TWO_NULL_ARGS);
   // Empty string value is returned in this case.
   EXPECT_EQ(static_cast<size_t>(0), (item->val_str(&str))->length());
-#endif
 }
 } //namespace
