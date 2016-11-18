@@ -13,6 +13,7 @@ SELECT @start_session_read_value;
 
 --echo # Try to change the values
 --write_file $MYSQL_TMP_DIR/net_var_1.tmp
+-->expecterror ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
 -->sql
 SET @@global.net_read_timeout = 100;
 SET @@session.net_read_timeout = 200;
@@ -39,6 +40,7 @@ SELECT @start_session_write_value;
 
 --echo # Try to change the values
 --write_file $MYSQL_TMP_DIR/net_var_2.tmp
+-->expecterror ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
 -->sql
 SET @@global.net_write_timeout = 100;
 SET @@session.net_write_timeout = 200;
@@ -66,6 +68,8 @@ SELECT @start_session_retry_value;
 
 --echo # Try to change the values
 --write_file $MYSQL_TMP_DIR/net_var_3.tmp
+
+-->expecterror ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
 -->sql
 SET @@global.net_retry_count = 100;
 SET @@session.net_retry_count = 200;
