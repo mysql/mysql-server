@@ -551,7 +551,7 @@ static size_t get_varstring_copy_length(Field_varstring *to,
   else
     bytes_to_copy= uint2korr(from->ptr);
 
-  if (bytes_to_copy <= to_byte_length)
+  if (from->pack_length() - from->length_bytes <= to_byte_length)
   {
     /*
       There's room for everything in the destination buffer;
