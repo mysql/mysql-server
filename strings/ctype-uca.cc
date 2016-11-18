@@ -795,15 +795,15 @@ public:
 
   /**
     For each weight in sequence, call "func", which should have
-    a function signature of "bool func(int weight)". Stops the
-    iteration early if "func" returns false.
+    a function signature of "bool func(int weight, bool is_level_separator)".
+    Stops the iteration early if "func" returns false.
 
     This is morally equivalent to
 
       int weight;
       while ((weight= next()) >= 0)
       {
-        if (!func(weight)) break;
+        if (!func(weight, weight == 0)) break;
       }
 
     except that it might employ optimizations internally to speed up
@@ -811,9 +811,14 @@ public:
     to func() (or their order), but might affect the internal scanner
     state during the calls, so func() should not try to read from
     the scanner except by calling public member functions.
+
+    As a special optimization, if "bool preaccept_data(int num_weights)"
+    returns true, the next "num_weights" calls to func() _must_ return
+    true. This is so that bounds checking costs can be amortized
+    over fewer calls.
   */
-  template<class T>
-  ALWAYS_INLINE(void for_each_weight(T func));
+  template<class T, class U>
+  ALWAYS_INLINE(void for_each_weight(T func, U preaccept_data));
 
 private:
   const Mb_wc mb_wc;
@@ -1646,8 +1651,9 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw_single_level()
 }
 
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
-template<class T>
-inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(T func)
+template<class T, class U>
+inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(
+  T func, U preaccept_data)
 {
   if (cs->tailoring || cs->mbminlen != 1)
   {
@@ -1655,7 +1661,7 @@ inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(T func)
     int s_res;
     while ((s_res= next()) >= 0)
     {
-      if (!func(s_res)) return;
+      if (!func(s_res, s_res == 0)) return;
     }
     return;
   }
@@ -1676,27 +1682,48 @@ inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(T func)
     int s_res;
     while ((s_res= more_weight()) >= 0)
     {
-      if (!func(s_res)) return;
+      if (!func(s_res, s_res == 0)) return;
     }
 
     /*
-      Loop in a simple fast path as long as we only have ASCII characters.
-      ASCII characters always have just a single weight and consist of
-      only a single byte, so we can skip a lot of the checks we'd otherwise
-      have to do.
+      Loop in a simple fast path as long as we only have non-ignorable
+      ASCII characters. These characters always have exactly a single weight
+      and consist of only a single byte, so we can skip a lot of the checks
+      we'd otherwise have to do.
     */
     const uchar *sbeg_copy= sbeg;
+    const uchar *sbeg_local= sbeg;
     const uchar *send_local=
-      std::min(send, sbeg + (max_char_toscan - char_index));
-    while (sbeg < send_local && *sbeg < 0x80)
+      std::min(send, sbeg + (max_char_toscan - char_index)) - (sizeof(uint32) - 1);
+    while (sbeg_local < send_local && preaccept_data(sizeof(uint32)))
     {
-      const int s_res= ascii_wpage[*sbeg++];
-      if (s_res && !func(s_res))
-      {
-        char_index+= sbeg - sbeg_copy;
-        return;
-      }
+      /*
+        Check if all four bytes are in the range 0x20..0x7e, inclusive.
+        These have exactly one weight. Note that this unfortunately does not
+        include tab and newline, which would otherwise be legal candidates.
+
+        See the FastOutOfRange unit test for verification that the bitfiddling
+        trick used here is correct.
+      */
+      uint32 four_bytes;
+      memcpy(&four_bytes, sbeg_local, sizeof(four_bytes));
+      if (((four_bytes + 0x01010101u) & 0x80808080) ||
+          ((four_bytes - 0x20202020u) & 0x80808080)) break;
+      const int s_res0= ascii_wpage[sbeg_local[0]];
+      const int s_res1= ascii_wpage[sbeg_local[1]];
+      const int s_res2= ascii_wpage[sbeg_local[2]];
+      const int s_res3= ascii_wpage[sbeg_local[3]];
+      DBUG_ASSERT(s_res0 != 0);
+      DBUG_ASSERT(s_res1 != 0);
+      DBUG_ASSERT(s_res2 != 0);
+      DBUG_ASSERT(s_res3 != 0);
+      func(s_res0, /*is_level_separator=*/false);
+      func(s_res1, /*is_level_separator=*/false);
+      func(s_res2, /*is_level_separator=*/false);
+      func(s_res3, /*is_level_separator=*/false);
+      sbeg_local+= sizeof(uint32);
     }
+    sbeg= sbeg_local;
     char_index+= sbeg - sbeg_copy;
 
     // Do a single character in the generic path.
@@ -1706,7 +1733,7 @@ inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(T func)
       // Level separator, so we have to update our page pointer.
       ascii_wpage+= UCA900_DISTANCE_BETWEEN_LEVELS;
     }
-    if (s_res < 0 || !func(s_res)) return;
+    if (s_res < 0 || !func(s_res, s_res == 0)) return;
   }
 }
 
@@ -5188,11 +5215,37 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
   uint64 h= *n1;
   h^= 14695981039346656037ULL;
 
-  scanner.for_each_weight([&](int s_res) {
-    h^= s_res;
-    h*= 1099511628211ULL;
+  /*
+    We don't want any 0x0001 weights before level markers or end-of-string
+    to count (see comments on my_strnxfrm_uca_900_tmpl for rationale).
+    Thus, whenever we see a 0x0001 weight, we keep updating pending_hash,
+    but we don't actually update h before we see something else. This way,
+    we can roll back the effect of these weights (similar to
+    strip_space_weights()) if we need to.
+  */
+  uint64 pending_hash= h;
+
+  scanner.for_each_weight([&](int s_res, bool is_level_separator) {
+    if (is_level_separator)
+    {
+      /*
+        Level marker; roll back the hash to the last point we saw
+        a non-0x0001 weight, effectively doing space stripping.
+      */
+      pending_hash= h;
+    }
+
+    pending_hash^= s_res;
+    pending_hash*= 1099511628211ULL;
+
+    if (s_res != 0x0001)
+    {
+      // Commit any pending 0x0001 weights.
+      h= pending_hash;
+    }
+
     return true;
-  });
+  }, [](int num_weights) { return true; });
 
   *n1= static_cast<ulong>(h);
 }
@@ -5369,14 +5422,19 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
 restart:
   if (dst != dst_end)
   {
-    scanner.for_each_weight([&](int s_res) {
+    scanner.for_each_weight([&dst, d0, dst_end, flags]
+                              (int s_res, bool is_level_separator) {
+      DBUG_ASSERT(is_level_separator == (s_res == 0));
       if (LEVELS_FOR_COMPARE == 1)
-        DBUG_ASSERT(s_res != 0);  // Level separator should never happen.
-      else if (s_res == 0 && (flags & MY_STRXFRM_PAD_WITH_SPACE))
+        DBUG_ASSERT(!is_level_separator);
+      else if (is_level_separator && (flags & MY_STRXFRM_PAD_WITH_SPACE))
         dst= strip_space_weights(d0, dst);
 
       dst= store16be(dst, s_res);
       return (dst < dst_end);
+    },
+    [&dst, dst_end](int num_weights) {
+      return (dst < dst_end - num_weights * 2);
     });
   }
 
