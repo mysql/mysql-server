@@ -2550,9 +2550,6 @@ bool rename_table(THD *thd,
   const T *to_tab= NULL;
   T *new_tab = nullptr;
 
-  DBUG_EXECUTE_IF("alter_table_after_rename_1",
-                  DEBUG_SYNC(thd, "before_rename_in_dd"););
-
   /*
     Acquire all objects. Uncommitted read for 'from' object allows us
     to use this function in ALTER TABLE ALGORITHM=INPLACE implementation.
@@ -2638,6 +2635,9 @@ bool rename_table(THD *thd, dd::Table *to_table_def,
 
   // Mark the hidden flag.
   to_table_def->set_hidden(mark_as_hidden);
+
+  DBUG_EXECUTE_IF("alter_table_after_rename_1",
+                  DEBUG_SYNC(thd, "before_rename_in_dd"););
 
   // Do the update. Errors will be reported by the dictionary subsystem.
   if (thd->dd_client()->update(to_table_def))
