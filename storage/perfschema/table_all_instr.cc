@@ -64,9 +64,8 @@ int table_all_instr::rnd_next(void)
         mutex= it.scan_next(& m_pos.m_index_2);
         if (mutex != NULL)
         {
-          make_mutex_row(mutex);
           m_next_pos.set_after(&m_pos);
-          return 0;
+          return make_mutex_row(mutex);
         }
       }
       break;
@@ -76,9 +75,8 @@ int table_all_instr::rnd_next(void)
         rwlock= it.scan_next(& m_pos.m_index_2);
         if (rwlock != NULL)
         {
-          make_rwlock_row(rwlock);
           m_next_pos.set_after(&m_pos);
-          return 0;
+          return make_rwlock_row(rwlock);
         }
       }
       break;
@@ -88,9 +86,8 @@ int table_all_instr::rnd_next(void)
         cond= it.scan_next(& m_pos.m_index_2);
         if (cond != NULL)
         {
-          make_cond_row(cond);
           m_next_pos.set_after(&m_pos);
-          return 0;
+          return make_cond_row(cond);
         }
       }
       break;
@@ -100,9 +97,8 @@ int table_all_instr::rnd_next(void)
         file= it.scan_next(& m_pos.m_index_2);
         if (file != NULL)
         {
-          make_file_row(file);
           m_next_pos.set_after(&m_pos);
-          return 0;
+          return make_file_row(file);
         }
       }
       break;
@@ -112,9 +108,8 @@ int table_all_instr::rnd_next(void)
         socket= it.scan_next(& m_pos.m_index_2);
         if (socket != NULL)
         {
-          make_socket_row(socket);
           m_next_pos.set_after(&m_pos);
-          return 0;
+          return make_socket_row(socket);
         }
       }
       break;
@@ -139,40 +134,35 @@ int table_all_instr::rnd_pos(const void *pos)
     mutex= global_mutex_container.get(m_pos.m_index_2);
     if (mutex != NULL)
     {
-      make_mutex_row(mutex);
-      return 0;
+      return make_mutex_row(mutex);
     }
     break;
   case pos_all_instr::VIEW_RWLOCK:
     rwlock= global_rwlock_container.get(m_pos.m_index_2);
     if (rwlock != NULL)
     {
-      make_rwlock_row(rwlock);
-      return 0;
+      return make_rwlock_row(rwlock);
     }
     break;
   case pos_all_instr::VIEW_COND:
     cond= global_cond_container.get(m_pos.m_index_2);
     if (cond != NULL)
     {
-      make_cond_row(cond);
-      return 0;
+      return make_cond_row(cond);
     }
     break;
   case pos_all_instr::VIEW_FILE:
     file= global_file_container.get(m_pos.m_index_2);
     if (file != NULL)
     {
-      make_file_row(file);
-      return 0;
+      return make_file_row(file);
     }
     break;
   case pos_all_instr::VIEW_SOCKET:
     socket= global_socket_container.get(m_pos.m_index_2);
     if (socket != NULL)
     {
-      make_socket_row(socket);
-      return 0;
+      return make_socket_row(socket);
     }
     break;
   }
@@ -196,14 +186,16 @@ int table_all_instr::index_next(void)
         PFS_mutex_iterator it= global_mutex_container.iterate(m_pos.m_index_2);
         do
         {
-          mutex= it.scan_next(& m_pos.m_index_2);
+          mutex= it.scan_next(&m_pos.m_index_2);
           if (mutex != NULL)
           {
             if (m_opened_index->match(mutex))
             {
-              make_mutex_row(mutex);
-              m_next_pos.set_after(&m_pos);
-              return 0;
+              if (!make_mutex_row(mutex))
+              {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
             }
           }
         } while (mutex != NULL);
@@ -215,14 +207,16 @@ int table_all_instr::index_next(void)
         PFS_rwlock_iterator it= global_rwlock_container.iterate(m_pos.m_index_2);
         do
         {
-          rwlock= it.scan_next(& m_pos.m_index_2);
+          rwlock= it.scan_next(&m_pos.m_index_2);
           if (rwlock != NULL)
           {
             if (m_opened_index->match(rwlock))
             {
-              make_rwlock_row(rwlock);
-              m_next_pos.set_after(&m_pos);
-              return 0;
+              if (!make_rwlock_row(rwlock))
+              {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
             }
           }
         } while (rwlock != NULL);
@@ -234,14 +228,16 @@ int table_all_instr::index_next(void)
         PFS_cond_iterator it= global_cond_container.iterate(m_pos.m_index_2);
         do
         {
-          cond= it.scan_next(& m_pos.m_index_2);
+          cond= it.scan_next(&m_pos.m_index_2);
           if (cond != NULL)
           {
             if (m_opened_index->match(cond))
             {
-              make_cond_row(cond);
-              m_next_pos.set_after(&m_pos);
-              return 0;
+              if (!make_cond_row(cond))
+              {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
             }
           }
         } while (cond != NULL);
@@ -253,14 +249,16 @@ int table_all_instr::index_next(void)
         PFS_file_iterator it= global_file_container.iterate(m_pos.m_index_2);
         do
         {
-          file= it.scan_next(& m_pos.m_index_2);
+          file= it.scan_next(&m_pos.m_index_2);
           if (file != NULL)
           {
             if (m_opened_index->match(file))
             {
-              make_file_row(file);
-              m_next_pos.set_after(&m_pos);
-              return 0;
+              if (!make_file_row(file))
+              {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
             }
           }
         } while (file != NULL);
@@ -272,14 +270,16 @@ int table_all_instr::index_next(void)
         PFS_socket_iterator it= global_socket_container.iterate(m_pos.m_index_2);
         do
         {
-          socket= it.scan_next(& m_pos.m_index_2);
+          socket= it.scan_next(&m_pos.m_index_2);
           if (socket != NULL)
           {
             if (m_opened_index->match(socket))
             {
-              make_socket_row(socket);
-              m_next_pos.set_after(&m_pos);
-              return 0;
+              if (!make_socket_row(socket))
+              {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
             }
           }
         } while (socket != NULL);

@@ -225,7 +225,7 @@ ha_rows table_setup_objects::get_row_count(void)
 
 table_setup_objects::table_setup_objects()
   : PFS_engine_table(&m_share, &m_pos),
-  m_row_exists(false), m_pos(0), m_next_pos(0)
+  m_pos(0), m_next_pos(0)
 {}
 
 void table_setup_objects::reset_position(void)
@@ -243,9 +243,8 @@ int table_setup_objects::rnd_next(void)
   pfs= it.scan_next(& m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -260,8 +259,7 @@ int table_setup_objects::rnd_pos(const void *pos)
   pfs= global_setup_object_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -292,9 +290,11 @@ int table_setup_objects::index_next(void)
     {
       if (m_opened_index->match(pfs))
       {
-        make_row(pfs);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(pfs))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   }
@@ -302,12 +302,9 @@ int table_setup_objects::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_setup_objects::make_row(PFS_setup_object *pfs)
+int table_setup_objects::make_row(PFS_setup_object *pfs)
 {
   pfs_optimistic_state lock;
-
-  m_row_exists= false;
-
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   m_row.m_object_type= pfs->get_object_type();
@@ -318,8 +315,10 @@ void table_setup_objects::make_row(PFS_setup_object *pfs)
   m_row.m_enabled_ptr= &pfs->m_enabled;
   m_row.m_timed_ptr= &pfs->m_timed;
 
-  if (pfs->m_lock.end_optimistic_lock(&lock))
-    m_row_exists= true;
+  if (!pfs->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+
+  return 0;
 }
 
 int table_setup_objects::read_row_values(TABLE *table,
@@ -328,9 +327,6 @@ int table_setup_objects::read_row_values(TABLE *table,
                                          bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
@@ -421,8 +417,6 @@ int table_setup_objects::delete_row_values(TABLE*,
                                            const unsigned char*,
                                            Field**)
 {
-  DBUG_ASSERT(m_row_exists);
-
   CHARSET_INFO *cs= &my_charset_utf8_bin;
   enum_object_type object_type= m_row.m_object_type;
   String object_schema(m_row.m_schema_name, m_row.m_schema_name_length, cs);

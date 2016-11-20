@@ -192,7 +192,7 @@ PFS_engine_table* table_socket_summary_by_event_name::create(void)
 
 table_socket_summary_by_event_name::table_socket_summary_by_event_name()
   : PFS_engine_table(&m_share, &m_pos),
-  m_row_exists(false), m_pos(1), m_next_pos(1)
+  m_pos(1), m_next_pos(1)
 {}
 
 int table_socket_summary_by_event_name::delete_all_rows(void)
@@ -223,9 +223,8 @@ int table_socket_summary_by_event_name::rnd_next(void)
   socket_class= find_socket_class(m_pos.m_index);
   if (socket_class)
   {
-    make_row(socket_class);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(socket_class);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -240,8 +239,7 @@ int table_socket_summary_by_event_name::rnd_pos(const void *pos)
   socket_class= find_socket_class(m_pos.m_index);
   if (socket_class)
   {
-    make_row(socket_class);
-    return 0;
+    return make_row(socket_class);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -270,9 +268,11 @@ int table_socket_summary_by_event_name::index_next(void)
     {
       if (m_opened_index->match(socket_class))
       {
-        make_row(socket_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(socket_class))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
       m_pos.next();
     }
@@ -281,7 +281,7 @@ int table_socket_summary_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_socket_summary_by_event_name::make_row(PFS_socket_class *socket_class)
+int table_socket_summary_by_event_name::make_row(PFS_socket_class *socket_class)
 {
   m_row.m_event_name.make_row(socket_class);
 
@@ -292,7 +292,8 @@ void table_socket_summary_by_event_name::make_row(PFS_socket_class *socket_class
 
   /* Collect timer and byte count stats */
   m_row.m_io_stat.set(normalizer, &visitor.m_socket_io_stat);
-  m_row_exists= true;
+
+  return 0;
 }
 
 int table_socket_summary_by_event_name::read_row_values(TABLE *table,
@@ -301,9 +302,6 @@ int table_socket_summary_by_event_name::read_row_values(TABLE *table,
                                           bool read_all)
 {
   Field *f;
-
-  if (unlikely(!m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);

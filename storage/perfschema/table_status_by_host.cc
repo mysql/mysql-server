@@ -119,7 +119,7 @@ ha_rows table_status_by_host::get_row_count(void)
 
 table_status_by_host::table_status_by_host()
   : PFS_engine_table(&m_share, &m_pos),
-    m_status_cache(true), m_row_exists(false), m_pos(), m_next_pos(),
+    m_status_cache(true), m_pos(), m_next_pos(),
     m_context(NULL)
 {}
 
@@ -172,9 +172,12 @@ int table_status_by_host::rnd_next(void)
       const Status_variable *stat_var= m_status_cache.get(m_pos.m_index_2);
       if (stat_var != NULL)
       {
-        make_row(pfs_host, stat_var);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        /* If make_row() fails, get the next host. */
+        if (!make_row(pfs_host, stat_var))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   }
@@ -203,8 +206,7 @@ table_status_by_host::rnd_pos(const void *pos)
     const Status_variable *stat_var= m_status_cache.get(m_pos.m_index_2);
     if (stat_var != NULL)
     {
-      make_row(pfs_host, stat_var);
-      return 0;
+      return make_row(pfs_host, stat_var);
     }
   }
   return HA_ERR_RECORD_DELETED;
@@ -268,9 +270,11 @@ int table_status_by_host::index_next(void)
             {
               if (m_opened_index->match(stat_var))
               {
-                make_row(pfs_host, stat_var);
-                m_next_pos.set_after(&m_pos);
-                return 0;
+                if (!make_row(pfs_host, stat_var))
+                {
+                  m_next_pos.set_after(&m_pos);
+                  return 0;
+                }
               }
               m_pos.m_index_2++;
             }
@@ -283,23 +287,26 @@ int table_status_by_host::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_status_by_host
+int table_status_by_host
 ::make_row(PFS_host *pfs_host, const Status_variable *status_var)
 {
   pfs_optimistic_state lock;
-  m_row_exists= false;
   pfs_host->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_host.make_row(pfs_host))
-    return;
+    return HA_ERR_RECORD_DELETED;
+  
+  if (m_row.m_variable_name.make_row(status_var->m_name,
+                                     status_var->m_name_length))
+    return HA_ERR_RECORD_DELETED;
 
-  m_row.m_variable_name.make_row(status_var->m_name, status_var->m_name_length);
-  m_row.m_variable_value.make_row(status_var);
+  if (m_row.m_variable_value.make_row(status_var))
+    return HA_ERR_RECORD_DELETED;
 
   if (!pfs_host->m_lock.end_optimistic_lock(&lock))
-    return;
-
-  m_row_exists= true;
+    return HA_ERR_RECORD_DELETED;
+  
+  return 0;
 }
 
 int table_status_by_host
@@ -309,9 +316,6 @@ int table_status_by_host
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

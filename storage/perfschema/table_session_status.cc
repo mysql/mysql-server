@@ -93,7 +93,7 @@ ha_rows table_session_status::get_row_count(void)
 
 table_session_status::table_session_status()
   : PFS_engine_table(&m_share, &m_pos),
-    m_status_cache(false), m_row_exists(false), m_pos(0), m_next_pos(0),
+    m_status_cache(false), m_pos(0), m_next_pos(0),
     m_context(NULL)
 {}
 
@@ -132,9 +132,12 @@ int table_session_status::rnd_next(void)
       const Status_variable *status_var= m_status_cache.get(m_pos.m_index);
       if (status_var != NULL)
       {
-        make_row(status_var);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        /* If make_row() fails just get the next variable. */
+        if (!make_row(status_var))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   }
@@ -158,8 +161,7 @@ table_session_status::rnd_pos(const void *pos)
     const Status_variable *stat_var= m_status_cache.get(m_pos.m_index);
     if (stat_var != NULL)
     {
-      make_row(stat_var);
-      return 0;
+      return make_row(stat_var);
     }
   }
 
@@ -203,9 +205,11 @@ int table_session_status::index_next(void)
       {
         if (m_opened_index->match(status_var))
         {
-          make_row(status_var);
-          m_next_pos.set_after(&m_pos);
-          return 0;
+          if (!make_row(status_var))
+          {
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
         }
       }
     }
@@ -214,13 +218,17 @@ int table_session_status::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_session_status
+int table_session_status
 ::make_row(const Status_variable *status_var)
 {
-  m_row_exists= false;
-  m_row.m_variable_name.make_row(status_var->m_name, status_var->m_name_length);
-  m_row.m_variable_value.make_row(status_var);
-  m_row_exists= true;
+  if (m_row.m_variable_name.make_row(status_var->m_name,
+                                     status_var->m_name_length))
+    return HA_ERR_RECORD_DELETED;
+
+  if (m_row.m_variable_value.make_row(status_var))
+    return HA_ERR_RECORD_DELETED;
+
+  return 0;
 }
 
 int table_session_status
@@ -230,9 +238,6 @@ int table_session_status
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(!m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

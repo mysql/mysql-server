@@ -104,7 +104,7 @@ public:
   {}
 
 protected:
-  void make_row(const System_variable *system_var);
+  int make_row(const System_variable *system_var);
 
 private:
   /** Table share lock. */
@@ -116,8 +116,6 @@ private:
   PFS_system_variable_cache m_sysvar_cache;
   /** Current row. */
   row_global_variables m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_t m_pos;
   /** Next position. */

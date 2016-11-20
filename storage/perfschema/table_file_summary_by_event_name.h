@@ -93,7 +93,7 @@ public:
   {}
 
 private:
-  void make_row(PFS_file_class *klass);
+  int make_row(PFS_file_class *klass);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -102,8 +102,6 @@ private:
 
   /** Current row. */
   row_file_summary_by_event_name m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

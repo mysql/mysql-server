@@ -104,6 +104,7 @@ int table_session_connect::index_next(void)
 {
   PFS_thread *thread;
   bool has_more_thread= true;
+  int rc= 0;
 
   for (m_pos.set_at(&m_next_pos);
        has_more_thread;
@@ -122,8 +123,9 @@ int table_session_connect::index_next(void)
             This is simpler, as parsing the session attributes encoded string
             is done only once.
           */
-          make_row(thread, m_pos.m_index_2);
-          if (m_row_exists)
+          rc= make_row(thread, m_pos.m_index_2);
+
+          if (rc == 0)
           {
             if (m_opened_index->match(&m_row))
             {
@@ -132,7 +134,7 @@ int table_session_connect::index_next(void)
             }
             m_pos.m_index_2++;
           }
-        } while (m_row_exists);
+        } while (rc == 0);
       }
     }
   }
@@ -259,14 +261,12 @@ bool read_nth_attr(const char *connect_attrs,
   return false;
 }
 
-void table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
+int table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
 {
   pfs_optimistic_state lock;
   pfs_optimistic_state session_lock;
   PFS_thread_class *safe_class;
   const CHARSET_INFO *cs;
-
-  m_row_exists= false;
 
   /* Protect this reader against thread termination */
   pfs->m_lock.begin_optimistic_lock(&lock);
@@ -275,36 +275,36 @@ void table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
 
   safe_class= sanitize_thread_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return;
+    return HA_ERR_RECORD_DELETED;
 
   /* Filtering threads must be done under the protection of the optimistic lock. */
-  if (! thread_fits(pfs))
-    return;
-
+  if (!thread_fits(pfs))
+    return HA_ERR_RECORD_DELETED;
+  
   /* Make a safe copy of the session attributes */
 
   if (m_copy_session_connect_attrs == NULL)
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   m_copy_session_connect_attrs_length= pfs->m_session_connect_attrs_length;
 
   if (m_copy_session_connect_attrs_length > session_connect_attrs_size_per_thread)
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   memcpy(m_copy_session_connect_attrs,
          pfs->m_session_connect_attrs,
          m_copy_session_connect_attrs_length);
 
   cs= get_charset(pfs->m_session_connect_attrs_cs_number, MYF(0));
   if (cs == NULL)
-    return;
-
-  if (! pfs->m_session_lock.end_optimistic_lock(& session_lock))
-    return;
-
-  if (! pfs->m_lock.end_optimistic_lock(& lock))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
+  if (!pfs->m_session_lock.end_optimistic_lock(& session_lock))
+    return HA_ERR_RECORD_DELETED;
+  
+  if (!pfs->m_lock.end_optimistic_lock(& lock))
+    return HA_ERR_RECORD_DELETED;
+  
   /*
     Now we have a safe copy of the data,
     that will not change while parsing it
@@ -322,13 +322,15 @@ void table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
   {
     /* we don't expect internal threads to have connection attributes */
     if (pfs->m_processlist_id == 0)
-      return;
-
+      return HA_ERR_RECORD_DELETED;
+    
     m_row.m_ordinal_position= ordinal;
     m_row.m_process_id= pfs->m_processlist_id;
 
-    m_row_exists= true;
+    return 0;
   }
+
+  return HA_ERR_RECORD_DELETED;
 }
 
 int table_session_connect::read_row_values(TABLE *table,
@@ -337,9 +339,6 @@ int table_session_connect::read_row_values(TABLE *table,
                                          bool read_all)
 {
   Field *f;
-
-  if (unlikely(!m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

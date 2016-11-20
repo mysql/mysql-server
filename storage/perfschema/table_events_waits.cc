@@ -211,8 +211,7 @@ table_events_waits_history_long::m_share=
 
 table_events_waits_common::table_events_waits_common
 (const PFS_engine_table_share *share, void *pos)
-  : PFS_engine_table(share, pos),
-  m_row_exists(false)
+  : PFS_engine_table(share, pos)
 { }
 
 void table_events_waits_common::clear_object_columns()
@@ -505,16 +504,15 @@ int table_events_waits_common::make_metadata_lock_object_columns(PFS_events_wait
 /**
   Build a row.
   @param wait                       the wait the cursor is reading
+  @return 0 on success or HA_ERR_RECORD_DELETED
 */
-void table_events_waits_common::make_row(PFS_events_waits *wait)
+int table_events_waits_common::make_row(PFS_events_waits *wait)
 {
   PFS_instr_class *safe_class;
   const char *base;
   const char *safe_source_file;
   enum_timer_name timer_name= wait_timer;
   ulonglong timer_end;
-
-  m_row_exists= false;
 
   /*
     Design choice:
@@ -543,7 +541,7 @@ void table_events_waits_common::make_row(PFS_events_waits *wait)
   {
   case WAIT_CLASS_METADATA:
     if (make_metadata_lock_object_columns(wait))
-      return;
+      return HA_ERR_RECORD_DELETED;
     safe_class= sanitize_metadata_class(wait->m_class);
     break;
   case WAIT_CLASS_IDLE:
@@ -569,26 +567,26 @@ void table_events_waits_common::make_row(PFS_events_waits *wait)
     break;
   case WAIT_CLASS_TABLE:
     if (make_table_object_columns(wait))
-      return;
+      return HA_ERR_RECORD_DELETED;
     safe_class= sanitize_table_class(wait->m_class);
     break;
   case WAIT_CLASS_FILE:
     if (make_file_object_columns(wait))
-      return;
+      return HA_ERR_RECORD_DELETED;
     safe_class= sanitize_file_class((PFS_file_class*) wait->m_class);
     break;
   case WAIT_CLASS_SOCKET:
     if (make_socket_object_columns(wait))
-      return;
+      return HA_ERR_RECORD_DELETED;
     safe_class= sanitize_socket_class((PFS_socket_class*) wait->m_class);
     break;
   case NO_WAIT_CLASS:
   default:
-    return;
+    return HA_ERR_RECORD_DELETED;
   }
 
   if (unlikely(safe_class == NULL))
-    return;
+    return HA_ERR_RECORD_DELETED;
 
   m_row.m_thread_internal_id= wait->m_thread_internal_id;
   m_row.m_event_id= wait->m_event_id;
@@ -619,7 +617,7 @@ void table_events_waits_common::make_row(PFS_events_waits *wait)
   */
   safe_source_file= wait->m_source_file;
   if (unlikely(safe_source_file == NULL))
-    return;
+    return HA_ERR_RECORD_DELETED;
 
   base= base_name(wait->m_source_file);
   m_row.m_source_length= my_snprintf(m_row.m_source, sizeof(m_row.m_source),
@@ -630,7 +628,7 @@ void table_events_waits_common::make_row(PFS_events_waits *wait)
   m_row.m_number_of_bytes= wait->m_number_of_bytes;
   m_row.m_flags= wait->m_flags;
 
-  m_row_exists= true;
+  return 0;
 }
 
 /**
@@ -737,9 +735,6 @@ int table_events_waits_common::read_row_values(TABLE *table,
 
   static_assert(COUNT_OPERATION_TYPE == array_elements(operation_names_map),
                 "COUNT_OPERATION_TYPE needs to be the last element.");
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 2);
@@ -960,10 +955,9 @@ int table_events_waits_current::rnd_next(void)
       wait= get_wait(pfs_thread, m_pos.m_index_2);
       if (wait != NULL)
       {
-        make_row(pfs_thread, wait);
         /* Next iteration, look for the next locker in this thread */
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_row(pfs_thread, wait);
       }
     }
   }
@@ -985,8 +979,7 @@ int table_events_waits_current::rnd_pos(const void *pos)
     wait= get_wait(pfs_thread, m_pos.m_index_2);
     if (wait != NULL)
     {
-      make_row(pfs_thread, wait);
-      return 0;
+      return make_row(pfs_thread, wait);
     }
   }
 
@@ -1025,12 +1018,14 @@ int table_events_waits_current::index_next(void)
           {
             if (m_opened_index->match(wait))
             {
-              make_row(pfs_thread, wait);
-              /* Next iteration, look for the next locker in this thread */
-              m_next_pos.set_after(&m_pos);
-              return 0;
+              if (!make_row(pfs_thread, wait))
+              {
+                /* Next iteration, look for the next locker in this thread */
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
             }
-            m_pos.m_index_2++;
+            m_pos.set_after(&m_pos);
           }
         } while (wait != NULL);
       }
@@ -1040,7 +1035,7 @@ int table_events_waits_current::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_events_waits_current::make_row(PFS_thread *thread, PFS_events_waits *wait)
+int table_events_waits_current::make_row(PFS_thread *thread, PFS_events_waits *wait)
 {
   pfs_optimistic_state lock;
 
@@ -1049,8 +1044,10 @@ void table_events_waits_current::make_row(PFS_thread *thread, PFS_events_waits *
 
   table_events_waits_common::make_row(wait);
 
-  if (! thread->m_lock.end_optimistic_lock(&lock))
-    m_row_exists= false;
+  if (!thread->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+
+  return 0;
 }
 
 int table_events_waits_current::delete_all_rows(void)
@@ -1126,10 +1123,9 @@ int table_events_waits_history::rnd_next(void)
       wait= get_wait(pfs_thread, m_pos.m_index_2);
       if (wait != NULL)
       {
-        make_row(pfs_thread, wait);
         /* Next iteration, look for the next history in this thread */
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_row(pfs_thread, wait);
       }
     }
   }
@@ -1153,8 +1149,7 @@ int table_events_waits_history::rnd_pos(const void *pos)
     wait= get_wait(pfs_thread, m_pos.m_index_2);
     if (wait != NULL)
     {
-      make_row(pfs_thread, wait);
-      return 0;
+      return make_row(pfs_thread, wait);
     }
   }
 
@@ -1196,12 +1191,14 @@ int table_events_waits_history::index_next(void)
           {
             if (m_opened_index->match(wait))
             {
-              make_row(pfs_thread, wait);
-              /* Next iteration, look for the next history in this thread */
-              m_next_pos.set_after(&m_pos);
-              return 0;
+              if (!make_row(pfs_thread, wait))
+              {
+                /* Next iteration, look for the next history in this thread */
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
             }
-            m_pos.m_index_2++;
+            m_pos.set_after(&m_pos);
           }
         } while (wait != NULL);
       }
@@ -1211,7 +1208,7 @@ int table_events_waits_history::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_events_waits_history::make_row(PFS_thread *thread, PFS_events_waits *wait)
+int table_events_waits_history::make_row(PFS_thread *thread, PFS_events_waits *wait)
 {
   pfs_optimistic_state lock;
 
@@ -1220,8 +1217,10 @@ void table_events_waits_history::make_row(PFS_thread *thread, PFS_events_waits *
 
   table_events_waits_common::make_row(wait);
 
-  if (! thread->m_lock.end_optimistic_lock(&lock))
-    m_row_exists= false;
+  if (!thread->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+
+  return 0;
 }
 
 int table_events_waits_history::delete_all_rows(void)
@@ -1271,10 +1270,9 @@ int table_events_waits_history_long::rnd_next(void)
 
     if (wait->m_wait_class != NO_WAIT_CLASS)
     {
-      make_row(wait);
       /* Next iteration, look for the next entry */
       m_next_pos.set_after(&m_pos);
-      return 0;
+      return make_row(wait);
     }
   }
 
@@ -1304,8 +1302,7 @@ int table_events_waits_history_long::rnd_pos(const void *pos)
   if (wait->m_wait_class == NO_WAIT_CLASS)
     return HA_ERR_RECORD_DELETED;
 
-  make_row(wait);
-  return 0;
+  return make_row(wait);
 }
 
 int table_events_waits_history_long::delete_all_rows(void)

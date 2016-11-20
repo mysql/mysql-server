@@ -69,7 +69,7 @@ public:
   {}
 
 protected:
-  virtual bool make_row(PFS_thread *thread)= 0;
+  virtual int make_row(PFS_thread *thread)= 0;
 
 private:
   /** Current position. */

@@ -117,8 +117,7 @@ table_accounts::delete_all_rows(void)
 }
 
 table_accounts::table_accounts()
-  : cursor_by_account(& m_share),
-  m_row_exists(false)
+  : cursor_by_account(& m_share)
 {}
 
 int table_accounts::index_init(uint, bool)
@@ -130,15 +129,14 @@ int table_accounts::index_init(uint, bool)
   return 0;
 }
 
-void table_accounts::make_row(PFS_account *pfs)
+int table_accounts::make_row(PFS_account *pfs)
 {
   pfs_optimistic_state lock;
 
-  m_row_exists= false;
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_account.make_row(pfs))
-    return;
+    return HA_ERR_RECORD_DELETED;
 
   PFS_connection_stat_visitor visitor;
   PFS_connection_iterator::visit_account(pfs,
@@ -146,11 +144,11 @@ void table_accounts::make_row(PFS_account *pfs)
                                          false, /* THDs */
                                          & visitor);
 
-  if (! pfs->m_lock.end_optimistic_lock(& lock))
-    return;
+  if (!pfs->m_lock.end_optimistic_lock(& lock))
+    return HA_ERR_RECORD_DELETED;
 
   m_row.m_connection_stat.set(& visitor.m_stat);
-  m_row_exists= true;
+  return 0;
 }
 
 int table_accounts::read_row_values(TABLE *table,
@@ -159,9 +157,6 @@ int table_accounts::read_row_values(TABLE *table,
                                       bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

@@ -536,14 +536,14 @@ void PFS_error_stat_row::set_field(uint index, Field *f, server_error *temp_erro
     case 1: /* ERROR NAME */
       if (temp_error)
         PFS_engine_table::set_field_varchar_utf8(f, temp_error->name,
-                                                 strlen(temp_error->name));
+                                                 (uint)strlen(temp_error->name));
       else /* NULL ROW */
         f->set_null();
       break;
     case 2: /* SQLSTATE */
       if (temp_error)
         PFS_engine_table::set_field_varchar_utf8(f, temp_error->odbc_state,
-                                                 strlen(temp_error->odbc_state));
+                                                 (uint)strlen(temp_error->odbc_state));
       else /* NULL ROW */
         f->set_null();
       break;
@@ -601,7 +601,7 @@ void set_field_object_type(Field *f, enum_object_type object_type)
   const char *name;
   size_t length;
   object_type_to_string(object_type, &name, &length);
-  PFS_engine_table::set_field_varchar_utf8(f, name, length);
+  PFS_engine_table::set_field_varchar_utf8(f, name, (uint)length);
 }
 
 void set_field_lock_type(Field *f, PFS_TL_LOCK_TYPE lock_type)
@@ -828,7 +828,7 @@ void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state)
   }
 }
 
-void PFS_variable_name_row::make_row(const char* str, size_t length)
+int PFS_variable_name_row::make_row(const char* str, size_t length)
 {
   DBUG_ASSERT(length <= sizeof(m_str));
   DBUG_ASSERT(length <= NAME_CHAR_LEN);
@@ -837,19 +837,21 @@ void PFS_variable_name_row::make_row(const char* str, size_t length)
   if (m_length > 0)
     memcpy(m_str, str, length);
   m_str[m_length]= '\0';
+
+  return 0;
 }
 
-void PFS_variable_value_row::make_row(const Status_variable *var)
+int PFS_variable_value_row::make_row(const Status_variable *var)
 {
-  make_row(var->m_charset, var->m_value_str, var->m_value_length);
+  return make_row(var->m_charset, var->m_value_str, var->m_value_length);
 }
 
-void PFS_variable_value_row::make_row(const System_variable *var)
+int PFS_variable_value_row::make_row(const System_variable *var)
 {
-  make_row(var->m_charset, var->m_value_str, var->m_value_length);
+  return make_row(var->m_charset, var->m_value_str, var->m_value_length);
 }
 
-void PFS_variable_value_row::make_row(const CHARSET_INFO *cs, const char* str, size_t length)
+int PFS_variable_value_row::make_row(const CHARSET_INFO *cs, const char* str, size_t length)
 {
   DBUG_ASSERT(cs != NULL);
   DBUG_ASSERT(length <= sizeof(m_str));
@@ -859,6 +861,8 @@ void PFS_variable_value_row::make_row(const CHARSET_INFO *cs, const char* str, s
   }
   m_length= (uint)length;
   m_charset= cs;
+
+  return 0;
 }
 
 void PFS_variable_value_row::set_field(Field *f)
@@ -873,7 +877,7 @@ void PFS_user_variable_value_row::clear()
   m_value_length= 0;
 }
 
-void PFS_user_variable_value_row::make_row(const char* val, size_t length)
+int PFS_user_variable_value_row::make_row(const char* val, size_t length)
 {
   if (length > 0)
   {
@@ -886,6 +890,8 @@ void PFS_user_variable_value_row::make_row(const char* val, size_t length)
     m_value= NULL;
     m_value_length= 0;
   }
+
+  return 0;
 }
 
 bool PFS_key_long_int::do_match(bool record_null, int32 record_value)

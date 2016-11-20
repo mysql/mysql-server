@@ -124,8 +124,8 @@ public:
   {}
 
 private:
-  void make_row(PFS_builtin_memory_class *klass);
-  void make_row(PFS_memory_class *klass);
+  int make_row(PFS_builtin_memory_class *klass);
+  int make_row(PFS_memory_class *klass);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -134,8 +134,6 @@ private:
 
   /** Current row. */
   row_mems_global_by_event_name m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_t m_pos;
   /** Next position. */

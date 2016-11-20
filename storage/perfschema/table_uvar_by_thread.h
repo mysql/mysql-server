@@ -185,7 +185,7 @@ public:
 
 protected:
   int materialize(PFS_thread *thread);
-  void make_row(PFS_thread *thread, const User_variable *uvar);
+  int make_row(PFS_thread *thread, const User_variable *uvar);
 
 private:
   /** Table share lock. */
@@ -197,8 +197,6 @@ private:
   User_variables m_THD_cache;
   /** Current row. */
   row_uvar_by_thread m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_t m_pos;
   /** Next position. */

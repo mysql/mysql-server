@@ -225,7 +225,7 @@ public:
   {}
 
 protected:
-  void make_row(PFS_prepared_stmt*);
+  int make_row(PFS_prepared_stmt*);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -234,8 +234,6 @@ protected:
 
   /** Current row. */
   row_prepared_stmt_instances m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

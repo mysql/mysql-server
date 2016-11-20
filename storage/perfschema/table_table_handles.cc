@@ -162,7 +162,7 @@ table_table_handles::get_row_count(void)
 
 table_table_handles::table_table_handles()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_pos(0), m_next_pos(0)
 {}
 
 void table_table_handles::reset_position(void)
@@ -185,9 +185,8 @@ int table_table_handles::rnd_next(void)
   pfs= it.scan_next(& m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -203,8 +202,7 @@ table_table_handles::rnd_pos(const void *pos)
   pfs= global_table_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -249,9 +247,11 @@ int table_table_handles::index_next(void)
     {
       if (m_opened_index->match(pfs))
       {
-        make_row(pfs);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(pfs))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   } while (pfs != NULL);
@@ -259,23 +259,21 @@ int table_table_handles::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_table_handles::make_row(PFS_table *table)
+int table_table_handles::make_row(PFS_table *table)
 {
   pfs_optimistic_state lock;
   PFS_table_share *share;
   PFS_thread *thread;
 
-  m_row_exists= false;
-
   table->m_lock.begin_optimistic_lock(&lock);
 
   share= sanitize_table_share(table->m_share);
   if (share == NULL)
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   if (m_row.m_object.make_row(share))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_identity= table->m_identity;
 
   thread= sanitize_thread(table->m_thread_owner);
@@ -293,10 +291,10 @@ void table_table_handles::make_row(PFS_table *table)
   m_row.m_internal_lock= table->m_internal_lock;
   m_row.m_external_lock= table->m_external_lock;
 
-  if (! table->m_lock.end_optimistic_lock(&lock))
-    return;
+  if (!table->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
 
-  m_row_exists= true;
+  return 0;
 }
 
 int table_table_handles::read_row_values(TABLE *table,
@@ -305,9 +303,6 @@ int table_table_handles::read_row_values(TABLE *table,
                                          bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

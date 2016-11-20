@@ -124,7 +124,7 @@ public:
   {}
 
 protected:
-  void make_row(PFS_host *host, PFS_stage_class *klass);
+  int make_row(PFS_host *host, PFS_stage_class *klass);
 
 private:
   /** Table share lock. */
@@ -134,8 +134,6 @@ private:
 
   /** Current row. */
   row_esgs_by_host_by_event_name m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_esgs_by_host_by_event_name m_pos;
   /** Next position. */

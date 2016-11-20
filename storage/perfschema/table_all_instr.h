@@ -106,27 +106,27 @@ protected:
     Build a row in the mutex instance view.
     @param pfs                        the mutex instance
   */
-  virtual void make_mutex_row(PFS_mutex *pfs)= 0;
+  virtual int make_mutex_row(PFS_mutex *pfs)= 0;
   /**
     Build a row in the rwlock instance view.
     @param pfs                        the rwlock instance
   */
-  virtual void make_rwlock_row(PFS_rwlock *pfs)= 0;
+  virtual int make_rwlock_row(PFS_rwlock *pfs)= 0;
   /**
     Build a row in the condition instance view.
     @param pfs                        the condition instance
   */
-  virtual void make_cond_row(PFS_cond *pfs)= 0;
+  virtual int make_cond_row(PFS_cond *pfs)= 0;
   /**
     Build a row in the file instance view.
     @param pfs                        the file instance
   */
-  virtual void make_file_row(PFS_file *pfs)= 0;
+  virtual int make_file_row(PFS_file *pfs)= 0;
   /**
     Build a row in the socket instance view.
     @param pfs                        the socket instance
   */
-  virtual void make_socket_row(PFS_socket *pfs)= 0;
+  virtual int make_socket_row(PFS_socket *pfs)= 0;
 
   /** Current position. */
   pos_all_instr m_pos;

@@ -174,27 +174,25 @@ bool PFS_index_events_stages::match(PFS_events_stages *pfs)
 
 table_events_stages_common::table_events_stages_common
 (const PFS_engine_table_share *share, void *pos)
-  : PFS_engine_table(share, pos),
-  m_row_exists(false)
+  : PFS_engine_table(share, pos)
 {}
 
 /**
   Build a row.
   @param stage                      the stage the cursor is reading
+  @return 0 on success or HA_ERR_RECORD_DELETED
 */
-void table_events_stages_common::make_row(PFS_events_stages *stage)
+int table_events_stages_common::make_row(PFS_events_stages *stage)
 {
   const char *base;
   const char *safe_source_file;
   ulonglong timer_end;
 
-  m_row_exists= false;
-
   PFS_stage_class *unsafe= (PFS_stage_class*) stage->m_class;
   PFS_stage_class *klass= sanitize_stage_class(unsafe);
   if (unlikely(klass == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_thread_internal_id= stage->m_thread_internal_id;
   m_row.m_event_id= stage->m_event_id;
   m_row.m_end_event_id= stage->m_end_event_id;
@@ -218,8 +216,8 @@ void table_events_stages_common::make_row(PFS_events_stages *stage)
 
   safe_source_file= stage->m_source_file;
   if (unlikely(safe_source_file == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   base= base_name(safe_source_file);
   m_row.m_source_length= my_snprintf(m_row.m_source, sizeof(m_row.m_source),
                                      "%s:%d", base, stage->m_source_line);
@@ -237,8 +235,7 @@ void table_events_stages_common::make_row(PFS_events_stages *stage)
     m_row.m_progress= false;
   }
 
-  m_row_exists= true;
-  return;
+  return 0;
 }
 
 int table_events_stages_common::read_row_values(TABLE *table,
@@ -247,9 +244,6 @@ int table_events_stages_common::read_row_values(TABLE *table,
                                                bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 2);
@@ -363,9 +357,8 @@ int table_events_stages_current::rnd_next(void)
   if (pfs_thread != NULL)
   {
     stage= &pfs_thread->m_stage_current;
-    make_row(stage);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(stage);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -382,8 +375,7 @@ int table_events_stages_current::rnd_pos(const void *pos)
   if (pfs_thread != NULL)
   {
     stage= &pfs_thread->m_stage_current;
-    make_row(stage);
-    return 0;
+    return make_row(stage);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -411,7 +403,7 @@ int table_events_stages_current::index_next(void)
 
   do
   {
-    pfs_thread= it.scan_next(& m_pos.m_index);
+    pfs_thread= it.scan_next(&m_pos.m_index);
     if (pfs_thread != NULL)
     {
       if (m_opened_index->match(pfs_thread))
@@ -419,8 +411,7 @@ int table_events_stages_current::index_next(void)
         stage= &pfs_thread->m_stage_current;
         if (m_opened_index->match(stage))
         {
-          make_row(stage);
-          if (m_row_exists)
+          if (!make_row(stage))
           {
             m_next_pos.set_after(&m_pos);
             return 0;
@@ -500,10 +491,9 @@ int table_events_stages_history::rnd_next(void)
 
       if (stage->m_class != NULL)
       {
-        make_row(stage);
         /* Next iteration, look for the next history in this thread */
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_row(stage);
       }
     }
   }
@@ -524,7 +514,7 @@ int table_events_stages_history::rnd_pos(const void *pos)
   pfs_thread= global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != NULL)
   {
-    if ( ! pfs_thread->m_stages_history_full &&
+    if (!pfs_thread->m_stages_history_full &&
         (m_pos.m_index_2 >= pfs_thread->m_stages_history_index))
       return HA_ERR_RECORD_DELETED;
 
@@ -532,8 +522,7 @@ int table_events_stages_history::rnd_pos(const void *pos)
 
     if (stage->m_class != NULL)
     {
-      make_row(stage);
-      return 0;
+      return make_row(stage);
     }
   }
 
@@ -590,10 +579,9 @@ int table_events_stages_history::index_next(void)
           {
             if (m_opened_index->match(stage))
             {
-              make_row(stage);
               /* Next iteration, look for the next history in this thread */
               m_next_pos.set_after(&m_pos);
-              return 0;
+              return make_row(stage);
             }
             m_pos.set_after(&m_pos);
           }
@@ -658,10 +646,9 @@ int table_events_stages_history_long::rnd_next(void)
 
     if (stage->m_class != NULL)
     {
-      make_row(stage);
       /* Next iteration, look for the next entry */
       m_next_pos.set_after(&m_pos);
-      return 0;
+      return make_row(stage);
     }
   }
 
@@ -691,8 +678,7 @@ int table_events_stages_history_long::rnd_pos(const void *pos)
   if (stage->m_class == NULL)
     return HA_ERR_RECORD_DELETED;
 
-  make_row(stage);
-  return 0;
+  return make_row(stage);
 }
 
 int table_events_stages_history_long::delete_all_rows(void)

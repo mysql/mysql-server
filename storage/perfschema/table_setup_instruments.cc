@@ -191,11 +191,11 @@ int table_setup_instruments::rnd_next(void)
       instr_class= find_error_class(m_pos.m_index_2);
       break;
     }
+
     if (instr_class)
     {
-      make_row(instr_class, update_enabled, update_timed);
       m_next_pos.set_after(&m_pos);
-      return 0;
+      return make_row(instr_class, update_enabled, update_timed);
     }
   }
 
@@ -274,10 +274,10 @@ int table_setup_instruments::rnd_pos(const void *pos)
     instr_class= find_error_class(m_pos.m_index_2);
     break;
   }
+
   if (instr_class)
   {
-    make_row(instr_class, update_enabled, update_timed);
-    return 0;
+    return make_row(instr_class, update_enabled, update_timed);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -374,13 +374,16 @@ int table_setup_instruments::index_next(void)
         instr_class= find_error_class(m_pos.m_index_2);
         break;
       }
+
       if (instr_class)
       {
         if (m_opened_index->match(instr_class))
         {
-          make_row(instr_class, update_enabled, update_timed);
-          m_next_pos.set_after(&m_pos);
-          return 0;
+          if (!make_row(instr_class, update_enabled, update_timed))
+          {
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
         }
         m_pos.m_index_2++;
       }
@@ -390,11 +393,14 @@ int table_setup_instruments::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_setup_instruments::make_row(PFS_instr_class *klass, bool update_enabled, bool update_timed)
+int table_setup_instruments
+::make_row(PFS_instr_class *klass, bool update_enabled, bool update_timed)
 {
   m_row.m_instr_class= klass;
   m_row.m_update_enabled= update_enabled;
   m_row.m_update_timed= update_timed;
+
+  return 0;
 }
 
 int table_setup_instruments::read_row_values(TABLE *table,

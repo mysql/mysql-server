@@ -75,9 +75,7 @@ public:
   {}
 
 protected:
-  virtual void make_row(PFS_thread *thread, uint ordinal)= 0;
-  /** True if row exists */
-  bool m_row_exists;
+  virtual int make_row(PFS_thread *thread, uint ordinal)= 0;
 
   /** Current position. */
   pos_connect_attr_by_thread_by_attr m_pos;

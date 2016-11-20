@@ -122,7 +122,7 @@ public:
   {}
 
 protected:
-  void make_row(PFS_table_share *table_share, uint index);
+  int make_row(PFS_table_share *table_share, uint index);
 
 private:
   /** Table share lock. */
@@ -132,8 +132,6 @@ private:
 
   /** Current row. */
   row_tiws_by_index_usage m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_tiws_by_index_usage m_pos;
   /** Next position. */

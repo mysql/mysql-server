@@ -144,7 +144,7 @@ public:
   {}
 
 protected:
-  void make_row(PFS_account *pfs_account, const Status_variable *status_var);
+  int make_row(PFS_account *pfs_account, const Status_variable *status_var);
 
 private:
   /** Table share lock. */
@@ -157,8 +157,6 @@ private:
 
   /** Current row. */
   row_status_by_account m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_t m_pos;
   /** Next position. */

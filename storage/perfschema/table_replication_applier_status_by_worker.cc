@@ -163,7 +163,7 @@ PFS_engine_table* table_replication_applier_status_by_worker::create(void)
 table_replication_applier_status_by_worker
   ::table_replication_applier_status_by_worker()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos(),
+    m_pos(), m_next_pos(),
     m_applier_pos(0), m_applier_next_pos(0)
 {}
 
@@ -235,9 +235,8 @@ int table_replication_applier_status_by_worker::rnd_next(void)
       worker= mi->rli->get_worker(m_pos.m_index_2);
       if (worker)
       {
-        make_row(worker);
+        res= make_row(worker);
         m_next_pos.set_after(&m_pos);
-        res= 0;
       }
     }
   }
@@ -272,16 +271,14 @@ int table_replication_applier_status_by_worker
   */
   if (mi->rli->get_worker_count() == 0)
   {
-    make_row(mi);
-    res= 0;
+    res= make_row(mi);
     goto end;
   }
   worker= mi->rli->get_worker(m_pos.m_index_2);
 
   if (worker != NULL)
   {
-    make_row(worker);
-    res= 0;
+    res= make_row(worker);
   }
 
 end:
@@ -384,10 +381,10 @@ int table_replication_applier_status_by_worker::index_next(void)
   'replication_applier_status_by_worker' in single threaded slave mode.
 
    @param[in] mi Master_info
+   @return 0 or HA_ERR_RECORD_DELETED
 */
-void table_replication_applier_status_by_worker::make_row(Master_info *mi)
+int table_replication_applier_status_by_worker::make_row(Master_info *mi)
 {
-  m_row_exists= false;
 
   m_row.worker_id= 0;
 
@@ -467,14 +464,14 @@ void table_replication_applier_status_by_worker::make_row(Master_info *mi)
 
   mysql_mutex_unlock(&mi->rli->err_lock);
   mysql_mutex_unlock(&mi->rli->data_lock);
-  m_row_exists= true;
+
+  return 0;
 }
 #endif /* HAVE_REPLICATION */
 
 #ifdef HAVE_REPLICATION
-void table_replication_applier_status_by_worker::make_row(Slave_worker *w)
+int table_replication_applier_status_by_worker::make_row(Slave_worker *w)
 {
-  m_row_exists= false;
 
   m_row.worker_id= w->get_internal_id();
 
@@ -549,7 +546,7 @@ void table_replication_applier_status_by_worker::make_row(Slave_worker *w)
   }
   mysql_mutex_unlock(&w->jobs_lock);
 
-  m_row_exists= true;
+  return 0;
 }
 #endif /* HAVE_REPLICATION */
 
@@ -561,9 +558,6 @@ int table_replication_applier_status_by_worker
 {
 #ifdef HAVE_REPLICATION
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0]= 0;

@@ -113,7 +113,7 @@ table_mutex_instances::get_row_count(void)
 
 table_mutex_instances::table_mutex_instances()
   : PFS_engine_table(&m_share, &m_pos),
-  m_row_exists(false), m_pos(0), m_next_pos(0)
+  m_pos(0), m_next_pos(0)
 {}
 
 void table_mutex_instances::reset_position(void)
@@ -131,9 +131,8 @@ int table_mutex_instances::rnd_next(void)
   pfs= it.scan_next(& m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -148,8 +147,7 @@ int table_mutex_instances::rnd_pos(const void *pos)
   pfs= global_mutex_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -193,9 +191,11 @@ int table_mutex_instances::index_next(void)
     {
       if (m_opened_index->match(pfs))
       {
-        make_row(pfs);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(pfs))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   } while (pfs != NULL);
@@ -203,20 +203,18 @@ int table_mutex_instances::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_mutex_instances::make_row(PFS_mutex *pfs)
+int table_mutex_instances::make_row(PFS_mutex *pfs)
 {
   pfs_optimistic_state lock;
   PFS_mutex_class *safe_class;
-
-  m_row_exists= false;
 
   /* Protect this reader against a mutex destroy */
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   safe_class= sanitize_mutex_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
   m_row.m_identity= pfs->m_identity;
@@ -231,8 +229,10 @@ void table_mutex_instances::make_row(PFS_mutex *pfs)
   else
     m_row.m_locked= false;
 
-  if (pfs->m_lock.end_optimistic_lock(&lock))
-    m_row_exists= true;
+  if (!pfs->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+
+  return 0;
 }
 
 int table_mutex_instances::read_row_values(TABLE *table,
@@ -241,9 +241,6 @@ int table_mutex_instances::read_row_values(TABLE *table,
                                            bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
@@ -365,7 +362,7 @@ table_rwlock_instances::get_row_count(void)
 
 table_rwlock_instances::table_rwlock_instances()
   : PFS_engine_table(&m_share, &m_pos),
-  m_row_exists(false), m_pos(0), m_next_pos(0)
+  m_pos(0), m_next_pos(0)
 {}
 
 void table_rwlock_instances::reset_position(void)
@@ -383,9 +380,8 @@ int table_rwlock_instances::rnd_next(void)
   pfs= it.scan_next(& m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -400,8 +396,7 @@ int table_rwlock_instances::rnd_pos(const void *pos)
   pfs= global_rwlock_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -445,9 +440,11 @@ int table_rwlock_instances::index_next(void)
     {
       if (m_opened_index->match(pfs))
       {
-        make_row(pfs);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(pfs))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
       m_pos.m_index++;
     }
@@ -456,20 +453,18 @@ int table_rwlock_instances::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_rwlock_instances::make_row(PFS_rwlock *pfs)
+int table_rwlock_instances::make_row(PFS_rwlock *pfs)
 {
   pfs_optimistic_state lock;
   PFS_rwlock_class *safe_class;
-
-  m_row_exists= false;
 
   /* Protect this reader against a rwlock destroy */
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   safe_class= sanitize_rwlock_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
   m_row.m_identity= pfs->m_identity;
@@ -488,8 +483,10 @@ void table_rwlock_instances::make_row(PFS_rwlock *pfs)
     m_row.m_write_locked= false;
   }
 
-  if (pfs->m_lock.end_optimistic_lock(&lock))
-    m_row_exists= true;
+  if (!pfs->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+
+  return 0;
 }
 
 int table_rwlock_instances::read_row_values(TABLE *table,
@@ -498,9 +495,6 @@ int table_rwlock_instances::read_row_values(TABLE *table,
                                              bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
@@ -605,7 +599,7 @@ table_cond_instances::get_row_count(void)
 
 table_cond_instances::table_cond_instances()
   : PFS_engine_table(&m_share, &m_pos),
-  m_row_exists(false), m_pos(0), m_next_pos(0)
+  m_pos(0), m_next_pos(0)
 {}
 
 void table_cond_instances::reset_position(void)
@@ -623,9 +617,8 @@ int table_cond_instances::rnd_next(void)
   pfs= it.scan_next(& m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -640,8 +633,7 @@ int table_cond_instances::rnd_pos(const void *pos)
   pfs= global_cond_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -682,9 +674,11 @@ int table_cond_instances::index_next(void)
     {
       if (m_opened_index->match(pfs))
       {
-        make_row(pfs);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(pfs))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
       m_pos.m_index++;
     }
@@ -693,26 +687,26 @@ int table_cond_instances::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_cond_instances::make_row(PFS_cond *pfs)
+int table_cond_instances::make_row(PFS_cond *pfs)
 {
   pfs_optimistic_state lock;
   PFS_cond_class *safe_class;
-
-  m_row_exists= false;
 
   /* Protect this reader against a cond destroy */
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   safe_class= sanitize_cond_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
   m_row.m_identity= pfs->m_identity;
 
-  if (pfs->m_lock.end_optimistic_lock(&lock))
-    m_row_exists= true;
+  if (!pfs->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+
+  return 0;
 }
 
 int table_cond_instances::read_row_values(TABLE *table,
@@ -721,9 +715,6 @@ int table_cond_instances::read_row_values(TABLE *table,
                                           bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);

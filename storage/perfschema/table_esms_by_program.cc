@@ -262,7 +262,7 @@ table_esms_by_program::get_row_count(void)
 
 table_esms_by_program::table_esms_by_program()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_pos(0), m_next_pos(0)
 {}
 
 void table_esms_by_program::reset_position(void)
@@ -280,9 +280,8 @@ int table_esms_by_program::rnd_next(void)
   pfs= it.scan_next(& m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -298,8 +297,7 @@ table_esms_by_program::rnd_pos(const void *pos)
   pfs= global_program_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -330,8 +328,7 @@ int table_esms_by_program::index_next(void)
     {
       if (m_opened_index->match(pfs))
       {
-        make_row(pfs);
-        if (m_row_exists)
+        if (!make_row(pfs))
         {
           m_next_pos.set_after(&m_pos);
           return 0;
@@ -343,10 +340,10 @@ int table_esms_by_program::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_esms_by_program::make_row(PFS_program* program)
+int table_esms_by_program
+::make_row(PFS_program* program)
 {
   pfs_optimistic_state lock;
-  m_row_exists= false;
 
   program->m_lock.begin_optimistic_lock(&lock);
 
@@ -368,10 +365,10 @@ void table_esms_by_program::make_row(PFS_program* program)
   /* Get sub statements' stats. */
   m_row.m_stmt_stat.set(normalizer, & program->m_stmt_stat);
 
-  if (! program->m_lock.end_optimistic_lock(&lock))
-    return;
+  if (!program->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
 
-  m_row_exists= true;
+  return 0;
 }
 
 int table_esms_by_program
@@ -379,9 +376,6 @@ int table_esms_by_program
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /*
     Set the null bits. It indicates how many fields could be null

@@ -205,7 +205,7 @@ table_uvar_by_thread::get_row_count(void)
 
 table_uvar_by_thread::table_uvar_by_thread()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos()
+    m_pos(), m_next_pos()
 {}
 
 void table_uvar_by_thread::reset_position(void)
@@ -223,7 +223,7 @@ int table_uvar_by_thread::rnd_next(void)
        has_more_thread;
        m_pos.next_thread())
   {
-    thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (thread != NULL)
     {
       if (materialize(thread) == 0)
@@ -231,9 +231,12 @@ int table_uvar_by_thread::rnd_next(void)
         const User_variable *uvar= m_THD_cache.get(m_pos.m_index_2);
         if (uvar != NULL)
         {
-          make_row(thread, uvar);
-          m_next_pos.set_after(&m_pos);
-          return 0;
+          /* If make_row() fails, get the next thread. */
+          if (!make_row(thread, uvar))
+          {
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
         }
       }
     }
@@ -257,8 +260,7 @@ table_uvar_by_thread::rnd_pos(const void *pos)
       const User_variable *uvar= m_THD_cache.get(m_pos.m_index_2);
       if (uvar != NULL)
       {
-        make_row(thread, uvar);
-        return 0;
+        return make_row(thread, uvar);
       }
     }
   }
@@ -300,9 +302,11 @@ int table_uvar_by_thread::index_next(void)
             {
               if (m_opened_index->match(uvar))
               {
-                make_row(thread, uvar);
-                m_next_pos.set_after(&m_pos);
-                return 0;
+                if (!make_row(thread, uvar))
+                {
+                  m_next_pos.set_after(&m_pos);
+                  return 0;
+                }
               }
               m_pos.m_index_2++;
             }
@@ -337,11 +341,10 @@ int table_uvar_by_thread::materialize(PFS_thread *thread)
   return 0;
 }
 
-void table_uvar_by_thread
+int table_uvar_by_thread
 ::make_row(PFS_thread *thread, const User_variable *uvar)
 {
   pfs_optimistic_state lock;
-  m_row_exists= false;
 
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
@@ -352,10 +355,10 @@ void table_uvar_by_thread
   m_row.m_variable_name= & uvar->m_name;
   m_row.m_variable_value= & uvar->m_value;
 
-  if (! thread->m_lock.end_optimistic_lock(&lock))
-    return;
-
-  m_row_exists= true;
+  if (!thread->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+  
+  return 0;
 }
 
 int table_uvar_by_thread
@@ -365,9 +368,6 @@ int table_uvar_by_thread
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

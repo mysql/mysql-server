@@ -168,12 +168,12 @@ class table_replication_applier_status_by_worker: public PFS_engine_table
 {
 private:
 #ifdef HAVE_REPLICATION
-  void make_row(Slave_worker *);
+  int make_row(Slave_worker *);
   /*
     Master_info to construct a row to display SQL Thread's status
     information in STS mode
   */
-  void make_row(Master_info *);
+  int make_row(Master_info *);
 #endif /* HAVE_REPLICATION */
 
   /** Table share lock. */
@@ -184,8 +184,6 @@ private:
   /** current row*/
   st_row_worker m_row;
 #endif /* HAVE_REPLICATION */
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   workers_per_channel m_pos;
   /** Next position. */

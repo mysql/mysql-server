@@ -155,7 +155,7 @@ class table_replication_connection_status: public PFS_engine_table
 {
 private:
 #ifdef HAVE_REPLICATION
-  void make_row(Master_info *mi);
+  int make_row(Master_info *mi);
 #endif /* HAVE_REPLICATION */
 
   /** Table share lock. */
@@ -166,8 +166,6 @@ private:
   /** Current row */
   st_row_connect_status m_row;
 #endif /* HAVE_REPLICATION */
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

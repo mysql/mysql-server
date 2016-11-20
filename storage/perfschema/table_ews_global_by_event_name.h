@@ -122,15 +122,15 @@ public:
   {}
 
 protected:
-  void make_mutex_row(PFS_mutex_class *klass);
-  void make_rwlock_row(PFS_rwlock_class *klass);
-  void make_cond_row(PFS_cond_class *klass);
-  void make_file_row(PFS_file_class *klass);
-  void make_table_io_row(PFS_instr_class *klass);
-  void make_table_lock_row(PFS_instr_class *klass);
-  void make_socket_row(PFS_socket_class *klass);
-  void make_idle_row(PFS_instr_class *klass);
-  void make_metadata_row(PFS_instr_class *klass);
+  int make_mutex_row(PFS_mutex_class *klass);
+  int make_rwlock_row(PFS_rwlock_class *klass);
+  int make_cond_row(PFS_cond_class *klass);
+  int make_file_row(PFS_file_class *klass);
+  int make_table_io_row(PFS_instr_class *klass);
+  int make_table_lock_row(PFS_instr_class *klass);
+  int make_socket_row(PFS_socket_class *klass);
+  int make_idle_row(PFS_instr_class *klass);
+  int make_metadata_row(PFS_instr_class *klass);
 
 private:
   /** Table share lock. */
@@ -140,8 +140,6 @@ private:
 
   /** Current row. */
   row_ews_global_by_event_name m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_ews_global_by_event_name m_pos;
   /** Next position. */

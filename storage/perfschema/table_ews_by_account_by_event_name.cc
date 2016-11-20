@@ -151,7 +151,7 @@ table_ews_by_account_by_event_name::get_row_count(void)
 
 table_ews_by_account_by_event_name::table_ews_by_account_by_event_name()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos()
+    m_pos(), m_next_pos()
 {}
 
 void table_ews_by_account_by_event_name::reset_position(void)
@@ -211,9 +211,8 @@ int table_ews_by_account_by_event_name::rnd_next(void)
 
         if (instr_class)
         {
-          make_row(account, instr_class);
           m_next_pos.set_after(&m_pos);
-          return 0;
+          return make_row(account, instr_class);
         }
       }
     }
@@ -264,10 +263,10 @@ table_ews_by_account_by_event_name::rnd_pos(const void *pos)
     instr_class= NULL;
     DBUG_ASSERT(false);
   }
+  
   if (instr_class)
   {
-    make_row(account, instr_class);
-    return 0;
+    return make_row(account, instr_class);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -343,9 +342,11 @@ int table_ews_by_account_by_event_name::index_next(void)
             {
               if (m_opened_index->match(instr_class))
               {
-                make_row(account, instr_class);
-                m_next_pos.set_after(&m_pos);
-                return 0;
+                if (!make_row(account, instr_class))
+                {
+                  m_next_pos.set_after(&m_pos);
+                  return 0;
+                }
               }
               m_pos.set_after(&m_pos);
             }
@@ -358,32 +359,31 @@ int table_ews_by_account_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_ews_by_account_by_event_name
+int table_ews_by_account_by_event_name
 ::make_row(PFS_account *account, PFS_instr_class *klass)
 {
   pfs_optimistic_state lock;
-  m_row_exists= false;
 
   account->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_account.make_row(account))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_wait_visitor visitor(klass);
   PFS_connection_iterator::visit_account(account,
                                          true,  /* threads */
                                          false, /* THDs */
-                                         & visitor);
+                                         &visitor);
 
-  if (! account->m_lock.end_optimistic_lock(&lock))
-    return;
-
-  m_row_exists= true;
-
+  if (!account->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+  
   get_normalizer(klass);
-  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
+  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
+
+  return 0;
 }
 
 int table_ews_by_account_by_event_name
@@ -391,9 +391,6 @@ int table_ews_by_account_by_event_name
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

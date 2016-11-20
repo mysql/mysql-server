@@ -65,7 +65,7 @@ class table_replication_group_members: public PFS_engine_table
 {
 private:
 #ifdef HAVE_REPLICATION
-  void make_row(uint index);
+  int make_row(uint index);
 #endif /* HAVE_REPLICATION */
 
   /** Table share lock. */
@@ -76,8 +76,6 @@ private:
   /** Current row */
   st_row_group_members m_row;
 #endif /* HAVE_REPLICATION */
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

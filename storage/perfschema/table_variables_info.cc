@@ -99,7 +99,7 @@ ha_rows table_variables_info::get_row_count(void)
 
 table_variables_info::table_variables_info()
   : PFS_engine_table(&m_share, &m_pos),
-    m_sysvarinfo_cache(false), m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_sysvarinfo_cache(false), m_pos(0), m_next_pos(0)
 {}
 
 void table_variables_info::reset_position(void)
@@ -126,9 +126,8 @@ int table_variables_info::rnd_next(void)
       const System_variable *system_var= m_sysvarinfo_cache.get(m_pos.m_index);
       if (system_var != NULL)
       {
-        make_row(system_var);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_row(system_var);
       }
     }
   }
@@ -145,18 +144,15 @@ int table_variables_info::rnd_pos(const void *pos)
     const System_variable *system_var= m_sysvarinfo_cache.get(m_pos.m_index);
     if (system_var != NULL)
     {
-      make_row(system_var);
-      return 0;
+      return make_row(system_var);
     }
   }
   return HA_ERR_RECORD_DELETED;
 }
 
-void table_variables_info
+int table_variables_info
 ::make_row(const System_variable *system_var)
 {
-  m_row_exists= false;
-
   memcpy(m_row.m_variable_name,
          system_var->m_name, system_var->m_name_length);
   m_row.m_variable_name_length= system_var->m_name_length;
@@ -176,7 +172,7 @@ void table_variables_info
          system_var->m_max_value_str, system_var->m_max_value_length);
   m_row.m_max_value_length= system_var->m_max_value_length;
 
-  m_row_exists= true;
+  return 0;
 }
 
 int table_variables_info
@@ -186,9 +182,6 @@ int table_variables_info
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(!m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

@@ -97,7 +97,7 @@ public:
   {}
 
 protected:
-  void make_row(PFS_transaction_class *klass);
+  int make_row(PFS_transaction_class *klass);
 
 private:
   /** Table share lock. */
@@ -107,8 +107,6 @@ private:
 
   /** Current row. */
   row_ets_global_by_event_name m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

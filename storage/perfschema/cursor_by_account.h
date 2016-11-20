@@ -69,7 +69,7 @@ public:
   {}
 
 protected:
-  virtual void make_row(PFS_account *account)= 0;
+  virtual int make_row(PFS_account *account)= 0;
 
 private:
   /** Current position. */

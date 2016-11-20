@@ -185,7 +185,7 @@ PFS_engine_table* table_replication_connection_configuration::create(void)
 table_replication_connection_configuration
   ::table_replication_connection_configuration()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_pos(0), m_next_pos(0)
 {}
 
 table_replication_connection_configuration
@@ -228,9 +228,8 @@ int table_replication_connection_configuration::rnd_next(void)
 
     if (mi && mi->host[0])
     {
-      make_row(mi);
+      res= make_row(mi);
       m_next_pos.set_after(&m_pos);
-      res= 0;
     }
   }
 
@@ -254,8 +253,7 @@ int table_replication_connection_configuration
 
   if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {
-    make_row(mi);
-    res= 0;
+    res= make_row(mi);
   }
 
   channel_map.unlock();
@@ -296,9 +294,8 @@ int table_replication_connection_configuration::index_next(void)
     {
       if (m_opened_index->match(mi))
       {
-        make_row(mi);
+        res= make_row(mi);
         m_next_pos.set_after(&m_pos);
-        res= 0;
       }
     }
   }
@@ -310,11 +307,9 @@ int table_replication_connection_configuration::index_next(void)
 }
 
 #ifdef HAVE_REPLICATION
-void table_replication_connection_configuration::make_row(Master_info *mi)
+int table_replication_connection_configuration::make_row(Master_info *mi)
 {
   char * temp_store;
-
-  m_row_exists= false;
 
   DBUG_ASSERT(mi != NULL);
 
@@ -395,7 +390,7 @@ void table_replication_connection_configuration::make_row(Master_info *mi)
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
-  m_row_exists= true;
+  return 0;
 }
 #endif /* HAVE_REPLICATION */
 
@@ -407,9 +402,6 @@ int table_replication_connection_configuration
 {
 #ifdef HAVE_REPLICATION
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   DBUG_ASSERT(table->s->null_bytes == 0);
 
