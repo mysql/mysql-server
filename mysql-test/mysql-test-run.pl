@@ -2922,14 +2922,6 @@ sub environment_setup {
 
 
   # ----------------------------------------------------
-  # replace
-  # ----------------------------------------------------
-  my $exe_replace= mtr_exe_exists(vs_config_dirs('extra', 'replace'),
-                                 "$basedir/extra/replace",
-                                 "$path_client_bindir/replace");
-  $ENV{'REPLACE'}= native_path($exe_replace);
-
-  # ----------------------------------------------------
   # lz4_decompress
   # ----------------------------------------------------
   my $exe_lz4_decompress= mtr_exe_maybe_exists(vs_config_dirs('extra', 'lz4_decompress'),
