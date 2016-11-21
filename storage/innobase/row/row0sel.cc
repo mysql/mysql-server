@@ -3098,6 +3098,8 @@ be needed in the query.
 					template, or in the clustered index;
 					must be protected by a page latch
 @param[in]	vrow			virtual columns
+@param[in]	rec_clust		TRUE if rec is in the clustered index
+					instead of prebuilt->index
 @param[in]	index			index of rec
 @param[in]	offsets			array returned by rec_get_offsets(rec)
 @param[in]	clust_templ_for_sec	TRUE if rec belongs to secondary index
