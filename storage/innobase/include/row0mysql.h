@@ -651,6 +651,8 @@ struct mysql_row_templ_t {
 #define ROW_PREBUILT_ALLOCATED	78540783
 #define ROW_PREBUILT_FREED	26423527
 
+class ha_innobase;
+
 /** A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
 
@@ -901,8 +903,14 @@ struct row_prebuilt_t {
 	/** The MySQL table object */
 	TABLE*		m_mysql_table;
 
+	/** The MySQL handler object. */
+	ha_innobase*	m_mysql_handler;
+
 	/** limit value to avoid fts result overflow */
 	ulonglong	m_fts_limit;
+
+	/** True if exceeded the end_range while filling the prefetch cache. */
+	bool		m_end_range;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */
