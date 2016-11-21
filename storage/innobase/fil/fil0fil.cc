@@ -2454,14 +2454,10 @@ fil_space_undo_check_if_opened(
 		return(DB_TABLESPACE_NOT_FOUND);
 	}
 
-	/* The file_name that we opened before must be the same as what we
-	need to open now.  If not, maybe the srv_undo_directory has changed. */
 	if (strcmp(space->name, file_name)) {
-		ib::error() << "Cannot load UNDO tablespace. '"
-			<< space->name
-			<< "' was discovered during REDO recovery, but '"
-			<< file_name
-			<< "' should be opened instead.";
+		/* This is a different space with different name. So
+		this undo tablespace and all following ones don't exist.
+		Just return silently because this is expceted */
 		mutex_exit(&fil_system->mutex);
 		return(DB_ERROR);
 	}
