@@ -26,14 +26,12 @@
 
 #ifndef MYSQL_ABI_CHECK
 #include <sys/types.h>
+#include <stddef.h>
+#include <stdint.h>
 #endif
 
 #ifdef _WIN32
 #include <BaseTsd.h>
-#endif
-
-// TODO: Do we really need these?
-#if !defined(HAVE_UINT)
 typedef unsigned int uint;
 typedef unsigned short ushort;
 #endif
@@ -72,15 +70,7 @@ typedef unsigned __int64 my_ulonglong;
 typedef unsigned long long my_ulonglong;
 #endif
 
-#if SIZEOF_CHARP == SIZEOF_INT
-typedef int intptr;
-#elif SIZEOF_CHARP == SIZEOF_LONG
-typedef long intptr;
-#elif SIZEOF_CHARP == SIZEOF_LONG_LONG
-typedef long long intptr;
-#else
-#error sizeof(void *) is neither sizeof(int) nor sizeof(long) nor sizeof(long long)
-#endif
+typedef intptr_t intptr;
 
 #if defined(_WIN32)
 typedef unsigned long long my_off_t;
@@ -126,11 +116,7 @@ typedef unsigned long my_off_t;
   Max size that must be added to a so that we know Size to make
   adressable obj.
 */
-#if SIZEOF_CHARP == 4
-typedef long            my_ptrdiff_t;
-#else
-typedef long long       my_ptrdiff_t;
-#endif
+typedef ptrdiff_t       my_ptrdiff_t;
 
 typedef char            my_bool; /* Small bool */
 
