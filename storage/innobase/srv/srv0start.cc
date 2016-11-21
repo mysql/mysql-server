@@ -774,9 +774,11 @@ srv_undo_tablespaces_open()
 	and therefore not required by recovery. We check that there are no
 	gaps and set max space_id. */
 
-	space_id_t prev_space_id = trx_sys_undo_spaces->back();
+	space_id_t last_undo_space_id =
+		(trx_sys_undo_spaces->size() == 0 ? 0
+		 : trx_sys_undo_spaces->back());
 
-	for (space_id = prev_space_id + 1;
+	for (space_id = last_undo_space_id + 1;
 	     space_id < TRX_SYS_N_RSEGS; ++space_id) {
 
 		err = srv_undo_tablespace_open(space_id);
