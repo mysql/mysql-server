@@ -87,7 +87,7 @@ SET_TARGET_PROPERTIES(my_print_defaults PROPERTIES LINKER_LANGUAGE CXX)
 
 MYSQL_ADD_EXECUTABLE(perror perror.cc)
 ADD_DEPENDENCIES(perror GenError)
-IF(TARGET ndbinfo_sql_run)
+IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
   # In case NDB is compiled in.
   TARGET_INCLUDE_DIRECTORIES(perror PUBLIC
     ${CMAKE_SOURCE_DIR}/storage/ndb/include
@@ -109,10 +109,10 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
 ENDIF()
 
 
-MYSQL_ADD_EXECUTABLE(replace replace.c)
+MYSQL_ADD_EXECUTABLE(replace replace.c ../storage/myisam/my_redel.cc)
 TARGET_INCLUDE_DIRECTORIES(replace PUBLIC
   ${CMAKE_SOURCE_DIR}/storage/myisam)
-TARGET_LINK_LIBRARIES(replace mysys myisam_sys)
+TARGET_LINK_LIBRARIES(replace mysys)
 
 IF (BUILD_BUNDLED_LZ4)
   MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
