@@ -1178,6 +1178,7 @@ my_uca_scanner::contraction_find(my_wc_t *wc)
         wbeg_stride= MY_UCA_900_CE_SIZE;
       }
       sbeg= beg[clen - 1];
+      char_index+= clen - 1;
       return cweight;
     }
   }
@@ -2287,13 +2288,13 @@ static void my_hash_sort_uca(const CHARSET_INFO *cs,
 template<class Mb_wc>
 static size_t
 my_strnxfrm_uca(const CHARSET_INFO *cs, Mb_wc mb_wc,
-                uchar *dst, size_t dstlen, uint nweights,
+                uchar *dst, size_t dstlen, uint num_codepoints,
                 const uchar *src, size_t srclen, uint flags)
 {
   uchar *d0= dst;
   uchar *de= dst + dstlen;
   int   s_res;
-  uca_scanner_any<Mb_wc> scanner(mb_wc, cs, src, srclen, nweights);
+  uca_scanner_any<Mb_wc> scanner(mb_wc, cs, src, srclen, num_codepoints);
   
   while (dst < de && (s_res= scanner.next()) > 0)
   {
@@ -2310,11 +2311,11 @@ my_strnxfrm_uca(const CHARSET_INFO *cs, Mb_wc mb_wc,
       how many weights we wrote per level, and add any remaining
       spaces we need to get us up to the requested total.
     */
-    nweights-= scanner.get_char_index();
+    num_codepoints-= scanner.get_char_index();
 
-    if (nweights)
+    if (num_codepoints)
     {
-      uint space_count= std::min<uint>((de - dst) / 2, nweights);
+      uint space_count= std::min<uint>((de - dst) / 2, num_codepoints);
       s_res= my_space_weight(cs);
       for (; space_count ; space_count--)
       {
@@ -5100,17 +5101,17 @@ static void my_hash_sort_any_uca(const CHARSET_INFO *cs,
 }
 
 static size_t my_strnxfrm_any_uca(const CHARSET_INFO *cs, 
-                                  uchar *dst, size_t dstlen, uint nweights,
+                                  uchar *dst, size_t dstlen, uint num_codepoints,
                                   const uchar *src, size_t srclen, uint flags)
 {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
   {
-    return my_strnxfrm_uca(cs, Mb_wc_utf8mb4(), dst, dstlen, nweights,
+    return my_strnxfrm_uca(cs, Mb_wc_utf8mb4(), dst, dstlen, num_codepoints,
                            src, srclen, flags);
   }
 
   Mb_wc_through_function_pointer mb_wc(cs);
-  return my_strnxfrm_uca(cs, mb_wc, dst, dstlen, nweights,
+  return my_strnxfrm_uca(cs, mb_wc, dst, dstlen, num_codepoints,
                          src, srclen, flags);
 }
 
@@ -5387,14 +5388,15 @@ static inline uchar *strip_space_weights(const uchar *d0, uchar *dst)
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
 static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
                                        const Mb_wc mb_wc,
-                                       uchar *dst, size_t dstlen, uint nweights,
+                                       uchar *dst, size_t dstlen,
+                                       uint num_codepoints,
                                        const uchar *src, size_t srclen,
                                        uint flags)
 {
   uchar *d0= dst;
   uchar *dst_end= dst + dstlen;
   uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> scanner(
-    mb_wc, cs, src, srclen, nweights);
+    mb_wc, cs, src, srclen, num_codepoints);
 
   DBUG_ASSERT((dstlen % 2) == 0);
   if ((dstlen % 2) == 1)
@@ -5489,7 +5491,8 @@ restart:
 extern "C" {
 
 static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs,
-                                  uchar *dst, size_t dstlen, uint nweights,
+                                  uchar *dst, size_t dstlen,
+                                  uint num_codepoints,
                                   const uchar *src, size_t srclen, uint flags)
 {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
@@ -5498,15 +5501,15 @@ static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs,
     {
     case 1:
       return my_strnxfrm_uca_900_tmpl<Mb_wc_utf8mb4, 1>(
-        cs, Mb_wc_utf8mb4(), dst, dstlen, nweights, src, srclen, flags);
+        cs, Mb_wc_utf8mb4(), dst, dstlen, num_codepoints, src, srclen, flags);
     case 2:
       return my_strnxfrm_uca_900_tmpl<Mb_wc_utf8mb4, 2>(
-        cs, Mb_wc_utf8mb4(), dst, dstlen, nweights, src, srclen, flags);
+        cs, Mb_wc_utf8mb4(), dst, dstlen, num_codepoints, src, srclen, flags);
     default:
       DBUG_ASSERT(false);
     case 3:
       return my_strnxfrm_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
-        cs, Mb_wc_utf8mb4(), dst, dstlen, nweights, src, srclen, flags);
+        cs, Mb_wc_utf8mb4(), dst, dstlen, num_codepoints, src, srclen, flags);
     }
   }
   else
@@ -5516,15 +5519,15 @@ static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs,
     {
     case 1:
       return my_strnxfrm_uca_900_tmpl<decltype(mb_wc), 1>(
-        cs, mb_wc, dst, dstlen, nweights, src, srclen, flags);
+        cs, mb_wc, dst, dstlen, num_codepoints, src, srclen, flags);
     case 2:
       return my_strnxfrm_uca_900_tmpl<decltype(mb_wc), 2>(
-        cs, mb_wc, dst, dstlen, nweights, src, srclen, flags);
+        cs, mb_wc, dst, dstlen, num_codepoints, src, srclen, flags);
     default:
       DBUG_ASSERT(false);
     case 3:
       return my_strnxfrm_uca_900_tmpl<decltype(mb_wc), 3>(
-        cs, mb_wc, dst, dstlen, nweights, src, srclen, flags);
+        cs, mb_wc, dst, dstlen, num_codepoints, src, srclen, flags);
     }
   }
 }
@@ -5563,11 +5566,13 @@ static void my_hash_sort_ucs2_uca(const CHARSET_INFO *cs,
 }
 
 static size_t my_strnxfrm_ucs2_uca(const CHARSET_INFO *cs,
-                                   uchar *dst, size_t dstlen, uint nweights,
+                                   uchar *dst, size_t dstlen,
+                                   uint num_codepoints,
                                    const uchar *src, size_t srclen, uint flags)
 {
   Mb_wc_through_function_pointer mb_wc(cs);
-  return my_strnxfrm_uca(cs, mb_wc, dst, dstlen, nweights, src, srclen, flags);
+  return my_strnxfrm_uca(cs, mb_wc, dst, dstlen, num_codepoints,
+                         src, srclen, flags);
 }
 } // extern "C"
 

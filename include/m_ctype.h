@@ -282,9 +282,30 @@ typedef struct my_collation_handler_st
 		       const uchar *, size_t, const uchar *, size_t, my_bool);
   int     (*strnncollsp)(const struct charset_info_st *,
                          const uchar *, size_t, const uchar *, size_t);
-  // Note: dstlen must be even.
+  /**
+    Transform the string into a form such that memcmp() between transformed
+    strings yields the correct collation order.
+
+    @param [out] dst Buffer for the transformed string.
+    @param [out] dstlen Number of bytes available in dstlen.
+      Must be even.
+    @param num_codepoints Treat the string as if it were of type
+      CHAR(num_codepoints). In particular, this means that if padding
+      is requested (flags contain MY_STRXFRM_PAD_WITH_SPACE) and the
+      string has fewer than "num_codepoints" codepoints, the string
+      will be transformed as if it ended in (num_codepoints-n) extra spaces.
+      If the string has more than "num_codepoints" codepoints,
+      behavior is undefined; may truncate, may crash, or do something
+      else entirely.
+    @param src The source string, in the required character set
+      for the collation.
+    @param srclen Number of bytes in src.
+    @param flags ORed bitmask of MY_STRXFRM_* flags.
+
+    @return Number of bytes written to dst.
+  */
   size_t  (*strnxfrm)(const struct charset_info_st *,
-                      uchar *dst, size_t dstlen, uint nweights,
+                      uchar *dst, size_t dstlen, uint num_codepoints,
                       const uchar *src, size_t srclen, uint flags);
   size_t    (*strnxfrmlen)(const struct charset_info_st *, size_t);
   my_bool (*like_range)(const struct charset_info_st *,
@@ -347,6 +368,13 @@ typedef struct my_charset_handler_st
   uint    (*mbcharlen)(const struct charset_info_st *, uint c);
   size_t  (*numchars)(const struct charset_info_st *, const char *b,
                       const char *e);
+
+  /**
+    Return at which byte codepoint number "pos" begins, relative to
+    the start of the string. If the string is shorter than or is
+    exactly "pos" codepoints long, returns a value equal or greater to
+    (e-b).
+  */
   size_t  (*charpos)(const struct charset_info_st *, const char *b,
                      const char *e, size_t pos);
   size_t  (*well_formed_len)(const struct charset_info_st *,

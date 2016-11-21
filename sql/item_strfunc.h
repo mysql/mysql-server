@@ -1284,20 +1284,16 @@ class Item_func_weight_string final : public Item_str_func
 
   String tmp_value;
   uint flags;
-  uint nweights;
+  uint num_codepoints;
   uint result_length;
   Field *field;
   bool as_binary;
 public:
   Item_func_weight_string(const POS &pos, Item *a, uint result_length_arg,
-                          uint nweights_arg, uint flags_arg,
+                          uint num_codepoints_arg, uint flags_arg,
                           bool as_binary_arg= false)
-  :Item_str_func(pos, a), field(NULL), as_binary(as_binary_arg)
-  {
-    nweights= nweights_arg;
-    flags= flags_arg;
-    result_length= result_length_arg;
-  }
+  :Item_str_func(pos, a), flags(flags_arg), num_codepoints(num_codepoints_arg),
+   result_length(result_length_arg), field(NULL), as_binary(as_binary_arg) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 

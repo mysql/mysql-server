@@ -3197,7 +3197,7 @@ hex(weight_string(cast(0xE0A1 as char)))
 A1E0
 select hex(weight_string(cast(0xE0A1 as char) as char(1)));
 hex(weight_string(cast(0xE0A1 as char) as char(1)))
-A1
+E0
 set collation_connection=tis620_bin;
 select @@collation_connection;
 @@collation_connection

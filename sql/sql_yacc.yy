@@ -1221,7 +1221,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
-        ws_nweights func_datetime_precision
+        ws_num_codepoints func_datetime_precision
         ws_level_flag_desc ws_level_flag_reverse ws_level_flags
         opt_ws_levels ws_level_list ws_level_list_item ws_level_number
         ws_level_range ws_level_list_or_range
@@ -6530,7 +6530,7 @@ opt_bin_mod:
         | BINARY_SYM  { $$= true; }
         ;
 
-ws_nweights:
+ws_num_codepoints:
         '(' real_ulong_num
         {
           if ($2 == 0)
@@ -9600,12 +9600,12 @@ function_call_conflict:
           {
             $$= NEW_PTN Item_func_weight_string(@$, $3, 0, 0, $4);
           }
-        | WEIGHT_STRING_SYM '(' expr AS CHAR_SYM ws_nweights opt_ws_levels ')'
+        | WEIGHT_STRING_SYM '(' expr AS CHAR_SYM ws_num_codepoints opt_ws_levels ')'
           {
             $$= NEW_PTN Item_func_weight_string(@$, $3, 0, $6,
                         $7 | MY_STRXFRM_PAD_WITH_SPACE);
           }
-        | WEIGHT_STRING_SYM '(' expr AS BINARY_SYM ws_nweights ')'
+        | WEIGHT_STRING_SYM '(' expr AS BINARY_SYM ws_num_codepoints ')'
           {
             $$= NEW_PTN Item_func_weight_string(@$,
                         $3, 0, $6, MY_STRXFRM_PAD_WITH_SPACE, true);
