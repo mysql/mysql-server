@@ -871,6 +871,9 @@ struct row_prebuilt_t {
 	/** limit value to avoid fts result overflow */
 	ulonglong	m_fts_limit;
 
+	/** True if exceeded the end_range while filling the prefetch cache. */
+	bool		m_end_range;
+
 	/** Can a record buffer or a prefetch cache be utilized for prefetching
 	records in this scan?
 	@retval true   if records can be prefetched

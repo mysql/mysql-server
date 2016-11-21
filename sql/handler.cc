@@ -7426,10 +7426,15 @@ void handler::set_end_range(const key_range* range,
 
   /*
     Clear the out-of-range flag in the record buffer when a new range is
-    started.
+    started. Also set the in_range_check_pushed_down flag, since the
+    storage engine needs to do the evaluation of the end-range to avoid
+    filling the record buffer with out-of-range records.
   */
   if (m_record_buffer != nullptr)
+  {
     m_record_buffer->set_out_of_range(false);
+    in_range_check_pushed_down = true;
+  }
 
   range_scan_direction= direction;
 }
@@ -7515,12 +7520,8 @@ move_key_field_offsets(const key_range *range, const KEY_PART_INFO *key_part,
 
 /**
   Check if the key in the given buffer (which is not necessarily
-  TABLE::record[0]) is within range. Called by the storage engine when
-  filling m_record_buffer to avoid reading too many rows.
-
-  Side-effect: This function sets the in_range_check_pushed_down flag
-  to prevent the handler from performing redundant range checks on the
-  rows returned by the storage engine.
+  TABLE::record[0]) is within range. Called by the storage engine to
+  avoid reading too many rows.
 
   @param buf  the buffer that holds the key
   @retval -1 if the key is within the range
@@ -7528,23 +7529,17 @@ move_key_field_offsets(const key_range *range, const KEY_PART_INFO *key_part,
              key_compare_result_on_equal is 0
   @retval  1 if the key is outside the range
 */
-int handler::compare_key_in_buffer(const uchar *buf)
+int handler::compare_key_in_buffer(const uchar *buf) const
 {
-  DBUG_ASSERT(m_record_buffer != nullptr &&
-              !m_record_buffer->is_out_of_range() &&
-              end_range != nullptr);
+  DBUG_ASSERT(end_range != nullptr &&
+	      (m_record_buffer == nullptr ||
+	       !m_record_buffer->is_out_of_range()));
 
   /*
     End range on descending scans is only checked with ICP for now, and then we
     check it with compare_key_icp() instead of this function.
   */
   DBUG_ASSERT(range_scan_direction == RANGE_SCAN_ASC);
-
-  /*
-    Since we compare with the end range here, there is no need for the
-    handler to check the end range.
-  */
-  in_range_check_pushed_down= true;
 
   // Make the fields in the key point into the buffer instead of record[0].
   const my_ptrdiff_t diff= buf - table->record[0];
