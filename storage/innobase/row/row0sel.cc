@@ -4693,6 +4693,12 @@ row_search_mvcc(
 
 			err = DB_SUCCESS;
 			goto func_exit;
+		} else if (prebuilt->m_end_range == true) {
+
+			prebuilt->m_end_range = false;
+
+			err = DB_RECORD_NOT_FOUND;
+			goto func_exit;
 		}
 
 		if (prebuilt->fetch_cache_first > 0
