@@ -232,7 +232,7 @@ select * from t1,t2 where if(1,'01-02-03 12:34:56','') in (f1, f2);
 create table t3(f3 varchar(20));
 insert into t3 select * from t2;
 select * from t2,t3 where f2 in (f3,'03-04-05');
-select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1'));
+select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1')) order by f1,f2,f3;
 select f1 from t1 where ('1',f1) in (('1','01-01-01'),('1','2001-1-1 0:0:0'),('1','02-02-02'));
 drop table t1,t2,t3;
 
