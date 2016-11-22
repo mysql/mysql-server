@@ -366,10 +366,10 @@ b varchar(6144)
 # alter causing varchar to become 'dynamic'
 alter table t1 add column c int;
 Warnings:
-Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
 show warnings;
 Level	Code	Message
-Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
 insert into t1 values (1,repeat('b',2000), 10);
 insert into t1 values (2,repeat('t',2000), 20);
 insert into t1 values (3,repeat('g',2000), 30);

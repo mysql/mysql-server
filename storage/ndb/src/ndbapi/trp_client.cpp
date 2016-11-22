@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 
 #include "trp_client.hpp"
 #include "TransporterFacade.hpp"
-#include <NdbMem.h>
 
 trp_client::trp_client()
   : m_blockNo(~Uint32(0)), m_facade(0)
@@ -68,10 +67,10 @@ trp_client::open(TransporterFacade* tf, int blockNo,
     }
     else
     {
-      m_poll.m_lock_array_size = 16;
+      m_poll.m_lock_array_size = 128;
     }
-    m_poll.m_locked_clients = (trp_client**)
-      NdbMem_Allocate(sizeof(trp_client**) * m_poll.m_lock_array_size);
+    m_poll.m_locked_clients =
+      (trp_client**) malloc(sizeof(trp_client**) * m_poll.m_lock_array_size);
     if (m_poll.m_locked_clients == NULL)
     {
       return 0;
@@ -83,7 +82,7 @@ trp_client::open(TransporterFacade* tf, int blockNo,
     }
     else
     {
-      NdbMem_Free(m_poll.m_locked_clients);
+      free(m_poll.m_locked_clients);
       m_poll.m_locked_clients = NULL;
       m_facade = 0;
     }
@@ -108,7 +107,7 @@ trp_client::close()
     m_blockNo = ~Uint32(0);
     if (m_poll.m_locked_clients)
     {
-      NdbMem_Free(m_poll.m_locked_clients);
+      free(m_poll.m_locked_clients);
       m_poll.m_locked_clients = NULL;
     }
   }
@@ -359,33 +358,35 @@ int PollGuard::wait_scan(int wait_time, Uint32 nodeId, bool forceSend)
   return wait_for_input_in_loop(wait_time, forceSend);
 }
 
-int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
+int PollGuard::wait_for_input_in_loop(int max_wait_ms, bool forceSend)
 {
   int ret_val;
   m_clnt->do_forceSend(forceSend ? 1 : 0);
 
-  NDB_TICKS curr_ticks = NdbTick_getCurrentTicks();
-  /* Use nanosecond to calculate when wait_time has expired. */
-  Int64 remain_wait_nano = ((Int64)wait_time) * 1000000;
-  const int maxsleep = (wait_time == -1 || wait_time > 10) ? 10 : wait_time;
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
+  int remain_wait_ms = max_wait_ms;
 #ifdef VM_TRACE
   const bool verbose = (m_waiter->get_state() != WAIT_EVENT);
 #endif
   do
   {
+    int maxsleep = (max_wait_ms == -1) ? 60*1000 : remain_wait_ms;
+    DBUG_EXECUTE_IF("ndb_simulate_nodefail", {
+      if (maxsleep > 10)
+        maxsleep = 10;
+    });
     wait_for_input(maxsleep);
-    const NDB_TICKS start_ticks = curr_ticks;
-    curr_ticks = NdbTick_getCurrentTicks();
-    const Uint64 waited_nano = NdbTick_Elapsed(start_ticks,curr_ticks).nanoSec();
-    m_clnt->recordWaitTimeNanos(waited_nano);
+
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    m_clnt->recordWaitTimeNanos(NdbTick_Elapsed(start,now).nanoSec());
     Uint32 state= m_waiter->get_state();
 
     DBUG_EXECUTE_IF("ndb_simulate_nodefail", {
       DBUG_PRINT("info", ("Simulating node failure while waiting for response"));
-      state = WAIT_NODE_FAILURE;;
+      state = WAIT_NODE_FAILURE;
     });
 
-    if (state == NO_WAIT)
+    if (likely(state == NO_WAIT))
     {
       return 0;
     }
@@ -395,15 +396,17 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
       m_waiter->set_state(NO_WAIT);
       break;
     }
-    if (wait_time == -1)
+    if (max_wait_ms == -1)
     {
 #ifdef NOT_USED
       ndbout << "Waited WAITFOR_RESPONSE_TIMEOUT, continuing wait" << endl;
 #endif
       continue;
     }
-    remain_wait_nano -= waited_nano;
-    if (remain_wait_nano <= 0)
+    remain_wait_ms = max_wait_ms -
+      (int)NdbTick_Elapsed(start,now).milliSec();
+
+    if (remain_wait_ms <= 0)
     {
 #ifdef VM_TRACE
       if (verbose)

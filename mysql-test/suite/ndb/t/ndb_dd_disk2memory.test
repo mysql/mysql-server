@@ -106,13 +106,19 @@ INSERT INTO test.t1 VALUES
 SELECT b, c FROM test.t1 LEFT JOIN test.t2 ON pk1=pk2 ORDER BY b;
 SELECT COUNT(*) FROM test.t1 LEFT JOIN test.t2 ON b=b2;
 SELECT COUNT(*) FROM test.t1 RIGHT JOIN test.t2 ON b=b2;
+--disable_warnings
 SHOW CREATE TABLE test.t2;
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 ALTER TABLE test.t2 TABLESPACE table_space1 STORAGE DISK
 ENGINE=NDB;
+--disable_warnings
 SHOW CREATE TABLE test.t2;
+--enable_warnings
 ALTER TABLE test.t1 STORAGE MEMORY ENGINE=NDBCLUSTER;
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 --echo
 ######################### End Test Section 2 #################
 DROP TABLE test.t1;
@@ -220,8 +226,10 @@ while ($1)
 
 ALTER TABLE test.t1 ADD INDEX (a2), ADD INDEX (a3), ADD INDEX (a8);
 ALTER TABLE test.t2 ADD INDEX (b2), ADD INDEX (b3), ADD INDEX (b8);
+--disable_warnings
 SHOW CREATE TABLE test.t1;
 SHOW CREATE TABLE test.t2;
+--enable_warnings
 SELECT * FROM test.t1 order by a1;
 SELECT * FROM test.t2 order by b1;
 SELECT COUNT(a1), a1, COUNT(a1)*a1 FROM test.t1 GROUP BY a1;

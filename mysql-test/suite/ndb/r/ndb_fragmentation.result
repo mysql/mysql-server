@@ -1,0 +1,2213 @@
+set @old_new = @@global.new;
+set @old_ndb_read_backup = @@global.ndb_read_backup;
+set @old_ndb_fully_replicated = @@global.ndb_fully_replicated;
+set @@new = 1;
+set global ndb_read_backup = 1;
+set global ndb_fully_replicated = 1;
+set global ndb_fully_replicated = 0;
+CREATE TABLE t01 (x int primary key, y int) engine=ndb
+partition by list(x) (
+partition p0 values in (0),
+partition p1 values in (1),
+partition p2 values in (2),
+partition p3 values in (3));
+ALTER TABLE t01 ALGORITHM=INPLACE, ADD UNIQUE KEY (y);
+-- t01 --
+Version: Any
+Fragment type: UserDefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Int NULL AT=FIXED ST=MEMORY
+$PART_FUNC_VALUE Int NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+y(y) - OrderedIndex
+y$unique(y) - UniqueHashIndex
+-- t01/PRIMARY --
+Version: Any
+Base table: t01
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+x Int NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+x Int NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t01/y --
+Version: Any
+Base table: t01
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+y Int NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/y --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+y Int NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t01/y$unique --
+Version: Any
+Base table: t01
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/y$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-16
+-- Attributes --
+y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(y) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+CREATE TABLE t02 (x int primary key, y int, unique key (y)) engine=ndb
+partition by list(x) (
+partition p0 values in (0),
+partition p1 values in (1),
+partition p2 values in (2),
+partition p3 values in (3));
+-- t02 --
+Version: Any
+Fragment type: UserDefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Int NULL AT=FIXED ST=MEMORY
+$PART_FUNC_VALUE Int NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+y(y) - OrderedIndex
+y$unique(y) - UniqueHashIndex
+-- t02/PRIMARY --
+Version: Any
+Base table: t02
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+x Int NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+x Int NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t02/y --
+Version: Any
+Base table: t02
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+y Int NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/y --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+y Int NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t02/y$unique --
+Version: Any
+Base table: t02
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/y$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-16
+-- Attributes --
+y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(y) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+ALTER TABLE t02 ALGORITHM=INPLACE, ADD PARTITION (partition p4 values in (4));
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
+show warnings;
+Level	Code	Message
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
+ALTER TABLE t02 ALGORITHM=INPLACE, DROP PARTITION p0;
+ERROR HY000: Partition function not supported in this version for this handler
+show warnings;
+Level	Code	Message
+Error	1521	Partition function not supported in this version for this handler
+set global ndb_fully_replicated = 1;
+CREATE TABLE t03 (x int primary key) engine=ndb;
+-- t03 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 1
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+
+ALTER TABLE t03 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+show warnings;
+Level	Code	Message
+Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t03 ALGORITHM=INPLACE, COALESCE PARTITION 2;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+show warnings;
+Level	Code	Message
+Warning	1088	Detected unsupported change: HA_ALTER_FLAGS = 0x80000000
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+CREATE TABLE t04 (x int primary key) engine=ndb;
+ALTER TABLE t04 ALGORITHM=COPY, ADD COLUMN y blob;
+-- t04 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+-- NDB$BLOB_XX_1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+CREATE TABLE t05 (x int primary key, y blob) engine=ndb;
+-- t05 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+-- NDB$BLOB_XX_1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+ALTER TABLE t05 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+show warnings;
+Level	Code	Message
+Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t05 ALGORITHM=INPLACE, COALESCE PARTITION 2;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+show warnings;
+Level	Code	Message
+Warning	1088	Detected unsupported change: HA_ALTER_FLAGS = 0x80000000
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+CREATE TABLE t06 (x int primary key, y int) engine=ndb;
+ALTER TABLE t06 ALGORITHM=INPLACE, ADD UNIQUE KEY (y);
+-- t06 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Int NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+y(y) - OrderedIndex
+y$unique(y) - UniqueHashIndex
+-- t06/PRIMARY --
+Version: Any
+Base table: t06
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+x Int NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+x Int NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t06/y --
+Version: Any
+Base table: t06
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+y Int NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/y --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+y Int NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t06/y$unique --
+Version: Any
+Base table: t06
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/y$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(y) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+CREATE TABLE t07 (x int primary key, y int, unique key (y)) engine=ndb;
+-- t07 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Int NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+y(y) - OrderedIndex
+y$unique(y) - UniqueHashIndex
+-- t07/PRIMARY --
+Version: Any
+Base table: t07
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+x Int NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+x Int NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t07/y --
+Version: Any
+Base table: t07
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+y Int NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/y --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+y Int NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t07/y$unique --
+Version: Any
+Base table: t07
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/y$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(y) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+ALTER TABLE t07 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+show warnings;
+Level	Code	Message
+Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t07 ALGORITHM=INPLACE, COALESCE PARTITION 2;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+show warnings;
+Level	Code	Message
+Warning	1088	Detected unsupported change: HA_ALTER_FLAGS = 0x80000000
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+CREATE TABLE t10 (x int primary key, y blob, z int, unique key (z)) engine=ndb;
+-- t10 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
+z Int NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+z(z) - OrderedIndex
+z$unique(z) - UniqueHashIndex
+-- t10/PRIMARY --
+Version: Any
+Base table: t10
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+x Int NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+x Int NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t10/z --
+Version: Any
+Base table: t10
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+z Int NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/z --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+z Int NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t10/z$unique --
+Version: Any
+Base table: t10
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+z Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/z$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+z Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(z) - UniqueHashIndex
+
+-- NDB$BLOB_XX_1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+set global ndb_fully_replicated=0;
+CREATE TABLE t12 (x int primary key, y blob, z int, unique key (z)) engine=ndb partition by key(x) partitions 4;
+-- t12 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
+z Int NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+z(z) - OrderedIndex
+z$unique(z) - UniqueHashIndex
+-- t12/PRIMARY --
+Version: Any
+Base table: t12
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+x Int NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+x Int NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t12/z --
+Version: Any
+Base table: t12
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+z Int NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/z --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+z Int NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t12/z$unique --
+Version: Any
+Base table: t12
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+z Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/z$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+z Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(z) - UniqueHashIndex
+
+-- NDB$BLOB_XX_1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+set global ndb_fully_replicated=0;
+CREATE TABLE t11 (x int primary key, y blob, z int, unique key (z)) engine=ndb;
+-- t11 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-16
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
+z Int NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+z(z) - OrderedIndex
+z$unique(z) - UniqueHashIndex
+-- t11/PRIMARY --
+Version: Any
+Base table: t11
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+x Int NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+x Int NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t11/z --
+Version: Any
+Base table: t11
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+z Int NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/z --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+z Int NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t11/z$unique --
+Version: Any
+Base table: t11
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+z Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/z$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-16
+-- Attributes --
+z Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(z) - UniqueHashIndex
+
+-- NDB$BLOB_XX_1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 16
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-16
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+Nodegroup 2 created
+set global ndb_fully_replicated=0;
+CREATE TABLE t08 (x int primary key, y int) engine=ndb
+partition by list(x) (
+partition p0 values in (0),
+partition p1 values in (1),
+partition p2 values in (2),
+partition p3 values in (3));
+ALTER TABLE t08 ALGORITHM=INPLACE, ADD UNIQUE KEY (y);
+-- t08 --
+Version: Any
+Fragment type: UserDefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Int NULL AT=FIXED ST=MEMORY
+$PART_FUNC_VALUE Int NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+y(y) - OrderedIndex
+y$unique(y) - UniqueHashIndex
+-- t08/PRIMARY --
+Version: Any
+Base table: t08
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+x Int NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+x Int NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t08/y --
+Version: Any
+Base table: t08
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+y Int NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/y --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+y Int NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t08/y$unique --
+Version: Any
+Base table: t08
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/y$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 24
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-24
+-- Attributes --
+y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(y) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+CREATE TABLE t09 (x int primary key, y int, unique key (y)) engine=ndb
+partition by list(x) (
+partition p0 values in (0),
+partition p1 values in (1),
+partition p2 values in (2),
+partition p3 values in (3));
+-- t09 --
+Version: Any
+Fragment type: UserDefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Int NULL AT=FIXED ST=MEMORY
+$PART_FUNC_VALUE Int NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+y(y) - OrderedIndex
+y$unique(y) - UniqueHashIndex
+-- t09/PRIMARY --
+Version: Any
+Base table: t09
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+x Int NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+x Int NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t09/y --
+Version: Any
+Base table: t09
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+y Int NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/y --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+y Int NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t09/y$unique --
+Version: Any
+Base table: t09
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/y$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 24
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-24
+-- Attributes --
+y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(y) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+set global ndb_fully_replicated=1;
+alter table t03 algorithm=inplace, reorganize partition;
+-- t03 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 1
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t04 algorithm=inplace, reorganize partition;
+-- t04 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+-- NDB$BLOB_XX_1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t05 algorithm=inplace, reorganize partition;
+-- t05 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+-- NDB$BLOB_XX_1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t06 algorithm=inplace, reorganize partition;
+-- t06 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Int NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+y(y) - OrderedIndex
+y$unique(y) - UniqueHashIndex
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t07 algorithm=inplace, reorganize partition;
+-- t07 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Int NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+y(y) - OrderedIndex
+y$unique(y) - UniqueHashIndex
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t10 algorithm=inplace, reorganize partition;
+-- t10 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
+z Int NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+z(z) - OrderedIndex
+z$unique(z) - UniqueHashIndex
+-- NDB$BLOB_XX_1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t11 algorithm=inplace, reorganize partition;
+-- t11 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 24
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: HASHMAP-3840-16-24
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
+z Int NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+z(z) - OrderedIndex
+z$unique(z) - UniqueHashIndex
+-- NDB$BLOB_XX_1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 24
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: HASHMAP-3840-16-24
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+set global ndb_fully_replicated = 0;
+alter table t12 algorithm=inplace, add partition partitions 4;
+ERROR HY000: Got error 741 'Unsupported alter table' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 741 'Unsupported alter table' from NDB
+Error	1296	Got error 741 'Unsupported alter table' from NDBCLUSTER
+alter table t12 algorithm=copy, add partition partitions 4;
+-- t12 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
+z Int NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x) - UniqueHashIndex
+PRIMARY(x) - OrderedIndex
+z(z) - OrderedIndex
+z$unique(z) - UniqueHashIndex
+-- t12/PRIMARY --
+Version: Any
+Base table: t12
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+x Int NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+x Int NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t12/z --
+Version: Any
+Base table: t12
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+z Int NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/z --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+z Int NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t12/z$unique --
+Version: Any
+Base table: t12
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+z Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/z$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+z Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(z) - UniqueHashIndex
+
+-- NDB$BLOB_XX_1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+drop tables t01,t02,t03,t04,t05,t06,t07,t08,t09,t10,t11,t12;
+set global new = @old_new;
+set global ndb_read_backup = @old_ndb_read_backup;
+set global ndb_fully_replicated = @old_ndb_fully_replicated;

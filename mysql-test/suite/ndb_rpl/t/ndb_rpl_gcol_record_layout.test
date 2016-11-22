@@ -1,0 +1,182 @@
+##############################################################################
+#
+#  This test is derived from suite/gcol_ndb/gcol_ndb_record_layout.test
+################################################################################
+
+--source include/have_ndb.inc
+--source suite/gcol_ndb/inc/mtr_conditionals.inc
+--disable_warnings
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--echo ####### TEST gcol after blob
+
+## Create table & insert data on master
+connection master;
+CREATE TABLE gcol_after_blob (
+ i int primary key,
+ b blob,
+ k int as (i+2)
+) engine=ndb;
+
+insert into gcol_after_blob(i,b) values (1, "ABCD");
+
+## Query table from slave
+sync_slave_with_master;
+select i from gcol_after_blob;
+select b from gcol_after_blob;
+select k from gcol_after_blob;
+select * from gcol_after_blob;
+select k,b from gcol_after_blob where i = 1;
+select b,i from gcol_after_blob where k = 3;
+select b,i from gcol_after_blob where k = 1;
+
+connection master;
+update gcol_after_blob set b = "ABCDEFGHIJK" where i = 1;
+insert into gcol_after_blob(i,b) values (2, "ABCD");
+
+sync_slave_with_master;
+select b,i from gcol_after_blob where k = 4;
+
+connection master;
+update gcol_after_blob set b = "LMNOPQRST" where k = 4;
+
+sync_slave_with_master;
+select b,i from gcol_after_blob where k = 4;
+
+connection master;
+DROP TABLE gcol_after_blob;
+
+
+--echo ####### TEST stored generated blob
+
+## Create table & insert data on master
+connection master;
+CREATE TABLE stored_blob_gcol (
+  i int primary key,
+  j varchar(20),
+  k text as (repeat(j,i)) stored
+) engine=ndb;
+
+insert into stored_blob_gcol(i,j) values (1,"c__"), (2,"b__"), (3,"a__");
+
+## Query table from slave
+sync_slave_with_master;
+select i from stored_blob_gcol order by i;
+select j from stored_blob_gcol order by j;
+select k from stored_blob_gcol order by i;
+select * from stored_blob_gcol order by j;
+
+connection master;
+delete from stored_blob_gcol where length(j) = length(k);
+
+sync_slave_with_master;
+select * from stored_blob_gcol where i < 3;
+
+connection master;
+DROP TABLE  stored_blob_gcol;
+
+
+--echo ####### TEST virtual generated blob
+
+## Create table & insert data on master
+connection master;
+CREATE TABLE virtual_blob_gcol (
+  i int primary key,
+  j varchar(20),
+  k text as (repeat(j,i)) virtual
+) engine=ndb;
+
+insert into virtual_blob_gcol(i,j) values (1,"c__"), (2,"b__"), (3,"a__");
+
+## Query table from slave
+sync_slave_with_master;
+select i from virtual_blob_gcol order by i;
+select j from virtual_blob_gcol order by j;
+select k from virtual_blob_gcol order by i;
+select * from virtual_blob_gcol order by j;
+delete from virtual_blob_gcol where length(j) = length(k);
+select * from virtual_blob_gcol where i < 3;
+
+connection master;
+DROP TABLE virtual_blob_gcol;
+
+
+--echo ####### TEST virtual generated blob with hidden pk
+
+## Create table & insert data on master
+connection master;
+CREATE TABLE virtual_blob_gcol_hid_pk (
+  i int,
+  j varchar(20),
+  k text as (repeat(j,i)) virtual
+) engine=ndb;
+
+insert into virtual_blob_gcol_hid_pk(i,j) values (2,"a__"), (2,"b__"), (2,"c__");
+
+## Query table from slave
+sync_slave_with_master;
+select * from virtual_blob_gcol_hid_pk order by j;
+
+connection master;
+DROP TABLE virtual_blob_gcol_hid_pk;
+
+
+--echo ####### TEST gcol with char(0)
+
+## Create table & insert data on master
+connection master;
+
+CREATE TABLE gcol_char0 (
+  i int primary key,
+  c char(0),
+  v int as (i % 2),
+  z varchar(30)
+) engine=ndb;
+
+insert into gcol_char0(i,c) values(1, NULL), (2, NULL), (3, ""), (4, "");
+
+## Query table from slave
+sync_slave_with_master;
+select * from gcol_char0 order by i;
+select c,v from gcol_char0 where i = 3;
+select * from gcol_char0 where c is null and v = 0;
+select * from gcol_char0 where c is not null and v = 1;
+
+connection master;
+update gcol_char0 set z = repeat("ABC_", i);
+
+sync_slave_with_master;
+select * from gcol_char0 order by i;
+
+connection master;
+DROP TABLE gcol_char0;
+
+
+--echo ### TEST gcol as first column
+
+
+## Create table & insert data on master
+connection master;
+CREATE TABLE gcol_first(
+  v int as (i+j),
+  i int primary key,
+  j int
+) engine=ndb;
+
+insert into gcol_first (i,j) values (1, 1),  (2, null), (3, 3);
+
+## Query table from slave
+sync_slave_with_master;
+--sorted_result
+select v from gcol_first;
+select * from gcol_first where v is null;
+select i from gcol_first where j is null;
+
+connection master;
+DROP TABLE gcol_first;
+
+sync_slave_with_master;
+connection master;
+
+--source include/rpl_end.inc
+

@@ -302,7 +302,7 @@ a	b
 6	203
 alter table t2 add c int;
 Warnings:
-Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
 insert into t2 (b) values (301),(302),(303);
 select * from t2 where a = 9;
 a	b	c
@@ -584,3 +584,73 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY KEY (id) */
 DROP TABLE t1;
 End of 5.1 tests
+bug#24577931 table comment is case sensitive
+create table tbasic(id int not null, name varchar(20), age int) engine=ndb;
+-- tbasic --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+id Int NOT NULL AT=FIXED ST=MEMORY
+name Varchar(20;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
+age Int NULL AT=FIXED ST=MEMORY
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+-- Indexes -- 
+PRIMARY KEY($PK) - UniqueHashIndex
+
+NDBT_ProgramExit: 0 - OK
+
+alter table tbasic algorithm=copy, comment="NDB_TABLE=FULLY_REPLICATEd=1";
+-- tbasic --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+id Int NOT NULL AT=FIXED ST=MEMORY
+name Varchar(20;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
+age Int NULL AT=FIXED ST=MEMORY
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+-- Indexes -- 
+PRIMARY KEY($PK) - UniqueHashIndex
+
+NDBT_ProgramExit: 0 - OK
+
+drop table tbasic;

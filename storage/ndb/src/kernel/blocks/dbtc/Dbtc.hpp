@@ -833,6 +833,7 @@ public:
       TF_DEFERRED_UK_TRIGGERS = 32, // trans has deferred UK triggers
       TF_DEFERRED_FK_TRIGGERS = 64, // trans has deferred FK triggers
       TF_DISABLE_FK_CONSTRAINTS = 128,
+      TF_LATE_COMMIT = 256, // Wait sending apiCommit until complete phase done
 
       TF_END = 0
     };
@@ -895,6 +896,7 @@ public:
     Uint32 errorData;
     UintR attrInfoLen;
     Uint32 immediateTriggerId;  // Id of trigger op being fired NOW
+    Uint32 firedFragId;
     
     UintR accumulatingIndexOp;
     UintR executingIndexOp;
@@ -976,15 +978,16 @@ public:
     enum SpecialOpFlags {
       SOF_NORMAL = 0,
       SOF_INDEX_TABLE_READ = 1,       // Read index table
-      SOF_REORG_TRIGGER_BASE = 4,
-      SOF_REORG_TRIGGER = 4 | 16,     // A reorg trigger
+      SOF_REORG_TRIGGER = 4,          // A reorg trigger
       SOF_REORG_MOVING = 8,           // A record that should be moved
       SOF_TRIGGER = 16,               // A trigger
       SOF_REORG_COPY = 32,
       SOF_REORG_DELETE = 64,
       SOF_DEFERRED_UK_TRIGGER = 128,  // Op has deferred trigger
       SOF_DEFERRED_FK_TRIGGER = 256,
-      SOF_FK_READ_COMMITTED = 512     // reply to TC even for dirty read
+      SOF_FK_READ_COMMITTED = 512,    // reply to TC even for dirty read
+      SOF_FULLY_REPLICATED_TRIGGER = 1024,
+      SOF_UTIL_FLAG = 2048            // Sender to TC is DBUTIL (higher prio)
     };
     
     static inline bool isIndexOp(Uint16 flags) {
@@ -1075,7 +1078,8 @@ public:
        * EXECUTION MODE OF OPERATION                    
        * 0 = NORMAL EXECUTION, 1 = INTERPRETED EXECUTION
        */
-      Uint8  opExec;     
+      Uint8  opExec;
+      Uint8  m_read_committed_base;
     
       /* Use of Long signals */
       Uint8  isLongTcKeyReq;   /* Incoming TcKeyReq used long signal */
@@ -1157,6 +1161,9 @@ public:
       TR_STORED_TABLE = 1 << 2,
       TR_PREPARED     = 1 << 3
       ,TR_USER_DEFINED_PARTITIONING = 1 << 4
+      ,TR_READ_BACKUP = (1 << 5)
+      ,TR_FULLY_REPLICATED = (1<<6)
+      ,TR_DELAY_COMMIT = (1 << 7)
     };
     Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
     Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
@@ -1185,7 +1192,9 @@ public:
     bool checkTable(Uint32 schemaVersion) const {
       return !get_dropping() &&
 	((/** normal transaction path */
-          get_enabled() && table_version_major(schemaVersion) == table_version_major(currentSchemaVersion)) 
+          get_enabled() &&
+          table_version_major(schemaVersion) ==
+          table_version_major(currentSchemaVersion)) 
          ||
          (/** 
            * unique index is relaxed for DbUtil and transactions ongoing
@@ -1241,8 +1250,15 @@ public:
     // Timer for checking timeout of this fragment scan
     Uint32  scanFragTimer;
 
-    // Id of the current scanned fragment
+    /**
+     * Id of the current scanned fragment
+     * scanFragId can differ from lqhScanFragId for fully replicated
+     * tables where the full fragments are copies and DIGETNODESREQ
+     * might change the lqhScanFragId to differ from scanFragId to
+     * read a local fragment replica.
+     */
     Uint32 scanFragId;
+    Uint32 lqhScanFragId;
 
     // Blockreference of LQH 
     BlockReference lqhBlockref;
@@ -1416,12 +1432,14 @@ public:
      * Send opcount/total len as different words
      */
     bool m_4word_conf;
+    bool m_read_committed_base;
 
     /**
      *
      */
     bool m_scan_dist_key_flag;
     Uint32 m_scan_dist_key;
+    Uint32 m_read_any_node;
     NDB_TICKS m_start_ticks;
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
@@ -1615,6 +1633,7 @@ private:
   void timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr);
   int  releaseAndAbort(Signal* signal);
 
+  void scan_for_read_backup(Signal *, Uint32, Uint32, Uint32);
   void releaseMarker(ApiConnectRecord * const regApiPtr);
 
   Uint32 get_transid_fail_bucket(Uint32 transid1);
@@ -1725,7 +1744,9 @@ private:
   void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
   void seizeTcConnect(Signal* signal);
   void seizeTcConnectFail(Signal* signal);
-  Ptr<ApiConnectRecord> sendApiCommit(Signal* signal);
+  Ptr<ApiConnectRecord> sendApiCommitAndCopy(Signal* signal);
+  void sendApiCommitSignal(Signal* signal, Ptr<ApiConnectRecord>);
+  void sendApiLateCommitSignal(Signal* signal, Ptr<ApiConnectRecord> apiCopy);
   bool sendAttrInfoTrain(Signal* signal,
                          UintR TBRef,
                          Uint32 connectPtr,
@@ -1786,11 +1807,13 @@ private:
                            Uint32 triggerPtrI,
                            TcConnectRecord* triggeringOp,
                            Uint32 returnCode);
-  void continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp);
+  void continueTriggeringOp(Signal* signal,
+                            TcConnectRecord* trigOp,
+                            ApiConnectRecordPtr);
 
   void executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr);
   void waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr);
-  void executeTrigger(Signal* signal,
+  bool executeTrigger(Signal* signal,
                       TcFiredTriggerData* firedTriggerData,
                       ApiConnectRecordPtr* transPtr,
                       TcConnectRecordPtr* opPtr);
@@ -1875,6 +1898,12 @@ private:
   Uint32 fk_constructAttrInfoSetNull(const TcFKData*);
   Uint32 fk_constructAttrInfoUpdateCascade(const TcFKData*,
                                            DataBuffer<11>::Head&);
+
+  bool executeFullyReplicatedTrigger(Signal* signal,
+                                     TcDefinedTriggerData* definedTriggerData,
+                                     TcFiredTriggerData* firedTriggerData,
+                                     ApiConnectRecordPtr* transPtr,
+                                     TcConnectRecordPtr* opPtr);
 
   void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
   void releaseFiredTriggerData(LocalDLFifoList<TcFiredTriggerData>* triggers);

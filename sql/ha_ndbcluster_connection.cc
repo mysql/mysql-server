@@ -23,13 +23,14 @@
 #include "portlib/NdbTick.h"
 #include "util/BaseString.hpp"
 #include "util/Vector.hpp"
+#include <mysql/psi/mysql_thread.h>
 
 Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
 static Ndb_cluster_connection **g_pool= NULL;
 static uint g_pool_alloc= 0;
 static uint g_pool_pos= 0;
-static native_mutex_t g_pool_mutex;
+static mysql_mutex_t g_pool_mutex;
 
 
 /**
@@ -149,7 +150,8 @@ ndbcluster_connect(int (*connect_callback)(void),
                    bool optimized_node_select,
                    const char* connect_string,
                    uint force_nodeid,
-                   uint recv_thread_activation_threshold)
+                   uint recv_thread_activation_threshold,
+                   uint data_node_neighbour)
 {
 #ifndef EMBEDDED_LIBRARY
   const char mysqld_name[]= "mysqld";
@@ -200,6 +202,7 @@ ndbcluster_connect(int (*connect_callback)(void),
   g_ndb_cluster_connection->set_optimized_node_selection(optimized_node_select);
   g_ndb_cluster_connection->set_recv_thread_activation_threshold(
                                       recv_thread_activation_threshold);
+  g_ndb_cluster_connection->set_data_node_neighbour(data_node_neighbour);
 
   // Create a Ndb object to open the connection  to NDB
   if ( (g_ndb= new Ndb(g_ndb_cluster_connection, "sys")) == 0 )
@@ -237,8 +240,9 @@ ndbcluster_connect(int (*connect_callback)(void),
       my_malloc(PSI_INSTRUMENT_ME,
                 g_pool_alloc * sizeof(Ndb_cluster_connection*),
                 MYF(MY_WME | MY_ZEROFILL));
-    native_mutex_init(&g_pool_mutex,
-                       MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(PSI_INSTRUMENT_ME,
+                     &g_pool_mutex,
+                     MY_MUTEX_INIT_FAST);
     g_pool[0]= g_ndb_cluster_connection;
     for (uint i= 1; i < g_pool_alloc; i++)
     {
@@ -269,6 +273,7 @@ ndbcluster_connect(int (*connect_callback)(void),
       }
       g_pool[i]->set_optimized_node_selection(optimized_node_select);
       g_pool[i]->set_recv_thread_activation_threshold(recv_thread_activation_threshold);
+      g_pool[i]->set_data_node_neighbour(data_node_neighbour);
     }
   }
 
@@ -370,8 +375,8 @@ void ndbcluster_disconnect(void)
         if (g_pool[i])
           delete g_pool[i];
       }
-      my_free((uchar*) g_pool, MYF(MY_ALLOW_ZERO_PTR));
-      native_mutex_destroy(&g_pool_mutex);
+      my_free(g_pool);
+      mysql_mutex_destroy(&g_pool_mutex);
       g_pool= 0;
     }
     g_pool_alloc= 0;
@@ -385,12 +390,12 @@ void ndbcluster_disconnect(void)
 
 Ndb_cluster_connection *ndb_get_cluster_connection()
 {
-  native_mutex_lock(&g_pool_mutex);
+  mysql_mutex_lock(&g_pool_mutex);
   Ndb_cluster_connection *connection= g_pool[g_pool_pos];
   g_pool_pos++;
   if (g_pool_pos == g_pool_alloc)
     g_pool_pos= 0;
-  native_mutex_unlock(&g_pool_mutex);
+  mysql_mutex_unlock(&g_pool_mutex);
   return connection;
 }
 
@@ -437,15 +442,16 @@ int
 ndb_set_recv_thread_cpu(Uint16 *cpuid_array,
                         Uint32 cpuid_array_size)
 {
+  int ret_code = 0;
   Uint32 num_cpu_needed = g_pool_alloc;
 
   if (cpuid_array_size == 0)
   {
     for (Uint32 i = 0; i < g_pool_alloc; i++)
     {
-      g_pool[i]->unset_recv_thread_cpu(0);
+      ret_code = g_pool[i]->unset_recv_thread_cpu(0);
     }
-    return 0;
+    return ret_code;
   }
 
   if (cpuid_array_size < num_cpu_needed)
@@ -455,15 +461,22 @@ ndb_set_recv_thread_cpu(Uint16 *cpuid_array,
       "Ignored receive thread CPU mask, mask too short,"
       " %u CPUs needed in mask, only %u CPUs provided",
       num_cpu_needed, cpuid_array_size);
-    return 0;
+    return 1;
   }
   for (Uint32 i = 0; i < g_pool_alloc; i++)
   {
-    g_pool[i]->set_recv_thread_cpu(&cpuid_array[i],
+    ret_code = g_pool[i]->set_recv_thread_cpu(&cpuid_array[i],
                                    (Uint32)1,
                                    0);
   }
-  return 0;
+  return ret_code;
+}
+
+void
+ndb_set_data_node_neighbour(ulong data_node_neighbour)
+{
+  for (uint i= 0; i < g_pool_alloc; i++)
+    g_pool[i]->set_data_node_neighbour(data_node_neighbour);
 }
 
 void ndb_get_connection_stats(Uint64* statsArr)

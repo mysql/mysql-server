@@ -208,6 +208,11 @@ INITIAL_SIZE 1000000000000K
 ENGINE = NDB;
 ERROR HY000: The size number was correct but we don't allow the digit part to be more than 2 billion
 DROP TABLE t1;
+CREATE TABLE t1 (a bigint primary key, b bigint storage disk)
+ENGINE ndb
+COMMENT="NDB_TABLE=NOLOGGING=1"
+TABLESPACE ts1 STORAGE DISK;
+ERROR HY000: Got error 798 'A disk table must not be specified as no logging' from NDBCLUSTER
 create tablespace ts2
 add datafile 'datafile2_1.dat'
 use logfile group lg1

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,7 +100,15 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   bt.m_tablespace_id = t->m_tablespace_id;
   bt.m_tablespace_version = t->m_tablespace_version;
   bt.setFragmentType(t->getFragmentType());
+  bt.setPartitionBalance(t->getPartitionBalance());
+  bt.setReadBackupFlag(t->getReadBackupFlag());
+  bt.setFullyReplicated(t->getFullyReplicated());
 
+  if (t->getFragmentType() == NdbDictionary::Object::HashMapPartition)
+  {
+    bt.m_hash_map_id = t->m_hash_map_id;
+    bt.m_hash_map_version = t->m_hash_map_version;
+  }
   DBUG_PRINT("info", ("Define BLOB table V%d with"
                       " primary table = %u and Fragment Type = %u",
                       blobVersion,
@@ -2142,6 +2150,7 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
       {
         assert(! theNdbOp->m_blob_lock_upgraded);
         theNdbOp->setReadLockMode(NdbOperation::LM_Read);
+        theNdbOp->setReadCommittedBase();
         theNdbOp->m_blob_lock_upgraded = true;
 
         if (!isIndexOp())
@@ -2215,6 +2224,7 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
         assert(! theNdbOp->m_blob_lock_upgraded);
         sop->m_savedLockModeOldApi= NdbOperation::LM_Read;
         theNdbOp->m_blob_lock_upgraded = true;
+        theNdbOp->setReadCommittedBase();
       }
     }
     else
@@ -2229,6 +2239,7 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
         assert(! theNdbOp->m_blob_lock_upgraded);
         sop->setReadLockMode(NdbOperation::LM_Read);
         theNdbOp->m_blob_lock_upgraded = true;
+        theNdbOp->setReadCommittedBase();
       }
     }
 
@@ -2775,7 +2786,12 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
             setErrorCode(tOp);
             DBUG_RETURN(-1);
           }
-        } 
+        }
+        if (isReadOp() && theNdbOp->getReadCommittedBase())
+        {
+          DBUG_PRINT("info", ("Set ReadCommittedBase on UI lookup"));
+          tOp->setReadCommittedBase();
+        }
       }
       DBUG_PRINT("info", ("Index op : added op before to read table key"));
     }

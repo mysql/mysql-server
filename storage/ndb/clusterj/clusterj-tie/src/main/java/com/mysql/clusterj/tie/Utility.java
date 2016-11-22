@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1077,6 +1077,18 @@ public class Utility {
         public int convertShortValueForStorage(Column storeColumn, short value);
     }
 
+    /** Convert the integer to a value that can be printed
+     */
+    protected static String hex(int n) {
+        return String.format("0x%08X", n);
+    }
+
+    /** Convert the long to a value that can be printed
+     */
+    protected static String hex(long n) {
+        return String.format("0x%016X", n);
+    }
+
     /** Swap the bytes in the value, thereby converting a big-endian value
      * into a little-endian value (or vice versa).
      * @param value the value to be swapped
@@ -1143,7 +1155,6 @@ public class Utility {
         int requiredLength = storeColumn.getColumnSpace();
         ByteBuffer result = ByteBuffer.allocateDirect(requiredLength);
         convertValue(result, storeColumn, value);
-        result.flip();
         return result;
     }
 
@@ -1184,6 +1195,7 @@ public class Utility {
                             local.message("ERR_Unknown_Prefix_Length",
                             prefixLength, storeColumn.getName()));
         }
+        buffer.flip();
     }
 
     /** Convert a BigDecimal value to the binary decimal form used by MySQL.
@@ -1315,7 +1327,7 @@ public class Utility {
     }
 
     /** Convert the parameter value to a ByteBuffer that can be passed to ndbjtie.
-     * 
+     *
      * @param storeColumn the column definition
      * @param value the value to be converted
      * @return the ByteBuffer
@@ -1326,6 +1338,19 @@ public class Utility {
         result.putDouble(value);
         result.flip();
         return result;
+    }
+
+    /** Convert the parameter value into a ByteBuffer that can be passed to ndbjtie.
+     *
+     * @param buffer the ByteBuffer
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     */
+    public static void convertValue(ByteBuffer buffer, Column storeColumn, double value) {
+        buffer.order(ByteOrder.nativeOrder());
+        buffer.putDouble(value);
+        buffer.flip();
+        return;
     }
 
     /** Convert the parameter value to a ByteBuffer that can be passed to ndbjtie.
@@ -1340,6 +1365,19 @@ public class Utility {
         result.putFloat(value);
         result.flip();
         return result;
+    }
+
+    /** Convert the parameter value into a ByteBuffer that can be passed to ndbjtie.
+     *
+     * @param buffer the ByteBuffer
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     */
+    public static void convertValue(ByteBuffer buffer, Column storeColumn, float value) {
+        buffer.order(ByteOrder.nativeOrder());
+        buffer.putFloat(value);
+        buffer.flip();
+        return;
     }
 
     /** Convert the parameter value to a ByteBuffer that can be passed to ndbjtie.
@@ -1477,6 +1515,21 @@ public class Utility {
         return byteBuffer;
     }
 
+    /** Encode a byte[] into a ByteBuffer that can be passed to ndbjtie in a COND_LIKE filter.
+     * There is no length information in the beginning of the buffer.
+     * @param buffer the ByteBuffer
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     */
+    protected static void convertValueForLikeFilter(ByteBuffer buffer, Column storeColumn, byte[] value) {
+        if (value == null) {
+            value = EMPTY_BYTE_ARRAY;
+        }
+        buffer.put(value);
+        buffer.flip();
+        return;
+    }
+
     /** Pad the value with blanks on the right.
      * @param value the input value
      * @param storeColumn the store column
@@ -1511,12 +1564,12 @@ public class Utility {
             throw new ClusterJUserException(local.message("ERR_Data_Too_Long",
                     storeColumn.getName(), requiredLength, suppliedLength));
         } else if (suppliedLength < requiredLength) {
-        	//reset buffer's limit
-        	buffer.limit(requiredLength);
-        	//pad to fixed length
-        	buffer.position(suppliedLength);
-        	buffer.put(BLANK_PAD, 0, requiredLength - suppliedLength);
-        	buffer.position(0);
+            //reset buffer's limit
+            buffer.limit(requiredLength);
+            //pad to fixed length
+            buffer.position(suppliedLength);
+            buffer.put(BLANK_PAD, 0, requiredLength - suppliedLength);
+            buffer.position(0);
         }
         return buffer;
     }
@@ -1677,18 +1730,21 @@ public class Utility {
 
      * FSP      nBytes MaxValue MaxValueHex
      * ---      -----  -------- -----------
-     * FSP=1    1byte  9                 9
+     * FSP=1    1byte  90               5A
      * FSP=2    1byte  99               63
 
-     * FSP=3    2bytes 999             3E7
+     * FSP=3    2bytes 9990           2706
+     -------------------------------------
+     * Current algorithm does not support FSP=4 to FSP=6
+     * These will be truncated to FSP=3
      * FSP=4    2bytes 9999           270F
 
-     * FSP=5    3bytes 99999         1869F
+     * FSP=5    3bytes 999990        F4236
      * FSP=6    3bytes 999999        F423F
 
      * @param precision number of digits of precision, 0 to 6
      * @param milliseconds
-     * @return
+     * @return packed fractional seconds in low order 3 bytes
      */
     protected static long packFractionalSeconds(int precision, long milliseconds) {
         switch (precision) {
@@ -1697,39 +1753,40 @@ public class Utility {
                 return 0L;
             case 1: // possible truncation
                 if (milliseconds % 100 != 0) throwOnTruncation();
-                return (milliseconds / 100L) * 0x0000000000010000L;
+                return (milliseconds / 100L)  * 0x00000000000A0000L;
             case 2: // possible truncation
                 if (milliseconds % 10 != 0) throwOnTruncation();
                 return (milliseconds / 10L)  * 0x0000000000010000L;
             case 3:
-                return milliseconds * 0x0000000000000100L;
             case 4:
                 return milliseconds * 0x0000000000000A00L; // milliseconds * 10
             case 5:
-                return milliseconds * 0x0000000000000064L; // milliseconds * 100
             case 6:
-                return milliseconds * 0x00000000000003E8L; // milliseconds * 1000
+                return milliseconds * 1000L; // milliseconds * 1000
             default:
                 return 0L;
         }
     }
 
+    /** Unpack fractional seconds to milliseconds
+     * @param precision number of digits of precision, 0 to 6
+     * @param fraction packed seconds in low order 3 bytes
+     * @return number of milliseconds
+     */
     protected static int unpackFractionalSeconds(int precision, int fraction) {
         switch (precision) {
             case 0:
                 return 0;
             case 1:
-                return (fraction & 0x00FF0000) * 100;
+                return ((fraction & 0x00FF0000) >>> 16) * 10;
             case 2:
-                return (fraction & 0x00FF0000) * 10;
+                return ((fraction & 0x00FF0000) >>> 16) * 10;
             case 3:
-                return  fraction & 0x00FFFF00;
             case 4:
-                return (fraction & 0x00FFFF00) / 10;
+                return ((fraction & 0x00FFFF00) >>> 8) / 10;
             case 5:
-                return  fraction / 100;
             case 6:
-                return  fraction / 1000;
+                return (fraction & 0x00FFFFFF) / 1000;
             default:
                 return 0;
         }
@@ -1798,12 +1855,18 @@ public class Utility {
         long packedMillis = packFractionalSeconds(precision, milliseconds);
         long result = (seconds << 32) +
                 (packedMillis << 8);
+        if (logger.isDetailEnabled()) logger.detail(
+                "packTimestamp2 precision: " + precision + " millis: " + millis + " result: " + hex(result));
         return result;
     }
 
     protected static long unpackTimestamp2(int precision, long value) {
+        int fraction = (int)((value & 0x00000000FFFFFF00) >>> 8);
         long result = ((value >>> 32) * 1000) +
-                (unpackFractionalSeconds(precision, (int)value) >>> 8) ;
+                unpackFractionalSeconds(precision, fraction);
+        if (logger.isDetailEnabled()) logger.detail(
+                "unpackTimestamp2 precision: " + precision + " value: " + hex(value)
+                + " fraction: " + hex(fraction) + " result: " + result);
         return result;
     }
 

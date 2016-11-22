@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,11 +21,12 @@
 #include <NdbTick.h>
 #include "../../src/ndbapi/NdbQueryOperation.hpp"
 
-HugoQueries::HugoQueries(const NdbQueryDef & query)
+HugoQueries::HugoQueries(const NdbQueryDef & query, int retryMax)
+ : m_query_def(&query),
+   m_ops(query.getNoOfOperations()),
+   m_retryMax(retryMax),
+   m_error()
 {
-  m_retryMax = 100;
-  m_query_def = &query;
-
   for (Uint32 i = 0; i<query.getNoOfOperations(); i++)
   {
     struct Op op;
@@ -163,11 +164,16 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
              << " times, failing!" << endl;
       return NDBT_FAILED;
     }
+    if (retryAttempt > 0)
+    {
+      NdbSleep_MilliSleep(50);
+    }
 
     Vector<Uint32> batch_rows_found;
     batch_rows_found.fill(m_query_def->getNoOfOperations() - 1, zero);
     Vector<NdbQuery*> queries;
 
+    clearNdbError();
     NdbTransaction * pTrans = pNdb->startTransaction();
     if (pTrans == NULL)
     {
@@ -175,11 +181,12 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
 
       if (err.status == NdbError::TemporaryError){
         NDB_ERR(err);
-        NdbSleep_MilliSleep(50);
+        setNdbError(err);
         retryAttempt++;
         continue;
       }
       NDB_ERR(err);
+      setNdbError(err);
       return NDBT_FAILED;
     }
 
@@ -194,6 +201,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       {
         const NdbError err = pTrans->getNdbError();
         NDB_ERR(err);
+        setNdbError(err);
         return NDBT_FAILED;
       }
 
@@ -210,9 +218,9 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
     {
       const NdbError err = pTrans->getNdbError();
       NDB_ERR(err);
+      setNdbError(err);
       if (err.status == NdbError::TemporaryError){
         pTrans->close();
-        NdbSleep_MilliSleep(50);
         retryAttempt++;
         continue;
       }
@@ -231,6 +239,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       if (err.code)
       {
         NDB_ERR(err);
+        setNdbError(err);
         ndbout_c("API INCONSISTENCY: NdbTransaction returned NdbError even if ::execute() succeeded");
         pTrans->close();
         return NDBT_FAILED;
@@ -253,6 +262,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       if (err.code)
       {
         NDB_ERR(err);
+        setNdbError(err);
         if (err.status == NdbError::TemporaryError){
           pTrans->close();
           retry = true;
@@ -283,6 +293,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       {
         const NdbError& err = query->getNdbError();
         NDB_ERR(err);
+        setNdbError(err);
         if (err.status == NdbError::TemporaryError){
           pTrans->close();
           retry = true;
@@ -294,7 +305,6 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
     }
     if (retry)
     {
-      NdbSleep_MilliSleep(50);
       retryAttempt++;
       continue;
     }
@@ -321,17 +331,22 @@ HugoQueries::runScanQuery(Ndb * pNdb,
 
   while (retryAttempt < m_retryMax)
   {
+    if (retryAttempt > 0)
+    {
+      NdbSleep_MilliSleep(50);
+    }
     m_rows_found.clear();
     Uint32 zero = 0;
     m_rows_found.fill(m_query_def->getNoOfOperations() - 1, zero);
 
+    clearNdbError();
     NdbTransaction * pTrans = pNdb->startTransaction();
     if (pTrans == NULL)
     {
       const NdbError err = pNdb->getNdbError();
       NDB_ERR(err);
+      setNdbError(err);
       if (err.status == NdbError::TemporaryError){
-        NdbSleep_MilliSleep(50);
         retryAttempt++;
         continue;
       }
@@ -348,6 +363,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     {
       const NdbError err = pTrans->getNdbError();
       NDB_ERR(err);
+      setNdbError(err);
       return NDBT_FAILED;
     }
 
@@ -362,9 +378,9 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     {
       const NdbError err = pTrans->getNdbError();
       NDB_ERR(err);
+      setNdbError(err);
       if (err.status == NdbError::TemporaryError){
         pTrans->close();
-        NdbSleep_MilliSleep(50);
         retryAttempt++;
         continue;
       }
@@ -383,6 +399,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       if (err.code)
       {
         NDB_ERR(err);
+        setNdbError(err);
         ndbout_c("API INCONSISTENCY: NdbTransaction returned NdbError even if ::execute() succeeded");
         pTrans->close();
         return NDBT_FAILED;
@@ -399,9 +416,9 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       if (err.code)
       {
         NDB_ERR(err);
+        setNdbError(err);
         if (err.status == NdbError::TemporaryError){
           pTrans->close();
-          NdbSleep_MilliSleep(50);
           retryAttempt++;
           continue;
         }
@@ -429,7 +446,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
         query->close();
         pTrans->close();
         m_rows_found.clear();
-      return NDBT_OK;
+        return NDBT_OK;
       }
 
       for (unsigned o = 0; o<m_ops.size(); o++)
@@ -453,9 +470,9 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     if (res == NdbQuery::NextResult_error)
     {
       NDB_ERR(err);
+      setNdbError(err);
       if (err.status == NdbError::TemporaryError)
       {
-        NdbSleep_MilliSleep(50);
         retryAttempt++;
         continue;
       }
@@ -469,7 +486,29 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     break;
   }
 
+  if (m_error.code != 0)  //Still failures after retries
+    return NDBT_FAILED;
+
   return NDBT_OK;
+}
+
+void
+HugoQueries::clearNdbError()
+{
+  m_error.code = 0;
+}
+
+void
+HugoQueries::setNdbError(const NdbError& error)
+{
+  assert(error.code != 0);
+  m_error = error;
+}
+
+const NdbError& 
+HugoQueries::getNdbError() const
+{
+  return m_error;
 }
 
 template class Vector<HugoQueries::Op>;

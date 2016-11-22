@@ -10,7 +10,7 @@
 # when mysqld asks if it supports inplace ALTER RENAME. Since user requested
 # inplace, the query will be rejected by mysqld.
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1
   algorithm=inplace,
   ADD COLUMN c INT,

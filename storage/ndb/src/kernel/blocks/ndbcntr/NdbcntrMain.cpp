@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3332,7 +3332,7 @@ Ndbcntr::createHashMap(Signal* signal, Uint32 idx)
   req->transId = c_schemaTransId;
   req->transKey = c_schemaTransKey;
   req->buckets = 0;
-  req->fragments = 0;
+  req->fragments = NDB_PARTITION_BALANCE_FOR_RP_BY_LDM;
   sendSignal(DBDICT_REF, GSN_CREATE_HASH_MAP_REQ, signal,
 	     CreateHashMapReq::SignalLength, JBB);
 }

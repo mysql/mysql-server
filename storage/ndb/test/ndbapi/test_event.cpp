@@ -26,6 +26,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbEnv.h>
 #include <Bitmask.hpp>
+#include "../src/kernel/ndbd.hpp"
 
 #define CHK(b,e) \
   if (!(b)) { \
@@ -635,6 +636,7 @@ runListenEmptyEpochs(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  pNdb->setEventBufferQueueEmptyEpoch(true);
   if (result == NDBT_OK)
   {
     NdbEventOperation* evOp2 = createEventOperation(pNdb,
@@ -3271,7 +3273,7 @@ runBug37338(NDBT_Context* ctx, NDBT_Step* step)
     NdbEventOperation* pOp0;
     NdbDictionary::Dictionary * dict0;
 
-    cc(&con0, &ndb0);
+    CHK(cc(&con0, &ndb0) == 0, "Establishing new cluster connection failed");
     dict0 = ndb0->getDictionary();
     if (dict0->createTable(copy) != 0)
     {
@@ -4559,7 +4561,17 @@ consumeEpochs(Ndb* ndb, Uint32 nEpochs)
       NdbDictionary::Event::TableEvent err_type;
       if ((pOp->isErrorEpoch(&err_type)) ||
           (pOp->getEventType2() == NdbDictionary::Event::TE_CLUSTER_FAILURE))
+      {
         errorEpochs++;
+        // After cluster failure, a new generation of epochs will start.
+        // Start the checks afresh.
+        curr_gci = 0;
+        break;
+      }
+      else if (pOp->getEventType2() == NdbDictionary::Event::TE_NODE_FAILURE)
+      {
+        errorEpochs++;
+      }
       else if (pOp->isEmptyEpoch())
       {
         emptyEpochs++;
@@ -5141,7 +5153,15 @@ int runCreateDropEventOperation_NF(NDBT_Context* ctx, NDBT_Step* step)
   CHK(pOp->execute() == 0, "Execute operation execution failed");
 
   NdbRestarter restarter;
-  restarter.insertErrorInNode(restarter.getMasterNodeId(), 6125);
+  int nodeid = restarter.getMasterNodeId();
+
+  int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, NRT_NoStart_Restart};
+  if (restarter.dumpStateOneNode(nodeid, val, 2))
+  {
+    return NDBT_FAILED;
+  }
+
+  restarter.insertErrorInNode(nodeid, 6125);
 
   const int res = pDict->dropEvent(eventName);
   if (res != 0)
@@ -5152,6 +5172,13 @@ int runCreateDropEventOperation_NF(NDBT_Context* ctx, NDBT_Step* step)
   }
   else
     g_info << "Dropped event1" << endl;
+
+  if (restarter.waitNodesNoStart(&nodeid, 1) != 0)
+  {
+    g_err << "Master node " << nodeid << " never crashed." << endl;
+    return NDBT_FAILED;
+  }
+  restarter.startNodes(&nodeid, 1);
 
   g_info << "Waiting for the node to start" << endl;
   if (restarter.waitClusterStarted(120) != 0)
@@ -5456,9 +5483,8 @@ int runGetLogEventPretty(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
 
   int filter[] = {15, NDB_MGM_EVENT_CATEGORY_INFO, 0};
-  NDB_SOCKET_TYPE my_fd;
-  int fd= ndb_mgm_listen_event(mgmd.handle(), filter);
-  my_fd.fd= fd;
+  ndb_native_socket_t fd= ndb_mgm_listen_event(mgmd.handle(), filter);
+  ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
 
   if(!my_socket_valid(my_fd))
   {

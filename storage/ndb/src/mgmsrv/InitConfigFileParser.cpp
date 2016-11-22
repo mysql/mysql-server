@@ -376,6 +376,9 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
       case -2:
         desc.assfmt("Too large id used in bitmask, max is %llu", max);
         break;
+      case -3:
+        desc.assfmt("Empty bitmask not allowed");
+        break;
       default:
         break;
       }
@@ -651,9 +654,7 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
 
 #include <my_sys.h>
 #include <my_getopt.h>
-#ifdef HAVE_MY_DEFAULT_H
 #include <my_default.h>
-#endif
 
 static int order = 1;
 static 
@@ -746,10 +747,7 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
   BaseString group_suffix;
 
   const char *save_file = my_defaults_file;
-#if MYSQL_VERSION_ID >= 50508
-  const
-#endif
-  char *save_extra_file = my_defaults_extra_file;
+  const char *save_extra_file = my_defaults_extra_file;
   const char *save_group_suffix = my_defaults_group_suffix;
 
   if (my_defaults_file)

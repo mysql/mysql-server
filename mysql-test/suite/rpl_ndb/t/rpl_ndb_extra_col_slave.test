@@ -7,6 +7,11 @@
 -- source include/have_ndb.inc
 -- source include/master-slave.inc
 
+connection slave;
+--source suite/ndb/include/turn_off_ndb_read_backup.inc
+connection master;
+--source suite/ndb/include/turn_off_ndb_read_backup.inc
+
 #
 # This is a disgrace...but slave randomly spits out these warnings
 #   results file match...so i'll just supress them
@@ -19,4 +24,10 @@ call mtr.add_suppression("Slave: Got error 120 during COMMIT Error_code: 1180");
 let $engine_type = 'NDB';
 -- source extra/rpl_tests/rpl_extra_col_slave.test
 
+connection slave;
+--source suite/ndb/include/restore_ndb_read_backup.inc
+connection master;
+--source suite/ndb/include/restore_ndb_read_backup.inc
+
 --source include/rpl_end.inc
+

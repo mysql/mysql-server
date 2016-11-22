@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ import java.util.Map;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.Collections;
 
 import com.mysql.ndbjtie.ndbapi.Ndb;
 import com.mysql.ndbjtie.ndbapi.Ndb_cluster_connection;
@@ -67,7 +68,7 @@ public class ClusterConnectionImpl
     final int connectTimeoutMgm;
 
     /** All regular dbs (not dbForNdbRecord) given out by this cluster connection */
-    private Map<DbImpl, Object> dbs = new IdentityHashMap<DbImpl, Object>();
+    private Map<DbImpl, Object> dbs = Collections.synchronizedMap(new IdentityHashMap<DbImpl, Object>());
 
     /** The DbImplForNdbRecord */
     DbImplForNdbRecord dbForNdbRecord;
@@ -108,6 +109,8 @@ public class ClusterConnectionImpl
 
     private static final boolean USE_SMART_VALUE_HANDLER =
             ClusterJHelper.getBooleanProperty(USE_SMART_VALUE_HANDLER_NAME, "true");
+
+    protected static boolean queryObjectsInitialized = false;
 
     /** Connect to the MySQL Cluster
      * 
@@ -150,6 +153,8 @@ public class ClusterConnectionImpl
                 Ndb ndbForNdbRecord = Ndb.create(clusterConnection, database, "def");
                 handleError(ndbForNdbRecord, clusterConnection, connectString, nodeId);
                 dbForNdbRecord = new DbImplForNdbRecord(this, ndbForNdbRecord);
+                // get an instance of stand-alone query objects to avoid synchronizing later
+                dbForNdbRecord.initializeQueryObjects();
                 dictionaryForNdbRecord = dbForNdbRecord.getNdbDictionary();
             }
         }
@@ -250,9 +255,8 @@ public class ClusterConnectionImpl
     }
 
     public int dbCount() {
-        // one of the dbs is for the NdbRecord dictionary if it is not null
-        int dbForNdbRecord = (dictionaryForNdbRecord == null)?0:1;
-        return dbs.size() - dbForNdbRecord;
+        // dbForNdbRecord is not included in the dbs list
+        return dbs.size();
     }
 
     /** 
@@ -270,7 +274,8 @@ public class ClusterConnectionImpl
      */
     protected NdbRecordImpl getCachedNdbRecordImpl(Table storeTable) {
         dbForNdbRecord.assertOpen("ClusterConnectionImpl.getCachedNdbRecordImpl for table");
-        String tableName = storeTable.getName();
+        // tableKey is table name plus projection indicator
+        String tableName = storeTable.getKey();
         // find the NdbRecordImpl in the global cache
         NdbRecordImpl result = ndbRecordImplMap.get(tableName);
         if (result != null) {

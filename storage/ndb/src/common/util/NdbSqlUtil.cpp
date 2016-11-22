@@ -983,54 +983,61 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
   return false;
 }
 
-
-size_t
-NdbSqlUtil::ndb_strnxfrm(struct charset_info_st * cs,
-                         uchar *dst, size_t dstlen,
-                         const uchar *src, size_t srclen)
-{
-#if NDB_MYSQL_VERSION_D < NDB_MAKE_VERSION(5,6,0)
-  return (*cs->coll->strnxfrm)(cs, dst, dstlen, src, srclen);
-#else
-  /*
-    strnxfrm has got two new parameters in 5.6, we are using the
-    defaults for those and can thus easily calculate them from
-    existing params
-  */
-  return  (*cs->coll->strnxfrm)(cs, dst, dstlen, (uint)dstlen,
-                                src, srclen, MY_STRXFRM_PAD_WITH_SPACE);
-#endif
-}
-
-// workaround
-
+/**
+ * Even if bug#7284: 'strnxfrm generates different results for equal strings'
+ * is fixed long ago, we still have to keep this method:
+ * The suggested fix for that bug was:
+ *
+ *   'Pad the result not with 0x00 character, but with weight
+ *    corresponding to the space character'.
+ *
+ * That should now have be handled by the flags 'MY_STRXFRM_PAD_WITH_SPACE',
+ * possibly in combination with 'MY_STRXFRM_PAD_TO_MAXLEN'. However it
+ * turns out that this only work as expected for 99% of the character sets.
+ * 'latin2_czech_cs' is one of the collations not being well behaved,
+ * and is likely to return a 'dst' not being completely padded.
+ *
+ * So we still have to handle the 'unlikely' case 'n3 < (int)dstLen'.
+ */
 int
-NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstLen, const unsigned char*src, unsigned srcLen)
+NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs,
+                             unsigned char* dst, unsigned dstLen,
+                             const unsigned char*src, unsigned srcLen)
 {
-  unsigned char nsp[20]; // native space char
-  unsigned char xsp[20]; // strxfrm-ed space char
-#ifdef VM_TRACE
-  memset(nsp, 0x1f, sizeof(nsp));
-  memset(xsp, 0x1f, sizeof(xsp));
-#endif
-  // convert from unicode codepoint for space
-  int n1 = (*cs->cset->wc_mb)(cs, (my_wc_t)0x20, nsp, nsp + sizeof(nsp));
-  if (n1 <= 0)
-    return -1;
-  // strxfrm to binary
-  int n2 = (int)ndb_strnxfrm(cs, xsp, sizeof(xsp), nsp, n1);
-  if (n2 <= 0)
-    return -1;
-  // XXX bug workaround - strnxfrm may not write full string
-  memset(dst, 0x0, dstLen);
   // strxfrm argument string - returns no error indication
-  int n3 = (int)ndb_strnxfrm(cs, dst, dstLen, src, srcLen);
-  // pad with strxfrm-ed space chars
-  int n4 = n3;
-  while (n4 < (int)dstLen) {
-    dst[n4] = xsp[(n4 - n3) % n2];
-    n4++;
+  const int n3 = (int)(*cs->coll->strnxfrm)(cs,
+                                dst, dstLen, (uint)dstLen,
+                                src, srcLen,
+				MY_STRXFRM_PAD_WITH_SPACE);
+
+  if (unlikely(n3 < (int)dstLen))
+  {
+    unsigned char nsp[20]; // native space char
+    unsigned char xsp[20]; // strxfrm-ed space char
+#ifdef VM_TRACE
+    memset(nsp, 0x1f, sizeof(nsp));
+    memset(xsp, 0x1f, sizeof(xsp));
+#endif
+    // convert from unicode codepoint for space
+    const int n1 = (*cs->cset->wc_mb)(cs, (my_wc_t)0x20, nsp, nsp + sizeof(nsp));
+    if (n1 <= 0)
+      return -1;
+    // strxfrm to binary
+    const int n2 = (int)(*cs->coll->strnxfrm)(cs, 
+                                xsp, sizeof(xsp), (uint)sizeof(xsp),
+                                nsp, n1,
+				MY_STRXFRM_PAD_WITH_SPACE);
+    if (n2 <= 0)
+      return -1;
+
+    // pad with strxfrm-ed space chars
+    int n4 = n3;
+    while (n4 < (int)dstLen) {
+      dst[n4] = xsp[(n4 - n3) % n2];
+      n4++;
+    }
   }
+
   // no check for partial last
   return dstLen;
 }

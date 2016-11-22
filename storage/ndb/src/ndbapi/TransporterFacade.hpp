@@ -83,6 +83,8 @@ public:
  void setSendThreadInterval(Uint32 ms);
  Uint32 getSendThreadInterval(void);
 
+  Uint32 mapRefToIdx(Uint32 blockReference) const;
+
   // Only sends to nodes which are alive
 private:
   int sendSignal(trp_client*, const NdbApiSignal *, NodeId nodeId);
@@ -162,9 +164,8 @@ public:
   be the last to complete its reception.
 */
   void start_poll(trp_client*);
-  bool do_poll(trp_client* clnt,
+  void do_poll(trp_client* clnt,
                Uint32 wait_time,
-               bool is_poll_owner = false,
                bool stay_poll_owner = false);
   void complete_poll(trp_client*);
   void wakeup(trp_client*);
@@ -175,7 +176,6 @@ public:
   void unlock_and_signal(trp_client* const *, Uint32 cnt);
 
   trp_client* get_poll_owner(bool) const { return m_poll_owner;}
-  trp_client* remove_last_from_poll_queue();
   void add_to_poll_queue(trp_client* clnt);
   void remove_from_poll_queue(trp_client* clnt);
 
@@ -202,9 +202,10 @@ public:
   Uint32 min_active_clients_recv_thread;
   Uint16 recv_thread_cpu_id;
   /* Support methods to lock/unlock the receiver thread to/from its CPU */
-  void lock_recv_thread_cpu();
-  void unlock_recv_thread_cpu();
+  int lock_recv_thread_cpu();
+  int unlock_recv_thread_cpu();
 
+  /* All 3 poll_owner and poll_queue members below need thePollMutex */
   trp_client * m_poll_owner;
   trp_client * m_poll_queue_head; // First in queue
   trp_client * m_poll_queue_tail; // Last in queue
@@ -256,15 +257,12 @@ private:
   friend class Ndb_cluster_connection;
   friend class Ndb_cluster_connection_impl;
 
+  void propose_poll_owner(); 
   bool try_become_poll_owner(trp_client* clnt, Uint32 wait_time);
   static void finish_poll(trp_client* clnt,
                           Uint32 cnt,
                           Uint32& cnt_woken,
                           trp_client** arr);
-  void try_lock_last_client(trp_client* clnt,
-                            bool &new_owner_locked,
-                            trp_client** new_owner_ptr,
-                            Uint32 first_check);
 
   Uint32 m_num_active_clients;
   volatile bool m_check_connections;
@@ -291,6 +289,8 @@ private:
   NdbThread* theSendThread;
   void threadMainReceive(void);
   NdbThread* theReceiveThread;
+  trp_client* recv_client;
+  bool raise_thread_prio();
 
   friend void* runSendRequest_C(void*);
   friend void* runReceiveResponse_C(void*);
@@ -402,7 +402,7 @@ public:
   Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
   Uint32 bytes_sent(NodeId node, Uint32 bytes);
   bool has_data_to_send(NodeId node);
-  void reset_send_buffer(NodeId node, bool should_be_empty);
+  void reset_send_buffer(NodeId node);
 
 #ifdef ERROR_INSERT
   void consume_sendbuffer(Uint32 bytes_remain);
@@ -414,11 +414,14 @@ private:
   struct TFSendBuffer
   {
     TFSendBuffer()
-    {
-      m_sending = false;
-      m_reset = false;
-      m_node_active = false;
-    }
+      : m_mutex(),
+        m_sending(false),
+        m_reset(false),
+        m_node_active(false),
+        m_current_send_buffer_size(0),
+        m_buffer(),
+        m_out_buffer()
+    {}
 
     /**
      * Protection of struct members:
@@ -465,7 +468,7 @@ private:
 
   void do_send_buffer(Uint32 node, TFSendBuffer *b);
 
-  Uint32 get_current_send_buffer_size(NodeId node)
+  Uint32 get_current_send_buffer_size(NodeId node) const
   {
     return m_send_buffers[node].m_current_send_buffer_size;
   }
@@ -698,12 +701,4 @@ public :
   }
 };
 
-class ReceiveThreadClient : public trp_client
-{
-  public :
-  explicit ReceiveThreadClient(TransporterFacade *facade);
-  ~ReceiveThreadClient();
-  void trp_deliver_signal(const NdbApiSignal *,
-                          const LinearSectionPtr ptr[3]);
-};
 #endif // TransporterFacade_H

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <NdbOut.hpp>
 #include <kernel/ndb_limits.h>
 #include <NdbTick.h>
+#include <stat_utils.hpp>
 
 #include "NdbQueryOperationImpl.hpp"
 #include "ndb_cluster_connection_impl.hpp"
@@ -43,10 +44,43 @@ struct Ndb_free_list_t
   T* seize(Ndb*);
   void release(T*);
   void release(Uint32 cnt, T* head, T* tail);
-  void clear();
   Uint32 get_sizeof() const { return sizeof(T); }
+
+  /** Total number of objects currently in use (seized) */
+  Uint32 m_used_cnt;
+
+  /** Addition, currently unused, objects in 'm_free_list' */
+  Uint32 m_free_cnt;
+
+private:
+  /** No copying.*/
+  Ndb_free_list_t(const Ndb_free_list_t&);
+  Ndb_free_list_t& operator=(const Ndb_free_list_t&);
+
+  /**
+   * Based on a serie of sampled max. values for m_used_cnt;
+   * calculate the 95% percentile for max objects in use of 'class T'.
+   */
+  void update_stats()
+  {
+    m_stats.update(m_used_cnt);
+    m_estm_max_used = (Uint32)(m_stats.getMean() + (2 * m_stats.getStdDev()));
+  }
+
+  /** Shrink m_free_list such that m_used_cnt+'free' <= 'm_estm_max_used' */
+  void shrink();
+
+  /** List of recycable free objects */
   T * m_free_list;
-  Uint32 m_alloc_cnt, m_free_cnt;
+
+  /** Last operation allocated, or grabbed a free object */
+  bool m_is_growing;
+
+  /** Statistics of peaks in number of obj 'T' in use */
+  NdbStatistics m_stats;
+
+  /** Snapshot of last calculated 95% percentile of max 'm_used_cnt' */
+  Uint32 m_estm_max_used;
 };
 
 /**
@@ -248,6 +282,7 @@ public:
   static NdbOperation* void2rec_op(void* val);
   static NdbIndexOperation* void2rec_iop(void* val);
   NdbTransaction* lookupTransactionFromOperation(const TcKeyConf* conf);
+  Uint32 select_node(NdbTableImpl *table_impl, const Uint16 *nodes, Uint32 cnt);
 };
 
 #ifdef VM_TRACE
@@ -340,16 +375,28 @@ enum LockMode {
 template<class T>
 inline
 Ndb_free_list_t<T>::Ndb_free_list_t()
-{
-  m_free_list= 0; 
-  m_alloc_cnt= m_free_cnt= 0; 
-}
+ : m_used_cnt(0),
+   m_free_cnt(0),
+   m_free_list(NULL),
+   m_is_growing(false),
+   m_stats(),
+   m_estm_max_used(0)
+{}
 
 template<class T>
 inline
 Ndb_free_list_t<T>::~Ndb_free_list_t()
 {
-  clear();
+  T* obj = m_free_list;
+  while(obj)
+  {
+    T* curr = obj;
+    obj = static_cast<T*>(obj->next());
+    delete curr;
+    assert(m_free_cnt-- > 0);
+  }
+  assert(m_free_cnt == 0);
+  assert(m_used_cnt == 0);
 }
     
 template<class T>
@@ -358,10 +405,9 @@ int
 Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
 {
 #ifndef HAVE_VALGRIND
+  m_is_growing = true;
   if (m_free_list == 0)
   {
-    m_free_cnt++;
-    m_alloc_cnt++;
     m_free_list = new T(ndb);
     if (m_free_list == 0)
     {
@@ -369,8 +415,9 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
       assert(false);
       return -1;
     }
+    m_free_cnt++;
   }
-  while(m_alloc_cnt < cnt)
+  while(m_free_cnt < cnt)
   {
     T* obj= new T(ndb);
     if(obj == 0)
@@ -381,7 +428,6 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
     }
     obj->next(m_free_list);
     m_free_cnt++;
-    m_alloc_cnt++;
     m_free_list = obj;
   }
   return 0;
@@ -397,23 +443,19 @@ Ndb_free_list_t<T>::seize(Ndb* ndb)
 {
 #ifndef HAVE_VALGRIND
   T* tmp = m_free_list;
-  if (tmp)
+  m_is_growing = true;
+  if (likely(tmp != NULL))
   {
     m_free_list = (T*)tmp->next();
     tmp->next(NULL);
     m_free_cnt--;
-    return tmp;
   }
-  
-  if((tmp = new T(ndb)))
-  {
-    m_alloc_cnt++;
-  }
-  else
+  else if (unlikely((tmp = new T(ndb)) == NULL))
   {
     NdbImpl::setNdbError(*ndb, 4000);
     assert(false);
   }
+  m_used_cnt++;
   return tmp;
 #else
   return new T(ndb);
@@ -426,28 +468,30 @@ void
 Ndb_free_list_t<T>::release(T* obj)
 {
 #ifndef HAVE_VALGRIND
-  obj->next(m_free_list);
-  m_free_list = obj;
-  m_free_cnt++;
+  if (m_is_growing)
+  {
+    /* Reached a usage peak, sample it, and possibly shrink free_list */
+    m_is_growing = false;
+    update_stats();
+    shrink();
+  }
+
+  /* Use statistics to decide delete or recycle of 'obj' */
+  if (m_used_cnt+m_free_cnt > m_estm_max_used)
+  {
+    delete obj;
+  }
+  else
+  {
+    obj->next(m_free_list);
+    m_free_list = obj;
+    m_free_cnt++;
+  }
+  assert(m_used_cnt > 0);
+  m_used_cnt--;
 #else
   delete obj;
 #endif
-}
-
-
-template<class T>
-inline
-void
-Ndb_free_list_t<T>::clear()
-{
-  T* obj = m_free_list;
-  while(obj)
-  {
-    T* curr = obj;
-    obj = (T*)obj->next();
-    delete curr;
-    m_alloc_cnt--;
-  }
 }
 
 template<class T>
@@ -455,19 +499,36 @@ inline
 void
 Ndb_free_list_t<T>::release(Uint32 cnt, T* head, T* tail)
 {
+#ifdef VM_TRACE
+  {
+    T* tmp = head;
+    Uint32 tmp_cnt = 0;
+    while (tmp != 0 && tmp != tail)
+    {
+      tmp = (T*)tmp->next();
+      tmp_cnt++;
+    }
+    assert(tmp == tail);
+    assert((tail==NULL && tmp_cnt==0) || tmp_cnt+1 == cnt);
+  }
+#endif
+
 #ifndef HAVE_VALGRIND
   if (cnt)
   {
-#ifdef VM_TRACE
+    if (m_is_growing)
     {
-      T* tmp = head;
-      while (tmp != 0 && tmp != tail) tmp = (T*)tmp->next();
-      assert(tmp == tail);
+      /* Reached a usage peak, sample it (shrink after lists merged) */
+      m_is_growing = false;
+      update_stats();
     }
-#endif
+
     tail->next(m_free_list);
     m_free_list = head;
     m_free_cnt += cnt;
+    assert(m_used_cnt >=  cnt);
+    m_used_cnt -= cnt;
+    shrink();
   }
 #else
   if (cnt)
@@ -482,6 +543,22 @@ Ndb_free_list_t<T>::release(Uint32 cnt, T* head, T* tail)
     delete tail;
   }
 #endif
+}
+
+template<class T>
+inline
+void
+Ndb_free_list_t<T>::shrink()
+{
+  T* obj = m_free_list;
+  while (obj && m_used_cnt+m_free_cnt > m_estm_max_used)
+  {
+    T* curr = obj;
+    obj = static_cast<T*>(obj->next());
+    delete curr;
+    m_free_cnt--;
+  }
+  m_free_list = obj;
 }
 
 inline

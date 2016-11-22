@@ -1,0 +1,1014 @@
+--source include/have_ndb.inc
+
+use ndbinfo;
+
+#
+# WL 7656 locks_per_fragment view
+#
+
+create table test.t1 (a int primary key, b int, c int, unique(b), key(c)) engine=ndb;
+
+
+create view frag_locks as 
+  select fq_name = 'test/def/t1' as main_tab,
+         type, 
+         sum(ex_req) as ex_reqs, 
+         sum(ex_imm_ok) as ex_imm_oks, 
+         sum(ex_wait_ok) as ex_wait_oks, 
+         sum(ex_wait_fail) as ex_wait_fails,
+         sum(sh_req) as sh_reqs, 
+         sum(sh_imm_ok) as sh_imm_oks, 
+         sum(sh_wait_ok) as sh_wait_oks, 
+         sum(sh_wait_fail) as sh_wait_fails
+    from locks_per_fragment
+    where 
+         fq_name = 'test/def/t1' or
+         parent_fq_name = 'test/def/t1'
+    group by
+         main_tab, type;     
+
+--echo No locks taken
+select * from frag_locks;
+
+create table baseline as select * from frag_locks;
+create table current like baseline;
+
+create view baseline_diff as
+  select c.ex_reqs - b.ex_reqs as ex_reqs,
+         c.ex_imm_oks - b.ex_imm_oks as ex_imm_oks,
+         c.ex_wait_oks - b.ex_wait_oks as ex_wait_oks,
+         c.ex_wait_fails - b.ex_wait_fails as ex_wait_fails,
+         c.sh_reqs - b.sh_reqs as sh_reqs,
+         c.sh_imm_oks - b.sh_imm_oks as sh_imm_oks,
+         c.sh_wait_oks - b.sh_wait_oks as sh_wait_oks,
+         c.sh_wait_fails - b.sh_wait_fails as sh_wait_fail,
+         c.type,
+         c.main_tab
+         from baseline b join current c on 
+           b.type = c.type and
+           b.main_tab = c.main_tab
+         order by main_tab desc;
+
+--echo Start testing
+--echo Insert some data
+insert into test.t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5), (6,6,6), (7,7,7), (8,8,8);
+--echo Expect :
+--echo 1.  NoOfReplicas(2) * NumRows * Exclusive row locks immediately claimed on user table
+--echo 2.  NoOfReplicas(2) * NumRows * Exclusive row locks immediately claimed on unique index table
+--source ndbinfo_show_locks_delta.inc
+
+--echo Read committed by PK
+select * from test.t1 where a=7;
+--echo Expect : 
+--echo 1.  No increments
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Read shared by PK
+select * from test.t1 where a=7 lock in share mode;
+--echo Expect : 
+--echo 1.  1 sh lock on TAB
+--echo 2.  No effect on UI
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Read exclusive by PK
+select * from test.t1 where a=7 for update;
+--echo Expect : 
+--echo 1.  1 ex lock on TAB
+--echo 2.  No effect on UI
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Update by PK
+update test.t1 set c=50 where a=5;
+--echo Expect : 
+--echo 1.  2 * 2 ex locks on TAB
+--echo 2.  No effect on UI
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Update by PK, UK affected
+update test.t1 set b=50 where a=5;
+--echo Expect : 
+--echo 1.  2 * 1 ex on TAB
+--echo     Extra tab read here?
+--echo 2.  2 * 2 * ex on UI table (Delete old row, Insert new)
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Delete by PK
+delete from test.t1 where a=5;
+--echo Expect : 
+--echo 1.  2 * 1 * ex on TAB
+--echo 2.  2 * 1 * ex on UI
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Read committed by UK
+select * from test.t1 where b=3;
+--echo Expect:
+--echo 1.  1 * SH on TAB (upgrade)
+--echo 2.  1 * SH on UI (upgrade)
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Read shared by UK
+select * from test.t1 where b=3 lock in share mode;
+--echo Expect:
+--echo 1.  1 * SH on TAB
+--echo 2.  1 * SH on TAB
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Read exclusive by UK
+select * from test.t1 where b=3 for update;
+--echo Expect:
+--echo 1.  1 * EX on TAB
+--echo 2.  1 * EX on UI
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Update by UK, not affecting UK value
+update test.t1 set c=30 where b=3;
+--echo Expect:
+--echo 1.  2 * 1 EX on TAB
+--echo 2.  1 * EX on UI
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Update by UK, affecting UK value
+update test.t1 set b=30 where b=3;
+--echo Expect:
+--echo 1.  1 + 2 * 1  EX on TAB
+--echo 2.  1 + 2 * 2  EX on UI
+--echo Due to : Ex read by UK -> Ex read of PK -> 
+--echo          Update T by PK (*NR) -> 
+--echo          Delete + Insert of UI by PK (*NR)
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Delete by UK
+delete from test.t1 where b=30;
+--echo Expect:
+--echo 1.  1 + 2 * 1 EX on TAB
+--echo 2.  1 + 2 * 1 EX on UI
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo OI scan (Primary) with no locks
+select * from test.t1 order by a;
+--echo Expect : No locking
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo OI scan (Primary) with shared lock, held on no rows
+select * from test.t1 where a%1234 = 1233 lock in share mode;
+--echo Expect : Lock taken on each row, but not held
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo OI scan (Primary) with shared lock, held on 1 row
+select * from test.t1 where a%1234 = 8 lock in share mode;
+--echo Expect : Lock taken on each row, one held via takeover
+--echo          x+1
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo OI scan (Primary) with shared lock, held on all rows
+select * from test.t1 where a%1234 > 0 order by a lock in share mode;
+--echo Expect : Lock taken on each row, all held via takeover
+--echo          2x
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo OI scan (Primary) with exclusive lock, held on no rows
+select * from test.t1 where a%1234 = 1233 for update;
+--echo Expect : Lock taken on each row, but not held
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo OI scan (Primary) with exclusive lock, held on 1 row
+select * from test.t1 where a%1234 = 8 for update;
+--echo Expect : Lock taken on each row, one held via takeover
+--echo          x+1
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo OI scan (Primary) with exclusive lock, held on all rows
+select * from test.t1 where a%1234 > 0 order by a for update;
+--echo Expect : Lock taken on each row, all held via takeover
+--echo          2x
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Multiple locks from a single transaction on one row
+begin;
+select * from test.t1 where a=1 lock in share mode;
+select * from test.t1 where a=1 lock in share mode;
+select * from test.t1 where a=1 lock in share mode;
+--echo Upgrade
+select * from test.t1 where a=1 for update;
+select * from test.t1 where a=1 for update;
+select * from test.t1 where a=1 for update;
+commit;
+--echo Expect : 3 * Ex lock + 3 * Sh lock
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo ****************
+--echo Show lock Delays
+--echo ****************
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+--echo SH <- EX PK
+--connection con1
+--echo Take and hold shared lock on a row
+begin;
+select * from test.t1 where a=1 lock in share mode;
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+--source ndb_disable_trans_timeout.inc
+
+--connection con2
+--echo Attempt to get an exclusive lock from a separate 
+--echo transaction, PK read
+--send select * from test.t1 where a=1 for update;
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Rollback lock holder, allowing con2 to get lock
+rollback;
+
+--connection con2
+--reap
+
+--connection default
+--echo Expect :
+--echo   Exclusive lock successfully claimed after some delay
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo SH <- EX SCAN
+--connection con1
+--echo Take and hold shared lock on a row
+begin;
+select * from test.t1 where a=1 lock in share mode;
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+
+--connection con2
+--echo Attempt to get an exclusive lock from a separate 
+--echo transaction, OI scan
+--send select * from test.t1 where a % 1245 = 1 for update;
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Rollback lock holder, allowing con2 to get lock
+rollback;
+
+--connection con2
+--reap
+
+--connection default
+--echo Expect :
+--echo   x - 1 EX locks taken immediately
+--echo   1 EX lock taken after wait
+--echo   1 EX lock taken immediately (Takeover) 
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo EX <- SH UI
+--connection con1
+--echo Take and hold exclusive lock on a row
+begin;
+select * from test.t1 where a=1 for update;
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+
+--connection con2
+--echo Attempt to get a shared lock from a separate 
+--echo transaction, UK read
+--send select * from test.t1 where b=1 lock in share mode;
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Rollback lock holder, allowing con2 to get lock
+rollback;
+
+--connection con2
+--reap
+
+--connection default
+--echo Expect :
+--echo   Shared lock immediately claimed on UI
+--echo   Shared lock successfully claimed on TAB after some delay
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo SH <- EX UI
+--connection con1
+--echo Take and hold shared lock on a row
+begin;
+select * from test.t1 where a=1 lock in share mode;
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+
+--connection con2
+--echo Attempt to get an exclusive lock from a separate 
+--echo transaction, UK read
+--send select * from test.t1 where b = 1 for update;
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Rollback lock holder, allowing con2 to get lock
+rollback;
+
+--connection con2
+--reap
+
+--connection default
+--echo Expect :
+--echo   Ex lock immediately claimed on UI
+--echo   Ex lock successfully claimed on TAB after some delay
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo EX <- SH PK
+--connection con1
+--echo Take and hold exclusive lock on a row
+begin;
+select * from test.t1 where a=1 for update;
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+
+--connection con2
+--echo Attempt to get a shared lock from a separate 
+--echo transaction, PK read
+--send select * from test.t1 where a=1 lock in share mode;
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Rollback lock holder, allowing con2 to get lock
+rollback;
+
+--connection con2
+--reap
+
+--connection default
+--echo Expect :
+--echo   Shared lock successfully claimed after some delay
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo EX <- SH SCAN
+--connection con1
+--echo Take and hold exclusive lock on a row
+begin;
+select * from test.t1 where a=1 for update;
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+
+--connection con2
+--echo Attempt to get a shared lock from a separate 
+--echo transaction, OI scan
+--send select * from test.t1 where a % 1245 = 1 lock in share mode;
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Rollback lock holder, allowing con2 to get lock
+rollback;
+
+--connection con2
+--reap
+
+--connection default
+--echo Expect :
+--echo   x - 1 SH locks taken immediately
+--echo   1 SH lock taken after wait
+--echo   1 SH lock taken immediately (Takeover) 
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--source ndb_enable_trans_timeout.inc
+
+--echo *******************
+--echo Lock claim failures
+--echo *******************
+
+--connection con1
+--echo Take and hold shared lock on a row
+begin;
+select * from test.t1 where a=1 lock in share mode;
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+
+--echo SH <- EX PK
+--connection con2
+--echo Attempt to get an exclusive lock from a separate 
+--echo transaction, PK read
+--error ER_LOCK_WAIT_TIMEOUT
+select * from test.t1 where a=1 for update;
+
+--connection default
+--echo Expect :
+--echo   Exclusive lock claim failed after some delay
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo SH <- EX UK
+--connection con2
+--echo Attempt to get an exclusive lock from a separate 
+--echo transaction, UK read
+--error ER_LOCK_WAIT_TIMEOUT
+select * from test.t1 where b=1 for update;
+
+--connection default
+--echo Expect :
+--echo   EX immediate on unique key
+--echo   EX failed on TAB
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo SH <- EX OI Scan
+--connection con2
+--echo Attempt to get an exclusive lock from a separate 
+--echo transaction, OI scan
+--error ER_LOCK_WAIT_TIMEOUT
+select * from test.t1 where a % 1234 =1 for update;
+
+--connection default
+--echo Expect :
+--echo   x -1 EX immediate on TAB
+--echo   1 EX failed on TAB
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--connection con1
+--echo Escalate 'holding' lock to EX
+select * from test.t1 where a=1 for update;
+--connection default
+--source ndbinfo_show_locks_delta.inc
+
+--echo EX <- SH PK
+--connection con2
+--echo Attempt to get a shared lock from a separate 
+--echo transaction, PK read
+--error ER_LOCK_WAIT_TIMEOUT
+select * from test.t1 where a=1 lock in share mode;
+
+--connection default
+--echo Expect :
+--echo   Shared lock claim failed after some delay
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo EX <- SH UK
+--connection con2
+--echo Attempt to get a shared lock from a separate 
+--echo transaction, UK read
+--error ER_LOCK_WAIT_TIMEOUT
+select * from test.t1 where b=1 lock in share mode;
+
+--connection default
+--echo Expect :
+--echo   SH immediate on unique key
+--echo   SH failed on TAB
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo EX <- SH OI Scan
+--connection con2
+--echo Attempt to get a shared lock from a separate 
+--echo transaction, OI scan
+--error ER_LOCK_WAIT_TIMEOUT
+select * from test.t1 where a % 1234 =1 lock in share mode;
+
+--connection default
+--echo Expect :
+--echo   x -1 SH immediate on TAB
+--echo   1 SH failed on TAB
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--connection con1
+--echo Escalate 'holding' lock to EX on UI too
+select * from test.t1 where b=1 for update;
+--connection default
+--source ndbinfo_show_locks_delta.inc
+
+--echo EX UK <- SH UK
+--connection con2
+--echo Attempt to get a shared lock from a separate 
+--echo transaction, UK read
+--error ER_LOCK_WAIT_TIMEOUT
+select * from test.t1 where b=1 lock in share mode;
+
+--connection default
+--echo Expect :
+--echo   SH failed on UK
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo EX UK <- EX UK
+--connection con2
+--echo Attempt to get an exclusive lock from a separate 
+--echo transaction, UK read
+--error ER_LOCK_WAIT_TIMEOUT
+select * from test.t1 where b=1 for update;
+
+--connection default
+--echo Expect :
+--echo   EX failed on UK
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--connection con1
+rollback;
+--connection default
+
+--echo *******************
+--echo Row existence cases
+--echo *******************
+
+--echo Show table content
+select * from test.t1 order by a;
+
+--echo SH PK read of non existing row
+select * from test.t1 where a=1234 lock in share mode;
+--echo Expect : Nothing
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo EX PK read of non existing row
+select * from test.t1 where a=1234 for update;
+--echo Expect : Nothing
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Update of non existing row
+update test.t1 set c=1234 where a=1234;
+--echo Expect : Nothing
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Delete of non existing row
+delete from test.t1 where a=1234;
+--echo Expect : Nothing
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Insert of existing row
+--error ER_DUP_ENTRY
+insert into test.t1 values (1,1,1);
+--echo Expect : Nothing
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+
+--echo *************
+--echo Special cases
+--echo *************
+
+--echo Existing row is deleted, other transaction waiting
+--echo for lock...
+
+--source ndb_disable_trans_timeout.inc
+
+--connection con1
+--echo Prepare a delete on a row
+begin;
+delete from test.t1 where a=1;
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+
+--connection con2
+--echo Attempt to read the row by PK
+--send select * from test.t1 where a =1 lock in share mode;
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Commit the delete
+commit;
+
+--connection con2
+# No error
+--reap
+
+--connection default
+--echo Expect 1 SH lock on TAB, after delay
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+insert into test.t1 values (1,1,1);
+
+--connection con1
+--echo Prepare a delete on a row
+begin;
+delete from test.t1 where a=1;
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+
+--connection con2
+--echo Attempt to read the row by UK
+--send select * from test.t1 where b=1 lock in share mode;
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Commit the delete
+commit;
+
+--connection con2
+# No error
+--reap
+
+--connection default
+--echo Expect 1 SH lock on Unique, after delay
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+insert into test.t1 values (1,1,1);
+
+--connection con1
+--echo Prepare a delete on a row
+begin;
+delete from test.t1 where a=1;
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+
+--connection con2
+--echo Attempt to read the row by OI scan
+--send select * from test.t1 where a % 1234 = 1 lock in share mode;
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Commit the delete
+commit;
+
+--connection con2
+# No error
+--reap
+
+--connection default
+--echo Expect :
+--echo   x - 1 SH locks immediately claimed
+--echo   1 SH lock claimed after wait 
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+insert into test.t1 values (1,1,1);
+
+--connection con1
+--echo Prepare a delete on a row
+begin;
+delete from test.t1 where a=1;
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+
+--connection con2
+--echo Attempt to insert a similar row
+--send insert into test.t1 values (1,1,1);
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Commit the delete
+commit;
+
+--connection con2
+# No error
+--reap
+
+--connection default
+--echo Expect same as row never existed :
+--echo 1 EX locks on TAB ok after wait (Insert, primary)
+--echo 1 EX lock on TAB ok immediate (replica)
+--echo           or wait @ replica
+--echo 2 EX locks on UI immediate (Insert)
+delete from current; insert into current select * from frag_locks;
+--echo expect 2 ex_reqs, either immediate or wait
+select ex_reqs, 
+       (ex_imm_oks + ex_wait_oks),
+       ex_wait_fails,
+       sh_reqs, sh_imm_oks, sh_wait_oks, sh_wait_fail,
+       main_tab, type from baseline_diff order by main_tab desc; 
+
+delete from baseline; insert into baseline select * from current;
+--echo ****************************************************
+
+# insert into test.t1 values (1,1,1);
+
+--connection con1
+--echo Prepare a delete on a row
+begin;
+delete from test.t1 where a=1;
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+
+--connection con2
+--echo Attempt to delete the row from another transaction
+--send delete from test.t1 where a=1;
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Commit the first delete
+commit;
+
+--connection con2
+# No error, no such row.
+--reap
+
+--connection default
+--echo Expect :
+--echo  1 EX lock wait ok
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--connection con1
+--echo Prepare to insert a new row
+begin;
+insert into test.t1 values (27, 27, 27);
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+
+--connection con2
+--echo Attempt to read the row from another transaction
+--echo (PK SH)
+--send select * from test.t1 where a=27 lock in share mode;
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Abort the insert
+rollback;
+
+--connection con2
+# No error, no such row.
+--reap
+
+--connection default
+--echo Expect :
+--echo  1 SH lock wait ok
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--connection con1
+--echo Prepare to insert a new row
+begin;
+insert into test.t1 values (27, 27, 27);
+
+--connection default
+--source ndbinfo_show_locks_delta.inc
+--source ndbinfo_init_frag_lock_count.inc
+
+--connection con2
+--echo Attempt to insert the same row from another transaction
+--echo (PK SH)
+--send insert into test.t1 values (27, 27, 27);
+
+--connection default
+--echo Give request a chance to be registered and wait
+--source ndbinfo_wait_frag_lock_count.inc
+
+--connection con1
+--echo Abort the first insert
+rollback;
+
+--connection con2
+# No error
+--reap
+
+--connection default
+--echo Expect :
+--echo  1 EX lock wait ok on TAB (prim)
+--echo  1 EX lock immed on TAB (backup)
+--echo  2 EX lock immed ok on UI
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--source ndb_enable_trans_timeout.inc
+
+--echo ****************************************************
+--echo Show elapsed time added to totals
+--echo ****************************************************
+--echo Timeout case
+
+let $elapsed_ok_before = query_get_value(select sum(wait_ok_millis) as m from ndbinfo.locks_per_fragment where fq_name='test/def/t1', m, 1);
+let $elapsed_fail_before = query_get_value(select sum(wait_fail_millis) as m from ndbinfo.locks_per_fragment where fq_name='test/def/t1', m, 1);
+
+--connection con1
+begin;
+select * from test.t1 where a=2 lock in share mode;
+
+--connection con2
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from test.t1 where a=2 for update;
+rollback;
+
+--connection con1
+rollback;
+
+--connection default
+--echo Show no extra 'ok' time, and some extra 'fail' time
+let $elapsed_ok_after = query_get_value(select sum(wait_ok_millis) as m from ndbinfo.locks_per_fragment where fq_name='test/def/t1', m, 1);
+let $elapsed_fail_after = query_get_value(select sum(wait_fail_millis) as m from ndbinfo.locks_per_fragment where fq_name='test/def/t1', m, 1);
+
+--disable_query_log
+--echo Expect 0 ok_millis, > 0 fail_millis
+eval select ($elapsed_ok_after - $elapsed_ok_before) > 0 as ok_millis,
+            ($elapsed_fail_after - $elapsed_fail_before) > 0 as fail_millis;
+--enable_query_log
+
+--echo ****************************************************
+--echo Ok wait case
+--echo ****************************************************
+
+--source ndb_disable_trans_timeout.inc
+
+--echo Expect > 0 ok_millis, 0 fail_millis
+--disable_query_log
+--disable_result_log
+let $success=0;
+while (!$success)
+{
+  --connection default
+  let $elapsed_ok_before = query_get_value(select sum(wait_ok_millis) as m from ndbinfo.locks_per_fragment where fq_name='test/def/t1', m, 1);
+  let $elapsed_fail_before = query_get_value(select sum(wait_fail_millis) as m from ndbinfo.locks_per_fragment where fq_name='test/def/t1', m, 1);
+
+  --connection con1
+  #--echo Take lock in transaction 1 
+  begin;
+  select * from test.t1 where a=2 lock in share mode;
+
+  --connection con2
+  #--echo Attempt to take in transaction 2
+  begin;
+  --send select * from test.t1 where a=2 for update;
+  
+  --connection default
+  # Sleep here is intended to be enough for some lock wait time 
+  # to be measured
+  --sleep 2
+  --connection con1
+  rollback;
+  --connection con2
+  --reap
+  rollback;
+
+  --connection default
+  let $elapsed_ok_after = query_get_value(select sum(wait_ok_millis) as m from ndbinfo.locks_per_fragment where fq_name='test/def/t1', m, 1);
+  let $elapsed_fail_after = query_get_value(select sum(wait_fail_millis) as m from ndbinfo.locks_per_fragment where fq_name='test/def/t1', m, 1);
+
+  # --echo Expect 0 ok_millis, > 0 fail_millis
+  eval select @ok_millis:=($elapsed_ok_after - $elapsed_ok_before) > 0 as ok_millis,
+              @fail_millis:=($elapsed_fail_after - $elapsed_fail_before) > 0 as fail_millis;
+
+  let $success = query_get_value(select (@ok_millis > 0) AND (@fail_millis=0) as ok, ok, 1);
+}
+--enable_result_log
+# Show result
+eval select @ok_millis:=($elapsed_ok_after - $elapsed_ok_before) > 0 as ok_millis,
+            @fail_millis:=($elapsed_fail_after - $elapsed_fail_before) > 0 as fail_millis;
+--enable_query_log
+
+--source ndb_enable_trans_timeout.inc
+
+drop table test.t1;
+delete from current;
+delete from baseline;
+
+--echo *****
+--echo Blobs
+--echo *****
+
+create table test.t1 (a int primary key, b text, c int) engine=ndb;
+
+insert into baseline select * from frag_locks;
+
+insert into test.t1 values (1,repeat('BJC', 300), 1);
+
+--echo Show insert lock footprint across main and
+--echo parts tables :
+--echo  - Blob uses extra ops on main table row
+--echo    to set length etc...
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+
+--echo Show Blob read by PK Committed read
+select a, length(b) from test.t1 where a=1;
+--echo Expect SH on main table (Upgrade)
+--echo  + SH on parts table (SimpleRead)
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Show Blob read by PK Shared
+select a, length(b) from test.t1 where a=1 lock in share mode;
+--echo Expect SH on main table
+--echo  + SH on parts table (SimpleRead)
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Show Blob read by PK Exclusive
+select a, length(b) from test.t1 where a=1 for update;
+--echo Expect EX on main table
+--echo  + SH on parts table (SimpleRead)
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Show Blob read by scan Committed read, no rows returned
+select a, length(b) from test.t1 where c != 1;
+--echo Expect SH on main table
+--echo  + Nothing on parts table
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Show Blob read by scan Committed read, 1 row returned
+select a, length(b) from test.t1 where c % 1234 = 1;
+--echo Expect SH on main table
+--echo  + SH on parts table (SimpleRead)
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Show Blob read by scan shared, 1 row returned
+select a, length(b) from test.t1 where c % 1234 = 1 lock in share mode;
+--echo Expect 2* SH on main table
+--echo  + SH on parts table (SimpleRead)
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+--echo Show Blob read by scan exlusive, 1 row returned
+select a, length(b) from test.t1 where c % 1234 = 1 for update;
+--echo Expect 2* EX on main table
+--echo  + SH on parts table (SimpleRead)
+--source ndbinfo_show_locks_delta.inc
+--echo ****************************************************
+
+drop view baseline_diff;
+drop table current;
+drop table baseline;
+drop view frag_locks;
+
+drop table test.t1;

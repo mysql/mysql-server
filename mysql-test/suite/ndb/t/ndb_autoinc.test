@@ -36,12 +36,16 @@ CREATE TABLE t3 (
 ALTER TABLE t3
 ENGINE NDBCLUSTER;
 
+--disable_warnings
 SHOW CREATE TABLE t3;
+--enable_warnings
 
 ALTER TABLE t3
 ADD PRIMARY KEY (id);
 
+--disable_warnings
 SHOW CREATE TABLE t3;
+--enable_warnings
 
 DROP TABLE t1, t3;
 

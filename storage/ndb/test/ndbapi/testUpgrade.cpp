@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,7 +54,11 @@ int CMT_createTableHook(Ndb* ndb,
                          num);
     table.setName(buf);
     if (fragCount > 0)
+    {
       table.setFragmentCount(fragCount);
+      table.setPartitionBalance(
+        NdbDictionary::Object::PartitionBalance_Specific);
+    }
     
     ndbout << "Creating " << buf 
            << " with fragment count " << fragCount 
@@ -1566,6 +1570,61 @@ runUpgrade_SR(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+static
+int
+runStartBlockLcp(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  restarter.setReconnect(true);
+
+  
+  while ((ctx->getProperty("HalfStartedDone", (Uint32)0) == 0) &&
+         !ctx->isTestStopped())
+  {
+    ndbout << "runStartBlockLcp: waiting for half nodes to be restarted..." << endl;
+    NdbSleep_MilliSleep(5000);
+  }
+
+  if (ctx->isTestStopped())
+  {
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Half of the nodes restarted, beginning slow LCPs for remainder..." << endl;
+
+  /* Trigger LCPs which will be slow to complete, 
+   * testing more complex LCP takeover protocols
+   * especially when the last 'old' data node 
+   * (likely to be DIH Master) fails.
+   * */
+  do
+  {
+    int dumpCode[] = { 7099 };
+    while (restarter.dumpStateAllNodes(dumpCode, 1) != 0) {};
+
+    /* Stall fragment completions */
+    while (restarter.insertErrorInAllNodes(5073) != 0) {};
+
+    /* Allow restarts to continue... */
+    ctx->setProperty("HalfStartedHold", Uint32(0));
+
+    /**
+     * Only stall for 20s to avoid default LCP frag
+     * watchdog timeouts
+     */
+    NdbSleep_MilliSleep(20000);
+    
+    ndbout << "Unblocking LCP..." << endl;
+    while (restarter.insertErrorInAllNodes(0) != 0) 
+    {};
+
+    NdbSleep_MilliSleep(5000);
+    
+  } while (!ctx->isTestStopped());
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testUpgrade);
 TESTCASE("Upgrade_NR1",
@@ -1779,6 +1838,25 @@ POSTUPGRADE("Upgrade_SR_ManyTablesMaxFrag")
   INITIALIZER(runPostUpgradeChecks);
   INITIALIZER(dropManyTables);
 }
+TESTCASE("Upgrade_NR3_LCP_InProgress",
+         "Check that half-cluster upgrade with LCP in progress is ok")
+{
+  TC_PROPERTY("HalfStartedHold", Uint32(1)); /* Stop half way through */
+  INITIALIZER(runCheckStarted);
+  STEP(runStartBlockLcp);
+  STEP(runUpgrade_NR3);
+  /* No need for postUpgrade, and cannot rely on it existing for
+   * downgrades...
+   * Better solution needed for downgrades where postUpgrade is
+   * useful, e.g. RunIfPresentElseIgnore...
+   */
+  //VERIFIER(startPostUpgradeChecks);
+}
+//POSTUPGRADE("Upgrade_NR3_LCP_InProgress")
+//{
+//  INITIALIZER(runCheckStarted);
+//  INITIALIZER(runPostUpgradeChecks);
+//}
   
 NDBT_TESTSUITE_END(testUpgrade);
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ import com.mysql.ndbjtie.ndbapi.NdbScanFilter;
 import com.mysql.ndbjtie.ndbapi.NdbTransaction;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary;
 import com.mysql.ndbjtie.ndbapi.NdbIndexScanOperation.IndexBound;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanOptions;
 
@@ -93,10 +94,10 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     private int numberOfIndexBoundDeleted;
 
     /** The number of InterpretedCode created */
-    private int numberOfInterpretedCodeCreated;
+    private int numberOfNdbInterpretedCodeCreated;
 
     /** The number of InterpretedCode deleted */
-    private int numberOfInterpretedCodeDeleted;
+    private int numberOfNdbInterpretedCodeDeleted;
 
     /** The number of NdbScanFilters created */
     private int numberOfNdbScanFilterCreated;
@@ -152,9 +153,9 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
             logger.warn("numberOfIndexBoundCreated " + numberOfIndexBoundCreated + 
                     " != numberOfIndexBoundDeleted " + numberOfIndexBoundDeleted);
         }
-        if (numberOfInterpretedCodeCreated != numberOfInterpretedCodeDeleted) {
-            logger.warn("numberOfInterpretedCodeCreated " + numberOfInterpretedCodeCreated + 
-                    " != numberOfInterpretedCodeDeleted " + numberOfInterpretedCodeDeleted);
+        if (numberOfNdbInterpretedCodeCreated != numberOfNdbInterpretedCodeDeleted) {
+            logger.warn("numberOfNdbInterpretedCodeCreated " + numberOfNdbInterpretedCodeCreated +
+                    " != numberOfNdbInterpretedCodeDeleted " + numberOfNdbInterpretedCodeDeleted);
         }
         if (numberOfNdbScanFilterCreated != numberOfNdbScanFilterDeleted) {
             logger.warn("numberOfNdbScanFilterCreated " + numberOfNdbScanFilterCreated + 
@@ -216,6 +217,16 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         }
     }
 
+    protected void handleError(Object object, Dictionary ndbDictionary) {
+        if (object != null) {
+            return;
+        } else {
+            NdbErrorConst ndbError = ndbDictionary.getNdbError();
+            String detail = getNdbErrorDetail(ndbError);
+            Utility.throwError(null, ndbError, detail);
+        }
+    }
+
     public boolean isRetriable(ClusterJDatastoreException ex) {
         return Utility.isRetriable(ex);
     }
@@ -240,7 +251,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         int keyPartsSize = keyParts.size();
         NdbTransaction ndbTransaction = null;
         TableConst table = ndbDictionary.getTable(tableName);
-        handleError(table, ndb);
+        handleError(table, ndbDictionary);
         Key_part_ptrArray key_part_ptrArray = null;
         if (keyPartsSize == 1) {
             // extract the ByteBuffer and length from the keyPart
@@ -439,6 +450,16 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
             return stringByteBuffer;
         }
 
+        /** Borrow a buffer */
+        public ByteBuffer borrowBuffer(int length) {
+            return pool.borrowBuffer(length);
+         }
+
+        /** Return a buffer */
+        public void returnBuffer(int length, ByteBuffer buffer) {
+            pool.returnBuffer(length, buffer);
+        }
+
         /** Guarantee the size of the string byte buffer to be a minimum size. If the current
          * string byte buffer is not big enough, return the current buffer to the pool and get 
          * another buffer.
@@ -504,8 +525,29 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     }
 
     public IndexBound createIndexBound() {
+        IndexBound result = null;
+        int attempts = 0;
+        Object syncObject = null;
+        if (syncObject != null) {
+            attempts++;
+            synchronized(syncObject) {
+                result = IndexBound.create();
+            }
+        } else {
+            while (result == null && attempts++ < 10) {
+                result = IndexBound.create();
+            }
+        }
+        if (result == null) {
+            throw new ClusterJFatalInternalException(local.message(
+                    "ERR_Constructor", "IndexBound", "failed", attempts));
+        }
+        if (attempts != 1) {
+            logger.warn(local.message(
+                    "ERR_Constructor", "IndexBound", "succeeded", attempts));
+        }
         ++numberOfIndexBoundCreated;
-        return IndexBound.create();
+        return result;
     }
 
     public void delete(IndexBound ndbIndexBound) {
@@ -514,18 +556,60 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     }
 
     public NdbInterpretedCode createInterpretedCode(TableConst ndbTable, int i) {
-        ++numberOfInterpretedCodeCreated;
-        return NdbInterpretedCode.create(ndbTable, null, i);
+        NdbInterpretedCode result = null;
+        int attempts = 0;
+        Object syncObject = null;
+        if (syncObject != null) {
+            attempts++;
+            synchronized(syncObject) {
+                result = NdbInterpretedCode.create(ndbTable, null, i);
+            }
+        } else {
+            while (result == null && attempts++ < 10) {
+                result = NdbInterpretedCode.create(ndbTable, null, i);
+            }
+        }
+        if (result == null) {
+            throw new ClusterJFatalInternalException(local.message(
+                    "ERR_NdbInterpretedCode_Constructor", "failed", attempts));
+        }
+        if (attempts != 1) {
+            logger.warn(local.message(
+                    "ERR_Constructor", "NdbInterpretedCode", "succeeded", attempts));
+        }
+        ++numberOfNdbInterpretedCodeCreated;
+        return result;
     }
 
     public void delete(NdbInterpretedCode ndbInterpretedCode) {
-        ++numberOfInterpretedCodeDeleted;
+        ++numberOfNdbInterpretedCodeDeleted;
         NdbInterpretedCode.delete(ndbInterpretedCode);
     }
 
     public NdbScanFilter createScanFilter(NdbInterpretedCode ndbInterpretedCode) {
+        NdbScanFilter result = null;
+        int attempts = 0;
+        Object syncObject = null;
+        if (syncObject != null) {
+            attempts++;
+            synchronized(syncObject) {
+                result = NdbScanFilter.create(ndbInterpretedCode);
+            }
+        } else {
+            while (result == null && attempts++ < 10) {
+                result = NdbScanFilter.create(ndbInterpretedCode);
+            }
+        }
+        if (result == null) {
+            throw new ClusterJFatalInternalException(local.message(
+                    "ERR_Constructor", "NdbScanFilter", "failed", attempts));
+        }
+        if (attempts != 1) {
+            logger.warn(local.message(
+                    "ERR_Constructor", "NdbScanFilter", "succeeded", attempts));
+        }
         ++numberOfNdbScanFilterCreated;
-        return NdbScanFilter.create(ndbInterpretedCode);
+        return result;
     }
 
     public void delete(NdbScanFilter ndbScanFilter) {
@@ -534,8 +618,29 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     }
 
     public ScanOptions createScanOptions() {
+        ScanOptions result = null;
+        int attempts = 0;
+        Object syncObject = null;
+        if (syncObject != null) {
+            attempts++;
+            synchronized(syncObject) {
+                result = ScanOptions.create();
+            }
+        } else {
+            while (result == null && attempts++ < 10) {
+                result = ScanOptions.create();
+            }
+        }
+        if (result == null) {
+            throw new ClusterJFatalInternalException(local.message(
+                    "ERR_Constructor", "ScanOptions", "failed", attempts));
+        }
+        if (attempts != 1) {
+            logger.warn(local.message(
+                    "ERR_Constructor", "ScanOptions", "succeeded", attempts));
+        }
         ++numberOfScanOptionsCreated;
-        return ScanOptions.create();
+        return result;
     }
 
     public void delete(ScanOptions scanOptions) {

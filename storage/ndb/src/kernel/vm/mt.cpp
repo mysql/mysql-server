@@ -1175,7 +1175,7 @@ struct trp_callback : public TransporterCallback
   Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
   Uint32 bytes_sent(NodeId node, Uint32 bytes);
   bool has_data_to_send(NodeId node);
-  void reset_send_buffer(NodeId node, bool should_be_empty);
+  void reset_send_buffer(NodeId node);
 };
 
 static char *g_thr_repository_mem = NULL;
@@ -2663,6 +2663,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
      * Also perform the locking to CPU.
      */
     BaseString tmp;
+    bool fail = false;
     THRConfigApplier & conf = globalEmulatorData.theConfiguration->m_thr_config;
     tmp.appfmt("thr: %u ", thr_no);
     int tid = NdbThread_GetTid(this_send_thread->m_thread);
@@ -2671,17 +2672,47 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
       tmp.appfmt("tid: %u ", tid);
     }
     conf.appendInfoSendThread(tmp, instance_no);
-    int res = conf.do_bind_send(this_send_thread->m_thread, instance_no);
+    int res = conf.do_bind_send(this_send_thread->m_thread,
+                                instance_no);
     if (res < 0)
     {
+      fail = true;
       tmp.appfmt("err: %d ", -res);
     }
     else if (res > 0)
     {
       tmp.appfmt("OK ");
     }
+
+    unsigned thread_prio;
+    res = conf.do_thread_prio_send(this_send_thread->m_thread,
+                                   instance_no,
+                                   thread_prio);
+    if (res < 0)
+    {
+      fail = true;
+      res = -res;
+      tmp.appfmt("Failed to set thread prio to %u, ", thread_prio);
+      if (res == SET_THREAD_PRIO_NOT_SUPPORTED_ERROR)
+      {
+        tmp.appfmt("not supported on this OS");
+      }
+      else
+      {
+        tmp.appfmt("error: %d", res);
+      }
+    }
+    else if (res > 0)
+    {
+      tmp.appfmt("Successfully set thread prio to %u ", thread_prio);
+    }
+
     printf("%s\n", tmp.c_str());
     fflush(stdout);
+    if (fail)
+    {
+      abort();
+    }
   }
 
   /**
@@ -4246,22 +4277,22 @@ trp_callback::bytes_sent(NodeId node, Uint32 bytes)
 
 /**
  * NOTE:
- *    ::has_data_to_send() is only called
+ *    In Release builds ::has_data_to_send() is only called
  *    from TransporterRegistry::performSend().
  *    ::performSend() in turn, is only called from either
  *    the single threaded scheduler, or the API, which
  *    will end up in the single threaded ::has_data_to_send()
  *    implemented in class TransporterCallbackKernelNonMT
- *    Thus, this ::has_data_to_send is actually never used!
+ *    Thus, this ::has_data_to_send is not used in Release builds.
  *
- *    However, a simple implementaton based on probing
- *    get_bytes_to_send_iovec() is provided for completenes.
- *    As this is unused code, it is completely untested.
+ *    In addition Debug builds use ::has_data_to_send() to assert
+ *    that the send buffer is empty when expected to be.
+ *    a simple implementaton based on probing
+ *    get_bytes_to_send_iovec() is provided for this purpose.
  */
 bool
 trp_callback::has_data_to_send(NodeId node)
 {
-  assert(false); //Trap untested code, see comment above
   struct iovec v[1];
   return (get_bytes_to_send_iovec(node, v, 1) > 0);
 }
@@ -4276,7 +4307,7 @@ trp_callback::has_data_to_send(NodeId node)
  * as required.
  */
 void
-trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
+trp_callback::reset_send_buffer(NodeId node)
 {
   struct thr_repository *rep = g_thr_repository;
   thr_repository::send_buffer * sb = rep->m_send_buffers+node;
@@ -4295,7 +4326,6 @@ trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
     release_list(&pool, sb->m_buffer.m_first_page, sb->m_buffer.m_last_page);
     sb->m_buffer.m_first_page = NULL;
     sb->m_buffer.m_last_page  = NULL;
-    assert(!should_be_empty); // Got data when it should be empty
   }
 
   /* Drop all pending data in m_sending buffers. */
@@ -4304,8 +4334,6 @@ trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
     release_list(&pool, sb->m_sending.m_first_page, sb->m_sending.m_last_page);
     sb->m_sending.m_first_page = NULL;
     sb->m_sending.m_last_page = NULL;
-
-    assert(!should_be_empty); // Got data when it should be empty
   }
   sb->m_node_total_send_buffer_size = 0;
   unlock(&sb->m_buffer_lock);
@@ -5272,6 +5300,7 @@ execute_signals(thr_data *selfptr,
       if (read_index == write_index)
       {
         /* No more available now. */
+        selfptr->m_stat.m_exec_cnt += num_signals;
         return num_signals;
       }
       else
@@ -5579,6 +5608,7 @@ add_thr_map(Uint32 main, Uint32 instance, Uint32 thr_no)
   ctx.jamBuffer = &thr_ptr->m_jam;
   ctx.watchDogCounter = &thr_ptr->m_watchdog_counter;
   ctx.sectionPoolCache = &thr_ptr->m_sectionPoolCache;
+  ctx.pHighResTimer = &thr_ptr->m_curr_ticks;
   b->assignToThread(ctx);
 
   /* Create entry mapping block to thread. */
@@ -5824,6 +5854,7 @@ init_thread(thr_data *selfptr)
   BaseString tmp;
   tmp.appfmt("thr: %u ", thr_no);
 
+  bool fail = false;
   int tid = NdbThread_GetTid(selfptr->m_thread);
   if (tid != -1)
   {
@@ -5838,12 +5869,38 @@ init_thread(thr_data *selfptr)
                          selfptr->m_instance_count);
   if (res < 0)
   {
+    fail = true;
     tmp.appfmt("err: %d ", -res);
   }
   else if (res > 0)
   {
     tmp.appfmt("OK ");
   }
+
+  unsigned thread_prio;
+  res = conf.do_thread_prio(selfptr->m_thread,
+                            selfptr->m_instance_list,
+                            selfptr->m_instance_count,
+                            thread_prio);
+  if (res < 0)
+  {
+    fail = true;
+    res = -res;
+    tmp.appfmt("Failed to set thread prio to %u, ", thread_prio);
+    if (res == SET_THREAD_PRIO_NOT_SUPPORTED_ERROR)
+    {
+      tmp.appfmt("not supported on this OS");
+    }
+    else
+    {
+      tmp.appfmt("error: %d", res);
+    }
+  }
+  else if (res > 0)
+  {
+    tmp.appfmt("Successfully set thread prio to %u ", thread_prio);
+  }
+
   selfptr->m_realtime = conf.do_get_realtime(selfptr->m_instance_list,
                                              selfptr->m_instance_count);
   selfptr->m_spintime = conf.do_get_spintime(selfptr->m_instance_list,
@@ -5872,6 +5929,10 @@ init_thread(thr_data *selfptr)
 
   printf("%s\n", tmp.c_str());
   fflush(stdout);
+  if (fail)
+  {
+    abort();
+  }
 }
 
 /**

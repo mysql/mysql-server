@@ -1,0 +1,11 @@
+--source include/have_ndb.inc
+
+# Turn on ndb_read_backup for this test since it tests
+# the ndb_read_backup functionality
+set @save_ndb_read_backup = @@global.ndb_read_backup;
+set @@global.ndb_read_backup = ON;
+
+--source suite/ndb/t/ndb_fragment_count.inc
+
+# Restore ndb_read_backup value
+set @@global.ndb_read_backup = @save_ndb_read_backup;

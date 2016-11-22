@@ -38,7 +38,7 @@ c1 int unsigned not null,
 primary key (a1),
 index b1x (b1),
 index c1x (c1)
-) engine=ndb;
+) engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t2 (
 a2 int unsigned not null,
 b2 int unsigned not null,
@@ -46,7 +46,7 @@ c2 int unsigned not null,
 primary key (a2),
 index b2x (b2),
 index c2x (c2)
-) engine=ndb;
+) engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 analyze table t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK

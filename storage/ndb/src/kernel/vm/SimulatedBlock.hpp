@@ -495,6 +495,7 @@ public:
     EmulatedJamBuffer* jamBuffer;
     Uint32 * watchDogCounter;
     SectionSegmentPool::Cache * sectionPoolCache;
+    NDB_TICKS* pHighResTimer;
   };
   /* Setup state of a block object for executing in a particular thread. */
   void assignToThread(ThreadContext ctx);
@@ -637,7 +638,10 @@ protected:
   const char * getThreadName();
   const char * getThreadDescription();
 
-  NDB_TICKS getHighResTimer();
+  NDB_TICKS getHighResTimer() const 
+  {
+    return *m_pHighResTimer;
+  }
 
   /**********************************************************
    * Send signal - dialects
@@ -1055,6 +1059,9 @@ private:
   /* For multithreaded ndb, the thread-specific watchdog counter. */
   Uint32 *m_watchDogCounter;
 
+  /* Read-only high res timer pointer */
+  const NDB_TICKS* m_pHighResTimer;
+
   SectionSegmentPool::Cache * m_sectionPoolCache;
   
   
@@ -1400,6 +1407,32 @@ public:
   void debugOutUnlock() { globalSignalLoggers.unlock(); }
   const char* debugOutTag(char* buf, int line);
 #endif
+
+  const char* getPartitionBalanceString(Uint32 fct)
+  {
+    switch (fct)
+    {
+      case NDB_PARTITION_BALANCE_SPECIFIC:
+        return "NDB_PARTITION_BALANCE_SPECIFIC";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_NODE";
+      case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+        return "NDB_PARTITION_BALANCE_FOR_RP_BY_NODE";
+      case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+        return "NDB_PARTITION_BALANCE_FOR_RP_BY_LDM";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4";
+      default:
+        ndbrequire(false);
+    }
+    return NULL;
+  }
 
   void ndbinfo_send_row(Signal* signal,
                         const DbinfoScanReq& req,

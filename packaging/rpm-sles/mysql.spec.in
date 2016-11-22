@@ -446,6 +446,7 @@ Requires:       %{name}-ndbclient%{?_isa} = %{version}-%{release}
 This package contains the development header files and libraries
 necessary to develop client applications for MySQL NDB storage engine.
 
+%if 0%{?ndb_nodejs_extras_path:1}
 %package        nodejs
 Summary:        Set of Node.js adapters for MySQL Cluster
 Group:          Applications/Databases
@@ -454,6 +455,7 @@ This package contains MySQL NoSQL Connector for JavaScript, a set of
 Node.js adapters for MySQL Cluster and MySQL Server, which make it
 possible to write JavaScript applications for Node.js using MySQL
 data.
+%endif
 
 %package        java
 Summary:        MySQL Cluster Connector for Java
@@ -517,6 +519,12 @@ mkdir debug
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
 %endif
+%if 0%{?ndb_nodejs_path:1}
+           -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
+%endif
+%if 0%{?ndb_nodejs_extras_path:1}
+           -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
+%endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
@@ -549,6 +557,12 @@ mkdir release
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
+%endif
+%if 0%{?ndb_nodejs_path:1}
+           -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
+%endif
+%if 0%{?ndb_nodejs_extras_path:1}
+           -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
@@ -1126,7 +1140,7 @@ fi
 %files ndbclient
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%attr(755, root, root) %{_libdir}/mysql/libndbclient.so.6.0.0
+%attr(755, root, root) %{_libdir}/mysql/libndbclient.so.6.1.0
 
 %files ndbclient-devel
 %defattr(-, root, root, -)
@@ -1134,12 +1148,12 @@ fi
 %attr(644, root, root) %{_libdir}/mysql/libndbclient_static.a
 %{_libdir}/mysql/libndbclient.so
 
+%if 0%{?ndb_nodejs_extras_path:1}
 %files nodejs
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %{_datadir}/mysql/nodejs/
-%exclude %{_datadir}/mysql/nodejs/test/
-%exclude %{_datadir}/mysql/nodejs/perftest/
+%endif
 
 %files java
 %defattr(-, root, root, -)

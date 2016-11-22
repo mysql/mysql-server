@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 
 #include "Restore.hpp"
 #include <NdbTCP.h>
-#include <NdbMem.h>
 #include <OutputStream.hpp>
 #include <Bitmask.hpp>
 
@@ -816,6 +815,19 @@ RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _fr
   m_row_bitfield_len = 0;
 }
 
+
+bool
+RestoreDataIterator::validateRestoreDataIterator()
+{
+    if (!m_bitfield_storage_ptr)
+    {
+        err << "m_bitfield_storage_ptr is NULL" << endl;
+        return false;
+    }
+    return true;
+}
+
+
 RestoreDataIterator::~RestoreDataIterator()
 {
   free_bitfield_storage();
@@ -1345,6 +1357,17 @@ BackupFile::BackupFile(void (* _free_data_callback)())
 #ifdef ERROR_INSERT
   m_error_insert = 0;
 #endif
+}
+
+bool
+BackupFile::validateBackupFile()
+{
+    if (!m_buffer)
+    {
+        err << "m_buffer is NULL" << endl;
+        return false;
+    }
+    return true;
 }
 
 BackupFile::~BackupFile()
@@ -2153,6 +2176,103 @@ operator<<(NdbOut& ndbout, const LogEntry& logE)
       ndbout << ", ";
   }
   return ndbout;
+}
+
+void
+AttributeS::printAttributeValue() const {
+  NdbDictionary::Column::Type columnType =
+      this->Desc->m_column->getType();
+  switch(columnType)
+  {
+    case NdbDictionary::Column::Char:
+    case NdbDictionary::Column::Varchar:
+    case NdbDictionary::Column::Binary:
+    case NdbDictionary::Column::Varbinary:
+    case NdbDictionary::Column::Datetime:
+    case NdbDictionary::Column::Date:
+    case NdbDictionary::Column::Longvarchar:
+    case NdbDictionary::Column::Longvarbinary:
+    case NdbDictionary::Column::Time:
+    case NdbDictionary::Column::Timestamp:
+    case NdbDictionary::Column::Time2:
+    case NdbDictionary::Column::Datetime2:
+    case NdbDictionary::Column::Timestamp2:
+      ndbout << "\'" << (* this) << "\'";
+      break;
+    default:
+      ndbout << (* this);
+  }
+}
+
+void
+LogEntry::printSqlLog() const {
+  /* Extract the table name from log entry which is stored in
+   * database/schema/table and convert to database.table format
+   */
+  BaseString tableName(m_table->getTableName());
+  Vector<BaseString> tableNameParts;
+  Uint32 noOfPK = m_table->m_dictTable->getNoOfPrimaryKeys();
+  tableName.split(tableNameParts, "/");
+  tableName.assign("");
+  tableName.assign(tableNameParts[0]);
+  tableName.append(".");
+  tableName.append(tableNameParts[2]);
+  switch(m_type)
+  {
+    case LE_INSERT:
+      ndbout << "INSERT INTO " << tableName.c_str() << " VALUES(";
+      for (Uint32 i = noOfPK; i < size(); i++)
+      {
+        /* Skip the first field(s) which contains additional
+         * instance of the primary key */
+        const AttributeS * attr = m_values[i];
+        attr->printAttributeValue();
+        if (i < (size() - 1))
+          ndbout << ",";
+      }
+      ndbout << ")";
+      break;
+    case LE_DELETE:
+      ndbout << "DELETE FROM " << tableName.c_str() << " WHERE ";
+      for (Uint32 i = 0; i < size();i++)
+      {
+        /* Primary key(s) clauses */
+        const AttributeS * attr = m_values[i];
+        const char* columnName = attr->Desc->m_column->getName();
+        ndbout << columnName << "=";
+        attr->printAttributeValue();
+        if (i < (size() - 1))
+          ndbout << " AND ";
+      }
+      break;
+    case LE_UPDATE:
+      ndbout << "UPDATE " << tableName.c_str() << " SET ";
+      for (Uint32 i = noOfPK; i < size(); i++)
+      {
+        /* Print column(s) being set*/
+        const AttributeS * attr = m_values[i];
+        const char* columnName = attr->Desc->m_column->getName();
+        ndbout << columnName << "=";
+        attr->printAttributeValue();
+        if (i < (size() - 1))
+          ndbout << ", ";
+      }
+      /*Print where clause with primary key(s)*/
+      ndbout << " WHERE ";
+      for (Uint32 i = 0; i < noOfPK; i++)
+      {
+        const AttributeS * attr = m_values[i];
+        const char* columnName = attr->Desc->m_column->getName();
+        ndbout << columnName << "=";
+        attr->printAttributeValue();
+        if(i < noOfPK-1)
+          ndbout << " AND ";
+      }
+      break;
+    default:
+      ndbout << "Unknown log entry type (not insert, delete or update)" ;
+  }
+  ndbout << ";";
 }
 
 #include <NDBT.hpp>

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,6 +92,9 @@
 #include <signaldata/BuildFKImpl.hpp>
 #include <signaldata/DropFK.hpp>
 #include <signaldata/DropFKImpl.hpp>
+
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 464
 
@@ -255,7 +258,10 @@ public:
   typedef LocalDLFifoListImpl<TableRecord_pool, TableRecord, TableRecord> LocalTableRecord_list;
 
   struct TableRecord {
-    TableRecord(){ m_upgrade_trigger_handling.m_upgrade = false;}
+    TableRecord(){
+      m_upgrade_trigger_handling.m_upgrade = false;
+      fullyReplicatedTriggerId = RNIL;
+    }
     static bool isCompatible(Uint32 type) { return DictTabInfo::isTable(type) || DictTabInfo::isIndex(type); }
 
     Uint32 maxRowsLow;
@@ -298,7 +304,10 @@ public:
       TR_RowGCI       = 0x2,
       TR_RowChecksum  = 0x4,
       TR_Temporary    = 0x8,
-      TR_ForceVarPart = 0x10
+      TR_ForceVarPart = 0x10,
+      TR_ReadBackup   = 0x20,
+      TR_FullyReplicated = 0x40
+
     };
     Uint8 m_extra_row_gci_bits;
     Uint8 m_extra_row_author_bits;
@@ -396,6 +405,7 @@ public:
     /**   Trigger ids of index (volatile data) */
     Uint32 triggerId;      // ordered index (1)
     Uint32 buildTriggerId; // temp during build
+    Uint32 fullyReplicatedTriggerId; //
 
     struct UpgradeTriggerHandling
     {
@@ -418,7 +428,9 @@ public:
     RopeHandle ngData;
     RopeHandle rangeData;
 
+    Uint32 partitionBalance;
     Uint32 fragmentCount;
+    Uint32 partitionCount;
     Uint32 m_tablespace_id;
 
     /** List of indexes attached to table */
@@ -898,6 +910,7 @@ private:
   void execWAIT_GCP_CONF(Signal* signal);
 
   void execLIST_TABLES_REQ(Signal* signal);
+  void execLIST_TABLES_CONF(Signal* signal);
 
   // Index signals
   void execCREATE_INDX_REQ(Signal* signal);
@@ -993,9 +1006,11 @@ private:
   void execALTER_TABLE_REQ(Signal* signal);
 
   Uint32 get_fragmentation(Signal*, Uint32 tableId);
-  Uint32 create_fragmentation(Signal* signal, TableRecordPtr,
-                              const Uint16*, Uint32 cnt,
-                              Uint32 flags = 0);
+  Uint32 create_fragmentation(Signal* signal,
+                              TableRecordPtr,
+                              const Uint16*,
+                              Uint32 cnt,
+                              Uint32 flags);
   void execCREATE_FRAGMENTATION_REQ(Signal*);
   void execCREATE_FRAGMENTATION_REF(Signal*);
   void execCREATE_FRAGMENTATION_CONF(Signal*);
@@ -1171,6 +1186,10 @@ private:
    * when a file is being read from disk
    ****************************************************************************/
   struct RestartRecord {
+    RestartRecord() { m_complete = false; }
+
+    bool m_complete;
+
     /**    Global check point identity       */
     Uint32 gciToRestart;
 
@@ -1197,11 +1216,50 @@ private:
    * when a file is being read from disk
    ****************************************************************************/
   struct RetrieveRecord {
-    RetrieveRecord():
-      busyState(false) {};
+    RetrieveRecord()
+    {
+      totalRequests = 0;
+      totalWaiters = 0;
+      totalBusy = 0;
+      longestWaitMillis = 0;
+      longestProcessTimeMillis = 0;
+      NdbTick_Invalidate(&startProcessTime);
+      monitorRunning = false;
+      busyState = false;
+    }
 
     /**    Only one retrieve table definition at a time       */
     bool busyState;
+
+     /**
+     *  Total requests
+     */
+    Uint64 totalRequests;
+
+    /**
+     * Total num made to wait
+     */
+    Uint64 totalWaiters;
+
+    /**
+     * Total num told 'busy'
+     */
+    Uint64 totalBusy;
+
+    /**
+     * Longest wait in millis
+     */
+    Uint64 longestWaitMillis;
+
+
+    /**
+     * Longest req processing in millis
+     */
+    Uint64 longestProcessTimeMillis;
+
+    NDB_TICKS startProcessTime;
+
+    bool monitorRunning;
 
     /**    Block Reference of retriever       */
     BlockReference blockRef;
@@ -1305,13 +1363,19 @@ private:
                    Signal* signal)
     {
       thrjam(m_jamBuffer);
-      /* Put data inline in signal buffer for atomic enq */
-      signal->theData[GetTabInfoReq::SignalLength] =
-        signal->header.m_noOfSections;
+      Uint32 sigLen = GetTabInfoReq::SignalLength;
 
-      memcpy(&signal->theData[GetTabInfoReq::SignalLength+1],
+      /* Put data inline in signal buffer for atomic enq */
+      signal->theData[sigLen] = signal->header.m_noOfSections;
+      sigLen++;
+
+      memcpy(&signal->theData[sigLen],
              signal->m_sectionPtrI,
              3 * sizeof(Uint32));
+      sigLen += 3;
+
+      /* Record start-wait time */
+      setTicks(NdbTick_getCurrentTicks(), &signal->theData[sigLen]);
 
       LocalSegmentList& reqQueue = internal?
         m_internalQueue:
@@ -1331,7 +1395,7 @@ private:
         return false;
       }
 
-      assert(ElementLen == 9);   /* Just in case someone adds words...*/
+      assert(ElementLen == 11);   /* Just in case someone adds words...*/
 
       if (reqQueue.enqWords(signal->theData,
                             ElementLen))
@@ -1353,7 +1417,7 @@ private:
      * object with signal data (and sections if appropriate)
      * Assumes that there is some next request to be processed.
      */
-    bool deqReq(Signal* signal)
+    bool deqReq(Signal* signal, Uint64 &waitMillis)
     {
       assert(signal->header.m_noOfSections == 0);
       assert(!isEmpty());
@@ -1365,19 +1429,50 @@ private:
       assert(getNumReqs(reqQueue) > 0);
 
       Uint32 noOfSections;
+      Uint32 startTime[2];
 
       /* Restore signal context from queue...*/
       if (reqQueue.deqWords(signal->theData, GetTabInfoReq::SignalLength) &&
           reqQueue.deqWords(&noOfSections, 1) &&
-          reqQueue.deqWords(signal->m_sectionPtrI, 3))
+          reqQueue.deqWords(signal->m_sectionPtrI, 3) &&
+          reqQueue.deqWords((Uint32*)(&startTime[0]), 2))
       {
         signal->header.m_noOfSections = (Uint8) noOfSections;
+        const NDB_TICKS start(getTicks(startTime));
+        waitMillis = NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).milliSec();
         return true;
       }
       return false;
     }
+    void dumpInfo()
+    {
+      g_eventLogger->info("Dumping GET_TABINFOREQ queue info");
+      g_eventLogger->info("m_consecutiveInternalReqCount = %u "
+                          "number of reqs in internal queue = %u "
+                          "max reqs in internal queue = %u "
+                          "number of reqs in external queue = %u "
+                          "max reqs in external queue = %u "
+                          "internal segment pool size = %u",
+                           m_consecutiveInternalReqCount,
+                           getNumReqs(m_internalQueue), MaxInternalReqs,
+                           getNumReqs(m_externalQueue), MaxExternalReqs,
+                           InternalSegmentPoolSize
+                         );
+    }
 
   private:
+
+    Uint64 getTicks(const Uint32* words)
+    {
+      return (Uint64(words[0]) << 32) + words[1];
+    }
+
+    void setTicks(const NDB_TICKS& ticks, Uint32* words)
+    {
+      words[0] = (ticks.getUint64() >> 32);
+      words[1] = (ticks.getUint64() & 0xffffffff);
+    }
+
     /**
      * isInternalQueueNext
      *
@@ -1420,7 +1515,7 @@ private:
     };
 
     /* Length of GetTabInfoReq queue elements */
-    static const Uint32 ElementLen = GetTabInfoReq::SignalLength + 1 + 3;
+    static const Uint32 ElementLen = GetTabInfoReq::SignalLength + 1 + 3 + 2;
 
     /**
      * Pessimistic estimate of worst-case internally sourced
@@ -1799,6 +1894,9 @@ private:
 
   struct OpSection {
     OpSectionBufferHead m_head;
+    void init() {
+      m_head.init();
+    }
     Uint32 getSize() const {
       return m_head.getSize();
     }
@@ -2091,6 +2189,7 @@ private:
   bool saveOpSection(SchemaOpPtr, SectionHandle&, Uint32 ss_no);
   bool saveOpSection(SchemaOpPtr, SegmentedSectionPtr ss_ptr, Uint32 ss_no);
   void releaseOpSection(SchemaOpPtr, Uint32 ss_no);
+  bool replaceOpSection(SchemaOpPtr, Uint32 ss_no, SegmentedSectionPtr ss_ptr);
 
   // add operation to transaction OpList
   void addSchemaOp(SchemaOpPtr);
@@ -2686,6 +2785,12 @@ private:
     // flag if this op has been aborted in RT_PREPARE phase
     bool m_abortPrepareDone;
 
+    //
+    bool m_fully_replicated_trigger;
+
+    // Table has been modified by subOps
+    bool m_modified_by_subOps;
+
     CreateTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
@@ -2694,6 +2799,8 @@ private:
       m_dihAddFragPtr = RNIL;
       m_lqhFragPtr = RNIL;
       m_abortPrepareDone = false;
+      m_fully_replicated_trigger = false;
+      m_modified_by_subOps = false;
     }
 
 #ifdef VM_TRACE
@@ -2720,11 +2827,19 @@ private:
   void createTable_abortParse(Signal*, SchemaOpPtr);
   void createTable_abortPrepare(Signal*, SchemaOpPtr);
 
+  //
+  void markTableModifiedBySubOp(SchemaOpPtr, Uint32 tableId);
+
   // prepare
   void createTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
   void createTab_local(Signal*, SchemaOpPtr, OpSection fragSec, Callback*);
   void createTab_dih(Signal*, SchemaOpPtr);
   void createTab_localComplete(Signal*, Uint32 op_key, Uint32 ret);
+
+  void createTable_toCreateTrigger(Signal* signal, SchemaOpPtr op_ptr);
+  void createTable_fromCreateTrigger(Signal* signal,
+                                     Uint32 op_key,
+                                     Uint32 ret);
 
   // commit
   void createTab_activate(Signal*, SchemaOpPtr, Callback*);
@@ -2747,6 +2862,7 @@ private:
     }
 
     DropTabReq m_request;
+    bool m_fully_replicated_trigger;
 
     // wl3600_todo check mutex name and number later
     MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
@@ -2760,6 +2876,7 @@ private:
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
       m_block = 0;
+      m_fully_replicated_trigger = false;
     }
 
 #ifdef VM_TRACE
@@ -2788,6 +2905,11 @@ private:
 
   // prepare
   void dropTable_backup_mutex_locked(Signal*, Uint32 op_key, Uint32 ret);
+
+  void dropTable_toDropTrigger(Signal* signal, SchemaOpPtr op_ptr);
+  void dropTable_fromDropTrigger(Signal* signal,
+                                 Uint32 op_key,
+                                 Uint32 ret);
 
   // commit
   void dropTable_commit_nextStep(Signal*, SchemaOpPtr);
@@ -2840,9 +2962,12 @@ private:
     // used for creating subops for add partitions, wrt ordered index
     bool m_sub_reorg_commit;
     bool m_sub_reorg_complete;
-    bool m_sub_add_frag;
+    bool m_sub_read_backup;
+    Uint32 m_sub_read_backup_ptr;
+    bool m_sub_add_ordered_index_frag;
+    bool m_sub_add_unique_index_frag;
     Uint32 m_sub_add_frag_index_ptr;
-    bool m_sub_trigger;
+    bool m_sub_reorg_trigger;
     bool m_sub_copy_data;
     bool m_sub_suma_enable;
     bool m_sub_suma_filter;
@@ -2858,11 +2983,14 @@ private:
       m_blockNo[2] = DBSPJ;
       m_blockNo[3] = DBTC;
       m_blockIndex = 0;
+      m_sub_read_backup = false;
+      m_sub_read_backup_ptr = RNIL;
       m_sub_add_frag_index_ptr = RNIL;
-      m_sub_add_frag = false;
+      m_sub_add_ordered_index_frag = false;
+      m_sub_add_unique_index_frag = false;
       m_sub_reorg_commit = false;
       m_sub_reorg_complete = false;
-      m_sub_trigger = false;
+      m_sub_reorg_trigger = false;
       m_sub_copy_data = false;
       m_sub_suma_enable = false;
       m_sub_suma_filter = false;
@@ -2891,6 +3019,16 @@ private:
   void alterTable_abortParse(Signal*, SchemaOpPtr);
   void alterTable_abortPrepare(Signal*, SchemaOpPtr);
 
+  void alterTable_toReadBackup(Signal *signal,
+                               SchemaOpPtr op_ptr,
+                               TableRecordPtr indexPtr,
+                               TableRecordPtr tablePtr);
+
+  void alterTable_toAlterUniqueIndex(Signal *signal,
+                                     SchemaOpPtr op_ptr,
+                                     TableRecordPtr indexPtr,
+                                     TableRecordPtr tablePtr);
+
   void alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr);
   void alterTable_fromCopyData(Signal*, Uint32 op_key, Uint32 ret);
 
@@ -2899,7 +3037,7 @@ private:
   void alterTable_toLocal(Signal*, SchemaOpPtr);
   void alterTable_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
 
-  void alterTable_toAlterIndex(Signal*, SchemaOpPtr);
+  void alterTable_toAlterOrderedIndex(Signal*, SchemaOpPtr);
   void alterTable_fromAlterIndex(Signal*, Uint32 op_key, Uint32 ret);
 
   void alterTable_toReorgTable(Signal*, SchemaOpPtr, Uint32 step);
@@ -3066,6 +3204,7 @@ private:
   static const TriggerTmpl g_buildIndexConstraintTmpl[1];
   static const TriggerTmpl g_reorgTriggerTmpl[1];
   static const TriggerTmpl g_fkTriggerTmpl[2];
+  static const TriggerTmpl g_fullyReplicatedTriggerTmp[1];
 
   struct AlterIndexRec;
   typedef RecordPool<AlterIndexRec,ArenaPool> AlterIndexRec_pool;
@@ -4409,11 +4548,13 @@ private:
   void rebuildIndex_fromBuildIndex(Signal*, Uint32 tx_key, Uint32 ret);
   void rebuildIndex_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   // FK re-enable (create triggers) on start up
+  void checkFkTriggerIds(Signal*);
   void enableFKs(Signal* signal, Uint32 i);
   void enableFK_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void enableFK_fromCreateFK(Signal*, Uint32 tx_key, Uint32 ret);
   void enableFK_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   bool c_restart_enable_fks;
+  bool c_nr_upgrade_fks_done;
   Uint32 c_at_restart_skip_indexes;
   Uint32 c_at_restart_skip_fks;
 
@@ -4651,7 +4792,11 @@ public:
   Uint32 c_outstanding_sub_startstop;
   NdbNodeBitmask c_sub_startstop_lock;
 
-  Uint32 get_default_fragments(Signal*, Uint32 extra_nodegroups = 0);
+  Uint32 get_default_fragments(Signal*,
+                               Uint32 partitionBalance,
+                               Uint32 extra_nodegroups);
+  Uint32 get_default_partitions_fully_replicated(Signal *signal,
+                                                 Uint32 partitionBalance);
   void wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags);
 
   void block_substartstop(Signal* signal, SchemaOpPtr op_ptr);

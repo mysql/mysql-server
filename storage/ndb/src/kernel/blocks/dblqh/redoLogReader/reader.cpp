@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 
 void usage(const char * prg);
 Uint32 readFromFile(FILE * f, Uint32 *toPtr, Uint32 sizeInWords);
-void readArguments(int argc, const char** argv);
+void readArguments(int argc, char** argv);
 void doExit();
 
 FILE * f= 0;
@@ -61,7 +61,14 @@ Uint32 *redoLogPage;
 
 unsigned NO_MBYTE_IN_FILE = 16;
 
-NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read a redo log file", 16384) { 
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
+
+int main(int argc, char** argv)
+{
   ndb_init();
   Int32 wordIndex = 0;
   Uint32 oldWordIndex = 0;
@@ -82,7 +89,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   f = fopen(fileName, "rb");
   if(!f){
     perror("Error: open file");
-    exit(RETURN_ERROR);
+    ndb_end_and_exit(RETURN_ERROR);
   }
 
   {
@@ -99,7 +106,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
       startAtMbyte * REDOLOG_PAGESIZE * REDOLOG_PAGES_IN_MBYTE * sizeof(Uint32);
   if (fseek(f, tmpFileOffset, FROM_BEGINNING)) {
     perror("Error: Move in file");
-    exit(RETURN_ERROR);
+    ndb_end_and_exit(RETURN_ERROR);
   }
 
   redoLogPage = new Uint32[REDOLOG_PAGESIZE*REDOLOG_PAGES_IN_MBYTE];
@@ -356,7 +363,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   }//for
   fclose(f);
   delete [] redoLogPage;
-  exit(RETURN_OK);
+  ndb_end_and_exit(RETURN_OK);
 }
 
 static
@@ -406,7 +413,7 @@ void usage(const char * prg){
 	 << endl << endl;
   
 }
-void readArguments(int argc, const char** argv)
+void readArguments(int argc, char** argv)
 {
   if(argc < 2 ){
     usage(argv[0]);
@@ -473,5 +480,5 @@ void doExit() {
   ndbout << "Error in redoLogReader(). Exiting!" << endl;
   if (f) fclose(f);
   delete [] redoLogPage;
-  exit(RETURN_ERROR);
+  ndb_end_and_exit(RETURN_ERROR);
 }

@@ -1,4 +1,4 @@
--- Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights
+-- Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights
 -- reserved.
 --
 -- This program is free software; you can redistribute it and/or
@@ -662,6 +662,21 @@ create table timestamptypes (
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
+drop table if exists timestamp2types;
+create table timestamp2types (
+ id int not null primary key auto_increment,
+
+ timestampx timestamp    null,
+ timestamp0 timestamp(0) null,
+ timestamp1 timestamp(1) null,
+ timestamp2 timestamp(2) null,
+ timestamp3 timestamp(3) null,
+ timestamp4 timestamp(4) null,
+ timestamp5 timestamp(5) null,
+ timestamp6 timestamp(6) null
+
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
 drop table if exists stringtype;
 create table stringtype (
  id int not null primary key,
@@ -912,6 +927,18 @@ create table stress (
   f19 float not null,
   d19 double not null
   ) ENGINE=ndbcluster;
+
+drop table if exists `hope`;
+create table `hope` (
+  partition_id int,
+  id int,
+  int_col1 int NOT NULL,
+  int_col2 int NOT NULL,
+  str_col1 varchar(3000),
+  str_col2 varchar(3000),
+  str_col3 varchar(3000),
+  PRIMARY KEY (partition_id, id)
+  ) ENGINE=ndbcluster partition by key (partition_id);
 
 create database if not exists test2;
 use test2;

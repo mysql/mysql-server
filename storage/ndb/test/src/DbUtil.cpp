@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2007, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -242,7 +241,7 @@ DbUtil::printError(const char *msg)
       printf("\n [MySQL-%s]", m_mysql->server_version);
     else
       printf("\n [MySQL]");
-      printf("[%d] %s\n", getErrorNumber(), getError());
+    printf("[%d] %s\n", getErrorNumber(), getError());
   }
   else if (msg)
     printf(" [MySQL] %s\n", msg);
@@ -460,8 +459,23 @@ DbUtil::runQuery(const char* sql,
       
       bind_result[i].buffer_type= fields[i].type;
       bind_result[i].buffer= malloc(buf_len);
+      if (bind_result[i].buffer == NULL)
+      {
+          report_error("Unable to allocate memory for bind_result[].buffer", m_mysql);
+          mysql_stmt_close(stmt);
+          return false;
+      }
+
       bind_result[i].buffer_length= buf_len;
       bind_result[i].is_null = (my_bool*)malloc(sizeof(my_bool));
+      if (bind_result[i].is_null == NULL)
+      {
+          free(bind_result[i].buffer);
+          report_error("Unable to allocate memory for bind_result[].is_null", m_mysql);
+          mysql_stmt_close(stmt);
+          return false;
+      }
+
       * bind_result[i].is_null = 0;
     }
 

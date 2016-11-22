@@ -29,21 +29,6 @@
   Place holder for ha_ndbcluster thread specific data
 */
 
-enum THD_NDB_OPTIONS
-{
-  TNO_NO_LOG_SCHEMA_OP=  1 << 0,
-  /*
-    In participating mysqld, do not try to acquire global schema
-    lock, as one other mysqld already has the lock.
-  */
-  TNO_NO_LOCK_SCHEMA_OP= 1 << 1,
-  /*
-    Gives special priorites to this Thd_ndb, allowing it to create
-    schema distribution event ops before ndb_schema_dist_is_ready()
-   */
-  TNO_ALLOW_BINLOG_SETUP= 1 << 2
-};
-
 enum THD_NDB_TRANS_OPTIONS
 {
   TNTO_INJECTED_APPLY_STATUS= 1 << 0
@@ -59,9 +44,7 @@ class Thd_ndb
   ~Thd_ndb();
   const bool m_slave_thread; // cached value of thd->slave_thread
 
-  /* Skip binlog setup in ndbcluster_find_files() */
-  bool m_skip_binlog_setup_in_find_files;
-
+  uint32 options;
 public:
   static Thd_ndb* seize(THD*);
   static void release(Thd_ndb* thd_ndb);
@@ -80,7 +63,57 @@ public:
   bool m_slow_path;
   bool m_force_send;
 
-  uint32 options;
+  enum Options
+  {
+    NO_LOG_SCHEMA_OP=  1 << 0,
+    /* 
+      This Thd_ndb is a participant in a global schema distribution.
+      Whenver a GSL lock is required, it is acquired by the coordinator.
+      The participant can then assume that the GSL lock is already held
+      for the schema operation it is part of. Thus it should not take
+      any GSL locks itself.
+    */
+    IS_SCHEMA_DIST_PARTICIPANT= 1 << 1,
+
+    /*
+      Gives special priorites to this Thd_ndb, allowing it to create
+      schema distribution event ops before ndb_schema_dist_is_ready()
+     */
+    ALLOW_BINLOG_SETUP= 1 << 2,
+
+    /* Skip binlog setup in ndbcluster_find_files() */
+    SKIP_BINLOG_SETUP_IN_FIND_FILES = 1 << 3
+  };
+
+  // Check if given option is set
+  bool check_option(Options option) const;
+  // Set given option
+  void set_option(Options option);
+
+  // Guard class for automatically restoring the state of
+  // Thd_ndb::options when the guard goes out of scope
+  class Options_guard
+  {
+    Thd_ndb* const m_thd_ndb;
+    const uint32 m_save_options;
+  public:
+    Options_guard(Thd_ndb* thd_ndb)
+      : m_thd_ndb(thd_ndb),
+        m_save_options(thd_ndb->options)
+    {
+      assert(sizeof(m_save_options) == sizeof(thd_ndb->options));
+    }
+    ~Options_guard()
+    {
+      // Restore the saved options
+      m_thd_ndb->options= m_save_options;
+    }
+    void set(Options option)
+    {
+      m_thd_ndb->set_option(option);
+    }
+  };
+
   uint32 trans_options;
   void transaction_checks(void);
   List<NDB_SHARE> changed_tables;
@@ -135,7 +168,7 @@ public:
   uint global_schema_lock_count;
   uint global_schema_lock_error;
   uint schema_locks_count; // Number of global schema locks taken by thread
-  bool has_required_global_schema_lock(const char* func);
+  bool has_required_global_schema_lock(const char* func) const;
 
   /**
      Epoch of last committed transaction in this session, 0 if none so far
@@ -147,19 +180,6 @@ public:
   bool recycle_ndb(void);
 
   bool is_slave_thread(void) const { return m_slave_thread; }
-
-  void set_skip_binlog_setup_in_find_files(bool value)
-  {
-    // Only alloow toggeling the value
-    assert(m_skip_binlog_setup_in_find_files != value);
-
-    m_skip_binlog_setup_in_find_files = value;
-  }
-
-  bool skip_binlog_setup_in_find_files(void) const
-  {
-    return m_skip_binlog_setup_in_find_files;
-  }
 };
 
 #endif

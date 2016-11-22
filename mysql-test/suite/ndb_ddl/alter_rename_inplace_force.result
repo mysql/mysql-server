@@ -2,5 +2,5 @@ ALTER TABLE t1
 algorithm=inplace,
 ADD COLUMN c INT,
 RENAME TO t1_renamed;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
 == verify_mysql_dd.inc ==

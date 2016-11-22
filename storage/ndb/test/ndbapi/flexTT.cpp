@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 
 #include <NdbApi.hpp>
 #include <NdbSchemaCon.hpp>
-#include <NdbMain.h>
 #include <md5_hash.hpp>
 
 #include <NdbThread.h>
@@ -94,7 +93,7 @@ struct TransNdb
 extern "C" { static void* threadLoop(void*); }
 static void setAttrNames(void);
 static void setTableNames(void);
-static int readArguments(int argc, const char** argv);
+static int readArguments(int argc, char** argv);
 static int createTables(Ndb*);
 static bool defineOperation(NdbConnection* aTransObject, TransNdb*,
                             Uint32 vpn_nb, Uint32 vpn_id);
@@ -181,7 +180,7 @@ tellThreads(StartType what)
 
 static Ndb_cluster_connection *g_cluster_connection= 0;
 
-NDB_COMMAND(flexTT, "flexTT", "flexTT", "flexTT", 65535)
+int main(int argc, char** argv)
 {
   ndb_init();
   ThreadNdb*            pThreadData;
@@ -807,7 +806,7 @@ bool error_handler(const char* error_string, int error_int) {
 
 static
 int 
-readArguments(int argc, const char** argv){
+readArguments(int argc, char** argv){
   
   int i = 1;
   while (argc > 1){

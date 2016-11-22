@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,6 @@ extern "C" int write_history(const char *command);
 #endif
 }
 
-#include <NdbMain.h>
 #include <BaseString.hpp>
 #include <NdbOut.hpp>
 #include <mgmapi.h>

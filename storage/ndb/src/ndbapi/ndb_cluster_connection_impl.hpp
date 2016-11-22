@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <ndb_cluster_connection.hpp>
 #include <Vector.hpp>
 #include <NdbMutex.h>
+#include <NodeBitmask.hpp>
 #include "DictCache.hpp"
 #include "kernel/ndb_limits.h"
 
@@ -45,7 +46,8 @@ struct NdbApiConfig
     m_batch_size(DEF_BATCH_SIZE),
     m_waitfor_timeout(120000),
     m_default_queue_option(0),
-    m_default_hashmap_size(0)
+    m_default_hashmap_size(0),
+    m_verbose(0)
     {}
 
   Uint32 m_scan_batch_size;
@@ -54,6 +56,7 @@ struct NdbApiConfig
   Uint32 m_waitfor_timeout; // in milli seconds...
   Uint32 m_default_queue_option;
   Uint32 m_default_hashmap_size;
+  Uint32 m_verbose;
 };
 
 class Ndb_cluster_connection_impl : public Ndb_cluster_connection
@@ -84,25 +87,45 @@ private:
   friend class SignalSender;
   friend class NDBT_Context;
   
+  static Int32 const MAX_PROXIMITY_GROUP = INT32_MAX;
+  static Int32 const INVALID_PROXIMITY_GROUP = INT32_MIN;
+  static Int32 const DATA_NODE_NEIGHBOUR_PROXIMITY_ADJUSTMENT = -50;
+  static Uint32 const HINT_COUNT_BITS = 10;
+  static Uint32 const HINT_COUNT_HALF = (1 << (HINT_COUNT_BITS - 1));
+  static Uint32 const HINT_COUNT_MASK = (HINT_COUNT_HALF | (HINT_COUNT_HALF - 1));
+
   struct Node
   {
-    Node(Uint32 _g= 0, Uint32 _id= 0) : this_group(0),
-					next_group(0),
-					group(_g),
-					id(_id) {};
-    Uint32 this_group;
-    Uint32 next_group;
-    Uint32 group;
+    Node(Uint32 _g= 0, Uint32 _id= 0) : this_group_idx(0),
+                                        next_group_idx(0),
+                                        config_group(_g), // between 0 and 200
+                                        adjusted_group(_g),
+                                        id(_id),
+                                        hint_count(0) {};
+    Uint32 this_group_idx; // First index of node with same group
+    Uint32 next_group_idx; // Next index of node not with same node, or 0.
+    Uint32 config_group; // Proximity group from cluster connection config
+    Int32 adjusted_group; // Proximity group adjusted via ndbapi calls
     Uint32 id;
+    Uint32 hint_count; // Counts how many times node was choosen for hint when more than one were Ãpossible
   };
 
-  Vector<Node> m_all_nodes;
+  NdbNodeBitmask m_db_nodes;
+  NdbMutex* m_nodes_proximity_mutex;
+  Vector<Node> m_nodes_proximity;
   int init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration &config);
   int configure(Uint32 nodeid, const ndb_mgm_configuration &config);
   void connect_thread();
   void set_name(const char *name);
+  void set_data_node_neighbour(Uint32 neighbour_node);
+  void adjust_node_proximity(Uint32 node_id, Int32 adjustment);
   Uint32 get_db_nodes(Uint8 nodesarray[MAX_NDB_NODES]) const;
   Uint32 get_unconnected_nodes() const;
+
+  /**
+   * Select the "closest" node
+   */
+  Uint32 select_node(const Uint16* nodes, Uint32 cnt);
 
   int connect(int no_retries,
               int retry_delay_in_seconds,
@@ -131,9 +154,14 @@ private:
 
   // Scan batch configuration parameters
   NdbApiConfig m_config;
-  
-  // keep initial transId's increasing...
-  Uint32 m_max_trans_id;
+
+  // Avoid transid reuse with Block ref reuse
+  Vector<Uint32> m_next_transids;
+  Uint32 get_next_transid(Uint32 reference) const;
+  void set_next_transid(Uint32 reference, Uint32 value);
+
+  // Closest data node neighbour
+  Uint32 m_data_node_neighbour;
 
   // Base offset for stats, from Ndb objects that are no 
   // longer with us

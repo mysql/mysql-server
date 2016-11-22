@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ dojo.provide("mcc.server");
 dojo.require("mcc.server.api");
 
 mcc.server.hostInfoReq = mcc.server.api.hostInfoReq;
+mcc.server.checkFileReq = mcc.server.api.checkFileReq;
 mcc.server.createFileReq = mcc.server.api.createFileReq;
 mcc.server.appendFileReq = mcc.server.api.appendFileReq;
 mcc.server.runMgmdCommandReq = mcc.server.api.runMgmdCommandReq;

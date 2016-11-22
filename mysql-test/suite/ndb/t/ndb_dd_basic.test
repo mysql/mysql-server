@@ -91,7 +91,9 @@ TABLESPACE ts1 STORAGE DISK
 ENGINE=NDB
 PARTITION BY KEY() PARTITIONS 8;
 
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 
 INSERT INTO t1 VALUES (0, 0, 0);
 SELECT * FROM t1;
@@ -251,6 +253,13 @@ INITIAL_SIZE 1000000000000K
 ENGINE = NDB;
 
 DROP TABLE t1;
+
+#Verify that it isn't possible to create no logging table with disk fields
+--error ER_GET_ERRMSG
+CREATE TABLE t1 (a bigint primary key, b bigint storage disk)
+ENGINE ndb
+COMMENT="NDB_TABLE=NOLOGGING=1"
+TABLESPACE ts1 STORAGE DISK;
 
 create tablespace ts2
 add datafile 'datafile2_1.dat'

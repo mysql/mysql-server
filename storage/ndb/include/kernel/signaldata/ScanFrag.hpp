@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -223,8 +223,7 @@ public:
     ZWRONG_BATCH_SIZE = 1230,
     ZSTANDBY_SCAN_ERROR = 1209,
     NO_TC_CONNECT_ERROR = 1217,
-    ZSCAN_BOOK_ACC_OP_ERROR = 1219,
-    ZUNKNOWN_TRANS_ERROR = 1227
+    ZSCAN_BOOK_ACC_OP_ERROR = 1219
   };
   
   Uint32 senderData;

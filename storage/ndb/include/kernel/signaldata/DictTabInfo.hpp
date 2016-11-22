@@ -125,6 +125,7 @@ public:
     TableTemporaryFlag = 28,  //Default not Temporary
     ForceVarPartFlag   = 29,
 
+    PartitionBalance  = 127,
     FragmentCount      = 128, // No of fragments in table (!fragment replicas)
     FragmentDataLen    = 129,
     FragmentData       = 130, // CREATE_FRAGMENTATION reply
@@ -155,6 +156,15 @@ public:
 
     ExtraRowGCIBits    = 156,
     ExtraRowAuthorBits = 157,
+
+    ReadBackupFlag     = 158,
+
+    FullyReplicatedFlag= 159,
+    PartitionCount  = 160,
+    /**
+     * Needed for NR
+     */
+    FullyReplicatedTriggerId = 161,
 
     TableEnd           = 999,
     
@@ -229,6 +239,11 @@ public:
     FKParentTrigger = 26,
     FKChildTrigger = 27,
 
+    /**
+     * Trigger that propagates DML to all fragments
+     */
+    FullyReplicatedTrigger = 28,
+
     SchemaTransaction = 30
   };
 
@@ -283,7 +298,8 @@ public:
       tableType == IndexTrigger ||
       tableType == ReorgTrigger ||
       tableType == FKParentTrigger ||
-      tableType == FKChildTrigger;
+      tableType == FKChildTrigger ||
+      tableType == FullyReplicatedTrigger;
   }
   static inline bool
   isFilegroup(int tableType) {
@@ -372,6 +388,7 @@ public:
     */
     Uint32 FrmLen;
     char   FrmData[MAX_FRM_DATA_SIZE];
+    Uint32 PartitionBalance;
     Uint32 FragmentCount;
     Uint32 ReplicaDataLen;
     Uint16 ReplicaData[MAX_FRAGMENT_DATA_ENTRIES];
@@ -400,6 +417,11 @@ public:
 
     Uint32 ExtraRowGCIBits;
     Uint32 ExtraRowAuthorBits;
+
+    Uint32 ReadBackupFlag;
+    Uint32 FullyReplicatedFlag;
+    Uint32 FullyReplicatedTriggerId;
+    Uint32 PartitionCount;
 
     Table() {}
     void init();

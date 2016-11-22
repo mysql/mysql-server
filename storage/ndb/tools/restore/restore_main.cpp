@@ -21,10 +21,10 @@
 #include <Properties.hpp>
 #include <ndb_limits.h>
 #include <NdbTCP.h>
-#include <NdbMem.h>
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
 #include <NDBT_ReturnCodes.h>
+#include <Logger.hpp>
 
 #include "consumer_restore.hpp"
 #include "consumer_printer.hpp"
@@ -100,6 +100,7 @@ static int _print = 0;
 static int _print_meta = 0;
 static int _print_data = 0;
 static int _print_log = 0;
+static int _print_sql_log = 0;
 static int _restore_data = 0;
 static int _restore_meta = 0;
 static int _no_restore_disk = 0;
@@ -200,6 +201,9 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "print_log", NDB_OPT_NOSHORT, "Print log to stdout",
     (uchar**) &_print_log, (uchar**) &_print_log,  0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "print_sql_log", NDB_OPT_NOSHORT, "Print SQL log to stdout",
+    (uchar**) &_print_sql_log, (uchar**) &_print_sql_log,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "backup_path", NDB_OPT_NOSHORT, "Path to backup files",
     (uchar**) &ga_backupPath, (uchar**) &ga_backupPath, 0,
@@ -662,6 +666,11 @@ o verify nodegroup mapping
     ga_print = true;
     g_printer->m_print_log = true;
   }
+  if (_print_sql_log)
+    {
+      ga_print = true;
+      g_printer->m_print_sql_log = true;
+    }
 
   if (_restore_data)
   {
@@ -1293,10 +1302,14 @@ main(int argc, char** argv)
 
   init_progress();
 
+  char timestamp[64];
+
   /**
    * we must always load meta data, even if we will only print it to stdout
    */
+
   debug << "Start restoring meta data" << endl;
+
   RestoreMetaData metaData(ga_backupPath, ga_nodeId, ga_backupId);
 #ifdef ERROR_INSERTED 
   if(_error_insert > 0)
@@ -1304,6 +1317,9 @@ main(int argc, char** argv)
     metaData.error_insert(_error_insert);
   }
 #endif 
+
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Read meta data file header" << endl;
 
   if (!metaData.readHeader())
   {
@@ -1352,6 +1368,9 @@ main(int argc, char** argv)
   }
 
   debug << "Load content" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Load content" << endl;
+
   int res  = metaData.loadContent();
 
   info << "Stop GCP of Backup: " << metaData.getStopGCP() << endl;
@@ -1361,13 +1380,63 @@ main(int argc, char** argv)
     err << "Restore: Failed to load content" << endl;
     exitHandler(NDBT_FAILED);
   }
-  debug << "Get no of Tables" << endl; 
+  debug << "Get number of Tables" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Get number of Tables" << endl;
   if (metaData.getNoOfTables() == 0) 
   {
     err << "The backup contains no tables" << endl;
     exitHandler(NDBT_FAILED);
   }
+
+  if(_print_sql_log && _print_log)
+  {
+    debug << "Check to ensure that both print-sql-log and print-log "
+          << "options are not passed" << endl;
+    err << "Both print-sql-log and print-log options passed. Exiting..."
+        << endl;
+    exitHandler(NDBT_FAILED);
+  }
+
+  if (_print_sql_log)
+  {
+    debug << "Check for tables with hidden PKs or column of type blob "
+          << "when print-sql-log option is passed" << endl;
+    for(Uint32 i = 0; i < metaData.getNoOfTables(); i++)
+    {
+      const TableS *table = metaData[i];
+      if (!(checkSysTable(table) && checkDbAndTableName(table)))
+        continue;
+      /* Blobs are stored as separate tables with names prefixed
+       * with NDB$BLOB. This can be used to check if there are
+       * any columns of type blob in the tables being restored */
+      BaseString tableName(table->getTableName());
+      Vector<BaseString> tableNameParts;
+      tableName.split(tableNameParts, "/");
+      if (tableNameParts[2].substr(0,8) == "NDB$BLOB")
+      {
+        err << "Found column of type blob with print-sql-log option set. "
+            << "Exiting..." << endl;
+        exitHandler(NDBT_FAILED);
+      }
+      /* Hidden PKs are stored with the name $PK */
+      int noOfPK = table->m_dictTable->getNoOfPrimaryKeys();
+      for(int j = 0; j < noOfPK; j++)
+      {
+        const char* pkName = table->m_dictTable->getPrimaryKey(j);
+        if(strcmp(pkName,"$PK") == 0)
+        {
+          err << "Found hidden primary key with print-sql-log option set. "
+              << "Exiting..." << endl;
+          exitHandler(NDBT_FAILED);
+        }
+      }
+    }
+  }
+
   debug << "Validate Footer" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Validate Footer" << endl;
 
   if (!metaData.validateFooter()) 
   {
@@ -1395,6 +1464,8 @@ main(int argc, char** argv)
     g_consumers[i]->report_started(ga_backupId, ga_nodeId);
 
   debug << "Restore objects (tablespaces, ..)" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Restore objects (tablespaces, ..)" << endl;
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
     for(Uint32 j= 0; j < g_consumers.size(); j++)
@@ -1416,6 +1487,9 @@ main(int argc, char** argv)
 
   Vector<OutputStream *> table_output(metaData.getNoOfTables());
   debug << "Restoring tables" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Restoring tables" << endl;
+
   for(i = 0; i<metaData.getNoOfTables(); i++)
   {
     const TableS *table= metaData[i];
@@ -1481,6 +1555,8 @@ main(int argc, char** argv)
   }
 
   debug << "Save foreign key info" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_metadata]" << " Save foreign key info" << endl;
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
     for(Uint32 j= 0; j < g_consumers.size(); j++)
@@ -1513,7 +1589,9 @@ main(int argc, char** argv)
   {
     g_consumers[i]->report_meta_data(ga_backupId, ga_nodeId);
   }
-  debug << "Iterate over data" << endl; 
+  debug << "Iterate over data" << endl;
+  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+  info << timestamp << " [restore_data]" << " Start restoring table data" << endl;
   if (ga_restore || ga_print) 
   {
     if(_restore_data || _print_data)
@@ -1565,7 +1643,23 @@ main(int argc, char** argv)
       }
         
       RestoreDataIterator dataIter(metaData, &free_data_callback);
+
+      if (!dataIter.validateBackupFile())
+      {
+          err << "Unable to allocate memory for BackupFile constructor" << endl;
+          exitHandler(NDBT_FAILED);
+      }
+
+
+      if (!dataIter.validateRestoreDataIterator())
+      {
+          err << "Unable to allocate memory for RestoreDataIterator constructor" << endl;
+          exitHandler(NDBT_FAILED);
+      }
       
+      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+      info << timestamp << " [restore_data]" << " Read data file header" << endl;
+
       // Read data file header
       if (!dataIter.readHeader())
       {
@@ -1573,6 +1667,9 @@ main(int argc, char** argv)
 	exitHandler(NDBT_FAILED);
       }
       
+      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+      info << timestamp << " [restore_data]" << " Restore fragments" << endl;
+
       Uint32 fragmentId; 
       while (dataIter.readFragmentHeader(res= 0, &fragmentId))
       {
@@ -1625,9 +1722,13 @@ main(int argc, char** argv)
       }
     }
 
-    if(_restore_data || _print_log)
+    if(_restore_data || _print_log || _print_sql_log)
     {
       RestoreLogIterator logIter(metaData);
+
+      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+      info << timestamp << " [restore_log]" << " Read log file header" << endl;
+
       if (!logIter.readHeader())
       {
 	err << "Failed to read header of data file. Exiting..." << endl;
@@ -1635,6 +1736,10 @@ main(int argc, char** argv)
       }
       
       const LogEntry * logEntry = 0;
+
+      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+      info << timestamp << " [restore_log]" << " Restore log entries" << endl;
+
       while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
       {
         const TableS* table = logEntry->m_table;
@@ -1707,6 +1812,9 @@ main(int argc, char** argv)
   }
   if (ga_restore_epoch)
   {
+    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    info << timestamp << " [restore_epoch]" << " Restoring epoch" << endl;
+
     for (i= 0; i < g_consumers.size(); i++)
       if (!g_consumers[i]->update_apply_status(metaData))
       {
@@ -1729,6 +1837,9 @@ main(int argc, char** argv)
   if (ga_rebuild_indexes)
   {
     debug << "Rebuilding indexes" << endl;
+    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    info << timestamp << " [rebuild_indexes]" << " Rebuilding indexes" << endl;
+
     for(i = 0; i<metaData.getNoOfTables(); i++)
     {
       const TableS *table= metaData[i];
