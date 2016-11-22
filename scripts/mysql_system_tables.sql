@@ -186,31 +186,8 @@ CREATE TABLE IF NOT EXISTS general_log (event_time TIMESTAMP(6) NOT NULL DEFAULT
 -- Create slow_log
 CREATE TABLE IF NOT EXISTS slow_log (start_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), user_host MEDIUMTEXT NOT NULL, query_time TIME(6) NOT NULL, lock_time TIME(6) NOT NULL, rows_sent INTEGER NOT NULL, rows_examined INTEGER NOT NULL, db VARCHAR(512) NOT NULL, last_insert_id INTEGER NOT NULL, insert_id INTEGER NOT NULL, server_id INTEGER UNSIGNED NOT NULL, sql_text MEDIUMBLOB NOT NULL, thread_id BIGINT(21) UNSIGNED NOT NULL) engine=CSV CHARACTER SET utf8 comment="Slow log";
 
---
--- Only create the ndb_binlog_index table if the server is built with ndb.
---
-SET @have_ndb= (select count(engine) from information_schema.engines where engine='ndbcluster');
-SET @cmd="CREATE TABLE IF NOT EXISTS ndb_binlog_index (
-  Position BIGINT UNSIGNED NOT NULL,
-  File VARCHAR(255) NOT NULL,
-  epoch BIGINT UNSIGNED NOT NULL,
-  inserts INT UNSIGNED NOT NULL,
-  updates INT UNSIGNED NOT NULL,
-  deletes INT UNSIGNED NOT NULL,
-  schemaops INT UNSIGNED NOT NULL,
-  orig_server_id INT UNSIGNED NOT NULL,
-  orig_epoch BIGINT UNSIGNED NOT NULL,
-  gci INT UNSIGNED NOT NULL,
-  next_position BIGINT UNSIGNED NOT NULL,
-  next_file VARCHAR(255) NOT NULL,
-  PRIMARY KEY(epoch, orig_server_id, orig_epoch)) ENGINE=INNODB STATS_PERSISTENT=0";
 
 CREATE TABLE IF NOT EXISTS component ( component_id int unsigned NOT NULL AUTO_INCREMENT, component_group_id int unsigned NOT NULL, component_urn text NOT NULL, PRIMARY KEY (component_id)) engine=INNODB DEFAULT CHARSET=utf8 COMMENT 'Components';
-
-SET @str = IF(@have_ndb = 1, @cmd, 'SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE IF NOT EXISTS slave_relay_log_info (
   Number_of_lines INTEGER UNSIGNED NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.', 
@@ -356,6 +333,7 @@ CREATE TABLE IF NOT EXISTS column_stats (
   PRIMARY KEY (database_name, table_name, column_name)
 ) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_bin
 COMMENT="Column statistics";
+
 
 --
 --
@@ -3408,6 +3386,34 @@ CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NUL
 
 -- Remember for later if proxies_priv table already existed
 set @had_proxies_priv_table= @@warning_count != 0;
+
+
+--
+-- Only create the ndb_binlog_index table if the server is built with ndb.
+-- Create this table last among the tables in the mysql schema to make it
+-- easier to keep tests agnostic wrt. the existence of this table.
+--
+SET @have_ndb= (select count(engine) from information_schema.engines where engine='ndbcluster');
+SET @cmd="CREATE TABLE IF NOT EXISTS ndb_binlog_index (
+  Position BIGINT UNSIGNED NOT NULL,
+  File VARCHAR(255) NOT NULL,
+  epoch BIGINT UNSIGNED NOT NULL,
+  inserts INT UNSIGNED NOT NULL,
+  updates INT UNSIGNED NOT NULL,
+  deletes INT UNSIGNED NOT NULL,
+  schemaops INT UNSIGNED NOT NULL,
+  orig_server_id INT UNSIGNED NOT NULL,
+  orig_epoch BIGINT UNSIGNED NOT NULL,
+  gci INT UNSIGNED NOT NULL,
+  next_position BIGINT UNSIGNED NOT NULL,
+  next_file VARCHAR(255) NOT NULL,
+  PRIMARY KEY(epoch, orig_server_id, orig_epoch)) ENGINE=INNODB STATS_PERSISTENT=0";
+
+SET @str = IF(@have_ndb = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 
 #
 # SQL commands for creating the tables in MySQL Server which
