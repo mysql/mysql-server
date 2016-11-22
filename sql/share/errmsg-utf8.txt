@@ -7895,6 +7895,9 @@ ER_ENGINE_CANT_DROP_TABLE
 ER_ENGINE_CANT_DROP_MISSING_TABLE
   eng "Storage engine can't drop table '%-.100s' because it is missing. Use DROP TABLE IF EXISTS to remove it from data-dictionary."
 
+ER_TABLESPACE_DUP_FILENAME
+  eng "Duplicate file name for tablespace '%-.64s'"
+
 #
 #  End of 8.0 error messages.
 #
