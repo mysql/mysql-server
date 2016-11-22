@@ -4893,6 +4893,7 @@ static bool update_schema_privilege(THD *thd, TABLE *table, char *buff,
 {
   int i= 2;
   CHARSET_INFO *cs= system_charset_info;
+ DBUG_ASSERT(assert_acl_cache_read_lock(thd));
   restore_record(table, s->default_values);
   table->field[0]->store(buff, strlen(buff), cs);
   table->field[1]->store(STRING_WITH_LEN("def"), cs);
@@ -5243,6 +5244,10 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
                                       NULL, NULL, 1, 1);
   const char *curr_host= thd->security_context()->priv_host_name();
   DBUG_ENTER("fill_schema_table_privileges");
+
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock())
+    DBUG_RETURN(1);
 
   for (index=0 ; index < column_priv_hash.records ; index++)
   {
