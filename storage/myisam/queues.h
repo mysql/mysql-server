@@ -62,15 +62,15 @@ typedef int (*queue_compare)(void *,uchar *, uchar *);
 
 int init_queue(QUEUE *queue, PSI_memory_key psi_key,
                uint max_elements,uint offset_to_key,
-	       pbool max_at_top, queue_compare compare,
+	       my_bool max_at_top, queue_compare compare,
 	       void *first_cmp_arg);
 int init_queue_ex(QUEUE *queue, PSI_memory_key psi_key,
                   uint max_elements,uint offset_to_key,
-	       pbool max_at_top, queue_compare compare,
+	       my_bool max_at_top, queue_compare compare,
 	       void *first_cmp_arg, uint auto_extent);
 int reinit_queue(QUEUE *queue, PSI_memory_key psi_key,
                  uint max_elements,uint offset_to_key,
-                 pbool max_at_top, queue_compare compare,
+                 my_bool max_at_top, queue_compare compare,
                  void *first_cmp_arg);
 void delete_queue(QUEUE *queue);
 void queue_insert(QUEUE *queue,uchar *element);

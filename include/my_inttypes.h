@@ -120,8 +120,6 @@ typedef ptrdiff_t       my_ptrdiff_t;
 
 typedef char            my_bool; /* Small bool */
 
-typedef char pbool;  /* Obsolete. */
-
 #if !defined(__cplusplus) && !defined(bool)
 #define bool In_C_you_should_use_my_bool_instead()
 #endif

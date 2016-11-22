@@ -159,7 +159,7 @@ static uint max_bit(uint value);
 static int compress_isam_file(PACK_MRG_INFO *file,HUFF_COUNTS *huff_counts);
 static char *make_new_name(char *new_name,char *old_name);
 static char *make_old_name(char *new_name,char *old_name);
-static void init_file_buffer(File file,pbool read_buffer);
+static void init_file_buffer(File file,my_bool read_buffer);
 static int flush_buffer(ulong neaded_length);
 static void end_file_buffer(void);
 static void write_bits(ulonglong value, uint bits);
@@ -2838,7 +2838,7 @@ static char *make_old_name(char *new_name, char *old_name)
 
 	/* rutines for bit writing buffer */
 
-static void init_file_buffer(File file, pbool read_buffer)
+static void init_file_buffer(File file, my_bool read_buffer)
 {
   file_buffer.file=file;
   file_buffer.buffer= (uchar*) my_malloc(PSI_NOT_INSTRUMENTED,

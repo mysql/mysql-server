@@ -61,7 +61,7 @@ static int resize_queue(QUEUE *queue, PSI_memory_key key, uint max_elements);
 
 extern "C" int init_queue(QUEUE *queue, PSI_memory_key psi_key,
                           uint max_elements, uint offset_to_key,
-                          pbool max_at_top,
+                          my_bool max_at_top,
                           int (*compare) (void *, uchar *, uchar *),
                           void *first_cmp_arg)
 {
@@ -106,7 +106,7 @@ extern "C" int init_queue(QUEUE *queue, PSI_memory_key psi_key,
 */
 
 extern "C" int init_queue_ex(QUEUE *queue, PSI_memory_key psi_key, uint max_elements,
-                             uint offset_to_key, pbool max_at_top,
+                             uint offset_to_key, my_bool max_at_top,
                              int (*compare) (void *, uchar *, uchar *),
                              void *first_cmp_arg, uint auto_extent)
 {
@@ -144,7 +144,7 @@ extern "C" int init_queue_ex(QUEUE *queue, PSI_memory_key psi_key, uint max_elem
 */
 
 extern "C" int reinit_queue(QUEUE *queue, PSI_memory_key psi_key, uint max_elements, uint offset_to_key,
-                            pbool max_at_top,
+                            my_bool max_at_top,
                             int (*compare) (void *, uchar *, uchar *),
                             void *first_cmp_arg)
 {
