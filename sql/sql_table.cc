@@ -2089,17 +2089,17 @@ static bool rea_create_table(THD *thd, const char *path,
   }
   else
   {
-    if (!dd::create_table(thd, db, table_name,
-                          create_info,
-                          create_fields,
-                          key_info,
-                          keys,
-                          keys_onoff,
-                          fk_key_info,
-                          fk_keys,
-                          file,
-                          !(create_info->db_type->flags &
-                            HTON_SUPPORTS_ATOMIC_DDL)))
+    if (dd::create_table(thd, db, table_name,
+                         create_info,
+                         create_fields,
+                         key_info,
+                         keys,
+                         keys_onoff,
+                         fk_key_info,
+                         fk_keys,
+                         file,
+                         !(create_info->db_type->flags &
+                           HTON_SUPPORTS_ATOMIC_DDL)))
       DBUG_RETURN(true);
   }
 
@@ -2278,18 +2278,18 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
           lpt->table->file->indexes_are_disabled()) ? Alter_info::DISABLE :
          lpt->alter_info->keys_onoff);
 
-      if (!dd::create_table(lpt->thd,
-                            lpt->db,
-                            shadow_name,
-                            lpt->create_info,
-                            lpt->alter_info->create_list,
-                            lpt->key_info_buffer,
-                            lpt->key_count,
-                            keys_onoff,
-                            not_used1,
-                            not_used2,
-                            lpt->table->file,
-                            true))
+      if (dd::create_table(lpt->thd,
+                           lpt->db,
+                           shadow_name,
+                           lpt->create_info,
+                           lpt->alter_info->create_list,
+                           lpt->key_info_buffer,
+                           lpt->key_count,
+                           keys_onoff,
+                           not_used1,
+                           not_used2,
+                           lpt->table->file,
+                           true))
       {
         DBUG_RETURN(true);
       }

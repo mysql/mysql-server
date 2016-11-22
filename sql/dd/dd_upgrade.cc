@@ -2190,7 +2190,7 @@ static bool migrate_table_to_dd(THD *thd,
   // Disable autocommit option in thd variable
   Disable_autocommit_guard autocommit_guard(thd);
 
-  if (!dd::create_dd_user_table(thd,
+  if (dd::create_dd_user_table(thd,
                                schema_name,
                                table_name,
                                &create_info,

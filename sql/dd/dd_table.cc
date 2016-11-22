@@ -2148,16 +2148,16 @@ static bool fill_dd_table_from_create_info(THD *thd,
 }
 
 
-static std::unique_ptr<dd::Table> create_dd_system_table(THD *thd,
-                                    const dd::String_type &table_name,
-                                    HA_CREATE_INFO *create_info,
-                                    const List<Create_field> &create_fields,
-                                    const KEY *keyinfo,
-                                    uint keys,
-                                    const FOREIGN_KEY *fk_keyinfo,
-                                    uint fk_keys,
-                                    handler *file,
-                                    const dd::Object_table &dd_table)
+static bool create_dd_system_table(THD *thd,
+                                   const dd::String_type &table_name,
+                                   HA_CREATE_INFO *create_info,
+                                   const List<Create_field> &create_fields,
+                                   const KEY *keyinfo,
+                                   uint keys,
+                                   const FOREIGN_KEY *fk_keyinfo,
+                                   uint fk_keys,
+                                   handler *file,
+                                   const dd::Object_table &dd_table)
 {
   // Retrieve the system schema.
   const Schema *system_schema= NULL;
@@ -2166,13 +2166,13 @@ static std::unique_ptr<dd::Table> create_dd_system_table(THD *thd,
                                 &system_schema))
   {
     // Error is reported by the dictionary subsystem.
-    return nullptr;
+    return true;
   }
 
   if (!system_schema)
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), MYSQL_SCHEMA_NAME.str);
-    return nullptr;
+    return true;
   }
 
   // Create dd::Table object.
@@ -2186,7 +2186,7 @@ static std::unique_ptr<dd::Table> create_dd_system_table(THD *thd,
                                      create_info, create_fields,
                                      keyinfo, keys, Alter_info::ENABLE,
                                      fk_keyinfo, fk_keys, file))
-    return nullptr;
+    return true;
 
   /*
     Get the se private data for the DD table
@@ -2205,26 +2205,26 @@ static std::unique_ptr<dd::Table> create_dd_system_table(THD *thd,
   {
     if (file->ha_get_se_private_data(tab_obj.get(),
                                      dd_table.default_dd_version(thd)))
-      return nullptr;
+      return true;
   }
   thd->dd_client()->store(tab_obj.get());
 
-  return std::unique_ptr<dd::Table>(tab_obj->clone());
+  return false;
 }
 
 
-std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
-                             const dd::String_type &schema_name,
-                             const dd::String_type &table_name,
-                             HA_CREATE_INFO *create_info,
-                             const List<Create_field> &create_fields,
-                             const KEY *keyinfo,
-                             uint keys,
-                             Alter_info::enum_enable_or_disable keys_onoff,
-                             const FOREIGN_KEY *fk_keyinfo,
-                             uint fk_keys,
-                             handler *file,
-                             bool commit_dd_changes)
+bool create_dd_user_table(THD *thd,
+                          const dd::String_type &schema_name,
+                          const dd::String_type &table_name,
+                          HA_CREATE_INFO *create_info,
+                          const List<Create_field> &create_fields,
+                          const KEY *keyinfo,
+                          uint keys,
+                          Alter_info::enum_enable_or_disable keys_onoff,
+                          const FOREIGN_KEY *fk_keyinfo,
+                          uint fk_keys,
+                          handler *file,
+                          bool commit_dd_changes)
 {
   // Verify that this is not a dd table.
   DBUG_ASSERT(!dd::get_dictionary()->is_dd_table_name(schema_name,
@@ -2240,13 +2240,13 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
       thd->dd_client()->acquire(schema_name, &sch_obj))
   {
     // Error is reported by the dictionary subsystem.
-    return nullptr;
+    return true;
   }
 
   if (!sch_obj)
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), schema_name.c_str());
-    return nullptr;
+    return true;
   }
 
   // Create dd::Table object.
@@ -2259,7 +2259,7 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
                                      create_info, create_fields,
                                      keyinfo, keys, keys_onoff,
                                      fk_keyinfo, fk_keys, file))
-    return nullptr;
+    return true;
 
   // WL7743:/TODO: Consider pulling out commit/rollback code below
   //               once partitioning DDL code is removed.
@@ -2277,31 +2277,31 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
     }
-    return nullptr;
+    return true;
   }
 
   if (commit_dd_changes)
   {
     if (trans_commit_stmt(thd) || trans_commit(thd))
-      return nullptr;
+      return true;
   }
 
-  return tab_obj;
+  return false;
 }
 
 
-std::unique_ptr<dd::Table> create_table(THD *thd,
-                             const dd::String_type &schema_name,
-                             const dd::String_type &table_name,
-                             HA_CREATE_INFO *create_info,
-                             const List<Create_field> &create_fields,
-                             const KEY *keyinfo,
-                             uint keys,
-                             Alter_info::enum_enable_or_disable keys_onoff,
-                             const FOREIGN_KEY *fk_keyinfo,
-                             uint fk_keys,
-                             handler *file,
-                             bool commit_dd_changes)
+bool create_table(THD *thd,
+                  const dd::String_type &schema_name,
+                  const dd::String_type &table_name,
+                  HA_CREATE_INFO *create_info,
+                  const List<Create_field> &create_fields,
+                  const KEY *keyinfo,
+                  uint keys,
+                  Alter_info::enum_enable_or_disable keys_onoff,
+                  const FOREIGN_KEY *fk_keyinfo,
+                  uint fk_keys,
+                  handler *file,
+                  bool commit_dd_changes)
 {
   dd::Dictionary *dict= dd::get_dictionary();
   const dd::Object_table *dd_table= dict->get_dd_table(schema_name, table_name);
