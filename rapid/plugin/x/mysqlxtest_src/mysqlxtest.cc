@@ -85,7 +85,7 @@ static Message_by_id client_msgs_by_id;
 bool OPT_quiet = false;
 bool OPT_bindump = false;
 bool OPT_show_warnings = false;
-bool OPT_fatal_errors = false;
+bool OPT_fatal_errors = true;
 bool OPT_verbose = false;
 bool OPT_query = true;
 #ifndef _WIN32
@@ -1411,9 +1411,8 @@ private:
     catch (mysqlx::Error &err)
     {
       context.connection()->pop_local_notice_handler();
-      dumpx(err);
-      if (OPT_fatal_errors)
-        return Stop_with_success;
+      if (!OPT_expect_error->check_error(err))
+        return Stop_with_failure;
     }
 
     return Continue;
@@ -3062,7 +3061,7 @@ public:
     std::cout << "--connect-expired-password Allow expired password\n";
     std::cout << "--quiet               Don't print out messages sent\n";
     std::cout << "-vVARIABLE_NAME=VALUE Set variable VARIABLE_NAME from command line\n";
-    std::cout << "--fatal-errors=<0|1>  Mysqlxtest is started with ignoring or stopping on fatal error\n";
+    std::cout << "--fatal-errors=<0|1>  Mysqlxtest is started with ignoring or stopping on fatal error (default: 1)\n";
     std::cout << "-B, --bindump         Dump binary representation of messages sent, in format suitable for\n";
     std::cout << "--verbose             Enable extra verbose messages\n";
     std::cout << "--daemon              Work as a daemon (unix only)\n";

@@ -33,7 +33,7 @@ OK
 Delete our account by hand and try to login (should fail but not crash)
 install plugin mysqlx soname "mysqlx.so";
 drop user mysqlxsys@localhost;
-in main, line 0:ERROR: Unable to switch context to user mysqlxsys (code 1045)
+Application terminated with expected error: Unable to switch context to user mysqlxsys (code 1045)
 not ok
 Uninstall plugin with our account gone (see if cleanup works ok)
 uninstall plugin mysqlx;
@@ -76,7 +76,7 @@ FAIL
 Expire our account and see what happens (login should fail)
 install plugin mysqlx soname "mysqlx.so";
 alter user mysqlxsys@localhost password expire;
-in main, line 0:ERROR: Password for mysqlxsys@localhost account has been expired (code 1045)
+Application terminated with expected error: Password for mysqlxsys@localhost account has been expired (code 1045)
 not ok
 uninstall plugin mysqlx;
 Start mysqlxplugin with existing mysqlxsys account with expired password
@@ -85,14 +85,14 @@ GRANT SELECT ON mysql.user TO mysqlxsys@localhost;
 GRANT SUPER ON *.* TO mysqlxsys@localhost;
 ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
 install plugin mysqlx soname "mysqlx.so";
-in main, line 0:ERROR: Password for mysqlxsys@localhost account has been expired (code 1045)
+Application terminated with expected error: Password for mysqlxsys@localhost account has been expired (code 1045)
 not ok
 UNINSTALL PLUGIN mysqlx;
 Start mysqlxplugin with existing mysqlxsys account with expired password and no priv
 CREATE USER mysqlxsys@localhost;
 ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
 install plugin mysqlx soname "mysqlx.so";
-in main, line 0:ERROR: Password for mysqlxsys@localhost account has been expired (code 1045)
+Application terminated with expected error: Password for mysqlxsys@localhost account has been expired (code 1045)
 not ok
 UNINSTALL PLUGIN mysqlx;
 Start mysqlxplugin with existing mysqlxsys account without priv

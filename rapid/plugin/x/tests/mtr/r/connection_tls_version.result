@@ -112,7 +112,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-in main, line 0:ERROR: TLS version is invalid (code 2026)
+Application terminated with expected error: TLS version is invalid (code 2026)
 not ok
 # restart: --tls-version=TLSv1
 CONNECTION_TYPE
@@ -167,7 +167,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-in main, line 0:ERROR: protocol version mismatch (code 2026)
+Application terminated with expected error: protocol version mismatch (code 2026)
 not ok
 CONNECTION_TYPE
 SSL/TLS
@@ -182,9 +182,9 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-in main, line 0:ERROR: protocol version mismatch (code 2026)
+Application terminated with expected error: protocol version mismatch (code 2026)
 not ok
-in main, line 0:ERROR: TLS version is invalid (code 2026)
+Application terminated with expected error: TLS version is invalid (code 2026)
 not ok
 # restart: --tls-version=TLSv1.1
 CONNECTION_TYPE
@@ -226,7 +226,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-in main, line 0:ERROR: socket layer receive error (code 2026)
+Application terminated with expected error: socket layer receive error (code 2026)
 not ok
 CONNECTION_TYPE
 SSL/TLS
@@ -241,7 +241,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-in main, line 0:ERROR: socket layer receive error (code 2026)
+Application terminated with expected error: socket layer receive error (code 2026)
 not ok
 CONNECTION_TYPE
 SSL/TLS
@@ -256,7 +256,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-in main, line 0:ERROR: TLS version is invalid (code 2026)
+Application terminated with expected error: TLS version is invalid (code 2026)
 not ok
 DROP USER user5_mysqlx@localhost;
 UNINSTALL PLUGIN mysqlx;

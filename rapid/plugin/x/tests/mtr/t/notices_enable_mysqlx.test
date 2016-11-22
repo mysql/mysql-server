@@ -483,6 +483,7 @@ create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
 -->expecterror 1071
 -->recvresult
 
+-->expecterror 1193
 -->sql
 ## setting back to original value
 set global innodb_large_prefix=1;
