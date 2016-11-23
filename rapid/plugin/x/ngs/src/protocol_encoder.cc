@@ -333,16 +333,22 @@ bool Protocol_encoder::send_column_metadata(uint64_t collation, int type, int de
 
 bool Protocol_encoder::flush_buffer()
 {
-  ssize_t result = m_socket->write(m_buffer->get_buffers());
-  if (result <= 0)
-  {
-    log_info("Error writing to client: %s (%i)", strerror(errno), errno);
-    on_error(errno);
-    return false;
-  }
-  m_buffer->reset();
+  const bool is_valid_socket = INVALID_SOCKET != m_socket->get_socket_id();
 
-  m_protocol_monitor->on_send(static_cast<long>(result));
+  if (is_valid_socket)
+  {
+    const ssize_t result = m_socket->write(m_buffer->get_buffers());
+    if (result <= 0)
+    {
+      log_info("Error writing to client: %s (%i)", strerror(errno), errno);
+      on_error(errno);
+      return false;
+    }
+
+    m_protocol_monitor->on_send(static_cast<long>(result));
+  }
+
+  m_buffer->reset();
 
   return true;
 }
