@@ -10122,7 +10122,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
                       lex->get_stmt_unsafe_flags()));
 
   if (!is_attachable_ro_transaction_active())
-    DEBUG_SYNC(current_thd, "begin_decide_logging_format");
+    DEBUG_SYNC(this, "begin_decide_logging_format");
 
   reset_binlog_local_stmt_filter();
 
@@ -10667,7 +10667,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
   }
 
   if (!is_attachable_ro_transaction_active())
-    DEBUG_SYNC(current_thd, "end_decide_logging_format");
+    DEBUG_SYNC(this, "end_decide_logging_format");
 
   DBUG_RETURN(0);
 }
