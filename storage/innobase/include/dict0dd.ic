@@ -50,3 +50,87 @@ innobase_parse_tbl_name(
 	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1);
 	filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1);
 }
+
+/** Look up a column in a table using the system_charset_info collation.
+@param[in]      dd_table        data dictionary table
+@param[in]      name            column name
+@return the column
+@retval nullptr if not found */
+UNIV_INLINE
+const dd::Column*
+dd_find_column(
+	dd::Table* dd_table,
+	const char* name)
+{
+	for (const dd::Column* c : dd_table->columns()) {
+		if (!my_strcasecmp(system_charset_info,
+				   c->name().c_str(), name)) {
+			return(c);
+		}
+	}
+        return(nullptr);
+}
+
+/** Add a hidden column when creating a table.
+@param[in,out]  dd_table        table containing user columns and indexes
+@param[in]      name            hidden column name
+@param[in]      length          length of the column, in bytes
+@return the added column, or NULL if there already was a column by that name */
+UNIV_INLINE
+dd::Column*
+dd_add_hidden_column(
+        dd::Table*      dd_table,
+        const char*     name,
+        uint            length)
+{
+        if (const dd::Column* c = dd_find_column(dd_table, name)) {
+                my_error(ER_WRONG_COLUMN_NAME, MYF(0), c->name().c_str());
+                return(nullptr);
+        }
+
+        dd::Column* col = dd_table->add_column();
+        col->set_hidden(true);
+        col->set_name(name);
+        col->set_type(dd::enum_column_types::STRING);
+        col->set_nullable(false);
+        col->set_char_length(length);
+        col->set_collation_id(my_charset_bin.number);
+
+        return(col);
+}
+
+
+/** Add a hidden index element at the end.
+@param[in,out]  index   created index metadata
+@param[in]      column  column of the index */
+UNIV_INLINE
+void
+dd_add_hidden_element(dd::Index* index, const dd::Column* column)
+{
+        dd::Index_element* e = index->add_element(
+                const_cast<dd::Column*>(column));
+        e->set_hidden(true);
+        e->set_order(dd::Index_element::ORDER_ASC);
+}
+
+/** Initialize a hidden unique B-tree index.
+@param[in,out]  index   created index metadata
+@param[in]      name    name of the index
+@param[in]      column  column of the index
+@return the initialized index */
+UNIV_INLINE
+dd::Index*
+dd_set_hidden_unique_index(
+        dd::Index*              index,
+        const char*             name,
+        const dd::Column*       column)
+{
+        index->set_name(name);
+        index->set_hidden(true);
+        index->set_algorithm(dd::Index::IA_BTREE);
+        index->set_type(dd::Index::IT_UNIQUE);
+        index->set_engine(innobase_hton_name);
+        dd_add_hidden_element(index, column);
+        return(index);
+}
+

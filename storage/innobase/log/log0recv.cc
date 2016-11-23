@@ -667,9 +667,7 @@ MetadataRecover::apply()
 		PersistentTableMetadata*metadata = iter->second;
 		dict_table_t*		table;
 
-		table = dd_table_open_on_id(table_id, NULL, NULL);
-		//table = dict_table_open_on_id(
-		//	table_id, true, DICT_TABLE_OP_LOAD_TABLESPACE);
+		table = dd_table_open_on_id(table_id, NULL, NULL, false);
 
 		/* If the table is NULL, it might be already dropped */
 		if (table == NULL) {
@@ -715,7 +713,7 @@ MetadataRecover::apply()
 		mutex_exit(&dict_persist->mutex);
 		mutex_exit(&dict_sys->mutex);
 
-		dd_table_close(table, NULL, NULL);
+		dd_table_close(table, NULL, NULL, false);
 	}
 }
 

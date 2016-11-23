@@ -921,7 +921,7 @@ try_again:
 			node->mdl = no_mdl;
 
 			node->table = dd_table_open_on_id(
-				table_id, thd, &node->mdl);
+				table_id, thd, &node->mdl, false);
 
 			if (node->table != nullptr) {
 				break;
@@ -953,7 +953,8 @@ try_again:
 				dict_table_close(node->table, FALSE, FALSE);
 				node->table = NULL;
 			} else  {
-				dd_table_close(node->table, thd, &node->mdl);
+				dd_table_close(node->table, thd,
+					       &node->mdl, false);
 			}
 			if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 				return(false);
@@ -980,7 +981,7 @@ try_again:
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
-	                dd_table_close(node->table, thd, &node->mdl);
+	                dd_table_close(node->table, thd, &node->mdl, false);
                 }
 
 		node->table = NULL;
@@ -1001,7 +1002,7 @@ close_exit:
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
-			dd_table_close(node->table, thd, &node->mdl);
+			dd_table_close(node->table, thd, &node->mdl, false);
 		}
 err_exit:
 		if (*dict_op_lock_acquired) {
@@ -1111,7 +1112,7 @@ row_purge_record_func(
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
-	                dd_table_close(node->table, thd, &node->mdl);
+	                dd_table_close(node->table, thd, &node->mdl, false);
                 }
 	}
 

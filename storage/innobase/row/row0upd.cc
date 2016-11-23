@@ -261,7 +261,7 @@ row_upd_check_references_constraints(
 				ref_table = dd_table_open_on_name(
 					trx->mysql_thd, &mdl,
 					foreign->foreign_table_name_lookup,
-					DICT_ERR_IGNORE_NONE);
+					false, DICT_ERR_IGNORE_NONE);
 			}
 
 			/* NOTE that if the thread ends up waiting for a lock

@@ -312,7 +312,7 @@ dict_stats_process_entry_from_recalc_pool(
 	dict_table_t*	table;
 	MDL_ticket*	mdl = nullptr;
 
-	table = dd_table_open_on_id(table_id, thd, &mdl);
+	table = dd_table_open_on_id(table_id, thd, &mdl, false);
 
 	if (table == NULL) {
 		/* table does not exist, must have been DROPped
@@ -322,7 +322,7 @@ dict_stats_process_entry_from_recalc_pool(
 
 	/* Check whether table is corrupted */
 	if (table->is_corrupted()) {
-		dd_table_close(table, thd, &mdl);
+		dd_table_close(table, thd, &mdl, false);
 		return;
 	}
 
@@ -347,7 +347,7 @@ dict_stats_process_entry_from_recalc_pool(
 		dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);
 	}
 
-	dd_table_close(table, thd, &mdl);
+	dd_table_close(table, thd, &mdl, false);
 }
 
 #ifdef UNIV_DEBUG

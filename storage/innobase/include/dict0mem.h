@@ -232,7 +232,7 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			9
+#define DICT_TF2_BITS			10	
 #define DICT_TF2_UNUSED_BIT_MASK	(~0U << DICT_TF2_BITS)
 #define DICT_TF2_BIT_MASK		~DICT_TF2_UNUSED_BIT_MASK
 
@@ -269,6 +269,8 @@ it is not created by user and so not visible to end-user. */
 /** Encryption table bit. */
 #define DICT_TF2_ENCRYPTION		256
 
+/** FTS AUX hidden table bit. */
+#define DICT_TF2_AUX			512	
 /* @} */
 
 #define DICT_TF2_FLAG_SET(table, flag)		\
@@ -2068,6 +2070,13 @@ public:
 	{
 		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
 		return(flags2 & DICT_TF2_TEMPORARY);
+	}
+
+	/** Determine if this is a FTS AUX table. */
+	bool is_fts_aux() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+		return(flags2 & DICT_TF2_AUX);
 	}
 
 	/** Determine whether the table is intrinsic.

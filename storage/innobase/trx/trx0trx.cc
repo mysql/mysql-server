@@ -787,13 +787,13 @@ trx_resurrect_locks()
 		for (table_id_set::const_iterator i = tables.begin();
 		     i != tables.end(); i++) {
 			dict_table_t* table = dd_table_open_on_id(
-				*i, NULL, NULL);
+				*i, NULL, NULL, false);
 			if (table) {
 				ut_ad(!table->is_temporary());
 
 				if (table->ibd_file_missing
 				    || table->is_temporary()) {
-					dd_table_close(table, NULL, NULL);
+					dd_table_close(table, NULL, NULL, false);
 					mutex_enter(&dict_sys->mutex);
 					dict_table_remove_from_cache(table);
 					mutex_exit(&dict_sys->mutex);
@@ -812,7 +812,7 @@ trx_resurrect_locks()
 					    trx_get_id_for_print(trx),
 					    table->name.m_name));
 
-				dd_table_close(table, NULL, NULL);
+				dd_table_close(table, NULL, NULL, false);
 			}
 		}
 	}

@@ -97,6 +97,8 @@ enum dd_index_keys {
 	DD_INDEX__LAST
 };
 
+static const char innobase_hton_name[]= "InnoDB";
+
 /** InnoDB private key strings for dd::Index or dd::Partition_index.
 @see dd_index_keys */
 extern const char* const	dd_index_key_strings[DD_INDEX__LAST];
@@ -151,17 +153,20 @@ dict_table_t*
 dd_table_open_on_id(
 	table_id_t	table_id,
 	THD*		thd,
-	MDL_ticket**	mdl);
+	MDL_ticket**	mdl,
+	bool		dict_locked);
 
 /** Close an internal InnoDB table handle.
 @param[in,out]	table	InnoDB table handle
 @param[in,out]	thd	current MySQL connection (for mdl)
-@param[in,out]	mdl	metadata lock (will be set NULL) */
+@param[in,out]	mdl	metadata lock (will be set NULL)
+@param[in]	dict_locked	whether we hold dict_sys mutex */
 void
 dd_table_close(
 	dict_table_t*	table,
 	THD*		thd,
-	MDL_ticket**	mdl);
+	MDL_ticket**	mdl,
+	bool		dict_locked);
 
 /** Set the discard flag for a dd table.
 @param[in,out]	thd	current thread
@@ -175,9 +180,11 @@ dd_table_set_discard_flag(
 	bool			discard);
 
 /** Open an internal handle to a persistent InnoDB table by name.
-@param[in,out]	thd	current thread
-@param[out]	mdl	metadata lock
-@param[in]	name	InnoDB table name
+@param[in,out]	thd		current thread
+@param[out]	mdl		metadata lock
+@param[in]	name		InnoDB table name
+@param[in]	dict_locked	has dict_sys mutex locked
+@param[in]	ignore_err	whether to ignore err
 @return handle to non-partitioned table
 @retval NULL if the table does not exist */
 dict_table_t*
@@ -185,6 +192,7 @@ dd_table_open_on_name(
 	THD*			thd,
 	MDL_ticket**		mdl,
 	const char*		name,
+	bool			dict_locked,
 	dict_err_ignore_t	ignore_err);
 
 /** Returns a table object based on table id.
@@ -264,6 +272,48 @@ innobase_parse_tbl_name(
 	const char*	tbl_name,
 	char*		dd_db_name,
 	char*		dd_tbl_name);
+
+/** Look up a column in a table using the system_charset_info collation.
+@param[in]      dd_table        data dictionary table
+@param[in]      name            column name
+@return the column
+@retval nullptr if not found */
+UNIV_INLINE
+const dd::Column*
+dd_find_column(
+	dd::Table* dd_table,
+	const char* name);
+
+/** Add a hidden column when creating a table.
+@param[in,out]  dd_table        table containing user columns and indexes
+@param[in]      name            hidden column name
+@param[in]      length          length of the column, in bytes
+@return the added column, or NULL if there already was a column by that name */
+UNIV_INLINE
+dd::Column*
+dd_add_hidden_column(
+        dd::Table*      dd_table,
+        const char*     name,
+        uint            length);
+
+/** Add a hidden index element at the end.
+@param[in,out]  index   created index metadata
+@param[in]      column  column of the index */
+UNIV_INLINE
+void
+dd_add_hidden_element(dd::Index* index, const dd::Column* column);
+
+/** Initialize a hidden unique B-tree index.
+@param[in,out]  index   created index metadata
+@param[in]      name    name of the index
+@param[in]      column  column of the index
+@return the initialized index */
+UNIV_INLINE
+dd::Index*
+dd_set_hidden_unique_index(
+        dd::Index*              index,
+        const char*             name,
+        const dd::Column*       column);
 
 #include "dict0dd.ic"
 #endif

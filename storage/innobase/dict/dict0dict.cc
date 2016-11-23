@@ -2781,7 +2781,6 @@ dict_index_add_to_cache_w_vcol(
 					dict_v_idx_t	v_index = *it;
 					if (v_index.index == index) {
 						vcol->v_indexes->erase(it);
-						break;
 					}
 				}
 			}
@@ -3695,14 +3694,13 @@ dict_foreign_add_to_cache(
 		for_in_cache = dict_foreign_find(ref_table, foreign);
 	}
 
-	if (for_in_cache) {
+	if (for_in_cache && for_in_cache != foreign) {
 		/* Free the foreign object */
 		dict_foreign_free(foreign);
 	} else {
 		for_in_cache = foreign;
 
 	}
-
 
 	if (ref_table && !for_in_cache->referenced_table) {
 		index = dict_foreign_find_index(

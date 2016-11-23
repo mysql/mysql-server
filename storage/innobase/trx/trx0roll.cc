@@ -699,7 +699,7 @@ trx_rollback_active(
 		MDL_ticket*	mdl;
 
 		table = dd_table_open_on_id(
-			trx->table_id, current_thd, &mdl);
+			trx->table_id, current_thd, &mdl, false);
 
 		if (table && !dict_table_is_discarded(table)) {
 			ib::warn() << "Dropping table '" << table->name

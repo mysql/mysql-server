@@ -569,22 +569,27 @@ dd_check_corrupted(dict_table_t*& table)
 
 /** Open a persistent InnoDB table based on InnoDB table id, and
 held Shared MDL lock on it.
-@param[in]      table_id        table identifier
-@param[in,out]  thd             current MySQL connection (for mdl)
-@param[in,out]  mdl             metadata lock (*mdl set if table_id was found);
+@param[in]	table_id	table identifier
+@param[in,out]	thd		current MySQL connection (for mdl)
+@param[in,out]	mdl		metadata lock (*mdl set if table_id was found);
+@param[in]	dict_lock	dict_sys mutex is held
 mdl=NULL if we are resurrecting table IX locks in recovery
 @return table
 @retval NULL if the table does not exist or cannot be opened */
 dict_table_t*
 dd_table_open_on_id(
-        table_id_t      table_id,
-        THD*            thd,
-        MDL_ticket**    mdl)
+	table_id_t	table_id,
+	THD*		thd,
+	MDL_ticket**	mdl,
+	bool		dict_locked)
 {
 	dict_table_t*   ib_table;
 	const ulint     fold = ut_fold_ull(table_id);
 
-	mutex_enter(&dict_sys->mutex);
+	if (!dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
 	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold,
 		    dict_table_t*, ib_table, ut_ad(ib_table->cached),
 		    ib_table->id == table_id);
@@ -601,7 +606,9 @@ dd_table_open_on_id(
 				space_id, copy_num, false, 0);
 
 			if (sdi_index == NULL) {
-				mutex_exit(&dict_sys->mutex);
+				if (!dict_locked) {
+					mutex_exit(&dict_sys->mutex);
+				}
 				return(NULL);
 			}
 
@@ -609,9 +616,12 @@ dd_table_open_on_id(
 
 			ut_ad(ib_table != NULL);
 			ib_table->acquire();
-			mutex_exit(&dict_sys->mutex);
+			if (!dict_locked) {
+				mutex_exit(&dict_sys->mutex);
+			}
 		} else {
 			mutex_exit(&dict_sys->mutex);
+
 			ib_table = dd_table_open_on_id_low(
 				thd, mdl, nullptr, table_id);
 		}
@@ -643,6 +653,7 @@ dd_table_open_on_id(
 
 			/* Re-lookup the table after acquiring MDL. */
 			mutex_enter(&dict_sys->mutex);
+
 			HASH_SEARCH(
 				id_hash, dict_sys->table_id_hash, fold,
 				dict_table_t*, ib_table,
@@ -674,14 +685,9 @@ dd_table_open_on_id(
 
 
 	if (ib_table != nullptr) {
-		/* TODO: NewDD: Better there is a table flag for AUX table */
-		fts_aux_table_t	aux_table;
-
 		if (table_id > 16 && !dict_table_is_sdi(table_id)
 		    && !ib_table->ibd_file_missing
-		    && !fts_is_aux_table_name(
-			&aux_table, ib_table->name.m_name,
-			strlen(ib_table->name.m_name))) {
+		    && !ib_table->is_fts_aux()) {
 			if (!ib_table->stat_initialized) {
 				dict_stats_init(ib_table);
 			}
@@ -691,6 +697,9 @@ dd_table_open_on_id(
 		MONITOR_INC(MONITOR_TABLE_REFERENCE);
 	}
 
+	if (dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
 	return(ib_table);
 }
 
@@ -757,9 +766,11 @@ dd_table_set_discard_flag(
 }
 
 /** Open an internal handle to a persistent InnoDB table by name.
-@param[in,out]	thd	current thread
-@param[out]	mdl	metadata lock
-@param[in]	name	InnoDB table name
+@param[in,out]	thd		current thread
+@param[out]	mdl		metadata lock
+@param[in]	name		InnoDB table name
+@param[in]	dict_locked	has dict_sys mutex locked
+@param[in]	ignore_err	whether to ignore err
 @return handle to non-partitioned table
 @retval NULL if the table does not exist */
 dict_table_t*
@@ -767,6 +778,7 @@ dd_table_open_on_name(
 	THD*			thd,
 	MDL_ticket**		mdl,
 	const char*		name,
+	bool			dict_locked,
 	dict_err_ignore_t	ignore_err)
 {
 	DBUG_ENTER("dd_table_open_on_name");
@@ -798,14 +810,20 @@ dd_table_open_on_name(
 		DBUG_RETURN(nullptr);
 	}
 
-	mutex_enter(&dict_sys->mutex);
+	if (!dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
 	table = dict_table_check_if_in_cache_low(name);
 
 	if (table != nullptr) {
 		table->acquire();
-		mutex_exit(&dict_sys->mutex);
+		if (!dict_locked) {
+			mutex_exit(&dict_sys->mutex);
+		}
 		DBUG_RETURN(table);
 	}
+
 	mutex_exit(&dict_sys->mutex);
 
 	const dd::Table*		dd_table = nullptr;
@@ -841,20 +859,26 @@ dd_table_open_on_name(
 		dd_mdl_release(thd, mdl);
 	}
 
+	if (dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
         DBUG_RETURN(table);
 }
 
 /** Close an internal InnoDB table handle.
-@param[in,out]  table           InnoDB table handle
-@param[in,out]  thd             current MySQL connection (for mdl)
-@param[in,out]  mdl             metadata lock (will be set NULL) */
+@param[in,out]	table		InnoDB table handle
+@param[in,out]	thd		current MySQL connection (for mdl)
+@param[in,out]	mdl		metadata lock (will be set NULL)
+@param[in]	dict_locked	whether we hold dict_sys mutex */
 void
 dd_table_close(
 	dict_table_t*	table,
 	THD*		thd,
-	MDL_ticket**	mdl)
+	MDL_ticket**	mdl,
+	bool		dict_locked)
 {
-	dict_table_close(table, false, false);
+	dict_table_close(table, dict_locked, false);
 
 	const bool is_temp = table->is_temporary();
 

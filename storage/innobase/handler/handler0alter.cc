@@ -4478,6 +4478,19 @@ prepare_inplace_alter_table_global_dd(
 	} else {
 		ut_ad(old_table == new_table);
 
+		if (old_table->flags2 & DICT_TF2_FTS_HAS_DOC_ID
+		    && !dd_find_column(&new_dd_tab->table(),
+				       FTS_DOC_ID_COL_NAME)) {
+			dd::Column* col  = dd_add_hidden_column(
+				&new_dd_tab->table(),
+				FTS_DOC_ID_COL_NAME,
+				FTS_DOC_ID_LEN);
+
+			dd_set_hidden_unique_index(
+				new_dd_tab->table().add_index(),
+				FTS_DOC_ID_INDEX_NAME, col);
+		}
+
 		/* No need to update dd::Table, but update all dd::Index */
 		new_dd_tab->set_se_private_id(old_dd_tab->se_private_id());
 

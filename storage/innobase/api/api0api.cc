@@ -943,7 +943,7 @@ ib_cursor_open_table(
 		if (!ib_schema_lock_is_exclusive(ib_trx)) {
 			table = dd_table_open_on_name(
 				trx->mysql_thd, &mdl, normalized_name,
-				DICT_ERR_IGNORE_NONE);
+				false, DICT_ERR_IGNORE_NONE);
 		} else {
 			/* NOTE: We do not acquire MySQL metadata lock */
 			table = ib_lookup_table_by_name(normalized_name);
@@ -951,7 +951,7 @@ ib_cursor_open_table(
 	} else {
 		table = dd_table_open_on_name(
 			trx->mysql_thd, &mdl, normalized_name,
-			DICT_ERR_IGNORE_NONE);
+			false, DICT_ERR_IGNORE_NONE);
 	}
 
 	ut_free(normalized_name);
@@ -3161,7 +3161,7 @@ ib_cursor_open_table_using_id(
 	dict_table_t*	table;
 	MDL_ticket*	mdl = NULL;
 
-	table = dd_table_open_on_id(table_id, ib_trx->mysql_thd, &mdl);
+	table = dd_table_open_on_id(table_id, ib_trx->mysql_thd, &mdl, false);
 
 	if (table == NULL) {
 

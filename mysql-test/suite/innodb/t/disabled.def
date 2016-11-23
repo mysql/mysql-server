@@ -24,8 +24,6 @@ analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too 
 
 
 # Disabled list(Due to server issues)
-create_tablespace         : WL#9525 disables it, waiting for tablespace fix 
-
 (Due to InnoDB issues)
 
 innodb-wl5980-discard     : WL#9525 disables it, waiting for discard tablespace fix

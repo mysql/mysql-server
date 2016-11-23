@@ -829,8 +829,6 @@ get_field_offset(
 	const TABLE*	table,
 	const Field*	field);
 
-static const char innobase_hton_name[]= "InnoDB";
-
 static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB locking in LOCK TABLES",
   /* check_func */ NULL, /* update_func */ NULL,
@@ -3719,7 +3717,7 @@ dd_open_builtin(THD* thd, const char* name, table_id_t)
 	      || strcmp(name, "innodb_table_metadata") == 0);
         MDL_ticket*     mdl = NULL;
         dict_table_t*   table = dd_table_open_on_name(
-                thd, &mdl, name, DICT_ERR_IGNORE_NONE);
+                thd, &mdl, name, false, DICT_ERR_IGNORE_NONE);
 	ut_ad(table != NULL);
         dd_mdl_release(thd, &mdl);
         return(table);
@@ -3825,13 +3823,13 @@ innobase_dict_recover(
 	case DICT_RECOVERY_INITIALIZE_SERVER:
 		dict_sys->table_stats = dd_table_open_on_name(
 			thd, NULL, "mysql/innodb_table_stats",
-			DICT_ERR_IGNORE_NONE);
+			false, DICT_ERR_IGNORE_NONE);
 		dict_sys->index_stats = dd_table_open_on_name(
 			thd, NULL, "mysql/innodb_index_stats",
-			DICT_ERR_IGNORE_NONE);
+			false, DICT_ERR_IGNORE_NONE);
 		dict_sys->table_metadata = dd_table_open_on_name(
 			thd, NULL, "mysql/innodb_table_metadata",
-			DICT_ERR_IGNORE_NONE);
+			false, DICT_ERR_IGNORE_NONE);
 
 		if (dict_sys->table_metadata == NULL) {
 			srv_missing_dd_table_buffer = true;
@@ -7571,9 +7569,6 @@ dd_copy_from_table_share(
 	ut_ad(index == nullptr);
 }
 
-const dd::Column*
-dd_find_column(dd::Table* dd_table, const char* name);
-
 /** Instantiate index related metadata
 @param[in]	dd_part		Global DD table metadata
 @param[in]	m_form		MySQL table definition
@@ -7632,9 +7627,14 @@ create_key_metadata(
 		}
 	}
 
+	if (dict_table_has_fts_index(m_table)) {
+		ut_ad(DICT_TF2_FLAG_IS_SET(m_table, DICT_TF2_FTS));
+	}
+
 	/* Create the ancillary tables that are common to all FTS indexes on
 	this table. */
-	if (dict_table_has_fts_index(m_table)) {
+	if (DICT_TF2_FLAG_IS_SET(m_table, DICT_TF2_FTS_HAS_DOC_ID)
+	    || DICT_TF2_FLAG_IS_SET(m_table, DICT_TF2_FTS)) {
 		fts_doc_id_index_enum	ret;
 
 		ut_ad(!m_table->is_intrinsic());
@@ -7691,19 +7691,20 @@ create_key_metadata(
 			innobase_adjust_fts_doc_id_index_order(
 				const_cast<dd::Table*>(dd_part), m_table);
 		}
-	}
 
-	/* Cache all the FTS indexes on this table in the FTS specific
-	structure. They are used for FTS indexed column update handling. */
-	if (dict_table_has_fts_index(m_table)) {
+		/* Cache all the FTS indexes on this table in the FTS
+		specific structure. They are used for FTS indexed
+		column update handling. */
+		if (dict_table_has_fts_index(m_table)) {
 
-		fts_t*	fts = m_table->fts;
-		ut_a(fts != nullptr);
+			fts_t*	fts = m_table->fts;
+			ut_a(fts != nullptr);
 
-		dict_table_get_all_fts_indexes(m_table, fts->indexes);
+			dict_table_get_all_fts_indexes(m_table, m_table->fts->indexes);
+		}
 
 		ulint	fts_doc_id_col = ULINT_UNDEFINED;
-		fts_doc_id_index_enum	ret;
+		
 		ret = innobase_fts_check_doc_id_index(
 			m_table, nullptr, &fts_doc_id_col);
 
@@ -7851,6 +7852,8 @@ create_table_metadata(
 	      || m_form->s->row_type == m_create_info->row_type);
 	ut_ad(m_create_info == nullptr
 	      || m_form->s->key_block_size == m_create_info->key_block_size);
+	ut_ad(dd_part != nullptr);
+
 	bool invalid = false;
 
 	if (m_form->s->fields > REC_MAX_N_USER_FIELDS) {
@@ -7885,11 +7888,22 @@ create_table_metadata(
 
 	const unsigned	n_mysql_cols = m_form->s->fields;
 
+	bool	has_doc_id = !!dd_find_column(
+		const_cast<dd::Table*>(dd_part), FTS_DOC_ID_COL_NAME);
+
 	const bool	fulltext = dd_part != nullptr
 		&& dd_table_contains_fulltext(dd_part);
-	ulint		doc_id_col;
-	bool		add_doc_id = false;
-	if (fulltext
+
+	if (fulltext) {
+		ut_ad(has_doc_id);
+	}
+
+	ulint	doc_id_col;
+	bool	add_doc_id = false;
+
+	/* Need to add FTS_DOC_ID column if it is not defined by user,
+	since TABLE_SHARE::fields does not contain it if it is a hidden col */
+	if (has_doc_id
 	    && !create_table_check_doc_id_col(m_thd, m_form, &doc_id_col)) {
 		add_doc_id = true;
 	}
@@ -7923,6 +7937,11 @@ create_table_metadata(
 
 	m_table->id = dd_part->se_private_id();
 
+	fts_aux_table_t aux_table;
+	if (fts_is_aux_table_name(&aux_table, norm_name, strlen(norm_name))) {
+		DICT_TF2_FLAG_SET(m_table, DICT_TF2_AUX);
+	}
+
 	if (is_encrypted) {
 		DICT_TF2_FLAG_SET(m_table, DICT_TF2_ENCRYPTION);
 	}
@@ -7950,9 +7969,15 @@ create_table_metadata(
 		m_table->flags |= (zip_ssize << DICT_TF_POS_ZIP_SSIZE);
 	}
 
-	m_table->flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
-	if (fulltext) {
-		m_table->flags2 |= DICT_TF2_FTS;
+	if (has_doc_id) {
+		if (fulltext) {
+			DICT_TF2_FLAG_SET(m_table, DICT_TF2_FTS);
+		}
+
+		if (add_doc_id) {
+			DICT_TF2_FLAG_SET(m_table, DICT_TF2_FTS_HAS_DOC_ID);
+		}
+
 		m_table->fts = fts_create(m_table);
 		m_table->fts->cache = fts_cache_create(m_table);
 	} else {
@@ -7969,6 +7994,8 @@ create_table_metadata(
 	if (false /* TODO intrinsic */) {
 		m_table->flags2 |= DICT_TF2_INTRINSIC;
 	}
+
+	m_table->flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
 
 	heap = mem_heap_create(1000);
 
@@ -8182,34 +8209,6 @@ create_table_metadata(
 		fts_add_doc_id_column(m_table, heap);
 	}
 
-#if 0 /* Virtual column */
-	for (unsigned v = 0; v < n_mysql_cols; v++) {
-		const Field*	field = m_form->field[v];
-
-		if (!field->is_virtual_gcol()) {
-			continue;
-		}
-
-		dict_vcol_t*	vcol
-			= new(mem_heap_alloc(m_table->heap, sizeof(*vcol)))
-			dict_vcol_t(m_table->col(v), m_table->heap);
-
-		for (unsigned b = 0; b < n_mysql_cols; b++) {
-			if (!bitmap_is_set(&field->gcol_info->base_columns_map,
-					   b)) {
-				continue;
-			}
-
-			const Field* base = m_form->field[b];
-			ut_ad(!strcmp(m_table->get_col_name(b),
-				      base->field_name));
-			if (!base->is_virtual_gcol()) {
-				vcol->add(m_table->get_col(b));
-			}
-		}
-	}
-#endif
-
 	/* Add system columns to make adding index work */
 	dict_table_add_system_columns(m_table, heap);
 
@@ -8327,20 +8326,23 @@ the foreign table, if this table is referenced by the foreign table
 				if not, *uncached=true will be assigned
 				when ib_table was allocated but not cached
 				(used during delete_table and rename_table)
-@param[out]	ib_table	InnoDB table handle
+@param[out]	m_table		InnoDB table handle
 @param[in]	dd_table	Global DD table or partition object
-@param[in]	thd		thread THD */
+@param[in]	thd		thread THD
+@return DB_SUCESS 	if successfully load FK constraint */
 static
-void
+dberr_t
 dd_table_load_fk(
-        dd::cache::Dictionary_client*   client,
-        const TABLE*                    table,
-	const char*			norm_name,
-        bool*                           uncached,
-        dict_table_t*			m_table,
-        const dd::Table*                dd_table,
+	dd::cache::Dictionary_client*	client,
+	const TABLE*			table,
+	const char*			tbl_name,
+	bool*				uncached,
+	dict_table_t*			m_table,
+	const dd::Table*		dd_table,
 	THD*				thd)
 {
+	dberr_t	err = DB_SUCCESS;
+
 	/* Now fill in the foreign key info */
 	for (const dd::Foreign_key* key : dd_table->foreign_keys()) {
 		char	buf[2 * NAME_CHAR_LEN * 5 + 2 + 1];
@@ -8426,6 +8428,7 @@ dd_table_load_fk(
 			foreign->foreign_col_names[num_ref]
 				= mem_heap_strdup(
 					foreign->heap, f_col->name().c_str());
+			num_ref++;
 		}
 
 		mutex_enter(&dict_sys->mutex);
@@ -8440,9 +8443,9 @@ dd_table_load_fk(
 
 		/* Fill in foreign->foreign_table and index, then add to
 		dict_table_t */
-		dberr_t	err = dict_foreign_add_to_cache(
-			foreign, NULL, FALSE, DICT_ERR_IGNORE_NONE);
-		ut_a(err == DB_SUCCESS);
+		err = dict_foreign_add_to_cache(
+			foreign, NULL, FALSE, DICT_ERR_IGNORE_NONE);	
+		ut_ad(err == DB_SUCCESS);
 		mutex_exit(&dict_sys->mutex);
 
 		/* Set up the FK virtual column info */
@@ -8451,7 +8454,7 @@ dd_table_load_fk(
 	}
 
 	/* TODO: NewDD: Temporary ignore system table until WL#6049 inplace */
-	if (!strstr(norm_name, "mysql")) {
+	if (!strstr(tbl_name, "mysql")) {
 		std::vector<dd::String_type>	child_schema;
 		std::vector<dd::String_type>	child_name;
 		client->fetch_fk_children_uncached(table->s->db.str,
@@ -8473,23 +8476,39 @@ dd_table_load_fk(
 			dict_table_t*	foreign_table =
 				dd_table_open_on_name(
 					thd, &mdl, full_name,
-					DICT_ERR_IGNORE_NONE);
+					false, DICT_ERR_IGNORE_NONE);
 
 #ifdef UNIV_DEBUG
 			bool found = false;
+#endif
 			for (auto &fk : foreign_table->foreign_set) {
-				if (fk->referenced_table == m_table) {
-					found = true;
+				if (strcmp(fk->referenced_table_name,
+					   tbl_name) != 0) {
+					continue;
+				}
+
+				if (fk->referenced_table) {
+					ut_ad(fk->referenced_table == m_table);
+					ut_d(found = true);
+				} else {
+					mutex_enter(&dict_sys->mutex);
+					err = dict_foreign_add_to_cache(
+						fk, NULL, FALSE,
+						DICT_ERR_IGNORE_NONE);
+					mutex_exit(&dict_sys->mutex);
+					ut_d(found = true);
 				}
 			}
 
 			ut_ad(found);
-#endif
+
 			ut_ad(it != child_name.end());
 			++it;
-			dd_table_close(foreign_table, thd, &mdl);
+			dd_table_close(foreign_table, thd, &mdl, false);
 		}
 	}
+
+	return(err);
 }
 
 /** Open or load a table definition based on a Global DD object.
@@ -9109,6 +9128,18 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 
 	case DB_SUCCESS:
 		break;
+	}
+
+#ifdef UNIV_DEBUG
+	fts_aux_table_t aux_table;
+
+	if (fts_is_aux_table_name(&aux_table, norm_name, strlen(norm_name))) {
+		ut_ad(m_prebuilt->table->is_fts_aux());
+	}
+#endif /* UNIV_DEBUG */
+
+	if (m_prebuilt->table->is_fts_aux()) {
+		dict_table_close(m_prebuilt->table, false, false);
 	}
 
 	DBUG_RETURN(0);
@@ -15564,23 +15595,6 @@ create_table_info_t::allocate_trx()
 	m_trx->ddl = true;
 }
 
-/** Look up a column in a table using the system_charset_info collation.
-@param[in]	dd_table	data dictionary table
-@param[in]	name		column name
-@return	the column
-@retval	nullptr	if not found */
-const dd::Column*
-dd_find_column(dd::Table* dd_table, const char* name)
-{
-	for (const dd::Column* c : dd_table->columns()) {
-		if (!my_strcasecmp(system_charset_info,
-				   c->name().c_str(), name)) {
-			return(c);
-		}
-	}
-	return(nullptr);
-}
-
 /** Check if a column is the only column in an index.
 @param[in]	index	data dictionary index
 @param[in]	column	the column to look for
@@ -15591,68 +15605,6 @@ dd_is_only_column(const dd::Index* index, const dd::Column* column)
 {
 	return(index->elements().size() == 1
 	       && &(*index->elements().begin())->column() == column);
-}
-
-/** Add a hidden index element at the end.
-@param[in,out]	index	created index metadata
-@param[in]	column	column of the index */
-static
-void
-dd_add_hidden_element(dd::Index* index, const dd::Column* column)
-{
-	dd::Index_element* e = index->add_element(
-		const_cast<dd::Column*>(column));
-	e->set_hidden(true);
-	e->set_order(dd::Index_element::ORDER_ASC);
-}
-
-/** Initialize a hidden unique B-tree index.
-@param[in,out]	index	created index metadata
-@param[in]	name	name of the index
-@param[in]	column	column of the index
-@return the initialized index */
-static
-dd::Index*
-dd_set_hidden_unique_index(
-	dd::Index*		index,
-	const char*		name,
-	const dd::Column*	column)
-{
-	index->set_name(name);
-	index->set_hidden(true);
-	index->set_algorithm(dd::Index::IA_BTREE);
-	index->set_type(dd::Index::IT_UNIQUE);
-	index->set_engine(innobase_hton_name);
-	dd_add_hidden_element(index, column);
-	return(index);
-}
-
-/** Add a hidden column when creating a table.
-@param[in,out]	dd_table	table containing user columns and indexes
-@param[in]	name		hidden column name
-@param[in]	length		length of the column, in bytes
-@return the added column, or NULL if there already was a column by that name */
-static
-dd::Column*
-dd_add_hidden_column(
-	dd::Table*	dd_table,
-	const char*	name,
-	uint		length)
-{
-	if (const dd::Column* c = dd_find_column(dd_table, name)) {
-		my_error(ER_WRONG_COLUMN_NAME, MYF(0), c->name().c_str());
-		return(nullptr);
-	}
-
-	dd::Column* col = dd_table->add_column();
-	col->set_hidden(true);
-	col->set_name(name);
-	col->set_type(dd::enum_column_types::STRING);
-	col->set_nullable(false);
-	col->set_char_length(length);
-	col->set_collation_id(my_charset_bin.number);
-
-	return(col);
 }
 
 /** Adjust fts doc id index order in table according to dd table object.
@@ -16029,6 +15981,7 @@ innobase_fts_create_one_common_dd_table(
 	dd_table->set_name(table_name);
 	dd_table->set_engine(innobase_hton_name);
 	dd_table->set_schema_id(schema->id());
+	dd_table->set_hidden(true);
 	//dd_table->set_tablespace_id();
 	dd_table->set_collation_id(my_charset_bin.number);
 
@@ -17029,7 +16982,7 @@ ha_innobase::delete_table_impl(
 	const Table*		dd_tab,
 	enum enum_sql_command	sqlcom)
 {
-	dberr_t	err;
+	dberr_t	err = DB_SUCCESS;
 	THD*	thd = ha_thd();
 	char	norm_name[FN_REFLEN];
 
@@ -17103,13 +17056,17 @@ ha_innobase::delete_table_impl(
 	bool	file_per_table = false;
 	bool	tmp_table = false;
 	{
-		dict_table_t* tab = dd_table_open_on_name(
-			thd, NULL, norm_name, DICT_ERR_IGNORE_CORRUPT);
+        	dict_table_t* tab = dd_table_open_on_name(
+			thd, NULL, norm_name, false, DICT_ERR_IGNORE_CORRUPT);
 
 		if (tab != NULL) {
 			file_per_table = dict_table_is_file_per_table(tab);
 			tmp_table = tab->is_temporary();
-			dd_table_close(tab, thd, NULL);
+			dd_table_close(tab, thd, NULL, false);
+
+			if (tab->is_fts_aux()) {
+				goto func_exit;
+			}
 		}
 	}
 
@@ -17161,6 +17118,7 @@ ha_innobase::delete_table_impl(
 		ut_a(!fail);
 	}
 
+func_exit:
 	innobase_commit_low(trx);
 
 	trx_free_for_mysql(trx);

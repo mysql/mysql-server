@@ -22,6 +22,7 @@ Full Text Search interface
 ***********************************************************************/
 
 #include "ha_prototypes.h"
+#include <current_thd.h>
 
 #include "trx0roll.h"
 #include "row0mysql.h"
@@ -40,6 +41,7 @@ Full Text Search interface
 #include "sync0sync.h"
 #include "ut0new.h"
 #include "lob0lob.h"
+#include "dict0dd.h"
 
 static const ulint FTS_MAX_ID_LEN = 32;
 
@@ -850,8 +852,6 @@ fts_drop_index(
 
 			err = fts_drop_tables(trx, table);
 
-			err = fts_drop_index_tables(trx, index);
-
 			fts_free(table);
 
 			return(err);
@@ -1432,12 +1432,14 @@ fts_drop_table(
 {
 	dict_table_t*	table;
 	dberr_t		error = DB_SUCCESS;
+	THD*		thd = current_thd;
+	MDL_ticket*	mdl = reinterpret_cast<MDL_ticket*>(-1);
 
 	/* Check that the table exists in our data dictionary.
 	Similar to regular drop table case, we will open table with
 	DICT_ERR_IGNORE_INDEX_ROOT and DICT_ERR_IGNORE_CORRUPT option */
-	table = dict_table_open_on_name(
-		table_name, TRUE, FALSE,
+	table = dd_table_open_on_name(
+		thd, &mdl, table_name, true,
 		static_cast<dict_err_ignore_t>(
                         DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT));
 
@@ -1448,7 +1450,7 @@ fts_drop_table(
 		file_per_table = dict_table_is_file_per_table(table);
 		strcpy(table_name2, table_name);
 
-		dict_table_close(table, TRUE, FALSE);
+		dd_table_close(table, thd, &mdl, true);
 
 		/* Pass nonatomic=false (dont allow data dict unlock),
 		because the transaction may hold locks on SYS_* tables from
@@ -1733,7 +1735,7 @@ fts_get_table_flags2_for_aux_tables(
 	/* Extract the file_per_table flag & temporary file flag
 	from the main FTS table flags2 */
 	return((flags2 & DICT_TF2_USE_FILE_PER_TABLE) |
-	       (flags2 & DICT_TF2_TEMPORARY));
+	       (flags2 & DICT_TF2_TEMPORARY) | DICT_TF2_AUX);
 }
 
 /** Create dict_table_t object for FTS Aux tables.
@@ -6411,6 +6413,9 @@ fts_rename_aux_tables_to_hex_format_low(
 		return(error);
 	}
 
+	MDL_ticket*	mdl = reinterpret_cast<MDL_ticket*>(-1);
+	THD*		thd = current_thd;
+
 	DICT_TF2_FLAG_SET(parent_table, DICT_TF2_FTS_AUX_HEX_NAME);
 
 	for (count = 0; count < ib_vector_size(tables); ++count) {
@@ -6420,8 +6425,8 @@ fts_rename_aux_tables_to_hex_format_low(
 		aux_table = static_cast<fts_aux_table_t*>(
 			ib_vector_get(tables, count));
 
-		table = dict_table_open_on_id(aux_table->id, TRUE,
-					      DICT_TABLE_OP_NORMAL);
+		table = dd_table_open_on_id(aux_table->id, thd,
+					    &mdl, true);
 
 		ut_ad(table != NULL);
 		ut_ad(!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_AUX_HEX_NAME));
@@ -6437,7 +6442,7 @@ fts_rename_aux_tables_to_hex_format_low(
 		DBUG_EXECUTE_IF("rename_aux_table_fail", error = DB_ERROR;);
 
 		if (error != DB_SUCCESS) {
-			dict_table_close(table, TRUE, FALSE);
+			dd_table_close(table, thd, &mdl, true);
 
 			ib::warn() << "Failed to rename one aux table "
 				<< aux_table->name << ". Will revert"
@@ -6448,7 +6453,7 @@ fts_rename_aux_tables_to_hex_format_low(
 		}
 
 		error = fts_update_hex_format_flag(trx, aux_table->id, true);
-		dict_table_close(table, TRUE, FALSE);
+		dd_table_close(table, thd, &mdl, true);
 
 		if (error != DB_SUCCESS) {
 			ib::warn() << "Setting aux table " << aux_table->name
@@ -6481,8 +6486,9 @@ fts_rename_aux_tables_to_hex_format_low(
 			aux_table = static_cast<fts_aux_table_t*>(
 				ib_vector_get(tables, i));
 
-			table = dict_table_open_on_id(aux_table->id, TRUE,
-						      DICT_TABLE_OP_NORMAL);
+			mdl = reinterpret_cast<MDL_ticket*>(-1);
+			table = dd_table_open_on_id(aux_table->id, thd,
+						    &mdl, true);
 			ut_ad(table != NULL);
 
 			if (not_rename) {
@@ -6492,7 +6498,7 @@ fts_rename_aux_tables_to_hex_format_low(
 
 			if (!DICT_TF2_FLAG_IS_SET(table,
 						  DICT_TF2_FTS_AUX_HEX_NAME)) {
-				dict_table_close(table, TRUE, FALSE);
+				dd_table_close(table, thd, &mdl, true);
 				continue;
 			}
 
@@ -6507,7 +6513,7 @@ fts_rename_aux_tables_to_hex_format_low(
 							 trx_bg, FALSE);
 
 			trx_bg->dict_operation_lock_mode = 0;
-			dict_table_close(table, TRUE, FALSE);
+			dd_table_close(table, thd, &mdl, true);
 
 			if (err != DB_SUCCESS) {
 				ib::warn() << "Failed to revert table "
@@ -6627,7 +6633,8 @@ fts_check_corrupt_index(
 {
 	dict_table_t*	table;
 	dict_index_t*	index;
-	table = dict_table_open_on_id(
+
+	table = dd_table_open_on_id_in_mem(
 		aux_table->parent_id, TRUE, DICT_TABLE_OP_NORMAL);
 
 	if (table == NULL) {
@@ -6639,12 +6646,12 @@ fts_check_corrupt_index(
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 		if (index->id == aux_table->index_id) {
 			ut_ad(index->type & DICT_FTS);
-			dict_table_close(table, true, false);
+			dd_table_close(table, NULL, NULL, true);
 			return(index->is_corrupted());
 		}
 	}
 
-	dict_table_close(table, true, false);
+	dd_table_close(table, NULL, NULL, true);
 	return(0);
 }
 
@@ -6659,19 +6666,21 @@ fts_get_parent_table_name(
 {
 	fts_aux_table_t	aux_table;
 	char*		parent_table_name = NULL;
+	THD*		thd = current_thd;
+	MDL_ticket*	mdl = reinterpret_cast<MDL_ticket*>(-1);
 
 	if (fts_is_aux_table_name(&aux_table, aux_table_name, aux_table_len)) {
 		dict_table_t*	parent_table;
 
-		parent_table = dict_table_open_on_id(
-			aux_table.parent_id, TRUE, DICT_TABLE_OP_NORMAL);
+		parent_table = dd_table_open_on_id(
+			aux_table.parent_id, thd, &mdl, true);
 
 		if (parent_table != NULL) {
 			parent_table_name = mem_strdupl(
 				parent_table->name.m_name,
 				strlen(parent_table->name.m_name));
 
-			dict_table_close(parent_table, TRUE, FALSE);
+			dd_table_close(parent_table, thd, &mdl, true);
 		}
 	}
 
@@ -6688,9 +6697,11 @@ fts_valid_parent_table(
 {
 	dict_table_t*	parent_table;
 	bool		valid = false;
+	MDL_ticket*	mdl = reinterpret_cast<MDL_ticket*>(-1);
+	THD*		thd = current_thd;
 
-	parent_table = dict_table_open_on_id(
-		aux_table->parent_id, TRUE, DICT_TABLE_OP_NORMAL);
+	parent_table = dd_table_open_on_id(
+		aux_table->parent_id, thd, &mdl, true);
 
 	if (parent_table != NULL && parent_table->fts != NULL) {
 		if (aux_table->index_id == 0) {
@@ -6713,7 +6724,7 @@ fts_valid_parent_table(
 	}
 
 	if (parent_table) {
-		dict_table_close(parent_table, TRUE, FALSE);
+		dd_table_close(parent_table, thd, &mdl, true);
 	}
 
 	return(valid);
@@ -6898,6 +6909,7 @@ fts_check_and_drop_orphaned_tables(
 	ib_vector_t*	drop_aux_tables;
 	ib_vector_t*	obsolete_aux_tables;
 	ib_alloc_t*	heap_alloc;
+	THD*		thd = current_thd;
 
 	heap = mem_heap_create(1024);
 	heap_alloc = ib_heap_allocator_create(heap);
@@ -6936,12 +6948,17 @@ fts_check_and_drop_orphaned_tables(
 		ib_id_t			orig_parent_id = 0;
 		ib_id_t			orig_index_id = 0;
 		bool			rename = false;
+		MDL_ticket*		mdl = reinterpret_cast<MDL_ticket*>(-1);
 
 		aux_table = static_cast<fts_aux_table_t*>(
 			ib_vector_get(tables, i));
 
-		table = dict_table_open_on_id(
-			aux_table->id, TRUE, DICT_TABLE_OP_NORMAL);
+		if (aux_table->id < 16) {
+			continue;
+		}
+
+		table = dd_table_open_on_id(
+			aux_table->id, thd, &mdl, true);
 		orig_parent_id = aux_table->parent_id;
 		orig_index_id = aux_table->index_id;
 
@@ -6951,7 +6968,7 @@ fts_check_and_drop_orphaned_tables(
 			bool	fake_aux = false;
 
 			if (table != NULL) {
-				dict_table_close(table, TRUE, FALSE);
+				dd_table_close(table, thd, &mdl, true);
 			}
 
 			if (i + 1 < ib_vector_size(tables)) {
@@ -6984,15 +7001,14 @@ fts_check_and_drop_orphaned_tables(
 					ib_id_t	parent_id = fts_fake_hex_to_dec(
 							aux_table->parent_id);
 
-					parent_table = dict_table_open_on_id(
-						parent_id, TRUE,
-						DICT_TABLE_OP_NORMAL);
+					parent_table = dd_table_open_on_id(
+						parent_id, thd, &mdl, true);
 
 					fts_rename_aux_tables_to_hex_format(
 						aux_tables_to_rename, parent_table);
 
-					dict_table_close(parent_table, TRUE,
-							 FALSE);
+					dd_table_close(parent_table, thd,
+							 &mdl, true);
 			}
 
 			/* If the aux table is fake aux table. Skip it. */
@@ -7018,9 +7034,9 @@ fts_check_and_drop_orphaned_tables(
 			are stored as decimal format. */
 			if (fts_valid_parent_table(aux_table)) {
 
-				parent_table = dict_table_open_on_id(
-					aux_table->parent_id, true,
-					DICT_TABLE_OP_NORMAL);
+				parent_table = dd_table_open_on_id(
+					aux_table->parent_id, thd,
+					&mdl, true);
 
 				ut_ad(parent_table != NULL);
 				ut_ad(parent_table->fts != NULL);
@@ -7031,7 +7047,8 @@ fts_check_and_drop_orphaned_tables(
 					rename = true;
 				}
 
-				dict_table_close(parent_table, TRUE, FALSE);
+				dd_table_close(parent_table, thd,
+					       &mdl, true);
 			}
 
 			if (!rename) {
@@ -7043,7 +7060,7 @@ fts_check_and_drop_orphaned_tables(
 		}
 
 		if (table != NULL) {
-			dict_table_close(table, TRUE, FALSE);
+			dd_table_close(table, thd, &mdl, true);
 		}
 
 		if (!rename) {
@@ -7081,10 +7098,11 @@ fts_check_and_drop_orphaned_tables(
 
 			if (next_aux_table == NULL
 			    || orig_parent_id != next_aux_table->parent_id) {
+				mdl = reinterpret_cast<MDL_ticket*>(-1);
 
-				parent_table = dict_table_open_on_id(
-					aux_table->parent_id, TRUE,
-					DICT_TABLE_OP_NORMAL);
+				parent_table = dd_table_open_on_id(
+					aux_table->parent_id, thd,
+					&mdl, true);
 
 				if (!ib_vector_is_empty(aux_tables_to_rename)) {
 					fts_rename_aux_tables_to_hex_format(
@@ -7094,14 +7112,17 @@ fts_check_and_drop_orphaned_tables(
 						parent_table, trx);
 				}
 
-				dict_table_close(parent_table, TRUE, FALSE);
+				dd_table_close(parent_table, thd,
+					       &mdl, true);
 			}
 
 			continue;
 		}
 
-		parent_table = dict_table_open_on_id(
-			aux_table->parent_id, TRUE, DICT_TABLE_OP_NORMAL);
+		mdl = reinterpret_cast<MDL_ticket*>(-1);
+
+		parent_table = dd_table_open_on_id(
+			aux_table->parent_id, thd, &mdl, true);
 
 		if (drop) {
 			ib_vector_push(drop_aux_tables, aux_table);
@@ -7156,13 +7177,14 @@ fts_check_and_drop_orphaned_tables(
 		/* The IDs are already in correct hex format. */
 		if (!drop && !rename) {
 			dict_table_t*	table;
+			MDL_ticket*	aux_mdl = reinterpret_cast<MDL_ticket*>(-1);
 
-			table = dict_table_open_on_id(
-				aux_table->id, TRUE, DICT_TABLE_OP_NORMAL);
+			table = dd_table_open_on_id(
+				aux_table->id, thd, &aux_mdl, true);
 
 			if (table != NULL
 			    && strcmp(table->name.m_name, aux_table->name)) {
-				dict_table_close(table, TRUE, FALSE);
+				dd_table_close(table, thd, &mdl, true);
 				table = NULL;
 			}
 
@@ -7201,7 +7223,7 @@ table_exit:
 #endif /* UNIV_DEBUG */
 
 			if (table != NULL) {
-				dict_table_close(table, TRUE, FALSE);
+				dd_table_close(table, thd, &aux_mdl, true);
 			}
 
 			ut_ad(parent_table != NULL);
@@ -7211,7 +7233,7 @@ table_exit:
 		}
 
 		if (parent_table != NULL) {
-			dict_table_close(parent_table, TRUE, FALSE);
+			dd_table_close(parent_table, thd, &mdl, true);
 		}
 	}
 
@@ -7772,55 +7794,4 @@ func_exit:
 	}
 
 	return(TRUE);
-}
-
-/** Check if the all the auxillary tables associated with FTS index are in
-consistent state. For now consistency is check only by ensuring
-index->page_no != FIL_NULL
-@param[out]	base_table	table has host fts index
-@param[in,out]	trx		trx handler */
-void
-fts_check_corrupt(
-	dict_table_t*	base_table,
-	trx_t*		trx)
-{
-	bool		sane = true;
-	fts_table_t	fts_table;
-
-	/* Iterate over the common table and check for their sanity. */
-	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, base_table);
-
-	for (ulint i = 0; fts_common_tables[i] != NULL && sane; ++i) {
-
-		char	table_name[MAX_FULL_NAME_LEN];
-
-		fts_table.suffix = fts_common_tables[i];
-		fts_get_table_name(&fts_table, table_name);
-
-		dict_table_t*	aux_table = dict_table_open_on_name(
-			table_name, true, FALSE, DICT_ERR_IGNORE_NONE);
-
-		if (aux_table == NULL) {
-			dict_set_corrupted(base_table->first_index());
-			ut_ad(base_table->is_corrupted());
-			sane = false;
-			continue;
-		}
-
-		for (dict_index_t*	aux_table_index =
-			UT_LIST_GET_FIRST(aux_table->indexes);
-		     aux_table_index != NULL;
-		     aux_table_index =
-			UT_LIST_GET_NEXT(indexes, aux_table_index)) {
-
-			/* Check if auxillary table needed for FTS is sane. */
-			if (aux_table_index->page == FIL_NULL) {
-				dict_set_corrupted(base_table->first_index());
-				ut_ad(base_table->is_corrupted());
-				sane = false;
-			}
-		}
-
-		dict_table_close(aux_table, FALSE, FALSE);
-	}
 }

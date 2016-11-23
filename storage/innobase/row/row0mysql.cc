@@ -1049,7 +1049,8 @@ row_prebuilt_free(
 	if (prebuilt->rtr_info) {
 		rtr_clean_rtr_info(prebuilt->rtr_info, true);
 	}
-	if (prebuilt->table) {
+
+	if (prebuilt->table && !prebuilt->table->is_fts_aux()) {
 		dict_table_close(prebuilt->table, dict_locked, TRUE);
 	}
 
@@ -4235,7 +4236,7 @@ row_drop_table_for_mysql(
 	bool			nonatomic,
 	dict_table_t*		handler)
 {
-	dberr_t		err;
+	dberr_t		err = DB_SUCCESS;
 	dict_foreign_t*	foreign;
 	dict_table_t*	table			= NULL;
 	char*		filepath		= NULL;
@@ -4329,7 +4330,7 @@ row_drop_table_for_mysql(
 	/* make sure background stats thread is not running on the table */
 	ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
 
-	if (!table->is_temporary()) {
+	if (!table->is_temporary() && !table->is_fts_aux()) {
 
 		if (srv_dict_stats_thread_active) {
 			dict_stats_recalc_pool_del(table);

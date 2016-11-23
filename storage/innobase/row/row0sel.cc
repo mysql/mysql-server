@@ -6112,7 +6112,8 @@ row_search_check_if_query_cache_permitted(
 	ibool		ret	= FALSE;
 	MDL_ticket*	mdl	= nullptr;
 
-	table = dd_table_open_on_name(thd, &mdl, norm_name, DICT_ERR_IGNORE_NONE);
+	table = dd_table_open_on_name(thd, &mdl, norm_name,
+				      false, DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 		return(FALSE);
@@ -6150,7 +6151,7 @@ row_search_check_if_query_cache_permitted(
 		}
 	}
 
-	dd_table_close(table, thd, &mdl);
+	dd_table_close(table, thd, &mdl, false);
 
 	return(ret);
 }
