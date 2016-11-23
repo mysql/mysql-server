@@ -2,16 +2,24 @@
 # Bug#21625393 : Assert condition (e->usage() == 1) failure in
 #                dd::cache::Shared_multi_map<T>::remove()
 #
-CREATE TABLE t1 (f1 INT);
-SET DEBUG_SYNC='before_dropping_dd_object SIGNAL kill_query WAIT_FOR go';
-DROP TABLE t1;;
-connect  con1, localhost, root,,;
-SET DEBUG_SYNC='now WAIT_FOR kill_query';
-SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE "DROP TABLE%" INTO @thread_id;
-KILL QUERY @thread_id;
-SET DEBUG_SYNC='now SIGNAL go';
-connection default;
+#
+# Create MyISAM table, and drop it, but make drop fail
+# before the object is deleted from the dd tables. Now,
+# the object exists in the global data dictionary, but
+# not in the SE.
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+connect  con1, localhost, root;
+SET SESSION DEBUG='+d,fail_while_dropping_dd_object';
 DROP TABLE t1;
-ERROR 42S02: Unknown table 'test.t1'
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION DEBUG='-d,fail_while_dropping_dd_object';
+connection default;
+# Drop the table for real. Use IF EXISTS clause to ignore
+# the fact that table does not exist in SE.
+# Without the fix this statement will fail with assert.
+DROP TABLE IF EXISTS t1;
+Warnings:
+Warning	1017	Can't find file: 't1' (errno: 2 - No such file or directory)
+connection con1;
 disconnect con1;
-SET DEBUG_SYNC='RESET';
+connection default;

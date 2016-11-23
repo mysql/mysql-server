@@ -171,34 +171,3 @@ CREATE TABLESPACE `ts6` ADD DATAFILE 'ts6.ibd' ENGINE=INNODB;
 SHOW WARNINGS;
 SET SESSION debug="-d,out_of_tablespace_disk";
 
-
---echo #
---echo # Bug #21625393 ASSERT(E->USAGE() == 1) FAILURE IN DD::CACHE::SHARED_MULTI_MAP<T>::::REMOVE()
---echo #
-
---echo #
---echo # Create a tablespace.
-
-CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
-
---enable_connect_log
---connect (con1, localhost, root)
-
---echo #
---echo # Without the patch, the next create statement will acquire the
---echo # tablespace object without using an auto releaser, because the
---echo # tablespace with the same name already exists in the global DD.
---echo # This will give an assert when the thd is deleted, when the
---echo #  connection is closed.
---echo # The fix is simply to add an auto releaser at the right place.
-
---error ER_TABLESPACE_EXISTS
-CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
-
---disconnect con1
---source include/wait_until_disconnected.inc
-
---connection default
---echo # Clean-up.
-DROP TABLESPACE ts;
---disable_connect_log

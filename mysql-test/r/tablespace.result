@@ -234,23 +234,3 @@ Level	Code	Message
 Error	1528	Failed to create TABLESPACE ts6
 Error	1114	The table 'ts6' is full
 SET SESSION debug="-d,out_of_tablespace_disk";
-#
-# Bug #21625393 ASSERT(E->USAGE() == 1) FAILURE IN DD::CACHE::SHARED_MULTI_MAP<T>::::REMOVE()
-#
-#
-# Create a tablespace.
-CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
-connect  con1, localhost, root;
-#
-# Without the patch, the next create statement will acquire the
-# tablespace object without using an auto releaser, because the
-# tablespace with the same name already exists in the global DD.
-# This will give an assert when the thd is deleted, when the
-#  connection is closed.
-# The fix is simply to add an auto releaser at the right place.
-CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
-ERROR HY000: Tablespace 'ts' exists.
-disconnect con1;
-connection default;
-# Clean-up.
-DROP TABLESPACE ts;

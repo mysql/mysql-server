@@ -243,7 +243,6 @@ bool Storage_adapter::drop(THD *thd, const T *object)
   // Drop the object from the dd tables. We need to switch transaction ctx to do this.
   Update_dictionary_tables_ctx ctx(thd);
   ctx.otx.register_tables<T>();
-  DEBUG_SYNC(thd, "before_dropping_dd_object");
 
   if (ctx.otx.open_tables() || object->impl()->drop(&ctx.otx))
   {
