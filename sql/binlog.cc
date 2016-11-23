@@ -4517,6 +4517,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     while (!can_stop_reading && !reached_first_file)
     {
       const char *filename= rit->c_str();
+      DBUG_ASSERT(rit != filename_list.rend());
       rit++;
       reached_first_file= (rit == filename_list.rend());
       DBUG_PRINT("info", ("filename='%s' can_stop_reading=%d "
@@ -4585,7 +4586,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
       events from the master in the case of GTID auto positioning be
       disabled.
     */
-    if (is_relay_log)
+    if (is_relay_log && filename_list.size() > 0)
     {
       /*
         Suppose the following relaylog:
@@ -4626,7 +4627,9 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         need to start parsing, as it was incremented after generating
         the relay log file name.
       */
+      DBUG_ASSERT(rit != filename_list.rbegin());
       rit--;
+      DBUG_ASSERT(rit != filename_list.rend());
       /* Reset the transaction parser before feeding it with events */
       trx_parser->reset();
       gtid_partial_trx->clear();
