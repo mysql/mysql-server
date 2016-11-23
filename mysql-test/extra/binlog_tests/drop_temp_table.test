@@ -16,10 +16,6 @@ CREATE TEMPORARY TABLE shortn2 (a INT);
 ##############################################################################
 # BUG#46572 DROP TEMPORARY table IF EXISTS does not have a consistent behavior
 # in ROW mode 
-# 
-# In RBR, 'DROP TEMPORARY TABLE ...' statement should never be binlogged no
-# matter if the tables exist or not. In contrast, both in SBR and MBR, the
-# statement should be always binlogged no matter if the tables exist or not.
 ##############################################################################
 CREATE TEMPORARY TABLE tmp(c1 int);
 CREATE TEMPORARY TABLE tmp1(c1 int);

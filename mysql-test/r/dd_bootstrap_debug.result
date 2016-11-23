@@ -19,10 +19,10 @@
 # ------------------------------------------------
 # 2.1 Create bootstrap file.
 # 2.2 First start the server with --initialize, and drop the version table. Succeeds.
-# 2.5 Restart the server against DDIR - should fail.
-# 2.6 Look for error.
+# 2.3 Restart the server against DDIR - should fail.
+# 2.4 Look for error.
 #     Data Dictionary initialization error found 1 times.
-# 2.7 Delete bootstrap file, log file and datadir.
+# 2.5 Delete bootstrap file, log file and datadir.
 #
 # 3. Try restart after dropping the tables table.
 # -----------------------------------------------
