@@ -231,7 +231,44 @@ Error	1146	Table 'test.t_non_existent' doesn't exist
 #
 include/assert.inc [Did not commit gtid MASTER_UUID:12 into @@GLOBAL.GTID_EXECUTED]
 include/assert.inc [Did not save gtid MASTER_UUID:12 into mysql.gtid_executed table]
+SET SESSION GTID_NEXT='MASTER_UUID:13';
+RENAME USER u1@h TO u11@h, u3@h TO u33@h;
+ERROR HY000: Operation RENAME USER failed for 'u3'@'h'
+#
+# The u1 is not renamed on mysql.user which means that RENAME USER
+# cannot be failed partially.
+#
+SELECT user FROM mysql.user where user='u1';
+user
+u1
+#
+# Verify that the failed RENAME USER statement does not save
+# the specified gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table.
+#
+include/assert.inc [Did not commit gtid MASTER_UUID:13 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Did not save gtid MASTER_UUID:13 and :14 into mysql.gtid_executed table]
+SELECT password_expired FROM mysql.user where user='u1';
+password_expired
+N
 SET SESSION GTID_NEXT='MASTER_UUID:15';
-DROP TABLE t1;
+ALTER USER u1@h, u3@h PASSWORD EXPIRE;
+ERROR HY000: Operation ALTER USER failed for 'u3'@'h'
+#
+# The u1 is not altered on mysql.user which means that ALTER USER
+# cannot be failed partially.
+#
+SELECT password_expired FROM mysql.user where user='u1';
+password_expired
+N
+#
+# Verify that the failed ALTER USER statement does not save
+# the specified gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table.
+#
+include/assert.inc [Did not commit gtid MASTER_UUID:15 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Did not save gtid MASTER_UUID:15 into mysql.gtid_executed table]
 SET SESSION GTID_NEXT='MASTER_UUID:16';
+DROP TABLE t1;
+SET SESSION GTID_NEXT='MASTER_UUID:17';
 DROP USER u1@h;
