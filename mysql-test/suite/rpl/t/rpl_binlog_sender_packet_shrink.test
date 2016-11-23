@@ -1,0 +1,100 @@
+# ==== Purpose ====
+#
+# This test will generate a big event and then will generate many small
+# events, and will monitor the server memory consumption, observing the
+# growth and the shrink of the binary log sender packet.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#24643036 BINLOG_SENDER DOES NOT REDUCE SIZE OF SEND BUFFER AS EXPECTED
+#
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+--source include/stop_dump_threads.inc
+
+--let $default_packet_size=`SELECT @@GLOBAL.net_buffer_length`
+
+CREATE TABLE t1 (a TEXT(1048576));
+--source include/sync_slave_sql_with_master.inc
+--connection master
+--let $tid= `SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_COMMAND LIKE "Binlog Dump%"`
+--let $from_table= FROM performance_schema.memory_summary_by_thread_by_event_name
+--let $from_clause= $from_table WHERE THREAD_ID = $tid AND EVENT_NAME LIKE 'memory/sql/String::value'
+# The network packet is initialized with @@GLOBAL.net_buffer_length bytes.
+# Calculate the baseline (just in case)
+# BASELINE = (all) BYTES_USED - $default_packet_size
+--let $baseline=`SELECT CURRENT_NUMBER_OF_BYTES_USED - $default_packet_size $from_clause`
+
+--echo #
+--echo # 1. Generate a big event to make the packet to grow
+--echo #
+--echo INSERT 1M byte string
+--let $big= REPEAT('a', 1048576)
+eval INSERT INTO t1 VALUES ($big);
+--source include/sync_slave_sql_with_master.inc
+--connection master
+--let $last_packet_size= $default_packet_size
+--let $current_packet_size= `SELECT CURRENT_NUMBER_OF_BYTES_USED - $baseline $from_clause`
+# Use ROUND in the calculation to minimize the possibility of variation
+--let $ratio= `SELECT ROUND($current_packet_size / $last_packet_size, 0)`
+--let $assert_text= The packet should have grown 64 times after a 1M big event
+--let $assert_cond= [ SELECT $ratio = 64 ]
+--source include/assert.inc
+
+--echo #
+--echo # 2. Generate 100 events with some having more then 4097
+--echo #    bytes to ensure that the packet will shrink
+--echo #
+--let $trx_to_shrink= 20
+--echo INSERT 20 x 8K string (x 5 events: GTID, BEGIN, TABLE_MAP, ROWS, XID)
+--let $i= 0
+--let $medium= REPEAT('b', 8192)
+while ($i < $trx_to_shrink)
+{
+  eval INSERT INTO t1 VALUES ($medium);
+  --inc $i
+}
+--source include/sync_slave_sql_with_master.inc
+--connection master
+--let $last_packet_size= $current_packet_size
+--let $current_packet_size= `SELECT CURRENT_NUMBER_OF_BYTES_USED - $baseline $from_clause`
+
+# We will tolerate a noise of $noise_tolerance bytes at each shrink assert
+# probably just because of rounding and memory alignment.
+--let $noise_tolerance= 16
+--let $assert_text= The packet should be halved after 100 medium events
+--let $assert_cond= $current_packet_size BETWEEN $last_packet_size/2 - $noise_tolerance AND $last_packet_size/2 + $noise_tolerance
+--source include/assert.inc
+
+--echo #
+--echo # 3. Generate 700 events with some having less then 4096
+--echo #    bytes to ensure that the packet will shrink to
+--echo #    the minimum size.
+--echo #
+--echo INSERT 7 x 20 x 1K string (x 4 events: GTID, BEGIN, TABLE_MAP, ROWS, XID)
+--let $b= 1
+while ($b < 8)
+{
+  --echo Iteration $b: INSERT 25 x 1K string (x 4 events: GTID, BEGIN, QUERY, XID)
+  --let $i= 0
+  --let $small= REPEAT('c', 1024)
+  while ($i < $trx_to_shrink)
+  {
+    eval INSERT INTO t1 VALUES ($small);
+    --inc $i
+  }
+  --source include/sync_slave_sql_with_master.inc
+  --connection master
+  --let $last_packet_size= $current_packet_size
+  --let $current_packet_size= `SELECT CURRENT_NUMBER_OF_BYTES_USED - $baseline $from_clause`
+  --let $assert_text= Iteration $b: The packet should be halved after 100 small events
+  --let $assert_cond= $current_packet_size BETWEEN $last_packet_size/2 - $noise_tolerance AND $last_packet_size/2 + $noise_tolerance
+  --source include/assert.inc
+  --inc $b
+}
+
+# Cleanup
+DROP TABLE t1;
+--source include/rpl_end.inc

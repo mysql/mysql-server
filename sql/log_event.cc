@@ -1192,6 +1192,8 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
 /**
   This needn't be format-tolerant, because we only read
   LOG_EVENT_MINIMAL_HEADER_LEN (we just want to read the event's length).
+
+  The caller should allocate the packet buffer before calling this function.
 */
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
@@ -1247,8 +1249,27 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     goto end;
   }
 
-  /* Append the log event header to packet */
-  if (packet->append(buf, LOG_EVENT_MINIMAL_HEADER_LEN))
+  /*
+    If the event header wasn't passed, the caller doesn't know the event size
+    yet, so the packet size may not have enough space to load the entire
+    event. We need to adjust the packet size here since the call to my_b_read()
+    below expects the buffer to be allocated.
+  */
+  if (buf == local_buf)
+  {
+    ulong new_alloc_len= packet->length() + data_len;
+    if (new_alloc_len > packet->alloced_length() &&
+        packet->mem_realloc(new_alloc_len))
+    {
+      /* Failed to allocate packet */
+      result= LOG_READ_MEM;
+      goto end;
+    }
+  }
+
+  /* Check packet buffer size and append the log event header to it */
+  if (packet->alloced_length() - packet->length() < data_len ||
+      packet->append(buf, LOG_EVENT_MINIMAL_HEADER_LEN))
   {
     DBUG_PRINT("info", ("first packet->append failed (out of memory)"));
     /* Failed to allocate packet */
@@ -1258,8 +1279,20 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   data_len-= LOG_EVENT_MINIMAL_HEADER_LEN;
   if (data_len)
   {
-    /* Append rest of event, read directly from file into packet */
-    if (packet->append(file, data_len))
+    /*
+      Append rest of event, read directly from file into packet.
+
+      We are avoiding to call packet->append(IO_CACHE, size_t) at this point
+      because the String::append logic will call String::mem_realloc() that
+      might resize the buffer (changing its pointer) in order to reserve a
+      space for a trailing '\0' that we don't need.
+    */
+    char *event_data_buffer= const_cast<char*>(packet->ptr() +
+                                               packet->length());
+    result= my_b_read(file,
+                      reinterpret_cast<uchar*>(event_data_buffer),
+                      data_len);
+    if (result)
     {
       /*
         Fatal error occured when appending rest of the event
@@ -1280,6 +1313,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     }
     else
     {
+      packet->length(packet->length() + data_len);
       /*
         Corrupt the event for Dump thread.
         We also need to exclude Previous_gtids_log_event and Gtid_log_event
