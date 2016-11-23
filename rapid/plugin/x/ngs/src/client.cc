@@ -413,6 +413,8 @@ void Client::get_last_error(int &error_code, std::string &message)
 
 void Client::shutdown_connection()
 {
+  m_state = Client_closing;
+
   if (m_connection->shutdown(Connection_vio::Shutdown_recv) < 0)
   {
     int err;
