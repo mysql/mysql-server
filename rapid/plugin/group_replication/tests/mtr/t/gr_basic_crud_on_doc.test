@@ -39,22 +39,22 @@
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---replace_regex /\.dll/.so/
 --source ../inc/start_and_bootstrap_group_replication.inc
+--replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'
 --let $mysqlx_port1= `Select @@Global.mysqlx_port`
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---replace_regex /\.dll/.so/
 --source include/start_group_replication.inc
+--replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'
 --let $mysqlx_port2= `Select @@Global.mysqlx_port`
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
---replace_regex /\.dll/.so/
 --source include/start_group_replication.inc
+--replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'
 --let $mysqlx_port3= `Select @@Global.mysqlx_port`
 

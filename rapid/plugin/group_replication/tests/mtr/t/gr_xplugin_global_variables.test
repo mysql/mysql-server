@@ -32,8 +32,8 @@
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---replace_regex /\.dll/.so/
 --source ../inc/start_and_bootstrap_group_replication.inc
+--replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'
 --let $mysqlx_port1= `Select @@Global.mysqlx_port`
 
@@ -167,30 +167,29 @@ SET GLOBAL group_replication_recovery_complete_at= TRANSACTIONS_CERTIFIED;
 SET GLOBAL group_replication_recovery_reconnect_interval= 20;
 SET GLOBAL group_replication_recovery_retry_count= 5;
 -->endsql
--->varsub %MYSQL_TEST_DIR%
+-->varsub %TEST_DIR%
 -->sql
-SET GLOBAL group_replication_recovery_ssl_ca= '%MYSQL_TEST_DIR%/std_data/cacert.pem';
+SET GLOBAL group_replication_recovery_ssl_ca= '%TEST_DIR%/std_data/cacert.pem';
 -->endsql
--->varsub %MYSQL_TEST_DIR%
+-->varsub %TEST_DIR%
 -->sql
-SET GLOBAL group_replication_recovery_ssl_capath= '%MYSQL_TEST_DIR%/std_data';
+SET GLOBAL group_replication_recovery_ssl_capath= '%TEST_DIR%/std_data';
 -->endsql
--->varsub %MYSQL_TEST_DIR%
+-->varsub %TEST_DIR%
 -->sql
-SET GLOBAL group_replication_recovery_ssl_cert= '%MYSQL_TEST_DIR%/std_data/client-cert.pem';
+SET GLOBAL group_replication_recovery_ssl_cert= '%TEST_DIR%/std_data/client-cert.pem';
 -->endsql
--->varsub %MYSQL_TEST_DIR%
 -->sql
 SET GLOBAL group_replication_recovery_ssl_cipher= 'DHE-RSA-AES256-SHA';
 SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl';
 -->endsql
--->varsub %MYSQL_TEST_DIR%
+-->varsub %TEST_DIR%
 -->sql
-SET GLOBAL group_replication_recovery_ssl_crlpath= '%MYSQL_TEST_DIR%/std_data';
+SET GLOBAL group_replication_recovery_ssl_crlpath= '%TEST_DIR%/std_data';
 -->endsql
--->varsub %MYSQL_TEST_DIR%
+-->varsub %TEST_DIR%
 -->sql
-SET GLOBAL group_replication_recovery_ssl_key= '%MYSQL_TEST_DIR%/std_data/client-key.pem';
+SET GLOBAL group_replication_recovery_ssl_key= '%TEST_DIR%/std_data/client-key.pem';
 SET GLOBAl group_replication_recovery_ssl_verify_server_cert= ON;
 SET GLOBAL group_replication_recovery_use_ssl= ON;
 SET GLOBAL group_replication_single_primary_mode= ON;
@@ -200,7 +199,7 @@ SET GLOBAL group_replication_start_on_boot= ON;
 EOF
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $xcom_port xcom_port
---exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/set_variables.tmp -v %MYSQL_TEST_DIR%=$MYSQL_TEST_DIR -v %XCOM_PORT%=$xcom_port 2>&1
+--exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/set_variables.tmp -v %TEST_DIR%=$MYSQL_TEST_DIR -v %XCOM_PORT%=$xcom_port 2>&1
 
 ## Start GR
 
