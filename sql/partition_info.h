@@ -591,4 +591,15 @@ bool fill_partition_tablespace_names(
 
 bool check_partition_tablespace_names(partition_info *part_info);
 
+/**
+  Predicate which returns true if any partition or subpartition uses
+  an external data directory or external index directory.
+
+  @param pi partitioning information
+  @retval true if any partition or subpartition has an external
+  data directory or external index directory.
+  @retval false otherwise
+ */
+bool has_external_data_or_index_dir(partition_info &pi);
+
 #endif /* PARTITION_INFO_INCLUDED */
