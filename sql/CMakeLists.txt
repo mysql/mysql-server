@@ -479,6 +479,13 @@ IF(WIN32)
     COMPILE_FLAGS "/wd4244" "/wd4267")
 ENDIF()
 
+# Segfault in boost::geometry code at high optimization levels
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  IF(CMAKE_BUILD_TYPE MATCHES "Rel%")
+    ADD_COMPILE_FLAGS(item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
+  ENDIF()
+ENDIF()
+
 ADD_COMPILE_FLAGS(
   ../extra/lz4/xxhash.c
   COMPILE_FLAGS -DXXH_NAMESPACE=MY_
