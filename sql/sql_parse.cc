@@ -35,6 +35,9 @@
 #include "sql_insert.h"       // mysql_insert
 #include "sql_update.h"       // mysql_update, mysql_multi_update
 #include "sql_partition.h"    // struct partition_info
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "partition_info.h"   // has_external_data_or_index_dir
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 #include "sql_db.h"           // mysql_change_db, mysql_create_db,
                               // mysql_rm_db, mysql_upgrade_db,
                               // mysql_alter_db,
@@ -2413,11 +2416,19 @@ case SQLCOM_PREPARE:
       copy.
     */
     Alter_info alter_info(lex->alter_info, thd->mem_root);
-
     if (thd->is_fatal_error)
     {
       /* If out of memory when creating a copy of alter_info. */
       res= 1;
+      goto end_with_restore_list;
+    }
+
+    if (((lex->create_info.used_fields & HA_CREATE_USED_DATADIR) != 0 ||
+         (lex->create_info.used_fields & HA_CREATE_USED_INDEXDIR) != 0) &&
+        check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+    {
+      res= 1;
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "FILE");
       goto end_with_restore_list;
     }
 
@@ -2458,6 +2469,12 @@ case SQLCOM_PREPARE:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     {
       partition_info *part_info= thd->lex->part_info;
+      if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
+          check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+      {
+        res= -1;
+        goto end_with_restore_list;
+      }
       if (part_info && !(part_info= thd->lex->part_info->get_clone(true)))
       {
         res= -1;
