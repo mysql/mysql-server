@@ -1237,7 +1237,7 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
                         event_info.first->name().c_str());
       continue;
     }
-    if (dd::drop_event(thd, event_info.second, true))
+    if (dd::drop_event(thd, event_info.second))
       sql_print_warning("Unable to drop event %s from schema %s",
                         event_info.second->name().c_str(),
                         event_info.first->name().c_str());

@@ -144,21 +144,12 @@ bool update_event_time_and_status(THD *thd, const Event *event,
 /**
   Drop an Event from event metadata table.
 
-  @param thd                Thread handle.
-  @param event              Event to be droppped.
-  @param commit_dd_changes  Indicates whether change should be committed.
-
-  @note In case when commit_dd_changes is false, the caller must rollback
-        both statement and transaction on failure, before any further
-        accesses to DD. This is because such a failure might be caused by
-        a deadlock, which requires rollback before any other operations on
-        SE (including reads using attachable transactions) can be done.
-        If case when commit_dd_changes is true this function will handle
-        transaction rollback itself.
+  @param thd            Thread handle.
+  @param event          Event to be droppped.
 
   @retval true if event drop failed.
   @retval false if event drop succeeded.
 */
-bool drop_event(THD *thd, const Event *event, bool commit_dd_changes);
+bool drop_event(THD *thd, const Event *event);
 } // namespace dd
 #endif // DD_EVENT_INCLUDED

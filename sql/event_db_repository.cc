@@ -373,7 +373,7 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
   }
 
   if (event_ptr != nullptr)
-    DBUG_RETURN(dd::drop_event(thd, event_ptr, true));
+    DBUG_RETURN(dd::drop_event(thd, event_ptr));
 
   // Event not found
   if (!drop_if_exists)
@@ -421,18 +421,7 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
 
   for (const dd::Event *event_obj : events)
   {
-     /*
-       TODO: This extra acquire is required for now as Dictionary_client::drop()
-       requires the object to be present in the DD cache. Since fetch_schema_components()
-       bypasses the cache, the object is not there.
-       Remove this code once either fetch_schema_components() uses the cache or
-       Dictionary_client::drop() works with uncached objects.
-    */
-    const dd::Event *event_obj2;
-    if (thd->dd_client()->acquire(schema.str, event_obj->name(), &event_obj2))
-      DBUG_RETURN(true);
-
-    if (dd::drop_event(thd, event_obj2, false))
+    if (thd->dd_client()->drop(event_obj))
     {
       my_error(ER_SP_DROP_FAILED, MYF(0),
                "Drop failed for Event: %s", event_obj->name().c_str());
