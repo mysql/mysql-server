@@ -779,6 +779,8 @@ bool Sql_cmd_alter_table_exchange_partition::
 
       if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
         DBUG_RETURN(true);
+
+      thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
     }
     else
     {
@@ -1003,6 +1005,8 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   if (error)
     trans_rollback_stmt(thd);
   // QQ: Should we also rollback txn for consistency here?
+
+  thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
 
   if ((first_table->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       first_table->table->file->ht->post_ddl)
