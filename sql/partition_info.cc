@@ -3127,6 +3127,30 @@ void partition_info::print_debug(const char *str, uint *value)
     DBUG_PRINT("info", ("parser: %s", str));
   DBUG_VOID_RETURN;
 }
+
+bool has_external_data_or_index_dir(partition_info &pi)
+{
+  List_iterator<partition_element> part_it(pi.partitions);
+  for (partition_element *part= part_it++; part; part= part_it++)
+  {
+    if (part->data_file_name != NULL || part->index_file_name != NULL)
+    {
+      return true;
+    }
+    List_iterator<partition_element> subpart_it(part->subpartitions);
+    for (const partition_element *subpart= subpart_it++;
+         subpart;
+         subpart= subpart_it++)
+    {
+      if (subpart->data_file_name != NULL || subpart->index_file_name != NULL)
+      {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 #else /* WITH_PARTITION_STORAGE_ENGINE */
  /*
    For builds without partitioning we need to define these functions
