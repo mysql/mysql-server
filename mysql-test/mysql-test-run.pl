@@ -308,6 +308,7 @@ my $opt_force_restart= 0;
 our $opt_suite_opt;
 our $opt_no_skip;
 our $excluded_string;
+our @opt_config_to_skip;
 
 my $opt_strace_client;
 my $opt_strace_server;
@@ -1155,8 +1156,6 @@ sub print_global_resfile {
   resfile_global("version", "$v1.$v2.$v3");
 }
 
-
-
 sub command_line_setup {
   my $opt_comment;
   my $opt_usage;
@@ -1208,6 +1207,7 @@ sub command_line_setup {
              'experimental=s'           => \@opt_experimentals,
              'skip-sys-schema'          => \$opt_skip_sys_schema,
              'no-skip'                  => \$opt_no_skip,
+             'skip-if-config=s'         => \@opt_config_to_skip,
 	     # skip-im is deprecated and silently ignored
 	     'skip-im'                  => \&ignore_option,
 
@@ -6832,7 +6832,6 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--cursor-protocol");
   }
 
-
   mtr_add_arg($args, "--timer-file=%s/log/timer", $opt_vardir);
 
   if ( $opt_compress )
@@ -7714,6 +7713,12 @@ Misc options
   stress=ARGS           Run stress test, providing options to
                         mysql-stress-test.pl. Options are separated by comma.
   suite-opt             Run the particular file in the suite as the suite.opt.
+  skip-if-config        This option is used to pass a server option for which
+                        the test needs to be skipped. It is mainly used to
+                        avoid duplicate test runs.
+                        E.g: ./mtr --suite=rpl --skip-if-config=
+                        --option1 --skip-if-config=--option2
+
   xml-report=FILE       Generate a XML report file compatible with JUnit.
   summary-report=FILE   Generate a plain text file of the test summary only,
                         suitable for sending by email.

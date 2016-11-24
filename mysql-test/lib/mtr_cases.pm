@@ -320,6 +320,27 @@ sub collect_test_cases ($$$$) {
     # }
   }
 
+  # Checks the presence of server variable in the opt files
+  # and skips test if the same server variable is passed from
+  # --skip-if-config option from command line.
+  foreach my $tinfo (@$cases)
+  {
+    # Skip processing if already marked as skipped
+    next if (defined($tinfo->{'skip'}));
+    foreach my $config (@::opt_config_to_skip)
+    {
+      my $exist_config= grep {/^$config$/i}
+                        (@{$tinfo->{'master_opt'}},
+                         @{$tinfo->{'slave_opt'}});
+      if ($exist_config)
+      {
+        $tinfo->{'skip'}= 1;
+        $tinfo->{'comment'}= "Test configured to run only with '$config'";
+        last;
+      }
+    }
+  }
+
   if (defined $print_testcases){
     print_testcases(@$cases);
     exit(1);
