@@ -30,6 +30,9 @@ CREATE USER test_user_2 IDENTIFIED BY 'testpw';
 GRANT ALL PRIVILEGES ON test.* TO test_user_1;
 GRANT ALL PRIVILEGES ON test.* TO test_user_2;
 
+--echo # FILE is needed to use the DATA DIRECTORY or INDEX DIRECTORY option
+GRANT FILE ON *.* TO test_user_2 IDENTIFIED BY 'testpw';
+
 connect (session1, localhost, test_user_1,'testpw',test);
 --sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
