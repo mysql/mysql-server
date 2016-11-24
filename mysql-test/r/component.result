@@ -155,3 +155,13 @@ UNINSTALL COMPONENT "file://dynamic_loader_test_lib1", "http://dynamic_loader_te
 ERROR HY000: Component specified by URN 'file://dynamic_loader_test_lib1' to unload has not been loaded before.
 UNINSTALL COMPONENT "http://dynamic_loader_test_lib2";
 ERROR HY000: Component specified by URN 'http://dynamic_loader_test_lib2' to unload has not been loaded before.
+#
+# Bug #24528148 UNPRIVILEGED USER ABLE TO LOAD COMPONENTS TO
+#               MYSQL.COMPONENT
+#
+CREATE USER mysqltest_u1@localhost;
+INSTALL COMPONENT "file://component_example_component1";
+ERROR 42000: INSERT command denied to user 'mysqltest_u1'@'localhost' for table 'component'
+UNINSTALL COMPONENT "file://component_example_component1";
+ERROR 42000: DELETE command denied to user 'mysqltest_u1'@'localhost' for table 'component'
+DROP USER mysqltest_u1@localhost;

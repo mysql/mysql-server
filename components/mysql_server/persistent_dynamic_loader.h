@@ -67,6 +67,11 @@ public:
   */
   static void deinit();
 
+  /**
+   Initialisation status of persistence loader. An helper function.
+  */
+  static bool initialized();
+
 public: /* service implementations */
   /**
     Loads specified group of components by URN, initializes them and

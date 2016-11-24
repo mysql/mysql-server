@@ -51,6 +51,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "sql_string.h"
 #include "table.h"
 #include "thr_lock.h"
+#include "mysqld.h"
 
 typedef std::string my_string;
 
@@ -128,6 +129,7 @@ static bool close_tables(THD* thd, MDL_savepoint& mdl_savepoint)
   @param [out] table Pointer to table structure to store the open table into.
   @param [out] mdl_savepoint A pointer to MDL save-point to store current
     status of locks. In case of NULL, the save-point will not be acquired.
+  @param acl_to_check acl type to check
   @return Status of performed operation
   @retval true open and lock failed - an error message is pushed into the
     stack.
@@ -135,7 +137,7 @@ static bool close_tables(THD* thd, MDL_savepoint& mdl_savepoint)
 */
 static bool open_component_table(
   THD *thd, enum thr_lock_type lock_type, TABLE **table,
-  MDL_savepoint* mdl_savepoint)
+  MDL_savepoint* mdl_savepoint, ulong acl_to_check)
 {
   TABLE_LIST tables;
   if (mdl_savepoint != NULL)
@@ -148,6 +150,12 @@ static bool open_component_table(
   }
 
   tables.init_one_table("mysql", 5, "component", 9, "component", lock_type);
+
+#ifndef EMBEDDED_LIBRARY
+  if (mysql_persistent_dynamic_loader_imp::initialized() && !opt_noacl &&
+      check_one_table_access(thd, acl_to_check, &tables))
+    return true;
+#endif
 
   if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
@@ -196,7 +204,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
   try
   {
     THD* thd= reinterpret_cast<THD*>(thdp);
-    if (mysql_persistent_dynamic_loader_imp::is_initialized)
+    if (mysql_persistent_dynamic_loader_imp::initialized())
     {
       return true;
     }
@@ -208,7 +216,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     mysql_persistent_dynamic_loader_imp::group_id= 0;
 
     /* Open component table and scan read all records. */
-    if (open_component_table(thd, TL_READ, &component_table, NULL))
+    if (open_component_table(thd, TL_READ, &component_table, NULL, SELECT_ACL))
     {
       push_warning(thd, Sql_condition::SL_WARNING,
         ER_COMPONENT_TABLE_INCORRECT,
@@ -312,6 +320,17 @@ void mysql_persistent_dynamic_loader_imp::deinit()
   mysql_persistent_dynamic_loader_imp::is_initialized= false;
   mysql_persistent_dynamic_loader_imp::component_id_by_urn.clear();
 }
+/**
+ Initialisation status of persistence loader.
+
+ @return Status of performed operation
+ @retval true initialization is done
+ @retval false initialization is not done
+*/
+bool mysql_persistent_dynamic_loader_imp::initialized()
+{
+  return mysql_persistent_dynamic_loader_imp::is_initialized;
+}
 
 /**
   Loads specified group of components by URN, initializes them and
@@ -338,7 +357,16 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
   {
     THD* thd= (THD*)thd_ptr;
 
-    if (!mysql_persistent_dynamic_loader_imp::is_initialized)
+    if (!mysql_persistent_dynamic_loader_imp::initialized())
+    {
+      my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
+      return true;
+    }
+
+    TABLE* component_table;
+    MDL_savepoint mdl_savepoint;
+    if (open_component_table(thd, TL_WRITE, &component_table,
+                             &mdl_savepoint, INSERT_ACL))
     {
       my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
       return true;
@@ -354,14 +382,6 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
     {
       mysql_dynamic_loader_imp::unload(urns, component_count);
     });
-
-    TABLE* component_table;
-    MDL_savepoint mdl_savepoint;
-    if (open_component_table(thd, TL_WRITE, &component_table, &mdl_savepoint))
-    {
-      my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
-      return true;
-    }
 
     auto guard_close_tables= create_scope_guard(
       [&thd, &component_table, &mdl_savepoint]
@@ -439,13 +459,22 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
   {
     THD* thd= (THD*)thd_ptr;
 
-    if (!mysql_persistent_dynamic_loader_imp::is_initialized)
+    if (!mysql_persistent_dynamic_loader_imp::initialized())
     {
       my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
       return true;
     }
 
     int res;
+
+    TABLE* component_table;
+    MDL_savepoint mdl_savepoint;
+    if (open_component_table(thd, TL_WRITE, &component_table,
+                             &mdl_savepoint, DELETE_ACL))
+    {
+      my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
+      return true;
+    }
 
     bool result=
       mysql_dynamic_loader_imp::unload(urns, component_count);
@@ -454,14 +483,6 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       /* No need to specify error, underlying service implementation would add
         one. */
       return result;
-    }
-
-    TABLE* component_table;
-    MDL_savepoint mdl_savepoint;
-    if (open_component_table(thd, TL_WRITE, &component_table, &mdl_savepoint))
-    {
-      my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
-      return true;
     }
 
     auto guard_close_tables= create_scope_guard(
