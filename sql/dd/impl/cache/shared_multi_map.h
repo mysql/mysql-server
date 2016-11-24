@@ -423,6 +423,7 @@ public:
 
   void drop(Cache_element<T> *element);
 
+
   /**
     Delete an object corresponding to the key from the map if exists.
 
