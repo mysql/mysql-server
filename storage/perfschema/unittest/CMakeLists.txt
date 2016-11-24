@@ -28,7 +28,7 @@ ADD_CONVENIENCE_LIBRARY(pfs_server_stubs pfs_server_stubs.cc)
 ADD_DEPENDENCIES(pfs_server_stubs GenError)
 
 MACRO (PFS_ADD_TEST name)
-  ADD_EXECUTABLE(${name}-t ${name}-t.cc ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc)
+  ADD_EXECUTABLE(${name}-t ${name}-t.cc)
   TARGET_LINK_LIBRARIES(${name}-t mytap perfschema mysys pfs_server_stubs)
   ADD_TEST(${name} ${name}-t)
 ENDMACRO()

@@ -21,7 +21,7 @@ CREATE TABLE t1 (a TEXT(1048576));
 --connection master
 --let $tid= `SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_COMMAND LIKE "Binlog Dump%"`
 --let $from_table= FROM performance_schema.memory_summary_by_thread_by_event_name
---let $from_clause= $from_table WHERE THREAD_ID = $tid AND EVENT_NAME LIKE 'memory/sql/Binlog_sender::packet'
+--let $from_clause= $from_table WHERE THREAD_ID = $tid AND EVENT_NAME LIKE 'memory/sql/String::value'
 # The network packet is initialized with @@GLOBAL.net_buffer_length bytes.
 # Calculate the baseline (just in case)
 # BASELINE = (all) BYTES_USED - $default_packet_size

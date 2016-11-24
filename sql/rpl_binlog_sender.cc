@@ -47,7 +47,6 @@
 #include "sql_class.h"               // THD
 #include "system_variables.h"
 #include "typelib.h"
-#include "psi_memory_key.h"          // key_memory_Binlog_sender_packet
 
 #ifndef DBUG_OFF
   static uint binlog_dump_count= 0;
@@ -90,7 +89,6 @@ void Binlog_sender::init()
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   /* Initialize the buffer only once. */
-  m_packet.set_psi_memory_key(key_memory_Binlog_sender_packet);
   m_packet.mem_realloc(PACKET_MIN_SIZE); // size of the buffer
   m_new_shrink_size= PACKET_MIN_SIZE;
   DBUG_PRINT("info", ("Initial packet->alloced_length: %zu",

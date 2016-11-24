@@ -27,7 +27,6 @@
 
 extern "C" {
 
-PSI_memory_key key_memory_Binlog_sender_packet;
 PSI_memory_key key_memory_DATE_TIME_FORMAT;
 PSI_memory_key key_memory_DD_default_values;
 PSI_memory_key key_memory_DD_String_type;
@@ -204,7 +203,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_binlog_cache_mngr, "binlog_cache_mngr", 0},
   { &key_memory_Row_data_memory_memory, "Row_data_memory::memory", 0},
 
-  { &key_memory_Binlog_sender_packet, "Binlog_sender::packet", 0},
   { &key_memory_Gtid_set_to_string, "Gtid_set::to_string", 0},
   { &key_memory_Gtid_state_to_string, "Gtid_state::to_string", 0},
   { &key_memory_Owned_gtids_to_string, "Owned_gtids::to_string", 0},

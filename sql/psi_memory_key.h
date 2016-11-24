@@ -50,7 +50,6 @@ extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 /*
   These are defined in psi_memory_key.cc
  */
-extern PSI_memory_key key_memory_Binlog_sender_packet;
 extern PSI_memory_key key_memory_DATE_TIME_FORMAT;
 extern PSI_memory_key key_memory_DD_default_values;
 extern PSI_memory_key key_memory_DD_String_type;
