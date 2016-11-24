@@ -2286,7 +2286,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
     if (m_is_dom)
     {
       Json_wrapper clone(m_dom_value->clone());
-      if (clone.empty() || hits->push_back(Json_wrapper()))
+      if (clone.empty() || hits->emplace_back())
         return true;                          /* purecov: inspected */
       hits->back().steal(&clone);
       return false;
@@ -2472,7 +2472,7 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
   for (Json_dom_vector::iterator it= dhits.begin(); it != dhits.end(); ++it)
   {
     Json_wrapper clone((*it)->clone());
-    if (clone.empty() || hits->push_back(Json_wrapper()))
+    if (clone.empty() || hits->emplace_back())
       return true;                            /* purecov: inspected */
     hits->back().steal(&clone);
   }

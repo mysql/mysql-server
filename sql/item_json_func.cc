@@ -474,7 +474,7 @@ bool Json_path_cache::parse_and_cache_path(Item ** args, uint arg_idx,
   if (cell.m_status == enum_path_status::UNINITIALIZED)
   {
     cell.m_index= m_paths.size();
-    if (m_paths.push_back(Json_path()))
+    if (m_paths.emplace_back())
       return true;                            /* purecov: inspected */
   }
   else

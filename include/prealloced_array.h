@@ -235,7 +235,8 @@ public:
 
   /**
     Reserves space for array elements.
-    Copies over existing elements, in case we are re-expanding the array.
+    Copies (or moves, if possible) over existing elements, in case we
+    are re-expanding the array.
 
     @param  n number of elements.
     @retval true if out-of-memory, false otherwise.
@@ -250,12 +251,12 @@ public:
       return true;
     Element_type *new_array= static_cast<Element_type*>(mem);
 
-    // Copy all the existing elements into the new array.
+    // Move all the existing elements into the new array.
     for (size_t ix= 0; ix < m_size; ++ix)
     {
       Element_type *new_p= &new_array[ix];
-      const Element_type &old_p= m_array_ptr[ix];
-      ::new (new_p) Element_type(old_p);    // Copy into new location.
+      Element_type &old_p= m_array_ptr[ix];
+      ::new (new_p) Element_type(std::move(old_p)); // Move into new location.
       if (!Has_trivial_destructor)
         old_p.~Element_type();              // Destroy the old element.
     }
@@ -272,15 +273,36 @@ public:
   /**
     Copies an element into the back of the array.
     Complexity: Constant (amortized time, reallocation may happen).
-    @retval true if out-of-memory, false otherwise.
-   */
+    @return true if out-of-memory, false otherwise
+  */
   bool push_back(const Element_type &element)
+  {
+    return emplace_back(element);
+  }
+
+  /**
+    Copies (or moves, if possible) an element into the back of the array.
+    Complexity: Constant (amortized time, reallocation may happen).
+    @return true if out-of-memory, false otherwise
+  */
+  bool push_back(Element_type &&element)
+  {
+    return emplace_back(std::move(element));
+  }
+
+  /**
+    Constructs an element at the back of the array.
+    Complexity: Constant (amortized time, reallocation may happen).
+    @return true if out-of-memory, false otherwise
+  */
+  template <typename... Args>
+  bool emplace_back(Args&&... args)
   {
     const size_t expansion_factor= 2;
     if (m_size == m_capacity && reserve(m_capacity * expansion_factor))
       return true;
     Element_type *p= &m_array_ptr[m_size++];
-    ::new (p) Element_type(element);
+    ::new (p) Element_type(std::forward<Args>(args)...);
     return false;
   }
 
@@ -303,23 +325,51 @@ public:
     This is generally an inefficient operation, since we need to copy
     elements to make a new "hole" in the array.
 
-    We use std::copy_backward to move objects, hence Element_type must be
-    assignable.
+    We use std::rotate to move objects, hence Element_type must be
+    move-assignable and move-constructible.
 
-    @retval An iterator pointing to the inserted value.
-   */
-  iterator insert(iterator position, const value_type &val)
+    @return an iterator pointing to the inserted value
+  */
+  iterator insert(const_iterator position, const value_type &val)
+  {
+    return emplace(position, val);
+  }
+
+  /**
+    The array is extended by inserting a new element before the element at the
+    specified position. The element is moved into the array, if possible.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to make a new "hole" in the array.
+
+    We use std::rotate to move objects, hence Element_type must be
+    move-assignable and move-constructible.
+
+    @return an iterator pointing to the inserted value
+  */
+  iterator insert(const_iterator position, value_type &&val)
+  {
+    return emplace(position, std::move(val));
+  }
+
+  /**
+    The array is extended by inserting a new element before the element at the
+    specified position. The element is constructed in-place.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to make a new "hole" in the array.
+
+    We use std::rotate to move objects, hence Element_type must be
+    move-assignable and move-constructible.
+
+    @return an iterator pointing to the inserted value
+  */
+  template <typename... Args>
+  iterator emplace(const_iterator position, Args&&... args)
   {
     const difference_type n= position - begin();
-    if (position == end())
-      push_back(val);
-    else
-    {
-      resize(m_size + 1);
-      // resize() may invalidate position, so do not use it here.
-      std::copy_backward(begin() + n, end() - 1, end());
-      *(begin() + n) = val;
-    }
+    emplace_back(std::forward<Args>(args)...);
+    std::rotate(begin() + n, end() - 1, end());
     return begin() + n;
   }
 
