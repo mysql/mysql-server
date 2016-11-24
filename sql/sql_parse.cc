@@ -49,6 +49,7 @@
 #include "sql_insert.h"       // Query_result_create
 #include "sql_load.h"         // mysql_load
 #include "sql_prepare.h"      // mysql_stmt_execute
+#include "partition_info.h"   // has_external_data_or_index_dir
 #include "sql_reload.h"       // reload_acl_and_cache
 #include "sql_rename.h"       // mysql_rename_tables
 #include "sql_select.h"       // handle_query
@@ -2999,11 +3000,19 @@ case SQLCOM_PREPARE:
       copy.
     */
     Alter_info alter_info(lex->alter_info, thd->mem_root);
-
     if (thd->is_fatal_error)
     {
       /* If out of memory when creating a copy of alter_info. */
       res= 1;
+      goto end_with_restore_list;
+    }
+
+    if (((lex->create_info.used_fields & HA_CREATE_USED_DATADIR) != 0 ||
+         (lex->create_info.used_fields & HA_CREATE_USED_INDEXDIR) != 0) &&
+        check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+    {
+      res= 1;
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "FILE");
       goto end_with_restore_list;
     }
 
@@ -3065,6 +3074,12 @@ case SQLCOM_PREPARE:
 
     {
       partition_info *part_info= thd->lex->part_info;
+      if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
+          check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+      {
+        res= -1;
+        goto end_with_restore_list;
+      }
       if (part_info && !(part_info= thd->lex->part_info->get_clone(true)))
       {
         res= -1;
