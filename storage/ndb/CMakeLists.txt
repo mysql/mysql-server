@@ -52,30 +52,6 @@ ENDMACRO()
 
 NDB_CHECK_MYSQL_CLUSTER(${VERSION})
 
-# Disable specific types of warnings for storage/ndb
-# if the compiler supports the flag
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  INCLUDE(CheckCXXCompilerFlag)
-  FOREACH(warning
-          "unused-but-set-variable"
-          "strict-aliasing"
-          # Downgrade -Werror to warning for "may be used uninitialized"
-          # and "is used uninitialized in this function"
-          "error=maybe-uninitialized"
-          "error=uninitialized"
-          # Downgrade placement-new as part of Bug #24822203
-          "error=placement-new")
-    STRING(REPLACE "-" "_" warning_ ${warning})
-    STRING(TOUPPER ${warning_} WARNING)
-    CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
-    IF(HAVE_${WARNING})
-      MESSAGE(STATUS "Disabling -W${warning} warning for building NDB")
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
-      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
-    ENDIF()
-  ENDFOREACH()
-ENDIF()
-
 #
 # Add the ndbcluster plugin
 #
@@ -160,7 +136,9 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
           # Downgrade -Werror to warning for "may be used uninitialized"
           # and "is used uninitialized in this function"
           "error=maybe-uninitialized"
-          "error=uninitialized")
+          "error=uninitialized"
+          # Downgrade placement-new as part of Bug #24822203
+          "error=placement-new")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
