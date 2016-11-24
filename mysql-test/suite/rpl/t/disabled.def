@@ -17,7 +17,3 @@ rpl.rpl_ddl              : Bug#23247847 2016-05-12 Mohit Disabled until bug is f
 
 #NewDD disable some test cases for partition.
 rpl.rpl_partition_innodb : Waiting for wl#9559
-
-#NewDD disable some test cases for wl#9532.
-rpl.rpl_stm_mixed_mts_rec_crash_safe_small : Waiting for wl#9532
-rpl.rpl_multi_source_mts_reset_worker_info : Waiting for wl#9532
