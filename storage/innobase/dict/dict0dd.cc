@@ -519,6 +519,10 @@ dd_table_open_on_id_low(
 		dc, *dd_table, dd_part, tbl_name, nullptr,
 		ib_table, mdl == nullptr/*, table */, thd);
 
+	if (mdl && ib_table == nullptr) {
+		dd_mdl_release(thd, mdl);
+	}
+
 	return(ib_table);
 }
 

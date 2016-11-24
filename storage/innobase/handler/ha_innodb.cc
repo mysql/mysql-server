@@ -8546,8 +8546,8 @@ dd_open_table(
 	} else if (dd_tablespace_is_implicit(
 		client, dd_first_index(dd_table)->tablespace_id(),
 		&implicit)) {
-		my_error(ER_TABLESPACE_MISSING, MYF(0),
-			 dd_table->name().c_str());
+		/* Tablespace no longer exist, it could be already dropped
+		TODO: should we do more verification/error report */
 		return(NULL);
 	}
 
@@ -17063,10 +17063,6 @@ ha_innobase::delete_table_impl(
 			file_per_table = dict_table_is_file_per_table(tab);
 			tmp_table = tab->is_temporary();
 			dd_table_close(tab, thd, NULL, false);
-
-			if (tab->is_fts_aux()) {
-				goto func_exit;
-			}
 		}
 	}
 
@@ -17118,7 +17114,6 @@ ha_innobase::delete_table_impl(
 		ut_a(!fail);
 	}
 
-func_exit:
 	innobase_commit_low(trx);
 
 	trx_free_for_mysql(trx);
