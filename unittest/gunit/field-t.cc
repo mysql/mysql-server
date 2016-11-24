@@ -533,7 +533,13 @@ class Mock_charset : public CHARSET_INFO
   Mock_collation mock_collation;
 public:
   mutable bool strnxfrm_called;
-  Mock_charset() { strnxfrm_called= false; coll= &mock_collation; mbmaxlen= 1; }
+  Mock_charset()
+    : strnxfrm_called(false)
+  {
+    cset= &my_charset_8bit_handler;
+    coll= &mock_collation;
+    mbmaxlen= 1;
+  }
   ~Mock_charset() { EXPECT_TRUE(strnxfrm_called); }
 };
 
