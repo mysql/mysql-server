@@ -4486,7 +4486,7 @@ sub run_on_all($$)
     }
     elsif ($proc->{timeout}) {
       $tinfo->{comment}.= "Timeout for '$run' expired after "
-	.check_timeout($tinfo)." seconds";
+	.check_timeout($tinfo)." seconds\n";
     }
     else {
       # Unknown process returned, most likley a crash, abort everything
@@ -5007,13 +5007,40 @@ sub run_testcase ($) {
       return 1;
     }
 
-    # Try to dump core for mysqltest and all servers
-    foreach my $proc ($test, started(all_servers()))
+    if (!IS_WINDOWS)
     {
-      mtr_print("Trying to dump core for $proc");
-      if ($proc->dump_core())
+      # Try to dump core for mysqltest and all servers
+      foreach my $proc ($test, started(all_servers()))
       {
-	$proc->wait_one(20);
+        mtr_print("Trying to dump core for $proc");
+        if ($proc->dump_core())
+        {
+	  $proc->wait_one(20);
+        }
+      }
+    }
+    else
+    {
+      if (-f $path_current_testlog and $proc->{timeout})
+      {
+        mtr_tofile($path_current_testlog, "Test case timeout, safe_process ".
+                                          "and child process are aborted.");
+      }
+
+      # kill mysqltest process
+      $test->kill();
+
+      # Try to dump core for all servers
+      foreach my $mysqld (mysqlds())
+      {
+        mtr_print("Trying to dump core for $mysqld->{'proc'}");
+
+        # There is high a risk of MTR hanging by calling external programs
+        # like 'cdb' on windows with multi-threaded runs(i.e $parallel > 1).
+        # Calling cdb only if parallel value is 1.
+        my $call_cdb= 1 if ($opt_parallel == 1);
+        $mysqld->{'proc'}->dump_core_windows($mysqld, $call_cdb);
+        $mysqld->{'proc'}->wait_one(20);
       }
     }
 
@@ -5781,12 +5808,7 @@ sub report_failure_and_restart ($) {
 	if ($tinfo->{logfile} !~ /\n/)
 	{
 	  # Show how far it got before suddenly failing
-          # Avoid MTR printing the following error message on
-          # windows for test timeout failures.
-          if (!$tinfo->{'timeout'} and !IS_WINDOWS)
-          {
-            $tinfo->{comment}.= "mysqltest failed but provided no output\n";
-          }
+          $tinfo->{comment}.= "mysqltest failed but provided no output\n";
 	  my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
 	  if (-e $log_file_name) {
 	    $tinfo->{comment}.=
