@@ -75,6 +75,8 @@ DROP TABLE t1, t2;
 -- echo # test.t1 have partitions in mysqltest2-directory!
 -- echo # user root:
   CREATE USER mysqltest_1@localhost;
+-- echo # Need FILE permission to use external datadir or indexdir.
+  GRANT FILE ON *.* TO mysqltest_1@localhost;
   CREATE DATABASE mysqltest2;
   USE mysqltest2;
   CREATE TABLE t1 (a INT) ENGINE = MyISAM;
