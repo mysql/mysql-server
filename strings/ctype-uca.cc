@@ -748,7 +748,7 @@ struct uca_scanner_any : public my_uca_scanner
 
   uint get_char_index() const { return char_index; }
 
-  ALWAYS_INLINE(int next());
+  inline int next();
 
 private:
   /**
@@ -762,7 +762,7 @@ private:
 
   const Mb_wc mb_wc;
 
-  ALWAYS_INLINE(int next_implicit(my_wc_t ch));
+  inline int next_implicit(my_wc_t ch);
 };
 
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
@@ -775,7 +775,7 @@ public:
       : my_uca_scanner(cs, str, length),
         mb_wc(mb_wc) {}
 
-  ALWAYS_INLINE(int next());
+  inline int next();
 
   /**
     For each weight in sequence, call "func", which should have
@@ -802,15 +802,15 @@ public:
     over fewer calls.
   */
   template<class T, class U>
-  ALWAYS_INLINE(void for_each_weight(T func, U preaccept_data));
+  inline void for_each_weight(T func, U preaccept_data);
 
 private:
   const Mb_wc mb_wc;
 
-  ALWAYS_INLINE(int next_raw());
+  inline int next_raw();
   inline int more_weight();
   uint16 apply_case_first(uint16 weight);
-  ALWAYS_INLINE(int next_implicit(my_wc_t ch));
+  inline int next_implicit(my_wc_t ch);
   void my_put_jamo_weights(my_wc_t *hangul_jamo, int jamo_cnt);
 };
 
@@ -1276,7 +1276,8 @@ void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::my_put_jamo_weights(
 }
 
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
-inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_implicit(my_wc_t ch)
+ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_implicit(
+  my_wc_t ch)
 {
   my_wc_t hangul_jamo[HANGUL_JAMO_MAX_LENGTH];
   int jamo_cnt;
@@ -1332,7 +1333,7 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_implicit(my_wc_t ch)
 */
 
 template<class Mb_wc>
-inline int uca_scanner_any<Mb_wc>::next_implicit(my_wc_t ch)
+ALWAYS_INLINE int uca_scanner_any<Mb_wc>::next_implicit(my_wc_t ch)
 {
   implicit[0]= (ch & 0x7FFF) | 0x8000;
   implicit[1]= 0;
@@ -1353,7 +1354,7 @@ inline int uca_scanner_any<Mb_wc>::next_implicit(my_wc_t ch)
 
 
 template<class Mb_wc>
-inline int uca_scanner_any<Mb_wc>::next()
+ALWAYS_INLINE int uca_scanner_any<Mb_wc>::next()
 {
   /* 
     Check if the weights for the previous code point have been
@@ -1458,7 +1459,7 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::more_weight()
 
 // Generic version that can handle any number of levels.
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
-inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
+ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
 {
   int remain_weight= more_weight();
   if (remain_weight >= 0)
@@ -1547,7 +1548,7 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
 
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
 template<class T, class U>
-inline void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(
+ALWAYS_INLINE void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(
   T func, U preaccept_data)
 {
   if (cs->tailoring || cs->mbminlen != 1 || cs->coll_param)
@@ -1689,7 +1690,7 @@ uint16 uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::apply_case_first(
 }
 
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
-inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next()
+ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next()
 {
   int res= next_raw();
   Coll_param *param= cs->coll_param;

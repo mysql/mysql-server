@@ -159,9 +159,9 @@ struct my_aligned_storage
 #endif
 
 #if defined(_MSC_VER)
-#define ALWAYS_INLINE(decl) __forceinline decl
+#define ALWAYS_INLINE __forceinline
 #else
-#define ALWAYS_INLINE(decl) inline decl MY_ATTRIBUTE((always_inline))
+#define ALWAYS_INLINE  __attribute__((always_inline)) inline
 #endif
 
 #ifndef __has_attribute
