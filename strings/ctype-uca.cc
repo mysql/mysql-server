@@ -725,13 +725,8 @@ protected:
   const uchar *sbeg_dup; /* Backup of beginning of input string */
 
 protected:
-  ALWAYS_INLINE(int next_implicit(my_wc_t ch));
   const uint16 *contraction_find(my_wc_t *wc, size_t *chars_skipped);
   uint16 *previous_context_find(my_wc_t wc0, my_wc_t wc1);
-
-  // FIXME: Should these just be a specialization in uca_scanner_900?
-  void my_put_jamo_weights(my_wc_t *hangul_jamo, int jamo_cnt);
-  ALWAYS_INLINE(int next_implicit_900(my_wc_t ch));
 };
 
 /*
@@ -766,6 +761,8 @@ private:
   uint char_index{0};
 
   const Mb_wc mb_wc;
+
+  ALWAYS_INLINE(int next_implicit(my_wc_t ch));
 };
 
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
@@ -811,9 +808,10 @@ private:
   const Mb_wc mb_wc;
 
   ALWAYS_INLINE(int next_raw());
-  ALWAYS_INLINE(int next_raw_single_level());
   inline int more_weight();
   uint16 apply_case_first(uint16 weight);
+  ALWAYS_INLINE(int next_implicit(my_wc_t ch));
+  void my_put_jamo_weights(my_wc_t *hangul_jamo, int jamo_cnt);
 };
 
 
@@ -1259,7 +1257,9 @@ my_decompose_hangul_syllable(my_wc_t syllable, my_wc_t* jamo)
   return trailingjamo_index ? 3 : 2;
 }
 
-void my_uca_scanner::my_put_jamo_weights(my_wc_t *hangul_jamo, int jamo_cnt)
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::my_put_jamo_weights(
+  my_wc_t *hangul_jamo, int jamo_cnt)
 {
   for (int jamoind= 0; jamoind < jamo_cnt; jamoind++)
   {
@@ -1274,7 +1274,8 @@ void my_uca_scanner::my_put_jamo_weights(my_wc_t *hangul_jamo, int jamo_cnt)
   implicit[9]= jamo_cnt;
 }
 
-inline int my_uca_scanner::next_implicit_900(my_wc_t ch)
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_implicit(my_wc_t ch)
 {
   my_wc_t hangul_jamo[HANGUL_JAMO_MAX_LENGTH];
   int jamo_cnt;
@@ -1329,12 +1330,9 @@ inline int my_uca_scanner::next_implicit_900(my_wc_t ch)
   @return   The leading implicit weight.
 */
 
-inline int
-my_uca_scanner::next_implicit(my_wc_t ch)
+template<class Mb_wc>
+inline int uca_scanner_any<Mb_wc>::next_implicit(my_wc_t ch)
 {
-  if (cs->uca->version == UCA_V900)
-    return next_implicit_900(ch);
-
   implicit[0]= (ch & 0x7FFF) | 0x8000;
   implicit[1]= 0;
   wbeg= implicit;
@@ -1462,11 +1460,6 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::more_weight()
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
 inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
 {
-  if (LEVELS_FOR_COMPARE == 1)
-  {
-    return next_raw_single_level();
-  }
-
   int remain_weight= more_weight();
   if (remain_weight >= 0)
     return remain_weight;
@@ -1477,8 +1470,14 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
     int mblen= 0;
 
     /* Get next character */
-    if (((mblen= mb_wc(wc, sbeg, send)) <= 0))
+    if ((mblen= mb_wc(wc, sbeg, send)) <= 0)
     {
+      if (LEVELS_FOR_COMPARE == 1)
+      {
+        ++weight_lv;
+        return -1;
+      }
+
       if (++weight_lv < LEVELS_FOR_COMPARE)
       {
         /*
@@ -1525,88 +1524,6 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
       }
       else if (my_uca_can_be_contraction_head(&uca->contractions,
                                               wc[0]))
-      {
-        /* Check if w[0] starts a contraction */
-        size_t chars_skipped;  // Ignored.
-        if ((cweight= contraction_find(wc, &chars_skipped)))
-          return *cweight;
-      }
-    }
-
-    /* Process single character */
-    prev_char= wc[0];
-    int page= wc[0] >> 8;
-    int code= wc[0] & 0xFF;
-
-    /* If weight page for w[0] does not exist, then calculate algoritmically */
-    const uint16 *wpage= uca->weights[page];
-    if (!wpage)
-      return next_implicit(wc[0]);
-
-    /* Calculate pointer to w[0]'s weight, using page and offset */
-    wbeg= UCA900_WEIGHT_ADDR(wpage, weight_lv, code);
-    wbeg_stride= UCA900_DISTANCE_BETWEEN_WEIGHTS;
-    num_of_ce_left= UCA900_NUM_OF_CE(wpage, code);
-  } while (!wbeg[0]); /* Skip ignorable characters */
-
-  uint16 rtn= *wbeg;
-  wbeg+= wbeg_stride;
-  --num_of_ce_left;
-  return rtn;
-}
-
-// Specialized, faster version for only one level.
-template<class Mb_wc, int LEVELS_FOR_COMPARE>
-inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw_single_level()
-{
-  int remain_weight= more_weight();
-  if (remain_weight >= 0)
-    return remain_weight;
-
-  do
-  {
-    my_wc_t wc[MY_UCA_MAX_CONTRACTION];
-    int mblen= 0;
-
-    /* Get next character */
-    if ((mblen= mb_wc(wc, sbeg, send)) <= 0)
-    {
-      weight_lv++;
-      return -1;
-    }
-
-    sbeg+= mblen;
-    if (wc[0] > uca->maxchar)
-    {
-      /* Return 0xFFFD as weight for all characters outside BMP */
-      wbeg= nochar;
-      wbeg_stride= 0;
-      num_of_ce_left= 0;
-      weight_lv= 0;
-      return 0xFFFD;
-    }
-
-    if (my_uca_have_contractions(uca))
-    {
-      const uint16 *cweight;
-      /*
-        If we have scanned a character which can have previous context,
-        and there were some more characters already before,
-        then verify that {prev_char, wc[0]} together form
-        a real previous context pair.
-        {prev_wc, wc[0]} together form a real previous context pair.
-        Note, we support only 2-character long sequences with previous
-        context at the moment. CLDR does not have longer sequences.
-      */
-      if (my_uca_can_be_previous_context_tail(&uca->contractions, wc[0]) &&
-          wbeg != nochar &&     /* if not the very first character */
-          my_uca_can_be_previous_context_head(&uca->contractions, prev_char) &&
-          (cweight= previous_context_find(prev_char, wc[0])))
-      {
-        prev_char= 0; /* Clear for the next character */
-        return *cweight;
-      }
-      if (my_uca_can_be_contraction_head(&uca->contractions, wc[0]))
       {
         /* Check if w[0] starts a contraction */
         size_t chars_skipped;  // Ignored.
