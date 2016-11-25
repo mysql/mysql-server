@@ -1250,6 +1250,9 @@ int binlog_cache_data::write_event(THD*, Log_event *ev)
       flags.with_xid= true;
     if (ev->is_using_immediate_logging())
       flags.immediate= true;
+    /* DDL gets marked as xid-requiring at its caching. */
+    if (is_atomic_ddl_event(ev))
+      flags.with_xid= true;
   }
   DBUG_RETURN(0);
 }
@@ -2446,7 +2449,8 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
                   max<my_off_t>(max_binlog_cache_size,
-                                max_binlog_stmt_cache_size))))
+                                max_binlog_stmt_cache_size),
+                  false)))
     {
       //Reset the thread OK status before changing the outcome.
       if (thd->get_stmt_da()->is_ok())
@@ -8299,6 +8303,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   my_xid xid= trn_ctx->xid_state()->get_xid()->get_my_xid();
   bool stuff_logged= false;
   bool skip_commit= is_loggable_xa_prepare(thd);
+  bool is_atomic_ddl= false;
 
   DBUG_PRINT("enter", ("thd: 0x%llx, all: %s, xid: %llu, cache_mngr: 0x%llx",
                        (ulonglong) thd, YESNO(all), (ulonglong) xid,
@@ -8354,7 +8359,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   {
     /* The Commit phase of the XA two phase logging. */
 
-    DBUG_ASSERT(all);
+    DBUG_ASSERT(all || (thd->slave_thread && get_xa_opt(thd) == XA_ONE_PHASE));
     DBUG_ASSERT(!skip_commit || get_xa_opt(thd) == XA_ONE_PHASE);
 
     XID_STATE *xs= thd->get_transaction()->xid_state();
@@ -8430,6 +8435,12 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
         DBUG_RETURN(RESULT_ABORTED);
       }
     }
+    else if ((is_atomic_ddl= cache_mngr->trx_cache.has_xid()))
+    {
+      /* Cache finalization for DDL */
+      if (cache_mngr->trx_cache.finalize(thd, NULL))
+        DBUG_RETURN(RESULT_ABORTED);
+    }
     else if (real_trans && xid && trn_ctx->rw_ha_count(trx_scope) > 1 &&
              !trn_ctx->no_2pc(trx_scope))
     {
@@ -8471,7 +8482,8 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
                   max<my_off_t>(max_binlog_cache_size,
-                                max_binlog_stmt_cache_size))) ||
+                                max_binlog_stmt_cache_size),
+                  is_atomic_ddl)) ||
         DBUG_EVALUATE_IF("simulate_failure_in_before_commit_hook", true, false))
     {
       ha_rollback_low(thd, all);
@@ -9122,6 +9134,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   my_off_t total_bytes= 0;
   bool do_rotate= false;
 
+  DBUG_EXECUTE_IF("crash_commit_before_log", DBUG_SUICIDE(););
   /*
     These values are used while flushing a transaction, so clear
     everything.
@@ -9236,6 +9249,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
 
     if (!update_binlog_end_pos_after_sync)
       update_binlog_end_pos();
+
     DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
   }
 
@@ -9483,13 +9497,24 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
       DBUG_ASSERT(in_transaction == TRUE);
       in_transaction= FALSE;
     }
-    else if (ev->get_type_code() == binary_log::XID_EVENT)
+    else if (ev->get_type_code() == binary_log::XID_EVENT ||
+             is_atomic_ddl_event(ev))
     {
-      DBUG_ASSERT(in_transaction == TRUE);
-      in_transaction= FALSE;
-      Xid_log_event *xev=(Xid_log_event *)ev;
-      uchar *x= (uchar *) memdup_root(&mem_root, (uchar*) &xev->xid,
-                                      sizeof(xev->xid));
+      uchar *ptr_xid_str;
+
+      if (ev->get_type_code() == binary_log::XID_EVENT)
+      {
+        DBUG_ASSERT(in_transaction == TRUE);
+        in_transaction= FALSE;
+        Xid_log_event *xev=(Xid_log_event *)ev;
+        ptr_xid_str= (uchar*) &xev->xid;
+      }
+      else
+      {
+        ptr_xid_str= (uchar*) &((Query_log_event*) ev)->ddl_xid;
+      }
+      uchar *x= (uchar *) memdup_root(&mem_root, ptr_xid_str, sizeof(my_xid));
+
       if (!x || my_hash_insert(&xids, x))
         goto err2;
     }
@@ -9714,6 +9739,10 @@ static int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
     DBUG_RETURN(0);
 
   register_binlog_handler(thd, thd->in_multi_stmt_transaction_mode());
+
+  /* Transactional DDL is logged traditionally without BEGIN. */
+  if (is_atomic_ddl_event(start_event))
+    DBUG_RETURN(0);
 
   /*
     If the cache is empty log "BEGIN" at the beginning of every transaction.

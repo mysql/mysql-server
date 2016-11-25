@@ -143,7 +143,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false),
    thd_tx_priority(0),
-   is_engine_ha_data_detached(false)
+   is_engine_ha_data_detached(false),
+   current_event(NULL), ddl_not_atomic(false)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -2863,4 +2864,99 @@ void Relay_log_info::detach_engine_ha_data(THD *thd)
     */
   plugin_foreach(thd, detach_native_trx,
                  MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
+}
+
+bool Relay_log_info::commit_positions()
+{
+  int error= 0;
+
+   /*
+     In FILE case Query_log_event::update_pos(), called after commit,
+     updates the info object.
+   */
+  if (!is_transactional())
+    return false;
+
+  mysql_mutex_lock(&data_lock);
+
+  /* Save the rli positions to be restored in case rollback will be decided */
+  strmake(saved_group_master_log_name, get_group_master_log_name(),
+          FN_REFLEN - 1);
+  saved_group_master_log_pos= get_group_master_log_pos();
+  strmake(saved_group_relay_log_name, get_group_relay_log_name(),
+          FN_REFLEN - 1);
+  saved_group_relay_log_pos= get_group_relay_log_pos();
+
+  /* Update to new values */
+  inc_event_relay_log_pos();
+  set_group_relay_log_pos(get_event_relay_log_pos());
+  set_group_relay_log_name(get_event_relay_log_name());
+  set_group_master_log_pos(current_event->common_header->log_pos);
+
+  error= flush_info(true);
+
+  mysql_mutex_unlock(&data_lock);
+
+  return error != 0;
+}
+
+
+void Relay_log_info::post_commit(bool on_rollback)
+{
+  THD *thd= info_thd;
+
+  if (on_rollback)
+  {
+    mysql_mutex_lock(&data_lock);
+    set_group_master_log_name(saved_group_master_log_name);
+    set_group_master_log_pos(saved_group_master_log_pos);
+    set_group_relay_log_name(saved_group_relay_log_name);
+    set_group_relay_log_pos(saved_group_relay_log_pos);
+    mysql_mutex_unlock(&data_lock);
+
+    if (thd->owned_gtid.is_empty())
+      gtid_state->update_on_rollback(thd);
+  }
+  else
+  {
+    if (is_transactional())
+    {
+      /* DDL's commit has been completed */
+      DBUG_ASSERT(!current_event || ! is_atomic_ddl_event(current_event) ||
+                  static_cast<Query_log_event*>(current_event)->
+                  has_ddl_committed);
+      /*
+        Marked as already-committed DDL may have not updated the GTID
+        executed state, which is the case when slave filters it out.
+        on slave side with binlog filtering out.
+        When this is detected now the gtid state will be sorted later,
+        and the gtid-executed based signaling will be done in the
+        "last-chance-to-commit" branch of Log_event::do_update_pos().
+        However in order to enter the branch has_ddl_committed needs false.
+      */
+      if (!thd->owned_gtid.is_empty())
+        static_cast<Query_log_event*>(current_event)->
+          has_ddl_committed= false;
+
+      mysql_mutex_lock(&data_lock);
+      /* Post-commit cleanup for Relay_log_info::wait_for_pos() */
+      if (is_group_master_log_pos_invalid)
+        is_group_master_log_pos_invalid= false;
+
+      notify_group_master_log_name_update();
+      mysql_cond_broadcast(&data_cond);
+      mysql_mutex_unlock(&data_lock);
+    }
+    else
+    {
+      /*
+        In the non-transactional slave info repository case should the
+        current event be DDL it would still have to finalize commit.
+      */
+      DBUG_ASSERT(!current_event ||
+                  !is_atomic_ddl_event(current_event) ||
+                  !static_cast<Query_log_event*>(current_event)->
+                  has_ddl_committed);
+    }
+  }
 }

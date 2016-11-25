@@ -3586,7 +3586,17 @@ int Query_log_event::pack_info(Protocol *protocol)
   }
   // Add the query to the string
   if (query && q_len)
+  {
     str_buf.append(query);
+    if (ddl_xid != binary_log::INVALID_XID)
+    {
+      char xid_buf[64];
+      str_buf.append(" /* xid=");
+      longlong10_to_str(ddl_xid, xid_buf, 10);
+      str_buf.append(xid_buf);
+      str_buf.append(" */");
+    }
+  }
  // persist the buffer in protocol
   protocol->store(str_buf.ptr(), str_buf.length(), &my_charset_bin);
   return 0;
@@ -3867,6 +3877,14 @@ bool Query_log_event::write(IO_CACHE* file)
     *start++= Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP;
     *start++= thd->variables.explicit_defaults_for_timestamp;
   }
+
+  if (ddl_xid != binary_log::INVALID_XID)
+  {
+    *start++= Q_DDL_LOGGED_WITH_XID;
+    int8store(start, ddl_xid);
+    start+= 8;
+  }
+
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h
@@ -3912,6 +3930,81 @@ Query_log_event::Query_log_event()
     Log_event(header(), footer()),
     data_buf(NULL)
 {}
+
+/**
+  Returns true when the lex context determines an atomic DDL.
+  The result is optimistic as there can be more properties to check out.
+
+  @param lex  pointer to LEX object of being executed statement
+*/
+inline bool is_sql_command_atomic_ddl(const LEX *lex)
+{
+  return ((sql_command_flags[lex->sql_command] & CF_POTENTIAL_ATOMIC_DDL)
+          && lex->sql_command != SQLCOM_OPTIMIZE
+          && lex->sql_command != SQLCOM_REPAIR
+          && lex->sql_command != SQLCOM_ANALYZE) ||
+          (lex->sql_command == SQLCOM_CREATE_TABLE &&
+           ! (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)) ||
+          (lex->sql_command == SQLCOM_DROP_TABLE && ! lex->drop_temporary);
+}
+
+bool is_atomic_ddl(THD *thd, bool using_trans_arg)
+{
+  LEX *lex= thd->lex;
+
+#ifndef DBUG_OFF
+  enum enum_sql_command cmd= lex->sql_command;
+  switch (cmd)
+  {
+  case SQLCOM_CREATE_USER:
+  case SQLCOM_RENAME_USER:
+  case SQLCOM_DROP_USER:
+  case SQLCOM_ALTER_USER:
+  case SQLCOM_ALTER_USER_DEFAULT_ROLE:
+  case SQLCOM_GRANT:
+  case SQLCOM_GRANT_ROLE:
+  case SQLCOM_REVOKE:
+  case SQLCOM_REVOKE_ALL:
+  case SQLCOM_REVOKE_ROLE:
+  case SQLCOM_DROP_ROLE:
+  case SQLCOM_CREATE_ROLE:
+  case SQLCOM_SET_PASSWORD:
+  case SQLCOM_CREATE_TRIGGER:
+  case SQLCOM_DROP_TRIGGER:
+
+    DBUG_ASSERT(using_trans_arg || thd->slave_thread || lex->drop_if_exists);
+
+    break;
+  /*
+    For the following commands is_sql_command_atomic_ddl() is true but
+    they are not yet atomic. They should not use trx cache unless this
+    is call from the slave applier for which fake using_trans_arg value
+    is provided.
+
+    TODO: remove a command from the list once it gets 2pc-readied.
+  */
+  case SQLCOM_CREATE_VIEW:
+  case SQLCOM_DROP_VIEW:
+  case SQLCOM_CREATE_SPFUNCTION:
+  case SQLCOM_DROP_FUNCTION:
+  case SQLCOM_ALTER_FUNCTION:
+  case SQLCOM_CREATE_PROCEDURE:
+  case SQLCOM_DROP_PROCEDURE:
+  case SQLCOM_ALTER_PROCEDURE:
+
+    DBUG_ASSERT(!using_trans_arg || thd->slave_thread);
+    break;
+  default:
+    break;
+  }
+#endif
+
+  return
+    using_trans_arg &&
+    is_sql_command_atomic_ddl(lex);
+}
+
+
 
 /**
   Creates a Query Log Event.
@@ -4139,7 +4232,18 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
         break;
     }
   }
-  
+  else
+  {
+    DBUG_ASSERT(!using_trans); // immediate is imcompatible with using_trans
+  }
+
+  /*
+    Drop the flag as sort of reset right before the being logged query
+    gets classified as possibly not atomic DDL.
+  */
+  if (thd->rli_slave)
+    thd->rli_slave->ddl_not_atomic= false;
+
   if (cmd_can_generate_row_events)
   {
     cmd_must_go_to_trx_cache= cmd_must_go_to_trx_cache || using_trans;
@@ -4160,10 +4264,52 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
       event_cache_type= Log_event::EVENT_STMT_CACHE;
     }
   }
+  else if (is_atomic_ddl(thd, using_trans))
+  {
+    DBUG_ASSERT(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
+    /*
+      Event creation is normally followed by its logging.
+      Todo: add exceptions if any.
+    */
+    DBUG_ASSERT(!thd->is_operating_substatement_implicitly);
+
+    Transaction_ctx *trn_ctx= thd->get_transaction();
+
+    /* Transaction needs to be active for xid to be assigned, */
+    DBUG_ASSERT(trn_ctx->is_active(Transaction_ctx::SESSION));
+    /* and the transaction's xid has been already computed. */
+    DBUG_ASSERT(!trn_ctx->xid_state()->get_xid()->is_null());
+
+    my_xid xid= trn_ctx->xid_state()->get_xid()->get_my_xid();
+
+    /*
+      xid uniqueness: the last time used not equal to the current one
+    */
+    DBUG_ASSERT(thd->debug_binlog_xid_last.is_null() ||
+                thd->debug_binlog_xid_last.get_my_xid() != xid);
+
+    ddl_xid= xid;
+#ifndef DBUG_OFF
+    thd->debug_binlog_xid_last= *trn_ctx->xid_state()->get_xid();
+#endif
+    event_logging_type= Log_event::EVENT_NORMAL_LOGGING;
+    event_cache_type=   Log_event::EVENT_TRANSACTIONAL_CACHE;
+  }
   else
   {
+    /*
+      Note SQLCOM_XA_COMMIT, SQLCOM_XA_ROLLBACK fall into this block.
+      Even though CREATE-TABLE sub-statement of CREATE-TABLE-SELECT in
+      RBR makes a turn here it is logged atomically with the SELECT
+      Rows-log event part that determines the xid of the entire group.
+    */
     event_logging_type= Log_event::EVENT_IMMEDIATE_LOGGING;
     event_cache_type= Log_event::EVENT_STMT_CACHE;
+
+    DBUG_ASSERT(ddl_xid == binary_log::INVALID_XID);
+
+    if (thd->rli_slave)
+      thd->rli_slave->ddl_not_atomic= true;
   }
 
   DBUG_ASSERT(event_cache_type != Log_event::EVENT_INVALID_CACHE);
@@ -4182,7 +4328,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                                  *description_event,
                                  Log_event_type event_type)
   :binary_log::Query_event(buf, event_len, description_event, event_type),
-   Log_event(header(), footer())
+   Log_event(header(), footer()), has_ddl_committed(false)
 {
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
   slave_proxy_id= thread_id;
@@ -4253,10 +4399,17 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 
   if (!print_event_info->short_form)
   {
+    const char xid_assign[]= "\tXid = ";
+    char xid_buf[64 + sizeof(xid_assign) - 1]= {0};
+    if (ddl_xid != binary_log::INVALID_XID)
+    {
+      strcpy(xid_buf, xid_assign);
+      longlong10_to_str(ddl_xid, xid_buf + strlen(xid_assign), 10);
+    }
     print_header(file, print_event_info, FALSE);
-    my_b_printf(file, "\t%s\tthread_id=%lu\texec_time=%lu\terror_code=%d\n",
+    my_b_printf(file, "\t%s\tthread_id=%lu\texec_time=%lu\terror_code=%d%s\n",
                 get_type_str(), (ulong) thread_id, (ulong) exec_time,
-                error_code);
+                error_code, xid_buf);
   }
 
   if ((common_header->flags & LOG_EVENT_SUPPRESS_USE_F))
@@ -4611,6 +4764,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     attach_temp_tables_worker(thd, rli);
     DBUG_PRINT("query",("%s", thd->query().str));
 
+    DBUG_EXECUTE_IF ("simulate_error_in_ddl", error_code= 1051;);
+
     if (ignored_error_code((expected_error= error_code)) ||
 	!unexpected_error_code(expected_error))
     {
@@ -4847,7 +5002,11 @@ compare_errors:
         thd->is_error() &&
         thd->get_stmt_da()->mysql_errno() == ER_BAD_TABLE_ERROR &&
         !expected_error)
+    {
       thd->get_stmt_da()->reset_diagnostics_area();
+      // Flag drops for error-ignored DDL to advance execution coordinates.
+      has_ddl_committed= false;
+    }
     /*
       If we expected a non-zero error code, and we don't get the same error
       code, and it should be ignored or is related to a concurrency issue.
@@ -4902,6 +5061,7 @@ compare_errors:
                       "Could not execute %s event. Detailed error: %s;",
                       get_type_str(), thd->get_stmt_da()->message_text());
       }
+      has_ddl_committed= false; // The same comments as above.
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
     }
@@ -6433,6 +6593,9 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
       rli_ptr->flush_info(false);
   }
 err:
+  // This is Bug#24588741 fix:
+  if (rli_ptr->is_group_master_log_pos_invalid)
+    rli_ptr->is_group_master_log_pos_invalid= false;
   mysql_cond_broadcast(&rli_ptr->data_cond);
   mysql_mutex_unlock(&rli_ptr->data_lock);
 

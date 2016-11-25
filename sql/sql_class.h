@@ -1902,7 +1902,10 @@ public:
     gtid into mysql.gtid_executed table before transaction prepare, as
     it does when binlog is disabled, or binlog is enabled and
     log_slave_updates is disabled.
-    Rpl_info_table::do_flush_info() uses this flag.
+    Also the flag is made to defer updates to the slave info table from
+    intermediate commits by non-atomic DDL.
+    Rpl_info_table::do_flush_info(), rpl_rli.h::is_atomic_ddl_commit_on_slave()
+    uses this flag.
   */
   bool is_operating_substatement_implicitly;
 
@@ -4006,6 +4009,15 @@ private:
     aggregates THD.
   */
   bool is_a_srv_session_thd;
+
+#ifndef DBUG_OFF
+public:
+  /*
+    The member serves to guard against duplicate use of the same xid
+    at binary logging.
+  */
+  XID debug_binlog_xid_last;
+#endif
 };
 
 

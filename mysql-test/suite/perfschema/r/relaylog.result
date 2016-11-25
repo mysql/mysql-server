@@ -170,7 +170,7 @@ wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_log	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync_queue	MANY
-wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_xids	NONE
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_xids	MANY
 "Expect a slave relay log"
 select
 substring(file_name, locate("slave-", file_name)) as FILE_NAME,

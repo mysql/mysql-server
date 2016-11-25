@@ -7,9 +7,6 @@
 --source include/not_crashrep.inc
 # innodb-force-recovery-crash needs debug
 --source include/have_debug.inc
-# Disabled in --log-bin runs until atomic DDL is properly supported in
-# binary log.
---source include/not_log_bin.inc
 
 if (`SELECT @@innodb_log_file_size = 1048576`) {
   --skip Test requires innodb_log_file_size>1M.

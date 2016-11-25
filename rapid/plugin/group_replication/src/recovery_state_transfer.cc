@@ -597,22 +597,6 @@ int Recovery_state_transfer::start_recovery_donor_threads()
     error= 1;
     channel_observation_manager
       ->unregister_channel_observer(recovery_channel_observer);
-    /*
-      At this point, at least one of the threads are about to stop (if it
-      didn't stopped yet).
-
-      During retry attempts, we will:
-        a) reconfigure the receiver thread to point to a new donor;
-        b) start all thread channels;
-
-      In order to not fail while doing (a) we must forcefully stop the
-      receiver thread if it didn't stopped yet, or else the reconfiguration
-      process will fail.
-    */
-    if ((is_applier_stopping || is_applier_stopped) &&
-        !(is_receiver_stopping || is_receiver_stopped))
-      donor_connection_interface.stop_threads(true /* receiver */,
-                                              false /* applier */);
   }
 
   DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook",
@@ -630,6 +614,9 @@ int Recovery_state_transfer::start_recovery_donor_threads()
 
   if (error)
   {
+    donor_connection_interface.stop_threads(true /* receiver */,
+                                            true /* applier */);
+
     if (error == RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR)
     {
       log_message(MY_ERROR_LEVEL,

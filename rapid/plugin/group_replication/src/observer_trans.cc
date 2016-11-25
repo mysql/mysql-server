@@ -365,7 +365,12 @@ int group_replication_trans_before_commit(Trans_param *param)
   enum enum_gcs_error send_error= GCS_OK;
 
   // Binlog cache.
-  bool is_dml= true;
+  /*
+    Atomic DDL:s are logged through the transactional cache so they should
+    be exempted from considering as DML by the plugin: not
+    everthing that is in the trans cache is actually DML.
+  */
+  bool is_dml= !param->is_atomic_ddl;
   IO_CACHE *cache_log= NULL;
   my_off_t cache_log_position= 0;
   bool reinit_cache_log_required= false;
@@ -435,7 +440,7 @@ int group_replication_trans_before_commit(Trans_param *param)
 
   // Create transaction context.
   tcle= new Transaction_context_log_event(param->server_uuid,
-                                          is_dml,
+                                          is_dml || param->is_atomic_ddl,
                                           param->thread_id,
                                           is_gtid_specified);
   if (!tcle->is_valid())
@@ -497,8 +502,8 @@ int group_replication_trans_before_commit(Trans_param *param)
     *(param->original_commit_timestamp)= my_micro_time_ntp();
   } // otherwise the transaction did not originate in this server
 
-  // Write Gtid log event to group replication cache.
-  gle= new Gtid_log_event(param->server_id, is_dml, 0, 1,
+  // Notice the GTID of atomic DDL is written to the trans cache as well.
+  gle= new Gtid_log_event(param->server_id, is_dml || param->is_atomic_ddl, 0, 1,
                           *(param->original_commit_timestamp),
                           0,
                           gtid_specification);

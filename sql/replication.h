@@ -124,6 +124,11 @@ typedef struct Trans_param {
   IO_CACHE *trx_cache_log;
   IO_CACHE *stmt_cache_log;
   ulonglong cache_log_max_size;
+  /*
+    The flag designates the transaction is a DDL contained is
+    the transactional cache.
+  */
+  bool      is_atomic_ddl;
 
   /*
    This is the list of tables that are involved in this transaction and its

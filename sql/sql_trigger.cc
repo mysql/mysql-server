@@ -413,7 +413,7 @@ static bool finalize_trigger_ddl(
   thd->add_to_binlog_accessed_dbs(db_name);
 
   DEBUG_SYNC(thd, "trigger_ddl_stmt_before_write_to_binlog");
-  return write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length());
+  return write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length(), true);
 }
 
 
@@ -656,7 +656,7 @@ bool Sql_cmd_drop_trigger::execute(THD *thd)
 
     /* Still, we need to log the query ... */
     stmt_query.append(thd->query().str, thd->query().length);
-    result= write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length());
+    result= write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length(), false);
 
     thd->lex->restore_backup_query_tables_list(&backup);
 

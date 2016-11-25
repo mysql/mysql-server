@@ -47,8 +47,11 @@ DROP TABLE t4;
 
 #
 # #28436: Incorrect position in SHOW BINLOG EVENTS causes server coredump 
---error 1220
+--disable_result_log
+--error 0,1220
+# Zero error can become possible over time still proving no crash.
 SHOW BINLOG EVENTS FROM 490;
+--enable_result_log
 
 --echo Bug#44352 UPPER/LOWER function doesn't work correctly on cp932 and sjis environment.
 CREATE TABLE t1 (a varchar(16)) character set cp932;

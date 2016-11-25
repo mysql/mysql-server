@@ -327,7 +327,8 @@ void delegates_destroy()
 int Trans_delegate::before_commit(THD *thd, bool all,
                                   IO_CACHE *trx_cache_log,
                                   IO_CACHE *stmt_cache_log,
-                                  ulonglong cache_log_max_size)
+                                  ulonglong cache_log_max_size,
+                                  bool is_atomic_ddl_arg)
 {
   DBUG_ENTER("Trans_delegate::before_commit");
   Trans_param param;
@@ -342,6 +343,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   param.stmt_cache_log= stmt_cache_log;
   param.cache_log_max_size= cache_log_max_size;
   param.original_commit_timestamp= &thd->variables.original_commit_timestamp;
+  param.is_atomic_ddl= is_atomic_ddl_arg;
 
   bool is_real_trans=
     (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));

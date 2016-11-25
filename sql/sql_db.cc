@@ -176,13 +176,13 @@ bool get_default_db_collation(THD *thd,
   being dropped.
 */
 
-static bool write_db_cmd_to_binlog(THD *thd, const char *db)
+static bool write_db_cmd_to_binlog(THD *thd, const char *db, bool trx_cache)
 {
   if (mysql_bin_log.is_open())
   {
     int errcode= query_error_code(thd, TRUE);
     Query_log_event qinfo(thd, thd->query().str, thd->query().length,
-                          true /* transactional cache */, false,
+                          trx_cache, false,
                           /* suppress_use */ true, errcode);
     /*
       Write should use the database being created/altered or dropped
@@ -335,13 +335,6 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB, thd->query().str,
                       thd->query().length, db, "");
 
-  if (write_db_cmd_to_binlog(thd, db))
-  {
-    if (!schema_exists)
-      rm_dir_w_symlink(path, true);
-    DBUG_RETURN(true);
-  }
-
   /*
     Create schema in DD. This is done even when initializing the server
     and creating the system schema. In that case, the shared cache will
@@ -375,6 +368,18 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
         rm_dir_w_symlink(path, true);
       DBUG_RETURN(true);
     }
+  }
+
+  /*
+    If we have not added database to the data-dictionary we don't have
+    active transaction at this point. In this case we can't use
+    binlog's trx cache, which requires transaction with valid XID.
+  */
+  if (write_db_cmd_to_binlog(thd, db, store_in_dd))
+  {
+    if (!schema_exists)
+      rm_dir_w_symlink(path, true);
+    DBUG_RETURN(true);
   }
 
   /*
@@ -427,8 +432,6 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   // Set new collation ID.
   schema->set_default_collation_id(create_info->default_table_charset->number);
 
-  Disable_gtid_state_update_guard disabler(thd);
-
   // Update schema.
   if (thd->dd_client()->update(schema))
     DBUG_RETURN(true);
@@ -437,7 +440,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
                       thd->query().str, thd->query().length,
                       db, "");
 
-  if (write_db_cmd_to_binlog(thd, db))
+  if (write_db_cmd_to_binlog(thd, db, true))
     DBUG_RETURN(true);
 
   /*
@@ -578,7 +581,12 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       push_warning_printf(thd, Sql_condition::SL_NOTE,
 			  ER_DB_DROP_EXISTS,
                           ER_THD(thd, ER_DB_DROP_EXISTS), db.str);
-      if (write_db_cmd_to_binlog(thd, db.str))
+
+      /*
+        We don't have active transaction at this point so we can't use
+        binlog's trx cache, which requires transaction with valid XID.
+      */
+      if (write_db_cmd_to_binlog(thd, db.str, false))
         DBUG_RETURN(true);
 
       if (trans_commit_stmt(thd) ||  trans_commit_implicit(thd))
@@ -666,18 +674,18 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     }
     thd->pop_internal_handler();
 
-    /*
-      If database exists and there was no error we should
-      write statement to binary log and remove DD entry.
-    */
-    if (!error)
-      error= write_db_cmd_to_binlog(thd, db.str);
-
     if (!error)
     {
       Disable_gtid_state_update_guard disabler(thd);
       error= thd->dd_client()->drop(schema);
     }
+
+    /*
+      If database exists and there was no error we should
+      write statement to binary log and remove DD entry.
+    */
+    if (!error)
+      error= write_db_cmd_to_binlog(thd, db.str, true);
 
     if (!error)
       error= trans_commit_stmt(thd) || trans_commit(thd);

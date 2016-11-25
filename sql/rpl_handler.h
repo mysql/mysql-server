@@ -176,7 +176,7 @@ public:
   int before_commit(THD *thd, bool all,
                     IO_CACHE *trx_cache_log,
                     IO_CACHE *stmt_cache_log,
-                    ulonglong cache_log_max_size);
+                    ulonglong cache_log_max_size, bool is_atomic_ddl);
   int before_rollback(THD *thd, bool all);
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);

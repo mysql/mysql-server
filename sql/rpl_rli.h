@@ -848,6 +848,15 @@ public:
   time_t mts_last_online_stat;
   /* end of MTS statistics */
 
+  /**
+    Storage for holding the last executed event group coordinates while
+    the current group of events is processed, see @c pre_commit, post_commit.
+  */
+  char saved_group_master_log_name[FN_REFLEN];
+  my_off_t saved_group_master_log_pos;
+  char saved_group_relay_log_name [FN_REFLEN];
+  my_off_t saved_group_relay_log_pos;
+
   /* Returns the number of elements in workers array/vector. */
   inline size_t get_worker_count()
   {
@@ -880,6 +889,12 @@ public:
     else
       return NULL;
   }
+
+  /**
+    The method implements updating a slave info table. It's
+    specialized differently for STS and MTS.
+  */
+  virtual bool commit_positions();
 
   /*Channel defined mts submode*/
   enum_mts_parallel_type channel_mts_submode;
@@ -1446,6 +1461,23 @@ public:
     the engine ha_data re-attachment.
   */
   bool is_engine_ha_data_detached;
+  /**
+    Reference to being applied event. The member is set at event reading
+    and gets reset at the end of the event lifetime.
+    See more in @c RLI_current_event_raii that provides the main
+    interface to the member.
+  */
+  Log_event *current_event;
+
+  /**
+    Raised when slave applies and writes to its binary log statement
+    which is not atomic DDL and has no XID assigned. Checked at commit
+    time to decide whether it is safe to update slave info table
+    within the same transaction as the write to binary log or this
+    should be deffered. The deffered scenario applies for not XIDed events
+    in which case such update might be lost on recovery.
+  */
+  bool ddl_not_atomic;
 
   void set_thd_tx_priority(int priority)
   {
@@ -1511,6 +1543,48 @@ public:
 
     return rc;
   }
+
+  /**
+    Execute actions at replicated atomic DLL post rollback time.
+    This include marking the current atomic DDL query-log-event
+    as having processed.
+    This measure is necessary to avoid slave info table update execution
+    when @c pre_commit() hook is called as part of DDL's eventual
+    implicit commit.
+  */
+  void post_rollback()
+  {
+    static_cast<Query_log_event*>(current_event)->has_ddl_committed= true;
+  }
+
+  /**
+    The method implements a pre-commit hook to add up a new statement
+    typically to a DDL transaction to update the slave info table.
+    Note, in the non-transactional repository case the slave info
+    is updated after successful commit of the main transaction.
+
+    @return false as success, otherwise true
+  */
+  bool pre_commit()
+  {
+    bool rc= false;
+
+    if (is_transactional())
+    {
+      static_cast<Query_log_event*>(current_event)->has_ddl_committed= true;
+      rc= commit_positions();
+    }
+    return rc;
+  }
+  /**
+    Cleanup of any side effect that pre_commit() inflicts, including
+    restore of the last executed group coordinates in case the current group
+    has been destined to rollback, and signaling to possible waiters
+    in the positive case.
+
+    @param on_rollback  when true the method carries out rollback action
+  */
+  virtual void post_commit(bool on_rollback);
 };
 
 bool mysql_show_relaylog_events(THD* thd);
@@ -1530,4 +1604,99 @@ inline bool is_mts_worker(const THD *thd)
  Auxiliary function to check if we have a db partitioned MTS
  */
 bool is_mts_db_partitioned(Relay_log_info * rli);
+
+/**
+  Checks whether the supplied event encodes a (2pc-aware) DDL
+  that has been already committed.
+
+  @param  ev    A reference to Query-log-event
+  @return true  when the event is already committed transactional DDL
+*/
+inline bool is_committed_ddl(Log_event *ev)
+{
+  return
+    ev->get_type_code() == binary_log::QUERY_EVENT &&
+    /* has been already committed */
+    static_cast<Query_log_event*>(ev)->has_ddl_committed;
+}
+
+/**
+  Checks whether the transaction identified by the argument
+  is executed by a slave applier thread is an atomic DDL
+  not yet committed (see @c Query_log_event::has_ddl_committed).
+  THD::is_operating_substatement_implicitly filters out intermediate
+  commits done by non-atomic DDLs.
+  The error-tagged atomic statements are regarded as non-atomic
+  therefore this predicate returns negative in such case.
+
+  Note that call to is_atomic_ddl() returns "approximate" outcome in
+  this case as it misses information about type of tables used by the DDL.
+
+  This can be a problem for binlogging slave, as updates to slave info
+  which happen in the same transaction as write of binary log event
+  without XID might be lost on recovery. To avoid this problem
+  RLI::ddl_not_atomic flag is employed which is set to true when
+  non-atomic DDL without XID is written to the binary log.
+
+  "Approximate" outcome is always fine for non-binlogging slave as in
+  this case commit happens using one-phase routine for which recovery
+  is always correct.
+
+  @param  thd   a pointer to THD describing the transaction context
+  @return true  when a slave applier thread is set to commmit being processed
+                DDL query-log-event, otherwise returns false.
+*/
+inline bool is_atomic_ddl_commit_on_slave(THD *thd)
+{
+  DBUG_ASSERT(thd);
+
+  Relay_log_info *rli= thd->rli_slave;
+
+  /* Early return is about an error in the SQL thread initialization */
+  if (!rli)
+    return false;
+
+  return ((thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+           thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER) &&
+          rli->current_event) ?
+    (rli->is_transactional() &&
+     /* has not yet committed */
+     (rli->current_event->get_type_code() == binary_log::QUERY_EVENT &&
+      !static_cast<Query_log_event*>(rli->current_event)->has_ddl_committed) &&
+     /* unless slave binlogger identified non-atomic */
+     !rli->ddl_not_atomic &&
+     /* slave info is not updated when a part of multi-DROP-TABLE commits */
+     !thd->is_commit_in_middle_of_statement &&
+     (is_atomic_ddl(thd, true) && !thd->is_operating_substatement_implicitly) &&
+     /* error-tagged atomic DDL do not update yet slave info */
+     static_cast<Query_log_event*>(rli->current_event)->error_code == 0) :
+    false;
+}
+
+
+/**
+  RAII class to control the slave applier execution context binding
+  with a being handled event. The main object of control is Query-log-event
+  containing DDL statement.
+  The member RLI::current_event is set to refer to an event once it is
+  read, e.g by next_event() and is reset to NULL at exiting a
+  read-exec loop. Once the event is destroyed RLI::current_event must be reset
+  or guaranteed not be accessed anymore.
+  In the MTS execution the worker is reliably associated with an event
+  only with the latter is not deferred. This includes Query-log-event.
+*/
+class RLI_current_event_raii
+{
+  Relay_log_info *m_rli;
+
+public:
+  RLI_current_event_raii(Relay_log_info* rli_arg, Log_event *ev) : m_rli(rli_arg)
+  {
+    m_rli->current_event= ev;
+  }
+  void set_current_event(Log_event *ev) { m_rli->current_event= ev; }
+  ~RLI_current_event_raii() { m_rli->current_event= NULL; }
+};
+
+
 #endif /* RPL_RLI_H */

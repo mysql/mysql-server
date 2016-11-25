@@ -36,6 +36,9 @@
 #include "psi_memory_key.h"
 #include "rpl_info_table_access.h"  // Rpl_info_table_access
 #include "rpl_info_values.h"        // Rpl_info_values
+#ifndef DBUG_OFF
+#include "rpl_rli.h"                // rli_slave
+#endif
 #include "set_var.h"
 #include "sql_class.h"              // THD
 #include "sql_string.h"

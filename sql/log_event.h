@@ -1373,6 +1373,18 @@ public:
   */
   bool rollback_injected_by_coord= false;
 
+  /**
+    The flag indicates whether the DDL query has been (already)
+    committed or not.  It's initialized as OFF at the event instantiation,
+    flips ON when the DDL transaction has been committed with
+    all its possible extra statement due to replication or GTID.
+
+    The flag status is also checked in few places to catch uncommitted
+    transactions which can normally happen due to filtering out. In
+    such a case the commit is deferred to @c Log_event::do_update_pos().
+  */
+  bool has_ddl_committed;
+
 #ifdef MYSQL_SERVER
 
   Query_log_event(THD* thd_arg, const char* query_arg, size_t query_length,
@@ -4307,6 +4319,42 @@ inline bool is_gtid_event(Log_event* evt)
   return (evt->get_type_code() == binary_log::GTID_LOG_EVENT ||
           evt->get_type_code() == binary_log::ANONYMOUS_GTID_LOG_EVENT);
 }
+
+/**
+  The function checks the argument event properties to deduce whether
+  it represents an atomic DDL.
+
+  @param  evt    a reference to Log_event
+  @return true   when the DDL properties are found,
+          false  otherwise
+*/
+inline bool is_atomic_ddl_event(Log_event *evt)
+{
+  return
+    evt != NULL && evt->get_type_code() == binary_log::QUERY_EVENT &&
+    static_cast<Query_log_event*>(evt)->ddl_xid != binary_log::INVALID_XID;
+}
+
+/**
+  The function lists all DDL instances that are supported
+  for crash-recovery (WL9175).
+  todo: the supported feature list is supposed to grow. Once
+        a feature has been readied for 2pc through WL7743,9536(7141/7016) etc
+        it needs registering in the function.
+
+  @param  thd    an Query-log-event creator thread handle
+  @param  using_trans
+                 The caller must specify the value accoding to the following
+                 rules:
+                 @c true when
+                  - on master the current statement is not processing
+                    a table in SE which does not support atomic DDL
+                  - on slave the relay-log repository is transactional.
+                 @c false otherwise.
+  @return true   when the being created (master) or handled (slave) event
+                 is 2pc-capable, @c false otherwise.
+*/
+bool is_atomic_ddl(THD *thd, bool using_trans);
 
 #ifdef MYSQL_SERVER
 /*

@@ -565,6 +565,9 @@ THD::THD(bool enable_plugins)
                                               max_digest_length,
                                               MYF(MY_WME));
   }
+#ifndef DBUG_OFF
+  debug_binlog_xid_last.reset();
+#endif
 }
 
 

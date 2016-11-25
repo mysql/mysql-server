@@ -95,6 +95,7 @@
 #include "query_options.h"
 #include "records.h"                  // READ_RECORD
 #include "rpl_gtid.h"
+#include "rpl_rli.h"                  // rli_slave etc
 #include "session_tracker.h"
 #include "sql_alter.h"
 #include "sql_base.h"                 // lock_table_names
@@ -161,6 +162,45 @@ static bool prepare_enum_field(THD *thd, Create_field *sql_field);
 static uint blob_length_by_type(enum_field_types type);
 static const Create_field *get_field_by_index(Alter_info *alter_info, uint idx);
 
+/**
+  RAII class to control the atomic DDL commit on slave.
+  A slave context flag responsible to mark the DDL as committed is
+  raised and kept for the entirety of DDL commit block.
+  While DDL commits the slave info table won't take part
+  in its transaction.
+*/
+class Disable_slave_info_update_guard
+{
+  Relay_log_info *m_rli;
+  bool m_flag;
+
+public:
+  Disable_slave_info_update_guard(THD *thd)
+    : m_rli(thd->rli_slave), m_flag(false)
+  {
+    if (!thd->slave_thread)
+    {
+      DBUG_ASSERT(!m_rli);
+
+      return;
+    }
+
+    DBUG_ASSERT(m_rli->current_event);
+
+    m_flag= static_cast<Query_log_event*>(thd->rli_slave->current_event)->
+      has_ddl_committed;
+    static_cast<Query_log_event*>(m_rli->current_event)->has_ddl_committed= true;
+  };
+
+  ~Disable_slave_info_update_guard()
+  {
+    if (m_rli)
+    {
+      static_cast<Query_log_event*>(m_rli->current_event)->
+        has_ddl_committed= m_flag;
+    }
+  }
+};
 
 /**
   @brief Helper function for explain_filename
@@ -2706,7 +2746,7 @@ public:
       nonexistent_tables(PSI_INSTRUMENT_ME),
       views(PSI_INSTRUMENT_ME),
       dropped_non_atomic(PSI_INSTRUMENT_ME),
-      gtid_and_table_groups_state(NO_GTID)
+      gtid_and_table_groups_state(NO_GTID_MANY_TABLE_GROUPS)
   {
     /* DROP DATABASE implies if_exists and absence of drop_temporary. */
     DBUG_ASSERT(!drop_database || (if_exists && !drop_temporary));
@@ -2777,14 +2817,27 @@ public:
   }
 
   /**
-    In which of three situations regarding GTID mode and different types
+    In which situation regarding GTID mode and different types
     of tables to be dropped we are.
+
+    TODO: consider splitting into 2 orthogonal enum/bools.
   */
-  enum { NO_GTID,
+  enum { NO_GTID_MANY_TABLE_GROUPS,
+         NO_GTID_SINGLE_TABLE_GROUP,
          GTID_MANY_TABLE_GROUPS,
          GTID_SINGLE_TABLE_GROUP } gtid_and_table_groups_state;
 
   /* Methods to simplify quering the above state. */
+  bool has_no_gtid_many_table_groups() const
+  {
+    return gtid_and_table_groups_state == NO_GTID_MANY_TABLE_GROUPS;
+  }
+
+  bool has_no_gtid_single_table_group() const
+  {
+    return gtid_and_table_groups_state == NO_GTID_SINGLE_TABLE_GROUP;
+  }
+
   bool has_gtid_many_table_groups() const
   {
     return gtid_and_table_groups_state == GTID_MANY_TABLE_GROUPS;
@@ -3340,6 +3393,134 @@ rm_table_eval_gtid_and_table_groups_state(THD *thd, Drop_tables_ctx *drop_ctx)
       }
     }
   }
+  else
+  {
+    /*
+      This statement has no GTID assigned. We can handle any mix of
+      groups in this case. However full atomicity is guaranteed only
+      in certain scenarios.
+    */
+
+    if (drop_ctx->drop_database)
+    {
+      /* DROP DATABASE doesn't drop any temporary tables. */
+      DBUG_ASSERT(!drop_ctx->has_tmp_trans_tables());
+      DBUG_ASSERT(!drop_ctx->has_tmp_non_trans_tables());
+
+      if (!drop_ctx->has_base_non_atomic_tables())
+      {
+        /*
+          Fully atomic case. This is DROP DATABASE and we don't have any
+          tables in SEs which don't support atomic DDL. Remaining tables,
+          views, routines and events can be dropped atomically and atomically
+          logged as a single DROP DATABASE statement by the caller.
+        */
+        drop_ctx->gtid_and_table_groups_state=
+          Drop_tables_ctx::NO_GTID_SINGLE_TABLE_GROUP;
+      }
+      else
+      {
+        /*
+          Non-atomic case. This is DROP DATABASE which needs to drop some
+          tables in SE which doesn't support atomic DDL. To improve
+          crash-safety we log separate DROP TABLE IF EXISTS for each such
+          table dropped. Remaining tables, views, routines and events are
+          dropped atomically and atomically logged as a single DROP DATABASE
+          statement by the caller.
+        */
+        drop_ctx->gtid_and_table_groups_state=
+          Drop_tables_ctx::NO_GTID_MANY_TABLE_GROUPS;
+      }
+    }
+    else
+    {
+      /* Only DROP DATABASE drops views. */
+      DBUG_ASSERT(!drop_ctx->has_views());
+
+      if (drop_ctx->base_non_atomic_tables.size() == 1 &&
+          !drop_ctx->has_base_atomic_tables() &&
+          !drop_ctx->has_base_nonexistent_tables() &&
+          !drop_ctx->has_tmp_trans_tables() &&
+          !drop_ctx->has_tmp_non_trans_tables())
+      {
+        /*
+          Simple non-atomic case. Single base table in SE which don't
+          support atomic DDL so it will be logged as a single-table
+          DROP TABLES statement. Other groups are empty.
+        */
+        DBUG_ASSERT(!drop_ctx->has_tmp_nonexistent_tables());
+        drop_ctx->gtid_and_table_groups_state=
+          Drop_tables_ctx::NO_GTID_SINGLE_TABLE_GROUP;
+      }
+      else if ((drop_ctx->has_base_atomic_tables() ||
+                drop_ctx->has_base_nonexistent_tables()) &&
+               !drop_ctx->has_base_non_atomic_tables() &&
+               !drop_ctx->has_tmp_trans_tables() &&
+               !drop_ctx->has_tmp_non_trans_tables())
+      {
+        /*
+          Fully atomic case. Several base tables which can be dropped
+          atomically. Can be logged as one atomic multi-table DROP TABLES
+          statement. Other groups are empty.
+        */
+        DBUG_ASSERT(!drop_ctx->has_tmp_nonexistent_tables());
+        drop_ctx->gtid_and_table_groups_state=
+          Drop_tables_ctx::NO_GTID_SINGLE_TABLE_GROUP;
+      }
+      else if (!drop_ctx->has_base_non_atomic_tables() &&
+               !drop_ctx->has_base_atomic_tables() &&
+               !drop_ctx->has_base_nonexistent_tables())
+      {
+        /* No base tables to be dropped. */
+        if (drop_ctx->has_tmp_trans_tables() &&
+            drop_ctx->has_tmp_non_trans_tables())
+        {
+          /*
+            Complex case with temporary tables. We have both transactional
+            and non-transactional temporary tables and no base tables at all.
+
+            We will log separate DROP TEMPORARY TABLES statements for each of
+            two groups.
+          */
+          drop_ctx->gtid_and_table_groups_state=
+            Drop_tables_ctx::NO_GTID_MANY_TABLE_GROUPS;
+        }
+        else
+        {
+          /*
+            Simple case with temporary tables. We have either only
+            transactional or non-transactional temporary tables.
+            Possibly some non-existent temporary tables.
+
+            We can log our statement as a single DROP TEMPORARY TABLES
+            statement.
+          */
+          DBUG_ASSERT((drop_ctx->has_tmp_trans_tables() &&
+                       !drop_ctx->has_tmp_non_trans_tables()) ||
+                      (!drop_ctx->has_tmp_trans_tables() &&
+                       drop_ctx->has_tmp_non_trans_tables()) ||
+                      (!drop_ctx->has_tmp_trans_tables() &&
+                       !drop_ctx->has_tmp_non_trans_tables() &&
+                       drop_ctx->has_tmp_nonexistent_tables()));
+          drop_ctx->gtid_and_table_groups_state=
+            Drop_tables_ctx::NO_GTID_SINGLE_TABLE_GROUP;
+        }
+      }
+      else
+      {
+        /*
+          Complex non-atomic case. We have several tables from non-atomic group 1.a,
+          or tables from both atomic (1.b, 1.c, 1.d) and non-atomic groups, or
+          mix of base and temporary tables.
+
+          Our statement will be written to binary log as several DROP TABLES and
+          DROP TEMPORARY TABLES statements.
+        */
+        drop_ctx->gtid_and_table_groups_state=
+          Drop_tables_ctx::NO_GTID_MANY_TABLE_GROUPS;
+      }
+    }
+  }
 
   return false;
 }
@@ -3720,30 +3901,36 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
             goto err_with_rollback;
         }
 
-        if (!drop_ctx.has_gtid_single_table_group())
+        if (drop_ctx.has_no_gtid_single_table_group() ||
+            drop_ctx.has_gtid_single_table_group())
         {
           /*
-            We don't have GTID assigned. Commit change to binary log (if
-            there was any) and get GTID assigned for our single-table
-            change. Do not release ANONYMOUS_GROUP ownership yet as there
-            can be more tables to drop and corresponding statements to
-            write to binary log.
+            This was a single-table DROP TABLE for this specific table.
+            Commit change to binary log and/or mark GTID as executed instead.
+            In theory, we also can update slave info atomically with binlog/
+            GTID changes,
           */
-          thd->is_commit_in_middle_of_statement= true;
-          bool error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
-          thd->is_commit_in_middle_of_statement= false;
-
-          if (error)
+          if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
             goto err_with_rollback;
         }
         else
         {
           /*
-            We have GTID already and this was a single-table DROP TABLE
-            for this specific table. Commit change to binary log and/or
-            mark GTID as executed instead.
+            We don't have GTID assigned and this is not single-table
+            DROP TABLE. Commit change to binary log (if there was any)
+            and get GTID assigned for our single-table change. Do not
+            release ANONYMOUS_GROUP ownership yet as there can be more
+            tables to drop and corresponding statements to write to
+            binary log. Do not update slave info as there might be more
+            groups.
           */
-          if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+          DBUG_ASSERT(drop_ctx.has_no_gtid_many_table_groups());
+
+          thd->is_commit_in_middle_of_statement= true;
+          bool error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+          thd->is_commit_in_middle_of_statement= false;
+
+          if (error)
             goto err_with_rollback;
         }
       }
@@ -3772,8 +3959,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       transaction. Write corresponding multi-table DROP TABLE statement to
       the binary log as part of the same transaction.
     */
-    Drop_tables_query_builder built_query(thd, drop_ctx.if_exists);
-
     DEBUG_SYNC(thd, "rm_table_no_locks_before_delete_table");
     DBUG_EXECUTE_IF("sleep_before_no_locks_delete_table",
                     my_sleep(100000););
@@ -3799,6 +3984,11 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
              (drop_ctx.has_gtid_many_table_groups() &&
               drop_ctx.has_dropped_non_atomic())))
         {
+          Drop_tables_query_builder built_query(thd, false /* no TEMPORARY */,
+                                                drop_ctx.if_exists,
+                                                /* stmt or trx cache. */
+                                                dropped_atomic->size() != 0,
+                                                false /* db exists */);
           if (drop_ctx.has_gtid_many_table_groups() &&
               drop_ctx.has_dropped_non_atomic())
             built_query.add_array(drop_ctx.dropped_non_atomic);
@@ -3814,6 +4004,10 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         }
         else
         {
+          // We need to turn off updating of slave info here
+          // without conflicting with GTID update.
+          Disable_slave_info_update_guard disabler(thd);
+
           (void) trans_commit_stmt(thd);
           (void) trans_commit_implicit(thd);
         }
@@ -3914,7 +4108,18 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         We don't have GTID assigned, or we have GTID assigned and our DROP
         TABLES only drops table from this group, so we have fully atomic
         multi-table DROP TABLES statement.
+
+        If we have not dropped any tables at all (we have only non-existing
+        tables) we don't have transaction started. We can't use binlog's
+        trx cache in this case as it requires active transaction with valid
+        XID.
       */
+      Drop_tables_query_builder built_query(thd, false /* no TEMPORARY */,
+                                            drop_ctx.if_exists,
+                                            /* stmt or trx cache. */
+                                            drop_ctx.has_base_atomic_tables(),
+                                            false /* db exists */);
+
 
       built_query.add_array(drop_ctx.base_atomic_tables);
       built_query.add_array(drop_ctx.nonexistent_tables);
@@ -3922,27 +4127,31 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (built_query.write_bin_log())
         goto err_with_rollback;
 
-      if (!drop_ctx.has_gtid_single_table_group())
+      if (drop_ctx.has_no_gtid_single_table_group() ||
+          drop_ctx.has_gtid_single_table_group())
       {
         /*
-          We don't have GTID assigned. Commit changes to SE, data-dictionary
-          and binary log and get GTID assigned for our changes.
-          Do not release ANONYMOUS_GROUP ownership yet as there can be more
-          tables (e.g. temporary) to drop and corresponding statements to
-          write to binary log.
+          This is fully atomic multi-table DROP TABLES.
+          Commit changes to SEs, data-dictionary and binary log/or
+          and mark GTID as executed/update slave info tables atomically.
         */
-        thd->is_commit_in_middle_of_statement= true;
         error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
-        thd->is_commit_in_middle_of_statement= false;
       }
       else
       {
         /*
-          We have GTID already and this is atomic multi-table DROP TABLES.
-          Commit changes to SEs, data-dictionary and binary log/or and mark
-          GTID as executed.
+          We don't have GTID assigned and this is not fully-atomic DROP TABLES.
+          Commit changes to SE, data-dictionary and binary log and get GTID
+          assigned for our changes.
+          Do not release ANONYMOUS_GROUP ownership and update slave info yet
+          as there can be more tables (e.g. temporary) to drop and corresponding
+          statements to write to binary log.
         */
+        DBUG_ASSERT(drop_ctx.has_no_gtid_many_table_groups());
+
+        thd->is_commit_in_middle_of_statement= true;
         error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+        thd->is_commit_in_middle_of_statement= false;
       }
     }
     else
@@ -3978,8 +4187,19 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       such SE and some tables from SEs which do support atomic DDL.
 
       We have postponed write to binlog earlier. Now it is time to do it.
+
+      If we don't have active transaction at this point (i.e. no tables
+      in SE supporting atomic DDL were dropped) we can't use binlog's trx
+      cache for this. as it requires active transaction with valid XID.
+      If we have active transaction (i.e. some tables in SE supporting
+      atomic DDL were dropped) we have to use trx cache to ensure that
+      our transaction is properly recovered in case of crash/restart.
     */
-    Drop_tables_query_builder built_query(thd, drop_ctx.if_exists);
+    Drop_tables_query_builder built_query(thd, false /* no TEMPORARY */,
+                                          drop_ctx.if_exists,
+                                          /* trx or stmt cache */
+                                          drop_ctx.has_base_atomic_tables(),
+                                          false /* db exists */);
 
     built_query.add_array(drop_ctx.base_non_atomic_tables);
     built_query.add_array(drop_ctx.base_atomic_tables);
@@ -3992,6 +4212,8 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       Commit our changes to the binary log (if any) and mark GTID
       as executed. This also commits removal of tables in SEs
       supporting atomic DDL from SE and the data-dictionary.
+      In theory, we can update slave info atomically with binlog/GTID
+      changes here.
     */
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_with_rollback;
@@ -4101,6 +4323,10 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           *) We use MYSQL_BIN_LOG::commit() and not trans_commit_implicit(),
              for example, because we don't want to end user's explicitly
              started transaction.
+          *) In theory we can allow to update slave info here by not raising
+             THD::is_commit_in_middle_of_statement flag if we are in
+             no-GTID-single-group case. However there is little benefit from
+             it as dropping of temporary tables should not fail.
 
           TODO: Consider if there is some better way to achieve this.
                 For example, can we use trans_commit_implicit() to split
@@ -4149,6 +4375,12 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       so that the 'DROP TEMPORARY TABLE IF EXISTS' command is logged
       with a fully-qualified table name and we don't write "USE db"
       prefix.
+
+      If we are executing DROP TABLES (without TEMPORARY clause) we
+      can't use binlog's trx cache, as it requires activetransaction
+      with valid XID. Luckily, trx cache is not strictly necessary in
+      this case and DROP TEMPORARY TABLES where it is really needed is
+      exempted from this rule.
     */
     bool log_if_exists= (thd->is_current_stmt_binlog_format_row() ||
                          drop_ctx.if_exists);
@@ -4156,7 +4388,8 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                                                   default_db_doesnt_exist;
 
     Drop_tables_query_builder built_query(thd, true /* DROP TEMPORARY */,
-                                log_if_exists, true /* trx cache */,
+                                log_if_exists,
+                                drop_ctx.drop_temporary /* trx/stmt cache */,
                                 is_drop_tmp_if_exists_with_no_defaultdb);
 
     for (TABLE_LIST *table : drop_ctx.tmp_trans_tables)
@@ -4283,16 +4516,30 @@ err_with_rollback:
 
         TODO: Long-term we probably should generate new slave-based GTID for
               this event, or report special error about partial execution.
+
+        We don't have active transaction at this point so we can't use binlog's
+        trx cache for this. It requires active transaction with valid XID.
+
       */
-      Drop_tables_query_builder built_query(thd, drop_ctx.if_exists);
+      Drop_tables_query_builder built_query(thd, false /* no TEMPORARY */,
+                                            drop_ctx.if_exists,
+                                            false /* stmt cache*/,
+                                            false /* db exists */);
 
       built_query.add_array(drop_ctx.dropped_non_atomic);
 
       (void) built_query.write_bin_log();
 
       // Write statement to binary log and mark GTID as executed.
-      (void) trans_commit_stmt(thd);
-      (void) trans_commit_implicit(thd);
+
+      // We need to turn off updating of slave info
+      // without conflicting with GTID update.
+      {
+        Disable_slave_info_update_guard disabler(thd);
+
+        (void) trans_commit_stmt(thd);
+        (void) trans_commit_implicit(thd);
+      }
     }
   }
   DBUG_RETURN(true);
@@ -11607,7 +11854,9 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
   if (!error)
   {
     error= write_bin_log(thd, true, thd->query().str, thd->query().length,
-                         atomic_ddl);
+                         atomic_ddl &&
+                         (keys_onoff != Alter_info::LEAVE_AS_IS ||
+                          alter_ctx->is_table_renamed()));
 
     // Update referencing views metadata.
     if (!error)

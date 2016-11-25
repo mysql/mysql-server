@@ -46,6 +46,7 @@ create table t3 select * from temp_table;
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Data in t3 should be equal to temp_table]
 drop table temp_table, t3;
+include/sync_slave_sql_with_master.inc
 insert into t2 values(1234);
 set insert_id=1234;
 insert into t2 values(NULL);

@@ -107,7 +107,8 @@ drop table temp_table, t3;
 #
 
 # First insert a value on the slave
-connection slave;
+#connection slave;
+source include/sync_slave_sql_with_master.inc;
 insert into t2 values(1234);
 
 #same value on the master

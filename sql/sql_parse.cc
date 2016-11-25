@@ -444,6 +444,8 @@ void init_update_queries(void)
 
   sql_command_flags[SQLCOM_SET_PASSWORD]=   CF_CHANGES_DATA |
                                             CF_AUTO_COMMIT_TRANS |
+                                            CF_NEEDS_AUTOCOMMIT_OFF |
+                                            CF_POTENTIAL_ATOMIC_DDL |
                                             CF_DISALLOW_IN_RO_TRANS;
 
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND |
@@ -518,19 +520,52 @@ void init_update_queries(void)
                                                 CF_SHOW_TABLE_COMMAND |
                                                 CF_HAS_RESULT_SET |
                                                 CF_REEXECUTION_FRAGILE);
+  /**
+    ACL DDLs do not access data-dictionary tables. However, they still
+    need to be marked to avoid autocommit. This is necessary because
+    code which saves GTID state or slave state in the system tables
+    at commit time does statement commit on low-level (see
+    System_table_access::close_table()) and thus can pre-maturely commit
+    DDL otherwise.
+  */
+  sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_USER]=        CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]=
+                                               CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_GRANT_ROLE]=        CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_REVOKE_ROLE]=       CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_ROLE]=         CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_CREATE_ROLE]=       CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
 
-  sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ALTER_USER]=        CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]= CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_GRANT_ROLE]=        CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_REVOKE_ROLE]=       CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_DROP_ROLE]=         CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_CREATE_ROLE]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_ALTER_INSTANCE]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -856,28 +891,40 @@ void init_update_queries(void)
     variants dealing with temporary tables which don't update data-dictionary
     at all and which should be allowed in the middle of transaction.
   */
-  sql_command_flags[SQLCOM_CREATE_INDEX]|=     CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_ALTER_TABLE]|=      CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_TRUNCATE]|=         CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_DROP_INDEX]|=       CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_CREATE_DB]|=        CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_DROP_DB]|=          CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_ALTER_DB]|=         CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_INDEX]|=     CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_TABLE]|=      CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_TRUNCATE]|=         CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_INDEX]|=       CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_CREATE_DB]|=        CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_DB]|=          CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_DB]|=         CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_REPAIR]|=           CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_OPTIMIZE]|=         CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_RENAME_TABLE]|=     CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_RENAME_TABLE]|=     CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_CREATE_VIEW]|=      CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_VIEW]|=        CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_ALTER_TABLESPACE]|= CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_ALTER_TABLESPACE]|= CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_CREATE_SPFUNCTION]|= CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_FUNCTION]|=     CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_ALTER_FUNCTION]|=    CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]|=  CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_PROCEDURE]|=    CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=   CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_CREATE_TRIGGER]|=   CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_DROP_TRIGGER]|=     CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_IMPORT]|=           CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_TRIGGER]|=   CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_TRIGGER]|=     CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_IMPORT]|=           CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command)

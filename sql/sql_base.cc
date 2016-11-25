@@ -1861,6 +1861,16 @@ bool close_temporary_tables(THD *thd)
     thd->variables.option_bits |= OPTION_QUOTE_SHOW_CREATE;
   }
 
+  /*
+    Make LEX consistent with DROP TEMPORARY TABLES statement which we
+    are going to log. This is important for the binary logging code.
+  */
+  LEX *lex=thd->lex;
+  enum_sql_command sav_sql_command= lex->sql_command;
+  bool sav_drop_temp= lex->drop_temporary;
+  lex->sql_command= SQLCOM_DROP_TABLE;
+  lex->drop_temporary= true;
+
   /* scan sorted tmps to generate sequence of DROP */
   for (table= thd->temporary_tables; table; table= next)
   {
@@ -1992,6 +2002,9 @@ bool close_temporary_tables(THD *thd)
       slave_closed_temp_tables++;
     }
   }
+  lex->drop_temporary= sav_drop_temp;
+  lex->sql_command= sav_sql_command;
+
   if (!was_quote_show)
     thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
 

@@ -5,9 +5,6 @@
 --source include/have_debug.inc
 # Restarting and killing mysqld is not supported in embedded
 --source include/not_embedded.inc
-# Disabled in --log-bin runs until atomic DDL is properly supported in
-# binary log.
---source include/not_log_bin.inc
 
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1

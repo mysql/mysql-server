@@ -22,14 +22,18 @@
 # We used MyISAM for non-transactional (NT) and InnoDB for transactional (T)
 # storage engines.
 #
+# WL9175 changed some of original signatures related to DDL on transactional SE.
+# Regardless of sync_relay_log_info value the relay log info gets U-pdated
+# as a part of the DDL transaction.
+#
 #                                    sync_relay_log_info=  0   1   0   1
 #                                         storage engine=  NT  NT  T   T
 #                                                         --- --- --- ---
 # 1 - Stop/Start the slave ----------------------------->  U   U   U   U
-# 2 - Simple DDL - CREATE TABLE ------------------------>  N   U   N   U
+# 2 - Simple DDL - CREATE TABLE ------------------------>  N   U   U   U
 # 3 - Simple DML - INSERT ------------------------------>  N   U   U   U
 # 4 - Master flushed the binary log -------------------->  U   U   U   U
-# 5 - Simple DDL - DROP TABLE -------------------------->  N   U   N   U
+# 5 - Simple DDL - DROP TABLE -------------------------->  N   U   U   U
 # 6 - Stop/Start the slave ----------------------------->  U   U   U   U
 # 7 - The GTID of a simple DDL ------------------------->  N   N   N   N
 # 8 - Flushed the relay log in the middle of the DDL --->  N   N   N   N
@@ -42,15 +46,15 @@
 # 15 - The first part of a simple DML up to a User var ->  N   N   N   N
 # 16 - Flushed the relay log in the middle of the DML -->  N   N   N   N
 # 17 - The rest of the simple DML ---------------------->  U   U   U   U
-# 18 - Simple DDL -------------------------------------->  N   U   N   U
+# 18 - Simple DDL -------------------------------------->  N   U   U   U
 #   Transactional tables only:
-# 19 - Simple DDL - CREATE TABLE -----------------------> N/A N/A  N   U
+# 19 - Simple DDL - CREATE TABLE -----------------------> N/A N/A  U   U
 # 20 - Stop/Start the slave ----------------------------> N/A N/A  U   U
 # 21 - The first half of a multi statement DML ---------> N/A N/A  N   N
 # 22 - Flushed the relay log in the middle of the DML --> N/A N/A  N   N
 # 23 - The multi statement DML should be rolled back ---> N/A N/A  N   N
 # 24 - The retry of the multi statement DML ------------> N/A N/A  U   U
-# 25 - Simple DDL - DROP TABLE -------------------------> N/A N/A  N   U
+# 25 - Simple DDL - DROP TABLE -------------------------> N/A N/A  U   U
 #
 # ==== Related Bugs and Worklogs ====
 #
@@ -96,7 +100,7 @@ SET @@GLOBAL.sync_relay_log_info= 1;
 --echo #
 SET @@GLOBAL.sync_relay_log_info= 0;
 --let $storage_engine= InnoDB
---let $rpl_relay_log_info_expected_update= UNUUNUNNUUNNUUNNUNNUNNNUN
+--let $rpl_relay_log_info_expected_update= UUUUUUNNUUNNUUNNUUUUNNNUU
 --source extra/rpl_tests/rpl_sync_relay_log_info.inc
 
 --echo #

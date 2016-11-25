@@ -1,8 +1,5 @@
 --source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
-# Disabled in --log-bin runs until atomic DDL is properly supported in
-# binary log.
---source include/not_log_bin.inc
 
 let $n=250;
 let $t=veryLongTableNameToCreateMLOG_FILE_NAMErecords;

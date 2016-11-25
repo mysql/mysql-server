@@ -4994,13 +4994,19 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
       However, if the event needs to be skipped, this means that it
       will not be processed and then positions need to be updated here.
 
+      DDL:s that are not yet committed, as indicated by
+      @c has_ddl_committed flag, visit the block.
+
       See sql/rpl_rli.h for further details.
     */
     int error= 0;
     if (*ptr_ev &&
-        (ev->get_type_code() != binary_log::XID_EVENT ||
-         skip_event || (rli->is_mts_recovery() && !is_gtid_event(ev) &&
-         (ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
+        ((ev->get_type_code() != binary_log::XID_EVENT &&
+          !is_committed_ddl(*ptr_ev)) ||
+         skip_event ||
+         (rli->is_mts_recovery() &&
+          !is_gtid_event(ev) &&
+          (ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
           bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index))))
     {
 #ifndef DBUG_OFF
@@ -5254,7 +5260,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
    */
   mysql_mutex_lock(&rli->data_lock);
 
-  Log_event *ev = next_event(rli), **ptr_ev;
+  Log_event *ev= next_event(rli), **ptr_ev;
+  RLI_current_event_raii rli_c_ev(rli, ev);
 
   DBUG_ASSERT(rli->info_thd==thd);
 
@@ -5391,7 +5398,12 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       {
         DBUG_PRINT("info", ("Deleting the event after it has been executed"));
         delete ev;
-        ev= NULL;
+        /*
+          Raii guard is explicitly instructed to invalidate
+          otherwise bogus association of the execution context with the being
+          destroyed above event.
+        */
+        ev= rli->current_event= NULL;
       }
     }
 
@@ -5442,6 +5454,11 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
             transaction if master_info_repository is TABLE.
           */
           rli->cleanup_context(thd, 1);
+          /*
+            Temporary error status is both unneeded and harmful for following
+            open-and-lock slave system tables.
+          */
+          thd->clear_error();
           /*
              We need to figure out if there is a test case that covers
              this part. \Alfranio.
@@ -5496,7 +5513,11 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       }
     }
     if (exec_res)
+    {
       delete ev;
+      /* Raii object is explicitly updated 'cos this branch doesn't end func */
+      rli->current_event= NULL;
+    }
     else if (rli->is_until_satisfied_after_dispatching_event())
     {
       mysql_mutex_lock(&rli->data_lock);
@@ -6902,6 +6923,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   /* end-of "Coordinator::"commit_positions" */
 
 end:
+  error= error || rli->info_thd->killed != THD::NOT_KILLED;
 #ifndef DBUG_OFF
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
     DBUG_SUICIDE();

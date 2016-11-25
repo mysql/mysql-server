@@ -511,6 +511,36 @@ public:
   ulonglong get_master_log_pos() { return master_log_pos; };
   ulonglong set_master_log_pos(ulong val) { return master_log_pos= val; };
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
+  /**
+    The method is a wrapper to provide uniform interface with STS and is
+    to be called from Relay_log_info and Slave_worker pre_commit() methods.
+  */
+  bool commit_positions()
+  {
+    DBUG_ASSERT(current_event);
+
+    return commit_positions(current_event,
+                            c_rli->
+                            gaq->get_job_group(current_event->mts_group_idx),
+                            is_transactional());
+  };
+  /**
+    See the comments for STS version of this method.
+  */
+  void post_commit(bool on_rollback)
+  {
+    if (on_rollback)
+    {
+      if (is_transactional())
+        rollback_positions(c_rli->
+                           gaq->get_job_group(current_event->mts_group_idx));
+    }
+    else if (!is_transactional())
+      commit_positions(current_event,
+                       c_rli->
+                       gaq->get_job_group(current_event->mts_group_idx),
+                       true);
+  };
   /*
     When commit fails clear bitmap for executed worker group. Revert back the
     positions to the old positions that existed before commit using the checkpoint.
