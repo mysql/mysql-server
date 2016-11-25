@@ -5641,13 +5641,13 @@ bool JOIN::estimate_rowcount()
       // Only one matching row and one block to read
       tab->set_records(tab->found_records= 1);
       tab->worst_seeks= cost_model->page_read_cost(1.0);
-      tab->read_time= static_cast<ha_rows>(tab->worst_seeks);
+      tab->read_time= tab->worst_seeks;
       continue;
     }
     // Approximate number of found rows and cost to read them
     tab->set_records(tab->found_records= tab->table()->file->stats.records);
     const Cost_estimate table_scan_time= tab->table()->file->table_scan_cost();
-    tab->read_time= static_cast<ha_rows>(table_scan_time.total_cost());
+    tab->read_time= table_scan_time.total_cost();
 
     /*
       Set a max value for the cost of seek operations we can expect
@@ -5656,7 +5656,7 @@ bool JOIN::estimate_rowcount()
     */
     tab->worst_seeks=
       min(cost_model->page_read_cost((double) tab->found_records / 10),
-          (double) tab->read_time * 3);
+          tab->read_time * 3);
     const double min_worst_seek= cost_model->page_read_cost(2.0);
     if (tab->worst_seeks < min_worst_seek)      // Fix for small tables
       tab->worst_seeks= min_worst_seek;
@@ -5722,8 +5722,8 @@ bool JOIN::estimate_rowcount()
       if (records != HA_POS_ERROR)
       {
         tab->found_records= records;
-        tab->read_time= (ha_rows) (tab->quick() ?
-                                   tab->quick()->cost_est.total_cost() : 0.0);
+        tab->read_time=
+          tab->quick() ? tab->quick()->cost_est.total_cost() : 0.0;
       }
     }
     else

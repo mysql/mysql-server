@@ -38,18 +38,18 @@ id	name	id	name
 '#--------------------FN_DYNVARS_079_02-------------------------#'
 ## Creating new connection test_con1 ##
 ## Setting value of max_join_size ## 
-SET @@session.max_join_size=8;
+SET @@session.max_join_size=2;
 ## Since total joins are more than max_join_size value so error will occur ##
 SELECT * FROM t1 INNER JOIN t2 ON t1.id = t2.id;
 ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
 '#--------------------FN_DYNVARS_079_03-------------------------#'
 ## Setting global value of variable ##
-SET @@global.max_join_size=8;
+SET @@global.max_join_size=2;
 ## Creating and switching to new connection test_con2 ## 
 ## Verifying value of max_join_size ##
 SELECT @@global.max_join_size;
 @@global.max_join_size
-8
+2
 ## Since total joins are more than max_join_size value so error will occur ## 
 SELECT * FROM t1 INNER JOIN t2 ON t1.id = t2.id;
 ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay

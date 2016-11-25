@@ -2543,7 +2543,7 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   tab->set_records((ha_rows)emb_sj_nest->nested_join->sjm.expected_rowcount);
 
   tab->found_records= tab->records();
-  tab->read_time= (ha_rows)emb_sj_nest->nested_join->sjm.scan_cost.total_cost();
+  tab->read_time= emb_sj_nest->nested_join->sjm.scan_cost.total_cost();
 
   tab->init_join_cond_ref(tl);
 

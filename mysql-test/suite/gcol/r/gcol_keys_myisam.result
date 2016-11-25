@@ -218,7 +218,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 10,
-                    "cost": 6.122
+                    "cost": 3.6055
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -247,7 +247,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                         "using_mrr": false,
                         "index_only": false,
                         "rows": 4,
-                        "cost": 5.81,
+                        "cost": 1.66,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -266,7 +266,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 4,
-                    "cost_for_plan": 5.81,
+                    "cost_for_plan": 1.66,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -288,14 +288,14 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                         "used_index": "PRIMARY"
                       } /* range_details */,
                       "resulting_rows": 4,
-                      "cost": 6.61,
+                      "cost": 2.06,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 4,
-                "cost_for_plan": 6.61,
+                "cost_for_plan": 2.06,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -430,7 +430,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 10,
-                  "cost": 2
+                  "cost": 0.5055
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -447,7 +447,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                       "rows_to_scan": 10,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 4.022,
+                      "cost": 1.5055,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -455,9 +455,9 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 4.022,
+                "cost_for_plan": 1.5055,
                 "sort_cost": 10,
-                "new_cost_for_plan": 14.022,
+                "new_cost_for_plan": 11.505,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -589,7 +589,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 10,
-                    "cost": 6.122
+                    "cost": 3.6055
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -625,7 +625,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                       "rows_to_scan": 10,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 4.022,
+                      "cost": 1.5055,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -633,9 +633,9 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 4.022,
+                "cost_for_plan": 1.5055,
                 "sort_cost": 10,
-                "new_cost_for_plan": 14.022,
+                "new_cost_for_plan": 11.505,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -835,7 +835,7 @@ a	b
 1	1
 EXPLAIN SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ALL	gc_and	NULL	NULL	NULL	4	75.00	Using where
+1	SIMPLE	t	NULL	range	gc_and	gc_and	5	NULL	3	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_and` in (1,2,3))
 SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);

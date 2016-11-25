@@ -24,7 +24,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.20"
+      "query_cost": "0.35"
     },
     "table": {
       "table_name": "t1",
@@ -45,9 +45,9 @@ EXPLAIN
       "filtered": "100.00",
       "index_condition": "isnull(`test`.`t1`.`str`)",
       "cost_info": {
-        "read_cost": "1.00",
-        "eval_cost": "0.20",
-        "prefix_cost": "1.20",
+        "read_cost": "0.25",
+        "eval_cost": "0.10",
+        "prefix_cost": "0.35",
         "data_read_per_join": "16"
       },
       "used_columns": [
@@ -260,7 +260,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "11.00"
+      "query_cost": "2.95"
     },
     "table": {
       "table_name": "s1",
@@ -269,9 +269,9 @@ EXPLAIN
       "rows_produced_per_join": 4,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "10.20",
-        "eval_cost": "0.80",
-        "prefix_cost": "11.00",
+        "read_cost": "2.55",
+        "eval_cost": "0.40",
+        "prefix_cost": "2.95",
         "data_read_per_join": "64"
       },
       "used_columns": [
@@ -284,7 +284,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "9.21"
+            "query_cost": "5.60"
           },
           "grouping_operation": {
             "using_temporary_table": true,
@@ -301,9 +301,9 @@ EXPLAIN
                   "rows_produced_per_join": 2,
                   "filtered": "100.00",
                   "cost_info": {
-                    "read_cost": "2.00",
-                    "eval_cost": "0.40",
-                    "prefix_cost": "2.40",
+                    "read_cost": "0.50",
+                    "eval_cost": "0.20",
+                    "prefix_cost": "0.70",
                     "data_read_per_join": "16"
                   },
                   "used_columns": [
@@ -320,9 +320,9 @@ EXPLAIN
                   "filtered": "100.00",
                   "using_join_buffer": "Block Nested Loop",
                   "cost_info": {
-                    "read_cost": "2.00",
-                    "eval_cost": "0.80",
-                    "prefix_cost": "5.21",
+                    "read_cost": "0.50",
+                    "eval_cost": "0.40",
+                    "prefix_cost": "1.60",
                     "data_read_per_join": "32"
                   }
                 }

@@ -182,12 +182,12 @@ PRIMARY KEY (auto)
 );
 INSERT INTO t2 (string,mediumblob_col,new_field) SELECT string,mediumblob_col,new_field from t1 where auto > 10;
 Warnings:
+Warning	1265	Data truncated for column 'new_field' at row 1
 Warning	1265	Data truncated for column 'new_field' at row 2
 Warning	1265	Data truncated for column 'new_field' at row 3
 Warning	1265	Data truncated for column 'new_field' at row 4
 Warning	1265	Data truncated for column 'new_field' at row 5
 Warning	1265	Data truncated for column 'new_field' at row 6
-Warning	1265	Data truncated for column 'new_field' at row 7
 select * from t2;
 auto	string	mediumblob_col	new_field
 1	2	2	ne

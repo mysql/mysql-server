@@ -112,7 +112,7 @@ select * from t1 order by c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -129,7 +129,7 @@ select * from t1 order by c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -137,9 +137,9 @@ select * from t1 order by c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -254,7 +254,7 @@ select * from t1 order by c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -271,7 +271,7 @@ select * from t1 order by c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -279,9 +279,9 @@ select * from t1 order by c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -396,7 +396,7 @@ select * from t1 order by c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -413,7 +413,7 @@ select * from t1 order by c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -421,9 +421,9 @@ select * from t1 order by c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -538,7 +538,7 @@ select * from t1 order by c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -555,7 +555,7 @@ select * from t1 order by c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -563,9 +563,9 @@ select * from t1 order by c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -943,7 +943,7 @@ SELECT * FROM t1 ORDER BY c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -960,7 +960,7 @@ SELECT * FROM t1 ORDER BY c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -968,9 +968,9 @@ SELECT * FROM t1 ORDER BY c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]

@@ -688,7 +688,7 @@ public:
     method (but not 'index' for some reason), i.e. this matches method which
     E(#records) is in found_records.
   */
-  ha_rows       read_time;
+  double       read_time;
   /**
     The set of tables that this table depends on. Used for outer join and
     straight join dependencies.

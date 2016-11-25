@@ -1591,7 +1591,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.20"
+      "query_cost": "0.35"
     },
     "table": {
       "table_name": "t1",
@@ -1612,9 +1612,9 @@ EXPLAIN
       "filtered": "100.00",
       "ft_hints": "rank >= 1e308",
       "cost_info": {
-        "read_cost": "1.00",
-        "eval_cost": "0.20",
-        "prefix_cost": "1.20",
+        "read_cost": "0.25",
+        "eval_cost": "0.10",
+        "prefix_cost": "0.35",
         "data_read_per_join": "8"
       },
       "used_columns": [

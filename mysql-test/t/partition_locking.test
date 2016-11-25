@@ -623,7 +623,7 @@ SELECT * FROM t1 ORDER BY a;
 --echo # 13 read_key
 --echo # 15 read_next
 FLUSH STATUS;
-SELECT * FROM t1 WHERE a IN (0, 1, 4) ORDER BY a;
+SELECT * FROM t1 WHERE a IN (0, 1, 4, 13, 26) ORDER BY a;
 --source include/get_handler_status_counts.inc
 --echo # 3 read_first, read_key
 --echo # 12 read_next
@@ -653,7 +653,7 @@ EXPLAIN PARTITIONS SELECT * FROM t1;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a IN (0, 1, 4) ORDER BY a;
+EXPLAIN SELECT * FROM t1 WHERE a IN (0, 1, 4, 13, 26) ORDER BY a;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --replace_column 10 #
@@ -771,22 +771,22 @@ FLUSH STATUS;
 SELECT * FROM t1 UNION SELECT * FROM t2;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
-SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * FROM t2;
+SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
-SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * FROM t2;
+SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
-SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * FROM t2) t3) t4;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2) t3) t4;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
-SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * FROM t2) t4;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2) t4;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
-SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3) t4 UNION SELECT * FROM t2;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3) t4 UNION SELECT * FROM t2;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
-SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * FROM t2 WHERE a = 1) t4;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2 WHERE a = 1) t4;
 --source include/get_handler_status_counts.inc
 
 
@@ -799,27 +799,27 @@ EXPLAIN PARTITIONS SELECT * FROM t1 UNION SELECT * FROM t2;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * FROM t2;
+EXPLAIN SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * FROM t2;
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * FROM t2) t3) t4;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2) t3) t4;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * FROM t2) t4;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2) t4;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3) t4 UNION SELECT * FROM t2;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3) t4 UNION SELECT * FROM t2;
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * FROM t2 WHERE a = 1) t4;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2 WHERE a = 1) t4;
 --source include/get_handler_status_counts.inc
 
 set @@optimizer_switch=@optimizer_switch_saved;
@@ -1026,7 +1026,7 @@ DROP VIEW v1_25, v1_25_check;
 --echo # Test CREATE SELECT
 --echo #
 FLUSH STATUS;
-CREATE TABLE t3 SELECT a, b FROM t1 WHERE a IN (0, 1, 13, 113);
+CREATE TABLE t3 SELECT a, b FROM t1 WHERE a IN (0, 1, 13, 113, 26);
 --source include/get_handler_status_counts.inc
 SELECT * FROM t3 ORDER BY a;
 DROP TABLE t3;

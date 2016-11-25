@@ -10,13 +10,13 @@ test.t1	analyze	status	OK
 set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
 explain select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	g	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	5	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_astext(t1.g)` from `test`.`t1` where mbrwithin(`test`.`t1`.`g`,(@`g1`))
 select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
 ST_astext(t1.g)
-POINT(1 1)
 POINT(1.5 1.5)
+POINT(1 1)
 set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
 delete from t1 where MBRWithin(t1.g, @g1);
 check table t1;
@@ -163,13 +163,13 @@ test.t1	analyze	status	OK
 set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
 explain select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	g	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	5	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_astext(t1.g)` from `test`.`t1` where mbrwithin(`test`.`t1`.`g`,(@`g1`))
 select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
 ST_astext(t1.g)
-POINT(1 1)
 POINT(1.5 1.5)
+POINT(1 1)
 set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
 delete from t1 where MBRWithin(t1.g, @g1);
 check table t1;

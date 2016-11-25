@@ -3338,6 +3338,7 @@ SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
 EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 
 DROP TABLE t1,t2;
@@ -3359,6 +3360,7 @@ SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
 EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 
 DROP TABLE t1,t2;

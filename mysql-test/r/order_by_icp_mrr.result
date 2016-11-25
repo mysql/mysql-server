@@ -533,8 +533,8 @@ gid	sid	uid
 103853	5	250
 EXPLAIN select t1.gid, t2.sid, t3.uid from t3, t2, t1 where t2.gid = t1.gid and t2.uid = t3.uid order by t1.gid, t3.uid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	PRIMARY	PRIMARY	2	NULL	6	100.00	Using index; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	PRIMARY,uid	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	PRIMARY,uid	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	2	test.t2.uid	1	100.00	Using where; Using index
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.gid	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`gid` AS `gid`,`test`.`t2`.`sid` AS `sid`,`test`.`t3`.`uid` AS `uid` from `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`gid` = `test`.`t2`.`gid`) and (`test`.`t2`.`uid` = `test`.`t3`.`uid`)) order by `test`.`t1`.`gid`,`test`.`t3`.`uid`
@@ -546,9 +546,9 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`gid` AS `gid`,`test`.`t3`.`uid` AS `uid` from `test`.`t1` join `test`.`t3` where (`test`.`t1`.`gid` = `test`.`t3`.`uid`) order by `test`.`t1`.`gid`,`test`.`t3`.`skr`
 EXPLAIN SELECT t1.gid, t2.sid, t3.uid from t2, t1, t3 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	PRIMARY	PRIMARY	2	NULL	6	100.00	Using index; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	PRIMARY,uid	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	PRIMARY,uid	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.gid	1	100.00	Using index
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	2	test.t2.uid	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`gid` AS `gid`,`test`.`t2`.`sid` AS `sid`,`test`.`t3`.`uid` AS `uid` from `test`.`t2` join `test`.`t1` join `test`.`t3` where ((`test`.`t1`.`gid` = `test`.`t2`.`gid`) and (`test`.`t2`.`uid` = `test`.`t3`.`uid`)) order by `test`.`t3`.`uid`,`test`.`t1`.`gid`
 EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.gid = t3.uid order by t3.skr,t1.gid;

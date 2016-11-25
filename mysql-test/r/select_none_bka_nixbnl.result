@@ -4052,14 +4052,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
-ccc	NULL	NULL
+aa	aa	2
+aa  	aa	2
 bb	bb	1
 bb	bb 	6
-cc 	cc   	3
 cc 	cc	5
 cc 	cc 	7
-aa  	aa	2
-aa	aa	2
+cc 	cc   	3
+ccc	NULL	NULL
 DROP TABLE t1,t2;
 CREATE TABLE t1 (name text);
 CREATE TABLE t2 (name text, n int, KEY (name(3)));
@@ -4134,14 +4134,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
-ccc	NULL	NULL
+aa	aa	2
+aa  	aa	2
 bb	bb	1
 bb	bb 	6
-cc 	cc   	3
 cc 	cc	5
 cc 	cc 	7
-aa  	aa	2
-aa	aa	2
+cc 	cc   	3
+ccc	NULL	NULL
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 access_id int NOT NULL default '0',
@@ -5225,18 +5225,18 @@ INSERT INTO `cc` VALUES
 EXPLAIN SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
 HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	cc	NULL	ALL	int_key	NULL	NULL	NULL	20	45.00	Using where; Using filesort
+1	SIMPLE	cc	NULL	range	int_key	int_key	4	NULL	10	90.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`cc`.`varchar_nokey` AS `g1` from `test`.`cc` where (`test`.`cc`.`int_nokey` and (`test`.`cc`.`int_key` <= 4)) having `g1` order by `test`.`cc`.`varchar_key` limit 6
 SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
 HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 g1
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'j'
 Warning	1292	Truncated incorrect DOUBLE value: 'z'
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
 Warning	1292	Truncated incorrect DOUBLE value: 'q'
 Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'j'
 DROP TABLE cc;
 # End of test#45227
 #

@@ -4048,18 +4048,18 @@ cc 	3	7
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	name	NULL	NULL	NULL	7	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ref	name	name	6	test.t1.name	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
-bb	bb	1
-aa  	aa	2
 aa	aa	2
-cc 	cc   	3
-cc 	cc	5
+aa  	aa	2
+bb	bb	1
 bb	bb 	6
+cc 	cc	5
 cc 	cc 	7
+cc 	cc   	3
 ccc	NULL	NULL
 DROP TABLE t1,t2;
 CREATE TABLE t1 (name text);
@@ -4130,18 +4130,18 @@ cc 	3	7
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	name	NULL	NULL	NULL	7	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ref	name	name	6	test.t1.name	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
-bb	bb	1
-aa  	aa	2
 aa	aa	2
-cc 	cc   	3
-cc 	cc	5
+aa  	aa	2
+bb	bb	1
 bb	bb 	6
+cc 	cc	5
 cc 	cc 	7
+cc 	cc   	3
 ccc	NULL	NULL
 DROP TABLE t1,t2;
 CREATE TABLE t1 (

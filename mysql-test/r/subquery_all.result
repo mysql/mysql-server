@@ -911,8 +911,8 @@ a	t1.a in (select t2.a from t2,t3 where t3.a=t2.a)
 explain extended SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
-2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t2	NULL	index	a	a	5	NULL	3	33.33	Using where; Using index; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	SUBQUERY	t2	NULL	ref	a	a	5	test.t3.a	2	100.00	Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` join `test`.`t3` where (`test`.`t2`.`a` = `test`.`t3`.`a`) having 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`))))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
@@ -4429,12 +4429,12 @@ t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) z
 from t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	a	NULL	NULL	NULL	10	10.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	a	a	5	func	4	10.00	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	a	a	5	func	4	100.00	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t2	NULL	ref	a	a	5	test.t1.b	1	10.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true))) AS `z` from `test`.`t3`
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true))) AS `z` from `test`.`t3`
 drop table t1, t2, t3;
 create table t1 (a int NOT NULL, b int NOT NULL, key(a));
 insert into t1 values 
@@ -7054,7 +7054,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Start temporary
 1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	26.66	Range checked for each record (index map: 0x4)
-1	SIMPLE	sq2_alias2	NULL	index	col_int_key	col_int_key	4	NULL	5	100.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where; Using index; End temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'alias1.col_int_key' of SELECT #2 was resolved in SELECT #1
@@ -7099,7 +7099,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Start temporary
 1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	26.66	Range checked for each record (index map: 0x4)
-1	SIMPLE	sq2_alias2	NULL	index	col_int_key	col_int_key	4	NULL	5	100.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where; Using index; End temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'alias1.col_int_key' of SELECT #3 was resolved in SELECT #2
@@ -7131,7 +7131,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Start temporary
 1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	26.66	Range checked for each record (index map: 0x4)
-1	SIMPLE	sq2_alias2	NULL	index	col_int_key	col_int_key	4	NULL	5	100.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where; Using index; End temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'alias1.col_int_key' of SELECT #2 was resolved in SELECT #1

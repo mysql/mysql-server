@@ -4429,12 +4429,12 @@ t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) z
 from t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	a	NULL	NULL	NULL	10	10.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	a	a	5	func	4	10.00	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	a	a	5	func	4	100.00	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t2	NULL	ref	a	a	5	test.t1.b	1	10.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true))) AS `z` from `test`.`t3`
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true))) AS `z` from `test`.`t3`
 drop table t1, t2, t3;
 create table t1 (a int NOT NULL, b int NOT NULL, key(a));
 insert into t1 values 

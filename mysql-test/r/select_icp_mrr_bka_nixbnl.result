@@ -4053,14 +4053,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
-ccc	NULL	NULL
+aa	aa	2
+aa  	aa	2
 bb	bb	1
 bb	bb 	6
-cc 	cc   	3
 cc 	cc	5
 cc 	cc 	7
-aa  	aa	2
-aa	aa	2
+cc 	cc   	3
+ccc	NULL	NULL
 DROP TABLE t1,t2;
 CREATE TABLE t1 (name text);
 CREATE TABLE t2 (name text, n int, KEY (name(3)));
@@ -4135,14 +4135,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
-ccc	NULL	NULL
+aa	aa	2
+aa  	aa	2
 bb	bb	1
 bb	bb 	6
-cc 	cc   	3
 cc 	cc	5
 cc 	cc 	7
-aa  	aa	2
-aa	aa	2
+cc 	cc   	3
+ccc	NULL	NULL
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 access_id int NOT NULL default '0',

@@ -127,6 +127,7 @@ a	b
 delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
 Warnings:
 Warning	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
 select * from t11;
 a	b
 0	10

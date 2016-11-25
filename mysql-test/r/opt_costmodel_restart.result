@@ -49,7 +49,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "29.00"
+      "query_cost": "12.25"
     },
     "table": {
       "table_name": "t1_innodb",
@@ -58,9 +58,9 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "9.00",
-        "eval_cost": "20.00",
-        "prefix_cost": "29.00",
+        "read_cost": "2.25",
+        "eval_cost": "10.00",
+        "prefix_cost": "12.25",
         "data_read_per_join": "99K"
       },
       "used_columns": [
@@ -83,7 +83,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "46.63"
+      "query_cost": "16.66"
     },
     "table": {
       "table_name": "t1_myisam",
@@ -92,9 +92,9 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "26.63",
-        "eval_cost": "20.00",
-        "prefix_cost": "46.63",
+        "read_cost": "6.66",
+        "eval_cost": "10.00",
+        "prefix_cost": "16.66",
         "data_read_per_join": "99K"
       },
       "used_columns": [
@@ -234,7 +234,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "56.00"
+      "query_cost": "46.00"
     },
     "table": {
       "table_name": "t1_innodb",
@@ -244,8 +244,8 @@ EXPLAIN
       "filtered": "100.00",
       "cost_info": {
         "read_cost": "36.00",
-        "eval_cost": "20.00",
-        "prefix_cost": "56.00",
+        "eval_cost": "10.00",
+        "prefix_cost": "46.00",
         "data_read_per_join": "99K"
       },
       "used_columns": [
@@ -268,7 +268,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "46.63"
+      "query_cost": "16.66"
     },
     "table": {
       "table_name": "t1_myisam",
@@ -277,9 +277,9 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "26.63",
-        "eval_cost": "20.00",
-        "prefix_cost": "46.63",
+        "read_cost": "6.66",
+        "eval_cost": "10.00",
+        "prefix_cost": "16.66",
         "data_read_per_join": "99K"
       },
       "used_columns": [

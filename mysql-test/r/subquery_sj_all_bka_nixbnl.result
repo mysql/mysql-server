@@ -948,7 +948,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where multiple equal(NULL, `test`.`t3`.`i`, `<subquery2>`.`i`)
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where multiple equal(NULL, `test`.`t3`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -985,7 +985,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where multiple equal(11, `test`.`t3`.`i`, `<subquery2>`.`i`)
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where multiple equal(11, `test`.`t3`.`i`)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1912,11 +1912,10 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	5	const	1	100.00	NULL
-2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where ((`<subquery2>`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1958,11 +1957,10 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	5	const	1	100.00	NULL
-2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where ((`<subquery2>`.`i` = 11) and (`test`.`t3`.`i` = 11))
+Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2362,12 +2360,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t1`.`i` = `<subquery2>`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2663,12 +2660,11 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`i` = `<subquery2>`.`i`) and (`test`.`t3`.`i` = `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t2`.`i`) and (`test`.`t1`.`i` = `test`.`t2`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -2685,12 +2681,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`i` = `<subquery2>`.`i`) and (`test`.`t3`.`i` = `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t2`.`i`) and (`test`.`t1`.`i` = `test`.`t2`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2707,12 +2702,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t1`.`i` = `<subquery2>`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2720,12 +2714,11 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t1`.`i` = `<subquery2>`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2998,12 +2991,11 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	5	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where ((`<subquery2>`.`i` = 11) and (`test`.`t3`.`i` = 11))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -3414,7 +3406,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "18.43"
+      "query_cost": "6.71"
     },
     "nested_loop": [
       {
@@ -3431,9 +3423,9 @@ EXPLAIN
                 "rows_produced_per_join": 8,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "2.03",
-                  "eval_cost": "1.60",
-                  "prefix_cost": "3.63",
+                  "read_cost": "0.51",
+                  "eval_cost": "0.80",
+                  "prefix_cost": "1.31",
                   "data_read_per_join": "128"
                 },
                 "used_columns": [
@@ -3464,9 +3456,9 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Batched Key Access",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "0.20",
-            "prefix_cost": "18.43",
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "6.71",
             "data_read_per_join": "16"
           },
           "used_columns": [
@@ -3548,7 +3540,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "18.45"
+      "query_cost": "8.21"
     },
     "nested_loop": [
       {
@@ -3559,9 +3551,9 @@ EXPLAIN
           "rows_produced_per_join": 11,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "2.02",
-            "eval_cost": "2.20",
-            "prefix_cost": "4.22",
+            "read_cost": "0.50",
+            "eval_cost": "1.10",
+            "prefix_cost": "1.60",
             "data_read_per_join": "88"
           },
           "used_columns": [
@@ -3590,9 +3582,9 @@ EXPLAIN
                 "rows_produced_per_join": 20,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "2.03",
-                  "eval_cost": "4.00",
-                  "prefix_cost": "6.03",
+                  "read_cost": "0.51",
+                  "eval_cost": "2.00",
+                  "prefix_cost": "2.51",
                   "data_read_per_join": "160"
                 },
                 "used_columns": [
@@ -3648,10 +3640,9 @@ a
 explain select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	33.33	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t3.a	1	100.00	NULL
-2	MATERIALIZED	t1	NULL	range	kp1	kp1	5	NULL	48	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	kp1	kp1	5	test.t3.a	1	100.00	Using index; FirstMatch(t3)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` semi join (`test`.`t1`) where ((`<subquery2>`.`kp1` = `test`.`t3`.`a`) and (`test`.`t3`.`a` < 20) and (`test`.`t1`.`kp1` < 20))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` semi join (`test`.`t1`) where ((`test`.`t1`.`kp1` = `test`.`t3`.`a`) and (`test`.`t3`.`a` < 20) and (`test`.`t3`.`a` < 20))
 select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
 a
 0
@@ -3756,10 +3747,11 @@ create table t3 ( a int , filler char(100), key(a));
 insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
 explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Start temporary
-1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.a	1	100.00	End temporary; Using join buffer (Batched Key Access)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t3	NULL	ref	a	a	5	<subquery2>.a	1	100.00	Using join buffer (Batched Key Access)
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`filler` AS `filler` from `test`.`t3` semi join (`test`.`t2`) where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((`test`.`t2`.`a` > 5) or (`test`.`t2`.`a` < 10)))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`filler` AS `filler` from `test`.`t3` semi join (`test`.`t2`) where ((`test`.`t3`.`a` = `<subquery2>`.`a`) and ((`<subquery2>`.`a` > 5) or (`<subquery2>`.`a` < 10)))
 select * from t3 where a in (select a from t2);
 a	filler
 1	filler
@@ -3825,7 +3817,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "134.03"
+      "query_cost": "41.01"
     },
     "nested_loop": [
       {
@@ -3836,9 +3828,9 @@ EXPLAIN
           "rows_produced_per_join": 1,
           "filtered": "10.00",
           "cost_info": {
-            "read_cost": "3.82",
-            "eval_cost": "0.20",
-            "prefix_cost": "4.02",
+            "read_cost": "1.40",
+            "eval_cost": "0.10",
+            "prefix_cost": "1.50",
             "data_read_per_join": "8"
           },
           "used_columns": [
@@ -3862,9 +3854,9 @@ EXPLAIN
                 "rows_produced_per_join": 10,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "2.02",
-                  "eval_cost": "2.00",
-                  "prefix_cost": "4.02",
+                  "read_cost": "0.50",
+                  "eval_cost": "1.00",
+                  "prefix_cost": "1.50",
                   "data_read_per_join": "80"
                 },
                 "used_columns": [
@@ -3895,9 +3887,9 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Batched Key Access",
           "cost_info": {
-            "read_cost": "100.00",
-            "eval_cost": "2.00",
-            "prefix_cost": "134.03",
+            "read_cost": "25.00",
+            "eval_cost": "1.00",
+            "prefix_cost": "41.01",
             "data_read_per_join": "1K"
           },
           "used_columns": [
@@ -3977,10 +3969,9 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 explain select * from t2 where (b,a) in (select a,b from t1 where a=3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	10	test.t2.b,test.t2.a	1	100.00	Using where
-2	MATERIALIZED	t1	NULL	ref	a	a	5	const	8	100.00	Using index
+1	SIMPLE	t1	NULL	ref	a	a	10	const,test.t2.a	1	100.00	Using index; FirstMatch(t2)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`<subquery2>`.`b` = `test`.`t2`.`a`) and (`test`.`t2`.`b` = 3) and (`<subquery2>`.`a` = 3) and (`test`.`t1`.`a` = 3))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t2`.`b` = 3) and (`test`.`t1`.`a` = 3))
 drop table t1,t2;
 create table t1 (a int, b int);
 insert into t1 select a,a from t0;
@@ -6540,13 +6531,12 @@ INNER JOIN t2 c ON c.idContact=cona.idContact
 WHERE cona.postalStripped='T2H3B2'
 	);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
-1	SIMPLE	a	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery2>.idObj	1	100.00	Using index
-2	MATERIALIZED	cona	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-2	MATERIALIZED	c	NULL	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	a	NULL	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	cona	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	c	NULL	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	33.33	Using where; FirstMatch(a)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`a`.`idIndividual` = `<subquery2>`.`idObj`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
+Note	1003	/* select#1 */ select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`c`.`idObj` = `test`.`a`.`idIndividual`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
 drop table t1,t2,t3;
 CREATE TABLE t1 (one int, two int, flag char(1));
 CREATE TABLE t2 (one int, two int, flag char(1));
@@ -7073,11 +7063,10 @@ CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii'),(2,'f','ffff','ffff','ffff');
 EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.a	1	100.00	NULL
-2	MATERIALIZED	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using index condition; Using where; Using MRR; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`<subquery2>`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` > 0))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 pk
 2
@@ -7152,7 +7141,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.79"
+      "query_cost": "2.45"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -7176,9 +7165,9 @@ EXPLAIN
             "index_condition": "(`test`.`t1`.`Population` > 5000000)",
             "using_MRR": true,
             "cost_info": {
-              "read_cost": "2.20",
-              "eval_cost": "0.20",
-              "prefix_cost": "2.40",
+              "read_cost": "0.60",
+              "eval_cost": "0.10",
+              "prefix_cost": "0.70",
               "data_read_per_join": "48"
             },
             "used_columns": [
@@ -7208,9 +7197,9 @@ EXPLAIN
             "filtered": "75.00",
             "using_join_buffer": "Batched Key Access",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "0.15",
-              "prefix_cost": "5.90",
+              "read_cost": "0.25",
+              "eval_cost": "0.08",
+              "prefix_cost": "2.20",
               "data_read_per_join": "54"
             },
             "used_columns": [
@@ -7244,9 +7233,9 @@ EXPLAIN
             "filtered": "95.45",
             "using_join_buffer": "Batched Key Access",
             "cost_info": {
-              "read_cost": "0.75",
-              "eval_cost": "0.14",
-              "prefix_cost": "6.79",
+              "read_cost": "0.19",
+              "eval_cost": "0.07",
+              "prefix_cost": "2.46",
               "data_read_per_join": "28"
             },
             "used_columns": [
@@ -7595,12 +7584,11 @@ CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii','iiii','ffff','ffff','ffff','ffff','ffff',ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))')), (2,'f','ffff','ffff','ffff','ffff','ffff','ffff','ffff','ffff','ffff',ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))'));
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	11	test.t1.a,test.t1.b	1	100.00	NULL
-2	MATERIALIZED	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using index condition; Using where; Using MRR; FirstMatch(t1)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`<subquery2>`.`b` = `test`.`t1`.`b`) and (`<subquery2>`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` > 0))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
 pk
 2
@@ -7811,10 +7799,10 @@ WHERE user_id = 'nicke'
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	7	14.29	Using where; Start temporary
-1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.id	1	100.00	End temporary; Using join buffer (Batched Key Access)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	14.29	Using where; FirstMatch(t1); Using join buffer (Batched Key Access)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`id` = `test`.`t2`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
+Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
 SELECT t1.partner_id
 FROM t1
 WHERE t1.id IN (
@@ -7841,17 +7829,17 @@ WHERE t1.id IN (
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	7	14.29	Using where; Start temporary
-1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.id	1	100.00	End temporary; Using join buffer (Batched Key Access)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	14.29	Using where; FirstMatch(t1); Using join buffer (Batched Key Access)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`id` = `test`.`t2`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
+Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	7	14.29	Using where; Start temporary
-1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.id	1	100.00	End temporary; Using join buffer (Batched Key Access)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	14.29	Using where; FirstMatch(t1); Using join buffer (Batched Key Access)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`id` = `test`.`t2`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
+Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
 PREPARE stmt FROM
 'SELECT t1.partner_id
 FROM t1
@@ -9052,7 +9040,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "3.35"
+            "query_cost": "0.99"
           },
           "nested_loop": [
             {
@@ -9075,9 +9063,9 @@ EXPLAIN
                 "filtered": "9.09",
                 "index_condition": "(`test`.`grandparent1`.`col_int_key` <> 3)",
                 "cost_info": {
-                  "read_cost": "2.00",
-                  "eval_cost": "0.04",
-                  "prefix_cost": "2.40",
+                  "read_cost": "0.50",
+                  "eval_cost": "0.02",
+                  "prefix_cost": "0.70",
                   "data_read_per_join": "2"
                 },
                 "used_columns": [
@@ -9107,9 +9095,9 @@ EXPLAIN
                 "filtered": "100.00",
                 "index_condition": "(`test`.`parent1`.`col_int_key` = `test`.`grandparent1`.`col_int_nokey`)",
                 "cost_info": {
-                  "read_cost": "0.36",
-                  "eval_cost": "0.07",
-                  "prefix_cost": "2.84",
+                  "read_cost": "0.09",
+                  "eval_cost": "0.04",
+                  "prefix_cost": "0.83",
                   "data_read_per_join": "5"
                 },
                 "used_columns": [
@@ -9139,9 +9127,9 @@ EXPLAIN
                 "using_index": true,
                 "first_match": "grandparent1",
                 "cost_info": {
-                  "read_cost": "0.37",
-                  "eval_cost": "0.04",
-                  "prefix_cost": "3.35",
+                  "read_cost": "0.09",
+                  "eval_cost": "0.02",
+                  "prefix_cost": "0.99",
                   "data_read_per_join": "2"
                 },
                 "used_columns": [
@@ -10731,16 +10719,14 @@ FROM t1 AS subquery3_t1
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<subquery4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	Using where
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	const,<subquery4>.subquery3_field1	2	100.00	Using where
+1	PRIMARY	subquery3_t1	NULL	index	col_varchar_key	col_varchar_key	9	NULL	0	0.00	Using where; Using index; LooseScan
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	const,test.subquery3_t1.col_varchar_key	2	100.00	NULL
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	FirstMatch(<derived2>)
 1	PRIMARY	table2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
-1	PRIMARY	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	table1.col_int_key	1	100.00	NULL
-4	MATERIALIZED	subquery3_t1	NULL	index	col_varchar_key	col_varchar_key	9	NULL	0	0.00	Using index
-3	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
 2	DERIVED	subquery1_t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 2	DERIVED	subquery1_t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.subquery1_t1.pk	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `table1`.`pk` AS `field1` from (/* select#2 */ select `test`.`subquery1_t1`.`pk` AS `pk`,`test`.`subquery1_t1`.`col_int_key` AS `col_int_key`,`test`.`subquery1_t1`.`col_varchar_key` AS `col_varchar_key`,`test`.`subquery1_t1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `subquery1_t1` join `test`.`t2` `subquery1_t2` where (`test`.`subquery1_t2`.`pk` = `test`.`subquery1_t1`.`pk`)) `table1` semi join (`test`.`t3`) semi join (`test`.`t1` `subquery3_t1`) straight_join `test`.`t2` `table2` where ((`table1`.`col_int_key` = 7) and (`table1`.`col_varchar_nokey` = `<subquery4>`.`subquery3_field1`))
+Note	1003	/* select#1 */ select `table1`.`pk` AS `field1` from (/* select#2 */ select `test`.`subquery1_t1`.`pk` AS `pk`,`test`.`subquery1_t1`.`col_int_key` AS `col_int_key`,`test`.`subquery1_t1`.`col_varchar_key` AS `col_varchar_key`,`test`.`subquery1_t1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `subquery1_t1` join `test`.`t2` `subquery1_t2` where (`test`.`subquery1_t2`.`pk` = `test`.`subquery1_t1`.`pk`)) `table1` semi join (`test`.`t3`) semi join (`test`.`t1` `subquery3_t1`) straight_join `test`.`t2` `table2` where ((`table1`.`col_int_key` = 7) and (`table1`.`col_varchar_nokey` = `test`.`subquery3_t1`.`col_varchar_key`))
 SELECT table1.pk AS field1
 FROM ( SELECT subquery1_t1. *
 FROM t2 AS subquery1_t1
@@ -10870,7 +10856,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "25.32"
+      "query_cost": "8.63"
     },
     "nested_loop": [
       {
@@ -10881,9 +10867,9 @@ EXPLAIN
           "rows_produced_per_join": 6,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "2.03",
-            "eval_cost": "1.20",
-            "prefix_cost": "3.23",
+            "read_cost": "0.51",
+            "eval_cost": "0.60",
+            "prefix_cost": "1.11",
             "data_read_per_join": "48"
           },
           "used_columns": [
@@ -10913,9 +10899,9 @@ EXPLAIN
                 "rows_produced_per_join": 6,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "2.03",
-                  "eval_cost": "1.20",
-                  "prefix_cost": "3.23",
+                  "read_cost": "0.51",
+                  "eval_cost": "0.60",
+                  "prefix_cost": "1.11",
                   "data_read_per_join": "48"
                 },
                 "used_columns": [
@@ -10934,9 +10920,9 @@ EXPLAIN
           "rows_produced_per_join": 12,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "12.06",
-            "eval_cost": "2.40",
-            "prefix_cost": "25.32",
+            "read_cost": "3.01",
+            "eval_cost": "1.20",
+            "prefix_cost": "8.63",
             "data_read_per_join": "96"
           },
           "used_columns": [
@@ -11041,7 +11027,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "37.23"
+      "query_cost": "13.56"
     },
     "nested_loop": [
       {
@@ -11062,9 +11048,9 @@ EXPLAIN
                 "rows_produced_per_join": 7,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "2.03",
-                  "eval_cost": "1.40",
-                  "prefix_cost": "3.43",
+                  "read_cost": "0.51",
+                  "eval_cost": "0.70",
+                  "prefix_cost": "1.21",
                   "data_read_per_join": "56"
                 },
                 "used_columns": [
@@ -11096,9 +11082,9 @@ EXPLAIN
           "rows_produced_per_join": 2,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "14.00",
-            "eval_cost": "0.40",
-            "prefix_cost": "25.03",
+            "read_cost": "3.50",
+            "eval_cost": "0.20",
+            "prefix_cost": "8.51",
             "data_read_per_join": "32"
           },
           "used_columns": [
@@ -11112,7 +11098,7 @@ EXPLAIN
             "query_block": {
               "select_id": 2,
               "cost_info": {
-                "query_cost": "3.43"
+                "query_cost": "1.21"
               },
               "table": {
                 "table_name": "t2",
@@ -11121,9 +11107,9 @@ EXPLAIN
                 "rows_produced_per_join": 7,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "2.03",
-                  "eval_cost": "1.40",
-                  "prefix_cost": "3.43",
+                  "read_cost": "0.51",
+                  "eval_cost": "0.70",
+                  "prefix_cost": "1.21",
                   "data_read_per_join": "56"
                 },
                 "used_columns": [
@@ -11143,9 +11129,9 @@ EXPLAIN
           "rows_produced_per_join": 40,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "4.20",
-            "eval_cost": "8.00",
-            "prefix_cost": "37.23",
+            "read_cost": "1.05",
+            "eval_cost": "4.00",
+            "prefix_cost": "13.56",
             "data_read_per_join": "320"
           },
           "used_columns": [
@@ -11208,7 +11194,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "142.97"
+      "query_cost": "60.24"
     },
     "nested_loop": [
       {
@@ -11219,9 +11205,9 @@ EXPLAIN
           "rows_produced_per_join": 20,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "2.04",
-            "eval_cost": "4.00",
-            "prefix_cost": "6.04",
+            "read_cost": "0.51",
+            "eval_cost": "2.00",
+            "prefix_cost": "2.51",
             "data_read_per_join": "320"
           },
           "used_columns": [
@@ -11255,9 +11241,9 @@ EXPLAIN
                 "rows_produced_per_join": 20,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "2.04",
-                  "eval_cost": "4.00",
-                  "prefix_cost": "6.04",
+                  "read_cost": "0.51",
+                  "eval_cost": "2.00",
+                  "prefix_cost": "2.51",
                   "data_read_per_join": "320"
                 },
                 "used_columns": [
@@ -11278,9 +11264,9 @@ EXPLAIN
           "rows_produced_per_join": 400,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "40.88",
-            "eval_cost": "80.00",
-            "prefix_cost": "142.97",
+            "read_cost": "10.22",
+            "eval_cost": "40.00",
+            "prefix_cost": "60.24",
             "data_read_per_join": "6K"
           },
           "used_columns": [
@@ -11429,7 +11415,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "150.38"
+      "query_cost": "62.53"
     },
     "nested_loop": [
       {
@@ -11449,9 +11435,9 @@ EXPLAIN
                     "rows_produced_per_join": 6,
                     "filtered": "33.33",
                     "cost_info": {
-                      "read_cost": "4.78",
-                      "eval_cost": "1.33",
-                      "prefix_cost": "6.12",
+                      "read_cost": "1.86",
+                      "eval_cost": "0.67",
+                      "prefix_cost": "2.53",
                       "data_read_per_join": "159"
                     },
                     "used_columns": [
@@ -11469,9 +11455,9 @@ EXPLAIN
                     "rows_produced_per_join": 13,
                     "filtered": "10.00",
                     "cost_info": {
-                      "read_cost": "14.10",
-                      "eval_cost": "2.67",
-                      "prefix_cost": "46.88",
+                      "read_cost": "3.53",
+                      "eval_cost": "1.33",
+                      "prefix_cost": "19.39",
                       "data_read_per_join": "319"
                     },
                     "used_columns": [
@@ -11496,9 +11482,9 @@ EXPLAIN
           "rows_produced_per_join": 2,
           "filtered": "10.00",
           "cost_info": {
-            "read_cost": "28.21",
-            "eval_cost": "0.40",
-            "prefix_cost": "135.75",
+            "read_cost": "7.05",
+            "eval_cost": "0.20",
+            "prefix_cost": "56.77",
             "data_read_per_join": "48"
           },
           "used_columns": [
@@ -11529,9 +11515,9 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Batched Key Access",
           "cost_info": {
-            "read_cost": "2.00",
-            "eval_cost": "0.40",
-            "prefix_cost": "138.15",
+            "read_cost": "0.50",
+            "eval_cost": "0.20",
+            "prefix_cost": "57.47",
             "data_read_per_join": "48"
           },
           "used_columns": [
@@ -11548,9 +11534,9 @@ EXPLAIN
           "rows_produced_per_join": 40,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "4.23",
-            "eval_cost": "8.00",
-            "prefix_cost": "150.39",
+            "read_cost": "1.06",
+            "eval_cost": "4.00",
+            "prefix_cost": "62.53",
             "data_read_per_join": "960"
           },
           "used_columns": [
@@ -12218,8 +12204,8 @@ AND t2.uid=t1.fid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ref	uid	uid	5	const	4	100.00	Using where; Start temporary
 1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	100.00	Using index
-1	SIMPLE	t1	NULL	ref	uid	uid	5	test.t3.fid	4	100.00	Using where; End temporary; Using join buffer (Batched Key Access)
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t1	NULL	ref	uid	uid	5	test.t3.fid	4	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	100.00	End temporary; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name` from `test`.`t4` semi join (`test`.`t3`) join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`uid` = `test`.`t3`.`fid`) and (`test`.`t1`.`uid` = `test`.`t3`.`fid`) and (`test`.`t3`.`uid` = 1) and (`test`.`t2`.`uid` = `test`.`t1`.`fid`))
 FLUSH STATUS;
