@@ -33,6 +33,10 @@
 #include <arpa/inet.h>
 #endif
 
+#if defined(_MSC_VER)
+#include <stdlib.h>
+#endif
+
 #ifdef _WIN32
 #include <winsock2.h>
 #endif
@@ -270,7 +274,12 @@ static inline uint32 load32be(const char *ptr)
 
 static inline char *store16be(char *ptr, uint16 val)
 {
+#if defined(_MSC_VER)
+  // _byteswap_ushort is an intrinsic on MSVC, but htons is not.
+  val= _byteswap_ushort(val);
+#else
   val= htons(val);
+#endif
   memcpy(ptr, &val, sizeof(val));
   return ptr + sizeof(val);
 }
