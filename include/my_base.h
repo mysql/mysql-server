@@ -1095,7 +1095,12 @@ enum key_range_flags {
     Used together with EQ_RANGE to indicate that index statistics
     should be used instead of sampling the index.
   */
-  USE_INDEX_STATISTICS= 1 << 9
+  USE_INDEX_STATISTICS= 1 << 9,
+  /*
+    Keypart is reverse-ordered (DESC) and ranges needs to be scanned
+    backward. @see quick_range_seq_init, get_quick_keys.
+  */
+  DESC_FLAG=            1 << 10,
 };
 
 

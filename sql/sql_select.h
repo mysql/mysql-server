@@ -41,6 +41,8 @@
 #include "sql_alloc.h"
 #include "sql_bitmap.h"
 #include "sql_class.h"                // THD
+#include "sql_opt_exec_shared.h"      // join_type
+#include "opt_explain_format.h"       // Explain_sort_clause
 #include "sql_cmd_dml.h"              // Sql_cmd_dml
 #include "sql_const.h"
 #include "sql_lex.h"
@@ -1133,8 +1135,6 @@ void calc_used_field_length(THD *thd,
                             bool *p_used_null_fields,
                             bool *p_used_uneven_bit_fields);
 
-uint get_index_for_order(ORDER *order, QEP_TAB *tab,
-                         ha_rows limit, bool *need_sort, bool *reverse);
 ORDER *simple_remove_const(ORDER *order, Item *where);
 bool const_expression_in_where(Item *cond, Item *comp_item,
                                Field *comp_field= NULL,
@@ -1178,10 +1178,13 @@ static inline Item_bool_func *and_items(Item *cond, Item_bool_func *item)
 
 uint actual_key_parts(const KEY *key_info);
 
-int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
-                         uint *used_key_parts= NULL);
+class ORDER_with_src;
+uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab,
+                         ha_rows limit, bool *need_sort, bool *reverse);
+int test_if_order_by_key(ORDER_with_src *order, TABLE *table, uint idx,
+                         uint *used_key_parts, bool *skip_quick);
 bool test_if_cheaper_ordering(const JOIN_TAB *tab,
-                              ORDER *order, TABLE *table,
+                              ORDER_with_src *order, TABLE *table,
                               Key_map usable_keys, int key,
                               ha_rows select_limit,
                               int *new_key, int *new_key_direction,

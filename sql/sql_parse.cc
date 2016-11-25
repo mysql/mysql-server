@@ -5402,7 +5402,7 @@ bool Alter_info::add_field(THD *thd,
   if (type_modifier & PRI_KEY_FLAG)
   {
     List<Key_part_spec> key_parts;
-    auto key_part_spec= new Key_part_spec(field_name_cstr, 0);
+    auto key_part_spec= new Key_part_spec(field_name_cstr, 0, ORDER_ASC);
     if (key_part_spec == NULL || key_parts.push_back(key_part_spec))
       DBUG_RETURN(true);
     Key_spec *key= new Key_spec(thd->mem_root,
@@ -5416,7 +5416,7 @@ bool Alter_info::add_field(THD *thd,
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     List<Key_part_spec> key_parts;
-    auto key_part_spec= new Key_part_spec(field_name_cstr, 0);
+    auto key_part_spec= new Key_part_spec(field_name_cstr, 0, ORDER_ASC);
     if (key_part_spec == NULL || key_parts.push_back(key_part_spec))
       DBUG_RETURN(true);
     Key_spec *key= new Key_spec(thd->mem_root,

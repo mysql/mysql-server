@@ -486,7 +486,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
       Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
       QUICK_SELECT_I *qck;
       no_rows= test_quick_select(thd, keys_to_use, 0, limit, safe_update,
-                                 ORDER::ORDER_NOT_RELEVANT, &qep_tab,
+                                 ORDER_NOT_RELEVANT, &qep_tab,
                                  conds, &needed_reg_dummy, &qck) < 0;
       qep_tab.set_quick(qck);
       if (thd->is_error())
@@ -527,13 +527,15 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
   table->update_const_key_parts(conds);
   order= simple_remove_const(order, conds);
-        
   bool need_sort;
   bool reverse= false;
   bool used_key_is_modified= false;
-
-  uint used_index= get_index_for_order(order, &qep_tab, limit,
-                                       &need_sort, &reverse);
+  uint used_index;
+  {
+    ORDER_with_src order_src(order, ESC_ORDER_BY);
+    used_index= get_index_for_order(&order_src, &qep_tab, limit,
+                                    &need_sort, &reverse);
+  }
   if (need_sort)
   { // Assign table scan index to check below for modified key fields:
     used_index= table->file->key_used_on_scan;
@@ -2025,7 +2027,7 @@ loop_end:
 
     /* Make an unique key over the first field to avoid duplicated updates */
     memset(&group, 0, sizeof(group));
-    group.direction= ORDER::ORDER_ASC;
+    group.direction= ORDER_ASC;
     group.item= temp_fields.head_ref();
 
     tmp_param->quick_group=1;

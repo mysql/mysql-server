@@ -182,10 +182,10 @@ INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
 SELECT * FROM t1 GROUP BY s1;
 s1
 x
-X
 y
-Y
 z
+X
+Y
 Z
 SELECT * FROM t1 ORDER BY s1;
 s1
@@ -218,10 +218,10 @@ INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
 SELECT * FROM t1 GROUP BY s1;
 s1
 x
-X
 y
-Y
 z
+X
+Y
 Z
 SELECT * FROM t1 ORDER BY s1;
 s1
@@ -256,10 +256,10 @@ INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
 SELECT * FROM t1 GROUP BY s1;
 s1
 x
-X
 y
-Y
 z
+X
+Y
 Z
 SELECT * FROM t1 ORDER BY s1;
 s1
@@ -294,10 +294,10 @@ INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
 SELECT * FROM t1 GROUP BY s1;
 s1
 x
-X
 y
-Y
 z
+X
+Y
 Z
 SELECT * FROM t1 ORDER BY s1;
 s1

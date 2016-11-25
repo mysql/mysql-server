@@ -225,7 +225,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -59,4 +60,3 @@
                "f2"
 -            ],
--            "attached_condition": "((`test`.`t2`.`f1` <=> 4) and (`test`.`t2`.`f2` is not null))"
+-            "attached_condition": "(`test`.`t2`.`f2` is not null)"
 +            ]
            }
 QUERY: SELECT * FROM t3 AS a INNER JOIN t3 AS b USING (id) WHERE a.ref < b.ref 
@@ -749,18 +749,11 @@ QUERY: SELECT DISTINCT   alias1.pk AS field1 FROM  f1 AS alias1 LEFT  JOIN a2 AS
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -47,3 +47,4 @@
+@@ -47,3 +47,3 @@
              "filtered": "100.00",
 -            "index_condition": "(`test`.`alias1`.`pk` in (5,5))",
 +            "index_condition": true,
-+            "using_where": true,
              "cost_info": {
-@@ -57,4 +58,3 @@
-               "pk"
--            ],
--            "attached_condition": "(`field1` <= 3)"
-+            ]
-           }
 QUERY: SELECT alias1.pk AS field1 FROM  h2 AS alias1 LEFT  JOIN aa3 AS alias2 ON  alias1.pk =  alias2.col_int_key WHERE alias1.pk <> 9 GROUP BY field1 ORDER BY field1 LIMIT 1 OFFSET 3
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan

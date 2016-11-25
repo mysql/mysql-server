@@ -140,36 +140,6 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
                 "row_limit_estimate": 15857
               } /* tmp_table_info */
             } /* creating_tmp_table */
-          },
-          {
-            "filesort_information": [
-              {
-                "direction": "asc",
-                "table": "intermediate_tmp_table",
-                "field": "col2"
-              },
-              {
-                "direction": "asc",
-                "table": "intermediate_tmp_table",
-                "field": "uniq"
-              }
-            ] /* filesort_information */,
-            "filesort_priority_queue_optimization": {
-              "limit": 3,
-              "rows_estimate": 18,
-              "row_size": 1044,
-              "memory_available": 262144,
-              "chosen": true
-            } /* filesort_priority_queue_optimization */,
-            "filesort_execution": [
-            ] /* filesort_execution */,
-            "filesort_summary": {
-              "rows": 4,
-              "examined_rows": 8,
-              "number_of_tmp_files": 0,
-              "sort_buffer_size": 4208,
-              "sort_mode": "<fixed_sort_key, rowid>"
-            } /* filesort_summary */
           }
         ] /* steps */
       } /* join_execution */
@@ -308,28 +278,6 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 "row_limit_estimate": 15978
               } /* tmp_table_info */
             } /* creating_tmp_table */
-          },
-          {
-            "filesort_information": [
-              {
-                "direction": "asc",
-                "table": "intermediate_tmp_table",
-                "field": "uniq"
-              }
-            ] /* filesort_information */,
-            "filesort_priority_queue_optimization": {
-              "usable": false,
-              "cause": "not applicable (no LIMIT)"
-            } /* filesort_priority_queue_optimization */,
-            "filesort_execution": [
-            ] /* filesort_execution */,
-            "filesort_summary": {
-              "rows": 8,
-              "examined_rows": 8,
-              "number_of_tmp_files": 0,
-              "sort_buffer_size": 488,
-              "sort_mode": "<fixed_sort_key, rowid>"
-            } /* filesort_summary */
           }
         ] /* steps */
       } /* join_execution */
@@ -495,28 +443,6 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 "record_format": "packed"
               } /* tmp_table_info */
             } /* converting_tmp_table_to_ondisk */
-          },
-          {
-            "filesort_information": [
-              {
-                "direction": "asc",
-                "table": "intermediate_tmp_table",
-                "field": "uniq"
-              }
-            ] /* filesort_information */,
-            "filesort_priority_queue_optimization": {
-              "usable": false,
-              "cause": "not applicable (no LIMIT)"
-            } /* filesort_priority_queue_optimization */,
-            "filesort_execution": [
-            ] /* filesort_execution */,
-            "filesort_summary": {
-              "rows": 16,
-              "examined_rows": 16,
-              "number_of_tmp_files": 0,
-              "sort_buffer_size": 65536,
-              "sort_mode": "<fixed_sort_key, rowid>"
-            } /* filesort_summary */
           }
         ] /* steps */
       } /* join_execution */

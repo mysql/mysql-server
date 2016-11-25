@@ -884,6 +884,9 @@ fill_dd_index_elements_from_key_parts(const dd::Table *tab_obj,
       idx_obj->add_element(const_cast<dd::Column*>(key_col_obj));
 
     idx_elem->set_length(key_part->length);
+    idx_elem->set_order(
+      key_part->key_part_flag & HA_REVERSE_SORT ?
+      Index_element::ORDER_DESC : Index_element::ORDER_ASC);
 
     //
     // Set index order

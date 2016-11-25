@@ -1966,12 +1966,12 @@ SELECT * FROM (SELECT cs FROM test1.t1 WHERE cu = '0') AS dt;
 ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cs) AS dt;
 c
-4
 1
+4
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cus) AS dt;
 c
-4
 1
+4
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cn) AS dt;
 ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY ci) AS dt;
@@ -2158,12 +2158,12 @@ SELECT * FROM (SELECT cs FROM test1.v1_all WHERE cu = '0') AS dt;
 ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cs) AS dt;
 c
-8
 1
+8
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cus) AS dt;
 c
-8
 1
+8
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cn) AS dt;
 ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY ci) AS dt;
@@ -2323,12 +2323,12 @@ SELECT * FROM (SELECT cs FROM test1.v1_same WHERE cu = '0') AS dt;
 ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_same'
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cs) AS dt;
 c
-12
 1
+12
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cus) AS dt;
 c
-12
 1
+12
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cn) AS dt;
 ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY ci) AS dt;

@@ -1071,6 +1071,10 @@ bool Explain_table_base::explain_extra_common(int quick_type,
           return true;
       }
     }
+    if (((quick_type >= 0 && tab->quick_optim()->reverse_sorted()) ||
+      tab->reversed_access()) &&
+      push_extra(ET_BACKWARD_SCAN))
+    return true;
   }
   if (table->reginfo.not_exists_optimize && push_extra(ET_NOT_EXISTS))
     return true;

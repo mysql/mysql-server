@@ -165,10 +165,11 @@ class PT_order_expr : public Parse_tree_node, public ORDER
   typedef Parse_tree_node super;
 
 public:
-  PT_order_expr(Item *item_arg, bool is_asc)
+  PT_order_expr(Item *item_arg, enum_order dir)
   {
     item_ptr= item_arg;
-    direction= is_asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC;
+    direction= (dir == ORDER_DESC) ? ORDER_DESC : ORDER_ASC;
+    is_explicit= (dir != ORDER_NOT_RELEVANT);
   }
 
   virtual bool contextualize(Parse_context *pc)

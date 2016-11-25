@@ -5982,8 +5982,8 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
 select t1.a,avg(t2.c) as moyenne from t1, t2 where t2.c>-1
 group by t1.a having moyenne<>0;
 a	moyenne
-NULL	1.5000
 1	1.5000
+NULL	1.5000
 select trace from information_schema.OPTIMIZER_TRACE;
 trace
 {
@@ -6218,12 +6218,6 @@ trace
                 "table": "`t1`"
               }
             ] /* refine_plan */
-          },
-          {
-            "sort_using_internal_table": {
-              "condition_for_sort": "(`moyenne` <> 0)",
-              "having_after_sort": null
-            } /* sort_using_internal_table */
           }
         ] /* steps */
       } /* join_optimization */
@@ -6243,28 +6237,6 @@ trace
                 "row_limit_estimate": 559240
               } /* tmp_table_info */
             } /* creating_tmp_table */
-          },
-          {
-            "filesort_information": [
-              {
-                "direction": "asc",
-                "table": "intermediate_tmp_table",
-                "field": "a"
-              }
-            ] /* filesort_information */,
-            "filesort_priority_queue_optimization": {
-              "usable": false,
-              "cause": "not applicable (no LIMIT)"
-            } /* filesort_priority_queue_optimization */,
-            "filesort_execution": [
-            ] /* filesort_execution */,
-            "filesort_summary": {
-              "rows": 2,
-              "examined_rows": 2,
-              "number_of_tmp_files": 0,
-              "sort_buffer_size": "NNN",
-              "sort_mode": "<fixed_sort_key, rowid>"
-            } /* filesort_summary */
           }
         ] /* steps */
       } /* join_execution */

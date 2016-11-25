@@ -1199,7 +1199,7 @@ purge_node_t::validate_pcur()
 	part in persistent cursor. Both cases we store n_uniq fields of the
 	cluster index and so it is fine to do the comparison. We note this
 	dependency here as pcur and ref belong to different modules. */
-	int st = cmp_dtuple_rec(ref, pcur.old_rec, offsets);
+	int st = cmp_dtuple_rec(ref, pcur.old_rec, clust_index, offsets);
 
 	if (st != 0) {
 		ib::error() << "Purge node pcur validation failed";

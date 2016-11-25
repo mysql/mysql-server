@@ -74,7 +74,8 @@ static const char *json_extra_tags[ET_total]=
   "unique_row_not_found",               // ET_UNIQUE_ROW_NOT_FOUND
   "impossible_on_condition",            // ET_IMPOSSIBLE_ON_CONDITION
   "pushed_join",                        // ET_PUSHED_JOIN
-  "ft_hints"                            // ET_FT_HINTS
+  "ft_hints",                           // ET_FT_HINTS
+  "backward_index_scan"                 // ET_BACKWARD_SCAN
 };
 
 

@@ -761,7 +761,7 @@ uint Filesort::make_sortorder()
     }
     else
       pos->item= item;
-    pos->reverse= (ord->direction == ORDER::ORDER_DESC);
+    pos->reverse= (ord->direction == ORDER_DESC);
     DBUG_ASSERT(pos->field != NULL || pos->item != NULL);
   }
   DBUG_RETURN(count);

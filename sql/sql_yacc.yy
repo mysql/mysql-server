@@ -6638,14 +6638,14 @@ reference_list:
           reference_list ',' ident
           {
             $$= $1;
-            auto key= NEW_PTN Key_part_spec(to_lex_cstring($3), 0);
+            auto key= NEW_PTN Key_part_spec(to_lex_cstring($3), 0, ORDER_ASC);
             if (key == NULL || $$->push_back(key))
               MYSQL_YYABORT;
           }
         | ident
           {
             $$= NEW_PTN List<Key_part_spec>;
-            auto key= NEW_PTN Key_part_spec(to_lex_cstring($1), 0);
+            auto key= NEW_PTN Key_part_spec(to_lex_cstring($1), 0, ORDER_ASC);
             if ($$ == NULL || key == NULL || $$->push_back(key))
               MYSQL_YYABORT;
           }
@@ -6873,14 +6873,13 @@ index_type:
         ;
 
 key_list:
-          key_list ',' key_part order_dir
+          key_list ',' key_part
           {
-            // The order is ignored.
             if ($1->push_back($3))
               MYSQL_YYABORT; // OOM
             $$= $1;
           }
-        | key_part order_dir
+        | key_part
           {
             // The order is ignored.
             $$= new List<Key_part_spec>;
@@ -6890,20 +6889,21 @@ key_list:
         ;
 
 key_part:
-          ident
+          ident order_dir
           {
-            $$= new Key_part_spec(to_lex_cstring($1), 0);
+            $$= new Key_part_spec(to_lex_cstring($1), 0, (enum_order) $2);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
-        | ident '(' NUM ')'
+        | ident '(' NUM ')' order_dir
           {
             int key_part_len= atoi($3.str);
             if (!key_part_len)
             {
               my_error(ER_KEY_PART_0, MYF(0), $1.str);
             }
-            $$= new Key_part_spec(to_lex_cstring($1), (uint) key_part_len);
+            $$= new Key_part_spec(to_lex_cstring($1), (uint) key_part_len,
+                                  (enum_order) $5);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -10610,7 +10610,9 @@ alter_order_item:
             if (order == NULL)
               MYSQL_YYABORT;
             order->item_ptr= $1;
-            order->direction= ($2 == 1) ? ORDER::ORDER_ASC : ORDER::ORDER_DESC;
+            order->direction= ($2 == ORDER_DESC) ? ORDER_DESC
+                                                 : ORDER_ASC;
+            order->is_explicit= ($2 != ORDER_NOT_RELEVANT);
             order->is_position= false;
             add_order_to_list(thd, order);
           }
@@ -10648,9 +10650,9 @@ order_list:
         ;
 
 order_dir:
-          /* empty */ { $$ =  1; }
-        | ASC  { $$ =1; }
-        | DESC { $$ =0; }
+          /* empty */ { $$= ORDER_NOT_RELEVANT; }
+        | ASC         { $$= ORDER_ASC; }
+        | DESC        { $$= ORDER_DESC; }
         ;
 
 opt_limit_clause:
@@ -12834,7 +12836,7 @@ table_wild:
 order_expr:
           expr order_dir
           {
-            $$= NEW_PTN PT_order_expr($1, $2);
+            $$= NEW_PTN PT_order_expr($1, (enum_order) $2);
           }
         ;
 

@@ -701,7 +701,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
 EXPLAIN SELECT f1 + 1, MAX(GC)
 FROM t1 IGNORE KEY FOR GROUP BY(PRIMARY) GROUP BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` IGNORE INDEX FOR GROUP BY (PRIMARY) group by (`test`.`t1`.`f1` + 1)
 # Shouldn't use index

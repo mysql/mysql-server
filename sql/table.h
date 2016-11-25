@@ -255,12 +255,6 @@ typedef struct st_order {
   Item   **item;                        /* Point at item in select fields */
   Item   *item_ptr;                     /* Storage for initial item */
 
-  enum enum_order {
-    ORDER_NOT_RELEVANT=1,
-    ORDER_ASC,
-    ORDER_DESC
-  };
-
   enum_order direction;                 /* Requested direction of ordering */
   bool   in_field_list;                 /* true if in select field list */
   /**
@@ -274,6 +268,7 @@ typedef struct st_order {
   char   *buff;                         /* If tmp-table group */
   table_map used, depend_map;
   bool is_position;  /* An item expresses a position in a ORDER clause */
+  bool is_explicit;  /* Whether ASC/DESC is explicitly specified */
 } ORDER;
 
 /**

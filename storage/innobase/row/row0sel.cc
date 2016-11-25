@@ -142,7 +142,9 @@ row_sel_sec_rec_is_for_blob(
 	len = dtype_get_at_most_n_mbchars(prtype, mbminmaxlen,
 					  prefix_len, len, (const char*) buf);
 
-	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
+	/* We are testing for equality; ASC/DESC does not matter. */
+	return(!cmp_data_data(mtype, prtype, true,
+			      buf, len, sec_field, sec_len));
 }
 
 /** Returns TRUE if the user-defined column values in a secondary index record
@@ -311,9 +313,11 @@ row_sel_sec_rec_is_for_clust_rec(
 			}
 		} else {
 
-			if (0 != cmp_data_data(col->mtype, col->prtype,
-					       clust_field, len,
-					       sec_field, sec_len)) {
+			/* We are testing for equality; ASC/DESC does not
+			matter */
+			if (0 != cmp_data_data(col->mtype, col->prtype, true,
+					       clust_field, len, sec_field,
+					       sec_len)) {
 inequal:
 				is_equal = FALSE;
 				goto func_exit;
@@ -4325,13 +4329,14 @@ row_search_no_mvcc(
 			/* Test if the index record matches completely to
 			search_tuple in prebuilt: if not, then we return with
 			DB_RECORD_NOT_FOUND */
-			if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {
+			if (0 != cmp_dtuple_rec(search_tuple, rec, index,
+						offsets)) {
 				err = DB_RECORD_NOT_FOUND;
 				break;
 			}
 		} else if (match_mode == ROW_SEL_EXACT_PREFIX) {
 			if (!cmp_dtuple_is_prefix_of_rec(
-				search_tuple, rec, offsets)) {
+				search_tuple, rec, index, offsets)) {
 				err = DB_RECORD_NOT_FOUND;
 				break;
 			}
@@ -5276,7 +5281,7 @@ wrong_offs:
 
 		/* fputs("Comparing rec and search tuple\n", stderr); */
 
-		if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {
+		if (0 != cmp_dtuple_rec(search_tuple, rec, index, offsets)) {
 
 			if (set_also_gap_locks
 			    && !trx->skip_gap_locks()
@@ -5318,7 +5323,8 @@ wrong_offs:
 
 	} else if (match_mode == ROW_SEL_EXACT_PREFIX) {
 
-		if (!cmp_dtuple_is_prefix_of_rec(search_tuple, rec, offsets)) {
+		if (!cmp_dtuple_is_prefix_of_rec(
+			    search_tuple, rec, index, offsets)) {
 
 			if (set_also_gap_locks
 			    && !trx->skip_gap_locks()
@@ -5396,7 +5402,8 @@ wrong_offs:
 		    && direction == 0
 		    && dtuple_get_n_fields_cmp(search_tuple)
 		    == dict_index_get_n_unique(index)
-		    && 0 == cmp_dtuple_rec(search_tuple, rec, offsets)) {
+		    && 0 == cmp_dtuple_rec(
+				search_tuple, rec, index, offsets)) {
 no_gap_lock:
 			lock_type = LOCK_REC_NOT_GAP;
 		}
@@ -6419,6 +6426,7 @@ row_search_get_max_rec(
 {
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
+
 	/* Open at the high/right end (false), and init cursor */
 	btr_pcur_open_at_index_side(
 		false, index, BTR_SEARCH_LEAF, &pcur, true, 0, mtr);
@@ -6427,7 +6435,7 @@ row_search_get_max_rec(
 		const page_t*	page;
 
 		page = btr_pcur_get_page(&pcur);
-		rec = page_find_rec_max_not_deleted(page);
+		rec = page_find_rec_last_not_deleted(page);
 
 		if (page_rec_is_user_rec(rec)) {
 			break;

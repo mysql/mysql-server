@@ -211,7 +211,7 @@ create table t1(
   a4 real,
   a5 date,
   key k1(a2,a3),
-  key k2(a4 desc,a1),
+  key k2(a4,a1),
   key k3(a5,a1)
 );
 create table t2(

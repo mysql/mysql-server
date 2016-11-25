@@ -1644,7 +1644,7 @@ GROUP BY field1, field2;
 
 SELECT SQL_BIG_RESULT tbl1.col1 AS field1, tbl2.col1 AS field2
 FROM t1 as tbl1, t1 as tbl2 
-GROUP BY field1, field2 
+GROUP BY field1 ASC, field2 ASC 
 LIMIT 3;
 
 DROP VIEW v1;

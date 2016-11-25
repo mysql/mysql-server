@@ -1815,9 +1815,9 @@ fts_create_one_common_table(
 			new_table->space, DICT_UNIQUE|DICT_CLUSTERED, 1);
 
 		if (!is_config) {
-			index->add_field("doc_id", 0);
+			index->add_field("doc_id", 0, true);
 		} else {
-			index->add_field("key", 0);
+			index->add_field("key", 0, true);
 		}
 
 		/* We save and restore trx->dict_operation because
@@ -1938,7 +1938,7 @@ fts_create_common_tables(
 	index = dict_mem_index_create(
 		name, FTS_DOC_ID_INDEX_NAME, table->space,
 		DICT_UNIQUE, 1);
-	index->add_field(FTS_DOC_ID_COL_NAME, 0);
+	index->add_field(FTS_DOC_ID_COL_NAME, 0, true);
 
 	op = trx_get_dict_operation(trx);
 
@@ -2026,8 +2026,8 @@ fts_create_one_index_table(
 		dict_index_t*	index = dict_mem_index_create(
 			table_name, "FTS_INDEX_TABLE_IND", new_table->space,
 			DICT_UNIQUE|DICT_CLUSTERED, 2);
-		index->add_field("word", 0);
-		index->add_field("first_doc_id", 0);
+		index->add_field("word", 0, true);
+		index->add_field("first_doc_id", 0, true);
 
 		trx_dict_op_t op = trx_get_dict_operation(trx);
 

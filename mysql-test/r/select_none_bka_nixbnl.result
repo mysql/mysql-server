@@ -565,7 +565,7 @@ attainments
 fanatic
 measures
 rightfulness
-select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
+select distinct fld3,count(*) from t2 group by companynr asc, fld3 asc limit 10;
 fld3	count(*)
 affixed	1
 and	1
@@ -578,7 +578,7 @@ bedlam	1
 bedpost	1
 boasted	1
 SET BIG_TABLES=1;
-select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
+select distinct fld3,count(*) from t2 group by companynr asc, fld3 asc limit 10;
 fld3	count(*)
 affixed	1
 and	1
@@ -591,7 +591,7 @@ bedlam	1
 bedpost	1
 boasted	1
 SET BIG_TABLES=0;
-select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
+select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr asc,fld3 asc limit 100,10;
 fld3	repeat("a",length(fld3))	count(*)
 chancellor	aaaaaaaaaa	1
 Chippewa	aaaaaaaa	1
@@ -1320,31 +1320,31 @@ UNIQUE KEY companyname(companyname)
 ) ENGINE=MyISAM MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
 select STRAIGHT_JOIN t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
-00	Unknown
 29	company 1
 34	company 2
 36	company 3
 37	company 4
 40	company 5
 41	company 6
-50	company 11
 53	company 7
 58	company 8
 65	company 9
 68	company 10
+50	company 11
+00	Unknown
 select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
 00	Unknown
-29	company 1
-34	company 2
-36	company 3
 37	company 4
-40	company 5
-41	company 6
+36	company 3
 50	company 11
-53	company 7
 58	company 8
+29	company 1
+40	company 5
+53	company 7
 65	company 9
+41	company 6
+34	company 2
 68	company 10
 select * from t1,t1 t12;
 Period	Varor_period	Period	Varor_period
@@ -1543,16 +1543,16 @@ count(*)
 select companynr,count(*),sum(fld1) from t2 group by companynr;
 companynr	count(*)	sum(fld1)
 00	82	10355753
-29	95	14473298
-34	70	17788966
-36	215	22786296
 37	588	83602098
-40	37	6618386
-41	52	12816335
+36	215	22786296
 50	11	1595438
-53	4	793210
 58	23	2254293
+29	95	14473298
+40	37	6618386
+53	4	793210
 65	10	2284055
+41	52	12816335
+34	70	17788966
 68	12	3097288
 select companynr,count(*) from t2 group by companynr order by companynr desc limit 5;
 companynr	count(*)
@@ -1570,12 +1570,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select count(0) AS `count(*)`,min(`test`.`t2`.`fld4`) AS `min(fld4)`,max(`test`.`t2`.`fld4`) AS `max(fld4)`,sum(`test`.`t2`.`fld1`) AS `sum(fld1)`,avg(`test`.`t2`.`fld1`) AS `avg(fld1)`,std(`test`.`t2`.`fld1`) AS `std(fld1)`,variance(`test`.`t2`.`fld1`) AS `variance(fld1)` from `test`.`t2` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld4` <> ''))
-select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr limit 3;
+select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr asc limit 3;
 companynr	count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)	variance(fld1)
 00	82	Anthony	windmills	10355753	126289.6707	115550.97568479746	13352027981.708656
 29	95	abut	wetness	14473298	152350.5053	8368.547956641249	70032594.90260443
 34	70	absentee	vest	17788966	254128.0857	3272.5939722090234	10709871.306938833
-select companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr,t2nr limit 10;
+select
+companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from
+t3 where companynr = 37 group by companynr asc,t2nr asc limit 10;
 companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	1	1	5987435	5987435	5987435	5987435.0000
 37	2	1	28357832	28357832	28357832	28357832.0000
@@ -1587,7 +1589,9 @@ companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	22	1	28357832	28357832	28357832	28357832.0000
 37	23	1	39654943	39654943	39654943	39654943.0000
 37	31	1	5987435	5987435	5987435	5987435.0000
-select /*! SQL_SMALL_RESULT */ companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr,t2nr limit 10;
+select /*! SQL_SMALL_RESULT */
+companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from
+t3 where companynr = 37 group by companynr asc,t2nr asc limit 10;
 companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	1	1	5987435	5987435	5987435	5987435.0000
 37	2	1	28357832	28357832	28357832	28357832.0000
@@ -1642,16 +1646,16 @@ companynr	count(distinct fld1)
 select companynr,count(*) from t2 group by companynr;
 companynr	count(*)
 00	82
-29	95
-34	70
-36	215
 37	588
-40	37
-41	52
+36	215
 50	11
-53	4
 58	23
+29	95
+40	37
+53	4
 65	10
+41	52
+34	70
 68	12
 select companynr,count(distinct concat(fld1,repeat(65,1000))) from t2 group by companynr;
 companynr	count(distinct concat(fld1,repeat(65,1000)))
@@ -1738,18 +1742,18 @@ fld3	count(*)
 spates	4181
 select companynr|0,companyname from t4 group by 1;
 companynr|0	companyname
-0	Unknown
 29	company 1
 34	company 2
 36	company 3
 37	company 4
 40	company 5
 41	company 6
-50	company 11
 53	company 7
 58	company 8
 65	company 9
 68	company 10
+50	company 11
+0	Unknown
 select t2.companynr,companyname,count(*) from t2,t4 where t2.companynr=t4.companynr group by t2.companynr order by companyname;
 companynr	companyname	count(*)
 29	company 1	95
@@ -1855,7 +1859,6 @@ interdependent	018051	1	5987435	5987435	5987435	5987435.0000
 Graves	018052	1	28357832	28357832	28357832	28357832.0000
 neonatal	018053	1	39654943	39654943	39654943	39654943.0000
 sorters	018061	1	5987435	5987435	5987435	5987435.0000
-epistle	018062	1	28357832	28357832	28357832	28357832.0000
 Conley	018101	1	5987435	5987435	5987435	5987435.0000
 lectured	018102	1	28357832	28357832	28357832	28357832.0000
 Abraham	018103	1	39654943	39654943	39654943	39654943.0000
@@ -1893,23 +1896,24 @@ partridges	038103	1	39654943	39654943	39654943	39654943.0000
 recruited	038201	1	5987435	5987435	5987435	5987435.0000
 dimensions	038202	1	28357832	28357832	28357832	28357832.0000
 Chicana	038203	1	39654943	39654943	39654943	39654943.0000
+epistle	018062	1	28357832	28357832	28357832	28357832.0000
 select t3.companynr,fld3,sum(price) from t3,t2 where t2.fld1 = t3.t2nr and t3.companynr = 512 group by companynr,fld3;
 companynr	fld3	sum(price)
 512	boat	786542
 512	capably	786542
-512	cupboard	786542
 512	decliner	786542
-512	descendants	786542
 512	dopers	786542
 512	erases	786542
-512	Micronesia	786542
+512	cupboard	786542
 512	Miles	786542
+512	Micronesia	786542
+512	descendants	786542
 512	skies	786542
 select t2.companynr,count(*),min(fld3),max(fld3),sum(price),avg(price) from t2,t3 where t3.companynr >= 30 and t3.companynr <= 58 and t3.t2nr = t2.fld1 and 1+1=2 group by t2.companynr;
 companynr	count(*)	min(fld3)	max(fld3)	sum(price)	avg(price)
 00	1	Omaha	Omaha	5987435	5987435.0000
-36	1	dubbed	dubbed	28357832	28357832.0000
 37	83	Abraham	Wotan	1908978016	22999735.1325
+36	1	dubbed	dubbed	28357832	28357832.0000
 50	2	scribbled	tapestry	68012775	34006387.5000
 select t3.companynr+0,t3.t2nr,fld3,sum(price) from t3,t2 where t2.fld1 = t3.t2nr and t3.companynr = 37 group by 1,t3.t2nr,fld3,fld3,fld3,fld3,fld3 order by fld1;
 t3.companynr+0	t2nr	fld3	sum(price)
@@ -2027,26 +2031,26 @@ companynr	fld1
 select companynr,count(*) as count,sum(fld1) as sum from t2 group by companynr having count > 40 and sum/count >= 120000;
 companynr	count	sum
 00	82	10355753
-29	95	14473298
-34	70	17788966
 37	588	83602098
+29	95	14473298
 41	52	12816335
+34	70	17788966
 select companynr from t2 group by companynr having count(*) > 40 and sum(fld1)/count(*) >= 120000 ;
 companynr
 00
-29
-34
 37
+29
 41
+34
 select t2.companynr,companyname,count(*) from t2,t4 where t2.companynr=t4.companynr group by companyname having t2.companynr >= 40;
 companynr	companyname	count(*)
-68	company 10	12
 50	company 11	11
-40	company 5	37
-41	company 6	52
-53	company 7	4
 58	company 8	23
+40	company 5	37
+53	company 7	4
 65	company 9	10
+41	company 6	52
+68	company 10	12
 select count(*) from t2;
 count(*)
 1199
@@ -2757,11 +2761,11 @@ INSERT INTO t2 VALUES ( 1,10,1), (1,10,2), (1,11,1), (1,11,2), (1,2,1), (1,2,2),
 SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
 t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY a, b, c;
 a	b	c	d
+1	10		2
+1	11		2
 1	2	1	1
 1	2	2	1
 1	2	3	1
-1	10		2
-1	11		2
 SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
 t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY t1.a, t1.b, c;
 a	b	c	d
@@ -2772,11 +2776,11 @@ a	b	c	d
 SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
 t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY t2.a, t2.b, c;
 a	b	c	d
+1	10		2
+1	11		2
 1	2	1	1
 1	2	2	1
 1	2	3	1
-1	10		2
-1	11		2
 SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2,t1
 WHERE t2.a = t1.a AND t2.b = t1.b GROUP BY a, b, c;
 a	b	c	d

@@ -2107,7 +2107,7 @@ row_delete_for_mysql_using_cursor(
 
 		ut_ad(!cmp_dtuple_rec(
 			entry, btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur)),
-			offsets));
+			index, offsets));
 #endif /* UNIV_DEBUG */
 
 		ut_ad(!rec_get_deleted_flag(
@@ -5743,8 +5743,8 @@ func_exit:
 	if (prev_entry != NULL) {
 		matched_fields = 0;
 
-		cmp = cmp_dtuple_rec_with_match(prev_entry, rec, offsets,
-						&matched_fields);
+		cmp = cmp_dtuple_rec_with_match(
+			prev_entry, rec, index, offsets, &matched_fields);
 		contains_null = FALSE;
 
 		/* In a unique secondary index we allow equal key values if

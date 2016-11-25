@@ -790,8 +790,6 @@ FROM BB as t2
 GROUP BY field2;
 field2
 [1]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 DROP TABLE BB;
 #
 # Bug #24365264

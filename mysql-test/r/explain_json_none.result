@@ -838,7 +838,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` having (
 # subquery in the GROUP BY clause
 EXPLAIN SELECT * FROM t1 GROUP BY i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
@@ -849,14 +849,11 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "8.20"
+      "query_cost": "1.20"
     } /* cost_info */,
     "grouping_operation": {
       "using_temporary_table": true,
-      "using_filesort": true,
-      "cost_info": {
-        "sort_cost": "7.00"
-      } /* cost_info */,
+      "using_filesort": false,
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -2043,7 +2040,7 @@ CREATE TABLE t1(a INT, b INT);
 INSERT INTO t1 VALUES (), ();
 EXPLAIN SELECT 1 FROM t1 GROUP BY GREATEST(t1.a, (SELECT 1 FROM (SELECT t1.b FROM t1, t1 t2 ORDER BY t1.a, t1.a LIMIT 1) AS d));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 2	SUBQUERY	<derived3>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
@@ -2055,14 +2052,11 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.70"
+      "query_cost": "0.70"
     } /* cost_info */,
     "grouping_operation": {
       "using_temporary_table": true,
-      "using_filesort": true,
-      "cost_info": {
-        "sort_cost": "2.00"
-      } /* cost_info */,
+      "using_filesort": false,
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -2171,7 +2165,7 @@ INSERT INTO t1 VALUES (1),(1);
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT (SELECT 1 FROM t1 GROUP BY f1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Note	1249	Select 2 was reduced during optimization
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
@@ -2203,14 +2197,11 @@ EXPLAIN
         "query_block": {
           "select_id": 3,
           "cost_info": {
-            "query_cost": "2.70"
+            "query_cost": "0.70"
           } /* cost_info */,
           "grouping_operation": {
             "using_temporary_table": true,
-            "using_filesort": true,
-            "cost_info": {
-              "sort_cost": "2.00"
-            } /* cost_info */,
+            "using_filesort": false,
             "table": {
               "table_name": "t1",
               "access_type": "ALL",
@@ -2313,7 +2304,7 @@ Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` order by (/* select#2 */ select `test`.`t2`.`j` from `test`.`t2` where (`test`.`t2`.`i` = `test`.`t1`.`i`))
 EXPLAIN SELECT * FROM t1 GROUP BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
@@ -2328,7 +2319,7 @@ EXPLAIN
     } /* cost_info */,
     "grouping_operation": {
       "using_temporary_table": true,
-      "using_filesort": true,
+      "using_filesort": false,
       "table": {
         "table_name": "t1",
         "access_type": "ALL",

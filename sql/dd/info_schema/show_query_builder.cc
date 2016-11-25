@@ -259,7 +259,7 @@ bool Select_lex_builder::add_order_by(const LEX_STRING field_name)
     return true;
 
   PT_order_expr *expression= new (m_thd->mem_root)
-    PT_order_expr(ident_field, true);
+    PT_order_expr(ident_field, ORDER_ASC);
   m_order_by_list->push_back(expression);
 
   return expression == nullptr;

@@ -129,6 +129,7 @@ ibuf_should_try(
 	       && ibuf->max_size != 0
 	       && !index->is_clustered()
 	       && !dict_index_is_spatial(index)
+	       && !dict_index_has_desc(index)
 	       && index->table->quiesce == QUIESCE_NONE
 	       && (ignore_sec_unique || !dict_index_is_unique(index))
 	       && srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE);

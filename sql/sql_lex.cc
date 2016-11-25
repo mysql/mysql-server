@@ -2778,8 +2778,10 @@ void SELECT_LEX::print_order(String *str,
   for (; order; order= order->next)
   {
     (*order->item)->print_for_order(str, query_type, order->used_alias);
-    if (order->direction == ORDER::ORDER_DESC)
+    if (order->direction == ORDER_DESC)
       str->append(STRING_WITH_LEN(" desc"));
+    else if (order->is_explicit)
+      str->append(STRING_WITH_LEN(" asc"));
     if (order->next)
       str->append(',');
   }

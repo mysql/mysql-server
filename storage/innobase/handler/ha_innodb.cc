@@ -2956,6 +2956,7 @@ ha_innobase::ha_innobase(
 			  | HA_GENERATED_COLUMNS
 			  | HA_ATTACHABLE_TRX_COMPATIBLE
 			  | HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN
+			  | HA_DESCENDING_INDEX
 		  ),
 	m_start_of_scan(),
 	m_stored_select_lock_type(LOCK_NONE_UNSET),
@@ -5775,6 +5776,12 @@ innobase_match_index_columns(
 			}
 		}
 
+		if (innodb_idx_fld->is_ascending
+		    != !(key_part->key_part_flag & HA_REVERSE_SORT)) {
+			/* Column Type mismatches */
+			DBUG_RETURN(FALSE);
+		}
+
 		if (col_type != mtype) {
 			/* If the col_type we get from mysql type is a geometry
 			data type, we should check if mtype is a legacy type
@@ -7127,8 +7134,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_VARCHAR:	/* new >= 5.0.3 true VARCHAR */
 		if (field->binary()) {
 			return(DATA_BINARY);
-		} else if (strcmp(field->charset()->name,
-				  "latin1_swedish_ci") == 0) {
+		} else if (field->charset() == &my_charset_latin1) {
 			return(DATA_VARCHAR);
 		} else {
 			return(DATA_VARMYSQL);
@@ -7137,8 +7143,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_STRING: if (field->binary()) {
 
 			return(DATA_FIXBINARY);
-		} else if (strcmp(field->charset()->name,
-				  "latin1_swedish_ci") == 0) {
+		} else if (field->charset() == &my_charset_latin1) {
 			return(DATA_CHAR);
 		} else {
 			return(DATA_MYSQL);
@@ -10776,7 +10781,9 @@ create_index(
 				DBUG_RETURN(HA_ERR_UNSUPPORTED);
 			}
 
-			index->add_field(key_part->field->field_name, 0);
+			index->add_field(
+				key_part->field->field_name, 0,
+				!(key_part->key_part_flag & HA_REVERSE_SORT));
 		}
 
 		DBUG_RETURN(convert_error_code_to_mysql(
@@ -10895,7 +10902,9 @@ create_index(
 			index->type |= DICT_VIRTUAL;
 		}
 
-		index->add_field(field_name, prefix_len);
+		index->add_field(
+			field_name, prefix_len,
+			!(key_part->key_part_flag & HA_REVERSE_SORT));
 	}
 
 	ut_ad(key->flags & HA_FULLTEXT || !(index->type & DICT_FTS));
@@ -11871,6 +11880,10 @@ create_table_info_t::innobase_table_flags()
 
 		/* Do a pre-check on FTS DOC ID index */
 		if (!(key->flags & HA_NOSAME)
+		    /* For now, we do not allow a descending index,
+		    because fts_doc_fetch_by_doc_id() uses the
+		    InnODB SQL interpreter to look up FTS_DOC_ID.*/
+		    || (key->key_part[0].key_part_flag & HA_REVERSE_SORT)
 		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
 		    || strcmp(key->key_part[0].field->field_name,
 			      FTS_DOC_ID_COL_NAME)) {

@@ -1424,28 +1424,6 @@ TRACE
                       "row_limit_estimate": 762600
                     } /* tmp_table_info */
                   } /* creating_tmp_table */
-                },
-                {
-                  "filesort_information": [
-                    {
-                      "direction": "asc",
-                      "table": "intermediate_tmp_table",
-                      "field": "b"
-                    }
-                  ] /* filesort_information */,
-                  "filesort_priority_queue_optimization": {
-                    "usable": false,
-                    "cause": "not applicable (no LIMIT)"
-                  } /* filesort_priority_queue_optimization */,
-                  "filesort_execution": [
-                  ] /* filesort_execution */,
-                  "filesort_summary": {
-                    "rows": 3,
-                    "examined_rows": 3,
-                    "number_of_tmp_files": 0,
-                    "sort_buffer_size": "NNN",
-                    "sort_mode": "<fixed_sort_key, rowid>"
-                  } /* filesort_summary */
                 }
               ] /* steps */
             } /* join_execution */

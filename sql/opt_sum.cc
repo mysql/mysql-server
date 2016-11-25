@@ -1012,6 +1012,9 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
     {
       if (!(table->file->index_flags(idx, jdx, 0) & HA_READ_ORDER))
         DBUG_RETURN(false);
+      // Due to lack of time, currently only ASC keyparts are supported.
+      if (part->key_part_flag & HA_REVERSE_SORT)
+        break;
 
       /* Check whether the index component is partial */
       Field *part_field= table->field[part->fieldnr-1];

@@ -35,6 +35,7 @@ KEY_CREATE_INFO default_key_create_info;
 bool Key_part_spec::operator==(const Key_part_spec& other) const
 {
   return length == other.length &&
+         is_ascending == other.is_ascending &&
          !my_strcasecmp(system_charset_info, field_name.str,
                         other.field_name.str);
 }

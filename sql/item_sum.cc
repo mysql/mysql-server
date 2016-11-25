@@ -3535,7 +3535,7 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
                   table->s->null_bytes);
     int res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset);
     if (res)
-      return ((order_item)->direction == ORDER::ORDER_ASC) ? res : -res;
+      return ((order_item)->direction == ORDER_ASC) ? res : -res;
   }
   /*
     We can't return 0 because in that case the tree class would remove this
@@ -4156,7 +4156,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
       if (i)
         str->append(',');
       args[i + arg_count_field]->print(str, query_type);
-      if (order_array[i].direction == ORDER::ORDER_ASC)
+      if (order_array[i].direction == ORDER_ASC)
         str->append(STRING_WITH_LEN(" ASC"));
       else
         str->append(STRING_WITH_LEN(" DESC"));

@@ -445,6 +445,11 @@ enum enum_alter_inplace_result {
 */
 #define HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN (1LL << 47)
 
+/**
+  Supports descending indexes
+*/
+#define HA_DESCENDING_INDEX (1LL << 48)
+
 /*
   Bits in index_flags(index_number) for what you can do with index.
   If you do not implement indexes, just return zero here.

@@ -360,7 +360,7 @@ btr_pcur_restore_position_func(
 	      || cursor->rel_pos == BTR_PCUR_AFTER);
 	if (cursor->rel_pos == BTR_PCUR_ON
 	    && btr_pcur_is_on_user_rec(cursor)
-	    && !cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor),
+	    && !cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor), index,
 			       rec_get_offsets(btr_pcur_get_rec(cursor),
 			       index, NULL, ULINT_UNDEFINED, &heap))) {
 
