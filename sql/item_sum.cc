@@ -4264,10 +4264,7 @@ bool Item_sum_json::val_json(Json_wrapper *wr)
     val_* functions are called more than once in aggregates and
     by passing the dom some function will destroy it so a clone is needed.
   */
-  Json_dom *dom= m_wrapper.clone_dom(current_thd);
-  Json_wrapper tmp(dom);
-  wr->steal(&tmp);
-
+  *wr= Json_wrapper(m_wrapper.clone_dom(current_thd));
   return false;
 }
 
@@ -4369,9 +4366,8 @@ void Item_sum_json_array::clear()
   null_value= true;
   m_json_array.clear();
 
-  Json_wrapper tmp(&m_json_array);
   // Set the array to the m_wrapper.
-  m_wrapper.steal(&tmp);
+  m_wrapper= Json_wrapper(&m_json_array);
   // But let Item_sum_json_array keep the ownership.
   m_wrapper.set_alias();
 }
@@ -4382,9 +4378,8 @@ void Item_sum_json_object::clear()
   null_value= true;
   m_json_object.clear();
 
-  Json_wrapper tmp(&m_json_object);
   // Set the object to the m_wrapper.
-  m_wrapper.steal(&tmp);
+  m_wrapper= Json_wrapper(&m_json_object);
   // But let Item_sum_json_object keep the ownership.
   m_wrapper.set_alias();
 }

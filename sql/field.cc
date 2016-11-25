@@ -8987,8 +8987,7 @@ bool Field_json::val_json(Json_wrapper *wr)
   */
   if (s->length() == 0)
   {
-    Json_wrapper w(new (std::nothrow) Json_null());
-    wr->steal(&w);
+    *wr= Json_wrapper(new (std::nothrow) Json_null());
     return false;
   }
 
@@ -9001,8 +9000,7 @@ bool Field_json::val_json(Json_wrapper *wr)
     /* purecov: end */
   }
 
-  Json_wrapper w(v);
-  wr->steal(&w);
+  *wr= Json_wrapper(v);
   return false;
 }
 

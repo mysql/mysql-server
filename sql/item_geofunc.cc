@@ -2393,8 +2393,7 @@ bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg, const char *calling_
     return true;
   }
 
-  Json_wrapper w(geojson_object);
-  wr->steal(&w);
+  *wr= Json_wrapper(geojson_object);
   return false;
 }
 

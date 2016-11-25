@@ -1154,14 +1154,6 @@ public:
   void set_alias() { m_dom_alias= true; }
 
   /**
-    Copy the contents (and take ownership if old has any) of the old value.
-    Any already owned DOM will be deallocated.
-
-    @param old value
-  */
-  void steal(Json_wrapper *old);
-
-  /**
     Wrap a binary value. Does not copy the underlying buffer, so
     lifetime is limited the that of the supplied value.
 
@@ -1176,11 +1168,31 @@ public:
   Json_wrapper(const Json_wrapper &old);
 
   /**
+    Move constructor. Take over the ownership of the other wrapper's
+    DOM, unless it's aliased. If the other wrapper is aliased, this
+    wrapper becomes an alias too. Any already owned DOM will be
+    deallocated.
+
+    @param old the wrapper whose contents to take over
+  */
+  Json_wrapper(Json_wrapper &&old);
+
+  /**
     Assignment operator. Does a deep copy of any owned DOM. If a DOM
     os not owned (aliased), the copy will also be aliased. Any owned
     DOM in the left side will be deallocated.
   */
   Json_wrapper &operator=(const Json_wrapper &old);
+
+  /**
+    Move-assignment operator. Take over the ownership of the other
+    wrapper's DOM, unless it's aliased. If the other wrapper is
+    aliased, this wrapper becomes an alias too. Any already owned DOM
+    will be deallocated.
+
+    @param old the wrapper whose contents to take over
+  */
+  Json_wrapper &operator=(Json_wrapper &&old);
 
   ~Json_wrapper();
 

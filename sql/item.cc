@@ -7360,17 +7360,19 @@ void Item_bin_string::bin_string_init(const char *str, size_t str_length)
   fixed= 1;
 }
 
+namespace
+{
 
 /// A class that represents a constant JSON value.
 class Item_json final : public Item_basic_constant
 {
   Json_wrapper m_value;
 public:
-  Item_json(Json_wrapper *value, const Item_name_string &name,
+  Item_json(Json_wrapper &&value, const Item_name_string &name,
             const DTCollation &coll)
+    : m_value(std::move(value))
   {
     set_data_type(MYSQL_TYPE_JSON);
-    m_value.steal(value);
     item_name= name;
     collation.set(coll);
   }
@@ -7424,10 +7426,12 @@ public:
   Item *clone_item() const override
   {
     Json_wrapper wr(m_value.clone_dom(current_thd));
-    return new Item_json(&wr, item_name, collation);
+    return new Item_json(std::move(wr), item_name, collation);
   }
   /* purecov: end */
 };
+
+} // anonymous namespace
 
 
 /**
@@ -9267,7 +9271,8 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
       if (item->null_value)
         new_item= new Item_null(item->item_name);
       else
-        new_item= new Item_json(&wr, item->item_name, item->collation);
+        new_item= new Item_json(std::move(wr), item->item_name,
+                                item->collation);
       break;
     }
     char buff[MAX_FIELD_WIDTH];

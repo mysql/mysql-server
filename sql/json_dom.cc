@@ -1651,20 +1651,19 @@ Json_wrapper::Json_wrapper(Json_dom *dom_value)
 }
 
 
-void Json_wrapper::steal(Json_wrapper *old)
+Json_wrapper::Json_wrapper(Json_wrapper &&old)
+  : m_is_dom(old.m_is_dom)
 {
-  if (old->m_is_dom)
+  if (m_is_dom)
   {
-    bool old_is_aliased= old->m_dom_alias;
-    old->m_dom_alias= true; // we want no deep copy now, or later
-    *this= *old;
-    this->m_dom_alias= old_is_aliased; // set it back
-    // old is now marked as aliased, so any ownership is effectively
-    // transferred to this.
+    m_dom_alias= old.m_dom_alias;
+    m_dom_value= old.m_dom_value;
+    // Mark old as aliased. Any ownership is effectively transferred to this.
+    old.set_alias();
   }
   else
   {
-    *this= *old;
+    m_value= std::move(old.m_value);
   }
 }
 
@@ -1698,20 +1697,38 @@ Json_wrapper::~Json_wrapper()
 }
 
 
-Json_wrapper &Json_wrapper::operator=(const Json_wrapper& from)
+/**
+  Common implementation of move-assignment and copy-assignment for
+  Json_wrapper. If @a from is an rvalue, its contents are moved into
+  @a to, otherwise the contents are copied over.
+*/
+template <typename T>
+static Json_wrapper &assign_json_wrapper(T &&from, Json_wrapper *to)
 {
-  if (this == &from)
+  if (&from == to)
   {
-    return *this;   // self assignment: no-op
+    return *to;   // self assignment: no-op
   }
 
   // Deallocate DOM if needed.
-  this->~Json_wrapper();
+  to->~Json_wrapper();
 
-  // Copy the value into this.
-  new (this) Json_wrapper(from);
+  // Move or copy the value into the destination.
+  new (to) Json_wrapper(std::forward<T>(from));
 
-  return *this;
+  return *to;
+}
+
+
+Json_wrapper &Json_wrapper::operator=(const Json_wrapper &from)
+{
+  return assign_json_wrapper(from, this);
+}
+
+
+Json_wrapper &Json_wrapper::operator=(Json_wrapper &&from)
+{
+  return assign_json_wrapper(std::move(from), this);
 }
 
 
@@ -2343,10 +2360,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
     if (m_is_dom)
     {
       Json_wrapper clone(m_dom_value->clone());
-      if (clone.empty() || hits->emplace_back())
-        return true;                          /* purecov: inspected */
-      hits->back().steal(&clone);
-      return false;
+      return clone.empty() || hits->push_back(std::move(clone));
     }
     return hits->push_back(*this);
   }
@@ -2526,12 +2540,11 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
   Json_dom_vector dhits(key_memory_JSON);
   if (m_dom_value->seek(path, &dhits, auto_wrap, only_need_one))
     return true;                              /* purecov: inspected */
-  for (Json_dom_vector::iterator it= dhits.begin(); it != dhits.end(); ++it)
+  for (const Json_dom *dom : dhits)
   {
-    Json_wrapper clone((*it)->clone());
-    if (clone.empty() || hits->emplace_back())
+    Json_wrapper clone(dom->clone());
+    if (clone.empty() || hits->push_back(std::move(clone)))
       return true;                            /* purecov: inspected */
-    hits->back().steal(&clone);
   }
 
   return false;

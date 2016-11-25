@@ -686,8 +686,7 @@ static bool contains_wr(const THD *thd,
         delete array_dom;                       /* purecov: inspected */
         return true;                            /* purecov: inspected */
       }
-      Json_wrapper nw(array_dom);
-      a_wr.steal(&nw);
+      a_wr= Json_wrapper(array_dom);
       wr= &a_wr;
     }
 
@@ -1579,16 +1578,15 @@ static bool val_json_func_field_subselect(Item* arg,
   DBUG_ASSERT((scalar == NULL) != (dom == NULL));
   DBUG_ASSERT(scalar == NULL || scalar->get() != NULL);
 
-  Json_wrapper w(scalar ? scalar->get() : dom);
+  *wr= Json_wrapper(scalar ? scalar->get() : dom);
   if (scalar)
   {
     /*
       The DOM object lives in memory owned by the caller. Tell the
       wrapper that it's not the owner.
     */
-    w.set_alias();
+    wr->set_alias();
   }
-  wr->steal(&w);
 
   return false;
 }
@@ -1691,16 +1689,15 @@ bool get_json_atom_wrapper(Item **args,
         if (!boolean_dom)
           return true;                         /* purecov: inspected */
       }
-      Json_wrapper wrapper(boolean_dom);
+      *wr= Json_wrapper(boolean_dom);
       if (scalar)
       {
         /*
           The DOM object lives in memory owned by the caller. Tell the
           wrapper that it's not the owner.
         */
-        wrapper.set_alias();
+        wr->set_alias();
       }
-      wr->steal(&wrapper);
       return false;
     }
 
@@ -1734,8 +1731,7 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
 
   if (args[arg_idx]->null_value)
   {
-    Json_wrapper null_wrapper(new (std::nothrow) Json_null());
-    wr->steal(&null_wrapper);
+    *wr= Json_wrapper(new (std::nothrow) Json_null());
   }
 
   return false;
@@ -1778,8 +1774,7 @@ bool Item_json_typecast::val_json(Json_wrapper *wr)
     // We were able to parse a JSON value from a string.
     DBUG_ASSERT(dom);
     // Pass on the DOM wrapped
-    Json_wrapper w(dom);
-    wr->steal(&w);
+    *wr= Json_wrapper(dom);
     null_value= false;
     return false;
   }
@@ -1863,7 +1858,7 @@ longlong Item_func_json_length::val_int()
     // there should only be one hit because wildcards were forbidden
     DBUG_ASSERT(hits.size() == 1);
 
-    wrapper.steal(&hits[0]);
+    wrapper= std::move(hits[0]);
   }
 
   result= wrapper.length();
@@ -1936,7 +1931,7 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr)
         return false;
       }
 
-      wrapper.steal(&hits[0]);
+      wrapper= std::move(hits[0]);
     }
 
     if (wrapper.type() != enum_json_type::J_OBJECT)
@@ -1959,9 +1954,7 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr)
         return error_json();              /* purecov: inspected */
       }
     }
-    Json_wrapper resw(res);
-    wr->steal(&resw);
-
+    *wr= Json_wrapper(res);
   }
   catch (...)
   {
@@ -2038,14 +2031,13 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
           return error_json();            /* purecov: inspected */
         }
       }
-      Json_wrapper w(a);
-      wr->steal(&w);
+      *wr= Json_wrapper(a);
     }
     else // one path, no ellipsis or wildcard
     {
       // there should only be one match
       DBUG_ASSERT(v.size() == 1);
-      wr->steal(&v[0]);
+      *wr= std::move(v[0]);
     }
   }
   catch (...)
@@ -2174,8 +2166,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
           */
           if (wrapped_top_level_item(path, (*it)))
           {
-            Json_wrapper newroot(arr);
-            docw.steal(&newroot);
+            docw= Json_wrapper(arr);
           }
           else
           {
@@ -2187,7 +2178,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
     }
 
     // docw still owns the augmented doc, so hand it over to result
-    wr->steal(&docw);
+    *wr= std::move(docw);
   }
   catch (...)
   {
@@ -2331,9 +2322,9 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
             */
             if (m_path.leg_count() == 0) // root
             {
-              Json_wrapper newroot(newarr);
-              docw.steal(&newroot);
-            } else
+              docw= Json_wrapper(newarr);
+            }
+            else
             {
               Json_dom *parent= a->parent();
               DBUG_ASSERT(parent);
@@ -2355,7 +2346,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
 
     } // end of loop through paths
     // docw still owns the augmented doc, so hand it over to result
-    wr->steal(&docw);
+    *wr= std::move(docw);
 
   }
   catch (...)
@@ -2472,7 +2463,7 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
 
     } // end of loop through paths
     // docw still owns the augmented doc, so hand it over to result
-    wr->steal(&docw);
+    *wr= std::move(docw);
 
   }
   catch (...)
@@ -2688,9 +2679,9 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               */
               if (m_path.leg_count() == 0) // root
               {
-                Json_wrapper newroot(res);
-                docw.steal(&newroot);
-              } else
+                docw= Json_wrapper(res);
+              }
+              else
               {
                 Json_dom *parent= a->parent();
                 DBUG_ASSERT(parent);
@@ -2727,8 +2718,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
             Json_dom *dom= valuew.clone_dom(thd);
             if (!dom)
               return error_json();              /* purecov: inspected */
-            Json_wrapper w(dom);
-            docw.steal(&w);
+            docw= Json_wrapper(dom);
           }
           else
           {
@@ -2742,8 +2732,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
     } // do: functions argument list run-though
 
     // docw still owns the augmented doc, so hand it over to result
-    wr->steal(&docw);
-
+    *wr= std::move(docw);
   }
   catch (...)
   {
@@ -2786,8 +2775,7 @@ bool Item_func_json_array::val_json(Json_wrapper *wr)
     }
 
     // docw still owns the augmented doc, so hand it over to result
-    wr->steal(&docw);
-
+    *wr= std::move(docw);
   }
   catch (...)
   {
@@ -2852,8 +2840,7 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
     }
 
     // docw still owns the augmented doc, so hand it over to result
-    wr->steal(&docw);
-
+    *wr= std::move(docw);
   }
   catch (...)
   {
@@ -3212,8 +3199,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
   }
   else if (matches.size() == 1)
   {
-    Json_wrapper scalar_wrapper(matches[0]);
-    wr->steal(&scalar_wrapper);
+    *wr= Json_wrapper(matches[0]);
   }
   else
   {
@@ -3230,8 +3216,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
       }
     }
 
-    Json_wrapper  array_wrapper(array);
-    wr->steal(&array_wrapper);
+    *wr= Json_wrapper(array);
   }
 
   null_value= false;
@@ -3339,7 +3324,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
   }   // end of loop through all paths
 
   // wrapper still owns the pruned doc, so hand it over to result
-  wr->steal(&wrapper);
+  *wr= std::move(wrapper);
 
   return false;
 }
@@ -3405,9 +3390,7 @@ bool Item_func_json_merge::val_json(Json_wrapper *wr)
     return error_json();              /* purecov: inspected */
   }
 
-  // fake a wrapper so that we can hand its dom to the return arg
-  Json_wrapper tmp(result_dom);
-  wr->steal(&tmp);
+  *wr= Json_wrapper(result_dom);
   return false;
 }
 

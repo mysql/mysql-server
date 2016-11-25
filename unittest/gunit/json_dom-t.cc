@@ -437,7 +437,7 @@ TEST_F(JsonDomTest, WrapperTest)
 
   Json_wrapper w_4(d); // give d a new owner
   Json_wrapper w_5;
-  w_5.steal(&w_4); // takes over d
+  w_5= std::move(w_4); // takes over d
   EXPECT_EQ(w_4.to_dom(thd), w_5.to_dom(thd));
 
   Json_wrapper w_6;
@@ -447,7 +447,7 @@ TEST_F(JsonDomTest, WrapperTest)
 
   Json_dom *i= new (std::nothrow) Json_int(1);
   Json_wrapper w_7(i);
-  w_5.steal(&w_7); // should deallocate w_5's original
+  w_5= std::move(w_7); // should deallocate w_5's original
 
   // scalars
   vet_wrapper_length(thd, "false", 1);

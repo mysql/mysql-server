@@ -1545,9 +1545,12 @@ static bool get_json_arg(Item* arg, String *value, String *tmp,
     */
     if (*scalar && arg->const_item())
     {
-      Json_wrapper tmp((*scalar)->get());
-      tmp.set_alias();
-      result->steal(&tmp);
+      *result= Json_wrapper((*scalar)->get());
+      /*
+        The DOM object lives in memory owned by the Json_scalar_holder. Tell
+        the wrapper that it's not the owner.
+      */
+      result->set_alias();
       return false;
     }
 
