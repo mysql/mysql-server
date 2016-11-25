@@ -8186,11 +8186,13 @@ commit_try_norebuild(
 		DBUG_RETURN(true);
 	}
 
+#ifdef INNODB_DD_TABLE
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::RENAME_INDEX)
 	    && rename_indexes_in_data_dictionary(ctx, ha_alter_info, trx)) {
 		DBUG_RETURN(true);
 	}
+#endif /* INNODB_DD_TABLE */
 
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::DROP_VIRTUAL_COLUMN)
@@ -8274,6 +8276,9 @@ commit_cache_norebuild(
 		have started dropping an index tree, there is
 		no way to roll it back. */
 
+		std::vector<page_no_t>*	page_no_vector =
+				new std::vector<page_no_t>();
+
 		for (ulint i = 0; i < ctx->num_to_drop_index; i++) {
 			dict_index_t*	index = ctx->drop_index[i];
 			DBUG_ASSERT(index->is_committed());
@@ -8291,12 +8296,16 @@ commit_cache_norebuild(
 			/* Mark the index dropped
 			in the data dictionary cache. */
 			rw_lock_x_lock(dict_index_get_lock(index));
+			page_no_vector->push_back(index->page);
 			index->page = FIL_NULL;
 			rw_lock_x_unlock(dict_index_get_lock(index));
 		}
 
 		trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+
+#ifdef INNODB_DD_TABLE
 		row_merge_drop_indexes_dict(trx, ctx->new_table->id);
+#endif /* INNODB_DD_TABLE */
 
 		for (ulint i = 0; i < ctx->num_to_drop_index; i++) {
 			dict_index_t*	index = ctx->drop_index[i];
@@ -8311,10 +8320,14 @@ commit_cache_norebuild(
 				fts_drop_index(index->table, index, trx);
 			}
 
+			dict_drop_index(index, page_no_vector->at(i));
+
 			dict_index_remove_from_cache(index->table, index);
 		}
 
 		trx_commit_for_mysql(trx);
+
+		delete page_no_vector;
 	}
 
 	ctx->new_table->fts_doc_id_index

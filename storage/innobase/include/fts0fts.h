@@ -433,6 +433,11 @@ fts_cache_index_cache_create(
 	dict_table_t*	table,			/*!< in: table with FTS index */
 	dict_index_t*	index);			/*!< in: FTS index */
 
+void
+fts_cache_index_cache_remove(
+	dict_table_t*	table,
+	dict_index_t*	index);
+
 /******************************************************************//**
 Get the next available document id. This function creates a new
 transaction to generate the document id.

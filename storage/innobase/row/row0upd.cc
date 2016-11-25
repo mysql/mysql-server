@@ -3007,6 +3007,8 @@ row_upd_clust_step(
 		return(err);
 	}
 
+	/* TODO: Remove the code in wl#9535 */
+#if 0
 	/* If this is a row in SYS_INDEXES table of the data dictionary,
 	then we have to free the file segments of the index tree associated
 	with the index */
@@ -3033,6 +3035,7 @@ row_upd_clust_step(
 			return(err);
 		}
 	}
+#endif
 
 	rec = btr_pcur_get_rec(pcur);
 	offsets = rec_get_offsets(rec, index, offsets_,

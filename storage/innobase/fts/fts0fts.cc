@@ -1019,6 +1019,32 @@ fts_cache_index_cache_create(
 	return(index_cache);
 }
 
+void
+fts_cache_index_cache_remove(
+	dict_table_t*		table,
+	dict_index_t*		index)
+{
+	ut_ad(table->fts != nullptr);
+	ut_ad(index->type & DICT_FTS);
+
+	fts_index_cache_t*	index_cache;
+
+	rw_lock_x_lock(&table->fts->cache->init_lock);
+
+	index_cache = static_cast<fts_index_cache_t*>(
+		fts_find_index_cache(table->fts->cache, index));
+
+	if (index_cache->words != nullptr) {
+		rbt_free(index_cache->words);
+		index_cache->words = nullptr;
+	}
+
+	ib_vector_remove(table->fts->cache->indexes,
+			*reinterpret_cast<void**>(index_cache));
+
+	rw_lock_x_unlock(&table->fts->cache->init_lock);
+}
+
 /****************************************************************//**
 Release all resources help by the words rb tree e.g., the node ilist. */
 static

@@ -1070,6 +1070,11 @@ struct dict_index_t{
 				compression failures and successes */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */
+#ifdef INNODB_DD_TABLE
+	bool		skip_step;/*!< Skip certain steps in
+				dict_create_index_step(), will be removed
+				in wl#9535 */
+#endif /* INNNODB_DD_TABLE */
 
 	/** Determine if the index has been committed to the
 	data dictionary.
@@ -1952,6 +1957,12 @@ public:
 
 	/** encryption iv, it's only for export/import */
 	byte*					encryption_iv;
+
+#ifdef INNODB_DD_TABLE
+	/** Skip certain step in dict_create_table_step()
+	Note: will be removed in wl#9535 */
+	bool					skip_step;
+#endif /* INNODB_DD_TABLE */
 
 	/** @return the clustered index */
 	const dict_index_t* first_index() const

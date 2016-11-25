@@ -63,6 +63,15 @@ dict_create_table_step(
 /*===================*/
 	que_thr_t*	thr);		/*!< in: query thread */
 
+/** Build a table definition without updating SYSTEM TABLES
+@param[in,out]	table	dict table object
+@param[in,out]	trx	transaction instance
+@return DB_SUCCESS or error code */
+dberr_t
+dict_build_table_def(
+	dict_table_t*	table,
+	trx_t*		trx);
+
 /** Builds a tablespace to store various objects.
 @param[in,out]	tablespace	Tablespace object describing what to build.
 @return DB_SUCCESS or error code. */
@@ -123,6 +132,14 @@ dict_drop_index_tree(
 	rec_t*		rec,
 	btr_pcur_t*	pcur,
 	mtr_t*		mtr);
+
+/** Drop an index tree
+@param[in]	index		dict index
+@param[in]	root_page_no	index root page number */
+void
+dict_drop_index(
+	const dict_index_t*	index,
+	page_no_t		root_page_no);
 
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.

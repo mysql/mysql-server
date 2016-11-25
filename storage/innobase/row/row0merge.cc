@@ -3623,7 +3623,12 @@ row_merge_drop_indexes(
 				data dictionary and free it from
 				the tablespace, but keep the object
 				in the data dictionary cache. */
+#ifdef INNODB_DD_TABLE
 				row_merge_drop_index_dict(trx, index->id);
+#endif
+
+				dict_drop_index(index, index->page);
+
 				rw_lock_x_lock(dict_index_get_lock(index));
 				dict_index_set_online_status(
 					index, ONLINE_INDEX_ABORTED_DROPPED);
@@ -3637,7 +3642,9 @@ row_merge_drop_indexes(
 		return;
 	}
 
+#ifdef INNODB_DD_TABLE
 	row_merge_drop_indexes_dict(trx, table->id);
+#endif /* INNODB_DD_TABLE */
 
 	/* Invalidate all row_prebuilt_t::ins_graph that are referring
 	to this table. That is, force row_get_prebuilt_insert_row() to
@@ -3681,6 +3688,8 @@ row_merge_drop_indexes(
 				/* covered by dict_sys->mutex */
 				MONITOR_DEC(MONITOR_BACKGROUND_DROP_INDEX);
 			}
+
+			dict_drop_index(index, index->page);
 
 			dict_index_remove_from_cache(table, index);
 		}
@@ -4196,27 +4205,67 @@ row_merge_create_index(
 		index->add_field(name, ifield->prefix_len);
 	}
 
+	/* Create B-tree */
+	dict_build_index_def(table, index, trx);
+
+	err = dict_index_add_to_cache_w_vcol(
+		table, index, add_v, index->page,
+		trx_is_strict(trx));
+
+	if (err != DB_SUCCESS) {
+		trx->error_state = err;
+		DBUG_RETURN(NULL);
+	}
+
+	index = dict_table_get_index_on_name(table, index_def->name,
+					     index_def->rebuild);
+	ut_ad(index != nullptr);
+
+	err = dict_create_index_tree_in_mem(index, trx);
+
+	if (err != DB_SUCCESS) {
+		if ((index->type & DICT_FTS) && table->fts) {
+			fts_cache_index_cache_remove(table, index);
+		}
+
+		trx->error_state = err;
+		DBUG_RETURN(NULL);
+	}
+
+#ifdef INNODB_DD_TABLE
+	index->skip_step = true;
+
+	/* Adjust field name for newly added virtual columns. */
+	for (i = 0; i < n_fields; i++) {
+		index_field_t*	ifield = &index_def->fields[i];
+
+		if (ifield->is_v_col && ifield->col_no >= table->n_v_def) {
+			ut_ad(ifield->col_no < table->n_v_def + add_v->n_v_col);
+			ut_ad(ifield->col_no >= table->n_v_def);
+			dict_field_t*	field = index->get_field(i);
+			field->name = add_v->v_col_name[
+				ifield->col_no - table->n_v_def];
+		}
+	}
+
 	/* Add the index to SYS_INDEXES, using the index prototype. */
 	err = row_merge_create_index_graph(trx, table, index, add_v);
 
-	if (err == DB_SUCCESS) {
+	index->skip_step = false;
 
-		index = dict_table_get_index_on_name(table, index_def->name,
-						     index_def->rebuild);
-
-		ut_a(index);
-
-		index->parser = index_def->parser;
-		index->is_ngram = index_def->is_ngram;
-		index->has_new_v_col = has_new_v_col;
-
-		/* Note the id of the transaction that created this
-		index, we use it to restrict readers from accessing
-		this index, to ensure read consistency. */
-		ut_ad(index->trx_id == trx->id);
-	} else {
-		index = NULL;
+	if (err != DB_SUCCESS) {
+		DBUG_RETURN(NULL);
 	}
+#endif /* INNODB_DD_TABLE */
+
+	index->parser = index_def->parser;
+	index->is_ngram = index_def->is_ngram;
+	index->has_new_v_col = has_new_v_col;
+
+	/* Note the id of the transaction that created this
+	index, we use it to restrict readers from accessing
+	this index, to ensure read consistency. */
+	ut_ad(index->trx_id == trx->id);
 
 	DBUG_RETURN(index);
 }

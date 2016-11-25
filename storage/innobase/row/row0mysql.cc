@@ -2978,7 +2978,7 @@ row_create_table_for_mysql(
 {
 	tab_node_t*	node;
 	mem_heap_t*	heap;
-	que_thr_t*	thr;
+	que_thr_t*	thr = NULL;
 	dberr_t		err;
 
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
@@ -3017,6 +3017,16 @@ row_create_table_for_mysql(
 		ut_ad(strstr(table->name.m_name, "/FTS_") != NULL);
 	}
 
+	/* Assign talbe id and build table space. */
+	err = dict_build_table_def(table, trx);
+	if (err != DB_SUCCESS) {
+		trx->error_state = err;
+		goto error_handling;
+	}
+
+#ifdef INNODB_DD_TABLE
+	table->skip_step = true;
+
 	node = tab_create_graph_create(table, heap);
 
 	thr = pars_complete_graph_for_exec(node, trx, heap, NULL);
@@ -3027,13 +3037,26 @@ row_create_table_for_mysql(
 	que_run_threads(thr);
 
 	err = trx->error_state;
+
+	table->skip_step = false;
+#endif /* INNODB_DD_TABLE */
+
+	if (err == DB_SUCCESS) {
+		heap = mem_heap_create(512);
+
+		dict_table_add_system_columns(table, heap);
+		dict_table_add_to_cache(table, TRUE, heap);
+
+		mem_heap_free(heap);
+	}
 //#if 0
-	/* Update SYS_TABLESPACES and SYS_DATAFILES if a new file-per-table
-	tablespace was created. */
 	if (err == DB_SUCCESS && dict_table_is_file_per_table(table)) {
 
 		ut_ad(dict_table_is_file_per_table(table));
 
+#ifdef INNODB_DD_TABLE
+		/* Update SYS_TABLESPACES and SYS_DATAFILES if a new
+		file-per-table tablespace was created. */
 		char*	path;
 		path = fil_space_get_first_path(table->space);
 
@@ -3043,6 +3066,7 @@ row_create_table_for_mysql(
 			path, trx, commit);
 
 		ut_free(path);
+#endif
 
 		if (err == DB_SUCCESS
 		    && compression != NULL
@@ -3081,6 +3105,7 @@ row_create_table_for_mysql(
 		}
 	}
 //#endif
+error_handling:
 	switch (err) {
 	case DB_SUCCESS:
 	case DB_IO_NO_PUNCH_HOLE_FS:
@@ -3132,7 +3157,9 @@ row_create_table_for_mysql(
 		break;
 	}
 
-	que_graph_free((que_t*) que_node_get_parent(thr));
+	if (thr != NULL) {
+		que_graph_free((que_t*) que_node_get_parent(thr));
+	}
 
 	trx->op_info = "";
 
@@ -3230,6 +3257,28 @@ row_create_index_for_mysql(
 	maintain performance and so we have separate path that directly
 	just updates dictonary cache. */
 	if (!table->is_temporary()) {
+		/* Create B-tree */
+		dict_build_index_def(table, index, trx);
+
+		err = dict_index_add_to_cache_w_vcol(
+			table, index, NULL, FIL_NULL,
+			trx_is_strict(trx));
+
+		if (err != DB_SUCCESS) {
+			goto error_handling;
+		}
+
+		index = UT_LIST_GET_LAST(table->indexes);
+
+		err = dict_create_index_tree_in_mem(index, trx);
+
+		if (err != DB_SUCCESS) {
+			goto error_handling;
+		}
+
+#ifdef INNODB_DD_TABLE
+		index->skip_step = true;
+
 		/* Note that the space id where we store the index is
 		inherited from the table in dict_build_index_def_step()
 		in dict0crea.cc. */
@@ -3249,6 +3298,9 @@ row_create_index_for_mysql(
 		err = trx->error_state;
 
 		que_graph_free((que_t*) que_node_get_parent(thr));
+
+		index->skip_step = false;
+#endif /* INNODB_DD_TABLE */
 	} else {
 		dict_build_index_def(table, index, trx);
 #ifdef UNIV_DEBUG
@@ -4538,6 +4590,7 @@ row_drop_table_for_mysql(
 	/* As we don't insert entries to SYSTEM TABLES for temp-tables
 	we need to avoid running removal of these entries. */
 	if (!table->is_temporary()) {
+#ifdef INNODB_DD_TABLE
 		/* We use the private SQL parser of Innobase to generate the
 		query graphs needed in deleting the dictionary data from system
 		tables in Innobase. Deleting a row from SYS_INDEXES table also
@@ -4658,6 +4711,19 @@ row_drop_table_for_mysql(
 				"END;\n"
 				, FALSE, trx);
 		}
+
+#endif /* INNODB_DD_TABLE */
+		/* Note: do not need to write ddl log when
+		dict_table_is_file_per_table(table)) is true.
+		We have to drop index tree because of adaptive
+		hash index. */
+		page_no = page_nos;
+		for (dict_index_t* index = table->first_index();
+		     index != NULL;
+		     index = index->next()) {
+			dict_drop_index(index, *page_no++);
+		}
+		err = DB_SUCCESS;
 	} else {
 		page_no = page_nos;
 		for (dict_index_t* index = table->first_index();
@@ -5208,6 +5274,7 @@ row_rename_table_for_mysql(
 		goto funct_exit;
 	}
 
+#ifdef INNODB_DD_TABLE
 	/* We use the private SQL parser of Innobase to generate the query
 	graphs needed in updating the dictionary data from system tables. */
 
@@ -5383,6 +5450,7 @@ row_rename_table_for_mysql(
 			}
 		}
 	}
+#endif /* INNODB_DD_TABLE */
 
 	if (dict_table_has_fts_index(table)
 	    && !dict_tables_have_same_db(old_name, new_name)) {

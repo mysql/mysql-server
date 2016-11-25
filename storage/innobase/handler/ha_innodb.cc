@@ -13954,9 +13954,6 @@ struct innodb_dd_table_t {
 	const uint	n_indexes;
 };
 
-/** Hard-coded data dictionary entry */
-# define INNODB_DD_TABLE(name, n_indexes) { name, n_indexes }
-
 /** The hard-coded data dictionary tables */
 static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("version", 1),

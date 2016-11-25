@@ -115,6 +115,7 @@ row_undo_ins_remove_clust_rec(
 		mem_heap_free(heap);
 	}
 
+#ifdef INNODB_DD_TABLE
 	if (node->table->id == DICT_INDEXES_ID) {
 
 		ut_ad(!online);
@@ -132,6 +133,7 @@ row_undo_ins_remove_clust_rec(
 			BTR_MODIFY_LEAF, &node->pcur, &mtr);
 		ut_a(success);
 	}
+#endif
 
 	if (btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
 		err = DB_SUCCESS;
