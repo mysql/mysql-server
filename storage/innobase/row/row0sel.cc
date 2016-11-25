@@ -4557,6 +4557,7 @@ row_search_mvcc(
 	const rec_t*	prev_rec = NULL;
 	const rec_t*	rec = NULL;
 	byte*		end_range_cache = NULL;
+	const dtuple_t*	prev_vrow = NULL;
 	const dtuple_t*	vrow = NULL;
 	const rec_t*	result_rec = NULL;
 	const rec_t*	clust_rec;
@@ -5120,6 +5121,7 @@ rec_loop:
 		and neither can a record lock be placed on it: we skip such
 		a record. */
 
+		prev_rec = NULL;
 		goto next_rec;
 	}
 
@@ -5131,8 +5133,7 @@ rec_loop:
 		reporting due to search views etc. */
 		if (prev_rec != NULL
 		    && prebuilt->m_mysql_handler->end_range != NULL
-		    && prebuilt->idx_cond == false
-		    && !page_rec_is_infimum(prev_rec) && end_loop >= 100) {
+		    && prebuilt->idx_cond == false && end_loop >= 100) {
 
 			dict_index_t*	key_index = prebuilt->index;
 			bool		clust_templ_for_sec = false;
@@ -5155,7 +5156,7 @@ rec_loop:
 					offsets, ULINT_UNDEFINED, &heap);
 
 			if (row_sel_store_mysql_rec(
-				end_range_cache, prebuilt, prev_rec, vrow,
+				end_range_cache, prebuilt, prev_rec, prev_vrow,
 				clust_templ_for_sec, key_index, offsets,
 				clust_templ_for_sec)) {
 
@@ -5208,6 +5209,7 @@ rec_loop:
 		/* A page supremum record cannot be in the result set: skip
 		it now that we have placed a possible lock on it */
 
+		prev_rec = NULL;
 		goto next_rec;
 	}
 
@@ -5267,6 +5269,7 @@ wrong_offs:
 
 			btr_pcur_move_to_last_on_page(pcur, &mtr);
 
+			prev_rec = NULL;
 			goto next_rec;
 		}
 	}
@@ -5291,9 +5294,12 @@ wrong_offs:
 				<< " of table " << index->table->name
 				<< ". We try to skip the record.";
 
+			prev_rec = NULL;
 			goto next_rec;
 		}
 	}
+
+	prev_rec = rec;
 
 	/* Note that we cannot trust the up_match value in the cursor at this
 	place because we can arrive here after moving the cursor! Thus
@@ -5517,6 +5523,7 @@ no_gap_lock:
 
 			did_semi_consistent_read = TRUE;
 			rec = old_vers;
+			prev_rec = rec;
 			break;
 		case DB_RECORD_NOT_FOUND:
 			if (dict_index_is_spatial(index)) {
@@ -5572,6 +5579,7 @@ no_gap_lock:
 				}
 
 				rec = old_vers;
+				prev_rec = rec;
 			}
 		} else {
 			/* We are looking into a non-clustered index,
@@ -5942,7 +5950,19 @@ idx_cond_failed:
 
 next_rec:
 
-	prev_rec = rec;
+	if (end_loop >= 99
+	    && need_vrow && vrow == NULL && prev_rec != NULL) {
+
+		if (!heap) {
+			heap = mem_heap_create(100);
+		}
+
+		prev_vrow = NULL;
+		row_sel_fill_vrow(prev_rec, index, &prev_vrow, heap);
+	} else {
+		prev_vrow = vrow;
+	}
+
 	end_loop++;
 
 	/* Reset the old and new "did semi-consistent read" flags. */
