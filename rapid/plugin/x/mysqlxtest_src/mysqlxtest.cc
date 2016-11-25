@@ -2328,38 +2328,28 @@ std::string get_field_value(ngs::shared_ptr<mysqlx::Row> &row, const int field, 
     switch (col.type)
     {
     case mysqlx::SINT:
-      return get_object_value(row->sInt64Field(field));
+      return ngs::to_string(row->sInt64Field(field));
 
     case mysqlx::UINT:
-      return get_object_value(row->uInt64Field(field));
+      return ngs::to_string(row->uInt64Field(field));
 
     case mysqlx::DOUBLE:
-      if (col.fractional_digits >= 31)
-      {
-        char buffer[100];
-        my_gcvt(row->doubleField(field), MY_GCVT_ARG_DOUBLE, sizeof(buffer)-1, buffer, NULL);
-        return buffer;
-      }
-      else
+      if (col.fractional_digits < 31)
       {
         char buffer[100];
         my_fcvt(row->doubleField(field), col.fractional_digits, buffer, NULL);
         return buffer;
       }
+      return ngs::to_string(row->doubleField(field));
 
     case mysqlx::FLOAT:
-      if (col.fractional_digits >= 31)
-      {
-        char buffer[100];
-        my_gcvt(row->floatField(field), MY_GCVT_ARG_FLOAT, sizeof(buffer)-1, buffer, NULL);
-        return buffer;
-      }
-      else
+      if (col.fractional_digits < 31)
       {
         char buffer[100];
         my_fcvt(row->floatField(field), col.fractional_digits, buffer, NULL);
         return buffer;
       }
+      return ngs::to_string(row->floatField(field));
 
     case mysqlx::BYTES:
     {

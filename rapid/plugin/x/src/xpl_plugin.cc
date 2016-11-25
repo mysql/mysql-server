@@ -25,7 +25,6 @@
 #include "xpl_server.h"
 #include "xpl_performance_schema.h"
 #include "mysqlx_version.h"
-#include "xpl_replication_observer.h"
 #include "xpl_log.h"
 
 #include <stdio.h>                            // Solaris header file bug.
@@ -86,13 +85,6 @@ int xpl_plugin_init(MYSQL_PLUGIN p)
 
   xpl_init_performance_schema();
 
-  if (xpl::xpl_register_server_observers(p) != 0)
-  {
-    xpl::plugin_log_message(&p, MY_WARNING_LEVEL, "Error registering server observers");
-
-    return 1;
-  }
-
   return xpl::Server::main(p);
 }
 
@@ -109,9 +101,6 @@ int xpl_plugin_init(MYSQL_PLUGIN p)
  */
 int xpl_plugin_deinit(MYSQL_PLUGIN p)
 {
-  if (xpl::xpl_unregister_server_observers(p) != 0)
-    xpl::plugin_log_message(&p, MY_WARNING_LEVEL, "Error unregistering server observers");
-
   return xpl::Server::exit(p);
 }
 
