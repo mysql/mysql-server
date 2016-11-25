@@ -1,3 +1,2 @@
---let CLEANUP_FOLDER=$bugdir/data
---source include/cleanup_folder.inc
+--force-rmdir $bugdir/data
 --force-cpdir $bugdir/data_backup $bugdir/data

@@ -63,11 +63,7 @@ EOF
 --echo # 1.6 Delete bootstrap file, log file and datadir.
 remove_file $BOOTSTRAP_SQL;
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo #
 --echo # 2. Try restart after deleting the version tablespace.
@@ -95,11 +91,7 @@ EOF
 
 --echo # 2.5 Delete log file and datadir.
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo #
 --echo # 3. Try restart on a non-existing datadir.
@@ -121,13 +113,9 @@ perl;
   close(FILE);
 EOF
 
---echo # 3.3 Delete log file and datadir.
+--echo # 3.3 Delete log file but datadir does not need cleanup
+--echo # since it is non-existent.
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
 
 --echo #
 --echo # 4. Try restart on an empty datadir (non-existing mysql dir).
@@ -151,11 +139,7 @@ EOF
 
 --echo # 4.3 Delete log file and datadir.
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo #
 --echo # 5. Try restart on an empty mysql dir.
@@ -180,11 +164,7 @@ EOF
 
 --echo # 5.3 Delete log file and datadir.
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo #
 --echo # Cleanup: Restarting the server against default datadir.

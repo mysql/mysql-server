@@ -31,11 +31,7 @@ EOF
 
 --echo #
 --echo # Clean-up
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 --echo #
 
 --echo #-------------------------------------------------------------------------
@@ -47,15 +43,7 @@ EOF
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"MYSQL_TMP_DIR"}."/installdb_test";
-  rmtree([ "$DDIR" ]);
-  $filename1=$ENV{"MYSQL_TMP_DIR"}."/readpwd.inc";
-  $filename2=$ENV{"MYSQL_TMP_DIR"}."/readpwdfilepath.txt";
-  unlink $filename1;
-  unlink $filename2;
-EOF
+--remove_file $MYSQL_TMP_DIR/readpwdfilepath.txt
 
 --echo #-------------------------------------------------------------------------
 

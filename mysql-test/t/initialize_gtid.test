@@ -74,11 +74,7 @@ connect(root_con,localhost,root,,mysql);
 # Delete mysqld log and init file
 remove_file $MYSQLD_LOG;
 # Delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 remove_file $BOOTSTRAP_SQL;
 
