@@ -133,11 +133,6 @@ private:
     Indicates the initialization status of dynamic loader persistence.
   */
   static bool is_initialized;
-
-  /**
-    Serializes access to @ref component_id_by_urn
-  */
-  static mysql_mutex_t component_id_by_urn_mutex;
 };
 
 #endif /* MYSQL_SERVER_PERSISTENT_DYNAMIC_LOADER_H */
