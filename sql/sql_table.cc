@@ -6742,7 +6742,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
     for the case general ALTER TABLE.
   */
   table_list->mdl_request.set_type(MDL_EXCLUSIVE);
-  table_list->lock_type= TL_WRITE;
+  table_list->set_lock({TL_WRITE, THR_DEFAULT});
   /* Do not open views. */
   table_list->required_type= dd::enum_table_type::BASE_TABLE;
 
@@ -11471,7 +11471,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy)
   DBUG_ENTER("mysql_recreate_table");
   DBUG_ASSERT(!table_list->next_global);
   /* Set lock type which is appropriate for ALTER TABLE. */
-  table_list->lock_type= TL_READ_NO_INSERT;
+  table_list->set_lock({TL_READ_NO_INSERT, THR_DEFAULT});
   /* Same applies to MDL request. */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
@@ -11535,7 +11535,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     /* Remember old 'next' pointer and break the list.  */
     save_next_global= table->next_global;
     table->next_global= NULL;
-    table->lock_type= TL_READ;
+    table->set_lock({TL_READ, THR_DEFAULT});
     /* Allow to open real tables only. */
     table->required_type= dd::enum_table_type::BASE_TABLE;
 

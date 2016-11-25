@@ -740,6 +740,9 @@ struct row_prebuilt_t {
 	dtuple_t*	clust_ref;	/*!< prebuilt dtuple used in
 					sel/upd/del */
 	ulint		select_lock_type;/*!< LOCK_NONE, LOCK_S, or LOCK_X */
+	enum select_mode
+			select_mode;	/*!< SELECT_ORDINARY,
+					SELECT_SKIP_LOKCED, or SELECT_NO_WAIT */
 	ulint		row_read_type;	/*!< ROW_READ_WITH_LOCKS if row locks
 					should be the obtained for records
 					under an UPDATE or DELETE cursor.

@@ -9913,7 +9913,7 @@ has_write_table_with_auto_increment(TABLE_LIST *tables)
     /* we must do preliminary checks as table->table may be NULL */
     if (!table->is_placeholder() &&
         table->table->found_next_number_field &&
-        (table->lock_type >= TL_WRITE_ALLOW_WRITE))
+        (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE))
       return 1;
   }
 
@@ -9945,7 +9945,7 @@ has_write_table_with_auto_increment_and_select(TABLE_LIST *tables)
   for(TABLE_LIST *table= tables; table; table= table->next_global)
   {
      if (!table->is_placeholder() &&
-        (table->lock_type <= TL_READ_NO_INSERT))
+        (table->lock_descriptor().type <= TL_READ_NO_INSERT))
       {
         has_select= true;
         break;
@@ -9972,7 +9972,7 @@ has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
     /* we must do preliminary checks as table->table may be NULL */
     if (!table->is_placeholder() &&
         table->table->found_next_number_field &&
-        (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
         && table->table->s->next_number_keypart != 0)
       return 1;
   }
@@ -10287,7 +10287,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         */
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_TABLE);
 
-        if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        if (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
         {
           non_replicated_tables_count++;
           continue;
@@ -10298,7 +10298,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       my_bool trans= table->table->file->has_transactions();
 
-      if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+      if (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
       {
         write_to_some_transactional_table=
           write_to_some_transactional_table || trans;
@@ -10628,7 +10628,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         if (table->is_placeholder())
           continue;
         if (table->table->file->ht->db_type == DB_TYPE_BLACKHOLE_DB &&
-            table->lock_type >= TL_WRITE_ALLOW_WRITE)
+            table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
         {
             table_names.append(table->table_name);
             table_names.append(",");

@@ -749,6 +749,58 @@ bool Sql_cmd_dml::execute_inner(THD *thd)
 
 
 /**
+  Performs access check for the locking clause, if present.
+
+  @param thd Current session, used for checking access and raising error.
+
+  @param tables Tables in the query's from clause.
+
+  @retval true There was a locking clause and access was denied. An error has
+  been raised.
+
+  @retval false There was no locking clause or access was allowed to it. This
+  is always returned in an embedded build.
+*/
+static bool check_locking_clause_access(THD *thd, Global_tables_list tables)
+{
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+  for (TABLE_LIST *table_ref : tables)
+    if (table_ref->lock_descriptor().action != THR_DEFAULT)
+    {
+      bool access_is_granted= false;
+      /*
+        If either of these privileges is present along with SELECT, access is
+        granted.
+      */
+      for (uint allowed_priv : { UPDATE_ACL, DELETE_ACL, LOCK_TABLES_ACL })
+      {
+        ulong priv= SELECT_ACL | allowed_priv;
+        if (!check_table_access(thd, priv, table_ref, false, 1, true))
+          access_is_granted= true;
+      }
+
+      if (!access_is_granted)
+      {
+        const Security_context *sctx= thd->security_context();
+
+        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+                 "SELECT with locking clause",
+                 sctx->priv_user().str,
+                 sctx->host_or_ip().str,
+                 table_ref->get_table_name());
+
+        return true;
+      }
+    }
+
+#endif
+
+  return false;
+}
+
+
+/**
   Perform an authorization precheck for a SELECT statement.
 */
 
@@ -780,6 +832,9 @@ bool Sql_cmd_select::precheck(THD *thd)
   }
   else
     res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
+
+  if (!res)
+    res= check_locking_clause_access(thd, tables);
 
   return res;
 }

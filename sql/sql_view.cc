@@ -1595,7 +1595,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     which is not permitted (causes assert).
   */
   if (view_tables && !(view_ref->prelocking_placeholder &&
-                       view_ref->lock_type == TL_IGNORE))
+                       view_ref->lock_descriptor().type == TL_IGNORE))
   {
     if (view_ref->next_global)
     {
@@ -1641,7 +1641,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     {
       enum_mdl_type mdl_lock_type;
 
-      tbl->lock_type= view_ref->lock_type;
+      tbl->set_lock(view_ref->lock_descriptor());
 
       if (old_lex->sql_command == SQLCOM_LOCK_TABLES)
       {
@@ -1652,11 +1652,11 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
           OTOH for mergeable views we want to respect LOCAL clause in
           LOCK TABLES ... READ LOCAL.
         */
-        if (tbl->lock_type >= TL_WRITE_ALLOW_WRITE)
+        if (tbl->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
           mdl_lock_type= MDL_SHARED_NO_READ_WRITE;
         else
         {
-          mdl_lock_type= (tbl->lock_type == TL_READ) ?
+          mdl_lock_type= (tbl->lock_descriptor().type == TL_READ) ?
                          MDL_SHARED_READ : MDL_SHARED_READ_ONLY;
         }
       }
@@ -1666,7 +1666,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
           For other statements we can acquire "weak" locks.
           Still we want to respect explicit LOW_PRIORITY clause.
         */
-        mdl_lock_type= mdl_type_for_dml(tbl->lock_type);
+        mdl_lock_type= mdl_type_for_dml(tbl->lock_descriptor().type);
       }
 
       tbl->mdl_request.set_type(mdl_lock_type);

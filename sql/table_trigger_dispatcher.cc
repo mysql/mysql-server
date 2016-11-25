@@ -788,7 +788,7 @@ bool Table_trigger_dispatcher::add_tables_and_routines_for_triggers(
   Query_tables_list *prelocking_ctx,
   TABLE_LIST *table_list)
 {
-  DBUG_ASSERT(static_cast<int>(table_list->lock_type) >=
+  DBUG_ASSERT(static_cast<int>(table_list->lock_descriptor().type) >=
               static_cast<int>(TL_WRITE_ALLOW_WRITE));
 
   for (int i= 0; i < (int) TRG_EVENT_MAX; ++i)

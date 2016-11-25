@@ -450,7 +450,7 @@ int ha_myisammrg::add_children_list(void)
 
     child_l->init_one_table(db, mrg_child_def->db.length,
                             table_name, mrg_child_def->name.length,
-                            table_name, parent_l->lock_type);
+                            table_name, parent_l->lock_descriptor().type);
     /* Set parent reference. Used to detect MERGE in children list. */
     child_l->parent_l= parent_l;
     /* Copy select_lex. Used in unique_table() at least. */

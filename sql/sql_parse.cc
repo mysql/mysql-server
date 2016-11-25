@@ -2255,7 +2255,7 @@ retry:
         */
         table->table->reginfo.lock_type= TL_WRITE;
       }
-      else if (table->lock_type == TL_READ &&
+      else if (table->lock_descriptor().type == TL_READ &&
                ! table->prelocking_placeholder &&
                table->table->file->ha_table_flags() & HA_NO_READ_LOCAL_LOCK)
       {
@@ -5593,7 +5593,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   ptr->table_name= const_cast<char*>(table->table.str);
   ptr->table_name_length= table->table.length;
   ptr->set_tableno(0);
-  ptr->lock_type=   lock_type;
+  ptr->set_lock({lock_type, THR_DEFAULT});
   ptr->updating=    MY_TEST(table_options & TL_OPTION_UPDATING);
   /* TODO: remove TL_OPTION_FORCE_INDEX as it looks like it's not used */
   ptr->force_index= MY_TEST(table_options & TL_OPTION_FORCE_INDEX);
@@ -5959,33 +5959,42 @@ TABLE_LIST *SELECT_LEX::convert_right_join()
   DBUG_RETURN(tab1);
 }
 
-/**
-  Set lock for all tables in current select level.
 
-  @param lock_type			Lock to set for tables
-
-  @note
-    If lock is a write lock, then tables->updating is set 1
-    This is to get tables_ok to know that the table is updated by the
-    query
-    Set type of metadata lock to request according to lock_type.
-*/
-
-void SELECT_LEX::set_lock_for_tables(thr_lock_type lock_type)
+void SELECT_LEX::set_lock_for_table(const Lock_descriptor &descriptor,
+                                    TABLE_LIST *table)
 {
+  thr_lock_type lock_type= descriptor.type;
   bool for_update= lock_type >= TL_READ_NO_INSERT;
   enum_mdl_type mdl_type= mdl_type_for_dml(lock_type);
+  DBUG_ENTER("set_lock_for_table");
+  DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
+                       for_update));
+  table->set_lock(descriptor);
+  table->updating=  for_update;
+  table->mdl_request.set_type(mdl_type);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Set lock for all tables in current query block.
+
+  @param lock_type Lock to set for tables.
+
+  @note
+    If the lock is a write lock, then tables->updating is set to true.
+    This is to get tables_ok to know that the table is being updated by the
+    query.
+    Sets the type of metadata lock to request according to lock_type.
+*/
+void SELECT_LEX::set_lock_for_tables(thr_lock_type lock_type)
+{
   DBUG_ENTER("set_lock_for_tables");
   DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
-		       for_update));
-  for (TABLE_LIST *tables= table_list.first;
-       tables;
-       tables= tables->next_local)
-  {
-    tables->lock_type= lock_type;
-    tables->updating=  for_update;
-    tables->mdl_request.set_type(mdl_type);
-  }
+                       lock_type >= TL_READ_NO_INSERT));
+  for (TABLE_LIST *table= table_list.first; table; table= table->next_local)
+    set_lock_for_table({ lock_type, THR_WAIT }, table);
   DBUG_VOID_RETURN;
 }
 
@@ -6456,7 +6465,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex)
       problems when running CREATE TABLE IF NOT EXISTS for already
       existing log table.
     */
-    create_table->lock_type= TL_READ;
+    create_table->set_lock({TL_READ, THR_DEFAULT});
   }
 }
 

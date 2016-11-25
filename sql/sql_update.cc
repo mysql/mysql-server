@@ -1461,10 +1461,10 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
         is ignored, as prelocking placeholder will never be set here.
       */
       DBUG_ASSERT(tl->prelocking_placeholder == false);
-      tl->lock_type= read_lock_type_for_table(thd, lex, tl, true);
+      tl->set_lock({read_lock_type_for_table(thd, lex, tl, true), THR_DEFAULT});
       /* Update TABLE::lock_type accordingly. */
       if (!tl->is_placeholder() && !using_lock_tables)
-        tl->table->reginfo.lock_type= tl->lock_type;
+        tl->table->reginfo.lock_type= tl->lock_descriptor().type;
     }
   }
 

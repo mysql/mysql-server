@@ -365,7 +365,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     DBUG_PRINT("admin", ("extra_open_options: %u", extra_open_options));
     strxmov(table_name, db, ".", table->table_name, NullS);
     thd->open_options|= extra_open_options;
-    table->lock_type= lock_type;
+    table->set_lock({lock_type, THR_DEFAULT});
     /*
       To make code safe for re-execution we need to reset type of MDL
       request as code below may change it.

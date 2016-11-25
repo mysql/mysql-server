@@ -102,7 +102,9 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_UPDATE_IGNORE,
   ER_BINLOG_UNSAFE_INSERT_TWO_KEYS,
   ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST,
-  ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN
+  ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN,
+  ER_BINLOG_UNSAFE_SKIP_LOCKED,
+  ER_BINLOG_UNSAFE_NOWAIT
 };
 
 
@@ -3966,7 +3968,7 @@ void LEX::set_trg_event_type_for_tables()
       views, for which lock_type is TL_UNLOCK or TL_READ after
       parsing.
     */
-    if (static_cast<int>(tables->lock_type) >=
+    if (static_cast<int>(tables->lock_descriptor().type) >=
         static_cast<int>(TL_WRITE_ALLOW_WRITE))
       tables->trg_event_map= new_trg_event_map;
     tables= tables->next_local;
@@ -4605,6 +4607,32 @@ bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const
     return true;
 
   return false;
+}
+
+
+/**
+  Finds a (possibly unresolved) table reference in the from clause by name.
+
+  There is a hack in the parser which adorns table references with the current
+  database. This function piggy-backs on that hack to find fully qualified
+  table references without having to resolve the name.
+
+  @param ident The table name, may be qualified or unqualified.
+
+  @retval NULL If not found.
+*/
+TABLE_LIST *SELECT_LEX::find_table_by_name(const Table_ident *ident)
+{
+  LEX_CSTRING db_name= ident->db;
+  LEX_CSTRING table_name= ident->table;
+
+  for (TABLE_LIST *table= table_list.first; table; table= table->next_local)
+  {
+    if ((db_name.length == 0 || strcmp(db_name.str, table->db) == 0) &&
+        strcmp(table_name.str, table->alias) == 0)
+      return table;
+  }
+  return NULL;
 }
 
 

@@ -6695,7 +6695,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
     MDL_REQUEST_INIT(&table_list->mdl_request,
                      MDL_key::TABLE,
                      table_list->db, table_list->table_name,
-                     mdl_type_for_dml(table_list->lock_type),
+                     mdl_type_for_dml(table_list->lock_descriptor().type),
                      MDL_TRANSACTION);
 }
 

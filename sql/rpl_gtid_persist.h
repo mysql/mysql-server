@@ -200,7 +200,7 @@ public:
     DBUG_ENTER("Gtid_table_persistor::warn_or_err_on_explicit_modification");
 
     if (!thd->is_operating_gtid_table_implicitly &&
-        table->lock_type >= TL_WRITE_ALLOW_WRITE &&
+        table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE &&
         !strcmp(table->table_name, Gtid_table_access_context::TABLE_NAME.str))
     {
       if (thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_ACTIVE))

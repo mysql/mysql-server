@@ -373,6 +373,7 @@ SET(SERVER_TESTS
   json_binary
   json_dom
   json_path
+  locking_clause_syntax
   locking_service
   log_throttle
   make_sortkey

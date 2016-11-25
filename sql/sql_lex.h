@@ -834,7 +834,6 @@ public:
   void   set_where_cond(Item *cond) { m_where_cond= cond; }
   Item  *having_cond() const { return m_having_cond; }
   void   set_having_cond(Item *cond) { m_having_cond= cond; }
-
   void set_query_result(Query_result *result) { m_query_result= result; }
   Query_result *query_result() const { return m_query_result; }
   bool change_query_result(Query_result_interceptor *new_result,
@@ -1216,6 +1215,10 @@ public:
   { return m_agg_func_used && group_list.elements == 0; }
 
   /**
+    True if this query block is implicitly grouped.
+
+    @note Not reliable before name resolution.
+
     @return true if this query block is implicitly grouped and returns exactly
     one row, which happens when it does not have a HAVING clause.
 
@@ -1299,7 +1302,11 @@ public:
   // Add full-text function elements from a list into this query block
   bool add_ftfunc_list(List<Item_func_match> *ftfuncs);
 
+  void set_lock_for_table(const Lock_descriptor &descriptor,
+                          TABLE_LIST *table);
+
   void set_lock_for_tables(thr_lock_type lock_type);
+
   inline void init_order()
   {
     DBUG_ASSERT(order_list.elements == 0);
@@ -1568,6 +1575,8 @@ public:
                   ulong table_options,
                   thr_lock_type lock_type,
                   enum_mdl_type mdl_type);
+
+  TABLE_LIST *find_table_by_name(const Table_ident *ident);
 };
 typedef class SELECT_LEX SELECT_LEX;
 
@@ -1621,14 +1630,6 @@ struct Proc_analyse_params
 
   static const uint default_max_tree_elements= 256;
   static const uint default_max_treemem= 8192;
-};
-
-
-struct Select_lock_type
-{
-  bool is_set;
-  thr_lock_type lock_type;
-  bool is_safe_to_cache_query;
 };
 
 
@@ -1690,6 +1691,16 @@ enum delete_option_enum {
   DELETE_IGNORE       = 1 << 2
 };
 
+enum class Lock_strength { UPDATE, SHARE };
+
+/// We will static_cast this one to thr_lock_type.
+enum class Locked_row_action
+{
+  DEFAULT= THR_DEFAULT,
+  WAIT= THR_WAIT,
+  NOWAIT= THR_NOWAIT,
+  SKIP= THR_SKIP
+};
 
 /**
   Internally there is no CROSS JOIN join type, as cross joins are just a
@@ -1846,7 +1857,6 @@ union YYSTYPE {
   class PT_order *order;
   struct Proc_analyse_params procedure_analyse_params;
   class PT_procedure_analyse *procedure_analyse;
-  Select_lock_type select_lock_type;
   class PT_table_reference *table_reference;
   class PT_joined_table *join_table;
   enum PT_joined_table_type join_type;
@@ -1981,6 +1991,10 @@ union YYSTYPE {
     On_duplicate on_duplicate;
     PT_query_expression *opt_query_expression;
   } create_table_tail;
+  Lock_strength lock_strength;
+  Locked_row_action locked_row_action;
+  class PT_locking_clause *locking_clause;
+  class PT_locking_clause_list *locking_clause_list;
 };
 
 #endif
@@ -2342,8 +2356,10 @@ public:
        Using a plugin is unsafe.
     */
     BINLOG_STMT_UNSAFE_FULLTEXT_PLUGIN,
+    BINLOG_STMT_UNSAFE_SKIP_LOCKED,
+    BINLOG_STMT_UNSAFE_NOWAIT,
 
-    /* The last element of this enumeration type. */
+    /* the last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };
   /**
@@ -3985,6 +4001,8 @@ extern bool is_lex_native_function(const LEX_STRING *name);
 
 bool is_keyword(const char *name, size_t len);
 bool db_is_default_db(const char *db, size_t db_len, const THD *thd);
+
+bool check_select_for_locking_clause(THD *);
 
 /**
   @} (End of group GROUP_PARSER)

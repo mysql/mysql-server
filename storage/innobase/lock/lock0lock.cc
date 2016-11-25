@@ -1812,29 +1812,33 @@ lock_rec_lock_fast(
 	return(status);
 }
 
-/*********************************************************************//**
-This is the general, and slower, routine for locking a record. This is a
+/** This is the general, and slower, routine for locking a record. This is a
 low-level function which does NOT look at implicit locks! Checks lock
 compatibility within explicit locks. This function sets a normal next-key
 lock, or in the case of a page supremum record, a gap type lock.
+@param[in]	impl		if TRUE, no lock is set	if no wait is
+				necessary: we assume that the caller will
+				set an implicit lock
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOCKED, or SELECT_NO_WAIT
+@param[in]	mode		lock mode: LOCK_X or LOCK_S possibly ORed to
+				either LOCK_GAP or LOCK_REC_NOT_GAP
+@param[in]	block		buffer block containing	the record
+@param[in]	heap_no		heap number of record
+@param[in]	index		index of record
+@param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-or DB_QUE_THR_SUSPENDED */
+DB_QUE_THR_SUSPENDED, DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 static
 dberr_t
 lock_rec_lock_slow(
-/*===============*/
-	ibool			impl,	/*!< in: if TRUE, no lock is set
-					if no wait is necessary: we
-					assume that the caller will
-					set an implicit lock */
-	ulint			mode,	/*!< in: lock mode: LOCK_X or
-					LOCK_S possibly ORed to either
-					LOCK_GAP or LOCK_REC_NOT_GAP */
-	const buf_block_t*	block,	/*!< in: buffer block containing
-					the record */
-	ulint			heap_no,/*!< in: heap number of record */
-	dict_index_t*		index,	/*!< in: index of record */
-	que_thr_t*		thr)	/*!< in: query thread */
+	ibool			impl,
+	select_mode		sel_mode,
+	ulint			mode,
+	const buf_block_t*	block,
+	ulint			heap_no,
+	dict_index_t*		index,
+	que_thr_t*		thr)
 {
 	ut_ad(lock_mutex_own());
 	ut_ad(!srv_read_only_mode);
@@ -1851,8 +1855,13 @@ lock_rec_lock_slow(
 
 	DBUG_EXECUTE_IF("innodb_report_deadlock", return(DB_DEADLOCK););
 
-	dberr_t	err;
+	dberr_t	err = DB_SUCCESS;
 	trx_t*	trx = thr_get_trx(thr);
+
+	ut_ad(sel_mode == SELECT_ORDINARY
+	      || (sel_mode != SELECT_ORDINARY && !trx_is_high_priority(trx)));
+	ut_ad(sel_mode == SELECT_ORDINARY || (sel_mode != SELECT_ORDINARY
+			&& !(mode & LOCK_INSERT_INTENTION)));
 
 	trx_mutex_enter(trx);
 
@@ -1869,15 +1878,25 @@ lock_rec_lock_slow(
 			mode, block, heap_no, trx);
 
 		if (wait_for != NULL) {
+			switch (sel_mode) {
+			case SELECT_SKIP_LOCKED:
+				err = DB_SKIP_LOCKED;
+				break;
+			case SELECT_NOWAIT:
+				err = DB_LOCK_NOWAIT;
+				break;
+			case SELECT_ORDINARY:
+				/* If another transaction has a non-gap
+				conflicting request in the queue, as this
+				transaction does not have a lock strong
+				enough already granted on the record, we
+				may have to wait. */
 
-			/* If another transaction has a non-gap conflicting
-			request in the queue, as this transaction does not
-			have a lock strong enough already granted on the
-			record, we may have to wait. */
+				RecLock	rec_lock(thr, index, block, heap_no, mode);
 
-			RecLock	rec_lock(thr, index, block, heap_no, mode);
-
-			err = rec_lock.add_to_waitq(wait_for);
+				err = rec_lock.add_to_waitq(wait_for);
+				break;
+			}
 
 		} else if (!impl) {
 
@@ -1899,30 +1918,34 @@ lock_rec_lock_slow(
 	return(err);
 }
 
-/*********************************************************************//**
-Tries to lock the specified record in the mode requested. If not immediately
+/** Tries to lock the specified record in the mode requested. If not immediately
 possible, enqueues a waiting lock request. This is a low-level function
 which does NOT look at implicit locks! Checks lock compatibility within
 explicit locks. This function sets a normal next-key lock, or in the case
 of a page supremum record, a gap type lock.
+@param[in]	impl		if TRUE, no lock is set	if no wait is
+				necessary: we assume that the caller will
+				set an implicit lock
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOCKED, or SELECT_NO_WAIT
+@param[in]	mode		lock mode: LOCK_X or LOCK_S possibly ORed to
+				either LOCK_GAP or LOCK_REC_NOT_GAP
+@param[in]	block		buffer block containing	the record
+@param[in]	heap_no		heap number of record
+@param[in]	index		index of record
+@param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-or DB_QUE_THR_SUSPENDED */
+DB_QUE_THR_SUSPENDED, DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 static
 dberr_t
 lock_rec_lock(
-/*==========*/
-	bool			impl,	/*!< in: if true, no lock is set
-					if no wait is necessary: we
-					assume that the caller will
-					set an implicit lock */
-	ulint			mode,	/*!< in: lock mode: LOCK_X or
-					LOCK_S possibly ORed to either
-					LOCK_GAP or LOCK_REC_NOT_GAP */
-	const buf_block_t*	block,	/*!< in: buffer block containing
-					the record */
-	ulint			heap_no,/*!< in: heap number of record */
-	dict_index_t*		index,	/*!< in: index of record */
-	que_thr_t*		thr)	/*!< in: query thread */
+	bool			impl,
+	select_mode		sel_mode,
+	ulint			mode,
+	const buf_block_t*	block,
+	ulint			heap_no,
+	dict_index_t*		index,
+	que_thr_t*		thr)
 {
 	ut_ad(lock_mutex_own());
 	ut_ad(!srv_read_only_mode);
@@ -1945,7 +1968,7 @@ lock_rec_lock(
 	case LOCK_REC_SUCCESS_CREATED:
 		return(DB_SUCCESS_LOCKED_REC);
 	case LOCK_REC_FAIL:
-		return(lock_rec_lock_slow(impl, mode, block,
+		return(lock_rec_lock_slow(impl, sel_mode, mode, block,
 					  heap_no, index, thr));
 	}
 
@@ -5954,7 +5977,7 @@ lock_clust_rec_modify_check_and_lock(
 
 	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 
-	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,
+	err = lock_rec_lock(TRUE, SELECT_ORDINARY, LOCK_X | LOCK_REC_NOT_GAP,
 			    block, heap_no, index, thr);
 
 	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
@@ -6015,7 +6038,7 @@ lock_sec_rec_modify_check_and_lock(
 
 	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 
-	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,
+	err = lock_rec_lock(TRUE, SELECT_ORDINARY, LOCK_X | LOCK_REC_NOT_GAP,
 			    block, heap_no, index, thr);
 
 	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
@@ -6055,31 +6078,34 @@ lock_sec_rec_modify_check_and_lock(
 	return(err);
 }
 
-/*********************************************************************//**
-Like lock_clust_rec_read_check_and_lock(), but reads a
+/** Like lock_clust_rec_read_check_and_lock(), but reads a
 secondary index record.
+@param[in]	flags		if BTR_NO_LOCKING_FLAG bit is set, does nothing
+@param[in]	block		buffer block of rec
+@param[in]	rec		user record or page supremum record which should
+				be read or passed over by a read cursor
+@param[in]	index		secondary index
+@param[in]	offsets		rec_get_offsets(rec, index)
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
+@param[in]	mode		mode of the lock which the read cursor should
+				set on records: LOCK_S or LOCK_X; the latter is
+				possible in SELECT FOR UPDATE
+@param[in]	gap_mode	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
+@param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-or DB_QUE_THR_SUSPENDED */
+DB_QUE_THR_SUSPENDED, DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t
 lock_sec_rec_read_check_and_lock(
-/*=============================*/
-	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
-					bit is set, does nothing */
-	const buf_block_t*	block,	/*!< in: buffer block of rec */
-	const rec_t*		rec,	/*!< in: user record or page
-					supremum record which should
-					be read or passed over by a
-					read cursor */
-	dict_index_t*		index,	/*!< in: secondary index */
-	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
-	lock_mode		mode,	/*!< in: mode of the lock which
-					the read cursor should set on
-					records: LOCK_S or LOCK_X; the
-					latter is possible in
-					SELECT FOR UPDATE */
-	ulint			gap_mode,/*!< in: LOCK_ORDINARY, LOCK_GAP, or
-					LOCK_REC_NOT_GAP */
-	que_thr_t*		thr)	/*!< in: query thread */
+	ulint			flags,
+	const buf_block_t*	block,
+	const rec_t*		rec,
+	dict_index_t*		index,
+	const ulint*		offsets,
+	select_mode		sel_mode,
+	lock_mode		mode,
+	ulint			gap_mode,
+	que_thr_t*		thr)
 {
 	dberr_t	err;
 	ulint	heap_no;
@@ -6118,7 +6144,7 @@ lock_sec_rec_read_check_and_lock(
 	ut_ad(mode != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 
-	err = lock_rec_lock(FALSE, mode | gap_mode,
+	err = lock_rec_lock(FALSE, sel_mode, mode | gap_mode,
 			    block, heap_no, index, thr);
 
 	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
@@ -6130,35 +6156,38 @@ lock_sec_rec_read_check_and_lock(
 	return(err);
 }
 
-/*********************************************************************//**
-Checks if locks of other transactions prevent an immediate read, or passing
+/** Checks if locks of other transactions prevent an immediate read, or passing
 over by a read cursor, of a clustered index record. If they do, first tests
 if the query thread should anyway be suspended for some reason; if not, then
 puts the transaction and the query thread to the lock wait state and inserts a
 waiting request for a record lock to the lock queue. Sets the requested mode
 lock on the record.
+@param[in]	flags		if BTR_NO_LOCKING_FLAG bit is set, does nothing
+@param[in]	block		buffer block of rec
+@param[in]	rec		user record or page supremum record which should
+				be read or passed over by a read cursor
+@param[in]	index		secondary index
+@param[in]	offsets		rec_get_offsets(rec, index)
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
+@param[in]	mode		mode of the lock which the read cursor should
+				set on records: LOCK_S or LOCK_X; the latter is
+				possible in SELECT FOR UPDATE
+@param[in]	gap_mode	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
+@param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-or DB_QUE_THR_SUSPENDED */
+DB_QUE_THR_SUSPENDED, DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t
 lock_clust_rec_read_check_and_lock(
-/*===============================*/
-	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
-					bit is set, does nothing */
-	const buf_block_t*	block,	/*!< in: buffer block of rec */
-	const rec_t*		rec,	/*!< in: user record or page
-					supremum record which should
-					be read or passed over by a
-					read cursor */
-	dict_index_t*		index,	/*!< in: clustered index */
-	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
-	lock_mode		mode,	/*!< in: mode of the lock which
-					the read cursor should set on
-					records: LOCK_S or LOCK_X; the
-					latter is possible in
-					SELECT FOR UPDATE */
-	ulint			gap_mode,/*!< in: LOCK_ORDINARY, LOCK_GAP, or
-					LOCK_REC_NOT_GAP */
-	que_thr_t*		thr)	/*!< in: query thread */
+	ulint			flags,
+	const buf_block_t*	block,
+	const rec_t*		rec,
+	dict_index_t*		index,
+	const ulint*		offsets,
+	select_mode		sel_mode,
+	lock_mode		mode,
+	ulint			gap_mode,
+	que_thr_t*		thr)
 {
 	dberr_t	err;
 	ulint	heap_no;
@@ -6191,7 +6220,7 @@ lock_clust_rec_read_check_and_lock(
 	ut_ad(mode != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 
-	err = lock_rec_lock(FALSE, mode | gap_mode, block, heap_no, index, thr);
+	err = lock_rec_lock(FALSE, sel_mode, mode | gap_mode, block, heap_no, index, thr);
 
 	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
 
@@ -6241,8 +6270,9 @@ lock_clust_rec_read_check_and_lock_alt(
 
 	offsets = rec_get_offsets(rec, index, offsets,
 				  ULINT_UNDEFINED, &tmp_heap);
-	err = lock_clust_rec_read_check_and_lock(flags, block, rec, index,
-						 offsets, mode, gap_mode, thr);
+	err = lock_clust_rec_read_check_and_lock(
+		flags, block, rec, index, offsets,
+		SELECT_ORDINARY, mode, gap_mode, thr);
 	if (tmp_heap) {
 		mem_heap_free(tmp_heap);
 	}

@@ -2123,6 +2123,9 @@ convert_error_code_to_mysql(
 		return(HA_ERR_WRONG_FILE_NAME);
 	case DB_COMPUTE_VALUE_FAILED:
 		return(HA_ERR_COMPUTE_FAILED);
+	case DB_LOCK_NOWAIT:
+		 my_error(ER_LOCK_NOWAIT, MYF(0));
+		return(HA_ERR_NO_WAIT_LOCK);
 	}
 }
 
@@ -3432,6 +3435,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 	if the trx isolation level would have been specified as SERIALIZABLE */
 
 	m_prebuilt->select_lock_type = LOCK_NONE;
+	m_prebuilt->select_mode = SELECT_ORDINARY;
 	m_stored_select_lock_type = LOCK_NONE;
 
 	/* Always fetch all columns in the index record */
@@ -17344,7 +17348,7 @@ ha_innobase::store_lock(
 		1) MySQL is doing LOCK TABLES ... READ LOCAL, or we
 		are processing a stored procedure or function, or
 		2) (we do not know when TL_READ_HIGH_PRIORITY is used), or
-		3) this is a SELECT ... IN SHARE MODE, or
+		3) this is a SELECT ... IN SHARE MODE/FOR SHARE, or
 		4) we are doing a complex SQL statement like
 		INSERT INTO ... SELECT ... and the logical logging (MySQL
 		binlog) requires the use of a locking read, or
@@ -17390,6 +17394,26 @@ ha_innobase::store_lock(
 
 		m_prebuilt->select_lock_type = LOCK_NONE;
 		m_stored_select_lock_type = LOCK_NONE;
+	}
+
+	/* Set select mode for SKIP LOCKED / NOWAIT */
+	if (lock_type != TL_IGNORE) {
+		switch (table->pos_in_table_list->lock_descriptor().action) {
+		case THR_SKIP:
+			m_prebuilt->select_mode = SELECT_SKIP_LOCKED;
+			break;
+		case THR_NOWAIT:
+			m_prebuilt->select_mode = SELECT_NOWAIT;
+			break;
+		default:
+			m_prebuilt->select_mode = SELECT_ORDINARY;
+			break;
+		}
+	}
+
+	/* Ignore SKIP LOCKED / NO_WAIT for high priority transaction */
+	if (trx_is_high_priority(trx)) {
+		m_prebuilt->select_mode = SELECT_ORDINARY;
 	}
 
 	if (!trx_is_started(trx)

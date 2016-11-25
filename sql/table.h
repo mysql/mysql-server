@@ -1353,6 +1353,7 @@ public:
     class JOIN_TAB *join_tab;
     class QEP_TAB *qep_tab;
     enum thr_lock_type lock_type;		/* How table is used */
+    thr_locked_row_action locked_row_action;
     bool not_exists_optimize;
     /*
       TRUE <=> range optimizer found that there is no rows satisfying
@@ -1853,10 +1854,10 @@ struct TABLE_LIST
     table_name= (char*) table_name_arg;
     table_name_length= table_name_length_arg;
     alias= (char*) alias_arg;
-    lock_type= lock_type_arg;
+    m_lock_descriptor.type= lock_type_arg;
     MDL_REQUEST_INIT(&mdl_request,
                      MDL_key::TABLE, db, table_name,
-                     mdl_type_for_dml(lock_type),
+                     mdl_type_for_dml(m_lock_descriptor.type),
                      MDL_TRANSACTION);
   }
 
@@ -2383,6 +2384,16 @@ struct TABLE_LIST
   /* Hints for query block of this table. */
   Opt_hints_qb *opt_hints_qb;
 
+  void set_lock(const Lock_descriptor &descriptor)
+  {
+    m_lock_descriptor= descriptor;
+  }
+
+  const Lock_descriptor &lock_descriptor() const
+  {
+    return m_lock_descriptor;
+  }
+
 private:
   /**
     The members below must be kept aligned so that (1 << m_tableno) == m_map.
@@ -2399,6 +2410,7 @@ private:
   */
   Item		*m_join_cond;
   Item          *m_sj_cond;               ///< Synthesized semijoin condition
+  bool          m_has_locking_clause;
 public:
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
@@ -2558,13 +2570,14 @@ public:
 private:
   /// The view algorithm that is actually used, if this is a view.
   enum_view_algorithm effective_algorithm;
+  Lock_descriptor m_lock_descriptor;
 public:
   GRANT_INFO	grant;
   /* data need by some engines in query cache*/
   ulonglong     engine_data;
   /* call back function for asking handler about caching in query cache */
   qc_engine_callback callback_func;
-  thr_lock_type lock_type;
+public:
   uint		outer_join;		/* Which join type */
   uint		shared;			/* Used in multi-upd */
   size_t        db_length;
@@ -2862,6 +2875,78 @@ public:
   Natural_join_column *get_or_create_column_ref(THD *thd, TABLE_LIST *parent_table_ref);
   Natural_join_column *get_natural_column_ref();
 };
+
+
+/**
+  An iterator over an intrusive list in TABLE_LIST objects. Can be used for
+  iterating an intrusive list in e.g. range-based for loops.
+
+  @tparam Next_pointer The intrusive list's "next" member.
+*/
+template <TABLE_LIST *TABLE_LIST::*Next_pointer>
+class Table_list_iterator
+{
+public:
+
+  /**
+    Constructs an iterator.
+
+    @param start The TABLE_LIST where that the iterator will start iterating
+    from.
+  */
+  Table_list_iterator(TABLE_LIST *start) : m_current(start) {}
+
+  TABLE_LIST *operator++() { return m_current= m_current->*Next_pointer; }
+
+  TABLE_LIST *operator*() { return m_current; }
+
+  bool operator!=(const Table_list_iterator &other) const
+  {
+    return m_current != other.m_current;
+  }
+
+private:
+  TABLE_LIST *m_current;
+};
+
+typedef Table_list_iterator<&TABLE_LIST::next_local> Local_tables_iterator;
+typedef Table_list_iterator<&TABLE_LIST::next_global> Global_tables_iterator;
+
+/**
+  Provides a list interface on TABLE_LIST objects. The interface is similar to
+  std::vector, but has only the bare minimum to allow for iteration.
+
+  @tparam Iterator_type Must have an implicit constructor from a TABLE_LIST
+  pointer, and support pre-increment, non-equality and dereference operators.
+*/
+template<typename Iterator_type>
+class Table_list_adapter
+{
+public:
+
+  /**
+    Constructs the list adapter.
+
+    @param first The TABLE_LIST that is considered first in the list.
+  */
+  Table_list_adapter(TABLE_LIST *first) : m_first(first) {}
+
+  /// An iterator pointing to the first TABLE_LIST.
+  Iterator_type begin() { return m_first; }
+
+  /// A past-the-end iterator.
+  Iterator_type end() { return nullptr; }
+
+private:
+  TABLE_LIST *m_first;
+};
+
+
+/// A list interface over the TABLE_LIST::next_local pointer.
+typedef Table_list_adapter<Local_tables_iterator> Local_tables_list;
+
+/// A list interface over the TABLE_LIST::next_global pointer.
+typedef Table_list_adapter<Global_tables_iterator> Global_tables_list;
 
 /**
   Semijoin_mat_optimize collects data used when calculating the cost of

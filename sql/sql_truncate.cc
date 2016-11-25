@@ -366,7 +366,7 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
   DBUG_ENTER("Sql_cmd_truncate_table::lock_table");
 
   /* Lock types are set in the parser. */
-  DBUG_ASSERT(table_ref->lock_type == TL_WRITE);
+  DBUG_ASSERT(table_ref->lock_descriptor().type == TL_WRITE);
   /* The handler truncate protocol dictates a exclusive lock. */
   DBUG_ASSERT(table_ref->mdl_request.type == MDL_EXCLUSIVE);
 

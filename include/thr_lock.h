@@ -88,6 +88,14 @@ enum thr_lock_type { TL_IGNORE=-1,
 		     /* Abort new lock request with an error */
 		     TL_WRITE_ONLY};
 
+enum thr_locked_row_action { THR_DEFAULT, THR_WAIT, THR_NOWAIT, THR_SKIP };
+
+struct Lock_descriptor
+{
+  enum thr_lock_type type;
+  enum thr_locked_row_action action;
+};
+
 enum enum_thr_lock_result { THR_LOCK_SUCCESS= 0, THR_LOCK_ABORTED= 1,
                             THR_LOCK_WAIT_TIMEOUT= 2, THR_LOCK_DEADLOCK= 3 };
 

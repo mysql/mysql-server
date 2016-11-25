@@ -258,7 +258,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
     for (TABLE_LIST *table= lex->query_tables; table;
          table= table->next_global)
     {
-      if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+      if (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
       {
         lex->link_first_table_back(create_table, link_to_local);
 

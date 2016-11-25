@@ -954,7 +954,7 @@ row_sel_get_clust_rec(
 
 		err = lock_clust_rec_read_check_and_lock(
 			0, btr_pcur_get_block(&plan->clust_pcur),
-			clust_rec, index, offsets,
+			clust_rec, index, offsets, SELECT_ORDINARY,
 			static_cast<lock_mode>(node->row_lock_mode),
 			lock_type,
 			thr);
@@ -1036,24 +1036,32 @@ err_exit:
 	return(err);
 }
 
-/*********************************************************************//**
-Sets a lock on a page of R-Tree record. This is all or none action,
+/** Sets a lock on a page of R-Tree record. This is all or none action,
 mostly due to we cannot reposition a record in R-Tree (with the
 nature of splitting)
+@param[in]	pcur		cursor
+@param[in]	first_rec	record
+@param[in]	index		index
+@param[in]	offsets		rec_get_offsets(rec, index)
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
+@param[in]	mode		lock mode
+@param[in]	type		LOCK_ORDINARY, LOCK_GAP, or LOC_REC_NOT_GAP
+@param[in]	thr		query thread
+@param[in]	mtr		mtr
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 UNIV_INLINE
 dberr_t
 sel_set_rtr_rec_lock(
-/*=================*/
-	btr_pcur_t*		pcur,	/*!< in: cursor */
-	const rec_t*		first_rec,/*!< in: record */
-	dict_index_t*		index,	/*!< in: index */
-	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
-	ulint			mode,	/*!< in: lock mode */
-	ulint			type,	/*!< in: LOCK_ORDINARY, LOCK_GAP, or
-					LOC_REC_NOT_GAP */
-	que_thr_t*		thr,	/*!< in: query thread */
-	mtr_t*			mtr)	/*!< in: mtr */
+	btr_pcur_t*		pcur,
+	const rec_t*		first_rec,
+	dict_index_t*		index,
+	const ulint*		offsets,
+	select_mode		sel_mode,
+	ulint			mode,
+	ulint			type,
+	que_thr_t*		thr,
+	mtr_t*			mtr)
 {
 	matched_rec_t*  match = pcur->btr_cur.rtr_info->matches;
 	mem_heap_t*     heap = NULL;
@@ -1083,10 +1091,16 @@ retry:
 	ut_ad(page_is_leaf(buf_block_get_frame(cur_block)));
 
 	err = lock_sec_rec_read_check_and_lock(
-		0, cur_block, rec, index, my_offsets,
+		0, cur_block, rec, index, my_offsets, sel_mode,
 		static_cast<lock_mode>(mode), type, thr);
 
-	if (err == DB_LOCK_WAIT) {
+	switch (err) {
+	case DB_SUCCESS:
+	case DB_SUCCESS_LOCKED_REC:
+	case DB_SKIP_LOCKED:
+		goto lock_match;
+
+	case DB_LOCK_WAIT:
 re_scan:
 		mtr_commit(mtr);
 		trx->error_state = err;
@@ -1162,33 +1176,45 @@ re_scan:
 		}
 
 		goto retry;
+
+	default:
+		goto func_end;
 	}
 
+lock_match:
 	my_offsets = offsets_;
 	match_rec = match->matched_recs;
 	end = match_rec->end();
 
 	for (rtr_rec_vector::iterator it = match_rec->begin();
 	     it != end; ++it) {
+		dberr_t		err2;
 		rtr_rec_t*	rtr_rec = &(*it);
 
 		my_offsets = rec_get_offsets(
 				rtr_rec->r_rec, index, my_offsets,
 				ULINT_UNDEFINED, &heap);
 
-		err = lock_sec_rec_read_check_and_lock(
-			0, &match->block, rtr_rec->r_rec, index,
-			my_offsets, static_cast<lock_mode>(mode),
-			type, thr);
+		err2 = lock_sec_rec_read_check_and_lock(
+			0, &match->block, rtr_rec->r_rec, index, my_offsets,
+			sel_mode, static_cast<lock_mode>(mode), type, thr);
 
-		if (err == DB_SUCCESS || err == DB_SUCCESS_LOCKED_REC) {
+		switch (err2) {
+		case DB_SUCCESS:
+		case DB_SUCCESS_LOCKED_REC:
 			rtr_rec->locked = true;
-		} else if (err == DB_LOCK_WAIT) {
+			break;
+
+		case DB_LOCK_WAIT:
 			goto re_scan;
-		} else {
+
+		case DB_SKIP_LOCKED:
+			break;
+
+		default:
+			err = err2;
 			goto func_end;
 		}
-
 	}
 
 	match->locked = true;
@@ -1205,22 +1231,32 @@ func_end:
 	return(err);
 }
 
-/*********************************************************************//**
-Sets a lock on a record.
+/** Sets a lock on a record.
+mostly due to we cannot reposition a record in R-Tree (with the
+nature of splitting)
+@param[in]	pcur		cursor
+@param[in]	rec		record
+@param[in]	index		index
+@param[in]	offsets		rec_get_offsets(rec, index)
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
+@param[in]	mode		lock mode
+@param[in]	type		LOCK_ORDINARY, LOCK_GAP, or LOC_REC_NOT_GAP
+@param[in]	thr		query thread
+@param[in]	mtr		mtr
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 UNIV_INLINE
 dberr_t
 sel_set_rec_lock(
-/*=============*/
-	btr_pcur_t*		pcur,	/*!< in: cursor */
-	const rec_t*		rec,	/*!< in: record */
-	dict_index_t*		index,	/*!< in: index */
-	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
-	ulint			mode,	/*!< in: lock mode */
-	ulint			type,	/*!< in: LOCK_ORDINARY, LOCK_GAP, or
-					LOC_REC_NOT_GAP */
-	que_thr_t*		thr,	/*!< in: query thread */
-	mtr_t*			mtr)	/*!< in: mtr */
+	btr_pcur_t*		pcur,
+	const rec_t*		rec,
+	dict_index_t*		index,
+	const ulint*		offsets,
+	select_mode		sel_mode,
+	ulint			mode,
+	ulint			type,
+	que_thr_t*		thr,
+	mtr_t*			mtr)
 {
 	trx_t*			trx;
 	dberr_t			err = DB_SUCCESS;
@@ -1239,7 +1275,7 @@ sel_set_rec_lock(
 
 	if (index->is_clustered()) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, block, rec, index, offsets,
+			0, block, rec, index, offsets, sel_mode,
 			static_cast<lock_mode>(mode), type, thr);
 	} else {
 
@@ -1250,11 +1286,12 @@ sel_set_rec_lock(
 					"on RTree";
 				return(DB_SUCCESS);
 			}
-			err = sel_set_rtr_rec_lock(pcur, rec, index, offsets,
-						   mode, type, thr, mtr);
+			err = sel_set_rtr_rec_lock(
+				pcur, rec, index, offsets,
+				sel_mode, mode, type, thr, mtr);
 		} else {
 			err = lock_sec_rec_read_check_and_lock(
-				0, block, rec, index, offsets,
+				0, block, rec, index, offsets, sel_mode,
 				static_cast<lock_mode>(mode), type, thr);
 		}
 	}
@@ -1776,6 +1813,7 @@ rec_loop:
 
 			err = sel_set_rec_lock(&plan->pcur,
 					       next_rec, index, offsets,
+					       SELECT_ORDINARY,
 					       node->row_lock_mode,
 					       lock_type, thr, &mtr);
 
@@ -1830,7 +1868,7 @@ skip_lock:
 		}
 
 		err = sel_set_rec_lock(&plan->pcur,
-				       rec, index, offsets,
+				       rec, index, offsets, SELECT_ORDINARY,
 				       node->row_lock_mode, lock_type,
 				       thr, &mtr);
 
@@ -3468,6 +3506,7 @@ row_sel_get_clust_rec_for_mysql(
 		err = lock_clust_rec_read_check_and_lock(
 			0, btr_pcur_get_block(prebuilt->clust_pcur),
 			clust_rec, clust_index, *offsets,
+			prebuilt->select_mode,
 			static_cast<lock_mode>(prebuilt->select_lock_type),
 			LOCK_REC_NOT_GAP,
 			thr);
@@ -5000,6 +5039,7 @@ wait_table_again:
 						  ULINT_UNDEFINED, &heap);
 			err = sel_set_rec_lock(pcur,
 					       next_rec, index, offsets,
+					       prebuilt->select_mode,
 					       prebuilt->select_lock_type,
 					       LOCK_GAP, thr, &mtr);
 
@@ -5008,6 +5048,10 @@ wait_table_again:
 				err = DB_SUCCESS;
 			case DB_SUCCESS:
 				break;
+			case DB_SKIP_LOCKED:
+			case DB_LOCK_NOWAIT:
+				ut_ad(0);
+				goto next_rec;
 			default:
 				goto lock_wait_or_error;
 			}
@@ -5109,6 +5153,7 @@ rec_loop:
 						  ULINT_UNDEFINED, &heap);
 			err = sel_set_rec_lock(pcur,
 					       rec, index, offsets,
+					       prebuilt->select_mode,
 					       prebuilt->select_lock_type,
 					       LOCK_ORDINARY, thr, &mtr);
 
@@ -5117,6 +5162,9 @@ rec_loop:
 				err = DB_SUCCESS;
 			case DB_SUCCESS:
 				break;
+			case DB_SKIP_LOCKED:
+			case DB_LOCK_NOWAIT:
+				ut_ad(0);
 			default:
 				goto lock_wait_or_error;
 			}
@@ -5238,6 +5286,7 @@ wrong_offs:
 				err = sel_set_rec_lock(
 					pcur,
 					rec, index, offsets,
+					prebuilt->select_mode,
 					prebuilt->select_lock_type, LOCK_GAP,
 					thr, &mtr);
 
@@ -5245,6 +5294,9 @@ wrong_offs:
 				case DB_SUCCESS_LOCKED_REC:
 				case DB_SUCCESS:
 					break;
+				case DB_SKIP_LOCKED:
+				case DB_LOCK_NOWAIT:
+					ut_ad(0);
 				default:
 					goto lock_wait_or_error;
 				}
@@ -5276,6 +5328,7 @@ wrong_offs:
 				err = sel_set_rec_lock(
 					pcur,
 					rec, index, offsets,
+					prebuilt->select_mode,
 					prebuilt->select_lock_type, LOCK_GAP,
 					thr, &mtr);
 
@@ -5283,6 +5336,9 @@ wrong_offs:
 				case DB_SUCCESS_LOCKED_REC:
 				case DB_SUCCESS:
 					break;
+				case DB_SKIP_LOCKED:
+				case DB_LOCK_NOWAIT:
+					ut_ad(0);
 				default:
 					goto lock_wait_or_error;
 				}
@@ -5347,6 +5403,7 @@ no_gap_lock:
 
 		err = sel_set_rec_lock(pcur,
 				       rec, index, offsets,
+				       prebuilt->select_mode,
 				       prebuilt->select_lock_type,
 				       lock_type, thr, &mtr);
 
@@ -5361,6 +5418,8 @@ no_gap_lock:
 			err = DB_SUCCESS;
 		case DB_SUCCESS:
 			break;
+		case DB_SKIP_LOCKED:
+			goto next_rec;
 		case DB_LOCK_WAIT:
 			/* Lock wait for R-tree should already
 			be handled in sel_set_rtr_rec_lock() */
@@ -5604,6 +5663,8 @@ requires_clust_rec:
 				goto next_rec;
 			}
 			break;
+		case DB_SKIP_LOCKED:
+			goto next_rec;
 		case DB_SUCCESS_LOCKED_REC:
 			ut_a(clust_rec != NULL);
 			if (trx->allow_semi_consistent()) {
@@ -5933,7 +5994,9 @@ next_rec:
 
 		if (spatial_search) {
 			move = rtr_pcur_move_to_next(
-				search_tuple, mode, pcur, 0, &mtr);
+				search_tuple, mode,
+				prebuilt->select_mode,
+				pcur, 0, &mtr);
 		} else {
 			move = btr_pcur_move_to_next(pcur, &mtr);
 		}

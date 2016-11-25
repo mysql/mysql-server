@@ -1492,10 +1492,12 @@ row_ins_set_shared_rec_lock(
 
 	if (index->is_clustered()) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_S, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_S, type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_S, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_S, type, thr);
 	}
 
 	return(err);
@@ -1523,10 +1525,12 @@ row_ins_set_exclusive_rec_lock(
 
 	if (index->is_clustered()) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_X, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_X, type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_X, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_X, type, thr);
 	}
 
 	return(err);

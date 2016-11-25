@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,12 @@ Created 5/7/1996 Heikki Tuuri
 struct lock_t;
 struct lock_sys_t;
 struct lock_table_t;
+
+enum select_mode {
+	SELECT_ORDINARY,	/* default behaviour */
+	SELECT_SKIP_LOCKED,	/* skip the row if row is locked */
+	SELECT_NOWAIT		/* return immediately if row is locked */
+};
 
 /* Basic lock modes */
 enum lock_mode {

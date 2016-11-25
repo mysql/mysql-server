@@ -611,10 +611,10 @@ static bool multi_delete_link_tables(Parse_context *pc,
       target_tbl->table_name_length= walk->table_name_length;
     }
     walk->updating= target_tbl->updating;
-    walk->lock_type= target_tbl->lock_type;
+    walk->set_lock(target_tbl->lock_descriptor());
     /* We can assume that tables to be deleted from are locked for write. */
-    DBUG_ASSERT(walk->lock_type >= TL_WRITE_ALLOW_WRITE);
-    walk->mdl_request.set_type(mdl_type_for_dml(walk->lock_type));
+    DBUG_ASSERT(walk->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE);
+    walk->mdl_request.set_type(mdl_type_for_dml(walk->lock_descriptor().type));
     target_tbl->correspondent_table= walk;	// Remember corresponding table
   }
   DBUG_RETURN(false);
@@ -917,8 +917,8 @@ bool PT_insert::contextualize(Parse_context *pc)
     lex->duplicates= DUP_UPDATE;
     TABLE_LIST *first_table= lex->select_lex->table_list.first;
     /* Fix lock for ON DUPLICATE KEY UPDATE */
-    if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
-      first_table->lock_type= TL_WRITE_DEFAULT;
+    if (first_table->lock_descriptor().type == TL_WRITE_CONCURRENT_DEFAULT)
+      first_table->set_lock({TL_WRITE_DEFAULT, THR_DEFAULT});
 
     pc->select->parsing_place= CTX_UPDATE_VALUE_LIST;
 
@@ -1462,6 +1462,43 @@ bool PT_create_table_default_collation::contextualize(Parse_context *pc)
 
   create_info->default_table_charset= value;
   create_info->used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+    return false;
+}
+
+
+bool PT_locking_clause::contextualize(Parse_context *pc)
+{
+  LEX *lex= pc->thd->lex;
+
+  if (lex->is_explain())
+    return false;
+
+  if (m_locked_row_action == Locked_row_action::SKIP)
+    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SKIP_LOCKED);
+
+  if (m_locked_row_action == Locked_row_action::NOWAIT)
+    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_NOWAIT);
+
+  lex->safe_to_cache_query= false;
+
+  return set_lock_for_tables(pc);
+}
+
+
+bool PT_query_block_locking_clause::set_lock_for_tables(Parse_context *pc)
+{
+  Local_tables_list local_tables(pc->select->table_list.first);
+  for (TABLE_LIST *table_list : local_tables)
+    if (!table_list->is_derived())
+    {
+      if (table_list->lock_descriptor().type != TL_READ_DEFAULT)
+      {
+        my_error(ER_DUPLICATE_TABLE_LOCK, MYF(0), table_list->alias);
+        return true;
+      }
+
+      pc->select->set_lock_for_table(get_lock_descriptor(), table_list);
+    }
   return false;
 }
 
@@ -1648,4 +1685,29 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd)
   if (contextualize(&pc))
     return NULL;
   return &cmd;
+}
+
+
+bool PT_table_locking_clause::set_lock_for_tables(Parse_context *pc)
+{
+  DBUG_ASSERT(!m_tables.empty());
+  for (Table_ident *table_ident : m_tables)
+  {
+    SELECT_LEX *select= pc->select;
+
+    SQL_I_List<TABLE_LIST> tables= select->table_list;
+    TABLE_LIST *table_list= select->find_table_by_name(table_ident);
+
+    THD *thd= pc->thd;
+
+    if (table_list == NULL)
+      return raise_error(thd, table_ident, ER_UNRESOLVED_TABLE_LOCK);
+
+    if (table_list->lock_descriptor().type != TL_READ_DEFAULT)
+      return raise_error(thd, table_ident, ER_DUPLICATE_TABLE_LOCK);
+
+    select->set_lock_for_table(get_lock_descriptor(), table_list);
+  }
+
+  return false;
 }

@@ -238,6 +238,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_FK_DEPTH_EXCEEDED : return "HA_ERR_FK_DEPTH_EXCEEDED";
   case HA_ERR_INNODB_READ_ONLY: return "HA_ERR_INNODB_READ_ONLY";
   case HA_ERR_COMPUTE_FAILED: return "HA_ERR_COMPUTE_FAILED";
+  case HA_ERR_NO_WAIT_LOCK: return "HA_ERR_NO_WAIT_LOCK";
   }
   return "No Error!";
 }
@@ -10552,7 +10553,7 @@ check_table_map(Relay_log_info const *rli, RPL_TABLE_LIST *table_list)
 
         if (strcmp(ptr->db, table_list->db) || 
             strcmp(ptr->alias, table_list->table_name) || 
-            ptr->lock_type != TL_WRITE) // the ::do_apply_event always sets TL_WRITE
+            ptr->lock_descriptor().type != TL_WRITE) // the ::do_apply_event always sets TL_WRITE
           res= SAME_ID_MAPPING_DIFFERENT_TABLE;
         else
           res= SAME_ID_MAPPING_SAME_TABLE;

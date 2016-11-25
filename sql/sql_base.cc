@@ -2760,8 +2760,8 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
   }
   else if (thd->variables.low_priority_updates &&
            mdl_request->type == MDL_SHARED_WRITE &&
-           (table_list->lock_type == TL_WRITE_DEFAULT ||
-            table_list->lock_type == TL_WRITE_CONCURRENT_DEFAULT))
+           (table_list->lock_descriptor().type == TL_WRITE_DEFAULT ||
+            table_list->lock_descriptor().type == TL_WRITE_CONCURRENT_DEFAULT))
   {
     /*
       We are in @@low_priority_updates=1 mode and are going to acquire
@@ -3042,7 +3042,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
              table->query_id == 0))
         {
           int distance= ((int) table->reginfo.lock_type -
-                         (int) table_list->lock_type);
+                         (int) table_list->lock_descriptor().type);
 
           /*
             Find a table that either has the exact lock type requested,
@@ -4013,7 +4013,7 @@ Locked_tables_list::reopen_tables(THD *thd)
     }
     table_list->table->pos_in_locked_tables= table_list;
     /* See also the comment on lock type in init_locked_tables(). */
-    table_list->table->reginfo.lock_type= table_list->lock_type;
+    table_list->table->reginfo.lock_type= table_list->lock_descriptor().type;
 
     DBUG_ASSERT(reopen_count < m_locked_tables_count);
     m_reopen_array[reopen_count++]= table_list->table;
@@ -5333,7 +5333,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
   */
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
       ! has_prelocking_list &&
-      tables->lock_type >= TL_WRITE_ALLOW_WRITE)
+      tables->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
   {
     bool need_prelocking= FALSE;
     TABLE_LIST **save_query_tables_last= lex->query_tables_last;
@@ -6077,19 +6077,19 @@ restart:
     }
 
     /* Set appropriate TABLE::lock_type. */
-    if (tbl && tables->lock_type != TL_UNLOCK && 
+    if (tbl && tables->lock_descriptor().type != TL_UNLOCK &&
         !thd->locked_tables_mode)
     {
-      if (tables->lock_type == TL_WRITE_DEFAULT)
+      if (tables->lock_descriptor().type == TL_WRITE_DEFAULT)
         tbl->reginfo.lock_type= thd->update_lock_default;
-      else if (tables->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
+      else if (tables->lock_descriptor().type == TL_WRITE_CONCURRENT_DEFAULT)
         tables->table->reginfo.lock_type= thd->insert_lock_default;
-      else if (tables->lock_type == TL_READ_DEFAULT)
+      else if (tables->lock_descriptor().type == TL_READ_DEFAULT)
           tbl->reginfo.lock_type=
             read_lock_type_for_table(thd, thd->lex, tables,
                                      some_routine_modifies_data);
       else
-        tbl->reginfo.lock_type= tables->lock_type;
+        tbl->reginfo.lock_type= tables->lock_descriptor().type;
     }
 
     /*
@@ -6116,7 +6116,7 @@ restart:
         SELECT using a I_S system view with 'FOR UPDATE' and
         'LOCK IN SHARED MODE' clause is not allowed.
       */
-      if (tables->lock_type == TL_READ_WITH_SHARED_LOCKS)
+      if (tables->lock_descriptor().type == TL_READ_WITH_SHARED_LOCKS)
       {
         my_error(ER_IS_QUERY_INVALID_CLAUSE, MYF(0), "LOCK IN SHARE MODE");
         error= TRUE;
@@ -6124,7 +6124,7 @@ restart:
       }
       // Allow I_S system views to be locked by LOCK TABLE command.
       if (thd->lex->sql_command != SQLCOM_LOCK_TABLES &&
-          tables->lock_type >= TL_READ_NO_INSERT)
+          tables->lock_descriptor().type >= TL_READ_NO_INSERT)
       {
         my_error(ER_IS_QUERY_INVALID_CLAUSE, MYF(0), "FOR UPDATE");
         error= TRUE;
@@ -6238,7 +6238,7 @@ handle_table(THD *thd, Query_tables_list *prelocking_ctx,
              TABLE_LIST *table_list, bool *need_prelocking)
 {
   /* We rely on a caller to check that table is going to be changed. */
-  DBUG_ASSERT(table_list->lock_type >= TL_WRITE_ALLOW_WRITE);
+  DBUG_ASSERT(table_list->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE);
 
   if (table_list->trg_event_map)
   {
@@ -6318,7 +6318,7 @@ handle_table(THD *thd, Query_tables_list *prelocking_ctx,
     return TRUE;
 
   /* We rely on a caller to check that table is going to be changed. */
-  DBUG_ASSERT(table_list->lock_type >= TL_WRITE_ALLOW_WRITE);
+  DBUG_ASSERT(table_list->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE);
 
   return FALSE;
 }
@@ -6418,14 +6418,14 @@ static bool check_lock_and_start_stmt(THD *thd,
     Last argument routine_modifies_data for read_lock_type_for_table()
     is ignored, as prelocking placeholder will never be set here.
   */
-  if (table_list->lock_type == TL_WRITE_DEFAULT)
+  if (table_list->lock_descriptor().type == TL_WRITE_DEFAULT)
     lock_type= thd->update_lock_default;
-  else if (table_list->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
+  else if (table_list->lock_descriptor().type == TL_WRITE_CONCURRENT_DEFAULT)
     lock_type= thd->insert_lock_default;
-  else if (table_list->lock_type == TL_READ_DEFAULT)
+  else if (table_list->lock_descriptor().type == TL_READ_DEFAULT)
     lock_type= read_lock_type_for_table(thd, prelocking_ctx, table_list, true);
   else
-    lock_type= table_list->lock_type;
+    lock_type= table_list->lock_descriptor().type;
 
   if ((int) lock_type > (int) TL_WRITE_ALLOW_WRITE &&
       (int) table_list->table->reginfo.lock_type <= (int) TL_WRITE_ALLOW_WRITE)
@@ -6504,7 +6504,7 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
   table_l->next_global= NULL;
 
   /* Set requested lock type. */
-  table_l->lock_type= lock_type;
+  table_l->set_lock({lock_type, THR_DEFAULT});
   /* Allow to open real tables only. */
   table_l->required_type= dd::enum_table_type::BASE_TABLE;
 
@@ -6598,7 +6598,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
       /* purecov: end */
     }
 
-    table_list->lock_type= lock_type;
+    table_list->set_lock({lock_type, THR_DEFAULT});
     table->grant= table_list->grant;
     if (thd->locked_tables_mode)
     {
@@ -6929,7 +6929,7 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         a table that is already used by the calling statement.
       */
       if (thd->locked_tables_mode >= LTM_PRELOCKED &&
-          table->lock_type >= TL_WRITE_ALLOW_WRITE)
+          table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
       {
         for (TABLE* opentab= thd->open_tables; opentab; opentab= opentab->next)
         {
@@ -10375,7 +10375,8 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
   thd->reset_n_backup_open_tables_state(backup,
                                         Open_tables_state::SYSTEM_TABLES);
 
-  if ((table= open_ltable(thd, one_table, one_table->lock_type, flags)))
+  if ((table= open_ltable(thd, one_table, one_table->lock_descriptor().type,
+                          flags)))
   {
     DBUG_ASSERT(table->s->table_category == TABLE_CATEGORY_LOG);
     /* Make sure all columns get assigned to a default value */

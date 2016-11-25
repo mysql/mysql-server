@@ -105,7 +105,7 @@ ERROR 42000: Incorrect argument type to variable 'optimizer_prune_level'
 SET @@session.optimizer_prune_level = ON;
 ERROR 42000: Incorrect argument type to variable 'optimizer_prune_level'
 SET @@session.optimizer_prune_level = OF;
-ERROR 42000: Incorrect argument type to variable 'optimizer_prune_level'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@session.optimizer_prune_level = 'OFN';
 ERROR 42000: Incorrect argument type to variable 'optimizer_prune_level'
 SET @@session.optimizer_prune_level = -2;
