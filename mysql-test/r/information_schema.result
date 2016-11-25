@@ -96,6 +96,7 @@ SHOW_STATISTICS_DYNAMIC
 STATISTICS
 STATISTICS_BASE
 STATISTICS_DYNAMIC
+ST_SPATIAL_REFERENCE_SYSTEMS
 TABLES
 TABLESPACES
 TABLES_DYNAMIC
@@ -868,7 +869,7 @@ table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
-information_schema	36
+information_schema	37
 mysql	30
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1343,6 +1344,7 @@ SHOW_STATISTICS_DYNAMIC	information_schema.SHOW_STATISTICS_DYNAMIC	1
 STATISTICS	information_schema.STATISTICS	1
 STATISTICS_BASE	information_schema.STATISTICS_BASE	1
 STATISTICS_DYNAMIC	information_schema.STATISTICS_DYNAMIC	1
+ST_SPATIAL_REFERENCE_SYSTEMS	information_schema.ST_SPATIAL_REFERENCE_SYSTEMS	1
 TABLES	information_schema.TABLES	1
 TABLESPACES	information_schema.TABLESPACES	1
 TABLES_DYNAMIC	information_schema.TABLES_DYNAMIC	1

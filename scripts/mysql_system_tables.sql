@@ -380,6 +380,18 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLLATION_C
   FROM mysql.character_sets cs JOIN mysql.collations col ON cs.id = col.character_set_id;
 
 --
+-- INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.ST_SPATIAL_REFERENCE_SYSTEMS AS
+  SELECT name AS SRS_NAME,
+         id AS SRS_ID,
+         organization AS ORGANIZATION,
+         organization_coordsys_id AS ORGANIZATION_COORDSYS_ID,
+         definition AS DEFINITION,
+         description AS DESCRIPTION
+  FROM mysql.st_spatial_reference_systems;
+
+--
 -- INFORMATION_SCHEMA.SCHEMATA
 --
 SET @str=CONCAT("
