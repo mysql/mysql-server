@@ -73,9 +73,6 @@ SET(SQL_EMBEDDED_SOURCES
   ../libmysql/libmysql.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
-  ../sql-common/my_time.c 
-  ../sql-common/my_user.c
-  ../sql-common/pack.c
   ../sql-common/sql_string.cc
   ../libbinlogevents/src/statement_events.cpp
   ../libbinlogevents/src/control_events.cpp

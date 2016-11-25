@@ -1,5 +1,4 @@
-/* Copyright (c) 2006-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -14,9 +13,9 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_user.h>
-#include <m_string.h>
-#include <mysql_com.h>
+#include "my_user.h"
+#include "m_string.h"
+#include "mysql_com.h"
 
 /*
   Parse user value to user name and host name parts.
@@ -36,7 +35,7 @@ void parse_user(const char *user_id_str, size_t user_id_len,
                 char *user_name_str, size_t *user_name_len,
                 char *host_name_str, size_t *host_name_len)
 {
-  char *p= strrchr(user_id_str, '@');
+  const char *p= strrchr(user_id_str, '@');
 
   if (!p)
   {

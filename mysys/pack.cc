@@ -13,9 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include <mysql_com.h>
-#include <mysql.h>
+#include "my_global.h"
+#include "mysql_com.h"
+#include "mysql.h"
 #include "my_byteorder.h"
 
 /* Get the length of next field. Change parameter to point at fieldstart */

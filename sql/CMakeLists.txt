@@ -393,9 +393,6 @@ SET(SQL_SOURCE
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
-  ../sql-common/my_time.c
-  ../sql-common/my_user.c 
-  ../sql-common/pack.c
   ../sql-common/client_authentication.cc
   ../sql-common/sql_string.cc 
   command_service.cc

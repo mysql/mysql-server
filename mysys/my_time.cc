@@ -13,14 +13,14 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <m_ctype.h>
-#include <m_string.h>
-/* Windows version of localtime_r() is declared in my_global.h */
-#include <my_global.h>
-#include <my_time.h>
-#include <myisampack.h>
+#include "my_time.h"
+
 #include <stdio.h>
 
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_global.h"
+#include "myisampack.h"
 #include "binary_log_types.h"
 
 ulonglong log_10_int[20]=

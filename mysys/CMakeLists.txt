@@ -88,8 +88,11 @@ SET(MYSYS_SOURCES
   my_syslog.cc
   my_thread.cc
   my_thr_init.cc
+  my_time.cc
   my_timespec.cc
+  my_user.cc
   my_write.cc
+  pack.cc
   psi_noop.cc
   ptr_cmp.cc
   sql_chars.cc
