@@ -24,7 +24,6 @@
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
-%{!?with_systemd:                %global systemd 0}
 %{!?with_debuginfo:              %global nodebuginfo 1}
 %{!?product_suffix:              %global product_suffix community}
 %{!?feature_set:                 %global feature_set community}
@@ -69,9 +68,6 @@ Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
-Source1:        mysql-systemd-start
-Source2:        mysqld.service
-Source3:        mysql.conf
 Source4:        my_config.h
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
@@ -81,9 +77,6 @@ BuildRequires:  libaio-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
-%if 0%{?systemd}
-BuildRequires:  systemd
-%endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
@@ -141,15 +134,9 @@ Obsoletes:      mariadb-server
 Obsoletes:      mariadb-galera-server
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql-tools = %{version}-%{release}
-%if 0%{?systemd}
-Requires(post):   systemd
-Requires(preun):  systemd
-Requires(postun): systemd
-%else
 PreReq:         insserv
 PreReq:         sed
 PreReq:         pwdutils
-%endif
 Conflicts:      otherproviders(mysql)
 Conflicts:      otherproviders(mysql-debug)
 Conflicts:      otherproviders(mysql-tools)
@@ -435,13 +422,7 @@ make DESTDIR=%{buildroot} install
 install -D -m 0644 $MBD/release/support-files/mysql-log-rotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
 install -D -m 0644 $MBD/release/packaging/rpm-sles/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
-%if 0%{?systemd}
-install -D -m 0755 %{SOURCE1} %{buildroot}%{_bindir}/mysql-systemd-start
-install -D -m 0644 %{SOURCE2} %{buildroot}%{_unitdir}/mysqld.service
-%else
 install -D -m 0755 $MBD/release/packaging/rpm-sles/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysql
-%endif
-install -D -m 0644 %{SOURCE3} %{buildroot}%{_prefix}/lib/tmpfiles.d/mysql.conf
 
 # Make library links
 install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
@@ -461,9 +442,6 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -f  %{buildroot}%{_datadir}/mysql/{ndb-config-2-node,config*}.ini
 rm -f  %{buildroot}%{_datadir}/mysql/my-*.cnf
-%if 0%{?systemd}
-rm -rf %{buildroot}%{_sysconfdir}/init.d/mysql
-%endif
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -rf %{buildroot}%{_bindir}/mysql_setpermission
 rm -rf %{buildroot}%{_mandir}/man1/mysql_setpermission.1*
@@ -496,31 +474,18 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 /bin/chmod 0755 "$datadir"
 /bin/touch /var/log/mysql/mysqld.log
 /bin/chown mysql:mysql /var/log/mysql/mysqld.log >/dev/null 2>&1 || :
-%if 0%{?systemd}
-%systemd_post mysqld.service
-/sbin/service mysqld enable >/dev/null 2>&1 || :
-%else
 /sbin/insserv /etc/init.d/mysql
-%endif
 
 %preun server
-%if 0%{?systemd}
-%systemd_preun mysqld.service
-%else
 if [ "$1" -eq 0 ]; then
     /usr/sbin/rcmysql stop >/dev/null 2>&1 || :
     /sbin/insserv /etc/init.d
 fi
-%endif
 
 %postun server
-%if 0%{?systemd}
-%systemd_postun_with_restart mysqld.service
-%else
 if [ $1 -ge 1 ]; then
     /usr/sbin/rcmysql condrestart >/dev/null 2>&1 || :
 fi
-%endif
 
 %post libs -p /sbin/ldconfig
 
@@ -596,9 +561,6 @@ fi
 %attr(755, root, root) %{_bindir}/replace
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
-%if 0%{?systemd}
-%attr(755, root, root) %{_bindir}/mysql-systemd-start
-%endif
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
@@ -629,12 +591,7 @@ fi
 %attr(644, root, root) %{_datadir}/mysql/mysql_test_data_timezone.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql-log-rotate
 %attr(644, root, root) %{_datadir}/mysql/magic
-%attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
-%if 0%{?systemd}
-%attr(644, root, root) %{_unitdir}/mysqld.service
-%else
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
-%endif
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %dir %attr(755, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysql
