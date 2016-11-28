@@ -13,7 +13,7 @@ install_db () {
     datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
     
     # Restore log, dir, perms and SELinux contexts
-    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(basedir "$datadir")" = "x/var/lib" ]; then
+    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
        install -d -m 0755 -omysql -gmysql "$datadir" || exit 1
     fi
     log=/var/log/mysql/mysqld.log
