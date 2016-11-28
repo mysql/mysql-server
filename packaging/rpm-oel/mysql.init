@@ -90,10 +90,10 @@ start(){
 	[ -x /sbin/restorecon ] && /sbin/restorecon "$errlogfile"
 	if [ ! -d "$datadir/mysql" ] ; then
 	    # First, make sure $datadir is there with correct permissions
-	    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(basedir "$datadir")" = "x/var/lib" ]; then
+	    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
 		install -d -m0751 -omysql -gmysql "$datadir" || exit 1
 	    fi
-	    if [ ! -h "$datadir" -a "x$(basedir "$datadir")" = "x/var/lib" ]; then
+	    if [ ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
 		chown mysql:mysql "$datadir"
 		chmod 0751 "$datadir"
 	    fi
@@ -121,7 +121,7 @@ start(){
 		/usr/bin/mysql_ssl_rsa_setup --datadir="$datadir" --uid=mysql >/dev/null 2>&1
 	    fi
 	fi
-	if [ ! -h "$datadir" -a "x$(basedir "$datadir")" = "x/var/lib" ]; then
+	if [ ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
 	    chown mysql:mysql "$datadir"
 	    chmod 0751 "$datadir"
 	fi
