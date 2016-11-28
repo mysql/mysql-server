@@ -61,6 +61,11 @@ sql_authenticate
 #include <openssl/err.h>
 #endif
 
+#ifndef DBUG_OFF
+#define HASH_STRING_WITH_QUOTE \
+        "$5$BVZy9O>'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4"
+#endif
+
 using std::min;
 using std::max;
 
@@ -1099,6 +1104,32 @@ static bool update_user_table(THD *, TABLE *table, const char *host,
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
 static inline void get_grantor(THD *thd, char* grantor);
+
+/**
+  Escapes special characters in the unescaped string, taking into account
+  the current character set and sql mode.
+
+  @param thd    [in]  The thd structure.
+  @param to     [out] Escaped string output buffer.
+  @param from   [in]  String to escape.
+  @param length [in]  String to escape length.
+
+  @return Result value.
+    @retval != (ulong)-1 Succeeded. Number of bytes written to the output
+                         buffer without the '\0' character.
+    @retval (ulong)-1    Failed.
+*/
+
+inline ulong escape_string_mysql(THD *thd, char *to, const char *from,
+                                 ulong length)
+{
+    if (!(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES))
+      return (uint)escape_string_for_mysql(system_charset_info, to, 0, from,
+                                           length);
+    else
+      return (uint)escape_quotes_for_mysql(system_charset_info, to, 0, from,
+                                           length);
+}
 
 /*
  Enumeration of various ACL's and Hashes used in handle_grant_struct()
@@ -2631,12 +2662,13 @@ bool change_password(THD *thd, const char *host, const char *user,
   TABLE *table;
   Acl_table_intact table_intact;
   /* Buffer should be extended when password length is extended. */
-  char buff[512];
+  char buff[2048];
   ulong query_length;
   bool save_binlog_row_based;
   uchar user_key[MAX_KEY_LENGTH];
   char *plugin_temp= NULL;
   bool plugin_empty;
+  char *new_escaped_password= NULL;
   uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
   enum mysql_user_table_field password_field= MYSQL_USER_FIELD_PASSWORD;
@@ -2912,10 +2944,29 @@ bool change_password(THD *thd, const char *host, const char *user,
   acl_cache->clear(1);				// Clear locked hostname cache
   mysql_mutex_unlock(&acl_cache->lock);
   result= 0;
+  /*
+     Before writing the query to binlog, correctly escape the password
+     string so that the slave can parse it correctly.
+  */
+
+  new_escaped_password= (char *)alloc_root(thd->mem_root, (new_password_len*2+1));
+  if (!new_escaped_password)
+  {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
+    result= 1;
+    goto end;
+  }
+
+  DBUG_EXECUTE_IF("force_hash_string_with_quote",
+                   strcpy(new_password, HASH_STRING_WITH_QUOTE);
+                 );
+
+  escape_string_mysql(thd, new_escaped_password, new_password, new_password_len);
+
   query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
                         acl_user->user ? acl_user->user : "",
                         acl_user->host.get_host() ? acl_user->host.get_host() : "",
-                        new_password);
+                        new_escaped_password);
   result= write_bin_log(thd, true, buff, query_length,
                         table->file->has_transactions());
 end:
