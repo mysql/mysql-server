@@ -97,4 +97,7 @@ cmd: testNdbApi
 args: -n CheckSlowCommit T1
 max-time : 180
 
+cmd: testNodeRestart
+args: -n StartDuringNodeRestart T1
+max-time : 300
 

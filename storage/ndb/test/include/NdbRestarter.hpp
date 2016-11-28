@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,8 @@ public:
 		       bool initial = false, 
 		       bool nostart = false, 
 		       bool abort = false,
-                       bool force = false);
+                       bool force = false,
+                       bool captureError = false);
 
   int restartOneDbNode2(int _nodeId, Uint32 flags){
     return restartOneDbNode(_nodeId,
@@ -62,7 +63,15 @@ public:
                       flags & NRRF_FORCE);
   }
 
-  int restartNodes(int * nodes, int num_nodes, Uint32 flags);
+  int restartAll3(bool initial = false,
+       bool nostart = false,
+       bool abort = false,
+       bool force = false);
+
+  int restartNodes(int * nodes,
+                   int num_nodes,
+                   Uint32 flags,
+                   bool captureError = false);
   
   int startAll();
   int startNodes(const int * _nodes, int _num_nodes);

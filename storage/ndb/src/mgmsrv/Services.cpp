@@ -990,7 +990,7 @@ MgmApiSession::restartAll(Parser<MgmApiSession>::Context &,
 
   m_output->println("restart reply");
   if(result != 0)
-    m_output->println("result: %s", get_error_text(result));
+    m_output->println("result: %d-%s", result, get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("restarted: %d", count);
