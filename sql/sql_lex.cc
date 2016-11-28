@@ -1336,9 +1336,7 @@ static bool consume_comment(Lex_input_stream *lip,
   @note
   MYSQLlex remember the following states from the following MYSQLlex():
 
-  - MY_LEX_EOQ			Found end of query
-  - MY_LEX_OPERATOR_OR_IDENT	Last state was an ident, text or number
-				(which can't be followed by a signed number)
+  - MY_LEX_END			Found end of query
 */
 
 int MYSQLlex(YYSTYPE *yylval, YYLTYPE *yylloc, THD *thd)
@@ -1429,11 +1427,10 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 
   lip->start_token();
   state=lip->next_state;
-  lip->next_state=MY_LEX_OPERATOR_OR_IDENT;
+  lip->next_state=MY_LEX_START;
   for (;;)
   {
     switch (state) {
-    case MY_LEX_OPERATOR_OR_IDENT:	// Next is operator or keyword
     case MY_LEX_START:			// Start of token
       // Skip starting whitespace
       while(state_map[c= lip->yyPeek()] == MY_LEX_SKIP)
@@ -1449,13 +1446,6 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       c= lip->yyGet();
       state= state_map[c];
       break;
-    case MY_LEX_ESCAPE:
-      if (lip->yyGet() == 'N')
-      {					// Allow \N as shortcut for NULL
-	yylval->lex_str.str=(char*) "\\N";
-	yylval->lex_str.length=2;
-	return NULL_SYM;
-      }
     case MY_LEX_CHAR:			// Unknown or single char token
     case MY_LEX_SKIP:			// This should not happen
       if (c == '-' && lip->yyPeek() == '-' &&
@@ -2120,7 +2110,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       lip->yySkip();                                    // Skip '@'
       lip->next_state= (state_map[lip->yyPeek()] ==
 			MY_LEX_USER_VARIABLE_DELIMITER ?
-			MY_LEX_OPERATOR_OR_IDENT :
+			MY_LEX_START :
 			MY_LEX_IDENT_OR_KEYWORD);
       return((int) '@');
     case MY_LEX_IDENT_OR_KEYWORD:

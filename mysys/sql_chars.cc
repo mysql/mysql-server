@@ -100,7 +100,6 @@ my_bool init_state_maps(charset_info_st *cs)
   state_map[(uchar)';']= MY_LEX_SEMICOLON;
   state_map[(uchar)':']= MY_LEX_SET_VAR;
   state_map[0]= MY_LEX_EOL;
-  state_map[(uchar)'\\']= MY_LEX_ESCAPE;
   state_map[(uchar)'/']= MY_LEX_LONG_COMMENT;
   state_map[(uchar)'*']= MY_LEX_END_LONG_COMMENT;
   state_map[(uchar)'@']= MY_LEX_USER_END;

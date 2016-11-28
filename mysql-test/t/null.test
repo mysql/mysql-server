@@ -7,8 +7,8 @@ drop table if exists t1, t2;
 # Testing of NULL in a lot of different places
 #
 
-select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
-explain extended select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
+select null,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
+explain extended select null,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
 select 1 | NULL,1 & NULL,1+NULL,1-NULL;
 select NULL=NULL,NULL<>NULL,IFNULL(NULL,1.1)+0,IFNULL(NULL,1) | 0;
 select strcmp("a",NULL),(1<NULL)+0.0,NULL regexp "a",null like "a%","a%" like null;
@@ -262,3 +262,10 @@ DESCRIBE t2;
 DROP TABLE t1, t2;
 
 --echo # End of 5.0 tests
+
+--echo #
+--echo # WL#7247: Removal of \N
+--echo #
+
+--error ER_PARSE_ERROR
+SELECT \N;
