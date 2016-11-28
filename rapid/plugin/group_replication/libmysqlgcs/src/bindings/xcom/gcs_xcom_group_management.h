@@ -16,7 +16,7 @@
 #ifndef GCS_XCOM_GROUP_MANAGEMENT_INCLUDED
 #define GCS_XCOM_GROUP_MANAGEMENT_INCLUDED
 
-#include "gcs_group_management_interface.h" // Base class: Gcs_group_management_interface
+#include "mysql/gcs/gcs_group_management_interface.h" // Base class: Gcs_group_management_interface
 #include "gcs_xcom_utils.h"
 #include "gcs_xcom_state_exchange.h"
 

@@ -17,9 +17,8 @@
 
 #include <assert.h>
 #include <time.h>
-#include <xplatform/byteorder.h>
 
-#include "gcs_logging.h"
+#include "mysql/gcs/gcs_logging.h"
 #include "gcs_xcom_communication_interface.h"
 #include "synode_no.h"
 
@@ -27,6 +26,12 @@
 #include<iterator>
 #endif
 
+#include "mysql/gcs/xplatform/byteorder.h"
+
+#include "gcs_xcom_state_exchange.h"
+#include "gcs_xcom_communication_interface.h"
+
+#include "synode_no.h"
 
 Xcom_member_state::Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
                                      synode_no configuration_id,

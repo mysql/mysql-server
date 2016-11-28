@@ -22,8 +22,10 @@
 #include <queue>
 #include <vector>
 
+#include "mysql/gcs/gcs_log_system.h"
+
+#include "gcs_xcom_interface.h"
 #include "gcs_internal_message.h"
-#include "gcs_log_system.h"
 #include "gcs_message_stage_lz4.h"
 #include "gcs_message_stages.h"
 #include "gcs_xcom_group_member_information.h"

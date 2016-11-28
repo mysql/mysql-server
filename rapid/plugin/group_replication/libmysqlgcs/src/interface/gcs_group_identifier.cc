@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "gcs_group_identifier.h"
+#include "mysql/gcs/gcs_group_identifier.h"
 
 Gcs_group_identifier::Gcs_group_identifier(const std::string &gid)
   : group_id(gid)

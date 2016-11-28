@@ -17,11 +17,14 @@
 #define GCS_XCOM_NOTIFICATION_INCLUDED
 
 #include <queue>
-#include "xplatform/my_xp_thread.h"
-#include "xplatform/my_xp_mutex.h"
-#include "xplatform/my_xp_cond.h"
-#include "gcs_control_interface.h"
+
+#include "mysql/gcs/xplatform/my_xp_thread.h"
+#include "mysql/gcs/xplatform/my_xp_mutex.h"
+#include "mysql/gcs/xplatform/my_xp_cond.h"
+#include "mysql/gcs/gcs_control_interface.h"
+
 #include "gcs_xcom_utils.h"
+
 #include "xcom_vp.h"
 
 /**

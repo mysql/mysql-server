@@ -13,10 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <cstdlib>
+
 #include "gcs_xcom_group_member_information.h"
 #include "gcs_xcom_utils.h"
-
-#include <cstdlib>
 
 Gcs_xcom_group_member_information::
 Gcs_xcom_group_member_information(std::string member_address)

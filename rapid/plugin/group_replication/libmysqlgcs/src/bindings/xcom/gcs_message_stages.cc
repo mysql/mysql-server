@@ -15,14 +15,17 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "gcs_message_stages.h"
 #include <assert.h>
-#include "gcs_internal_message.h"
-#include "gcs_logging.h"
-#include <mysql/gcs/xplatform/byteorder.h>
+
 #include <sstream>
 #include <iostream>
 #include <map>
+
+#include "mysql/gcs/xplatform/byteorder.h"
+#include "mysql/gcs/gcs_logging.h"
+
+#include "gcs_internal_message.h"
+#include "gcs_message_stages.h"
 
 /*
   There will be a compile warning on os << type_code if no explicit type cast.

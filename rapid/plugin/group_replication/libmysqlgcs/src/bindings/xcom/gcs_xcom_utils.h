@@ -16,30 +16,30 @@
 #ifndef GCS_XCOM_UTILS_INCLUDED
 #define GCS_XCOM_UTILS_INCLUDED
 
-#include "xplatform/my_xp_thread.h"
-#include "xplatform/my_xp_mutex.h"
-#include "xplatform/my_xp_cond.h"
-#include "xplatform/my_xp_util.h"
+#include "mysql/gcs/xplatform/my_xp_thread.h"
+#include "mysql/gcs/xplatform/my_xp_mutex.h"
+#include "mysql/gcs/xplatform/my_xp_cond.h"
+#include "mysql/gcs/xplatform/my_xp_util.h"
 
-#include "gcs_member_identifier.h"
-#include "gcs_group_identifier.h"
-#include "gcs_types.h"
+#include "mysql/gcs/gcs_member_identifier.h"
+#include "mysql/gcs/gcs_group_identifier.h"
+#include "mysql/gcs/gcs_types.h"
 #include "gcs_xcom_group_member_information.h"
 
-#include "simset.h"
-#include "xcom_vp.h"
-#include "xcom_common.h"
-#include "node_list.h"
-#include "node_set.h"
-#include "task.h"
-#include "server_struct.h"
-#include "xcom_detector.h"
-#include "site_struct.h"
-#include "site_def.h"
-#include "xcom_transport.h"
-#include "xcom_base.h"
-#include "task_net.h"
-#include "node_connection.h"
+#include <simset.h>
+#include <xcom_vp.h>
+#include <xcom_common.h>
+#include <node_list.h>
+#include <node_set.h>
+#include <task.h>
+#include <server_struct.h>
+#include <xcom_detector.h>
+#include <site_struct.h>
+#include <site_def.h>
+#include <xcom_transport.h>
+#include <xcom_base.h>
+#include <task_net.h>
+#include <node_connection.h>
 #include "node_no.h"
 
 #include <vector>

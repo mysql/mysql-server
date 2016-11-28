@@ -16,7 +16,7 @@
 #ifndef MY_XP_UTIL_INCLUDED
 #define MY_XP_UTIL_INCLUDED
 
-#include <mysql/gcs/mysql_gcs.h>
+#include "mysql/gcs/mysql_gcs.h"
 
 #ifdef _WIN32
 #include <windows.h>

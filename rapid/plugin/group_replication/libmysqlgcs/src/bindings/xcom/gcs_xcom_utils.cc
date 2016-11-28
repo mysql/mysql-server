@@ -28,8 +28,9 @@
 #include <set>
 #include <sstream>
 
-#include "gcs_group_identifier.h"
-#include "gcs_logging.h"
+#include "mysql/gcs/gcs_group_identifier.h"
+#include "mysql/gcs/gcs_logging.h"
+
 #include "gcs_message_stage_lz4.h"
 #include "gcs_xcom_networking.h"
 #include "task_net.h"

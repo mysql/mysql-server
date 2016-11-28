@@ -40,9 +40,6 @@ ENDIF()
 # XDR related checks
 #
 
-SET (XCOM_BASEDIR
-     ${CMAKE_CURRENT_SOURCE_DIR}/libmysqlgcs/src/bindings/xcom/xcom/)
-
 IF (WIN32)
   # On windows we bundle the rpc header and some code as well
   SET (CMAKE_REQUIRED_INCLUDES ${XCOM_BASEDIR}/windeps/sunrpc

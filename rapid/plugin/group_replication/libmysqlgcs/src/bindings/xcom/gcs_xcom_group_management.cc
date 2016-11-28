@@ -13,10 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "gcs_xcom_group_management.h"
+#include "mysql/gcs/gcs_logging.h"
 
+#include "gcs_xcom_group_management.h"
 #include "gcs_xcom_utils.h"
-#include "gcs_logging.h"
 
 Gcs_xcom_group_management::
 Gcs_xcom_group_management(Gcs_xcom_proxy *xcom_proxy,

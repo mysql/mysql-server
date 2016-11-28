@@ -16,8 +16,9 @@
 #ifndef MY_XP_COND_INCLUDED
 #define MY_XP_COND_INCLUDED
 
-#include <xplatform/my_xp_mutex.h>
-#include <xplatform/my_xp_util.h>
+#include "mysql/gcs/xplatform/my_xp_mutex.h"
+#include "mysql/gcs/xplatform/my_xp_util.h"
+
 #include <time.h>
 #include <errno.h>
 #include <stdlib.h>

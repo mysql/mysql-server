@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string>
 #include <string.h>
-#include <mysql/gcs/xplatform/byteorder.h>
+#include "mysql/gcs/xplatform/byteorder.h"
 
 const int Gcs_internal_message_header::GCS_PROTO_VERSION= 1;
 

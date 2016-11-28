@@ -25,7 +25,7 @@
 #define BYTEORDER_INCLUDED
 
 #include <stdint.h>
-#include <mysql/gcs/mysql_gcs.h>
+#include "mysql/gcs/mysql_gcs.h"
 
 /*
   Methods for reading and storing in machine independent

@@ -16,7 +16,7 @@
 #include <assert.h>
 #include <stddef.h>
 
-#include "gcs_logging.h"
+#include "mysql/gcs/gcs_logging.h"
 #include "gcs_xcom_notification.h"
 #include "my_compiler.h"
 

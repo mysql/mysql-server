@@ -19,7 +19,7 @@
 /* Reasonable initial cache limit */
 #define CACHE_LIMIT 1000000000ULL
 
-cfg_app_xcom_st* the_app_xcom_cfg;
+cfg_app_xcom_st* the_app_xcom_cfg= NULL;
 
 void init_cfg_app_xcom()
 {

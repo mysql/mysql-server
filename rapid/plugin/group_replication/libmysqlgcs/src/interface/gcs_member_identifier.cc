@@ -13,12 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <xplatform/my_xp_util.h>
-#include <xplatform/byteorder.h>
+#include "mysql/gcs/xplatform/my_xp_util.h"
+#include "mysql/gcs/xplatform/byteorder.h"
 #include <cstring>
 #include <assert.h>
 
-#include "gcs_member_identifier.h"
+#include "mysql/gcs/gcs_member_identifier.h"
 
 Gcs_member_identifier::Gcs_member_identifier(const std::string &id):
   m_member_id(id), m_uuid(Gcs_uuid::create_uuid())
