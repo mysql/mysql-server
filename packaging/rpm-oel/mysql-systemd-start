@@ -22,7 +22,7 @@ install_db () {
     datadir=$(get_option mysqld datadir "/var/lib/mysql")
 
     # Restore log, dir, perms and SELinux contexts
-    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(basedir "$datadir")" = "x/var/lib" ]; then
+    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
 	install -d -m 0755 -omysql -gmysql "$datadir" || exit 1
     fi
     log=/var/log/mysqld.log
