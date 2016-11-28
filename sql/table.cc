@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2998,11 +2998,7 @@ bool check_column_name(const char *name)
                                and type)
 
   @retval  FALSE  OK
-  @retval  TRUE   There was an error. An error message is output
-                  to the error log.  We do not push an error
-                  message into the error stack because this
-                  function is currently only called at start up,
-                  and such errors never reach the user.
+  @retval  TRUE   There was an error.
 */
 
 bool
@@ -3091,28 +3087,28 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       if (strncmp(sql_type.c_ptr_safe(), field_def->type.str,
                   field_def->type.length - 1))
       {
-        report_error(0, "Incorrect definition of table %s.%s: "
-                     "expected column '%s' at position %d to have type "
-                     "%s, found type %s.", table->s->db.str, table->alias,
-                     field_def->name.str, i, field_def->type.str,
+        report_error(ER_CANNOT_LOAD_FROM_TABLE, "Incorrect definition of "
+                     "table %s.%s: expected column '%s' at position %d to "
+                     "have type %s, found type %s.", table->s->db.str,
+                     table->alias, field_def->name.str, i, field_def->type.str,
                      sql_type.c_ptr_safe());
         error= TRUE;
       }
       else if (field_def->cset.str && !field->has_charset())
       {
-        report_error(0, "Incorrect definition of table %s.%s: "
-                     "expected the type of column '%s' at position %d "
-                     "to have character set '%s' but the type has no "
-                     "character set.", table->s->db.str, table->alias,
+        report_error(ER_CANNOT_LOAD_FROM_TABLE, "Incorrect definition of "
+                     "table %s.%s: expected the type of column '%s' at "
+                     "position %d to have character set '%s' but the type "
+                     "has no character set.", table->s->db.str, table->alias,
                      field_def->name.str, i, field_def->cset.str);
         error= TRUE;
       }
       else if (field_def->cset.str &&
                strcmp(field->charset()->csname, field_def->cset.str))
       {
-        report_error(0, "Incorrect definition of table %s.%s: "
-                     "expected the type of column '%s' at position %d "
-                     "to have character set '%s' but found "
+        report_error(ER_CANNOT_LOAD_FROM_TABLE, "Incorrect definition of "
+                     "table %s.%s: expected the type of column '%s' at "
+                     "position %d to have character set '%s' but found "
                      "character set '%s'.", table->s->db.str, table->alias,
                      field_def->name.str, i, field_def->cset.str,
                      field->charset()->csname);
@@ -3121,11 +3117,11 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     }
     else
     {
-      report_error(0, "Incorrect definition of table %s.%s: "
-                   "expected column '%s' at position %d to have type %s "
-                   " but the column is not found.",
-                   table->s->db.str, table->alias,
-                   field_def->name.str, i, field_def->type.str);
+      report_error(ER_CANNOT_LOAD_FROM_TABLE, "Incorrect definition of "
+                   "table %s.%s: expected column '%s' at position %d to "
+                   "have type %s but the column is not found.",
+                   table->s->db.str, table->alias, field_def->name.str, i,
+                   field_def->type.str);
       error= TRUE;
     }
   }
