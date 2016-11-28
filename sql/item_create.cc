@@ -1141,19 +1141,6 @@ public:
 };
 
 
-class Distance_sphere_instantiator
-{
-public:
-  static const uint Min_argcount= 2;
-  static const uint Max_argcount= 3;
-
-  Item *instantiate(THD *thd, PT_item_list *args)
-  {
-    return new (thd->mem_root) Item_func_distance(POS(), args, true);
-  }
-};
-
-
 /// @} (end of group Instantiators)
 
 
@@ -1728,7 +1715,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_DIMENSION") }, SQL_FN(Item_func_dimension, 1) },
   { { C_STRING_WITH_LEN("ST_DISJOINT") }, SQL_FACTORY(St_disjoint_instantiator) },
   { { C_STRING_WITH_LEN("ST_DISTANCE") }, SQL_FN_LIST(Item_func_distance, 2) },
-  { { C_STRING_WITH_LEN("ST_DISTANCE_SPHERE") }, SQL_FACTORY(Distance_sphere_instantiator) },
+  { { C_STRING_WITH_LEN("ST_DISTANCE_SPHERE") }, SQL_FN_V_LIST(Item_func_distance_sphere, 2, 3) },
   { { C_STRING_WITH_LEN("ST_ENDPOINT") }, SQL_FN(Item_func_endpoint, 1) },
   { { C_STRING_WITH_LEN("ST_ENVELOPE") }, SQL_FN(Item_func_envelope, 1) },
   { { C_STRING_WITH_LEN("ST_EQUALS") }, SQL_FACTORY(St_equals_instantiator) },
