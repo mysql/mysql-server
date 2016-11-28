@@ -2535,7 +2535,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
     if (tables[3].table)
     {
-      if ((error= replace_column_table(grant_table,
+      if ((error= replace_column_table(thd, grant_table,
              tables[ACL_TABLES::TABLE_COLUMNS_PRIV].table, *Str,
              columns,
              db_name, table_name,
@@ -3040,8 +3040,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       ulong db_rights= rights & DB_ACLS;
       if (db_rights  == rights)
       {
-        if ((ret= replace_db_table(tables[ACL_TABLES::TABLE_DB].table, db, *Str, db_rights,
-                                   revoke_grant)))
+        if ((ret= replace_db_table(thd, tables[ACL_TABLES::TABLE_DB].table, db, *Str,
+                                   db_rights, revoke_grant)))
         {
           result= true;
           if (ret < 0)
@@ -4318,6 +4318,7 @@ void roles_graphml(THD *thd, String *str)
 /**
   Remove db access privileges.
 
+  @param thd    Current thread execution context.
   @param table  Pointer to a TABLE object for opened table mysql.db.
   @param lex_user  User information.
 
@@ -4328,7 +4329,8 @@ void roles_graphml(THD *thd, String *str)
     @retval  < 0  Engine error.
 */
 
-static int remove_db_access_privileges(TABLE *table, const LEX_USER &lex_user)
+static int remove_db_access_privileges(THD *thd, TABLE *table,
+                                       const LEX_USER &lex_user)
 {
   ACL_DB *acl_db;
   int revoked, result= 0;
@@ -4351,7 +4353,7 @@ static int remove_db_access_privileges(TABLE *table, const LEX_USER &lex_user)
       if (!strcmp(lex_user.user.str, user) &&
           !strcmp(lex_user.host.str, host))
       {
-        int ret= replace_db_table(table, acl_db->db, lex_user,
+        int ret= replace_db_table(thd, table, acl_db->db, lex_user,
                                   ~(ulong)0, true);
         if (!ret)
         {
@@ -4452,7 +4454,7 @@ static int remove_column_access_privileges(THD *thd,
             continue;
           }
           List<LEX_COLUMN> columns;
-          ret= replace_column_table(grant_table, columns_priv_table,
+          ret= replace_column_table(thd, grant_table, columns_priv_table,
                                     lex_user,
                                     columns,
                                     grant_table->db,
@@ -4621,7 +4623,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }
 
     int ret1, ret2, ret3;
-    if ((ret1= remove_db_access_privileges(tables[ACL_TABLES::TABLE_DB].table,
+    if ((ret1= remove_db_access_privileges(thd, tables[ACL_TABLES::TABLE_DB].table,
            *lex_user)) < 0 ||
         (ret2= remove_column_access_privileges(thd,
            tables[ACL_TABLES::TABLE_TABLES_PRIV].table,

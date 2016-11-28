@@ -2209,6 +2209,10 @@ COMMIT;
 
 CREATE TABLE t1 (a INT);
 call mtr.add_suppression("ACL table mysql.* must use supported storage engine");
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
+call mtr.add_suppression("Cannot load from mysql.*. The table is probably corrupted");
 
 # Since the definition of mysql.user was changed by the WL#6409 (the column
 # 'password' was removed) the number of column Event_priv was changed by 1.

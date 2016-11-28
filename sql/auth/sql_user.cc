@@ -691,6 +691,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 {
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   TABLE *table;
+  Acl_table_intact table_intact(thd);
   LEX_USER *combo= NULL;
   std::set<LEX_USER *> users;
   ulong what_to_set= 0;
@@ -722,6 +723,12 @@ bool change_password(THD *thd, const char *host, const char *user,
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   if (!acl_cache_lock.lock())
+  {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
+
+  if (table_intact.check(thd, table, &mysql_user_table_def))
   {
     commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
@@ -1094,6 +1101,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   int result= 0;
   int found;
   int ret;
+  Acl_table_intact table_intact(thd);
   DBUG_ENTER("handle_grant_data");
 
   if (drop)
@@ -1113,6 +1121,13 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   }
 
   /* Handle user table. */
+  if (table_intact.check(thd, tables[ACL_TABLES::TABLE_USER].table,
+                         &mysql_user_table_def))
+  {
+    result= -1;
+    goto end;
+  }
+
   if ((found= handle_grant_table(thd, tables, ACL_TABLES::TABLE_USER,
                                  drop, user_from, user_to)) < 0)
   {
@@ -1138,6 +1153,13 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   }
 
   /* Handle db table. */
+  if (table_intact.check(thd, tables[ACL_TABLES::TABLE_DB].table,
+                         &mysql_db_table_def))
+  {
+    result= -1;
+    goto end;
+  }
+
   if ((found= handle_grant_table(thd, tables, ACL_TABLES::TABLE_DB,
                                  drop, user_from, user_to)) < 0)
   {
@@ -1165,6 +1187,13 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_routine_table",
                   DBUG_SET("+d,wl7158_handle_grant_table_2"););
   /* Handle stored routines table. */
+  if (table_intact.check(thd, tables[ACL_TABLES::TABLE_PROCS_PRIV].table,
+                         &mysql_procs_priv_table_def))
+  {
+    result= -1;
+    goto end;
+  }
+
   if ((found= handle_grant_table(thd, tables, ACL_TABLES::TABLE_PROCS_PRIV,
                                  drop, user_from, user_to)) < 0)
   {
@@ -1210,6 +1239,13 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_tables_table",
                   DBUG_SET("+d,wl7158_handle_grant_table_2"););
   /* Handle tables table. */
+  if (table_intact.check(thd, tables[ACL_TABLES::TABLE_TABLES_PRIV].table,
+                         &mysql_tables_priv_table_def))
+  {
+    result= -1;
+    goto end;
+  }
+
   if ((found= handle_grant_table(thd, tables, ACL_TABLES::TABLE_TABLES_PRIV,
                                  drop, user_from, user_to)) < 0)
   {
@@ -1232,6 +1268,13 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
                     DBUG_SET("+d,wl7158_handle_grant_table_2"););
 
     /* Handle columns table. */
+    if (table_intact.check(thd, tables[ACL_TABLES::TABLE_COLUMNS_PRIV].table,
+                           &mysql_columns_priv_table_def))
+    {
+      result= -1;
+      goto end;
+    }
+
     if ((found= handle_grant_table(thd, tables, ACL_TABLES::TABLE_COLUMNS_PRIV,
                                    drop, user_from, user_to)) < 0)
     {
@@ -1257,6 +1300,13 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   {
     DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_proxies_priv_table",
                     DBUG_SET("+d,wl7158_handle_grant_table_2"););
+
+    if (table_intact.check(thd, tables[ACL_TABLES::TABLE_PROXIES_PRIV].table,
+                           &mysql_proxies_priv_table_def))
+    {
+      result= -1;
+      goto end;
+    }
 
     if ((found= handle_grant_table(thd, tables, ACL_TABLES::TABLE_PROXIES_PRIV,
                                    drop, user_from, user_to)) < 0)
@@ -1695,6 +1745,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   std::set<LEX_USER *> extra_users;
   ACL_USER *self= NULL;
   bool password_expire_undo= false;
+  Acl_table_intact table_intact(thd);
 
   DBUG_ENTER("mysql_alter_user");
 
@@ -1711,6 +1762,13 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   if (!acl_cache_lock.lock())
+  {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
+
+  if (table_intact.check(thd, tables[ACL_TABLES::TABLE_USER].table,
+                         &mysql_user_table_def))
   {
     commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);

@@ -5,6 +5,10 @@
 -- source include/have_ssl_communication.inc
 -- source include/mysql_upgrade_preparation.inc
 
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
+
 --echo #
 --echo # Bug#55672 mysql_upgrade dies with internal error 
 --echo #

@@ -26,6 +26,7 @@ call mtr.add_suppression("references invalid");
 call mtr.add_suppression("Creating routine without parsing routine body");
 call mtr.add_suppression("Resolving dependency for the view");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+call mtr.add_suppression("Column count of mysql.* is wrong");
 # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 
