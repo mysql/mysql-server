@@ -30,6 +30,11 @@
 #include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
 #include "sql_user_table.h"
 
+#ifndef DBUG_OFF
+#define HASH_STRING_WITH_QUOTE \
+        "$5$BVZy9O>'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4"
+#endif
+
 /**
   Auxiliary function for constructing a  user list string.
   This function is used for error reporting and logging.
@@ -179,6 +184,32 @@ void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma= true)
       }
     }
   }
+}
+
+/**
+  Escapes special characters in the unescaped string, taking into account
+  the current character set and sql mode.
+
+  @param thd    [in]  The thd structure.
+  @param to     [out] Escaped string output buffer.
+  @param from   [in]  String to escape.
+  @param length [in]  String to escape length.
+
+  @return Result value.
+    @retval != (ulong)-1 Succeeded. Number of bytes written to the output
+                         buffer without the '\0' character.
+    @retval (ulong)-1    Failed.
+*/
+
+inline ulong escape_string_mysql(THD *thd, char *to, const char *from,
+                                 ulong length)
+{
+    if (!(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES))
+      return (uint)escape_string_for_mysql(system_charset_info, to, 0, from,
+                                           length);
+    else
+      return (uint)escape_quotes_for_mysql(system_charset_info, to, 0, from,
+                                           length, '\'');
 }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -616,13 +647,15 @@ bool change_password(THD *thd, const char *host, const char *user,
   Acl_table_intact table_intact;
   LEX_USER *combo= NULL;
   /* Buffer should be extended when password length is extended. */
-  char buff[512];
+  char buff[2048];
   /* buffer to store the hash string */
   char hash_str[MAX_FIELD_WIDTH]= {0};
+  char *hash_str_escaped= NULL;
   ulong query_length= 0;
   ulong what_to_set= 0;
   bool save_binlog_row_based;
   size_t new_password_len= strlen(new_password);
+  size_t escaped_hash_str_len= 0;
   bool result= true, rollback_whole_statement= false;
   int ret;
 
@@ -730,6 +763,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     mysql_mutex_unlock(&acl_cache->lock);
     goto end;
   }
+
   ret= replace_user_table(thd, table, combo, 0, false, true, what_to_set);
   if (ret)
   {
@@ -751,6 +785,20 @@ bool change_password(THD *thd, const char *host, const char *user,
 
   mysql_mutex_unlock(&acl_cache->lock);
   result= 0;
+  escaped_hash_str_len= (opt_log_builtin_as_identified_by_password?
+                         strlen(combo->auth.str)*2+1 :
+                         strlen(acl_user->auth_string.str)*2+1);
+  /*
+     Allocate a buffer for the escaped password. It should at least have place
+     for length*2+1 chars.
+  */
+  hash_str_escaped= (char *)alloc_root(thd->mem_root, escaped_hash_str_len);
+  if (!hash_str_escaped)
+  {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
+    result= 1;
+    goto end;
+  }
   /*
     Based on @@log-backward-compatible-user-definitions variable
     rewrite SET PASSWORD
@@ -758,17 +806,33 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (opt_log_builtin_as_identified_by_password)
   {
     memcpy(hash_str, combo->auth.str, combo->auth.length);
+
+    DBUG_EXECUTE_IF("force_hash_string_with_quote",
+		     strcpy(hash_str, HASH_STRING_WITH_QUOTE);
+                   );
+
+    escape_string_mysql(thd, hash_str_escaped, hash_str, strlen(hash_str));
+
     query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%s'",
                           acl_user->user ? acl_user->user : "",
                           acl_user->host.get_host() ? acl_user->host.get_host() : "",
-                          hash_str);
+                          hash_str_escaped);
   }
   else
+  {
+    DBUG_EXECUTE_IF("force_hash_string_with_quote",
+                     strcpy(acl_user->auth_string.str, HASH_STRING_WITH_QUOTE);
+                   );
+
+    escape_string_mysql(thd, hash_str_escaped, acl_user->auth_string.str,
+                        strlen(acl_user->auth_string.str));
+
     query_length= sprintf(buff, "ALTER USER '%-.120s'@'%-.120s' IDENTIFIED WITH '%-.120s' AS '%s'",
                           acl_user->user ? acl_user->user : "",
                           acl_user->host.get_host() ? acl_user->host.get_host() : "",
                           acl_user->plugin.str,
-                          acl_user->auth_string.str);
+                          hash_str_escaped);
+  }
   result= write_bin_log(thd, true, buff, query_length,
                         table->file->has_transactions());
 end:
