@@ -90,7 +90,7 @@ install_db () {
     logfile=$(get_option mysqld_safe log-error "/var/log/mysql/mysqld.log")
 
     # Restore log, dir, perms and SELinux contexts
-    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(basedir "$datadir")" = "x/var/lib" ]; then
+    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
 	install -d -m 0751 -omysql -gmysql "$datadir" || return 1
     fi
 
