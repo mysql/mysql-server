@@ -252,30 +252,35 @@ SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
 CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B415DD9C4FB5EF59FE80C4FEBC1F9C715E6E97C4' REQUIRE NONE PASSWORD EXPIRE ACCOUNT LOCK
 # MySQL user table layout from the before ACCOUNT LOCK option
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
 CREATE TABLE temp_user LIKE mysql.user;
 INSERT INTO temp_user SELECT * FROM mysql.user;
 ALTER TABLE mysql.user DROP COLUMN account_locked;
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
-ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 45, found 44. The table is probably corrupted
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 COUNT(*)
 0
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
-ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 45, found 44. The table is probably corrupted
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 COUNT(*)
 0
 CREATE USER backuser@localhost IDENTIFIED BY 'pass';
+ERROR HY000: Column count of mysql.user is wrong. Expected 45, found 44. The table is probably corrupted
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 COUNT(*)
-1
+0
 SELECT user, account_locked FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 ERROR 42S22: Unknown column 'account_locked' in 'field list'
 ALTER USER backuser@localhost ACCOUNT LOCK;
-ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 45, found 44. The table is probably corrupted
 ALTER USER backuser@localhost ACCOUNT UNLOCK;
-ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 45, found 44. The table is probably corrupted
 DROP USER backuser@localhost;
+ERROR HY000: Column count of mysql.user is wrong. Expected 45, found 44. The table is probably corrupted
 DROP TABLE mysql.user;
 ALTER TABLE temp_user RENAME mysql.user;
 FLUSH PRIVILEGES;

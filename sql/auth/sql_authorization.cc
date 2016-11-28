@@ -31,6 +31,7 @@
 #include "sql_authentication.h"
 #include "sql_authorization.h"
 #include "debug_sync.h"
+#include "sql_user_table.h"
 
 const char *command_array[]=
 {
