@@ -663,3 +663,12 @@ select 1<<!0, 1 << !0;
 select 0<!0,  0 < ! 0;
 0<!0	0 < ! 0
 1	1
+#
+# MDEV-11171 Assertion `m_cpp_buf <= ptr && ptr <= m_cpp_buf + m_buf_length' failed in Lex_input_stream::body_utf8_append(const char*, const char*)
+#
+CREATE TABLE t1 (id INT);
+CREATE TRIGGER tr AFTER DELETE ON t1 FOR EACH ROW SET @a = 1\;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '\' at line 1
+PREPARE stmt FROM 'CREATE TRIGGER tr AFTER DELETE ON t1 FOR EACH ROW SET @a = 1\\';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '\' at line 1
+DROP TABLE t1;

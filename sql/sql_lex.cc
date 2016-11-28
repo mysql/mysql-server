@@ -1074,7 +1074,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       state= (enum my_lex_states) state_map[c];
       break;
     case MY_LEX_ESCAPE:
-      if (lip->yyGet() == 'N')
+      if (!lip->eof() && lip->yyGet() == 'N')
       {					// Allow \N as shortcut for NULL
 	yylval->lex_str.str=(char*) "\\N";
 	yylval->lex_str.length=2;
