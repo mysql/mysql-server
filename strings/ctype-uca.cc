@@ -2375,7 +2375,7 @@ int my_wildcmp_uca_impl(const CHARSET_INFO *cs,
       }
 
       wildstr+= scan;
-      if (w_wc ==  (my_wc_t)escape)
+      if (w_wc ==  (my_wc_t)escape && wildstr < wildend)
       {
         if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
 			(const uchar*)wildend)) <= 0)
