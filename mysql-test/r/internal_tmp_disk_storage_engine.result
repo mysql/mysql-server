@@ -1379,6 +1379,10 @@ a	b
 3	c
 4	c
 set optimizer_switch= @tmp_optimizer_switch;
+SET DEBUG='+d,skip_dd_table_access_check';
+ANALYZE TABLE mysql.character_sets;
+Table	Op	Msg_type	Msg_text
+mysql.character_sets	analyze	status	OK
 explain format=json select * from information_schema.character_sets order by 1 limit 3;
 EXPLAIN
 {

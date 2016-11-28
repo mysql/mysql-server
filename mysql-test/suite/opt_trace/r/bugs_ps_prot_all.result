@@ -3698,6 +3698,9 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE t1(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 CHAR(12)) ENGINE=INNODB;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	NULL
@@ -3742,7 +3745,7 @@ EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1000,
-                  "cost": 0.25
+                  "cost": 1
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -3759,14 +3762,14 @@ EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1	{
                       "rows_to_scan": 1000,
                       "access_type": "scan",
                       "resulting_rows": 1000,
-                      "cost": 100.25,
+                      "cost": 101,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1000,
-                "cost_for_plan": 100.25,
+                "cost_for_plan": 101,
                 "chosen": true
               }
             ] /* considered_execution_plans */

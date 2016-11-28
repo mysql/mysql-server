@@ -155,6 +155,9 @@ select * from t1 where t1.a in (select a from t2) order by 1, 2;
 set optimizer_switch= @tmp_optimizer_switch;
 
 #system table
+# Run analyze on the dictinary table, character_sets, to stabilize test
+SET DEBUG='+d,skip_dd_table_access_check';
+ANALYZE TABLE mysql.character_sets;
 --disable_warnings
 explain format=json select * from information_schema.character_sets order by 1 limit 3;
 --enable_warnings
