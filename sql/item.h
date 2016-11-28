@@ -923,6 +923,8 @@ public:
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
 
+  enum_field_types aggregate_type(Bounds_checked_array<Item *>items);
+
   /*
     Return information about function monotonicity. See comment for
     enum_monotonicity_info for details. This function can only be called

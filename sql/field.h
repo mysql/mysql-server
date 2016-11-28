@@ -253,6 +253,27 @@ DBUG_ASSERT(!table || (!table->write_set || \
 
 
 /**
+  Tests if field type is an integer
+
+  @param type Field type, as returned by field->type()
+
+  @returns true if integer type, false otherwise
+*/
+inline bool is_integer_type(enum_field_types type)
+{
+  switch (type)
+  {
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+    return true;
+  default:
+    return false;
+  }
+}
+/**
   Tests if field type is temporal, i.e. represents
   DATE, TIME, DATETIME or TIMESTAMP types in SQL.
      
