@@ -30,7 +30,6 @@ ENDIF()
 
 SET(MYSYS_SSL_SOURCES
     crypt_genhash_impl.cc
-    mf_tempdir.cc
     my_default.cc
     my_getopt.cc
     my_aes.cc
@@ -38,7 +37,6 @@ SET(MYSYS_SSL_SOURCES
     my_sha2.cc
     my_md5.cc
     my_rnd.cc
-    my_murmur3.cc
     ${MYSYS_AES_IMPLEMENTATION}
    )
 

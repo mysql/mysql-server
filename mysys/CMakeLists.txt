@@ -44,6 +44,7 @@ SET(MYSYS_SOURCES
   mf_qsort.cc
   mf_radix.cc
   mf_same.cc
+  mf_tempdir.cc
   mf_tempfile.cc
   mf_unixpath.cc
   mf_wcomp.cc
@@ -73,6 +74,7 @@ SET(MYSYS_SOURCES
   my_mess.cc
   my_mkdir.cc
   my_mmap.cc
+  my_murmur3.cc
   my_once.cc
   my_open.cc
   my_pread.cc
