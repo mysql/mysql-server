@@ -187,7 +187,7 @@ static MYSQL_SYSVAR_STR(socket, xpl::Plugin_system_variables::socket,
 
 static MYSQL_SYSVAR_STR(bind_address, xpl::Plugin_system_variables::bind_address,
       PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
-      "Address to which X Plugin should bind the TCP socket.", NULL, NULL, "0.0.0.0");
+      "Address to which X Plugin should bind the TCP socket.", NULL, NULL, "*");
 
 static MYSQL_SYSVAR_UINT(port_open_timeout, xpl::Plugin_system_variables::port_open_timeout,
       PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG ,
