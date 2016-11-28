@@ -312,13 +312,21 @@ dict_stats_process_entry_from_recalc_pool(
 	dict_table_t*	table;
 	MDL_ticket*	mdl = nullptr;
 
-	table = dd_table_open_on_id(table_id, thd, &mdl, false);
+	/* We need to enter dict_sys->mutex for setting
+	table->stats_bg_flag. This is for blocking other DDL, like drop
+	table. */
+	mutex_enter(&dict_sys->mutex);
+	table = dd_table_open_on_id(table_id, thd, &mdl, true);
 
 	if (table == NULL) {
 		/* table does not exist, must have been DROPped
 		after its id was enqueued */
 		return;
 	}
+
+	/* Set bg flag. */
+	table->stats_bg_flag = BG_STAT_IN_PROGRESS;
+	mutex_exit(&dict_sys->mutex);
 
 	/* Check whether table is corrupted */
 	if (table->is_corrupted()) {
@@ -347,7 +355,14 @@ dict_stats_process_entry_from_recalc_pool(
 		dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);
 	}
 
-	dd_table_close(table, thd, &mdl, false);
+	mutex_enter(&dict_sys->mutex);
+
+	/* Set back bg flag */
+	table->stats_bg_flag = BG_STAT_NONE;
+
+	dd_table_close(table, thd, &mdl, true);
+
+	mutex_exit(&dict_sys->mutex);
 }
 
 #ifdef UNIV_DEBUG
