@@ -28,6 +28,7 @@
 #include "prealloced_array.h"
 #include "tztime.h"
 #include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
+#include "sql_user_table.h"
 
 /**
   Auxiliary function for constructing a  user list string.
@@ -612,6 +613,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 {
   TABLE_LIST tables;
   TABLE *table;
+  Acl_table_intact table_intact;
   LEX_USER *combo= NULL;
   /* Buffer should be extended when password length is extended. */
   char buff[512];
@@ -652,6 +654,9 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
 #endif
   if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
+    DBUG_RETURN(1);
+
+  if (table_intact.check(table, &mysql_user_table_def))
     DBUG_RETURN(1);
 
   if (!table->key_info)
@@ -1072,9 +1077,16 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   int result= 0;
   int found;
   int ret;
+  Acl_table_intact table_intact;
   DBUG_ENTER("handle_grant_data");
 
   /* Handle user table. */
+  if (table_intact.check(tables[0].table, &mysql_user_table_def))
+  {
+    result= -1;
+    goto end;
+  }
+
   if ((found= handle_grant_table(tables, 0, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch the in-memory array. */
@@ -1099,6 +1111,12 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   }
 
   /* Handle db table. */
+  if (table_intact.check(tables[1].table, &mysql_db_table_def))
+  {
+    result= -1;
+    goto end;
+  }
+
   if ((found= handle_grant_table(tables, 1, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch the in-memory array. */
@@ -1123,6 +1141,12 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   }
 
   /* Handle stored routines table. */
+  if (table_intact.check(tables[4].table, &mysql_procs_priv_table_def))
+  {
+    result= -1;
+    goto end;
+  }
+
   if ((found= handle_grant_table(tables, 4, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch in-memory array. */
@@ -1163,6 +1187,12 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   }
 
   /* Handle tables table. */
+  if (table_intact.check(tables[2].table, &mysql_tables_priv_table_def))
+  {
+    result= -1;
+    goto end;
+  }
+
   if ((found= handle_grant_table(tables, 2, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch columns and in-memory array. */
@@ -1179,6 +1209,12 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     }
 
     /* Handle columns table. */
+    if (table_intact.check(tables[3].table, &mysql_columns_priv_table_def))
+    {
+      result= -1;
+      goto end;
+    }
+
     if ((found= handle_grant_table(tables, 3, drop, user_from, user_to)) < 0)
     {
       /* Handle of table failed, don't touch the in-memory array. */
@@ -1199,6 +1235,12 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   /* Handle proxies_priv table. */
   if (tables[5].table)
   {
+    if (table_intact.check(tables[5].table, &mysql_proxies_priv_table_def))
+    {
+      result= -1;
+      goto end;
+    }
+
     if ((found= handle_grant_table(tables, 5, drop, user_from, user_to)) < 0)
     {
       /* Handle of table failed, don't touch the in-memory array. */
@@ -1675,6 +1717,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   bool is_privileged_user= false;
   bool rollback_whole_statement= false;
   std::set<LEX_USER *> users_not_to_log;
+  Acl_table_intact table_intact;
 
   DBUG_ENTER("mysql_alter_user");
 
@@ -1703,6 +1746,9 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   }
 #endif
   if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
+    DBUG_RETURN(true);
+
+  if (table_intact.check(table, &mysql_user_table_def))
     DBUG_RETURN(true);
 
   if (!table->key_info)

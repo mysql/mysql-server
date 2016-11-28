@@ -25,6 +25,7 @@
 #include "sql_time.h"
 #include "sql_plugin.h"                         // lock_plugin_data etc.
 #include "debug_sync.h"
+#include "sql_user_table.h"
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -678,8 +679,12 @@ GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine)
   key_length= (strlen(db) + strlen(user) + strlen(tname) + 3);
   hash_key=   (char*) alloc_root(&memex, key_length);
   my_stpcpy(my_stpcpy(my_stpcpy(hash_key,user)+1,db)+1,tname);
-  privs = (ulong) form->field[6]->val_int();
-  privs = fix_rights_for_table(privs);
+
+  if (form->field[MYSQL_TABLES_PRIV_FIELD_TABLE_PRIV])
+  {
+    privs = (ulong) form->field[MYSQL_TABLES_PRIV_FIELD_TABLE_PRIV]->val_int();
+    privs = fix_rights_for_table(privs);
+  }
 }
 
 
@@ -693,8 +698,12 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form)
     cols= 0;
     return;
   }
-  cols= (ulong) form->field[7]->val_int();
-  cols =  fix_rights_for_column(cols);
+
+  if (form->field[MYSQL_TABLES_PRIV_FIELD_COLUMN_PRIV])
+  {
+    cols= (ulong) form->field[MYSQL_TABLES_PRIV_FIELD_COLUMN_PRIV]->val_int();
+    cols =  fix_rights_for_column(cols);
+  }
 
   (void) my_hash_init2(&hash_columns,4,system_charset_info,
                    0,0,0, (my_hash_get_key) get_key_column,0,0,
