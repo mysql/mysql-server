@@ -76,10 +76,10 @@ start(){
 	[ -x /sbin/restorecon ] && /sbin/restorecon "$errlogfile"
 	if [ ! -d "$datadir/mysql" ] ; then
 	    # First, make sure $datadir is there with correct permissions
-	    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(basedir "$datadir")" = "x/var/lib" ]; then
+	    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
 		install -d -m0755 -omysql -gmysql "$datadir" || exit 1
 	    fi
-	    if [ ! -h "$datadir" -a "x$(basedir "$datadir")" = "x/var/lib" ]; then
+	    if [ ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
 		chown mysql:mysql "$datadir"
 		chmod 0755 "$datadir"
 	    fi
@@ -99,7 +99,7 @@ start(){
 		return $ret
 	    fi
 	fi
-	if [ ! -h "$datadir" -a "x$(basedir "$datadir")" = "x/var/lib" ]; then
+	if [ ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
 	    chown mysql:mysql "$datadir"
 	    chmod 0755 "$datadir"
 	fi
