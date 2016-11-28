@@ -1,11 +1,6 @@
 #
 # CREATE TABLESPACE related tests.
 #
-#
-# WL7743/TODO: Check changes in this test with Marko, some
-#              new results look strange. E.g. why s#bad?
-#              Why is innodb_temporary missing?
-#
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 SET NAMES utf8;
 # Strict-mode has no effect on CREATE TABLESPACE.

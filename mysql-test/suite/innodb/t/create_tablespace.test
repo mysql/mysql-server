@@ -8,12 +8,6 @@
 --echo # CREATE TABLESPACE related tests.
 --echo #
 
---echo #
---echo # WL7743/TODO: Check changes in this test with Marko, some
---echo #              new results look strange. E.g. why s#bad?
---echo #              Why is innodb_temporary missing?
---echo #
-
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 SET NAMES utf8;
 LET $MYSQLD_DATADIR = `select @@datadir`;
@@ -63,6 +57,9 @@ CREATE TABLESPACE 's_bad' ADD DATAFILE 's_bad.ibd';
 CREATE TABLESPACE "s_bad" ADD DATAFILE 's_bad.ibd';
 --error ER_WRONG_TABLESPACE_NAME
 CREATE TABLESPACE `` ADD DATAFILE 's_bad.ibd';
+# The below statement is parsed as "CREATE TABLESPACE s" which
+# is incorrect syntax (because ADD DATAFILE part is mandatory)
+# and hence results in parse error.
 --error ER_PARSE_ERROR
 CREATE TABLESPACE s#bad ADD DATAFILE 's_bad.ibd';
 --error ER_PARSE_ERROR
@@ -99,6 +96,8 @@ DROP TABLESPACE "s_bad";
 DROP TABLESPACE ``;
 SHOW WARNINGS;
 # "DROP TABLESPACE s#bad" is the same as "DROP TABLESPACE s".
+# Unlike "CREATE TABLESPACE s", this is valid syntax, so we
+# don't get parse error here.
 --error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE s#bad;
 --error ER_PARSE_ERROR
