@@ -342,6 +342,11 @@ IF(WIN32)
   LIST(APPEND TESTS win_tests)
 ENDIF()
 
+SET(ALL_SMALL_TESTS)
+FOREACH(test ${TESTS})
+  LIST(APPEND ALL_SMALL_TESTS ${test}-t.cc)
+ENDFOREACH()
+
 # Add tests (link them with gunit/gmock libraries and the server libraries) 
 SET(SERVER_TESTS
   copy_info
@@ -401,6 +406,11 @@ SET(SERVER_TESTS
   wild_case_compare
 )
 
+SET(ALL_LARGE_TESTS)
+FOREACH(test ${SERVER_TESTS})
+  LIST(APPEND ALL_LARGE_TESTS ${test}-t.cc)
+ENDFOREACH()
+
 SET(SQL_GUNIT_LIB_SOURCE 
   ${CMAKE_SOURCE_DIR}/sql/filesort_utils.cc 
   ${CMAKE_SOURCE_DIR}/sql/mdl.cc
@@ -423,55 +433,20 @@ SET_TARGET_PROPERTIES(sqlgunitlib
 ## link time and disk space ...
 OPTION(MERGE_UNITTESTS "Merge tests into one executable" ON)
 IF (MERGE_UNITTESTS)
-  SET(MERGE_LARGE_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_large_tests.cc)
-  SET(MERGE_SMALL_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_small_tests.cc)
-  SET_SOURCE_FILES_PROPERTIES(MERGE_SMALL_TESTS MERGE_LARGE_TESTS
-    PROPERTIES GENERATED 1)
-
-  ## BOOST_HEAP_ASSERT generates if () ; else ;
-  IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    ADD_COMPILE_FLAGS(
-      ${MERGE_SMALL_TESTS}
-      COMPILE_FLAGS "-Wno-empty-body"
-    )
-  ENDIF()
-  ADD_COMPILE_FLAGS(
-    ${MERGE_SMALL_TESTS}
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
-  ADD_COMPILE_FLAGS(
-    ${MERGE_LARGE_TESTS}
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
-  ## Merging unit tests on Windows gives so many sections in the object file
-  ## that /bigobj is required
-  IF(WIN32)
-    ADD_COMPILE_FLAGS(${MERGE_SMALL_TESTS} COMPILE_FLAGS "/bigobj")
-    ADD_COMPILE_FLAGS(${MERGE_LARGE_TESTS} COMPILE_FLAGS "/bigobj")
-  ENDIF()
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
-
-  FILE(WRITE ${MERGE_LARGE_TESTS} "// Merging large unit tests\n")
-  FILE(WRITE ${MERGE_SMALL_TESTS} "// Merging small unit tests\n")
-  FOREACH(test ${TESTS})
-    FILE(APPEND ${MERGE_SMALL_TESTS} "#include \"${test}-t.cc\"\n")
-  ENDFOREACH()
-  FOREACH(test ${SERVER_TESTS})
-    FILE(APPEND ${MERGE_LARGE_TESTS} "#include \"${test}-t.cc\"\n")
-  ENDFOREACH()
-
-  ADD_EXECUTABLE(merge_small_tests-t ${MERGE_SMALL_TESTS})
-  ADD_COMPILE_FLAGS(${MERGE_SMALL_TESTS} COMPILE_FLAGS ${DISABLE_PSI_OPTIONS})
-
-  SET(SRC_FILES ${MERGE_LARGE_TESTS})
-  IF(WIN32)
-    LIST(APPEND SRC_FILES $<TARGET_OBJECTS:my_nt_servc>)
-  ENDIF()
-  LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
-  ADD_EXECUTABLE(merge_large_tests-t ${SRC_FILES})
-
+  ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS})
   TARGET_LINK_LIBRARIES(merge_small_tests-t
-    gunit_small sqlgunitlib strings dbug regex)
+    mysys mysys_ssl regex sqlgunitlib gunit_small)
+  
+  IF(WIN32)
+    LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
+  ENDIF()
+  LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
+  ADD_COMPILE_FLAGS(
+    ../../storage/example/ha_example.cc
+    COMPILE_FLAGS "-DDISABLE_DTRACE"
+  )
+
+  ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS})
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main binlog rpl master slave)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main sql_gis)
   TARGET_LINK_LIBRARIES(merge_large_tests-t
@@ -489,77 +464,77 @@ IF (MERGE_UNITTESTS)
 
 ENDIF(MERGE_UNITTESTS)
 
-  FOREACH(test ${TESTS})
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc)
-    ADD_COMPILE_FLAGS(${test}-t.cc COMPILE_FLAGS ${DISABLE_PSI_OPTIONS})
-    TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
-    IF(MERGE_UNITTESTS)
-      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-      IF(WIN32)
-        SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
-      ENDIF()
-    ELSE()
-      ADD_TEST(${test} ${test}-t)
+FOREACH(test ${TESTS})
+  ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+  ADD_COMPILE_FLAGS(${test}-t.cc COMPILE_FLAGS ${DISABLE_PSI_OPTIONS})
+  TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
+  IF(MERGE_UNITTESTS)
+    SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
+    IF(WIN32)
+      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
     ENDIF()
-  ENDFOREACH()
-  
-  # See comments about __builtin_memcmp in the source file.
-  IF(HAVE_NO_BUILTIN_MEMCMP)
-    ADD_COMPILE_FLAGS(
-      filesort_compare-t.cc
-      COMPILE_FLAGS "-fno-builtin-memcmp"
-  )
+  ELSE()
+    ADD_TEST(${test} ${test}-t)
   ENDIF()
+ENDFOREACH()
 
-  ## BOOST_HEAP_ASSERT generates if () ; else ;
-  IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    ADD_COMPILE_FLAGS(
-      bounded_queue-t.cc
-      COMPILE_FLAGS "-Wno-empty-body"
-  )
-  ENDIF()
+# See comments about __builtin_memcmp in the source file.
+IF(HAVE_NO_BUILTIN_MEMCMP)
+  ADD_COMPILE_FLAGS(
+    filesort_compare-t.cc
+    COMPILE_FLAGS "-fno-builtin-memcmp"
+    )
+ENDIF()
+
+## BOOST_HEAP_ASSERT generates if () ; else ;
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   ADD_COMPILE_FLAGS(
     bounded_queue-t.cc
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+    COMPILE_FLAGS "-Wno-empty-body"
+    )
+ENDIF()
+ADD_COMPILE_FLAGS(
+  bounded_queue-t.cc
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
   )
-  ADD_COMPILE_FLAGS(
-    pump_object_filter-t.cc
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+ADD_COMPILE_FLAGS(
+  pump_object_filter-t.cc
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
   )
 
-  ADD_COMPILE_FLAGS(
-    dd_sdi-t.cc
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+ADD_COMPILE_FLAGS(
+  dd_sdi-t.cc
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
   )
 
-  FOREACH(test ${SERVER_TESTS})
-    SET(SRC_FILES ${test}-t.cc)
+FOREACH(test ${SERVER_TESTS})
+  SET(SRC_FILES ${test}-t.cc)
+  IF(WIN32)
+    LIST(APPEND SRC_FILES $<TARGET_OBJECTS:my_nt_servc>)
+  ENDIF()
+  IF(test MATCHES "table_cache")
+    LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
+  ENDIF()
+  ADD_EXECUTABLE(${test}-t ${SRC_FILES})
+  TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)
+  TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
+  TARGET_LINK_LIBRARIES(${test}-t
+    sql_main binlog rpl master slave sql_gis sql_main)
+
+  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+    TARGET_LINK_LIBRARIES(${test}-t perfschema)
+  ENDIF()
+
+  IF(MERGE_UNITTESTS)
+    SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
     IF(WIN32)
-      LIST(APPEND SRC_FILES $<TARGET_OBJECTS:my_nt_servc>)
+      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
     ENDIF()
-    IF(test MATCHES "table_cache")
-      LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
-    ENDIF()
-    ADD_EXECUTABLE(${test}-t ${SRC_FILES})
-    TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)
-    TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis)
-    TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
-    TARGET_LINK_LIBRARIES(${test}-t
-      sql_main binlog rpl master slave sql_gis sql_main)
-
-    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-      TARGET_LINK_LIBRARIES(${test}-t perfschema)
-    ENDIF()
-
-    IF(MERGE_UNITTESTS)
-      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-      IF(WIN32)
-        SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
-      ENDIF()
-    ELSE()
-      ADD_TEST(${test} ${test}-t)
-    ENDIF()
-  ENDFOREACH()
+  ELSE()
+    ADD_TEST(${test} ${test}-t)
+  ENDIF()
+ENDFOREACH()
 
 ## Most executables depend on libeay32.dll (through mysys_ssl).
 COPY_OPENSSL_DLLS(copy_openssl_gunit)

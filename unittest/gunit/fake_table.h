@@ -291,7 +291,4 @@ private:
   }
 };
 
-// We choose non-zero to avoid it working by coincidence.
-int Fake_TABLE::highest_table_id= 5;
-
 #endif // FAKE_TABLE_H
