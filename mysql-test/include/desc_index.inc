@@ -17,50 +17,66 @@ analyze table t1;
 --enable_result_log
 
 --echo # Should use index
+--replace_column 10 # 11 #
 explain select * from t1 order by a desc;
 select * from t1 order by a desc;
 
+--replace_column 10 # 11 #
 explain select * from t1 order by a desc, b asc;
 select * from t1 order by a desc, b asc;
 
+--replace_column 10 # 11 #
 explain select * from t1 order by a asc;
 select * from t1 order by a asc, b desc;
 
+--replace_column 10 # 11 #
 explain select * from t1 order by a asc, b desc;
 select * from t1 order by a asc, b desc;
 
+--replace_column 10 # 11 #
 explain select * from t1 group by a,b order by a, b desc;
 select * from t1 group by a,b order by a, b desc;
 
 --echo # For GROUP BY optimizer can pick any order for column,
 --echo # unless it's explicitly specified
+--replace_column 10 # 11 #
 explain select * from t1 group by a, b;
+--replace_column 10 # 11 #
 explain select * from t1 group by a asc, b;
+--replace_column 10 # 11 #
 explain select * from t1 group by a desc, b;
+--replace_column 10 # 11 #
 explain select * from t1 group by a, b asc;
+--replace_column 10 # 11 #
 explain select * from t1 group by a, b desc;
 
 alter table t1 drop index a_asc_b_desc;
+--replace_column 10 # 11 #
 explain select * from t1 group by a asc, b;
 
 --replace_column 10 # 11 #
 explain select distinct a from t1;
 select distinct a from t1;
 
+--replace_column 10 # 11 #
 explain select a from t1 group by a;
 select a from t1 group by a;
 
 --echo # Should use index backward
+--replace_column 10 # 11 #
 explain select * from t1 order by a asc;
 select * from t1 order by a asc, b desc;
 
+--replace_column 10 # 11 #
 explain select * from t1 order by a asc, b desc;
 select * from t1 order by a asc, b desc;
 
 --echo # Should use filesort
+--replace_column 10 # 11 #
 explain select * from t1 order by a desc, b desc;
 select * from t1 order by a desc, b desc;
 
+--replace_column 10 # 11 #
 explain select * from t1 order by a asc, b asc;
 select * from t1 order by a asc, b asc;
 
