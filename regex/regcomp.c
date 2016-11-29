@@ -1449,7 +1449,7 @@ sopno pos;
 		}
 	}
 	{
-          int length=(HERE()-pos-1)*sizeof(sop);
+          size_t length=(HERE()-pos-1)*sizeof(sop);
           memmove((uchar *) &p->strip[pos+1],
                   (uchar *) &p->strip[pos],
                   length);
