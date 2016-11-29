@@ -1153,6 +1153,7 @@ TEST_F(CacheStorageTest, TestSchema)
       m_mdl_context.acquire_lock(&m_request,
                                  thd()->variables.lock_wait_timeout);
 
+
       // Get "schema1.table1" table from cache.
       const dd::Table *s1_t1= NULL;
       EXPECT_FALSE(dc.acquire<dd::Table>("schema1", "table1", &s1_t1));
