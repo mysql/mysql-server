@@ -4375,7 +4375,8 @@ find_index(
 /** Replace the table name in filename with the specified one
 @param[in]	filename	original file name
 @param[out]	new_filename	new file name
-@param[in]	table_name	to replace with this table name */
+@param[in]	table_name	to replace with this table name,
+				in the format of db/name */
 static
 void
 replace_table_name(
@@ -4393,9 +4394,13 @@ replace_table_name(
 	}
 
 	memcpy(new_filename, filename, len);
-	strcpy(new_filename + len, table_name);
 
-	len += strlen(table_name);
+	slash = strchr(table_name, OS_PATH_SEPARATOR);
+	ut_ad(slash != NULL);
+
+	strcpy(new_filename + len, slash + 1);
+
+	len += strlen(slash + 1);
 
 	strcpy(new_filename + len, dot_ext[IBD]);
 }
@@ -4452,8 +4457,10 @@ prepare_inplace_alter_table_global_dd(
 			char* path = fil_space_get_first_path(new_table->space);
 			char filename[FN_REFLEN + 1];
 
+			ut_ad(strstr(old_table->name.m_name,
+				     old_dd_tab->name().c_str()) != 0);
 			replace_table_name(path, filename,
-					   old_dd_tab->name().c_str());
+					   old_table->name.m_name);
 
 			ut_free(path);
 
