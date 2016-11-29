@@ -63,7 +63,6 @@ usr/share/man/man1/resolve_stack_dump.1
 usr/share/man/man1/zlib_decompress.1
 usr/share/man/man8/mysqld.8
 # confguration files
-usr/share/mysql/my-default.cnf
 debian/extra/mysql.cnf  etc/mysql/
 debian/extra/mysqld.cnf /etc/mysql/mysql.conf.d/
 # app armor profile
