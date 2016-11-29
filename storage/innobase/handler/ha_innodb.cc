@@ -5052,6 +5052,8 @@ table_opened:
 	prebuilt->default_rec = table->s->default_values;
 	ut_ad(prebuilt->default_rec);
 
+	prebuilt->mysql_handler = this;
+
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
 	primary_key = table->s->primary_key;
 	key_used_on_scan = primary_key;
