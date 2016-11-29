@@ -4467,8 +4467,8 @@ prepare_inplace_alter_table_global_dd(
 			if (innobase_create_implicit_dd_tablespace(
 				    client, thd, new_table->space,
 				    filename, dd_space_id)) {
-//				ut_a(false);
-//				return(true);
+				ut_a(false);
+				return(true);
 			}
 		} else if (new_table->space == 0) {
 			dd_space_id = 1;

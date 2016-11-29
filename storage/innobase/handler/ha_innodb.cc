@@ -15286,7 +15286,9 @@ create_dd_tablespace(
 	dd::Tablespace_file*	dd_file = dd_space->add_file();
 	dd_file->set_filename(filename);
 
-	dd_client->store(dd_space.get());
+	if (dd_client->store(dd_space.get())) {
+		return(true);
+	}
 
 	dd_space_id = dd_space.get()->id();
 
