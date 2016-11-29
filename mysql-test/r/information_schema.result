@@ -2171,10 +2171,6 @@ doc_count	NO		NULL
 doc_count	NO		NULL	
 doc_count	NO		NULL	
 doc_count	NO		NULL	
-doc_id	NO		NULL	
-doc_id	NO		NULL	
-doc_id	NO		NULL	
-doc_id	NO		NULL	
 first_doc_id	NO		NULL	
 first_doc_id	NO		NULL	
 first_doc_id	NO		NULL	
@@ -2199,7 +2195,6 @@ ilist	NO		NULL
 ilist	NO		NULL	
 ilist	NO		NULL	
 ilist	NO		NULL	
-key	NO		latin1_swedish_ci	
 last_doc_id	NO		NULL	
 last_doc_id	NO		NULL	
 last_doc_id	NO		NULL	
@@ -2212,7 +2207,6 @@ last_doc_id	NO		NULL
 last_doc_id	NO		NULL	
 last_doc_id	NO		NULL	
 last_doc_id	NO		NULL	
-value	NO		latin1_swedish_ci	
 word	NO		latin1_swedish_ci	
 word	NO		latin1_swedish_ci	
 word	NO		latin1_swedish_ci	

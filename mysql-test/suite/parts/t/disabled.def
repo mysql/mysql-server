@@ -36,3 +36,4 @@ parts.partition_rebuild             : Waiting for wl#9559
 parts.partition_reorg_divide        : Waiting for wl#9559
 parts.partition_reorg_hash_key      : Waiting for wl#9559
 parts.partition_reorg_merge         : Waiting for wl#9559
+parts.partition_debug               : Waiting for wl#9559
