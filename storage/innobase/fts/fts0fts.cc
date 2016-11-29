@@ -1870,7 +1870,7 @@ fts_create_one_common_table(
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
-		dict_mem_table_free(new_table);
+		//dict_mem_table_free(new_table);
 		new_table = NULL;
 		ib::warn() << "Failed to create FTS common table "
 			<< fts_table_name;
@@ -2088,7 +2088,7 @@ fts_create_one_index_table(
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
 		//dict_table_remove_from_cache(new_table);
-		dict_mem_table_free(new_table);
+		//dict_mem_table_free(new_table);
 		new_table = NULL;
 		ib::warn() << "Failed to create FTS index table "
 			<< table_name;

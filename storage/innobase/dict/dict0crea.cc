@@ -1078,6 +1078,9 @@ dict_create_index_tree_in_mem(
 
 	ut_ad(mutex_own(&dict_sys->mutex) || index->table->is_intrinsic());
 
+	DBUG_EXECUTE_IF("ib_dict_create_index_tree_fail",
+			return(DB_OUT_OF_MEMORY););
+
 	if (index->type == DICT_FTS) {
 		/* FTS index does not need an index tree */
 		return(DB_SUCCESS);
