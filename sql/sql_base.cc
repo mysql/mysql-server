@@ -1521,7 +1521,8 @@ void close_thread_tables(THD *thd)
         table->query_id == thd->query_id)
     {
       DBUG_ASSERT(table->file);
-      table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+      if (table->db_stat)
+        table->file->extra(HA_EXTRA_DETACH_CHILDREN);
       table->cleanup_gc_items();
     }
   }
@@ -3398,10 +3399,12 @@ share_found:
     goto err_lock;
 
   error= open_table_from_share(thd, share, alias,
-                               (uint) (HA_OPEN_KEYFILE |
-                                       HA_OPEN_RNDFILE |
-                                       HA_GET_INDEX |
-                                       HA_TRY_READ_ONLY),
+                               ((flags & MYSQL_OPEN_NO_NEW_TABLE_IN_SE) ?
+                                0 :
+                                ((uint) (HA_OPEN_KEYFILE |
+                                         HA_OPEN_RNDFILE |
+                                         HA_GET_INDEX |
+                                         HA_TRY_READ_ONLY))),
                                        EXTRA_RECORD,
                                thd->open_options, table, false,
                                nullptr);
@@ -5298,7 +5301,8 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
   /* MERGE tables need to access parent and child TABLE_LISTs. */
   DBUG_ASSERT(tables->table->pos_in_table_list == tables);
   /* Non-MERGE tables ignore this call. */
-  if (tables->table->file->extra(HA_EXTRA_ADD_CHILDREN_LIST))
+  if (tables->table->db_stat &&
+      tables->table->file->extra(HA_EXTRA_ADD_CHILDREN_LIST))
   {
     error= TRUE;
     goto end;
@@ -5995,7 +5999,7 @@ restart:
     {
       /* MERGE tables need to access parent and child TABLE_LISTs. */
       DBUG_ASSERT(tbl->pos_in_table_list == tables);
-      if (tbl->file->extra(HA_EXTRA_ATTACH_CHILDREN))
+      if (tbl->db_stat && tbl->file->extra(HA_EXTRA_ATTACH_CHILDREN))
       {
         error= TRUE;
         goto err;
@@ -6063,7 +6067,8 @@ restart:
          always a DD table. If this is not true, then we might
          need to invoke dd::Dictionary::is_dd_tablename() to make sure.
        */
-      if (tbl->file->extra(HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW))
+      if (tbl->db_stat &&
+          tbl->file->extra(HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW))
       {
         // Handler->extra() for innodb does not fail ever as of now.
         // In case it is made to fail sometime later, we need to think
@@ -6697,7 +6702,7 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table_list)
       table->table->query_id= 0;
     }
   for (table= table_list; table; table= table->next_global)
-    if (!table->is_placeholder())
+    if (!table->is_placeholder() && table->table->db_stat)
     {
       /*
         Detach children of MyISAMMRG tables used in

@@ -2462,8 +2462,6 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
         if (is_temporary_table(table))
           continue;
 
-        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
-                         false);
         /* Here we are sure that a non-tmp table exists */
         have_non_tmp_table= 1;
       }
@@ -2531,6 +2529,8 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     DBUG_RETURN(true);
   }
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   std::set<handlerton*> post_ddl_htons;
 
   /* mark for close and remove all cached entries */
@@ -2558,6 +2558,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
       if (thd->lock && thd->lock->table_count == 0 &&
           have_non_tmp_table > 0)
       {
+        thd->mdl_context.release_statement_locks();
         thd->locked_tables_list.unlock_locked_tables(thd);
       }
       else
@@ -3179,6 +3180,11 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         */
         table->table= 0;
       }
+      else
+      {
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
+                         false);
+      }
 
       (void) build_table_filename(path, sizeof(path) - 1, table->db,
                                   table->table_name, "",
@@ -3243,7 +3249,12 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         error= dd::drop_table<dd::Table>(thd, table->db, table->table_name,
                                          table_def, true);
 
-        error|= update_referencing_views_metadata(thd, table);
+        /*
+          QQ: Perhaps we should avoid updating referencing view info if
+              we failed to remove table from DD? OTOH view will be broken
+              in any case since table was removed from SE...
+        */
+        error|= update_referencing_views_metadata(thd, table, true, nullptr);
       }
 
       /* Invalidate even if we failed fully delete the table. */
@@ -3460,6 +3471,11 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         /* Mark table as needing MDL release. */
         table->table= 0;
       }
+      else
+      {
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
+                         false);
+      }
 
       (void) build_table_filename(path, sizeof(path) - 1, table->db,
                                   table->table_name, "",
@@ -3542,7 +3558,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (!dd_upgrade_flag &&
           (dd::drop_table<dd::Table>(thd, table->db, table->table_name,
                                      table_def, false) ||
-           update_referencing_views_metadata(thd, table)))
+           update_referencing_views_metadata(thd, table, false, nullptr)))
         goto err_with_rollback;
 
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
@@ -3570,10 +3586,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                                      table->db, table->table_name,
                                      MDL_EXCLUSIVE));
 
+      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
+                       false);
+
       if (dd::drop_table<dd::Abstract_table>(thd, table->db,
                                              table->table_name,
                                              false) ||
-          update_referencing_views_metadata(thd, table))
+          update_referencing_views_metadata(thd, table, false, nullptr))
         goto err_with_rollback;
 
       /*
@@ -3594,6 +3613,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
                                      table->db, table->table_name,
                                      MDL_EXCLUSIVE));
+
+      // QQ: should we invalidate TDC here too, just in case?
 
       thd->add_to_binlog_accessed_dbs(table->db);
 
@@ -7087,6 +7108,18 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
 
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
+    // Update view metadata.
+    if (!result)
+    {
+      Uncommitted_tables_guard uncommitted_tables(thd);
+
+      if (! create_table->table && !create_table->is_view())
+        uncommitted_tables.add_table(create_table);
+
+      result= update_referencing_views_metadata(thd, create_table, !is_trans,
+                                                &uncommitted_tables);
+    }
+
     /*
       Unless we are executing CREATE TEMPORARY TABLE we need to commit
       changes to the data-dictionary, SE and binary log and possibly run
@@ -7094,10 +7127,6 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     */
     if (!result)
       result= trans_commit_stmt(thd) || trans_commit_implicit(thd);
-
-    // Update view metadata.
-    if (!result)
-      result= update_referencing_views_metadata(thd, create_table);
 
     if (result)
       trans_rollback_stmt(thd);
@@ -7656,6 +7685,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
             {
               DBUG_ASSERT(thd->open_tables == table->table);
               close_thread_table(thd, &thd->open_tables);
+              table->table= nullptr;
             }
             goto err;
           }
@@ -7681,6 +7711,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
               without risking to close some locked table.
             */
             close_thread_table(thd, &thd->open_tables);
+            table->table= nullptr;
           }
 
           if (write_bin_log(thd, true, query.ptr(), query.length(), is_trans))
@@ -7702,11 +7733,22 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
-    if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
-      goto err;
+    /*
+      Update view metadata. Use nested block to ensure that TDC
+      invalidation happens before commit.
+    */
+    {
+      Uncommitted_tables_guard uncommitted_tables(thd);
 
-    // Update view metadata.
-    if (update_referencing_views_metadata(thd, table))
+      if (! table->table && !table->is_view())
+        uncommitted_tables.add_table(table);
+
+      if (update_referencing_views_metadata(thd, table, !is_trans,
+                                            &uncommitted_tables))
+        goto err;
+    }
+
+    if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err;
 
     if (post_ddl_ht)
@@ -9470,15 +9512,19 @@ static bool mysql_inplace_alter_table(THD *thd,
     DBUG_ASSERT(table_list->table == thd->open_tables);
     close_thread_table(thd, &thd->open_tables);
     table_list->table= NULL;
+
+    /*
+      Remove TABLE and TABLE_SHARE for from the TDC as we might have to
+      add triggers and foreign keys later.
+    */
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                     alter_ctx->db, alter_ctx->table_name, false);
+
   }
 
   // Rename altered table if requested.
   if (alter_ctx->is_table_renamed())
   {
-    // Remove TABLE and TABLE_SHARE for old name from TDC.
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
-                     alter_ctx->db, alter_ctx->table_name, false);
-
     if (mysql_rename_table(thd, db_type, alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias,
                            NO_TARGET_CHECK |
@@ -9494,18 +9540,12 @@ static bool mysql_inplace_alter_table(THD *thd,
   }
 
   /*
-    Remove TABLE and TABLE_SHARE for new name from TDC to force re-opening
-    in order to reload triggers.
-  */
-  if (!alter_ctx->trg_info.empty())
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
-                     alter_ctx->new_db, alter_ctx->new_alias, false);
-
-  /*
     Transfer pre-existing foreign keys and triggers to the new table.
     Since fk and trigger names have to be unique per schema, we cannot
     create them while both the old and the temp version of the
     table exist.
+
+    QQ: Perhaps make it part of atomic definition replacement?
   */
   if ((alter_ctx->fk_count > 0 || !alter_ctx->trg_info.empty()) &&
       dd::add_foreign_keys_and_triggers(thd, alter_ctx->new_db,
@@ -9535,6 +9575,32 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (write_bin_log(thd, true, thd->query().str, thd->query().length,
                     (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)))
     goto cleanup2;
+
+  {
+    Uncommitted_tables_guard uncommitted_tables(thd);
+
+    uncommitted_tables.add_table(table_list);
+
+    bool views_err=
+      (alter_ctx->is_table_renamed() ?
+       update_referencing_views_metadata(thd, table_list,
+                                         alter_ctx->new_db,
+                                         alter_ctx->new_name,
+                                         !(db_type->flags &
+                                           HTON_SUPPORTS_ATOMIC_DDL),
+                                         &uncommitted_tables) :
+       update_referencing_views_metadata(thd, table_list,
+                                         !(db_type->flags &
+                                           HTON_SUPPORTS_ATOMIC_DDL),
+                                         &uncommitted_tables));
+
+    if (alter_ctx->is_table_renamed())
+      tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                       alter_ctx->new_db, alter_ctx->new_name, false);
+
+    if (views_err)
+      goto cleanup2;
+  }
 
   if (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)
   {
@@ -11012,6 +11078,25 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     error= write_bin_log(thd, true, thd->query().str, thd->query().length,
                          atomic_ddl);
 
+    // Update referencing views metadata.
+    if (!error)
+    {
+      Uncommitted_tables_guard uncommitted_tables(thd);
+
+      error= update_referencing_views_metadata(thd, table_list,
+                                               alter_ctx->new_db,
+                                               alter_ctx->new_alias,
+                                               !atomic_ddl,
+                                               &uncommitted_tables);
+
+      if (alter_ctx->is_table_renamed())
+      {
+        uncommitted_tables.add_table(table_list);
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, alter_ctx->new_db,
+                         alter_ctx->new_alias, false);
+      }
+    }
+
     /*
       Commit changes to data-dictionary, SE and binary log if it was not done
       earlier. We need to do this before releasing/downgrading MDL.
@@ -11023,11 +11108,6 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     if (!error)
       my_ok(thd);
   }
-
-  // Update referencing views metadata.
-  if (!error)
-    error= update_referencing_views_metadata(thd, table_list, alter_ctx->new_db,
-                                             alter_ctx->new_alias);
 
   if (error)
   {
@@ -11783,6 +11863,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   /* Remember that we have not created table in storage engine yet. */
   bool no_ha_table= true;
 
+  bool is_noop= false;
+
   if (alter_info->requested_algorithm != Alter_info::ALTER_TABLE_ALGORITHM_COPY)
   {
     Alter_inplace_info ha_alter_info(create_info, alter_info,
@@ -11882,6 +11964,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         if (thd->dd_client()->drop(tab_obj))
           goto err_new_table_cleanup;
       }
+      is_noop= true;
       goto end_inplace_noop;
     }
 
@@ -12420,6 +12503,23 @@ end_inplace_noop:
                     atomic_replace))
     goto err_with_mdl;
 
+  if (!is_noop)
+  {
+    Uncommitted_tables_guard uncommitted_tables(thd);
+
+    uncommitted_tables.add_table(table_list);
+
+    if (update_referencing_views_metadata(thd, table_list,
+                                          new_db, new_name,
+                                          !atomic_replace,
+                                          &uncommitted_tables))
+      goto err_with_mdl;
+
+    if (alter_ctx.is_table_renamed())
+      tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                       alter_ctx.new_db, alter_ctx.new_name, false);
+  }
+
   // Commit if it was not done before in order to be able to reopen tables.
   if (atomic_replace &&
       (trans_commit_stmt(thd) || trans_commit_implicit(thd)))
@@ -12433,9 +12533,6 @@ end_inplace_noop:
     old_db_type->post_ddl(thd);
 
 end_inplace:
-
-  if (update_referencing_views_metadata(thd, table_list, new_db, new_name))
-    goto err_with_mdl;
 
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_mdl;

@@ -722,7 +722,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 #endif
 
-  res= mysql_register_view(thd, view, mode);
+  res= mysql_register_view(thd, view, mode, true);
 
   /*
     View TABLE_SHARE must be removed from the table definition cache in order to
@@ -734,7 +734,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   {
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
 
-    res= update_referencing_views_metadata(thd, view);
+    res= update_referencing_views_metadata(thd, view, true, nullptr);
 
     if (!res && mysql_bin_log.is_open())
     {
@@ -813,7 +813,8 @@ err:
 */
 
 int mysql_register_view(THD *thd, TABLE_LIST *view,
-                        enum_view_create_mode mode)
+                        enum_view_create_mode mode,
+                        bool commit_dd_changes)
 {
   LEX *lex= thd->lex;
 
@@ -1078,13 +1079,15 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
   }
 
   if (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
-      dd::drop_table<dd::View>(thd, view->db, view->table_name, true))
+      dd::drop_table<dd::View>(thd, view->db, view->table_name,
+                               commit_dd_changes))
   {
     error= 1;
     goto err;
   }
 
-  if (dd::create_view(thd, view, view->db, view->table_name))
+  if (dd::create_view(thd, view, view->db, view->table_name,
+                      commit_dd_changes))
   {
     error= 1;
     goto err;
@@ -1860,7 +1863,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
             referecing view being dropped.
           */
           if (dd::drop_table<dd::View>(thd, view->db, view->table_name, true) ||
-              update_referencing_views_metadata(thd, view))
+              update_referencing_views_metadata(thd, view, true, nullptr))
           {
             error= true;
           }

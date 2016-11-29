@@ -34,7 +34,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *view,
                        enum_view_create_mode mode);
 
 int mysql_register_view(THD *thd, TABLE_LIST *view,
-                        enum_view_create_mode mode);
+                        enum_view_create_mode mode,
+                        bool commit_dd_changes);
 
 bool mysql_drop_view(THD *thd, TABLE_LIST *view);
 

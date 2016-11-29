@@ -4277,8 +4277,8 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   no_keyread= false;
 
   /* Tables may be reused in a sub statement. */
-  DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
-  
+  DBUG_ASSERT(!db_stat || !file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+
   bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
   DBUG_ASSERT(!error);
 }

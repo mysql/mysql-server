@@ -1107,7 +1107,7 @@ static bool create_unlinked_view(THD *thd,
   Disable_autocommit_guard autocommit_guard(thd);
 
   bool result= dd::create_view(thd, view_ref, db_name.c_str(),
-                               view_name.c_str());
+                               view_name.c_str(), true);
 
   // Restore
   thd->lex->select_lex= backup_select;
@@ -1233,7 +1233,7 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
     sql_print_warning("Resolving dependency for the view '%s.%s' failed. "
                       "View is no more valid to use", db_name.c_str(),
                       view_name.c_str());
-    update_view_status(thd, db_name.c_str(), view_name.c_str(), false);
+    update_view_status(thd, db_name.c_str(), view_name.c_str(), false, true);
     error= false;
   }
 

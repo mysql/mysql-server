@@ -210,6 +210,12 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   table flush, wait on thr_lock.c locks) while opening and locking table.
 */
 #define MYSQL_OPEN_IGNORE_KILLED                0x4000
+/**
+  For new TABLE instances constructed do not open table in the storage
+  engine. Existing TABLE instances for which there is a handler object
+  which represents table open in storage engines can still be used.
+*/
+#define MYSQL_OPEN_NO_NEW_TABLE_IN_SE           0x8000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\

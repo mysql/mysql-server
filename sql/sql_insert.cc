@@ -3021,7 +3021,17 @@ bool Query_result_create::send_eof()
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
-  bool tmp= update_referencing_views_metadata(thd, create_table);
+  bool tmp;
+
+  {
+    Uncommitted_tables_guard uncommitted_tables(thd);
+
+    tmp= update_referencing_views_metadata(thd, create_table,
+                                           !(table->s->db_type()->flags &
+                                             HTON_SUPPORTS_ATOMIC_DDL),
+                                           &uncommitted_tables);
+  }
+
   if (!tmp)
     tmp= Query_result_insert::send_eof();
   if (tmp)

@@ -15,33 +15,94 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <vector>
+
 class THD;
 struct TABLE_LIST;
 class sp_name;
 
-/**
-  Method to update metadata of views referecing "table" being renamed
-  and views referecing(if there any) new table name "new_db.new_table_name".
 
-  @param      thd                     Thread handle.
-  @param      table                   Update metadata of views referencing this
+/**
+  Guard class which allows to invalidate TDC entries for specific tables/views.
+
+  We use it to get rid of TABLE_SHARE objects corresponding to tables/views
+  which definitions are not committed yet (and possibly won't be!).
+*/
+
+class Uncommitted_tables_guard
+{
+public:
+  Uncommitted_tables_guard(THD *thd)
+    : m_thd(thd)
+  { }
+  ~Uncommitted_tables_guard();
+
+  void add_table(TABLE_LIST *table)
+  {
+    m_uncommitted_tables.push_back(table);
+  }
+
+private:
+  THD *m_thd;
+  std::vector<TABLE_LIST*> m_uncommitted_tables;
+};
+
+
+/**
+  Update metadata of views referencing the table.
+
+  @param          thd                 Thread handle.
+  @param          table               Update metadata of views referencing
+                                      this table.
+  @param          commit_dd_changes   Indicates whether changes to DD need
+                                      to be committed.
+  @param[in,out]  uncommitted_tables  Helper class to store list of views
+                                      which shares need to be removed from
+                                      TDC if we fail to commit changes to
+                                      DD. Only used if commit_dd_changes
+                                      is false.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
 
   @retval     false                   Success.
   @retval     true                    Failure.
 */
 
-bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table);
+bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
+        bool commit_dd_changes,
+        Uncommitted_tables_guard *uncommitted_tables);
 
 
 /**
-  Method to update metadata of views referecing "table" being renamed
-  and views referecing(if there any) new table name "new_db.new_table_name".
+  Update metadata of views referencing "table" being renamed and views
+  referencing (if there any) new table name "new_db.new_table_name".
 
-  @param      thd                     Thread handle.
-  @param      table                   Update metadata of views referencing this
+  @param          thd                 Thread handle.
+  @param          table               Update metadata of views referencing this
                                       table.
-  @param      new_db                  New db name set in the rename operation.
-  @param      new_table_name          New table name set in the rename
+  @param          new_db              New db name set in the rename operation.
+  @param          new_table_name      New table name set in the rename
+  @param          commit_dd_changes   Indicates whether changes to DD need
+                                      to be committed.
+  @param[in,out]  uncommitted_tables  Helper class to store list of views
+                                      which shares need to be removed from
+                                      TDC if we fail to commit changes to
+                                      DD. Only used if commit_dd_changes
+                                      is false.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
                                       operation.
 
   @retval     false                   Success.
@@ -49,8 +110,9 @@ bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table);
 */
 
 bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
-                                       const char *new_db,
-                                       const char *new_table_name);
+        const char *new_db, const char *new_table_name,
+        bool commit_dd_changes,
+        Uncommitted_tables_guard *uncommitted_tables);
 
 
 /**

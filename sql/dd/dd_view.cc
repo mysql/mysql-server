@@ -520,7 +520,8 @@ static void fill_dd_view_routines(
 bool create_view(THD *thd,
                  TABLE_LIST *view,
                  const char *schema_name,
-                 const char *view_name)
+                 const char *view_name,
+                 bool commit_dd_changes)
 {
   dd::cache::Dictionary_client *client= thd->dd_client();
 
@@ -643,14 +644,17 @@ bool create_view(THD *thd,
   // Store info in DD views table.
   if (client->store(view_obj.get()))
   {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
     return true;
   }
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
@@ -746,7 +750,8 @@ bool read_view(TABLE_LIST *view,
 
 
 bool update_view_status(THD *thd, const char *schema_name,
-                        const char *view_name, bool status)
+                        const char *view_name, bool status,
+                        bool commit_dd_changes)
 {
   dd::cache::Dictionary_client *client= thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
@@ -768,12 +773,16 @@ bool update_view_status(THD *thd, const char *schema_name,
   // Update DD tables.
   if (client->update(new_view))
   {
-    trans_rollback_stmt(thd);
-    trans_rollback(thd);
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      trans_rollback(thd);
+    }
     return true;
   }
 
-  return trans_commit_stmt(thd) || trans_commit(thd);
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 } // namespace dd

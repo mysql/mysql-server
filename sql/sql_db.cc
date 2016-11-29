@@ -525,6 +525,8 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
   DBUG_ENTER("mysql_rm_db");
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   // Reject dropping the system schema except for system threads.
   if (!thd->is_dd_system_thread() &&
       dd::get_dictionary()->is_dd_schema_name(dd::String_type(db.str)))
@@ -613,8 +615,6 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
     for (table= tables; table; table= table->next_local)
     {
-      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
-                       false);
       deleted_tables++;
     }
 

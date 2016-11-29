@@ -232,22 +232,30 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
                          !int_commit_done);
   }
 
-  if (!error && !int_commit_done)
-    error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
-
   if (!error)
   {
+    Uncommitted_tables_guard uncommitted_tables(thd);
+
     for (ren_table= table_list; ren_table;
          ren_table= ren_table->next_local->next_local)
     {
       TABLE_LIST *new_table= ren_table->next_local;
       DBUG_ASSERT(new_table);
+
+      uncommitted_tables.add_table(ren_table);
+      uncommitted_tables.add_table(new_table);
+
       if ((error= update_referencing_views_metadata(thd, ren_table,
                                                     new_table->db,
-                                                    new_table->table_name)))
-        DBUG_RETURN(true);
+                                                    new_table->table_name,
+                                                    int_commit_done,
+                                                    &uncommitted_tables)))
+        break;
     }
   }
+
+  if (!error && !int_commit_done)
+    error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 
   if (error)
   {
