@@ -83,6 +83,7 @@ CREATE USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look
 --error ER_PASSWORD_NO_MATCH
 GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
 
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (con_grant,localhost,user_name_robert_golebiowski,,);
 
@@ -124,6 +125,7 @@ CREATE USER robert_golebiows@localhost;
 --error ER_PASSWORD_NO_MATCH
 GRANT ALL PRIVILEGES ON *.* TO robert_golebiows@localhost WITH GRANT OPTION;
 
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (con_grant_2,localhost,robert_golebiows,,);
 
