@@ -1,5 +1,6 @@
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
+--source include/not_gtid_enabled.inc
 
 --echo # Case-1: BINLOG_STMT_UNSAFE_SKIP_LOCKED
 --echo #   Statement is unsafe because it uses SKIP LOCKED.
