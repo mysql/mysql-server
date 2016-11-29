@@ -16,6 +16,7 @@
 #
 
 --source include/master-slave.inc
+--source include/have_debug.inc
 
 #Scenario 1:
 # When NO_BACKSLASH_ESCAPES mode is not set on both master and the slave.
