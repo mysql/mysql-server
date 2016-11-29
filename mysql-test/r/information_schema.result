@@ -524,9 +524,9 @@ create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
 select * from information_schema.views where table_schema !=
 'sys' order by table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	test	v1	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v2	select `test`.`t1`.`a` AS `c` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v3	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v1	select `test`.`t1`.`a` AS `a` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v2	select `test`.`t1`.`a` AS `a` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v3	select `test`.`t1`.`a` AS `a` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
 grant select (a) on test.t1 to joe@localhost with grant option;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
@@ -724,12 +724,12 @@ where table_schema='test' order by constraint_name;
 constraint_name
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`f1` AS `c` from `t1`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` (`c`) AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 show create table v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `sub1`(1) AS `c`	latin1	latin1_swedish_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` (`c`) AS select `sub1`(1) AS `sub1(1)`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v2;

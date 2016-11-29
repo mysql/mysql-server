@@ -1419,7 +1419,7 @@ static int clear_sj_tmp_tables(JOIN *join)
           assertion is disabled in this case.
         */
         DBUG_ASSERT(join->zero_result_cause || tab->materialize_table);
-        tab->materialized= false;
+        tab->table()->materialized= false;
         // The materialized table must be re-read on next evaluation:
         tab->table()->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
       }
@@ -1487,6 +1487,7 @@ void JOIN::reset()
         new execution (the new filesort will need them when it starts).
       */
       tab->restore_quick_optim_and_condition();
+      tab->m_fetched_rows= 0;
     }
   }
 
@@ -2938,6 +2939,9 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
                                    tab->position()->rows_fetched,
                                    false) : COND_FILTER_ALLPASS;
     }
+
+    DBUG_ASSERT(!qep_tab->table_ref->is_recursive_reference ||
+                qep_tab->type() == JT_ALL);
 
     qep_tab->pick_table_access_method(tab);
 
@@ -4630,6 +4634,13 @@ bool JOIN::make_tmp_tables_info()
 
   unplug_join_tabs();
 
+  /*
+    Tmp tables are a layer between the nested loop and the derived table's
+    result, WITH RECURSIVE cannot work with them. This should not happen, as a
+    recursive query cannot have clauses which use a tmp table (GROUP BY,
+    etc).
+  */
+  DBUG_ASSERT(!select_lex->is_recursive() || !tmp_tables);
   DBUG_RETURN(false);
 }
 
@@ -4659,6 +4670,7 @@ bool
 JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order)
 {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
+  DBUG_ASSERT(!select_lex->is_recursive());
   explain_flags.set(sort_order->src, ESP_USING_FILESORT);
   QEP_TAB *const tab= &qep_tab[idx]; 
   tab->filesort=

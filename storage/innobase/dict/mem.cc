@@ -125,6 +125,11 @@ dict_mem_table_free(
 		UT_DELETE(table->s_cols);
 	}
 
+	if (table->temp_prebuilt != NULL) {
+		ut_ad(table->is_intrinsic());
+		UT_DELETE(table->temp_prebuilt);
+	}
+
 	mem_heap_free(table->heap);
 }
 

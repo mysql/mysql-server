@@ -383,7 +383,6 @@ public:
     found(false),
     not_null_compl(false),
     first_unmatched(NO_PLAN_IDX),
-    materialized(false),
     materialize_table(NULL),
     read_first_record(NULL),
     next_select(NULL),
@@ -409,7 +408,8 @@ public:
     m_condition_optim(NULL),
     m_quick_optim(NULL),
     m_keyread_optim(false),
-    m_reversed_access(false)
+    m_reversed_access(false),
+    m_fetched_rows(0)
   {
     /**
        @todo Add constructor to READ_RECORD.
@@ -578,9 +578,6 @@ public:
 
   plan_idx first_unmatched; /**< used for optimization purposes only   */
 
-  /// For a materializable derived or SJ table: true if has been materialized
-  bool materialized;
-
   READ_RECORD::Setup_func materialize_table;
   /**
      Initialize table for reading and fetch the first row from the table. If
@@ -692,6 +689,12 @@ public:
     True if reversed scan is used. This is the optimizer's decision.
   */
   bool m_reversed_access;
+
+  /**
+    Count of rows fetched from this table; maintained by sub_select() and
+    reset to 0 by JOIN::reset().
+  */
+  ha_rows m_fetched_rows;
 
   QEP_TAB(const QEP_TAB&);                      // not defined
   QEP_TAB& operator=(const QEP_TAB&);           // not defined

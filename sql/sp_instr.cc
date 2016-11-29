@@ -305,7 +305,6 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 
   /* Check pre-conditions. */
 
-  DBUG_ASSERT(!thd->derived_tables);
   DBUG_ASSERT(thd->change_list.is_empty());
 
   /*

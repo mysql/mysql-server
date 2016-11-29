@@ -107,7 +107,7 @@ public:
 
 	uint max_supported_key_part_length() const;
 
-	int open(const char *name, int, uint);
+	int open(const char *name, int, uint open_flags);
 
 	/** Opens dictionary table object using table name. For partition, we need to
 	try alternative lower/upper case names to support moving data files across

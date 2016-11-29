@@ -344,7 +344,6 @@ void Open_tables_state::set_open_tables_state(Open_tables_state *state)
   this->open_tables= state->open_tables;
 
   this->temporary_tables= state->temporary_tables;
-  this->derived_tables= state->derived_tables;
 
   this->lock= state->lock;
   this->extra_lock= state->extra_lock;
@@ -361,7 +360,6 @@ void Open_tables_state::reset_open_tables_state()
 {
   open_tables= NULL;
   temporary_tables= NULL;
-  derived_tables= NULL;
   lock= NULL;
   extra_lock= NULL;
   locked_tables_mode= LTM_NONE;
@@ -2144,7 +2142,6 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
     to be sure that it was properly cleaned up.
   */
   DBUG_ASSERT(open_tables == 0 && temporary_tables == 0 &&
-              derived_tables == 0 &&
               lock == 0 &&
               locked_tables_mode == LTM_NONE &&
               get_reprepare_observer() == NULL);

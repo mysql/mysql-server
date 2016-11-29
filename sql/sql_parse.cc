@@ -133,6 +133,7 @@
 #include "table_cache.h"      // table_cache_manager
 #include "thr_lock.h"
 #include "transaction.h"      // trans_rollback_implicit
+#include "parse_tree_nodes.h"
 #include "transaction_info.h"
 #include "violite.h"
 
@@ -1888,9 +1889,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   }
 
 done:
-  DBUG_ASSERT(thd->derived_tables == NULL &&
-              (thd->open_tables == NULL ||
-               (thd->locked_tables_mode == LTM_LOCK_TABLES)));
+  DBUG_ASSERT(thd->open_tables == NULL ||
+              (thd->locked_tables_mode == LTM_LOCK_TABLES));
 
   /* Finalize server status flags after executing a command. */
   thd->update_slow_query_status();
@@ -5502,11 +5502,299 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
 }
 
 
+extern int MYSQLparse(class THD *thd); // from sql_yacc.cc
+
+
+/**
+  Produces a PT_subquery object from a subquery's text.
+  @param thd      Thread handler
+  @param text     Subquery's text
+  @param text_offset Offset in bytes of 'text' in the original statement
+  @param[out] node Produced PT_subquery object
+
+  @returns true if error
+ */
+static bool reparse_common_table_expr(THD *thd, const LEX_STRING &text,
+                                      uint text_offset,
+                                      PT_subquery **node)
+{
+  Common_table_expr_parser_state parser_state;
+  parser_state.init(thd, text.str, text.length);
+
+  Parser_state *old= thd->m_parser_state;
+  thd->m_parser_state= &parser_state;
+
+  /*
+    Re-parsing a CTE creates Item_param-s and Item_sp_local-s which are
+    special, as they do not exist in the original query: thus they should not
+    exist from the points of view of logging, and of query cache matching.
+    This is achieved like this:
+    - for SP local vars: their pos_in_query is set to 0
+    - for PS parameters: they are not added to LEX::param_list and thus not to
+    Prepared_statement::param_array.
+    They still need a value, which they get like this:
+    - for SP local vars: through the ordinary look-up of SP local
+    variables' values by name of the variable.
+    - for PS parameters: first the first-parsed, 'non-special' Item-params,
+    which are in param_array, get their value bound from user-supplied data,
+    then they propagate their value to their 'special' clones (@see
+    Item_param::m_clones).
+  */
+  parser_state.m_lip.stmt_prepare_mode= old->m_lip.stmt_prepare_mode;
+  parser_state.m_lip.multi_statements= false; // A safety measure.
+  parser_state.m_lip.m_digest= NULL;
+
+  // This is saved and restored by caller:
+  thd->lex->reparse_common_table_expr_at= text_offset;
+
+  /*
+    As this function is called during parsing only, it can and should use the
+    current Query_arena, character_set_client, etc.
+    It intentionally uses MYSQLparse() directly without the parse_sql()
+    wrapper: because it's building a node of the statement currently being
+    parsed at the upper call site.
+  */
+  bool mysql_parse_status= MYSQLparse(thd) != 0;
+  thd->m_parser_state= old;
+  if (mysql_parse_status)
+    return true;                                /* purecov: inspected */
+
+  *node= parser_state.result;
+  return false;
+}
+
+
+bool PT_common_table_expr::make_subquery_node(THD *thd, PT_subquery **node)
+{
+  if (m_postparse.references.size() >= 2)
+  {
+    // m_subq_node was already attached elsewhere, make new node:
+    return reparse_common_table_expr(thd, m_subq_text, m_subq_text_offset,
+                                     node);
+  }
+  *node = m_subq_node;
+  return false;
+}
+
+
+/**
+   Tries to match an identifier to the CTEs in scope; if matched, it
+   modifies *table_name, *tl', and the matched with-list-element.
+
+   @param          thd      Thread handler
+   @param[out]     table_name Identifier
+   @param[in,out]  tl       TABLE_LIST for the identifier
+   @param          pc       Current parsing context, if available
+   @param[out]     found    Is set to true if found.
+
+   @returns true if error (OOM).
+*/
+bool
+SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
+                                   TABLE_LIST *tl, Parse_context *pc,
+                                   bool *found)
+{
+  *found= false;
+  if (!pc)
+    return false;
+
+  PT_with_clause *wc;
+  PT_common_table_expr *cte= nullptr;
+  SELECT_LEX *select= this;
+  SELECT_LEX_UNIT *unit;
+  do
+  {
+    DBUG_ASSERT(select->first_execution);
+    unit= select->master_unit();
+    if (!(wc= unit->m_with_clause))
+      continue;
+    if (wc->lookup(tl, &cte))
+      return true;
+    /*
+      If no match in the WITH clause of 'select', maybe this is a subquery, so
+      look up in the outer query's WITH clause:
+    */
+  } while (cte == nullptr && (select= unit->outer_select()));
+
+  if (cte == nullptr)
+    return false;
+  *found= true;
+  if (tl->is_recursive_reference)
+  {
+    if (recursive_reference != nullptr)
+    {
+      my_error(ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE,
+               MYF(0), cte->name().str);
+      return true;
+    }
+    recursive_reference= tl;
+  }
+
+  const auto save_reparse_cte= thd->lex->reparse_common_table_expr_at;
+  PT_subquery *node;
+  if (tl->is_recursive_reference)
+  {
+    LEX_STRING dummy_subq= {C_STRING_WITH_LEN("(select 0)")};
+    if (reparse_common_table_expr(thd, dummy_subq, 0, &node))
+      return true;                              /* purecov: inspected */
+  }
+  else if (cte->make_subquery_node(thd, &node))
+    return true;             /* purecov: inspected */
+  // We imitate derived tables as much as possible.
+  DBUG_ASSERT(parsing_place == CTX_NONE && linkage != GLOBAL_OPTIONS_TYPE);
+  parsing_place= CTX_DERIVED;
+  node->m_is_derived_table= true;
+  auto wc_save= wc->enter_parsing_definition(tl);
+
+  if (node->contextualize(pc))
+    return true;
+
+  wc->leave_parsing_definition(wc_save);
+  parsing_place= CTX_NONE;
+  /*
+    Prepared statement's parameters and SP local variables are spotted as
+    'made during re-parsing' by node->contextualize(), which is why we
+    ran that call _before_ restoring lex->reparse_common_table_expr_at.
+  */
+  thd->lex->reparse_common_table_expr_at= save_reparse_cte;
+  tl->is_alias= true;
+  SELECT_LEX_UNIT *node_unit= node->value()->master_unit();
+  *table_name= Table_ident(node_unit);
+  if (tl->is_recursive_reference)
+    recursive_dummy_unit= node_unit;
+  DBUG_ASSERT(table_name->is_derived_table());
+  tl->db= const_cast<char*>(table_name->db.str);
+  tl->db_length= table_name->db.length;
+  tl->save_name_temporary();
+  return false;
+}
+
+
+bool PT_with_clause::lookup(TABLE_LIST *tl, PT_common_table_expr **found)
+{
+  *found= nullptr;
+  DBUG_ASSERT(tl->select_lex != nullptr);
+  /*
+    If right_bound!=NULL, it means we are currently parsing the
+    definition of CTE 'right_bound' and this definition contains
+    'tl'.
+  */
+  const Common_table_expr *right_bound= m_most_inner_in_parsing ?
+    m_most_inner_in_parsing->common_table_expr() : nullptr;
+  bool in_self= false;
+  for (auto el : m_list.elements())
+  {
+    // Search for a CTE named like 'tl', in this list, from left to right.
+    if (el->is(right_bound))
+    {
+      /*
+        We meet right_bound.
+        If not RECURSIVE:
+        we must stop the search in this WITH clause;
+        indeed right_bound must not reference itself or any CTE defined after it
+        in the WITH list (forward references are forbidden, preventing any
+        cycle).
+        If RECURSIVE:
+        If right_bound matches 'tl', it is a recursive reference.
+      */
+      if (!m_recursive)
+        break;                                // Prevent forward reference.
+      in_self= true;                          // Accept a recursive reference.
+    }
+    bool match;
+    if (el->match_table_ref(tl, in_self, &match))
+      return true;
+    if (!match)
+    {
+      if (in_self)
+        break;                                  // Prevent forward reference.
+      continue;
+    }
+    if (in_self && tl->select_lex->outer_select() !=
+        m_most_inner_in_parsing->select_lex)
+    {
+      /*
+        SQL2011 says a recursive CTE cannot contain a subquery
+        referencing the CTE, except if this subquery is a derived table
+        like:
+        WITH RECURSIVE qn AS (non-rec-SELECT UNION ALL
+        SELECT * FROM (SELECT * FROM qn) AS dt)
+        However, we don't allow this, as:
+        - it simplifies detection and substitution correct recursive
+        references (they're all on "level 0" of the UNION)
+        - it's not limiting the user so much (in most cases, he can just
+        merge his DT up manually, as the DT cannot contain aggregation).
+        - Oracle bans it:
+        with qn (a) as (
+        select 123 from dual
+        union all
+        select 1+a from (select * from qn) where a<130) select * from qn
+        ORA-32042: recursive WITH clause must reference itself directly in one of the
+        UNION ALL branches.
+
+        The above if() works because, when we parse such example query, we
+        first resolve the 'qn' reference in the top query, making it a derived
+        table:
+
+        select * from (
+           select 123 from dual
+           union all
+           select 1+a from (select * from qn) where a<130) qn(a);
+                                                           ^most_inner_in_parsing
+        Then we contextualize that derived table (containing the union);
+        when we contextualize the recursive query block of the union, the
+        inner 'qn' is recognized as a recursive reference, and its
+        select_lex->outer_select() is _not_ the select_lex of
+        most_inner_in_parsing, which indicates that the inner 'qn' is placed
+        too deep.
+      */
+      my_error(ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE,
+               MYF(0), el->name().str);
+      return true;
+    }
+    *found= el;
+    break;
+  }
+  return false;
+}
+
+
+bool PT_common_table_expr::match_table_ref(TABLE_LIST *tl, bool in_self,
+                                           bool *found)
+{
+  *found= false;
+  if (tl->table_name_length == m_name.length &&
+      /*
+        memcmp() is fine even if lower_case_table_names==1, as CTE names
+        have been lowercased in the ctor.
+      */
+      !memcmp(tl->table_name, m_name.str, m_name.length))
+  {
+    *found= true;
+    // 'tl' is a reference to CTE 'el'.
+    if (in_self)
+    {
+      m_postparse.recursive= true;
+      tl->is_recursive_reference= true;
+    }
+    else
+    {
+      if (m_postparse.references.push_back(tl))
+        return true;                            /* purecov: inspected */
+      tl->set_common_table_expr(&m_postparse);
+      if (m_column_names.size())
+        tl->set_derived_column_names(&m_column_names);
+    }
+  }
+  return false;
+}
+
+
 /**
   Add a table to list of used tables.
 
   @param thd      Current session.
-  @param table		Table to add
+  @param table_name	Table to add
   @param alias		alias for table (or null if no alias)
   @param table_options	A set of the following bits:
                          - TL_OPTION_UPDATING : Table will be updated
@@ -5517,6 +5805,7 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
   @param index_hints_arg
   @param partition_names
   @param option
+  @param pc             Current parsing context, if available.
 
   @return Pointer to TABLE_LIST element added to the total table list
   @retval
@@ -5524,81 +5813,90 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
 */
 
 TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
-                                          Table_ident *table,
+                                          Table_ident *table_name,
                                           LEX_STRING *alias,
                                           ulong table_options,
                                           thr_lock_type lock_type,
                                           enum_mdl_type mdl_type,
                                           List<Index_hint> *index_hints_arg,
                                           List<String> *partition_names,
-                                          LEX_STRING *option)
+                                          LEX_STRING *option,
+                                          Parse_context *pc)
 {
   TABLE_LIST *ptr;
   TABLE_LIST *previous_table_ref= NULL; /* The table preceding the current one. */
-  const char *alias_str;
   LEX *lex= thd->lex;
   DBUG_ENTER("add_table_to_list");
 
-  if (!table)
-    DBUG_RETURN(0);				// End of memory
-  alias_str= alias ? alias->str : table->table.str;
+  DBUG_ASSERT(table_name != nullptr);
   if (!MY_TEST(table_options & TL_OPTION_ALIAS))
   {
     Ident_name_check ident_check_status=
-      check_table_name(table->table.str, table->table.length);
+      check_table_name(table_name->table.str, table_name->table.length);
     if (ident_check_status == Ident_name_check::WRONG)
     {
-      my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name->table.str);
       DBUG_RETURN(0);
     }
     else if (ident_check_status == Ident_name_check::TOO_LONG)
     {
-      my_error(ER_TOO_LONG_IDENT, MYF(0), table->table.str);
+      my_error(ER_TOO_LONG_IDENT, MYF(0), table_name->table.str);
       DBUG_RETURN(0);
     }
   }
-  LEX_STRING db= to_lex_string(table->db);
-  if (table->is_derived_table() == FALSE && table->db.str &&
+  LEX_STRING db= to_lex_string(table_name->db);
+  if (!table_name->is_derived_table() && table_name->db.str &&
       (check_and_convert_db_name(&db, false) != Ident_name_check::OK))
     DBUG_RETURN(0);
 
+  const char *alias_str= alias ? alias->str : table_name->table.str;
   if (!alias)					/* Alias is case sensitive */
   {
-    if (table->sel)
+    if (table_name->sel)
     {
       my_error(ER_DERIVED_MUST_HAVE_ALIAS, MYF(0));
       DBUG_RETURN(0);
     }
-    if (!(alias_str= (char*) thd->memdup(alias_str,table->table.length+1)))
+    if (!(alias_str= (char*) thd->memdup(alias_str,table_name->table.length+1)))
       DBUG_RETURN(0);
   }
+
   if (!(ptr = (TABLE_LIST *) thd->mem_calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(0);				/* purecov: inspected */
-  if (table->db.str)
+
+  if (lower_case_table_names && table_name->table.length)
+    table_name->table.length= my_casedn_str(files_charset_info,
+                                       const_cast<char*>(table_name->table.str));
+
+  ptr->select_lex= this;
+  ptr->table_name= const_cast<char*>(table_name->table.str);
+  ptr->table_name_length= table_name->table.length;
+  ptr->alias= const_cast<char*>(alias_str);
+  ptr->is_alias= alias != nullptr;
+
+  if (table_name->db.str)
   {
     ptr->is_fqtn= TRUE;
-    ptr->db= const_cast<char*>(table->db.str);
-    ptr->db_length= table->db.length;
+    ptr->db= const_cast<char*>(table_name->db.str);
+    ptr->db_length= table_name->db.length;
   }
-  else if (lex->copy_db_to((char**)&ptr->db, &ptr->db_length))
-    DBUG_RETURN(0);
   else
-    ptr->is_fqtn= FALSE;
+  {
+    bool found_cte;
+    if (find_common_table_expr(thd, table_name, ptr, pc, &found_cte))
+      DBUG_RETURN(0);
+    if (!found_cte &&
+        lex->copy_db_to((char**)&ptr->db, &ptr->db_length))
+      DBUG_RETURN(0);
+  }
 
-  ptr->alias= const_cast<char*>(alias_str);
-  ptr->is_alias= alias ? TRUE : FALSE;
-  if (lower_case_table_names && table->table.length)
-    table->table.length= my_casedn_str(files_charset_info,
-                                       const_cast<char*>(table->table.str));
-  ptr->table_name= const_cast<char*>(table->table.str);
-  ptr->table_name_length= table->table.length;
   ptr->set_tableno(0);
   ptr->set_lock({lock_type, THR_DEFAULT});
   ptr->updating=    MY_TEST(table_options & TL_OPTION_UPDATING);
   /* TODO: remove TL_OPTION_FORCE_INDEX as it looks like it's not used */
   ptr->force_index= MY_TEST(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= MY_TEST(table_options & TL_OPTION_IGNORE_LEAVES);
-  ptr->set_derived_unit(table->sel);
+  ptr->set_derived_unit(table_name->sel);
   if (!ptr->is_derived() && is_infoschema_db(ptr->db, ptr->db_length))
   {
     dd::info_schema::convert_table_name_case(
@@ -5663,7 +5961,6 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
     }
   }
 
-  ptr->select_lex= this;
   ptr->cacheable_table= 1;
   ptr->index_hints= index_hints_arg;
   ptr->option= option ? option->str : 0;
@@ -5725,7 +6022,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
                      MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
                      MDL_TRANSACTION);
   }
-  if (table->is_derived_table())
+  if (table_name->is_derived_table())
   {
     ptr->derived_key_list.empty();
     derived_table_count++;
@@ -6789,9 +7086,6 @@ private:
   bool m_has_errors;
   bool m_is_mem_error;
 };
-
-
-extern int MYSQLparse(class THD *thd); // from sql_yacc.cc
 
 
 /**

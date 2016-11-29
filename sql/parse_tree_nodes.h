@@ -49,6 +49,7 @@
 #include "sql_lex.h"                 // LEX
 #include "sql_list.h"
 #include "sql_parse.h"               // add_join_natural
+#include "table.h"                   // Common_table_expr
 #include "sql_security_ctx.h"
 #include "table.h"
 #include "thr_lock.h"
@@ -232,6 +233,153 @@ public:
 };
 
 
+/**
+  Represents an element of the WITH list:
+  WITH [...], [...] SELECT ...,
+         ^  or  ^
+  i.e. a Common Table Expression (CTE, or Query Name in SQL99 terms).
+*/
+class PT_common_table_expr : public Parse_tree_node
+{
+  typedef Parse_tree_node super;
+
+public:
+  explicit PT_common_table_expr(const LEX_STRING &name,
+                                const LEX_STRING &subq_text,
+                                uint subq_text_offset,
+                                PT_subquery *sn,
+                                const Create_col_name_list *column_names,
+                                MEM_ROOT *mem_root);
+
+  /// The name after AS
+  const LEX_STRING &name() const { return m_name; }
+  /**
+    @param      thd  Thread handler
+    @param[out] node PT_subquery
+    @returns a PT_subquery to attach to a table reference for this CTE
+  */
+  bool make_subquery_node(THD *thd, PT_subquery **node);
+  /**
+    @param tl  Table reference to match
+    @param in_self  If this is a recursive reference
+    @param[out]  found Is set to true/false if matches or not
+    @returns true if error
+  */
+  bool match_table_ref(TABLE_LIST *tl, bool in_self, bool *found);
+  /**
+    @returns true if 'other' is the same instance as 'this'
+  */
+  bool is(const Common_table_expr *other) const
+  { return other == &m_postparse; }
+  void print(THD *thd, String *str, enum_query_type query_type);
+
+private:
+
+  LEX_STRING m_name;
+  /// Raw text of query expression (including parentheses)
+  const LEX_STRING m_subq_text;
+  /**
+    Offset in bytes of m_subq_text in original statement which had the WITH
+    clause.
+  */
+  uint m_subq_text_offset;
+  /// Parsed version of subq_text
+  PT_subquery *const m_subq_node;
+  /// List of explicitely specified column names; if empty, no list.
+  const Create_col_name_list m_column_names;
+  /**
+    A TABLE_LIST representing a CTE needs access to the WITH list
+    element it derives from. However, in order to:
+    - limit the members which TABLE_LIST can access
+    - avoid including this header file everywhere TABLE_LIST needs to access
+    these members,
+    these members are relocated into a separate inferior object whose
+    declaration is in table.h, like that of TABLE_LIST. It's the "postparse"
+    part. TABLE_LIST accesses this inferior object only.
+  */
+  Common_table_expr m_postparse;
+};
+
+
+/**
+   Represents the WITH list.
+   WITH [...], [...] SELECT ...,
+        ^^^^^^^^^^^^
+*/
+class PT_with_list : public Parse_tree_node
+{
+  typedef Parse_tree_node super;
+
+public:
+  /// @param mem_root where interior objects are allocated
+  explicit PT_with_list(MEM_ROOT *mem_root) : m_elements(mem_root) {}
+  bool push_back(PT_common_table_expr *el);
+  const Mem_root_array<PT_common_table_expr *> &elements() const
+  { return m_elements; }
+
+private:
+  Mem_root_array<PT_common_table_expr *> m_elements;
+};
+
+
+/**
+  Represents the WITH clause:
+  WITH [...], [...] SELECT ...,
+  ^^^^^^^^^^^^^^^^^
+*/
+class PT_with_clause : public Parse_tree_node
+{
+  typedef Parse_tree_node super;
+
+public:
+  PT_with_clause(PT_with_list *l, bool r) :
+  m_list(*l), m_recursive(r), m_most_inner_in_parsing(nullptr) {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;            /* purecov: inspected */
+    // WITH complements a query expression (a unit).
+    pc->select->master_unit()->m_with_clause= this;
+    return false;
+  }
+
+  /**
+    Looks up a table reference into the list of CTEs.
+    @param      tl    Table reference to look up
+    @param[out] found Is set to true/false if found or not
+    @returns true if error
+  */
+  bool lookup(TABLE_LIST *tl, PT_common_table_expr **found);
+  /**
+    Call this to record in the WITH clause that we are contextualizing the
+    CTE definition inserted in table reference 'tl'.
+    @returns information which the caller must provide to
+    leave_parsing_definition().
+  */
+  const TABLE_LIST *enter_parsing_definition(TABLE_LIST *tl)
+  {
+    auto old= m_most_inner_in_parsing;
+    m_most_inner_in_parsing= tl;
+    return old;
+  }
+  void leave_parsing_definition(const TABLE_LIST *old)
+  { m_most_inner_in_parsing= old; }
+  void print(THD *thd, String *str, enum_query_type query_type);
+
+private:
+  /// All CTEs of this clause
+  const PT_with_list &m_list;
+  /// True if the user has specified the RECURSIVE keyword.
+  const bool m_recursive;
+  /**
+    The innermost CTE reference which we're parsing at the
+    moment. Used to detect forward references, loops and recursiveness.
+  */
+  const TABLE_LIST *m_most_inner_in_parsing;
+};
+
+
 class PT_select_item_list : public PT_item_list
 {
   typedef PT_item_list super;
@@ -348,7 +496,7 @@ public:
                                          yyps->m_lock_type,
                                          yyps->m_mdl_type,
                                          opt_key_definition,
-                                         opt_use_partition);
+                                         opt_use_partition, nullptr, pc);
     if (value == NULL)
       return true;
     if (pc->select->add_joined_table(value))
@@ -387,13 +535,16 @@ class PT_derived_table : public PT_table_reference
   typedef PT_table_reference super;
 
 public:
-  PT_derived_table(PT_subquery *subquery, LEX_STRING *table_alias);
+  PT_derived_table(PT_subquery *subquery, LEX_STRING *table_alias,
+                   Create_col_name_list *column_names);
 
   virtual bool contextualize(Parse_context *pc);
 
 private:
   PT_subquery *m_subquery;
   LEX_STRING *m_table_alias;
+  /// List of explicitely specified column names; if empty, no list.
+  const Create_col_name_list column_names;
 };
 
 
@@ -1822,7 +1973,8 @@ public:
       m_limit(limit),
       m_procedure_analyse(procedure_analyse),
       m_locking_clauses(locking_clauses),
-      m_parentheses(false)
+      m_parentheses(false),
+      m_with_clause(NULL)
   {}
 
   explicit PT_query_expression(PT_query_expression_body *body)
@@ -1831,8 +1983,12 @@ public:
 
   virtual bool contextualize(Parse_context *pc)
   {
+    if (contextualize_safe(pc, m_with_clause))
+      return true;                              /* purecov: inspected */
+
     pc->select->set_braces(m_parentheses || pc->select->braces);
     m_body->set_containing_qe(this);
+
     if (Parse_tree_node::contextualize(pc) ||
         m_body->contextualize(pc))
       return true;
@@ -1932,6 +2088,9 @@ private:
   PT_procedure_analyse *m_procedure_analyse;
   PT_locking_clause_list *m_locking_clauses;
   bool m_parentheses;
+
+public:
+  PT_with_clause *m_with_clause;
 };
 
 
@@ -2145,6 +2304,8 @@ class PT_delete : public PT_statement
 {
   typedef PT_statement super;
 
+private:
+  PT_with_clause *m_with_clause;
   PT_hint_list *opt_hints;
   const int opt_delete_options;
   Table_ident *table_ident;
@@ -2158,14 +2319,15 @@ class PT_delete : public PT_statement
 
 public:
   // single-table DELETE node constructor:
-  PT_delete(PT_hint_list *opt_hints_arg,
+  PT_delete(PT_with_clause *with_clause_arg,
+            PT_hint_list *opt_hints_arg,
             int opt_delete_options_arg,
             Table_ident *table_ident_arg,
             List<String> *opt_use_partition_arg,
             Item *opt_where_clause_arg,
             PT_order *opt_order_clause_arg,
             Item *opt_delete_limit_clause_arg)
-  : opt_hints(opt_hints_arg),
+  : m_with_clause(with_clause_arg), opt_hints(opt_hints_arg),
     opt_delete_options(opt_delete_options_arg),
     table_ident(table_ident_arg),
     opt_use_partition(opt_use_partition_arg),
@@ -2178,12 +2340,13 @@ public:
   }
 
   // multi-table DELETE node constructor:
-  PT_delete(PT_hint_list *opt_hints_arg,
+  PT_delete(PT_with_clause *with_clause_arg,
+            PT_hint_list *opt_hints_arg,
             int opt_delete_options_arg,
             const Mem_root_array_YY<Table_ident *> &table_list_arg,
             const Mem_root_array_YY<PT_table_reference *> &join_table_list_arg,
             Item *opt_where_clause_arg)
-  : opt_hints(opt_hints_arg),
+  : m_with_clause(with_clause_arg), opt_hints(opt_hints_arg),
     opt_delete_options(opt_delete_options_arg),
     table_ident(NULL),
     table_list(table_list_arg),
@@ -2218,6 +2381,7 @@ class PT_update : public PT_statement
 {
   typedef PT_statement super;
 
+  PT_with_clause *m_with_clause;
   PT_hint_list *opt_hints;
   thr_lock_type opt_low_priority;
   bool opt_ignore;
@@ -2230,7 +2394,8 @@ class PT_update : public PT_statement
   bool multitable;
 
 public:
-  PT_update(PT_hint_list *opt_hints_arg,
+  PT_update(PT_with_clause *with_clause_arg,
+            PT_hint_list *opt_hints_arg,
             thr_lock_type opt_low_priority_arg,
             bool opt_ignore_arg,
             const Mem_root_array_YY<PT_table_reference *> &join_table_list_arg,
@@ -2239,7 +2404,7 @@ public:
             Item *opt_where_clause_arg,
             PT_order *opt_order_clause_arg,
             Item *opt_limit_clause_arg)
-  : opt_hints(opt_hints_arg),
+  : m_with_clause(with_clause_arg), opt_hints(opt_hints_arg),
     opt_low_priority(opt_low_priority_arg),
     opt_ignore(opt_ignore_arg),
     join_table_list(join_table_list_arg),

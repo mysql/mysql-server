@@ -67,7 +67,7 @@ class Simple_cstring
 private:
   const char *m_str;
   size_t m_length;
-protected:
+public:
   /**
     Initialize from a C string whose length is already known.
   */
@@ -80,7 +80,6 @@ protected:
     m_str= str_arg;
     m_length= length_arg;
   }
-public:
   Simple_cstring()
   {
     set(NULL, 0);

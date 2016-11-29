@@ -198,8 +198,12 @@ build_query(const POS &pos,
   LEX_STRING derived_table_name;
   if (!thd->make_lex_string(&derived_table_name, table_name.str, table_name.length, false))
     return NULL;
+  Create_col_name_list column_names;
+  column_names.init(thd->mem_root);
   PT_derived_table *derived_table;
-  derived_table= new (thd->mem_root) PT_derived_table(sub_query, &derived_table_name);
+  derived_table= new (thd->mem_root) PT_derived_table(sub_query,
+                                                      &derived_table_name,
+                                                      &column_names);
   if (derived_table == NULL)
    return NULL;
 

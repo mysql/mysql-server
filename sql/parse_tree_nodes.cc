@@ -651,6 +651,9 @@ bool PT_delete::contextualize(Parse_context *pc)
   if (opt_delete_options & DELETE_QUICK)
     select->add_base_options(OPTION_QUICK);
 
+  if (contextualize_safe(pc, m_with_clause))
+    return true;                                /* purecov: inspected */
+
   if (is_multitable())
   {
     for (Table_ident **i= table_list.begin(); i != table_list.end(); ++i)
@@ -736,6 +739,9 @@ bool PT_update::contextualize(Parse_context *pc)
 
   lex->set_ignore(opt_ignore);
 
+  if (contextualize_safe(pc, m_with_clause))
+    return true;                                /* purecov: inspected */
+
   if (contextualize_array(pc, &join_table_list))
     return true;
   select->parsing_place= CTX_UPDATE_VALUE_LIST;
@@ -752,14 +758,6 @@ bool PT_update::contextualize(Parse_context *pc)
   select->parsing_place= CTX_NONE;
   multitable= select->table_list.elements > 1;
   lex->sql_command= multitable ? SQLCOM_UPDATE_MULTI : SQLCOM_UPDATE;
-
-  if (!multitable && select->get_table_list()->is_derived())
-  {
-    /* it is single table update and it is update of derived table */
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
-             select->get_table_list()->alias, "UPDATE");
-    return true;
-  }
 
   /*
     In case of multi-update setting write lock for all tables may
@@ -1061,9 +1059,11 @@ bool PT_query_specification::contextualize(Parse_context *pc)
 
 
 PT_derived_table::PT_derived_table(PT_subquery *subquery,
-                                   LEX_STRING *table_alias)
+                                   LEX_STRING *table_alias,
+                                   Create_col_name_list *column_names)
   : m_subquery(subquery),
-    m_table_alias(table_alias)
+    m_table_alias(table_alias),
+    column_names(*column_names)
 {
   m_subquery->m_is_derived_table= true;
 }
@@ -1094,6 +1094,8 @@ bool PT_derived_table::contextualize(Parse_context *pc)
                                        TL_READ, MDL_SHARED_READ);
   if (value == NULL)
     return true;
+  if (column_names.size())
+    value->set_derived_column_names(&column_names);
   if (pc->select->add_joined_table(value))
     return true;
 
@@ -1350,6 +1352,105 @@ bool PT_foreign_key_definition::contextualize(Parse_context *pc)
     return true;
 
   return false;
+}
+
+
+bool PT_with_list::push_back(PT_common_table_expr *el)
+{
+  const LEX_STRING &n= el->name();
+  for (auto previous : m_elements)
+  {
+    const LEX_STRING &pn= previous->name();
+    if (pn.length == n.length &&
+        !memcmp(pn.str, n.str, n.length))
+    {
+      my_error(ER_NONUNIQ_TABLE, MYF(0), n.str);
+      return true;
+    }
+  }
+  return m_elements.push_back(el);
+}
+
+
+PT_common_table_expr::PT_common_table_expr(const LEX_STRING &name,
+                                           const LEX_STRING &subq_text,
+                                           uint subq_text_offs,
+                                           PT_subquery *subq_node,
+                                           const Create_col_name_list *column_names,
+                                           MEM_ROOT *mem_root)
+  : m_name(name), m_subq_text(subq_text), m_subq_text_offset(subq_text_offs),
+    m_subq_node(subq_node), m_column_names(*column_names),
+    m_postparse(mem_root)
+{
+  if (lower_case_table_names && m_name.length)
+    // Lowercase name, as in SELECT_LEX::add_table_to_list()
+    m_name.length= my_casedn_str(files_charset_info, m_name.str);
+}
+
+
+void PT_with_clause::print(THD *thd, String *str, enum_query_type query_type)
+{
+  size_t len1= str->length();
+  str->append("with ");
+  if (m_recursive)
+    str->append("recursive ");
+  size_t len2= str->length(), len3= len2;
+  for (auto el : m_list.elements())
+  {
+    if (str->length() != len3)
+    {
+      str->append(", ");
+      len3= str->length();
+    }
+    el->print(thd, str, query_type);
+  }
+  if (str->length() == len2)
+    str->length(len1);                   // don't print an empty WITH clause
+  else
+    str->append(" ");
+}
+
+
+void PT_common_table_expr::print(THD *thd, String *str,
+                                 enum_query_type query_type)
+{
+  size_t len= str->length();
+  append_identifier(thd, str, m_name.str, m_name.length);
+  if (m_column_names.size())
+    print_derived_column_names(thd, str, &m_column_names);
+  str->append(" as ");
+
+  /*
+    Printing the raw text (this->m_subq_text) would lack:
+    - expansion of '||' (which can mean CONCAT or OR, depending on
+    sql_mode's PIPES_AS_CONCAT (the effect would be that a view containing
+    a CTE containing '||' would change behaviour if sql_mode was
+    changed between its creation and its usage).
+    - quoting of table identifiers
+    - expansion of the default db.
+    So, we rather locate one resolved query expression for this CTE; for
+    it to be intact this query expression must be non-merged. And we print
+    it.
+    If query expression has been merged everywhere, its SELECT_LEX_UNIT is
+    gone and printing this CTE can be skipped. Note that when we print the
+    view's body to the data dictionary, no merging is done.
+  */
+  bool found= false;
+  for (auto *tl : m_postparse.references)
+  {
+    if (!tl->is_merged() &&
+        // If 2+ references exist, show the one which is shown in EXPLAIN
+        tl->query_block_id_for_explain() == tl->query_block_id())
+    {
+      str->append('(');
+      tl->derived_unit()->print(str, query_type);
+      str->append(')');
+      found= true;
+      break;
+    }
+  }
+  if (!found)
+    str->length(len);          // don't print a useless CTE definition
 }
 
 

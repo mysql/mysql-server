@@ -48,10 +48,10 @@
 #include "sql_security_ctx.h"
 #include "sql_show.h"                  // append_identifier
 #include "sql_table.h"                 // primary_key_name
+#include "parse_tree_nodes.h"          // PT_with_clause
 #include "sql_yacc.h"
 #include "system_variables.h"
 #include "template_utils.h"
-
 
 extern int HINT_PARSER_parse(THD *thd,
                              Hint_scanner *scanner,
@@ -467,7 +467,6 @@ void LEX::reset()
 
   set_var_list.empty();
   param_list.empty();
-  view_list.empty();
   prepared_stmt_params.empty();
   describe= DESCRIBE_NONE;
   subqueries= false;
@@ -512,6 +511,7 @@ void LEX::reset()
   exchange= NULL;
   mark_broken(false);
   max_execution_time= 0;
+  reparse_common_table_expr_at= 0;
   opt_hints_global= NULL;
   binlog_need_explicit_defaults_ts= false;
 }
@@ -1187,6 +1187,9 @@ Expression_parser_state::Expression_parser_state()
 : Parser_state(GRAMMAR_SELECTOR_EXPR), result(NULL)
 {}
 
+Common_table_expr_parser_state::Common_table_expr_parser_state()
+: Parser_state(GRAMMAR_SELECTOR_CTE), result(NULL)
+{}
 
 /*
 ** Calc type of integer; long integer, longlong integer or real.
@@ -2177,6 +2180,30 @@ void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str)
 
 
 /**
+   Prints into 'str' a comma-separated list of column names, enclosed in
+   parenthesis.
+   @param  thd  Thread handler
+   @param  str  Where to print
+   @param  column_names List to print, or NULL
+*/
+
+void print_derived_column_names(THD *thd, String *str,
+                                const Create_col_name_list *column_names)
+{
+  if (!column_names)
+    return;
+  str->append(" (");
+  for (auto s : *column_names)
+  {
+    append_identifier(thd, str, s.str, s.length);
+    str->append(',');
+  }
+  str->length(str->length()-1);
+  str->append(')');
+}
+
+
+/**
   Construct and initialize SELECT_LEX_UNIT object.
 */
 
@@ -2203,7 +2230,11 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context) :
   thd(NULL),
   fake_select_lex(NULL),
   saved_fake_select_lex(NULL),
-  union_distinct(NULL)
+  union_distinct(NULL),
+  m_with_clause(NULL),
+  derived_table(NULL),
+  first_recursive(NULL),
+  got_all_recursive_rows(false)
 {
   switch (parsing_context)
   {
@@ -2315,6 +2346,8 @@ SELECT_LEX::SELECT_LEX
   sj_pullout_done(false),
   exclude_from_table_unique_test(false),
   allow_merge_derived(true),
+  recursive_reference(NULL),
+  recursive_dummy_unit(NULL),
   select_list_tables(0),
   outer_join(0),
   opt_hints_qb(NULL),
@@ -2738,6 +2771,8 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd)
 
 void SELECT_LEX_UNIT::print(String *str, enum_query_type query_type)
 {
+  if (m_with_clause)
+    m_with_clause->print(thd, str, query_type);
   bool union_all= !union_distinct;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
@@ -3000,8 +3035,9 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
     const char *cmp_name;                         // Name to compare with alias
     if (view_name.str)
     {
-      // A view
-      if (!(query_type & QT_NO_DB) &&
+      // A view or CTE
+      if (view_db.length &&
+          !(query_type & QT_NO_DB) &&
           !((query_type & QT_NO_DEFAULT_DB) &&
             db_is_default_db(view_db.str, view_db.length, thd)))
       {
@@ -3077,7 +3113,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
       str->append(' ');
       if (lower_case_table_names== 1)
       {
-        if (alias && alias[0])
+        if (alias && alias[0]) // Print alias in lowercase
         {
           my_stpcpy(t_alias_buff, alias);
           my_casedn_str(files_charset_info, t_alias_buff);
@@ -3087,6 +3123,14 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
 
       append_identifier(thd, str, t_alias, strlen(t_alias));
     }
+
+    /*
+      The optional column list is to be specified in the definition. For a
+      CTE, the definition is in WITH, and here we only have a
+      reference. For a Derived Table, the definition is here.
+    */
+    if (!view_name.str)
+      print_derived_column_names(thd, str, m_derived_column_names);
 
     if (index_hints)
     {
@@ -3724,14 +3768,18 @@ bool SELECT_LEX_UNIT::set_limit(THD *thd_arg, SELECT_LEX *provider)
 
   @retval true  A temporary table is needed.
   @retval false A temporary table is not needed.
- */
+
+  @todo figure out if the test for "top-level unit" is necessary - see
+  bug#23022426.
+*/
 bool SELECT_LEX_UNIT::union_needs_tmp_table()
 {
   return union_distinct != NULL ||
     global_parameters()->order_list.elements != 0 ||
-    thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
-    thd->lex->sql_command == SQLCOM_REPLACE_SELECT;
-}  
+    ((thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
+      thd->lex->sql_command == SQLCOM_REPLACE_SELECT) &&
+     thd->lex->unit == this);
+}
 
 
 /**

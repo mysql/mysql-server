@@ -1174,32 +1174,36 @@ do_select(JOIN *join)
     }
   }
 
+  if (error != NESTED_LOOP_OK)
+    rc= -1;
+
+  if (!join->select_lex->is_recursive() ||
+      join->select_lex->master_unit()->got_all_recursive_rows)
   {
     /*
       The following will unlock all cursors if the command wasn't an
       update command
     */
     join->join_free();			// Unlock all cursors
+    if (error == NESTED_LOOP_OK)
+    {
+      /*
+        Sic: this branch works even if rc != 0, e.g. when
+        send_data above returns an error.
+      */
+      if (join->select_lex->query_result()->send_eof())
+        rc= 1;                                  // Don't send error
+      DBUG_PRINT("info",("%ld records output", (long) join->send_records));
+    }
   }
-  if (error == NESTED_LOOP_OK)
-  {
-    /*
-      Sic: this branch works even if rc != 0, e.g. when
-      send_data above returns an error.
-    */
-    if (join->select_lex->query_result()->send_eof())
-      rc= 1;                                  // Don't send error
-    DBUG_PRINT("info",("%ld records output", (long) join->send_records));
-  }
-  else
-    rc= -1;
+
+  rc= join->thd->is_error() ? -1 : rc;
 #ifndef DBUG_OFF
   if (rc)
   {
     DBUG_PRINT("error",("Error: do_select() failed"));
   }
 #endif
-  rc= join->thd->is_error() ? -1 : rc;
   DBUG_RETURN(rc);
 }
 
@@ -1402,7 +1406,8 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
 {
   DBUG_ENTER("sub_select");
 
-  qep_tab->table()->reset_null_row();
+  TABLE *const table= qep_tab->table();
+  table->reset_null_row();
 
   if (end_of_records)
   {
@@ -1448,13 +1453,35 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
   join->thd->get_stmt_da()->reset_current_row_for_condition();
 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  bool in_first_read= true;
   const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
   if (pfs_batch_update)
-    qep_tab->table()->file->start_psi_batch_mode();
+    table->file->start_psi_batch_mode();
+
+  bool in_first_read= true;
+  const bool is_recursive_ref= qep_tab->table_ref->is_recursive_reference;
+  const ha_rows *recursive_row_count;
+
+  if (is_recursive_ref)
+  {
+    // The with-recursive algorithm requires a table scan.
+    DBUG_ASSERT(qep_tab->type() == JT_ALL);
+    in_first_read= !table->file->inited;
+    // Tmp table which we're reading is bound to this result
+    recursive_row_count=
+      join->select_lex->master_unit()->recursive_result(join->select_lex)->row_count();
+  }
+
   while (rc == NESTED_LOOP_OK && join->return_tab >= qep_tab_idx)
   {
     int error;
+
+    if (is_recursive_ref && // see Recursive_executor's documentation
+        qep_tab->m_fetched_rows >= *recursive_row_count)
+    {
+      error= -1;
+      break;
+    }
+
     if (in_first_read)
     {
       in_first_read= false;
@@ -1476,8 +1503,9 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
     }
     else
     {
+      qep_tab->m_fetched_rows++;
       if (qep_tab->keep_current_rowid)
-        qep_tab->table()->file->position(qep_tab->table()->record[0]);
+        table->file->position(table->record[0]);
       rc= evaluate_join_record(join, qep_tab);
     }
   }
@@ -1488,7 +1516,7 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
     rc= evaluate_null_complemented_join_record(join, qep_tab);
 
   if (pfs_batch_update)
-    qep_tab->table()->file->end_psi_batch_mode();
+    table->file->end_psi_batch_mode();
 
   DBUG_RETURN(rc);
 }
@@ -1508,14 +1536,12 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
 bool QEP_TAB::prepare_scan()
 {
   // Check whether materialization is required.
-  if (!materialize_table || materialized)
+  if (!materialize_table || table()->materialized)
     return false;
 
   // Materialize table prior to reading it
   if ((*materialize_table)(this))
     return true;
-
-  materialized= true;
 
   // Bind to the rowid buffer managed by the TABLE object.
   if (copy_current_rowid)
@@ -2708,7 +2734,7 @@ int join_materialize_derived(QEP_TAB *tab)
   THD *const thd= tab->table()->in_use;
   TABLE_LIST *const derived= tab->table_ref;
 
-  DBUG_ASSERT(derived->uses_materialization() && !tab->materialized);
+  DBUG_ASSERT(derived->uses_materialization() && !tab->table()->materialized);
 
   if (derived->materializable_is_const()) // Has been materialized by optimizer
     return NESTED_LOOP_OK;
@@ -2766,6 +2792,7 @@ join_materialize_semijoin(QEP_TAB *tab)
   }
 #endif
 
+  tab->table()->materialized= true;
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
@@ -3585,7 +3612,6 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
                                     &tmp_tbl->recinfo,
 				    error, TRUE, NULL))
 	  DBUG_RETURN(NESTED_LOOP_ERROR);        // Not a table_is_full error
-	table->s->uniques=0;			// To ensure rows are the same
       }
       if (++qep_tab->send_records >=
             tmp_tbl->end_write_records &&

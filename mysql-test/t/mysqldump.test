@@ -828,10 +828,11 @@ use test;
 # dump of view
 #
 
-create table t1(a int);
+create table t1(a int, b int);
 create view v1 as select * from t1;
+create view v2 (c, d) as select * from t1;
 --exec $MYSQL_DUMP --skip-comments test
-drop view v1;
+drop view v1, v2;
 drop table t1;
 
 

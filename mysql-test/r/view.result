@@ -46,10 +46,10 @@ c
 11
 show create table v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`c`) AS select (`t1`.`b` + 1) AS `b+1` from `t1`	latin1	latin1_swedish_ci
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`c`) AS select (`t1`.`b` + 1) AS `b+1` from `t1`	latin1	latin1_swedish_ci
 show create view t1;
 ERROR HY000: 'test.t1' is not VIEW
 drop table t1;
@@ -73,7 +73,7 @@ Note	1003	/* select#1 */ select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` (`c`) AS select (`t1`.`b` + 1) AS `b+1` from `t1`	latin1	latin1_swedish_ci
 select c from v2;
 c
 3
@@ -723,7 +723,7 @@ drop table t1;
 CREATE VIEW v1 (f1,f2,f3,f4) AS SELECT connection_id(), pi(), current_user(), version();
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`f1`,`f2`,`f3`,`f4`) AS select connection_id() AS `connection_id()`,pi() AS `pi()`,current_user() AS `current_user()`,version() AS `version()`	latin1	latin1_swedish_ci
 drop view v1;
 create table t1 (s1 int);
 create table t2 (s2 int);
@@ -831,7 +831,7 @@ a	b
 1	1
 show create view v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from (`v1` join `v2`) where (`v1`.`col1` = `v2`.`col1`)	latin1	latin1_swedish_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` (`a`,`b`) AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from (`v1` join `v2`) where (`v1`.`col1` = `v2`.`col1`)	latin1	latin1_swedish_ci
 drop view v3, v2, v1;
 drop table t2, t1;
 create function `f``1` () returns int return 5;
@@ -2047,7 +2047,7 @@ create view v1 as select 's1', s1, 1 as s1 from t1;
 ERROR 42S21: Duplicate column name 's1'
 drop table t1;
 create view v1(k, K) as select 1,2;
-ERROR 42S21: Duplicate column name 'K'
+ERROR 42S21: Duplicate column name 'k'
 create view v1 as SELECT TIME_FORMAT(SEC_TO_TIME(3600),'%H:%i') as t;
 select * from v1;
 t
@@ -4042,7 +4042,7 @@ CREATE TABLE t1 (c INT);
 CREATE VIEW v1 (view_column) AS SELECT c AS alias FROM t1 HAVING alias;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c` AS `view_column` from `t1` having `view_column`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`view_column`) AS select `t1`.`c` AS `alias` from `t1` having `alias`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 view_column
 

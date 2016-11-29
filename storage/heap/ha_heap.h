@@ -29,7 +29,8 @@ class ha_heap: public handler
   /* number of records changed since last statistics update */
   uint    records_changed;
   uint    key_stat_version;
-  my_bool internal_table;
+  /// True if only one ha_heap is to exist for the table.
+  my_bool single_instance;
 public:
   ha_heap(handlerton *hton, TABLE_SHARE *table);
   ~ha_heap() {}

@@ -445,19 +445,16 @@ public:
 
 public:
   /**
-    List of regular tables in use by this thread. Contains temporary and
-    base tables that were opened with @see open_tables().
+    List of regular tables in use by this thread. Contains persistent base
+    tables that were opened with @see open_tables().
   */
   TABLE *open_tables;
   /**
     List of temporary tables used by this thread. Contains user-level
     temporary tables, created with CREATE TEMPORARY TABLE, and
-    internal temporary tables, created, e.g., to resolve a SELECT,
-    or for an intermediate table used in ALTER.
-    XXX Why are internal temporary tables added to this list?
+    intermediate tables used in ALTER TABLE implementation.
   */
   TABLE *temporary_tables;
-  TABLE *derived_tables;
   /*
     During a MySQL session, one can lock tables in two modes: automatic
     or manual. In automatic mode all necessary tables are locked just before

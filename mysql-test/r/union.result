@@ -1767,6 +1767,14 @@ Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (match `a` against ('+abc' in boolean mode))
 # Should not crash
+WITH cte AS (
+SELECT * FROM t1 UNION SELECT * FROM t1
+ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE)
+) SELECT * FROM cte;
+a
+1
+2
+# Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
 a
@@ -2785,6 +2793,47 @@ FOUND_ROWS()
 2
 DROP TABLE t1;
 #End of test for Bug#22602381
+# INSERT SELECT using UNION ALL:
+# UNION should create no tmp table if not at the top level.
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 LIKE t1;
+FLUSH STATUS;
+SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+a
+1
+2
+1
+2
+SHOW STATUS LIKE "handler_write";
+Variable_name	Value
+Handler_write	0
+FLUSH STATUS;
+INSERT INTO t2
+SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+SHOW STATUS LIKE "handler_write";
+Variable_name	Value
+Handler_write	8
+SELECT * FROM t2;
+a
+1
+2
+1
+2
+DELETE FROM t2;
+FLUSH STATUS;
+INSERT INTO t2
+SELECT * FROM (SELECT * FROM t1 UNION ALL SELECT * FROM t1) AS dt;
+SHOW STATUS LIKE "handler_write";
+Variable_name	Value
+Handler_write	8
+SELECT * FROM t2;
+a
+1
+2
+1
+2
+DROP TABLE t1,t2;
 #
 # Bug#24808970 CREATED_TMP_TABLES STATISTIC IS WRONG
 #

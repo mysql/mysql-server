@@ -360,7 +360,7 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
   init_tmp_table_share(thd, shadow_table_share,
                        share->db, 0,
                        share->table_name,
-                       share->key_string());
+                       share->key_string(), nullptr);
   if ((error= open_table_def(thd, shadow_table_share, false, NULL)) ||
       (error= open_table_from_share(thd, shadow_table_share, "", 0,
                                     (uint) (OPEN_FRM_FILE_ONLY | DELAYED_OPEN | READ_ALL),

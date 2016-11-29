@@ -469,6 +469,8 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
   @param key_length	Length of key
   @param table_name	Table name
   @param path	Path to file (possible in lower case) without .frm
+  @param mem_root       MEM_ROOT to transfer (move) to the TABLE_SHARE; if
+  NULL a new one is initialized.
 
   @note
     This is different from alloc_table_share() because temporary tables
@@ -482,14 +484,19 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
 
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           size_t key_length, const char *table_name,
-                          const char *path)
+                          const char *path, MEM_ROOT *mem_root)
 {
   DBUG_ENTER("init_tmp_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
   memset(share, 0, sizeof(*share));
-  init_sql_alloc(key_memory_table_share,
-                 &share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+
+  if (mem_root)
+    share->mem_root= std::move(*mem_root);
+  else
+    init_sql_alloc(key_memory_table_share,
+                   &share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+
   share->table_category=         TABLE_CATEGORY_TEMPORARY;
   share->tmp_table=              INTERNAL_TMP_TABLE;
   share->db.str=                 (char*) key;
@@ -2922,6 +2929,9 @@ bool unpack_partition_info(THD *thd,
     SEE Bug #21658
   */
 
+  // Can use TABLE's mem_root, as it's surely not an internal tmp table
+  DBUG_ASSERT(share->table_category != TABLE_CATEGORY_TEMPORARY);
+
   Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
   Query_arena backup_arena;
   Query_arena part_func_arena(&outparam->mem_root,
@@ -2999,9 +3009,13 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   int error;
   uint records, i, bitmap_size;
   bool error_reported= FALSE;
+  const bool internal_tmp=
+    share->table_category == TABLE_CATEGORY_TEMPORARY;
+  DBUG_ASSERT(!internal_tmp || share->ref_count != 0);
   uchar *record, *bitmaps;
   Field **field_ptr, **vfield_ptr= NULL;
   Field *fts_doc_id_field = NULL;
+  my_ptrdiff_t move_offset;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: %p", share->db.str,
                       share->table_name.str, outparam));
@@ -3013,12 +3027,25 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->db_stat= db_stat;
   outparam->write_row_record= NULL;
 
-  init_sql_alloc(key_memory_TABLE,
-                 &outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  MEM_ROOT *root;
+  if (!internal_tmp)
+  {
+    root= &outparam->mem_root;
+    init_sql_alloc(key_memory_TABLE, root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  }
+  else
+    root= &share->mem_root;
 
-  if (!(outparam->alias= my_strdup(key_memory_TABLE,
-                                   alias, MYF(MY_WME))))
+  /*
+    For internal temporary tables we allocate the 'alias' in the
+    TABLE_SHARE's mem_root rather than on the heap as it gives simpler
+    freeing.
+  */
+  outparam->alias= internal_tmp ? strdup_root(root, alias) :
+    my_strdup(key_memory_TABLE, alias, MYF(MY_WME));
+  if (!outparam->alias)
     goto err;
+
   outparam->quick_keys.init();
   outparam->possible_quick_keys.init();
   outparam->covering_keys.init();
@@ -3029,8 +3056,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->file= 0;
   if (!(prgflag & OPEN_FRM_FILE_ONLY))
   {
-    if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
-                                          share->db_type())))
+    if (!(outparam->file= get_new_handler(share, root, share->db_type())))
       goto err;
     if (outparam->file->set_ha_share_ref(&share->ha_share))
       goto err;
@@ -3049,8 +3075,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (prgflag & (READ_ALL+EXTRA_RECORD))
     records++;
 
-  if (!(record= (uchar*) alloc_root(&outparam->mem_root,
-                                   share->rec_buff_length * records)))
+  if (!(record= (uchar*) alloc_root(root, share->rec_buff_length * records)))
     goto err;                                   /* purecov: inspected */
 
   if (records == 0)
@@ -3067,7 +3092,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       outparam->record[1]= outparam->record[0];   // Safety
   }
 
-  if (!(field_ptr = (Field **) alloc_root(&outparam->mem_root,
+  if (!(field_ptr = (Field **) alloc_root(root,
                                           (uint) ((share->fields+1)*
                                                   sizeof(Field*)))))
     goto err;                                   /* purecov: inspected */
@@ -3077,19 +3102,28 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   record= (uchar*) outparam->record[0]-1;	/* Fieldstart = 1 */
   outparam->null_flags= (uchar*) record+1;
 
+  /*
+    We will create fields by cloning TABLE_SHARE's fields; then we will need
+    to make all new fields' pointers point into the new TABLE's record[0], by
+    applying an offset to them.
+    Calculate the "source" offset depending on table type:
+    - For non-internal temporary tables, source is share->default_values
+    - For internal tables, source is first TABLE's record[0], which
+    happens to be created in same memory block as share->default_values, with
+    offset 2 * share->rec_buff_length (see create_tmp_table()).
+  */
+  move_offset= outparam->record[0] - share->default_values +
+    (internal_tmp ? 2 * share->rec_buff_length : 0);
+
   /* Setup copy of fields from share, but use the right alias and record */
   for (i=0 ; i < share->fields; i++, field_ptr++)
   {
-    Field *new_field= share->field[i]->clone(&outparam->mem_root);
+    Field *new_field= share->field[i]->clone(root);
     *field_ptr= new_field;
     if (new_field == NULL)
       goto err;
     new_field->init(outparam);
-    new_field->
-      move_field_offset((my_ptrdiff_t)
-                        (reinterpret_cast<longlong>(outparam->record[0]) -
-                         reinterpret_cast<longlong>(outparam
-                                                    ->s->default_values)));
+    new_field->move_field_offset(move_offset);
     /* Check if FTS_DOC_ID column is present in the table */
     if (outparam->file &&
         (outparam->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) &&
@@ -3111,7 +3145,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     n_length= share->keys * sizeof(KEY) +
       share->key_parts * sizeof(KEY_PART_INFO);
 
-    if (!(key_info= (KEY*) alloc_root(&outparam->mem_root, n_length)))
+    if (!(key_info= (KEY*) alloc_root(root, n_length)))
       goto err;
     outparam->key_info= key_info;
     key_part= (reinterpret_cast<KEY_PART_INFO*>(key_info+share->keys));
@@ -3142,8 +3176,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
             We are using only a prefix of the column as a key:
             Create a new field for the key part that matches the index
           */
-          field= key_part->field=field->new_field(&outparam->mem_root,
-                                                  outparam, 0);
+          field= key_part->field= field->new_field(root, outparam, 0);
           field->field_length= key_part->length;
         }
       }
@@ -3192,7 +3225,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   */
 
   bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 5)))
+  if (!(bitmaps= (uchar*) alloc_root(root, bitmap_size * 5)))
     goto err;
   bitmap_init(&outparam->def_read_set,
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
@@ -3213,7 +3246,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->vfield= vfield_ptr;
   if (share->vfields)
   {
-    if (!(vfield_ptr = (Field **) alloc_root(&outparam->mem_root,
+    if (!(vfield_ptr = (Field **) alloc_root(root,
                                              (uint) ((share->vfields+1)*
                                                      sizeof(Field*)))))
       goto err;
@@ -3296,6 +3329,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       goto err;                                 /* purecov: inspected */
     }
   }
+  else if (outparam->file) // if db_stat!=0, ha_open() set those pointers:
+    outparam->file->change_table_ptr(outparam, share);
 
   if ((share->table_category == TABLE_CATEGORY_LOG) ||
       (share->table_category == TABLE_CATEGORY_RPL_INFO) ||
@@ -3334,7 +3369,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   }
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
-  free_root(&outparam->mem_root, MYF(0));
+  if (!internal_tmp)
+    free_root(root, MYF(0));
   my_free((void *) outparam->alias);
   DBUG_RETURN (error);
 }
@@ -4525,9 +4561,14 @@ bool TABLE_LIST::create_field_translation(THD *thd)
       Notice that all items keep their nullability here.
       All items are later wrapped within Item_direct_view objects.
       If the view is used on the inner side of an outer join, these
-      objects will reflect the correct nullability of the selected expressions.
+      objects will reflect the correct nullability of the selected
+      expressions.
+      The name is either explicitely specified in a list of column
+      names, or is derived from the name of the expression in the SELECT
+      list.
     */
-    transl[field_count].name= item->item_name.ptr();
+    transl[field_count].name= m_derived_column_names ?
+      (*m_derived_column_names)[field_count].str : item->item_name.ptr();
     transl[field_count++].item= item;
   }
   field_translation= transl;
@@ -6059,41 +6100,73 @@ void TABLE::mark_columns_per_binlog_row_image(THD *thd)
 
 
 /**
-  @brief
-  Allocate space for keys
+  Allocate space for keys, for a materialized derived table.
 
-  @param key_count  number of keys to allocate.
+  @param key_count     Number of keys to allocate.
+  @param modify_share  Do modificationts to TABLE_SHARE.
 
-  @details
-  Allocate space enough to fit 'key_count' keys for this table.
+  When modifying TABLE, modifications to TABLE_SHARE are needed, so that both
+  objects remain consistent. Even if several TABLEs point to the same
+  TABLE_SHARE, those modifications must be done only once (consider for
+  example, incremementing TABLE_SHARE::keys).  Should they be done when
+  processing the first TABLE, or the second, or? In case this function, when
+  updating TABLE, relies on TABLE_SHARE members which are the subject of
+  modifications, we follow this rule: do those TABLE_SHARE member
+  modifications first: thus, TABLE-modifying code can be identical for all
+  TABLEs. So the _first_ TABLE calling this function, only, should pass
+  'true': all next ones should not modify the TABLE_SHARE.
 
-  @retval FALSE space was successfully allocated.
-  @retval TRUE OOM error occur.
+  @returns true if error
 */
 
-bool TABLE::alloc_keys(uint key_count)
+bool TABLE::alloc_tmp_keys(uint key_count, bool modify_share)
 {
-  DBUG_ASSERT(!s->keys);
-  max_keys= key_count;
-  if (!(key_info= s->key_info=
-        (KEY*) alloc_root(&mem_root, sizeof(KEY)*max_keys)))
-    return TRUE;
+  const size_t bytes= sizeof(KEY) * key_count;
 
-  memset(key_info, 0, sizeof(KEY)*max_keys);
-  return FALSE;
+  if (modify_share)
+  {
+    s->max_tmp_keys= key_count;
+    /*
+      s->keyinfo may pre-exist, if keys have already been added to another
+      reference to the same CTE in another query block.
+    */
+    KEY *old_ki= s->key_info;
+    if (!(s->key_info=
+          static_cast<KEY *>(alloc_root(&s->mem_root, bytes))))
+      return true;                              /* purecov: inspected */
+    memset(s->key_info, 0, bytes);
+    if (old_ki)
+      memcpy(s->key_info, old_ki, sizeof(KEY)*s->keys);
+  }
+
+  // Catch if the caller didn't respect the rule for 'modify_share'
+  DBUG_ASSERT(s->max_tmp_keys == key_count);
+
+  KEY *old_ki= key_info;
+  if (!(key_info=
+        static_cast<KEY *>(alloc_root(&s->mem_root, bytes))))
+    return true;                                /* purecov: inspected */
+  memset(key_info, 0, bytes);
+  if (old_ki)
+    memcpy(key_info, old_ki, sizeof(KEY) * s->keys);
+
+  return false;
 }
 
 
 /**
-  @brief Add one key to a temporary table.
+  @brief Add one key to a materialized derived table.
 
   @param key_parts      bitmap of fields that take a part in the key.
   @param key_name       name of the key
+  @param invisible      If true, set up bitmaps so the key is never used by
+                        this TABLE
+  @param modify_share   @see alloc_tmp_keys
 
   @details
   Creates a key for this table from fields which corresponds the bits set to 1
   in the 'key_parts' bitmap. The 'key_name' name is given to the newly created
-  key.
+  key. In the key, columns are in the same order as in the table.
   @see add_derived_key
 
   @todo somehow manage to create keys in tmp_table_param for unification
@@ -6103,17 +6176,15 @@ bool TABLE::alloc_keys(uint key_count)
   @return FALSE the key was created or ignored (too long key).
 */
 
-bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
+bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name,
+                        bool invisible, bool modify_share)
 {
-  DBUG_ASSERT(!created && s->keys < max_keys && key_parts);
+  DBUG_ASSERT(!created && key_parts);
 
-  KEY* cur_key= key_info + s->keys;
   Field **reg_field;
   uint i;
   bool key_start= TRUE;
   uint field_count= 0;
-  uchar *key_buf;
-  KEY_PART_INFO* key_part_info;
   uint key_len= 0;
 
   for (i= 0, reg_field=field ; *reg_field; i++, reg_field++)
@@ -6133,13 +6204,42 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
       key_len+= tkp.store_length;
       if (key_len > MI_MAX_KEY_LENGTH)
       {
-        max_keys--;
-        return FALSE;
+        return false;
       }
     }
     field_count++;
   }
   const uint key_part_count= key_parts->bits_set();
+
+  // Code above didn't change TABLE; start with changing TABLE_SHARE:
+  if (modify_share)
+  {
+    set_if_bigger(s->max_key_length, key_len);
+    s->key_parts+= key_part_count;
+    DBUG_ASSERT(s->keys < s->max_tmp_keys);
+    s->keys++;
+  }
+
+  const uint keyno= s->keys - 1;
+  KEY* cur_key= key_info + keyno;
+
+  cur_key->usable_key_parts= cur_key->user_defined_key_parts= key_part_count;
+  cur_key->actual_key_parts= cur_key->user_defined_key_parts;
+  cur_key->key_length= key_len;
+  cur_key->algorithm= HA_KEY_ALG_BTREE;
+  cur_key->name= key_name;
+  cur_key->actual_flags= cur_key->flags= HA_GENERATED_KEY;
+  cur_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
+
+  if (modify_share)
+  {
+    /*
+      For cleanness, we copy to the TABLE_SHARE before allocating any
+      TABLE-specific memory (rec_per_key etc), as the TABLE_SHARE isn't
+      supposed to access rec_per_key etc.
+    */
+    s->key_info[keyno]= *cur_key;
+  }
 
   /*
     Allocate storage for the key part array and the two rec_per_key arrays in
@@ -6148,8 +6248,10 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
   const size_t key_buf_size= sizeof(KEY_PART_INFO) * key_part_count;
   ulong *rec_per_key;
   rec_per_key_t *rec_per_key_float;
+  uchar *key_buf;
+  KEY_PART_INFO* key_part_info;
 
-  if(!multi_alloc_root(&mem_root,
+  if(!multi_alloc_root(&s->mem_root,
                        &key_buf, key_buf_size,
                        &rec_per_key, sizeof(ulong) * key_part_count,
                        &rec_per_key_float,
@@ -6159,16 +6261,9 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
 
   memset(key_buf, 0, key_buf_size);
   cur_key->key_part= key_part_info= (KEY_PART_INFO*) key_buf;
-  cur_key->usable_key_parts= cur_key->user_defined_key_parts= key_part_count;
-  cur_key->actual_key_parts= cur_key->user_defined_key_parts;
-  s->key_parts+= key_part_count;
-  cur_key->key_length= key_len;
-  cur_key->algorithm= HA_KEY_ALG_BTREE;
-  cur_key->name= key_name;
-  cur_key->actual_flags= cur_key->flags= HA_GENERATED_KEY;
   cur_key->set_rec_per_key_array(rec_per_key, rec_per_key_float);
-  cur_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
   cur_key->table= this;
+
 
   /* Initialize rec_per_key and rec_per_key_float */
   for (uint kp= 0; kp < key_part_count; ++kp)
@@ -6177,103 +6272,127 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
     cur_key->set_records_per_key(kp, REC_PER_KEY_UNKNOWN);
   }
 
-  if (field_count == key_part_count)
-    covering_keys.set_bit(s->keys);
+  if (!invisible)
+  {
+    if (field_count == key_part_count)
+      covering_keys.set_bit(keyno);
+    keys_in_use_for_group_by.set_bit(keyno);
+    keys_in_use_for_order_by.set_bit(keyno);
+  }
 
-  keys_in_use_for_group_by.set_bit(s->keys);
-  keys_in_use_for_order_by.set_bit(s->keys);
   for (i= 0, reg_field=field ; *reg_field; i++, reg_field++)
   {
     if (!(key_parts->is_set(i)))
       continue;
 
     if (key_start)
-      (*reg_field)->key_start.set_bit(s->keys);
+      (*reg_field)->key_start.set_bit(keyno);
     key_start= FALSE;
-    (*reg_field)->part_of_key.set_bit(s->keys);
-    (*reg_field)->part_of_sortkey.set_bit(s->keys);
+    (*reg_field)->part_of_key.set_bit(keyno);
+    (*reg_field)->part_of_sortkey.set_bit(keyno);
     (*reg_field)->flags|= PART_KEY_FLAG;
     key_part_info->init_from_field(*reg_field);
     key_part_info++;
   }
-  set_if_bigger(s->max_key_length, cur_key->key_length);
-  s->keys++;
-  return FALSE;
+  return false;
 }
 
-/*
-  @brief
-  Save the specified index for later use for ref access.
 
-  @param key_to_save the key to save
+/**
+  For a materialized derived table: informs the share that certain
+  not-yet-used keys are going to be used.
 
-  @details
-  Save given index as index #0. Table is configured to ignore other indexes.
-  Memory occupied by other indexes and index parts will be freed along with
-  the table. If the 'key_to_save' is negative then all indexes are freed.
-  After keys info being changed, info in fields regarding taking part in keys
-  becomes outdated. This function fixes this also.
-  @see add_derived_key
-*/
-
-void TABLE::use_index(int key_to_save)
+  @param k  Used keys
+  @returns  New position of first not-yet-used key.
+ */
+uint TABLE_SHARE::find_first_unused_tmp_key(const Key_map &k)
 {
-  DBUG_ASSERT(!created && s->keys && key_to_save < (int)s->keys);
-
-  Field **reg_field;
-  /*
-    Reset the flags and maps associated with the fields. They are set
-    only for the key chosen by the optimizer later.
-   */
-  for (reg_field=field ; *reg_field; reg_field++)
-  {
-    if (key_to_save < 0 || !(*reg_field)->part_of_key.is_set(key_to_save))
-      (*reg_field)->key_start.clear_all();
-    (*reg_field)->part_of_key.clear_all();
-    (*reg_field)->part_of_sortkey.clear_all();
-    (*reg_field)->flags&= ~PART_KEY_FLAG;
-  }
-
-  /* Drop all keys if none of them were chosen */
-  if (key_to_save < 0)
-  {
-    key_info= s->key_info= 0;
-    s->key_parts= 0;
-    s->keys= 0;
-    covering_keys.clear_all();
-    keys_in_use_for_group_by.clear_all();
-    keys_in_use_for_order_by.clear_all();
-  }
-  else
-  {
-    /* Set the flags and maps for the key chosen by the optimizer */
-    uint i;
-    KEY_PART_INFO *kp;
-    for (kp= key_info[key_to_save].key_part, i= 0;
-         i < key_info[key_to_save].user_defined_key_parts;
-         i++, kp++)
-    {
-      if (kp->field->key_start.is_set(key_to_save))
-        kp->field->key_start.set_prefix(1);
-      kp->field->part_of_key.set_prefix(1);
-      kp->field->part_of_sortkey.set_prefix(1);
-      kp->field->flags|= PART_KEY_FLAG;
-    }
-
-    /* Save the given key. No need to copy key#0. */
-    if (key_to_save > 0)
-      key_info[0]= key_info[key_to_save];
-    s->keys= 1;
-    s->key_parts= key_info[0].user_defined_key_parts;
-    if (covering_keys.is_set(key_to_save))
-      covering_keys.set_prefix(1);
-    else
-      covering_keys.clear_all();
-    keys_in_use_for_group_by.set_prefix(1);
-    keys_in_use_for_order_by.set_prefix(1);
-  }
+  while (first_unused_tmp_key < MAX_INDEXES &&
+         k.is_set(first_unused_tmp_key))
+    first_unused_tmp_key++;                     // locate the first free slot
+  return first_unused_tmp_key;
 }
 
+
+/**
+  For a materialized derived table: copies a KEY definition from a position to
+  the first not-yet-used position (which is lower).
+
+  @param old_idx        source position
+  @param modify_share   @see alloc_tmp_keys
+*/
+void TABLE::copy_tmp_key(int old_idx, bool modify_share)
+{
+  if (modify_share)
+    s->key_info[s->first_unused_tmp_key++]= s->key_info[old_idx];
+  const int new_idx= s->first_unused_tmp_key - 1;
+  DBUG_ASSERT(!created && new_idx < old_idx && old_idx < (int)s->keys);
+  key_info[new_idx]= key_info[old_idx];
+
+  for (auto reg_field=field ; *reg_field; reg_field++)
+  {
+    auto f= *reg_field;
+    f->key_start.clear_bit(new_idx);
+    if (f->key_start.is_set(old_idx))
+      f->key_start.set_bit(new_idx);
+    f->part_of_key.clear_bit(new_idx);
+    if (f->part_of_key.is_set(old_idx))
+      f->part_of_key.set_bit(new_idx);
+    f->part_of_sortkey.clear_bit(new_idx);
+    if (f->part_of_sortkey.is_set(old_idx))
+      f->part_of_sortkey.set_bit(new_idx);
+  }
+  covering_keys.clear_bit(new_idx);
+  if (covering_keys.is_set(old_idx))
+    covering_keys.set_bit(new_idx);
+  keys_in_use_for_group_by.clear_bit(new_idx);
+  if (keys_in_use_for_group_by.is_set(old_idx))
+    keys_in_use_for_group_by.set_bit(new_idx);
+  keys_in_use_for_order_by.clear_bit(new_idx);
+  if (keys_in_use_for_order_by.is_set(old_idx))
+    keys_in_use_for_order_by.set_bit(new_idx);
+}
+
+
+/**
+  For a materialized derived table: after copy_tmp_key() has copied all
+  definitions of used KEYs, in TABLE::key_info we have a head of used keys
+  followed by a tail of unused keys; this function chops the tail.
+  @param modify_share   @see alloc_tmp_keys
+*/
+void TABLE::drop_unused_tmp_keys(bool modify_share)
+{
+  if (modify_share)
+  {
+    DBUG_ASSERT(s->first_unused_tmp_key <= s->keys);
+    s->keys= s->first_unused_tmp_key;
+    s->key_parts= 0;
+    for (uint i= 0 ; i < s->keys ; i++)
+      s->key_parts+= s->key_info[i].user_defined_key_parts;
+    if (s->first_unused_tmp_key == 0)
+      s->key_info= nullptr;
+  }
+  if (!s->key_info)
+    key_info= nullptr;
+  const Key_map keys_to_keep(s->keys);
+  for (auto reg_field=field ; *reg_field; reg_field++)
+  {
+    auto f= *reg_field;
+    f->key_start.intersect(keys_to_keep);
+    f->part_of_key.intersect(keys_to_keep);
+    if (f->part_of_key.is_clear_all())
+      f->flags&= ~PART_KEY_FLAG;
+    f->part_of_sortkey.intersect(keys_to_keep);
+  }
+
+  // Eliminate unused keys; make other keys visible
+  covering_keys.intersect(keys_to_keep);
+  for (uint keyno= 0; keyno < s->keys; keyno++)
+    if (key_info[keyno].actual_key_parts == s->fields)
+      covering_keys.set_bit(keyno);
+  keys_in_use_for_group_by.set_prefix(s->keys);
+  keys_in_use_for_order_by.set_prefix(s->keys);
+}
 
 
 /*
@@ -6473,6 +6592,9 @@ void TABLE_LIST::reinit_before_use(THD *thd)
 
   mdl_request.ticket= NULL;
 
+  if (is_recursive_reference && select_lex)
+    set_derived_unit(select_lex->recursive_dummy_unit);
+
   /*
     Is this table part of a SECURITY DEFINER VIEW?
   */
@@ -6495,8 +6617,22 @@ void TABLE_LIST::reinit_before_use(THD *thd)
 
 uint TABLE_LIST::query_block_id() const
 {
-  return derived ? derived->first_select()->select_number : 0;
+  if (!derived)
+    return 0;
+  return derived->first_select()->select_number;
 }
+
+
+uint TABLE_LIST::query_block_id_for_explain() const
+{
+  if (!derived)
+    return 0;
+  if (!m_common_table_expr || !m_common_table_expr->tmp_tables.size())
+    return derived->first_select()->select_number;
+  return m_common_table_expr->tmp_tables[0]->
+    derived_unit()->first_select()->select_number;
+}
+
 
 /**
   Compiles the tagged hints list and fills up the bitmasks.
@@ -6767,6 +6903,16 @@ int TABLE_LIST::fetch_number_of_rows()
     */
     table->file->stats.records= derived->query_result()->estimated_rowcount;
   }
+  else if (is_recursive_reference)
+  {
+    /*
+      Use the estimated row count of all query blocks before this one, as the
+      table will contain, at least, the rows produced by those blocks.
+    */
+    table->file->stats.records=
+      std::max(select_lex->master_unit()->query_result()->estimated_rowcount,
+               (ha_rows)2); // Recursive reference is never a const table
+  }
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   return error;
@@ -6807,7 +6953,7 @@ int TABLE_LIST::fetch_number_of_rows()
   One key over f1 field, and another key over f2 field.
   Currently optimizer may choose to use only one such key, thus the second
   one will be dropped after the range optimizer is finished.
-  See also JOIN::drop_unused_derived_keys function.
+  See also JOIN::finalize_derived_keys function.
   Example:
 
     SELECT * FROM (SELECT f1, f2, count(*) FROM t1 GROUP BY f1) tt JOIN
@@ -6818,11 +6964,13 @@ int TABLE_LIST::fetch_number_of_rows()
   In all cases beside one-per-table keys one additional key is generated.
   It includes all fields referenced by other tables.
 
-  Implementation is split in two steps:
+  Implementation is split in three steps:
     gather information on all used fields of derived tables/view and
       store it in lists of possible keys, one per a derived table/view.
     add keys to result tables of derived tables/view using info from above
       lists.
+    (...Planner selects best key...)
+    drop unused keys from the table.
 
   The above procedure is implemented in 4 functions:
     TABLE_LIST::update_derived_keys
@@ -6840,12 +6988,122 @@ int TABLE_LIST::fetch_number_of_rows()
                           Walks over list of possible keys for this derived
                           table/view to add keys to the result table.
                           Calls to TABLE::add_tmp_key to actually add
-                          keys. (Step two)
+                          keys (i.e. KEY objects in TABLE::key_info). (Step two)
     TABLE::add_tmp_key    Creates one index description according to given
                           bitmap of used fields. (Step two)
-  There is also the fifth function called TABLE::use_index. It saves used
-  key and frees others. It is called when the optimizer has chosen which key
-  it will use, thus we don't need other keys anymore.
+    [ Planner runs and possibly chooses one key, stored in Key_use->key ]
+    JOIN::finalize_derived_keys Walk over list of derived tables/views to
+                          destroy unused keys. (Step three)
+
+  This design is used for derived tables, views and CTEs. As a CTE
+  can be multi-referenced, some points are worth noting:
+
+  1) Definitions
+
+  - let's call the CTE 'X'
+  - Key creation/deletion happens in a window between the start of
+  update_derived_keys() and the end of finalize_derived_keys().
+
+  2) Key array locking
+
+  - Evaluation of constant subqueries (and thus their optimization)
+  may happen either before, inside, or after the window above:
+    * an example of "before": WHERE 1=(subq)), due to optimize_cond()
+    * an example of "inside": WHERE col<>(subq), as make_join_plan()
+  calls estimate_rowcount() which calls the range optimizer for <>, which
+  evaluates subq
+    * an example of "after": WHERE key_col=(subq), due to
+  create_ref_for_key().
+  - let's say that a being-optimized query block 'QB1' is entering that
+  window; other query blocks are QB2, etc; let's say (subq) above is QB2, a
+  subquery of QB1.
+  - While QB1 is in this window, it is possible, as we saw above, that QB2
+  gets optimized. Because it is not safe to have two query blocks
+  reading/writing possible keys for a same table at the same time, a locking
+  mechanism is in place: TABLE_SHARE::owner_of_possible_tmp_keys is a record
+  of which query block entered first the window for this table and hasn't left
+  it yet; only that query block is allowed to read/write possible keys for
+  this table.
+
+  3) Key array growth
+
+  - let's say that a being-optimized query block 'QB1' is entering the
+  window; other query blocks are QB2 (not necessarily the same QB2 as in
+  previous paragraph), etc.
+  - let's call "local" the references to X in QB1, let's call "nonlocal" the
+  ones in other query blocks. For example,
+  with X(n) as (select 1)
+  select /+ QB_NAME(QB2) *_/ n from X as X2
+  where X2.n = (select /+* QB_NAME(QB1) *_/ X1.n from X as X1)
+  union
+  select n+2 from X as X3;
+  QB1 owns the window, then X1 is local, X2 and X3 are nonlocal.
+  - when QB1 enters the window, update_derived_keys() starts for the local
+  reference X1, other references to X may already have keys,
+  defined by previously optimized query blocks on their
+  references (e.g. QB2 on X2). At that stage the TABLE_SHARE::key_info array is
+  of size TABLE_SHARE::keys, and the TABLE_SHARE::first_unused_tmp_key member
+  points to 'where any new key should be added in this array', so it's equal
+  to TABLE_SHARE::keys. Let's call the keys defined by QB2 the "existing
+  keys": they exist at this point and will continue to do so. X2 in QB2 is
+  already set up to read with such key. Here's the key_info array, with cell 0
+  to the left, "E" meaning "an existing key, created by previous
+  optimizations", "-" meaning "an empty cell created by alloc_keys()".
+
+  EEEEEEEEEE-----------
+            ^ s->first_unused_keys
+            ^ s->keys
+
+  - generate_keys() extends the key_info array and adds "possible" keys to the
+  end. "Possible" is defined as "not yet existing", "might be dropped in the
+  end". Even if a possible key is a duplicate of an existing key, it is
+  added. TABLE_SHARE::keys is increased to include existing and possible
+  keys. All TABLEs referencing X, local or not, are kept in sync (i.e. any
+  possible key is added to all key_info arrays). But possible keys are set to
+  be unusable by nonlocal references, so that the decision to drop those keys
+  can be left to the window's owner. Key_info array now is ("P" means
+  "possible key"):
+
+  EEEEEEEEEEPPPPPPP---
+            ^ s->first_unused_keys
+                   ^ s->keys
+
+  - All possible keys are unused, at this stage.
+  - Planner selects the best key for each local reference, among existing and
+  possible keys, it is recorded in Key_use.
+  - finalize_derived_keys() looks at local references, and gathers the list
+  of (existing and possible) keys which the Planner has chosen for them. We
+  call this list the list of locally-used keys, marked below with "!":
+
+      !       !  !
+  EEEEEEEEEEPPPPPPP---
+            ^ s->first_unused_keys
+                   ^ s->keys
+
+  - Any possible key which isn't locally-used is unnecessary.
+
+  - finalize_derived_keys() re-organizes the possible locally-used keys and
+  unnecessary keys, and does needed updates to TABLEs' bitmaps.
+
+      !     !!
+  EEEEEEEEEEPPPPPPP---
+              ^ s->first_unused_keys
+                   ^ s->keys
+
+  The locally-used keys become existing keys and are made visible to nonlocal
+  references. The unnecessary keys are chopped.
+      !     !!
+  EEEEEEEEEEEE-----
+              ^ s->first_unused_keys
+              ^ s->keys
+
+  - After that, another query block can be optimized.
+  - So, query block after query block, optimization phases grow the key_info
+  array.
+  - If a reference is considered constant in a query block and the Optimizer
+  decides to evaluate it, this triggers materialization (creation in engine),
+  which freezes the key definition: other query blocks will not be allowed to
+  add keys.
 
   @return TRUE  OOM
   @return FALSE otherwise
@@ -6890,7 +7148,6 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
     entry->used_fields.clear_all();
     if (derived_key_list.push_back(entry, thd->mem_root))
       return TRUE;
-    field->table->max_keys++;
   }
   /* Don't create keys longer than REF access can use. */
   if (entry->used_fields.bits_set() < MAX_REF_PARTS)
@@ -6937,10 +7194,7 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
 
   /* Allow all keys to be used. */
   if (derived_key_list.elements == 0)
-  {
     table->keys_in_use_for_query.set_all();
-    table->s->uniques= 0;
-  }
 
   for (uint i= 0; i < num_values; i++)
   {
@@ -6978,7 +7232,6 @@ static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *arg)
 /**
   @brief
   Generate keys for a materialized derived table/view.
-
   @details
   This function adds keys to the result table by walking over the list of
   possible keys for this derived table/view and calling the
@@ -6992,27 +7245,68 @@ static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *arg)
 
 bool TABLE_LIST::generate_keys()
 {
-  List_iterator<Derived_key> it(derived_key_list);
-  Derived_key *entry;
-  uint key= 0;
-  char buf[NAME_CHAR_LEN];
   DBUG_ASSERT(uses_materialization());
 
   if (!derived_key_list.elements)
-    return FALSE;
+    return false;
 
-  if (table->alloc_keys(derived_key_list.elements))
-    return TRUE;
+  Derived_refs_iterator ref_it(this);
+  while (TABLE *t= ref_it.get_next())
+    if (t->is_created())
+    {
+      /*
+        The table may have been instantiated already, by another query
+        block. Consider:
+        with qn as (...) select * from qn where a=(select * from qn)
+                         union select * from qn where b=3;
+        Then the scalar subquery is non-correlated, and cache-able, so the
+        optimization phase of the first UNION member evaluates this subquery,
+        which instantiates qn, then this phase may want to add an index on 'a'
+        (for 'a=') but it's too late. Or the upcoming optimization phase for
+        the second UNION member may want to add an index on 'b'.
+       */
+      return false;
+    }
+
+  if (table->s->owner_of_possible_tmp_keys != nullptr &&
+      table->s->owner_of_possible_tmp_keys != select_lex)
+    return false;
+
+  // Extend the key array of every reference
+
+  const int new_key_count=
+    std::min(table->s->keys + derived_key_list.elements, MAX_INDEXES);
+  ref_it.rewind();
+  while (TABLE *t= ref_it.get_next())
+    if (t->alloc_tmp_keys(new_key_count, ref_it.is_first()))
+      return true;                              /* purecov: inspected */
 
   /* Sort entries to make key numbers sequence deterministic. */
   derived_key_list.sort((Node_cmp_func)Derived_key_comp, 0);
+
+  List_iterator<Derived_key> it(derived_key_list);
+  Derived_key *entry;
+  char buf[NAME_CHAR_LEN];
+
   while ((entry= it++))
   {
-    sprintf(buf, "<auto_key%i>", key++);
-    if (table->add_tmp_key(&entry->used_fields,
-                           table->in_use->mem_strdup(buf)))
-      return TRUE;
+    if (table->s->keys == MAX_INDEXES)
+      break; // Impossible to create more keys.
+    sprintf(buf, "<auto_key%d>", table->s->keys);
+    char *name_buf= table->in_use->mem_strdup(buf);
+    ref_it.rewind();
+    while (TABLE *t= ref_it.get_next())
+    {
+      if (t->add_tmp_key(&entry->used_fields, name_buf,
+                         t->pos_in_table_list->select_lex != select_lex,
+                         ref_it.is_first()))
+        return TRUE;                            /* purecov: inspected */
+    }
   }
+
+  if (table->s->keys)
+    table->s->owner_of_possible_tmp_keys= select_lex; // Acquire lock
+
   return FALSE;
 }
 
@@ -7531,7 +7825,7 @@ bool create_table_share_for_upgrade(THD *thd,
 {
   DBUG_ENTER("create_table_share_for_upgrade");
 
-  init_tmp_table_share(thd, share, db_name, 0, table_name, path);
+  init_tmp_table_share(thd, share, db_name, 0, table_name, path, nullptr);
 
   // Fix table categories set by init_tmp_table_share
   share->table_category= TABLE_UNKNOWN_CATEGORY;

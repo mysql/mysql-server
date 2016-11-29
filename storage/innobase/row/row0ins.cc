@@ -2508,6 +2508,27 @@ row_ins_index_entry_big_rec_func(
 	row_ins_index_entry_big_rec_func(e,big,ofs,heap,thd,index)
 #endif /* UNIV_DEBUG */
 
+/** Update all the prebuilts working on this temporary table
+@param[in,out]	table	dict_table_t for the table */
+static
+void
+row_ins_temp_prebuilt_tree_modified(
+	dict_table_t*	table)
+{
+	if (table->temp_prebuilt == NULL) {
+		return;
+	}
+
+	std::vector<row_prebuilt_t*>::const_iterator      it;
+
+	for (it = table->temp_prebuilt->begin();
+	     it != table->temp_prebuilt->end(); ++it) {
+		if ((*it)->m_temp_read_shared) {
+			(*it)->m_temp_tree_modified = true;
+		}
+	}
+}
+
 /***************************************************************//**
 Tries to insert an entry into a clustered index, ignoring foreign key
 constraints. If a record with the same unique key is found, the other
@@ -2738,6 +2759,12 @@ err_exit:
 					&offsets, &offsets_heap,
 					entry, &insert_rec, &big_rec,
 					n_ext, thr, autoinc_mtr.get_mtr());
+
+				if (index->table->is_intrinsic()
+				    && err == DB_SUCCESS) {
+					row_ins_temp_prebuilt_tree_modified(
+						index->table);
+				}
 			}
 		}
 
@@ -2877,6 +2904,11 @@ row_ins_sorted_clust_index_entry(
 					flags, &cursor, &offsets, &offsets_heap,
 					entry, &insert_rec, &big_rec, n_ext,
 					thr, mtr);
+				if (index->table->is_intrinsic()
+				    && err == DB_SUCCESS) {
+					row_ins_temp_prebuilt_tree_modified(
+						index->table);
+				}
 			}
 		}
 

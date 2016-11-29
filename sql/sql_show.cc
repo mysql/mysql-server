@@ -2106,6 +2106,8 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     buff->append('.');
   }
   append_identifier(thd, buff, table->view_name.str, table->view_name.length);
+  print_derived_column_names(thd, buff, table->derived_column_names());
+
   buff->append(STRING_WITH_LEN(" AS "));
 
   /*
@@ -5148,7 +5150,7 @@ if (sp)
   char path[FN_REFLEN];
   memset(&tbl, 0, sizeof(TABLE));
   (void) build_table_filename(path, sizeof(path), "", "", "", 0);
-  init_tmp_table_share(thd, &share, "", 0, "", path);
+  init_tmp_table_share(thd, &share, "", 0, "", path, nullptr);
 
   if (sp->m_type == enum_sp_type::FUNCTION)
   {
@@ -5398,7 +5400,7 @@ if ((lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
 
         memset(&tbl, 0, sizeof(TABLE));
         (void) build_table_filename(path, sizeof(path), "", "", "", 0);
-        init_tmp_table_share(thd, &share, "", 0, "", path);
+        init_tmp_table_share(thd, &share, "", 0, "", path, nullptr);
         field= make_field(&share, (uchar*) 0, field_def->length,
                           (uchar*) "", 0,
                           field_def->sql_type, field_def->charset,
@@ -7155,8 +7157,6 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   table_list->table_name_length= table->s->table_name.length;
   table_list->table= table;
   table->pos_in_table_list= table_list;
-  table->next= thd->derived_tables;
-  thd->derived_tables= table;
   if (table_list->select_lex->first_execution)
     table_list->select_lex->add_base_options(OPTION_SCHEMA_TABLE);
   lex->safe_to_cache_query= 0;

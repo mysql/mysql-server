@@ -3633,7 +3633,8 @@ default_set_param_func(Item_param *param,
 }
 
 
-Item_param::Item_param(const POS &pos, uint pos_in_query_arg) : super(pos),
+Item_param::Item_param(const POS &pos, MEM_ROOT *root, uint pos_in_query_arg) :
+  super(pos),
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
   /* Don't pretend to be a literal unless value for this item is set. */
@@ -3642,7 +3643,8 @@ Item_param::Item_param(const POS &pos, uint pos_in_query_arg) : super(pos),
   pos_in_query(pos_in_query_arg),
   set_param_func(default_set_param_func),
   limit_clause_param(FALSE),
-  m_out_param_info(NULL)
+  m_out_param_info(NULL),
+  m_clones(root)
 {
   item_name.set("?");
   /* 
@@ -3672,7 +3674,58 @@ bool Item_param::itemize(Parse_context *pc, Item **res)
     my_error(ER_VIEW_SELECT_VARIABLE, MYF(0));
     return true;
   }
+  if (lex->reparse_common_table_expr_at)
+  {
+    /*
+      This parameter is a clone, find the Item_param which corresponds to it
+      in the original statement - its "master".
+      Calculate the expected position of this master in the original
+      statement:
+    */
+    uint master_pos= pos_in_query + lex->reparse_common_table_expr_at;
+    List_iterator_fast<Item_param> it(lex->param_list);
+    Item_param *master;
+    while ((master= it++))
+    {
+      if (master_pos == master->pos_in_query)
+      {
+        // Register it against its master, and don't add to param_list
+        return master->add_clone(this);
+      }
+    }
+    DBUG_ASSERT(false);                         /* purecov: inspected */
+  }
+
   return lex->param_list.push_back(this);
+}
+
+
+void Item_param::sync_clones()
+{
+  for (auto c : m_clones)
+  {
+    // Scalar-type members:
+    c->maybe_null= maybe_null;
+    c->null_value= null_value;
+    c->max_length= max_length;
+    c->decimals= decimals;
+    c->state= state;
+    c->param_type= param_type;
+    c->item_type= item_type;
+    c->item_result_type= item_result_type;
+    c->set_param_func= set_param_func;
+    c->value= value;
+    c->unsigned_flag= unsigned_flag;
+    // Class-type members:
+    c->decimal_value= decimal_value;
+    /*
+      Note that String's assignment op properly sets m_is_alloced to 'false',
+      which is correct here: c->str_value doesn't own anything.
+    */
+    c->str_value= str_value;
+    c->str_value_ptr= str_value_ptr;
+    c->collation= collation;
+  }
 }
 
 

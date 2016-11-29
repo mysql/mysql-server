@@ -98,7 +98,7 @@ a	int(11)	YES		NULL
 b	decimal(32,0)	YES		NULL	
 show create table v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,sum(`t1`.`b`) AS `b` from `t1` group by `t1`.`a`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`a`,`b`) AS select `t1`.`a` AS `a`,sum(`t1`.`b`) AS `sum(b)` from `t1` group by `t1`.`a`	latin1	latin1_swedish_ci
 select * from v1;
 a	b
 1	6

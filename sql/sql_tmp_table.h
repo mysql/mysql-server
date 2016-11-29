@@ -53,9 +53,10 @@ enum enum_internal_tmp_disk_storage_engine { TMP_TABLE_MYISAM, TMP_TABLE_INNODB 
 
 TABLE *
 create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
-		 ORDER *group, bool distinct, bool save_sum_fields,
-		 ulonglong select_options, ha_rows rows_limit,
-		 const char *table_alias);
+                 ORDER *group, bool distinct, bool save_sum_fields,
+                 ulonglong select_options, ha_rows rows_limit,
+                 const char *table_alias);
+bool open_tmp_table(TABLE *table);
 TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
 bool create_ondisk_from_heap(THD *thd, TABLE *table,
                              MI_COLUMNDEF *start_recinfo,
@@ -80,16 +81,10 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    const char *name, TABLE *table,
                                    Item_field *item);
 
-/**
-  Get the minimum of max_key_length and max_key_part_length between
-  HEAP engine and internal_tmp_disk_storage_engine.
-*/
 void get_max_key_and_part_length(uint *max_key_length,
-                                 uint *max_key_part_length);
-/**
-  Initilize the storage engine properties for the alternative temporary table
-  storage engines.
-*/
+                                 uint *max_key_part_length,
+                                 uint *max_key_parts);
 void init_cache_tmp_engine_properties();
+bool reposition_innodb_cursor(TABLE *table, ha_rows row_num);
 #endif /* SQL_TMP_TABLE_INCLUDED */
 

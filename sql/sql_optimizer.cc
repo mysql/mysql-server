@@ -5075,22 +5075,24 @@ bool JOIN::make_join_plan()
     DBUG_RETURN(true);
 
   // Outer join dependencies were initialized above, now complete the analysis.
-  if (select_lex->outer_join)
+  if (select_lex->outer_join || select_lex->is_recursive())
   {
     if (propagate_dependencies())
     {
       /*
-        Catch illegal cross references for outer joins.
-        This could happen before WL#2486 was implemented in 5.0, but should no
-        longer be possible.
-        Thus, an assert has been added should this happen again.
-        @todo Remove the error check below.
+        Catch illegal join order.
+        SQL2011 forbids:
+        WITH RECURSIVE rec AS (
+        ... UNION ALL SELECT ... FROM tbl LEFT JOIN rec ON...)c...
+        MySQL also forbids the same query with STRAIGHT_JOIN instead of LEFT
+        JOIN, because the algorithm of with-recursive imposes that "rec" be
+        first in plan, i.e. "tbl" depends on "rec", but STRAIGHT_JOIN imposes
+        the opposite dependency.
       */
-      DBUG_ASSERT(0);
-      tables= 0;               // Don't use join->table
-      primary_tables= 0;
-      my_error(ER_WRONG_OUTER_JOIN, MYF(0));
-      return true;
+      DBUG_ASSERT(select_lex->is_recursive());
+      my_error(ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER,
+               MYF(0), select_lex->recursive_reference->alias);
+      DBUG_RETURN(true);
     }
     init_key_dependencies();
   }
@@ -5199,7 +5201,7 @@ bool JOIN::make_join_plan()
 
   // Cleanup after update_ref_and_keys has added keys for derived tables.
   if (select_lex->materialized_derived_table_count)
-    drop_unused_derived_keys();
+    finalize_derived_keys();
 
   // No need for this struct after new JOIN_TAB array is set up.
   best_positions= NULL;
@@ -5297,6 +5299,19 @@ bool JOIN::init_planner_arrays()
     tab->set_join(this);
 
     tab->dependent= tl->dep_tables;  // Initialize table dependencies
+    if (select_lex->is_recursive())
+    {
+      if (select_lex->recursive_reference != tl)
+        // Recursive reference must go first
+        tab->dependent|= select_lex->recursive_reference->map();
+      else
+      {
+        // Recursive reference mustn't use any index
+        table->covering_keys.clear_all();
+        table->keys_in_use_for_group_by.clear_all();
+        table->keys_in_use_for_order_by.clear_all();
+      }
+    }
     if (tl->schema_table)
       table->file->stats.records= 2;
     table->quick_condition_rows= table->file->stats.records;
@@ -5906,14 +5921,13 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
   bool blobs_involved= false;
   Item *outer, *inner;
   uint total_lookup_index_length= 0;
-  uint max_key_length;
-  uint max_key_part_length;
+  uint max_key_length, max_key_part_length, max_key_parts;
   /*
     Maximum lengths for keys and key parts that are supported by
     the temporary table storage engine(s).
   */
-  get_max_key_and_part_length(&max_key_length,
-                              &max_key_part_length);
+  get_max_key_and_part_length(&max_key_length, &max_key_part_length,
+                              &max_key_parts);
   while (outer= it1++, inner= it2++)
   {
     DBUG_ASSERT(outer->real_item() && inner->real_item());
@@ -8912,24 +8926,24 @@ bool JOIN::generate_derived_keys()
 
 
 /**
-  @brief
-  Drop unused keys for each materialized derived table/view
-
-  @details
-  For each materialized derived table/view, call TABLE::use_index to save one
-  index chosen by the optimizer and ignore others. If no key is chosen, then all
-  keys will be ignored.
+  For each materialized derived table/view, informs every TABLE of the key it
+  will (not) use, segregates used keys from unused keys in TABLE::key_info,
+  and eliminates unused keys.
 */
 
-void JOIN::drop_unused_derived_keys()
+void JOIN::finalize_derived_keys()
 {
   DBUG_ASSERT(select_lex->materialized_derived_table_count);
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
+
+  bool adjust_key_count= false;
+  table_map processed_tables= 0;
 
   for (uint i= 0 ; i < tables ; i++)
   {
     JOIN_TAB *tab= best_ref[i];
     TABLE *table= tab->table();
+    TABLE_LIST *table_ref= tab->table_ref;
     /*
      Save chosen key description if:
      1) it's a materialized derived table
@@ -8937,35 +8951,138 @@ void JOIN::drop_unused_derived_keys()
      3) some keys are defined for it
     */
     if (table &&
-        tab->table_ref->uses_materialization() &&               // (1)
-        !table->is_created() &&                                 // (2)
-        table->max_keys > 0)                                    // (3)
+        table_ref->uses_materialization() &&       // (1)
+        !table->is_created() &&                    // (2)
+        table->s->keys > 0)                        // (3)
     {
-      Key_use *keyuse= tab->position()->key;
-
-      table->use_index(keyuse ? keyuse->key : -1);
-
-      const bool key_is_const= keyuse && tab->const_keys.is_set(keyuse->key);
-      tab->const_keys.clear_all();
-      tab->keys().clear_all();
-
-      if (!keyuse)
+      /*
+        If there are two local references to the same CTE, and they use
+        the same key, the iteration for the second reference is unnecessary.
+      */
+      if (processed_tables & table_ref->map())
         continue;
 
-      /*
-        Update the selected "keyuse" to point to key number 0.
-        Notice that unused keyuse entries still point to the deleted
-        candidate keys. tab->keys (and tab->const_keys if the chosen key
-        is constant) should reference key object no. 0 as well.
-      */
-      tab->keys().set_bit(0);
-      if (key_is_const)
-        tab->const_keys.set_bit(0);
+      adjust_key_count= true;
 
-      const uint oldkey= keyuse->key;
-      for (; keyuse->table_ref == tab->table_ref && keyuse->key == oldkey;
-           keyuse++)
-        keyuse->key= 0;
+      Key_use *const keyuse= tab->position()->key;
+
+      if (!keyuse)
+      {
+        tab->keys().clear_all();
+        tab->const_keys.clear_all();
+        continue;
+      }
+
+      Key_map used_keys;
+      Derived_refs_iterator it(table_ref);
+      while (TABLE *t= it.get_next())
+      {
+        /*
+          Eliminate possible keys created by this JOIN and which it
+          doesn't use.
+          Collect all keys of this table which are used by any reference in
+          this query block. Any other query block doesn't matter as:
+          - either it was optimized before, so it's not using a key we may
+          want to drop.
+          - or it was optimized in this same window, so:
+            * either we own the window, then any key we may want to
+            drop is not visible to it.
+            * or it owns the window, then we are using only existing
+            keys.
+          - or it will be optimized after, so it's not using any key yet.
+
+          used_keys is a mix of possible used keys and existing used keys.
+        */
+        if (t->pos_in_table_list->select_lex == select_lex)
+        {
+          JOIN_TAB *tab= t->reginfo.join_tab;
+          Key_use *keyuse= tab->position()->key;
+          if (keyuse)
+            used_keys.set_bit(keyuse->key);
+        }
+      }
+
+      uint new_idx= table->s->find_first_unused_tmp_key(used_keys);
+      const uint old_idx= keyuse->key;
+      DBUG_ASSERT(old_idx != new_idx);
+
+      if (old_idx > new_idx)
+      {
+        DBUG_ASSERT(table->s->owner_of_possible_tmp_keys == select_lex);
+        it.rewind();
+        while (TABLE *t= it.get_next())
+        {
+          /*
+            Unlike the collection of used_keys, references from other query
+            blocks must be considered here, as they need a key_info array
+            consistent with the to-be-changed table->s->keys.
+          */
+          t->copy_tmp_key(old_idx, it.is_first());
+        }
+      }
+      else
+        new_idx= old_idx;                       // Index stays at same slot
+
+      /*
+        If the key was created by earlier-optimized query blocks, and is
+        already used by nonlocal references, those don't need any further
+        update: they are already setup to use it and we're not moving the
+        key.
+        If the key was created by this query block, nonlocal references cannot
+        possibly be referencing it.
+        In both cases, only local references need to update their Key_use.
+      */
+      it.rewind();
+      while (TABLE *t= it.get_next())
+      {
+        if (t->pos_in_table_list->select_lex != select_lex)
+          continue;
+        JOIN_TAB *tab= t->reginfo.join_tab;
+        Key_use *keyuse= tab->position()->key;
+        if (keyuse && keyuse->key == old_idx)
+        {
+          processed_tables|= t->pos_in_table_list->map();
+          const bool key_is_const= tab->const_keys.is_set(old_idx);
+          // tab->keys() was never set, so must be set
+          tab->keys().clear_all();
+          tab->keys().set_bit(new_idx);
+          tab->const_keys.clear_all();
+          if (key_is_const)
+            tab->const_keys.set_bit(new_idx);
+          for (Key_use *it= keyuse;
+               it->table_ref == tab->table_ref && it->key == old_idx;
+               it++)
+            it->key= new_idx;
+        }
+      }
+    }
+  }
+
+  if (!adjust_key_count)
+    return;
+
+  // Finally we know how many keys remain in the table.
+  for (uint i= 0 ; i < tables ; i++)
+  {
+    JOIN_TAB *tab= best_ref[i];
+    TABLE *table= tab->table();
+    TABLE_LIST *table_ref= tab->table_ref;
+    if (table &&
+        table_ref->uses_materialization() &&
+        !table->is_created() &&
+        table->s->keys > 0)
+    {
+      if (table->s->owner_of_possible_tmp_keys != select_lex)
+        continue;
+      /*
+        Release lock. As a bonus, avoid double work when this loop
+        later processes another local reference to the same table (similar to
+        the processed_tables map in the first loop).
+      */
+      table->s->owner_of_possible_tmp_keys= nullptr;
+      Derived_refs_iterator it(table_ref);
+      while (TABLE *t= it.get_next())
+        t->drop_unused_tmp_keys(it.is_first());
     }
   }
 }

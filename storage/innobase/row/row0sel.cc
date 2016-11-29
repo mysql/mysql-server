@@ -4234,14 +4234,42 @@ row_search_no_mvcc(
 	If search key is specified, cursor is open using the key else
 	cursor is open to return all the records. */
 	if (direction != 0) {
-		if (index->last_sel_cur->invalid) {
+		if (prebuilt->m_temp_read_shared
+		    && !prebuilt->m_temp_tree_modified) {
+
+			if (!mtr->is_active()) {
+				mtr_start(mtr);
+			}
+
+			/* This is an intrinsic table shared read, so we
+			do not rely on index->last_sel_cur, instead we rely
+			on "prebuilt->pcur", which supposes to position on
+			last read position for each read session. */
+			ut_ad(pcur->pos_state ==  BTR_PCUR_IS_POSITIONED);
+			err = row_search_traverse(
+				moves_up, match_mode, pcur, mtr);
+
+			if (err != DB_SUCCESS) {
+				return(err); /* purecov: inspected */
+			}
+		} else if (index->last_sel_cur->invalid
+			   || prebuilt->m_temp_tree_modified) {
 
 			/* Index tree has changed and so active cached cursor
 			is no more valid. Re-set it based on the last selected
 			position. */
 			index->last_sel_cur->release();
-
+                        /* FIXME: this could come from a rnd_pos(), we will
+			need to adjust the search mode */
+                        if (prebuilt->m_temp_tree_modified) {
+				if (direction == ROW_SEL_NEXT
+				    && pcur->search_mode == PAGE_CUR_GE) {
+					pcur->search_mode = PAGE_CUR_G;
+				}
+				prebuilt->m_temp_tree_modified = false;
+                        }
 			mtr_start(mtr);
+
 			dict_disable_redo_if_temporary(index->table, mtr);
 
 			mem_heap_t*	heap = mem_heap_create(256);
@@ -4260,7 +4288,6 @@ row_search_no_mvcc(
 			/* Restore the cursor for reading next record from cache
 			information. */
 			ut_ad(index->last_sel_cur->rec != NULL);
-
 			pcur->btr_cur.page_cur.rec = index->last_sel_cur->rec;
 			pcur->btr_cur.page_cur.block =
 				index->last_sel_cur->block;
@@ -4367,33 +4394,13 @@ row_search_no_mvcc(
 			result_rec = rec;
 		}
 
-		/* Step-4: Check if row is part of the consistent view that was
-		captured while SELECT statement started execution. */
-		{
-			trx_id_t	trx_id;
-
-			ulint		len;
-			ulint		trx_id_off = rec_get_nth_field_offs(
-				offsets, clust_index->n_uniq, &len);
-
-			ut_ad(len == DATA_TRX_ID_LEN);
-
-			trx_id = trx_read_trx_id(result_rec + trx_id_off);
-
-			if (trx_id > index->trx_id) {
-				/* This row was recently added skip it from
-				SELECT view. */
-				continue;
-			}
-		}
-
-		/* Step-5: Cache the row-id of selected row to prebuilt cache.*/
+		/* Step-4: Cache the row-id of selected row to prebuilt cache.*/
 		if (prebuilt->clust_index_was_generated) {
 			row_sel_store_row_id_to_prebuilt(
 				prebuilt, result_rec, clust_index, offsets);
 		}
 
-		/* Step-6: Convert selected record to MySQL format and
+		/* Step-5: Convert selected record to MySQL format and
 		store it. */
 		if (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE) {
 
@@ -4417,7 +4424,7 @@ row_search_no_mvcc(
 			break;
 		}
 
-		/* Step-7: Store cursor position to fetch next record.
+		/* Step-6: Store cursor position to fetch next record.
 		MySQL calls this function iteratively get_next(), get_next()
 		fashion. */
 		ut_ad(err == DB_SUCCESS);

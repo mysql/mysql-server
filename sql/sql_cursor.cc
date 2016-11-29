@@ -229,7 +229,7 @@ void Server_side_cursor::operator delete(void *ptr, size_t size)
 
 Materialized_cursor::Materialized_cursor(Query_result *result_arg,
                                          TABLE *table_arg)
-  :Server_side_cursor(&table_arg->mem_root, result_arg),
+  :Server_side_cursor(&table_arg->s->mem_root, result_arg),
   fake_unit(CTX_NONE),
   table(table_arg),
   fetch_limit(0),
@@ -391,7 +391,7 @@ void Materialized_cursor::close()
     We need to grab table->mem_root to prevent free_tmp_table from freeing:
     the cursor object was allocated in this memory.
   */
-  main_mem_root= std::move(table->mem_root);
+  main_mem_root= std::move(table->s->mem_root);
   mem_root= &main_mem_root;
   free_tmp_table(table->in_use, table);
   table= 0;
@@ -425,7 +425,7 @@ bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
                           "", FALSE, TRUE))
     return TRUE;
 
-  materialized_cursor= new (&table->mem_root)
+  materialized_cursor= new (&table->s->mem_root)
                        Materialized_cursor(result, table);
 
   if (!materialized_cursor)

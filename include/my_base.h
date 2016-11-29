@@ -42,7 +42,10 @@
 #define HA_OPEN_FROM_SQL_LAYER          64
 #define HA_OPEN_MMAP                    128     /* open memory mapped */
 #define HA_OPEN_COPY			256     /* Open copy (for repair) */
-/* Internal temp table, used for temporary results */
+/**
+   Internal temp table, used for temporary results; one or more instance of it
+   may be be created.
+*/
 #define HA_OPEN_INTERNAL_TABLE          512
 /**
   Don't connect any share_psi to the handler, since it is a partition.

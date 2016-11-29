@@ -865,6 +865,15 @@ struct row_prebuilt_t {
 	/** Return materialized key for secondary index scan */
 	bool		m_read_virtual_key;
 
+	/** Whether this is a temporary(intrinsic) table read to keep the position
+	for this MySQL TABLE object */
+	bool		m_temp_read_shared;
+
+	/** Whether there is tree modifying operation happened on a
+	temprorary(intrinsic) table index tree. In this case, it could be split,
+	but no shrink. */
+	bool		m_temp_tree_modified;
+
 	/** The MySQL table object */
 	TABLE*		m_mysql_table;
 

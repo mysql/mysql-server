@@ -6043,7 +6043,7 @@ bool create_table_impl(THD *thd,
     DBUG_ASSERT(! (create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
                 *tmp_table_def == NULL);
 
-    init_tmp_table_share(thd, &share, db, 0, table_name, path);
+    init_tmp_table_share(thd, &share, db, 0, table_name, path, nullptr);
 
     bool result= (open_table_def(thd, &share, false, NULL) ||
                   open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,

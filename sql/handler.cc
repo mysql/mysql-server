@@ -2805,7 +2805,9 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   DBUG_ASSERT(table->s == table_share);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   DBUG_PRINT("info", ("old m_lock_type: %d F_UNLCK %d", m_lock_type, F_UNLCK));
-  DBUG_ASSERT(alloc_root_inited(&table->mem_root));
+  MEM_ROOT *mem_root= (test_if_locked & HA_OPEN_TMP_TABLE) ?
+    &table->s->mem_root : &table->mem_root;
+  DBUG_ASSERT(alloc_root_inited(mem_root));
 
   if ((error=open(name,mode,test_if_locked)))
   {
@@ -2843,7 +2845,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
 
     /* ref is already allocated for us if we're called from handler::clone() */
-    if (!ref && !(ref= (uchar*) alloc_root(&table->mem_root, 
+    if (!ref && !(ref= (uchar*) alloc_root(mem_root,
                                           ALIGN_SIZE(ref_length)*2)))
     {
       ha_close();
@@ -5177,7 +5179,7 @@ int ha_create_table(THD *thd, const char *path,
 #endif
   DBUG_ENTER("ha_create_table");
   
-  init_tmp_table_share(thd, &share, db, 0, table_name, path);
+  init_tmp_table_share(thd, &share, db, 0, table_name, path, nullptr);
   if (open_table_def(thd, &share, false, table_def))
     goto err;
 
@@ -5258,7 +5260,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     DBUG_RETURN(2);
 
   build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
-  init_tmp_table_share(thd, &share, db, 0, name, path);
+  init_tmp_table_share(thd, &share, db, 0, name, path, nullptr);
   if (open_table_def(thd, &share, false, NULL))
   {
     DBUG_RETURN(3);

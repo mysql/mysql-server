@@ -57,7 +57,9 @@ struct st_mem_root
 {
 #if defined(__cplusplus) && (__cplusplus >= 201103L || defined(_MSC_VER))
   // Make the class movable but not copyable.
-  st_mem_root() {}
+  st_mem_root() :
+  min_malloc(0) // for alloc_root_inited()
+  {}
   st_mem_root(const st_mem_root &) = delete;
   st_mem_root(st_mem_root &&other) {
     memcpy(this, &other, sizeof(*this));
