@@ -126,7 +126,7 @@ SET GLOBAL innodb_limit_optimistic_insert_debug = default;
 --echo # Bug#23036141 - IBD2SDI DOESN'T WORK IF ANY DATAFILE IS SMALLER THAN PREVIOUS DATAFILE
 --echo #
 
---force-rmdir $MYSQL_TMP_DIR/datadir1/;
+--force-rmdir $MYSQL_TMP_DIR/datadir1/
 --mkdir $MYSQL_TMP_DIR/datadir1
 
 # Create bootstrap file
