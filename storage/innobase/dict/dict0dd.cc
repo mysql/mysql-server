@@ -783,7 +783,7 @@ dd_table_open_on_name(
 	MDL_ticket**		mdl,
 	const char*		name,
 	bool			dict_locked,
-	dict_err_ignore_t	ignore_err)
+	ulint			ignore_err)
 {
 	DBUG_ENTER("dd_table_open_on_name");
 
@@ -797,11 +797,14 @@ dd_table_open_on_name(
 	char	tbl_buf[NAME_LEN + 1];
 
 	bool	skip_mdl = !(thd && mdl);
+	dict_table_t*	table = nullptr;
 
 	/* Get pointer to a table object in InnoDB dictionary cache.
 	For intrinsic table, get it from session private data */
-	dict_table_t*	table = thd_to_innodb_session(
-				thd)->lookup_table_handler(name);
+	if (thd) {
+		table = thd_to_innodb_session(
+			thd)->lookup_table_handler(name);
+	}
 
 	if (table != nullptr) {
 		table->acquire();
@@ -861,6 +864,7 @@ dd_table_open_on_name(
 
 	if (table == nullptr && mdl) {
 		dd_mdl_release(thd, mdl);
+		*mdl = nullptr;
 	}
 
 	if (dict_locked) {

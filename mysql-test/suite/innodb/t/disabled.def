@@ -50,3 +50,6 @@ autoinc_persist           : Waiting for WL#9175
 blob-crash                : Waiting for WL#9175
 log_alter_table           : Waiting for WL#9175
 innodb_bug-13628249       : Waiting for WL#9175
+
+update_time_wl6658	  : Drop partition table failed.
+innodb-copy-alter-debug	  : Require atomic DDL, WL#9536

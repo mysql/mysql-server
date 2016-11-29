@@ -193,7 +193,7 @@ dd_table_open_on_name(
 	MDL_ticket**		mdl,
 	const char*		name,
 	bool			dict_locked,
-	dict_err_ignore_t	ignore_err);
+	ulint			ignore_err);
 
 /** Returns a table object based on table id.
 @param[in]	table_id	table id

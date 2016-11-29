@@ -64,6 +64,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0ext.h"
 #include "ut0new.h"
 #include "dict0dd.h"
+#include "current_thd.h"
 
 #include <algorithm>
 #include <deque>
@@ -1051,7 +1052,7 @@ row_prebuilt_free(
 	}
 
 	if (prebuilt->table && !prebuilt->table->is_fts_aux()) {
-		dict_table_close(prebuilt->table, dict_locked, TRUE);
+		dd_table_close(prebuilt->table, NULL, NULL, dict_locked);
 	}
 
 	mem_heap_free(prebuilt->heap);
@@ -3118,17 +3119,9 @@ error_handling:
 			<< table->name
 			<< " because tablespace full";
 
-		if (dict_table_open_on_name(table->name.m_name, TRUE, FALSE,
-					    DICT_ERR_IGNORE_NONE)) {
-
-			dict_table_close_and_drop(trx, table);
-
-			if (commit) {
-				trx_commit_for_mysql(trx);
-			}
-		} else {
-			dict_mem_table_free(table);
-		}
+		/* TODO: NewDD: Atomic DDL should drop any already created
+		tablespace, indexes */
+		dict_mem_table_free(table);
 
 		break;
 
@@ -3195,6 +3188,7 @@ row_create_index_for_mysql(
 	char*		index_name;
 	dict_table_t*	table = NULL;
 	ibool		is_fts;
+	THD*		thd = current_thd;
 
 	trx->op_info = "creating index";
 
@@ -3211,12 +3205,11 @@ row_create_index_for_mysql(
 	}
 
 	if (table == NULL) {
-
 		ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 		ut_ad(mutex_own(&dict_sys->mutex));
 
-		table = dict_table_open_on_name(table_name, TRUE, TRUE,
-						DICT_ERR_IGNORE_NONE);
+		table = dd_table_open_on_name(thd, NULL, table_name,
+					      true, DICT_ERR_IGNORE_NONE);
 
 	} else {
 		table->acquire();
@@ -3353,7 +3346,7 @@ row_create_index_for_mysql(
 	}
 
 error_handling:
-	dict_table_close(table, TRUE, FALSE);
+	dd_table_close(table, thd, NULL, true);
 
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
@@ -3518,6 +3511,8 @@ row_drop_table_for_mysql_in_background(
 }
 
 /*********************************************************************//**
+TODO: NewDD: Need to check if there is need to keep background
+drop, in such case, the thd would be NULL (no MDL can be acquired)
 The master thread in srv0srv.cc calls this regularly to drop tables which
 we must drop in background after queries to them have ended. Such lazy
 dropping of tables is needed in ALTER TABLE on Unix.
@@ -3530,6 +3525,7 @@ row_drop_tables_for_mysql_in_background(void)
 	dict_table_t*		table;
 	ulint			n_tables;
 	ulint			n_tables_dropped = 0;
+	THD*			thd = current_thd;
 loop:
 	mutex_enter(&row_drop_list_mutex);
 
@@ -3551,8 +3547,9 @@ loop:
 		os_thread_sleep(5000000);
 	);
 
-	table = dict_table_open_on_name(drop->table_name, FALSE, FALSE,
-					DICT_ERR_IGNORE_NONE);
+	/* TODO: NewDD: we cannot get MDL lock here, as thd could be NULL */
+	table = dd_table_open_on_name(thd, NULL, drop->table_name,
+				      false, DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 		/* If for some reason the table has already been dropped
@@ -3566,14 +3563,14 @@ loop:
 		just after it's added into drop list, and new
 		table with the same name is created, then we try
 		to drop the new table in background. */
-		dict_table_close(table, FALSE, FALSE);
+		dd_table_close(table, NULL, NULL, false);
 
 		goto already_dropped;
 	}
 
 	ut_a(!table->can_be_evicted);
 
-	dict_table_close(table, FALSE, FALSE);
+	dd_table_close(table, NULL, NULL, false);
 
 	if (DB_SUCCESS != row_drop_table_for_mysql_in_background(
 		    drop->table_name)) {
@@ -3736,9 +3733,10 @@ row_discard_tablespace_begin(
 	row_mysql_lock_data_dictionary(trx);
 
 	dict_table_t*	table;
+	THD*		thd = current_thd;
 
-	table = dict_table_open_on_name(
-		name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+	table = dd_table_open_on_name(
+		thd, NULL, name, true, DICT_ERR_IGNORE_NONE);
 
 	if (table) {
 		dict_stats_wait_bg_to_stop_using_table(table, trx);
@@ -3814,7 +3812,7 @@ row_discard_tablespace_end(
 	dberr_t		err)	/*!< in: error code */
 {
 	if (table != 0) {
-		dict_table_close(table, TRUE, FALSE);
+		dd_table_close(table, trx->mysql_thd, NULL, true);
 	}
 
 	DBUG_EXECUTE_IF("ib_discard_before_commit_crash",
@@ -4297,6 +4295,7 @@ row_drop_table_for_mysql(
 	pars_info_t*	info			= NULL;
 	mem_heap_t*	heap			= NULL;
 	bool		is_intrinsic_temp_table	= false;
+	THD*		thd = trx->mysql_thd;
 
 	DBUG_ENTER("row_drop_table_for_mysql");
 	DBUG_PRINT("row_drop_table_for_mysql", ("table: '%s'", name));
@@ -4328,11 +4327,10 @@ row_drop_table_for_mysql(
 		ut_ad(mutex_own(&dict_sys->mutex));
 		ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
-		table = dict_table_open_on_name(
-			name, TRUE, FALSE,
-			static_cast<dict_err_ignore_t>(
-				DICT_ERR_IGNORE_INDEX_ROOT
-				| DICT_ERR_IGNORE_CORRUPT));
+		/* MDL should already be held by server */
+		table = dd_table_open_on_name(
+			thd, NULL, name, true,
+			DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT);
 	} else {
 		table->acquire();
 		ut_ad(table->is_intrinsic());
@@ -4404,7 +4402,7 @@ row_drop_table_for_mysql(
 		dict_table_prevent_eviction(table);
 	}
 
-	dict_table_close(table, TRUE, FALSE);
+	dd_table_close(table, thd, NULL, true);
 
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
@@ -4977,6 +4975,7 @@ row_drop_database_for_mysql(
 	char*		table_name;
 	dberr_t		err	= DB_SUCCESS;
 	ulint		namelen	= strlen(name);
+	THD*		thd = current_thd;
 
 	ut_ad(found != NULL);
 
@@ -5013,10 +5012,11 @@ loop:
 
 		ut_a(memcmp(table_name, name, namelen) == 0);
 
-		table = dict_table_open_on_name(
-			table_name, TRUE, FALSE, static_cast<dict_err_ignore_t>(
-				DICT_ERR_IGNORE_INDEX_ROOT
-				| DICT_ERR_IGNORE_CORRUPT));
+		MDL_ticket*	mdl = nullptr;
+
+		table = dd_table_open_on_name(
+			thd, &mdl, table_name, true,
+			DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT);
 
 		if (!table) {
 			ib::error() << "Cannot load table " << table_name
@@ -5038,10 +5038,10 @@ loop:
 			}
 		}
 
-		dict_table_close(table, TRUE, FALSE);
+		dd_table_close(table, thd, &mdl, true);
 
 		/* The dict_table_t object must not be accessed before
-		dict_table_open() or after dict_table_close(). But this is OK
+		dd_table_open() or after dd_table_close(). But this is OK
 		if we are holding, the dict_sys->mutex. */
 		ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -5218,12 +5218,13 @@ row_rename_table_for_mysql(
 
 	const bool	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
 	const bool	new_is_tmp = row_is_mysql_tmp_table_name(new_name);
+	THD*		thd = trx->mysql_thd;
 
 	dict_locked = trx->dict_operation_lock_mode == RW_X_LATCH;
 
-	table = dict_table_open_on_name(old_name, dict_locked, FALSE,
-					DICT_ERR_IGNORE_NONE);
-
+	/* thd could be NULL if these are FTS AUX tables */
+	table = dd_table_open_on_name(thd, NULL, old_name, dict_locked,
+				      DICT_ERR_IGNORE_NONE);
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
 		goto funct_exit;
@@ -5630,7 +5631,7 @@ funct_exit:
 	}
 
 	if (table != NULL) {
-		dict_table_close(table, dict_locked, FALSE);
+		dd_table_close(table, thd, NULL, dict_locked);
 	}
 
 	if (commit) {
