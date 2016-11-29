@@ -321,18 +321,21 @@ dict_stats_process_entry_from_recalc_pool(
 	if (table == NULL) {
 		/* table does not exist, must have been DROPped
 		after its id was enqueued */
+		mutex_exit(&dict_sys->mutex);
+		return;
+	}
+
+	/* Check whether table is corrupted */
+	if (table->is_corrupted()) {
+		dd_table_close(table, thd, &mdl, true);
+		mutex_exit(&dict_sys->mutex);
 		return;
 	}
 
 	/* Set bg flag. */
 	table->stats_bg_flag = BG_STAT_IN_PROGRESS;
-	mutex_exit(&dict_sys->mutex);
 
-	/* Check whether table is corrupted */
-	if (table->is_corrupted()) {
-		dd_table_close(table, thd, &mdl, false);
-		return;
-	}
+	mutex_exit(&dict_sys->mutex);
 
 	/* ut_time() could be expensive, the current function
 	is called once every time a table has been changed more than 10% and
