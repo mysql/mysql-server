@@ -704,6 +704,8 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form)
     cols= (ulong) form->field[MYSQL_TABLES_PRIV_FIELD_COLUMN_PRIV]->val_int();
     cols =  fix_rights_for_column(cols);
   }
+  else
+    cols= 0;
 
   (void) my_hash_init2(&hash_columns,4,system_charset_info,
                    0,0,0, (my_hash_get_key) get_key_column,0,0,

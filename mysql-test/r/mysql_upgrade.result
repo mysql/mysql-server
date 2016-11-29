@@ -2620,7 +2620,7 @@ SET sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Run mysql_upgrade
-mysql_upgrade: (non fatal) [ERROR] 1728: Incorrect definition of table mysql.proc: expected column 'comment' at position 15 to have type text, found type blob.
+mysql_upgrade: (non fatal) [ERROR] 1728: Cannot load from mysql.proc. The table is probably corrupted
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
