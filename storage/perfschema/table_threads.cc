@@ -252,7 +252,7 @@ int table_threads::index_init(uint idx, bool)
   return 0;
 }
 
-bool table_threads::make_row(PFS_thread *pfs)
+int table_threads::make_row(PFS_thread *pfs)
 {
   pfs_optimistic_state lock;
   pfs_optimistic_state session_lock;
@@ -265,7 +265,7 @@ bool table_threads::make_row(PFS_thread *pfs)
 
   safe_class= sanitize_thread_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return false;
+    return HA_ERR_RECORD_DELETED;
 
   m_row.m_thread_internal_id= pfs->m_thread_internal_id;
   m_row.m_parent_thread_internal_id= pfs->m_parent_thread_internal_id;
@@ -279,19 +279,19 @@ bool table_threads::make_row(PFS_thread *pfs)
 
   m_row.m_username_length= pfs->m_username_length;
   if (unlikely(m_row.m_username_length > sizeof(m_row.m_username)))
-    return false;
+    return HA_ERR_RECORD_DELETED;
 
   if (m_row.m_username_length != 0)
     memcpy(m_row.m_username, pfs->m_username, m_row.m_username_length);
 
   m_row.m_hostname_length= pfs->m_hostname_length;
   if (unlikely(m_row.m_hostname_length > sizeof(m_row.m_hostname)))
-    return false;
+    return HA_ERR_RECORD_DELETED;
 
   if (m_row.m_hostname_length != 0)
     memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
 
-  if (! pfs->m_session_lock.end_optimistic_lock(& session_lock))
+  if (!pfs->m_session_lock.end_optimistic_lock(& session_lock))
   {
     /*
       One of the columns:
@@ -311,7 +311,7 @@ bool table_threads::make_row(PFS_thread *pfs)
 
   m_row.m_dbname_length= pfs->m_dbname_length;
   if (unlikely(m_row.m_dbname_length > sizeof(m_row.m_dbname)))
-    return false;
+    return HA_ERR_RECORD_DELETED;
 
   if (m_row.m_dbname_length != 0)
     memcpy(m_row.m_dbname, pfs->m_dbname, m_row.m_dbname_length);
@@ -319,7 +319,7 @@ bool table_threads::make_row(PFS_thread *pfs)
   m_row.m_processlist_info_ptr= & pfs->m_processlist_info[0];
   m_row.m_processlist_info_length= pfs->m_processlist_info_length;
 
-  if (! pfs->m_stmt_lock.end_optimistic_lock(& stmt_lock))
+  if (!pfs->m_stmt_lock.end_optimistic_lock(& stmt_lock))
   {
     /*
       One of the columns:
@@ -358,10 +358,10 @@ bool table_threads::make_row(PFS_thread *pfs)
   m_row.m_history= pfs->m_history;
   m_row.m_psi= pfs;
 
-  if (pfs->m_lock.end_optimistic_lock(& lock))
-    return true;
+  if (!pfs->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
 
-  return false;
+  return 0;
 }
 
 int table_threads::read_row_values(TABLE *table,

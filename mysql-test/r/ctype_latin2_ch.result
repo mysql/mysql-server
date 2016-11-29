@@ -182,10 +182,10 @@ INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
 SELECT * FROM t1 GROUP BY s1;
 s1
 x
-X
 y
-Y
 z
+X
+Y
 Z
 SELECT * FROM t1 ORDER BY s1;
 s1
@@ -218,10 +218,10 @@ INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
 SELECT * FROM t1 GROUP BY s1;
 s1
 x
-X
 y
-Y
 z
+X
+Y
 Z
 SELECT * FROM t1 ORDER BY s1;
 s1
@@ -256,10 +256,10 @@ INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
 SELECT * FROM t1 GROUP BY s1;
 s1
 x
-X
 y
-Y
 z
+X
+Y
 Z
 SELECT * FROM t1 ORDER BY s1;
 s1
@@ -294,10 +294,10 @@ INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
 SELECT * FROM t1 GROUP BY s1;
 s1
 x
-X
 y
-Y
 z
+X
+Y
 Z
 SELECT * FROM t1 ORDER BY s1;
 s1
@@ -396,7 +396,7 @@ hex(weight_string('abc'))
 0304050103090A01030F1101030F1100
 select hex(weight_string('abc' as char(2)));
 hex(weight_string('abc' as char(2)))
-0304050103090A01030F1101030F1100
+030401030901030F01030F00
 select hex(weight_string('abc' as char(3)));
 hex(weight_string('abc' as char(3)))
 0304050103090A01030F1101030F1100
@@ -411,16 +411,16 @@ hex(weight_string('abc', 2, 2, 0xC0))
 0304
 select hex(weight_string('abc', 3, 2, 0xC0));
 hex(weight_string('abc', 3, 2, 0xC0))
-030405
+030401
 select hex(weight_string('abc', 4, 2, 0xC0));
 hex(weight_string('abc', 4, 2, 0xC0))
-03040501
+03040103
 select hex(weight_string('abc', 5, 2, 0xC0));
 hex(weight_string('abc', 5, 2, 0xC0))
-0304050103
+0304010309
 select hex(weight_string('abc',25, 2, 0xC0));
 hex(weight_string('abc',25, 2, 0xC0))
-0304050103090A01030F1101030F1100202020202020202020
+030401030901030F01030F0020202020202020202020202020
 select hex(weight_string('abc', 1, 3, 0xC0));
 hex(weight_string('abc', 1, 3, 0xC0))
 03
@@ -489,10 +489,10 @@ hex(weight_string(cast(_latin1 0x6368DF as char)))
 0C0119012F012FE200
 select hex(weight_string(cast(_latin1 0x6368DF as char) as char(1)));
 hex(weight_string(cast(_latin1 0x6368DF as char) as char(1)))
-0C0119012F012FE200
+05010A0111011100
 select hex(weight_string(cast(_latin1 0x6368DF as char) as char(2)));
 hex(weight_string(cast(_latin1 0x6368DF as char) as char(2)))
-0C0119012F012FE200
+0C0119012F012F00
 select hex(weight_string(cast(_latin1 0x6368DF as char) as char(3)));
 hex(weight_string(cast(_latin1 0x6368DF as char) as char(3)))
 0C0119012F012FE200
@@ -504,10 +504,10 @@ hex(weight_string(cast(_latin1 0xDF6368 as char)))
 0C0119012F01E22F00
 select hex(weight_string(cast(_latin1 0xDF6368 as char) as char(1)));
 hex(weight_string(cast(_latin1 0xDF6368 as char) as char(1)))
-0C0119012F01E22F00
+010101E200
 select hex(weight_string(cast(_latin1 0xDF6368 as char) as char(2)));
 hex(weight_string(cast(_latin1 0xDF6368 as char) as char(2)))
-0C0119012F01E22F00
+05010A011101E21100
 select hex(weight_string(cast(_latin1 0xDF6368 as char) as char(3)));
 hex(weight_string(cast(_latin1 0xDF6368 as char) as char(3)))
 0C0119012F01E22F00
@@ -528,7 +528,7 @@ hex(weight_string(cast(_latin1 0x6368DF as char), 4, 2, 0xC0))
 0C011901
 select hex(weight_string(cast(_latin1 0x6368DF as char),25, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char),25, 2, 0xC0))
-0C0119012F012FE20020202020202020202020202020202020
+0C0119012F012F002020202020202020202020202020202020
 select hex(weight_string(cast(_latin1 0x6368DF as char), 1, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 1, 3, 0xC0))
 0C
@@ -561,19 +561,19 @@ hex(weight_string(cast(_latin1 0x6368DF as char),25, 4, 0xC0))
 0C0119012F012FE20020202020202020202020202020202020
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 2,0xC0))
-0C
+05
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 2, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 2, 2,0xC0))
-0C01
+0501
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 3, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 3, 2,0xC0))
-0C0119
+05010A
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 2,0xC0))
-0C011901
+05010A01
 select hex(weight_string(cast(_latin1 0xDF6368 as char),25, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char),25, 2,0xC0))
-0C0119012F01E22F0020202020202020202020202020202020
+05010A011101E2110020202020202020202020202020202020
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 3,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 3,0xC0))
 0C
@@ -618,7 +618,7 @@ hex(weight_string('abc' LEVEL 1))
 03040501
 select hex(weight_string('abc' as char(2) LEVEL 1));
 hex(weight_string('abc' as char(2) LEVEL 1))
-03040501
+030401
 select hex(weight_string('abc' as char(3) LEVEL 1));
 hex(weight_string('abc' as char(3) LEVEL 1))
 03040501
@@ -648,7 +648,7 @@ hex(weight_string('abc' LEVEL 2))
 03090A01
 select hex(weight_string('abc' as char(2) LEVEL 2));
 hex(weight_string('abc' as char(2) LEVEL 2))
-03090A01
+030901
 select hex(weight_string('abc' as char(3) LEVEL 2));
 hex(weight_string('abc' as char(3) LEVEL 2))
 03090A01
@@ -669,7 +669,7 @@ hex(weight_string('abc' LEVEL 3))
 030F1101
 select hex(weight_string('abc' as char(2) LEVEL 3));
 hex(weight_string('abc' as char(2) LEVEL 3))
-030F1101
+030F01
 select hex(weight_string('abc' as char(3) LEVEL 3));
 hex(weight_string('abc' as char(3) LEVEL 3))
 030F1101
@@ -699,7 +699,7 @@ hex(weight_string('abc' LEVEL 4))
 030F1100
 select hex(weight_string('abc' as char(2) LEVEL 4));
 hex(weight_string('abc' as char(2) LEVEL 4))
-030F1100
+030F00
 select hex(weight_string('abc' as char(3) LEVEL 4));
 hex(weight_string('abc' as char(3) LEVEL 4))
 030F1100

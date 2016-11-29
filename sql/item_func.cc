@@ -4299,11 +4299,11 @@ longlong Item_func_locate::val_int()
   if (!b->length())				// Found empty string at start
     return start + 1;
   
-  if (!cmp_collation.collation->coll->instr(cmp_collation.collation,
-                                            a->ptr()+start,
-                                            (uint) (a->length()-start),
-                                            b->ptr(), b->length(),
-                                            &match, 1))
+  if (!cmp_collation.collation->coll->strstr(cmp_collation.collation,
+                                             a->ptr()+start,
+                                             (uint) (a->length()-start),
+                                             b->ptr(), b->length(),
+                                             &match, 1))
     return 0;
   return (longlong) match.mb_len + start0 + 1;
 }

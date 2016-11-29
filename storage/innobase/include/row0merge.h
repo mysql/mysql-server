@@ -96,6 +96,7 @@ struct index_field_t {
 	ulint		prefix_len;	/*!< column prefix length, or 0
 					if indexing the whole column */
 	bool		is_v_col;	/*!< whether this is a virtual column */
+	bool		is_ascending;	/*!< true=ASC, false=DESC */
 };
 
 /** Definition of an index being created */

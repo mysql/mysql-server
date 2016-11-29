@@ -56,9 +56,9 @@ set_super_read_only_mode(Sql_service_command *command_interface)
   DBUG_ASSERT(command_interface != NULL);
 
   // Extract server values for the read mode
-  long server_read_only_query=
+  longlong server_read_only_query=
       command_interface->get_server_read_only();
-  long server_super_read_only_query=
+  longlong server_super_read_only_query=
       command_interface->get_server_super_read_only();
 
   error= server_read_only_query == -1 || server_super_read_only_query == -1;

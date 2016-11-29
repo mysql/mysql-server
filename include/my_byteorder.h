@@ -27,9 +27,14 @@
 #include "my_config.h"
 
 #include <string.h>
+#include <sys/types.h>
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
+#endif
+
+#if defined(_MSC_VER)
+#include <stdlib.h>
 #endif
 
 #ifdef _WIN32
@@ -41,6 +46,8 @@
 #else
 #include "byte_order_generic.h"  // IWYU pragma: export
 #endif
+
+#include "my_inttypes.h"
 
 #ifdef __cplusplus
 #include "template_utils.h"
@@ -267,7 +274,12 @@ static inline uint32 load32be(const char *ptr)
 
 static inline char *store16be(char *ptr, uint16 val)
 {
+#if defined(_MSC_VER)
+  // _byteswap_ushort is an intrinsic on MSVC, but htons is not.
+  val= _byteswap_ushort(val);
+#else
   val= htons(val);
+#endif
   memcpy(ptr, &val, sizeof(val));
   return ptr + sizeof(val);
 }

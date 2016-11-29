@@ -60,11 +60,7 @@ EOF
 --echo # 1.5 Delete bootstrap file, log file and datadir.
 remove_file $BOOTSTRAP_SQL;
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo #
 --echo # 2. Try restart after dropping the version table.
@@ -98,11 +94,7 @@ EOF
 --echo # 2.5 Delete bootstrap file, log file and datadir.
 remove_file $BOOTSTRAP_SQL;
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo #
 --echo # 3. Try restart after dropping the tables table.
@@ -138,11 +130,7 @@ EOF
 --echo # 3.5 Delete bootstrap file, log file and datadir.
 remove_file $BOOTSTRAP_SQL;
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo #
 --echo # 4. Try restart after altering the schemata table.
@@ -187,11 +175,7 @@ disconnect root_con;
 --echo # 4.8 Delete bootstrap file, log file and datadir.
 remove_file $BOOTSTRAP_SQL;
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo #
 --echo # Cleanup: Restarting the server against default datadir.

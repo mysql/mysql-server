@@ -1372,6 +1372,15 @@ public:
 };
 
 
+class Item_func_swap_xy : public Item_geometry_func
+{
+public:
+  Item_func_swap_xy(const POS &pos, Item *a) : Item_geometry_func(pos, a) {}
+  const char *func_name() const { return "st_swapxy"; }
+  String *val_str(String *);
+};
+
+
 class Item_func_numgeometries: public Item_int_func
 {
   String value;
@@ -1503,30 +1512,56 @@ public:
 
 class Item_func_distance: public Item_real_func
 {
-  // Default earth radius in meters.
-  bool is_spherical_equatorial;
-  double earth_radius;
-  String tmp_value1;
-  String tmp_value2;
-
   double geometry_collection_distance(const Geometry *g1, const Geometry *g2);
 
   template <typename Coordsys, typename BG_geometry>
   double distance_dispatch_second_geometry(const BG_geometry& bg1,
                                            const Geometry* g2);
 
-  double distance_point_geometry_spherical(const Geometry *g1,
-                                           const Geometry *g2);
-  double distance_multipoint_geometry_spherical(const Geometry *g1,
-                                                const Geometry *g2);
 public:
-  double bg_distance_spherical(const Geometry *g1, const Geometry *g2);
   template <typename Coordsys>
   double bg_distance(const Geometry *g1, const Geometry *g2);
 
-  Item_func_distance(const POS &pos, PT_item_list *ilist, bool isspherical)
-    : Item_real_func(pos, ilist), is_spherical_equatorial(isspherical),
-      earth_radius(6370986.0)                   /* Default earth radius. */
+  Item_func_distance(const POS &pos, PT_item_list *ilist)
+    : Item_real_func(pos, ilist)
+  {
+    /*
+      Either operand can be an empty geometry collection, and it's meaningless
+      for a distance between them.
+    */
+    maybe_null= true;
+  }
+
+  virtual bool resolve_type(THD *thd) override
+  {
+    if (Item_real_func::resolve_type(thd))
+      return true;
+    maybe_null= true;
+    return false;
+  }
+
+  double val_real() override;
+  const char *func_name() const override
+  {
+    return "st_distance";
+  }
+};
+
+
+class Item_func_distance_sphere: public Item_real_func
+{
+  double distance_point_geometry_spherical(const Geometry *g1,
+                                           const Geometry *g2,
+                                           double earth_radius);
+  double distance_multipoint_geometry_spherical(const Geometry *g1,
+                                                const Geometry *g2,
+                                                double earth_radius);
+public:
+  double bg_distance_spherical(const Geometry *g1, const Geometry *g2,
+                               double earth_radius);
+
+  Item_func_distance_sphere(const POS &pos, PT_item_list *ilist)
+    : Item_real_func(pos, ilist)
   {
     /*
       Either operand can be an empty geometry collection, and it's meaningless
@@ -1546,7 +1581,7 @@ public:
   double val_real() override;
   const char *func_name() const override
   {
-    return is_spherical_equatorial ? "st_distance_sphere" : "st_distance";
+    return "st_distance_sphere";
   }
 };
 

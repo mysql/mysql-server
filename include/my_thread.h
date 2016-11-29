@@ -26,9 +26,12 @@
 
 #include "my_compiler.h"
 #include "my_config.h"
-#include "my_global.h"              /* my_bool */
+#include "my_inttypes.h"
+#include "my_macros.h"
 
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#include <windows.h>
+#else
 #include <pthread.h>                // IWYU pragma: export
 #include <sched.h>                  // IWYU pragma: export
 #endif

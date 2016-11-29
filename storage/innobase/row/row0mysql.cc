@@ -737,6 +737,7 @@ handle_new_error:
 	case DB_INTERRUPTED:
 	case DB_CANT_CREATE_GEOMETRY_OBJECT:
 	case DB_COMPUTE_VALUE_FAILED:
+	case DB_LOCK_NOWAIT:
 		DBUG_EXECUTE_IF("row_mysql_crash_if_error", {
 					log_buffer_flush_to_disk();
 					DBUG_SUICIDE(); });
@@ -945,6 +946,7 @@ row_create_prebuilt(
 	btr_pcur_reset(prebuilt->clust_pcur);
 
 	prebuilt->select_lock_type = LOCK_NONE;
+	prebuilt->select_mode = SELECT_ORDINARY;
 
 	prebuilt->search_tuple = dtuple_create(heap, search_tuple_n_fields);
 
@@ -2106,7 +2108,7 @@ row_delete_for_mysql_using_cursor(
 
 		ut_ad(!cmp_dtuple_rec(
 			entry, btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur)),
-			offsets));
+			index, offsets));
 #endif /* UNIV_DEBUG */
 
 		ut_ad(!rec_get_deleted_flag(
@@ -5742,8 +5744,8 @@ func_exit:
 	if (prev_entry != NULL) {
 		matched_fields = 0;
 
-		cmp = cmp_dtuple_rec_with_match(prev_entry, rec, offsets,
-						&matched_fields);
+		cmp = cmp_dtuple_rec_with_match(
+			prev_entry, rec, index, offsets, &matched_fields);
 		contains_null = FALSE;
 
 		/* In a unique secondary index we allow equal key values if

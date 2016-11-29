@@ -89,7 +89,7 @@ protected:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-  virtual void make_row(PFS_thread *pfs, uint ordinal);
+  virtual int make_row(PFS_thread *pfs, uint ordinal);
   virtual bool thread_fits(PFS_thread *thread);
   virtual int read_row_values(TABLE *table, unsigned char *buf,
                               Field **fields, bool read_all);

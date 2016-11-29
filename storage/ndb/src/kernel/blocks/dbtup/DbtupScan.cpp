@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1194,7 +1194,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             key_mm = pos.m_key;
             // real page id is already set
           } else {
-	    key_mm.assref(th->m_base_record_ref);
+            th->get_base_record_ref(key_mm);
             // recompute for each disk tuple
             pos.m_realpid_mm = getRealpid(fragPtr.p, key_mm.m_page_no);
           }
@@ -1220,7 +1220,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  // caller has already set pos.m_get to next tuple
 	  // real page id is already set
 	} else {
-	  key_mm.assref(th->m_base_record_ref);
+          th->get_base_record_ref(key_mm);
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+          ndbrequire(!"Looking for test coverage - found it!");
+#endif
 	  // recompute for each disk tuple
 	  pos.m_realpid_mm = getRealpid(fragPtr.p, key_mm.m_page_no);
 	  

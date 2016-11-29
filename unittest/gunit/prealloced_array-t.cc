@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -549,6 +549,44 @@ TEST_F(PreallocedArrayTest, SqlAlloc)
     array.push_back(TestAlloc(ix));
   for (int ix= 0; ix < 42; ++ix)
     EXPECT_EQ(ix, array[ix].getval());
+}
+
+
+/**
+  A class that wraps an integer. Objects of this class can be moved,
+  but cannot be copied.
+*/
+class IntWrapMove
+{
+  int m_i;
+public:
+  explicit IntWrapMove(int i) : m_i(i) {}
+  IntWrapMove(const IntWrapMove &) = delete;
+  IntWrapMove &operator=(const IntWrapMove &) = delete;
+  IntWrapMove(IntWrapMove &&other) = default;
+  IntWrapMove &operator=(IntWrapMove &&other) = default;
+  int getval() const { return m_i; }
+};
+
+
+/*
+  Test that a Prealloced_array can hold objects that cannot be copied.
+*/
+TEST_F(PreallocedArrayTest, Move)
+{
+  Prealloced_array<IntWrapMove, 1, false> array(PSI_NOT_INSTRUMENTED);
+  for (int i= 0; i < 5; ++i)
+    array.push_back(IntWrapMove(i));
+  for (int i= 5; i < 10; ++i)
+    array.emplace_back(i);
+  for (int i= 0; i < 10; ++i)
+    EXPECT_EQ(i, array[i].getval());
+  array.insert(array.begin(), IntWrapMove(100));
+  array.emplace(array.begin() + 1, IntWrapMove(101));
+  EXPECT_EQ(12U, array.size());
+  EXPECT_EQ(100, array[0].getval());
+  EXPECT_EQ(101, array[1].getval());
+  EXPECT_EQ(0, array[2].getval());
 }
 
 }

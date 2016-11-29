@@ -386,7 +386,6 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld.h"                             // my_localhost
-#include "probes_mysql.h"
 #include "sql_analyse.h"         // append_escaped
 #include "sql_class.h"
 #include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
@@ -2364,12 +2363,10 @@ int ha_federated::index_read(uchar *buf, const uchar *key,
   int rc;
   DBUG_ENTER("ha_federated::index_read");
 
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   free_result();
   rc= index_read_idx_with_result_set(buf, active_index, key,
                                      key_len, find_flag,
                                      &stored_result);
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -2521,7 +2518,6 @@ int ha_federated::read_range_first(const key_range *start_key,
                    sizeof(sql_query_buffer),
                    &my_charset_bin);
   DBUG_ENTER("ha_federated::read_range_first");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
 
   DBUG_ASSERT(!(start_key == NULL && end_key == NULL));
 
@@ -2544,12 +2540,10 @@ int ha_federated::read_range_first(const key_range *start_key,
   }
 
   retval= read_next(table->record[0], stored_result);
-  MYSQL_INDEX_READ_ROW_DONE(retval);
   DBUG_RETURN(retval);
 
 error:
   table->status= STATUS_NOT_FOUND;
-  MYSQL_INDEX_READ_ROW_DONE(retval);
   DBUG_RETURN(retval);
 }
 
@@ -2558,9 +2552,7 @@ int ha_federated::read_range_next()
 {
   int retval;
   DBUG_ENTER("ha_federated::read_range_next");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   retval= rnd_next_int(table->record[0]);
-  MYSQL_INDEX_READ_ROW_DONE(retval);
   DBUG_RETURN(retval);
 }
 
@@ -2570,10 +2562,8 @@ int ha_federated::index_next(uchar *buf)
 {
   int retval;
   DBUG_ENTER("ha_federated::index_next");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   retval= read_next(buf, stored_result);
-  MYSQL_INDEX_READ_ROW_DONE(retval);
   DBUG_RETURN(retval);
 }
 
@@ -2669,10 +2659,7 @@ int ha_federated::rnd_next(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_federated::rnd_next");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   rc= rnd_next_int(buf);
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -2786,8 +2773,6 @@ int ha_federated::rnd_pos(uchar *buf, uchar *pos)
   int ret_val;
   DBUG_ENTER("ha_federated::rnd_pos");
 
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       FALSE);
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
 
   /* Get stored result set. */
@@ -2798,7 +2783,6 @@ int ha_federated::rnd_pos(uchar *buf, uchar *pos)
          sizeof(MYSQL_ROW_OFFSET));
   /* Read a row. */
   ret_val= read_next(buf, result);
-  MYSQL_READ_ROW_DONE(ret_val);
   DBUG_RETURN(ret_val);
 }
 

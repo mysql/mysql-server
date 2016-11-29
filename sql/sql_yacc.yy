@@ -89,6 +89,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
                                              // Sql_cmd_create_trigger
 #include "sql_truncate.h"                      // Sql_cmd_truncate_table
 
+#include "binlog.h"                          // for MAX_LOG_UNIQUE_FN_EXT
+                                             // used in RESET_MASTER parsing check
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
 /* warning C4065: switch statement contains 'default' but no 'case' labels */
@@ -424,14 +426,15 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
    1) Comments for TOKENS.
 
    For each token, please include in the same line a comment that contains
-   the following tags:
+   one or more of the following tags:
+
    SQL-2015-R : Reserved keyword as per SQL-2015 draft
    SQL-2003-R : Reserved keyword as per SQL-2003
    SQL-2003-N : Non Reserved keyword as per SQL-2003
    SQL-1999-R : Reserved keyword as per SQL-1999
    SQL-1999-N : Non Reserved keyword as per SQL-1999
-   MYSQL      : MySQL extention (unspecified)
-   MYSQL-FUNC : MySQL extention, function
+   MYSQL      : MySQL extension (unspecified)
+   MYSQL-FUNC : MySQL extension, function
    INTERNAL   : Not a real token, lex optimization
    OPERATOR   : SQL operator
    FUTURE-USE : Reserved for futur use
@@ -1136,6 +1139,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  GRAMMAR_SELECTOR_PART      /* synthetic token: starts partition expr. */
 %token  JSON_OBJECTAGG                /* SQL-2015-R */
 %token  JSON_ARRAYAGG                 /* SQL-2015-R */
+%token  OF_SYM                        /* SQL-1999-R */
+%token  SKIP_SYM                      /* MYSQL */
+%token  LOCKED_SYM                    /* MYSQL */
+%token  NOWAIT_SYM                    /* MYSQL */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1219,7 +1226,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
-        ws_nweights func_datetime_precision
+        ws_num_codepoints func_datetime_precision
         ws_level_flag_desc ws_level_flag_reverse ws_level_flags
         opt_ws_levels ws_level_list ws_level_list_item ws_level_number
         ws_level_range ws_level_list_or_range
@@ -1232,6 +1239,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <lock_type>
         replace_lock_option opt_low_priority insert_lock_option load_data_lock
+
+%type <locked_row_action> locked_row_action opt_locked_row_action
 
 %type <item>
         literal insert_ident temporal_literal
@@ -1471,7 +1480,11 @@ END_OF_INPUT
 
 %type <procedure_analyse> opt_procedure_analyse_clause
 
-%type <select_lock_type> opt_select_lock_type
+%type <locking_clause> locking_clause
+
+%type <locking_clause_list> opt_locking_clause_list locking_clause_list
+
+%type <lock_strength> lock_strength
 
 %type <table_reference> table_reference esc_table_reference
         table_factor single_table single_table_parens
@@ -1540,7 +1553,7 @@ END_OF_INPUT
 
 %type <table_ident> table_ident_opt_wild
 
-%type <table_ident_list> table_alias_ref_list
+%type <table_ident_list> table_alias_ref_list table_locking_list
 
 %type <num> opt_delete_options
 
@@ -6528,7 +6541,7 @@ opt_bin_mod:
         | BINARY_SYM  { $$= true; }
         ;
 
-ws_nweights:
+ws_num_codepoints:
         '(' real_ulong_num
         {
           if ($2 == 0)
@@ -6625,14 +6638,14 @@ reference_list:
           reference_list ',' ident
           {
             $$= $1;
-            auto key= NEW_PTN Key_part_spec(to_lex_cstring($3), 0);
+            auto key= NEW_PTN Key_part_spec(to_lex_cstring($3), 0, ORDER_ASC);
             if (key == NULL || $$->push_back(key))
               MYSQL_YYABORT;
           }
         | ident
           {
             $$= NEW_PTN List<Key_part_spec>;
-            auto key= NEW_PTN Key_part_spec(to_lex_cstring($1), 0);
+            auto key= NEW_PTN Key_part_spec(to_lex_cstring($1), 0, ORDER_ASC);
             if ($$ == NULL || key == NULL || $$->push_back(key))
               MYSQL_YYABORT;
           }
@@ -6860,14 +6873,13 @@ index_type:
         ;
 
 key_list:
-          key_list ',' key_part order_dir
+          key_list ',' key_part
           {
-            // The order is ignored.
             if ($1->push_back($3))
               MYSQL_YYABORT; // OOM
             $$= $1;
           }
-        | key_part order_dir
+        | key_part
           {
             // The order is ignored.
             $$= new List<Key_part_spec>;
@@ -6877,20 +6889,21 @@ key_list:
         ;
 
 key_part:
-          ident
+          ident order_dir
           {
-            $$= new Key_part_spec(to_lex_cstring($1), 0);
+            $$= new Key_part_spec(to_lex_cstring($1), 0, (enum_order) $2);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
-        | ident '(' NUM ')'
+        | ident '(' NUM ')' order_dir
           {
             int key_part_len= atoi($3.str);
             if (!key_part_len)
             {
               my_error(ER_KEY_PART_0, MYF(0), $1.str);
             }
-            $$= new Key_part_spec(to_lex_cstring($1), (uint) key_part_len);
+            $$= new Key_part_spec(to_lex_cstring($1), (uint) key_part_len,
+                                  (enum_order) $5);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -8634,7 +8647,7 @@ query_expression:
           opt_order_clause
           opt_limit_clause
           opt_procedure_analyse_clause
-          opt_select_lock_type
+          opt_locking_clause_list
           {
             if ($1 == NULL)
               MYSQL_YYABORT; // OOM
@@ -8654,7 +8667,7 @@ query_expression:
           order_clause
           opt_limit_clause
           opt_procedure_analyse_clause
-          opt_select_lock_type
+          opt_locking_clause_list
           {
             if ($1 == NULL)
               MYSQL_YYABORT; // OOM
@@ -8669,7 +8682,7 @@ query_expression:
         | query_expression_parens
           limit_clause
           opt_procedure_analyse_clause
-          opt_select_lock_type
+          opt_locking_clause_list
           {
             if ($1 == NULL)
               MYSQL_YYABORT; // OOM
@@ -8870,20 +8883,58 @@ select_option:
           }
         ;
 
-opt_select_lock_type:
-          /* empty */ { $$= Select_lock_type(); }
-        | FOR_SYM UPDATE_SYM
+opt_locking_clause_list:
+          /* Empty. */ { $$= NULL; }
+        | locking_clause_list
+        ;
+
+locking_clause_list:
+          locking_clause_list locking_clause
           {
-            $$.is_set= true;
-            $$.lock_type= TL_WRITE;
-            $$.is_safe_to_cache_query= false;
+            $$= $1;
+            if ($$->push_back($2))
+              MYSQL_YYABORT; // OOM
+          }
+        | locking_clause
+          {
+            $$= NEW_PTN PT_locking_clause_list(YYTHD->mem_root);
+            if ($$ == nullptr || $$->push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        ;
+
+locking_clause:
+          FOR_SYM lock_strength opt_locked_row_action
+          {
+            $$= NEW_PTN PT_query_block_locking_clause($2, $3);
+          }
+        | FOR_SYM lock_strength table_locking_list opt_locked_row_action
+          {
+            $$= NEW_PTN PT_table_locking_clause($2, $3, $4);
           }
         | LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
           {
-            $$.is_set= true;
-            $$.lock_type= TL_READ_WITH_SHARED_LOCKS;
-            $$.is_safe_to_cache_query= false;
+            $$= NEW_PTN PT_query_block_locking_clause(Lock_strength::SHARE);
           }
+        ;
+
+lock_strength:
+          UPDATE_SYM { $$= Lock_strength::UPDATE; }
+        | SHARE_SYM  { $$= Lock_strength::SHARE; }
+        ;
+
+table_locking_list:
+          OF_SYM table_alias_ref_list { $$= $2; }
+        ;
+
+opt_locked_row_action:
+          /* Empty */ { $$= Locked_row_action::WAIT; }
+        | locked_row_action
+        ;
+
+locked_row_action:
+          SKIP_SYM LOCKED_SYM { $$= Locked_row_action::SKIP; }
+        | NOWAIT_SYM { $$= Locked_row_action::NOWAIT; }
         ;
 
 select_item_list:
@@ -9598,12 +9649,12 @@ function_call_conflict:
           {
             $$= NEW_PTN Item_func_weight_string(@$, $3, 0, 0, $4);
           }
-        | WEIGHT_STRING_SYM '(' expr AS CHAR_SYM ws_nweights opt_ws_levels ')'
+        | WEIGHT_STRING_SYM '(' expr AS CHAR_SYM ws_num_codepoints opt_ws_levels ')'
           {
             $$= NEW_PTN Item_func_weight_string(@$, $3, 0, $6,
                         $7 | MY_STRXFRM_PAD_WITH_SPACE);
           }
-        | WEIGHT_STRING_SYM '(' expr AS BINARY_SYM ws_nweights ')'
+        | WEIGHT_STRING_SYM '(' expr AS BINARY_SYM ws_num_codepoints ')'
           {
             $$= NEW_PTN Item_func_weight_string(@$,
                         $3, 0, $6, MY_STRXFRM_PAD_WITH_SPACE, true);
@@ -10559,7 +10610,9 @@ alter_order_item:
             if (order == NULL)
               MYSQL_YYABORT;
             order->item_ptr= $1;
-            order->direction= ($2 == 1) ? ORDER::ORDER_ASC : ORDER::ORDER_DESC;
+            order->direction= ($2 == ORDER_DESC) ? ORDER_DESC
+                                                 : ORDER_ASC;
+            order->is_explicit= ($2 != ORDER_NOT_RELEVANT);
             order->is_position= false;
             add_order_to_list(thd, order);
           }
@@ -10597,9 +10650,9 @@ order_list:
         ;
 
 order_dir:
-          /* empty */ { $$ =  1; }
-        | ASC  { $$ =1; }
-        | DESC { $$ =0; }
+          /* empty */ { $$= ORDER_NOT_RELEVANT; }
+        | ASC         { $$= ORDER_ASC; }
+        | DESC        { $$= ORDER_DESC; }
         ;
 
 opt_limit_clause:
@@ -12291,12 +12344,28 @@ reset_option:
           SLAVE               { Lex->type|= REFRESH_SLAVE; }
           slave_reset_options opt_channel
         | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
+          master_reset_options
         | QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
         ;
 
 slave_reset_options:
           /* empty */ { Lex->reset_slave_info.all= false; }
         | ALL         { Lex->reset_slave_info.all= true; }
+        ;
+
+master_reset_options:
+          /* empty */ {}
+        | TO_SYM real_ulong_num
+          {
+            if ($2 == 0 || $2 > MAX_LOG_UNIQUE_FN_EXT)
+            {
+              my_error(ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE, MYF(0),
+                       $2, MAX_LOG_UNIQUE_FN_EXT);
+              MYSQL_YYABORT;
+            }
+            else
+              Lex->next_binlog_file_nr = $2;
+          }
         ;
 
 purge:
@@ -12675,7 +12744,6 @@ literal:
             */
             lip->reduce_digest_token(TOK_GENERIC_VALUE, NULL_SYM);
             $$= NEW_PTN Item_null(@$);
-            lip->next_state= MY_LEX_OPERATOR_OR_IDENT;
           }
         | FALSE_SYM
           {
@@ -12768,7 +12836,7 @@ table_wild:
 order_expr:
           expr order_dir
           {
-            $$= NEW_PTN PT_order_expr($1, $2);
+            $$= NEW_PTN PT_order_expr($1, (enum_order) $2);
           }
         ;
 
@@ -13290,6 +13358,7 @@ role_or_label_keyword:
         | LINESTRING_SYM           {}
         | LIST_SYM                 {}
         | LOCAL_SYM                {}
+        | LOCKED_SYM               {}
         | LOCKS_SYM                {}
         | LOGFILE_SYM              {}
         | LOGS_SYM                 {}
@@ -13347,6 +13416,7 @@ role_or_label_keyword:
         | NEW_SYM                  {}
         | NO_WAIT_SYM              {}
         | NODEGROUP_SYM            {}
+        | NOWAIT_SYM               {}
         | NUMBER_SYM               {}
         | NVARCHAR_SYM             {}
         | OFFSET_SYM               {}
@@ -13412,8 +13482,9 @@ role_or_label_keyword:
         | SERIAL_SYM               {}
         | SERIALIZABLE_SYM         {}
         | SESSION_SYM              {}
-        | SIMPLE_SYM               {}
         | SHARE_SYM                {}
+        | SIMPLE_SYM               {}
+        | SKIP_SYM                 {}
         | SLOW                     {}
         | SNAPSHOT_SYM             {}
         | SOUNDS_SYM               {}

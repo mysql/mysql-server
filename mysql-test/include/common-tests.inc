@@ -1431,9 +1431,9 @@ select distinct fld5 from t2 limit 10;
 # Force use of remove_dupp
 #
 
-select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
+select distinct fld3,count(*) from t2 group by companynr asc,fld3 asc limit 10;
 SET BIG_TABLES=1; # Force use of MyISAM
-select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
+select distinct fld3,count(*) from t2 group by companynr asc,fld3 asc limit 10;
 SET BIG_TABLES=0;
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
 
@@ -1646,9 +1646,10 @@ select companynr,count(*) from t2 group by companynr order by companynr desc lim
 select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 where companynr = 34 and fld4<>"";
 --replace_column 10 # 11 #
 explain extended select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 where companynr = 34 and fld4<>"";
-select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr limit 3;
-select companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr,t2nr limit 10;
-select /*! SQL_SMALL_RESULT */ companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr,t2nr limit 10;
+select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr asc limit 3;
+select companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr asc,t2nr asc limit 10;
+select /*! SQL_SMALL_RESULT */
+companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr asc, t2nr asc limit 10;
 select companynr,count(price),sum(price),min(price),max(price),avg(price) from t3 group by companynr ;
 select distinct mod(companynr,10) from t4 group by companynr;
 select distinct 1 from t4 group by companynr;

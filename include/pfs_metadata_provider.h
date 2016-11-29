@@ -16,6 +16,8 @@
 #ifndef PFS_METADATA_PROVIDER_H
 #define PFS_METADATA_PROVIDER_H
 
+#include "my_psi_config.h"
+
 /**
   @file include/pfs_metadata_provider.h
   Performance schema instrumentation (declarations).
@@ -26,7 +28,13 @@
 #ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql/psi/psi_mdl.h"
+
+struct MDL_key;
 
 #define PSI_METADATA_CALL(M) pfs_ ## M ## _v1
 

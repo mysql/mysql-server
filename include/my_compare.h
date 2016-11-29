@@ -20,9 +20,11 @@
   @file include/my_compare.h
 */
 
-#include "myisampack.h"
+#include <sys/types.h>
+
 #include "m_ctype.h"                            /* CHARSET_INFO */
-#include "my_icp.h"                             /* ICP_RESULT */
+#include "my_inttypes.h"
+#include "myisampack.h"
 
 #ifdef	__cplusplus
 extern "C" {

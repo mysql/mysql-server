@@ -261,7 +261,7 @@ ADD_LIBRARY(gunit_large STATIC
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
 TARGET_LINK_LIBRARIES(gunit_small
-  mysys mysys_ssl mytap dbug strings ${GTEST_LIBRARIES})
+  mysys mysys_ssl mytap dbug strings myisam_sys ${GTEST_LIBRARIES})
 TARGET_LINK_LIBRARIES(gunit_large
   mysys mysys_ssl mytap dbug strings ${GTEST_LIBRARIES})
 MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
@@ -373,6 +373,7 @@ SET(SERVER_TESTS
   json_binary
   json_dom
   json_path
+  locking_clause_syntax
   locking_service
   log_throttle
   make_sortkey
@@ -466,10 +467,6 @@ IF (MERGE_UNITTESTS)
     LIST(APPEND SRC_FILES $<TARGET_OBJECTS:my_nt_servc>)
   ENDIF()
   LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
-  ADD_COMPILE_FLAGS(
-    ../../storage/example/ha_example.cc
-    COMPILE_FLAGS "-DDISABLE_DTRACE"
-  )
   ADD_EXECUTABLE(merge_large_tests-t ${SRC_FILES})
 
   TARGET_LINK_LIBRARIES(merge_small_tests-t
@@ -541,10 +538,6 @@ ENDIF(MERGE_UNITTESTS)
     ENDIF()
     IF(test MATCHES "table_cache")
       LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
-      ADD_COMPILE_FLAGS(
-        ../../storage/example/ha_example.cc
-        COMPILE_FLAGS "-DDISABLE_DTRACE"
-      )
     ENDIF()
     ADD_EXECUTABLE(${test}-t ${SRC_FILES})
     TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)

@@ -180,7 +180,7 @@ ha_rows table_setup_actors::get_row_count(void)
 
 table_setup_actors::table_setup_actors()
   : PFS_engine_table(&m_share, &m_pos),
-  m_row_exists(false), m_pos(0), m_next_pos(0)
+  m_pos(0), m_next_pos(0)
 {}
 
 void table_setup_actors::reset_position(void)
@@ -198,9 +198,8 @@ int table_setup_actors::rnd_next()
   pfs= it.scan_next(& m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -215,8 +214,7 @@ int table_setup_actors::rnd_pos(const void *pos)
   pfs= global_setup_actor_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -246,8 +244,7 @@ int table_setup_actors::index_next()
     {
       if (m_opened_index->match(pfs))
       {
-        make_row(pfs);
-        if (m_row_exists)
+        if (!make_row(pfs))
         {
           m_next_pos.set_after(&m_pos);
           return 0;
@@ -259,37 +256,39 @@ int table_setup_actors::index_next()
   return HA_ERR_END_OF_FILE;
 }
 
-void table_setup_actors::make_row(PFS_setup_actor *pfs)
+int table_setup_actors::make_row(PFS_setup_actor *pfs)
 {
   pfs_optimistic_state lock;
-
-  m_row_exists= false;
-
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   m_row.m_hostname_length= pfs->m_hostname_length;
+
   if (unlikely((m_row.m_hostname_length == 0) ||
                (m_row.m_hostname_length > sizeof(m_row.m_hostname))))
-    return;
-  memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
+    return HA_ERR_RECORD_DELETED;
 
+  memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
   m_row.m_username_length= pfs->m_username_length;
+
   if (unlikely((m_row.m_username_length == 0) ||
                (m_row.m_username_length > sizeof(m_row.m_username))))
-    return;
-  memcpy(m_row.m_username, pfs->m_username, m_row.m_username_length);
+    return HA_ERR_RECORD_DELETED;
 
+  memcpy(m_row.m_username, pfs->m_username, m_row.m_username_length);
   m_row.m_rolename_length= pfs->m_rolename_length;
+
   if (unlikely((m_row.m_rolename_length == 0) ||
                (m_row.m_rolename_length > sizeof(m_row.m_rolename))))
-    return;
-  memcpy(m_row.m_rolename, pfs->m_rolename, m_row.m_rolename_length);
+    return HA_ERR_RECORD_DELETED;
 
+  memcpy(m_row.m_rolename, pfs->m_rolename, m_row.m_rolename_length);
   m_row.m_enabled_ptr= &pfs->m_enabled;
   m_row.m_history_ptr= &pfs->m_history;
 
-  if (pfs->m_lock.end_optimistic_lock(&lock))
-    m_row_exists= true;
+  if (!pfs->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+
+  return 0;
 }
 
 int table_setup_actors::read_row_values(TABLE *table,
@@ -298,9 +297,6 @@ int table_setup_actors::read_row_values(TABLE *table,
                                         bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
@@ -382,8 +378,6 @@ int table_setup_actors::delete_row_values(TABLE*,
                                           const unsigned char*,
                                           Field**)
 {
-  DBUG_ASSERT(m_row_exists);
-
   CHARSET_INFO *cs= &my_charset_utf8_bin;
   String user(m_row.m_username, m_row.m_username_length, cs);
   String role(m_row.m_rolename, m_row.m_rolename_length, cs);

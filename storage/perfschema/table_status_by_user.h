@@ -140,7 +140,7 @@ public:
   ~table_status_by_user() { }
 
 protected:
-  void make_row(PFS_user *user, const Status_variable *status_var);
+  int make_row(PFS_user *user, const Status_variable *status_var);
 
 private:
   /** Table share lock. */
@@ -153,8 +153,6 @@ private:
 
   /** Current row. */
   row_status_by_user m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_t m_pos;
   /** Next position. */

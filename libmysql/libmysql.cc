@@ -33,6 +33,7 @@
 #include "mysql.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "template_utils.h"

@@ -102,7 +102,9 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_UPDATE_IGNORE,
   ER_BINLOG_UNSAFE_INSERT_TWO_KEYS,
   ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST,
-  ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN
+  ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN,
+  ER_BINLOG_UNSAFE_SKIP_LOCKED,
+  ER_BINLOG_UNSAFE_NOWAIT
 };
 
 
@@ -488,6 +490,7 @@ void LEX::reset()
   use_only_table_context= false;
   contains_plaintext_password= false;
   keep_diagnostics= DA_KEEP_NOTHING;
+  next_binlog_file_nr= 0;
 
   name.str= NULL;
   name.length= 0;
@@ -1335,9 +1338,7 @@ static bool consume_comment(Lex_input_stream *lip,
   @note
   MYSQLlex remember the following states from the following MYSQLlex():
 
-  - MY_LEX_EOQ			Found end of query
-  - MY_LEX_OPERATOR_OR_IDENT	Last state was an ident, text or number
-				(which can't be followed by a signed number)
+  - MY_LEX_END			Found end of query
 */
 
 int MYSQLlex(YYSTYPE *yylval, YYLTYPE *yylloc, THD *thd)
@@ -1428,11 +1429,10 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 
   lip->start_token();
   state=lip->next_state;
-  lip->next_state=MY_LEX_OPERATOR_OR_IDENT;
+  lip->next_state=MY_LEX_START;
   for (;;)
   {
     switch (state) {
-    case MY_LEX_OPERATOR_OR_IDENT:	// Next is operator or keyword
     case MY_LEX_START:			// Start of token
       // Skip starting whitespace
       while(state_map[c= lip->yyPeek()] == MY_LEX_SKIP)
@@ -1448,13 +1448,6 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       c= lip->yyGet();
       state= state_map[c];
       break;
-    case MY_LEX_ESCAPE:
-      if (lip->yyGet() == 'N')
-      {					// Allow \N as shortcut for NULL
-	yylval->lex_str.str=(char*) "\\N";
-	yylval->lex_str.length=2;
-	return NULL_SYM;
-      }
     case MY_LEX_CHAR:			// Unknown or single char token
     case MY_LEX_SKIP:			// This should not happen
       if (c == '-' && lip->yyPeek() == '-' &&
@@ -2119,7 +2112,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       lip->yySkip();                                    // Skip '@'
       lip->next_state= (state_map[lip->yyPeek()] ==
 			MY_LEX_USER_VARIABLE_DELIMITER ?
-			MY_LEX_OPERATOR_OR_IDENT :
+			MY_LEX_START :
 			MY_LEX_IDENT_OR_KEYWORD);
       return((int) '@');
     case MY_LEX_IDENT_OR_KEYWORD:
@@ -2785,8 +2778,10 @@ void SELECT_LEX::print_order(String *str,
   for (; order; order= order->next)
   {
     (*order->item)->print_for_order(str, query_type, order->used_alias);
-    if (order->direction == ORDER::ORDER_DESC)
+    if (order->direction == ORDER_DESC)
       str->append(STRING_WITH_LEN(" desc"));
+    else if (order->is_explicit)
+      str->append(STRING_WITH_LEN(" asc"));
     if (order->next)
       str->append(',');
   }
@@ -3975,7 +3970,7 @@ void LEX::set_trg_event_type_for_tables()
       views, for which lock_type is TL_UNLOCK or TL_READ after
       parsing.
     */
-    if (static_cast<int>(tables->lock_type) >=
+    if (static_cast<int>(tables->lock_descriptor().type) >=
         static_cast<int>(TL_WRITE_ALLOW_WRITE))
       tables->trg_event_map= new_trg_event_map;
     tables= tables->next_local;
@@ -4614,6 +4609,32 @@ bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const
     return true;
 
   return false;
+}
+
+
+/**
+  Finds a (possibly unresolved) table reference in the from clause by name.
+
+  There is a hack in the parser which adorns table references with the current
+  database. This function piggy-backs on that hack to find fully qualified
+  table references without having to resolve the name.
+
+  @param ident The table name, may be qualified or unqualified.
+
+  @retval NULL If not found.
+*/
+TABLE_LIST *SELECT_LEX::find_table_by_name(const Table_ident *ident)
+{
+  LEX_CSTRING db_name= ident->db;
+  LEX_CSTRING table_name= ident->table;
+
+  for (TABLE_LIST *table= table_list.first; table; table= table->next_local)
+  {
+    if ((db_name.length == 0 || strcmp(db_name.str, table->db) == 0) &&
+        strcmp(table_name.str, table->alias) == 0)
+      return table;
+  }
+  return NULL;
 }
 
 

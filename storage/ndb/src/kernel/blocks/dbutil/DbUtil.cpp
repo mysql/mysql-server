@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,9 @@
 #include <AttributeHeader.hpp>
 
 #include <NdbTick.h>
+
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
@@ -958,7 +961,6 @@ DbUtil::sendUtilPrepareRef(Signal* signal, UtilPrepareRef::ErrorCode error,
   ref->errorCode = error;
   ref->senderData = senderData;
   ref->dictErrCode = errCode2;
-
   sendSignal(recipient, GSN_UTIL_PREPARE_REF, signal, 
 	     UtilPrepareRef::SignalLength, JBB);
 }
@@ -1011,7 +1013,19 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   SectionHandle handle(this, signal);
   
   jam();
-  if (!c_runningPrepares.seizeFirst(prepPtr)) {
+
+  if(ERROR_INSERTED(19000))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    g_eventLogger->info("Simulating DBUTIL prepare seize fail");
+    releaseSections(handle);
+    sendUtilPrepareRef(signal, UtilPrepareRef::PREPARE_SEIZE_ERROR,
+		       senderRef, senderData);
+    return;
+  }
+  if (!c_runningPrepares.seizeFirst(prepPtr))
+  {
     jam();
     releaseSections(handle);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARE_SEIZE_ERROR,
@@ -2645,6 +2659,7 @@ DbUtil::execTCROLLBACKREP(Signal* signal){
     case 266:
     case 410:
     case 1204:
+    case 1217:
 #if 0
       ndbout_c("errCode: %d noOfRetries: %d -> retry", 
 	       errCode, transPtr.p->noOfRetries);

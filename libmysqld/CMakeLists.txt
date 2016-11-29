@@ -73,9 +73,6 @@ SET(SQL_EMBEDDED_SOURCES
   ../libmysql/libmysql.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
-  ../sql-common/my_time.c 
-  ../sql-common/my_user.c
-  ../sql-common/pack.c
   ../sql-common/sql_string.cc
   ../libbinlogevents/src/statement_events.cpp
   ../libbinlogevents/src/control_events.cpp
@@ -149,6 +146,14 @@ IF(WIN32)
     ../sql/item_geofunc_internal.cc
     ../sql/item_geofunc_setops.cc
     COMPILE_FLAGS "/wd4244" "/wd4267")
+ENDIF()
+
+# Segfault in boost::geometry code at high optimization levels
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
+  IF(CMAKEBT MATCHES "^REL")
+    ADD_COMPILE_FLAGS(../sql/item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
+  ENDIF()
 ENDIF()
 
 ADD_COMPILE_FLAGS(
@@ -267,7 +272,6 @@ SET_SOURCE_FILES_PROPERTIES(
 ADD_CUSTOM_TARGET(GenYaccEmbeddedSource DEPENDS ${GEN_YACC_SOURCES})
 
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
-DTRACE_INSTRUMENT(sql_embedded)
 ADD_DEPENDENCIES(sql_embedded GenError GenServerSource GenYaccEmbeddedSource)
 
 # On Windows, static embedded server library is called mysqlserver.lib

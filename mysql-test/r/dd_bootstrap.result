@@ -30,7 +30,8 @@
 # 3.1 Restart the server against non-existing DDIR - should fail.
 # 3.2 Look for error.
 #     Datadir error found 1 times.
-# 3.3 Delete log file and datadir.
+# 3.3 Delete log file but datadir does not need cleanup
+# since it is non-existent.
 #
 # 4. Try restart on an empty datadir (non-existing mysql dir).
 # ------------------------------------------------------------

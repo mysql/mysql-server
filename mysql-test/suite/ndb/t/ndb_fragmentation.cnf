@@ -1,0 +1,11 @@
+!include ../my.cnf
+
+[cluster_config.1]
+ndbd=,,,,,
+ndb_mgmd=
+
+[cluster_config.ndbd.5.1]
+Nodegroup=65536
+
+[cluster_config.ndbd.6.1]
+Nodegroup=65536

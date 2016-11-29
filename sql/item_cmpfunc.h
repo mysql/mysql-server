@@ -1109,8 +1109,6 @@ public:
                          SELECT_LEX *removed_select) override;
   uint decimal_precision() const override;
   const char *func_name() const override { return "if"; }
-private:
-  void cache_type_info(Item *source);
 };
 
 

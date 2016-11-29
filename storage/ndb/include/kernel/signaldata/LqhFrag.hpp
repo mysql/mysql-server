@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ class AddFragReq {
   friend bool printADD_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 12 );
+  STATIC_CONST( SignalLength = 13 );
   
   enum RequestInfo {
     CreateInRunning = 0x8000000,
@@ -56,6 +56,7 @@ private:
   Uint32 tablespaceId;
   Uint32 logPartId;
   Uint32 changeMask;
+  Uint32 partitionId;
 };
 
 class AddFragRef {
@@ -113,7 +114,8 @@ class LqhFragReq {
   friend bool printLQH_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 22 );
+  STATIC_CONST( SignalLength = 23 );
+  STATIC_CONST( OldSignalLength = 22 );
   
   enum RequestInfo {
     CreateInRunning = 0x8000000,
@@ -149,6 +151,7 @@ private:
   Uint32 minRowsLow;
   Uint32 minRowsHigh;
   Uint32 changeMask;
+  Uint32 partitionId;
 };
 
 class LqhFragConf {

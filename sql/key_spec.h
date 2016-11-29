@@ -55,6 +55,11 @@ enum fk_match_opt {
   FK_MATCH_SIMPLE
 };
 
+enum enum_order {
+  ORDER_NOT_RELEVANT=1,
+  ORDER_ASC,
+  ORDER_DESC
+};
 
 class KEY_CREATE_INFO
 {
@@ -82,13 +87,30 @@ extern KEY_CREATE_INFO default_key_create_info;
 class Key_part_spec : public Sql_alloc
 {
 public:
+  Key_part_spec(const LEX_CSTRING &name, uint len, enum_order ord)
+    : field_name(name), length(len),
+    is_ascending((ord == ORDER_DESC) ? false : true),
+    is_explicit(ord != ORDER_NOT_RELEVANT)
+  { }
+  bool operator==(const Key_part_spec& other) const;
+  /**
+    Construct a copy of this Key_part_spec. field_name is copied
+    by-pointer as it is known to never change. At the same time
+    'length' may be reset in mysql_prepare_create_table, and this
+    is why we supply it with a copy.
+
+    @return If out of memory, 0 is returned and an error is set in
+    THD.
+  */
+  Key_part_spec *clone(MEM_ROOT *mem_root) const
+  { return new (mem_root) Key_part_spec(*this); }
+
   const LEX_CSTRING field_name;
   const uint length;
-
-  Key_part_spec(const LEX_CSTRING &name, uint len)
-    : field_name(name), length(len)
-  {}
-  bool operator==(const Key_part_spec& other) const;
+  /// TRUE <=> ascending, FALSE <=> descending.
+  const bool is_ascending;
+  /// TRUE <=> ASC/DESC is explicitly specified, FALSE <=> implicit ASC
+  const bool is_explicit;
 };
 
 

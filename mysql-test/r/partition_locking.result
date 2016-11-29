@@ -2200,11 +2200,13 @@ HANDLER_WRITE	17
 # 13 read_key
 # 15 read_next
 FLUSH STATUS;
-SELECT * FROM t1 WHERE a IN (0, 1, 4) ORDER BY a;
+SELECT * FROM t1 WHERE a IN (0, 1, 4, 13, 26) ORDER BY a;
 a	b
 0	First row, p0
 1	First row, p1
 4	First row, p4
+13	Second row, p0
+26	Third row, p0
 SELECT * FROM information_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2281,12 +2283,11 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	2
 HANDLER_WRITE	17
 FLUSH STATUS;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a IN (0, 1, 4) ORDER BY a;
+EXPLAIN SELECT * FROM t1 WHERE a IN (0, 1, 4, 13, 26) ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p4	index	PRIMARY	PRIMARY	4	NULL	#	25.00	Using where
+1	SIMPLE	t1	p0,p1,p4	index	PRIMARY	PRIMARY	4	NULL	#	41.67	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,4)) order by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,4,13,26)) order by `test`.`t1`.`a`
 SELECT * FROM information_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2603,10 +2604,11 @@ HANDLER_READ_NEXT	15
 HANDLER_READ_RND_NEXT	19
 HANDLER_WRITE	34
 FLUSH STATUS;
-SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * FROM t2;
+SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2;
 a	b
 0	First row, p0
 13	Second row, p0
+26	Third row, p0
 1	First row, p1
 4	First row, p4
 SELECT * FROM information_schema.session_status
@@ -2617,13 +2619,14 @@ HANDLER_EXTERNAL_LOCK	4
 HANDLER_READ_FIRST	16
 HANDLER_READ_KEY	16
 HANDLER_READ_NEXT	12
-HANDLER_READ_RND_NEXT	8
-HANDLER_WRITE	23
+HANDLER_READ_RND_NEXT	9
+HANDLER_WRITE	24
 FLUSH STATUS;
-SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * FROM t2;
+SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2;
 a	b
 0	First row, p0
 13	Second row, p0
+26	Third row, p0
 1	First row, p1
 4	First row, p4
 SELECT * FROM information_schema.session_status
@@ -2634,13 +2637,14 @@ HANDLER_EXTERNAL_LOCK	4
 HANDLER_READ_FIRST	16
 HANDLER_READ_KEY	16
 HANDLER_READ_NEXT	12
-HANDLER_READ_RND_NEXT	13
-HANDLER_WRITE	27
+HANDLER_READ_RND_NEXT	15
+HANDLER_WRITE	29
 FLUSH STATUS;
-SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * FROM t2) t3) t4;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2) t3) t4;
 a	b
 0	First row, p0
 13	Second row, p0
+26	Third row, p0
 1	First row, p1
 4	First row, p4
 SELECT * FROM information_schema.session_status
@@ -2651,13 +2655,14 @@ HANDLER_EXTERNAL_LOCK	4
 HANDLER_READ_FIRST	16
 HANDLER_READ_KEY	16
 HANDLER_READ_NEXT	12
-HANDLER_READ_RND_NEXT	18
-HANDLER_WRITE	31
+HANDLER_READ_RND_NEXT	21
+HANDLER_WRITE	34
 FLUSH STATUS;
-SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * FROM t2) t4;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2) t4;
 a	b
 0	First row, p0
 13	Second row, p0
+26	Third row, p0
 1	First row, p1
 4	First row, p4
 SELECT * FROM information_schema.session_status
@@ -2668,13 +2673,14 @@ HANDLER_EXTERNAL_LOCK	4
 HANDLER_READ_FIRST	16
 HANDLER_READ_KEY	16
 HANDLER_READ_NEXT	12
-HANDLER_READ_RND_NEXT	18
-HANDLER_WRITE	31
+HANDLER_READ_RND_NEXT	21
+HANDLER_WRITE	34
 FLUSH STATUS;
-SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3) t4 UNION SELECT * FROM t2;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3) t4 UNION SELECT * FROM t2;
 a	b
 0	First row, p0
 13	Second row, p0
+26	Third row, p0
 1	First row, p1
 4	First row, p4
 SELECT * FROM information_schema.session_status
@@ -2685,13 +2691,14 @@ HANDLER_EXTERNAL_LOCK	4
 HANDLER_READ_FIRST	16
 HANDLER_READ_KEY	16
 HANDLER_READ_NEXT	12
-HANDLER_READ_RND_NEXT	18
-HANDLER_WRITE	31
+HANDLER_READ_RND_NEXT	21
+HANDLER_WRITE	34
 FLUSH STATUS;
-SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * FROM t2 WHERE a = 1) t4;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2 WHERE a = 1) t4;
 a	b
 0	First row, p0
 13	Second row, p0
+26	Third row, p0
 1	First row, p1
 4	First row, p4
 SELECT * FROM information_schema.session_status
@@ -2702,8 +2709,8 @@ HANDLER_EXTERNAL_LOCK	4
 HANDLER_READ_FIRST	3
 HANDLER_READ_KEY	4
 HANDLER_READ_NEXT	12
-HANDLER_READ_RND_NEXT	16
-HANDLER_WRITE	30
+HANDLER_READ_RND_NEXT	19
+HANDLER_WRITE	33
 #
 # Test EXPLAIN SELECT ... UNION SELECT ...
 #
@@ -2723,14 +2730,13 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	17
 FLUSH STATUS;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * FROM t2;
+EXPLAIN SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	33.33	Using where; Using index
+1	PRIMARY	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	41.67	Using where; Using index
 2	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4)) union /* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4,26)) union /* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 SELECT * FROM information_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2738,15 +2744,14 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	17
 FLUSH STATUS;
-EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * FROM t2;
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-2	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	33.33	Using where; Using index
+2	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	41.67	Using where; Using index
 3	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 NULL	UNION RESULT	<union1,3>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4))) `t3` union /* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
+Note	1003	/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4,26))) `t3` union /* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 SELECT * FROM information_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2754,16 +2759,15 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	17
 FLUSH STATUS;
-EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * FROM t2) t3) t4;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2) t3) t4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	33.33	Using where; Using index
+3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	41.67	Using where; Using index
 4	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 NULL	UNION RESULT	<union3,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4)) union /* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) `t3`) `t4`
+Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4,26)) union /* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) `t3`) `t4`
 SELECT * FROM information_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2771,16 +2775,15 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	17
 FLUSH STATUS;
-EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * FROM t2) t4;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2) t4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	33.33	Using where; Using index
+3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	41.67	Using where; Using index
 4	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 NULL	UNION RESULT	<union2,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4))) `t3` union /* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) `t4`
+Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4,26))) `t3` union /* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) `t4`
 SELECT * FROM information_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2788,16 +2791,15 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	17
 FLUSH STATUS;
-EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3) t4 UNION SELECT * FROM t2;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3) t4 UNION SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	33.33	Using where; Using index
+3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	41.67	Using where; Using index
 4	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 NULL	UNION RESULT	<union1,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4))) `t3`) `t4` union /* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
+Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4,26))) `t3`) `t4` union /* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 SELECT * FROM information_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2805,16 +2807,15 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	17
 FLUSH STATUS;
-EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * FROM t2 WHERE a = 1) t4;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2 WHERE a = 1) t4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	33.33	Using where; Using index
+3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	41.67	Using where; Using index
 4	UNION	t2	p1	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
 NULL	UNION RESULT	<union2,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4))) `t3` union /* select#4 */ select '1' AS `a`,'First row, p1' AS `b` from `test`.`t2` where 1) `t4`
+Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4,26))) `t3` union /* select#4 */ select '1' AS `a`,'First row, p1' AS `b` from `test`.`t2` where 1) `t4`
 SELECT * FROM information_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3286,7 +3287,7 @@ DROP VIEW v1_25, v1_25_check;
 # Test CREATE SELECT
 #
 FLUSH STATUS;
-CREATE TABLE t3 SELECT a, b FROM t1 WHERE a IN (0, 1, 13, 113);
+CREATE TABLE t3 SELECT a, b FROM t1 WHERE a IN (0, 1, 13, 113, 26);
 SELECT * FROM information_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3296,11 +3297,12 @@ HANDLER_READ_FIRST	3
 HANDLER_READ_KEY	9
 HANDLER_READ_NEXT	12
 HANDLER_UPDATE	3
-HANDLER_WRITE	23
+HANDLER_WRITE	24
 SELECT * FROM t3 ORDER BY a;
 a	b
 0	First row, p0
 1	First row, p1
+26	Third row, p0, updated 1
 113	Second row, p0, updated 1, updated 2 -> p8, updated 3, updated 4 -> p9
 DROP TABLE t3;
 FLUSH STATUS;
@@ -4763,19 +4765,18 @@ VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_READ_FIRST	4
-HANDLER_READ_KEY	8
-HANDLER_READ_NEXT	3
+HANDLER_READ_KEY	7
 HANDLER_READ_RND_NEXT	3
 HANDLER_WRITE	17
 # But is scanned pruned!
 EXPLAIN PARTITIONS SELECT * FROM t1, t2
 WHERE t1.a = t2.a AND t2.a >= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p1,p2,p3,pMax	range	PRIMARY	PRIMARY	4	NULL	#	100.00	Using where
-1	SIMPLE	t1	p1,p2,p3,pMax	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	p1,p2,p3,pMax	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+1	SIMPLE	t2	p1,p2,p3,pMax	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	#	100.00	NULL
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`a` >= 1))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` >= 1))
 FLUSH STATUS;
 SELECT * FROM t1, t2
 WHERE t1.a = t2.a AND t2.a <= 1;
@@ -5174,7 +5175,6 @@ HANDLER_EXTERNAL_LOCK	4
 HANDLER_READ_FIRST	6
 HANDLER_READ_KEY	16
 HANDLER_READ_NEXT	4
-HANDLER_READ_RND	2
 HANDLER_READ_RND_NEXT	14
 HANDLER_UPDATE	6
 HANDLER_WRITE	22

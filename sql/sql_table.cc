@@ -4609,13 +4609,14 @@ static bool check_duplicate_key(THD *thd, const char *error_schema_name,
          key_part++, k_part++)
     {
       /*
-        Key definition is different if we are using a different field or
-        if the used key part length is different. Note since both KEY
-        objects come from mysql_prepare_create_table() we can compare
-        field numbers directly.
+        Key definition is different if we are using a different field,
+        if the used key part length is different or key parts has different
+        direction. Note since both KEY objects come from
+        mysql_prepare_create_table() we can compare field numbers directly.
       */
       if ((key_part->length != k_part->length) ||
-          (key_part->fieldnr != k_part->fieldnr))
+          (key_part->fieldnr != k_part->fieldnr) ||
+          (key_part->key_part_flag != k_part->key_part_flag))
       {
         all_columns_are_identical= false;
         break;
@@ -4689,10 +4690,10 @@ static bool prepare_set_field(THD *thd, Create_field *sql_field)
 
   for (uint i= 0; i < sql_field->interval->count; i++)
   {
-    if (sql_field->charset->coll->instr(sql_field->charset,
-                                        sql_field->interval->type_names[i],
-                                        sql_field->interval->type_lengths[i],
-                                        comma_buf, comma_length, NULL, 0))
+    if (sql_field->charset->coll->strstr(sql_field->charset,
+                                         sql_field->interval->type_names[i],
+                                         sql_field->interval->type_lengths[i],
+                                         comma_buf, comma_length, NULL, 0))
     {
       ErrConvString err(sql_field->interval->type_names[i],
                         sql_field->interval->type_lengths[i],
@@ -5056,12 +5057,14 @@ static void calculate_field_offsets(List<Create_field> *create_list)
    @param[out] key_parts    Returned number of key segments (excluding FK).
    @param[out] fk_key_count Returned number of foreign keys.
    @param[in,out] redundant_keys  Array where keys to be ignored will be marked.
+   @param[in]  is_ha_has_desc_index Whether storage supports desc indexes
 */
 
-static void count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
+static bool count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
                        uint *key_count, uint *key_parts,
                        uint *fk_key_count,
-                       Mem_root_array<bool> *redundant_keys)
+                       Mem_root_array<bool> *redundant_keys,
+                       bool is_ha_has_desc_index)
 {
   *key_count= 0;
   *key_parts= 0;
@@ -5106,6 +5109,7 @@ static void count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
         break;
       }
     }
+
     if (!redundant_keys->at(key_counter))
     {
       if (key->type == KEYTYPE_FOREIGN)
@@ -5114,9 +5118,19 @@ static void count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
       {
         (*key_count)++;
         (*key_parts)+= key->columns.size();
+        for (uint i= 0; i < key->columns.size(); i++)
+        {
+          const Key_part_spec *kp= key->columns[i];
+          if (!kp->is_ascending && !is_ha_has_desc_index)
+          {
+            my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "descending indexes");
+            return true;
+          }
+        }
       }
     }
   }
+  return false;
 }
 
 
@@ -5343,6 +5357,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
 
   key_part_info->fieldnr= field;
   key_part_info->offset=  static_cast<uint16>(sql_field->offset);
+  key_part_info->key_part_flag|= column->is_ascending ? 0 : HA_REVERSE_SORT;
 
   size_t key_part_length= sql_field->key_length;
 
@@ -5477,6 +5492,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         key_part_length == MAX_LEN_GEOM_POINT_FIELD))
   {
     key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
+    key_part_info->key_part_flag|= HA_PART_KEY_SEG;
   }
 
   key_info->key_length+= key_part_length;
@@ -6103,8 +6119,10 @@ bool mysql_prepare_create_table(THD *thd,
   uint key_parts;
   Mem_root_array<bool> redundant_keys(thd->mem_root,
                                       alter_info->key_list.size(), false);
-  count_keys(alter_info->key_list, key_count, &key_parts,
-             fk_key_count, &redundant_keys);
+  if (count_keys(alter_info->key_list, key_count, &key_parts,
+                 fk_key_count, &redundant_keys,
+                 (file->ha_table_flags() & HA_DESCENDING_INDEX)))
+    DBUG_RETURN(true);
   if (*key_count > file->max_keys())
   {
     my_error(ER_TOO_MANY_KEYS,MYF(0), file->max_keys());
@@ -7770,7 +7788,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
     for the case general ALTER TABLE.
   */
   table_list->mdl_request.set_type(MDL_EXCLUSIVE);
-  table_list->lock_type= TL_WRITE;
+  table_list->set_lock({TL_WRITE, THR_DEFAULT});
   /* Do not open views. */
   table_list->required_type= dd::enum_table_type::BASE_TABLE;
 
@@ -8036,12 +8054,15 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
   {
     /*
       Key definition has changed if we are using a different field or
-      if the used key part length is different. It makes sense to
-      check lengths first as in case when fields differ it is likely
-      that lengths differ too and checking fields is more expensive
-      in general case.
+      if the used key part length is different, or key part direction has
+      changed. It makes sense to check lengths first as in case when fields
+      differ it is likely that lengths differ too and checking fields is more
+      expensive in general case.
+
     */
-    if (key_part->length != new_part->length)
+    if (key_part->length != new_part->length ||
+        (key_part->key_part_flag & HA_REVERSE_SORT) !=
+        (new_part->key_part_flag & HA_REVERSE_SORT))
       return true;
 
     new_field= get_field_by_index(alter_info, new_part->fieldnr);
@@ -10337,8 +10358,11 @@ bool prepare_fields_and_keys(THD *thd, TABLE *table,
 	  key_part_length= 0;			// Use whole field
       }
       key_part_length /= key_part->field->charset()->mbmaxlen;
-      key_parts.push_back(new Key_part_spec(to_lex_cstring(cfield->field_name),
-                                            key_part_length));
+      key_parts.push_back(
+        new Key_part_spec(to_lex_cstring(cfield->field_name),
+                          key_part_length,
+                          key_part->key_part_flag & HA_REVERSE_SORT ?
+                            ORDER_DESC : ORDER_ASC));
     }
     if (key_parts.elements)
     {
@@ -12881,7 +12905,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy)
   DBUG_ENTER("mysql_recreate_table");
   DBUG_ASSERT(!table_list->next_global);
   /* Set lock type which is appropriate for ALTER TABLE. */
-  table_list->lock_type= TL_READ_NO_INSERT;
+  table_list->set_lock({TL_READ_NO_INSERT, THR_DEFAULT});
   /* Same applies to MDL request. */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
@@ -12945,7 +12969,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     /* Remember old 'next' pointer and break the list.  */
     save_next_global= table->next_global;
     table->next_global= NULL;
-    table->lock_type= TL_READ;
+    table->set_lock({TL_READ, THR_DEFAULT});
     /* Allow to open real tables only. */
     table->required_type= dd::enum_table_type::BASE_TABLE;
 

@@ -156,7 +156,7 @@ PFS_engine_table* table_replication_applier_status_by_coordinator::create(void)
 table_replication_applier_status_by_coordinator
   ::table_replication_applier_status_by_coordinator()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_pos(0), m_next_pos(0)
 {}
 
 table_replication_applier_status_by_coordinator
@@ -204,9 +204,8 @@ int table_replication_applier_status_by_coordinator::rnd_next(void)
     */
     if (mi && mi->host[0] && mi->rli && mi->rli->get_worker_count() > 0)
     {
-      make_row(mi);
+      res= make_row(mi);
       m_next_pos.set_after(&m_pos);
-      res= 0;
     }
   }
 
@@ -216,7 +215,8 @@ int table_replication_applier_status_by_coordinator::rnd_next(void)
   return res;
 }
 
-int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos)
+int table_replication_applier_status_by_coordinator
+  ::rnd_pos(const void *pos MY_ATTRIBUTE((unused)))
 {
   int res= HA_ERR_RECORD_DELETED;
 
@@ -229,8 +229,7 @@ int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos)
 
   if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {
-    make_row(mi);
-    res= 0;
+    res= make_row(mi);
   }
 
   channel_map.unlock();
@@ -239,7 +238,8 @@ int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos)
   return res;
 }
 
-int table_replication_applier_status_by_coordinator::index_init(uint idx, bool)
+int table_replication_applier_status_by_coordinator
+  ::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
 #ifdef HAVE_REPLICATION
   PFS_index_rpl_applier_status_by_coord *result= NULL;
@@ -289,9 +289,8 @@ int table_replication_applier_status_by_coordinator::index_next(void)
     {
       if (m_opened_index->match(mi))
       {
-        make_row(mi);
+        res= make_row(mi);
         m_next_pos.set_after(&m_pos);
-        res= 0;
       }
     }
   }
@@ -304,9 +303,8 @@ int table_replication_applier_status_by_coordinator::index_next(void)
 
 
 #ifdef HAVE_REPLICATION
-void table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
+int table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
 {
-  m_row_exists= false;
 
   DBUG_ASSERT(mi != NULL);
   DBUG_ASSERT(mi->rli != NULL);
@@ -357,19 +355,18 @@ void table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
   mysql_mutex_unlock(&mi->rli->err_lock);
   mysql_mutex_unlock(&mi->rli->data_lock);
 
-  m_row_exists= true;
+  return 0;
 }
 #endif /* HAVE_REPLICATION */
 
 int table_replication_applier_status_by_coordinator
-  ::read_row_values(TABLE *table, unsigned char *buf,
-                    Field **fields, bool read_all)
+::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
+                  unsigned char *buf MY_ATTRIBUTE((unused)),
+                  Field **fields MY_ATTRIBUTE((unused)),
+                  bool read_all MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_REPLICATION
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0]= 0;

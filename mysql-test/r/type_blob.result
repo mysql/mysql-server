@@ -223,18 +223,18 @@ select t from t1 group by t;
 t
 NULL
 
-1
-a
 hello
 HELLO MY
+a
+1
 select b from t1 group by b;
 b
 NULL
 
+hello
 HELLO
 HELLO MY
 a
-hello
 set big_tables=1;
 select distinct t from t1;
 t
@@ -328,36 +328,36 @@ a	a	a	a
 1		NULL	1
 select t,count(*) from t1 group by t;
 t	count(*)
-NULL	2
 	1
-1	1
-a	1
 hello	2
 HELLO MY	1
+a	1
+1	1
+NULL	2
 select b,count(*) from t1 group by b;
 b	count(*)
-NULL	3
 	1
+hello	1
 HELLO	1
 HELLO MY	1
 a	1
-hello	1
+NULL	3
 select c,count(*) from t1 group by c;
 c	count(*)
 NULL	2
 	2
-a	1
 hello	2
 HELLO MY	1
+a	1
 select d,count(*) from t1 group by d;
 d	count(*)
 NULL	2
 	1
-1	1
+hello	1
 HELLO	1
 HELLO MY	1
 a	1
-hello	1
+1	1
 drop table t1;
 create table t1 (a text, unique (a(2100))) engine=myisam;
 ERROR 42000: Specified key was too long; max key length is 1000 bytes
@@ -606,7 +606,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain select * from t1 where txt='Chevy' or txt is NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	txt_index	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	NULL	ref_or_null	txt_index	txt_index	23	const	3	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or isnull(`test`.`t1`.`txt`))
 select * from t1 where txt='Chevy ';
@@ -682,7 +682,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain select * from t1 where txt='Chevy' or txt is NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	txt_index	NULL	NULL	NULL	4	50.00	Using where
+1	SIMPLE	t1	NULL	ref_or_null	txt_index	txt_index	23	const	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or isnull(`test`.`t1`.`txt`))
 select * from t1 where txt='Chevy' or txt is NULL;
@@ -691,7 +691,7 @@ id	txt
 3	NULL
 explain select * from t1 where txt='Chevy' or txt is NULL order by txt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	txt_index	NULL	NULL	NULL	4	50.00	Using where; Using filesort
+1	SIMPLE	t1	NULL	ref_or_null	txt_index	txt_index	23	const	2	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or isnull(`test`.`t1`.`txt`)) order by `test`.`t1`.`txt`
 select * from t1 where txt='Chevy' or txt is NULL order by txt;

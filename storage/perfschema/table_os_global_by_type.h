@@ -125,8 +125,8 @@ public:
   {}
 
 protected:
-  void make_table_row(PFS_table_share *table_share);
-  void make_program_row(PFS_program *pfs_program);
+  int make_table_row(PFS_table_share *table_share);
+  int make_program_row(PFS_program *pfs_program);
 
 private:
   /** Table share lock. */
@@ -136,8 +136,6 @@ private:
 
   /** Current row. */
   row_os_global_by_type m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_os_global_by_type m_pos;
   /** Next position. */

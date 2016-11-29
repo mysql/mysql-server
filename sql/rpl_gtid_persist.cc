@@ -171,7 +171,7 @@ THD *Gtid_table_access_context::create_thd()
 }
 
 
-void Gtid_table_access_context::before_open(THD* thd)
+void Gtid_table_access_context::before_open(THD *)
 {
   DBUG_ENTER("Gtid_table_access_context::before_open");
   /*

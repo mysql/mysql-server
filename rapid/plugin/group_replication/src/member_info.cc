@@ -443,7 +443,7 @@ Group_member_info_manager::~Group_member_info_manager()
   delete members;
 }
 
-int
+size_t
 Group_member_info_manager::get_number_of_members()
 {
   return members->size();

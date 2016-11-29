@@ -965,7 +965,7 @@ int my_wildcmp_8bit(const CHARSET_INFO *cs,
 
 my_bool my_like_range_simple(const CHARSET_INFO *cs,
 			     const char *ptr, size_t ptr_length,
-			     pbool escape, pbool w_one, pbool w_many,
+			     my_bool escape, my_bool w_one, my_bool w_many,
 			     size_t res_length,
 			     char *min_str,char *max_str,
 			     size_t *min_length, size_t *max_length)

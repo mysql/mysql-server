@@ -178,7 +178,7 @@ int injector::transaction::use_table(server_id_type sid, table tbl)
 
 
 int injector::transaction::write_row (server_id_type sid, table tbl, 
-				      MY_BITMAP const* cols, size_t colcnt,
+				      MY_BITMAP const* cols,
 				      record_type record,
                                       const uchar* extra_row_info)
 {
@@ -199,15 +199,15 @@ int injector::transaction::write_row (server_id_type sid, table tbl,
 }
 
 int injector::transaction::write_row (server_id_type sid, table tbl,
-				      MY_BITMAP const* cols, size_t colcnt,
+				      MY_BITMAP const* cols,
 				      record_type record)
 {
-  return write_row(sid, tbl, cols, colcnt, record, NULL);
+  return write_row(sid, tbl, cols, record, NULL);
 }
 
 
 int injector::transaction::delete_row(server_id_type sid, table tbl,
-				      MY_BITMAP const* cols, size_t colcnt,
+				      MY_BITMAP const* cols,
 				      record_type record,
                                       const uchar* extra_row_info)
 {
@@ -227,15 +227,15 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
 }
 
 int injector::transaction::delete_row(server_id_type sid, table tbl,
-				      MY_BITMAP const* cols, size_t colcnt,
+				      MY_BITMAP const* cols,
 				      record_type record)
 {
-  return delete_row(sid, tbl, cols, colcnt, record, NULL);
+  return delete_row(sid, tbl, cols, record, NULL);
 }
 
 
 int injector::transaction::update_row(server_id_type sid, table tbl, 
-				      MY_BITMAP const* cols, size_t colcnt,
+				      MY_BITMAP const* cols,
 				      record_type before, record_type after,
                                       const uchar* extra_row_info)
 {
@@ -257,10 +257,10 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
 }
 
 int injector::transaction::update_row(server_id_type sid, table tbl,
-				      MY_BITMAP const* cols, size_t colcnt,
+				      MY_BITMAP const* cols,
 				      record_type before, record_type after)
 {
-  return update_row(sid, tbl, cols, colcnt, before, after, NULL);
+  return update_row(sid, tbl, cols, before, after, NULL);
 }
 
 injector::transaction::binlog_pos injector::transaction::start_pos() const

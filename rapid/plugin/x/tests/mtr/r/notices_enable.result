@@ -7600,7 +7600,7 @@ Mysqlx.Error {
 
 RUN set global innodb_large_prefix=1
 While executing set global innodb_large_prefix=1:
-in main, line 721:ERROR: Unknown system variable 'innodb_large_prefix' (code 1193)
+Got expected error: Unknown system variable 'innodb_large_prefix' (code 1193)
 RUN drop table worklog5743_1
 
 0 rows affected

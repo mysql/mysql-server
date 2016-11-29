@@ -232,7 +232,7 @@ table_esms_by_host_by_event_name::get_row_count(void)
 
 table_esms_by_host_by_event_name::table_esms_by_host_by_event_name()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos()
+    m_pos(), m_next_pos()
 {}
 
 void table_esms_by_host_by_event_name::reset_position(void)
@@ -263,9 +263,8 @@ int table_esms_by_host_by_event_name::rnd_next(void)
       statement_class= find_statement_class(m_pos.m_index_2);
       if (statement_class)
       {
-        make_row(host, statement_class);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_row(host, statement_class);
       }
     }
   }
@@ -287,8 +286,7 @@ table_esms_by_host_by_event_name::rnd_pos(const void *pos)
     statement_class= find_statement_class(m_pos.m_index_2);
     if (statement_class)
     {
-      make_row(host, statement_class);
-      return 0;
+      return make_row(host, statement_class);
     }
   }
 
@@ -329,9 +327,11 @@ int table_esms_by_host_by_event_name::index_next(void)
           {
             if (m_opened_index->match(statement_class))
             {
-              make_row(host, statement_class);
-              m_next_pos.set_after(&m_pos);
-              return 0;
+              if (!make_row(host, statement_class))
+              {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
             }
             m_pos.m_index_2++;
           }
@@ -343,20 +343,19 @@ int table_esms_by_host_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_esms_by_host_by_event_name
+int table_esms_by_host_by_event_name
 ::make_row(PFS_host *host, PFS_statement_class *klass)
 {
   pfs_optimistic_state lock;
-  m_row_exists= false;
 
   if (klass->is_mutable())
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   host->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_host.make_row(host))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_statement_visitor visitor(klass);
@@ -366,11 +365,12 @@ void table_esms_by_host_by_event_name
                                       false, /* THDs */
                                       & visitor);
 
-  if (! host->m_lock.end_optimistic_lock(&lock))
-    return;
+  if (!host->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+  
+  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
 
-  m_row_exists= true;
-  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
+  return 0;
 }
 
 int table_esms_by_host_by_event_name
@@ -378,9 +378,6 @@ int table_esms_by_host_by_event_name
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

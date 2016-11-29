@@ -306,7 +306,7 @@ end:
   hostname_cache_unlock();
 }
 
-void table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
+int table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
 {
   row->m_ip_length= (uint)strlen(entry->ip_key);
   strcpy(row->m_ip, entry->ip_key);
@@ -348,6 +348,8 @@ void table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
   row->m_last_seen= entry->m_last_seen;
   row->m_first_error_seen= entry->m_first_error_seen;
   row->m_last_error_seen= entry->m_last_error_seen;
+
+  return 0;
 }
 
 void table_host_cache::reset_position(void)

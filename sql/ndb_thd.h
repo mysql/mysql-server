@@ -22,20 +22,13 @@
 
 extern handlerton* ndbcluster_hton;
 
-/* Get Thd_ndb pointer from THD */
-static inline
-class Thd_ndb*
-thd_get_thd_ndb(THD* thd)
-{
-  return (class Thd_ndb *) thd_get_ha_data(thd, ndbcluster_hton);
-}
   
-/* Backward compatibility alias for 'thd_get_thd_ndb'  */
+/* Get Thd_ndb pointer from THD */
 static inline
 class Thd_ndb*
 get_thd_ndb(THD* thd)
 {
-  return thd_get_thd_ndb(thd);
+  return (class Thd_ndb *) thd_get_ha_data(thd, ndbcluster_hton);
 }
 
 

@@ -1374,6 +1374,8 @@ ha_innopart::clone(
 
 		new_handler->m_prebuilt->select_lock_type =
 			m_prebuilt->select_lock_type;
+		new_handler->m_prebuilt->select_mode =
+			m_prebuilt->select_mode;
 	}
 
 	DBUG_RETURN(new_handler);

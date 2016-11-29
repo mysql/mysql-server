@@ -319,8 +319,7 @@ bool PFS_index_events_statements::match(PFS_events *pfs)
 
 table_events_statements_common::table_events_statements_common
 (const PFS_engine_table_share *share, void *pos)
-  : PFS_engine_table(share, pos),
-  m_row_exists(false)
+  : PFS_engine_table(share, pos)
 {}
 
 /**
@@ -330,21 +329,20 @@ table_events_statements_common::table_events_statements_common
 
   @param statement    The statement the cursor is reading
   @param [out] digest Saved copy of the statement digest
+  @return 0 on success or HA_ERR_RECORD_DELETED
 */
-void table_events_statements_common::make_row_part_1(PFS_events_statements *statement,
+int table_events_statements_common::make_row_part_1(PFS_events_statements *statement,
                                                      sql_digest_storage *digest)
 {
   const char *base;
   const char *safe_source_file;
   ulonglong timer_end;
 
-  m_row_exists= false;
-
   PFS_statement_class *unsafe= (PFS_statement_class*) statement->m_class;
   PFS_statement_class *klass= sanitize_statement_class(unsafe);
   if (unlikely(klass == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_thread_internal_id= statement->m_thread_internal_id;
   m_row.m_event_id= statement->m_event_id;
   m_row.m_end_event_id= statement->m_end_event_id;
@@ -418,8 +416,8 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
 
   safe_source_file= statement->m_source_file;
   if (unlikely(safe_source_file == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   base= base_name(safe_source_file);
   m_row.m_source_length= my_snprintf(m_row.m_source, sizeof(m_row.m_source),
                                      "%s:%d", base, statement->m_source_line);
@@ -454,8 +452,7 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   */
   digest->copy(& statement->m_digest_storage);
 
-  m_row_exists= true;
-  return;
+  return 0;
 }
 
 /**
@@ -464,8 +461,9 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   This method is used after all optimist locks have been released.
 
   @param [in] digest Statement digest to print in the row.
+  @return 0 on success or HA_ERR_RECORD_DELETED
 */
-void table_events_statements_common::make_row_part_2(const sql_digest_storage *digest)
+int table_events_statements_common::make_row_part_2(const sql_digest_storage *digest)
 {
   /*
     Filling up statement digest information.
@@ -491,7 +489,7 @@ void table_events_statements_common::make_row_part_2(const sql_digest_storage *d
     m_row.m_digest.m_digest_text.length(0);
   }
 
-  return;
+  return 0;
 }
 
 int table_events_statements_common::read_row_values(TABLE *table,
@@ -501,9 +499,6 @@ int table_events_statements_common::read_row_values(TABLE *table,
 {
   Field *f;
   uint len;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 3);
@@ -754,9 +749,8 @@ int table_events_statements_current::rnd_next(void)
 
       statement= &pfs_thread->m_statement_stack[m_pos.m_index_2];
 
-      make_row(pfs_thread, statement);
       m_next_pos.set_after(&m_pos);
-      return 0;
+      return make_row(pfs_thread, statement);
     }
   }
 
@@ -794,8 +788,7 @@ int table_events_statements_current::rnd_pos(const void *pos)
 
     if (statement->m_class != NULL)
     {
-      make_row(pfs_thread, statement);
-      return 0;
+      return make_row(pfs_thread, statement);
     }
   }
 
@@ -838,8 +831,7 @@ int table_events_statements_current::index_next(void)
           {
             if (m_opened_index->match(statement))
             {
-              make_row(pfs_thread, statement);
-              if (m_row_exists)
+              if (!make_row(pfs_thread, statement))
               {
                 m_next_pos.set_after(&m_pos);
                 return 0;
@@ -855,7 +847,7 @@ int table_events_statements_current::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_events_statements_current::make_row(PFS_thread *pfs_thread,
+int table_events_statements_current::make_row(PFS_thread *pfs_thread,
                                                PFS_events_statements *statement)
 {
   sql_digest_storage digest;
@@ -868,16 +860,16 @@ void table_events_statements_current::make_row(PFS_thread *pfs_thread,
   /* Protect this reader against writing on statement information. */
   pfs_thread->m_stmt_lock.begin_optimistic_lock(&stmt_lock);
 
-  table_events_statements_common::make_row_part_1(statement, &digest);
+  if (table_events_statements_common::make_row_part_1(statement, &digest) != 0)
+    return HA_ERR_RECORD_DELETED;
 
   if (!pfs_thread->m_stmt_lock.end_optimistic_lock(&stmt_lock) ||
       !pfs_thread->m_lock.end_optimistic_lock(&lock))
   {
-    m_row_exists= false;
-    return;
+    return HA_ERR_RECORD_DELETED;
   }
-  table_events_statements_common::make_row_part_2(&digest);
-  return;
+    
+  return table_events_statements_common::make_row_part_2(&digest);
 }
 
 int table_events_statements_current::delete_all_rows(void)
@@ -948,7 +940,7 @@ int table_events_statements_history::rnd_next(void)
         continue;
       }
 
-      if ( ! pfs_thread->m_statements_history_full &&
+      if (!pfs_thread->m_statements_history_full &&
           (m_pos.m_index_2 >= pfs_thread->m_statements_history_index))
       {
         /* This thread does not have more (not full) history */
@@ -959,10 +951,9 @@ int table_events_statements_history::rnd_next(void)
 
       if (statement->m_class != NULL)
       {
-        make_row(pfs_thread, statement);
         /* Next iteration, look for the next history in this thread */
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_row(pfs_thread, statement);
       }
     }
   }
@@ -983,15 +974,14 @@ int table_events_statements_history::rnd_pos(const void *pos)
   {
     DBUG_ASSERT(m_pos.m_index_2 < events_statements_history_per_thread);
 
-    if ( ! pfs_thread->m_statements_history_full &&
+    if (!pfs_thread->m_statements_history_full &&
         (m_pos.m_index_2 >= pfs_thread->m_statements_history_index))
       return HA_ERR_RECORD_DELETED;
 
     statement= &pfs_thread->m_statements_history[m_pos.m_index_2];
     if (statement->m_class != NULL)
     {
-      make_row(pfs_thread, statement);
-      return 0;
+      return make_row(pfs_thread, statement);
     }
   }
 
@@ -1011,7 +1001,7 @@ int table_events_statements_history::index_next(void)
        has_more_thread;
        m_pos.next_thread())
   {
-    pfs_thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    pfs_thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (pfs_thread != NULL)
     {
       if (m_opened_index->match(pfs_thread))
@@ -1036,8 +1026,7 @@ int table_events_statements_history::index_next(void)
           {
             if (m_opened_index->match(statement))
             {
-              make_row(pfs_thread, statement);
-              if (m_row_exists)
+              if (!make_row(pfs_thread, statement))
               {
                 m_next_pos.set_after(&m_pos);
                 return 0;
@@ -1053,7 +1042,7 @@ int table_events_statements_history::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_events_statements_history::make_row(PFS_thread *pfs_thread,
+int table_events_statements_history::make_row(PFS_thread *pfs_thread,
                                                PFS_events_statements *statement)
 {
   sql_digest_storage digest;
@@ -1063,15 +1052,15 @@ void table_events_statements_history::make_row(PFS_thread *pfs_thread,
   /* Protect this reader against thread termination. */
   pfs_thread->m_lock.begin_optimistic_lock(&lock);
 
-  table_events_statements_common::make_row_part_1(statement, &digest);
+  if (table_events_statements_common::make_row_part_1(statement, &digest) != 0)
+    return HA_ERR_RECORD_DELETED;
 
   if (!pfs_thread->m_lock.end_optimistic_lock(&lock))
   {
-    m_row_exists= false;
-    return;
+    return HA_ERR_RECORD_DELETED;
   }
-  table_events_statements_common::make_row_part_2(&digest);
-  return;
+    
+  return table_events_statements_common::make_row_part_2(&digest);
 }
 
 
@@ -1140,10 +1129,9 @@ int table_events_statements_history_long::rnd_next(void)
 
     if (statement->m_class != NULL)
     {
-      make_row(statement);
       /* Next iteration, look for the next entry */
       m_next_pos.set_after(&m_pos);
-      return 0;
+      return make_row(statement);
     }
   }
 
@@ -1173,19 +1161,18 @@ int table_events_statements_history_long::rnd_pos(const void *pos)
   if (statement->m_class == NULL)
     return HA_ERR_RECORD_DELETED;
 
-  make_row(statement);
-  return 0;
+  return make_row(statement);
 }
 
-void table_events_statements_history_long::make_row(PFS_events_statements *statement)
+int table_events_statements_history_long::make_row(PFS_events_statements *statement)
 {
   sql_digest_storage digest;
 
   digest.reset(m_token_array, MAX_DIGEST_STORAGE_SIZE);
-  table_events_statements_common::make_row_part_1(statement, &digest);
+  if (table_events_statements_common::make_row_part_1(statement, &digest) != 0)
+    return HA_ERR_RECORD_DELETED;
 
-  table_events_statements_common::make_row_part_2(&digest);
-  return;
+   return table_events_statements_common::make_row_part_2(&digest);
 }
 
 int table_events_statements_history_long::delete_all_rows(void)

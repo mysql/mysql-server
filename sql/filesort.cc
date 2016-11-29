@@ -66,7 +66,6 @@
 #include "opt_trace.h"
 #include "opt_trace_context.h"
 #include "priority_queue.h"
-#include "probes_mysql.h"                       // IWYU pragma: keep
 #include "psi_memory_key.h"
 #include "session_tracker.h"
 #include "sort_param.h"
@@ -378,8 +377,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   Item_subselect *const subselect= tab && tab->join() ?
     tab->join()->select_lex->master_unit()->item : NULL;
 
-  MYSQL_FILESORT_START(const_cast<char*>(table->s->db.str),
-                       const_cast<char*>(table->s->table_name.str));
   DEBUG_SYNC(thd, "filesort_start");
 
   /* 
@@ -687,7 +684,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   DBUG_PRINT("exit",
              ("num_rows: %ld examined_rows: %ld found_rows: %ld",
               (long) num_rows, (long) *examined_rows, (long) *found_rows));
-  MYSQL_FILESORT_DONE(error, num_rows);
   DBUG_RETURN(error);
 } /* filesort */
 
@@ -765,7 +761,7 @@ uint Filesort::make_sortorder()
     }
     else
       pos->item= item;
-    pos->reverse= (ord->direction == ORDER::ORDER_DESC);
+    pos->reverse= (ord->direction == ORDER_DESC);
     DBUG_ASSERT(pos->field != NULL || pos->item != NULL);
   }
   DBUG_RETURN(count);

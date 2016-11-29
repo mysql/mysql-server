@@ -142,7 +142,7 @@ public:
   {}
 
 protected:
-  void make_row(PFS_mutex *pfs);
+  int make_row(PFS_mutex *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -151,8 +151,6 @@ protected:
 
   /** Current row. */
   row_mutex_instances m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
@@ -271,7 +269,7 @@ public:
   {}
 
 protected:
-  void make_row(PFS_rwlock *pfs);
+  int make_row(PFS_rwlock *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -280,8 +278,6 @@ protected:
 
   /** Current row. */
   row_rwlock_instances m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
@@ -377,7 +373,7 @@ public:
   {}
 
 protected:
-  void make_row(PFS_cond *pfs);
+  int make_row(PFS_cond *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -386,8 +382,6 @@ protected:
 
   /** Current row. */
   row_cond_instances m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

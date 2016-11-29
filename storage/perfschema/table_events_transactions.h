@@ -149,12 +149,10 @@ protected:
   ~table_events_transactions_common()
   {}
 
-  void make_row(PFS_events_transactions *statement);
+  int make_row(PFS_events_transactions *statement);
 
   /** Current row. */
   row_events_transactions m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_CURRENT. */

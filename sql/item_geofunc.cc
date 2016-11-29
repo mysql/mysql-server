@@ -5728,6 +5728,42 @@ double Item_func_get_y::val_real()
 }
 
 
+String *Item_func_swap_xy::val_str(String *str)
+{
+  DBUG_ASSERT(maybe_null);
+  String *swkb= args[0]->val_str(str);
+
+  if ((null_value= (args[0]->null_value)))
+  {
+    return nullptr;
+  }
+
+  if (!swkb)
+  {
+    /*
+      We've already found out that args[0]->null_value is false.
+      Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  Geometry *geom= nullptr;
+  Geometry_buffer buffer;
+  str->copy(*swkb);
+  if (!(geom= Geometry::construct(&buffer, str)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  geom->reverse_coordinates();
+
+  return str;
+}
+
+
 template <typename Coordsys>
 double Item_func_area::bg_area(const Geometry *geom)
 {
@@ -6157,42 +6193,13 @@ public:
 };
 
 
-template <typename CoordinateSystem>
-struct BG_distance
-{};
-
-
-template <>
-struct BG_distance<bg::cs::cartesian>
-{
-  static double apply(Item_func_distance *item, Geometry *g1, Geometry *g2)
-  {
-    // Do the actual computation here for the cartesian CS.
-    return item->bg_distance<bgcs::cartesian>(g1, g2);
-  }
-};
-
-
-template <>
-struct BG_distance<bg::cs::spherical_equatorial<bg::degree> >
-{
-  static double apply(Item_func_distance *item, Geometry *g1, Geometry *g2)
-  {
-    // Do the actual computation here for the spherical equatorial CS
-    // with degree units.
-    return item->bg_distance_spherical(g1, g2);
-  }
-};
-
-
 double Item_func_distance::val_real()
 {
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double distance= 0;
-
   DBUG_ENTER("Item_func_distance::val_real");
   DBUG_ASSERT(fixed == 1);
 
+  String tmp_value1;
+  String tmp_value2;
   String *res1= args[0]->val_str(&tmp_value1);
   String *res2= args[1]->val_str(&tmp_value2);
   Geometry_buffer buffer1, buffer2;
@@ -6227,7 +6234,7 @@ double Item_func_distance::val_real()
     DBUG_RETURN(error_real());
   }
 
-  if (g1->get_srid() != 0 && !is_spherical_equatorial)
+  if (g1->get_srid() != 0)
   {
     bool srs_exists= false;
     if (Srs_fetcher::srs_exists(current_thd, g1->get_srid(), &srs_exists))
@@ -6244,63 +6251,11 @@ double Item_func_distance::val_real()
     }
   }
 
-  if (is_spherical_equatorial)
-  {
-    Geometry::wkbType gt1= g1->get_geotype();
-    Geometry::wkbType gt2= g2->get_geotype();
-    if (!((gt1 == Geometry::wkb_point || gt1 == Geometry::wkb_multipoint) &&
-          (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint)))
-    {
-      my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), func_name());
-      DBUG_RETURN(error_real());
-    }
-
-    if (arg_count == 3)
-    {
-      earth_radius= args[2]->val_real();
-      if (args[2]->null_value)
-        DBUG_RETURN(error_real());
-      if (earth_radius <= 0)
-      {
-        my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-        DBUG_RETURN(error_real());
-      }
-    }
-
-    /*
-      Make sure all points' coordinates are valid:
-      x in (-180, 180], y in [-90, 90].
-    */
-    Numeric_interval<double> x_range(-180, true, 180, false);   // (-180, 180]
-    Numeric_interval<double> y_range(-90, false, 90, false);    // [-90, 90]
-    Point_coordinate_checker checker(x_range, y_range);
-
-    uint32 wkblen= res1->length() - 4;
-    wkb_scanner(res1->ptr() + 4, &wkblen, Geometry::wkb_invalid_type,
-                true, &checker);
-    if (checker.has_invalid_point())
-    {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      DBUG_RETURN(error_real());
-    }
-
-    wkblen= res2->length() - 4;
-    wkb_scanner(res2->ptr() + 4, &wkblen, Geometry::wkb_invalid_type,
-                true, &checker);
-    if (checker.has_invalid_point())
-    {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      DBUG_RETURN(error_real());
-    }
-  }
-
+  double distance;
   if (g1->get_type() != Geometry::wkb_geometrycollection &&
       g2->get_type() != Geometry::wkb_geometrycollection)
   {
-    if (is_spherical_equatorial)
-      distance= BG_distance<bgcssed>::apply(this, g1, g2);
-    else
-      distance= BG_distance<bgcs::cartesian>::apply(this, g1, g2);
+    distance= bg_distance<bgcs::cartesian>(g1, g2);
   }
   else
     distance= geometry_collection_distance(g1, g2);
@@ -6365,14 +6320,7 @@ geometry_collection_distance(const Geometry *g1, const Geometry *g2)
         return error_real();
       }
 
-      if (is_spherical_equatorial)
-      {
-        // For now this is never reached because we only support
-        // distance([multi]point, [multi]point) for spherical.
-        DBUG_ASSERT(false);
-      }
-      else
-        dist= BG_distance<bgcs::cartesian>::apply(this, *i, *j);
+      dist= bg_distance<bgcs::cartesian>(*i, *j);
       if (null_value)
         return error_real();
       if (dist < 0 || boost::math::isnan(dist))
@@ -6400,114 +6348,6 @@ geometry_collection_distance(const Geometry *g1, const Geometry *g2)
     return error_real();
 
   return min_distance;
-}
-
-
-double Item_func_distance::
-distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
-{
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double res= 0;
-  bg::strategy::distance::haversine<double, double>
-    dist_strategy(earth_radius);
-
-  BG_models<bgcssed>::Point
-    bg1(g1->get_data_ptr(), g1->get_data_size(),
-        g1->get_flags(), g1->get_srid());
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    {
-      BG_models<bgcssed>::Point
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      BG_models<bgcssed>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-  return res;
-}
-
-
-double Item_func_distance::
-distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
-{
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double res= 0;
-  bg::strategy::distance::haversine<double, double>
-    dist_strategy(earth_radius);
-
-  BG_models<bgcssed>::Multipoint
-    bg1(g1->get_data_ptr(), g1->get_data_size(),
-        g1->get_flags(), g1->get_srid());
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    {
-      BG_models<bgcssed>::Point
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      BG_models<bgcssed>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-
-  return res;
-}
-
-
-double Item_func_distance::
-bg_distance_spherical(const Geometry *g1, const Geometry *g2)
-{
-  double res= 0;
-
-  try
-  {
-    switch (g1->get_type())
-    {
-    case Geometry::wkb_point:
-      res= distance_point_geometry_spherical(g1, g2);
-      break;
-    case Geometry::wkb_multipoint:
-      res= distance_multipoint_geometry_spherical(g1, g2);
-      break;
-    default:
-      DBUG_ASSERT(false);
-      break;
-    }
-  }
-  catch (...)
-  {
-    null_value= true;
-    handle_gis_exception("st_distance_sphere");
-  }
-
-  return res;
 }
 
 
@@ -6656,3 +6496,212 @@ double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
 }
 
 
+double Item_func_distance_sphere::val_real()
+{
+  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
+
+  DBUG_ENTER("Item_func_distance_sphere::val_real");
+  DBUG_ASSERT(fixed);
+
+  String tmp_value1;
+  String tmp_value2;
+  String *res1= args[0]->val_str(&tmp_value1);
+  String *res2= args[1]->val_str(&tmp_value2);
+  Geometry_buffer buffer1, buffer2;
+  Geometry *g1, *g2;
+  // Earth radius in meters.
+  double earth_radius= 6370986.0;
+
+  if ((null_value= (!res1 || args[0]->null_value ||
+                    !res2 || args[1]->null_value)))
+    DBUG_RETURN(0.0);
+
+  if (!(g1= Geometry::construct(&buffer1, res1)) ||
+      !(g2= Geometry::construct(&buffer2, res2)))
+  {
+    // If construction fails, we assume invalid input data.
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  // The two geometry operand must be in the same coordinate system.
+  if (g1->get_srid() != g2->get_srid())
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
+             g1->get_srid(), g2->get_srid());
+    DBUG_RETURN(error_real());
+  }
+
+  // Normally, we would have called normalize_ring_order() here, but
+  // it's not necessary since we only support points and multipoints.
+
+  Geometry::wkbType gt1= g1->get_geotype();
+  Geometry::wkbType gt2= g2->get_geotype();
+  if (!((gt1 == Geometry::wkb_point || gt1 == Geometry::wkb_multipoint) &&
+        (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint)))
+  {
+    my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  if (arg_count == 3)
+  {
+    earth_radius= args[2]->val_real();
+    if ((null_value= args[2]->null_value))
+      DBUG_RETURN(0.0);
+    if (earth_radius <= 0.0)
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      DBUG_RETURN(error_real());
+    }
+  }
+
+  /*
+    Make sure all points' coordinates are valid:
+    x in (-180, 180], y in [-90, 90].
+  */
+  Numeric_interval<double> x_range(-180.0, true, 180.0, false);   // (-180, 180]
+  Numeric_interval<double> y_range(-90.0, false, 90.0, false);    // [-90, 90]
+  Point_coordinate_checker checker(x_range, y_range);
+
+  uint32 wkblen= res1->length() - SRID_SIZE;
+  wkb_scanner(res1->ptr() + SRID_SIZE, &wkblen, Geometry::wkb_invalid_type,
+              true, &checker);
+  if (checker.has_invalid_point())
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  wkblen= res2->length() - SRID_SIZE;
+  wkb_scanner(res2->ptr() + SRID_SIZE, &wkblen, Geometry::wkb_invalid_type,
+              true, &checker);
+  if (checker.has_invalid_point())
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  double distance= bg_distance_spherical(g1, g2, earth_radius);
+
+  if (null_value)
+    DBUG_RETURN(error_real());
+
+  if (!std::isfinite(distance) || distance < 0.0)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+  DBUG_RETURN(distance);
+}
+
+
+double Item_func_distance_sphere::
+distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2,
+                                  double earth_radius)
+{
+  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
+  double res= 0.0;
+  bg::strategy::distance::haversine<double, double>
+    dist_strategy(earth_radius);
+
+  BG_models<bgcssed>::Point
+    bg1(g1->get_data_ptr(), g1->get_data_size(),
+        g1->get_flags(), g1->get_srid());
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+    {
+      BG_models<bgcssed>::Point
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= bg::distance(bg1, bg2, dist_strategy);
+    }
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      BG_models<bgcssed>::Multipoint
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+
+      res= bg::distance(bg1, bg2, dist_strategy);
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  return res;
+}
+
+
+double Item_func_distance_sphere::
+distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2,
+                                       double earth_radius)
+{
+  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
+  double res= 0.0;
+  bg::strategy::distance::haversine<double, double>
+    dist_strategy(earth_radius);
+
+  BG_models<bgcssed>::Multipoint
+    bg1(g1->get_data_ptr(), g1->get_data_size(),
+        g1->get_flags(), g1->get_srid());
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+    {
+      BG_models<bgcssed>::Point
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= bg::distance(bg1, bg2, dist_strategy);
+    }
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      BG_models<bgcssed>::Multipoint
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= bg::distance(bg1, bg2, dist_strategy);
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return res;
+}
+
+
+double Item_func_distance_sphere::bg_distance_spherical(const Geometry *g1,
+                                                        const Geometry *g2,
+                                                        double earth_radius)
+{
+  double res= 0.0;
+
+  try
+  {
+    switch (g1->get_type())
+    {
+    case Geometry::wkb_point:
+      res= distance_point_geometry_spherical(g1, g2, earth_radius);
+      break;
+    case Geometry::wkb_multipoint:
+      res= distance_multipoint_geometry_spherical(g1, g2, earth_radius);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+  }
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_distance_sphere");
+  }
+
+  return res;
+}

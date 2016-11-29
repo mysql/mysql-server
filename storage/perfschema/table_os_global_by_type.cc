@@ -163,7 +163,7 @@ table_os_global_by_type::get_row_count(void)
 
 table_os_global_by_type::table_os_global_by_type()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos()
+    m_pos(), m_next_pos()
 {}
 
 void table_os_global_by_type::reset_position(void)
@@ -329,12 +329,10 @@ int table_os_global_by_type::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_os_global_by_type::make_program_row(PFS_program *pfs_program)
+int table_os_global_by_type::make_program_row(PFS_program *pfs_program)
 {
   pfs_optimistic_state lock;
   PFS_single_stat cumulated_stat;
-
-  m_row_exists= false;
 
   pfs_program->m_lock.begin_optimistic_lock(&lock);
 
@@ -343,19 +341,17 @@ void table_os_global_by_type::make_program_row(PFS_program *pfs_program)
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
   m_row.m_stat.set(normalizer, &pfs_program->m_sp_stat.m_timer1_stat);
 
-  if (! pfs_program->m_lock.end_optimistic_lock(&lock))
-    return;
+  if (!pfs_program->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
 
-  m_row_exists= true;
+  return 0;
 }
 
-void table_os_global_by_type::make_table_row(PFS_table_share *share)
+int table_os_global_by_type::make_table_row(PFS_table_share *share)
 {
   pfs_optimistic_state lock;
   PFS_single_stat cumulated_stat;
   uint safe_key_count;
-
-  m_row_exists= false;
 
   share->m_lock.begin_optimistic_lock(&lock);
 
@@ -366,11 +362,9 @@ void table_os_global_by_type::make_table_row(PFS_table_share *share)
 
   share->sum(& cumulated_stat, safe_key_count);
 
-  if (! share->m_lock.end_optimistic_lock(&lock))
-    return;
-
-  m_row_exists= true;
-
+  if (!share->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+  
   if (share->get_refcount() > 0)
   {
     /* For all the table handles still opened ... */
@@ -393,6 +387,8 @@ void table_os_global_by_type::make_table_row(PFS_table_share *share)
 
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
   m_row.m_stat.set(normalizer, &cumulated_stat);
+
+  return 0;
 }
 
 int table_os_global_by_type::read_row_values(TABLE *table,
@@ -401,9 +397,6 @@ int table_os_global_by_type::read_row_values(TABLE *table,
                                              bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

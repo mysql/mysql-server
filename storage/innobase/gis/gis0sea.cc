@@ -475,22 +475,29 @@ rtr_pcur_getnext_from_path(
 	return(found);
 }
 
-/*************************************************************//**
-Find the next matching record. This function will first exhaust
+/** Find the next matching record. This function will first exhaust
 the copied record listed in the rtr_info->matches vector before
-moving to the next page
-@return true if there is suitable record found, otherwise false */
+moving to next page
+@param[in]	tuple		data tuple; NOTE: n_fields_cmp in tuple
+				must be set so that it cannot get compared
+				to the node ptr page number field!
+@param[in]	mode		cursor search mode
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
+@param[in]	cursor		persistent cursor; NOTE that the function
+				may release the page latch
+@param[in]	cur_level	current level
+@param[in]	mtr		mini-transaction
+@return true if there is next qualified record found, otherwise(if
+exhausted) false */
 bool
 rtr_pcur_move_to_next(
-/*==================*/
-	const dtuple_t*	tuple,	/*!< in: data tuple; NOTE: n_fields_cmp in
-				tuple must be set so that it cannot get
-				compared to the node ptr page number field! */
-	page_cur_mode_t	mode,	/*!< in: cursor search mode */
-	btr_pcur_t*	cursor,	/*!< in: persistent cursor; NOTE that the
-				function may release the page latch */
-	ulint		level,	/*!< in: target level */
-	mtr_t*		mtr)	/*!< in: mtr */
+	const dtuple_t*	tuple,
+	page_cur_mode_t	mode,
+	select_mode	sel_mode,
+	btr_pcur_t*	cursor,
+	ulint		cur_level,
+	mtr_t*		mtr)
 {
 	rtr_info_t*	rtr_info = cursor->btr_cur.rtr_info;
 
@@ -498,10 +505,17 @@ rtr_pcur_move_to_next(
 
 	mutex_enter(&rtr_info->matches->rtr_match_mutex);
 	/* First retrieve the next record on the current page */
-	if (!rtr_info->matches->matched_recs->empty()) {
+	while (!rtr_info->matches->matched_recs->empty()) {
 		rtr_rec_t	rec;
 		rec = rtr_info->matches->matched_recs->back();
 		rtr_info->matches->matched_recs->pop_back();
+
+		/* Skip unlocked record
+		Note: CHECK TABLE doesn't hold record locks. */
+		if (sel_mode != SELECT_ORDINARY && !rec.locked) {
+			continue;
+		}
+
 		mutex_exit(&rtr_info->matches->rtr_match_mutex);
 
 		cursor->btr_cur.page_cur.rec = rec.r_rec;
@@ -515,7 +529,7 @@ rtr_pcur_move_to_next(
 
 	/* Fetch the next page */
 	return(rtr_pcur_getnext_from_path(tuple, mode, &cursor->btr_cur,
-					 level, cursor->latch_mode,
+					 cur_level, cursor->latch_mode,
 					 false, mtr));
 }
 

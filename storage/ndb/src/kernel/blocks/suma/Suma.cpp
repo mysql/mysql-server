@@ -2617,6 +2617,11 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   syncPtr.p->m_headersSection   = RNIL;
   syncPtr.p->m_dataSection      = RNIL;
 
+  D("SUB_SYNC_REQ: tableId: " << syncPtr.p->m_tableId <<
+    " fragId = " << req->fragId <<
+    " fragCount = " << req->fragCount <<
+    " reqinfo: " << hex << req->requestInfo);
+
   {
     jam();
     if(handle.m_cnt > 0)
@@ -2757,6 +2762,7 @@ Suma::execDIH_SCAN_TAB_CONF(Signal* signal)
     LocalDataBuffer<15> fragBuf(c_dataBufferPool, ptr.p->m_fragments);
     ndbrequire(fragBuf.getSize() == 0);
   }
+  D("fragCount = " << fragCount << " m_frag_cnt = " << ptr.p->m_frag_cnt);
   ndbassert(fragCount >= ptr.p->m_frag_cnt);
   if (ptr.p->m_frag_cnt == 0)
   {
@@ -2785,8 +2791,10 @@ Suma::sendDIGETNODESREQ(Signal *signal,
     req->tableId = tableId;
     req->hashValue = fragNo;
     req->distr_key_indicator = ZTRUE;
+    req->anyNode = 0;
     req->scan_indicator = ZTRUE;
     req->jamBufferPtr = jamBuffer();
+    req->get_next_fragid_indicator = 0;
     EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
                    DiGetNodesReq::SignalLength, 0);
 
@@ -3138,10 +3146,18 @@ Suma::SyncRecord::nextScan(Signal* signal)
     ScanFragReq::setKeyinfoFlag(req->requestInfo, 1);
   }
 
-  if (m_requestInfo & SubSyncReq::Reorg)
+  if (m_requestInfo & SubSyncReq::ReorgDelete)
   {
+    /* Ignore rows not moved in the reorg delete phase. */
     ScanFragReq::setReorgFlag(req->requestInfo, ScanFragReq::REORG_MOVED);
   }
+  /**
+   * We read all rows in the copy phase since there is no safe way of
+   * ensuring that user transactions actually complete the transfer, they
+   * can be aborted at any time. By copying all rows we have control over
+   * the aborts and can retry until we succeed or we know to fail the
+   * ALTER TABLE reorg.
+   */
 
   if (m_requestInfo & SubSyncReq::TupOrder)
   {

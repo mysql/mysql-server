@@ -258,8 +258,7 @@ int table_setup_consumers::read_row_values(TABLE *table,
 
   DBUG_ASSERT(m_row);
 
-
-  /* Set the null bits */
+/* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);
 
   for (; (f= *fields) ; fields++)

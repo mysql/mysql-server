@@ -393,9 +393,6 @@ SET(SQL_SOURCE
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
-  ../sql-common/my_time.c
-  ../sql-common/my_user.c 
-  ../sql-common/pack.c
   ../sql-common/client_authentication.cc
   ../sql-common/sql_string.cc 
   command_service.cc
@@ -480,6 +477,14 @@ IF(WIN32)
     item_geofunc_internal.cc
     item_geofunc_setops.cc
     COMPILE_FLAGS "/wd4244" "/wd4267")
+ENDIF()
+
+# Segfault in boost::geometry code at high optimization levels
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
+  IF(CMAKEBT MATCHES "^REL")
+    ADD_COMPILE_FLAGS(item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
+  ENDIF()
 ENDIF()
 
 ADD_COMPILE_FLAGS(
@@ -576,8 +581,6 @@ ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
-DTRACE_INSTRUMENT(sql_main)
-
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
   ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio regex
   binlogevents_static  ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
@@ -630,7 +633,7 @@ ADD_DEPENDENCIES(slave GenError)
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
 ELSE()
-  SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
+  SET(MYSQLD_SOURCE main.cc)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqld

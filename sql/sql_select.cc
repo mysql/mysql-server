@@ -54,7 +54,6 @@
 #include "opt_hints.h"           // hint_key_state()
 #include "opt_range.h"           // QUICK_SELECT_I
 #include "opt_trace.h"
-#include "probes_mysql.h"        // IWYU pragma: keep
 #include "query_options.h"
 #include "query_result.h"
 #include "records.h"             // init_read_record, end_read_record
@@ -408,19 +407,6 @@ err:
 }
 
 
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-void Sql_cmd_select::start_stmt_dtrace(char *query)
-{
-  MYSQL_SELECT_START(query);
-}
-void Sql_cmd_select::end_stmt_dtrace(int status,
-                                     ulonglong rows, ulonglong changed)
-{
-  MYSQL_SELECT_DONE(status, rows);
-}
-#endif
-
-
 /**
   Prepare a SELECT statement.
 */
@@ -552,10 +538,6 @@ bool Sql_cmd_dml::execute(THD *thd)
   // @todo - enable when needs_explicit_preparation is changed
   // DBUG_ASSERT(!needs_explicit_preparation() || is_prepared());
 
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  start_stmt_dtrace(const_cast<char *>(thd->query().str));
-#endif
-
   // If a timer is applicable to statement, then set it.
   if (is_timer_applicable_to_statement(thd))
     statement_timer_armed= set_statement_timer(thd);
@@ -675,10 +657,6 @@ bool Sql_cmd_dml::execute(THD *thd)
   // "unprepare" this object since unit->cleanup actually unprepares.
   unprepare(thd);
 
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  end_stmt_dtrace(0, thd->current_found_rows, thd->current_changed_rows);
-#endif
-
   DBUG_RETURN(res);
 
 err:
@@ -712,10 +690,6 @@ err:
 
   if (is_prepared())
     unprepare(thd);
-
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  end_stmt_dtrace(1, 0ULL, 0ULL);
-#endif
 
   DBUG_RETURN(thd->is_error());
 }
@@ -775,6 +749,58 @@ bool Sql_cmd_dml::execute_inner(THD *thd)
 
 
 /**
+  Performs access check for the locking clause, if present.
+
+  @param thd Current session, used for checking access and raising error.
+
+  @param tables Tables in the query's from clause.
+
+  @retval true There was a locking clause and access was denied. An error has
+  been raised.
+
+  @retval false There was no locking clause or access was allowed to it. This
+  is always returned in an embedded build.
+*/
+static bool check_locking_clause_access(THD *thd, Global_tables_list tables)
+{
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+  for (TABLE_LIST *table_ref : tables)
+    if (table_ref->lock_descriptor().action != THR_DEFAULT)
+    {
+      bool access_is_granted= false;
+      /*
+        If either of these privileges is present along with SELECT, access is
+        granted.
+      */
+      for (uint allowed_priv : { UPDATE_ACL, DELETE_ACL, LOCK_TABLES_ACL })
+      {
+        ulong priv= SELECT_ACL | allowed_priv;
+        if (!check_table_access(thd, priv, table_ref, false, 1, true))
+          access_is_granted= true;
+      }
+
+      if (!access_is_granted)
+      {
+        const Security_context *sctx= thd->security_context();
+
+        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+                 "SELECT with locking clause",
+                 sctx->priv_user().str,
+                 sctx->host_or_ip().str,
+                 table_ref->get_table_name());
+
+        return true;
+      }
+    }
+
+#endif
+
+  return false;
+}
+
+
+/**
   Perform an authorization precheck for a SELECT statement.
 */
 
@@ -806,6 +832,9 @@ bool Sql_cmd_select::precheck(THD *thd)
   }
   else
     res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
+
+  if (!res)
+    res= check_locking_clause_access(thd, tables);
 
   return res;
 }
@@ -2569,7 +2598,7 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   tab->set_records((ha_rows)emb_sj_nest->nested_join->sjm.expected_rowcount);
 
   tab->found_records= tab->records();
-  tab->read_time= (ha_rows)emb_sj_nest->nested_join->sjm.scan_cost.total_cost();
+  tab->read_time= emb_sj_nest->nested_join->sjm.scan_cost.total_cost();
 
   tab->init_join_cond_ref(tl);
 
@@ -2918,6 +2947,8 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
 
     if (qep_tab->sj_mat_exec())
       qep_tab->materialize_table= join_materialize_semijoin;
+
+    qep_tab->set_reversed_access(tab->reversed_access);
   }
 
   DBUG_RETURN(FALSE);
@@ -4275,7 +4306,23 @@ bool JOIN::make_tmp_tables_info()
     if (exec_tmp_table->group)
     {						// Already grouped
       if (!order && !no_order && !skip_sort_order)
-        order= group_list;  /* order by group */
+      {
+        if (!group_list.can_ignore_order())
+          order= group_list;  /* order by group */
+        else
+        {
+          /*
+            Check whether an order was explicitly specified on a GROUP BY
+            column. If so, we have to use filesort.
+          */
+          for (ORDER *ord= group_list; ord; ord= ord->next)
+            if (ord->is_explicit)
+            {
+              order= group_list;  /* order by group */
+              break;
+            }
+        }
+      }
       group_list= NULL;
     }
     /*
@@ -4684,11 +4731,14 @@ JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order)
     However, single table procedures such as mysql_update() and mysql_delete()
     never call JOIN::make_join_plan(), so they have to update it manually
     (@see get_index_for_order()).
+    This function resets bits in TABLE::quick_keys for indexes with mixed
+    ASC/DESC keyparts as range scan doesn't support range reordering
+    required for them.
 */
 
 bool
-test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
-                         Key_map usable_keys,  int ref_key,
+test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
+                         TABLE *table, Key_map usable_keys,  int ref_key,
                          ha_rows select_limit,
                          int *new_key, int *new_key_direction,
                          ha_rows *new_select_limit, uint *new_used_key_parts,
@@ -4714,7 +4764,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   bool is_best_covering= FALSE;
   double fanout= 1;
   ha_rows table_records= table->file->stats.records;
-  bool group= join && join->grouped && order == join->group_list;
+  bool group= join && join->grouped && order == &join->group_list;
   double refkey_rows_estimate= static_cast<double>(table->quick_condition_rows);
   const bool has_limit= (select_limit != HA_POS_ERROR);
   const join_type cur_access_method= tab ? tab->type() : JT_ALL;
@@ -4755,21 +4805,19 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   {
     int direction;
     uint used_key_parts;
+    bool  skip_quick;
 
     if (usable_keys.is_set(nr) &&
-        (direction= test_if_order_by_key(order, table, nr, &used_key_parts)))
+        (direction= test_if_order_by_key(order, table, nr, &used_key_parts,
+                                         &skip_quick)))
     {
-      /*
-        At this point we are sure that ref_key is a non-ordering
-        key (where "ordering key" is a key that will return rows
-        in the order required by ORDER BY).
-      */
-      DBUG_ASSERT (ref_key != (int) nr);
-
       bool is_covering= table->covering_keys.is_set(nr) ||
                         (nr == table->s->primary_key &&
                         table->file->primary_key_is_clustered());
-      
+      // Don't allow backward scans on indexes with mixed ASC/DESC key parts
+      if (skip_quick)
+        tab->table()->quick_keys.clear_bit(nr);
+
       /* 
         Don't use an index scan with ORDER BY without limit.
         For GROUP BY without limit always use index scan
@@ -4881,7 +4929,11 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           if (best_key < 0 ||
               (select_limit <= min(quick_records,best_records) ?
                keyinfo->user_defined_key_parts < best_key_parts :
-               quick_records < best_records))
+               quick_records < best_records) ||
+               // We assume forward scan is faster than backward even if the
+               // key is longer. This should be taken into account in cost
+               // calculation.
+               direction > best_key_direction)
           {
             best_key= nr;
             best_key_parts= keyinfo->user_defined_key_parts;
@@ -4932,7 +4984,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
       to table->file->stats.records. 
 */
 
-uint get_index_for_order(ORDER *order, QEP_TAB *tab,
+uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab,
                          ha_rows limit, bool *need_sort, bool *reverse)
 {
   if (tab->quick() && tab->quick()->unique_key_range())
@@ -4947,7 +4999,7 @@ uint get_index_for_order(ORDER *order, QEP_TAB *tab,
 
   TABLE *const table= tab->table();
 
-  if (!order)
+  if (!*order)
   {
     *need_sort= FALSE;
     if (tab->quick())
@@ -4956,7 +5008,7 @@ uint get_index_for_order(ORDER *order, QEP_TAB *tab,
       return table->file->key_used_on_scan; // MAX_KEY or index for some engines
   }
 
-  if (!is_simple_order(order)) // just to cut further expensive checks
+  if (!is_simple_order(*order)) // just to cut further expensive checks
   {
     *need_sort= TRUE;
     return MAX_KEY;
@@ -4971,8 +5023,9 @@ uint get_index_for_order(ORDER *order, QEP_TAB *tab,
     }
 
     uint used_key_parts;
+    bool skip_quick;
     switch (test_if_order_by_key(order, table, tab->quick()->index,
-                                 &used_key_parts)) {
+                                 &used_key_parts, &skip_quick)) {
     case 1: // desired order
       *need_sort= FALSE;
       return tab->quick()->index;
@@ -4982,7 +5035,8 @@ uint get_index_for_order(ORDER *order, QEP_TAB *tab,
     case -1: // desired order, but opposite direction
       {
         QUICK_SELECT_I *reverse_quick;
-        if ((reverse_quick=
+        if (!skip_quick &&
+            (reverse_quick=
                tab->quick()->make_reverse(used_key_parts)))
         {
           delete tab->quick();

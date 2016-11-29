@@ -63,6 +63,7 @@ row_vers_non_vc_match(
 	const dtuple_t*		ientry,
 	mem_heap_t*		heap,
 	ulint*			n_non_v_col);
+
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
 index record.
@@ -274,7 +275,7 @@ row_vers_impl_x_locked_low(
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
-		if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
+		if (0 == cmp_dtuple_rec(entry, rec, index, offsets)) {
 			/* The delete marks of rec and prev_version should be
 			equal for rec to be in the state required by
 			prev_version */
@@ -292,7 +293,7 @@ row_vers_impl_x_locked_low(
 			dtuple_set_types_binary(
 				entry, dtuple_get_n_fields(entry));
 
-			if (0 != cmp_dtuple_rec(entry, rec, offsets)) {
+			if (0 != cmp_dtuple_rec(entry, rec, index, offsets)) {
 
 				break;
 			}
@@ -451,7 +452,8 @@ row_vers_non_vc_match(
 			field1  = dtuple_get_nth_field(ientry, i);
 			field2  = dtuple_get_nth_field(nentry, i);
 
-			if (cmp_dfield_dfield(field1, field2) != 0) {
+			if (cmp_dfield_dfield(field1, field2,
+                                              ind_field->is_ascending) != 0) {
 				ret = false;
 			}
 		}
@@ -734,8 +736,9 @@ row_vers_vc_matches_cluster(
 				}
 
 				/* The index field mismatch */
-				if (v_heap
-				    || cmp_dfield_dfield(field2, field1) != 0) {
+				if (v_heap || cmp_dfield_dfield(
+					    field2, field1,
+					    ind_field->is_ascending) != 0) {
 					if (v_heap) {
 						dtuple_dup_v_fld(*vrow, v_heap);
 					}
@@ -998,7 +1001,7 @@ row_vers_old_has_index_entry(
 			the clustered index record has already been updated to
 			a different binary value in a char field, but the
 			collation identifies the old and new value anyway! */
-			if (entry && !dtuple_coll_cmp(ientry, entry)) {
+			if (entry && dtuple_coll_eq(ientry, entry)) {
 
 				mem_heap_free(heap);
 
@@ -1094,7 +1097,7 @@ row_vers_old_has_index_entry(
 			a char field, but the collation identifies the old
 			and new value anyway! */
 
-			if (entry && !dtuple_coll_cmp(ientry, entry)) {
+			if (entry && dtuple_coll_eq(ientry, entry)) {
 
 				mem_heap_free(heap);
 				if (v_heap) {

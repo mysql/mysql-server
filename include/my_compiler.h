@@ -25,7 +25,12 @@
   specific to a target compiler.
 */
 
+#ifndef MYSQL_ABI_CHECK
+#include <assert.h>
 #include <stddef.h> /* size_t */
+#endif
+
+#include "my_config.h"
 
 /*
   The macros below are borrowed from include/linux/compiler.h in the
@@ -111,6 +116,7 @@ inline bool unlikely(bool expr)
   Partial specialization used due to MSVC++.
 */
 template<size_t alignment> struct my_alignment_imp;
+
 template<> struct MY_ALIGNED(1) my_alignment_imp<1> {};
 template<> struct MY_ALIGNED(2) my_alignment_imp<2> {};
 template<> struct MY_ALIGNED(4) my_alignment_imp<4> {};

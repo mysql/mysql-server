@@ -22,7 +22,6 @@
 #include "my_base.h"        // ha_rows
 #include "my_global.h"
 #include "my_sqlcommand.h"
-#include "probes_mysql.h"   // IWYU pragma: keep
 #include "query_result.h"   // Query_result_interceptor
 #include "sql_cmd_dml.h"    // Sql_cmd_dml
 #include "sql_lex.h"
@@ -115,23 +114,6 @@ protected:
   bool prepare_inner(THD *thd) override;
 
   bool execute_inner(THD *thd) override;
-
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  void start_stmt_dtrace(char *query) override
-  {
-    if (multitable)
-      MYSQL_MULTI_DELETE_START(query);
-    else
-      MYSQL_DELETE_START(query);
-  }
-  void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed) override
-  {
-    if (multitable)
-      MYSQL_DELETE_DONE(status, rows);
-    else
-      MYSQL_MULTI_DELETE_DONE(status, rows);
-  }
-#endif
 
 private:
   bool delete_from_single_table(THD *thd);

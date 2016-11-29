@@ -399,6 +399,12 @@ mkdir debug
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DWITH_SYSTEMD=1 \
+%if 0%{?ndb_nodejs_path:1}
+           -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
+%endif
+%if 0%{?ndb_nodejs_extras_path:1}
+           -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
+%endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
@@ -429,6 +435,12 @@ mkdir release
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DWITH_SYSTEMD=1 \
+%if 0%{?ndb_nodejs_path:1}
+           -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
+%endif
+%if 0%{?ndb_nodejs_extras_path:1}
+           -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
+%endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \

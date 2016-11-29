@@ -33,6 +33,7 @@
 #include <cmath>
 #include <cstring>
 #include <list>
+#include <random>                     // std::uniform_real_distribution
 #include <string>
 
 #include "auth_common.h"              // check_readonly() and SUPER_ACL
@@ -82,7 +83,6 @@
 #include "opt_hints.h"
 #include "pfs_table_provider.h"
 #include "prealloced_array.h"
-#include "probes_mysql.h"             // IWYU pragma: keep
 #include "protocol.h"
 #include "psi_memory_key.h"
 #include "query_options.h"
@@ -3115,6 +3115,81 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   DBUG_RETURN(result);
 }
 
+
+
+int handler::ha_sample_init(double sampling_percentage, int sampling_seed,
+                            enum_sampling_method sampling_method)
+{
+  DBUG_ENTER("handler::ha_sample_init");
+  DBUG_ASSERT(sampling_percentage >= 0.0);
+  DBUG_ASSERT(sampling_percentage <= 100.0);
+  DBUG_ASSERT(inited == NONE);
+
+  // Initialise the random number generator.
+  m_random_number_engine.seed(sampling_seed);
+  m_sampling_percentage= sampling_percentage;
+
+  int result= sample_init();
+  inited= (result != 0) ? NONE : SAMPLING;
+  DBUG_RETURN(result);
+}
+
+
+int handler::ha_sample_end()
+{
+  DBUG_ENTER("handler::ha_sample_end");
+  DBUG_ASSERT(inited == SAMPLING);
+  inited= NONE;
+  DBUG_RETURN(sample_end());
+}
+
+
+int handler::ha_sample_next(uchar *buf)
+{
+  DBUG_ENTER("handler::ha_sample_next");
+  DBUG_ASSERT(inited == SAMPLING);
+
+  if (m_sampling_percentage == 0.0)
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+
+  m_update_generated_read_fields= table->has_gcol();
+
+  int result;
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
+    { result= sample_next(buf); })
+
+  if (result == 0 && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table);
+    m_update_generated_read_fields= false;
+  }
+
+  DBUG_RETURN(result);
+}
+
+int handler::sample_init()
+{
+  return rnd_init(false);
+}
+
+
+int handler::sample_end()
+{
+  return rnd_end();
+}
+
+
+int handler::sample_next(uchar *buf)
+{
+  // Temporary set inited to RND, since we are calling rnd_next().
+  int res= rnd_next(buf);
+
+  std::uniform_real_distribution<double> rnd(0.0, 1.0);
+  while (!res && rnd(m_random_number_engine) > (m_sampling_percentage / 100.0))
+    res= rnd_next(buf);
+
+  return res;
+}
 
 /**
   Read [part of] row via [part of] index.
@@ -6513,8 +6588,12 @@ int handler::multi_range_read_next(char **range_info)
 
   do
   {
-    /* Save a call if there can be only one row in range. */
-    if (mrr_cur_range.range_flag != (UNIQUE_RANGE | EQ_RANGE))
+    /*
+      Do not call read_range_next() if its equality on a unique
+      index.
+    */
+    if (!((mrr_cur_range.range_flag & UNIQUE_RANGE) &&
+          (mrr_cur_range.range_flag & EQ_RANGE)))
     {
       result= read_range_next();
       /* On success or non-EOF errors jump to the end. */
@@ -7540,10 +7619,15 @@ void handler::set_end_range(const key_range* range,
 
   /*
     Clear the out-of-range flag in the record buffer when a new range is
-    started.
+    started. Also set the in_range_check_pushed_down flag, since the
+    storage engine needs to do the evaluation of the end-range to avoid
+    filling the record buffer with out-of-range records.
   */
   if (m_record_buffer != nullptr)
+  {
     m_record_buffer->set_out_of_range(false);
+    in_range_check_pushed_down = true;
+  }
 
   range_scan_direction= direction;
 }
@@ -7629,12 +7713,8 @@ move_key_field_offsets(const key_range *range, const KEY_PART_INFO *key_part,
 
 /**
   Check if the key in the given buffer (which is not necessarily
-  TABLE::record[0]) is within range. Called by the storage engine when
-  filling m_record_buffer to avoid reading too many rows.
-
-  Side-effect: This function sets the in_range_check_pushed_down flag
-  to prevent the handler from performing redundant range checks on the
-  rows returned by the storage engine.
+  TABLE::record[0]) is within range. Called by the storage engine to
+  avoid reading too many rows.
 
   @param buf  the buffer that holds the key
   @retval -1 if the key is within the range
@@ -7642,23 +7722,17 @@ move_key_field_offsets(const key_range *range, const KEY_PART_INFO *key_part,
              key_compare_result_on_equal is 0
   @retval  1 if the key is outside the range
 */
-int handler::compare_key_in_buffer(const uchar *buf)
+int handler::compare_key_in_buffer(const uchar *buf) const
 {
-  DBUG_ASSERT(m_record_buffer != nullptr &&
-              !m_record_buffer->is_out_of_range() &&
-              end_range != nullptr);
+  DBUG_ASSERT(end_range != nullptr &&
+	      (m_record_buffer == nullptr ||
+	       !m_record_buffer->is_out_of_range()));
 
   /*
     End range on descending scans is only checked with ICP for now, and then we
     check it with compare_key_icp() instead of this function.
   */
   DBUG_ASSERT(range_scan_direction == RANGE_SCAN_ASC);
-
-  /*
-    Since we compare with the end range here, there is no need for the
-    handler to check the end range.
-  */
-  in_range_check_pushed_down= true;
 
   // Make the fields in the key point into the buffer instead of record[0].
   const my_ptrdiff_t diff= buf - table->record[0];
@@ -8048,22 +8122,6 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   /* SQL HANDLER call locks/unlock while scanning (RND/INDEX). */
   DBUG_ASSERT(inited == NONE || table->open_by_handler);
 
-  if (MYSQL_HANDLER_RDLOCK_START_ENABLED() && lock_type == F_RDLCK)
-  {
-    MYSQL_HANDLER_RDLOCK_START(table_share->db.str,
-                               table_share->table_name.str);
-  }
-  else if (MYSQL_HANDLER_WRLOCK_START_ENABLED() && lock_type == F_WRLCK)
-  {
-    MYSQL_HANDLER_WRLOCK_START(table_share->db.str,
-                               table_share->table_name.str);
-  }
-  else if (MYSQL_HANDLER_UNLOCK_START_ENABLED() && lock_type == F_UNLCK)
-  {
-    MYSQL_HANDLER_UNLOCK_START(table_share->db.str,
-                               table_share->table_name.str);
-  }
-
   ha_statistic_increment(&System_status_var::ha_external_lock_count);
 
   MYSQL_TABLE_LOCK_WAIT(PSI_TABLE_EXTERNAL_LOCK, lock_type,
@@ -8084,18 +8142,6 @@ int handler::ha_external_lock(THD *thd, int lock_type)
     cached_table_flags= table_flags();
   }
 
-  if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() && lock_type == F_RDLCK)
-  {
-    MYSQL_HANDLER_RDLOCK_DONE(error);
-  }
-  else if (MYSQL_HANDLER_WRLOCK_DONE_ENABLED() && lock_type == F_WRLCK)
-  {
-    MYSQL_HANDLER_WRLOCK_DONE(error);
-  }
-  else if (MYSQL_HANDLER_UNLOCK_DONE_ENABLED() && lock_type == F_UNLCK)
-  {
-    MYSQL_HANDLER_UNLOCK_DONE(error);
-  }
   DBUG_RETURN(error);
 }
 
@@ -8147,7 +8193,6 @@ int handler::ha_write_row(uchar *buf)
                   DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
   DBUG_EXECUTE_IF("simulate_storage_engine_out_of_memory",
                   DBUG_RETURN(HA_ERR_SE_OUT_OF_MEMORY); );
-  MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
@@ -8158,7 +8203,6 @@ int handler::ha_write_row(uchar *buf)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY, error,
     { error= write_row(buf); })
 
-  MYSQL_INSERT_ROW_DONE(error);
   if (unlikely(error))
     DBUG_RETURN(error);
 
@@ -8184,7 +8228,6 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   DBUG_ASSERT(new_data == table->record[0]);
   DBUG_ASSERT(old_data == table->record[1]);
 
-  MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
@@ -8195,7 +8238,6 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index, error,
     { error= update_row(old_data, new_data);})
 
-  MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
     return error;
   if (unlikely((error= binlog_log_row(table, old_data, new_data, log_func))))
@@ -8222,13 +8264,11 @@ int handler::ha_delete_row(const uchar *buf)
                   set_my_errno(HA_ERR_CRASHED);
                   return(HA_ERR_CRASHED););
 
-  MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_DELETE_ROW, active_index, error,
     { error= delete_row(buf);})
 
-  MYSQL_DELETE_ROW_DONE(error);
   if (unlikely(error))
     return error;
   if (unlikely((error= binlog_log_row(table, buf, 0, log_func))))

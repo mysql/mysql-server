@@ -238,7 +238,7 @@ table_esms_by_digest::get_row_count(void)
 
 table_esms_by_digest::table_esms_by_digest()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_pos(0), m_next_pos(0)
 {}
 
 void table_esms_by_digest::reset_position(void)
@@ -263,9 +263,8 @@ int table_esms_by_digest::rnd_next(void)
     {
       if (digest_stat->m_first_seen != 0)
       {
-        make_row(digest_stat);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_row(digest_stat);
       }
     }
   }
@@ -288,8 +287,7 @@ table_esms_by_digest::rnd_pos(const void *pos)
   {
     if (digest_stat->m_first_seen != 0)
     {
-      make_row(digest_stat);
-      return 0;
+      return make_row(digest_stat);
     }
   }
 
@@ -322,9 +320,11 @@ int table_esms_by_digest::index_next(void)
     {
       if (m_opened_index->match(digest_stat))
       {
-        make_row(digest_stat);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(digest_stat))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   }
@@ -332,9 +332,9 @@ int table_esms_by_digest::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_esms_by_digest::make_row(PFS_statements_digest_stat* digest_stat)
+int table_esms_by_digest
+::make_row(PFS_statements_digest_stat* digest_stat)
 {
-  m_row_exists= false;
   m_row.m_first_seen= digest_stat->m_first_seen;
   m_row.m_last_seen= digest_stat->m_last_seen;
   m_row.m_digest.make_row(digest_stat);
@@ -343,9 +343,9 @@ void table_esms_by_digest::make_row(PFS_statements_digest_stat* digest_stat)
     Get statements stats.
   */
   time_normalizer *normalizer= time_normalizer::get(statement_timer);
-  m_row.m_stat.set(normalizer, & digest_stat->m_stat);
+  m_row.m_stat.set(normalizer, &digest_stat->m_stat);
 
-  m_row_exists= true;
+  return 0;
 }
 
 int table_esms_by_digest
@@ -353,9 +353,6 @@ int table_esms_by_digest
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /*
     Set the null bits. It indicates how many fields could be null

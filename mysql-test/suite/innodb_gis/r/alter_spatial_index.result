@@ -46,10 +46,14 @@ INSERT INTO tab(c1,c2,c3,c4,c5)
 VALUES(10,ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,150 150,160 160)'),
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
-ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
 ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
-ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on Polygon';
-ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on Geometry';
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3 ASC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
 ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
 SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
@@ -100,9 +104,9 @@ ALTER TABLE tab CHANGE COLUMN c4 c44 POLYGON;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
 ALTER TABLE tab add SPATIAL INDEX idx1(c1);
 ERROR 42000: A SPATIAL index may only contain a geometrical type column
-ALTER TABLE tab ADD SPATIAL INDEX idx6(c2 ASC) USING BTREE;
+ALTER TABLE tab ADD SPATIAL INDEX idx6(c2) USING BTREE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING BTREE' at line 1
-ALTER TABLE tab ADD SPATIAL INDEX idx6(c2 ASC) USING HASH;
+ALTER TABLE tab ADD SPATIAL INDEX idx6(c2) USING HASH;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING HASH' at line 1
 ALTER TABLE tab CHANGE c2 c2 MULTIPOINT NOT NULL FIRST, ALGORITHM=COPY;
 ERROR 22004: Invalid use of NULL value
@@ -313,7 +317,7 @@ tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES
 tab	1	idx6	1	c4	A	#	10	NULL		BTREE			YES
 DELETE FROM tab;
 ALTER TABLE tab ADD PRIMARY KEY(c2);
-CREATE SPATIAL INDEX idx2 ON tab(c2 ASC);
+CREATE SPATIAL INDEX idx2 ON tab(c2);
 ALTER TABLE tab ADD CONSTRAINT const_1 UNIQUE(c2);
 SHOW CREATE TABLE tab;
 Table	Create Table
@@ -425,10 +429,10 @@ ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010
 ANALYZE TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
-ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
-ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
-ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on Polygon';
-ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on Geometry';
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
 ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
 ALTER TABLE tab MODIFY COLUMN c2 GEOMETRY NOT NULL;
 ALTER TABLE tab MODIFY COLUMN c3 POLYGON NOT NULL;
@@ -601,8 +605,8 @@ c1	ST_AsText(c2)	ST_AsText(c3)	ST_Astext(c4)
 DROP TABLE tab;
 CREATE TABLE parent (id POINT, PRIMARY KEY(id)) ENGINE=InnoDB;
 CREATE TABLE child (id GEOMETRY NOT NULL, parent_id POINT NOT NULL) ENGINE=InnoDB;
-ALTER TABLE parent ADD SPATIAL INDEX idx1(id ASC);
-ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id ASC);
+ALTER TABLE parent ADD SPATIAL INDEX idx1(id);
+ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id);
 ANALYZE TABLE parent;
 Table	Op	Msg_type	Msg_text
 test.parent	analyze	status	OK
@@ -637,8 +641,8 @@ ERROR HY000: Cannot add foreign key constraint
 DROP table child,parent;
 CREATE TABLE parent (id GEOMETRY, PRIMARY KEY(id(10))) ENGINE=InnoDB;
 CREATE TABLE child (id GEOMETRY NOT NULL, parent_id GEOMETRY NOT NULL) ENGINE=InnoDB;
-ALTER TABLE parent ADD SPATIAL INDEX idx1(id ASC) ;
-ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id ASC);
+ALTER TABLE parent ADD SPATIAL INDEX idx1(id) ;
+ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id);
 ANALYZE TABLE parent;
 Table	Op	Msg_type	Msg_text
 test.parent	analyze	status	OK

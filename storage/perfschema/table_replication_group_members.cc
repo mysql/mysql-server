@@ -155,7 +155,7 @@ PFS_engine_table* table_replication_group_members::create(void)
 
 table_replication_group_members::table_replication_group_members()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_pos(0), m_next_pos(0)
 {}
 
 table_replication_group_members::~table_replication_group_members()
@@ -186,16 +186,16 @@ int table_replication_group_members::rnd_next(void)
        m_pos.m_index < get_row_count();
        m_pos.next())
   {
-    make_row(m_pos.m_index);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(m_pos.m_index);
   }
 #endif /* HAVE_REPLICATION */
 
   return HA_ERR_END_OF_FILE;
 }
 
-int table_replication_group_members::rnd_pos(const void *pos)
+int table_replication_group_members
+  ::rnd_pos(const void *pos MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_REPLICATION
   if (!is_group_replication_plugin_loaded())
@@ -203,20 +203,17 @@ int table_replication_group_members::rnd_pos(const void *pos)
 
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index < get_row_count());
-  make_row(m_pos.m_index);
-
-  return 0;
+  return make_row(m_pos.m_index);
 #else
   return HA_ERR_END_OF_FILE;
 #endif /* HAVE_REPLICATION */
 }
 
 #ifdef HAVE_REPLICATION
-void table_replication_group_members::make_row(uint index)
+int table_replication_group_members::make_row(uint index)
 {
   DBUG_ENTER("table_replication_group_members::make_row");
   // Set default values.
-  m_row_exists= false;
   m_row.channel_name_length= 0;
   m_row.member_id_length= 0;
   m_row.member_host_length= 0;
@@ -241,24 +238,21 @@ void table_replication_group_members::make_row(uint index)
   }
   else
   {
-    m_row_exists= true;
   }
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 #endif /* HAVE_REPLICATION */
 
 
-int table_replication_group_members::read_row_values(TABLE *table,
-                                                     unsigned char *buf,
-                                                     Field **fields,
-                                                     bool read_all)
+int table_replication_group_members
+::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
+                  unsigned char *buf MY_ATTRIBUTE((unused)),
+                  Field **fields MY_ATTRIBUTE((unused)),
+                  bool read_all MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_REPLICATION
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0]= 0;

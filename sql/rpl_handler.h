@@ -76,7 +76,7 @@ public:
     return ret;
   }
 
-  int remove_observer(void *observer, st_plugin_int *plugin)
+  int remove_observer(void *observer)
   {
     int ret= FALSE;
     if (!inited)

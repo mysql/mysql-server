@@ -125,6 +125,13 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       */
       if (check_engine_type_for_acl_table(thd))
         result= 1;
+
+      /*
+        Check all the ACL tables are intact and output warning message in
+        case any of the ACL tables are corrupted.
+      */
+      if (check_acl_tables_intact(thd))
+        result= 1;
     }
 
     reset_mqh(thd, (LEX_USER *)NULL, TRUE);

@@ -20,7 +20,7 @@
 #include "my_global.h"
 #include "my_base.h"
 #include "my_sys.h"
-#include "queues.h"
+#include "../storage/myisam/queues.h"
 #include "test_utils.h"
 
 /**
@@ -164,7 +164,7 @@ int Bounded_QUEUE<Element_type, Key_type, Key_generator>
                   DBUG_SET("+d,simulate_out_of_memory"););
 
   // We allocate space for one extra element, for replace when queue is full.
-  return init_queue(&m_queue, (uint) max_elements + 1,
+  return init_queue(&m_queue, PSI_INSTRUMENT_ME, (uint) max_elements + 1,
                     0, max_at_top,
                     reinterpret_cast<queue_compare>(compare),
                     &m_compare_length);

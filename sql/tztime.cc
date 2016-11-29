@@ -1582,7 +1582,7 @@ tz_init_table_list(TABLE_LIST *tz_tabs)
     tz_tabs[i].table_name_length= tz_tables_names[i].length;
     tz_tabs[i].db= tz_tables_db_name.str;
     tz_tabs[i].db_length= tz_tables_db_name.length;
-    tz_tabs[i].lock_type= TL_READ;
+    tz_tabs[i].set_lock({TL_READ, THR_DEFAULT});
 
     if (i != MY_TZ_TABLES_COUNT - 1)
       tz_tabs[i].next_global= tz_tabs[i].next_local= &tz_tabs[i+1];
@@ -1723,7 +1723,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   tz_tables[0].table_name_length= 21;
   tz_tables[0].db= db.str;
   tz_tables[0].db_length= sizeof(db)-1;
-  tz_tables[0].lock_type= TL_READ;
+  tz_tables[0].set_lock({TL_READ, THR_DEFAULT});
 
   tz_init_table_list(tz_tables+1);
   tz_tables[0].next_global= tz_tables[0].next_local= &tz_tables[1];

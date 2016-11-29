@@ -86,7 +86,7 @@ public:
   int index_init(uint idx, bool sorted);
 
 private:
-  virtual void make_row(PFS_user *pfs);
+  virtual int make_row(PFS_user *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -95,8 +95,6 @@ private:
 
   /** Current row. */
   row_users m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** @} */

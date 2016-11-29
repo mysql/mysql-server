@@ -891,7 +891,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
                                Alter_info::ALTER_TRUNCATE_PARTITION;
 
   /* Fix the lock types (not the same as ordinary ALTER TABLE). */
-  first_table->lock_type= TL_WRITE;
+  first_table->set_lock({TL_WRITE, THR_DEFAULT});
   first_table->mdl_request.set_type(MDL_EXCLUSIVE);
 
   /*

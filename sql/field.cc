@@ -112,7 +112,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
-    MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_NEWDECIMAL,
   //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
@@ -145,7 +145,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
-    MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
@@ -178,7 +178,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
-    MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
@@ -211,7 +211,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
-    MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
@@ -244,7 +244,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
-    MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_DOUBLE,
   //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
@@ -277,7 +277,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
-    MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_DOUBLE,
   //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
@@ -376,7 +376,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
-    MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
@@ -409,7 +409,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
-    MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL    MYSQL_TYPE_ENUM
@@ -541,7 +541,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
-    MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
@@ -624,19 +624,19 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   /* MYSQL_TYPE_BIT -> */
   {
   //MYSQL_TYPE_DECIMAL      MYSQL_TYPE_TINY
-    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_SHORT        MYSQL_TYPE_LONG
-    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_LONGLONG,    MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_FLOAT        MYSQL_TYPE_DOUBLE
-    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_DOUBLE,      MYSQL_TYPE_DOUBLE,
   //MYSQL_TYPE_NULL         MYSQL_TYPE_TIMESTAMP
     MYSQL_TYPE_BIT,         MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_LONGLONG     MYSQL_TYPE_INT24
-    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_LONGLONG,    MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_DATE         MYSQL_TYPE_TIME
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_DATETIME     MYSQL_TYPE_YEAR
-    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
@@ -644,7 +644,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
-    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_TINY_BLOB,
   //MYSQL_TYPE_MEDIUM_BLOB  MYSQL_TYPE_LONG_BLOB
@@ -706,7 +706,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
-    MYSQL_TYPE_VARCHAR,
+    MYSQL_TYPE_NEWDECIMAL,
   //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
@@ -1069,7 +1069,7 @@ static Item_result field_types_result_type [FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
   STRING_RESULT,            STRING_RESULT,
   //MYSQL_TYPE_BIT          <16>-<244>
-  STRING_RESULT,
+  INT_RESULT,
   //MYSQL_TYPE_JSON
   STRING_RESULT,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
@@ -7305,10 +7305,20 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 void Field_string::make_sort_key(uchar *to, size_t length)
 {
+  /*
+    We don't store explicitly how many bytes long this string is.
+    Find out by calling charpos, since just using field_length
+    could give strnxfrm a buffer with more than char_length() code
+    points, which is not allowed.
+  */
+  size_t input_length= std::min<size_t>(field_length,
+    field_charset->cset->charpos(field_charset, pointer_cast<const char *>(ptr),
+      pointer_cast<const char *>(ptr) + field_length, char_length()));
+
   size_t tmp MY_ATTRIBUTE((unused))=
     field_charset->coll->strnxfrm(field_charset,
                                   to, length, char_length(),
-                                  ptr, field_length,
+                                  ptr, input_length,
                                   MY_STRXFRM_PAD_WITH_SPACE |
                                   MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tmp == length);
@@ -7753,8 +7763,9 @@ void Field_varstring::make_sort_key(uchar *to, size_t length)
   }
  
   tot_length= field_charset->coll->strnxfrm(field_charset,
-                                            to, length, char_length(),
-                                            ptr + length_bytes, tot_length,
+                                            to, length, length,
+                                            ptr + length_bytes,
+                                            tot_length,
                                             MY_STRXFRM_PAD_WITH_SPACE |
                                             MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tot_length == length);

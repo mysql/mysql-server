@@ -357,7 +357,6 @@ TODO list:
 #include "mysql_com.h"
 #include "mysqld.h"           // key_structure_guard_mutex
 #include "opt_trace.h"        // Opt_trace_stmt
-#include "probes_mysql.h"
 #include "protocol.h"
 #include "protocol_classic.h"
 #include "psi_memory_key.h"   // key_memory_queue_item
@@ -1990,14 +1989,11 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     thd->get_stmt_da()->disable_status();
 
   mysql_rwlock_unlock(&query_block->query()->lock);
-  MYSQL_QUERY_CACHE_HIT(const_cast<char*>(thd->query().str),
-                        (ulong) thd->current_found_rows);
   DBUG_RETURN(1);				// Result sent to client
 
 err_unlock:
   unlock(thd);
 err:
-  MYSQL_QUERY_CACHE_MISS(const_cast<char*>(thd->query().str));
   DBUG_RETURN(0);				// Query was not cached
 }
 
@@ -2085,7 +2081,7 @@ void Query_cache::invalidate_locked_for_write(THD *thd, TABLE_LIST *tables_used)
   for (; tables_used; tables_used= tables_used->next_local)
   {
     THD_STAGE_INFO(thd, stage_invalidating_query_cache_entries_table);
-    if (tables_used->lock_type >= TL_WRITE_ALLOW_WRITE &&
+    if (tables_used->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE &&
         tables_used->table)
     {
       invalidate_table(thd, tables_used->table);

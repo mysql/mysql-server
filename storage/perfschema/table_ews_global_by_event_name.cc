@@ -129,7 +129,7 @@ table_ews_global_by_event_name::get_row_count(void)
 
 table_ews_global_by_event_name::table_ews_global_by_event_name()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos()
+    m_pos(), m_next_pos()
 {}
 
 void table_ews_global_by_event_name::reset_position(void)
@@ -157,77 +157,68 @@ int table_ews_global_by_event_name::rnd_next(void)
       mutex_class= find_mutex_class(m_pos.m_index_2);
       if (mutex_class)
       {
-        make_mutex_row(mutex_class);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_mutex_row(mutex_class);
       }
       break;
     case pos_ews_global_by_event_name::VIEW_RWLOCK:
       rwlock_class= find_rwlock_class(m_pos.m_index_2);
       if (rwlock_class)
       {
-        make_rwlock_row(rwlock_class);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_rwlock_row(rwlock_class);
       }
       break;
     case pos_ews_global_by_event_name::VIEW_COND:
       cond_class= find_cond_class(m_pos.m_index_2);
       if (cond_class)
       {
-        make_cond_row(cond_class);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_cond_row(cond_class);
       }
       break;
     case pos_ews_global_by_event_name::VIEW_FILE:
       file_class= find_file_class(m_pos.m_index_2);
       if (file_class)
       {
-        make_file_row(file_class);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_file_row(file_class);
       }
       break;
     case pos_ews_global_by_event_name::VIEW_TABLE:
       if (m_pos.m_index_2 == 1)
       {
-        make_table_io_row(&global_table_io_class);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_table_io_row(&global_table_io_class);
       }
       if (m_pos.m_index_2 == 2)
       {
-        make_table_lock_row(&global_table_lock_class);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_table_lock_row(&global_table_lock_class);
       }
       break;
     case pos_ews_global_by_event_name::VIEW_SOCKET:
       socket_class= find_socket_class(m_pos.m_index_2);
       if (socket_class)
       {
-        make_socket_row(socket_class);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_socket_row(socket_class);
       }
       break;
     case pos_ews_global_by_event_name::VIEW_IDLE:
       instr_class= find_idle_class(m_pos.m_index_2);
       if (instr_class)
       {
-        make_idle_row(instr_class);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_idle_row(instr_class);
       }
       break;
     case pos_ews_global_by_event_name::VIEW_METADATA:
       instr_class= find_metadata_class(m_pos.m_index_2);
       if (instr_class)
       {
-        make_metadata_row(instr_class);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_metadata_row(instr_class);
       }
       break;
     default:
@@ -256,64 +247,57 @@ table_ews_global_by_event_name::rnd_pos(const void *pos)
     mutex_class= find_mutex_class(m_pos.m_index_2);
     if (mutex_class)
     {
-      make_mutex_row(mutex_class);
-      return 0;
+      return make_mutex_row(mutex_class);
     }
     break;
   case pos_ews_global_by_event_name::VIEW_RWLOCK:
     rwlock_class= find_rwlock_class(m_pos.m_index_2);
     if (rwlock_class)
     {
-      make_rwlock_row(rwlock_class);
-      return 0;
+      return make_rwlock_row(rwlock_class);
     }
     break;
   case pos_ews_global_by_event_name::VIEW_COND:
     cond_class= find_cond_class(m_pos.m_index_2);
     if (cond_class)
     {
-      make_cond_row(cond_class);
-      return 0;
+      return make_cond_row(cond_class);
     }
     break;
   case pos_ews_global_by_event_name::VIEW_FILE:
     file_class= find_file_class(m_pos.m_index_2);
     if (file_class)
     {
-      make_file_row(file_class);
-      return 0;
+      return make_file_row(file_class);
     }
     break;
   case pos_ews_global_by_event_name::VIEW_TABLE:
     DBUG_ASSERT(m_pos.m_index_2 >= 1);
     DBUG_ASSERT(m_pos.m_index_2 <= 2);
     if (m_pos.m_index_2 == 1)
-      make_table_io_row(&global_table_io_class);
+      return make_table_io_row(&global_table_io_class);
     else
-      make_table_lock_row(&global_table_lock_class);
+      return make_table_lock_row(&global_table_lock_class);
     break;
   case pos_ews_global_by_event_name::VIEW_SOCKET:
     socket_class= find_socket_class(m_pos.m_index_2);
     if (socket_class)
     {
-      make_socket_row(socket_class);
-      return 0;
+      return make_socket_row(socket_class);
     }
     break;
   case pos_ews_global_by_event_name::VIEW_IDLE:
     instr_class= find_idle_class(m_pos.m_index_2);
     if (instr_class)
     {
-      make_idle_row(instr_class);
-      return 0;
+      return make_idle_row(instr_class);
     }
     break;
   case pos_ews_global_by_event_name::VIEW_METADATA:
     instr_class= find_metadata_class(m_pos.m_index_2);
     if (instr_class)
     {
-      make_metadata_row(instr_class);
-      return 0;
+      return make_metadata_row(instr_class);
     }
     break;
   default:
@@ -361,9 +345,8 @@ int table_ews_global_by_event_name::index_next(void)
         {
           if (m_opened_index->match(mutex_class))
           {
-            make_mutex_row(mutex_class);
             m_next_pos.set_after(&m_pos);
-            return 0;
+            return make_mutex_row(mutex_class);
           }
           m_pos.set_after(&m_pos);
         }
@@ -377,10 +360,9 @@ int table_ews_global_by_event_name::index_next(void)
         {
           if (m_opened_index->match(rwlock_class))
           {
-            make_rwlock_row(rwlock_class);
             m_next_pos.set_after(&m_pos);
-            return 0;
-          }
+            return make_rwlock_row(rwlock_class);
+          }  
           m_pos.set_after(&m_pos);
         }
       } while (rwlock_class != NULL);
@@ -394,9 +376,8 @@ int table_ews_global_by_event_name::index_next(void)
         {
           if (m_opened_index->match(cond_class))
           {
-            make_cond_row(cond_class);
             m_next_pos.set_after(&m_pos);
-            return 0;
+            return make_cond_row(cond_class);
           }
           m_pos.set_after(&m_pos);
         }
@@ -410,9 +391,8 @@ int table_ews_global_by_event_name::index_next(void)
         {
           if (m_opened_index->match(file_class))
           {
-            make_file_row(file_class);
             m_next_pos.set_after(&m_pos);
-            return 0;
+            return make_file_row(file_class);
           }
           m_pos.set_after(&m_pos);
         }
@@ -426,12 +406,11 @@ int table_ews_global_by_event_name::index_next(void)
         {
           if (m_opened_index->match(table_class))
           {
-            if (m_pos.m_index_2 == 1)
-              make_table_io_row(table_class);
-            else
-              make_table_lock_row(table_class);
             m_next_pos.set_after(&m_pos);
-            return 0;
+            if (m_pos.m_index_2 == 1)
+              return make_table_io_row(table_class);
+            else
+              return make_table_lock_row(table_class);
           }
           m_pos.set_after(&m_pos);
         }
@@ -445,9 +424,8 @@ int table_ews_global_by_event_name::index_next(void)
         {
           if (m_opened_index->match(socket_class))
           {
-            make_socket_row(socket_class);
             m_next_pos.set_after(&m_pos);
-            return 0;
+            return make_socket_row(socket_class);
           }
           m_pos.set_after(&m_pos);
         }
@@ -461,9 +439,8 @@ int table_ews_global_by_event_name::index_next(void)
         {
           if (m_opened_index->match(instr_class))
           {
-            make_idle_row(instr_class);
             m_next_pos.set_after(&m_pos);
-            return 0;
+            return make_idle_row(instr_class);
           }
           m_pos.set_after(&m_pos);
         }
@@ -477,9 +454,8 @@ int table_ews_global_by_event_name::index_next(void)
         {
           if (m_opened_index->match(instr_class))
           {
-            make_metadata_row(instr_class);
             m_next_pos.set_after(&m_pos);
-            return 0;
+            return make_metadata_row(instr_class);
           }
           m_pos.set_after(&m_pos);
         }
@@ -493,7 +469,7 @@ int table_ews_global_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_ews_global_by_event_name
+int table_ews_global_by_event_name
 ::make_mutex_row(PFS_mutex_class *klass)
 {
   m_row.m_event_name.make_row(klass);
@@ -503,10 +479,10 @@ void table_ews_global_by_event_name
 
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, & visitor.m_stat);
-  m_row_exists= true;
+  return 0;
 }
 
-void table_ews_global_by_event_name
+int table_ews_global_by_event_name
 ::make_rwlock_row(PFS_rwlock_class *klass)
 {
   m_row.m_event_name.make_row(klass);
@@ -516,10 +492,10 @@ void table_ews_global_by_event_name
 
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, & visitor.m_stat);
-  m_row_exists= true;
+  return 0;
 }
 
-void table_ews_global_by_event_name
+int table_ews_global_by_event_name
 ::make_cond_row(PFS_cond_class *klass)
 {
   m_row.m_event_name.make_row(klass);
@@ -529,10 +505,10 @@ void table_ews_global_by_event_name
 
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, & visitor.m_stat);
-  m_row_exists= true;
+  return 0;
 }
 
-void table_ews_global_by_event_name
+int table_ews_global_by_event_name
 ::make_file_row(PFS_file_class *klass)
 {
   m_row.m_event_name.make_row(klass);
@@ -542,10 +518,10 @@ void table_ews_global_by_event_name
 
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, & visitor.m_stat);
-  m_row_exists= true;
+  return 0;
 }
 
-void table_ews_global_by_event_name
+int table_ews_global_by_event_name
 ::make_table_io_row(PFS_instr_class *klass)
 {
   m_row.m_event_name.make_row(klass);
@@ -555,10 +531,10 @@ void table_ews_global_by_event_name
 
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, & visitor.m_stat);
-  m_row_exists= true;
+  return 0;
 }
 
-void table_ews_global_by_event_name
+int table_ews_global_by_event_name
 ::make_table_lock_row(PFS_instr_class *klass)
 {
   m_row.m_event_name.make_row(klass);
@@ -568,10 +544,10 @@ void table_ews_global_by_event_name
 
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, & visitor.m_stat);
-  m_row_exists= true;
+  return 0;
 }
 
-void table_ews_global_by_event_name
+int table_ews_global_by_event_name
 ::make_socket_row(PFS_socket_class *klass)
 {
   m_row.m_event_name.make_row(klass);
@@ -581,10 +557,10 @@ void table_ews_global_by_event_name
 
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
-  m_row_exists= true;
+  return 0;
 }
 
-void table_ews_global_by_event_name
+int table_ews_global_by_event_name
 ::make_idle_row(PFS_instr_class *klass)
 {
   m_row.m_event_name.make_row(klass);
@@ -598,10 +574,10 @@ void table_ews_global_by_event_name
                                         &visitor);
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
-  m_row_exists= true;
+  return 0;
 }
 
-void table_ews_global_by_event_name
+int table_ews_global_by_event_name
 ::make_metadata_row(PFS_instr_class *klass)
 {
   m_row.m_event_name.make_row(klass);
@@ -615,7 +591,7 @@ void table_ews_global_by_event_name
                                         &visitor);
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
-  m_row_exists= true;
+  return 0;
 }
 
 int table_ews_global_by_event_name
@@ -623,9 +599,6 @@ int table_ews_global_by_event_name
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);

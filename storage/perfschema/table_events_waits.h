@@ -168,12 +168,10 @@ protected:
   int make_socket_object_columns(PFS_events_waits *wait);
   int make_metadata_lock_object_columns(PFS_events_waits *wait);
 
-  void make_row(PFS_events_waits *wait);
+  int make_row(PFS_events_waits *wait);
 
   /** Current row. */
   row_events_waits m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT. */
@@ -214,7 +212,7 @@ private:
   static TABLE_FIELD_DEF m_field_def;
 
   PFS_events_waits *get_wait(PFS_thread *pfs_thread, uint index_2);
-  void make_row(PFS_thread *thread, PFS_events_waits *wait);
+  int make_row(PFS_thread *thread, PFS_events_waits *wait);
 
   /** Current position. */
   pos_events_waits_current m_pos;
@@ -255,7 +253,7 @@ private:
   static THR_LOCK m_table_lock;
 
   PFS_events_waits *get_wait(PFS_thread *pfs_thread, uint index_2);
-  void make_row(PFS_thread *thread, PFS_events_waits *wait);
+  int make_row(PFS_thread *thread, PFS_events_waits *wait);
 
   /** Current position. */
   pos_events_waits_history m_pos;

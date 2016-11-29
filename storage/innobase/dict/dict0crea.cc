@@ -740,15 +740,16 @@ dict_create_sys_fields_tuple(
 	dict_field_t*	field;
 	dfield_t*	dfield;
 	byte*		ptr;
-	ibool		index_contains_column_prefix_field	= FALSE;
+	bool		wide_pos = false;
 	ulint		j;
 
 	ut_ad(index);
 	ut_ad(heap);
 
 	for (j = 0; j < index->n_fields; j++) {
-		if (index->get_field(j)->prefix_len > 0) {
-			index_contains_column_prefix_field = TRUE;
+		if (index->get_field(j)->prefix_len > 0
+		    || !index->get_field(j)->is_ascending ) {
+			wide_pos = true;
 			break;
 		}
 	}
@@ -775,16 +776,21 @@ dict_create_sys_fields_tuple(
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 
-	if (index_contains_column_prefix_field) {
-		/* If there are column prefix fields in the index, then
-		we store the number of the field to the 2 HIGH bytes
-		and the prefix length to the 2 low bytes, */
+	if (wide_pos) {
+		/* If there are column prefix or descending fields in
+		the index, then we store the number of the field in
+		the 16 most significant bits and the prefix length in
+		the least significant bits. */
 
-		mach_write_to_4(ptr, (fld_no << 16) + field->prefix_len);
+		mach_write_to_4(ptr, fld_no << 16
+				| (!field->is_ascending) << 15
+				| field->prefix_len);
 	} else {
 		/* Else we store the number of the field to the 2 LOW bytes.
 		This is to keep the storage format compatible with
 		InnoDB versions < 4.0.14. */
+		ut_ad(!field->prefix_len);
+		ut_ad(field->is_ascending);
 
 		mach_write_to_4(ptr, fld_no);
 	}
@@ -2560,8 +2566,8 @@ dict_sdi_create_idx_in_mem(
 		DICT_CLUSTERED |DICT_UNIQUE | DICT_SDI, 2);
 	ut_ad(temp_index);
 
-	temp_index->add_field("id", 0);
-	temp_index->add_field("type", 0);
+	temp_index->add_field("id", 0, true);
+	temp_index->add_field("type", 0, true);
 
 	temp_index->table = table;
 

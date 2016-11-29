@@ -102,7 +102,7 @@ ERROR 42000: Variable 'new' can't be set to the value of 'ONN'
 SET @@session.new = ONF;
 ERROR 42000: Variable 'new' can't be set to the value of 'ONF'
 SET @@session.new = OF;
-ERROR 42000: Variable 'new' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@session.new = 'OFN';
 ERROR 42000: Variable 'new' can't be set to the value of 'OFN'
 SET @@session.new = -2;

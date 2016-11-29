@@ -30,7 +30,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`f` AS `f`,`t
 alter table t1 add index sec_index(f);
 explain select * from t1 where f > 1.29999;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	sec_index	NULL	NULL	NULL	5	60.00	Using where
+1	SIMPLE	t1	NULL	range	sec_index	sec_index	5	NULL	3	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`f` AS `f`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`f` > 1.29999)
 select * from t1 where f > 1.29999;
@@ -131,7 +131,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`f` AS `f`,`t
 alter table t1 add index sec_index(f);
 explain select * from t1 where f > 1.29999;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	sec_index	NULL	NULL	NULL	5	60.00	Using where
+1	SIMPLE	t1	NULL	range	sec_index	sec_index	5	NULL	3	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`f` AS `f`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`f` > 1.29999)
 select * from t1 where f > 1.29999;

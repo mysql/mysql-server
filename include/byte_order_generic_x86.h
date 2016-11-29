@@ -26,11 +26,12 @@
 
 // IWYU pragma: private, include "my_byteorder.h"
 
-#include "my_global.h"
-
 #ifndef MY_BYTEORDER_INCLUDED
 #error This file should never be #included directly; use my_byteorder.h.
 #endif
+
+#include "my_compiler.h"
+#include "my_inttypes.h"
 
 static inline int16  sint2korr(const uchar *A) SUPPRESS_UBSAN;
 static inline int16  sint2korr(const uchar *A) { return *((int16*) A); }

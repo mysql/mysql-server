@@ -1487,7 +1487,7 @@ COUNT(*)
 1
 explain select a from t1 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT COUNT(*) FROM (SELECT a FROM t1 GROUP BY a) AS t2;

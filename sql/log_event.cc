@@ -238,6 +238,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_FK_DEPTH_EXCEEDED : return "HA_ERR_FK_DEPTH_EXCEEDED";
   case HA_ERR_INNODB_READ_ONLY: return "HA_ERR_INNODB_READ_ONLY";
   case HA_ERR_COMPUTE_FAILED: return "HA_ERR_COMPUTE_FAILED";
+  case HA_ERR_NO_WAIT_LOCK: return "HA_ERR_NO_WAIT_LOCK";
   }
   return "No Error!";
 }
@@ -1192,6 +1193,8 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
 /**
   This needn't be format-tolerant, because we only read
   LOG_EVENT_MINIMAL_HEADER_LEN (we just want to read the event's length).
+
+  The caller should allocate the packet buffer before calling this function.
 */
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
@@ -1247,8 +1250,27 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     goto end;
   }
 
-  /* Append the log event header to packet */
-  if (packet->append(buf, LOG_EVENT_MINIMAL_HEADER_LEN))
+  /*
+    If the event header wasn't passed, the caller doesn't know the event size
+    yet, so the packet size may not have enough space to load the entire
+    event. We need to adjust the packet size here since the call to my_b_read()
+    below expects the buffer to be allocated.
+  */
+  if (buf == local_buf)
+  {
+    ulong new_alloc_len= packet->length() + data_len;
+    if (new_alloc_len > packet->alloced_length() &&
+        packet->mem_realloc(new_alloc_len))
+    {
+      /* Failed to allocate packet */
+      result= LOG_READ_MEM;
+      goto end;
+    }
+  }
+
+  /* Check packet buffer size and append the log event header to it */
+  if (packet->alloced_length() - packet->length() < data_len ||
+      packet->append(buf, LOG_EVENT_MINIMAL_HEADER_LEN))
   {
     DBUG_PRINT("info", ("first packet->append failed (out of memory)"));
     /* Failed to allocate packet */
@@ -1258,8 +1280,20 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   data_len-= LOG_EVENT_MINIMAL_HEADER_LEN;
   if (data_len)
   {
-    /* Append rest of event, read directly from file into packet */
-    if (packet->append(file, data_len))
+    /*
+      Append rest of event, read directly from file into packet.
+
+      We are avoiding to call packet->append(IO_CACHE, size_t) at this point
+      because the String::append logic will call String::mem_realloc() that
+      might resize the buffer (changing its pointer) in order to reserve a
+      space for a trailing '\0' that we don't need.
+    */
+    char *event_data_buffer= const_cast<char*>(packet->ptr() +
+                                               packet->length());
+    result= my_b_read(file,
+                      reinterpret_cast<uchar*>(event_data_buffer),
+                      data_len);
+    if (result)
     {
       /*
         Fatal error occured when appending rest of the event
@@ -1280,6 +1314,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     }
     else
     {
+      packet->length(packet->length() + data_len);
       /*
         Corrupt the event for Dump thread.
         We also need to exclude Previous_gtids_log_event and Gtid_log_event
@@ -1700,10 +1735,10 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Delete_rows_log_event(buf, event_len, description_event);
       break;
     case binary_log::TRANSACTION_CONTEXT_EVENT:
-      ev = new Transaction_context_log_event(buf, event_len, description_event);
+      ev = new Transaction_context_log_event(buf, description_event);
       break;
     case binary_log::VIEW_CHANGE_EVENT:
-      ev = new View_change_log_event(buf, event_len, description_event);
+      ev = new View_change_log_event(buf, description_event);
       break;
 #endif
     case binary_log::XA_PREPARE_LOG_EVENT:
@@ -3814,9 +3849,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
                           thd_arg->variables.auto_increment_offset,
                           thd_arg->variables.lc_time_names->number,
                           (ulonglong)thd_arg->table_map_for_update,
-                          errcode,
-                          thd_arg->db().str ? strlen(thd_arg->db().str) : 0,
-                          thd_arg->catalog().str ? strlen(thd_arg->catalog().str) : 0),
+                          errcode),
   Log_event(thd_arg,
             (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F :
              0) |
@@ -5430,7 +5463,7 @@ int Format_description_log_event::do_update_pos(Relay_log_info *rli)
 }
 
 Log_event::enum_skip_reason
-Format_description_log_event::do_shall_skip(Relay_log_info *rli)
+Format_description_log_event::do_shall_skip(Relay_log_info*)
 {
   return Log_event::EVENT_SKIP_NOT;
 }
@@ -5653,11 +5686,14 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
     if (rli->is_parallel_exec())
+    {
+      bool real_event= server_id && !is_artificial_event();
       rli->reset_notified_checkpoint(0,
-                                     server_id ?
+                                     real_event ?
                                      common_header->when.tv_sec +
                                      (time_t) exec_time : 0,
                                      true/*need_data_lock=true*/);
+    }
 
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
@@ -7175,7 +7211,7 @@ int Delete_file_log_event::pack_info(Protocol *protocol)
 */
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
+int Delete_file_log_event::do_apply_event(Relay_log_info const*)
 {
   char fname[FN_REFLEN+TEMP_FILE_MAX_LEN];
   lex_start(thd);
@@ -7259,9 +7295,7 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
                           thd_arg->variables.auto_increment_offset,
                           thd_arg->variables.lc_time_names->number,
                           (ulonglong)thd_arg->table_map_for_update,
-                          errcode,
-                          thd_arg->db().str ? strlen(thd_arg->db().str) : 0,
-                          thd_arg->catalog().str ? strlen(thd_arg->catalog().str) : 0),
+                          errcode),
   Query_log_event(thd_arg, query_arg, query_length_arg, using_trans, immediate,
                   suppress_use, errcode),
   binary_log::Execute_load_query_event(thd_arg->file_id, fn_pos_start_arg,
@@ -10519,7 +10553,7 @@ check_table_map(Relay_log_info const *rli, RPL_TABLE_LIST *table_list)
 
         if (strcmp(ptr->db, table_list->db) || 
             strcmp(ptr->alias, table_list->table_name) || 
-            ptr->lock_type != TL_WRITE) // the ::do_apply_event always sets TL_WRITE
+            ptr->lock_descriptor().type != TL_WRITE) // the ::do_apply_event always sets TL_WRITE
           res= SAME_ID_MAPPING_DIFFERENT_TABLE;
         else
           res= SAME_ID_MAPPING_SAME_TABLE;
@@ -11347,7 +11381,7 @@ Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   DBUG_RETURN(error);
 }
 
-int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli)
+int Delete_rows_log_event::do_exec_row(const Relay_log_info *const)
 {
   int error;
   DBUG_ASSERT(m_table != NULL);
@@ -12259,9 +12293,9 @@ err:
 #endif
 
 Transaction_context_log_event::
-Transaction_context_log_event(const char *buffer, uint event_len,
+Transaction_context_log_event(const char *buffer,
                               const Format_description_event *descr_event)
-  : binary_log::Transaction_context_event(buffer, event_len, descr_event),
+  : binary_log::Transaction_context_event(buffer, descr_event),
     Log_event(header(), footer())
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event (const char *, uint, const Format_description_event*)");
@@ -12496,9 +12530,8 @@ View_change_log_event::View_change_log_event(char* raw_view_id)
 
 View_change_log_event::
 View_change_log_event(const char *buffer,
-                      uint event_len,
                       const Format_description_event *descr_event)
-  : binary_log::View_change_event(buffer, event_len, descr_event),
+  : binary_log::View_change_event(buffer, descr_event),
     Log_event(header(), footer())
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(const char *,"

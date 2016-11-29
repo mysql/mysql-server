@@ -223,9 +223,8 @@ int table_file_summary_by_event_name::rnd_next(void)
   file_class= find_file_class(m_pos.m_index);
   if (file_class)
   {
-    make_row(file_class);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(file_class);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -270,9 +269,11 @@ int table_file_summary_by_event_name::index_next(void)
     {
       if (m_opened_index->match(file_class))
       {
-        make_row(file_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(file_class))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
       m_pos.next();
     }
@@ -284,8 +285,9 @@ int table_file_summary_by_event_name::index_next(void)
 /**
   Build a row.
   @param file_class            the file class the cursor is reading
+  @return 0 or HA_ERR_RECORD_DELETED
 */
-void table_file_summary_by_event_name::make_row(PFS_file_class *file_class)
+int table_file_summary_by_event_name::make_row(PFS_file_class *file_class)
 {
   m_row.m_event_name.make_row(file_class);
 
@@ -296,8 +298,8 @@ void table_file_summary_by_event_name::make_row(PFS_file_class *file_class)
 
   /* Collect timer and byte count stats */
   m_row.m_io_stat.set(normalizer, &visitor.m_file_io_stat);
-  m_row_exists= true;
 
+  return 0;
 }
 
 int table_file_summary_by_event_name::read_row_values(TABLE *table,
@@ -306,9 +308,6 @@ int table_file_summary_by_event_name::read_row_values(TABLE *table,
                                                       bool read_all)
 {
   Field *f;
-
-  if (unlikely(!m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);

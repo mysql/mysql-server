@@ -75,52 +75,6 @@ static longlong
 get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
                Item *warn_item, bool *is_null);
 
-static Item_result item_store_type(Item_result a, Item *item,
-                                   my_bool unsigned_flag)
-{
-  Item_result b= item->result_type();
-
-  if (a == STRING_RESULT || b == STRING_RESULT)
-    return STRING_RESULT;
-  else if (a == REAL_RESULT || b == REAL_RESULT)
-    return REAL_RESULT;
-  else if (a == DECIMAL_RESULT || b == DECIMAL_RESULT ||
-           unsigned_flag != item->unsigned_flag)
-    return DECIMAL_RESULT;
-  else
-    return INT_RESULT;
-}
-
-static void agg_result_type(Item_result *type, bool *unsigned_flag,
-                            Item **items, uint nitems)
-{
-  Item **item, **item_end;
-
-  *type= STRING_RESULT;
-  *unsigned_flag= false;
-  /* Skip beginning NULL items */
-  for (item= items, item_end= item + nitems; item < item_end; item++)
-  {
-    if ((*item)->type() != Item::NULL_ITEM)
-    {
-      *type= (*item)->result_type();
-      *unsigned_flag= (*item)->unsigned_flag;
-      item++;
-      break;
-    }
-  }
-  /* Combine result types. Note: NULL items don't affect the result */
-  for (; item < item_end; item++)
-  {
-    if ((*item)->type() != Item::NULL_ITEM)
-    {
-      *type= item_store_type(*type, *item, *unsigned_flag);
-      *unsigned_flag&= (*item)->unsigned_flag;
-    }
-  }
-}
-
-
 /*
   Compare row signature of two expressions
 
@@ -3354,10 +3308,9 @@ void Item_func_between::print(String *str, enum_query_type query_type)
 bool Item_func_ifnull::resolve_type(THD *)
 {
   uint32 char_length;
-  agg_result_type(&hybrid_type, &unsigned_flag, args, 2);
-  cached_field_type= agg_field_type(args, 2);
-  maybe_null=args[1]->maybe_null;
-  decimals= max(args[0]->decimals, args[1]->decimals);
+  cached_field_type= aggregate_type(make_array(args, 2));
+  hybrid_type= Field::result_merge_type(cached_field_type);
+  maybe_null= args[1]->maybe_null;
 
   if (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) 
   {
@@ -3374,7 +3327,7 @@ bool Item_func_ifnull::resolve_type(THD *)
 
   switch (hybrid_type) {
   case STRING_RESULT:
-    if (count_string_result_length(cached_field_type, args, arg_count))
+    if (count_string_result_length(cached_field_type, args, 2))
       return true;
     break;
   case DECIMAL_RESULT:
@@ -3562,49 +3515,16 @@ void Item_func_if::fix_after_pullout(SELECT_LEX *parent_select,
 }
 
 
-void Item_func_if::cache_type_info(Item *source)
+bool Item_func_if::resolve_type(THD *thd)
 {
-  collation.set(source->collation);
-  cached_field_type=  source->field_type();
-  cached_result_type= source->result_type();
-  decimals=           source->decimals;
-  max_length=         source->max_length;
-  maybe_null=         source->maybe_null;
-  unsigned_flag=      source->unsigned_flag;
-}
-
-
-bool Item_func_if::resolve_type(THD *)
-{
-  // Let IF(cond, expr, NULL) and IF(cond, NULL, expr) inherit type from expr.
-  if (args[1]->type() == NULL_ITEM)
-  {
-    cache_type_info(args[2]);
-    maybe_null= true;
-    // If both arguments are NULL, make resulting type BINARY(0).
-    if (args[2]->type() == NULL_ITEM)
-      cached_field_type= MYSQL_TYPE_STRING;
-    return false;
-  }
-  if (args[2]->type() == NULL_ITEM)
-  {
-    cache_type_info(args[1]);
-    maybe_null= true;
-    return false;
-  }
-
-  agg_result_type(&cached_result_type, &unsigned_flag, args + 1, 2);
-  cached_field_type= agg_field_type(args + 1, 2);
   maybe_null= args[1]->maybe_null || args[2]->maybe_null;
-  decimals= max(args[1]->decimals, args[2]->decimals);
+  cached_field_type= aggregate_type(make_array(args + 1, 2));
+  cached_result_type= Field::result_merge_type(cached_field_type);
 
   if (cached_result_type == STRING_RESULT)
   {
     if (count_string_result_length(cached_field_type, args + 1, 2))
       return true;
-    uint32 char_length=
-      max(args[1]->max_char_length(), args[2]->max_char_length());
-    fix_char_length(char_length);
   }
   else
   {
@@ -4100,8 +4020,8 @@ bool Item_func_case::resolve_type(THD *thd)
   if (else_expr_num != -1)
     agg[nagg++]= args[else_expr_num];
 
-  cached_field_type= agg_field_type(agg, nagg);
-  agg_result_type(&cached_result_type, &unsigned_flag, agg, nagg);
+  cached_field_type= aggregate_type(make_array(agg, nagg));
+  cached_result_type= Field::result_merge_type(cached_field_type);
   if (cached_result_type == STRING_RESULT)
   {
     /* Note: String result type is the same for CASE and COALESCE. */
@@ -4377,12 +4297,19 @@ bool Item_func_coalesce::time_op(MYSQL_TIME *ltime)
 
 bool Item_func_coalesce::resolve_type(THD *)
 {
-  cached_field_type= agg_field_type(args, arg_count);
-  agg_result_type(&hybrid_type, &unsigned_flag, args, arg_count);
+  cached_field_type= aggregate_type(make_array(args, arg_count));
+  hybrid_type= Field::result_merge_type(cached_field_type);
   if (hybrid_type == STRING_RESULT)
-    return count_string_result_length(cached_field_type, args, arg_count);
+  {
+    if (count_string_result_length(cached_field_type, args, arg_count))
+      return true;
+  }
   else
+  {
+    collation.set_numeric(); // Number
     fix_num_type_shared_for_case(this, hybrid_type, args, arg_count);
+  }
+
   return false;
 }
 

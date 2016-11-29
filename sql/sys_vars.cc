@@ -35,7 +35,7 @@
 #include "my_config.h"
 
 #include <assert.h>
-#include <limits.h>
+#include <limits>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -2802,14 +2802,7 @@ limit_parser_max_mem_size(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-// Similar to what we do for the intptr typedef.
-#if SIZEOF_CHARP == SIZEOF_INT
-static unsigned int max_mem_sz = ~0;
-#elif SIZEOF_CHARP == SIZEOF_LONG
-static unsigned long max_mem_sz = ~0;
-#elif SIZEOF_CHARP == SIZEOF_LONG_LONG
-static unsigned long long max_mem_sz = ~0;
-#endif
+constexpr size_t max_mem_sz= std::numeric_limits<size_t>::max();
 
 /*
   Need at least 400Kb to get through bootstrap.

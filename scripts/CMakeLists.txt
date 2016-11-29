@@ -184,64 +184,41 @@ IF(MALLOC_LIB)
   INSTALL(FILES ${MALLOC_LIB} DESTINATION ${INSTALL_LIBDIR} OPTIONAL)
 ENDIF()
 
-IF(CMAKE_GENERATOR MATCHES "Makefiles")
-  # Strip maintainer mode options if necessary
-  STRING(REPLACE "${MY_C_WARNING_FLAGS}" "" CFLAGS
-    "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  STRING(REPLACE "${MY_CXX_WARNING_FLAGS}" "" CXXFLAGS
-    "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-  FOREACH(ARCH ${CMAKE_OSX_ARCHITECTURES})
-    SET(CFLAGS   "${CFLAGS} -arch ${ARCH}")
-    SET(CXXFLAGS "${CXXFLAGS} -arch ${ARCH}")
+SET(COMPILE_DEFINITIONS_WHITELIST
+)
+
+# In practice: only in use on Solaris
+SET(CMAKE_C_FLAGS_WHITELIST
+  "-m32"
+  "-m64"
+)
+
+SET(CFLAGS "")
+SET(CXXFLAGS "")
+
+GET_PROPERTY(cwd_definitions DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+FOREACH(white_flag ${COMPILE_DEFINITIONS_WHITELIST})
+  FOREACH(flag ${cwd_definitions})
+    IF (${flag} MATCHES ${white_flag})
+      SET(CFLAGS "-D${white_flag} ${CFLAGS}")
+      SET(CXXFLAGS "-D${white_flag} ${CXXFLAGS}")
+    ENDIF()
   ENDFOREACH()
-ELSE()
-  # Strip maintainer mode options if necessary
-  STRING(REPLACE "${MY_C_WARNING_FLAGS}" "" CFLAGS
-    "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  STRING(REPLACE "${MY_CXX_WARNING_FLAGS}" "" CXXFLAGS
-    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+ENDFOREACH()
+
+IF(CMAKE_BUILD_TYPE AND CMAKE_GENERATOR MATCHES "Makefiles")
+  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
+  SET(CMAKEBT_FLAGS "${CMAKE_C_FLAGS_${CMAKEBT}} ${CMAKE_C_FLAGS}")
+  SEPARATE_ARGUMENTS(CMAKEBT_FLAGS)
 ENDIF()
 
-# Add trailing whitespace, before substitution below.
-SET(CFLAGS "${CFLAGS} ")
-SET(CXXFLAGS "${CXXFLAGS} ")
-
-SET(REPLACE_OPTIONS
-  "-DDBUG_OFF "
-  "-DEXTRA_DEBUG "
-  "-DHAVE_VALGRIND "
-  "-DSAFE_MUTEX "
-  "-fPIC "
-  "-fno-inline "
-  "-fno-strict-aliasing "
-  "-fstack-protector-strong "
-  "-g "
-  "-grecord-gcc-switches "
-  "-ip "
-  "-mp "
-  "-pipe "
-  "-restrict "
-  "-unroll2 "
-)
-
-# Note sequence of -W options here, most specific first.
-SET(REPLACE_REGEX_OPTIONS
-  "-W0,-stdhdrs_not_idempotent"
-  "-Wp,[-=_A-Za-z0-9]*"
-  "-Werror=[-A-Za-z]*"
-  "-W[-A-Za-z]*"
-  "--param=[-=a-z0-9]*"
-  "-O[0-9]"
-  "-march=[-A-Za-z0-9]*"
-  "-mcpu=[-A-Za-z0-9]*"
-  "-mtune=[-A-Za-z0-9]*"
-  "-specs=[-A-Za-z0-9/]*"
-  "-xO[0-9]"
-)
-
-FOREACH(option ${REPLACE_REGEX_OPTIONS})
-  STRING(REGEX REPLACE "${option}" "" CFLAGS   "${CFLAGS}")
-  STRING(REGEX REPLACE "${option}" "" CXXFLAGS "${CXXFLAGS}")
+FOREACH(white_flag ${CMAKE_C_FLAGS_WHITELIST})
+  FOREACH(flag ${CMAKEBT_FLAGS})
+    IF (${flag} STREQUAL ${white_flag})
+      SET(CFLAGS "${white_flag} ${CFLAGS}")
+      SET(CXXFLAGS "${white_flag} ${CXXFLAGS}")
+    ENDIF()
+  ENDFOREACH()
 ENDFOREACH()
 
 # Do not remove -std=c++11 for Solaris Studio as it is required to get
@@ -249,20 +226,6 @@ ENDFOREACH()
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   STRING(REGEX REPLACE "-std=c..[0-9]+" "" CXXFLAGS "${CXXFLAGS}")
 ENDIF()
-
-FOREACH(option ${REPLACE_OPTIONS})
-  STRING(REPLACE "${option}" " " CFLAGS   "${CFLAGS}")
-  STRING(REPLACE "${option}" " " CXXFLAGS "${CXXFLAGS}")
-ENDFOREACH()
-STRING(REPLACE "-fexceptions " " " CFLAGS "${CFLAGS}")
-
-# Finally: strip away whitespace.
-STRING(REGEX REPLACE "[ ]+" " " CFLAGS   "${CFLAGS}")
-STRING(REGEX REPLACE "[ ]+" " " CXXFLAGS "${CXXFLAGS}")
-STRING(REGEX REPLACE "^[ ]+" "" CFLAGS   "${CFLAGS}")
-STRING(REGEX REPLACE "^[ ]+" "" CXXFLAGS "${CXXFLAGS}")
-STRING(REGEX REPLACE "[ ]+$" "" CFLAGS   "${CFLAGS}")
-STRING(REGEX REPLACE "[ ]+$" "" CXXFLAGS "${CXXFLAGS}")
 
 IF(UNIX)
   # SHELL_PATH, FIND_PROC, CHECK_PID are used by mysqld_safe
@@ -404,6 +367,15 @@ ENDIF()
 
 SET(CONFIG_CLIENT_LIBS "${CLIENT_LIBS}")
 SET(CONFIG_EMBEDD_LIBS "${EMBEDD_LIBS}")
+SET(CONFIG_LIBS_PRIVATE "${CLIENT_LIBS}")
+SET(CONFIG_REQUIRES_PRIVATE "")
+# ssl.cmake should have used pkg-config rather than cmake to locate ssl
+IF (WITH_SSL STREQUAL "system")
+  SET(CONFIG_REQUIRES_PRIVATE "openssl")
+  STRING(REPLACE "-lssl" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+  STRING(REPLACE "-lcrypto" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+  STRING(REGEX REPLACE "[ ]+" " " CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+ENDIF()
 
 SET(LIBMYSQLD_LIBS_USAGE "
         --libmysqld-libs [$embedded_libs]")

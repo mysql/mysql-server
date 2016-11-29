@@ -180,10 +180,11 @@ struct PFS_event_name_row
   uint m_name_length;
 
   /** Build a row from a memory buffer. */
-  inline void make_row(PFS_instr_class *pfs)
+  inline int make_row(PFS_instr_class *pfs)
   {
     m_name= pfs->m_name;
     m_name_length= pfs->m_name_length;
+    return 0;
   }
 
   /** Set a table field from the row. */
@@ -679,7 +680,7 @@ public:
     m_length= 0;
   }
 
-  void make_row(const char* str, size_t length);
+  int make_row(const char* str, size_t length);
 
   char m_str[NAME_CHAR_LEN+1];
   uint m_length;
@@ -689,16 +690,16 @@ struct PFS_variable_value_row
 {
 public:
   /** Set the row from a status variable. */
-  void make_row(const Status_variable *var);
+  int make_row(const Status_variable *var);
 
   /** Set the row from a system variable. */
-  void make_row(const System_variable *var);
+  int make_row(const System_variable *var);
 
   /** Set a table field from the row. */
   void set_field(Field *f);
 
 private:
-  void make_row(const CHARSET_INFO *cs, const char* str, size_t length);
+  int make_row(const CHARSET_INFO *cs, const char* str, size_t length);
 
   char m_str[1024];
   uint m_length;
@@ -722,7 +723,7 @@ public:
     clear();
   }
 
-  void make_row(const char* val, size_t length);
+  int make_row(const char* val, size_t length);
 
   const char *get_value() const
   { return m_value; }

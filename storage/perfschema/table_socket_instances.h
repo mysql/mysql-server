@@ -177,7 +177,7 @@ public:
   {}
 
 protected:
-  void make_row(PFS_socket *pfs);
+  int make_row(PFS_socket *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -186,8 +186,6 @@ protected:
 
   /** Current row. */
   row_socket_instances m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

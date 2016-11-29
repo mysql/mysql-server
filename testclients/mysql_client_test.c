@@ -14219,7 +14219,6 @@ static void test_bug11037()
 }
 
 /* Bug#10760: cursors, crash in a fetch after rollback. */
-#if 0 
 static void test_bug10760()
 {
   MYSQL_STMT *stmt;
@@ -14318,7 +14317,6 @@ static void test_bug10760()
   myquery(rc);
   mysql_autocommit(mysql, TRUE);                /* restore default */
 }
-#endif
 
 static void test_bug12001()
 {
@@ -15383,9 +15381,8 @@ static void test_bug17667()
           DIE("Read error");
         }
 
-      } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
-                         statement_cursor->buffer,
-                         statement_cursor->length) == NULL);
+      } while (strstr(line_buffer,
+                      statement_cursor->buffer) == NULL);
       hits++;
     } while (hits < expected_hits);
 
@@ -20965,9 +20962,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug9735", test_bug9735 },
   { "test_bug11183", test_bug11183 },
   { "test_bug11037", test_bug11037 },
-#if 0 
   { "test_bug10760", test_bug10760 },
-#endif
   { "test_bug12001", test_bug12001 },
   { "test_bug11718", test_bug11718 },
   { "test_bug12925", test_bug12925 },

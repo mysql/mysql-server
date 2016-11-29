@@ -280,7 +280,7 @@ public:
   /* the being assigned group index in GAQ */
   ulong assigned_group_index;
 
-  Slave_committed_queue (const char *log, ulong max, uint n);
+  Slave_committed_queue(ulong max, uint n);
 
   ~Slave_committed_queue ()
   {

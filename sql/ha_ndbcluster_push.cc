@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1018,6 +1018,14 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
                     key_item_field->field->table->alias, 
                     key_item_field->field->field_name);
     m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD; // Permanently disable as child
+    DBUG_RETURN(false);
+  }
+
+  if (key_item_field->field->is_virtual_gcol())
+  {
+    EXPLAIN_NO_PUSH("Can't push condition on virtual generated column '%s.%s'",
+                    key_item_field->field->table->alias,
+                    key_item_field->field->field_name);
     DBUG_RETURN(false);
   }
 

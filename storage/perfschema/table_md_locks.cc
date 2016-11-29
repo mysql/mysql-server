@@ -173,7 +173,7 @@ table_metadata_locks::get_row_count(void)
 
 table_metadata_locks::table_metadata_locks()
   : PFS_engine_table(&m_share, &m_pos),
-  m_row_exists(false), m_pos(0), m_next_pos(0)
+  m_pos(0), m_next_pos(0)
 {}
 
 void table_metadata_locks::reset_position(void)
@@ -191,9 +191,8 @@ int table_metadata_locks::rnd_next(void)
   pfs= it.scan_next(& m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -208,8 +207,7 @@ int table_metadata_locks::rnd_pos(const void *pos)
   pfs= global_mdl_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -249,14 +247,16 @@ int table_metadata_locks::index_next(void)
 
   do
   {
-    pfs= it.scan_next(& m_pos.m_index);
+    pfs= it.scan_next(&m_pos.m_index);
     if (pfs != NULL)
     {
       if (m_opened_index->match(pfs))
       {
-        make_row(pfs);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(pfs))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   } while (pfs != NULL);
@@ -264,13 +264,11 @@ int table_metadata_locks::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_metadata_locks::make_row(PFS_metadata_lock *pfs)
+int table_metadata_locks::make_row(PFS_metadata_lock *pfs)
 {
   pfs_optimistic_state lock;
   const char *base;
   const char *safe_source_file;
-
-  m_row_exists= false;
 
   /* Protect this reader against a metadata lock destroy */
   pfs->m_lock.begin_optimistic_lock(&lock);
@@ -298,11 +296,13 @@ void table_metadata_locks::make_row(PFS_metadata_lock *pfs)
   m_row.m_owner_thread_id= static_cast<ulong>(pfs->m_owner_thread_id);
   m_row.m_owner_event_id= static_cast<ulong>(pfs->m_owner_event_id);
 
-  if (m_row.m_object.make_row(& pfs->m_mdl_key))
-    return;
+  if (m_row.m_object.make_row(&pfs->m_mdl_key))
+    return HA_ERR_RECORD_DELETED;
+  
+  if (!pfs->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
 
-  if (pfs->m_lock.end_optimistic_lock(&lock))
-    m_row_exists= true;
+  return 0;
 }
 
 int table_metadata_locks::read_row_values(TABLE *table,
@@ -311,9 +311,6 @@ int table_metadata_locks::read_row_values(TABLE *table,
                                           bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

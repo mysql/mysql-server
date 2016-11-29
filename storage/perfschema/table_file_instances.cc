@@ -102,7 +102,7 @@ table_file_instances::get_row_count(void)
 
 table_file_instances::table_file_instances()
   : PFS_engine_table(&m_share, &m_pos),
-  m_row_exists(false), m_pos(0), m_next_pos(0)
+  m_pos(0), m_next_pos(0)
 {}
 
 void table_file_instances::reset_position(void)
@@ -120,9 +120,8 @@ int table_file_instances::rnd_next(void)
   pfs= it.scan_next(& m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -137,8 +136,7 @@ int table_file_instances::rnd_pos(const void *pos)
   pfs= global_file_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -180,9 +178,11 @@ int table_file_instances::index_next(void)
     {
       if (m_opened_index->match(pfs))
       {
-        make_row(pfs);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(pfs))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   } while (pfs != NULL);
@@ -190,28 +190,28 @@ int table_file_instances::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_file_instances::make_row(PFS_file *pfs)
+int table_file_instances::make_row(PFS_file *pfs)
 {
   pfs_optimistic_state lock;
   PFS_file_class *safe_class;
-
-  m_row_exists= false;
-
+  
   /* Protect this reader against a file delete */
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   safe_class= sanitize_file_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_filename= pfs->m_filename;
   m_row.m_filename_length= pfs->m_filename_length;
   m_row.m_event_name= safe_class->m_name;
   m_row.m_event_name_length= safe_class->m_name_length;
   m_row.m_open_count= pfs->m_file_stat.m_open_count;
 
-  if (pfs->m_lock.end_optimistic_lock(&lock))
-    m_row_exists= true;
+  if (!pfs->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+
+  return 0;
 }
 
 int table_file_instances::read_row_values(TABLE *table,
@@ -220,9 +220,6 @@ int table_file_instances::read_row_values(TABLE *table,
                                           bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);

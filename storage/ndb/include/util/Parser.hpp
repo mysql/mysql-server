@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -101,7 +101,7 @@ template<class T>
 struct ParserRow {
 public:
   enum Type { Cmd, Arg, CmdAlias, ArgAlias, End }; // Put new types before end
-  enum ArgType { String, Int, Properties };
+  enum ArgType { String, Int, Properties, LongString };
   enum ArgRequired { Mandatory, Optional };
   enum ArgMinMax { CheckMinMax, IgnoreMinMax };
   

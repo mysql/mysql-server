@@ -795,10 +795,8 @@ protected:
 
     @param buf              Contains the serialized event
     @param binlog_version   The binary log format version
-    @param server_version   The MySQL server's version
   */
-  Binary_log_event(const char **buf, uint16_t binlog_version,
-                   const char *server_version);
+  Binary_log_event(const char **buf, uint16_t binlog_version);
 public:
 #ifndef HAVE_MYSYS
   /*

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 package testsuite.clusterj;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
+import com.mysql.clusterj.ClusterJDatastoreException.Classification;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.ColumnMetadata;
 import com.mysql.clusterj.DynamicObject;
@@ -100,7 +101,32 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
         testDropHashIndex();
         testDropBtreeColumn();
         testDropHashColumn();
+        testClassification();
         failOnError();
+    }
+
+    protected void testClassification() {
+        errorIfNotEqual("wrong classification", 0, Classification.lookup(0).value);
+        errorIfNotEqual("wrong classification", 1, Classification.lookup(1).value);
+        errorIfNotEqual("wrong classification", 2, Classification.lookup(2).value);
+        errorIfNotEqual("wrong classification", 3, Classification.lookup(3).value);
+        errorIfNotEqual("wrong classification", 4, Classification.lookup(4).value);
+        errorIfNotEqual("wrong classification", 5, Classification.lookup(5).value);
+        errorIfNotEqual("wrong classification", 6, Classification.lookup(6).value);
+        errorIfNotEqual("wrong classification", 7, Classification.lookup(7).value);
+        errorIfNotEqual("wrong classification", 8, Classification.lookup(8).value);
+        errorIfNotEqual("wrong classification", 9, Classification.lookup(9).value);
+        errorIfNotEqual("wrong classification", 10, Classification.lookup(10).value);
+        errorIfNotEqual("wrong classification", 11, Classification.lookup(11).value);
+        errorIfNotEqual("wrong classification", 12, Classification.lookup(12).value);
+        errorIfNotEqual("wrong classification", 13, Classification.lookup(13).value);
+        errorIfNotEqual("wrong classification", 14, Classification.lookup(14).value);
+        errorIfNotEqual("wrong classification", 15, Classification.lookup(15).value);
+        errorIfNotEqual("wrong classification", 17, Classification.lookup(17).value);
+        errorIfNotEqual("wrong classification", 18, Classification.lookup(18).value);
+        if (Classification.lookup(16) != null) error("wrong classification for Classification.lookup(16)");
+        if (Classification.lookup(19) != null) error("wrong classification for Classification.lookup(19)");
+        if (Classification.lookup(100) != null) error("wrong classification for Classification.lookup(100)");
     }
 
     protected void testTruncate() {
@@ -263,6 +289,11 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
             }
             return true;
         } catch (ClusterJDatastoreException dex) {
+            //System.out.println("lookup classification: " + Classification.lookup((dex.getClassification())));
+            //System.out.println("getCode(): " + dex.getCode());
+            //System.out.println("getMysqlCode(): " + dex.getMysqlCode());
+            //System.out.println("getClassification(): " + dex.getClassification());
+            //System.out.println("getStatus(): " + dex.getStatus());
             String actualMessage = dex.getMessage();
             if (errorMessageFragment == null) {
                 error(where + " unexpected failure for find class: " + domainClass.getName() + " key: " + key + " "
@@ -270,6 +301,9 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
             } else {
                 errorIfNotEqual(where + " wrong error message, expected contains " + errorMessageFragment
                         + " actual: " + actualMessage, actualMessage.contains(errorMessageFragment), true);
+              if (dex.getMysqlCode() == 159) {
+                errorIfNotEqual(where + " wrong classification for mySqlCode 159", 4, dex.getClassification());
+              }
             }
             return false;
         }

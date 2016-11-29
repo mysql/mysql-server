@@ -29,17 +29,21 @@
 
 #ifndef MY_GLOBAL_INCLUDED                /* If not standard header */
 #ifndef MYSQL_ABI_CHECK
-#include <stddef.h>                       /* size_t */
+#include <stddef.h>
+#include <sys/types.h>
 #endif
 
+// Small extra definitions to avoid pulling in my_inttypes.h in client code.
+// IWYU pragma: no_include "my_inttypes.h"
 typedef char my_bool;
-
 #if defined (_WIN32)
 typedef unsigned __int64 my_ulonglong;
 #else
 typedef unsigned long long my_ulonglong;
 #endif /* _WIN32 */
 
+// Small extra definition to avoid pulling in my_compiler.h in client code.
+// IWYU pragma: no_include "my_compiler.h"
 #if !defined(_WIN32)
 #define STDCALL
 #else
@@ -47,6 +51,7 @@ typedef unsigned long long my_ulonglong;
 #endif
 
 #ifndef my_socket_defined
+#define my_socket_defined
 #ifdef _WIN32
 #include <windows.h>
 #ifdef WIN32_LEAN_AND_MEAN
@@ -59,18 +64,22 @@ typedef int my_socket;
 #endif /* my_socket_defined */
 #endif /* MY_GLOBAL_INCLUDED */
 
-#include "mem_root_fwd.h"
-#include "mysql_version.h"
-#include "mysql_com.h"
-#include "mysql_time.h"
 #include "binary_log_types.h"
-
-#include "my_list.h" /* for LISTs used in 'MYSQL' and 'MYSQL_STMT' */
+#include "mem_root_fwd.h"
+#include "my_list.h"
+#include "mysql_com.h"
 
 /* Include declarations of plug-in API */
-#include "mysql/client_plugin.h"
+#include "mysql/client_plugin.h"  // IWYU pragma: keep
 
+/*
+  The client should be able to know which version it is compiled against,
+  even if mysql.h doesn't use this information directly.
+*/
+#include "mysql_version.h"  // IWYU pragma: keep
 
+// MYSQL_TIME is part of our public API.
+#include "mysql_time.h"  // IWYU pragma: keep
 
 #ifdef	__cplusplus
 extern "C" {

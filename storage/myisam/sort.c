@@ -24,7 +24,7 @@
 #else
 #include <stddef.h>
 #endif
-#include <queues.h>
+#include "queues.h"
 
 /* static variables */
 
@@ -934,7 +934,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   strpos=(uchar*) sort_keys;
   sort_length=info->key_length;
 
-  if (init_queue(&queue,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
+  if (init_queue(&queue,key_memory_QUEUE,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
                  (int (*)(void*, uchar *,uchar*)) info->key_cmp,
                  (void*) info))
     DBUG_RETURN(1); /* purecov: inspected */

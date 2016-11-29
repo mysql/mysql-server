@@ -180,7 +180,7 @@ class Certifier_interface : public Certifier_stats
 public:
   virtual ~Certifier_interface() {}
   virtual void handle_view_change()= 0;
-  virtual int handle_certifier_data(const uchar *data, uint len,
+  virtual int handle_certifier_data(const uchar *data, ulong len,
                                     const Gcs_member_identifier& gcs_member_id)= 0;
 
   virtual void get_certification_info(std::map<std::string, std::string> *cert_info)= 0;
@@ -234,7 +234,7 @@ public:
       @retval 0      OK
       @retval !=0    Error on queue
   */
-  virtual int handle_certifier_data(const uchar *data, uint len,
+  virtual int handle_certifier_data(const uchar *data, ulong len,
                                     const Gcs_member_identifier& gcs_member_id);
 
   /**
@@ -329,7 +329,7 @@ public:
   /**
     Get method to retrieve the size of the members.
   */
-  uint get_members_size();
+  size_t get_members_size();
 
   /**
     Generate group GNO for a view change log event.
@@ -390,7 +390,7 @@ public:
     @retval 0    if there is no GTID / the string is empty
     @retval !=0  the size of the string
   */
-  int get_local_certified_gtid(std::string& local_gtid_certified_string);
+  size_t get_local_certified_gtid(std::string& local_gtid_certified_string);
 
   /**
     Enables conflict detection.
@@ -454,7 +454,7 @@ private:
 
     @retval Gtid_set::Interval which is the interval os GTIDs attributed
   */
-  Gtid_set::Interval reserve_gtid_block(long block_size);
+  Gtid_set::Interval reserve_gtid_block(longlong block_size);
 
   /**
     This function updates parallel applier indexes.

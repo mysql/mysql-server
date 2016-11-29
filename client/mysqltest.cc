@@ -59,6 +59,7 @@
 
 #include "prealloced_array.h"
 #include "template_utils.h"
+#include "typelib.h"
 
 using std::min;
 using std::max;
@@ -6124,7 +6125,8 @@ static void safe_connect(MYSQL* mysql, const char *name, const char *host,
     */
 
     if ((mysql_errno(mysql) == CR_CONN_HOST_ERROR ||
-         mysql_errno(mysql) == CR_CONNECTION_ERROR) &&
+         mysql_errno(mysql) == CR_CONNECTION_ERROR ||
+         mysql_errno(mysql) == CR_NAMEDPIPEOPEN_ERROR) &&
         failed_attempts < opt_max_connect_retries)
     {
       verbose_msg("Connect attempt %d/%d failed: %d: %s", failed_attempts,

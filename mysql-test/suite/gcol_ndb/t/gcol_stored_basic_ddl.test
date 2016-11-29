@@ -1,0 +1,29 @@
+################################################################################
+#
+#  Test GENERATED ALWAYS AS ... STORED
+#  CREATE TABLE
+#  ALTER TABLE add generated column
+#  ALTER TABLE drop generated column
+################################################################################
+
+--source include/have_ndb.inc
+
+create table t (i int not null primary key) engine='ndbcluster';
+
+insert into t values(1), (2), (3);
+
+alter table t add j int generated always as (10+i) stored;
+
+select * from t order by i;
+
+insert into t(i) values (4), (5);
+
+select * from t order by i;
+
+select * from t where j = 14;
+
+alter table t drop j;
+
+select * from t order by i;
+
+drop table t;

@@ -105,7 +105,7 @@ ha_rows table_global_status::get_row_count(void)
 
 table_global_status::table_global_status()
   : PFS_engine_table(&m_share, &m_pos),
-    m_status_cache(false), m_row_exists(false), m_pos(0), m_next_pos(0),
+    m_status_cache(false), m_pos(0), m_next_pos(0),
     m_context(NULL)
 {}
 
@@ -142,9 +142,8 @@ int table_global_status::rnd_next(void)
     const Status_variable *status_var= m_status_cache.get(m_pos.m_index);
     if (status_var != NULL)
     {
-      make_row(status_var);
       m_next_pos.set_after(&m_pos);
-      return 0;
+      return make_row(status_var);
     }
   }
   return HA_ERR_END_OF_FILE;
@@ -162,8 +161,7 @@ int table_global_status::rnd_pos(const void *pos)
   const Status_variable *status_var= m_status_cache.get(m_pos.m_index);
   if (status_var != NULL)
   {
-    make_row(status_var);
-    return 0;
+    return make_row(status_var);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -204,24 +202,27 @@ int table_global_status::index_next(void)
     {
       if (m_opened_index->match(status_var))
       {
-        make_row(status_var);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(status_var))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   }
   return HA_ERR_END_OF_FILE;
 }
 
-void table_global_status
+int table_global_status
 ::make_row(const Status_variable *status_var)
 {
-  m_row_exists= false;
   if (status_var->is_null())
-    return;
+    return HA_ERR_RECORD_DELETED;
+
   m_row.m_variable_name.make_row(status_var->m_name, status_var->m_name_length);
   m_row.m_variable_value.make_row(status_var);
-  m_row_exists= true;
+
+  return 0;
 }
 
 int table_global_status
@@ -231,9 +232,6 @@ int table_global_status
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

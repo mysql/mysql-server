@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
 #include "dynamic_loader.h"
 #include "my_psi_config.h"
+#include "my_sys.h"
 #include "mysql_component.h"
 #include "registry.h"
 #include "server_component.h"

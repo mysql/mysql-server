@@ -16,6 +16,7 @@
 ### DEFINITIONS ###
 
 INCLUDE(configure.cmake)
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_gcs.h.cmake
                ${CMAKE_CURRENT_BINARY_DIR}/include/mysql/gcs/mysql_gcs.h)

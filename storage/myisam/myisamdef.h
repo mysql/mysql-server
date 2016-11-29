@@ -20,6 +20,7 @@
   @file storage/myisam/myisamdef.h
 */
 
+#include "my_icp.h"
 #include "my_pointer_arithmetic.h"
 #include "my_thread.h"
 #include "my_thread_local.h"
@@ -628,7 +629,7 @@ extern int _mi_write_part_record(MI_INFO *info,my_off_t filepos,ulong length,
 				 ulong *reclength,int *flag);
 extern void _mi_print_key(FILE *stream,HA_KEYSEG *keyseg,const uchar *key,
 			  uint length);
-extern my_bool _mi_read_pack_info(MI_INFO *info,pbool fix_keys);
+extern my_bool _mi_read_pack_info(MI_INFO *info,my_bool fix_keys);
 extern int _mi_read_pack_record(MI_INFO *info,my_off_t filepos,uchar *buf);
 extern int _mi_read_rnd_pack_record(MI_INFO*, uchar *,my_off_t, my_bool);
 extern int _mi_pack_rec_unpack(MI_INFO *info, MI_BIT_BUFF *bit_buff,
@@ -842,6 +843,7 @@ extern PSI_memory_key mi_key_memory_MYISAM_SHARE_decode_tables;
 extern PSI_memory_key mi_key_memory_preload_buffer;
 extern PSI_memory_key mi_key_memory_stPageList_pages;
 extern PSI_memory_key mi_key_memory_keycache_thread_var;
+extern PSI_memory_key key_memory_QUEUE;
 
 C_MODE_END
 

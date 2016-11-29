@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -110,6 +110,7 @@ private:
   static Uint32 getViaSPJFlag(const Uint32 & requestInfo);
   static Uint32 getPassAllConfsFlag(const Uint32 & requestInfo);
   static Uint32 get4WordConf(const Uint32&);
+  static Uint8 getReadCommittedBaseFlag(const UintR & requestInfo);
 
   /**
    * Set:ers for requestInfo
@@ -129,6 +130,7 @@ private:
   static void setViaSPJFlag(Uint32 & requestInfo, Uint32 val);
   static void setPassAllConfsFlag(Uint32 & requestInfo, Uint32 val);
   static void set4WordConf(Uint32 & requestInfo, Uint32 val);
+  static void setReadCommittedBaseFlag(Uint32 & requestInfo, Uint32 val);
 };
 
 /**
@@ -159,10 +161,11 @@ private:
  j = Via SPJ flag          - 1  Bit 27
  a = Pass all confs flag   - 1  Bit 28
  f = 4 word conf           - 1  Bit 29
+ R = Read Committed base   - 1  Bit 30
 
            1111111111222222222233
  01234567890123456789012345678901
- pppppppplnhcktzxbbbbbbbbbbdjaf
+ pppppppplnhcktzxbbbbbbbbbbdjafR
 */
 
 #define PARALLEL_SHIFT     (0)
@@ -201,6 +204,13 @@ private:
 #define SCAN_SPJ_SHIFT (27)
 #define SCAN_PASS_CONF_SHIFT (28)
 #define SCAN_4WORD_CONF_SHIFT (29)
+#define SCAN_READ_COMMITTED_BASE_SHIFT (30)
+
+inline
+Uint8
+ScanTabReq::getReadCommittedBaseFlag(const UintR & requestInfo){
+  return (Uint8)((requestInfo >> SCAN_READ_COMMITTED_BASE_SHIFT) & 1);
+}
 
 inline
 Uint8
@@ -254,6 +264,14 @@ inline
 void 
 ScanTabReq::clearRequestInfo(UintR & requestInfo){
   requestInfo = 0;
+}
+
+inline
+void 
+ScanTabReq::setReadCommittedBaseFlag(UintR & requestInfo, Uint32 type){
+  ASSERT_MAX(type, 1, "ScanTabReq::setReadCommittedBase");
+  requestInfo= (requestInfo & ~(1 << SCAN_READ_COMMITTED_BASE_SHIFT)) |
+               ((type & 1) << SCAN_READ_COMMITTED_BASE_SHIFT);
 }
 
 inline

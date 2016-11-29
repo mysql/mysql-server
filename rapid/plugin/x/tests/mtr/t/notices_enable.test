@@ -717,6 +717,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvuntil Mysqlx.Error
 
+-->expecterror 1193
 -->sql
 ## setting back to original value
 set global innodb_large_prefix=1;

@@ -615,7 +615,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
                                               (ftb->queue.max_elements + 1) *
                                               sizeof(void *))))
     goto err;
-  reinit_queue(&ftb->queue, ftb->queue.max_elements, 0, 0,
+  reinit_queue(&ftb->queue, key_memory_QUEUE, ftb->queue.max_elements, 0, 0,
                          (int (*)(void*, uchar*, uchar*))FTB_WORD_cmp, 0);
   for (ftbw= ftb->last_word; ftbw; ftbw= ftbw->prev)
     queue_insert(&ftb->queue, (uchar *)ftbw);

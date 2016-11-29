@@ -2689,10 +2689,10 @@ sub environment_setup {
   #
   $ENV{'LC_ALL'}=             "C";
   $ENV{'LC_CTYPE'}=           "C";
-
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= using_extern();
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
+  $ENV{'ABS_MYSQL_TEST_DIR'}= getcwd();
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
@@ -3330,7 +3330,7 @@ sub check_ndbcluster_support ($) {
   mtr_report(" - enabling ndbcluster");
   $ndbcluster_enabled= 1;
   # Add MySQL Cluster test suites
-  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache,ndbcluster,ndb_ddl";
+  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache,ndbcluster,ndb_ddl,gcol_ndb";
   return;
 }
 
@@ -4486,7 +4486,7 @@ sub run_on_all($$)
     }
     elsif ($proc->{timeout}) {
       $tinfo->{comment}.= "Timeout for '$run' expired after "
-	.check_timeout($tinfo)." seconds";
+	.check_timeout($tinfo)." seconds\n";
     }
     else {
       # Unknown process returned, most likley a crash, abort everything
@@ -5007,13 +5007,40 @@ sub run_testcase ($) {
       return 1;
     }
 
-    # Try to dump core for mysqltest and all servers
-    foreach my $proc ($test, started(all_servers()))
+    if (!IS_WINDOWS)
     {
-      mtr_print("Trying to dump core for $proc");
-      if ($proc->dump_core())
+      # Try to dump core for mysqltest and all servers
+      foreach my $proc ($test, started(all_servers()))
       {
-	$proc->wait_one(20);
+        mtr_print("Trying to dump core for $proc");
+        if ($proc->dump_core())
+        {
+	  $proc->wait_one(20);
+        }
+      }
+    }
+    else
+    {
+      if (-f $path_current_testlog and $proc->{timeout})
+      {
+        mtr_tofile($path_current_testlog, "Test case timeout, safe_process ".
+                                          "and child process are aborted.");
+      }
+
+      # kill mysqltest process
+      $test->kill();
+
+      # Try to dump core for all servers
+      foreach my $mysqld (mysqlds())
+      {
+        mtr_print("Trying to dump core for $mysqld->{'proc'}");
+
+        # There is high a risk of MTR hanging by calling external programs
+        # like 'cdb' on windows with multi-threaded runs(i.e $parallel > 1).
+        # Calling cdb only if parallel value is 1.
+        my $call_cdb= 1 if ($opt_parallel == 1);
+        $mysqld->{'proc'}->dump_core_windows($mysqld, $call_cdb);
+        $mysqld->{'proc'}->wait_one(20);
       }
     }
 
@@ -5781,12 +5808,7 @@ sub report_failure_and_restart ($) {
 	if ($tinfo->{logfile} !~ /\n/)
 	{
 	  # Show how far it got before suddenly failing
-          # Avoid MTR printing the following error message on
-          # windows for test timeout failures.
-          if (!$tinfo->{'timeout'} and !IS_WINDOWS)
-          {
-            $tinfo->{comment}.= "mysqltest failed but provided no output\n";
-          }
+          $tinfo->{comment}.= "mysqltest failed but provided no output\n";
 	  my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
 	  if (-e $log_file_name) {
 	    $tinfo->{comment}.=

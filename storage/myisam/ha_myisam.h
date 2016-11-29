@@ -24,6 +24,7 @@
 #include <myisam.h>
 
 #include "handler.h"                            /* handler */
+#include "my_icp.h"
 #include "sql_string.h"
 #include "table.h"                              /* TABLE_SHARE */
 #include "typelib.h"

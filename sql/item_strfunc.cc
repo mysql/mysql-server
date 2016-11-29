@@ -83,11 +83,6 @@
 #include "val_int_compare.h"         // Integer_value
 #include "zconf.h"
 
-C_MODE_START
-#include "../mysys/my_static.h"			// For soundex_map
-
-C_MODE_END
-
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 #include "sql_show.h"  // grant_types
 #endif
@@ -2472,6 +2467,11 @@ static int soundex_toupper(int ch)
 }
 
 
+				/* ABCDEFGHIJKLMNOPQRSTUVWXYZ */
+				/* :::::::::::::::::::::::::: */
+static const char *soundex_map=   "01230120022455012623010202";
+
+
 static char get_scode(int wc)
 {
   int ch= soundex_toupper(wc);
@@ -3800,7 +3800,7 @@ bool Item_func_weight_string::itemize(Parse_context *pc, Item **res)
   {
     if (args[0]->itemize(pc, &args[0]))
       return true;
-    args[0]= new (pc->mem_root) Item_char_typecast(args[0], nweights,
+    args[0]= new (pc->mem_root) Item_char_typecast(args[0], num_codepoints,
                                                    &my_charset_bin);
     if (args[0] == NULL)
       return true;
@@ -3813,10 +3813,10 @@ void Item_func_weight_string::print(String *str, enum_query_type query_type)
   str->append(func_name());
   str->append('(');
   args[0]->print(str, query_type);
-  if (nweights && !as_binary)
+  if (num_codepoints && !as_binary)
   {
     str->append(" as char");
-    str->append_parenthesized(nweights);
+    str->append_parenthesized(num_codepoints);
   }
   // The flags is already normalized
   uint flag_lev = flags & MY_STRXFRM_LEVEL_ALL;
@@ -3861,11 +3861,15 @@ bool Item_func_weight_string::resolve_type(THD *)
   /* 
     Use result_length if it was given explicitly in constructor,
     otherwise calculate max_length using argument's max_length
-    and "nweights".
+    and "num_codepoints".
+
+    FIXME: Shouldn't this use strxfrm_multiply instead of, or in
+    addition to, mbmaxlen? Do we take into account things like
+    UCA level separators at all?
   */  
   max_length= field ? field->pack_length() :
               result_length ? result_length :
-              cs->mbmaxlen * max(args[0]->max_length, nweights);
+              cs->mbmaxlen * max(args[0]->max_length, num_codepoints);
   maybe_null= true;
   return false;
 }
@@ -3880,7 +3884,7 @@ bool Item_func_weight_string::eq(const Item *item, bool binary_cmp) const
     return 0;
 
   Item_func_weight_string *wstr= (Item_func_weight_string*)item;
-  if (nweights != wstr->nweights ||
+  if (num_codepoints != wstr->num_codepoints ||
       flags != wstr->flags)
     return 0;
 
@@ -3893,37 +3897,37 @@ bool Item_func_weight_string::eq(const Item *item, bool binary_cmp) const
 /* Return a weight_string according to collation */
 String *Item_func_weight_string::val_str(String *str)
 {
-  String *res;
+  String *input;
   const CHARSET_INFO *cs= args[0]->collation.collation;
-  size_t tmp_length, frm_length;
+  size_t output_buf_size, output_length;
   bool rounded_up= false;
   DBUG_ASSERT(fixed == 1);
 
   if (args[0]->result_type() != STRING_RESULT ||
-      !(res= args[0]->val_str(str)))
+      !(input= args[0]->val_str(str)))
     goto nl;
   
   /*
     Use result_length if it was given in constructor
     explicitly, otherwise calculate result length
-    from argument and "nweights".
+    from argument and "num_codepoints".
   */
-  tmp_length= field ? field->pack_length() :
+  output_buf_size= field ? field->pack_length() :
               result_length ? result_length :
               cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
-                                    max<size_t>(res->length(), nweights));
+                                    max<size_t>(input->length(), num_codepoints));
 
   /*
     my_strnxfrm() with an odd number of bytes is illegal for some collations;
     ask for one more and then truncate ourselves instead.
   */
-  if ((tmp_length % 2) == 1)
+  if ((output_buf_size % 2) == 1)
   {
-    ++tmp_length;
+    ++output_buf_size;
     rounded_up= true;
   }
 
-  if(tmp_length > current_thd->variables.max_allowed_packet)
+  if(output_buf_size > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WARN_ALLOWED_PACKET_OVERFLOWED,
@@ -3933,26 +3937,37 @@ String *Item_func_weight_string::val_str(String *str)
     goto nl;
   }
 
-  if (tmp_value.alloc(tmp_length))
+  if (tmp_value.alloc(output_buf_size))
     goto nl;
 
   if (field)
   {
-    frm_length= field->pack_length();
-    field->make_sort_key((uchar *) tmp_value.ptr(), tmp_length);
+    output_length= field->pack_length();
+    field->make_sort_key((uchar *) tmp_value.ptr(), output_buf_size);
   }
   else
-    frm_length= cs->coll->strnxfrm(cs,
-                                   (uchar *) tmp_value.ptr(), tmp_length,
-                                   nweights ? nweights : tmp_length,
-                                   (const uchar *) res->ptr(), res->length(),
-                                   flags);
-  DBUG_ASSERT(frm_length <= tmp_length);
+  {
+    size_t input_length= input->length();
+    if (num_codepoints)
+    {
+      // Truncate the string to the requested number of code points.
+      input_length= std::min(input_length,
+        cs->cset->charpos(cs, input->ptr(), input->ptr() + input_length,
+                          num_codepoints));
+    }
+    output_length= cs->coll->strnxfrm(
+      cs,
+      (uchar *) tmp_value.ptr(), output_buf_size,
+      num_codepoints ? num_codepoints : output_buf_size,
+      (const uchar *) input->ptr(), input_length,
+      flags);
+  }
+  DBUG_ASSERT(output_length <= output_buf_size);
 
-  if (rounded_up && frm_length == tmp_length)
-    --frm_length;
+  if (rounded_up && output_length == output_buf_size)
+    --output_length;
 
-  tmp_value.length(frm_length);
+  tmp_value.length(output_length);
   null_value= 0;
   return &tmp_value;
 

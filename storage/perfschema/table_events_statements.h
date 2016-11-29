@@ -205,15 +205,13 @@ protected:
   ~table_events_statements_common()
   {}
 
-  void make_row_part_1(PFS_events_statements *statement,
-                       sql_digest_storage *digest);
+  int make_row_part_1(PFS_events_statements *statement,
+                      sql_digest_storage *digest);
 
-  void make_row_part_2(const sql_digest_storage *digest);
+  int make_row_part_2(const sql_digest_storage *digest);
 
   /** Current row. */
   row_events_statements m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   unsigned char m_token_array[MAX_DIGEST_STORAGE_SIZE];
 };
 
@@ -256,7 +254,7 @@ private:
   */
   static TABLE_FIELD_DEF m_field_def;
 
-  void make_row(PFS_thread* pfs_thread, PFS_events_statements *statement);
+  int make_row(PFS_thread* pfs_thread, PFS_events_statements *statement);
 
   /** Current position. */
   pos_events_statements_current m_pos;
@@ -296,7 +294,7 @@ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
 
-  void make_row(PFS_thread* pfs_thread, PFS_events_statements *statement);
+  int make_row(PFS_thread* pfs_thread, PFS_events_statements *statement);
 
   /** Current position. */
   pos_events_statements_history m_pos;
@@ -332,7 +330,7 @@ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
 
-  void make_row(PFS_events_statements *statement);
+  int make_row(PFS_events_statements *statement);
 
   /** Current position. */
   PFS_simple_index m_pos;

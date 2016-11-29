@@ -307,7 +307,10 @@ page_zip_fields_decode(
 
 		dict_mem_table_add_col(table, NULL, NULL, mtype,
 				       val & 1 ? DATA_NOT_NULL : 0, len);
-		dict_index_add_col(index, table, table->get_col(i), 0);
+
+		/* The is_ascending flag does not matter during decompression,
+		because we do not compare for "less than" or "greater than" */
+		dict_index_add_col(index, table, table->get_col(i), 0, true);
 	}
 
 	val = *b++;

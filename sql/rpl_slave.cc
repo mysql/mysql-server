@@ -1154,7 +1154,7 @@ static void recover_relay_log(Master_info *mi)
 
    If there is an error, it returns (1), otherwise returns (0).
  */
-int init_recovery(Master_info* mi, const char** errmsg)
+int init_recovery(Master_info* mi)
 {
   DBUG_ENTER("init_recovery");
 
@@ -5259,6 +5259,16 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                         DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
                       }
                     };);
+      DBUG_EXECUTE_IF("dbug.calculate_sbm_after_fake_rotate_log_event",
+                    {
+                      if (ev->get_type_code() == binary_log::ROTATE_EVENT && ev->is_artificial_event())
+                      {
+                      const char act[]= "now signal signal.reached wait_for signal.done_sbm_calculation";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                         STRING_WITH_LEN(act)));
+                      }
+                    };);
       /*
         Format_description_log_event should not be deleted because it will be
         used to read info about the relay log's format; it will be deleted when
@@ -5622,9 +5632,14 @@ connected:
                     };);
     DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event",
                     {
-                      /* Fake that thread started 3 mints ago */
+                      /* Fake that thread started 3 minutes ago */
                       thd->start_time.tv_sec-=180;
                     };);
+  DBUG_EXECUTE_IF("dbug.calculate_sbm_after_fake_rotate_log_event",
+                  {
+                    /* Fake that thread started 3 minutes ago */
+                    thd->start_time.tv_sec-=180;
+                  };);
   mysql_mutex_lock(&mi->run_lock);
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
   mysql_mutex_unlock(&mi->run_lock);
@@ -6121,7 +6136,7 @@ static void *handle_slave_worker(void *arg)
   thd->rli_slave= w;
   thd->init_query_mem_roots();
   if ((w->deferred_events_collecting= rpl_filter->is_on()))
-    w->deferred_events= new Deferred_log_events(w);
+    w->deferred_events= new Deferred_log_events();
   DBUG_ASSERT(thd->rli_slave->info_thd == thd);
 
   /* Set applier thread InnoDB priority */
@@ -6866,8 +6881,7 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
      Notice, the size matters for mts_checkpoint_routine's progress loop.
   */
 
-  rli->gaq= new Slave_committed_queue(rli->get_group_master_log_name(),
-                                      rli->checkpoint_group, n);
+  rli->gaq= new Slave_committed_queue(rli->checkpoint_group, n);
   if (!rli->gaq->inited)
     return 1;
 
@@ -7164,7 +7178,7 @@ extern "C" void *handle_slave_sql(void *arg)
   }
   thd->init_query_mem_roots();
   if ((rli->deferred_events_collecting= rpl_filter->is_on()))
-    rli->deferred_events= new Deferred_log_events(rli);
+    rli->deferred_events= new Deferred_log_events();
   thd->rli_slave= rli;
   DBUG_ASSERT(thd->rli_slave->info_thd == thd);
 

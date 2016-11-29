@@ -3461,8 +3461,8 @@ bool sp_head::merge_table_list(THD *thd,
                                             temp_table_key_length)) &&
            tab->temp))
       {
-        if (tab->lock_type < table->lock_type)
-          tab->lock_type= table->lock_type; // Use the table with the highest lock type
+        if (tab->lock_type < table->lock_descriptor().type)
+          tab->lock_type= table->lock_descriptor().type; // Use the table with the highest lock type
         tab->query_lock_count++;
         if (tab->query_lock_count > tab->lock_count)
           tab->lock_count++;
@@ -3486,7 +3486,7 @@ bool sp_head::merge_table_list(THD *thd,
           return false;
         tab->table_name_length= table->table_name_length;
         tab->db_length= table->db_length;
-        tab->lock_type= table->lock_type;
+        tab->lock_type= table->lock_descriptor().type;
         tab->lock_count= tab->query_lock_count= 1;
         tab->trg_event_map= table->trg_event_map;
         if (my_hash_insert(&m_sptabs, (uchar *)tab))

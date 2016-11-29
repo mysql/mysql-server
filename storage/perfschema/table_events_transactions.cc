@@ -234,27 +234,24 @@ bool PFS_index_events_transactions::match(PFS_events *pfs)
 
 table_events_transactions_common::table_events_transactions_common
 (const PFS_engine_table_share *share, void *pos)
-  : PFS_engine_table(share, pos),
-  m_row_exists(false)
+  : PFS_engine_table(share, pos)
 {}
 
 /**
   Build a row.
   @param transaction                      the transaction the cursor is reading
 */
-void table_events_transactions_common::make_row(PFS_events_transactions *transaction)
+int table_events_transactions_common::make_row(PFS_events_transactions *transaction)
 {
   const char *base;
   const char *safe_source_file;
   ulonglong timer_end;
 
-  m_row_exists= false;
-
   PFS_transaction_class *unsafe= (PFS_transaction_class*) transaction->m_class;
   PFS_transaction_class *klass= sanitize_transaction_class(unsafe);
   if (unlikely(klass == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_thread_internal_id= transaction->m_thread_internal_id;
   m_row.m_event_id= transaction->m_event_id;
   m_row.m_end_event_id= transaction->m_end_event_id;
@@ -277,8 +274,8 @@ void table_events_transactions_common::make_row(PFS_events_transactions *transac
 
   safe_source_file= transaction->m_source_file;
   if (unlikely(safe_source_file == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   base= base_name(safe_source_file);
   m_row.m_source_length= (uint)my_snprintf(m_row.m_source, sizeof(m_row.m_source),
                                      "%s:%d", base, transaction->m_source_line);
@@ -323,8 +320,8 @@ void table_events_transactions_common::make_row(PFS_events_transactions *transac
   m_row.m_savepoint_count= transaction->m_savepoint_count;
   m_row.m_rollback_to_savepoint_count= transaction->m_rollback_to_savepoint_count;
   m_row.m_release_savepoint_count= transaction->m_release_savepoint_count;
-  m_row_exists= true;
-  return;
+
+  return 0;
 }
 
 /** Size of XID converted to null-terminated hex string prefixed with 0x. */
@@ -340,7 +337,7 @@ static const ulong XID_BUFFER_SIZE= XIDDATASIZE*2 + 2 + 1;
   @param length  number of bytes to process
   @return number of bytes in hex string
 */
-static uint xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid, size_t offset, size_t length)
+static size_t xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid, size_t offset, size_t length)
 {
   DBUG_ASSERT(buf_len >= XID_BUFFER_SIZE);
   DBUG_ASSERT(offset + length <= XIDDATASIZE);
@@ -394,9 +391,6 @@ int table_events_transactions_common::read_row_values(TABLE *table,
                                                       bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 3);
@@ -560,9 +554,8 @@ int table_events_transactions_current::rnd_next(void)
     if (pfs_thread != NULL)
     {
       transaction= &pfs_thread->m_transaction_current;
-      make_row(transaction);
       m_next_pos.set_after(&m_pos);
-      return 0;
+      return make_row(transaction);
     }
   }
 
@@ -582,8 +575,7 @@ int table_events_transactions_current::rnd_pos(const void *pos)
     transaction= &pfs_thread->m_transaction_current;
     if (transaction->m_class != NULL)
     {
-      make_row(transaction);
-      return 0;
+      return make_row(transaction);
     }
   }
 
@@ -620,8 +612,7 @@ int table_events_transactions_current::index_next(void)
         transaction= &pfs_thread->m_transaction_current;
         if (m_opened_index->match(transaction))
         {
-          make_row(transaction);
-          if (m_row_exists)
+          if (!make_row(transaction))
           {
             m_next_pos.set_after(&m_pos);
             return 0;
@@ -690,7 +681,7 @@ int table_events_transactions_history::rnd_next(void)
         continue;
       }
 
-      if ( ! pfs_thread->m_transactions_history_full &&
+      if (!pfs_thread->m_transactions_history_full &&
           (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index))
       {
         /* This thread does not have more (not full) history */
@@ -700,10 +691,9 @@ int table_events_transactions_history::rnd_next(void)
       transaction= &pfs_thread->m_transactions_history[m_pos.m_index_2];
       if (transaction->m_class != NULL)
       {
-        make_row(transaction);
         /* Next iteration, look for the next history in this thread */
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_row(transaction);
       }
     }
   }
@@ -724,15 +714,14 @@ int table_events_transactions_history::rnd_pos(const void *pos)
   pfs_thread= global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != NULL)
   {
-    if ( ! pfs_thread->m_transactions_history_full &&
+    if (!pfs_thread->m_transactions_history_full &&
         (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index))
       return HA_ERR_RECORD_DELETED;
 
     transaction= &pfs_thread->m_transactions_history[m_pos.m_index_2];
     if (transaction->m_class != NULL)
     {
-      make_row(transaction);
-      return 0;
+      return make_row(transaction);
     }
   }
 
@@ -789,8 +778,7 @@ int table_events_transactions_history::index_next(void)
           {
             if (m_opened_index->match(transaction))
             {
-              make_row(transaction);
-              if (m_row_exists)
+              if (!make_row(transaction))
               {
                 m_next_pos.set_after(&m_pos);
                 return 0;
@@ -859,10 +847,9 @@ int table_events_transactions_history_long::rnd_next(void)
 
     if (transaction->m_class != NULL)
     {
-      make_row(transaction);
       /* Next iteration, look for the next entry */
       m_next_pos.set_after(&m_pos);
-      return 0;
+      return make_row(transaction);
     }
   }
 
@@ -892,8 +879,7 @@ int table_events_transactions_history_long::rnd_pos(const void *pos)
   if (transaction->m_class == NULL)
     return HA_ERR_RECORD_DELETED;
 
-  make_row(transaction);
-  return 0;
+  return make_row(transaction);
 }
 
 int table_events_transactions_history_long::delete_all_rows(void)

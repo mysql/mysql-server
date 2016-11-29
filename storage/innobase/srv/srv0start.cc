@@ -587,7 +587,7 @@ srv_undo_tablespace_fixup(
 {
 	undo::Tablespace	undo_space(space_id);
 
-	if (undo::is_truncate_log_present(space_id)) {
+	if (undo::is_active_truncate_log_present(space_id)) {
 
 		ib::info() << "Undo Tablespace number " << space_id
 			<< " was being truncated when mysqld quit.";
@@ -774,9 +774,11 @@ srv_undo_tablespaces_open()
 	and therefore not required by recovery. We check that there are no
 	gaps and set max space_id. */
 
-	space_id_t prev_space_id = trx_sys_undo_spaces->back();
+	space_id_t last_undo_space_id =
+		(trx_sys_undo_spaces->size() == 0 ? 0
+		 : trx_sys_undo_spaces->back());
 
-	for (space_id = prev_space_id + 1;
+	for (space_id = last_undo_space_id + 1;
 	     space_id < TRX_SYS_N_RSEGS; ++space_id) {
 
 		err = srv_undo_tablespace_open(space_id);
@@ -883,8 +885,6 @@ srv_undo_tablespaces_construct(bool create_new_db)
 	ulint			rseg_id;
 	mtr_t			mtr;
 
-	ut_ad(srv_undo_tablespaces == trx_sys_undo_spaces->size());
-
 	Space_Ids::const_iterator	it;
 	for (it = undo::s_under_construction.begin();
 	     it != undo::s_under_construction.end(); ++it) {
@@ -953,8 +953,10 @@ srv_undo_tablespaces_construction_list_clear()
 			space_id, BUF_REMOVE_FLUSH_WRITE, NULL);
 
 		/* Remove the truncate redo log file if it exists. */
-		undo::Truncate	undo_trunc;
-		undo_trunc.done_logging(space_id);
+		if (undo::is_active_truncate_log_present(space_id)) {
+			undo::Truncate	undo_trunc;
+			undo_trunc.done_logging(space_id);
+		}
 	}
 
 	undo::clear_construction_list();

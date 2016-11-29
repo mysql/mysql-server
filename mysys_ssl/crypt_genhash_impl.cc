@@ -43,6 +43,10 @@
 #include <alloca.h>
 #endif
 
+#ifdef _WIN32
+#include <malloc.h>
+#endif
+
 #ifndef HAVE_YASSL
 #define	DIGEST_CTX	SHA256_CTX
 #define	DIGESTInit	SHA256_Init

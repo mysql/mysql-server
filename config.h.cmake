@@ -167,7 +167,6 @@
 #cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
 #cmakedefine SIZEOF_OFF_T     @SIZEOF_OFF_T@
 #cmakedefine SIZEOF_TIME_T    @SIZEOF_TIME_T@
-#cmakedefine HAVE_UINT 1
 #cmakedefine HAVE_ULONG 1
 #cmakedefine HAVE_U_INT32_T 1
 
@@ -277,11 +276,6 @@
  * Libedit
  */
 #cmakedefine HAVE_DECL_TGOTO 1
-
-/*
- * DTrace
- */
-#cmakedefine HAVE_DTRACE 1
 
 /*
  * Character sets

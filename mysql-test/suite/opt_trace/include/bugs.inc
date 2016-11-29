@@ -521,8 +521,8 @@ while ($1)
  dec $1;
 }
 enable_query_log;
+ANALYZE TABLE t1;
 
 EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1;
---replace_regex /"cost": 3/"cost": 1/ /"cost": 4/"cost": 1/ /"cost": 203/"cost": 201/ /"cost": 204/"cost": 201/ /"cost_for_plan": 203/"cost_for_plan": 201/ /"cost_for_plan": 204/"cost_for_plan": 201/
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 DROP TABLE t1;

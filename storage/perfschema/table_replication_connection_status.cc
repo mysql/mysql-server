@@ -222,7 +222,7 @@ PFS_engine_table* table_replication_connection_status::create(void)
 
 table_replication_connection_status::table_replication_connection_status()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_pos(0), m_next_pos(0)
 {
 }
 
@@ -263,9 +263,8 @@ int table_replication_connection_status::rnd_next(void)
 
     if (mi && mi->host[0])
     {
-      make_row(mi);
+      res= make_row(mi);
       m_next_pos.set_after(&m_pos);
-      res= 0;
     }
   }
 
@@ -275,7 +274,8 @@ int table_replication_connection_status::rnd_next(void)
   return res;
 }
 
-int table_replication_connection_status::rnd_pos(const void *pos)
+int table_replication_connection_status
+  ::rnd_pos(const void *pos MY_ATTRIBUTE((unused)))
 {
   int res= HA_ERR_RECORD_DELETED;
 
@@ -288,8 +288,7 @@ int table_replication_connection_status::rnd_pos(const void *pos)
 
   if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {
-    make_row(mi);
-    res= 0;
+    res= make_row(mi);
   }
 
   channel_map.unlock();
@@ -298,7 +297,8 @@ int table_replication_connection_status::rnd_pos(const void *pos)
   return res;
 }
 
-int table_replication_connection_status::index_init(uint idx, bool)
+int table_replication_connection_status
+  ::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
 #ifdef HAVE_REPLICATION
   PFS_index_rpl_connection_status *result= NULL;
@@ -340,9 +340,8 @@ int table_replication_connection_status::index_next(void)
     {
       if (m_opened_index->match(mi))
       {
-        make_row(mi);
+        res= make_row(mi);
         m_next_pos.set_after(&m_pos);
-        res= 0;
       }
     }
   }
@@ -354,10 +353,9 @@ int table_replication_connection_status::index_next(void)
 }
 
 #ifdef HAVE_REPLICATION
-void table_replication_connection_status::make_row(Master_info *mi)
+int table_replication_connection_status::make_row(Master_info *mi)
 {
   DBUG_ENTER("table_replication_connection_status::make_row");
-  m_row_exists= false;
   bool error= false;
 
   /* Default values */
@@ -478,22 +476,21 @@ end:
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
-  if (!error)
-    m_row_exists= true;
-  DBUG_VOID_RETURN;
+  if (error)
+    DBUG_RETURN(HA_ERR_RECORD_DELETED);
+
+  DBUG_RETURN(0);
 }
 #endif /* HAVE_REPLICATION */
 
-int table_replication_connection_status::read_row_values(TABLE *table,
-                                                         unsigned char *buf,
-                                                         Field **fields,
-                                                         bool read_all)
+int table_replication_connection_status
+  ::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
+                    unsigned char *buf MY_ATTRIBUTE((unused)),
+                    Field **fields MY_ATTRIBUTE((unused)),
+                    bool read_all MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_REPLICATION
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0]= 0;

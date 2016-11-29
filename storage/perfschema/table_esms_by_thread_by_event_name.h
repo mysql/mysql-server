@@ -144,8 +144,6 @@ private:
 
   /** Current row. */
   row_esms_by_thread_by_event_name m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_esms_by_thread_by_event_name m_pos;
   /** Next position. */

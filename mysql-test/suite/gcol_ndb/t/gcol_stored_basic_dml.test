@@ -1,0 +1,68 @@
+################################################################################
+#                                                                              #
+#  Test GENERATED ALWAYS AS ... STORED                                         #
+#  CREATE TABLE                                                                #
+#  CREATE TABLE LIKE TABLE                                                     #
+#  INSERT INTO ... SELECT                                                      #
+#  INSERT                                                                      #
+#  UPDATE                                                                      #
+#  SELECT                                                                      #
+#  DELETE                                                                      #
+################################################################################
+
+
+--source include/have_ndb.inc
+SET @@session.default_storage_engine = 'ndbcluster';
+
+
+create table stored_basic
+   (i int not null primary key,
+    gcol_int int GENERATED ALWAYS AS (100 + i) STORED,
+    misc int,
+    gcol_str varchar(20) GENERATED ALWAYS AS (concat("User ", i)) STORED
+   );
+
+insert into stored_basic(i) values(1), (2), (3), (4), (5);
+
+select * from stored_basic order by i;
+
+
+# Show affected_rows for DELETE tests
+--enable_info
+
+# Delete by PK
+delete from stored_basic where i = 1;
+
+# Delete by non-indexed generated column
+delete from stored_basic where gcol_int = 102;
+
+# Scanning delete on non-indexed column
+delete from stored_basic where misc is null;
+
+--disable_info
+
+# Repopulate table
+insert into stored_basic(i) values(1), (2), (3), (4), (5);
+
+# Select generated column only
+-- sorted_result
+select gcol_str from stored_basic;
+
+# Update gcol to non-generated value. should fail.
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+update stored_basic set gcol_int = 44 where i = 4;
+
+# Update non-key column based on gcol.  should succeed.
+update stored_basic set misc = 44 where gcol_int = 104;
+
+# CREATE new_table ... LIKE old_table
+create table stored_basic_2 like stored_basic;
+
+# INSERT INTO new_table SELECT from old_table
+insert into stored_basic_2 (i,misc) select i,misc from stored_basic;
+select * from stored_basic_2 order by i;
+
+# DROP TABLES
+drop table stored_basic_2;
+drop table stored_basic;
+

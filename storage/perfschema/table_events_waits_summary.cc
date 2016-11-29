@@ -225,7 +225,7 @@ int table_events_waits_summary_by_instance::delete_all_rows(void)
 
 table_events_waits_summary_by_instance
 ::table_events_waits_summary_by_instance()
-  : table_all_instr(&m_share), m_row_exists(false)
+  : table_all_instr(&m_share)
 {}
 
 int table_events_waits_summary_by_instance::index_init(uint idx, bool)
@@ -248,13 +248,12 @@ int table_events_waits_summary_by_instance::index_init(uint idx, bool)
   return 0;
 }
 
-void table_events_waits_summary_by_instance
+int table_events_waits_summary_by_instance
 ::make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,
                  const void *object_instance_begin,
                  PFS_single_stat *pfs_stat)
 {
   pfs_optimistic_state lock;
-  m_row_exists= false;
 
   /*
     Protect this reader against a mutex/rwlock/cond destroy,
@@ -269,86 +268,91 @@ void table_events_waits_summary_by_instance
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, pfs_stat);
 
-  if (pfs->m_lock.end_optimistic_lock(&lock))
-    m_row_exists= true;
-}
+  if (!pfs->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+
+  return 0;
+} 
 
 /**
   Build a row, for mutex statistics in a thread.
   @param pfs              the mutex this cursor is reading
 */
-void table_events_waits_summary_by_instance::make_mutex_row(PFS_mutex *pfs)
+int table_events_waits_summary_by_instance::make_mutex_row(PFS_mutex *pfs)
 {
   PFS_mutex_class *safe_class;
   safe_class= sanitize_mutex_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return;
-
-  make_instr_row(pfs, safe_class, pfs->m_identity, &pfs->m_mutex_stat.m_wait_stat);
+    return HA_ERR_RECORD_DELETED;
+  
+  return make_instr_row(pfs, safe_class, pfs->m_identity,
+                        &pfs->m_mutex_stat.m_wait_stat);
 }
 
 /**
   Build a row, for rwlock statistics in a thread.
   @param pfs              the rwlock this cursor is reading
 */
-void table_events_waits_summary_by_instance::make_rwlock_row(PFS_rwlock *pfs)
+int table_events_waits_summary_by_instance::make_rwlock_row(PFS_rwlock *pfs)
 {
   PFS_rwlock_class *safe_class;
   safe_class= sanitize_rwlock_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return;
-
-  make_instr_row(pfs, safe_class, pfs->m_identity, &pfs->m_rwlock_stat.m_wait_stat);
+    return HA_ERR_RECORD_DELETED;
+  
+  return make_instr_row(pfs, safe_class, pfs->m_identity,
+                        &pfs->m_rwlock_stat.m_wait_stat);
 }
 
 /**
   Build a row, for condition statistics in a thread.
   @param pfs              the condition this cursor is reading
 */
-void table_events_waits_summary_by_instance::make_cond_row(PFS_cond *pfs)
+int table_events_waits_summary_by_instance::make_cond_row(PFS_cond *pfs)
 {
   PFS_cond_class *safe_class;
   safe_class= sanitize_cond_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return;
-
-  make_instr_row(pfs, safe_class, pfs->m_identity, &pfs->m_cond_stat.m_wait_stat);
+    return HA_ERR_RECORD_DELETED;
+  
+  return make_instr_row(pfs, safe_class, pfs->m_identity,
+                        &pfs->m_cond_stat.m_wait_stat);
 }
 
 /**
   Build a row, for file statistics in a thread.
   @param pfs              the file this cursor is reading
 */
-void table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs)
+int table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs)
 {
   PFS_file_class *safe_class;
   safe_class= sanitize_file_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   PFS_single_stat sum;
-  pfs->m_file_stat.m_io_stat.sum_waits(& sum);
+  pfs->m_file_stat.m_io_stat.sum_waits(&sum);
   /*
     Files don't have a in memory structure associated to it,
     so we use the address of the PFS_file buffer as object_instance_begin
   */
-  make_instr_row(pfs, safe_class, pfs, & sum);
+  return make_instr_row(pfs, safe_class, pfs, &sum);
 }
 
 /**
   Build a row, for socket statistics in a thread.
   @param pfs              the socket this cursor is reading
 */
-void table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs)
+int table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs)
 {
   PFS_socket_class *safe_class;
   safe_class= sanitize_socket_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   /*
-     Consolidate wait times and byte counts for individual operations. This is
-     done by the consumer in order to reduce overhead on the socket instrument.
+    Consolidate wait times and byte counts for individual operations. This is
+    done by the consumer in order to reduce overhead on the socket instrument.
   */
   PFS_byte_stat pfs_stat;
   pfs->m_socket_stat.m_io_stat.sum(&pfs_stat);
@@ -357,7 +361,7 @@ void table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs)
     Sockets don't have an associated in-memory structure, so use the address of
     the PFS_socket buffer as object_instance_begin.
   */
-  make_instr_row(pfs, safe_class, pfs, &pfs_stat);
+  return make_instr_row(pfs, safe_class, pfs, &pfs_stat);
 }
 
 int table_events_waits_summary_by_instance
@@ -365,9 +369,6 @@ int table_events_waits_summary_by_instance
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);

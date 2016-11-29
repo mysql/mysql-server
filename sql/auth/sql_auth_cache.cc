@@ -67,6 +67,8 @@
 #include "thr_malloc.h"
 #include "thr_mutex.h"
 #include "xa.h"
+#include "mysqld_error.h"
+#include "role_tables.h"        // close_all_role_tables
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -131,6 +133,7 @@ my_bool validate_user_plugins= TRUE;
                         1 + USERNAME_LENGTH + 1)
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
 
 /**
   Add an internal schema to the registry.
@@ -745,8 +748,12 @@ GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine)
   key_length= (strlen(db) + strlen(user) + strlen(tname) + 3);
   hash_key=   (char*) alloc_root(&memex, key_length);
   my_stpcpy(my_stpcpy(my_stpcpy(hash_key,user)+1,db)+1,tname);
-  privs = (ulong) form->field[6]->val_int();
-  privs = fix_rights_for_table(privs);
+
+  if (form->field[MYSQL_TABLES_PRIV_FIELD_TABLE_PRIV])
+  {
+    privs = (ulong) form->field[MYSQL_TABLES_PRIV_FIELD_TABLE_PRIV]->val_int();
+    privs = fix_rights_for_table(privs);
+  }
 }
 
 
@@ -759,8 +766,14 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form)
     cols= 0;
     return;
   }
-  cols= (ulong) form->field[7]->val_int();
-  cols =  fix_rights_for_column(cols);
+
+  if (form->field[MYSQL_TABLES_PRIV_FIELD_COLUMN_PRIV])
+  {
+    cols= (ulong) form->field[MYSQL_TABLES_PRIV_FIELD_COLUMN_PRIV]->val_int();
+    cols =  fix_rights_for_column(cols);
+  }
+  else
+    cols= 0;
 
   (void) my_hash_init(&hash_columns,system_charset_info,
                       0, 0, get_key_column, nullptr, 0,
@@ -1613,6 +1626,12 @@ my_bool acl_init(bool dont_read_acl_tables)
   return_val= check_engine_type_for_acl_table(thd);
 
   /*
+    Check all the ACL tables are intact and output warning message in
+    case any of the ACL tables are corrupted.
+  */
+  check_acl_tables_intact(thd);
+
+  /*
     It is safe to call acl_reload() since acl_* arrays and hashes which
     will be freed there are global static objects and thus are initialized
     by zeros at startup.
@@ -2301,6 +2320,142 @@ bool check_engine_type_for_acl_table(THD *thd)
   }
 
   return result;
+}
+
+
+/*
+  This internal handler implements downgrade from SL_ERROR to SL_WARNING
+  for acl_init()/reload_acl_and_cache().
+*/
+class Acl_ignore_error_handler : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *,
+                                uint sql_errno,
+                                const char*,
+                                Sql_condition::enum_severity_level *level,
+                                const char*)
+  {
+    switch (sql_errno)
+    {
+      case ER_CANNOT_LOAD_FROM_TABLE_V2:
+      case ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2:
+        (*level)= Sql_condition::SL_WARNING;
+        break;
+      default:
+        break;
+    }
+    return false;
+  }
+};
+
+
+bool check_acl_tables_intact(THD *thd)
+{
+  TABLE_LIST tables[6];
+  TABLE_LIST role_tables[2];
+  Acl_table_intact table_intact(thd);
+  Acl_ignore_error_handler acl_ignore_handler;
+
+  /*
+    Open all the ACL tables to check their intactness. Although we don't
+    read here from the tables being opened we still request a lock type
+    MDL_SHARED_READ_ONLY for the sake of consistency with other code.
+  */
+
+  tables[ACL_TABLES::TABLE_USER].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"),
+                           "user", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[ACL_TABLES::TABLE_DB].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("db"),
+                           "db", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[ACL_TABLES::TABLE_TABLES_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("tables_priv"),
+                           "tables_priv", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[ACL_TABLES::TABLE_COLUMNS_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("columns_priv"),
+                           "columns_priv", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[ACL_TABLES::TABLE_PROCS_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("procs_priv"),
+                           "procs_priv", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[ACL_TABLES::TABLE_PROXIES_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("proxies_priv"),
+                           "proxies_priv", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[ACL_TABLES::TABLE_USER].next_local=
+    tables[ACL_TABLES::TABLE_USER].next_global= tables + 1;
+  tables[ACL_TABLES::TABLE_DB].next_local=
+    tables[ACL_TABLES::TABLE_DB].next_global= tables + 2;
+  tables[ACL_TABLES::TABLE_TABLES_PRIV].next_local=
+    tables[ACL_TABLES::TABLE_TABLES_PRIV].next_global= tables + 3;
+  tables[ACL_TABLES::TABLE_COLUMNS_PRIV].next_local=
+    tables[ACL_TABLES::TABLE_COLUMNS_PRIV].next_global= tables + 4;
+  tables[ACL_TABLES::TABLE_PROCS_PRIV].next_local=
+    tables[ACL_TABLES::TABLE_PROCS_PRIV].next_global= tables + 5;
+  tables[ACL_TABLES::TABLE_PROXIES_PRIV].next_local=
+    tables[ACL_TABLES::TABLE_PROXIES_PRIV].next_global= 0;
+
+  tables[ACL_TABLES::TABLE_USER].open_type=
+    tables[ACL_TABLES::TABLE_DB].open_type=
+    tables[ACL_TABLES::TABLE_TABLES_PRIV].open_type=
+    tables[ACL_TABLES::TABLE_COLUMNS_PRIV].open_type=
+    tables[ACL_TABLES::TABLE_PROCS_PRIV].open_type=
+    tables[ACL_TABLES::TABLE_PROXIES_PRIV].open_type= OT_BASE_ONLY;
+
+  bool result_acl= open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT);
+
+  thd->push_internal_handler(&acl_ignore_handler);
+  if (!result_acl)
+  {
+    table_intact.check(thd, tables[ACL_TABLES::TABLE_USER].table,
+                       &mysql_user_table_def);
+    table_intact.check(thd, tables[ACL_TABLES::TABLE_DB].table,
+                       &mysql_db_table_def);
+    table_intact.check(thd, tables[ACL_TABLES::TABLE_TABLES_PRIV].table,
+                       &mysql_tables_priv_table_def);
+    table_intact.check(thd, tables[ACL_TABLES::TABLE_COLUMNS_PRIV].table,
+                       &mysql_columns_priv_table_def);
+    table_intact.check(thd, tables[ACL_TABLES::TABLE_PROCS_PRIV].table,
+                       &mysql_procs_priv_table_def);
+    table_intact.check(thd, tables[ACL_TABLES::TABLE_PROXIES_PRIV].table,
+                       &mysql_proxies_priv_table_def);
+    commit_and_close_mysql_tables(thd);
+  }
+  thd->pop_internal_handler();
+
+  role_tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                                C_STRING_WITH_LEN("role_edges"),
+                                "role_edges", TL_READ, MDL_SHARED_READ_ONLY);
+
+  role_tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                                C_STRING_WITH_LEN("default_roles"),
+                                "default_roles", TL_READ, MDL_SHARED_READ_ONLY);
+
+  role_tables[0].next_local=
+    role_tables[0].next_global= role_tables + 1;
+  role_tables[1].next_local=
+    role_tables[1].next_global= 0;
+
+  role_tables[0].open_type=
+  role_tables[1].open_type= OT_BASE_ONLY;
+
+  bool result_role= open_and_lock_tables(thd, role_tables, MYSQL_LOCK_IGNORE_TIMEOUT);
+
+  thd->push_internal_handler(&acl_ignore_handler);
+  if (!result_role)
+  {
+    table_intact.check(thd, role_tables[0].table, &mysql_role_edges_table_def);
+    table_intact.check(thd, role_tables[1].table, &mysql_default_roles_table_def);
+    close_all_role_tables(thd);
+  }
+  thd->pop_internal_handler();
+
+  return (result_acl || result_role);
 }
 
 

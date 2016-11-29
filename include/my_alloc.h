@@ -34,9 +34,12 @@
 #define ALLOC_MAX_BLOCK_USAGE_BEFORE_DROP	10
 
 #include <string.h>
-#include "my_global.h"
+#include <sys/types.h>
 
+#include "my_inttypes.h"
 #include "mysql/psi/psi_memory.h"
+
+#include "mem_root_fwd.h"  // Contains the typedef to MEM_ROOT. IWYU pragma: keep
 
 #ifdef __cplusplus
 extern "C" {
@@ -101,8 +104,6 @@ struct st_mem_root
 
   PSI_memory_key m_psi_key;
 };
-
-#include "mem_root_fwd.h"  // Contains the typedef to MEM_ROOT.
 
 #ifdef  __cplusplus
 }

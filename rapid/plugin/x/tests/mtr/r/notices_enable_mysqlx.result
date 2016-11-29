@@ -1187,7 +1187,7 @@ below statement throws warning as Error and actual error is missing
 change result file once Bug#21529270 fixed
 Got expected error: Specified key was too long; max key length is 3072 bytes (code 1071)
 While executing set global innodb_large_prefix=1:
-in main, line 486:ERROR: Unknown system variable 'innodb_large_prefix' (code 1193)
+Got expected error: Unknown system variable 'innodb_large_prefix' (code 1193)
 
 0 rows affected
 

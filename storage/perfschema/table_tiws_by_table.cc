@@ -290,7 +290,7 @@ table_tiws_by_table::get_row_count(void)
 
 table_tiws_by_table::table_tiws_by_table()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_pos(0), m_next_pos(0)
 {}
 
 void table_tiws_by_table::reset_position(void)
@@ -313,14 +313,13 @@ int table_tiws_by_table::rnd_next(void)
   PFS_table_share_iterator it= global_table_share_container.iterate(m_pos.m_index);
   do
   {
-    pfs= it.scan_next(& m_pos.m_index);
+    pfs= it.scan_next(&m_pos.m_index);
     if (pfs != NULL)
     {
       if (pfs->m_enabled)
       {
-        make_row(pfs);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_row(pfs);
       }
     }
   } while (pfs != NULL);
@@ -340,8 +339,7 @@ table_tiws_by_table::rnd_pos(const void *pos)
   {
     if (pfs->m_enabled)
     {
-      make_row(pfs);
-      return 0;
+      return make_row(pfs);
     }
   }
 
@@ -377,8 +375,7 @@ int table_tiws_by_table::index_next(void)
       {
         if (m_opened_index->match(share))
         {
-          make_row(share);
-          if (m_row_exists)
+          if (!make_row(share))
           {
             m_next_pos.set_after(&m_pos);
             return 0;
@@ -391,25 +388,24 @@ int table_tiws_by_table::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_tiws_by_table::make_row(PFS_table_share *share)
+int table_tiws_by_table::make_row(PFS_table_share *share)
 {
   pfs_optimistic_state lock;
-
-  m_row_exists= false;
 
   share->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_object.make_row(share))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   PFS_table_io_stat_visitor visitor;
   PFS_object_iterator::visit_tables(share, & visitor);
 
-  if (! share->m_lock.end_optimistic_lock(&lock))
-    return;
-
-  m_row_exists= true;
+  if (!share->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
+
+  return 0;
 }
 
 int table_tiws_by_table::read_row_values(TABLE *table,
@@ -418,9 +414,6 @@ int table_tiws_by_table::read_row_values(TABLE *table,
                                         bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

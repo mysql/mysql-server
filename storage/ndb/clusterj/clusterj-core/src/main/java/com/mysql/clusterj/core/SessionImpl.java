@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -269,10 +269,9 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     private void setPartitionKey(DomainTypeHandler<?> domainTypeHandler,
             ValueHandler keyHandler) {
         assertNotClosed();
-        if (!isEnlisted()) {
+        if (partitionKey == null && !isEnlisted()) {
             // there is still time to set the partition key
-            PartitionKey partitionKey = 
-                domainTypeHandler.createPartitionKey(keyHandler);
+            partitionKey = domainTypeHandler.createPartitionKey(keyHandler);
             clusterTransaction.setPartitionKey(partitionKey);
         }
     }
@@ -1471,6 +1470,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         if (clusterTransaction != null) {
             clusterTransaction.setPartitionKey(partitionKey);
         }
+        // we are done with this handler; the partition key has all of its information
+        handler.release();
     }
 
     /** Mark the field in the instance as modified so it is flushed.

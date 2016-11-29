@@ -117,11 +117,7 @@ remove_file $PASSWD_FILE;
 remove_file $MYSQLD_LOG;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 
 --echo #
@@ -187,11 +183,7 @@ remove_file $MYSQLD_LOG;
 remove_file $BOOTSTRAP_SQL;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 
 --echo #
@@ -206,11 +198,7 @@ EOF
 remove_file $MYSQLD_LOG;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 
 --echo #
@@ -225,11 +213,7 @@ EOF
 remove_file $MYSQLD_LOG;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 
 --echo #
@@ -241,11 +225,7 @@ EOF
 remove_file $MYSQL_TMP_DIR/keyring;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 
 --echo #

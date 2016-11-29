@@ -317,7 +317,7 @@ table_tiws_by_index_usage::get_row_count(void)
 
 table_tiws_by_index_usage::table_tiws_by_index_usage()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos()
+    m_pos(), m_next_pos()
 {}
 
 void table_tiws_by_index_usage::reset_position(void)
@@ -349,16 +349,15 @@ int table_tiws_by_index_usage::rnd_next(void)
         uint safe_key_count= sanitize_index_count(table_share->m_key_count);
         if (m_pos.m_index_2 < safe_key_count)
         {
-          make_row(table_share, m_pos.m_index_2);
           m_next_pos.set_after(&m_pos);
-          return 0;
+          return make_row(table_share, m_pos.m_index_2);
         }
+          
         if (m_pos.m_index_2 <= MAX_INDEXES)
         {
           m_pos.m_index_2= MAX_INDEXES;
-          make_row(table_share, m_pos.m_index_2);
           m_next_pos.set_after(&m_pos);
-          return 0;
+          return make_row(table_share, m_pos.m_index_2);
         }
       }
     }
@@ -382,13 +381,11 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
       uint safe_key_count= sanitize_index_count(table_share->m_key_count);
       if (m_pos.m_index_2 < safe_key_count)
       {
-        make_row(table_share, m_pos.m_index_2);
-        return 0;
+        return make_row(table_share, m_pos.m_index_2);
       }
       if (m_pos.m_index_2 == MAX_INDEXES)
       {
-        make_row(table_share, m_pos.m_index_2);
-        return 0;
+        return make_row(table_share, m_pos.m_index_2);
       }
     }
   }
@@ -433,8 +430,7 @@ int table_tiws_by_index_usage::index_next(void)
             {
               if (m_pos.m_index_2 < safe_key_count)
               {
-                make_row(table_share, m_pos.m_index_2);
-                if (m_row_exists)
+                if (!make_row(table_share, m_pos.m_index_2))
                 {
                   m_next_pos.set_after(&m_pos);
                   return 0;
@@ -445,8 +441,7 @@ int table_tiws_by_index_usage::index_next(void)
                 if (m_pos.m_index_2 <= MAX_INDEXES)
                 {
                   m_pos.m_index_2= MAX_INDEXES;
-                  make_row(table_share, m_pos.m_index_2);
-                  if (m_row_exists)
+                  if (!make_row(table_share, m_pos.m_index_2))
                   {
                     m_next_pos.set_after(&m_pos);
                     return 0;
@@ -463,26 +458,24 @@ int table_tiws_by_index_usage::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share,
-                                         uint index)
+int table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share,
+                                        uint index)
 {
   PFS_table_share_index *pfs_index;
   pfs_optimistic_state lock;
 
   DBUG_ASSERT(index <= MAX_INDEXES);
 
-  m_row_exists= false;
-
   pfs_share->m_lock.begin_optimistic_lock(&lock);
 
   PFS_index_io_stat_visitor visitor;
   PFS_object_iterator::visit_table_indexes(pfs_share, index, & visitor);
 
-  if (! visitor.m_stat.m_has_data)
+  if (!visitor.m_stat.m_has_data)
   {
     pfs_index= pfs_share->find_index_stat(index);
     if (pfs_index == NULL)
-      return;
+      return HA_ERR_RECORD_DELETED;
   }
   else
   {
@@ -490,13 +483,14 @@ void table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share,
   }
 
   if (m_row.m_index.make_row(pfs_share, pfs_index, index))
-    return;
+    return HA_ERR_RECORD_DELETED;
+  
+  if (!pfs_share->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+  
+  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
 
-  if (! pfs_share->m_lock.end_optimistic_lock(&lock))
-    return;
-
-  m_row_exists= true;
-  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
+  return 0;
 }
 
 int table_tiws_by_index_usage::read_row_values(TABLE *table,
@@ -505,9 +499,6 @@ int table_tiws_by_index_usage::read_row_values(TABLE *table,
                                          bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

@@ -207,7 +207,7 @@ PFS_engine_table* table_socket_summary_by_instance::create(void)
 
 table_socket_summary_by_instance::table_socket_summary_by_instance()
   : PFS_engine_table(&m_share, &m_pos),
-  m_row_exists(false), m_pos(0), m_next_pos(0)
+  m_pos(0), m_next_pos(0)
 {}
 
 int table_socket_summary_by_instance::delete_all_rows(void)
@@ -237,9 +237,8 @@ int table_socket_summary_by_instance::rnd_next(void)
   pfs= it.scan_next(& m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -254,8 +253,7 @@ int table_socket_summary_by_instance::rnd_pos(const void *pos)
   pfs= global_socket_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -297,9 +295,11 @@ int table_socket_summary_by_instance::index_next(void)
     {
       if (m_opened_index->match(pfs))
       {
-        make_row(pfs);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(pfs))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   } while (pfs != NULL);
@@ -307,20 +307,18 @@ int table_socket_summary_by_instance::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_socket_summary_by_instance::make_row(PFS_socket *pfs)
+int table_socket_summary_by_instance::make_row(PFS_socket *pfs)
 {
   pfs_optimistic_state lock;
   PFS_socket_class *safe_class;
-
-  m_row_exists= false;
 
   /* Protect this reader against a socket delete */
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   safe_class= sanitize_socket_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
-    return;
-
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_event_name.make_row(safe_class);
   m_row.m_identity= pfs->m_identity;
 
@@ -330,9 +328,9 @@ void table_socket_summary_by_instance::make_row(PFS_socket *pfs)
   m_row.m_io_stat.set(normalizer, &pfs->m_socket_stat.m_io_stat);
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
-    return;
+    return HA_ERR_RECORD_DELETED;
 
-  m_row_exists= true;
+  return 0;
 }
 
 int table_socket_summary_by_instance::read_row_values(TABLE *table,
@@ -341,9 +339,6 @@ int table_socket_summary_by_instance::read_row_values(TABLE *table,
                                           bool read_all)
 {
   Field *f;
-
-  if (unlikely(!m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);

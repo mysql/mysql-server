@@ -267,7 +267,7 @@ struct SubSyncReq {
 
   enum {
     LM_Exclusive = 0x1
-    ,Reorg = 0x2
+    ,ReorgDelete = 0x2
     ,NoDisk = 0x4
     ,TupOrder = 0x8
     ,LM_CommittedRead = 0x10

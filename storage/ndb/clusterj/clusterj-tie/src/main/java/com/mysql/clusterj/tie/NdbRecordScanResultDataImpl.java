@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,13 +139,16 @@ class NdbRecordScanResultDataImpl extends NdbRecordResultDataImpl {
                         return true;
                     } else {
                         // skip this record
+                        scanOperation.returnValueBuffer();
                         break;
                     }
                 case SCAN_FINISHED:
+                    scanOperation.returnValueBuffer();
                     executeIfRecordsLocked();
                     scanOperation.close();
                     return false;
                 case CACHE_EMPTY:
+                    scanOperation.returnValueBuffer();
                     executeIfRecordsLocked();
                     fetch = true;
                     break;

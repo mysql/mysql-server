@@ -121,7 +121,7 @@ table_esgs_global_by_event_name::get_row_count(void)
 
 table_esgs_global_by_event_name::table_esgs_global_by_event_name()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(1), m_next_pos(1)
+    m_pos(1), m_next_pos(1)
 {}
 
 void table_esgs_global_by_event_name::reset_position(void)
@@ -148,9 +148,8 @@ int table_esgs_global_by_event_name::rnd_next(void)
   stage_class= find_stage_class(m_pos.m_index);
   if (stage_class)
   {
-    make_row(stage_class);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(stage_class);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -169,8 +168,7 @@ table_esgs_global_by_event_name::rnd_pos(const void *pos)
   stage_class=find_stage_class(m_pos.m_index);
   if (stage_class)
   {
-    make_row(stage_class);
-    return 0;
+    return make_row(stage_class);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -204,9 +202,11 @@ int table_esgs_global_by_event_name::index_next(void)
     {
       if (m_opened_index->match(stage_class))
       {
-        make_row(stage_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(stage_class))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
       m_pos.m_index++;
     }
@@ -215,7 +215,7 @@ int table_esgs_global_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_esgs_global_by_event_name
+int table_esgs_global_by_event_name
 ::make_row(PFS_stage_class *klass)
 {
   m_row.m_event_name.make_row(klass);
@@ -226,10 +226,11 @@ void table_esgs_global_by_event_name
                                         true,  /* accounts */
                                         true,  /* threads */
                                         false, /* THDs */
-                                        & visitor);
+                                        &visitor);
 
-  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
-  m_row_exists= true;
+  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
+
+  return 0;
 }
 
 int table_esgs_global_by_event_name
@@ -237,9 +238,6 @@ int table_esgs_global_by_event_name
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);

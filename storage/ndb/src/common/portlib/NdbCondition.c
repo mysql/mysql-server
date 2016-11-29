@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 
 #include <NdbCondition.h>
 #include <NdbMutex.h>
-#include <NdbMem.h>
 
 static int init = 0;
 #ifdef HAVE_CLOCK_GETTIME
@@ -128,8 +127,7 @@ NdbCondition_Create(void)
 {
   struct NdbCondition* tmpCond;
 
-  tmpCond = (struct NdbCondition*)NdbMem_Allocate(sizeof(struct NdbCondition));
-
+  tmpCond = (struct NdbCondition*)malloc(sizeof(struct NdbCondition));
   if (tmpCond == NULL)
     return NULL;
 

@@ -619,6 +619,100 @@ static void BM_MixedUTF8MB4_AS_CS(size_t num_iterations)
 }
 BENCHMARK(BM_MixedUTF8MB4_AS_CS);
 
+/*
+  A benchmark that illustrates the potential perils of not including the
+  range [0x00,0x20) in our fast path; newlines throw us off the fast path
+  and reduce speed.
+
+  The newlines are spaced a bit randomly in order not to create a perfectly
+  predictable pattern for the branch predictor (benchmark paranoia).
+*/
+static void BM_NewlineFilledUTF8MB4(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  const char *content= "This is a\n prett\ny unrealist\nic case; a\nn "
+    "Eng\nlish sente\nnce where\n we'\nve added a new\nline every te\nn "
+    "bytes or\n so.\n";
+  const int len= strlen(content);
+
+  // Just recorded from a trial run on the string above.
+  static constexpr uchar expected[]= {
+    0x1e, 0x95, 0x1d, 0x18, 0x1d, 0x32, 0x1e, 0x71,
+    0x00, 0x01, 0x1d, 0x32, 0x1e, 0x71, 0x00, 0x01,
+    0x1c, 0x47, 0x02, 0x02, 0x00, 0x01, 0x1e, 0x0c,
+    0x1e, 0x33, 0x1c, 0xaa, 0x1e, 0x95, 0x1e, 0x95,
+    0x02, 0x02, 0x1f, 0x0b, 0x00, 0x01, 0x1e, 0xb5,
+    0x1d, 0xb9, 0x1e, 0x33, 0x1c, 0xaa, 0x1c, 0x47,
+    0x1d, 0x77, 0x1d, 0x32, 0x1e, 0x71, 0x1e, 0x95,
+    0x02, 0x02, 0x1d, 0x32, 0x1c, 0x7a, 0x00, 0x01,
+    0x1c, 0x7a, 0x1c, 0x47, 0x1e, 0x71, 0x1c, 0xaa,
+    0x02, 0x34, 0x00, 0x01, 0x1c, 0x47, 0x02, 0x02,
+    0x1d, 0xb9, 0x00, 0x01, 0x1c, 0xaa, 0x1d, 0xb9,
+    0x1c, 0xf4, 0x02, 0x02, 0x1d, 0x77, 0x1d, 0x32,
+    0x1e, 0x71, 0x1d, 0x18, 0x00, 0x01, 0x1e, 0x71,
+    0x1c, 0xaa, 0x1d, 0xb9, 0x1e, 0x95, 0x1c, 0xaa,
+    0x02, 0x02, 0x1d, 0xb9, 0x1c, 0x7a, 0x1c, 0xaa,
+    0x00, 0x01, 0x1e, 0xf5, 0x1d, 0x18, 0x1c, 0xaa,
+    0x1e, 0x33, 0x1c, 0xaa, 0x02, 0x02, 0x00, 0x01,
+    0x1e, 0xf5, 0x1c, 0xaa, 0x03, 0x05, 0x02, 0x02,
+    0x1e, 0xe3, 0x1c, 0xaa, 0x00, 0x01, 0x1c, 0x47,
+    0x1c, 0x8f, 0x1c, 0x8f, 0x1c, 0xaa, 0x1c, 0x8f,
+    0x00, 0x01, 0x1c, 0x47, 0x00, 0x01, 0x1d, 0xb9,
+    0x1c, 0xaa, 0x1e, 0xf5, 0x02, 0x02, 0x1d, 0x77,
+    0x1d, 0x32, 0x1d, 0xb9, 0x1c, 0xaa, 0x00, 0x01,
+    0x1c, 0xaa, 0x1e, 0xe3, 0x1c, 0xaa, 0x1e, 0x33,
+    0x1f, 0x0b, 0x00, 0x01, 0x1e, 0x95, 0x1c, 0xaa,
+    0x02, 0x02, 0x1d, 0xb9, 0x00, 0x01, 0x1c, 0x60,
+    0x1f, 0x0b, 0x1e, 0x95, 0x1c, 0xaa, 0x1e, 0x71,
+    0x00, 0x01, 0x1d, 0xdd, 0x1e, 0x33, 0x02, 0x02,
+    0x00, 0x01, 0x1e, 0x71, 0x1d, 0xdd, 0x02, 0x77,
+    0x02, 0x02
+  };
+  uchar dest[sizeof(expected)];
+
+  StartBenchmarkTiming();
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    my_strnxfrm(&my_charset_utf8mb4_0900_ai_ci, dest, sizeof(dest),
+      reinterpret_cast<const uchar *>(content), len);
+  }
+  StopBenchmarkTiming();
+
+  expect_arrays_equal(expected, dest, sizeof(dest));
+}
+BENCHMARK(BM_NewlineFilledUTF8MB4);
+
+static void BM_HashSimpleUTF8MB4(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  const char *content= "This is a rather long string that contains only "
+    "simple letters that are available in ASCII. This is a common special "
+    "case that warrants a benchmark on its own, even if the character set "
+    "and collation supports much more complicated scenarios.";
+  const int len= strlen(content);
+
+  ulong nr1= 1, nr2= 4;
+
+  StartBenchmarkTiming();
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    my_charset_utf8mb4_0900_ai_ci.coll->hash_sort(&my_charset_utf8mb4_0900_ai_ci,
+      reinterpret_cast<const uchar *>(content), len, &nr1, &nr2);
+  }
+  StopBenchmarkTiming();
+
+  /*
+    Just to keep the compiler from optimizing away everything; this is highly
+    unlikely to ever happen given hash function that's not totally broken.
+    Don't test for an exact value; it will vary by platform and number
+    of iterations.
+  */
+  EXPECT_FALSE(nr1 == 0 && nr2 == 0);
+}
+BENCHMARK(BM_HashSimpleUTF8MB4);
+
 TEST(PadCollationTest, BasicTest)
 {
   constexpr char foo[] = "foo";
@@ -749,4 +843,115 @@ TEST(PadCollationTest, Strxfrm)
     &my_charset_utf8mb4_0900_as_cs, "", "\t"), 0);
 }
 
-}  // namespace
+/*
+  This test is disabled by default since it needs ~10 seconds to run,
+  even in optimized mode.
+*/
+TEST(BitfiddlingTest, DISABLED_FastOutOfRange)
+{
+  unsigned char bytes[4];
+  for (int a= 0; a < 256; ++a)
+  {
+    bytes[0]= a;
+    for (int b= 0; b < 256; ++b)
+    {
+      bytes[1]= b;
+      for (int c= 0; c < 256; ++c)
+      {
+        bytes[2]= c;
+        for (int d= 0; d < 256; ++d)
+        {
+          bytes[3]= d;
+          bool any_out_of_range_slow=
+            (a < 0x20 || a > 0x7e) ||
+            (b < 0x20 || b > 0x7e) ||
+            (c < 0x20 || c > 0x7e) ||
+            (d < 0x20 || d > 0x7e);
+
+          uint32 four_bytes;
+          memcpy(&four_bytes, bytes, sizeof(four_bytes));
+          bool any_out_of_range_fast=
+            (((four_bytes + 0x01010101u) & 0x80808080) ||
+             ((four_bytes - 0x20202020u) & 0x80808080));
+
+          EXPECT_EQ(any_out_of_range_slow, any_out_of_range_fast);
+        }
+      }
+    }
+  }
+}
+
+/*
+  A version of FastOutOfRange that tests the analogous trick for 16-bit
+  integers instead (much, much faster).
+*/
+TEST(BitfiddlingTest, FastOutOfRange16)
+{
+  unsigned char bytes[2];
+  for (int a= 0; a < 256; ++a)
+  {
+    bytes[0]= a;
+    for (int b= 0; b < 256; ++b)
+    {
+      bytes[1]= b;
+      bool any_out_of_range_slow=
+        (a < 0x20 || a > 0x7e) ||
+        (b < 0x20 || b > 0x7e);
+
+      uint16 two_bytes;
+      memcpy(&two_bytes, bytes, sizeof(two_bytes));
+      bool any_out_of_range_fast=
+        (((two_bytes + uint16{0x0101}) & uint16{0x8080}) ||
+         ((two_bytes - uint16{0x2020}) & uint16{0x8080}));
+
+      EXPECT_EQ(any_out_of_range_slow, any_out_of_range_fast);
+    }
+  }
+}
+
+ulong hash(CHARSET_INFO *cs, const char *str)
+{
+  ulong nr1=1, nr2= 4;
+  cs->coll->hash_sort(
+    cs, pointer_cast<const uchar *>(str), strlen(str), &nr1, &nr2);
+  return nr1;
+}
+
+/*
+  NOTE: In this entire test, there's an infinitesimal chance
+  that something that we expect doesn't match, still matches
+  by pure accident.
+*/
+TEST(PadCollationTest, HashSort)
+{
+  CHARSET_INFO *ai_ci= &my_charset_utf8mb4_0900_ai_ci;
+  CHARSET_INFO *as_cs= &my_charset_utf8mb4_0900_as_cs;
+
+  // Basic sanity checks.
+  EXPECT_EQ(hash(ai_ci, "abc"), hash(ai_ci, "abc"));
+  EXPECT_NE(hash(ai_ci, "abc"), hash(ai_ci, "def"));
+
+  // Spaces from the end should not matter, no matter the collation.
+  EXPECT_EQ(hash(ai_ci, "abc"), hash(ai_ci, "abc  "));
+  EXPECT_EQ(hash(as_cs, "abc"), hash(as_cs, "abc  "));
+  EXPECT_NE(hash(as_cs, "abc"), hash(as_cs, "Abc  "));
+
+  // Same with other types of spaces.
+  EXPECT_EQ(hash(ai_ci, "abc"), hash(ai_ci, u8"abc \u00a0"));
+
+  // Non-breaking space should compare _equal_ to space in ai_ci,
+  // but _inequal_ in as_cs.
+  EXPECT_EQ(hash(ai_ci, "abc "), hash(ai_ci, u8"abc\u00a0"));
+  EXPECT_NE(hash(as_cs, "abc "), hash(as_cs, u8"abc\u00a0"));
+  EXPECT_NE(hash(as_cs, "abc"), hash(as_cs, u8"abc\u00a0"));
+
+  // Also in the middle of the string.
+  EXPECT_EQ(hash(ai_ci, "a c"), hash(ai_ci, u8"a\u00a0c"));
+  EXPECT_NE(hash(as_cs, "a c"), hash(as_cs, u8"a\u00a0c"));
+
+  // Verify that space in the middle of the string isn't stripped.
+  EXPECT_NE(hash(ai_ci, "ab  c"), hash(ai_ci, "abc"));
+  EXPECT_NE(hash(as_cs, "ab  c"), hash(as_cs, "abc"));
+}
+
+}  // namespace strnxfrm_unittest

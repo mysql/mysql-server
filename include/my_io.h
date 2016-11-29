@@ -26,17 +26,23 @@
 
 #ifdef _WIN32
 /* Include common headers.*/
+# include <io.h>       /* access(), chmod() */
 # include <winsock2.h>
 # include <ws2tcpip.h> /* SOCKET */
-# include <io.h>       /* access(), chmod() */
 #endif
 
+#ifndef MYSQL_ABI_CHECK
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 
+#include <errno.h>
 #include <limits.h>
-#include <sys/types.h>  // IWYU pragma: keep, needed for mode_t.
+#include <sys/types.h>  // Needed for mode_t, so IWYU pragma: keep.
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#endif
 
 #ifdef _WIN32
 

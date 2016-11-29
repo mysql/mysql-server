@@ -296,7 +296,8 @@ void Relay_log_info::reset_notified_relay_log_change()
    @param shift          number of bits to shift by Worker due to the
                          current checkpoint change.
    @param new_ts         new seconds_behind_master timestamp value
-                         unless zero. Zero could be due to FD event.
+                         unless zero. Zero could be due to FD event
+                         or fake rotate event.
    @param need_data_lock False if caller has locked @c data_lock
 */
 void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
@@ -1973,7 +1974,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       goto err;
     }
 
-    if (is_relay_log_recovery && init_recovery(mi, &msg))
+    if (is_relay_log_recovery && init_recovery(mi))
     {
       error= 1;
       goto err;

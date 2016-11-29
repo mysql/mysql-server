@@ -232,7 +232,7 @@ namespace undo {
 	/** Check if TRUNCATE_DDL_LOG file exist.
 	@param[in]	space_id	ID of the undo tablespace.
 	@return true if exist else false. */
-	bool is_truncate_log_present(space_id_t space_id);
+	bool is_active_truncate_log_present(space_id_t space_id);
 
 	/** list of undo tablespaces that need header pages and rollback
 	segments written to them at startup.  This can be because they

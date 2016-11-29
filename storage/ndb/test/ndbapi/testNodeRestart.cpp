@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 #include <RefConvert.hpp>
 #include <NdbEnv.h>
 #include <NdbMgmd.hpp>
-#include <NdbMem.h>
 #include <my_sys.h>
 #include <ndb_rand.h>
 #include <BlockNumbers.h>
@@ -4722,7 +4721,7 @@ int runRestartToDynamicOrder(NDBT_Context* ctx, NDBT_Step* step)
   if (reverseSideA)
     ndbout_c("  %s reversed", (oddPresident?"odds": "evens"));
 
-    if (reverseSideB)
+  if (reverseSideB)
     ndbout_c("  %s reversed", (oddPresident?"evens": "odds"));
 
   Vector<Uint32>* sideA;
@@ -7552,6 +7551,239 @@ int waitAndCheckLMBUsage(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runArbitrationWithApiNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Check that arbitration do not fail with non arbitrator api node
+   * failure.
+   */
+
+  NdbRestarter restarter;
+
+  /**
+   * Bug#23006431 UNRELATED API FAILURE DURING ARBITRATION CAUSES
+   *              ARBITRATION FAILURE
+   *
+   * If a data node that have won the arbitration get a api failure it
+   * could trample the arbitration state and result in arbitration failure
+   * before the win was effectuated.
+   *
+   * 1. connect api node
+   * 2. error insert in next master to delay win after api node failure
+   * 3. kill master
+   * 4. disconnect api node
+   * 5. next master should survive
+   *
+   */
+
+  /**
+   * 1. connect new api node
+   */
+  Ndb_cluster_connection* cluster_connection = new Ndb_cluster_connection();
+  if (cluster_connection->connect() != 0)
+  {
+    g_err << "ERROR: connect failure." << endl;
+    return NDBT_FAILED;
+  }
+  Ndb* ndb = new Ndb(cluster_connection, "TEST_DB");
+  if (ndb->init() != 0 || ndb->waitUntilReady(30) != 0)
+  {
+    g_err << "ERROR: Ndb::init failure." << endl;
+    return NDBT_FAILED;
+  }
+
+  /**
+   * 2. error insert in next master to delay arbitration win after api
+   *    node failure
+   */
+  const int master = restarter.getMasterNodeId();
+  const int nextMaster = restarter.getNextMasterNodeId(master);
+  if (restarter.insertErrorInNode(nextMaster, 945) != 0)
+  {
+    g_err << "ERROR: inserting error 945 into next master " << nextMaster
+          << endl;
+    return NDBT_FAILED;
+  }
+
+  /**
+   * 3. kill master
+   */
+  if (restarter.restartOneDbNode2(master,
+                                  NdbRestarter::NRRF_NOSTART |
+                                  NdbRestarter::NRRF_ABORT) != 0)
+  {
+    g_err << "ERROR: stopping old master " << master << endl;
+    return NDBT_FAILED;
+  }
+
+  /**
+   * 4. disconnect api node
+   */
+  delete ndb;
+  delete cluster_connection;
+
+  /**
+   * 5. next master should survive
+   *
+   * Verify cluster up with correct master.
+   */
+
+  if (restarter.waitNodesNoStart(&master, 1) != 0)
+  {
+    g_err << "ERROR: old master " << master << " not stopped" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (restarter.startNodes(&master, 1) != 0)
+  {
+    g_err << "ERROR: restarting old master " << master << " failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (restarter.waitClusterStarted() != 0)
+  {
+    g_err << "ERROR: wait cluster start failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  const int newMaster = restarter.getMasterNodeId();
+  if (newMaster != nextMaster)
+  {
+    g_err << "ERROR: wrong master, got " << newMaster << " expected "
+          << nextMaster << endl;
+    return NDBT_FAILED;
+  }
+
+  /**
+   * Clear error insert in next master.
+   */
+  restarter.insertErrorInNode(nextMaster, 0);
+
+  return NDBT_OK;
+}
+
+int runLCPandRecordId(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Bug #23602217:  MISSES TO USE OLDER LCP WHEN LATEST LCP
+   * IS NOT RECOVERABLE. This function is called twice so that
+   * 2 consecutive LCPs are triggered and the id of the first
+   * LCP is recorded in order to compare it to the id of LCP
+   * restored in the restart in the next step.
+   */
+  NdbRestarter restarter;
+  struct ndb_logevent event;
+  int filter[]= { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  int arg1[] = { DumpStateOrd::DihMaxTimeBetweenLCP };
+  int arg2[] = { DumpStateOrd::DihStartLcpImmediately };
+  if(restarter.dumpStateAllNodes(arg1, 1) != 0)
+  {
+    g_err << "ERROR: Dump MaxTimeBetweenLCP failed" << endl;
+    return NDBT_FAILED;
+  }
+  NdbLogEventHandle handle=
+      ndb_mgm_create_logevent_handle(restarter.handle, filter);
+  ndbout << "Triggering LCP..." << endl;
+  if(restarter.dumpStateAllNodes(arg2, 1) != 0)
+  {
+    g_err << "ERROR: Dump StartLcpImmediately failed" << endl;
+    ndb_mgm_destroy_logevent_handle(&handle);
+    return NDBT_FAILED;
+  }
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+         event.type != NDB_LE_LocalCheckpointCompleted);
+  Uint32 LCPid = event.LocalCheckpointCompleted.lci;
+  ndbout << "LCP: " << LCPid << endl;
+  if(ctx->getProperty("LCP", (Uint32)0) == 0)
+  {
+    ndbout << "Recording id of first LCP" << endl;
+    ctx->setProperty("LCP", LCPid);
+  }
+  ndb_mgm_destroy_logevent_handle(&handle);
+  return NDBT_OK;
+}
+
+int runRestartandCheckLCPRestored(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Bug #23602217:  MISSES TO USE OLDER LCP WHEN LATEST LCP
+   * IS NOT RECOVERABLE. The steps followed are as follows:
+   * - Restart node in nostart state
+   * - Insert error 7248 so first LCP is considered non-restorable
+   * - Start node
+   * - Wait for LCPRestored log event
+   * - Check if restored LCP is same as first LCP id
+   *   recorded in INITIALIZER
+   */
+  NdbRestarter restarter;
+  struct ndb_logevent event;
+  int filter[]= { 15, NDB_MGM_EVENT_CATEGORY_STARTUP, 0 };
+  int node= restarter.getNode(NdbRestarter::NS_RANDOM);
+  ndbout << "Triggering node restart " << node << endl;
+  if(restarter.restartOneDbNode(node, false, true, true) != 0)
+  {
+    g_err << "ERROR: Restarting node " << node << " failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Wait for NoStart state" << endl;
+  if(restarter.waitNodesNoStart(&node, 1) != 0)
+  {
+    g_err << "ERROR: Node " << node << " stop failed" << endl;
+    return NDBT_FAILED;
+  }
+  NdbLogEventHandle handle=
+        ndb_mgm_create_logevent_handle(restarter.handle, filter);
+  ndbout << "Insert error 7248 so most recent LCP is non-restorable"
+         << endl;
+  if(restarter.insertErrorInNode(node, 7248) != 0)
+  {
+    g_err << "ERROR: Error insert 7248 failed" << endl;
+    ndb_mgm_destroy_logevent_handle(&handle);
+    return NDBT_FAILED;
+  }
+  ndbout << "Start node" << endl;
+  if(restarter.startNodes(&node, 1) != 0)
+  {
+    g_err << "ERROR: Node " << node << " start failed" << endl;
+    if(restarter.insertErrorInNode(node, 0) != 0)
+    {
+      g_err << "ERROR: Error insert clear failed" << endl;
+    }
+    ndb_mgm_destroy_logevent_handle(&handle);
+    return NDBT_FAILED;
+  }
+  if(restarter.waitNodesStarted(&node, 1) != 0)
+  {
+    g_err << "ERROR: Wait node " << node << " start failed" << endl;
+    if(restarter.insertErrorInNode(node, 0) != 0)
+    {
+      g_err << "ERROR: Error insert clear failed" << endl;
+    }
+    ndb_mgm_destroy_logevent_handle(&handle);
+    return NDBT_FAILED;
+  }
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+      event.type != NDB_LE_LCPRestored);
+  Uint32 lcp_restored= event.LCPRestored.restored_lcp_id;
+  ndbout << "LCP Restored: " << lcp_restored << endl;
+  Uint32 first_lcp= ctx->getProperty("LCP", (Uint32)0);
+  if(lcp_restored != first_lcp)
+  {
+    g_err << "ERROR: LCP " << lcp_restored << " restored, "
+          << "expected restore of LCP " << first_lcp << endl;
+    if(restarter.insertErrorInNode(node, 0) != 0)
+    {
+      g_err << "ERROR: Error insert clear failed" << endl;
+    }
+    ndb_mgm_destroy_logevent_handle(&handle);
+    return NDBT_FAILED;
+  }
+  if(restarter.insertErrorInNode(node, 0) != 0)
+  {
+    g_err << "ERROR: Error insert clear failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndb_mgm_destroy_logevent_handle(&handle);
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -8227,6 +8459,23 @@ TESTCASE("LCPLMBLeak",
   STEP(runLCP);
   STEP(waitAndCheckLMBUsage);
   FINALIZER(dropManyTables);
+}
+TESTCASE("ArbitrationWithApiNodeFailure",
+         "Check that arbitration do not fail with non arbitrator api node "
+         "failure.");
+{
+  STEP(runArbitrationWithApiNodeFailure);
+}
+TESTCASE("RestoreOlderLCP",
+         "Check if older LCP is restored when latest LCP is not recoverable");
+{
+  TC_PROPERTY("LCP", (Uint32)0);
+  INITIALIZER(runLCPandRecordId);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runLCPandRecordId);
+  STEP(runRestartandCheckLCPRestored);
+  FINALIZER(runScanReadVerify);
+  FINALIZER(runClearTable);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart);

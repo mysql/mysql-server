@@ -120,7 +120,7 @@ ha_rows table_status_by_user::get_row_count(void)
 
 table_status_by_user::table_status_by_user()
   : PFS_engine_table(&m_share, &m_pos),
-    m_status_cache(true), m_row_exists(false), m_pos(), m_next_pos(),
+    m_status_cache(true), m_pos(), m_next_pos(),
     m_context(NULL)
 {}
 
@@ -173,9 +173,12 @@ int table_status_by_user::rnd_next(void)
       const Status_variable *stat_var= m_status_cache.get(m_pos.m_index_2);
       if (stat_var != NULL)
       {
-        make_row(pfs_user, stat_var);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        /* If make_row() fails, get the next user. */
+        if (!make_row(pfs_user, stat_var))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   }
@@ -204,8 +207,7 @@ table_status_by_user::rnd_pos(const void *pos)
     const Status_variable *stat_var= m_status_cache.get(m_pos.m_index_2);
     if (stat_var != NULL)
     {
-      make_row(pfs_user, stat_var);
-      return 0;
+      return make_row(pfs_user, stat_var);
     }
   }
   return HA_ERR_RECORD_DELETED;
@@ -269,9 +271,11 @@ int table_status_by_user::index_next(void)
             {
               if (m_opened_index->match(stat_var))
               {
-                make_row(pfs_user, stat_var);
-                m_next_pos.set_after(&m_pos);
-                return 0;
+                if (!make_row(pfs_user, stat_var))
+                {
+                  m_next_pos.set_after(&m_pos);
+                  return 0;
+                }
               }
               m_pos.m_index_2++;
             }
@@ -284,23 +288,26 @@ int table_status_by_user::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_status_by_user
+int table_status_by_user
 ::make_row(PFS_user *user, const Status_variable *status_var)
 {
   pfs_optimistic_state lock;
-  m_row_exists= false;
   user->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_user.make_row(user))
-    return;
+    return HA_ERR_RECORD_DELETED;
+  
+  if (m_row.m_variable_name.make_row(status_var->m_name,
+                                     status_var->m_name_length))
+    return HA_ERR_RECORD_DELETED;
 
-  m_row.m_variable_name.make_row(status_var->m_name, status_var->m_name_length);
-  m_row.m_variable_value.make_row(status_var);
+  if (m_row.m_variable_value.make_row(status_var))
+    return HA_ERR_RECORD_DELETED;
 
   if (!user->m_lock.end_optimistic_lock(&lock))
-    return;
-
-  m_row_exists= true;
+    return HA_ERR_RECORD_DELETED;
+  
+  return 0;
 }
 
 int table_status_by_user
@@ -310,9 +317,6 @@ int table_status_by_user
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

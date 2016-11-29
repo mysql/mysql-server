@@ -99,6 +99,9 @@ select * from t1 union select * from t2 order by b;
 # select with a single derived table
 explain format = json select tt.* from (select * from t1) as tt;
 select tt.* from (select * from t1) as tt;
+# Cost estimates are unstable since t5 pages may have been flushed from buffer
+# pool since table was created.  Do a table scan to reload pages.
+select * from t5;
 # select with a derived table that builds index over the derived table
 explain format = json select b from (select b from t5 where b > 5) tt;
 select b from (select b from t5 where b > 5) tt;

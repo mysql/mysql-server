@@ -1821,9 +1821,9 @@ Warning	1265	Data truncated for column 'c1' at row 1
 INSERT INTO t1 (c1) VALUES ('');
 SELECT c1 + 0, COUNT(c1) FROM t1 GROUP BY c1;
 c1 + 0	COUNT(c1)
-0	1
-2	2
 3	1
+2	2
+0	1
 CREATE TABLE t2 SELECT * FROM t1;
 SELECT c1 + 0 FROM t2;
 c1 + 0

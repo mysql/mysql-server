@@ -44,7 +44,7 @@ ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'TRÜE'
 SET @@session.foreign_key_checks = ÕN;
 ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'ÕN'
 SET @@session.foreign_key_checks = OF;
-ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@session.foreign_key_checks = ÓFF;
 ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'ÓFF'
 SET @@session.foreign_key_checks = '¹';

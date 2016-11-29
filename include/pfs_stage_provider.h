@@ -28,6 +28,7 @@
 #ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
+#include "my_macros.h"
 #include "mysql/psi/psi_stage.h"
 
 #define PSI_STAGE_CALL(M) pfs_ ## M ## _v1

@@ -201,8 +201,14 @@ sub collect_test_cases ($$$$) {
 
   if ( @$opt_cases )
   {
-    # A list of tests was specified on the command line
-    # Check that the tests specified was found
+    # A list of tests was specified on the command line.
+    # Among those, the tests which are not already collected will be
+    # collected and stored temporarily in an array of hashes pointed
+    # by the below reference. This array is eventually appeneded to
+    # the one having all collected test cases.
+    my $cmdline_cases;
+
+    # Check that the tests specified were found
     # in at least one suite
     foreach my $test_name_spec ( @$opt_cases )
     {
@@ -225,9 +231,14 @@ sub collect_test_cases ($$$$) {
         {
           # If suite was part of name, find it there, may come with combinations
           my @this_case = collect_one_suite($sname, [ $tname ]);
+
+          # If a test is specified multiple times on the command line, all
+          # instances of the test need to be picked. Hence, such tests are
+          # stored in the temporary array instead of adding them to $cases
+          # directly so that repeated tests are not run only once
           if ( @this_case )
           {
-            push (@$cases, @this_case);
+            push (@$cmdline_cases, @this_case);
           }
           else
           {
@@ -245,13 +256,13 @@ sub collect_test_cases ($$$$) {
               my @this_case = collect_one_suite($suite, [ $tname ]);
               if ( @this_case )
               {
-                push (@$cases, @this_case);
+                push (@$cmdline_cases, @this_case);
                 $found= 1;
               }
               @this_case= collect_one_suite("i_".$suite, [ $tname ]);
               if ( @this_case )
               {
-                push (@$cases, @this_case);
+                push (@$cmdline_cases, @this_case);
                 $found= 1;
               }
             }
@@ -263,6 +274,9 @@ sub collect_test_cases ($$$$) {
         }
       }
     }
+    # Add test cases collected in the temporary array to the one
+    # containing all previously collected test cases
+    push (@$cases, @$cmdline_cases) if $cmdline_cases;
   }
 
   if ( $opt_reorder && !$quick_collect)

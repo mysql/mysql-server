@@ -55,7 +55,7 @@
 
 class PT_field_def_base;
 class PT_hint_list;
-class PT_partition;
+class PT_partition; 
 class PT_query_expression;
 class PT_subquery;
 class Sql_cmd;
@@ -165,10 +165,11 @@ class PT_order_expr : public Parse_tree_node, public ORDER
   typedef Parse_tree_node super;
 
 public:
-  PT_order_expr(Item *item_arg, bool is_asc)
+  PT_order_expr(Item *item_arg, enum_order dir)
   {
     item_ptr= item_arg;
-    direction= is_asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC;
+    direction= (dir == ORDER_DESC) ? ORDER_DESC : ORDER_ASC;
+    is_explicit= (dir != ORDER_NOT_RELEVANT);
   }
 
   virtual bool contextualize(Parse_context *pc)
@@ -698,6 +699,149 @@ public:
     lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
     return false;
   }
+};
+
+
+class PT_locking_clause : public Parse_tree_node
+{
+public:
+  PT_locking_clause(Lock_strength strength, Locked_row_action action)
+    : m_lock_strength(strength),
+      m_locked_row_action(action)
+  {}
+
+  virtual bool contextualize(Parse_context *pc) final;
+
+  virtual bool set_lock_for_tables(Parse_context *pc) = 0;
+
+  virtual bool is_legacy_syntax() const = 0;
+
+  Locked_row_action action() const { return m_locked_row_action; }
+
+protected:
+  Lock_descriptor get_lock_descriptor() const
+  {
+    thr_lock_type lock_type= TL_IGNORE;
+    switch (m_lock_strength)
+    {
+    case Lock_strength::UPDATE:
+      lock_type= TL_WRITE;
+      break;
+    case Lock_strength::SHARE:
+      lock_type= TL_READ_WITH_SHARED_LOCKS;
+      break;
+    }
+
+    return { lock_type, static_cast<thr_locked_row_action>(action()) };
+  }
+
+private:
+  Lock_strength m_lock_strength;
+  Locked_row_action m_locked_row_action;
+};
+
+
+class PT_query_block_locking_clause : public PT_locking_clause
+{
+public:
+  PT_query_block_locking_clause(Lock_strength strength,
+                                Locked_row_action action)
+    : PT_locking_clause(strength, action),
+      m_is_legacy_syntax(strength == Lock_strength::UPDATE &&
+                         action == Locked_row_action::WAIT)
+  {}
+
+  PT_query_block_locking_clause(Lock_strength strength)
+    : PT_locking_clause(strength, Locked_row_action::WAIT),
+      m_is_legacy_syntax(true)
+  {}
+
+  bool set_lock_for_tables(Parse_context *pc) override;
+
+  bool is_legacy_syntax() const override { return m_is_legacy_syntax; }
+
+private:
+  bool m_is_legacy_syntax;
+};
+
+
+class PT_table_locking_clause : public PT_locking_clause
+{
+public:
+  typedef Mem_root_array_YY<Table_ident *> Table_ident_list;
+
+  PT_table_locking_clause(Lock_strength strength,
+                          Mem_root_array_YY<Table_ident *> tables,
+                          Locked_row_action action)
+    : PT_locking_clause(strength, action),
+      m_tables(tables)
+  {}
+
+  bool set_lock_for_tables(Parse_context *pc) override;
+
+  bool is_legacy_syntax() const override { return false; }
+
+private:
+  /// @todo Move this function to Table_ident?
+  void print_table_ident(THD *thd, const Table_ident *ident, String *s)
+  {
+    LEX_CSTRING db= ident->db;
+    LEX_CSTRING table= ident->table;
+    if (db.length > 0)
+    {
+      append_identifier(thd, s, db.str, db.length);
+      s->append('.');
+    }
+    append_identifier(thd, s, table.str, table.length);
+  }
+
+  bool raise_error(THD *thd, const Table_ident *name, int error)
+  {
+    String s;
+    print_table_ident(thd, name, &s);
+    my_error(error, MYF(0), s.ptr());
+    return true;
+  }
+
+  bool raise_error(THD *thd, int error)
+  {
+    my_error(error, MYF(0));
+    return true;
+  }
+
+  Table_ident_list m_tables;
+};
+
+
+class PT_locking_clause_list : public Parse_tree_node
+{
+public:
+  PT_locking_clause_list(MEM_ROOT *mem_root)
+  {
+    m_locking_clauses.init(mem_root);
+  }
+
+  bool push_back(PT_locking_clause *locking_clause)
+  {
+    return m_locking_clauses.push_back(locking_clause);
+  }
+
+  bool is_legacy_syntax() const
+  {
+    return m_locking_clauses.size() == 1 &&
+      m_locking_clauses[0]->is_legacy_syntax();
+  }
+
+  bool contextualize(Parse_context *pc)
+  {
+    for (auto locking_clause : m_locking_clauses)
+      if (locking_clause->contextualize(pc))
+        return true;
+    return false;
+  }
+
+private:
+  Mem_root_array_YY<PT_locking_clause *> m_locking_clauses;
 };
 
 
@@ -1585,24 +1729,6 @@ public:
 };
 
 
-/// Adds a default constructor to select_lock_type.
-class Default_constructible_locking_clause : public Select_lock_type
-{
-public:
-  Default_constructible_locking_clause() { is_set= false; }
-  
-  Default_constructible_locking_clause(const Select_lock_type &slt)
-  {
-    is_set= slt.is_set;
-    if (is_set) // to make memory sanitizers happy
-    {
-      lock_type= slt.lock_type;
-      is_safe_to_cache_query= slt.is_safe_to_cache_query;
-    }
-  }
-};
-
-
 class PT_query_primary : public Parse_tree_node
 {
 public:
@@ -1689,19 +1815,18 @@ public:
                       PT_order *order,
                       PT_limit_clause *limit,
                       PT_procedure_analyse *procedure_analyse,
-                      const Select_lock_type &lock_type)
+                      PT_locking_clause_list *locking_clauses)
     : contextualized(false),
       m_body(body),
       m_order(order),
       m_limit(limit),
       m_procedure_analyse(procedure_analyse),
-      m_lock_type(lock_type),
+      m_locking_clauses(locking_clauses),
       m_parentheses(false)
   {}
 
   explicit PT_query_expression(PT_query_expression_body *body)
-    : PT_query_expression(body, NULL, NULL, NULL,
-                          Default_constructible_locking_clause())
+    : PT_query_expression(body, NULL, NULL, NULL, NULL)
   {}
 
   virtual bool contextualize(Parse_context *pc)
@@ -1721,11 +1846,8 @@ public:
     if (m_procedure_analyse && pc->select->master_unit()->outer_select() != NULL)
       my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
 
-    if (m_lock_type.is_set && !pc->thd->lex->is_explain())
-    {
-      pc->select->set_lock_for_tables(m_lock_type.lock_type);
-      pc->thd->lex->safe_to_cache_query= m_lock_type.is_safe_to_cache_query;
-    }
+    if (contextualize_safe(pc, m_locking_clauses))
+      return true;
 
     return false;
   }
@@ -1808,7 +1930,7 @@ private:
   PT_order *m_order;
   PT_limit_clause *m_limit;
   PT_procedure_analyse *m_procedure_analyse;
-  Default_constructible_locking_clause m_lock_type;
+  PT_locking_clause_list *m_locking_clauses;
   bool m_parentheses;
 };
 

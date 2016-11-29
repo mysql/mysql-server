@@ -1844,7 +1844,7 @@ ha_ndbcluster::get_fk_data(THD *thd, Ndb *ndb)
 }
 
 void
-ha_ndbcluster::release_fk_data(THD *thd)
+ha_ndbcluster::release_fk_data()
 {
   DBUG_ENTER("ha_ndbcluster::release_fk_data");
 

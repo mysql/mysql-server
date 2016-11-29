@@ -138,7 +138,7 @@ table_ees_by_thread_by_error::get_row_count(void)
 
 table_ees_by_thread_by_error::table_ees_by_thread_by_error()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos()
+    m_pos(), m_next_pos()
 {}
 
 void table_ees_by_thread_by_error::reset_position(void)
@@ -168,9 +168,11 @@ int table_ees_by_thread_by_error::rnd_next(void)
            m_pos.has_more_error();
            m_pos.next_error())
       {
-        make_row(thread, m_pos.m_index_2);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(thread, m_pos.m_index_2))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   }
@@ -192,8 +194,8 @@ table_ees_by_thread_by_error::rnd_pos(const void *pos)
          m_pos.has_more_error();
          m_pos.next_error())
     {
-      make_row(thread, m_pos.m_index_2);
-      return 0;
+      if (!make_row(thread, m_pos.m_index_2))
+        return 0;
     }
   }
 
@@ -230,9 +232,11 @@ int table_ees_by_thread_by_error::index_next(void)
         {
           if (m_opened_index->match_error_index(m_pos.m_index_2))
           {
-            make_row(thread, m_pos.m_index_2);
-            m_next_pos.set_after(&m_pos);
-            return 0;
+            if (!make_row(thread, m_pos.m_index_2))
+            {
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
           }
         }
       }
@@ -242,12 +246,11 @@ int table_ees_by_thread_by_error::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_ees_by_thread_by_error
+int table_ees_by_thread_by_error
 ::make_row(PFS_thread *thread, int error_index)
 {
   PFS_error_class *klass= & global_error_class;
   pfs_optimistic_state lock;
-  m_row_exists= false;
 
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
@@ -257,11 +260,12 @@ void table_ees_by_thread_by_error
   PFS_connection_error_visitor visitor(klass, error_index);
   PFS_connection_iterator::visit_thread(thread, &visitor);
 
-  if (! thread->m_lock.end_optimistic_lock(&lock))
-    return;
-
-  m_row_exists= true;
+  if (!thread->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+  
   m_row.m_stat.set(& visitor.m_stat, error_index);
+
+  return 0;
 }
 
 int table_ees_by_thread_by_error
@@ -270,9 +274,6 @@ int table_ees_by_thread_by_error
 {
   Field *f;
   server_error *temp_error= NULL;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

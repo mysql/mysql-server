@@ -62,7 +62,6 @@
 #include "mysql_com.h"
 #include "mysqld.h"                     // LOCK_user_conn
 #include "mysqld_error.h"
-#include "probes_mysql.h"
 #include "protocol.h"
 #include "protocol_classic.h"
 #include "psi_memory_key.h"
@@ -919,10 +918,6 @@ bool thd_prepare_connection(THD *thd)
   if (rc)
     return rc;
 
-  MYSQL_CONNECTION_START(thd->thread_id(),
-                         (char *) &thd->security_context()->priv_user().str[0],
-                         (char *) thd->security_context()->host_or_ip().str);
-
   prepare_new_connection_state(thd);
   return FALSE;
 }
@@ -948,13 +943,6 @@ void close_connection(THD *thd, uint sql_errno,
   if (sql_errno)
     net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno));
   thd->disconnect(server_shutdown);
-
-  MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id());
-
-  if (MYSQL_CONNECTION_DONE_ENABLED())
-  {
-    sleep(0); /* Workaround to avoid tailcall optimisation */
-  }
 
   if (generate_event)
     mysql_audit_notify(thd,

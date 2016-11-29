@@ -250,11 +250,7 @@ void delegates_destroy()
   Add observer plugins to the thd->lex list, after each statement, all
   plugins add to thd->lex will be automatically unlocked.
  */
-#define FOREACH_OBSERVER(r, f, thd, args)                               \
-  /*
-     Use a struct to make sure that they are allocated adjacent, check
-     delete_dynamic().
-  */                                                                    \
+#define FOREACH_OBSERVER(r, f, args)                                    \
   Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);        \
   read_lock();                                                          \
   Observer_info_iterator iter= observer_info_iter();                    \
@@ -290,11 +286,7 @@ void delegates_destroy()
   if (!plugins.empty())                                                 \
     plugin_unlock_list(0, &plugins[0], plugins.size());
 
-#define FOREACH_OBSERVER_ERROR_OUT(r, f, thd, args, out)                \
-  /*
-     Use a struct to make sure that they are allocated adjacent, check
-     delete_dynamic().
-  */                                                                    \
+#define FOREACH_OBSERVER_ERROR_OUT(r, f, args, out)                     \
   Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);        \
   read_lock();                                                          \
   Observer_info_iterator iter= observer_info_iter();                    \
@@ -360,7 +352,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
     param.flags|= TRANS_IS_REAL_TRANS;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, before_commit, thd, (&param));
+  FOREACH_OBSERVER(ret, before_commit, (&param));
   DBUG_RETURN(ret);
 }
 
@@ -528,7 +520,7 @@ int Trans_delegate::before_dml(THD* thd, int& result)
   prepare_transaction_context(thd, param.trans_ctx_info);
 
   int ret= 0;
-  FOREACH_OBSERVER_ERROR_OUT(ret, before_dml, thd, &param, result);
+  FOREACH_OBSERVER_ERROR_OUT(ret, before_dml, &param, result);
 
   my_free(param.tables_info);
 
@@ -550,7 +542,7 @@ int Trans_delegate::before_rollback(THD *thd, bool all)
     param.flags|= TRANS_IS_REAL_TRANS;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, before_rollback, thd, (&param));
+  FOREACH_OBSERVER(ret, before_rollback, (&param));
   DBUG_RETURN(ret);
 }
 
@@ -574,7 +566,7 @@ int Trans_delegate::after_commit(THD *thd, bool all)
   DEBUG_SYNC(thd, "before_call_after_commit_observer");
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_commit, thd, (&param));
+  FOREACH_OBSERVER(ret, after_commit, (&param));
   DBUG_RETURN(ret);
 }
 
@@ -594,7 +586,7 @@ int Trans_delegate::after_rollback(THD *thd, bool all)
   param.server_id= thd->server_id;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_rollback, thd, (&param));
+  FOREACH_OBSERVER(ret, after_rollback, (&param));
   DBUG_RETURN(ret);
 }
 
@@ -609,7 +601,7 @@ int Binlog_storage_delegate::after_flush(THD *thd,
   param.server_id= thd->server_id;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_flush, thd, (&param, log_file, log_pos));
+  FOREACH_OBSERVER(ret, after_flush, (&param, log_file, log_pos));
   DBUG_RETURN(ret);
 }
 
@@ -617,16 +609,15 @@ int Binlog_storage_delegate::after_flush(THD *thd,
   * This hook MUST be invoked after ALL recovery operations are performed
   * and the server is ready to serve clients.
   *
-  * @param[in] thd The thread context.
   * @return 0 on success, >0 otherwise.
 */
-int Server_state_delegate::before_handle_connection(THD *thd)
+int Server_state_delegate::before_handle_connection(THD*)
 {
   DBUG_ENTER("Server_state_delegate::before_client_connection");
   Server_state_param param;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, before_handle_connection, thd, (&param));
+  FOREACH_OBSERVER(ret, before_handle_connection, (&param));
   DBUG_RETURN(ret);
 
 }
@@ -634,16 +625,15 @@ int Server_state_delegate::before_handle_connection(THD *thd)
 /**
   * This hook MUST be invoked before ANY recovery action is started.
   *
-  * @param[in] thd The thread context.
   * @return 0 on success, >0 otherwise.
 */
-int Server_state_delegate::before_recovery(THD *thd)
+int Server_state_delegate::before_recovery(THD*)
 {
   DBUG_ENTER("Server_state_delegate::before_recovery");
   Server_state_param param;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, before_recovery, thd, (&param));
+  FOREACH_OBSERVER(ret, before_recovery, (&param));
   DBUG_RETURN(ret);
 }
 
@@ -651,16 +641,15 @@ int Server_state_delegate::before_recovery(THD *thd)
   * This hook MUST be invoked after the recovery from the engine
   * is complete.
   *
-  * @param[in] thd The thread context.
   * @return 0 on success, >0 otherwise.
 */
-int Server_state_delegate::after_engine_recovery(THD *thd)
+int Server_state_delegate::after_engine_recovery(THD*)
 {
   DBUG_ENTER("Server_state_delegate::after_engine_recovery");
   Server_state_param param;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_engine_recovery, thd, (&param));
+  FOREACH_OBSERVER(ret, after_engine_recovery, (&param));
   DBUG_RETURN(ret);
 
 }
@@ -670,16 +659,15 @@ int Server_state_delegate::after_engine_recovery(THD *thd)
   * local recovery. The server can proceed with the further operations
   * like engaging in distributed recovery etc.
   *
-  * @param[in] thd The thread context.
   * @return 0 on success, >0 otherwise.
 */
-int Server_state_delegate::after_recovery(THD *thd)
+int Server_state_delegate::after_recovery(THD*)
 {
   DBUG_ENTER("Server_state_delegate::after_recovery");
   Server_state_param param;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_recovery, thd, (&param));
+  FOREACH_OBSERVER(ret, after_recovery, (&param));
   DBUG_RETURN(ret);
 }
 
@@ -687,16 +675,15 @@ int Server_state_delegate::after_recovery(THD *thd)
   * This hook MUST be invoked before server shutdown action is
   * initiated.
   *
-  * @param[in] thd The thread context.
   * @return 0 on success, >0 otherwise.
 */
-int Server_state_delegate::before_server_shutdown(THD *thd)
+int Server_state_delegate::before_server_shutdown(THD*)
 {
   DBUG_ENTER("Server_state_delegate::before_server_shutdown");
   Server_state_param param;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, before_server_shutdown, thd, (&param));
+  FOREACH_OBSERVER(ret, before_server_shutdown, (&param));
   DBUG_RETURN(ret);
 }
 
@@ -704,16 +691,15 @@ int Server_state_delegate::before_server_shutdown(THD *thd)
   * This hook MUST be invoked after server shutdown operation is
   * complete.
   *
-  * @param[in] thd The thread context.
   * @return 0 on success, >0 otherwise.
 */
-int Server_state_delegate::after_server_shutdown(THD *thd)
+int Server_state_delegate::after_server_shutdown(THD*)
 {
   DBUG_ENTER("Server_state_delegate::after_server_shutdown");
   Server_state_param param;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_server_shutdown, thd, (&param));
+  FOREACH_OBSERVER(ret, after_server_shutdown, (&param));
   DBUG_RETURN(ret);
 }
 
@@ -729,7 +715,7 @@ int Binlog_storage_delegate::after_sync(THD *thd,
 
   DBUG_ASSERT(log_pos != 0);
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_sync, thd, (&param, log_file, log_pos));
+  FOREACH_OBSERVER(ret, after_sync, (&param, log_file, log_pos));
 
   DEBUG_SYNC(thd, "after_call_after_sync_observer");
   DBUG_RETURN(ret);
@@ -746,7 +732,7 @@ int Binlog_transmit_delegate::transmit_start(THD *thd, ushort flags,
   param.server_id= thd->server_id;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, transmit_start, thd, (&param, log_file, log_pos));
+  FOREACH_OBSERVER(ret, transmit_start, (&param, log_file, log_pos));
   *observe_transmission= param.should_observe();
   return ret;
 }
@@ -760,7 +746,7 @@ int Binlog_transmit_delegate::transmit_stop(THD *thd, ushort flags)
   DBUG_EXECUTE_IF("crash_binlog_transmit_hook", DBUG_SUICIDE(););
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, transmit_stop, thd, (&param));
+  FOREACH_OBSERVER(ret, transmit_stop, (&param));
   return ret;
 }
 
@@ -830,8 +816,8 @@ int Binlog_transmit_delegate::before_send_event(THD *thd, ushort flags,
   DBUG_EXECUTE_IF("crash_binlog_transmit_hook", DBUG_SUICIDE(););
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, before_send_event, thd,
-                   (&param, (uchar *)packet->c_ptr(),
+  FOREACH_OBSERVER(ret, before_send_event,
+                   (&param, (uchar *)packet->ptr(),
                     packet->length(),
                     log_file+dirname_length(log_file), log_pos));
   return ret;
@@ -849,8 +835,8 @@ int Binlog_transmit_delegate::after_send_event(THD *thd, ushort flags,
   DBUG_EXECUTE_IF("crash_binlog_transmit_hook", DBUG_SUICIDE(););
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_send_event, thd,
-                   (&param, packet->c_ptr(), packet->length(),
+  FOREACH_OBSERVER(ret, after_send_event,
+                   (&param, packet->ptr(), packet->length(),
                    skipped_log_file+dirname_length(skipped_log_file),
                     skipped_log_pos));
   return ret;
@@ -864,7 +850,7 @@ int Binlog_transmit_delegate::after_reset_master(THD *thd, ushort flags)
   param.server_id= thd->server_id;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_reset_master, thd, (&param));
+  FOREACH_OBSERVER(ret, after_reset_master, (&param));
   return ret;
 }
 
@@ -888,7 +874,7 @@ int Binlog_relay_IO_delegate::thread_start(THD *thd, Master_info *mi)
   param.thread_id= thd->thread_id();
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, thread_start, thd, (&param));
+  FOREACH_OBSERVER(ret, thread_start, (&param));
   return ret;
 }
 
@@ -902,7 +888,7 @@ int Binlog_relay_IO_delegate::thread_stop(THD *thd, Master_info *mi)
   param.thread_id= thd->thread_id();
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, thread_stop, thd, (&param));
+  FOREACH_OBSERVER(ret, thread_stop, (&param));
   return ret;
 }
 
@@ -916,7 +902,7 @@ int Binlog_relay_IO_delegate::applier_stop(THD *thd,
   param.thread_id= thd->thread_id();
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, applier_stop, thd, (&param, aborted));
+  FOREACH_OBSERVER(ret, applier_stop, (&param, aborted));
   return ret;
 }
 
@@ -930,7 +916,7 @@ int Binlog_relay_IO_delegate::before_request_transmit(THD *thd,
   param.thread_id= thd->thread_id();
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, before_request_transmit, thd, (&param, (uint32)flags));
+  FOREACH_OBSERVER(ret, before_request_transmit, (&param, (uint32)flags));
   return ret;
 }
 
@@ -945,7 +931,7 @@ int Binlog_relay_IO_delegate::after_read_event(THD *thd, Master_info *mi,
   param.thread_id= thd->thread_id();
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_read_event, thd,
+  FOREACH_OBSERVER(ret, after_read_event,
                    (&param, packet, len, event_buf, event_len));
   return ret;
 }
@@ -965,7 +951,7 @@ int Binlog_relay_IO_delegate::after_queue_event(THD *thd, Master_info *mi,
     flags |= BINLOG_STORAGE_IS_SYNCED;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_queue_event, thd,
+  FOREACH_OBSERVER(ret, after_queue_event,
                    (&param, event_buf, event_len, flags));
   return ret;
 }
@@ -979,7 +965,7 @@ int Binlog_relay_IO_delegate::after_reset_slave(THD *thd, Master_info *mi)
   param.thread_id= thd->thread_id();
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_reset_slave, thd, (&param));
+  FOREACH_OBSERVER(ret, after_reset_slave, (&param));
   return ret;
 }
 #endif /* HAVE_REPLICATION */
@@ -989,9 +975,9 @@ int register_trans_observer(Trans_observer *observer, void *p)
   return transaction_delegate->add_observer(observer, (st_plugin_int *)p);
 }
 
-int unregister_trans_observer(Trans_observer *observer, void *p)
+int unregister_trans_observer(Trans_observer *observer, void*)
 {
-  return transaction_delegate->remove_observer(observer, (st_plugin_int *)p);
+  return transaction_delegate->remove_observer(observer);
 }
 
 int register_binlog_storage_observer(Binlog_storage_observer *observer, void *p)
@@ -1001,9 +987,9 @@ int register_binlog_storage_observer(Binlog_storage_observer *observer, void *p)
   DBUG_RETURN(result);
 }
 
-int unregister_binlog_storage_observer(Binlog_storage_observer *observer, void *p)
+int unregister_binlog_storage_observer(Binlog_storage_observer *observer, void*)
 {
-  return binlog_storage_delegate->remove_observer(observer, (st_plugin_int *)p);
+  return binlog_storage_delegate->remove_observer(observer);
 }
 
 int register_server_state_observer(Server_state_observer *observer, void *plugin_var)
@@ -1013,10 +999,10 @@ int register_server_state_observer(Server_state_observer *observer, void *plugin
   DBUG_RETURN(result);
 }
 
-int unregister_server_state_observer(Server_state_observer *observer, void *plugin_var)
+int unregister_server_state_observer(Server_state_observer *observer, void*)
 {
   DBUG_ENTER("unregister_server_state_observer");
-  int result= server_state_delegate->remove_observer(observer, (st_plugin_int *)plugin_var);
+  int result= server_state_delegate->remove_observer(observer);
   DBUG_RETURN(result);
 }
 
@@ -1026,9 +1012,9 @@ int register_binlog_transmit_observer(Binlog_transmit_observer *observer, void *
   return binlog_transmit_delegate->add_observer(observer, (st_plugin_int *)p);
 }
 
-int unregister_binlog_transmit_observer(Binlog_transmit_observer *observer, void *p)
+int unregister_binlog_transmit_observer(Binlog_transmit_observer *observer, void*)
 {
-  return binlog_transmit_delegate->remove_observer(observer, (st_plugin_int *)p);
+  return binlog_transmit_delegate->remove_observer(observer);
 }
 
 int register_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *p)
@@ -1036,8 +1022,8 @@ int register_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *
   return binlog_relay_io_delegate->add_observer(observer, (st_plugin_int *)p);
 }
 
-int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *p)
+int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void*)
 {
-  return binlog_relay_io_delegate->remove_observer(observer, (st_plugin_int *)p);
+  return binlog_relay_io_delegate->remove_observer(observer);
 }
 #endif /* HAVE_REPLICATION */

@@ -2611,7 +2611,7 @@ join_init_quick_read_record(QEP_TAB *tab)
                                   0,          // empty table map
                                   HA_POS_ERROR,
                                   false,      // don't force quick range
-                                  ORDER::ORDER_NOT_RELEVANT, tab,
+                                  ORDER_NOT_RELEVANT, tab,
                                   tab->condition(), &needed_reg_dummy, &qck);
   DBUG_ASSERT(old_qck == NULL || old_qck != qck) ;
   tab->set_quick(qck);

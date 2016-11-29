@@ -22,7 +22,13 @@
 #ifndef _my_base_h
 #define _my_base_h
 
-#include "my_global.h"
+#include <limits.h>
+#include <sys/types.h>
+
+#include "my_config.h"
+#include "my_double2ulonglong.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 /* The following is bits in the flag parameter to ha_open() */
 
@@ -985,7 +991,8 @@ is the global server default. */
   Information in the data-dictionary needs to be updated.
 */
 #define HA_ERR_ROW_FORMAT_CHANGED      202
-#define HA_ERR_LAST                    202  /* Copy of last error nr */
+#define HA_ERR_NO_WAIT_LOCK            203  /* Don't wait for record lock */
+#define HA_ERR_LAST                    203  /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
@@ -1090,7 +1097,12 @@ enum key_range_flags {
     Used together with EQ_RANGE to indicate that index statistics
     should be used instead of sampling the index.
   */
-  USE_INDEX_STATISTICS= 1 << 9
+  USE_INDEX_STATISTICS= 1 << 9,
+  /*
+    Keypart is reverse-ordered (DESC) and ranges needs to be scanned
+    backward. @see quick_range_seq_init, get_quick_keys.
+  */
+  DESC_FLAG=            1 << 10,
 };
 
 

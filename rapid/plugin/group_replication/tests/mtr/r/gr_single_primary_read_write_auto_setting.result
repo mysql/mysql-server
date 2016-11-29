@@ -72,15 +72,13 @@ INSERT INTO test1(`name`) VALUES("First ROW created in third query"), ("Second R
 INSERT INTO test1(`name`) VALUES("First ROW created in fourth query"), ("Second ROW created in fourth query");
 UPDATE test1 SET `name`="3 query" WHERE `name` LIKE '%third query%';
 UPDATE test1 SET `name`="Second ROW" WHERE `name` LIKE '%2 ROW%';
+include/rpl_sync.inc
 
 ## CHECK SECONDARY SERVERS THAT ARE SET IN READ ONLY MODE
-include/rpl_sync.inc
 TRUNCATE TABLE `test1`;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
-include/rpl_sync.inc
 TRUNCATE TABLE `test1`;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
-include/rpl_sync.inc
 TRUNCATE TABLE `test1`;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
 

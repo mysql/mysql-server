@@ -103,5 +103,4 @@ if ($size1 == $size2)
 }
 
 --remove_file $BOOTSTRAP_SQL
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1;
---source include/cleanup_folder.inc
+--force-rmdir $MYSQL_TMP_DIR/datadir1

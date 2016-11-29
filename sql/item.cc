@@ -568,6 +568,82 @@ Item::save_str_value_in_field(Field *field, String *result)
 }
 
 
+/**
+  Aggregates data types from array of items into current item
+
+  @param items  array of items to aggregate the type from
+
+  This function aggregates all type information from the array of items.
+  Found type is supposed to be used later as the result data type
+  of a multi-argument function.
+  Aggregation itself is performed partially by the Field::field_type_merge()
+  function.
+
+  @return aggregated field type.
+
+  @todo When Item has a consolidated data type, aggregate directly into it.
+*/
+
+enum_field_types Item::aggregate_type(Bounds_checked_array<Item *>items)
+{
+  uint itemno= 0;
+  const uint count= items.size();
+  while (itemno < count && items[itemno]->field_type() == MYSQL_TYPE_NULL)
+    itemno++;
+
+  if (itemno == count)
+  {
+    // All items have NULL type, return type NULL
+    decimals= 0;
+    unsigned_flag= false;
+    max_length= 0;
+    return MYSQL_TYPE_NULL;
+  }
+
+  DBUG_ASSERT(items[itemno]->result_type() != ROW_RESULT);
+
+  enum_field_types new_type= items[itemno]->field_type();
+  uint8 new_dec= items[itemno]->decimals;
+  bool new_unsigned= items[itemno]->unsigned_flag;
+  bool mixed_signs= false;
+
+  for (itemno= itemno + 1; itemno < count; itemno++)
+  {
+    // Do not aggregate items with NULL type
+    if (items[itemno]->field_type() == MYSQL_TYPE_NULL)
+      continue;
+    DBUG_ASSERT(items[itemno]->result_type() != ROW_RESULT);
+    new_type= Field::field_type_merge(new_type, items[itemno]->field_type());
+    mixed_signs|= (new_unsigned != items[itemno]->unsigned_flag);
+    new_dec= max<uint8>(new_dec, items[itemno]->decimals);
+  }
+  if (mixed_signs && is_integer_type(new_type))
+  {
+    bool bump_range= false;
+    for (uint i= 0; i < count; i++)
+      bump_range|= (items[i]->unsigned_flag &&
+                    (items[i]->field_type() == new_type ||
+                     items[i]->field_type() == MYSQL_TYPE_BIT));
+    if (bump_range)
+    {
+      switch (new_type)
+      {
+        case MYSQL_TYPE_TINY:     new_type= MYSQL_TYPE_SHORT; break;
+        case MYSQL_TYPE_SHORT:    new_type= MYSQL_TYPE_INT24; break;
+        case MYSQL_TYPE_INT24:    new_type= MYSQL_TYPE_LONG; break;
+        case MYSQL_TYPE_LONG:     new_type= MYSQL_TYPE_LONGLONG; break;
+        case MYSQL_TYPE_LONGLONG: new_type= MYSQL_TYPE_NEWDECIMAL; break;
+        default: break;
+      }
+    }
+  }
+
+  decimals= new_dec;
+  unsigned_flag= new_unsigned && !mixed_signs;
+  max_length= 0;
+  return real_type_to_type(new_type);
+}
+
 bool Item::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))

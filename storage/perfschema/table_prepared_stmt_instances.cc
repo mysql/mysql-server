@@ -323,7 +323,7 @@ table_prepared_stmt_instances::get_row_count(void)
 
 table_prepared_stmt_instances::table_prepared_stmt_instances()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_pos(0), m_next_pos(0)
 {}
 
 void table_prepared_stmt_instances::reset_position(void)
@@ -341,9 +341,8 @@ int table_prepared_stmt_instances::rnd_next(void)
   pfs= it.scan_next(& m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -359,8 +358,7 @@ table_prepared_stmt_instances::rnd_pos(const void *pos)
   pfs= global_prepared_stmt_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    make_row(pfs);
-    return 0;
+    return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -412,9 +410,11 @@ int table_prepared_stmt_instances::index_next(void)
     {
       if (m_opened_index->match(pfs))
       {
-        make_row(pfs);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        if (!make_row(pfs))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   }
@@ -422,10 +422,9 @@ int table_prepared_stmt_instances::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_prepared_stmt_instances::make_row(PFS_prepared_stmt* prepared_stmt)
+int table_prepared_stmt_instances::make_row(PFS_prepared_stmt* prepared_stmt)
 {
   pfs_optimistic_state lock;
-  m_row_exists= false;
 
   prepared_stmt->m_lock.begin_optimistic_lock(&lock);
 
@@ -466,10 +465,10 @@ void table_prepared_stmt_instances::make_row(PFS_prepared_stmt* prepared_stmt)
   /* Get prepared statement execute stats. */
   m_row.m_execute_stat.set(normalizer, & prepared_stmt->m_execute_stat);
 
-  if (! prepared_stmt->m_lock.end_optimistic_lock(&lock))
-    return;
+  if (!prepared_stmt->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
 
-  m_row_exists= true;
+  return 0; 
 }
 
 int table_prepared_stmt_instances
@@ -477,9 +476,6 @@ int table_prepared_stmt_instances
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /*
     Set the null bits.

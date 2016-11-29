@@ -37,7 +37,7 @@ cursor_by_thread_connect_attr::get_row_count(void)
 
 cursor_by_thread_connect_attr::cursor_by_thread_connect_attr(
   const PFS_engine_table_share *share) :
-  PFS_engine_table(share, &m_pos), m_row_exists(false)
+  PFS_engine_table(share, &m_pos)
 {}
 
 void cursor_by_thread_connect_attr::reset_position(void)
@@ -55,11 +55,10 @@ int cursor_by_thread_connect_attr::rnd_next(void)
        has_more_thread;
        m_pos.next_thread())
   {
-    thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (thread != NULL)
     {
-      make_row(thread, m_pos.m_index_2);
-      if (m_row_exists)
+      if (!make_row(thread, m_pos.m_index_2))
       {
         m_next_pos.set_after(&m_pos);
         return 0;
@@ -79,9 +78,7 @@ int cursor_by_thread_connect_attr::rnd_pos(const void *pos)
   thread= global_thread_container.get(m_pos.m_index_1);
   if (thread != NULL)
   {
-    make_row(thread, m_pos.m_index_2);
-    if (m_row_exists)
-      return 0;
+    return make_row(thread, m_pos.m_index_2);
   }
 
   return HA_ERR_RECORD_DELETED;

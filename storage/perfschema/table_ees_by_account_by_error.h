@@ -132,7 +132,7 @@ public:
   {}
 
 protected:
-  void make_row(PFS_account *account, int error_index);
+  int make_row(PFS_account *account, int error_index);
 
 private:
   /** Table share lock. */
@@ -142,8 +142,6 @@ private:
 
   /** Current row. */
   row_ees_by_account_by_error m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_ees_by_account_by_error m_pos;
   /** Next position. */

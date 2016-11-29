@@ -858,7 +858,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a` asc,`test`.`t1`.`b` asc limit 1
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
@@ -1745,12 +1745,12 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	100.00	Using where
+1	DELETE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	100.00	Using where; Backward index scan
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	X	Using where
+1	DELETE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	X	Using where; Backward index scan
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -1759,7 +1759,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	X	X	Using where
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	X	X	Using where; Backward index scan
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
@@ -1853,7 +1853,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	6	NULL	X	X	NULL
+1	SIMPLE	t2	NULL	index	NULL	a	6	NULL	X	X	Backward index scan
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
@@ -2239,12 +2239,12 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	100.00	Using where; Using temporary
+1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	100.00	Using where; Backward index scan; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	X	Using where; Using temporary
+1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	X	Using where; Backward index scan; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -2253,7 +2253,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	X	X	Using where
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	X	X	Using where; Backward index scan
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
@@ -2348,7 +2348,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	6	NULL	X	X	NULL
+1	SIMPLE	t2	NULL	index	NULL	a	6	NULL	X	X	Backward index scan
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
@@ -2383,12 +2383,12 @@ INSERT INTO t1 VALUES (1,'y',1), (2,'n',2), (3,'y',3), (4,'n',4);
 #
 EXPLAIN UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using temporary
+1	UPDATE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Backward index scan; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using temporary
+1	UPDATE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Backward index scan; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -2397,7 +2397,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1     WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	c1_idx	c1_idx	2	const	2	100.00	Using where
+1	SIMPLE	t1	NULL	ref	c1_idx	c1_idx	2	const	2	100.00	Using where; Backward index scan
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
@@ -2420,12 +2420,12 @@ Handler_update	2
 #
 EXPLAIN DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where
+1	DELETE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Backward index scan
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where
+1	DELETE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Backward index scan
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -2434,7 +2434,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	c1_idx	c1_idx	2	const	2	100.00	Using where
+1	SIMPLE	t1	NULL	ref	c1_idx	c1_idx	2	const	2	100.00	Using where; Backward index scan
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
@@ -3185,7 +3185,7 @@ CREATE TABLE t2 (id INT);
 INSERT INTO t1 VALUES (1), (2);
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USING(id) GROUP BY t1.id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where 1 group by `test`.`t1`.`id`

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -622,6 +622,8 @@ Lgman::Lgman(Block_context & ctx) :
 
   m_next_lsn = 1;
   m_logfile_group_hash.setSize(10);
+  m_records_applied = 0;
+  m_pages_applied = 1;
 
   if (isNdbMtLqh()) {
     jam();
@@ -1153,7 +1155,8 @@ Lgman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
 
     new (ptr.p) Logfile_group(req);
     
-    if (!alloc_logbuffer_memory(ptr, req->logfile_group.buffer_size))
+    if (unlikely(ERROR_INSERTED(15001)) ||
+        !alloc_logbuffer_memory(ptr, req->logfile_group.buffer_size))
     {
       jam();
       err= CreateFilegroupImplRef::OutOfLogBufferMemory;
@@ -3818,6 +3821,7 @@ Lgman::find_log_head_complete(Signal *signal,
   file_ptr.p->m_state = Undofile::FS_EXECUTING;
 
   {
+    Uint64 total = 0;
     Local_undofile_list files(m_file_pool, ptr.p->m_files);
     if(head == 1)
     {
@@ -3845,6 +3849,8 @@ Lgman::find_log_head_complete(Signal *signal,
                         fs->get_filename(file_ptr.p->m_fd),
                         head, file_ptr.p->m_online.m_lsn);
     
+    total += (Uint64)file_ptr.p->m_file_size;
+
     for(files.prev(file_ptr); !file_ptr.isNull(); files.prev(file_ptr))
     {
       infoEvent("   - next - %s(%lld)", 
@@ -3854,7 +3860,16 @@ Lgman::find_log_head_complete(Signal *signal,
       g_eventLogger->info("   - next - %s(%lld)", 
                           fs->get_filename(file_ptr.p->m_fd),
                           file_ptr.p->m_online.m_lsn);
+      total += (Uint64)file_ptr.p->m_file_size;
     }
+
+    /* Log the total number of pages in the Undo log. This
+     * serves as a worst case estimate for amount of Undo
+     * to be applied.
+     */
+    g_eventLogger->info("LGMAN: Total number of pages in Undo log: %lld",
+            total);
+
   }
   
   /**
@@ -4168,6 +4183,17 @@ Lgman::execute_undo_record(Signal* signal)
   const Uint32* ptr;
   if((ptr = get_next_undo_record(&lsn)))
   {
+    /* Report progress information while the log is applied.
+     * Progress reported at intervals of 30,000 records.
+     */
+    m_records_applied++;
+    if((m_records_applied % 30000) == 0)
+    {
+      g_eventLogger->info("LGMAN: Applying Undo log - %llu pages"
+                          " completed, applied %llu records, reached"
+                          " LSN %llu", m_pages_applied,
+                          m_records_applied, lsn);
+    }
     Uint32 len= (* ptr) & 0xFFFF;
     Uint32 type= (* ptr) >> 16;
     Uint32 mask= type & (~((Uint32)File_formats::Undofile::UNDO_NEXT_LSN));
@@ -4177,6 +4203,8 @@ Lgman::execute_undo_record(Signal* signal)
       g_eventLogger->info("LGMAN: Stop UNDO log execution at LSN %llu,"
                           " found END record",
                           lsn);
+      g_eventLogger->info("LGMAN: Undo log replay complete: Applied %llu"
+                          " pages to sync with last LCP", m_pages_applied);
       stop_run_undo_log(signal);
       return;
     case File_formats::Undofile::UNDO_LCP:
@@ -4208,6 +4236,8 @@ Lgman::execute_undo_record(Signal* signal)
         g_eventLogger->info("LGMAN: Stop UNDO log execution at LSN %llu,"
                             " found LCP record",
                             lsn);
+        g_eventLogger->info("LGMAN: Undo log replay complete: Applied %llu"
+                            " pages to sync with last LCP",m_pages_applied);
 	stop_run_undo_log(signal);
 	return;
       }
@@ -4524,6 +4554,11 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
       m_shared_page_pool.getPtr(consumer.m_current_pos.m_ptr_i);
 
     consumer.m_current_pos.m_idx = pageP->m_words_used;
+
+    /* The previous page is added to the count of
+     * pages applied. This is for progress information.
+     */
+    m_pages_applied++;
   }
   ptr.p->m_pos[CONSUMER] = consumer;
 

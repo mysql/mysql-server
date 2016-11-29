@@ -2126,6 +2126,9 @@ convert_error_code_to_mysql(
 		return(HA_ERR_WRONG_FILE_NAME);
 	case DB_COMPUTE_VALUE_FAILED:
 		return(HA_ERR_COMPUTE_FAILED);
+	case DB_LOCK_NOWAIT:
+		 my_error(ER_LOCK_NOWAIT, MYF(0));
+		return(HA_ERR_NO_WAIT_LOCK);
 	}
 }
 
@@ -2956,6 +2959,7 @@ ha_innobase::ha_innobase(
 			  | HA_GENERATED_COLUMNS
 			  | HA_ATTACHABLE_TRX_COMPATIBLE
 			  | HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN
+			  | HA_DESCENDING_INDEX
 		  ),
 	m_start_of_scan(),
 	m_stored_select_lock_type(LOCK_NONE_UNSET),
@@ -3379,6 +3383,7 @@ ha_innobase::reset_template(void)
 	m_prebuilt->keep_other_fields_on_keyread = 0;
 	m_prebuilt->read_just_key = 0;
 	m_prebuilt->in_fts_query = 0;
+	m_prebuilt->m_end_range = false;
 
 	/* Reset index condition pushdown state. */
 	if (m_prebuilt->idx_cond) {
@@ -3434,6 +3439,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 	if the trx isolation level would have been specified as SERIALIZABLE */
 
 	m_prebuilt->select_lock_type = LOCK_NONE;
+	m_prebuilt->select_mode = SELECT_ORDINARY;
 	m_stored_select_lock_type = LOCK_NONE;
 
 	/* Always fetch all columns in the index record */
@@ -5774,6 +5780,12 @@ innobase_match_index_columns(
 			}
 		}
 
+		if (innodb_idx_fld->is_ascending
+		    != !(key_part->key_part_flag & HA_REVERSE_SORT)) {
+			/* Column Type mismatches */
+			DBUG_RETURN(FALSE);
+		}
+
 		if (col_type != mtype) {
 			/* If the col_type we get from mysql type is a geometry
 			data type, we should check if mtype is a legacy type
@@ -7127,8 +7139,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_VARCHAR:	/* new >= 5.0.3 true VARCHAR */
 		if (field->binary()) {
 			return(DATA_BINARY);
-		} else if (strcmp(field->charset()->name,
-				  "latin1_swedish_ci") == 0) {
+		} else if (field->charset() == &my_charset_latin1) {
 			return(DATA_VARCHAR);
 		} else {
 			return(DATA_VARMYSQL);
@@ -7137,8 +7148,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_STRING: if (field->binary()) {
 
 			return(DATA_FIXBINARY);
-		} else if (strcmp(field->charset()->name,
-				  "latin1_swedish_ci") == 0) {
+		} else if (field->charset() == &my_charset_latin1) {
 			return(DATA_CHAR);
 		} else {
 			return(DATA_MYSQL);
@@ -10779,7 +10789,9 @@ create_index(
 				DBUG_RETURN(HA_ERR_UNSUPPORTED);
 			}
 
-			index->add_field(key_part->field->field_name, 0);
+			index->add_field(
+				key_part->field->field_name, 0,
+				!(key_part->key_part_flag & HA_REVERSE_SORT));
 		}
 
 		DBUG_RETURN(convert_error_code_to_mysql(
@@ -10898,7 +10910,9 @@ create_index(
 			index->type |= DICT_VIRTUAL;
 		}
 
-		index->add_field(field_name, prefix_len);
+		index->add_field(
+			field_name, prefix_len,
+			!(key_part->key_part_flag & HA_REVERSE_SORT));
 	}
 
 	ut_ad(key->flags & HA_FULLTEXT || !(index->type & DICT_FTS));
@@ -11874,6 +11888,10 @@ create_table_info_t::innobase_table_flags()
 
 		/* Do a pre-check on FTS DOC ID index */
 		if (!(key->flags & HA_NOSAME)
+		    /* For now, we do not allow a descending index,
+		    because fts_doc_fetch_by_doc_id() uses the
+		    InnODB SQL interpreter to look up FTS_DOC_ID.*/
+		    || (key->key_part[0].key_part_flag & HA_REVERSE_SORT)
 		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
 		    || strcmp(key->key_part[0].field->field_name,
 			      FTS_DOC_ID_COL_NAME)) {
@@ -15774,6 +15792,28 @@ get_foreign_key_info(
 		thd, f_key_info.update_method, ptr,
 		static_cast<unsigned int>(len), 1);
 
+	/* Load referenced table to update FK referenced key name. */
+	if (foreign->referenced_table == NULL) {
+
+		dict_table_t*	ref_table;
+
+		ut_ad(mutex_own(&dict_sys->mutex));
+		ref_table = dict_table_open_on_name(
+			foreign->referenced_table_name_lookup,
+			TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+
+		if (ref_table == NULL) {
+
+			ib::info() << "Foreign Key referenced table "
+				   << foreign->referenced_table_name
+				   << " not found for foreign table "
+				   << foreign->foreign_table_name;
+		} else {
+
+			dict_table_close(ref_table, TRUE, FALSE);
+		}
+	}
+
 	if (foreign->referenced_index
 	    && foreign->referenced_index->name != NULL) {
 		referenced_key_name = thd_make_lex_string(
@@ -17370,7 +17410,7 @@ ha_innobase::store_lock(
 		1) MySQL is doing LOCK TABLES ... READ LOCAL, or we
 		are processing a stored procedure or function, or
 		2) (we do not know when TL_READ_HIGH_PRIORITY is used), or
-		3) this is a SELECT ... IN SHARE MODE, or
+		3) this is a SELECT ... IN SHARE MODE/FOR SHARE, or
 		4) we are doing a complex SQL statement like
 		INSERT INTO ... SELECT ... and the logical logging (MySQL
 		binlog) requires the use of a locking read, or
@@ -17416,6 +17456,26 @@ ha_innobase::store_lock(
 
 		m_prebuilt->select_lock_type = LOCK_NONE;
 		m_stored_select_lock_type = LOCK_NONE;
+	}
+
+	/* Set select mode for SKIP LOCKED / NOWAIT */
+	if (lock_type != TL_IGNORE) {
+		switch (table->pos_in_table_list->lock_descriptor().action) {
+		case THR_SKIP:
+			m_prebuilt->select_mode = SELECT_SKIP_LOCKED;
+			break;
+		case THR_NOWAIT:
+			m_prebuilt->select_mode = SELECT_NOWAIT;
+			break;
+		default:
+			m_prebuilt->select_mode = SELECT_ORDINARY;
+			break;
+		}
+	}
+
+	/* Ignore SKIP LOCKED / NO_WAIT for high priority transaction */
+	if (trx_is_high_priority(trx)) {
+		m_prebuilt->select_mode = SELECT_ORDINARY;
 	}
 
 	if (!trx_is_started(trx)

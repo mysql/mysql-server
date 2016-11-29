@@ -111,7 +111,7 @@ table_ews_by_thread_by_event_name::get_row_count(void)
 
 table_ews_by_thread_by_event_name::table_ews_by_thread_by_event_name()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos()
+    m_pos(), m_next_pos()
 {}
 
 bool PFS_index_ews_by_thread_by_event_name::match(PFS_thread *pfs)
@@ -199,9 +199,8 @@ int table_ews_by_thread_by_event_name::rnd_next(void)
 
         if (instr_class != NULL)
         {
-          make_row(thread, instr_class);
           m_next_pos.set_after(&m_pos);
-          return 0;
+          return make_row(thread, instr_class);
         }
       }
     }
@@ -254,8 +253,7 @@ table_ews_by_thread_by_event_name::rnd_pos(const void *pos)
 
     if (instr_class)
     {
-      make_row(thread, instr_class);
-      return 0;
+      return make_row(thread, instr_class);
     }
   }
 
@@ -327,13 +325,16 @@ int table_ews_by_thread_by_event_name::index_next()
               instr_class= NULL;
               break;
             }
+
             if (instr_class != NULL)
             {
               if (m_opened_index->match(instr_class))
               {
-                make_row(thread, instr_class);
-                m_next_pos.set_after(&m_pos);
-                return 0;
+                if (!make_row(thread, instr_class))
+                {
+                  m_next_pos.set_after(&m_pos);
+                  return 0;
+                }
               }
               m_pos.set_after(&m_pos);
             }
@@ -346,11 +347,10 @@ int table_ews_by_thread_by_event_name::index_next()
   return HA_ERR_END_OF_FILE;
 }
 
-void table_ews_by_thread_by_event_name
+int table_ews_by_thread_by_event_name
 ::make_row(PFS_thread *thread, PFS_instr_class *klass)
 {
   pfs_optimistic_state lock;
-  m_row_exists= false;
 
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
@@ -376,13 +376,13 @@ void table_ews_by_thread_by_event_name
     visitor.m_stat.aggregate(&inst_visitor.m_stat);
   }
 
-  if (! thread->m_lock.end_optimistic_lock(&lock))
-    return;
-
-  m_row_exists= true;
-
+  if (!thread->m_lock.end_optimistic_lock(&lock))
+    return HA_ERR_RECORD_DELETED;
+  
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, & visitor.m_stat);
+
+  return 0;
 }
 
 int table_ews_by_thread_by_event_name
@@ -390,9 +390,6 @@ int table_ews_by_thread_by_event_name
                   bool read_all)
 {
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);

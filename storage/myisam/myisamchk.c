@@ -24,6 +24,7 @@
 #include "fulltext.h"
 #include "my_default.h"
 #include "typelib.h"
+#include "myisam_sys.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif

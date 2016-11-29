@@ -177,7 +177,7 @@ public:
 
 private:
   void materialize(THD *thd);
-  static void make_row(Host_entry *entry, row_host_cache *row);
+  static int make_row(Host_entry *entry, row_host_cache *row);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

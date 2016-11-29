@@ -88,7 +88,6 @@
 */
 
 #include "ha_example.h"
-#include "probes_mysql.h"
 #include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
 #include "sql_plugin.h"
 #include "typelib.h"
@@ -379,9 +378,7 @@ int ha_example::index_read_map(uchar*, const uchar*, key_part_map,
 {
   int rc;
   DBUG_ENTER("ha_example::index_read");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -395,9 +392,7 @@ int ha_example::index_next(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::index_next");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -411,9 +406,7 @@ int ha_example::index_prev(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::index_prev");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -432,9 +425,7 @@ int ha_example::index_first(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::index_first");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -453,9 +444,7 @@ int ha_example::index_last(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::index_last");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -504,10 +493,7 @@ int ha_example::rnd_next(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::rnd_next");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   rc= HA_ERR_END_OF_FILE;
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -557,10 +543,7 @@ int ha_example::rnd_pos(uchar*, uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::rnd_pos");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 

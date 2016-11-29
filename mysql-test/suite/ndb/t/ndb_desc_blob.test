@@ -1,12 +1,18 @@
-# BUG 14695968 - If a table has a tinyblob column and one uses 'ndb_desc -pb' to dump both extra information about partitions and blob tables, ndb_desc crashes.
+-- source include/have_ndb.inc
 
--- echo # bug#14695968
+# Turn off ndb_read_backup to avoid result diffs from ndb_desc
+--source suite/ndb/include/turn_off_ndb_read_backup.inc
 
+#
+# BUG 14695968
+# - If a table has a tinyblob column and one uses 'ndb_desc -pb'
+#   to dump both extra information about partitions and blob
+#   tables, ndb_desc crashes.
+#
+--echo # bug#14695968
 --echo "ndb_desc -pb with tinyblob column"
 
 CREATE TABLE test.t1 (a int primary key, b tinyblob)engine=ndbcluster;
-
--- source include/have_ndb.inc
 
 ## Check details of partitioning
 --let $ndb_desc_opts= -pb -dtest t1
@@ -24,3 +30,5 @@ engine=ndbcluster;
 
 DROP TABLE test.t1;
 DROP TABLE test.t2;
+
+--source suite/ndb/include/restore_ndb_read_backup.inc

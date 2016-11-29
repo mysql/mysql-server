@@ -26,7 +26,7 @@
 #include <sys/utsname.h>
 #endif
 
-typedef struct st_Vio Vio;
+typedef struct st_vio Vio;
 
 PSI_thread_key KEY_thread_x_worker = PSI_NOT_INSTRUMENTED;
 PSI_thread_key KEY_thread_x_acceptor = PSI_NOT_INSTRUMENTED;

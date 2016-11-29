@@ -73,7 +73,6 @@
 #include "parse_location.h"
 #include "parse_tree_node_base.h"
 #include "prealloced_array.h"
-#include "probes_mysql.h"
 #include "protocol.h"
 #include "protocol_classic.h"
 #include "psi_memory_key.h"
@@ -503,6 +502,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_ALTER_FUNCTION]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_INSTALL_COMPONENT]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_UNINSTALL_COMPONENT]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
 
   /* Does not change the contents of the Diagnostics Area. */
   sql_command_flags[SQLCOM_GET_DIAGNOSTICS]= CF_DIAGNOSTIC_STMT;
@@ -656,6 +657,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REVOKE_ROLE]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]|=   CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]|= CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_INSTALL_COMPONENT]|= CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_UNINSTALL_COMPONENT]|= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_INSTANCE]|=   CF_DISALLOW_IN_RO_TRANS;
 
   /*
@@ -1226,11 +1229,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   thd->profiling.start_new_query();
 #endif
 
-  /* DTRACE instrumentation, begin */
-  MYSQL_COMMAND_START(thd->thread_id(), command,
-                      (char *) thd->security_context()->priv_user().str,
-                      (char *) thd->security_context()->host_or_ip().str);
-
   /* Performance Schema Interface instrumentation, begin */
   thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
                                                com_statement_info[command].m_key);
@@ -1496,10 +1494,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     if (alloc_query(thd, com_data->com_query.query,
                     com_data->com_query.length))
       break;					// fatal error is set
-    MYSQL_QUERY_START(const_cast<char*>(thd->query().str), thd->thread_id(),
-                      (char *) (thd->db().str ? thd->db().str : ""),
-                      (char *) thd->security_context()->priv_user().str,
-                      (char *) thd->security_context()->host_or_ip().str);
 
     const char *packet_end= thd->query().str + thd->query().length;
 
@@ -1559,12 +1553,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->m_statement_psi= NULL;
       thd->m_digest= NULL;
 
-/* DTRACE end */
-      if (MYSQL_QUERY_DONE_ENABLED())
-      {
-        MYSQL_QUERY_DONE(thd->is_error());
-      }
-
 /* SHOW PROFILE end */
 #if defined(ENABLED_PROFILING)
       thd->profiling.finish_current_query();
@@ -1575,13 +1563,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->profiling.start_new_query("continuing");
       thd->profiling.set_query_source(beginning_of_next_stmt, length);
 #endif
-
-/* DTRACE begin */
-      MYSQL_QUERY_START(const_cast<char*>(beginning_of_next_stmt),
-                        thd->thread_id(),
-                        (char *) (thd->db().str ? thd->db().str : ""),
-                        (char *) thd->security_context()->priv_user().str,
-                        (char *) thd->security_context()->host_or_ip().str);
 
 /* PSI begin */
       thd->m_digest= & thd->m_digest_state;
@@ -1953,16 +1934,6 @@ done:
   thd_manager->dec_thread_running();
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
-  /* DTRACE instrumentation, end */
-  if (MYSQL_QUERY_DONE_ENABLED() && command == COM_QUERY)
-  {
-    MYSQL_QUERY_DONE(thd->is_error());
-  }
-  if (MYSQL_COMMAND_DONE_ENABLED())
-  {
-    MYSQL_COMMAND_DONE(thd->is_error());
-  }
-
   /* SHOW PROFILE instrumentation, end */
 #if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
@@ -2285,7 +2256,7 @@ retry:
         */
         table->table->reginfo.lock_type= TL_WRITE;
       }
-      else if (table->lock_type == TL_READ &&
+      else if (table->lock_descriptor().type == TL_READ &&
                ! table->prelocking_placeholder &&
                table->table->file->ha_table_flags() & HA_NO_READ_LOCAL_LOCK)
       {
@@ -4912,7 +4883,6 @@ static bool execute_show(THD *thd, TABLE_LIST *all_tables)
 
   if (!(res= open_tables_for_query(thd, all_tables, false)))
   {
-    MYSQL_SELECT_START(const_cast<char*>(thd->query().str));
     if (lex->is_explain())
     {
       /*
@@ -4944,7 +4914,6 @@ static bool execute_show(THD *thd, TABLE_LIST *all_tables)
       if (save_result != lex->result)
         delete save_result;
     }
-    MYSQL_SELECT_DONE((int) res, (ulong) thd->current_found_rows);
   }
 
   if (statement_timer_armed && thd->timer)
@@ -5287,13 +5256,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
             thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           }
           lex->set_trg_event_type_for_tables();
-          MYSQL_QUERY_EXEC_START(
-            const_cast<char*>(thd->query().str),
-            thd->thread_id(),
-            (char *) (thd->db().str ? thd->db().str : ""),
-            (char *) thd->security_context()->priv_user().str,
-            (char *) thd->security_context()->host_or_ip().str,
-            0);
 
           int error MY_ATTRIBUTE((unused));
           if (unlikely(thd->security_context()->password_expired() &&
@@ -5306,8 +5268,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           }
           else
             error= mysql_execute_command(thd, true);
-
-          MYSQL_QUERY_EXEC_DONE(error);
 	}
       }
     }
@@ -5443,7 +5403,7 @@ bool Alter_info::add_field(THD *thd,
   if (type_modifier & PRI_KEY_FLAG)
   {
     List<Key_part_spec> key_parts;
-    auto key_part_spec= new Key_part_spec(field_name_cstr, 0);
+    auto key_part_spec= new Key_part_spec(field_name_cstr, 0, ORDER_ASC);
     if (key_part_spec == NULL || key_parts.push_back(key_part_spec))
       DBUG_RETURN(true);
     Key_spec *key= new Key_spec(thd->mem_root,
@@ -5457,7 +5417,7 @@ bool Alter_info::add_field(THD *thd,
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     List<Key_part_spec> key_parts;
-    auto key_part_spec= new Key_part_spec(field_name_cstr, 0);
+    auto key_part_spec= new Key_part_spec(field_name_cstr, 0, ORDER_ASC);
     if (key_part_spec == NULL || key_parts.push_back(key_part_spec))
       DBUG_RETURN(true);
     Key_spec *key= new Key_spec(thd->mem_root,
@@ -5634,7 +5594,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   ptr->table_name= const_cast<char*>(table->table.str);
   ptr->table_name_length= table->table.length;
   ptr->set_tableno(0);
-  ptr->lock_type=   lock_type;
+  ptr->set_lock({lock_type, THR_DEFAULT});
   ptr->updating=    MY_TEST(table_options & TL_OPTION_UPDATING);
   /* TODO: remove TL_OPTION_FORCE_INDEX as it looks like it's not used */
   ptr->force_index= MY_TEST(table_options & TL_OPTION_FORCE_INDEX);
@@ -6000,33 +5960,42 @@ TABLE_LIST *SELECT_LEX::convert_right_join()
   DBUG_RETURN(tab1);
 }
 
-/**
-  Set lock for all tables in current select level.
 
-  @param lock_type			Lock to set for tables
-
-  @note
-    If lock is a write lock, then tables->updating is set 1
-    This is to get tables_ok to know that the table is updated by the
-    query
-    Set type of metadata lock to request according to lock_type.
-*/
-
-void SELECT_LEX::set_lock_for_tables(thr_lock_type lock_type)
+void SELECT_LEX::set_lock_for_table(const Lock_descriptor &descriptor,
+                                    TABLE_LIST *table)
 {
+  thr_lock_type lock_type= descriptor.type;
   bool for_update= lock_type >= TL_READ_NO_INSERT;
   enum_mdl_type mdl_type= mdl_type_for_dml(lock_type);
+  DBUG_ENTER("set_lock_for_table");
+  DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
+                       for_update));
+  table->set_lock(descriptor);
+  table->updating=  for_update;
+  table->mdl_request.set_type(mdl_type);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Set lock for all tables in current query block.
+
+  @param lock_type Lock to set for tables.
+
+  @note
+    If the lock is a write lock, then tables->updating is set to true.
+    This is to get tables_ok to know that the table is being updated by the
+    query.
+    Sets the type of metadata lock to request according to lock_type.
+*/
+void SELECT_LEX::set_lock_for_tables(thr_lock_type lock_type)
+{
   DBUG_ENTER("set_lock_for_tables");
   DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
-		       for_update));
-  for (TABLE_LIST *tables= table_list.first;
-       tables;
-       tables= tables->next_local)
-  {
-    tables->lock_type= lock_type;
-    tables->updating=  for_update;
-    tables->mdl_request.set_type(mdl_type);
-  }
+                       lock_type >= TL_READ_NO_INSERT));
+  for (TABLE_LIST *table= table_list.first; table; table= table->next_local)
+    set_lock_for_table({ lock_type, THR_WAIT }, table);
   DBUG_VOID_RETURN;
 }
 
@@ -6497,7 +6466,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex)
       problems when running CREATE TABLE IF NOT EXISTS for already
       existing log table.
     */
-    create_table->lock_type= TL_READ;
+    create_table->set_lock({TL_READ, THR_DEFAULT});
   }
 }
 
@@ -6880,7 +6849,6 @@ bool parse_sql(THD *thd,
   // TODO fix to allow parsing gcol exprs after main query.
 //  DBUG_ASSERT(thd->lex->m_sql_cmd == NULL);
 
-  MYSQL_QUERY_PARSE_START(const_cast<char*>(thd->query().str));
   /* Backup creation context. */
 
   Object_creation_ctx *backup_ctx= NULL;
@@ -7030,7 +6998,6 @@ bool parse_sql(THD *thd,
                      & thd->m_digest->m_digest_storage);
   }
 
-  MYSQL_QUERY_PARSE_DONE(ret_value);
   DBUG_RETURN(ret_value);
 }
 

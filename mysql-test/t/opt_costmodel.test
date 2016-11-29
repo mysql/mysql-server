@@ -6,13 +6,13 @@
 #
 # Default values for cost constants (from the source code)
 #
-let $row_evaluate_cost= 0.2;
-let $key_compare_cost= 0.1;
-let $memory_temptable_create_cost= 2.0;
-let $memory_temptable_row_cost= 0.2;
-let $disk_temptable_create_cost= 40;
-let $disk_temptable_row_cost= 1.0;
-let $memory_block_read_cost= 1.0;
+let $row_evaluate_cost= 0.1;
+let $key_compare_cost= 0.05;
+let $memory_temptable_create_cost= 1.0;
+let $memory_temptable_row_cost= 0.1;
+let $disk_temptable_create_cost= 20;
+let $disk_temptable_row_cost= 0.5;
+let $memory_block_read_cost= 0.25;
 let $io_block_read_cost= 1.0;
 
 --echo #

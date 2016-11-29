@@ -195,6 +195,16 @@ CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
 --error ER_TABLE_CANT_HANDLE_AUTO_INCREMENT
 CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
 
+## Restore original ndb$test table to avoid test side-effects
+CREATE TABLE ndb$test (
+  node_id int(10) unsigned DEFAULT NULL,
+  block_number int(10) unsigned DEFAULT NULL,
+  block_instance int(10) unsigned DEFAULT NULL,
+  counter int(10) unsigned DEFAULT NULL,
+  counter2 bigint(20) unsigned DEFAULT NULL
+) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='for testing';
+
+
 # wl#5567 - exercise table...
 #   only node_id is guranteed to be same...
 #   (unless we change cluster config for test)
@@ -246,15 +256,23 @@ select distinct node_id from tc_time_track_stats;
 
 desc threads;
 
-desc cpustat_50ms;
-desc cpustat_1sec;
-desc cpustat_20sec;
-desc cpustat;
-
 desc cluster_transactions;
 desc server_transactions;
 desc cluster_operations;
 desc server_operations;
+
+select count(*) from table_distribution_status;
+select count(*) from ndb$table_distribution_status_all;
+select count(*) from table_fragments;
+select count(*) from ndb$table_fragments_all;
+select count(*) from table_replicas;
+select count(*) from ndb$table_replicas_all;
+desc table_distribution_status;
+desc ndb$table_distribution_status_all;
+desc table_fragments;
+desc ndb$table_fragments_all;
+desc table_replicas;
+desc ndb$table_replicas_all;
 
 create table t1 (a int primary key) engine = ndb;
 begin;
@@ -534,8 +552,14 @@ create view frag_ops as select
   sum(tot_scan_bytes_returned) as tot_scan_bytes_returned, 
   sum(tot_scan_prog_bytes) as tot_scan_prog_bytes,
   sum(tot_scan_bound_bytes) as tot_scan_bound_bytes,
-  sum(tot_scan_inst_exec) as tot_scan_inst_exec, 
-  sum(conc_frag_scans) as conc_frag_scans,
+  sum(tot_scan_inst_exec) as tot_scan_inst_exec,
+  # Ignore concurrent frag_scans, as all tests below expect them to be 0
+  # but this is not stable as LCP scans are counted as concurrent
+  # frag scans while they are running (but not counted as tot_frag_scans
+  # when they complete).
+  # Arguably it is useful to see a live LCP scan, and this test has no
+  # use for conc_frag_scans!=0, so avoid looking at it for determinism
+  #sum(conc_frag_scans) as conc_frag_scans,
   sum(conc_qd_frag_scans) as conc_qd_frag_scans, 
   sum(tot_commits) as tot_commits
   from ndbinfo.operations_per_fragment

@@ -1476,12 +1476,12 @@ explain
 select t1.a, count(t2.p) as count
 from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using index; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using index; Using temporary
 1	SIMPLE	t2	NULL	ref	i_a	i_a	5	test.t1.a	2	100.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,count(`test`.`t2`.`p`) AS `count` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and ((`test`.`t2`.`p` % 2) = 1))) where 1 group by `test`.`t1`.`a`
 select t1.a, count(t2.p) as count
-from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
+from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a asc;
 a	count
 1	1
 2	0
@@ -1805,16 +1805,16 @@ explain
 select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 group by t1.id1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx1	idx1	5	const	4	100.00	Using where; Using index; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ref	idx1	idx1	5	const	4	100.00	Using where; Using index; Using temporary
 1	SIMPLE	t2	NULL	ref	idx2	idx2	5	test.t1.id1	2	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,sum(`test`.`t2`.`id2`) AS `sum(t2.id2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`id1` = `test`.`t1`.`id1`) and (`test`.`t1`.`d` = 3)) group by `test`.`t1`.`id1`
 select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 group by t1.id1;
 id1	sum(t2.id2)
-10	900
 20	2000
 30	900
+10	900
 explain
 select t1.id1  from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 and t2.id2 > 200 order by t1.id1;
@@ -2277,6 +2277,7 @@ KEY `col_int_key` (`col_int_key`)
 INSERT INTO t1 VALUES (2,'2003-02-11 21:19:41');
 INSERT INTO t1 VALUES (3,'2009-10-18 02:27:49');
 INSERT INTO t1 VALUES (0,'2000-09-26 07:45:57');
+INSERT INTO t1 VALUES (4,'2000-09-26 07:45:57');
 CREATE TABLE t2 (
 `col_int` int,
 `col_int_key` int,
@@ -2291,8 +2292,8 @@ GROUP BY t1.col_int_key
 ORDER BY t1.col_int_key, t1.col_datetime
 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	col_int_key	col_int_key	5	const	1	50.00	Using where; Using temporary; Using filesort
-1	SIMPLE	t1	NULL	ALL	col_int_key	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	col_int_key	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ref	col_int_key	col_int_key	5	const	1	50.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_datetime` AS `col_datetime` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`col_int_key` = 1) and (`test`.`t2`.`col_int` >= 3)) group by `test`.`t1`.`col_int_key` order by `test`.`t1`.`col_int_key`,`test`.`t1`.`col_datetime` limit 2
 SELECT t1.col_int_key, t1.col_datetime 
@@ -2311,8 +2312,8 @@ GROUP BY t1.col_int_key
 ORDER BY t1.col_int_key, t1.col_datetime
 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using temporary; Using filesort
-1	SIMPLE	t1	NULL	ALL	col_int_key	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	index	col_int_key	col_int_key	5	NULL	4	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_datetime` AS `col_datetime` from `test`.`t1` FORCE INDEX (`col_int_key`) join `test`.`t2` IGNORE INDEX (`col_int_key`) where ((`test`.`t2`.`col_int_key` = 1) and (`test`.`t2`.`col_int` >= 3)) group by `test`.`t1`.`col_int_key` order by `test`.`t1`.`col_int_key`,`test`.`t1`.`col_datetime` limit 2
 SELECT t1.col_int_key, t1.col_datetime 
@@ -2686,7 +2687,7 @@ GROUP BY field1, field4
 LIMIT 15;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	Using temporary; Using filesort
+1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	Using temporary
 1	SIMPLE	alias3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias2.col_int_nokey	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select NULL AS `field1`,`test`.`alias2`.`col_int_key` AS `field4` from `test`.`t2` `alias2` straight_join `test`.`t2` `alias3` where (`test`.`alias3`.`pk` = `test`.`alias2`.`col_int_nokey`) group by `field1`,`field4` limit 15

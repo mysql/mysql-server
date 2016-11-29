@@ -100,14 +100,14 @@ public:
   int index_init(uint idx, bool sorted);
 
 protected:
-  void make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,
-                      const void *object_instance_begin,
-                      PFS_single_stat *pfs_stat);
-  virtual void make_mutex_row(PFS_mutex *pfs);
-  virtual void make_rwlock_row(PFS_rwlock *pfs);
-  virtual void make_cond_row(PFS_cond *pfs);
-  virtual void make_file_row(PFS_file *pfs);
-  virtual void make_socket_row(PFS_socket *pfs);
+  int make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,
+                     const void *object_instance_begin,
+                     PFS_single_stat *pfs_stat);
+  virtual int make_mutex_row(PFS_mutex *pfs);
+  virtual int make_rwlock_row(PFS_rwlock *pfs);
+  virtual int make_cond_row(PFS_cond *pfs);
+  virtual int make_file_row(PFS_file *pfs);
+  virtual int make_socket_row(PFS_socket *pfs);
 
   virtual int read_row_values(TABLE *table,
                               unsigned char *buf,
@@ -128,8 +128,6 @@ private:
 
   /** Current row. */
   row_events_waits_summary_by_instance m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** @} */

@@ -18,7 +18,7 @@ CREATE TABLE t3 LIKE t2;
 1
 ALTER TABLE t3 ADD COLUMN b int default NULL;
 Warnings:
-Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable online ADD COLUMN
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
 INSERT INTO t2 VALUES(1);
@@ -76,7 +76,7 @@ CREATE TABLE t3 LIKE t10;
 ERROR HY000: Table 't3' was not locked with LOCK TABLES
 ALTER TABLE t10 ADD COLUMN b int default NULL;
 Warnings:
-Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable online ADD COLUMN
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
 TRUNCATE TABLE t10;

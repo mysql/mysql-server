@@ -125,7 +125,7 @@ public:
   {}
 
 private:
-  void make_row(PFS_account *account, PFS_memory_class *klass);
+  int make_row(PFS_account *account, PFS_memory_class *klass);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -134,8 +134,6 @@ private:
 
   /** Current row. */
   row_mems_by_account_by_event_name m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_mems_by_account_by_event_name m_pos;
   /** Next position. */

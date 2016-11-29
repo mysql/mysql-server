@@ -213,7 +213,7 @@ PFS_engine_table* table_replication_group_member_stats::create(void)
 
 table_replication_group_member_stats::table_replication_group_member_stats()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_pos(0), m_next_pos(0)
 {
 #ifdef HAVE_REPLICATION
   m_row.trx_committed= NULL;
@@ -258,16 +258,16 @@ int table_replication_group_member_stats::rnd_next(void)
   m_pos.set_at(&m_next_pos);
   if (m_pos.m_index == 0)
   {
-    make_row();
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row();
   }
 #endif /* HAVE_REPLICATION */
 
   return HA_ERR_END_OF_FILE;
 }
 
-int table_replication_group_member_stats::rnd_pos(const void *pos)
+int table_replication_group_member_stats
+::rnd_pos(const void *pos MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_REPLICATION
   if (get_row_count() == 0)
@@ -275,20 +275,17 @@ int table_replication_group_member_stats::rnd_pos(const void *pos)
 
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index < 1);
-  make_row();
-
-  return 0;
+  return make_row();
 #else
   return HA_ERR_END_OF_FILE;
 #endif /* HAVE_REPLICATION */
 }
 
 #ifdef HAVE_REPLICATION
-void table_replication_group_member_stats::make_row()
+int table_replication_group_member_stats::make_row()
 {
   DBUG_ENTER("table_replication_group_member_stats::make_row");
   // Set default values.
-  m_row_exists= false;
   m_row.channel_name_length= 0;
   m_row.view_id_length= 0;
   m_row.member_id_length= 0;
@@ -321,24 +318,21 @@ void table_replication_group_member_stats::make_row()
   }
   else
   {
-    m_row_exists= true;
   }
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 #endif /* HAVE_REPLICATION */
 
 
-int table_replication_group_member_stats::read_row_values(TABLE *table,
-                                                   unsigned char *buf,
-                                                   Field **fields,
-                                                   bool read_all)
+int table_replication_group_member_stats
+  ::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
+                    unsigned char *buf MY_ATTRIBUTE((unused)),
+                    Field **fields MY_ATTRIBUTE((unused)),
+                    bool read_all MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_REPLICATION
   Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
 
   DBUG_ASSERT(table->s->null_bytes == 0);
   buf[0]= 0;

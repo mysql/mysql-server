@@ -347,7 +347,7 @@ class Group_member_info_manager_interface
 public:
   virtual ~Group_member_info_manager_interface(){};
 
-  virtual int get_number_of_members()= 0;
+  virtual size_t get_number_of_members()= 0;
 
   /**
     Retrieves a registered Group member by its uuid
@@ -461,7 +461,7 @@ public:
 
   virtual ~Group_member_info_manager();
 
-  int get_number_of_members();
+  size_t get_number_of_members();
 
   Group_member_info* get_group_member_info(const std::string& uuid);
 

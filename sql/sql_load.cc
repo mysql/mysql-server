@@ -339,7 +339,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
 #ifndef EMBEDDED_LIBRARY
   transactional_table= table->file->has_transactions();
-  is_concurrent= (table_list->lock_type == TL_WRITE_CONCURRENT_INSERT);
+  is_concurrent= (table_list->lock_descriptor().type ==
+                  TL_WRITE_CONCURRENT_INSERT);
 #endif
 
   if (!fields_vars.elements)

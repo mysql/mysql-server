@@ -1505,7 +1505,7 @@ bool circular_buffer_queue<Element_type>::gt(ulong i, ulong k)
       return i > k;
 }
 
-Slave_committed_queue::Slave_committed_queue(const char *log, ulong max, uint n)
+Slave_committed_queue::Slave_committed_queue(ulong max, uint n)
   : circular_buffer_queue<Slave_job_group>(max), inited(false),
     last_done(key_memory_Slave_job_group_group_relay_log_name)
 {

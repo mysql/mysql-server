@@ -75,9 +75,9 @@ private:
   /** If the mode was set or not */
   bool read_mode_active;
   /** If the server is in (simple) read mode */
-  long server_read_only;
+  longlong server_read_only;
   /** If the server is in super read mode*/
-  long server_super_read_only;
+  longlong server_super_read_only;
 
 #ifndef DBUG_OFF
   /** Make the read mode activation fail (when debug flags don't work) */

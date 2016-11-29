@@ -113,7 +113,7 @@ public:
   {}
 
 private:
-  void make_row(PFS_setup_actor *actor);
+  int make_row(PFS_setup_actor *actor);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -122,8 +122,6 @@ private:
 
   /** Current row. */
   row_setup_actors m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

@@ -101,7 +101,7 @@ Plugin_gcs_events_handler::handle_transactional_message(const Gcs_message& messa
         message.get_message_data().get_payload(),
         &payload_data, &payload_size);
 
-    this->applier_module->handle(payload_data, payload_size);
+    this->applier_module->handle(payload_data, static_cast<ulong>(payload_size));
   }
   else
   {
@@ -131,7 +131,7 @@ Plugin_gcs_events_handler::handle_certifier_message(const Gcs_message& message) 
       &payload_data, &payload_size);
 
   if (certifier->handle_certifier_data(payload_data,
-                                       payload_size,
+                                       static_cast<ulong>(payload_size),
                                        message.get_origin()))
   {
     log_message(MY_ERROR_LEVEL, "Error processing message in Certifier"); /* purecov: inspected */
@@ -610,13 +610,13 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
                                                        const
 {
   //nothing to do here
-  int number_of_members= new_view.get_members().size();
+  size_t number_of_members= new_view.get_members().size();
   if (number_of_members == 0 || is_leaving)
   {
     return;
   }
-  int number_of_joining_members= new_view.get_joined_members().size();
-  int number_of_leaving_members= new_view.get_leaving_members().size();
+  size_t number_of_joining_members= new_view.get_joined_members().size();
+  size_t number_of_leaving_members= new_view.get_leaving_members().size();
 
   /*
    If we are joining, 3 scenarios exist:
@@ -989,7 +989,7 @@ update_member_status(const vector<Gcs_member_identifier>& members,
   6) If the member has the same configuration flags that the group has
 */
 int
-Plugin_gcs_events_handler::check_group_compatibility(int number_of_members) const
+Plugin_gcs_events_handler::check_group_compatibility(size_t number_of_members) const
 {
   /*
     Check if group size did reach the maximum number of members.

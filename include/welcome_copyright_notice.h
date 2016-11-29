@@ -20,6 +20,8 @@
   @file include/welcome_copyright_notice.h
 */
 
+#include <string.h>
+
 #define COPYRIGHT_NOTICE_CURRENT_YEAR "2016"
 
 /*

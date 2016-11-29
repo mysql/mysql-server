@@ -1698,6 +1698,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         packet->append_parenthesized((long) key_part->length /
                                       key_part->field->charset()->mbmaxlen);
       }
+      if (key_part->key_part_flag & HA_REVERSE_SORT)
+        packet->append(STRING_WITH_LEN(" DESC"));
     }
     packet->append(')');
     store_key_options(thd, packet, table, key_info);

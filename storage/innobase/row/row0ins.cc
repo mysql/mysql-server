@@ -1492,10 +1492,12 @@ row_ins_set_shared_rec_lock(
 
 	if (index->is_clustered()) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_S, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_S, type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_S, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_S, type, thr);
 	}
 
 	return(err);
@@ -1523,10 +1525,12 @@ row_ins_set_exclusive_rec_lock(
 
 	if (index->is_clustered()) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_X, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_X, type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_X, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_X, type, thr);
 	}
 
 	return(err);
@@ -1723,7 +1727,7 @@ row_ins_check_foreign_constraint(
 			}
 		}
 
-		cmp = cmp_dtuple_rec(entry, rec, offsets);
+		cmp = cmp_dtuple_rec(entry, rec, check_index, offsets);
 
 		if (cmp == 0) {
 
@@ -1996,7 +2000,7 @@ row_ins_dupl_error_with_rec(
 
 	matched_fields = 0;
 
-	cmp_dtuple_rec_with_match(entry, rec, offsets, &matched_fields);
+	cmp_dtuple_rec_with_match(entry, rec, index, offsets, &matched_fields);
 
 	if (matched_fields < n_unique) {
 
@@ -2127,7 +2131,7 @@ row_ins_scan_sec_index_for_duplicate(
 			continue;
 		}
 
-		cmp = cmp_dtuple_rec(entry, rec, offsets);
+		cmp = cmp_dtuple_rec(entry, rec, index, offsets);
 
 		if (cmp == 0 && !index->allow_duplicates) {
 			if (row_ins_dupl_error_with_rec(rec, entry,
@@ -2164,6 +2168,11 @@ end_scan:
 }
 
 /** Checks for a duplicate when the table is being rebuilt online.
+@param[in]	n_uniq	offset of DB_TRX_ID
+@param[in]	entry	entry being inserted
+@param[in]	rec	clustered index record at insert position
+@param[in]	index	clustered index
+@param[in,out]	offsets	rec_get_offsets(rec)
 @retval DB_SUCCESS when no duplicate is detected
 @retval DB_SUCCESS_LOCKED_REC when rec is an exact match of entry or
 a newer version of entry (the entry should not be inserted)
@@ -2171,11 +2180,11 @@ a newer version of entry (the entry should not be inserted)
 static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_ins_duplicate_online(
-/*=====================*/
-	ulint		n_uniq,	/*!< in: offset of DB_TRX_ID */
-	const dtuple_t*	entry,	/*!< in: entry that is being inserted */
-	const rec_t*	rec,	/*!< in: clustered index record */
-	ulint*		offsets)/*!< in/out: rec_get_offsets(rec) */
+	ulint			n_uniq,
+	const dtuple_t*		entry,
+	const rec_t*		rec,
+	const dict_index_t*	index,
+	ulint*			offsets)
 {
 	ulint	fields	= 0;
 
@@ -2187,7 +2196,7 @@ row_ins_duplicate_online(
 	/* Compare the PRIMARY KEY fields and the
 	DB_TRX_ID, DB_ROLL_PTR. */
 	cmp_dtuple_rec_with_match_low(
-		entry, rec, offsets, n_uniq + 2, &fields);
+		entry, rec, index, offsets, n_uniq + 2, &fields);
 
 	if (fields < n_uniq) {
 		/* Not a duplicate. */
@@ -2223,7 +2232,8 @@ row_ins_duplicate_error_in_clust_online(
 	if (cursor->low_match >= n_uniq && !page_rec_is_infimum(rec)) {
 		*offsets = rec_get_offsets(rec, cursor->index, *offsets,
 					   ULINT_UNDEFINED, heap);
-		err = row_ins_duplicate_online(n_uniq, entry, rec, *offsets);
+		err = row_ins_duplicate_online(
+			n_uniq, entry, rec, cursor->index, *offsets);
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
@@ -2234,7 +2244,8 @@ row_ins_duplicate_error_in_clust_online(
 	if (cursor->up_match >= n_uniq && !page_rec_is_supremum(rec)) {
 		*offsets = rec_get_offsets(rec, cursor->index, *offsets,
 					   ULINT_UNDEFINED, heap);
-		err = row_ins_duplicate_online(n_uniq, entry, rec, *offsets);
+		err = row_ins_duplicate_online(
+			n_uniq, entry, rec, cursor->index, *offsets);
 	}
 
 	return(err);

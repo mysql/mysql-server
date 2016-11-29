@@ -123,12 +123,10 @@ protected:
   ~table_events_stages_common()
   {}
 
-  void make_row(PFS_events_stages *stage);
+  int make_row(PFS_events_stages *stage);
 
   /** Current row. */
   row_events_stages m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STAGES_CURRENT. */
