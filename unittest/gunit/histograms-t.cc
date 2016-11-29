@@ -2601,12 +2601,17 @@ TEST_F(HistogramsTest, MultiByteStrings)
     Declare the strings to have UCS2 character set, which is fixed 2 byte per
     character.
   */
-  String string1("", &my_charset_ucs2_general_mysql500_ci);
-  String string2("", &my_charset_ucs2_general_mysql500_ci);
-  String string3("", &my_charset_ucs2_general_mysql500_ci);
-  String string4("", &my_charset_ucs2_general_mysql500_ci);
-  String string5("", &my_charset_ucs2_general_mysql500_ci);
-  String string6("", &my_charset_ucs2_general_mysql500_ci);
+  MY_CHARSET_LOADER loader;
+  my_charset_loader_init_mysys(&loader);
+  CHARSET_INFO *cs=
+    my_collation_get_by_name(&loader, "ucs2_general_ci", MYF(0));
+
+  String string1("", cs);
+  String string2("", cs);
+  String string3("", cs);
+  String string4("", cs);
+  String string5("", cs);
+  String string6("", cs);
 
   /*
     The following three strings should be considered equal, since the 42 first

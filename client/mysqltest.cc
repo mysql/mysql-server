@@ -65,6 +65,8 @@ using std::min;
 using std::max;
 using std::string;
 
+extern CHARSET_INFO my_charset_utf16le_bin;
+
 #ifdef _WIN32
 #include <crtdbg.h>
 
