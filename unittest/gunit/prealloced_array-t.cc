@@ -17,6 +17,7 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <memory>
 
 #include "prealloced_array.h"
 #include "sql_alloc.h"
@@ -558,14 +559,14 @@ TEST_F(PreallocedArrayTest, SqlAlloc)
 */
 class IntWrapMove
 {
-  int m_i;
+  std::unique_ptr<int> m_i;
 public:
-  explicit IntWrapMove(int i) : m_i(i) {}
+  explicit IntWrapMove(int i) : m_i(new int(i)) {}
   IntWrapMove(const IntWrapMove &) = delete;
   IntWrapMove &operator=(const IntWrapMove &) = delete;
   IntWrapMove(IntWrapMove &&other) = default;
   IntWrapMove &operator=(IntWrapMove &&other) = default;
-  int getval() const { return m_i; }
+  int getval() const { return *m_i; }
 };
 
 
@@ -574,7 +575,10 @@ public:
 */
 TEST_F(PreallocedArrayTest, Move)
 {
-  Prealloced_array<IntWrapMove, 1, false> array(PSI_NOT_INSTRUMENTED);
+  using IntArray= Prealloced_array<IntWrapMove, 1, false>;
+  IntArray array(PSI_NOT_INSTRUMENTED);
+
+  // Test that we can add non-copyable elements to the array.
   for (int i= 0; i < 5; ++i)
     array.push_back(IntWrapMove(i));
   for (int i= 5; i < 10; ++i)
@@ -587,6 +591,23 @@ TEST_F(PreallocedArrayTest, Move)
   EXPECT_EQ(100, array[0].getval());
   EXPECT_EQ(101, array[1].getval());
   EXPECT_EQ(0, array[2].getval());
+
+  // Test that we can remove non-copyable elements from the array.
+  IntArray::iterator it= array.erase(1);
+  EXPECT_EQ(1, it - array.begin());
+  EXPECT_EQ(0, it->getval());
+  it= array.erase(array.cbegin() + 1);
+  EXPECT_EQ(1, it - array.begin());
+  EXPECT_EQ(1, it->getval());
+  it= array.erase(array.cbegin() + 2, array.cend() - 2);
+  EXPECT_EQ(8, it->getval());
+  EXPECT_EQ(2, array.end() - it);
+  EXPECT_EQ(2, it - array.begin());
+  EXPECT_EQ(4U, array.size());
+  EXPECT_EQ(100, array[0].getval());
+  EXPECT_EQ(1, array[1].getval());
+  EXPECT_EQ(8, array[2].getval());
+  EXPECT_EQ(9, array[3].getval());
 }
 
 }
