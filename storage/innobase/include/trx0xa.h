@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,6 +24,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef	XA_H
 #define	XA_H
 
+#include "xa.h"
+
 /*
  * Transaction branch identification: XID and NULLXID:
  */
@@ -35,17 +37,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define	MAXGTRIDSIZE	 64		/*!< maximum size in bytes of gtrid */
 #define	MAXBQUALSIZE	 64		/*!< maximum size in bytes of bqual */
 
-/** X/Open XA distributed transaction identifier */
-struct xid_t {
-	long formatID;			/*!< format identifier; -1
-					means that the XID is null */
-	long gtrid_length;		/*!< value from 1 through 64 */
-	long bqual_length;		/*!< value from 1 through 64 */
-	char data[XIDDATASIZE];		/*!< distributed transaction
-					identifier */
-};
-/** X/Open XA distributed transaction identifier */
-typedef	struct xid_t XID;
 #endif
 /** X/Open XA distributed transaction status codes */
 /* @{ */
