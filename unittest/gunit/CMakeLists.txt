@@ -328,6 +328,7 @@ SET(TESTS
   stl_alloc
   strings_skip_trailing
   strings_strnxfrm
+  strings_utf8
   strings_valid_check
   strtoll
   thread_utils
@@ -395,7 +396,6 @@ SET(SERVER_TESTS
   segfault
   select_lex_visitor
   sql_table
-  strings_utf8
   subquery_syntax
   table_cache
   table_factor_syntax

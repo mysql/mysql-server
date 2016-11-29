@@ -44,8 +44,10 @@
 
 #include "m_ctype.h"
 #include "my_compiler.h"
+#include "my_config.h"
 
-#define IS_CONTINUATION_BYTE(c) (((c) ^ 0x80) < 0x40)
+template<bool RANGE_CHECK, bool SUPPORT_MB4>
+static int my_mb_wc_utf8_prototype(my_wc_t *pwc, const uchar *s, const uchar *e);
 
 static int my_mb_wc_utf8(my_wc_t *pwc, const uchar *s, const uchar *e);
 static int my_mb_wc_utf8mb4(my_wc_t *pwc, const uchar *s, const uchar *e);
@@ -103,6 +105,91 @@ private:
   const CHARSET_INFO * const m_cs;
 };
 
+template<bool RANGE_CHECK, bool SUPPORT_MB4>
+static ALWAYS_INLINE int
+my_mb_wc_utf8_prototype(my_wc_t *pwc, const uchar *s, const uchar *e)
+{
+  if (RANGE_CHECK && s >= e)
+    return MY_CS_TOOSMALL;
+
+  uchar c= s[0];
+  if (c < 0x80)
+  {
+    *pwc= c;
+    return 1;
+  }
+
+  if (c < 0xe0)
+  {
+    if (c < 0xc2)  // Resulting code point would be less than 0x80.
+      return MY_CS_ILSEQ;
+
+    if (RANGE_CHECK && s + 2 > e)
+      return MY_CS_TOOSMALL2;
+
+    if ((s[1] & 0xc0) != 0x80)  // Next byte must be a continuation byte.
+      return MY_CS_ILSEQ;
+
+    *pwc= ((my_wc_t) (c & 0x1f) << 6) + (my_wc_t) (s[1] & 0x3f);
+    return 2;
+  }
+
+  if (c < 0xf0)
+  {
+    if (RANGE_CHECK && s + 3 > e)
+      return MY_CS_TOOSMALL3;
+
+    // Next two bytes must be continuation bytes.
+    uint16 two_bytes;
+    memcpy(&two_bytes, s + 1, sizeof(two_bytes));
+    if ((two_bytes & 0xc0c0) != 0x8080)  // Endianness does not matter.
+      return MY_CS_ILSEQ;
+
+    *pwc= ((my_wc_t) (c & 0x0f) << 12)   +
+          ((my_wc_t) (s[1] & 0x3f) << 6) +
+           (my_wc_t) (s[2] & 0x3f);
+    if (*pwc < 0x800)
+      return MY_CS_ILSEQ;
+    /*
+      According to RFC 3629, UTF-8 should prohibit characters between
+      U+D800 and U+DFFF, which are reserved for surrogate pairs and do
+      not directly represent characters.
+    */
+    if (*pwc >= 0xd800 && *pwc <= 0xdfff)
+      return MY_CS_ILSEQ;
+    return 3;
+  }
+
+  if (SUPPORT_MB4)
+  {
+    if (RANGE_CHECK && s + 4 > e) /* We need 4 characters */
+      return MY_CS_TOOSMALL4;
+
+    /*
+      This byte must be of the form 11110xxx, and the next three bytes
+      must be continuation bytes.
+    */
+    uint32 four_bytes;
+    memcpy(&four_bytes, s, sizeof(four_bytes));
+#ifdef WORDS_BIGENDIAN
+    if ((four_bytes & 0xf8c0c0c0) != 0xf0808080)
+#else
+    if ((four_bytes & 0xc0c0c0f8) != 0x808080f0)
+#endif
+      return MY_CS_ILSEQ;
+
+    *pwc= ((my_wc_t) (c & 0x07) << 18)    +
+          ((my_wc_t) (s[1] & 0x3f) << 12) +
+          ((my_wc_t) (s[2] & 0x3f) << 6)  +
+           (my_wc_t) (s[3] & 0x3f);
+    if (*pwc < 0x10000 || *pwc > 0x10ffff)
+      return MY_CS_ILSEQ;
+    return 4;
+  }
+
+  return MY_CS_ILSEQ;
+}
+
 /**
   Parses a single UTF-8 character from a byte string.
 
@@ -113,65 +200,11 @@ private:
   @return the number of bytes read from s, or a value <= 0 for failure
     (see m_ctype.h)
 */
-static ALWAYS_INLINE int my_mb_wc_utf8(my_wc_t *pwc, const uchar *s, const uchar *e)
+static inline int
+my_mb_wc_utf8(my_wc_t *pwc, const uchar *s, const uchar *e)
 {
-  uchar c;
-
-  if (s >= e)
-    return MY_CS_TOOSMALL;
-
-  c= s[0];
-  if (c < 0x80)
-  {
-    *pwc = c;
-    return 1;
-  }
-  else if (c < 0xc2)
-    return MY_CS_ILSEQ;
-  else if (c < 0xe0)
-  {
-    if (s+2 > e) /* We need 2 characters */
-      return MY_CS_TOOSMALL2;
-
-    if (!(IS_CONTINUATION_BYTE(s[1])))
-      return MY_CS_ILSEQ;
-
-    *pwc = ((my_wc_t) (c & 0x1f) << 6) | (my_wc_t) (s[1] ^ 0x80);
-    return 2;
-  }
-  else if (c < 0xf0)
-  {
-    if (s+3 > e) /* We need 3 characters */
-      return MY_CS_TOOSMALL3;
-
-    /*
-      According to RFC 3629, UTF-8 should prohibit characters between
-      U+D800 and U+DFFF, which are reserved for surrogate pairs and do
-      not directly represent characters.
-      U+D800 : UTF-8 0xEDA080
-      U+DFFF : UTF-8 0xEDBFBF
-
-      We only need to test the first and second byte here. Because for
-      character encoded with UTF-8 with more than 1 bytes, the
-      non-leading byte is always in range [0x80, 0xBF]. So that U+D800
-      ~ U+DFFF uses out all the UTF-8 codes from 0xEDA0XX to 0xEDBFXX.
-      If it is not in this range, it will be filtered out by following
-      IS_CONTINUATION_BYTE macros.
-    */
-    if (c == 0xED && s[1] >= 0xA0 && s[1] <= 0xBF)
-      return MY_CS_ILSEQ;
-
-    if (!(IS_CONTINUATION_BYTE(s[1]) && IS_CONTINUATION_BYTE(s[2]) &&
-          (c >= 0xe1 || s[1] >= 0xa0)))
-      return MY_CS_ILSEQ;
-
-    *pwc = ((my_wc_t) (c & 0x0f) << 12)   |
-           ((my_wc_t) (s[1] ^ 0x80) << 6) |
-            (my_wc_t) (s[2] ^ 0x80);
-
-    return 3;
-  }
-  return MY_CS_ILSEQ;
+  return my_mb_wc_utf8_prototype</*RANGE_CHECK=*/true, /*SUPPORT_MB4=*/false>(
+    pwc, s, e);
 }
 
 /**
@@ -189,98 +222,8 @@ static ALWAYS_INLINE int my_mb_wc_utf8(my_wc_t *pwc, const uchar *s, const uchar
 static ALWAYS_INLINE int
 my_mb_wc_utf8mb4(my_wc_t *pwc, const uchar *s, const uchar *e)
 {
-  uchar c;
-
-  if (s >= e)
-    return MY_CS_TOOSMALL;
-
-  c= s[0];
-  if (c < 0x80)
-  {
-    *pwc= c;
-    return 1;
-  }
-  else if (c < 0xc2)
-    return MY_CS_ILSEQ;
-  else if (c < 0xe0)
-  {
-    if (s + 2 > e) /* We need 2 characters */
-      return MY_CS_TOOSMALL2;
-
-    if (!(IS_CONTINUATION_BYTE(s[1])))
-      return MY_CS_ILSEQ;
-
-    *pwc= ((my_wc_t) (c & 0x1f) << 6) | (my_wc_t) (s[1] ^ 0x80);
-    return 2;
-  }
-  else if (c < 0xf0)
-  {
-    if (s + 3 > e) /* We need 3 characters */
-      return MY_CS_TOOSMALL3;
-
-    /*
-      According to RFC 3629, UTF-8 should prohibit characters between
-      U+D800 and U+DFFF, which are reserved for surrogate pairs and do
-      not directly represent characters.
-      U+D800 : UTF-8 0xEDA080
-      U+DFFF : UTF-8 0xEDBFBF
-
-      We only need to test the first and second byte here. Because for
-      character encoded with UTF-8 with more than 1 bytes, the
-      non-leading byte is always in range [0x80, 0xBF]. So that U+D800
-      ~ U+DFFF uses out all the UTF-8 codes from 0xEDA0XX to 0xEDBFXX.
-      If it is not in this range, it will be filtered out by following
-      IS_CONTINUATION_BYTE macros.
-    */
-    if (c == 0xED && s[1] >= 0xA0 && s[1] <= 0xBF)
-      return MY_CS_ILSEQ;
-
-    if (!(IS_CONTINUATION_BYTE(s[1]) && IS_CONTINUATION_BYTE(s[2]) &&
-          (c >= 0xe1 || s[1] >= 0xa0)))
-      return MY_CS_ILSEQ;
-
-    *pwc= ((my_wc_t) (c & 0x0f) << 12)   |
-          ((my_wc_t) (s[1] ^ 0x80) << 6) |
-           (my_wc_t) (s[2] ^ 0x80);
-    return 3;
-  }
-  else if (c < 0xf5)
-  {
-    if (s + 4 > e) /* We need 4 characters */
-      return MY_CS_TOOSMALL4;
-
-    /*
-      UTF-8 quick four-byte mask:
-      11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-      Encoding allows to encode U+00010000..U+001FFFFF
-      
-      The maximum character defined in the Unicode standard is U+0010FFFF.
-      Higher characters U+00110000..U+001FFFFF are not used.
-      
-      11110000.10010000.10xxxxxx.10xxxxxx == F0.90.80.80 == U+00010000 (min)
-      11110100.10001111.10111111.10111111 == F4.8F.BF.BF == U+0010FFFF (max)
-      
-      Valid codes:
-      [F0][90..BF][80..BF][80..BF]
-      [F1][80..BF][80..BF][80..BF]
-      [F2][80..BF][80..BF][80..BF]
-      [F3][80..BF][80..BF][80..BF]
-      [F4][80..8F][80..BF][80..BF]
-    */
-
-    if (!(IS_CONTINUATION_BYTE(s[1]) &&
-          IS_CONTINUATION_BYTE(s[2]) &&
-          IS_CONTINUATION_BYTE(s[3]) &&
-          (c >= 0xf1 || s[1] >= 0x90) &&
-          (c <= 0xf3 || s[1] <= 0x8F)))
-      return MY_CS_ILSEQ;
-    *pwc = ((my_wc_t) (c & 0x07) << 18)    |
-           ((my_wc_t) (s[1] ^ 0x80) << 12) |
-           ((my_wc_t) (s[2] ^ 0x80) << 6)  |
-            (my_wc_t) (s[3] ^ 0x80);
-    return 4;
-  }
-  return MY_CS_ILSEQ;
+  return my_mb_wc_utf8_prototype</*RANGE_CHECK=*/true, /*SUPPORT_MB4=*/true>(
+    pwc, s, e);
 }
 
 // Non-inlined versions of the above. These are used as function pointers
