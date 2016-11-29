@@ -1437,7 +1437,15 @@ static bool migrate_tablespace_to_dd(THD *thd, const char *name,
   */
   ts_info.data_file_name= name;
 
-  return dd::create_tablespace(thd, &ts_info, hton, true);
+  if (dd::create_tablespace(thd, &ts_info, hton))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    return true;
+  }
+
+  return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
 

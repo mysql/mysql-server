@@ -75,82 +75,18 @@ bool get_tablespace_name(THD *thd, const T *obj,
   @param thd                Thread executing the operation.
   @param ts_info            Tablespace metadata from the DDL.
   @param hton               Handlerton in which tablespace reside.
-  @param commit_dd_changes  Indicates that we need to commit
-                            changes to data-dictionary.
 
-  @note In case when commit_dd_changes is false, the caller must rollback
-        both statement and transaction on failure, before any further
-        accesses to DD. This is because such a failure might be caused by
-        a deadlock, which requires rollback before any other operations on
-        SE (including reads using attachable transactions) can be done.
-        If case when commit_dd_changes is true this function will handle
-        transaction rollback itself.
+  @note The caller must rollback both statement and transaction on
+        failure, before any further accesses to DD. This is because
+        such a failure might be caused by a deadlock, which requires
+        rollback before any other operations on SE (including reads
+        using attachable transactions) can be done.
 
   @return false - On success.
   @return true - On failure.
 */
 bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                       handlerton *hton, bool commit_dd_changes);
-
-/**
-  Drop Tablespace from Data Dictionary.
-
-  @param thd                Thread executing the operation.
-  @param tablespace         Uncached tablespace object for
-                            the tablespace to be dropped.
-  @param commit_dd_changes  Indicates that we need to commit
-                            changes to data-dictionary.
-
-  @note In case when commit_dd_changes is false, the caller must rollback
-        both statement and transaction on failure, before any further
-        accesses to DD. This is because such a failure might be caused by
-        a deadlock, which requires rollback before any other operations on
-        SE (including reads using attachable transactions) can be done.
-        If case when commit_dd_changes is true this function will handle
-        transaction rollback itself.
-
-  @return false - On success.
-  @return true - On failure.
-*/
-bool drop_tablespace(THD *thd, const Tablespace *tablespace,
-                     bool commit_dd_changes);
-
-/**
-  Update tablespace description in Data Dictionary.
-
-  @param thd                Thread executing the operation.
-  @param tablespace         Tablespace object for the tablespace.
-  @param commit_dd_changes  Indicates that we need to commit
-                            changes to data-dictionary.
-
-  @note In case when commit_dd_changes is false, the caller must rollback
-        both statement and transaction on failure, before any further
-        accesses to DD. This is because such a failure might be caused by
-        a deadlock, which requires rollback before any other operations on
-        SE (including reads using attachable transactions) can be done.
-        If case when commit_dd_changes is true this function will handle
-        transaction rollback itself.
-
-  @return false - On success.
-  @return true - On failure.
-*/
-bool update_tablespace(THD *thd, Tablespace *tablespace,
-                       bool commit_dd_changes);
-
-/**
-  Add/Drop Tablespace file for a tablespace from Data Dictionary.
-
-  @param thd          Thread executing the operation.
-  @param ts_info      Tablespace metadata from the DDL.
-  @param old_ts_def   Old version of tablespace definition.
-  @param new_ts_def   New version of tablespace definition.
-
-  @return false - On success.
-  @return true - On failure.
-*/
-bool alter_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                      const dd::Tablespace *old_ts_def,
-                      dd::Tablespace *new_ts_def);
+                       handlerton *hton);
 
 } // namespace dd
 #endif // DD_TABLESPACE_INCLUDED
