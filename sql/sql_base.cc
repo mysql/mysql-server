@@ -54,6 +54,7 @@
 #include "my_thread_local.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_mutex.h"
@@ -115,7 +116,6 @@
 #include "dd/types/table.h"           // dd::Table
 #include "mutex_lock.h"
 #include "mysql/psi/mysql_file.h"
-#include "pfs_table_provider.h"
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE and

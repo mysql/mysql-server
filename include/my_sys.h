@@ -38,16 +38,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "pfs_thread_provider.h"        /* build time optimization for mysql_thread_t */
 #include "mysql/psi/mysql_thread.h"     /* mysql_thread_t */
-
-#include "pfs_mutex_provider.h"         /* build time optimization for mysql_mutex_t */
 #include "mysql/psi/mysql_mutex.h"      /* mysql_mutex_t */
-
-#include "pfs_rwlock_provider.h"        /* build time optimization for mysql_rwlock_t */
 #include "mysql/psi/mysql_rwlock.h"     /* mysql_rwlock_t */
-
-#include "pfs_cond_provider.h"          /* build time optimization for mysql_cond_t */
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
 
 #include "mysql/psi/psi_file.h"         /* PSI_file_service_t */

@@ -67,6 +67,7 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_table.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"
@@ -78,7 +79,6 @@
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "opt_costmodel.h"
 #include "opt_hints.h"
-#include "pfs_table_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "psi_memory_key.h"

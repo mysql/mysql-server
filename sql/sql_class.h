@@ -57,6 +57,7 @@
 #include "mysql/mysql_lex_string.h"       // LEX_STRING
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_idle.h"
 #include "mysql/psi/psi_stage.h"
@@ -70,7 +71,6 @@
 #include "opt_costmodel.h"
 #include "opt_trace_context.h"            // Opt_trace_context
 #include "parse_location.h"
-#include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"                     // Protocol
 #include "protocol_classic.h"             // Protocol_text
@@ -98,9 +98,6 @@
 #include "thr_lock.h"
 #include "transaction_info.h"             // Ha_trx_info
 #include "violite.h"
-
-#include "pfs_statement_provider.h"       // IWYU pragma: keep
-#include "mysql/psi/mysql_statement.h"
 
 class Query_arena;
 class Relay_log_info;

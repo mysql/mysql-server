@@ -88,7 +88,6 @@
 #include "mysql/psi/psi_statement.h"
 #include "mysqld.h"            // lower_case_table_names server_uuid ...
 #include "mysqld_error.h"
-#include "pfs_file_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "query_result.h"      // sql_exchange

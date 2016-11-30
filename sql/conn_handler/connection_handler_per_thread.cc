@@ -41,7 +41,6 @@
 #include "mysqld.h"                      // max_connections
 #include "mysqld_error.h"                // ER_*
 #include "mysqld_thd_manager.h"          // Global_THD_manager
-#include "pfs_thread_provider.h"
 #include "protocol_classic.h"
 #include "sql_class.h"                   // THD
 #include "sql_connect.h"                 // close_connection

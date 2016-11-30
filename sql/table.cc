@@ -51,6 +51,7 @@
 #include "myisam.h"                      // MI_MAX_KEY_LENGTH
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
@@ -61,7 +62,6 @@
 #include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
 #include "parse_file.h"                  // sql_parse_prepare
 #include "partition_info.h"              // partition_info
-#include "pfs_table_provider.h"
 #include "psi_memory_key.h"
 #include "query_result.h"                // Query_result
 #include "session_tracker.h"

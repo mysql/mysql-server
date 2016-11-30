@@ -47,7 +47,6 @@
 #include "mysqld.h"                          // global_system_variables ...
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "mysys_err.h"                       // EE_OUTOFMEMORY
-#include "pfs_statement_provider.h"
 #include "psi_memory_key.h"
 #include "query_result.h"
 #include "rpl_rli.h"                         // Relay_log_info

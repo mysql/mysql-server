@@ -69,6 +69,9 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "my_time.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/service_my_snprintf.h"
@@ -81,7 +84,6 @@
 #include "partition_element.h"
 #include "partition_info.h"           // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
-#include "pfs_table_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "psi_memory_key.h"           // key_memory_gdl
@@ -123,15 +125,6 @@
 #include "trigger.h"
 #include "typelib.h"
 #include "xa.h"
-
-#include "pfs_file_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_file.h"
-
-#include "pfs_stage_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_stage.h"
-
-#include "pfs_table_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_table.h"
 
 using std::max;
 using std::min;
