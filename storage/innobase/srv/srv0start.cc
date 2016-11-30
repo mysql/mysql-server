@@ -124,7 +124,7 @@ SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
 /** Files comprising the system tablespace */
-static os_file_t	files[1000];
+static os_pfs_file_t	files[1000];
 
 /** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS + 6];
@@ -530,7 +530,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 create_log_file(
 /*============*/
-	os_file_t*	file,	/*!< out: file handle */
+	os_pfs_file_t*	file,	/*!< out: file handle */
 	const char*	name)	/*!< in: log file name */
 {
 	ibool		ret;
@@ -737,7 +737,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 open_log_file(
 /*==========*/
-	os_file_t*	file,	/*!< out: file handle */
+	os_pfs_file_t*	file,	/*!< out: file handle */
 	const char*	name,	/*!< in: log file name */
 	os_offset_t*	size)	/*!< out: file size */
 {
@@ -853,7 +853,7 @@ open_or_create_data_files(
 				   && os_file_get_last_error(false)
 				   != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
-			    	   /* AIX 5.1 after security patch ML7 may have
+				   /* AIX 5.1 after security patch ML7 may have
 			           errno set to 0 here, which causes our
 				   function to return 100; work around that
 				   AIX problem */
@@ -1156,7 +1156,7 @@ srv_undo_tablespace_create(
 	const char*	name,		/*!< in: tablespace name */
 	ulint		size)		/*!< in: tablespace size in pages */
 {
-	os_file_t	fh;
+	os_pfs_file_t	fh;
 	ibool		ret;
 	dberr_t		err = DB_SUCCESS;
 
@@ -1233,7 +1233,7 @@ srv_undo_tablespace_open(
 	const char*	name,		/*!< in: tablespace name */
 	ulint		space)		/*!< in: tablespace id */
 {
-	os_file_t	fh;
+	os_pfs_file_t	fh;
 	dberr_t		err	= DB_ERROR;
 	ibool		ret;
 	ulint		flags;
