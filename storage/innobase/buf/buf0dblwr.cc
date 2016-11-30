@@ -349,7 +349,7 @@ recovery, this function loads the pages from double write buffer into memory.
 @return DB_SUCCESS or error code */
 dberr_t
 buf_dblwr_init_or_load_pages(
-	os_file_t	file,
+	os_pfs_file_t	file,
 	const char*	path)
 {
 	byte*		buf;
