@@ -36,13 +36,6 @@
  * LocalXXList
  * XXHead - XXList::Head
  *
- * The LocalXX classes are used in local scope to tell the compiler
- * that all changes to the head will be through that locally defined
- * object (there will be no aliases to head data).  And so the compiler
- * can possible optimize the generated code further.
- * But be sure to ensure that the head is not accessed but through the
- * local object!
- *
  * Recommended use is to define list type alias:
  *   typedef LocalXXList<NodeClass, PoolClass> YourList;
  * and declare the head as:
@@ -124,11 +117,6 @@ typedef ListHeadPOD<FirstLink,LastLink,Count> POD;
 #if defined VM_TRACE || defined ERROR_INSERT
   bool in_use;
 #endif
-//  ListHeadPOD() { }
-//  ~ListHeadPOD() { }
-private:
-//  ListHeadPOD(const ListHeadPOD&); // deleted - not copy constructable
-//  ListHeadPOD& operator = (const ListHeadPOD&); // deleted - not copyable
 };
 
 template<class FirstLink, class LastLink, class Count> class ListHead
@@ -138,8 +126,6 @@ public:
   typedef ListHeadPOD<FirstLink, LastLink, Count> POD;
   ListHead() { POD::init(); }
   ~ListHead() { }
-//  ListHead(const ListHead& src): POD(src) { }
-//  ListHead(const typename ListHead::POD& src): POD(src) { }
 private:
   ListHead(const ListHead&); // deleted
   ListHead& operator = (const ListHead&); // deleted
@@ -233,12 +219,7 @@ template<typename T, class Pool, typename THead, class LM = DefaultDoubleLinkMet
 public:
 typedef typename remove_reference<THead>::type Head;
 typedef typename Head::POD HeadPOD;
-#if 0
-class Local;
-#endif
 public:
-//  explicit IntrusiveList(Pool& pool, typename pod<THead>::type head): m_pool(pool), m_head(head) { }
-//  explicit IntrusiveList(Pool& pool, typename THead::POD head): m_pool(pool), m_head(head) { }
   explicit IntrusiveList(Pool& pool, THead head): m_pool(pool), m_head(head) { }
   explicit IntrusiveList(Pool& pool): m_pool(pool) { m_head.init(); }
   ~IntrusiveList() { }
@@ -284,35 +265,6 @@ protected:
   Pool& m_pool;
   THead m_head;
 };
-
-#if 0
-template<typename T, class Pool, typename THead, class LM>
-class IntrusiveList<T, Pool, THead, LM>::Local: public IntrusiveList<T, Pool, THead, LM>
-{
-public:
-  explicit Local(Pool& pool, typename THead::POD& head)
-  : IntrusiveList<T, Pool, THead, LM>(pool, head), m_src(head) {
-#if defined VM_TRACE || defined ERROR_INSERT
-    assert(!m_src.in_use);
-    m_src.in_use = true;
-#endif
-  }
-  ~Local() {
-#if defined VM_TRACE || defined ERROR_INSERT
-    assert(m_src.in_use);
-#endif
-    m_src = this->m_head;
-#if defined VM_TRACE || defined ERROR_INSERT
-    assert(!m_src.in_use);
-#endif
-  }
-private:
-  Local(const Local&); // Not to be implemented
-  Local&  operator=(const Local&); // Not to be implemented
-private:
-  typename THead::POD& m_src;
-};
-#endif
 
 /* Specialisations */
 
