@@ -24,11 +24,12 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <functional>
 #include <math.h>
-#include <limits>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <functional>
+#include <limits>
+#include <new>
 
 #include "handler.h"
 #include "hash.h"

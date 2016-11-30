@@ -18,17 +18,19 @@
   Table global_status (implementation).
 */
 
+#include <new>
+
+#include "current_thd.h"
+#include "field.h"
 #include "my_global.h"
-#include "table_global_status.h"
 #include "my_thread.h"
-#include "pfs_instr_class.h"
+#include "mysqld.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "pfs_global.h"
-#include "current_thd.h"
-#include "field.h"
+#include "pfs_instr_class.h"
 #include "sql_class.h"
-#include "mysqld.h"
+#include "table_global_status.h"
 
 bool PFS_index_global_status::match(const Status_variable *pfs)
 {

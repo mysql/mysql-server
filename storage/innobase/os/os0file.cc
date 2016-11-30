@@ -32,27 +32,27 @@ The interface to the operating system file i/o primitives
 Created 10/21/1995 Heikki Tuuri
 *******************************************************/
 
+#include "fil0fil.h"
 #include "ha_prototypes.h"
-#include "sql_const.h"
-
 #include "os0file.h"
+#include "sql_const.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "fil0fil.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0event.h"
 # include "os0thread.h"
 #else /* !UNIV_HOTBACKUP */
 # ifdef _WIN32
+#  include <errno.h>
+#  include <sys/stat.h>
 /* Add includes for the _stat() call to compile on Windows */
 #  include <sys/types.h>
-#  include <sys/stat.h>
-#  include <errno.h>
 # endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
-#include <vector>
 #include <functional>
+#include <new>
+#include <vector>
 
 #ifdef LINUX_NATIVE_AIO
 #include <libaio.h>
@@ -64,12 +64,11 @@ Created 10/21/1995 Heikki Tuuri
 #endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE */
 
 #include <lz4.h>
-#include <zlib.h>
-
 #include <my_aes.h>
 #include <my_rnd.h>
-#include <mysqld.h>
 #include <mysql/service_mysql_keyring.h>
+#include <mysqld.h>
+#include <zlib.h>
 
 /** Insert buffer segment id */
 static const ulint IO_IBUF_SEGMENT = 0;

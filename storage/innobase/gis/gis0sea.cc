@@ -23,22 +23,24 @@ InnoDB R-tree search interfaces
 Created 2014/01/16 Jimmy Yang
 ***********************************************************************/
 
+#include <new>
+
 #include "fsp0fsp.h"
-#include "page0page.h"
-#include "page0cur.h"
-#include "page0zip.h"
 #include "gis0rtree.h"
+#include "page0cur.h"
+#include "page0page.h"
+#include "page0zip.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "btr0cur.h"
-#include "btr0sea.h"
 #include "btr0pcur.h"
-#include "rem0cmp.h"
-#include "lock0lock.h"
-#include "ibuf0ibuf.h"
-#include "trx0trx.h"
-#include "srv0mon.h"
+#include "btr0sea.h"
 #include "gis0geo.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
+#include "rem0cmp.h"
+#include "srv0mon.h"
+#include "trx0trx.h"
 
 #endif /* UNIV_HOTBACKUP */
 

@@ -24,35 +24,34 @@ Recovery
 Created 9/20/1997 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include <vector>
-#include <map>
-#include <string>
-
-#include "log0recv.h"
 #include <my_aes.h>
+#include <map>
+#include <new>
+#include <string>
+#include <vector>
 
-#include "mem0mem.h"
-#include "buf0buf.h"
-#include "buf0flu.h"
-#include "mtr0mtr.h"
-#include "mtr0log.h"
-#include "page0cur.h"
-#include "page0zip.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
-#include "ibuf0ibuf.h"
-#include "trx0undo.h"
-#include "trx0rec.h"
+#include "buf0buf.h"
+#include "buf0flu.h"
 #include "fil0fil.h"
-#include "ut0new.h"
+#include "ha_prototypes.h"
+#include "ibuf0ibuf.h"
+#include "log0recv.h"
+#include "mem0mem.h"
+#include "mtr0log.h"
+#include "mtr0mtr.h"
 #include "os0thread-create.h"
+#include "page0cur.h"
+#include "page0zip.h"
+#include "trx0rec.h"
+#include "trx0undo.h"
+#include "ut0new.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0rea.h"
+# include "row0merge.h"
 # include "srv0srv.h"
 # include "srv0start.h"
-# include "row0merge.h"
 # include "trx0purge.h"
 #else /* !UNIV_HOTBACKUP */
 /** This is set to FALSE if the backup was originally taken with the

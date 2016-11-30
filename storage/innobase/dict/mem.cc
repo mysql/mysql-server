@@ -28,6 +28,8 @@ Created 1/8/1996 Heikki Tuuri
 other files in library. The code in this file is used to make a library for
 external tools. */
 
+#include <new>
+
 #include "dict0dict.h"
 #include "lock0lock.h"
 

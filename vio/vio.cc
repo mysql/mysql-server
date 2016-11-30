@@ -20,6 +20,8 @@
   the file descriptior.
 */
 
+#include <new>
+
 #include "my_psi_config.h"
 #include "mysql/service_mysql_alloc.h"
 #include "vio_priv.h"

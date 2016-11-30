@@ -43,11 +43,6 @@
 #include <crtdbg.h>
 #endif
 
-/* Include standard definitions of operator new and delete. */
-#ifdef __cplusplus
-# include <new>
-#endif
-
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

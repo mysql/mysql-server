@@ -21,6 +21,7 @@
 #include <myisampack.h>
 #include <stdarg.h>
 #include <algorithm>
+#include <new>
 
 #include "current_thd.h"
 #include "derror.h"

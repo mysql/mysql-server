@@ -25,15 +25,16 @@ Created 11/26/1995 Heikki Tuuri
 
 #include "mtr0mtr.h"
 
+#include <new>
+
 #include "buf0buf.h"
 #include "buf0flu.h"
-#include "page0types.h"
-#include "mtr0log.h"
-#include "log0log.h"
-#include "trx0purge.h"
-
-#include "log0recv.h"
 #include "fsp0sysspace.h"
+#include "log0log.h"
+#include "log0recv.h"
+#include "mtr0log.h"
+#include "page0types.h"
+#include "trx0purge.h"
 
 /** Iterate over a memo block in reverse. */
 template <typename Functor>
