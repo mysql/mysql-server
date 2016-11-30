@@ -363,9 +363,9 @@ row_log_online_op(
 			goto err_exit;
 		}
 
-		ret = os_file_write(
+		ret = os_file_write_int_fd(
 			"(modification log)",
-			OS_FILE_FROM_FD(log->fd),
+			log->fd,
 			log->tail.block, byte_offset, srv_sort_buf_size);
 		log->tail.blocks++;
 		if (!ret) {
@@ -479,9 +479,9 @@ row_log_table_close_func(
 			goto err_exit;
 		}
 
-		ret = os_file_write(
+		ret = os_file_write_int_fd(
 			"(modification log)",
-			OS_FILE_FROM_FD(log->fd),
+			log->fd,
 			log->tail.block, byte_offset, srv_sort_buf_size);
 		log->tail.blocks++;
 		if (!ret) {
@@ -2609,11 +2609,10 @@ all_done:
 			goto func_exit;
 		}
 
-		success = os_file_read_no_error_handling(
-			OS_FILE_FROM_FD(index->online_log->fd),
+		success = os_file_read_no_error_handling_int_fd(
+			index->online_log->fd,
 			index->online_log->head.block, ofs,
 			srv_sort_buf_size);
-
 		if (!success) {
 			fprintf(stderr, "InnoDB: unable to read temporary file"
 				" for table %s\n", index->table_name);
@@ -3436,8 +3435,8 @@ all_done:
 			goto func_exit;
 		}
 
-		success = os_file_read_no_error_handling(
-			OS_FILE_FROM_FD(index->online_log->fd),
+		success = os_file_read_no_error_handling_int_fd(
+			index->online_log->fd,
 			index->online_log->head.block, ofs,
 			srv_sort_buf_size);
 

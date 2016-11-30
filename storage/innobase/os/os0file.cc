@@ -163,7 +163,7 @@ struct os_aio_slot_t{
 	byte*		buf;		/*!< buffer used in i/o */
 	ulint		type;		/*!< OS_FILE_READ or OS_FILE_WRITE */
 	os_offset_t	offset;		/*!< file offset in bytes */
-	os_file_t	file;		/*!< file where to read or write */
+	os_pfs_file_t	file;		/*!< file where to read or write */
 	const char*	name;		/*!< file name or path */
 	ibool		io_already_done;/*!< used only in simulated aio:
 					TRUE if the physical i/o already
@@ -2086,14 +2086,14 @@ UNIV_INTERN
 os_offset_t
 os_file_get_size(
 /*=============*/
-	os_file_t	file)	/*!< in: handle to a file */
+	os_pfs_file_t	file)	/*!< in: handle to a file */
 {
 #ifdef __WIN__
 	os_offset_t	offset;
 	DWORD		high;
 	DWORD		low;
 
-	low = GetFileSize(file, &high);
+	low = GetFileSize(file.m_file, &high);
 
 	if ((low == 0xFFFFFFFF) && (GetLastError() != NO_ERROR)) {
 		return((os_offset_t) -1);
@@ -2103,7 +2103,8 @@ os_file_get_size(
 
 	return(offset);
 #else
-	return((os_offset_t) lseek(file, 0, SEEK_END));
+	return((os_offset_t) lseek(file.m_file, 0, SEEK_END));
+
 #endif /* __WIN__ */
 }
 
@@ -2116,7 +2117,7 @@ os_file_set_size(
 /*=============*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_t	file,	/*!< in: handle to a file */
+	os_pfs_file_t	file,	/*!< in: handle to a file */
 	os_offset_t	size)	/*!< in: file size */
 {
 	os_offset_t	current_size;
@@ -4187,7 +4188,7 @@ os_aio_array_reserve_slot(
 				the aio operation */
 	void*		message2,/*!< in: message to be passed along with
 				the aio operation */
-	os_file_t	file,	/*!< in: file handle */
+	os_pfs_file_t	file,	/*!< in: file handle */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	void*		buf,	/*!< in: buffer where to read or from which
@@ -4307,10 +4308,10 @@ found:
 	iocb = &slot->control;
 
 	if (type == OS_FILE_READ) {
-		io_prep_pread(iocb, file, buf, len, aio_offset);
+		io_prep_pread(iocb, file.m_file, buf, len, aio_offset);
 	} else {
 		ut_a(type == OS_FILE_WRITE);
-		io_prep_pwrite(iocb, file, buf, len, aio_offset);
+		io_prep_pwrite(iocb, file.m_file, buf, len, aio_offset);
 	}
 
 	iocb->data = (void*) slot;
@@ -4548,7 +4549,7 @@ os_aio_func(
 				caution! */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_t	file,	/*!< in: handle to a file */
+	os_pfs_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read or from which
 				to write */
 	os_offset_t	offset,	/*!< in: file offset where to read or write */
@@ -4573,8 +4574,7 @@ os_aio_func(
 	ulint		dummy_type;
 #endif /* WIN_ASYNC_IO */
 	ulint		wake_later;
-
-	ut_ad(file);
+	ut_ad(file.m_file);
 	ut_ad(buf);
 	ut_ad(n > 0);
 	ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
@@ -4606,13 +4606,11 @@ os_aio_func(
 		and os_file_write_func() */
 
 		if (type == OS_FILE_READ) {
-			return(os_file_read_func(file, buf, offset, n));
+			return(os_file_read_func(file.m_file, buf, offset, n));
 		}
-
 		ut_ad(!srv_read_only_mode);
 		ut_a(type == OS_FILE_WRITE);
-
-		return(os_file_write_func(name, file, buf, offset, n));
+		return(os_file_write_func(name, file.m_file, buf, offset, n));
 	}
 
 try_again:
@@ -4664,9 +4662,8 @@ try_again:
 			os_n_file_reads++;
 			os_bytes_read_since_printout += n;
 #ifdef WIN_ASYNC_IO
-			ret = ReadFile(file, buf, (DWORD) n, &len,
+			ret = ReadFile(file.m_file, buf, (DWORD) n, &len,
 				       &(slot->control));
-
 #elif defined(LINUX_NATIVE_AIO)
 			if (!os_aio_linux_dispatch(array, slot)) {
 				goto err_exit;
@@ -4684,9 +4681,8 @@ try_again:
 		if (srv_use_native_aio) {
 			os_n_file_writes++;
 #ifdef WIN_ASYNC_IO
-			ret = WriteFile(file, buf, (DWORD) n, &len,
+			ret = WriteFile(file.m_file, buf, (DWORD) n, &len,
 					&(slot->control));
-
 #elif defined(LINUX_NATIVE_AIO)
 			if (!os_aio_linux_dispatch(array, slot)) {
 				goto err_exit;
@@ -4840,8 +4836,7 @@ os_aio_windows_handle(
 		srv_set_io_thread_op_info(
 			orig_seg, "get windows aio return value");
 	}
-
-	ret = GetOverlappedResult(slot->file, &(slot->control), &len, TRUE);
+	ret = GetOverlappedResult(slot->file.m_file, &(slot->control), &len, TRUE);
 
 	*message1 = slot->message1;
 	*message2 = slot->message2;
@@ -4870,7 +4865,8 @@ os_aio_windows_handle(
 		and os_file_write APIs, need to register with
 		performance schema explicitly here. */
 		struct PSI_file_locker* locker = NULL;
-		register_pfs_file_io_begin(locker, slot->file, slot->len,
+		PSI_file_locker_state	state;
+		register_pfs_file_io_begin(&state, locker, slot->file, slot->len,
 					   (slot->type == OS_FILE_WRITE)
 						? PSI_FILE_WRITE
 						: PSI_FILE_READ,
@@ -4881,16 +4877,14 @@ os_aio_windows_handle(
 
 		switch (slot->type) {
 		case OS_FILE_WRITE:
-			ret = WriteFile(slot->file, slot->buf,
+			ret = WriteFile(slot->file.m_file, slot->buf,
 					(DWORD) slot->len, &len,
 					&(slot->control));
-
 			break;
 		case OS_FILE_READ:
-			ret = ReadFile(slot->file, slot->buf,
+			ret = ReadFile(slot->file.m_file, slot->buf,
 				       (DWORD) slot->len, &len,
 				       &(slot->control));
-
 			break;
 		default:
 			ut_error;
@@ -4906,8 +4900,7 @@ os_aio_windows_handle(
 			file where we also use async i/o: in Windows
 			we must use the same wait mechanism as for
 			async i/o */
-
-			ret = GetOverlappedResult(slot->file,
+			ret = GetOverlappedResult(slot->file.m_file,
 						  &(slot->control),
 						  &len, TRUE);
 		}
@@ -5354,12 +5347,11 @@ consecutive_loop:
 		os_aio_slot_t*	slot;
 
 		slot = os_aio_array_get_nth_slot(array, i + segment * n);
-
 		if (slot->reserved
 		    && slot != aio_slot
 		    && slot->offset == aio_slot->offset + aio_slot->len
 		    && slot->type == aio_slot->type
-		    && slot->file == aio_slot->file) {
+		    && slot->file.m_file == aio_slot->file.m_file) {
 
 			/* Found a consecutive i/o request */
 
