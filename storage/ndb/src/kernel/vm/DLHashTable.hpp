@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #define DL_HASHTABLE_HPP
 
 #include <ndb_global.h>
-#include "ArrayPool.hpp"
 
 #define JAM_FILE_ID 313
 
@@ -554,16 +553,6 @@ DLMHashTable<P, T, M>::find(Ptr<T> & ptr, const T & key) const
 // Specializations
 
 template <typename P, typename T, typename U = T >
-class DLHashTableImpl: public DLMHashTable<P, T, DLHashTableDefaultMethods<T, U> >
-{
-public:
-  explicit DLHashTableImpl(P & p): DLMHashTable<P, T, DLHashTableDefaultMethods<T, U> >(p) { }
-private:
-  DLHashTableImpl(const DLHashTableImpl&);
-  DLHashTableImpl&  operator=(const DLHashTableImpl&);
-};
-
-template <typename T, typename U = T, typename P = ArrayPool<T> >
 class DLHashTable: public DLMHashTable<P, T, DLHashTableDefaultMethods<T, U> >
 {
 public:

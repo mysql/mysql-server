@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #ifndef RWPOOL_HPP
 #define RWPOOL_HPP
 
+#include "ndbd_exit_codes.h"
+#include "NdbOut.hpp"
 #include "Pool.hpp"
 
 #define JAM_FILE_ID 311
@@ -38,6 +40,7 @@ struct RWPage
 /**
  * Read Write  Pool
  */
+template<typename T>
 struct RWPool
 {
   Record_info m_record_info;
@@ -50,24 +53,26 @@ struct RWPool
   Uint16 m_current_first_free;
   Uint16 m_current_ref_count;
 public:
+  typedef T Type;
   RWPool();
   
   void init(const Record_info& ri, const Pool_context& pc);
-  bool seize(Ptr<void>&);
-  void release(Ptr<void>);
-  void * getPtr(Uint32 i);
-  void * getPtr(const Record_info&ri, Uint32 i);
+  bool seize(Ptr<T>&);
+  void release(Ptr<T>);
+  void * getPtr(Uint32 i) const;
+  void * getPtr(const Record_info&ri, Uint32 i) const;
   
   STATIC_CONST( WORDS_PER_PAGE = RWPage::RWPAGE_WORDS );
 
 private:  
-  void handle_invalid_release(Ptr<void>) ATTRIBUTE_NORETURN;
-  void handle_invalid_get_ptr(Uint32 i) ATTRIBUTE_NORETURN;
+  void handle_invalid_release(Ptr<T>) ATTRIBUTE_NORETURN;
+  void handle_invalid_get_ptr(Uint32 i) const ATTRIBUTE_NORETURN;
 };
 
+template<typename T>
 inline
 void*
-RWPool::getPtr(Uint32 i)
+RWPool<T>::getPtr(Uint32 i) const
 {
   Uint32 page_no = i >> POOL_RECORD_BITS;
   Uint32 page_idx = i & POOL_RECORD_MASK;
@@ -82,9 +87,10 @@ RWPool::getPtr(Uint32 i)
   return 0;                                     /* purify: deadcode */
 }
 
+template<typename T>
 inline
 void*
-RWPool::getPtr(const Record_info &ri, Uint32 i)
+RWPool<T>::getPtr(const Record_info &ri, Uint32 i) const
 {
   Uint32 page_no = i >> POOL_RECORD_BITS;
   Uint32 page_idx = i & POOL_RECORD_MASK;
@@ -99,6 +105,7 @@ RWPool::getPtr(const Record_info &ri, Uint32 i)
   return 0;                                     /* purify: deadcode */
 }
 
+#include "RWPool.cpp"
 
 #undef JAM_FILE_ID
 

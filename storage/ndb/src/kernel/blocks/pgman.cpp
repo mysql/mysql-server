@@ -2537,8 +2537,8 @@ Pgman::verify_page_lists()
 
   ndbrequire(is_bound == stats.m_num_pages || dump_page_lists());
   ndbrequire(is_hot == stats.m_num_hot_pages || dump_page_lists());
-  ndbrequire(on_stack == pl_stack.count() || dump_page_lists());
-  ndbrequire(on_queue == pl_queue.count() || dump_page_lists());
+  ndbrequire(on_stack == pl_stack.getCount() || dump_page_lists());
+  ndbrequire(on_queue == pl_queue.getCount() || dump_page_lists());
 
   Uint32 k;
   Uint32 entry_count = 0;
@@ -2549,11 +2549,11 @@ Pgman::verify_page_lists()
     const Page_sublist& pl = *m_page_sublist[k];
     for (pl.first(ptr); ptr.i != RNIL; pl.next(ptr))
       ndbrequire(get_sublist_no(ptr.p->m_state) == k || dump_page_lists(ptr.i));
-    entry_count += pl.count();
+    entry_count += pl.getCount();
     sprintf(sublist_info + strlen(sublist_info),
-            " %s:%u", get_sublist_name(k), pl.count());
+            " %s:%u", get_sublist_name(k), pl.getCount());
   }
-  ndbrequire(entry_count == pl_hash.count() || dump_page_lists());
+  ndbrequire(entry_count == pl_hash.getCount() || dump_page_lists());
 
   Uint32 hit_pct = 0;
   char hit_pct_str[20];
@@ -2569,7 +2569,7 @@ Pgman::verify_page_lists()
     << " lcp:" << Uint32(m_lcp_state));
 
   D("page"
-    << " entries:" << pl_hash.count()
+    << " entries:" << pl_hash.getCount()
     << " pages:" << stats.m_num_pages << "/" << param.m_max_pages
     << " mapped:" << is_mapped
     << " hot:" << is_hot
@@ -2578,8 +2578,8 @@ Pgman::verify_page_lists()
 
   D("list"
     << " locked:" << is_locked
-    << " stack:" << pl_stack.count()
-    << " queue:" << pl_queue.count()
+    << " stack:" << pl_stack.getCount()
+    << " queue:" << pl_queue.getCount()
     << " to queue:" << to_queue);
 
   D(sublist_info);
@@ -2694,7 +2694,7 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_request> ptr)
 NdbOut&
 operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
 {
-  const Pgman::Page_entry pe = *ptr.p;
+  const Pgman::Page_entry& pe = *ptr.p;
   Uint32 list_no = Pgman::get_sublist_no(pe.m_state);
   out << "PE [" << dec << ptr.i << "]";
   out << " state=" << hex << pe.m_state;

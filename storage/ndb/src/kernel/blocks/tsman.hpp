@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -147,10 +147,10 @@ public:
     }
   };
 
-  typedef RecordPool<Datafile, RWPool> Datafile_pool;
-  typedef DLListImpl<Datafile_pool, Datafile> Datafile_list;
-  typedef LocalDLListImpl<Datafile_pool, Datafile> Local_datafile_list;
-  typedef DLHashTableImpl<Datafile_pool, Datafile> Datafile_hash;
+  typedef RecordPool<Datafile, RWPool<Datafile> > Datafile_pool;
+  typedef DLList<Datafile, Datafile_pool> Datafile_list;
+  typedef LocalDLList<Datafile, Datafile_pool> Local_datafile_list;
+  typedef DLHashTable<Datafile_pool, Datafile> Datafile_hash;
 
   struct Tablespace
   {
@@ -197,10 +197,10 @@ public:
     }
   };
 
-  typedef RecordPool<Tablespace, RWPool> Tablespace_pool;
-  typedef DLListImpl<Tablespace_pool, Tablespace> Tablespace_list;
-  typedef LocalDLListImpl<Tablespace_pool, Tablespace> Local_tablespace_list;
-  typedef KeyTableImpl<Tablespace_pool, Tablespace> Tablespace_hash;
+  typedef RecordPool<Tablespace, RWPool<Tablespace> > Tablespace_pool;
+  typedef DLList<Tablespace, Tablespace_pool> Tablespace_list;
+  typedef LocalDLList<Tablespace, Tablespace_pool> Local_tablespace_list;
+  typedef KeyTable<Tablespace_pool, Tablespace> Tablespace_hash;
 
 private:
   friend class Tablespace_client;

@@ -25,13 +25,12 @@
 #include <trigger_definitions.h>
 #include <pc.hpp>
 #include <ArenaPool.hpp>
-#include <DataBuffer2.hpp>
+#include <DataBuffer.hpp>
 #include <DLHashTable.hpp>
 #include <IntrusiveList.hpp>
 #include <CArray.hpp>
 #include <KeyTable.hpp>
 #include <KeyTable2.hpp>
-#include <KeyTable2Ref.hpp>
 #include <SimulatedBlock.hpp>
 #include <SimpleProperties.hpp>
 #include <SignalCounter.hpp>
@@ -240,8 +239,8 @@ public:
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
   typedef ArrayPool<AttributeRecord> AttributeRecord_pool;
   typedef DLMHashTable<AttributeRecord_pool, AttributeRecord> AttributeRecord_hash;
-  typedef DLFifoListImpl<AttributeRecord_pool, AttributeRecord, AttributeRecord> AttributeRecord_list;
-  typedef LocalDLFifoListImpl<AttributeRecord_pool, AttributeRecord, AttributeRecord> LocalAttributeRecord_list;
+  typedef DLFifoList<AttributeRecord, AttributeRecord_pool, AttributeRecord> AttributeRecord_list;
+  typedef LocalDLFifoList<AttributeRecord, AttributeRecord_pool, AttributeRecord> LocalAttributeRecord_list;
 
   AttributeRecord_pool c_attributeRecordPool;
   AttributeRecord_hash c_attributeRecordHash;
@@ -254,8 +253,8 @@ public:
   struct TableRecord;
   typedef Ptr<TableRecord> TableRecordPtr;
   typedef ArrayPool<TableRecord> TableRecord_pool;
-  typedef DLFifoListImpl<TableRecord_pool, TableRecord, TableRecord> TableRecord_list;
-  typedef LocalDLFifoListImpl<TableRecord_pool, TableRecord, TableRecord> LocalTableRecord_list;
+  typedef DLFifoList<TableRecord, TableRecord_pool, TableRecord> TableRecord_list;
+  typedef LocalDLFifoList<TableRecord, TableRecord_pool, TableRecord> LocalTableRecord_list;
 
   struct TableRecord {
     TableRecord(){
@@ -647,9 +646,9 @@ public:
     };
   };
   typedef Ptr<File> FilePtr;
-  typedef RecordPool<File, RWPool> File_pool;
-  typedef DLListImpl<File_pool, File> File_list;
-  typedef LocalDLListImpl<File_pool, File> Local_file_list;
+  typedef RecordPool<File, RWPool<File> > File_pool;
+  typedef DLList<File, File_pool> File_list;
+  typedef LocalDLList<File, File_pool> Local_file_list;
 
   struct Filegroup {
     Filegroup(){}
@@ -681,7 +680,7 @@ public:
     };
   };
   typedef Ptr<Filegroup> FilegroupPtr;
-  typedef RecordPool<Filegroup, RWPool> Filegroup_pool;
+  typedef RecordPool<Filegroup, RWPool<Filegroup> > Filegroup_pool;
 
   File_pool c_file_pool;
   Filegroup_pool c_filegroup_pool;
@@ -762,7 +761,7 @@ public:
   typedef ArrayPool<DictObject> DictObject_pool;
   typedef DLMHashTable<DictObject_pool, DictObject, HashedByName<DictObject> > DictObjectName_hash;
   typedef DLMHashTable<DictObject_pool, DictObject, HashedById<DictObject> > DictObjectId_hash;
-  typedef SLList<DictObject> DictObject_list;
+  typedef SLList<DictObject, DictObject_pool> DictObject_list;
 
   DictObjectName_hash c_obj_name_hash; // Name (not temporary TableRecords)
   DictObjectId_hash c_obj_id_hash; // Schema file id / Trigger id
@@ -1878,19 +1877,21 @@ private:
 
   enum { OpSectionSegmentSize = 127 };
   typedef
-    LocalDataBuffer2<OpSectionSegmentSize, LocalArenaPoolImpl>
+    DataBufferSegment<OpSectionSegmentSize> OpSectionSegment;
+  typedef
+    LocalDataBuffer<OpSectionSegmentSize, LocalArenaPool<OpSectionSegment> >
     OpSectionBuffer;
   typedef
-    DataBuffer2<OpSectionSegmentSize, LocalArenaPoolImpl>::Head
+    DataBuffer<OpSectionSegmentSize, LocalArenaPool<OpSectionSegment> >::Head
     OpSectionBufferHead;
   typedef
     OpSectionBuffer::DataBufferPool
     OpSectionBufferPool;
   typedef
-    DataBuffer2<OpSectionSegmentSize, LocalArenaPoolImpl>::ConstDataBufferIterator
+    DataBuffer<OpSectionSegmentSize, LocalArenaPool<OpSectionSegment> >::ConstDataBufferIterator
     OpSectionBufferConstIterator;
 
-  ArenaPool c_opSectionBufferPool;
+  ArenaPool<OpSectionSegment> c_opSectionBufferPool;
 
   struct OpSection {
     OpSectionBufferHead m_head;
@@ -2050,10 +2051,10 @@ private:
 #endif
   };
 
-  typedef RecordPool<SchemaOp,ArenaPool> SchemaOp_pool;
+  typedef RecordPool<SchemaOp,ArenaPool<SchemaOp> > SchemaOp_pool;
   typedef DLMHashTable<SchemaOp_pool, SchemaOp> SchemaOp_hash;
-  typedef DLFifoListImpl<SchemaOp_pool, SchemaOp, SchemaOp>::Head  SchemaOp_head;
-  typedef LocalDLFifoListImpl<SchemaOp_pool, SchemaOp, SchemaOp> LocalSchemaOp_list;
+  typedef DLFifoList<SchemaOp, SchemaOp_pool>::Head  SchemaOp_head;
+  typedef LocalDLFifoList<SchemaOp, SchemaOp_pool> LocalSchemaOp_list;
 
   SchemaOp_pool c_schemaOpPool;
   SchemaOp_hash c_schemaOpHash;
@@ -2088,7 +2089,7 @@ private:
   inline bool
   seizeOpRec(SchemaOpPtr op_ptr) {
     OpRecPtr& oprec_ptr = op_ptr.p->m_oprec_ptr;
-    RecordPool<T,ArenaPool>& pool = T::getPool(this);
+    RecordPool<T,ArenaPool<T> >& pool = T::getPool(this);
     Ptr<T> t_ptr;
     if (pool.seize(op_ptr.p->m_trans_ptr.p->m_arena, t_ptr)) {
       new (t_ptr.p) T();
@@ -2103,7 +2104,7 @@ private:
   inline void
   releaseOpRec(SchemaOpPtr op_ptr) {
     OpRecPtr& oprec_ptr = op_ptr.p->m_oprec_ptr;
-    RecordPool<T,ArenaPool>& pool = T::getPool(this);
+    RecordPool<T,ArenaPool<T> >& pool = T::getPool(this);
     Ptr<T> t_ptr;
     getOpRec<T>(op_ptr, t_ptr);
     pool.release(t_ptr);
@@ -2417,9 +2418,9 @@ private:
          SchemaFile::EntryState = SchemaFile::SF_UNUSED);
   Uint32 check_write_obj(Uint32, Uint32, SchemaFile::EntryState, ErrorInfo&);
 
-  typedef RecordPool<SchemaTrans,ArenaPool> SchemaTrans_pool;
+  typedef RecordPool<SchemaTrans,ArenaPool<SchemaTrans> > SchemaTrans_pool;
   typedef DLMHashTable<SchemaTrans_pool, SchemaTrans> SchemaTrans_hash;
-  typedef DLFifoListImpl<SchemaTrans_pool, SchemaTrans, SchemaTrans> SchemaTrans_list;
+  typedef DLFifoList<SchemaTrans, SchemaTrans_pool> SchemaTrans_list;
 
   SchemaTrans_pool c_schemaTransPool;
   SchemaTrans_hash c_schemaTransHash;
@@ -2756,7 +2757,7 @@ private:
   // MODULE: CreateTable
 
   struct CreateTableRec;
-  typedef RecordPool<CreateTableRec,ArenaPool> CreateTableRec_pool;
+  typedef RecordPool<CreateTableRec,ArenaPool<CreateTableRec> > CreateTableRec_pool;
 
   struct CreateTableRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -2851,7 +2852,7 @@ private:
   // MODULE: DropTable
 
   struct DropTableRec;
-  typedef RecordPool<DropTableRec,ArenaPool> DropTableRec_pool;
+  typedef RecordPool<DropTableRec,ArenaPool<DropTableRec> > DropTableRec_pool;
 
   struct DropTableRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -2924,7 +2925,7 @@ private:
   // MODULE: AlterTable
 
   struct AlterTableRec;
-  typedef RecordPool<AlterTableRec,ArenaPool> AlterTableRec_pool;
+  typedef RecordPool<AlterTableRec,ArenaPool<AlterTableRec> > AlterTableRec_pool;
 
   struct AlterTableRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3069,7 +3070,7 @@ private:
   } AttributeMap[MAX_ATTRIBUTES_IN_INDEX];
 
   struct CreateIndexRec;
-  typedef RecordPool<CreateIndexRec,ArenaPool> CreateIndexRec_pool;
+  typedef RecordPool<CreateIndexRec,ArenaPool<CreateIndexRec> > CreateIndexRec_pool;
 
   struct CreateIndexRec : public OpRec {
     CreateIndxImplReq m_request;
@@ -3139,7 +3140,7 @@ private:
   // MODULE: DropIndex
 
   struct DropIndexRec;
-  typedef RecordPool<DropIndexRec,ArenaPool> DropIndexRec_pool;
+  typedef RecordPool<DropIndexRec,ArenaPool<DropIndexRec> > DropIndexRec_pool;
 
   struct DropIndexRec : public OpRec {
     DropIndxImplReq m_request;
@@ -3207,7 +3208,7 @@ private:
   static const TriggerTmpl g_fullyReplicatedTriggerTmp[1];
 
   struct AlterIndexRec;
-  typedef RecordPool<AlterIndexRec,ArenaPool> AlterIndexRec_pool;
+  typedef RecordPool<AlterIndexRec,ArenaPool<AlterIndexRec> > AlterIndexRec_pool;
 
   struct AlterIndexRec : public OpRec {
     AlterIndxImplReq m_request;
@@ -3305,7 +3306,7 @@ private:
   typedef Id_array<1 + MAX_ATTRIBUTES_IN_INDEX> FragAttributeList;
 
   struct BuildIndexRec;
-  typedef RecordPool<BuildIndexRec,ArenaPool> BuildIndexRec_pool;
+  typedef RecordPool<BuildIndexRec,ArenaPool<BuildIndexRec> > BuildIndexRec_pool;
 
   struct BuildIndexRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3384,7 +3385,7 @@ private:
   // MODULE: IndexStat
 
   struct IndexStatRec;
-  typedef RecordPool<IndexStatRec,ArenaPool> IndexStatRec_pool;
+  typedef RecordPool<IndexStatRec,ArenaPool<IndexStatRec> > IndexStatRec_pool;
 
   struct IndexStatRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3478,7 +3479,7 @@ private:
   HashMapRecord_pool& get_pool(HashMapRecordPtr) { return c_hash_map_pool; }
 
   struct CreateHashMapRec;
-  typedef RecordPool<CreateHashMapRec,ArenaPool> CreateHashMapRec_pool;
+  typedef RecordPool<CreateHashMapRec,ArenaPool<CreateHashMapRec> > CreateHashMapRec_pool;
 
   struct CreateHashMapRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3522,7 +3523,7 @@ private:
   // MODULE: CopyData
 
   struct CopyDataRec;
-  typedef RecordPool<CopyDataRec,ArenaPool> CopyDataRec_pool;
+  typedef RecordPool<CopyDataRec,ArenaPool<CopyDataRec> > CopyDataRec_pool;
 
   struct CopyDataRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3688,7 +3689,7 @@ private:
   // MODULE: CreateTrigger
 
   struct CreateTriggerRec;
-  typedef RecordPool<CreateTriggerRec,ArenaPool> CreateTriggerRec_pool;
+  typedef RecordPool<CreateTriggerRec,ArenaPool<CreateTriggerRec> > CreateTriggerRec_pool;
 
   struct CreateTriggerRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3752,7 +3753,7 @@ private:
   // MODULE: DropTrigger
 
   struct DropTriggerRec;
-  typedef RecordPool<DropTriggerRec,ArenaPool> DropTriggerRec_pool;
+  typedef RecordPool<DropTriggerRec,ArenaPool<DropTriggerRec> > DropTriggerRec_pool;
 
   struct DropTriggerRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3811,7 +3812,7 @@ private:
   // MODULE: CreateFilegroup
 
   struct CreateFilegroupRec;
-  typedef RecordPool<CreateFilegroupRec,ArenaPool> CreateFilegroupRec_pool;
+  typedef RecordPool<CreateFilegroupRec,ArenaPool<CreateFilegroupRec> > CreateFilegroupRec_pool;
 
   struct CreateFilegroupRec : public OpRec {
     bool m_parsed, m_prepared;
@@ -3859,7 +3860,7 @@ private:
   // MODULE: CreateFile
 
   struct CreateFileRec;
-  typedef RecordPool<CreateFileRec,ArenaPool> CreateFileRec_pool;
+  typedef RecordPool<CreateFileRec,ArenaPool<CreateFileRec> > CreateFileRec_pool;
 
   struct CreateFileRec : public OpRec {
     bool m_parsed, m_prepared;
@@ -3907,7 +3908,7 @@ private:
   // MODULE: DropFilegroup
 
   struct DropFilegroupRec;
-  typedef RecordPool<DropFilegroupRec,ArenaPool> DropFilegroupRec_pool;
+  typedef RecordPool<DropFilegroupRec,ArenaPool<DropFilegroupRec> > DropFilegroupRec_pool;
 
   struct DropFilegroupRec : public OpRec {
     bool m_parsed, m_prepared;
@@ -3952,7 +3953,7 @@ private:
   // MODULE: DropFile
 
   struct DropFileRec;
-  typedef RecordPool<DropFileRec,ArenaPool> DropFileRec_pool;
+  typedef RecordPool<DropFileRec,ArenaPool<DropFileRec> > DropFileRec_pool;
 
   struct DropFileRec : public OpRec {
     bool m_parsed, m_prepared;
@@ -3997,7 +3998,7 @@ private:
   // MODULE: CreateNodegroup
 
   struct CreateNodegroupRec;
-  typedef RecordPool<CreateNodegroupRec,ArenaPool> CreateNodegroupRec_pool;
+  typedef RecordPool<CreateNodegroupRec,ArenaPool<CreateNodegroupRec> > CreateNodegroupRec_pool;
 
   struct CreateNodegroupRec : public OpRec {
     bool m_map_created;
@@ -4068,7 +4069,7 @@ private:
   // MODULE: DropNodegroup
 
   struct DropNodegroupRec;
-  typedef RecordPool<DropNodegroupRec,ArenaPool> DropNodegroupRec_pool;
+  typedef RecordPool<DropNodegroupRec,ArenaPool<DropNodegroupRec> > DropNodegroupRec_pool;
 
   struct DropNodegroupRec : public OpRec {
     DropNodegroupImplReq m_request;
@@ -4132,7 +4133,7 @@ private:
 
   // MODULE: CreateFK
   struct CreateFKRec;
-  typedef RecordPool<CreateFKRec,ArenaPool> CreateFKRec_pool;
+  typedef RecordPool<CreateFKRec,ArenaPool<CreateFKRec> > CreateFKRec_pool;
 
   struct CreateFKRec : public OpRec {
     bool m_parsed;
@@ -4196,7 +4197,7 @@ private:
 
   // MODULE: BuildFK
   struct BuildFKRec;
-  typedef RecordPool<BuildFKRec,ArenaPool> BuildFKRec_pool;
+  typedef RecordPool<BuildFKRec,ArenaPool<BuildFKRec> > BuildFKRec_pool;
 
   struct BuildFKRec : public OpRec {
     bool m_parsed, m_prepared;
@@ -4246,7 +4247,7 @@ private:
 
   // MODULE: DropFK
   struct DropFKRec;
-  typedef RecordPool<DropFKRec,ArenaPool> DropFKRec_pool;
+  typedef RecordPool<DropFKRec,ArenaPool<DropFKRec> > DropFKRec_pool;
 
   struct DropFKRec : public OpRec {
     bool m_parsed;
@@ -4348,7 +4349,7 @@ private:
   };
 
   typedef Ptr<ForeignKeyRec> ForeignKeyRecPtr;
-  typedef RecordPool<ForeignKeyRec, RWPool> ForeignKeyRec_pool;
+  typedef RecordPool<ForeignKeyRec, RWPool<ForeignKeyRec> > ForeignKeyRec_pool;
 
   ForeignKeyRec_pool c_fk_pool;
 
@@ -4377,14 +4378,14 @@ private:
   OpRecordUnion_pool c_opRecordPool;
 
   // Operation records
-  typedef KeyTable2C<OpCreateEvent, OpRecordUnion> OpCreateEvent_pool;
-  typedef KeyTable2C<OpSubEvent, OpRecordUnion> OpSubEvent_pool;
-  typedef KeyTable2C<OpDropEvent, OpRecordUnion> OpDropEvent_pool;
-  typedef KeyTable2C<OpSignalUtil, OpRecordUnion> OpSignalUtil_pool;
-  OpCreateEvent_pool c_opCreateEvent;
-  OpSubEvent_pool c_opSubEvent;
-  OpDropEvent_pool c_opDropEvent;
-  OpSignalUtil_pool c_opSignalUtil;
+  typedef KeyTable2C<OpRecordUnion_pool, OpCreateEvent, OpRecordUnion> OpCreateEvent_keyhash;
+  typedef KeyTable2C<OpRecordUnion_pool, OpSubEvent, OpRecordUnion> OpSubEvent_keyhash;
+  typedef KeyTable2C<OpRecordUnion_pool, OpDropEvent, OpRecordUnion> OpDropEvent_keyhash;
+  typedef KeyTable2C<OpRecordUnion_pool, OpSignalUtil, OpRecordUnion> OpSignalUtil_keyhash;
+  OpCreateEvent_keyhash c_opCreateEvent;
+  OpSubEvent_keyhash c_opSubEvent;
+  OpDropEvent_keyhash c_opDropEvent;
+  OpSignalUtil_keyhash c_opSignalUtil;
 
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;

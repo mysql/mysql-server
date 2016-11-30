@@ -117,8 +117,8 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   {
     printf("  %d : ", i);
     PagePtr ptr;
-    ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
-    LocalDLList<Page> list(*pool, alloc.m_dirty_pages[i]);
+    Page_pool *pool= (Page_pool*)&m_global_page_pool;
+    Local_Page_list list(*pool, alloc.m_dirty_pages[i]);
     Uint32 c = 0;
     for (list.first(ptr); c < limit && !ptr.isNull(); c++, list.next(ptr))
     {
@@ -849,8 +849,8 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
      * add to dirty list
      */
     pagePtr.p->list_index = real_idx;
-    ArrayPool<Page> *cheat_pool= (ArrayPool<Page>*)&m_global_page_pool;
-    LocalDLList<Page> list(* cheat_pool, alloc.m_dirty_pages[real_idx]);
+    Page_pool *cheat_pool= (Page_pool*)&m_global_page_pool;
+    Local_Page_list list(* cheat_pool, alloc.m_dirty_pages[real_idx]);
     list.addFirst(pagePtr);
   }
 
@@ -885,9 +885,9 @@ Dbtup::disk_page_move_dirty_page(Disk_alloc_info& alloc,
   extentPtr.p->m_free_page_count[old_idx]--;
   extentPtr.p->m_free_page_count[new_idx]++;
 
-  ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
-  LocalDLList<Page> new_list(*pool, alloc.m_dirty_pages[new_idx]);
-  LocalDLList<Page> old_list(*pool, alloc.m_dirty_pages[old_idx]);
+  Page_pool *pool= (Page_pool*)&m_global_page_pool;
+  Local_Page_list new_list(*pool, alloc.m_dirty_pages[new_idx]);
+  Local_Page_list old_list(*pool, alloc.m_dirty_pages[old_idx]);
   old_list.remove(pagePtr);
   new_list.addFirst(pagePtr);
   pagePtr.p->list_index = new_idx;
@@ -972,8 +972,8 @@ Dbtup::disk_page_prealloc_initial_callback(Signal*signal,
     /**
      * add to dirty list
      */
-    ArrayPool<Page> *cheat_pool= (ArrayPool<Page>*)&m_global_page_pool;
-    LocalDLList<Page> list(* cheat_pool, alloc.m_dirty_pages[idx]);
+    Page_pool *cheat_pool= (Page_pool*)&m_global_page_pool;
+    Local_Page_list list(* cheat_pool, alloc.m_dirty_pages[idx]);
     list.addFirst(pagePtr);
   }
 
@@ -1047,8 +1047,8 @@ Dbtup::disk_page_set_dirty(PagePtr pagePtr)
 			  fragPtr.p->m_tablespace_id);
   
   pagePtr.p->list_index = idx;
-  ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
-  LocalDLList<Page> list(*pool, alloc.m_dirty_pages[idx]);
+  Page_pool *pool= (Page_pool*)&m_global_page_pool;
+  Local_Page_list list(*pool, alloc.m_dirty_pages[idx]);
   list.addFirst(pagePtr);
   
   // Make sure no one will allocate it...
@@ -1106,9 +1106,9 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
 
     ndbassert((idx & 0x8000) == 0);
 
-    ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
-    LocalDLList<Page> list(*pool, alloc.m_dirty_pages[idx]);
-    LocalDLList<Page> list2(*pool, alloc.m_unmap_pages);
+    Page_pool *pool= (Page_pool*)&m_global_page_pool;
+    Local_Page_list list(*pool, alloc.m_dirty_pages[idx]);
+    Local_Page_list list2(*pool, alloc.m_unmap_pages);
     list.remove(pagePtr);
     list2.addFirst(pagePtr);
 
@@ -1154,8 +1154,8 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
 	     << " cnt: " << dirty_count << " " << (idx & ~0x8000) << endl;
     }
 
-    ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
-    LocalDLList<Page> list(*pool, alloc.m_unmap_pages);
+    Page_pool *pool= (Page_pool*)&m_global_page_pool;
+    Local_Page_list list(*pool, alloc.m_unmap_pages);
     list.remove(pagePtr);
 
     D("Tablespace_client - disk_page_unmap_callback");

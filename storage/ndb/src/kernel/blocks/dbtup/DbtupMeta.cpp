@@ -2114,9 +2114,9 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     }
     
     Ptr<Page> pagePtr;
-    ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
+    Page_pool *pool= (Page_pool*)&m_global_page_pool;
     {
-      LocalDLList<Page> list(*pool, alloc_info.m_dirty_pages[pos]);
+      Local_Page_list list(*pool, alloc_info.m_dirty_pages[pos]);
       list.first(pagePtr);
       list.remove(pagePtr);
     }
@@ -2384,7 +2384,7 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
   {
     if (! fragPtr.p->free_var_page_array[i].isEmpty())
     {
-      LocalDLList<Page> list(c_page_pool, fragPtr.p->free_var_page_array[i]);
+      Local_Page_list list(c_page_pool, fragPtr.p->free_var_page_array[i]);
       ndbrequire(list.first(pagePtr));
       list.remove(pagePtr);
       returnCommonArea(pagePtr.i, 1);
