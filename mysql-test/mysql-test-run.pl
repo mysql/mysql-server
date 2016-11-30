@@ -3970,7 +3970,7 @@ sub default_mysqld {
 
 
 sub mysql_install_db {
-  my ($mysqld, $datadir)= @_;
+  my ($mysqld, $datadir, $bootstrap_opts)= @_;
 
   my $install_datadir= $datadir || $mysqld->value('datadir');
   my $install_basedir= $mysqld->value('basedir');
@@ -4034,7 +4034,10 @@ sub mysql_install_db {
   foreach my $extra_opt ( @opt_extra_bootstrap_opt ) {
       mtr_add_arg($args, $extra_opt);
   }
- 
+
+  # Add bootstrap arguments from the opt file, if any
+  push(@$args, @$bootstrap_opts) if $bootstrap_opts;
+
   # The user can set MYSQLD_BOOTSTRAP to the full path to a mysqld
   # to run a different mysqld during --initialize.
   my $exe_mysqld_bootstrap =
@@ -4634,6 +4637,32 @@ sub run_testcase ($) {
   my $timezone= timezone($tinfo);
   $ENV{'TZ'}= $timezone;
   mtr_verbose("Setting timezone: $timezone");
+
+  # If there are bootstrap options in the opt file, add them
+  my $bootstrap_opt = 0;
+  foreach my $opt (@{$tinfo->{master_opt}})
+  {
+    if ($opt =~ /^--bootstrap=/)
+    {
+      $opt =~ s/--bootstrap=//;
+      push(@{$tinfo->{bootstrap_opt}}, $opt);
+    }
+    elsif ($opt eq "--bootstrap")
+    {
+      $bootstrap_opt = 1;
+      next;
+    }
+    elsif ($bootstrap_opt == 1)
+    {
+      push(@{$tinfo->{bootstrap_opt}}, $opt);
+      $bootstrap_opt = 0;
+    }
+  }
+
+  # The keyword "--bootstrap" is passed in the opt file to identify
+  # the bootstrap variables. Remove this keyword before sending
+  # these options to the server.
+  @{$tinfo->{master_opt}} = grep {!/--bootstrap/} @{$tinfo->{master_opt}};
 
   if ( ! using_extern() )
   {
@@ -6597,6 +6626,14 @@ sub start_servers($) {
       mtr_error("Failed to install system db to '$datadir'")
 	unless -d $datadir;
 
+    }
+
+    # Reinitialize the data directory if there are bootstrap options in
+    # the opt file.
+    if ($tinfo->{bootstrap_opt})
+    {
+      clean_dir($datadir);
+      mysql_install_db($mysqld, $datadir, $tinfo->{bootstrap_opt});
     }
 
     # Create the servers tmpdir
