@@ -88,7 +88,6 @@
 #include "query_options.h"
 #include "records.h"                  // READ_RECORD
 #include "rpl_gtid.h"
-#include "sdi_utils.h"                // create_serialized_meta_data
 #include "session_tracker.h"
 #include "sql_alter.h"
 #include "sql_base.h"                 // lock_table_names
@@ -2274,25 +2273,6 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       {
         DBUG_RETURN(true);
       }
-    }
-  }
-  if (flags & WSDI_COMPRESS_SDI)
-  {
-    /*
-      We need to compress the serialized dictionary information.
-      This is only used for handlers that have the main version of
-      the SDI stored in the handler.
-    */
-    uchar *data;
-    size_t length;
-    if (create_serialized_meta_data(lpt->db, shadow_name, &data, &length) ||
-        compress_serialized_meta_data(data, length, &lpt->pack_frm_data,
-                                      &lpt->pack_frm_len))
-    {
-      my_free(data);
-      my_free(lpt->pack_frm_data);
-      mem_alloc_error(length);
-      DBUG_RETURN(true);
     }
   }
 

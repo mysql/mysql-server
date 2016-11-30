@@ -6919,8 +6919,6 @@ bool fast_alter_partition_table(THD *thd,
   lpt->table_name= table_name;
   lpt->copied= 0;
   lpt->deleted= 0;
-  lpt->pack_frm_data= NULL;
-  lpt->pack_frm_len= 0;
 
   if (!part_handler)
   {
