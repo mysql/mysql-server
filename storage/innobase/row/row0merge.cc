@@ -872,19 +872,24 @@ row_merge_dup_report(
 
 /*************************************************************//**
 Compare two tuples.
+@param[in]	index	index tree
+@param[in]	n_uniq	number of unique fields
+@param[in]	n_field	number of fields
+@param[in]	a	first tuple to be compared
+@param[in]	b	second tuple to be compared
+@param[in,out]	dup	for reporting duplicates, NULL if non-unique index
 @return positive, 0, negative if a is greater, equal, less, than b,
 respectively */
 static MY_ATTRIBUTE((warn_unused_result))
 int
 row_merge_tuple_cmp(
 /*================*/
-	const dict_index_t*	index,	/*< in: index tree */
-	ulint			n_uniq,	/*!< in: number of unique fields */
-	ulint                   n_field,/*!< in: number of fields */
-	const mtuple_t&		a,	/*!< in: first tuple to be compared */
-	const mtuple_t&		b,	/*!< in: second tuple to be compared */
-	row_merge_dup_t*	dup)	/*!< in/out: for reporting duplicates,
-					NULL if non-unique index */
+	const dict_index_t*	index,
+	ulint			n_uniq,
+	ulint                   n_field,
+	const mtuple_t&		a,
+	const mtuple_t&		b,
+	row_merge_dup_t*	dup)
 {
 	int			cmp;
 	const dfield_t*		af	= a.fields;
