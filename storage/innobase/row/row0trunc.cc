@@ -337,7 +337,7 @@ public:
 		}
 
 		bool		ret;
-		os_file_t	handle = os_file_create(
+		os_pfs_file_t	handle = os_file_create(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_CREATE, OS_FILE_NORMAL,
 			OS_LOG_FILE, srv_read_only_mode, &ret);
@@ -464,7 +464,7 @@ public:
 		}
 
 		bool	ret;
-		os_file_t handle = os_file_create_simple_no_error_handling(
+		os_pfs_file_t handle = os_file_create_simple_no_error_handling(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_OPEN, OS_FILE_READ_WRITE,
 			srv_read_only_mode, &ret);
@@ -653,7 +653,7 @@ TruncateLogParser::parse(
 	/* Open the file and read magic-number to findout if truncate action
 	was completed. */
 	bool		ret;
-	os_file_t	handle = os_file_create_simple(
+	os_pfs_file_t	handle = os_file_create_simple(
 		innodb_log_file_key, log_file_name,
 		OS_FILE_OPEN, OS_FILE_READ_ONLY, srv_read_only_mode, &ret);
 	if (!ret) {

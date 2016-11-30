@@ -123,14 +123,8 @@ HAVE_PSI_INTERFACE is defined. */
 #if defined(HAVE_PSI_INTERFACE) && !defined(UNIV_HOTBACKUP)
 # define UNIV_PFS_MUTEX
 # define UNIV_PFS_RWLOCK
-/* For I/O instrumentation, performance schema rely
-on a native descriptor to identify the file, this
-descriptor could conflict with our OS level descriptor.
-Disable IO instrumentation on Windows until this is
-resolved */
-# ifndef _WIN32
+
 #  define UNIV_PFS_IO
-# endif
 # define UNIV_PFS_THREAD
 
 # include "mysql/psi/psi.h" /* HAVE_PSI_MEMORY_INTERFACE */
