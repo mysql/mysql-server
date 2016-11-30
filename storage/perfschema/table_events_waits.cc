@@ -1042,7 +1042,8 @@ int table_events_waits_current::make_row(PFS_thread *thread, PFS_events_waits *w
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
 
-  table_events_waits_common::make_row(wait);
+  if (table_events_waits_common::make_row(wait))
+    return HA_ERR_RECORD_DELETED;
 
   if (!thread->m_lock.end_optimistic_lock(&lock))
     return HA_ERR_RECORD_DELETED;
@@ -1215,7 +1216,8 @@ int table_events_waits_history::make_row(PFS_thread *thread, PFS_events_waits *w
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
 
-  table_events_waits_common::make_row(wait);
+  if (table_events_waits_common::make_row(wait))
+    return HA_ERR_RECORD_DELETED;
 
   if (!thread->m_lock.end_optimistic_lock(&lock))
     return HA_ERR_RECORD_DELETED;

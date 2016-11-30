@@ -189,11 +189,7 @@ table_variables_by_thread::rnd_pos(const void *pos)
     const System_variable *system_var= m_sysvar_cache.get();
     if (system_var != NULL)
     {
-      if (!make_row(pfs_thread, system_var))
-      {
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
+      return make_row(pfs_thread, system_var);
     }
   }
   return HA_ERR_RECORD_DELETED;
