@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,6 +47,8 @@ public:
   };
 
   typedef ArrayPool<LockQueueElement> Pool;
+  typedef DLFifoList<LockQueueElement, Pool> LockQueueElement_fifo;
+  typedef LocalDLFifoList<LockQueueElement, Pool> Local_LockQueueElement_fifo;
   
   Uint32 lock(SimulatedBlock*, 
               Pool&, const UtilLockReq*, const UtilLockReq** = 0);
@@ -89,7 +91,7 @@ private:
   /**
    * The actual lock queue
    */
-  DLFifoList<LockQueueElement>::Head m_queue;
+  LockQueueElement_fifo::Head m_queue;
 };
 
 

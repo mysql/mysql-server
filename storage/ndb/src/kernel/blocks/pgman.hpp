@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -277,9 +277,9 @@ private:
     Uint32 m_magic;
   };
 
-  typedef RecordPool<Page_request, WOPool> Page_request_pool;
-  typedef SLFifoListImpl<Page_request_pool, Page_request> Page_request_list;
-  typedef LocalSLFifoListImpl<Page_request_pool, Page_request> Local_page_request_list;
+  typedef RecordPool<Page_request, WOPool<Page_request> > Page_request_pool;
+  typedef SLFifoList<Page_request, Page_request_pool> Page_request_list;
+  typedef LocalSLFifoList<Page_request, Page_request_pool> Local_page_request_list;
   
   struct Page_entry_stack_ptr {
     Uint32 nextList;
@@ -367,10 +367,11 @@ private:
 #endif
   };
 
-  typedef DLCHashTable<Page_entry> Page_hashlist;
-  typedef DLCFifoList<Page_entry, Page_entry_stack_ptr> Page_stack;
-  typedef DLCFifoList<Page_entry, Page_entry_queue_ptr> Page_queue;
-  typedef DLCFifoList<Page_entry, Page_entry_sublist_ptr> Page_sublist;
+  typedef ArrayPool<Page_entry> Page_entry_pool;
+  typedef DLCHashTable<Page_entry_pool, Page_entry> Page_hashlist;
+  typedef DLCFifoList<Page_entry, Page_entry_pool, Page_entry_stack_ptr> Page_stack;
+  typedef DLCFifoList<Page_entry, Page_entry_pool, Page_entry_queue_ptr> Page_queue;
+  typedef DLCFifoList<Page_entry, Page_entry_pool, Page_entry_sublist_ptr> Page_sublist;
 
   class Dbtup *c_tup;
   class Lgman *c_lgman;
@@ -399,13 +400,13 @@ private:
   Ptr<Page_entry> m_cleanup_ptr;
  
   // file map
-  typedef DataBuffer<15> File_map;
+  typedef DataBuffer<15,ArrayPool<DataBufferSegment<15> > > File_map;
   File_map m_file_map;
   File_map::DataBufferPool m_data_buffer_pool;
 
   // page entries and requests
   Page_request_pool m_page_request_pool;
-  ArrayPool<Page_entry> m_page_entry_pool;
+  Page_entry_pool m_page_entry_pool;
   Page_hashlist m_page_hashlist;
   Page_stack m_page_stack;
   Page_queue m_page_queue;

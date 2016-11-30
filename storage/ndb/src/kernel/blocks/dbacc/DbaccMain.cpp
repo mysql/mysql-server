@@ -662,7 +662,7 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
       freelist.appendList(regFragPtr.p->sparsepages);
       cnoOfAllocatedPages -= regFragPtr.p->fullpages.getCount();
       freelist.appendList(regFragPtr.p->fullpages);
-      ndbassert(freelist.count() + cnoOfAllocatedPages == cpageCount);
+      ndbassert(freelist.getCount() + cnoOfAllocatedPages == cpageCount);
       g_acc_pages_used[instance()] = cnoOfAllocatedPages;
       if (cnoOfAllocatedPages < m_maxAllocPages)
         m_oom = false;
@@ -8465,7 +8465,7 @@ void Dbacc::releasePage(Page8Ptr rpPageptr)
 #endif
   freelist.addFirst(rpPageptr);
   cnoOfAllocatedPages--;
-  ndbassert(freelist.count() + cnoOfAllocatedPages == cpageCount);
+  ndbassert(freelist.getCount() + cnoOfAllocatedPages == cpageCount);
   fragrecptr.p->m_noOfAllocatedPages--;
 
   g_acc_pages_used[instance()] = cnoOfAllocatedPages;
@@ -8539,7 +8539,7 @@ void Dbacc::seizeOpRec()
 void Dbacc::zpagesize_error(const char* where){
   DEBUG(where << endl
 	<< "  ZPAGESIZE_ERROR" << endl
-        << "  cfreepages.count()=" << cfreepages.getCount() << endl
+        << "  cfreepages.getCount()=" << cfreepages.getCount() << endl
 	<< "  cpagesize=" <<cpagesize<<endl
 	<< "  cnoOfAllocatedPages="<<cnoOfAllocatedPages);
 }
@@ -8565,7 +8565,7 @@ void Dbacc::seizePage(Page8Ptr& spPageptr)
     LocalPage8List freelist(*this, cfreepages);
     freelist.removeFirst(spPageptr);
     cnoOfAllocatedPages++;
-    ndbassert(freelist.count() + cnoOfAllocatedPages == cpageCount);
+    ndbassert(freelist.getCount() + cnoOfAllocatedPages == cpageCount);
     fragrecptr.p->m_noOfAllocatedPages++;
 
     if (cnoOfAllocatedPages >= m_maxAllocPages)

@@ -191,21 +191,21 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
   c_attrMappingPool.setSize(100);
   c_dataBufPool.setSize(6000);	       // 6000*11*4 = 264K > 8k+8k*16 = 256k
   {
-    SLList<Prepare> tmp(c_preparePool);
+    Prepare_sllist tmp(c_preparePool);
     PreparePtr ptr;
     while (tmp.seizeFirst(ptr))
       new (ptr.p) Prepare(c_pagePool);
     while (tmp.releaseFirst());
   }
   {
-    SLList<Operation> tmp(c_operationPool);
+    Operation_list tmp(c_operationPool);
     OperationPtr ptr;
     while (tmp.seizeFirst(ptr))
       new (ptr.p) Operation(c_dataBufPool, c_dataBufPool, c_dataBufPool);
     while (tmp.releaseFirst());
   }
   {
-    SLList<PreparedOperation> tmp(c_preparedOperationPool);
+    PreparedOperation_list tmp(c_preparedOperationPool);
     PreparedOperationPtr ptr;
     while (tmp.seizeFirst(ptr))
       new (ptr.p) PreparedOperation(c_attrMappingPool, 
@@ -213,7 +213,7 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
     while (tmp.releaseFirst());
   }
   {
-    SLList<Transaction> tmp(c_transactionPool);
+    Transaction_sllist tmp(c_transactionPool);
     TransactionPtr ptr;
     while (tmp.seizeFirst(ptr))
       new (ptr.p) Transaction(c_pagePool, c_operationPool);
@@ -736,7 +736,7 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
   if (tCase == 244)
   {
     jam();
-    DLHashTable<LockQueueInstance>::Iterator iter;
+    LockQueueInstance_hash::Iterator iter;
     Uint32 bucket = signal->theData[1];
     if (signal->getLength() == 1)
     {
@@ -3023,5 +3023,3 @@ DbUtil::execUTIL_DESTORY_LOCK_REQ(Signal* signal){
   sendSignal(req.senderRef, GSN_UTIL_DESTROY_LOCK_REF, signal,
 	     UtilDestroyLockRef::SignalLength, JBB);
 }
-
-template class ArrayPool<DbUtil::Page32>;
