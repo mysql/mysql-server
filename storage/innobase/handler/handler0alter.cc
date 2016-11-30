@@ -4457,8 +4457,6 @@ prepare_inplace_alter_table_global_dd(
 			char* path = fil_space_get_first_path(new_table->space);
 			char filename[FN_REFLEN + 1];
 
-			ut_ad(strstr(old_table->name.m_name,
-				     old_dd_tab->name().c_str()) != 0);
 			replace_table_name(path, filename,
 					   old_table->name.m_name);
 
