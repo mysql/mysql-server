@@ -135,16 +135,7 @@ HAVE_PSI_INTERFACE is defined. */
 # define UNIV_PFS_RWLOCK
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
-/* For I/O instrumentation, performance schema rely
-on a native descriptor to identify the file, this
-descriptor could conflict with our OS level descriptor.
-Disable IO instrumentation on Windows until this is
-resolved */
-#ifdef HAVE_PSI_FILE_INTERFACE
-# ifndef _WIN32
 #  define UNIV_PFS_IO
-# endif
-#endif /* HAVE_PSI_FILE_INTERFACE */
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
 # define UNIV_PFS_THREAD

@@ -541,7 +541,7 @@ SysTablespace::check_dd_table_buffer()
 	files_t::iterator it = m_files.begin();
 	ut_a(it->m_exists);
 
-	if (it->m_handle == OS_FILE_CLOSED) {
+	if (it->m_handle.m_file == OS_FILE_CLOSED) {
 
 		err = it->open_or_create(true);
 
@@ -612,7 +612,7 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 	files_t::iterator it = m_files.begin();
 
 	ut_a(it->m_exists);
-	ut_ad(it->m_handle != OS_FILE_CLOSED);
+	ut_ad(it->m_handle.m_file != OS_FILE_CLOSED);
 
 	err = it->read_first_page(
 		m_ignore_read_only ?  false : srv_read_only_mode);

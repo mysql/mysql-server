@@ -165,7 +165,7 @@ SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 enum srv_shutdown_t	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
 /** Files comprising the system tablespace */
-static os_file_t	files[1000];
+static os_pfs_file_t	files[1000];
 
 /** Name of srv_monitor_file */
 static char*	srv_monitor_file_name;
@@ -286,7 +286,7 @@ static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 create_log_file(
 /*============*/
-	os_file_t*	file,	/*!< out: file handle */
+	os_pfs_file_t*	file,	/*!< out: file handle */
 	const char*	name)	/*!< in: log file name */
 {
 	bool		ret;
@@ -483,7 +483,7 @@ static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 open_log_file(
 /*==========*/
-	os_file_t*	file,	/*!< out: file handle */
+	os_pfs_file_t*	file,	/*!< out: file handle */
 	const char*	name,	/*!< in: log file name */
 	os_offset_t*	size)	/*!< out: file size */
 {
@@ -512,7 +512,7 @@ dberr_t
 srv_undo_tablespace_create(
 	space_id_t	space_id)
 {
-	os_file_t	fh;
+	os_pfs_file_t	fh;
 	bool		ret;
 	dberr_t		err = DB_SUCCESS;
 
@@ -625,7 +625,7 @@ dberr_t
 srv_undo_tablespace_open(
 	space_id_t	space_id)
 {
-	os_file_t		fh;
+	os_pfs_file_t		fh;
 	bool			ret;
 	ulint			flags;
 	dberr_t			err = DB_ERROR;

@@ -205,7 +205,7 @@ struct fil_node_t {
 	/** whether this file is open */
 	bool		is_open;
 	/** file handle (valid if is_open) */
-	os_file_t	handle;
+	os_pfs_file_t	handle;
 	/** event that groups and serializes calls to fsync */
 	os_event_t	sync_event;
 	/** whether the file actually is a raw device or disk partition */
@@ -1260,7 +1260,7 @@ struct PageCallback {
 	to open it for the file that is being iterated over.
 	@param filename then physical name of the tablespace file.
 	@param file OS file handle */
-	void set_file(const char* filename, os_file_t file) UNIV_NOTHROW
+	void set_file(const char* filename, os_pfs_file_t file) UNIV_NOTHROW
 	{
 		m_file = file;
 		m_filepath = filename;
@@ -1289,7 +1289,7 @@ struct PageCallback {
 	page_size_t		m_page_size;
 
 	/** File handle to the tablespace */
-	os_file_t		m_file;
+	os_pfs_file_t		m_file;
 
 	/** Physical file path. */
 	const char*		m_filepath;
@@ -1503,7 +1503,7 @@ Try and enable FusionIO atomic writes.
 @param[in] file		OS file handle
 @return true if successful */
 bool
-fil_fusionio_enable_atomic_write(os_file_t file);
+fil_fusionio_enable_atomic_write(os_pfs_file_t file);
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 /** Note that the file system where the file resides doesn't support PUNCH HOLE
