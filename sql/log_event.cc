@@ -13390,6 +13390,7 @@ Transaction_context_log_event(const char *server_uuid_arg,
               Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event(THD *, const char *, ulonglong)");
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
   server_uuid= NULL;
   sid_map= new Sid_map(NULL);
   snapshot_version= new Gtid_set(sid_map);
@@ -13441,6 +13442,7 @@ Transaction_context_log_event(const char *buffer, uint event_len,
     Log_event(header(), footer())
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event (const char *, uint, const Format_description_event*)");
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
 
   sid_map= new Sid_map(NULL);
   snapshot_version= new Gtid_set(sid_map);
@@ -13662,6 +13664,7 @@ View_change_log_event::View_change_log_event(char* raw_view_id)
               Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(char*)");
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
 
   if (strlen(view_id) != 0)
     is_valid_param= true;
@@ -13679,6 +13682,7 @@ View_change_log_event(const char *buffer,
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(const char *,"
              " uint, const Format_description_event*)");
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
 
   if (strlen(view_id) != 0)
     is_valid_param= true;
