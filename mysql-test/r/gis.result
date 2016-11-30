@@ -1356,6 +1356,7 @@ POLYGON((67 13,67 18,59 18,59 13,67 13))
 Warnings:
 Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T10 
 SELECT ST_SRID(boundary) 
 FROM named_places 
@@ -3425,48 +3426,78 @@ Warning	3565	There's no spatial reference system with SRID 1. The axis order is 
 SELECT ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, 1));
 ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, 1));
 ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, 1));
 ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_GEOMFROMWKB(@wkb_pt, 1));
 ST_SRID(ST_GEOMFROMWKB(@wkb_pt, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_LINEFROMWKB(@wkb_ls, 1));
 ST_SRID(ST_LINEFROMWKB(@wkb_ls, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, 1));
 ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_MLINEFROMWKB(@wkb_mls, 1));
 ST_SRID(ST_MLINEFROMWKB(@wkb_mls, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, 1));
 ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, 1));
 ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, 1));
 ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, 1));
 ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, 1));
 ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_POINTFROMWKB(@wkb_pt, 1));
 ST_SRID(ST_POINTFROMWKB(@wkb_pt, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_POLYFROMWKB(@wkb_py, 1));
 ST_SRID(ST_POLYFROMWKB(@wkb_py, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 1));
 ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 1))
 1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 4294967295));
 ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 4294967295))
 4294967295
@@ -3550,48 +3581,78 @@ Warning	3565	There's no spatial reference system with SRID 4294967295. The axis 
 SELECT ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, 4294967295));
 ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, 4294967295));
 ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, 4294967295));
 ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_GEOMFROMWKB(@wkb_pt, 4294967295));
 ST_SRID(ST_GEOMFROMWKB(@wkb_pt, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_LINEFROMWKB(@wkb_ls, 4294967295));
 ST_SRID(ST_LINEFROMWKB(@wkb_ls, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, 4294967295));
 ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_MLINEFROMWKB(@wkb_mls, 4294967295));
 ST_SRID(ST_MLINEFROMWKB(@wkb_mls, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, 4294967295));
 ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, 4294967295));
 ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, 4294967295));
 ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, 4294967295));
 ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, 4294967295));
 ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_POINTFROMWKB(@wkb_pt, 4294967295));
 ST_SRID(ST_POINTFROMWKB(@wkb_pt, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_POLYFROMWKB(@wkb_py, 4294967295));
 ST_SRID(ST_POLYFROMWKB(@wkb_py, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 4294967295));
 ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 4294967295))
 4294967295
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 4294967296));
 ERROR 22003: SRID value is out of range in 'st_geomcollfromtext'
 SELECT ST_SRID(ST_GEOMCOLLFROMTXT(@wkt_gc, 4294967296));

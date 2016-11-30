@@ -521,7 +521,7 @@ bool Item_func_geometry_from_wkb::itemize(Parse_context *pc, Item **res)
     return false;
   if (super::itemize(pc, res))
     return true;
-  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  DBUG_ASSERT(arg_count == 1 || arg_count == 2 || arg_count == 3);
   if (arg_count == 1)
     pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
   return false;
@@ -626,7 +626,7 @@ Item_func_geometry_from_wkb::is_allowed_wkb_type(Geometry::wkbType type) const
 
 
 /**
-  Parses a WKT string to produce a geometry encoded with an SRID prepending
+  Parses a WKB string to produce a geometry encoded with an SRID prepending
   its WKB bytes, namely a byte string of GEOMETRY format.
   @param str buffer to hold result, may not be filled.
   @return the buffer that hold the GEOMETRY byte string result, may or may
@@ -636,8 +636,12 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   gis::srid_t srid= 0;
+  bool reverse= false;
+  bool srid_default_ordering= true;
+  bool is_geographic= false;
+  bool lat_long= false;
 
-  if (arg_count == 2)
+  if (arg_count >= 2)
   {
     if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
       return error_str();
@@ -648,23 +652,101 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     }
   }
 
+  if (srid != 0)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    dd::cache::Dictionary_client::Auto_releaser
+      m_releaser(current_thd->dd_client());
+    if (fetcher.acquire(srid, &srs))
+    {
+      return error_str();
+    }
+
+    if (srs == nullptr)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
+                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
+                          srid,
+                          func_name());
+    }
+    else if (srs->is_geographic())
+    {
+      is_geographic= true;
+      lat_long= srs->is_lat_long();
+    }
+  }
+
+  if (arg_count == 3)
+  {
+    String axis_ordering_tmp;
+    String *axis_order= args[2]->val_str_ascii(&axis_ordering_tmp);
+    null_value= (args[2]->null_value);
+    if (null_value)
+    {
+      DBUG_ASSERT(maybe_null);
+      return nullptr;
+    }
+    std::map<std::string, std::string> options;
+    if (options_parser::parse_string(axis_order, &options, func_name()))
+    {
+      return error_str();
+    }
+
+    for (auto pair : options)
+    {
+      const std::string key= pair.first;
+      const std::string value= pair.second;
+
+      if (key == "axis-order")
+      {
+        if (value == "lat-long")
+        {
+          reverse= true;
+          srid_default_ordering= false;
+        }
+        else if (value == "long-lat")
+        {
+          reverse= false;
+          srid_default_ordering= false;
+        }
+        else if (value == "srid-defined")
+        {
+          // This is the default.
+        }
+        else
+        {
+          my_error(ER_INVALID_OPTION_VALUE, MYF(0), value.c_str(), key.c_str(),
+                   func_name());
+          return error_str();
+        }
+      }
+      else
+      {
+        my_error(ER_INVALID_OPTION_KEY, MYF(0), key.c_str(), func_name());
+        return error_str();
+      }
+    }
+  }
+
+  if (srid_default_ordering && is_geographic && lat_long)
+  {
+    reverse= true;
+  }
+
   String *wkb= args[0]->val_str(&tmp_value);
+  String temp(SRID_SIZE);
   if ((null_value= (!wkb || args[0]->null_value)))
   {
     DBUG_ASSERT(maybe_null);
     return nullptr;
   }
 
-  str->set_charset(&my_charset_bin);
-  if (str->reserve(GEOM_HEADER_SIZE, 512))
-  {
-    return error_str();
-  }
-  str->length(0);
-  str->q_append(srid);
-  Geometry_buffer buffer;
-  Geometry *g= Geometry::create_from_wkb(&buffer, wkb->ptr(), wkb->length(),
-                                         str, false /* Don't init stream. */);
+  Geometry_buffer buff;
+  Geometry *g= Geometry::create_from_wkb(&buff, wkb->ptr(), wkb->length(),
+                                         &temp, true);
   if (g == nullptr)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -677,6 +759,23 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     return error_str();
   }
 
+  if (reverse && is_geographic)
+  {
+    if (g->reverse_coordinates())
+    {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return error_str();
+    }
+  }
+
+  str->set_charset(&my_charset_bin);
+  if (str->reserve(SRID_SIZE + wkb->length()))
+  {
+    return error_str();
+  }
+  str->length(0);
+  str->q_append(srid);
+  str->append(temp);
   return str;
 }
 
