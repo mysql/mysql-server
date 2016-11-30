@@ -107,7 +107,7 @@ while($restart_cnt)
     STOP GROUP_REPLICATION;
 
     --connection server$s_id1
-    START GROUP_REPLICATION;
+    --source include/start_group_replication_command.inc
 
     --connection server$s_id2
     --source include/start_group_replication.inc

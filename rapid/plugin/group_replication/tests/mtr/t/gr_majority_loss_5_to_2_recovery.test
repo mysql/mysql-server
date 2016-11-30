@@ -105,7 +105,7 @@ SET GLOBAL group_replication_recovery_reconnect_interval= 1;
 --disable_query_log
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 --enable_query_log
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 
 --echo
