@@ -148,6 +148,7 @@ static MYSQL_THDVAR_STR(event_record_def,
                         "Event recording definition", NULL, NULL, NULL);
 
 static MYSQL_THDVAR_STR(event_record,
+                        PLUGIN_VAR_READONLY |
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
                         "Event recording", NULL, NULL, NULL);
 /*
