@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 #include "ndb_ndbapi_util.h"
 
 #include <string.h> // memcpy
+
+#include "my_byteorder.h"
+
 
 /*
   helper function to pack a ndb varchar
@@ -41,19 +44,3 @@ char *ndb_pack_varchar(const NdbDictionary::Column *col, char *buf,
   }
   return buf;
 }
-
-
-int
-cmp_frm(const NdbDictionary::Table* ndbtab, const void* pack_data,
-        size_t pack_length)
-{
-  DBUG_ENTER("cmp_frm");
-  /*
-    Compare the NDB tables FrmData with frm file blob in pack_data.
-  */
-  if ((pack_length != ndbtab->getFrmLength()) ||
-      (memcmp(pack_data, ndbtab->getFrmData(), pack_length)))
-    DBUG_RETURN(1);
-  DBUG_RETURN(0);
-}
-

@@ -19,7 +19,6 @@
 #define NDB_NDBAPI_UTIL_H
 
 #include "my_global.h"
-#include "my_byteorder.h"
 
 #include "ndbapi/NdbRecAttr.hpp"
 #include "ndbapi/NdbBlob.hpp"
@@ -34,19 +33,5 @@ union NdbValue
 
 char *ndb_pack_varchar(const NdbDictionary::Column *col,
                        char *buf, const char *str, int sz);
-
-/**
-  Check that frm-file blob in pack_data is equal
-  to frm-file of the NdbDictionary::Table.
-
-  TODO: This function is not used anymore, it is replaced by
-  different_serialized_meta_data() in sdi_utils.{h,cc}. May be
-  removed?
-
-  @retval
-    0    ok
-*/
-int cmp_frm(const NdbDictionary::Table* ndbtab, const void* pack_data,
-            size_t pack_length);
 
 #endif

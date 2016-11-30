@@ -2945,8 +2945,8 @@ class Ndb_schema_event_handler {
     if (!ndbtab)
     {
       /*
-        Bug#14773491 reports crash in 'cmp_frm' due to
-        ndbtab* being NULL -> bail out here
+        Bug#14773491 reports crash when working with the packed
+        metadata due to ndbtab* being NULL -> bail out here
       */
       sql_print_error("NDB schema: Could not find table '%s.%s' in NDB",
                       db_name, table_name);
