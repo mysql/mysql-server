@@ -4350,7 +4350,7 @@ bool JOIN::make_tmp_tables_info()
       tmp_table_param.hidden_field_count= 
         tmp_all_fields[REF_SLICE_TMP1].elements -
         tmp_fields_list[REF_SLICE_TMP1].elements;
-      
+      sort_and_group= false;
       if (!exec_tmp_table->group && !exec_tmp_table->distinct)
       {
         // 1st tmp table were materializing join result
