@@ -206,7 +206,7 @@ EOF
 ## Using start gr command instead of start_group_replication.inc since
 ## it resets the Group name set above.
 
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 --let $assert_text= group_replication_allow_local_disjoint_gtids_join is ON
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_allow_local_disjoint_gtids_join]" = "1"

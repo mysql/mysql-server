@@ -108,7 +108,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 --source include/rpl_connection.inc
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 # Make sure that recovery channel is created
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status where CHANNEL_NAME="group_replication_recovery" and SERVICE_STATE="ON"
@@ -191,7 +191,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 --source include/rpl_connection.inc
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 # Make sure that recovery channel is created
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status where CHANNEL_NAME="group_replication_recovery" and SERVICE_STATE="ON"
