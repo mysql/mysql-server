@@ -1814,7 +1814,7 @@ drop database mysqldump_test_db;
 #
 # TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats See
 # Bug#22655287
---exec $MYSQL_DUMP --all-databases --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug26121.sql
+--exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug26121.sql
 # take a backup of sys db.
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug26121.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bug26121.sql

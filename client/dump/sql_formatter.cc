@@ -70,7 +70,13 @@ void Sql_formatter::format_row_group(Row_group_dump_task* row_group)
 
   if (m_options->m_insert_type_replace)
     row_string+= "REPLACE INTO ";
-  else if (m_options->m_insert_type_ignore)
+  /*
+   for mysql.innodb_table_stats, mysql.innodb_index_stats tables always
+   dump as INSERT IGNORE INTO
+  */
+  else if (m_options->m_insert_type_ignore ||
+    innodb_stats_tables(row_group->m_source_table->get_schema(),
+                        row_group->m_source_table->get_name()))
     row_string+= "INSERT IGNORE INTO ";
   else
     row_string+= "INSERT INTO ";
@@ -213,6 +219,13 @@ void Sql_formatter::format_table_definition(
   Table_definition_dump_task* table_definition_dump_task)
 {
   Table* table= table_definition_dump_task->get_related_table();
+
+  /*
+   do not dump DDLs for mysql.innodb_table_stats,
+   mysql.innodb_index_stats tables
+  */
+  if (innodb_stats_tables(table->get_schema(), table->get_name()))
+    return;
   bool use_added= false;
   if (m_options->m_drop_table)
     this->append_output("DROP TABLE IF EXISTS "
@@ -264,7 +277,9 @@ void Sql_formatter::format_dump_end(Dump_end_dump_task* dump_start_dump_task)
   out << "SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;\n"
     "SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;\n"
     "SET SQL_MODE=@OLD_SQL_MODE;\n";
-
+  if (m_options->m_innodb_stats_tables_included)
+    out << "SET GLOBAL INNODB_STATS_AUTO_RECALC="
+      << "@OLD_INNODB_STATS_AUTO_RECALC;\n";
   out << "-- Dump end time: " << time_string << "\n";
 
   this->append_output(out.str());
@@ -302,6 +317,10 @@ void Sql_formatter::format_dump_start(
     "SET NAMES "
     << this->get_charset()->csname
     << ";\n";
+  if (m_options->m_innodb_stats_tables_included)
+    out << "SET @OLD_INNODB_STATS_AUTO_RECALC="
+      << "@@INNODB_STATS_AUTO_RECALC;\n"
+      << "SET GLOBAL INNODB_STATS_AUTO_RECALC=OFF;\n";
 
   this->append_output(out.str());
 }
@@ -384,6 +403,24 @@ void Sql_formatter::format_sql_objects_definer(
     plain_sql_dump_task->set_sql_formatted_definition(new_sql_stmt);
   }
 }
+
+/**
+  Check if the table is innodb stats table in mysql database.
+
+   @param [in] db           Database name
+   @param [in] table        Table name
+
+  @return
+    @retval TRUE if it is innodb stats table else FALSE
+*/
+bool Sql_formatter::innodb_stats_tables(std::string db,
+                                        std::string table)
+{
+  return ((db == "mysql") &&
+          ((table == "innodb_table_stats") ||
+          (table == "innodb_index_stats")));
+}
+
 void Sql_formatter::format_object(Item_processing_data* item_to_process)
 {
   this->object_processing_starts(item_to_process);
