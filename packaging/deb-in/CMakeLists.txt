@@ -198,6 +198,10 @@ FILE(GLOB_RECURSE SOURCEFILES RELATIVE "${DEB_ROOT}" "${DEB_ROOT}/*")
 # Skip the copyright file from the "other" product type
 LIST(REMOVE_ITEM SOURCEFILES "copyright.${DEB_REMOVEPATTERN}")
 LIST(REMOVE_ITEM SOURCEFILES "CMakeLists.txt")
+# Don't install systemd file on systems without systemd
+IF(DEB_INSTALL_SERVER_SYSTEMD STREQUAL "")
+	LIST(REMOVE_ITEM SOURCEFILES "mysql-packagesource-server.mysql.service.in")
+ENDIF()
 FOREACH (SOURCEFILE ${SOURCEFILES})
   STRING(REGEX REPLACE "-packagesource-" "-${DEB_PRODUCTNAME}-"
     TMPFILE ${SOURCEFILE})
