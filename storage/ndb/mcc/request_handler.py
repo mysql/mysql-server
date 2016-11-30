@@ -343,8 +343,19 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/json')
         self.end_headers()
-        self.server.logger.debug('Will send: %s', json.dumps(obj, indent=2, cls=ReplyJsonEncoder))
-        json.dump(obj, self.wfile, cls=ReplyJsonEncoder)       
+        for possible_encoding in ["utf-8", "cp1252"]:
+          try:
+            # obj can contain messages from the OS that could be encoded
+            # in cp1252 character set.
+            json_str = json.dumps(obj, indent=2, cls=ReplyJsonEncoder, encoding=possible_encoding)
+            break
+          except UnicodeDecodeError:
+            self.server.logger.debug('%s encoding failed', possible_encoding)
+            pass
+        if json_str is None:
+          raise UnicodeDecodeError
+        self.server.logger.debug('Will send: %s', json.dumps(obj, indent=2, cls=ReplyJsonEncoder, encoding=possible_encoding))
+        json.dump(obj, self.wfile, cls=ReplyJsonEncoder, encoding=possible_encoding)       
         
     def _do_file_req(self, rt):
         """Handles file requests. Attempts to guess 
