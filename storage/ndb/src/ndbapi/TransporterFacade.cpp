@@ -258,7 +258,7 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
       tSignal->setDataPtr(theData);
       if (!client_locked)
       {
-        m_poll_owner->m_poll.lock_client(clnt);
+        lock_client(clnt);
       }
       assert(clnt->check_if_locked());
       clnt->trp_deliver_signal(tSignal, ptr);
@@ -310,7 +310,7 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
               tSignal->setDataPtr(tDataPtr);
               if (!client_locked)
               {
-                m_poll_owner->m_poll.lock_client(clnt);
+                lock_client(clnt);
               }
               assert(clnt->check_if_locked());
               clnt->trp_deliver_signal(tSignal, 0);
@@ -337,7 +337,7 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
       tSignal->setDataPtr(theData);
       if (!client_locked)
       {
-        m_poll_owner->m_poll.lock_client(clnt);
+        lock_client(clnt);
       }
       assert(clnt->check_if_locked());
       clnt->trp_deliver_signal(tSignal, ptr);
@@ -367,9 +367,8 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
    * maximum of six signals can be carried in
    * one packed signal to the NDB API.
    */
-  const Uint32 MAX_MESSAGES_IN_LOCKED_CLIENTS =
-    m_poll_owner->m_poll.m_lock_array_size - 6;
-   return m_poll_owner->m_poll.m_locked_cnt >= MAX_MESSAGES_IN_LOCKED_CLIENTS;
+  const Uint32 MAX_MESSAGES_IN_LOCKED_CLIENTS = MAX_LOCKED_CLIENTS - 6;
+  return m_locked_cnt >= MAX_MESSAGES_IN_LOCKED_CLIENTS;
 }
 
 #include <signaldata/TcKeyConf.hpp>
@@ -677,7 +676,7 @@ class ReceiveThreadClient : public trp_client
 ReceiveThreadClient::ReceiveThreadClient(TransporterFacade * facade)
 {
   DBUG_ENTER("ReceiveThreadClient::ReceiveThreadClient");
-  Uint32 ret = this->open(facade, -1, true);
+  Uint32 ret = this->open(facade, -1);
   if (unlikely(ret == 0))
   {
     ndbout_c("Failed to register receive thread, ret = %d", ret);
@@ -937,7 +936,7 @@ void TransporterFacade::threadMainReceive(void)
       {
         if (m_check_connections)
         {
-          recv_client->start_poll();
+          recv_client->prepare_poll();
           do_poll(recv_client,0);
           recv_client->complete_poll();
         }
@@ -989,7 +988,7 @@ void TransporterFacade::threadMainReceive(void)
     /* Don't poll for 10ms if receive thread is deactivating */
     const Uint32 max_wait = (stay_active) ? 10 : 0;
 
-    recv_client->start_poll();
+    recv_client->prepare_poll();
     do_poll(recv_client, max_wait, stay_poll_owner);
     recv_client->complete_poll();
   }
@@ -1001,7 +1000,7 @@ void TransporterFacade::threadMainReceive(void)
       transporter client and thus close it. That code expects not to be
       called when being the poll owner.
     */
-    recv_client->start_poll();
+    recv_client->prepare_poll();
     do_poll(recv_client, 0, false);
     recv_client->complete_poll();
   }
@@ -1077,6 +1076,8 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_poll_owner(NULL),
   m_poll_queue_head(NULL),
   m_poll_queue_tail(NULL),
+  m_locked_cnt(0),
+  m_locked_clients(),
   m_num_active_clients(0),
   m_check_connections(true),
   theTransporterRegistry(0),
@@ -1470,7 +1471,7 @@ TransporterFacade::close_clnt(trp_client* clnt)
        */
       NdbMutex_Unlock(m_open_close_mutex);
 
-      clnt->start_poll();
+      clnt->prepare_poll();
       if (first)
       {
         clnt->raw_sendSignal(&signal, theOwnId);
@@ -1534,7 +1535,7 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
       signal.theReceiversBlockNumber = theClusterMgr->m_blockNo;
       signal.theData[0] = 0;  //Unused
 
-      clnt->start_poll();
+      clnt->prepare_poll();
       clnt->raw_sendSignal(&signal, theOwnId);
       clnt->do_forceSend(1);
       clnt->do_poll(10);
@@ -2370,15 +2371,6 @@ TransporterFacade::mapRefToIdx(Uint32 reference) const
   return reference - MIN_API_BLOCK_NO;
 }
 
-void
-TransporterFacade::start_poll(trp_client* clnt)
-{
-  assert(clnt->m_poll.m_locked == true);
-  assert(clnt->m_poll.m_poll_queue == false);
-  assert(clnt->m_poll.m_waiting == trp_client::PollQueue::PQ_IDLE);
-  dbg2("%p->start_poll on %p", clnt, this);
-}
-
 /**
  * Propose a client to become new poll owner if
  * no one is currently assigned.
@@ -2578,34 +2570,55 @@ TransporterFacade::try_become_poll_owner(trp_client* clnt, Uint32 wait_time)
   return true;
 }
 
+/**
+ * When a m_poll_owner has been assigned, any actual receiver polling
+ * (::external_poll()) has to be enclosed in a pair of 
+ * start_poll() - finish_poll() calls.
+ */
 void
-TransporterFacade::finish_poll(trp_client* clnt,
-                               Uint32 cnt,
-                               Uint32& cnt_woken,
-                               trp_client** arr)
+TransporterFacade::start_poll()
 {
+  assert(m_poll_owner != NULL);
+  assert(m_poll_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WAITING);
+  assert(m_poll_owner->m_poll.m_locked);
+
+  assert(m_locked_cnt == 0);
+  m_locked_cnt = 1;
+  m_locked_clients[0] = m_poll_owner;
+  assert(m_poll_owner->is_locked_for_poll() == false);
+  m_poll_owner->set_locked_for_poll(true);
+  dbg("%p becomes poll owner", m_poll_owner);
+}
+
+int
+TransporterFacade::finish_poll(trp_client* arr[])
+{
+  assert(m_poll_owner != NULL);
+  assert(m_locked_cnt > 0);
+  assert(m_locked_cnt <= MAX_LOCKED_CLIENTS);
+  assert(m_locked_clients[0] == m_poll_owner);
+
+  const Uint32 lock_cnt = m_locked_cnt;
+  int cnt_woken = 0;
+
 #ifndef NDEBUG
   {
-    Uint32 lock_cnt = clnt->m_poll.m_locked_cnt;
-    assert(lock_cnt >= 1);
-    assert(lock_cnt <= clnt->m_poll.m_lock_array_size);
-    assert(clnt->m_poll.m_locked_clients[0] == clnt);
     // no duplicates
     if (DBG_POLL) printf("after external_poll: cnt: %u ", lock_cnt);
     for (Uint32 i = 0; i < lock_cnt; i++)
     {
-      trp_client * tmp = clnt->m_poll.m_locked_clients[i];
+      trp_client * tmp = m_locked_clients[i];
       if (DBG_POLL) printf("%p(%u) ", tmp, tmp->m_poll.m_waiting);
       for (Uint32 j = i + 1; j < lock_cnt; j++)
       {
-        assert(tmp != clnt->m_poll.m_locked_clients[j]);
+        assert(tmp != m_locked_clients[j]);
       }
     }
     if (DBG_POLL) printf("\n");
 
     for (Uint32 i = 1; i < lock_cnt; i++)
     {
-      trp_client * tmp = clnt->m_poll.m_locked_clients[i];
+      trp_client * tmp = m_locked_clients[i];
       if (tmp->m_poll.m_locked == true)
       {
         assert(tmp->m_poll.m_waiting != trp_client::PollQueue::PQ_IDLE);
@@ -2623,40 +2636,48 @@ TransporterFacade::finish_poll(trp_client* clnt,
   /**
    * we're finished polling
    */
+  trp_client *clnt = m_poll_owner;
+
   assert(clnt->is_locked_for_poll() == true);
   clnt->set_locked_for_poll(false);
   dbg("%p->set_locked_for_poll false", clnt);
 
   /**
    * count woken clients
-   *   and put them to the left in array
+   *   skip m_poll_owner in m_locked_clients[0]
+   *   and put the woken clients to the left in array,
+   *   non woken are filled in from right in array
    */
-  for (Uint32 i = 0; i < cnt; i++)
+  int cnt_not_woken = 0;
+  for (Uint32 i = 1; i < lock_cnt; i++)
   {
-    trp_client * tmp = arr[i];
+    trp_client * tmp = m_locked_clients[i];
     bool woken = (tmp->m_poll.m_waiting == trp_client::PollQueue::PQ_WOKEN);
     assert(tmp->is_locked_for_poll() == true);
     tmp->set_locked_for_poll(false);
     dbg("%p->set_locked_for_poll false", tmp);
     if (woken)
     {
-      arr[i] = arr[cnt_woken];
-      arr[cnt_woken] = tmp;
-      cnt_woken++;
+      arr[cnt_woken++] = tmp;
+    }
+    else
+    {
+      arr[lock_cnt-2-cnt_not_woken++] = tmp;
     }
   }
+  assert(cnt_woken+cnt_not_woken == (int)(lock_cnt-1));
 
   if (DBG_POLL)
   {
-    Uint32 lock_cnt = clnt->m_poll.m_locked_cnt;
-    printf("after sort: cnt: %u ", lock_cnt);
-    for (Uint32 i = 0; i < lock_cnt; i++)
+    printf("after sort: cnt: %u ", lock_cnt-1);
+    for (Uint32 i = 0; i < lock_cnt-1; i++)
     {
-      trp_client * tmp = clnt->m_poll.m_locked_clients[i];
+      trp_client * tmp = arr[i];
       printf("%p(%u) ", tmp, tmp->m_poll.m_waiting);
     }
     printf("\n");
   }
+  return cnt_woken;
 }
 
 /**
@@ -2717,26 +2738,33 @@ TransporterFacade::do_poll(trp_client* clnt,
      * receiving data we will check if all data is received,
      * if not we poll again.
      */
-    clnt->m_poll.start_poll(clnt);
+    start_poll();
     dbg("%p->external_poll", clnt);
     external_poll(wait_time);
 
-    Uint32 cnt_woken = 0;
-    Uint32 cnt = clnt->m_poll.m_locked_cnt - 1; // skip self
-    trp_client ** arr = clnt->m_poll.m_locked_clients + 1; // skip self
-    finish_poll(clnt, cnt, cnt_woken, arr);
+    /**
+     * As m_locked_clients[] are protected by owning the poll right,
+     * which we are soon about to release, its contents is now copied
+     * out to locked[] by finish_poll().
+     * NOTE: 'clnt' being the first 'locked' is not copied out
+     */
+    const Uint32 locked_cnt = m_locked_cnt;
+    trp_client *locked[MAX_LOCKED_CLIENTS-1]; //locked_cnt-1
+    const int cnt_woken = finish_poll(locked);
+    m_locked_cnt = 0;
 
     lock_poll_mutex();
 
-    if ((cnt + 1) > m_num_active_clients)
+    if (locked_cnt > m_num_active_clients)
     {
-      m_num_active_clients = cnt + 1;
+      m_num_active_clients = locked_cnt;
     }
+
     /**
      * Now remove all woken from poll queue
      * note: poll mutex held
      */
-    remove_from_poll_queue(arr, cnt_woken);
+    remove_from_poll_queue(locked, cnt_woken);
 
     /**
      * Release poll right temporarily in case we get
@@ -2758,17 +2786,16 @@ TransporterFacade::do_poll(trp_client* clnt,
     /**
      * Now wake all the woken clients
      */
-    unlock_and_signal(arr, cnt_woken);
+    unlock_and_signal(locked, cnt_woken);
 
     /**
      * And unlock the rest that we delivered messages to
      */
-    for (Uint32 i = cnt_woken; i < cnt; i++)
+    for (Uint32 i = cnt_woken; i < locked_cnt-1; i++)
     {
-      dbg("unlock (%p)", arr[i]);
-      NdbMutex_Unlock(arr[i]->m_mutex);
+      dbg("unlock (%p)", locked[i]);
+      NdbMutex_Unlock(locked[i]->m_mutex);
     }
-    clnt->m_poll.m_locked_cnt = 0;
 
     // Terminate polling if we are PQ_WOKEN
     assert(clnt->m_poll.m_waiting != trp_client::PollQueue::PQ_IDLE);
@@ -2786,7 +2813,6 @@ TransporterFacade::do_poll(trp_client* clnt,
   // Might have to find a new poll owner
   propose_poll_owner();
 
-  assert(clnt->m_poll.m_locked_cnt == 0);
   dbg("%p->do_poll return", clnt);
   return;
 }
@@ -2808,8 +2834,9 @@ TransporterFacade::wakeup(trp_client* clnt)
   }
 }
 
+//static
 void
-TransporterFacade::unlock_and_signal(trp_client * const * arr, Uint32 cnt)
+TransporterFacade::unlock_and_signal(trp_client * const arr[], Uint32 cnt)
 {
   for (Uint32 i = 0; i < cnt; i++)
   {
@@ -2818,33 +2845,9 @@ TransporterFacade::unlock_and_signal(trp_client * const * arr, Uint32 cnt)
   }
 }
 
-void
-TransporterFacade::complete_poll(trp_client* clnt)
-{
-  dbg2("%p->complete_poll on %p", clnt, this);
-  assert(clnt->m_poll.m_poll_queue == false);
-  assert(clnt->m_poll.m_waiting == trp_client::PollQueue::PQ_IDLE);
-  clnt->flush_send_buffers();
-}
-
-void
-trp_client::PollQueue::start_poll(trp_client* self)
-{
-  assert(m_waiting == PQ_WAITING);
-  assert(m_locked);
-  assert(m_poll_owner);
-  assert(m_locked_cnt == 0);
-  assert(&self->m_poll == this);
-  m_locked_cnt = 1;
-  m_locked_clients[0] = self;
-  assert(self->is_locked_for_poll() == false);
-  self->set_locked_for_poll(true);
-  dbg("%p becomes poll owner", self);
-}
-
 bool
-trp_client::PollQueue::check_if_locked(const trp_client* clnt,
-                                       const Uint32 start) const
+TransporterFacade::check_if_locked(const trp_client* clnt,
+                                   const Uint32 start) const
 {
   for (Uint32 i = start; i<m_locked_cnt; i++)
   {
@@ -2855,21 +2858,20 @@ trp_client::PollQueue::check_if_locked(const trp_client* clnt,
 }
 
 void
-trp_client::PollQueue::lock_client(trp_client* clnt)
+TransporterFacade::lock_client(trp_client* clnt)
 {
-  assert(m_locked_cnt <= m_lock_array_size);
-  assert(check_if_locked((const trp_client*)this, (const Uint32)0) == false);
+  assert(m_locked_cnt <= MAX_LOCKED_CLIENTS);
+  assert(check_if_locked(clnt, 0) == false);
   assert(!clnt->is_locked_for_poll());
 
   Uint32 locked_cnt = m_locked_cnt;
   clnt->set_locked_for_poll(true);
   dbg("lock_client(%p)", clnt);
 
-  assert(m_locked_cnt < m_lock_array_size);
+  assert(m_locked_cnt < MAX_LOCKED_CLIENTS);
   m_locked_clients[locked_cnt] = clnt;
   m_locked_cnt = locked_cnt + 1;
   NdbMutex_Lock(clnt->m_mutex);
-  return;
 }
 
 void
@@ -2887,19 +2889,18 @@ TransporterFacade::add_to_poll_queue(trp_client* clnt)  //Need thePollMutex
   {
     assert(m_poll_queue_tail == 0);
     m_poll_queue_head = clnt;
-    m_poll_queue_tail = clnt;
   }
   else
   {
     assert(m_poll_queue_tail->m_poll.m_next == 0);
     m_poll_queue_tail->m_poll.m_next = clnt;
     clnt->m_poll.m_prev = m_poll_queue_tail;
-    m_poll_queue_tail = clnt;
   }
+  m_poll_queue_tail = clnt;
 }
 
 void
-TransporterFacade::remove_from_poll_queue(trp_client* const * arr, Uint32 cnt)
+TransporterFacade::remove_from_poll_queue(trp_client* const arr[], Uint32 cnt)
 {
   for (Uint32 i = 0; i< cnt; i++)
   {

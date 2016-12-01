@@ -275,7 +275,7 @@ ClusterMgr::startup()
   for (Uint32 i = 0; i<3000; i++)
   {
     theFacade.request_connection_check();
-    start_poll();
+    prepare_poll();
     do_poll(0);
     complete_poll();
 
@@ -324,7 +324,7 @@ ClusterMgr::threadMain()
       NdbSleep_MilliSleep(minHeartBeatInterval/5);
       {
         /**
-         * start_poll does lock the trp_client and complete_poll
+         * prepare_poll does lock the trp_client and complete_poll
          * releases this lock. This means that this protects
          * against concurrent calls to send signals in ArbitMgr.
          * We do however need to protect also against concurrent
@@ -333,7 +333,7 @@ ClusterMgr::threadMain()
          * poll.
          */
         Guard g(clusterMgrThreadMutex);
-        start_poll();
+        prepare_poll();
         do_poll(0);
         complete_poll();
       }
