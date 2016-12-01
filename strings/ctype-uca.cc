@@ -601,8 +601,6 @@ static Coll_param fa_coll_param= {
 
 /* Hungarian */
 static const char hu_cldr_29[]=
-#if 0
-  /* Following rules are same as DUCET definition */
   "&C  <   cs      <<< Cs      <<< CS "
   "&D  <   dz      <<< Dz      <<< DZ "
   "&DZ <   dzs     <<< Dzs     <<< DZS "
@@ -612,7 +610,6 @@ static const char hu_cldr_29[]=
   "&S  <   sz      <<< Sz      <<< SZ "
   "&T  <   ty      <<< Ty      <<< TY "
   "&Z  <   zs      <<< Zs      <<< ZS "
-#endif
   "&O  <   \\u00F6 <<< \\u00D6 <<  \\u0151 <<< \\u0150 "
   "&U  <   \\u00FC <<< \\u00DC <<  \\u0171 <<< \\u0170 "
   "&cs <<< ccs/cs "

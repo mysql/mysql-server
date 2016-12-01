@@ -146,7 +146,7 @@ SELECT HEX(CONVERT(a USING UTF16)) AS U16_a, HEX(CONVERT(b USING UTF16)) AS U16_
 DROP TABLE t1;
 
 CREATE TABLE t1(a VARCHAR(10), b VARCHAR(10)) COLLATE utf8mb4_hu_0900_ai_ci;
-INSERT INTO t1 VALUES(_utf16 0x01c4, _utf16 0x01f1), (_utf16 0x01f1, _utf16 0x02a4);
+INSERT INTO t1 VALUES(_utf16 0x01c4, _utf16 0x01f1), (_utf16 0x01f1, _utf16 0x02a4), ('cukor', 'csak');
 SELECT HEX(CONVERT(a USING UTF16)) AS U16_a, HEX(CONVERT(b USING UTF16)) AS U16_b, a<b FROM t1;
 DROP TABLE t1;
 
@@ -180,6 +180,20 @@ INSERT INTO t1 VALUES(4, _utf16 0x2C30), (4, _utf16 0x10D0), (4, _utf16 0x0561),
 SELECT grp, HEX(CONVERT(ch USING utf16)) FROM t1 ORDER BY ch COLLATE utf8mb4_0900_ai_ci;
 SELECT grp, HEX(CONVERT(ch USING utf16)) FROM t1 ORDER BY ch COLLATE utf8mb4_hr_0900_ai_ci;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #25090543: DIFFERENCES BETWEEN ICU AND MYSQL FOR HUNGARIAN
+--echo #                CONTRACTIONS/LIGATURES
+--echo #
+CREATE TABLE t1 (v VARCHAR(20) COLLATE utf8mb4_hu_0900_ai_ci);
+INSERT INTO t1 VALUES ('dd'), ('a'), (_utf16 0x00E5), ('e'), ('d'), ('dz'),
+       ('dzs'), ('ddz'), ('ddzs'), (_utf16 0x01F3), ('dza'), ('dzsa'),
+       ('ddza'), ('ddzsa'), (_utf16 0x01F30061), ('dzu'), ('dzsu'),
+       ('ddzu'), ('ddzsu'), (_utf16 0x01F30075), ('da'), ('dx'), ('dy'),
+       (_utf16 0x006400E5), (_utf16 0x00640394);
+SELECT v, HEX(CONVERT(v USING utf16)) AS HEX FROM t1 ORDER BY v;
+DROP TABLE t1;
+
 --echo #
 --echo # End of 8.0 tests
 --echo #
