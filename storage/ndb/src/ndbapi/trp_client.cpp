@@ -26,10 +26,10 @@ trp_client::trp_client()
     m_poll(),
     m_send_nodes_cnt(0),
     m_send_nodes_mask(),
-    m_send_buffers(NULL)
+    m_send_buffers(NULL),
+    m_flushed_nodes_mask()
 {
   m_mutex = NdbMutex_Create();
-
   m_send_buffers = new TFBuffer[MAX_NODES];
 }
 
@@ -159,35 +159,36 @@ trp_client::complete_poll()
   NdbMutex_Unlock(m_mutex);
 }
 
+/**
+ * Send to the set of 'nodes' this client has produced messages to.
+ * We either try to do the send immediately ourself if 'forceSend',
+ * or we may choose an adaptive approach where (part of) the send
+ * may be ofloaded to the send thread.
+ */
 int
-trp_client::do_forceSend(int val)
+trp_client::do_forceSend(bool forceSend)
 {
-  /**
-   * since force send is disabled in this "version"
-   *   set forceSend=1 always...
-   */
-  val = 1;
+  flush_send_buffers();
 
-  if (val == 0)
+  if (forceSend)
   {
-    flush_send_buffers();
-    return 0;
+    m_facade->try_send_all(m_flushed_nodes_mask);
   }
-  else if (val == 1)
+  else
   {
-    for (Uint32 i = 0; i < m_send_nodes_cnt; i++)
-    {
-      Uint32 n = m_send_nodes_list[i];
-      TFBuffer* b = m_send_buffers + n;
-      TFBufferGuard g0(* b);
-      m_facade->flush_and_send_buffer(n, b);
-      b->clear();
-    }
-    m_send_nodes_cnt = 0;
-    m_send_nodes_mask.clear();
-    return 1;
+    m_facade->do_send_adaptive(m_flushed_nodes_mask);
   }
-  return 0;
+  m_flushed_nodes_mask.clear();
+
+  /**
+   * Note that independent of whether we 'forceSend' or not, we *did*
+   * send. Possibly with a small delay though, if we did the send
+   * with assist from the send thread. However, that is the same 
+   * whether the send was 'forced' or 'adaptive'
+   *
+   * So we always return '1' -> 'did_send'
+   */
+  return 1;
 }
 
 int
@@ -311,6 +312,17 @@ trp_client::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
   return b->m_bytes_in_buffer;
 }
 
+/**
+ * Append the private client send buffers to the
+ * TransporterFacade lists of prepared send buffers.
+ * The TransporterFacade may then send these whenever
+ * it find convienient.
+ *
+ * Build an aggregated bitmap 'm_flushed_nodes_mask'
+ * of nodes this client has flushed messages to.
+ * Client must ensure that the messages to these nodes
+ * are force-sent before it starts waiting for any reply.
+ */
 void
 trp_client::flush_send_buffers()
 {
@@ -326,6 +338,7 @@ trp_client::flush_send_buffers()
     b->clear();
   }
 
+  m_flushed_nodes_mask.bitOR(m_send_nodes_mask);
   m_send_nodes_cnt = 0;
   m_send_nodes_mask.clear();
 }
@@ -383,7 +396,7 @@ int PollGuard::wait_scan(int wait_time, Uint32 nodeId, bool forceSend)
 int PollGuard::wait_for_input_in_loop(int max_wait_ms, bool forceSend)
 {
   int ret_val;
-  m_clnt->do_forceSend(forceSend ? 1 : 0);
+  m_clnt->do_forceSend(forceSend);
 
   const NDB_TICKS start = NdbTick_getCurrentTicks();
   int remain_wait_ms = max_wait_ms;

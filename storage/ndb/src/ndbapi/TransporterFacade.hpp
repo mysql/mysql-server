@@ -81,8 +81,8 @@ public:
   /** 
    * Get/Set wait time in the send thread.
    */
- void setSendThreadInterval(Uint32 ms);
- Uint32 getSendThreadInterval(void);
+  void setSendThreadInterval(Uint32 ms);
+  Uint32 getSendThreadInterval(void) const;
 
   Uint32 mapRefToIdx(Uint32 blockReference) const;
 
@@ -207,10 +207,11 @@ public:
   int lock_recv_thread_cpu();
   int unlock_recv_thread_cpu();
 
-  /* All 3 poll_owner and poll_queue members below need thePollMutex */
+  /* All 4 poll_owner and poll_queue members below need thePollMutex */
   trp_client * m_poll_owner;
   trp_client * m_poll_queue_head; // First in queue
   trp_client * m_poll_queue_tail; // Last in queue
+  Uint32 m_poll_waiters;          // Number of clients in queue 
   /* End poll owner stuff */
 
   // heart beat received from a node (e.g. a signal came)
@@ -406,7 +407,6 @@ public:
    * Add a send buffer to out-buffer
    */
   void flush_send_buffer(Uint32 node, const TFBuffer* buffer);
-  void flush_and_send_buffer(Uint32 node, const TFBuffer* buffer);
 
   /**
    * Allocate a send buffer
@@ -443,7 +443,8 @@ private:
         m_node_active(false),
         m_current_send_buffer_size(0),
         m_buffer(),
-        m_out_buffer()
+        m_out_buffer(),
+        m_flushed_cnt(0)
     {}
 
     /**
@@ -483,13 +484,29 @@ private:
     TFBuffer m_out_buffer;
 
     /**
+     * Number of buffer flushed since last send.
+     * Used as metric for adaptive send algorithm
+     */
+    Uint32 m_flushed_cnt;
+
+    /**
      *  Implements the 'm_out_buffer' locking as described above.
      */
     bool try_lock_send();
     void unlock_send();
   } m_send_buffers[MAX_NODES];
 
+  /**
+   * The set of nodes having a 'm_send_buffer[]::m_node_active '== true'
+   * This is the set of all nodes we have been configured to send to.
+   */
+  NodeBitmask m_active_nodes;
+
   void do_send_buffer(Uint32 node, TFSendBuffer *b);
+
+  void try_send_buffer(Uint32 node, TFSendBuffer* b);
+  void try_send_all(const NodeBitmask& nodes);
+  void do_send_adaptive(const NodeBitmask& nodes);
 
   Uint32 get_current_send_buffer_size(NodeId node) const
   {
@@ -498,7 +515,18 @@ private:
   void wakeup_send_thread(void);
   NdbMutex * m_send_thread_mutex;
   NdbCondition * m_send_thread_cond;
-  NodeBitmask m_send_thread_nodes;
+
+  // Members below protected with m_send_thread_mutex
+  NodeBitmask m_send_thread_nodes;  //Future use: multiple send threads
+
+  /**
+   * The set of nodes having unsent buffered data. Either after
+   * previous do_send_buffer() not being able to send everything,
+   * or the adaptive send decided to defer the send.
+   * In both cases the send thread will be activated to take care
+   * of sending to these nodes.
+   */
+  NodeBitmask m_has_data_nodes;
 };
 
 inline

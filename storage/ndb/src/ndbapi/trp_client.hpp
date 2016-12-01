@@ -52,7 +52,7 @@ public:
   void wakeup();
 
   void flush_send_buffers();
-  int do_forceSend(int val = 1);
+  int do_forceSend(bool forceSend = true);
 
   int raw_sendSignal(const NdbApiSignal*, Uint32 nodeId);
   int raw_sendSignal(const NdbApiSignal*, Uint32 nodeId,
@@ -73,7 +73,7 @@ public:
   void unlock();
   /* Interface used by Multiple NDB waiter code */
   void lock_client();
-  bool check_if_locked(void);
+  bool check_if_locked(void) const;
 
   Uint32 getOwnNodeId() const;
 
@@ -149,12 +149,21 @@ private:
   } m_poll;
 
   /**
-   * This is used for sending
+   * This is used for sending.
+   * m_send_nodes_* are the nodes we have pending unflushed
+   * messages to
    */
   Uint32 m_send_nodes_cnt;
   NodeId m_send_nodes_list[MAX_NODES];
   NodeBitmask m_send_nodes_mask;
   TFBuffer* m_send_buffers;
+
+  /**
+   * The m_flushed_nodes_mask are the aggregated set of nodes
+   * we have flushed messages to, which are yet not known to
+   * to have been (force-)sent by the transporter.
+   */
+  NodeBitmask m_flushed_nodes_mask;
 };
 
 class PollGuard
@@ -178,7 +187,7 @@ private:
 
 inline
 bool
-trp_client::check_if_locked()
+trp_client::check_if_locked() const
 {
   return m_facade->check_if_locked(this, 0);
 }
