@@ -100,4 +100,12 @@ max-time : 180
 cmd: testNodeRestart
 args: -n StartDuringNodeRestart T1
 max-time : 300
+ 
+cmd: testRedo
+args: -n CheckLCPStartsAfterSR T1
+max-time: 1440
+ 
+cmd: testRedo
+args: -n CheckLCPStartsAfterNR T1
+max-time: 1440
 

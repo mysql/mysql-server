@@ -14931,7 +14931,16 @@ template class Vector<TraceLCP::Sig>;
 void
 Dblqh::force_lcp(Signal* signal)
 {
-  if (cLqhTimeOutCount == c_last_force_lcp_time)
+  /* If there is a system or node restart in progress,
+   * request an lcp to be triggered when the restart completes
+   * without waiting for transaction load or
+   * expiry of TimeBetweenLocalCheckpoints,
+   * in order to reduce the redo log handling during any
+   * potential multi-node crashes and ensure the recoverability.
+   */
+  if (!getNodeState().getSystemRestartInProgress() &&
+      !getNodeState().getNodeRestartInProgress() &&
+      cLqhTimeOutCount == c_last_force_lcp_time)
   {
     jam();
     return;
