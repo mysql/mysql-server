@@ -172,7 +172,7 @@ static char *shared_memory_base_name=0;
 static uint opt_protocol= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
-Prealloced_array<uint, 12, true> ignore_error(PSI_NOT_INSTRUMENTED);
+Prealloced_array<uint, 12> ignore_error(PSI_NOT_INSTRUMENTED);
 static int parse_ignore_error();
 
 /*

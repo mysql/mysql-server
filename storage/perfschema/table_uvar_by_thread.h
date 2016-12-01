@@ -51,7 +51,7 @@ public:
 
 class User_variables
 {
-  typedef Prealloced_array<User_variable, 100, false> User_variable_array;
+  typedef Prealloced_array<User_variable, 100> User_variable_array;
 
 public:
   User_variables()

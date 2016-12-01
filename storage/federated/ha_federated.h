@@ -87,7 +87,7 @@ class ha_federated: public handler
   /**
     Array of all stored results we get during a query execution.
   */
-  Prealloced_array<MYSQL_RES*, 4, true> results;
+  Prealloced_array<MYSQL_RES*, 4> results;
   bool position_called;
   MYSQL_ROW_OFFSET current_position;  // Current position used by ::position()
   int remote_error_number;

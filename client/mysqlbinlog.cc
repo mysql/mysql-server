@@ -281,7 +281,7 @@ struct buff_event_info
   the Query_log_event. This dynamic array buff_ev is used to buffer a structure 
   which stores such an event and the corresponding log position.
 */
-typedef Prealloced_array<buff_event_info, 16, true> Buff_ev;
+typedef Prealloced_array<buff_event_info, 16> Buff_ev;
 Buff_ev *buff_ev(PSI_NOT_INSTRUMENTED);
 
 // needed by net_serv.c

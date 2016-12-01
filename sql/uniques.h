@@ -43,7 +43,7 @@ struct TABLE;
 
 class Unique :public Sql_alloc
 {
-  Prealloced_array<Merge_chunk, 16, true> file_ptrs;
+  Prealloced_array<Merge_chunk, 16> file_ptrs;
   ulong max_elements;
   ulonglong max_in_memory_size;
   IO_CACHE file;

@@ -33,7 +33,7 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
   DBUG_ENTER("init_tmpdir");
   DBUG_PRINT("enter", ("pathlist: %s", pathlist ? pathlist : "NULL"));
 
-  Prealloced_array<char*, 10, true> full_list(key_memory_MY_TMPDIR_full_list);
+  Prealloced_array<char*, 10> full_list(key_memory_MY_TMPDIR_full_list);
 
   memset(tmpdir, 0, sizeof(*tmpdir));
   if (!pathlist || !pathlist[0])

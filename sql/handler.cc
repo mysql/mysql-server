@@ -222,7 +222,7 @@ using std::log2;
   Remove when legacy_db_type is finally gone
 */
 static
-Prealloced_array<st_plugin_int*, PREALLOC_NUM_HA, true>
+Prealloced_array<st_plugin_int*, PREALLOC_NUM_HA>
 se_plugin_array(PSI_NOT_INSTRUMENTED);
 
 /**
@@ -230,7 +230,7 @@ se_plugin_array(PSI_NOT_INSTRUMENTED);
   acquiring LOCK_plugin.
 */
 static
-Prealloced_array<bool, PREALLOC_NUM_HA, true>
+Prealloced_array<bool, PREALLOC_NUM_HA>
 builtin_htons(PSI_NOT_INSTRUMENTED);
 
 st_plugin_int *hton2plugin(uint slot)

@@ -66,7 +66,7 @@ private:
   String m_path_value;
 
   /// List of paths.
-  Prealloced_array<Json_path, 8, false> m_paths;
+  Prealloced_array<Json_path, 8> m_paths;
 
   /// Enum that tells the status of a cell in m_paths.
   enum class enum_path_status : uint8

@@ -23,6 +23,7 @@
 #include <stddef.h>
 #include <algorithm>
 #include <new>
+#include <type_traits>
 #include <utility>
 
 #include "my_compiler.h"
@@ -53,18 +54,18 @@
   @tparam Element_type The type of the elements of the container.
           Elements must be copyable or movable.
   @tparam Prealloc Number of elements to pre-allocate.
-  @tparam Has_trivial_destructor If true, we don't destroy elements.
-          We could have used type traits to determine this.
-          __has_trivial_destructor is supported by some (but not all)
-          compilers we use.
-          We set the default to true, since we will most likely store pointers
-          (shuffling objects around may be expensive).
  */
-template<typename Element_type,
-         size_t Prealloc,
-         bool Has_trivial_destructor = true>
+template<typename Element_type, size_t Prealloc>
 class Prealloced_array
 {
+  /**
+    Is Element_type trivially destructible? If it is, we don't destroy
+    elements when they are removed from the array or when the array is
+    destroyed.
+  */
+  static constexpr bool Has_trivial_destructor=
+    std::is_trivially_destructible<Element_type>::value;
+
   /**
     Casts the raw buffer to the proper Element_type.
     We use a raw buffer rather than Element_type[] in order to avoid having

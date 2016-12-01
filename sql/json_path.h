@@ -145,7 +145,7 @@ public:
 class Json_path : public Json_seekable_path
 {
 private:
-  typedef Prealloced_array<Json_path_leg, 8, false> Path_leg_vector;
+  typedef Prealloced_array<Json_path_leg, 8> Path_leg_vector;
   Path_leg_vector m_path_legs;
 
   /**
@@ -297,7 +297,7 @@ public:
 class Json_path_clone : public Json_seekable_path
 {
 private:
-  typedef Prealloced_array<const Json_path_leg *, 8, false> Path_leg_pointers;
+  using Path_leg_pointers= Prealloced_array<const Json_path_leg *, 8>;
   Path_leg_pointers m_path_legs;
 
 public:

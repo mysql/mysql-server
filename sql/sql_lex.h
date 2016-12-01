@@ -400,7 +400,7 @@ typedef struct st_lex_master_info
   char *ssl_crl, *ssl_crlpath, *tls_version;
   char *relay_log_name;
   ulong relay_log_pos;
-  Prealloced_array<ulong, 2, true> repl_ignore_server_ids;
+  Prealloced_array<ulong, 2> repl_ignore_server_ids;
 
   /// Initializes everything to zero/NULL/empty.
   void initialize();
@@ -3371,7 +3371,7 @@ public:
 
   /* maintain a list of used plugins for this LEX */
   typedef Prealloced_array<plugin_ref,
-    INITIAL_LEX_PLUGIN_LIST_SIZE, true> Plugins_array;
+    INITIAL_LEX_PLUGIN_LIST_SIZE> Plugins_array;
   Plugins_array plugins;
 
   /// Table being inserted into (may be a view)

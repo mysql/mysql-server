@@ -209,11 +209,10 @@ bool lookup_tablespace_ref(Sdi_rcontext *rctx, const String_type &name,
 typedef dd::String_type binary_t;
 template <typename T, size_t PREALLOC=16>
 struct dd_vector :
-  public Prealloced_array<T, PREALLOC,
-                          std::is_trivial<T>::value >
+  public Prealloced_array<T, PREALLOC>
 {
   dd_vector(PSI_memory_key psi_key = 0) :
-    Prealloced_array<T, PREALLOC, std::is_trivial<T>::value>(psi_key)
+    Prealloced_array<T, PREALLOC>(psi_key)
   {}
 };
 

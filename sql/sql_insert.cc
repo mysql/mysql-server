@@ -379,7 +379,7 @@ static bool mysql_prepare_blob_values(THD *thd, List<Item> &fields,
   // This 'set' helps decide if we need to make copy of BLOB value
   // or not.
 
-  Prealloced_array<Field_blob *, 16, true>
+  Prealloced_array<Field_blob *, 16>
     blob_update_field_set(PSI_NOT_INSTRUMENTED);
   if (blob_update_field_set.reserve(fields.elements))
     DBUG_RETURN(true);

@@ -271,7 +271,7 @@ template <class Var_type>
 class PFS_variable_cache
 {
 public:
-  typedef Prealloced_array<Var_type, SHOW_VAR_PREALLOC, false> Variable_array;
+  typedef Prealloced_array<Var_type, SHOW_VAR_PREALLOC> Variable_array;
 
   PFS_variable_cache(bool external_init);
 

@@ -42,7 +42,7 @@ class Json_wrapper;
 class String;
 class THD;
 
-typedef Prealloced_array<Json_wrapper, 16, false> Json_wrapper_vector;
+typedef Prealloced_array<Json_wrapper, 16> Json_wrapper_vector;
 typedef Prealloced_array<Json_dom *, 16> Json_dom_vector;
 
 /// The maximum number of nesting levels allowed in a JSON document.
