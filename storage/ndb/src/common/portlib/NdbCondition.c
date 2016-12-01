@@ -196,6 +196,36 @@ NdbCondition_ComputeAbsTime(struct timespec * abstime, unsigned msecs)
 #endif
 }
 
+void
+NdbCondition_ComputeAbsTime_ns(struct timespec * abstime, Uint64 nsecs)
+{
+#ifndef NDB_WIN
+#ifdef HAVE_CLOCK_GETTIME
+  clock_gettime(clock_id, abstime);
+#else
+  {
+    struct timeval tick_time;
+    gettimeofday(&tick_time, 0);
+    abstime->tv_sec  = tick_time.tv_sec;
+    abstime->tv_nsec = tick_time.tv_usec * 1000;
+  }
+#endif
+
+  nsecs += abstime->tv_nsec;
+
+  if (nsecs >= 1000*1000*1000) {
+    abstime->tv_sec  += (nsecs / (1000*1000*1000));
+    abstime->tv_nsec  = (nsecs % (1000*1000*1000));
+  }
+  else
+  {
+    abstime->tv_nsec  = nsecs;
+  }
+#else
+  set_timespec_nsec(abstime,nsecs);
+#endif
+}
+
 int
 NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
                             NdbMutex* p_mutex,

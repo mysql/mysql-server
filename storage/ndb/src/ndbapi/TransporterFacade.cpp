@@ -536,7 +536,7 @@ void TransporterFacade::setSendThreadInterval(Uint32 ms)
   }
 }
 
-Uint32 TransporterFacade::getSendThreadInterval(void)
+Uint32 TransporterFacade::getSendThreadInterval(void) const
 {
   return sendThreadWaitMillisec;
 }
@@ -573,10 +573,13 @@ link_buffer(TFBuffer* dst, const TFBuffer * src)
 
 static const Uint32 SEND_THREAD_NO = 0;
 
+/**
+ * Signal the send thread to wake up.
+ * require the m_send_thread_mutex to be held by callee.
+ */
 void
 TransporterFacade::wakeup_send_thread(void)
 {
-  Guard g(m_send_thread_mutex);
   if (m_send_thread_nodes.get(SEND_THREAD_NO) == false)
   {
     NdbCondition_Signal(m_send_thread_cond);
@@ -584,6 +587,116 @@ TransporterFacade::wakeup_send_thread(void)
   m_send_thread_nodes.set(SEND_THREAD_NO);
 }
 
+/**
+ * Adaptive send algorithm:
+ *
+ * The adaptive send algorithm takes advantage of that
+ * sending a larger message has less total cost than sending
+ * the same payload in multiple smaller messages. Thus it
+ * tries to collect flushed send buffers from multiple
+ * clients, before actually sending them all together
+ *
+ * We use two different mechanisms for sending buffered
+ * messages:
+ *
+ * 1) If a 'sufficient' amount of data is available in the
+ *    send buffers, we try to send immediately.
+ *    ('Sufficient' == 4096 byes)
+ *
+ * 2) If a 'sufficient' number of the active clients has
+ *    flushed their buffers since last send, we try to send.
+ *    ('Sufficient' == 1/8 of active clients)
+ *
+ * 3) Else the send is deferred, waiting for possibly more
+ *    data to arrive. To ensure that the data is eventually
+ *    sent, we envoke the send thread which will send at
+ *    latest after a 200us grace period.
+ *
+ * The above values has been determined by performance test
+ * experiments. They are by intention set conservative. Such
+ * that for few client threads the adaptive send is similar
+ * in performance to the 'forceSend'. For larger number of
+ * client threads, adaptive send always perform better, both
+ * wrt. throughput and latency.
+ *
+ * Requiring a higher 'sufficient' value in 1) and 2) above
+ * would have improved the 'high load' performance even more,
+ * but at the cost of some performance regression with few clients.
+ *
+ * Note:
+ *    Even if 'forceSend' is used, the send is done
+ *    by calling try_send_buffer(), which need to grab the
+ *    try_send_lock() before it can do_send_buffer(). If
+ *    if fails to get the send_lock, it will leave the
+ *    sending to the send thread. So even if 'forceSend'
+ *    is used, it gives no guarantee of the send did complete
+ *    before return - Just that it will complete as soon as
+ *    possible, which is more or less the same as 'adaptive' does.
+ */
+void
+TransporterFacade::do_send_adaptive(const NodeBitmask& nodes)
+{
+  assert(m_active_nodes.contains(nodes));
+
+  for (Uint32 node = nodes.find_first();
+       node != NodeBitmask::NotFound;
+       node = nodes.find_next(node+1))
+  {
+    struct TFSendBuffer *b = &m_send_buffers[node];
+    Guard g(&b->m_mutex);
+
+    if (b->m_flushed_cnt > 0 && b->m_current_send_buffer_size > 0)
+    {
+      /**
+       * Note: We read 'm_poll_waiters' without the poll mutex, which
+       *   should be OK - messages will me sent anyway, somehow,
+       *   even if we see a value being slightly off.
+       */
+      if (b->m_current_send_buffer_size > 4*1024 ||    // 1)
+          b->m_flushed_cnt >= m_poll_waiters/8)        // 2)
+      {
+        try_send_buffer(node, b);
+      }
+      else                                             // 3)
+      {
+        Guard g(m_send_thread_mutex);
+        if (m_has_data_nodes.isclear()) //Awake Send thread from 'idle sleep'
+        {
+          wakeup_send_thread();
+        }
+        m_has_data_nodes.set(node);
+      }
+    }
+  }
+}
+
+/**
+ * The send thread mainly serve two purposes:
+ *
+ * 1) If a regular try_send_buffer(node) failed to grab the 
+ *    try_lock_send(), the 'node' will be added to 'm_has_data_nodes',
+ *    and the send taken over by the send thread.
+ *
+ * 2) Handle deferred sends from the adaptive send algorithm,
+ *    which were not sent withing the 200us grace period.
+ *
+ * 3) In addition, we infrequently send to all connected nodes
+ *    just in case...., see further comments below.
+ *
+ * If the send thread has been activated for either 1) or 2),
+ * it only take a 'micro-nap' (200us) between each round of send.
+ * This 'micro-nap' allows more data to be flushed to the buffers
+ * and piggy backed on the next send.
+ * (See also 'Adaptive send algorithm' comment above.)
+ *
+ * If the send thread is not activated due to either 1) or 2),
+ * it is in an 'idle sleep' state where it only wakes up every
+ * 'sendThreadWaitMillisec'.
+ *
+ * From both of these sleep states the send thread can be signaled
+ * to wake up immediately if required. This is used if a state of
+ * high send buffer usage is detected.
+ */
 void TransporterFacade::threadMainSend(void)
 {
   while (theSendThread == NULL)
@@ -598,55 +711,76 @@ void TransporterFacade::threadMainSend(void)
   }
 
   m_socket_server.startServer();
+  raise_thread_prio();
 
+  NDB_TICKS lastActivityCheck = NdbTick_getCurrentTicks();
   while(!theStopSend)
   {
     NdbMutex_Lock(m_send_thread_mutex);
+    /**
+     * Note: It is intentional that we set 'send_nodes' before we
+     * wait: If more 'm_has_data_nodes' are added while we wait, we
+     * do not want these to take effect until after the 200us
+     * grace period. The exception is if we are woken up from the
+     * micro-nap (!= ETIMEDOUT), which only happens if we have to
+     * take immediate send action.
+     */
+    NodeBitmask send_nodes(m_has_data_nodes);
+
     if (m_send_thread_nodes.get(SEND_THREAD_NO) == false)
     {
-      NdbCondition_WaitTimeout(m_send_thread_cond,
-                               m_send_thread_mutex,
-                               sendThreadWaitMillisec);
+      if (!m_has_data_nodes.isclear())
+      {
+        /**
+         * Take a 200us micro-nap to allow more buffered data
+         * to arrive such that larger messages can be sent.
+         * Possibly also woken up earlier if buffers fills up
+         * too much.
+         */
+        struct timespec wait_end;  //Calculate 200us wait
+        NdbCondition_ComputeAbsTime_ns(&wait_end, 200*1000);
+        int ret = NdbCondition_WaitTimeoutAbs(m_send_thread_cond,
+                                              m_send_thread_mutex,
+                                              &wait_end);
+
+        /* If we were woken by a signal: take the new send_node set */
+        if (ret != ETIMEDOUT)
+          send_nodes.assign(m_has_data_nodes);
+      }
+      else
+      {
+        NdbCondition_WaitTimeout(m_send_thread_cond,
+                                 m_send_thread_mutex,
+                                 sendThreadWaitMillisec);
+      }
     }
     m_send_thread_nodes.clear(SEND_THREAD_NO);
     NdbMutex_Unlock(m_send_thread_mutex);
-    bool all_empty;
-    do
+
+    /**
+     * try_send to all nodes requesting assist of the send thread.
+     * 'm_has_data_nodes' is maintained by try_send to reflect nodes
+     * still in need of more send after this try_send
+     */
+    try_send_all(send_nodes);
+
+    /**
+     * Safeguard against messages being stuck: (probably an old bug...)
+     *
+     *  There seems to be cases where messages somehow are put into 
+     *  the send buffers without ever being registered in the set of
+     *  nodes having messages to be sent. Thus we try to send to all
+     *  'active' nodes every 'sendThreadWaitMillisec'.
+     */
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    const Uint32 elapsed_ms = NdbTick_Elapsed(lastActivityCheck,now).milliSec();
+    if (elapsed_ms >= sendThreadWaitMillisec)
     {
-      all_empty = true;
-      for (Uint32 node = 1; node<MAX_NODES; node++)
-      {
-        struct TFSendBuffer * b = m_send_buffers + node;
-        if (!b->m_node_active)
-          continue;
-        NdbMutex_Lock(&b->m_mutex);
-        if (!b->try_lock_send())
-        {
-          /**
-           * Did not get lock, held by other sender.
-           * Sender does stuff when unlock_send()
-           */
-        }
-        else
-        {
-          assert(b->m_current_send_buffer_size == 
-                 b->m_buffer.m_bytes_in_buffer+b->m_out_buffer.m_bytes_in_buffer);
+      lastActivityCheck = now;
 
-          if (b->m_current_send_buffer_size > 0)
-          {
-            do_send_buffer(node,b);
-
-            if (b->m_current_send_buffer_size > 0)
-            {
-              all_empty = false;
-            }
-          }
-          b->unlock_send();
-        }
-        NdbMutex_Unlock(&b->m_mutex);
-      }
-    } while (!theStopSend && all_empty == false);
-
+      Guard g(m_send_thread_mutex);
+      m_has_data_nodes.bitOR(m_active_nodes);
+    }
   }
   theTransporterRegistry->stopSending();
 
@@ -1076,6 +1210,7 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_poll_owner(NULL),
   m_poll_queue_head(NULL),
   m_poll_queue_tail(NULL),
+  m_poll_waiters(0),
   m_locked_cnt(0),
   m_locked_clients(),
   m_num_active_clients(0),
@@ -1096,9 +1231,11 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   thePollMutex(NULL),
   m_globalDictCache(cache),
   m_send_buffer("sendbufferpool"),
+  m_active_nodes(),
   m_send_thread_mutex(NULL),
   m_send_thread_cond(NULL),
-  m_send_thread_nodes()
+  m_send_thread_nodes(),
+  m_has_data_nodes()
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
   thePollMutex = NdbMutex_CreateWithName("PollMutex");
@@ -1183,6 +1320,7 @@ TransporterFacade::set_up_node_active_in_send_buffers(Uint32 nodeId,
   /* Need to also communicate with myself, not found in config */
   b = m_send_buffers + nodeId;
   b->m_node_active = true;
+  m_active_nodes.set(nodeId);
 
   for (iter.first(); iter.valid(); iter.next())
   {
@@ -1192,6 +1330,7 @@ TransporterFacade::set_up_node_active_in_send_buffers(Uint32 nodeId,
     remoteNodeId = (nodeId == nodeId1 ? nodeId2 : nodeId1);
     b = m_send_buffers + remoteNodeId;
     b->m_node_active = true;
+    m_active_nodes.set(remoteNodeId);
   }
   DBUG_VOID_RETURN;
 }
@@ -2897,6 +3036,7 @@ TransporterFacade::add_to_poll_queue(trp_client* clnt)  //Need thePollMutex
     clnt->m_poll.m_prev = m_poll_queue_tail;
   }
   m_poll_queue_tail = clnt;
+  m_poll_waiters++;
 }
 
 void
@@ -2918,6 +3058,8 @@ TransporterFacade::remove_from_poll_queue(trp_client* clnt)  //Need thePollMutex
   assert(clnt->m_poll.m_locked == true);
   assert(clnt->m_poll.m_poll_owner == false);
   assert(clnt->m_poll.m_poll_queue == true);
+  assert(m_poll_waiters > 0);
+  m_poll_waiters--;
 
   if (clnt->m_poll.m_prev != 0)
   {
@@ -2968,6 +3110,10 @@ SignalSectionIterator::getNextWords(Uint32& sz)
   return NULL;
 }
 
+/**
+ * Append the send buffers 'sb' to the transporters list of buffers
+ * ready to be delivered to 'node'.
+ */
 void
 TransporterFacade::flush_send_buffer(Uint32 node, const TFBuffer * sb)
 {
@@ -2975,48 +3121,116 @@ TransporterFacade::flush_send_buffer(Uint32 node, const TFBuffer * sb)
     return;
 
   assert(node < NDB_ARRAY_SIZE(m_send_buffers));
+  assert(m_active_nodes.get(node));
   struct TFSendBuffer * b = m_send_buffers + node;
   Guard g(&b->m_mutex);
   b->m_current_send_buffer_size += sb->m_bytes_in_buffer;
+  b->m_flushed_cnt++;
   link_buffer(&b->m_buffer, sb);
 }
 
+/**
+ * Try to send the prepared send buffers to 'node'.
+ * Could fail to send if 'try_lock_send' not granted.
+ * The thread holding the lock will then take over the
+ * send for us.
+ * If there are more data than could be sent in a single
+ * try, the send-thread will be requested to be started.
+ *
+ * Requires the 'b->m_mutex' to be held by callee
+ */
 void
-TransporterFacade::flush_and_send_buffer(Uint32 node, const TFBuffer * sb)
+TransporterFacade::try_send_buffer(Uint32 node, struct TFSendBuffer *b)
 {
-  if (unlikely(sb->m_head == NULL)) //Cleared by ::reset_send_buffer()
-    return;
-
-  assert(node < NDB_ARRAY_SIZE(m_send_buffers));
-  struct TFSendBuffer * b = m_send_buffers + node;
-  bool wake = false;
-  NdbMutex_Lock(&b->m_mutex);
-  b->m_current_send_buffer_size += sb->m_bytes_in_buffer;
-  link_buffer(&b->m_buffer, sb);
-
   if (!b->try_lock_send())
   {
     /**
      * Did not get lock, held by other sender.
-     * Sender will check if here is data, and wake send-thread
+     * Holder of send lock will check if here is data, and wake send-thread
      * if needed
      */
   }
   else
   {
+    assert(b->m_current_send_buffer_size == 
+           b->m_buffer.m_bytes_in_buffer+b->m_out_buffer.m_bytes_in_buffer);
+
     do_send_buffer(node,b);
-
-    if (b->m_current_send_buffer_size > 0)
-    {
-      wake = true;
-    }
+    const Uint32 out_buffer_bytes  = b->m_out_buffer.m_bytes_in_buffer;
+    const Uint32 send_buffer_bytes = b->m_current_send_buffer_size;
     b->unlock_send();
-  }
-  NdbMutex_Unlock(&b->m_mutex);
 
-  if (wake)
+    /**
+     * NOTE: There are two different variants of 'more_data' being
+     *   available for sending immediately after a do_send_buffer():
+     *
+     *  1) 'send_buffer_bytes > 0 && out_buffer_bytes == 0'
+     *     More data was flushed to the 'm_buffer' by other threads
+     *     while this thread waited for OS to send 'out_buffer_bytes'.
+     *     (Also see 'try_lock_send' comment above)
+     *
+     *  2) 'out_buffer_bytes > 0'
+     *     do_send_buffer() didn't send all m_out_buffer'ed data
+     *     being available when it was called. This was likely due
+     *     to too much send data, or the adaptive send being too lazy
+     *     (Also implies 'send_buffer_bytes > 0')
+     *
+     * In both cases we append the node to the 'm_has_data_nodes' set
+     * which is to be handled by the send thread.
+     *
+     * We need to wakeup the send thread if it was in either
+     * 'deep sleep', or in case of 2), where the send is lagging
+     * behind and immediate retry of the send is required.
+     *
+     * We do *not* want it to wake up immediately if taking a
+     * 'micro-nap. That would have prevented it from collecting
+     * a larger message to be sent after the 'nap'
+     */
+    Guard g(m_send_thread_mutex);
+    if (send_buffer_bytes > 0)
+    {
+      if (m_has_data_nodes.isclear() ||  //In 'deep sleep'
+          out_buffer_bytes > 0)          //Lagging behind, immediate retry
+      {
+        wakeup_send_thread();
+      }
+      m_has_data_nodes.set(node);
+    }
+    else
+    {
+      m_has_data_nodes.clear(node);
+    }
+  }
+}
+
+/**
+ * Try to send the prepared send buffers to all nodes
+ * having pending data. Called regularly from the
+ * send thread when woken up by the regular timer,
+ * or needed to off load a client thread having
+ * 'more_data' to send.
+ *
+ * Also see ::try_send_buffer() for comments.
+ */
+void
+TransporterFacade::try_send_all(const NodeBitmask& nodes)
+{
+  for (Uint32 node = nodes.find_first();
+       node != NodeBitmask::NotFound;
+       node = nodes.find_next(node+1))
   {
-    wakeup_send_thread();
+    struct TFSendBuffer *b = &m_send_buffers[node];
+    NdbMutex_Lock(&b->m_mutex);
+    if (likely(b->m_current_send_buffer_size > 0))
+    {
+      try_send_buffer(node, b);
+    }
+    else
+    {
+      Guard g(m_send_thread_mutex);
+      m_has_data_nodes.clear(node);
+    }
+    NdbMutex_Unlock(&b->m_mutex);
   }
 }
 
@@ -3028,7 +3242,7 @@ TransporterFacade::flush_and_send_buffer(Uint32 node, const TFBuffer * sb)
  * Any pending data in 'm_buffer' is appended to 
  * 'm_out_buffer' before sending.
  *
- * Will take care of any defered buffer reset
+ * Will take care of any deferred buffer reset
  * before return.
  */
 void
@@ -3041,6 +3255,7 @@ TransporterFacade::do_send_buffer(Uint32 node, struct TFSendBuffer *b)
    */
   TFBuffer copy = b->m_buffer;
   b->m_buffer.clear();
+  b->m_flushed_cnt = 0;
   NdbMutex_Unlock(&b->m_mutex);
 
   if (copy.m_bytes_in_buffer > 0)
@@ -3234,6 +3449,8 @@ TransporterFacade::reset_send_buffer(NodeId node)
     m_send_buffers[node].m_reset = true;
   }
   m_send_buffers[node].m_current_send_buffer_size = 0;
+  m_send_buffers[node].m_flushed_cnt = 0;
+  m_has_data_nodes.clear(node);
 }
 
 #ifdef UNIT_TEST
