@@ -195,12 +195,7 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
   switch (info->type) {
     case FT_TOKEN_WORD:
       ftbw= (FTB_WORD *)alloc_root(&ftb_param->ftb->mem_root,
-                                   sizeof(FTB_WORD) +
-                                   (info->trunc ? HA_MAX_KEY_BUFF :
-                                    (word_len + 1) *
-                                    ftb_param->ftb->charset->mbmaxlen +
-                                    HA_FT_WLEN +
-                                    ftb_param->ftb->info->s->rec_reflength));
+                                   sizeof(FTB_WORD) + HA_MAX_KEY_BUFF);
       ftbw->len= word_len + 1;
       ftbw->flags= 0;
       ftbw->off= 0;
