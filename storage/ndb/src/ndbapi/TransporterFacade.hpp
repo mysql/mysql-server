@@ -53,6 +53,7 @@ public:
    * (Ndb objects should not be shared by different threads.)
    */
   STATIC_CONST( MAX_NO_THREADS = 4711 );
+  STATIC_CONST( MAX_LOCKED_CLIENTS = 256 );
   TransporterFacade(GlobalDictCache *cache);
   virtual ~TransporterFacade();
 
@@ -149,7 +150,7 @@ public:
   When a thread has sent its signals and is ready to wait for reception
   of these it does normally always wait on a conditional mutex and
   the actual reception is handled by the receiver thread in the NDB API.
-  With the below new methods and variables each thread has the possibility
+  With the below methods and variables each thread has the possibility
   of becoming owner of the "right" to poll for signals. Effectually this
   means that the thread acts temporarily as a receiver thread.
   There is also a dedicated receiver thread (threadMainReceive) which will
@@ -157,23 +158,24 @@ public:
   For the thread that succeeds in grabbing this "ownership" it will avoid
   a number of expensive calls to conditional mutex and even more expensive
   context switches to wake up.
+
   When an owner of the poll "right" has completed its own task it is likely
-  that there are others still waiting. In this case we pick one of the
-  threads as new owner of the poll "right". Since we want to switch owner
-  as seldom as possible we always pick the last thread which is likely to
-  be the last to complete its reception.
+  that there are others still waiting. In this case we signal one of the
+  waiting threads to give it the chance to grab the poll "right".
+
+  Since we want to switch owner as seldom as possible we always
+  pick the last thread which is likely to be the last to complete
+  its reception.
 */
-  void start_poll(trp_client*);
   void do_poll(trp_client* clnt,
                Uint32 wait_time,
                bool stay_poll_owner = false);
-  void complete_poll(trp_client*);
   void wakeup(trp_client*);
 
   void external_poll(Uint32 wait_time);
 
-  void remove_from_poll_queue(trp_client* const *, Uint32 cnt);
-  void unlock_and_signal(trp_client* const *, Uint32 cnt);
+  void remove_from_poll_queue(trp_client* const arr[], Uint32 cnt);
+  static void unlock_and_signal(trp_client* const arr[], Uint32 cnt);
 
   trp_client* get_poll_owner(bool) const { return m_poll_owner;}
   void add_to_poll_queue(trp_client* clnt);
@@ -259,10 +261,31 @@ private:
 
   void propose_poll_owner(); 
   bool try_become_poll_owner(trp_client* clnt, Uint32 wait_time);
-  static void finish_poll(trp_client* clnt,
-                          Uint32 cnt,
-                          Uint32& cnt_woken,
-                          trp_client** arr);
+
+  /**
+   * When poll owner is assigned:
+   *  - ::external_poll() let m_poll_owner act as receiver thread
+   *    actually the transporter.
+   *  - ::start_poll() - ::finish_poll() has to enclose ::external_poll()
+   */
+  void start_poll();
+  int  finish_poll(trp_client* arr[]);
+
+  /**
+   * The m_poll_owner manage a list of clients
+   * waiting for the poll right or to be waked up when something
+   * was delivered to it by the poll_owner.
+   */ 
+  void lock_client(trp_client*);
+  bool check_if_locked(const trp_client*,
+                       const Uint32 start) const;
+
+  /**
+   * List if trp_clients locked by the *m_poll_owner.
+   * m_locked_clients[0] is always the m_poll_owner itself. 
+   */
+  Uint32 m_locked_cnt;
+  trp_client *m_locked_clients[MAX_LOCKED_CLIENTS];
 
   Uint32 m_num_active_clients;
   volatile bool m_check_connections;
