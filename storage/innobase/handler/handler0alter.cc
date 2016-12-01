@@ -4384,7 +4384,7 @@ replace_table_name(
 	char*		new_filename,
 	const char*	table_name)
 {
-	const char*	slash = strrchr(filename, OS_PATH_SEPARATOR);
+	const char*	slash = strrchr(filename, '/');
 	size_t		len = 0;
 
 	if (slash == NULL) {
@@ -4395,7 +4395,7 @@ replace_table_name(
 
 	memcpy(new_filename, filename, len);
 
-	slash = strchr(table_name, OS_PATH_SEPARATOR);
+	slash = strchr(table_name, '/');
 	ut_ad(slash != NULL);
 
 	strcpy(new_filename + len, slash + 1);
