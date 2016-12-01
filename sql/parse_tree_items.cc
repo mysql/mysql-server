@@ -221,7 +221,7 @@ bool PTI_function_call_generic_ident_sys::itemize(Parse_context *pc, Item **res)
 
     This will be revised with WL#2128 (SQL PATH)
   */
-  Create_func *builder= find_native_function_builder(thd, ident);
+  Create_func *builder= find_native_function_builder(ident);
   if (builder)
     *res= builder->create_func(thd, ident, opt_udf_expr_list);
   else

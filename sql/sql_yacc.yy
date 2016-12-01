@@ -255,12 +255,12 @@ void turn_parser_debug_on()
 }
 #endif
 
-static bool is_native_function(THD *thd, const LEX_STRING *name)
+static bool is_native_function(const LEX_STRING &name)
 {
-  if (find_native_function_builder(thd, *name))
+  if (find_native_function_builder(name) != nullptr)
     return true;
 
-  if (is_lex_native_function(name))
+  if (is_lex_native_function(&name))
     return true;
 
   return false;
@@ -15156,7 +15156,7 @@ udf_tail:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            if (is_native_function(thd, & $3))
+            if (is_native_function($3))
             {
               my_error(ER_NATIVE_FCT_NAME_COLLISION, MYF(0),
                        $3.str);
@@ -15174,7 +15174,7 @@ udf_tail:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            if (is_native_function(thd, & $2))
+            if (is_native_function($2))
             {
               my_error(ER_NATIVE_FCT_NAME_COLLISION, MYF(0),
                        $2.str);
@@ -15289,7 +15289,7 @@ sf_tail:
               MYSQL_YYABORT;
             }
 
-            if (is_native_function(thd, & sp->m_name))
+            if (is_native_function(sp->m_name))
             {
               /*
                 This warning will be printed when

@@ -93,9 +93,7 @@ public:
     = 0;
 
 protected:
-  /** Constructor */
-  Create_func() {}
-  /** Destructor */
+  Create_func() = default;
   virtual ~Create_func() {}
 };
 
@@ -141,11 +139,11 @@ protected:
 
 /**
   Find the native function builder associated with a given function name.
-  @param thd The current thread
+
   @param name The native function name
   @return The native function builder associated with the name, or NULL
 */
-extern Create_func * find_native_function_builder(THD *thd, LEX_STRING name);
+extern Create_func * find_native_function_builder(const LEX_STRING &name);
 
 
 /**
@@ -203,7 +201,22 @@ Item *create_temporal_literal(THD *thd,
                               const CHARSET_INFO *cs,
                               enum_field_types type, bool send_error);
 
-int item_create_init();
+/**
+  Load the hash table for native functions.
+  Note: this code is not thread safe, and is intended to be used at server
+  startup only (before going multi-threaded)
+
+  @retval false OK.
+  @retval true An exception was caught.
+*/
+bool item_create_init();
+
+
+/**
+  Empty the hash table for native functions.
+  Note: this code is not thread safe, and is intended to be used at server
+  shutdown only (after thread requests have been executed).
+*/
 void item_create_cleanup();
 
 /**
