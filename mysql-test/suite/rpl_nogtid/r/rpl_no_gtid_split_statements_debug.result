@@ -31,6 +31,17 @@ include/rpl_sync.inc
 # db10, db11: not a database, but the directory and the entry exist.
 # db12 is not a database, but the empty directory exists on master.
 include/rpl_sync.inc
+# db16, db17, db18: one MyISAM and one InnoDB table.
+CREATE DATABASE db16;
+CREATE DATABASE db17;
+CREATE DATABASE db18;
+CREATE TABLE db16.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db17.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db18.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db16.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db17.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db18.t2 (a INT) ENGINE=MyISAM;
+include/rpl_sync.inc
 ---- DROP DATABASE is split on master; GTID_NEXT=AUTOMATIC ----
 # db1: no table.
 include/save_binlog_position.inc
@@ -68,6 +79,14 @@ SET GTID_NEXT = 'AUTOMATIC';
 DROP DATABASE db13;
 ERROR HY000: Can't drop database 'db13'; database doesn't exist
 include/assert_binlog_events.inc [()]
+# db16: one MyISAM and one InnoDB table.
+include/save_binlog_position.inc
+SET GTID_NEXT = 'AUTOMATIC';
+SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
+DROP DATABASE db16;
+ERROR HY000: Unknown error
+SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
+include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)]
 ---- DROP DATABASE is split on master; GTID_NEXT=non-automatic ----
 # db2: no table.
 include/save_binlog_position.inc
@@ -110,6 +129,15 @@ DROP DATABASE db14;
 ERROR HY000: Can't drop database 'db14'; database doesn't exist
 include/assert_binlog_events.inc [()]
 SET GTID_NEXT = 'AUTOMATIC';
+# db17: one MyISAM and one InnoDB table.
+include/save_binlog_position.inc
+SET GTID_NEXT = '#';
+SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
+DROP DATABASE db17;
+ERROR HY000: Unknown error
+SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
+include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)]
+SET GTID_NEXT = 'AUTOMATIC';
 ---- DROP DATABASE is split on slave ----
 SET GTID_NEXT = 'AUTOMATIC';
 SET GLOBAL DEBUG= '+d, rm_db_fail_after_dropping_tables';
@@ -136,6 +164,15 @@ SET GLOBAL DEBUG= '-d, rm_db_fail_after_dropping_tables';
 # db12: not a database, but an empty directory exists.
 DROP DATABASE db12;
 ERROR HY000: Can't drop database 'db12'; database doesn't exist
+# db18: one MyISAM and one InnoDB table.
+SET GLOBAL DEBUG= '+d, rm_db_fail_after_dropping_tables';
+[connection master]
+DROP DATABASE db18;
+include/sync_slave_io_with_master.inc
+include/wait_for_slave_sql_error.inc [errno=1105]
+include/include/rpl_skip_to_end_of_relay_log.inc
+SET GLOBAL DEBUG= '-d, rm_db_fail_after_dropping_tables';
+[connection master]
 ---- Clean up ----
 DROP DATABASE db1;
 DROP DATABASE db2;
@@ -161,5 +198,10 @@ Note	1008	Can't drop database 'db11'; database doesn't exist
 DROP DATABASE IF EXISTS db12;
 Warnings:
 Note	1008	Can't drop database 'db12'; database doesn't exist
+DROP DATABASE db16;
+DROP DATABASE db17;
+DROP DATABASE IF EXISTS db18;
+Warnings:
+Note	1008	Can't drop database 'db18'; database doesn't exist
 include/rpl_sync.inc
 include/rpl_end.inc
