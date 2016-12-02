@@ -3059,7 +3059,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
   if (init_and_set_log_file_name(log_name, new_name, log_type_arg,
                                  io_cache_type_arg))
   {
-    sql_print_error("MSYQL_BIN_LOG::open failed to generate new file name.");
+    sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
     DBUG_RETURN(1);
   }
 
@@ -3086,7 +3086,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       }
     });
 
-    sql_print_error("MSYQL_BIN_LOG::open failed to sync the index file.");
+    sql_print_error("MYSQL_BIN_LOG::open failed to sync the index file.");
     DBUG_RETURN(1);
   }
   DBUG_EXECUTE_IF("crash_create_non_critical_before_update_index", DBUG_SUICIDE(););
@@ -3849,14 +3849,14 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
 
   if ((error= sync_purge_index_file()))
   {
-    sql_print_error("MSYQL_BIN_LOG::purge_logs failed to flush register file.");
+    sql_print_error("MYSQL_BIN_LOG::purge_logs failed to flush register file.");
     goto err;
   }
 
   /* We know how many files to delete. Update index file. */
   if ((error=update_log_index(&log_info, need_update_threads)))
   {
-    sql_print_error("MSYQL_BIN_LOG::purge_logs failed to update the index file");
+    sql_print_error("MYSQL_BIN_LOG::purge_logs failed to update the index file");
     goto err;
   }
 
@@ -3866,7 +3866,7 @@ err:
   /* Read each entry from purge_index_file and delete the file. */
   if (is_inited_purge_index_file() &&
       (error= purge_index_entry(thd, reclaimed_space, FALSE)))
-    sql_print_error("MSYQL_BIN_LOG::purge_logs failed to process registered files"
+    sql_print_error("MYSQL_BIN_LOG::purge_logs failed to process registered files"
                     " that would be purged.");
   close_purge_index_file();
 
@@ -3983,7 +3983,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *reclaimed_space,
 
   if ((error=reinit_io_cache(&purge_index_file, READ_CACHE, 0, 0, 0)))
   {
-    sql_print_error("MSYQL_BIN_LOG::purge_index_entry failed to reinit register file "
+    sql_print_error("MYSQL_BIN_LOG::purge_index_entry failed to reinit register file "
                     "for read");
     goto err;
   }
@@ -3998,7 +3998,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *reclaimed_space,
       if (purge_index_file.error)
       {
         error= purge_index_file.error;
-        sql_print_error("MSYQL_BIN_LOG::purge_index_entry error %d reading from "
+        sql_print_error("MYSQL_BIN_LOG::purge_index_entry error %d reading from "
                         "register file.", error);
         goto err;
       }

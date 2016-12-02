@@ -169,7 +169,7 @@ count(*)
 SET SQL_LOG_BIN=1;
 SET GLOBAL debug_dbug="-d,error_unique_log_filename";
 ###################### TEST #10
-call mtr.add_suppression("MSYQL_BIN_LOG::open failed to sync the index file.");
+call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
 call mtr.add_suppression("Could not open .*");
 RESET MASTER;
 SHOW WARNINGS;
@@ -226,7 +226,7 @@ include/rpl_reset.inc
 call mtr.add_suppression("Slave I/O: Relay log write failure: could not queue event from master.*");
 call mtr.add_suppression("Error writing file .*");
 call mtr.add_suppression("Could not open .*");
-call mtr.add_suppression("MSYQL_BIN_LOG::open failed to sync the index file.");
+call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
 call mtr.add_suppression("Can't generate a unique log-filename .*");
 ###################### TEST #13
 SET @old_debug=@@global.debug;
