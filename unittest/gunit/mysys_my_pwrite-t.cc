@@ -17,25 +17,15 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-
-// Ignore test on windows, as we are mocking away a unix function, see below.
-#ifndef _WIN32
-
-#include <errno.h>
 #include <stddef.h>
-#include <stdio.h>
-#include <sys/types.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
-#include "my_base.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_io.h"
 #include "my_sys.h"
-#include "my_thread_local.h"
-#include "mysys_err.h"
+
+// Ignore test on windows, as we are mocking away a unix function, see below.
+#ifndef _WIN32
 
 // For testing my_pwrite.
 extern

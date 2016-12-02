@@ -38,6 +38,11 @@
 #endif
 
 
+#ifndef _WIN32
+// Mock away write() for unit testing.
+ssize_t (*mock_write)(int fd, const void *buf, size_t count)= nullptr;
+#endif
+
 /**
   Write a chunk of bytes to a file
 
@@ -78,7 +83,10 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
 #ifdef _WIN32
     writtenbytes= my_win_write(Filedes, Buffer, Count);
 #else
-    writtenbytes= write(Filedes, Buffer, Count);
+    if (mock_write)
+      writtenbytes= mock_write(Filedes, Buffer, Count);
+    else
+      writtenbytes= write(Filedes, Buffer, Count);
 #endif
     DBUG_EXECUTE_IF("simulate_file_write_error",
                     {
