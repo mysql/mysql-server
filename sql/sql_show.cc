@@ -2849,7 +2849,10 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
   {
     case SHOW_DOUBLE_STATUS:
       value= ((char *) status_var + (ulong) value);
-      /* fall through */
+      /* 6 is the default precision for '%f' in sprintf() */
+      end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
+      value_charset= system_charset_info;
+      break;
 
     case SHOW_DOUBLE:
       /* 6 is the default precision for '%f' in sprintf() */
@@ -2859,7 +2862,9 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_LONG_STATUS:
       value= ((char *) status_var + (ulong) value);
-      /* fall through */
+      end= int10_to_str(*(long*) value, buff, 10);
+      value_charset= system_charset_info;
+      break;
 
     case SHOW_LONG:
      /* the difference lies in refresh_status() */
@@ -2875,7 +2880,9 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_LONGLONG_STATUS:
       value= ((char *) status_var + (ulong) value);
-      /* fall through */
+      end= longlong10_to_str(*(longlong*) value, buff, 10);
+      value_charset= system_charset_info;
+      break;
 
     case SHOW_LONGLONG:
       end= longlong10_to_str(*(longlong*) value, buff, 10);

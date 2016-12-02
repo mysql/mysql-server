@@ -382,6 +382,8 @@ THD::THD(bool enable_plugins)
    first_query_cache_block(NULL),
    initial_status_var(NULL),
    status_var_aggregated(false),
+   m_current_query_cost(0),
+   m_current_query_partial_plans(0),
    query_plan(this),
    m_current_stage_key(0),
    current_mutex(NULL),
