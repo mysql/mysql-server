@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@ static int opt_report_fd;
 static int opt_initial;
 static int opt_no_start;
 static unsigned opt_allocated_nodeid;
+static int opt_angel_pid;
 static int opt_retries;
 static int opt_delay;
 
@@ -92,6 +93,10 @@ static struct my_option my_long_options[] =
   { "allocated-nodeid", 256,
     "INTERNAL: nodeid allocated by angel process",
     (uchar**) &opt_allocated_nodeid, (uchar**) &opt_allocated_nodeid, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, UINT_MAX, 0, 0, 0 },
+  { "angel-pid", NDB_OPT_NOSHORT,
+    "INTERNAL: angel process id",
+    (uchar**) &opt_angel_pid, (uchar **) &opt_angel_pid, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, UINT_MAX, 0, 0, 0 },
   { "connect-retries", 'r',
     "Number of times mgmd is contacted at start. -1: eternal retries",
