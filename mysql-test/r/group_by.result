@@ -389,38 +389,38 @@ NULL	3
 a	1
 b	1
 SET BIG_TABLES=1;
-SELECT a FROM t1 GROUP BY a;
+SELECT a FROM t1 GROUP BY a ASC;
 a
 NULL
 A
 B
-SELECT a,count(*) FROM t1 GROUP BY a;
+SELECT a,count(*) FROM t1 GROUP BY a ASC;
 a	count(*)
 NULL	3
 A	5
 B	5
-SELECT a FROM t1 GROUP BY binary a;
+SELECT a FROM t1 GROUP BY binary a ASC;
 a
 NULL
 A
 B
 a
 b
-SELECT a,count(*) FROM t1 GROUP BY binary a;
+SELECT a,count(*) FROM t1 GROUP BY binary a ASC;
 a	count(*)
 NULL	3
 A	4
 B	4
 a	1
 b	1
-SELECT binary a FROM t1 GROUP BY 1;
+SELECT binary a FROM t1 GROUP BY 1 ASC;
 binary a
 NULL
 A
 B
 a
 b
-SELECT binary a,count(*) FROM t1 GROUP BY 1;
+SELECT binary a,count(*) FROM t1 GROUP BY 1 ASC;
 binary a	count(*)
 NULL	3
 A	4

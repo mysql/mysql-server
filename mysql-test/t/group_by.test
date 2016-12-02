@@ -301,12 +301,12 @@ SELECT binary a FROM t1 GROUP BY 1;
 SELECT binary a,count(*) FROM t1 GROUP BY 1;
 # Do the same tests with MyISAM temporary tables
 SET BIG_TABLES=1;
-SELECT a FROM t1 GROUP BY a;
-SELECT a,count(*) FROM t1 GROUP BY a;
-SELECT a FROM t1 GROUP BY binary a;
-SELECT a,count(*) FROM t1 GROUP BY binary a;
-SELECT binary a FROM t1 GROUP BY 1;
-SELECT binary a,count(*) FROM t1 GROUP BY 1;
+SELECT a FROM t1 GROUP BY a ASC;
+SELECT a,count(*) FROM t1 GROUP BY a ASC;
+SELECT a FROM t1 GROUP BY binary a ASC;
+SELECT a,count(*) FROM t1 GROUP BY binary a ASC;
+SELECT binary a FROM t1 GROUP BY 1 ASC;
+SELECT binary a,count(*) FROM t1 GROUP BY 1 ASC;
 SET BIG_TABLES=0;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
