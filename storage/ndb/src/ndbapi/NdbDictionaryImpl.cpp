@@ -2805,6 +2805,7 @@ objectTypeMapping[] = {
   { DictTabInfo::ForeignKey,         NdbDictionary::Object::ForeignKey },
   { DictTabInfo::FKParentTrigger,    NdbDictionary::Object::FKParentTrigger },
   { DictTabInfo::FKChildTrigger,     NdbDictionary::Object::FKChildTrigger },
+  { DictTabInfo::HashMap,            NdbDictionary::Object::HashMap },
   { -1, -1 }
 };
 
