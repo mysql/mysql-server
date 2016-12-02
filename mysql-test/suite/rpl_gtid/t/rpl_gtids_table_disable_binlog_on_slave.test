@@ -190,8 +190,8 @@ DROP TABLE t3;
 --let $xa_error_simul = 1
 --source extra/rpl_tests/rpl_xa_gtid_next.inc
 
-# two more queries follow to affect $gno_root (DROP TABLE will generate
-# two binlog events)
+# Three more GTIDs are generated in what follows, two of them from DROP
+# TABLE.
 --let $gno_0 = `SELECT $gno_0 + 3`
 DROP TABLE t1, t2;
 --source include/sync_slave_sql_with_master.inc
