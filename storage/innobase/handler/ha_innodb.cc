@@ -3680,7 +3680,7 @@ boot_tablespaces(THD* thd)
 			space_name = strrchr(buf, OS_PATH_SEPARATOR);
 			ut_ad(space_name != NULL);
 			++space_name;
-			*mark = OS_PATH_SEPARATOR;
+			*mark = '/';
 			mark = strrchr(buf, '.');
 			*mark = '\0';
 		}
