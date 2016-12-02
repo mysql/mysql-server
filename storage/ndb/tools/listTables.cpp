@@ -169,6 +169,9 @@ list(const char * tabname,
         case NdbDictionary::Object::HashMap:
             strcpy(type, "HashMap");
             break;
+        case NdbDictionary::Object::FullyReplicatedTrigger:
+            strcpy(type, "FullyRepTrigger");
+            break;
         default:
 	  sprintf(type, "%d", (int)elt.type);
             break;
