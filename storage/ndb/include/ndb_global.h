@@ -180,6 +180,10 @@ extern "C" {
 }
 #endif
 
+#ifdef  __cplusplus
+#include <new>
+#endif
+
 #include "ndb_init.h"
 
 #ifndef PATH_MAX
