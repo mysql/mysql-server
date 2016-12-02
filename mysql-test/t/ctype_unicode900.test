@@ -191,7 +191,7 @@ INSERT INTO t1 VALUES ('dd'), ('a'), (_utf16 0x00E5), ('e'), ('d'), ('dz'),
        ('ddza'), ('ddzsa'), (_utf16 0x01F30061), ('dzu'), ('dzsu'),
        ('ddzu'), ('ddzsu'), (_utf16 0x01F30075), ('da'), ('dx'), ('dy'),
        (_utf16 0x006400E5), (_utf16 0x00640394);
-SELECT v, HEX(CONVERT(v USING utf16)) AS HEX FROM t1 ORDER BY v;
+SELECT v, HEX(CONVERT(v USING utf16)) AS HEX, HEX(WEIGHT_STRING(v)) FROM t1 ORDER BY v, HEX(v);
 DROP TABLE t1;
 
 --echo #
