@@ -10755,6 +10755,12 @@ err_col:
 		my_error(err == DB_DUPLICATE_KEY
 			 ? ER_TABLE_EXISTS_ERROR
 			 : ER_TABLESPACE_EXISTS, MYF(0), display_name);
+
+                if (err == DB_DUPLICATE_KEY) {
+			/* 'this' may not be ready for get_dup_key(), see same
+			error tweaking in rename_table(). */
+			err= DB_ERROR;
+		}
 	}
 
 	if (err == DB_SUCCESS && (m_flags2 & DICT_TF2_FTS)) {
