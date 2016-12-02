@@ -2703,64 +2703,37 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
 handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
   DBUG_ENTER("handler::clone");
-  handler *new_handler= ha_clone_prepare(mem_root);
+
+  handler *new_handler= get_new_handler(table->s,
+                                        (table->s->m_part_info != NULL),
+                                        mem_root, ht);
 
   if (!new_handler)
     DBUG_RETURN(NULL);
+  if (new_handler->set_ha_share_ref(ha_share))
+    goto err;
 
+  /*
+    Allocate handler->ref here because otherwise ha_open will allocate it
+    on this->table->mem_root and we will not be able to reclaim that memory 
+    when the clone handler object is destroyed.
+  */
+  if (!(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                              ALIGN_SIZE(ref_length)*2)))
+    goto err;
   /*
     TODO: Implement a more efficient way to have more than one index open for
     the same table instance. The ha_open call is not cachable for clone.
   */
   if (new_handler->ha_open(table, name, table->db_stat,
                            HA_OPEN_IGNORE_IF_LOCKED, NULL))
-  {
-    delete new_handler;
-    new_handler = NULL;
-  }
+    goto err;
 
   DBUG_RETURN(new_handler);
-}
 
-
-handler* handler::ha_clone_prepare(MEM_ROOT *mem_root) const
-{
-  DBUG_ENTER("handler::ha_clone_prepare");
-
-  handler *new_handler= get_new_handler(table->s,
-                                        (table->s->m_part_info != NULL),
-                                        mem_root, ht);
-
-  if (new_handler == NULL)
-    DBUG_RETURN(NULL);
-
-  /*
-    Allocate handler->ref here because otherwise possible later call to
-    ha_open will allocate it on this->table->mem_root and we will not be
-    able to reclaim that memory when the clone handler object is destroyed.
-  */
-  if (new_handler->set_ha_share_ref(ha_share) ||
-      !(new_handler->ref= (uchar*) alloc_root(mem_root,
-                                              ALIGN_SIZE(ref_length)*2)))
-  {
-    delete new_handler;
-    new_handler = NULL;
-  }
-
-  DBUG_RETURN(new_handler);
-}
-
-
-void handler::ha_open_psi()
-{
-#ifdef HAVE_PSI_TABLE_INTERFACE
-  DBUG_ENTER("handler::ha_open_psi()");
-  DBUG_ASSERT(m_psi == NULL);
-  DBUG_ASSERT(table_share != NULL);
-  PSI_table_share *share_psi= ha_table_share_psi(table_share);
-  m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);
-  DBUG_VOID_RETURN;
-#endif
+err:
+  delete new_handler;
+  DBUG_RETURN(NULL);
 }
 
 
@@ -2893,14 +2866,18 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   {
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(table_share != NULL);
-
+#ifdef HAVE_PSI_TABLE_INTERFACE
     /*
       Do not call this for partitions handlers, since it may take too much
       resources.
       So only use the m_psi on table level, not for individual partitions.
     */
     if (!(test_if_locked & HA_OPEN_NO_PSI_CALL))
-      ha_open_psi();
+    {
+      PSI_table_share *share_psi= ha_table_share_psi(table_share);
+      m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);
+    }
+#endif
 
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
       table->db_stat|=HA_READ_ONLY;

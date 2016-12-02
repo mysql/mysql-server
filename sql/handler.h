@@ -3366,18 +3366,6 @@ public:
   }
   /* TODO: reorganize the methods and have proper public/protected/private qualifiers!!! */
   virtual handler *clone(const char *name, MEM_ROOT *mem_root);
-
-protected:
-  /*
-    Helper methods which simplify custom clone() implementations by
-    storage engines.
-
-    WL7743/TODO: Check with InnoDB guys if we really need these methods.
-  */
-  handler* ha_clone_prepare(MEM_ROOT *mem_root) const;
-  void ha_open_psi();
-
-public:
   /** This is called after create to allow us to set up cached variables */
   void init()
   {
