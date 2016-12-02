@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -157,6 +157,9 @@ list(const char * tabname,
             break;
         case NdbDictionary::Object::FKChildTrigger:
             strcpy(type, "FKChildTrigger");
+            break;
+        case NdbDictionary::Object::HashMap:
+            strcpy(type, "HashMap");
             break;
         default:
 	  sprintf(type, "%d", (int)elt.type);

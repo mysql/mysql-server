@@ -39,3 +39,21 @@ Please specify database name using the -d option. Use option --help for more det
 NDBT_ProgramExit: 1 - Failed
 
 DROP DATABASE TEST_DB;
+create temporary table if not exists ndb_show_tables_results (
+id int,
+type varchar(20),
+state varchar(20),
+logging varchar(20),
+_database varchar(255),
+_schema varchar(20),
+name varchar(255)
+);
+
+ndb_show_tables completed.....
+
+select type from ndb_show_tables_results
+where type like '%HashMap%'
+limit 1;
+type
+'HashMap'
+drop table ndb_show_tables_results;
