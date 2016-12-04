@@ -1495,6 +1495,7 @@ register sopno size;
 
         DBUG_EXECUTE_IF("bug24449090_simulate_oom",
                         {
+                          free(p->strip);
                           p->strip= NULL;
                           p->ssize= 0;
                           SETERROR(MY_REG_ESPACE);
