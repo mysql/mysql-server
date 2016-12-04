@@ -11548,7 +11548,7 @@ struct innodb_dd_table_t {
 /** The hard-coded data dictionary tables */
 static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("version", 1),
-	INNODB_DD_TABLE("character_sets", 3),
+	INNODB_DD_TABLE("character_sets", 2),
 	INNODB_DD_TABLE("collations", 3),
 	INNODB_DD_TABLE("tablespaces", 2),
 	INNODB_DD_TABLE("tablespace_files", 2),
