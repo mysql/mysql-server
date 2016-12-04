@@ -4777,7 +4777,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
                         List<Create_field> *create_list, const Key_spec *key,
                         KEY **key_info_buffer, KEY *key_info,
                         KEY_PART_INFO **key_part_info,
-                        Mem_root_array<const KEY *, true> &keys_to_check,
+                        Mem_root_array<const KEY *> &keys_to_check,
                         uint key_number, const handler *file,
                         int *auto_increment)
 {
@@ -5272,7 +5272,7 @@ bool mysql_prepare_create_table(THD *thd,
   if (!*key_info_buffer || !key_part_info || !fk_key_info)
     DBUG_RETURN(true);				// Out of memory
 
-  Mem_root_array<const KEY *, true> keys_to_check(thd->mem_root);
+  Mem_root_array<const KEY *> keys_to_check(thd->mem_root);
   if (keys_to_check.reserve(*key_count))
     DBUG_RETURN(true);				// Out of memory
 

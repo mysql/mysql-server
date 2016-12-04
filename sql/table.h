@@ -88,7 +88,7 @@ namespace dd {
   enum class enum_table_type;
 }
 class Common_table_expr;
-typedef Mem_root_array_YY<LEX_CSTRING, true> Create_col_name_list;
+typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 
 typedef int64 query_id_t;
 

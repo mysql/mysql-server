@@ -3242,7 +3242,7 @@ private:
     byte position in the statement, in Item_param::itemize().
     J gets its value from I: @see Item_param::sync_clones.
   */
-  Mem_root_array<Item_param *, true> m_clones;
+  Mem_root_array<Item_param *> m_clones;
 };
 
 

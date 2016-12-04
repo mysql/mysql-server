@@ -4501,14 +4501,6 @@ in_string::in_string(THD *thd, uint elements, qsort2_cmp cmp_func,
   }
 }
 
-in_string::~in_string()
-{
-  for (uint i= 0; i < base_objects.size(); i++)
-  {
-    base_objects[i].mem_free();
-  }
-}
-
 void in_string::set(uint pos, Item *item)
 {
   String *str= base_pointers[pos];
@@ -4586,11 +4578,6 @@ in_row::in_row(THD *thd, uint elements, Item * item)
   {
     base_pointers[ix]= &base_objects[ix];
   }
-}
-
-in_row::~in_row()
-{
-  delete_container_pointers(base_pointers);
 }
 
 uchar *in_row::get_value(Item *item)

@@ -35,7 +35,7 @@ class Item;
   used only internally by the query execution engine.
 */
 
-typedef Mem_root_array<Item*, true> Func_ptr_array;
+typedef Mem_root_array<Item*> Func_ptr_array;
 
 class Temp_table_param :public Sql_alloc
 {

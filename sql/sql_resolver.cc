@@ -193,7 +193,7 @@ bool SELECT_LEX::prepare(THD *thd)
       setup_natural_join_row_types(thd, join_list, &context))
     DBUG_RETURN(true);
 
-  Mem_root_array<Item_exists_subselect *, true>
+  Mem_root_array<Item_exists_subselect *>
     sj_candidates_local(thd->mem_root);
   set_sj_candidates(&sj_candidates_local);
 

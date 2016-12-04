@@ -80,7 +80,7 @@ private:
   };
 
   /// Map argument indexes to indexes into m_paths.
-  Mem_root_array<Path_cell, true> m_arg_idx_to_vector_idx;
+  Mem_root_array<Path_cell> m_arg_idx_to_vector_idx;
 
 public:
   Json_path_cache(THD *thd, uint size);

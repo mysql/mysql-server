@@ -936,7 +936,7 @@ private:
   sp_pcontext *m_root_parsing_ctx;
 
   /// The SP-instructions.
-  Mem_root_array<sp_instr *, true> m_instructions;
+  Mem_root_array<sp_instr *> m_instructions;
 
   /**
     Multi-set representing optimized list of tables to be locked by this

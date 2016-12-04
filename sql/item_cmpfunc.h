@@ -1217,17 +1217,15 @@ class in_string final : public in_vector
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmp;
-  // DTOR is not trivial, but we manage memory ourselves.
-  Mem_root_array<String, true> base_objects;
+  Mem_root_array<String> base_objects;
   // String objects are not sortable, sort pointers instead.
-  Mem_root_array<String*, true> base_pointers;
+  Mem_root_array<String*> base_pointers;
 
   qsort2_cmp compare;
   const CHARSET_INFO *collation;
 public:
   in_string(THD *thd,
             uint elements, qsort2_cmp cmp_func, const CHARSET_INFO *cs);
-  ~in_string();
   void set(uint pos, Item *item) override;
   uchar *get_value(Item *item) override;
   Item* create_item() const override { return new Item_string(collation); }
@@ -1261,7 +1259,7 @@ protected:
   */
   packed_longlong tmp;
 
-  Mem_root_array<packed_longlong, true> base;
+  Mem_root_array<packed_longlong> base;
 
 public:
   in_longlong(THD *thd, uint elements);
@@ -1353,7 +1351,7 @@ public:
 class in_double final :public in_vector
 {
   double tmp;
-  Mem_root_array<double, true> base;
+  Mem_root_array<double> base;
 public:
   in_double(THD *thd, uint elements);
   void set(uint pos,Item *item) override;
@@ -1379,7 +1377,7 @@ public:
 class in_decimal final :public in_vector
 {
   my_decimal val;
-  Mem_root_array<my_decimal, true> base;
+  Mem_root_array<my_decimal> base;
 public:
   in_decimal(THD *thd, uint elements);
   void set(uint pos, Item *item) override;
@@ -1776,13 +1774,11 @@ public:
 class in_row final : public in_vector
 {
   cmp_item_row tmp;
-  // DTOR is not trivial, but we manage memory ourselves.
-  Mem_root_array<cmp_item_row, true> base_objects;
+  Mem_root_array<cmp_item_row> base_objects;
   // Sort pointers, rather than objects.
-  Mem_root_array<cmp_item_row*, true> base_pointers;
+  Mem_root_array<cmp_item_row*> base_pointers;
 public:
   in_row(THD *thd, uint elements, Item *);
-  ~in_row();
   void set(uint pos, Item *item) override;
   uchar *get_value(Item *item) override;
   friend bool Item_func_in::resolve_type(THD *thd);

@@ -1425,7 +1425,7 @@ public:
     or release_key() to make sure the SEL_ARG's use_count is correctly
     updated.
   */
-  Mem_root_array<SEL_ROOT *, true> keys;
+  Mem_root_array<SEL_ROOT *> keys;
   Key_map keys_map;        /* bitmask of non-NULL elements in keys */
 
   /*

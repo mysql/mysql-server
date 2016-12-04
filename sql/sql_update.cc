@@ -1241,8 +1241,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
 
   bool apply_semijoin;
 
-  Mem_root_array<Item_exists_subselect *, true>
-    sj_candidates_local(thd->mem_root);
+  Mem_root_array<Item_exists_subselect *> sj_candidates_local(thd->mem_root);
 
   Opt_trace_context * const trace= &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);

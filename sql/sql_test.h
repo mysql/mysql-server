@@ -29,7 +29,7 @@ class JOIN;
 class SELECT_LEX;
 struct TABLE_LIST;
 
-typedef Mem_root_array<Key_use, true> Key_use_array;
+typedef Mem_root_array<Key_use> Key_use_array;
 
 extern const char *lock_descriptions[TL_WRITE_ONLY + 1];
 

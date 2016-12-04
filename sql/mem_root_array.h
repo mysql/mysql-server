@@ -17,6 +17,8 @@
 #ifndef MEM_ROOT_ARRAY_INCLUDED
 #define MEM_ROOT_ARRAY_INCLUDED
 
+#include <type_traits>
+
 #include "my_alloc.h"
 #include "my_dbug.h"
 
@@ -40,7 +42,7 @@ class Empty_class {};
    (rather than memcpy()d) if the underlying array needs to be expanded.
 
    @remark
-   Depending on has_trivial_destructor, we destroy objects which are
+   Unless Element_type's destructor is trivial, we destroy objects when they are
    removed from the array (including when the array object itself is destroyed).
 
    @remark
@@ -49,17 +51,20 @@ class Empty_class {};
 
    @tparam Element_type The type of the elements of the container.
            Elements must be copyable.
-   @tparam has_trivial_destructor If true, we don't destroy elements.
-           We could have used type traits to determine this.
-           __has_trivial_destructor is supported by some (but not all)
-           compilers we use.
    @tparam Parent The parent class (e.g. Sql_alloc).
 */
 template<typename Element_type,
-         bool has_trivial_destructor = true,
          typename Parent = Empty_class>
 class Mem_root_array_YY : public Parent
 {
+  /**
+     Is Element_type trivially destructible? If it is, we don't destroy
+     elements when they are removed from the array or when the array is
+     destroyed.
+  */
+  static constexpr bool has_trivial_destructor=
+    std::is_trivially_destructible<Element_type>::value;
+
 public:
   /// Convenience typedef, same typedef name as std::vector
   typedef Element_type value_type;
@@ -277,13 +282,11 @@ private:
   @see Mem_root_array_YY.
 */
 template<typename Element_type,
-         bool has_trivial_destructor = true,
          typename Parent= Empty_class>
-class Mem_root_array : public Mem_root_array_YY<Element_type,
-                                                has_trivial_destructor,
-                                                Parent>
+class Mem_root_array : public Mem_root_array_YY<Element_type, Parent>
 {
-  typedef Mem_root_array_YY<Element_type, has_trivial_destructor, Parent> super;
+  typedef Mem_root_array_YY<Element_type, Parent> super;
+
 public:
   /// Convenience typedef, same typedef name as std::vector
   typedef Element_type value_type;

@@ -2189,7 +2189,7 @@ static const char *thread_state_info(THD *tmp)
   This class implements callback function used by mysqld_list_processes() to
   list all the client process information.
 */
-typedef Mem_root_array<thread_info*, true> Thread_info_array;
+typedef Mem_root_array<thread_info*> Thread_info_array;
 class List_process_list : public Do_THD_Impl
 {
 private:
