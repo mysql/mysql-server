@@ -2844,9 +2844,19 @@ bool recreate_table(THD *thd, const char *schema_name,
   char path[FN_REFLEN + 1];
   build_table_filename(path, sizeof(path) - 1, schema_name, table_name, "", 0);
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *table_def= nullptr;
+
+  if (thd->dd_client()->acquire_for_modification(schema_name, table_name,
+                                                 &table_def))
+    return true;
+
+  // Table must exist.
+  DBUG_ASSERT(table_def);
+
   // Attempt to reconstruct the table
   return ha_create_table(thd, path, schema_name, table_name, &create_info,
-                         true, false, nullptr);
+                         true, false, table_def);
 }
 
 

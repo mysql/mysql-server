@@ -44,7 +44,6 @@
 #include "current_thd.h"
 #include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "dd/dd.h"                    // dd::get_dictionary
-#include "dd/dd_schema.h"             // dd::Schema_MDL_locker
 #include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
 #include "dd/sdi_file.h"              // dd::sdi_file::store
 #include "dd/types/table.h"           // dd::Table
@@ -5199,7 +5198,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
   @param is_temp_table       Indicates that this is temporary table (for
                              cases when this info is not available from
                              HA_CREATE_INFO).
-  @param tmp_table_def       Data-dictionary object describing table to
+  @param table_def           Data-dictionary object describing table to
                              be used for table creation. Can be adjusted
                              by storage engine if it supports atomic DDL.
                              For non-temporary tables these changes will
@@ -5215,7 +5214,7 @@ int ha_create_table(THD *thd, const char *path,
                     HA_CREATE_INFO *create_info,
                     bool update_create_info,
                     bool is_temp_table,
-                    dd::Table *tmp_table_def)
+                    dd::Table *table_def)
 {
   int error= 1;
   TABLE table;
@@ -5231,20 +5230,7 @@ int ha_create_table(THD *thd, const char *path,
 
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  dd::Table *table_def= nullptr;
-
-  if (!tmp_table_def)
-  {
-
-    if (thd->dd_client()->acquire_for_modification(db, table_name,
-                                                   &table_def))
-    goto err;
-  }
-
-  if (open_table_def(thd, &share, false, tmp_table_def ?
-                                         tmp_table_def : table_def))
+  if (open_table_def(thd, &share, false, table_def))
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
@@ -5252,8 +5238,7 @@ int ha_create_table(THD *thd, const char *path,
 #endif
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
-                            TRUE, tmp_table_def ? tmp_table_def :
-                                                  table_def))
+                            TRUE, table_def))
   {
 #ifdef HAVE_PSI_TABLE_INTERFACE
     PSI_TABLE_CALL(drop_table_share)
@@ -5267,9 +5252,7 @@ int ha_create_table(THD *thd, const char *path,
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
-  error= table.file->ha_create(name, &table, create_info,
-                               tmp_table_def ? tmp_table_def :
-                                               table_def);
+  error= table.file->ha_create(name, &table, create_info, table_def);
 
   if (error)
   {
@@ -5281,21 +5264,19 @@ int ha_create_table(THD *thd, const char *path,
   }
   else
   {
-    // QQ: Should we move this code to helper function similar to
-    //     dd::create_table() ?
-    //
-    // The dd::Table objects for temporary tables are not stored in DD
-    // so do not need DD update.
-    // The dd::Table objects representing the DD tables themselves cannot
-    // be stored until the DD tables have been created in the SE.
-    // We do post-create update only for engines supporting atomic
-    // DDL.
+    /*
+      We do post-create update only for engines supporting atomic DDL
+      as only such engines are allowed to update dd::Table objects in
+      handler::ha_create().
+      The dd::Table objects for temporary tables are not stored in DD
+      so do not need DD update.
+      The dd::Table objects representing the DD tables themselves cannot
+      be stored until the DD tables have been created in the SE.
+    */
     if (!((create_info->options & HA_LEX_CREATE_TMP_TABLE) || is_temp_table ||
           dd::get_dictionary()->is_dd_table_name(db, table_name)) &&
         (table.file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL))
     {
-      Disable_gtid_state_update_guard disabler(thd);
-
       if(thd->dd_client()->update<dd::Table>(table_def))
         error= 1;
     }

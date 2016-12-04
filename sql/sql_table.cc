@@ -2108,12 +2108,25 @@ static bool rea_create_table(THD *thd, const char *path,
 
   if (!no_ha_table)
   {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    dd::Table *table_def= tmp_table_ptr.get();
+
+    if (!table_def)
+    {
+      if (thd->dd_client()->acquire_for_modification(db, table_name,
+                                                     &table_def))
+        goto err;
+
+      // Table just has been created in DD.
+      DBUG_ASSERT(table_def);
+    }
+
     if ((create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
         create_info->db_type->post_ddl)
       *post_ddl_ht= create_info->db_type;
 
     if(ha_create_table(thd, path, db, table_name, create_info,
-                       false, false, tmp_table_ptr.get()))
+                       false, false, table_def))
     {
       goto err;
     }
@@ -12021,9 +12034,21 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    dd::Table *table_def= tmp_table_def;
+    if (!table_def)
+    {
+      if (thd->dd_client()->acquire_for_modification<dd::Table>(
+                              alter_ctx.new_db, alter_ctx.tmp_name,
+                              &table_def))
+        goto err_new_table_cleanup;
+
+      DBUG_ASSERT(table_def);
+    }
+
     if (ha_create_table(thd, alter_ctx.get_tmp_path(),
                         alter_ctx.new_db, alter_ctx.tmp_name,
-                        create_info, false, false, tmp_table_def))
+                        create_info, false, false, table_def))
       goto err_new_table_cleanup;
 
     /* Mark that we have created table in storage engine. */
@@ -12033,7 +12058,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     {
       if (!open_table_uncached(thd, alter_ctx.get_tmp_path(),
                                alter_ctx.new_db, alter_ctx.tmp_name,
-                               true, true, tmp_table_def))
+                               true, true, table_def))
         goto err_new_table_cleanup;
       /* in case of alter temp table send the tracker in OK packet */
       if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
@@ -12062,13 +12087,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     {
       /* table is a normal table: Create temporary table in same directory */
       /* Open our intermediate table. */
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-      const dd::Table *table_def= nullptr;
-      if (thd->dd_client()->acquire<dd::Table>(alter_ctx.new_db,
-                                               alter_ctx.tmp_name,
-                                               &table_def))
-        goto err_new_table_cleanup;
-
       new_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
                                      alter_ctx.new_db, alter_ctx.tmp_name,
                                      true, true, table_def);
