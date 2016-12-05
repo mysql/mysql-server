@@ -996,18 +996,19 @@ trx_purge_mark_undo_for_truncate(
 	/* Find an undo tablespace with size > threshold.
 	Avoid bias selection and so start the scan from immediate
 	next of last UNDO tablespace selected for truncate. */
-	space_id_t space_id = undo_trunc->get_scan_next();
+	space_id_t space_id = undo_trunc->get_scan_space_id();
 	space_id_t first_space_id_scanned = space_id;
 	do {
 		if (fil_space_get_size(space_id)
 		    > (srv_max_undo_tablespace_size / srv_page_size)) {
 			/* Tablespace qualifies for truncate. */
+			undo_trunc->increment_scan();
 			undo_trunc->mark(space_id);
 			undo::add_space_to_construction_list(space_id);
 			break;
 		}
 
-		space_id = undo_trunc->get_scan_next();
+		space_id = undo_trunc->increment_scan();
 
 	} while (space_id != first_space_id_scanned);
 
@@ -1178,7 +1179,6 @@ trx_purge_initiate_truncate(
 		/* rseg still holds active data.*/
 		return;
 	}
-
 
 	/* Step-3: Start the actual truncate.
 	a. log-checkpoint

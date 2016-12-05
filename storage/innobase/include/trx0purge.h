@@ -338,18 +338,24 @@ namespace undo {
 				srv_purge_rseg_truncate_frequency);
 		}
 
-		/** Get the next tablespace ID while scanning in a round-robin
-		fashion.
-		@return	id of UNDO tablespace to start scanning from. */
-		space_id_t get_scan_next() const
+		/** Get the tablespace ID to start a scan.
+		@return	UNDO space_id to start scanning. */
+		space_id_t get_scan_space_id() const
+		{
+			return(trx_sys_undo_spaces->at(s_scan_pos));
+		}
+
+		/** Increment the scanning position in a round-robin fashion.
+		@return	UNDO space_id at incremented scanning position. */
+		space_id_t increment_scan() const
 		{
 			/** Round-robin way of selecting an undo tablespace
 			for the truncate operation. Once we reach the end of
 			the list of active undo tablespace IDs, move back to
 			the first undo tablespace ID. */
-			s_scan_pos %= trx_sys_undo_spaces->size();
+			++s_scan_pos %= trx_sys_undo_spaces->size();
 
-			return(trx_sys_undo_spaces->at(s_scan_pos++));
+			return(get_scan_space_id());
 		}
 
 		/** Get local rseg purge truncate frequency
