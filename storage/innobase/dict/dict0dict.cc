@@ -2778,10 +2778,13 @@ dict_index_add_to_cache_w_vcol(
 				dict_v_idx_list::iterator	it;
 
 				for (it = vcol->v_indexes->begin();
-				     it != vcol->v_indexes->end(); ++it) {
+				     it != vcol->v_indexes->end();) {
 					dict_v_idx_t	v_index = *it;
 					if (v_index.index == index) {
-						vcol->v_indexes->erase(it);
+						vcol->v_indexes->erase(it++);
+					}
+					else {
+						it++;
 					}
 				}
 			}
