@@ -1691,6 +1691,18 @@ SELECT MAX(i), c FROM t1
 WHERE c != 'qux' AND ( SELECT SUM(j) FROM t1, t2 ) IS NOT NULL GROUP BY c;
 drop table t1,t2;
 
+--echo #
+--echo # ONLY_FULL_GROUP_BY references
+--echo #
+
+set @save_sql_mode = @@sql_mode;
+set sql_mode='ONLY_FULL_GROUP_BY';
+create table t1 (a int, b int);
+select a+b as x from t1 group by x having x > 1;
+select a as x from t1 group by x having x > 1;
+select a from t1 group by a having a > 1;
+drop table t1;
+set sql_mode= @save_sql_mode;
 #
 # End of MariaDB 5.5 tests
 #

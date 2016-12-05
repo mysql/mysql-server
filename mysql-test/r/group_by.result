@@ -2517,3 +2517,17 @@ MAX(i)	c
 0	bar
 7	foo
 drop table t1,t2;
+#
+# ONLY_FULL_GROUP_BY references
+#
+set @save_sql_mode = @@sql_mode;
+set sql_mode='ONLY_FULL_GROUP_BY';
+create table t1 (a int, b int);
+select a+b as x from t1 group by x having x > 1;
+x
+select a as x from t1 group by x having x > 1;
+x
+select a from t1 group by a having a > 1;
+a
+drop table t1;
+set sql_mode= @save_sql_mode;

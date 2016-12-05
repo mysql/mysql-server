@@ -796,3 +796,50 @@ A.DIVISION=C1.DIVISION AND A.RECEIVABLE_GROUP=C1.RECEIVABLE_GROUP AND A.CREDIT_L
 ORDER BY TOTAL DESC;
 
 DROP TABLES t1,t2;
+
+--echo #
+--echo # MDEV-10663: Use of Inline table columns in HAVING clause
+--echo # throws 1463 Error
+--echo #
+
+set @save_sql_mode = @@sql_mode;
+set sql_mode='ONLY_FULL_GROUP_BY,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+
+CREATE TABLE `example1463` (
+  `Customer` varchar(255) NOT NULL,
+  `DeliveryStatus` varchar(255) NOT NULL,
+  `OrderSize` int(11) NOT NULL
+);
+INSERT INTO example1463 VALUES ('Charlie', 'Success', 100);
+INSERT INTO example1463 VALUES ('David', 'Success', 110);
+INSERT INTO example1463 VALUES ('Charlie', 'Failed', 200);
+INSERT INTO example1463 VALUES ('David', 'Success', 100);
+INSERT INTO example1463 VALUES ('David', 'Unknown', 100);
+INSERT INTO example1463 VALUES ('Edward', 'Success', 150);
+INSERT INTO example1463 VALUES ('Edward', 'Pending', 150);
+
+SELECT Customer, Success, SUM(OrderSize)
+ FROM (SELECT Customer,
+ CASE WHEN DeliveryStatus='Success' THEN 'Yes' ELSE 'No' END AS Success,
+ OrderSize
+ FROM example1463) as subQ
+ GROUP BY Success, Customer
+ WITH ROLLUP;
+SELECT Customer, Success, SUM(OrderSize)
+ FROM (SELECT Customer,
+ CASE WHEN DeliveryStatus='Success' THEN 'Yes' ELSE 'No' END AS Success,
+ OrderSize
+ FROM example1463) as subQ
+ GROUP BY Success, Customer;
+SELECT Customer, Success, SUM(OrderSize)
+ FROM (SELECT Customer,
+ CASE WHEN DeliveryStatus='Success' THEN 'Yes' ELSE 'No' END AS Success,
+ OrderSize
+ FROM example1463) as subQ
+ GROUP BY Success, Customer
+ HAVING Success IS NOT NULL;
+
+DROP TABLE example1463;
+set sql_mode= @save_sql_mode;
+
+--echo # end of 5.5
