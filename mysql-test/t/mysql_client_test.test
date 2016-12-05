@@ -36,3 +36,30 @@ echo ok;
 SET @@global.general_log= @old_general_log;
 SET @@global.slow_query_log= @old_slow_query_log;
 #set @@global.show_compatibility_56=@show_compatibility_56_save;
+
+
+--echo #
+--echo # Bug#24963580 INFORMATION_SCHEMA:MDL_REQUEST::
+--echo # INIT_WITH_SOURCE(MDL_KEY::ENUM_MDL_NAMESPACE
+--echo #
+
+--echo # Restart server with --lower-case-table-names=1
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart: --lower-case-table-names=1 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Run the single test.
+--echo # Following command would crash if run without fix.
+--exec $MYSQL_CLIENT_TEST test_bug24963580 >> $MYSQLTEST_VARDIR/log/mysql_client_test.out.log 2>&1
+
+--echo # Restart server without --lower-case-table-names
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
