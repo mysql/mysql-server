@@ -2127,8 +2127,7 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
       DBUG_ASSERT(uncommitted_object != nullptr);
 
       // Check proper MDL lock.
-      // TODO: Disable in WL#7743-merge.
-      // DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, uncommitted_object));
+      DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, uncommitted_object));
 
       // Get a committed version of the object and invalidate it.
       // Note that we have to access m_registry_committed directly

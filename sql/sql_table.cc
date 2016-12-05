@@ -9274,19 +9274,16 @@ static bool mysql_inplace_alter_table(THD *thd,
   }
 
   {
-  dd::Schema_MDL_locker mdl_locker_1(thd), mdl_locker_2(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   const dd::Table *old_table_def= nullptr;
-  if (mdl_locker_1.ensure_locked(table->s->db.str) ||
-      thd->dd_client()->acquire<dd::Table>(table->s->db.str,
+  if (thd->dd_client()->acquire<dd::Table>(table->s->db.str,
                                            table->s->table_name.str,
                                            &old_table_def))
     goto cleanup;
 
   dd::Table *altered_table_def= nullptr;
-  if (mdl_locker_2.ensure_locked(alter_ctx->new_db) ||
-      thd->dd_client()->acquire_for_modification(alter_ctx->new_db,
+  if (thd->dd_client()->acquire_for_modification(alter_ctx->new_db,
                           alter_ctx->tmp_name, &altered_table_def))
     goto cleanup;
 
@@ -11292,6 +11289,20 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   Alter_table_ctx alter_ctx(thd, table_list, tables_opened, new_db, new_name);
 
   /*
+    Acquire and keep schema locks until commit time, so the DD layer can
+    safely assert that we have proper MDL on objects stored in the DD.
+  */
+  dd::Schema_MDL_locker mdl_locker_1(thd), mdl_locker_2(thd);
+  /*
+    This releaser allows us to keep uncommitted DD objects cached
+    in the Dictionary_client until commit time.
+  */
+  dd::cache::Dictionary_client::Auto_releaser releaser2(thd->dd_client());
+  if (mdl_locker_1.ensure_locked(alter_ctx.db) ||
+      mdl_locker_2.ensure_locked(alter_ctx.new_db))
+    DBUG_RETURN(true);
+
+  /*
     Add old and new (if any) databases to the list of accessed databases
     for this statement. Needed for MTS.
   */
@@ -11741,8 +11752,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                       thd->variables.lock_wait_timeout))
       DBUG_RETURN(true);
   }
-
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   tmp_disable_binlog(thd);
 
