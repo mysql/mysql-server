@@ -12,7 +12,7 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
 21	mysql/catalogs	33	7	7	Dynamic	0	Single
 22	mysql/schemata	33	9	8	Dynamic	0	Single
 23	mysql/st_spatial_reference_systems	33	12	9	Dynamic	0	Single
-24	mysql/tables	33	34	10	Dynamic	0	Single
+24	mysql/tables	33	35	10	Dynamic	0	Single
 25	mysql/view_table_usage	33	7	11	Dynamic	0	Single
 26	mysql/view_routine_usage	33	7	12	Dynamic	0	Single
 27	mysql/columns	33	31	13	Dynamic	0	Single
@@ -140,6 +140,7 @@ table_id	pos	mtype	prtype	len	name
 24	28	12	5443599	279	view_definer
 24	29	6	1544	8	view_client_collation_id
 24	30	6	1544	8	view_connection_collation_id
+24	31	5	5439740	12	view_column_names
 25	0	6	1800	8	view_id
 25	1	12	5439759	192	table_catalog
 25	2	12	5439759	192	table_schema
@@ -1034,7 +1035,7 @@ mysql/st_spatial_reference_systems	33	12
 mysql/table_partition_values	33	8
 mysql/table_partitions	33	14
 mysql/table_stats	33	15
-mysql/tables	33	34
+mysql/tables	33	35
 mysql/tables_priv	33	11
 mysql/tablespace_files	33	7
 mysql/tablespaces	33	9

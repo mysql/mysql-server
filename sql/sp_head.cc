@@ -2026,7 +2026,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   Query_arena execute_arena(&execute_mem_root, STMT_INITIALIZED_FOR_SP),
               backup_arena;
   query_id_t old_query_id;
-  TABLE *old_derived_tables;
   LEX *old_lex;
   Item_change_list old_change_list;
   String old_packet;
@@ -2125,8 +2124,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     be able properly do close_thread_tables() in instructions.
   */
   old_query_id= thd->query_id;
-  old_derived_tables= thd->derived_tables;
-  thd->derived_tables= 0;
   save_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
   /**
@@ -2336,8 +2333,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   old_change_list.move_elements_to(&thd->change_list);
   thd->lex= old_lex;
   thd->set_query_id(old_query_id);
-  DBUG_ASSERT(!thd->derived_tables);
-  thd->derived_tables= old_derived_tables;
   thd->variables.sql_mode= save_sql_mode;
   thd->pop_reprepare_observer();
 

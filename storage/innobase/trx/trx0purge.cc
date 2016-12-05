@@ -23,11 +23,13 @@ Purge old versions
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <new>
 
-#include "trx0purge.h"
 #include "fsp0fsp.h"
+#include "fsp0sysspace.h"
+#include "fsp0types.h"
 #include "fut0fut.h"
+#include "ha_prototypes.h"
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "os0thread.h"
@@ -36,11 +38,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "row0purge.h"
 #include "row0upd.h"
 #include "srv0mon.h"
-#include "fsp0sysspace.h"
-#include "fsp0types.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0sync.h"
+#include "trx0purge.h"
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0rseg.h"
@@ -731,7 +732,7 @@ namespace undo {
 		/* Step-2: Create the log file, open it and write 0 to
 		indicate init phase. */
 		bool            ret;
-		os_file_t	handle = os_file_create(
+		os_pfs_file_t	handle = os_file_create(
 			innodb_log_file_key, log_file_name, OS_FILE_CREATE,
 			OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
 		if (!ret) {
@@ -797,7 +798,7 @@ namespace undo {
 		/* Open log file and write magic number to indicate
 		done phase. */
 		bool	ret;
-		os_file_t	handle =
+		os_pfs_file_t	handle =
 			os_file_create_simple_no_error_handling(
 				innodb_log_file_key, log_file_name,
 				OS_FILE_OPEN, OS_FILE_READ_WRITE,
@@ -866,7 +867,7 @@ namespace undo {
 
 		if (exist) {
 			bool    ret;
-			os_file_t	handle =
+			os_pfs_file_t	handle =
 				os_file_create_simple_no_error_handling(
 					innodb_log_file_key, log_file_name,
 					OS_FILE_OPEN, OS_FILE_READ_WRITE,
@@ -995,18 +996,19 @@ trx_purge_mark_undo_for_truncate(
 	/* Find an undo tablespace with size > threshold.
 	Avoid bias selection and so start the scan from immediate
 	next of last UNDO tablespace selected for truncate. */
-	space_id_t space_id = undo_trunc->get_scan_next();
+	space_id_t space_id = undo_trunc->get_scan_space_id();
 	space_id_t first_space_id_scanned = space_id;
 	do {
 		if (fil_space_get_size(space_id)
 		    > (srv_max_undo_tablespace_size / srv_page_size)) {
 			/* Tablespace qualifies for truncate. */
+			undo_trunc->increment_scan();
 			undo_trunc->mark(space_id);
 			undo::add_space_to_construction_list(space_id);
 			break;
 		}
 
-		space_id = undo_trunc->get_scan_next();
+		space_id = undo_trunc->increment_scan();
 
 	} while (space_id != first_space_id_scanned);
 
@@ -1177,7 +1179,6 @@ trx_purge_initiate_truncate(
 		/* rseg still holds active data.*/
 		return;
 	}
-
 
 	/* Step-3: Start the actual truncate.
 	a. log-checkpoint

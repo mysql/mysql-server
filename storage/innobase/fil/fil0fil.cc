@@ -533,15 +533,13 @@ Try and enable FusionIO atomic writes.
 @param[in] file		OS file handle
 @return true if successful */
 bool
-fil_fusionio_enable_atomic_write(os_file_t file)
+fil_fusionio_enable_atomic_write(os_pfs_file_t file)
 {
 	if (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
 
 		uint	atomic = 1;
-
-		ut_a(file != -1);
-
-		if (ioctl(file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic) != -1) {
+		ut_a(file.m_file != -1);
+		if (ioctl(file.m_file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic) != -1) {
 
 			return(true);
 		}
@@ -3229,7 +3227,7 @@ fil_ibd_create(
 	ulint		flags,
 	page_no_t	size)
 {
-	os_file_t	file;
+	os_pfs_file_t	file;
 	dberr_t		err;
 	byte*		buf2;
 	byte*		page;
@@ -3295,8 +3293,7 @@ fil_ibd_create(
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 	if (fil_fusionio_enable_atomic_write(file)) {
 
-		/* This is required by FusionIO HW/Firmware */
-		int	ret = posix_fallocate(file, 0, size * UNIV_PAGE_SIZE);
+		int     ret = posix_fallocate(file.m_file, 0, size * UNIV_PAGE_SIZE);
 
 		if (ret != 0) {
 
@@ -3348,8 +3345,7 @@ fil_ibd_create(
 	if (punch_hole) {
 
 		dberr_t	punch_err;
-
-		punch_err = os_file_punch_hole(file, 0, size * UNIV_PAGE_SIZE);
+		punch_err = os_file_punch_hole(file.m_file, 0, size * UNIV_PAGE_SIZE);
 
 		if (punch_err != DB_SUCCESS) {
 			punch_hole = false;
@@ -3389,7 +3385,7 @@ fil_ibd_create(
 			fsp_is_checksum_disabled(space_id));
 
 		err = os_file_write(
-			request, path, file, page, 0, page_size.physical());
+		request, path, file, page, 0, page_size.physical());
 
 		ut_ad(err != DB_IO_NO_PUNCH_HOLE);
 
@@ -4154,7 +4150,7 @@ fil_write_zeros(
 			request, node->name, node->handle, buf, offset,
 			n_bytes);
 #else
-		err = os_aio(
+		err = os_aio_func(
 			request, OS_AIO_SYNC, node->name,
 			node->handle, buf, offset, n_bytes, read_only_mode,
 			NULL, NULL);
@@ -4273,7 +4269,7 @@ retry:
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 		/* This is required by FusionIO HW/Firmware */
-		int	ret = posix_fallocate(node->handle, node_start, len);
+		int     ret = posix_fallocate(node->handle.m_file, node_start, len);
 
 		/* We already pass the valid offset and len in, if EINVAL
 		is returned, it could only mean that the file system doesn't
@@ -5094,7 +5090,7 @@ fil_flush(
 					the database) */
 {
 	fil_node_t*	node;
-	os_file_t	file;
+	os_pfs_file_t	file;
 
 	mutex_enter(&fil_system->mutex);
 
@@ -5477,7 +5473,7 @@ fil_buf_block_init(
 }
 
 struct fil_iterator_t {
-	os_file_t	file;			/*!< File handle */
+	os_pfs_file_t	file;			/*!< File handle */
 	const char*	filepath;		/*!< File path name */
 	os_offset_t	start;			/*!< From where to start */
 	os_offset_t	end;			/*!< Where to stop */
@@ -5658,7 +5654,7 @@ fil_tablespace_iterate(
 	PageCallback&	callback)
 {
 	dberr_t		err;
-	os_file_t	file;
+	os_pfs_file_t	file;
 	char*		filepath;
 	bool		success;
 

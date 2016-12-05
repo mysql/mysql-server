@@ -25,16 +25,6 @@
 #include "i_serialized_object.h"
 #include "buffered_file_io.h"
 
-#if !defined(MERGE_UNITTESTS)
-#ifdef HAVE_PSI_INTERFACE
-namespace keyring
-{
-  PSI_memory_key key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
-  PSI_memory_key key_LOCK_keyring = PSI_NOT_INSTRUMENTED;
-}
-#endif
-mysql_rwlock_t LOCK_keyring;
-#endif
 
 namespace keyring__keys_container_unittest
 {
@@ -1413,10 +1403,4 @@ namespace keyring__keys_container_unittest
     delete mock_serializer;
   }
 
-  int main(int argc, char **argv) {
-    if (mysql_rwlock_init(key_LOCK_keyring, &LOCK_keyring))
-      return TRUE;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-  }
 }

@@ -58,6 +58,7 @@ struct TABLE_SHARE;
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
+#include "mem_root_array.h"
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
@@ -86,6 +87,8 @@ namespace dd {
 
   enum class enum_table_type;
 }
+class Common_table_expr;
+typedef Mem_root_array_YY<LEX_CSTRING, true> Create_col_name_list;
 
 typedef int64 query_id_t;
 
@@ -381,6 +384,18 @@ enum enum_table_category
     Note that LOCK TABLE t FOR READ/WRITE
     can be used on temporary tables.
     Temporary tables are not part of the table cache.
+
+    2016-06-14 Contrary to what's written in these comments, the truth is:
+    - tables created by CREATE TEMPORARY TABLE have TABLE_CATEGORY_USER
+    - tables created by create_tmp_table() (internal ones) have
+    TABLE_CATEGORY_TEMPORARY.
+    ha_innodb.cc relies on this observation (so: grep it).  If you clean this
+    up, you may also want to look at 'no_tmp_table'; its enum values' meanings
+    have degraded over time: INTERNAL_TMP_TABLE is not used for some internal
+    tmp tables (derived tables). Unification of both enums would be
+    great. Whatever the result, we need to be able to distinguish the two
+    types of temporary tables above, as usage patterns are more restricted for
+    the second type, and allow more optimizations.
   */
   TABLE_CATEGORY_TEMPORARY=1,
 
@@ -693,7 +708,16 @@ struct TABLE_SHARE
   enum row_type real_row_type;
   enum tmp_table_type tmp_table;
 
-  uint ref_count;                       /* How many TABLE objects uses this */
+  /// How many TABLE objects use this.
+  uint ref_count;
+  /**
+    Only for internal temporary tables.
+    Count of TABLEs (having this TABLE_SHARE) which have a "handler"
+    (table->file!=nullptr).
+  */
+  uint tmp_handler_count;
+  uint temp_pool_slot;                         ///< Used by intern temp tables
+
   uint key_block_size;			/* create key_block_size, if used */
   uint stats_sample_pages;		/* number of pages to sample during
 					stats estimation, if used, otherwise 0. */
@@ -708,11 +732,21 @@ struct TABLE_SHARE
   uint max_key_length;                  /* Length of the longest key */
   uint max_unique_length;               /* Length of the longest unique key */
   uint total_key_length;
-  uint uniques;                         /* Number of UNIQUE index */
   uint null_fields;			/* number of null fields */
   uint blob_fields;			/* number of blob fields */
   uint varchar_fields;                  /* number of varchar fields */
   /**
+    For materialized derived tables; @see add_derived_key().
+    'first' means: having the lowest position in key_info.
+  */
+  uint first_unused_tmp_key;
+  /**
+     For materialized derived tables: maximum size of key_info array. Used for
+     debugging purpose only.
+  */
+  uint max_tmp_keys;
+
+/**
     Bitmap with flags representing some of table options/attributes.
 
     @sa HA_OPTION_PACK_RECORD, HA_OPTION_PACK_KEYS, ...
@@ -838,6 +872,8 @@ struct TABLE_SHARE
   */
   dd::Table *tmp_table_def;
 
+  /// For materialized derived tables; @see add_derived_key().
+  SELECT_LEX *owner_of_possible_tmp_keys;
 
   /**
     Set share's table cache key and update its db and table name appropriately.
@@ -983,6 +1019,8 @@ struct TABLE_SHARE
     DBUG_ASSERT(primary_key <= MAX_KEY);
     return primary_key == MAX_KEY;
   }
+
+  uint find_first_unused_tmp_key(const Key_map &k);
 
   bool visit_subgraph(Wait_for_flush *waiting_ticket,
                       MDL_wait_for_graph_visitor *gvisitor);
@@ -1262,7 +1300,6 @@ public:
   uint          lock_position;          /* Position in MYSQL_LOCK.table */
   uint          lock_data_start;        /* Start pos. in MYSQL_LOCK.locks */
   uint          lock_count;             /* Number of locks */
-  uint          temp_pool_slot;		/* Used by intern temp tables */
   uint		db_stat;		/* mode of file as in handler.h */
   int		current_lock;           /* Type of lock on table */
 
@@ -1304,6 +1341,7 @@ public:
   my_bool force_index_group;
   my_bool distinct;
   my_bool const_table;
+  /// True if writes to this table should not write rows and just write keys.
   my_bool no_rows;
 
   /**
@@ -1339,10 +1377,15 @@ public:
   */
   my_bool m_needs_reopen;
 private:
-  bool created; /* For tmp tables. TRUE <=> tmp table has been instantiated.*/
+  /**
+    For tmp tables. TRUE <=> tmp table has been instantiated.
+    Also indicates that table was successfully opened since
+    we immediately delete tmp tables which we fail to open.
+  */
+  bool created;
 public:
-  uint max_keys; /* Size of allocated key_info array. */
-
+  /// For a materializable derived or SJ table: true if has been materialized
+  bool materialized;
   struct /* field connections */
   {
     class JOIN_TAB *join_tab;
@@ -1431,9 +1474,11 @@ public:
   /// @returns count of visible fields
   uint visible_field_count() const
   { return s->fields - hidden_field_count; }
-  bool alloc_keys(uint key_count);
-  bool add_tmp_key(Field_map *key_parts, char *key_name);
-  void use_index(int key_to_save);
+  bool alloc_tmp_keys(uint key_count, bool modify_share);
+  bool add_tmp_key(Field_map *key_parts, char *key_name,
+                   bool invisible,bool modify_share);
+  void copy_tmp_key(int old_idx, bool modify_share);
+  void drop_unused_tmp_keys(bool modify_share);
 
   void set_keyread(bool flag)
   {
@@ -1493,7 +1538,7 @@ public:
   */
   void set_deleted()
   {
-    created= false;
+    created= materialized= false;
   }
   /// Set table as nullable, ie it is inner wrt some outer join
   void set_nullable() { nullable= TRUE; }
@@ -1932,10 +1977,13 @@ struct TABLE_LIST
     a schema table.
     A table is also considered to be a placeholder if it does not have a
     TABLE object for some other reason.
+    A recursive reference in a CTE is also a placeholder: it doesn't need any
+    locking, binary logging...
   */
   bool is_placeholder() const
   {
-    return is_view_or_derived() || schema_table || !table;
+    return is_view_or_derived() || schema_table || !table ||
+      is_recursive_reference;
   }
 
   /// Produce a textual identification of this object
@@ -2126,6 +2174,15 @@ struct TABLE_LIST
     return derived;
   }
 
+  /// Save names of materialized table @see reset_name_temporary
+  void save_name_temporary()
+  {
+    view_db.str= db;
+    view_db.length= db_length;
+    view_name.str= table_name;
+    view_name.length= table_name_length;
+  }
+
   /// Set temporary name from underlying temporary table:
   void set_name_temporary()
   {
@@ -2140,14 +2197,20 @@ struct TABLE_LIST
   void reset_name_temporary()
   {
     DBUG_ASSERT(is_view_or_derived() && uses_materialization());
-    DBUG_ASSERT(db != view_db.str && table_name != view_name.str);
-    if (is_view())
+    /*
+      When printing a query using a view or CTE, we need the table's name and
+      the alias; the name has been destroyed if the table was materialized,
+      so we restore it:
+    */
+    DBUG_ASSERT(table_name != view_name.str);
+    table_name= view_name.str;
+    table_name_length= view_name.length;
+    if (is_view()) // restore database's name too
     {
+      DBUG_ASSERT(db != view_db.str);
       db= view_db.str;
       db_length= view_db.length;
     }
-    table_name= view_name.str;
-    table_name_length= view_name.length;
   }
 
   /// Resolve a derived table or view reference
@@ -2215,8 +2278,19 @@ struct TABLE_LIST
     m_table_ref_version= table_ref_version_arg;
   }
 
-  /// returns query block id for derived table, and zero if not derived.
+  /**
+     If a derived table, returns query block id of first underlying query block.
+     Zero if not derived.
+  */
   uint query_block_id() const;
+
+
+  /**
+     This is for showing in EXPLAIN.
+     If a derived table, returns query block id of first underlying query block
+     of first materialized TABLE_LIST instance. Zero if not derived.
+  */
+  uint query_block_id_for_explain() const;
 
   /**
      @brief Returns the name of the database that the referenced table belongs
@@ -2240,6 +2314,7 @@ struct TABLE_LIST
 
   /// Setup a derived table to use materialization
   bool setup_materialized_derived(THD *thd);
+  bool setup_materialized_derived_tmp_table(THD *thd);
 
   bool create_field_translation(THD *thd);
 
@@ -2468,12 +2543,23 @@ private:
      This field is set to non-null for derived tables and views. It points
      to the SELECT_LEX_UNIT representing the derived table/view.
      E.g. for a query
-     
      @verbatim SELECT * FROM (SELECT a FROM t1) b @endverbatim
-     
-     @note Inside views, a subquery in the @c FROM clause is not allowed.
   */
   SELECT_LEX_UNIT *derived;		/* SELECT_LEX_UNIT of derived table */
+
+  /// If non-NULL, the CTE which this table is derived from.
+  Common_table_expr *m_common_table_expr;
+  /**
+    If the user has specified column names with the syntaxes "table name
+    parenthesis column names":
+    WITH qn(column names) AS (select...)
+    or
+    FROM (select...) dt(column names)
+    or
+    CREATE VIEW v(column_names) AS ...
+    then this points to the list of column names. NULL otherwise.
+  */
+  const Create_col_name_list *m_derived_column_names;
 
 public:
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
@@ -2720,6 +2806,17 @@ public:
     return m_map;
   }
 
+  /// If non-NULL, the CTE which this table is derived from.
+  Common_table_expr *common_table_expr() const { return m_common_table_expr; }
+  void set_common_table_expr(Common_table_expr *c)
+  { m_common_table_expr= c; }
+  /// @see m_derived_column_names
+  const Create_col_name_list *derived_column_names() const
+  { return m_derived_column_names; }
+  void set_derived_column_names(const Create_col_name_list *d)
+  { m_derived_column_names= d; }
+
+
 private:
   /*
     A group of members set and used only during JOIN::optimize().
@@ -2735,12 +2832,14 @@ public:
 
   COND_EQUAL    *cond_equal;            ///< Used with outer join
   /// true <=> this table is a const one and was optimized away.
-  bool optimized_away;
+  bool          optimized_away;
   /**
     true <=> all possible keys for a derived table were collected and
     could be re-used while statement re-execution.
   */
-  bool derived_keys_ready;
+  bool          derived_keys_ready;
+  /// If a recursive reference inside the definition of a CTE.
+  bool          is_recursive_reference;
   // End of group for optimization
 
 private:
@@ -3171,7 +3270,8 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                                size_t key_length);
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           size_t key_length,
-                          const char *table_name, const char *path);
+                          const char *table_name, const char *path,
+                          MEM_ROOT *mem_root);
 void free_table_share(TABLE_SHARE *share);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 Ident_name_check check_and_convert_db_name(LEX_STRING *db,
@@ -3286,6 +3386,73 @@ inline bool is_temporary_table(TABLE_LIST *tl)
 
   return tl->table->s->tmp_table != NO_TMP_TABLE;
 }
+
+
+/**
+  After parsing, a Common Table Expression is accessed through a
+  TABLE_LIST. This class contains all information about the CTE which the
+  TABLE_LIST needs.
+
+  @note that before and during parsing, the CTE is described by a
+  PT_common_table_expr.
+*/
+class Common_table_expr
+{
+public:
+  Common_table_expr(MEM_ROOT *mem_root) : references(mem_root),
+    recursive(false), tmp_tables(mem_root)
+    {}
+  TABLE *clone_tmp_table(THD *thd, TABLE_LIST *tl);
+  bool substitute_recursive_reference(THD *thd, SELECT_LEX *sl);
+  /**
+     All references to this CTE in the statement, except those inside the
+     query expression defining this CTE.
+     In other words, all non-recursive references.
+  */
+  Mem_root_array<TABLE_LIST *> references;
+  /// True if it's a recursive CTE
+  bool recursive;
+  /**
+    List of all TABLE_LISTSs reading/writing to the tmp table created to
+    materialize this CTE. Due to shared materialization, only the first one
+    has a TABLE generated by create_tmp_table(); other ones have a TABLE
+    generated by open_table_from_share().
+  */
+  Mem_root_array<TABLE_LIST *> tmp_tables;
+};
+
+
+/**
+   This iterates on those references to a derived table / view / CTE which are
+   materialized.
+   Upon construction it is passed a non-recursive materialized reference
+   to the derived table (TABLE_LIST*).
+   For a CTE it may return more than one reference; for a derived table or a
+   view, there is only one (as references to a same view are treated as
+   independent objects).
+   References are returned as TABLE*.
+*/
+class Derived_refs_iterator
+{
+  TABLE_LIST *const start; ///< The reference provided in construction.
+  int ref_idx; ///< Current index in cte->tmp_tables
+public:
+  explicit Derived_refs_iterator(TABLE_LIST *start_arg) :
+  start(start_arg), ref_idx(-1)
+  {}
+  TABLE *get_next()
+  {
+    ref_idx++;
+    const Common_table_expr *cte= start->common_table_expr();
+    if (!cte)
+      return (ref_idx < 1) ? start->table : nullptr;
+    return ((uint)ref_idx < cte->tmp_tables.size()) ?
+      cte->tmp_tables[ref_idx]->table : nullptr;
+  }
+  void rewind() { ref_idx= -1; }
+  /// @returns true if the last get_next() returned the first element.
+  bool is_first() const { return ref_idx == 0; }
+};
 
 //////////////////////////////////////////////////////////////////////////
 

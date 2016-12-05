@@ -605,8 +605,26 @@ bool Explain::explain_subqueries()
     if (context == CTX_NONE)
       context= CTX_OPTIMIZED_AWAY_SUBQUERY;
 
+    uint derived_clone_id= 0;
+    bool is_derived_clone= false;
+    if (context == CTX_DERIVED)
+    {
+      TABLE_LIST *tl= unit->derived_table;
+      derived_clone_id= tl->query_block_id_for_explain();
+      DBUG_ASSERT(derived_clone_id);
+      is_derived_clone= derived_clone_id != tl->query_block_id();
+      if (is_derived_clone && !fmt->is_hierarchical())
+      {
+        // Don't show underlying tables of derived table clone
+        continue;
+      }
+    }
+
     if (fmt->begin_context(context, unit))
       return true;
+
+    if (is_derived_clone)
+      fmt->entry()->derived_clone_id= derived_clone_id;
 
     if (mysql_explain_unit(thd, unit))
       return true;
@@ -1264,6 +1282,17 @@ bool Explain_join::shallow_explain()
 
   join_entry->col_read_cost.set(join->best_read);
 
+  if (select_lex->is_recursive())
+  {
+    /*
+      This will add the "recursive" word to:
+      - the block of the JOIN, in JSON format
+      - the first table of the JOIN, in TRADITIONAL format.
+    */
+    if (push_extra(ET_RECURSIVE))
+      return true;                              /* purecov: inspected */
+  }
+
   LEX const*query_lex= join->thd->query_plan.get_lex();
   if (query_lex->insert_table_leaf &&
       query_lex->insert_table_leaf->select_lex == join->select_lex)
@@ -1418,10 +1447,10 @@ bool Explain_join::explain_table_name()
   {
     /* Derived table name generation */
     char table_name_buffer[NAME_LEN];
-    const size_t len= my_snprintf(table_name_buffer,
-                                  sizeof(table_name_buffer) - 1,
-                                  "<derived%u>",
-                                  table->pos_in_table_list->query_block_id());
+    const size_t len=
+      my_snprintf(table_name_buffer, sizeof(table_name_buffer) - 1,
+                  "<derived%u>",
+                  table->pos_in_table_list->query_block_id_for_explain());
     return fmt->entry()->col_table_name.set(table_name_buffer, len);
   }
   else
@@ -1704,8 +1733,8 @@ bool Explain_join::explain_extra()
           char namebuf[NAME_LEN];
           /* Derived table name generation */
           size_t len= my_snprintf(namebuf, sizeof(namebuf)-1,
-              "<derived%u>",
-              prev_table->pos_in_table_list->query_block_id());
+                                  "<derived%u>",
+              prev_table->pos_in_table_list->query_block_id_for_explain());
           buff.append(namebuf, len);
         }
         else

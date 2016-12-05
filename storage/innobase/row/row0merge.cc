@@ -872,19 +872,24 @@ row_merge_dup_report(
 
 /*************************************************************//**
 Compare two tuples.
+@param[in]	index	index tree
+@param[in]	n_uniq	number of unique fields
+@param[in]	n_field	number of fields
+@param[in]	a	first tuple to be compared
+@param[in]	b	second tuple to be compared
+@param[in,out]	dup	for reporting duplicates, NULL if non-unique index
 @return positive, 0, negative if a is greater, equal, less, than b,
 respectively */
 static MY_ATTRIBUTE((warn_unused_result))
 int
 row_merge_tuple_cmp(
 /*================*/
-	const dict_index_t*	index,	/*< in: index tree */
-	ulint			n_uniq,	/*!< in: number of unique fields */
-	ulint                   n_field,/*!< in: number of fields */
-	const mtuple_t&		a,	/*!< in: first tuple to be compared */
-	const mtuple_t&		b,	/*!< in: second tuple to be compared */
-	row_merge_dup_t*	dup)	/*!< in/out: for reporting duplicates,
-					NULL if non-unique index */
+	const dict_index_t*	index,
+	ulint			n_uniq,
+	ulint                   n_field,
+	const mtuple_t&		a,
+	const mtuple_t&		b,
+	row_merge_dup_t*	dup)
 {
 	int			cmp;
 	const dfield_t*		af	= a.fields;
@@ -1088,6 +1093,7 @@ row_merge_read(
 	row_merge_block_t*	buf)	/*!< out: data */
 {
 	os_offset_t	ofs = ((os_offset_t) offset) * srv_sort_buf_size;
+	dberr_t		err;
 
 	DBUG_ENTER("row_merge_read");
 	DBUG_PRINT("ib_merge_sort", ("fd=%d ofs=" UINT64PF, fd, ofs));
@@ -1098,9 +1104,10 @@ row_merge_read(
 	/* Merge sort pages are never compressed. */
 	request.disable_compression();
 
-	dberr_t	err = os_file_read_no_error_handling(
+	err = os_file_read_no_error_handling_int_fd(
 		request,
-		OS_FILE_FROM_FD(fd), buf, ofs, srv_sort_buf_size, NULL);
+		fd, buf, ofs, srv_sort_buf_size, NULL);
+
 #ifdef POSIX_FADV_DONTNEED
 	/* Each block is read exactly once.  Free up the file cache. */
 	posix_fadvise(fd, ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
@@ -1126,6 +1133,7 @@ row_merge_write(
 {
 	size_t		buf_len = srv_sort_buf_size;
 	os_offset_t	ofs = buf_len * (os_offset_t) offset;
+	dberr_t		err;
 
 	DBUG_ENTER("row_merge_write");
 	DBUG_PRINT("ib_merge_sort", ("fd=%d ofs=" UINT64PF, fd, ofs));
@@ -1135,9 +1143,9 @@ row_merge_write(
 
 	request.disable_compression();
 
-	dberr_t	err = os_file_write(
+	err = os_file_write_int_fd(
 		request,
-		"(merge)", OS_FILE_FROM_FD(fd), buf, ofs, buf_len);
+		"(merge)", fd, buf, ofs, buf_len);
 
 #ifdef POSIX_FADV_DONTNEED
 	/* The block will be needed on the next merge pass,
@@ -3774,14 +3782,21 @@ row_merge_file_create_low(
 	performance schema */
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
-	register_pfs_file_open_begin(&state, locker, innodb_temp_file_key,
-				     PSI_FILE_OPEN,
-				     "Innodb Merge Temp File",
-				     __FILE__, __LINE__);
+	locker = PSI_FILE_CALL(get_thread_file_name_locker)(
+				&state, innodb_temp_file_key, PSI_FILE_OPEN,
+				"Innodb Merge Temp File", &locker);
+	if (locker != NULL) {
+		PSI_FILE_CALL(start_file_open_wait)(locker,
+						__FILE__,
+						__LINE__);
+	}
 #endif
 	fd = innobase_mysql_tmpfile(path);
 #ifdef UNIV_PFS_IO
-	register_pfs_file_open_end(locker, fd);
+	 if (locker != NULL) {
+		PSI_FILE_CALL(end_file_open_wait_and_bind_to_descriptor)(
+				locker, fd);
+		}
 #endif
 
 	if (fd < 0) {
@@ -3825,15 +3840,20 @@ row_merge_file_destroy_low(
 #ifdef UNIV_PFS_IO
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
-	register_pfs_file_io_begin(&state, locker,
-				   fd, 0, PSI_FILE_CLOSE,
-				   __FILE__, __LINE__);
+	locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(
+			       &state, fd, PSI_FILE_CLOSE);
+	if (locker != NULL) {
+		PSI_FILE_CALL(start_file_wait)(
+			      locker, 0, __FILE__, __LINE__);
+	}
 #endif
 	if (fd >= 0) {
 		close(fd);
 	}
 #ifdef UNIV_PFS_IO
-	register_pfs_file_io_end(locker, 0);
+	if (locker != NULL) {
+		PSI_FILE_CALL(end_file_wait)(locker, 0);
+	}
 #endif
 }
 /*********************************************************************//**

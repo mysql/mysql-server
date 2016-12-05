@@ -91,7 +91,6 @@
 #include "mysqld.h"                            // ER
 #include "mysqld_error.h"
 #include "mysqld_thd_manager.h"                // Global_THD_manager
-#include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "protocol_classic.h"

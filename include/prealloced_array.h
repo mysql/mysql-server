@@ -51,7 +51,7 @@
   removed from the array (including when the array object itself is destroyed).
 
   @tparam Element_type The type of the elements of the container.
-          Elements must be copyable.
+          Elements must be copyable or movable.
   @tparam Prealloc Number of elements to pre-allocate.
   @tparam Has_trivial_destructor If true, we don't destroy elements.
           We could have used type traits to determine this.
@@ -214,6 +214,10 @@ public:
   iterator end()   { return m_array_ptr + size(); }
   const_iterator begin() const { return m_array_ptr; }
   const_iterator end()   const { return m_array_ptr + size(); }
+  /// Returns a constant pointer to the first element in the array.
+  const_iterator cbegin() const { return begin(); }
+  /// Returns a constant pointer to the past-the-end element in the array.
+  const_iterator cend() const { return end(); }
 
   /**
     Assigns a value to an arbitrary element, even where n >= size().
@@ -435,18 +439,16 @@ public:
     The removed element is destroyed.
     This effectively reduces the container size by one.
 
-    This is generally an inefficient operation, since we need to copy
-    elements to fill the "hole" in the array.
+    This is generally an inefficient operation, since we need to move
+    or copy elements to fill the "hole" in the array.
 
-    We use std::copy to move objects, hence Element_type must be assignable.
+    We use std::move to move objects, hence Element_type must be
+    move-assignable.
   */
-  iterator erase(iterator position)
+  iterator erase(const_iterator position)
   {
     DBUG_ASSERT(position != end());
-    if (position + 1 != end())
-      std::copy(position + 1, end(), position);
-    this->pop_back();
-    return position;
+    return erase(position - begin());
   }
 
   /**
@@ -455,7 +457,11 @@ public:
   iterator erase(size_t ix)
   {
     DBUG_ASSERT(ix < size());
-    return erase(begin() + ix);
+    iterator pos= begin() + ix;
+    if (pos + 1 != end())
+      std::move(pos + 1, end(), pos);
+    pop_back();
+    return pos;
   }
 
   /**
@@ -463,9 +469,9 @@ public:
     The removed elements are destroyed.
     This effectively reduces the containers size by 'end() - first'.
    */
-  void erase_at_end(iterator first)
+  void erase_at_end(const_iterator first)
   {
-    iterator last= end();
+    const_iterator last= cend();
     const difference_type diff= last - first;
     if (!Has_trivial_destructor)
     {
@@ -480,16 +486,24 @@ public:
     The removed elements are destroyed.
     This effectively reduces the containers size by 'last - first'.
 
-    This is generally an inefficient operation, since we need to copy
-    elements to fill the "hole" in the array.
+    This is generally an inefficient operation, since we need to move
+    or copy elements to fill the "hole" in the array.
 
-    We use std::copy to move objects, hence Element_type must be assignable.
+    We use std::move to move objects, hence Element_type must be
+    move-assignable.
    */
-  iterator erase(iterator first, iterator last)
+  iterator erase(const_iterator first, const_iterator last)
   {
+    /*
+      std::move() wants non-const input iterators, otherwise it cannot move and
+      must always copy the elements. Convert first and last from const_iterator
+      to iterator.
+    */
+    iterator start= begin() + (first - cbegin());
+    iterator stop= begin() + (last - cbegin());
     if (first != last)
-      erase_at_end(std::copy(last, end(), first));
-    return first;
+      erase_at_end(std::move(stop, end(), start));
+    return start;
   }
 
   /**

@@ -79,6 +79,7 @@
 #include <mysqld_error.h>
 #include <sql_common.h>
 #include <algorithm>
+#include <new>
 
 using std::min;
 using std::max;

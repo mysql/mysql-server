@@ -292,6 +292,18 @@ SHOW CREATE TRIGGER triggers.t1_bi;
 #I_S query to check Foreign_keys
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE
  CONSTRAINT_SCHEMA='foreign_keys' ORDER BY CONSTRAINT_SCHEMA,CONSTRAINT_NAME;
+
+#Check that views with column names are correct
+
+SHOW CREATE VIEW view_with_column_names.v1;
+SELECT * FROM view_with_column_names.v1;
+SHOW CREATE VIEW view_with_column_names.v2;
+SELECT * FROM view_with_column_names.v2;
+SHOW CREATE VIEW view_with_column_names.v3;
+SELECT * FROM view_with_column_names.v3;
+SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
+TABLE_SCHEMA='view_with_column_names';
+
 --echo # Stop the server
 --source include/shutdown_mysqld.inc
 

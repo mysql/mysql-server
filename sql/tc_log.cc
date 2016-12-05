@@ -32,6 +32,7 @@
 #include "my_compiler.h"
 #include "my_thread_local.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"         // mysql_data_home
 #include "psi_memory_key.h" // key_memory_TC_LOG_MMAP_pages
@@ -40,9 +41,6 @@
 #include "thr_mutex.h"
 #include "transaction_info.h"
 #include "xa.h"
-
-#include "pfs_file_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_file.h"
 
 TC_LOG::enum_result TC_LOG_DUMMY::commit(THD *thd, bool all)
 {

@@ -54,6 +54,7 @@
 #include "my_thread_local.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_mutex.h"
@@ -115,7 +116,6 @@
 #include "dd/types/table.h"           // dd::Table
 #include "mutex_lock.h"
 #include "mysql/psi/mysql_file.h"
-#include "pfs_table_provider.h"
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE and
@@ -788,6 +788,7 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
       }
       else if (table_list->belong_to_view)
       {
+        // Mention the top view in message, to not reveal underlying views.
         TABLE_LIST *view= table_list->belong_to_view;
         thd->clear_error();
         my_error(ER_VIEW_INVALID, MYF(0),
@@ -1523,37 +1524,6 @@ void close_thread_tables(THD *thd)
       table->file->extra(HA_EXTRA_DETACH_CHILDREN);
       table->cleanup_gc_items();
     }
-  }
-
-  /*
-    We are assuming here that thd->derived_tables contains ONLY derived
-    tables for this substatement. i.e. instead of approach which uses
-    query_id matching for determining which of the derived tables belong
-    to this substatement we rely on the ability of substatements to
-    save/restore thd->derived_tables during their execution.
-
-    TODO: Probably even better approach is to simply associate list of
-          derived tables with (sub-)statement instead of thread and destroy
-          them at the end of its execution.
-  */
-  if (thd->derived_tables)
-  {
-    TABLE *next;
-    /*
-      Close all derived tables generated in queries like
-      SELECT * FROM (SELECT * FROM t1)
-    */
-    for (table= thd->derived_tables ; table ; table= next)
-    {
-      next= table->next;
-
-      // Restore original name of materialized table
-      if (!table->pos_in_table_list->schema_table)
-        table->pos_in_table_list->reset_name_temporary();
-
-      free_tmp_table(thd, table);
-    }
-    thd->derived_tables= 0;
   }
 
   /*
@@ -2917,8 +2887,9 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     some statements if it is a temporary table.
 
     open_temporary_table() must be used to open temporary tables.
+    A derived table cannot be opened with this.
   */
-  DBUG_ASSERT(!table_list->table);
+  DBUG_ASSERT(!table_list->table && !table_list->is_derived());
 
   /* an open table operation needs a lot of the stack space */
   if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (uchar *)&alias))
@@ -5118,7 +5089,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
 */
 
 static bool
-open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
+open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
                        uint *counter, uint flags,
                        Prelocking_strategy *prelocking_strategy,
                        bool has_prelocking_list,
@@ -5133,10 +5104,13 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
     Ignore placeholders for derived tables. After derived tables
     processing, link to created temporary table will be put here.
     If this is derived table for view then we still want to process
-    routines used by this view.
+    routines used by this view; for a non-view derived table, those routines
+    are already part of the containing query's structures.
   */
   if (tables->is_derived())
     goto end;
+
+  DBUG_ASSERT(!tables->common_table_expr());
 
   /*
     If this TABLE_LIST object is a placeholder for an information_schema
@@ -7108,7 +7082,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   memcpy(saved_cache_key, cache_key, key_length);
 
   init_tmp_table_share(thd, share, saved_cache_key, key_length,
-                       strend(saved_cache_key)+1, tmp_path);
+                       strend(saved_cache_key)+1, tmp_path, nullptr);
 
   if (open_table_def(thd, share, false, table_def))
   {

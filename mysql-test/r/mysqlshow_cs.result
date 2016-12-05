@@ -136,6 +136,7 @@ Database: information_schema
 | STATISTICS                            |
 | STATISTICS_BASE                       |
 | STATISTICS_DYNAMIC                    |
+| ST_GEOMETRY_COLUMNS                   |
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
 | TABLES                                |
 | TABLESPACES                           |
@@ -207,6 +208,7 @@ Database: INFORMATION_SCHEMA
 | STATISTICS                            |
 | STATISTICS_BASE                       |
 | STATISTICS_DYNAMIC                    |
+| ST_GEOMETRY_COLUMNS                   |
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
 | TABLES                                |
 | TABLESPACES                           |

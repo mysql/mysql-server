@@ -110,7 +110,6 @@ void item_init(void);			/* Init item functions */
 */
 #define COND_FILTER_STALE_NO_CONST -2.0f
 
-
 static inline uint32
 char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
 {
@@ -3130,7 +3129,7 @@ public:
   */
   uint pos_in_query;
 
-  Item_param(const POS &pos, uint pos_in_query_arg);
+  Item_param(const POS &pos, MEM_ROOT *root, uint pos_in_query_arg);
 
   bool itemize(Parse_context *pc, Item **item) override;
 
@@ -3199,6 +3198,12 @@ public:
   /** Item is a argument to a limit clause. */
   bool limit_clause_param;
   void set_param_type_and_swap_value(Item_param *from);
+  /**
+    This should be called after any modification done to this Item, to
+    propagate the said modification to all its clones.
+  */
+  void sync_clones();
+  bool add_clone(Item_param *i) { return m_clones.push_back(i); }
 
 private:
   Settable_routine_parameter *get_settable_routine_parameter() override
@@ -3217,6 +3222,27 @@ public:
 
 private:
   Send_field *m_out_param_info;
+  /**
+    If a query expression's text QT, containing a parameter, is internally
+    duplicated and parsed twice (@see reparse_common_table_expression), the
+    first parsing will create an Item_param I, and the re-parsing, which
+    parses a forged "(QT)" parse-this-CTE type of statement, will create an
+    Item_param J. J should not exist:
+    - from the point of view of logging: it is not in the original query so it
+    should not be substituted in the query written to logs (in insert_params()
+    if with_log is true).
+    - from the POV of query cache matching (same).
+    - from the POV of the user:
+        * user provides one single value for I, not one for I and one for J.
+        * user expects mysql_stmt_param_count() to return 1, not 2 (count is
+        sent by the server in send_prep_stmt()).
+    That is why J is part neither of LEX::param_list, nor of param_array; it
+    is considered an inferior clone of I; I::m_clones contains J.
+    The connection between I and J is made once, by comparing their
+    byte position in the statement, in Item_param::itemize().
+    J gets its value from I: @see Item_param::sync_clones.
+  */
+  Mem_root_array<Item_param *, true> m_clones;
 };
 
 

@@ -46,6 +46,8 @@
 #include "mysqld_error.h"
 #include "opt_explain.h"                        // explain_no_table
 #include "opt_explain_format.h"
+#include "error_handler.h"                      // Strict_error_handler
+#include "debug_sync.h"                         // DEBUG_SYNC
 #include "parse_tree_node_base.h"
 #include "query_options.h"
 #include "sql_base.h"                           // fill_record
@@ -80,16 +82,24 @@ bool Query_result_union::send_data(List<Item> &values)
     return false;
 
   const int error= table->file->ha_write_row(table->record[0]);
-  if (error)
+  if (!error)
   {
-    // create_ondisk_from_heap will generate error if needed
-    if (!table->file->is_ignorable_error(error) &&
-        create_ondisk_from_heap(thd, table, tmp_table_param.start_recinfo, 
-                                &tmp_table_param.recinfo, error, true, NULL))
+    m_rows_in_table++;
+    return false;
+  }
+  // create_ondisk_from_heap will generate error if needed
+  if (!table->file->is_ignorable_error(error))
+  {
+    bool is_duplicate;
+    if (create_ondisk_from_heap(thd, table, tmp_table_param.start_recinfo,
+                                &tmp_table_param.recinfo, error, true,
+                                &is_duplicate))
       return true;            /* purecov: inspected */
     // Table's engine changed, index is not initialized anymore
     if (table->hash_field)
       table->file->ha_index_init(0, false);
+    if (!is_duplicate)
+      m_rows_in_table++;
   }
   return false;
 }
@@ -123,7 +133,6 @@ bool Query_result_union::flush()
   @param options            create options
   @param table_alias        name of the temporary table
   @param bit_fields_as_long convert bit fields to ulonglong
-
   @param create_table If false, a table handler will not be created when
                       creating the result table.
 
@@ -148,7 +157,29 @@ bool Query_result_union::create_result_table(THD *thd_arg,
                     *column_types, false, true);
   tmp_table_param.skip_create_table= !create_table;
   tmp_table_param.bit_fields_as_long= bit_fields_as_long;
-  tmp_table_param.can_use_pk_for_unique= !is_union_mixed_with_union_all;
+  if (unit != nullptr)
+  {
+    if (unit->is_recursive())
+    {
+      /*
+        If the UNIQUE key specified for UNION DISTINCT were a primary key in
+        InnoDB, rows would be returned by the scan in an order depending on
+        their columns' values, not in insertion order.
+      */
+      tmp_table_param.can_use_pk_for_unique= false;
+      tmp_table_param.allow_scan_from_position= true;
+    }
+    if (unit->mixed_union_operators())
+    {
+      /*
+        Generally, UNIQUE key can be promoted to PK, saving the space
+        consumption of a hidden PK. However, if the query mixes UNION ALL and
+        UNION DISTINCT, the PK will be disabled at some point in execution,
+        which InnoDB doesn't support as it uses a clustered PK. Then, no PK:
+      */
+      tmp_table_param.can_use_pk_for_unique= false;
+    }
+  }
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  NULL, is_union_distinct, true,
@@ -408,6 +439,8 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg)
   fake_select_lex->table_list.link_in_list(&result_table_list,
                                            &result_table_list.next_local);
 
+  result_table_list.select_lex= fake_select_lex;
+
   // Set up the result table for name resolution
   fake_select_lex->context.table_list= 
     fake_select_lex->context.first_name_resolution_table= 
@@ -446,6 +479,17 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg)
               fake_select_lex->where_cond() == NULL &&
               fake_select_lex->having_cond() == NULL);
 
+  if (is_recursive())
+  {
+    /*
+      The fake_select_lex's JOIN is going to read result_table_list
+      repeatedly, so this table has all the attributes of a recursive
+      reference:
+    */
+    result_table_list.is_recursive_reference= true;
+    fake_select_lex->recursive_reference= &result_table_list;
+  }
+
   if (fake_select_lex->prepare(thd_arg))
     DBUG_RETURN(true);
 
@@ -454,7 +498,9 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg)
 
 
 /**
-  Prepares all query blocks of a query expression, including fake_select_lex
+  Prepares all query blocks of a query expression, including
+  fake_select_lex. If a recursive query expression, this also creates the
+  materialized temporary table.
 
   @param thd_arg       Thread handler
   @param sel_result    Result object where the unit's output should go.
@@ -464,13 +510,12 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg)
   @returns false if success, true if error
  */
 bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
-                                 ulonglong added_options,
-                                 ulonglong removed_options)
+                              ulonglong added_options,
+                              ulonglong removed_options)
 {
   DBUG_ENTER("SELECT_LEX_UNIT::prepare");
 
   DBUG_ASSERT(!is_prepared());
-
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select();
 
   Query_result *tmp_result;
@@ -551,10 +596,10 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
 
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
+    // All query blocks get their options in this phase
     sl->set_query_result(tmp_result);
     sl->make_active_options(added_options | SELECT_NO_UNLOCK, removed_options);
     sl->fields_list= sl->item_list;
-
     /*
       setup_tables_done_option should be set only for very first SELECT,
       because it protect from second setup_tables call for select-like non
@@ -564,6 +609,23 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     added_options&= ~OPTION_SETUP_TABLES_DONE;
 
     thd_arg->lex->set_current_select(sl);
+
+    if (sl == first_recursive)
+    {
+      // create_result_table() depends on current_select()
+      thd_arg->lex->set_current_select(lex_select_save);
+      /*
+        All next query blocks will read the temporary table, which we must
+        thus create now:
+      */
+      if (derived_table->setup_materialized_derived_tmp_table(thd_arg))
+        goto err;                               /* purecov: inspected */
+      thd_arg->lex->set_current_select(sl);
+    }
+
+    if (sl->recursive_reference) // Make tmp table known to query block:
+      derived_table->common_table_expr()->
+        substitute_recursive_reference(thd_arg, sl);
 
     if (sl->prepare(thd_arg))
       goto err;
@@ -581,11 +643,22 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
       Item *item_tmp;
       while ((item_tmp= it++))
       {
-	/* Error's in 'new' will be detected after loop */
-	types.push_back(new Item_type_holder(thd_arg, item_tmp));
+        auto holder= new Item_type_holder(thd_arg, item_tmp);
+        if (!holder)
+          goto err;                             /* purecov: inspected */
+        if (is_recursive())
+        {
+          holder->maybe_null= true; // Always nullable, per SQL standard.
+          /*
+            The UNION code relies on join_types() to change some
+            transitional types like MYSQL_TYPE_DATETIME2 into other types; in
+            case this is the only nonrecursive query block join_types() won't
+            be called so we need an explicit call:
+          */
+          holder->join_types(thd_arg, item_tmp);
+        }
+	types.push_back(holder);
       }
-      if (thd_arg->is_error())
-	goto err; // out of memory
     }
     else
     {
@@ -594,15 +667,46 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
 	my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
 	goto err;
       }
-      List_iterator_fast<Item> it(sl->item_list);
-      List_iterator_fast<Item> tp(types);	
-      Item *type, *item_tmp;
-      while ((type= tp++, item_tmp= it++))
+      if (sl->recursive_reference)
       {
-        if (((Item_type_holder*)type)->join_types(thd_arg, item_tmp))
-	  DBUG_RETURN(true);
+        /*
+          Recursive query blocks don't determine output types of the result.
+          The only thing to check could be if the recursive query block has a
+          type which can't be cast to the output type of the result.
+          But in MySQL, all types can be cast to each other (at least during
+          resolution; an error may reported when trying to actually insert, for
+          example an INT into a POINT). So no further compatibility check is
+          needed here.
+        */
+      }
+      else
+      {
+        List_iterator_fast<Item> it(sl->item_list);
+        List_iterator_fast<Item> tp(types);
+        Item *type, *item_tmp;
+        while ((type= tp++, item_tmp= it++))
+        {
+          if (((Item_type_holder*)type)->join_types(thd_arg, item_tmp))
+            goto err;
+        }
       }
     }
+
+    if (sl->recursive_reference && sl->is_grouped())
+    {
+      // Per SQL2011. Window functions are also forbidden.
+      my_error(ER_CTE_RECURSIVE_FORBIDS_AGGREGATION, MYF(0),
+               derived_table->alias);
+      goto err;
+    }
+
+  }
+
+  if (is_recursive())
+  {
+    // This had to wait until all query blocks are prepared:
+    if (check_materialized_derived_query_blocks(thd_arg))
+      goto err;                                 /* purecov: inspected */
   }
 
   /*
@@ -610,7 +714,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     preparation of the underlying Query_result until column types are known.
   */
   if (union_result != NULL && union_result->postponed_prepare(types))
-    DBUG_RETURN(true);
+    goto err;
 
   if (!simple_query_expression)
   {
@@ -644,12 +748,6 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     if (fake_select_lex && fake_select_lex->ftfunc_list->elements)
       create_options|= TMP_TABLE_FORCE_MYISAM;
 
-    if (union_distinct)
-    {
-      // Mixed UNION and UNION ALL
-      if (union_distinct != last_select)
-        union_result->is_union_mixed_with_union_all= true;
-    }
     if (union_result->create_result_table(thd, &types, MY_TEST(union_distinct),
                                           create_options, "", false,
                                           instantiate_tmp_table))
@@ -690,7 +788,8 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
 
   thd_arg->lex->set_current_select(lex_select_save);
 
-  set_prepared();          // All query blocks prepared, update the state
+  // Query blocks are prepared, update the state
+  set_prepared();
 
   DBUG_RETURN(false);
 
@@ -827,6 +926,283 @@ bool SELECT_LEX_UNIT::explain(THD *ethd)
 
 
 /**
+   Helper class for SELECT_LEX_UNIT::execute(). Manages executions of
+   non-recursive and recursive query blocks (if any).
+
+   There are two possible flows of data rows for recursive CTEs:
+
+   1) Assuming QB1 UNION ALL QBR2 UNION ALL QBR3, where QBRi are recursive, we
+   have a single tmp table (the derived table's result):
+
+   QB1 appends rows to tmp table.
+   Label eval_recursive_members:
+   QBR2 reads tmp table and appends new rows to it; it also reads its own
+   new rows, etc (loop back) until no more rows.
+   QBR3 same.
+   If rows have been inserted since we passed the label, go to the label.
+
+   2) Assuming QB1 UNION DISTINCT QBR2 UNION DISTINCT QBR3, where QBRi are
+   recursive, we have two tmp tables (the union-distinct's result UR and, at
+   the external layer, the derived table's result DR; UR has a unique index);
+   FAKE is the fake_select_lex:
+
+   QB1 appends rows to UR.
+   FAKE reads from UR and appends to DR.
+   Label eval_recursive_members:
+   QBR2 reads DR and appends new rows to UR; thus it does not read its own
+   new rows as they are not in DR yet.
+   QBR3 same.
+   FAKE reads from UR and appends to DR.
+   If rows have been inserted into DR since we passed the label, go to the
+   label.
+
+   In both flows, sub_select() is used to read the recursive reference with a
+   table scan. It reads until there are no more rows, which could be simply
+   implemented by reading until the storage engine reports EOF, but is
+   not. The reason is that storage engines (MEMORY, InnoDB) have behaviour at
+   EOF which isn't compatible with the requirement to catch up with new rows:
+   1) In both engines, when they report EOF, the scan stays blocked at EOF
+   forever even if rows are later inserted. In detail, this happens because
+   heap_scan() unconditionally increments info->current_record, and because
+   InnoDB has a supremum record.
+   2) Specifically for the MEMORY engine: the UNION DISTINCT table of a
+   recursive CTE receives interlaced writes (which can hit a duplicate key)
+   and reads. A read cursor is corrupted by a write if there is a duplicate key
+   error. Scenario:
+      - write 'A'
+      - write 'A': allocates a record, hits a duplicate key error, leaves
+      the allocated place as "deleted record".
+      - init scan
+      - read: finds 'A' at #0
+      - read: finds deleted record at #1, properly skips over it, moves to EOF
+      - even if we save the read position at this point, it's "after #1"
+      - close scan
+      - write 'B': takes the place of deleted record, i.e. writes at #1
+      - write 'C': writes at #2
+      - init scan, reposition at saved position
+      - read: still after #1, so misses 'B'.
+     In this scenario, the table is formed of real records followed by
+     deleted records and then EOF.
+   3) To avoid those problems, sub_select() stops reading when it has read the
+   count of real records in the table, thus engines never hit EOF or a deleted
+   record.
+*/
+class Recursive_executor
+{
+private:
+  SELECT_LEX_UNIT *const unit;
+  THD *const thd;
+  /// Count of executions of recursive members.
+  uint iteration_counter;
+  Strict_error_handler strict_handler;
+  enum_check_fields save_count_cuted_fields;
+  sql_mode_t save_sql_mode;
+  bool disabled_trace, pop_handler;
+  /**
+    If recursive, count of rows in the temporary table when the current
+    iteration started.
+  */
+  ha_rows row_count;
+  TABLE *table;                                 ///< Table for result of union
+  handler *cached_file;                         ///< 'handler' of 'table'
+  /// Space to store a row position (InnoDB uses 6 bytes, MEMORY uses 8)
+  uchar row_ref[8];
+
+public:
+
+  Recursive_executor(SELECT_LEX_UNIT *unit_arg, THD *thd_arg) :
+    unit(unit_arg), thd(thd_arg), iteration_counter(0),
+    strict_handler(Strict_error_handler::ENABLE_SET_SELECT_STRICT_ERROR_HANDLER),
+    disabled_trace(false), pop_handler(false),
+    row_count(0), table(nullptr), cached_file(nullptr)
+  {
+    TRASH(row_ref, sizeof(row_ref));
+  }
+
+  bool initialize(TABLE *table_arg)
+  {
+    if (!unit->is_recursive())
+      return false;
+
+    /*
+      For RECURSIVE, beginners will forget that:
+      - the CTE's column types are defined by the non-recursive member
+      - which implies that recursive member's selected expressions are cast to
+      the non-recursive member's type.
+      That will cause silent truncation and possibly an infinite recursion due
+      to a condition like: 'LENGTH(growing_col) < const', or,
+      'growing_col < const',
+      which is always satisfied due to truncation.
+
+      This situation is similar to
+      create table t select "x" as a;
+      insert into t select concat("x",a) from t;
+      which sends ER_DATA_TOO_LONG in strict mode.
+
+      So we should inform the user.
+
+      If we only raised warnings: it will not interrupt an infinite recursion,
+      a MAX_RECURSION hint (if we featured one) may interrupt; but then the
+      warnings won't be seen, as the interruption will raise an error. So
+      warnings are useless.
+      Instead, we send a truncation error: it is visible, indicates the
+      source of the problem, and is consistent with the INSERT case above.
+
+      Usually, truncation in SELECT triggers an error only in
+      strict mode; but if we don't send an error we get a runaway query;
+      and as WITH RECURSIVE is a new feature we don't have to carry the
+      permissiveness of the past, so we send an error even if in non-strict
+      mode.
+
+      For a non-recursive UNION, truncation shouldn't happen as all UNION
+      members participated in type calculation.
+    */
+    if (thd->is_strict_mode())
+    {
+      pop_handler= true;
+      save_count_cuted_fields= thd->count_cuted_fields;
+      thd->count_cuted_fields= CHECK_FIELD_WARN;
+      thd->push_internal_handler(&strict_handler);
+    }
+
+    for (SELECT_LEX *sl= unit->first_recursive; sl; sl= sl->next_select())
+    {
+      TABLE_LIST *tl= sl->recursive_reference;
+      DBUG_ASSERT(tl && tl->table &&
+                  // returns rows in insertion order:
+                  tl->table->s->primary_key == MAX_KEY);
+      if (open_tmp_table(tl->table))
+        return true;                            /* purecov: inspected */
+    }
+    unit->got_all_recursive_rows= false;
+    table= table_arg;
+    return false;
+  }
+
+  /// @returns Query block to execute first, in current phase
+  SELECT_LEX *first_select() const
+  {
+    return (iteration_counter == 0) ?
+      unit->first_select() : unit->first_recursive;
+  }
+
+  /// @returns Query block to execute last, in current phase
+  SELECT_LEX *last_select() const
+  {
+    return (iteration_counter == 0) ? unit->first_recursive : nullptr;
+  }
+
+  /// @returns true if more iterations are needed
+  bool more_iterations()
+  {
+    if (!unit->is_recursive())
+      return false;
+
+    iteration_counter++;
+
+    if (iteration_counter == 3)
+    {
+      DEBUG_SYNC(thd, "in_WITH_RECURSIVE");
+    }
+
+    ha_rows new_row_count= *unit->query_result()->row_count();
+    if (row_count == new_row_count)
+    {
+      // nothing new
+      if (unit->got_all_recursive_rows)
+        return false; // The final iteration is done.
+      unit->got_all_recursive_rows= true;
+      // Do a final iteration, just to get table free-ing/unlocking:
+      return true;
+    }
+    row_count= new_row_count;
+#ifdef OPTIMIZER_TRACE
+    Opt_trace_context &trace= thd->opt_trace;
+    if (iteration_counter == 2 &&
+        !trace.feature_enabled(Opt_trace_context::REPEATED_SUBSELECT))
+    {
+      disabled_trace= true;
+      trace.disable_I_S_for_this_and_children();
+    }
+#endif
+    return true;
+  }
+
+  /**
+    fake_select_lex is going to read rows which appeared since the previous
+    pass. So it needs to re-establish the scan where it had left.
+  */
+  bool prepare_for_scan()
+  {
+    if (cached_file == nullptr)
+      return false;
+    DBUG_ASSERT(iteration_counter > 0);
+    int error;
+    if (cached_file == table->file)
+    {
+      DBUG_ASSERT(!cached_file->inited);
+      error= cached_file->ha_rnd_init(false);
+      DBUG_ASSERT(!error);
+      error= cached_file->ha_rnd_pos(table->record[0], row_ref);
+    }
+    else
+    {
+      // Since last pass of reads, MEMORY changed to InnoDB:
+      QEP_TAB *qep_tab= table->reginfo.qep_tab;
+      error= reposition_innodb_cursor(table, qep_tab->m_fetched_rows);
+    }
+    DBUG_ASSERT(!error);
+    return error;
+  }
+
+  /**
+    After fake_select_lex has done a pass of reading 'table', control will
+    soon go to recursive query blocks which may write to 'table', thus we save
+    the read-cursor's position (necessary to re-establish the scan at next
+    pass), then close the cursor (necessary to allow writes).
+    A tidy approach like this is necessary: with a single 'handler', an open
+    read-cursor cannot survive writes (example: in MEMORY, read-cursor
+    position is 'info->current_ptr' (see heap_scan()) and heap_write()
+    changes it).
+  */
+  bool save_scan_position()
+  {
+    if (!unit->is_recursive())
+      return false;
+    if (!table->file->inited)
+    {
+      // Scan is not initialized if seed SELECT returned empty result
+      cached_file= nullptr;
+      return false;
+    }
+    cached_file= table->file;
+    cached_file->position(table->record[0]);
+    DBUG_ASSERT(sizeof(row_ref) >= cached_file->ref_length);
+    memcpy(row_ref, cached_file->ref, cached_file->ref_length);
+    int error= cached_file->ha_rnd_end();
+    DBUG_ASSERT(!error);
+    return error;
+  }
+
+  ~Recursive_executor()
+  {
+    if (unit->is_recursive())
+    {
+#ifdef OPTIMIZER_TRACE
+      if (disabled_trace)
+        thd->opt_trace.restore_I_S();
+#endif
+      if (pop_handler)
+      {
+        thd->pop_internal_handler();
+        thd->count_cuted_fields= save_count_cuted_fields;
+      }
+    }
+  }
+};
+
+
+/**
   Execute a query expression that may be a UNION and/or have an ordered result.
 
   @param thd          thread handle
@@ -844,11 +1220,26 @@ bool SELECT_LEX_UNIT::execute(THD *thd)
 
   SELECT_LEX *lex_select_save= thd->lex->current_select();
 
-  bool status= false;          // Execution error status
+  if (is_executed())
+  {
+    for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+    {
+      if (sl->join->is_executed())
+      {
+        thd->lex->set_current_select(sl);
+        sl->join->reset();
+      }
+      if (fake_select_lex != nullptr)
+      {
+        thd->lex->set_current_select(fake_select_lex);
+        fake_select_lex->join->reset();
+      }
+    }
+  }
 
   // Set "executed" state, even though execution may end with an error
   set_executed();
-  
+
   if (item)
   {
     item->reset_value_registration();
@@ -868,55 +1259,76 @@ bool SELECT_LEX_UNIT::execute(THD *thd)
       DBUG_RETURN(true);       /* purecov: inspected */
   }
 
-  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  Recursive_executor recursive_executor(this, thd);
+  if (recursive_executor.initialize(table))
+    DBUG_RETURN(true);       /* purecov: inspected */
+
+  bool status= false;          // Execution error status
+
+  do
   {
-    thd->lex->set_current_select(sl);
-
-    if (sl->join->is_executed())
-      sl->join->reset();
-
-    // Set limit and offset for each execution:
-    if (set_limit(thd, sl))
-      DBUG_RETURN(true);                      /* purecov: inspected */
-
-    // Execute this query block
-    sl->join->exec();
-    status= sl->join->error != 0;
-
-    if (sl == union_distinct)
+    for (auto sl= recursive_executor.first_select();
+         sl != recursive_executor.last_select();
+         sl= sl->next_select())
     {
-      // This is UNION DISTINCT, so there should be a fake_select_lex
-      DBUG_ASSERT(fake_select_lex != NULL);
-      if (table->file->ha_disable_indexes(HA_KEY_SWITCH_ALL))
+      thd->lex->set_current_select(sl);
+
+      // Set limit and offset for each execution:
+      if (set_limit(thd, sl))
+        DBUG_RETURN(true);                      /* purecov: inspected */
+
+      // Execute this query block
+      sl->join->exec();
+      status= sl->join->error != 0;
+
+      if (sl == union_distinct && sl->next_select())
+      {
+        // This is UNION DISTINCT, so there should be a fake_select_lex
+        DBUG_ASSERT(fake_select_lex != NULL);
+        if (table->file->ha_disable_indexes(HA_KEY_SWITCH_ALL))
+          DBUG_RETURN(true); /* purecov: inspected */
+        table->no_keyread= 1;
+      }
+
+      if (status)
+        DBUG_RETURN(true);
+
+      if (union_result->flush())
         DBUG_RETURN(true); /* purecov: inspected */
-      table->no_keyread= 1;
     }
-    if (status)
-      DBUG_RETURN(true);
 
-    if (union_result->flush())
-      DBUG_RETURN(true); /* purecov: inspected */
-  }
+    if (fake_select_lex != NULL)
+    {
+      thd->lex->set_current_select(fake_select_lex);
+      if (table->hash_field) // Prepare for access method of JOIN::exec
+        table->file->ha_index_or_rnd_end();
+      if (set_limit(thd, fake_select_lex))
+        DBUG_RETURN(status);                     /* purecov: inspected */
+      JOIN *join= fake_select_lex->join;
+      if (recursive_executor.prepare_for_scan())
+        DBUG_RETURN(true);                      /* purecov: inspected */
+      join->exec();
+      status= join->error != 0;
+      if (status)
+        DBUG_RETURN(true);
+      if (recursive_executor.save_scan_position())
+        DBUG_RETURN(true);                /* purecov: inspected */
+      if (table->hash_field) // Prepare for duplicate elimination
+        table->file->ha_index_init(0, false);
+    }
 
-  if (fake_select_lex != NULL)
+  } while (recursive_executor.more_iterations());
+
+
+  if (fake_select_lex)
   {
-    thd->lex->set_current_select(fake_select_lex);
-
+    fake_select_lex->table_list.empty();
     int error= table->file->info(HA_STATUS_VARIABLE);
     if (error)
     {
       table->file->print_error(error, MYF(0)); /* purecov: inspected */
       DBUG_RETURN(true);                       /* purecov: inspected */
     }
-    // Index might have been used to weedout duplicates for UNION DISTINCT
-    table->file->ha_index_or_rnd_end();
-    if (set_limit(thd, fake_select_lex))
-      DBUG_RETURN(status);                     /* purecov: inspected */
-    JOIN *join= fake_select_lex->join;
-    join->reset();
-    join->exec();
-    status= join->error != 0;
-    fake_select_lex->table_list.empty();
     thd->current_found_rows= (ulonglong)table->file->stats.records;
   }
 
@@ -950,7 +1362,14 @@ bool SELECT_LEX_UNIT::cleanup(bool full)
     error|= sl->cleanup(full);
 
   if (fake_select_lex)
+  {
+    /*
+      Normally done at end of evaluation, but not if there was an
+      error:
+    */
+    fake_select_lex->table_list.empty();
     error|= fake_select_lex->cleanup(full);
+  }
 
   // fake_select_lex's table depends on Temp_table_param inside union_result
   if (full && union_result)
@@ -1086,6 +1505,53 @@ List<Item> *SELECT_LEX_UNIT::get_field_list()
 }
 
 
+const Query_result *SELECT_LEX_UNIT::recursive_result(SELECT_LEX *reader) const
+{
+  DBUG_ASSERT(reader->master_unit() == this && reader->is_recursive());
+  if (reader == fake_select_lex)
+    return union_result;
+  else
+    return m_query_result;
+}
+
+
+bool SELECT_LEX_UNIT::mixed_union_operators() const
+{
+  return union_distinct && union_distinct->next_select();
+}
+
+
+/**
+   Closes (and, if last reference, drops) temporary tables created to
+   materialize derived tables, schema tables and CTEs.
+
+   @param thd  Thread handler
+   @param list List of tables to search in
+*/
+static void destroy_materialized(THD *thd, TABLE_LIST *list)
+{
+  for (auto tl= list; tl; tl= tl->next_local)
+  {
+    if (tl->merge_underlying_list)
+    {
+      // Find a materialized view inside another view.
+      destroy_materialized(thd, tl->merge_underlying_list);
+    }
+    if (!tl->table)
+      continue;                                 // Not materialized
+    if (tl->is_view_or_derived())
+    {
+      tl->reset_name_temporary();
+      if (tl->common_table_expr())
+        tl->common_table_expr()->tmp_tables.clear();
+    }
+    else if (!tl->is_recursive_reference && !tl->schema_table)
+      continue;
+    free_tmp_table(thd, tl->table);
+  }
+}
+
+
 /**
   Cleanup after preparation or one round of execution.
 
@@ -1109,6 +1575,9 @@ bool SELECT_LEX::cleanup(bool full)
     else
       join->cleanup();
   }
+
+  if (full)
+    destroy_materialized(master_unit()->thd, get_table_list());
 
   for (SELECT_LEX_UNIT *lex_unit= first_inner_unit(); lex_unit ;
        lex_unit= lex_unit->next_unit())

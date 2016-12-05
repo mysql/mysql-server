@@ -40,6 +40,7 @@
 #include "xcom_base.h"
 #include "task_net.h"
 #include "node_connection.h"
+#include "node_no.h"
 
 #include <vector>
 #include <string>
@@ -790,6 +791,22 @@ public:
   */
 
   unsigned int get_size() const;
+
+
+  /**
+    Return with the configuration is valid or not.
+  */
+  inline bool is_valid() const
+  {
+    /*
+      Unfortunately a node may get notifications even when its configuration
+      inside XCOM is not properly established and this may trigger view
+      changes and may lead to problems because the node is not really ready.
+
+      We detect this fact by checking the node identification is valid.
+    */
+    return m_node_no != VOID_NODE_NO;
+  }
 
 private:
   /*

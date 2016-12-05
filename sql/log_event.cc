@@ -88,7 +88,6 @@
 #include "mysql/psi/psi_statement.h"
 #include "mysqld.h"            // lower_case_table_names server_uuid ...
 #include "mysqld_error.h"
-#include "pfs_file_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "query_result.h"      // sql_exchange
@@ -8161,6 +8160,7 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
       DBUG_RETURN(table->s->primary_key);
   }
 
+#if 0 // see bug#23311892
   DBUG_PRINT("debug", ("Unique keys count: %u", table->s->uniques));
 
   if (key_type & UNIQUE_KEY_FLAG && table->s->uniques)
@@ -8186,6 +8186,7 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
     }
     DBUG_PRINT("debug", ("UK has NULLABLE parts or not all columns signaled."));
   }
+#endif
 
   if (key_type & MULTIPLE_KEY_FLAG && table->s->keys)
   {

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -63,5 +63,6 @@ void Sql_formatter_options::create_options()
 
 Sql_formatter_options::Sql_formatter_options(
   const Mysql_chain_element_options* mysql_chain_element_options)
-  : m_mysql_chain_element_options(mysql_chain_element_options)
+  : m_innodb_stats_tables_included(false),
+    m_mysql_chain_element_options(mysql_chain_element_options)
 {}

@@ -2097,6 +2097,8 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     buff->append('.');
   }
   append_identifier(thd, buff, table->view_name.str, table->view_name.length);
+  print_derived_column_names(thd, buff, table->derived_column_names());
+
   buff->append(STRING_WITH_LEN(" AS "));
 
   /*
@@ -2838,7 +2840,10 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
   {
     case SHOW_DOUBLE_STATUS:
       value= ((char *) status_var + (ulong) value);
-      /* fall through */
+      /* 6 is the default precision for '%f' in sprintf() */
+      end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
+      value_charset= system_charset_info;
+      break;
 
     case SHOW_DOUBLE:
       /* 6 is the default precision for '%f' in sprintf() */
@@ -2848,7 +2853,9 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_LONG_STATUS:
       value= ((char *) status_var + (ulong) value);
-      /* fall through */
+      end= int10_to_str(*(long*) value, buff, 10);
+      value_charset= system_charset_info;
+      break;
 
     case SHOW_LONG:
      /* the difference lies in refresh_status() */
@@ -2864,7 +2871,9 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_LONGLONG_STATUS:
       value= ((char *) status_var + (ulong) value);
-      /* fall through */
+      end= longlong10_to_str(*(longlong*) value, buff, 10);
+      value_charset= system_charset_info;
+      break;
 
     case SHOW_LONGLONG:
       end= longlong10_to_str(*(longlong*) value, buff, 10);
@@ -5139,7 +5148,7 @@ if (sp)
   char path[FN_REFLEN];
   memset(&tbl, 0, sizeof(TABLE));
   (void) build_table_filename(path, sizeof(path), "", "", "", 0);
-  init_tmp_table_share(thd, &share, "", 0, "", path);
+  init_tmp_table_share(thd, &share, "", 0, "", path, nullptr);
 
   if (sp->m_type == enum_sp_type::FUNCTION)
   {
@@ -5389,7 +5398,7 @@ if ((lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
 
         memset(&tbl, 0, sizeof(TABLE));
         (void) build_table_filename(path, sizeof(path), "", "", "", 0);
-        init_tmp_table_share(thd, &share, "", 0, "", path);
+        init_tmp_table_share(thd, &share, "", 0, "", path, nullptr);
         field= make_field(&share, (uchar*) 0, field_def->length,
                           (uchar*) "", 0,
                           field_def->sql_type, field_def->charset,
@@ -7146,8 +7155,6 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   table_list->table_name_length= table->s->table_name.length;
   table_list->table= table;
   table->pos_in_table_list= table_list;
-  table->next= thd->derived_tables;
-  thd->derived_tables= table;
   if (table_list->select_lex->first_execution)
     table_list->select_lex->add_base_options(OPTION_SCHEMA_TABLE);
   lex->safe_to_cache_query= 0;

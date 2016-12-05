@@ -55,7 +55,6 @@
 #include "mysqld.h"                     // global_system_variables
 #include "mysqld_error.h"
 #include "password.h"                   // my_make_scrambled_password
-#include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "protocol_classic.h"

@@ -1134,9 +1134,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  VISIBLE_SYM
 %token  EXCEPT_SYM                    /* SQL-1999-R */
 %token  COMPONENT_SYM                 /* MYSQL */
+%token  RECURSIVE_SYM                 /* SQL-1999-R */
 %token  GRAMMAR_SELECTOR_EXPR         /* synthetic token: starts single expr. */
 %token  GRAMMAR_SELECTOR_GCOL       /* synthetic token: starts generated col. */
 %token  GRAMMAR_SELECTOR_PART      /* synthetic token: starts partition expr. */
+%token  GRAMMAR_SELECTOR_CTE             /* synthetic token: starts CTE expr. */
 %token  JSON_OBJECTAGG                /* SQL-2015-R */
 %token  JSON_ARRAYAGG                 /* SQL-2015-R */
 %token  OF_SYM                        /* SQL-1999-R */
@@ -1368,7 +1370,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         view_replace_or_algorithm view_replace
         view_algorithm view_or_trigger_or_sp_or_event
         definer_tail no_definer_tail
-        view_suid view_tail view_list_opt view_list view_select
+        view_suid view_tail view_select
         trigger_tail
         sp_tail sf_tail udf_tail event_tail
         install uninstall binlog_base64_event
@@ -1555,6 +1557,8 @@ END_OF_INPUT
 
 %type <table_ident_list> table_alias_ref_list table_locking_list
 
+%type <simple_ident_list> simple_ident_list opt_derived_column_list
+
 %type <num> opt_delete_options
 
 %type <opt_delete_option> opt_delete_option
@@ -1598,6 +1602,10 @@ END_OF_INPUT
 %type <index_name_and_type> opt_index_name_and_type
 
 %type <visibility> visibility
+
+%type <with_clause> with_clause opt_with_clause
+%type <with_list> with_list
+%type <common_table_expr> common_table_expr
 
 %type <partition_option> part_option
 
@@ -1754,6 +1762,10 @@ start_entry:
             ITEMIZE($4, &$4);
             gcol_info->expr_item= $4;
             static_cast<Gcol_expr_parser_state *>(YYP)->result= gcol_info;
+          }
+        | GRAMMAR_SELECTOR_CTE table_subquery END_OF_INPUT
+          {
+            static_cast<Common_table_expr_parser_state *>(YYP)->result= $2;
           }
         ;
 
@@ -8641,6 +8653,13 @@ select_stmt_with_into:
   UNION it's just a query_expression within parentheses and the parentheses
   don't mean it's a subquery. If the next token is PLUS, we know it must be an
   <expr> and the parentheses really mean it's a subquery.
+
+  A word about CTE's: The rules below are duplicated, one with a with_clause
+  and one without, instead of using a single rule with an opt_with_clause. The
+  reason we do this is because it would make Bison try to cram both rules into
+  a single state, where it would have to decide whether to reduce a with_clause
+  before seeing the rest of the input. This way we force Bison to parse the
+  entire query expression before trying to reduce.
 */
 query_expression:
           query_expression_body
@@ -8663,6 +8682,30 @@ query_expression:
 
             $$= NEW_PTN PT_query_expression($1, $2, $3, $4, $5);
           }
+        | with_clause
+          query_expression_body
+          opt_order_clause
+          opt_limit_clause
+          opt_procedure_analyse_clause
+          opt_locking_clause_list
+          {
+            if ($2 == NULL)
+              MYSQL_YYABORT; // OOM
+
+            if ($2->is_union() && $5 != NULL)
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
+
+            if ($2->has_into_clause() && $5 != NULL)
+            {
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
+              MYSQL_YYABORT;
+            }
+
+            $$= NEW_PTN PT_query_expression($2, $3, $4, $5, $6);
+            if ($$ == NULL)
+              MYSQL_YYABORT; // OOM
+            $$->m_with_clause= $1;
+          }
         | query_expression_parens
           order_clause
           opt_limit_clause
@@ -8679,6 +8722,26 @@ query_expression:
               NEW_PTN PT_query_expression_body_primary(nested);
             $$= NEW_PTN PT_query_expression(body, $2, $3, $4, $5);
           }
+        | with_clause
+          query_expression_parens
+          order_clause
+          opt_limit_clause
+          opt_procedure_analyse_clause
+          opt_locking_clause_list
+          {
+            if ($2 == NULL)
+              MYSQL_YYABORT; // OOM
+            if ($2->is_union() && $5 != NULL)
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
+            PT_nested_query_expression *nested=
+              NEW_PTN PT_nested_query_expression($2);
+            PT_query_expression_body_primary *body=
+              NEW_PTN PT_query_expression_body_primary(nested);
+            $$= NEW_PTN PT_query_expression(body, $3, $4, $5, $6);
+            if ($$ == NULL)
+              MYSQL_YYABORT; // OOM
+            $$->m_with_clause= $1;
+          }
         | query_expression_parens
           limit_clause
           opt_procedure_analyse_clause
@@ -8689,6 +8752,35 @@ query_expression:
             if ($1->is_union() && $3 != NULL)
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
             $$= NEW_PTN PT_query_expression($1->body(), NULL, $2, $3, $4);
+          }
+        | with_clause
+          query_expression_parens
+          limit_clause
+          opt_procedure_analyse_clause
+          opt_locking_clause_list
+          {
+            if ($2 == NULL)
+              MYSQL_YYABORT; // OOM
+            if ($2->is_union() && $4 != NULL)
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
+            $$= NEW_PTN PT_query_expression($2->body(), NULL, $3, $4, $5);
+            if ($$ == NULL)
+              MYSQL_YYABORT; // OOM
+            $$->m_with_clause= $1;
+          }
+        | with_clause
+          query_expression_parens
+          opt_procedure_analyse_clause
+          opt_locking_clause_list
+          {
+            if ($2 == NULL)
+              MYSQL_YYABORT; // OOM
+            if ($2->is_union() && $3 != NULL)
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
+            $$= NEW_PTN PT_query_expression($2->body(), NULL, NULL, $3, $4);
+            if ($$ == NULL)
+              MYSQL_YYABORT; // OOM
+            $$->m_with_clause= $1;
           }
         ;
 
@@ -10335,7 +10427,7 @@ joined_table_parens:
         ;
 
 derived_table:
-          table_subquery opt_table_alias
+          table_subquery opt_table_alias opt_derived_column_list
           {
             /*
               The alias is actually not optional at all, but being MySQL we
@@ -10346,7 +10438,7 @@ derived_table:
               my_message(ER_DERIVED_MUST_HAVE_ALIAS,
                          ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
 
-            $$= NEW_PTN PT_derived_table($1, $2);
+            $$= NEW_PTN PT_derived_table($1, $2, &$3);
           }
         ;
 
@@ -10540,6 +10632,78 @@ opt_having_clause:
         | HAVING expr
           {
             $$= new PTI_context<CTX_HAVING>(@$, $2);
+          }
+        ;
+
+with_clause:
+          WITH with_list
+          {
+            $$= NEW_PTN PT_with_clause($2, false);
+          }
+        | WITH RECURSIVE_SYM with_list
+          {
+            $$= NEW_PTN PT_with_clause($3, true);
+          }
+        ;
+
+with_list:
+          with_list ',' common_table_expr
+          {
+            if ($1->push_back($3))
+              MYSQL_YYABORT;
+          }
+        | common_table_expr
+          {
+            $$= NEW_PTN PT_with_list(YYTHD->mem_root);
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT;    /* purecov: inspected */
+          }
+        ;
+
+common_table_expr:
+          ident opt_derived_column_list AS table_subquery
+          {
+            LEX_STRING subq_text;
+            subq_text.length= @4.raw.length();
+            subq_text.str= YYTHD->strmake(@4.raw.start, subq_text.length);
+            if (subq_text.str == NULL)
+              MYSQL_YYABORT;   /* purecov: inspected */
+            uint subq_text_offset= @4.raw.start - YYLIP->get_buf();
+            $$= NEW_PTN PT_common_table_expr($1, subq_text, subq_text_offset,
+                                             $4, &$2, YYTHD->mem_root);
+            if ($$ == NULL)
+              MYSQL_YYABORT;   /* purecov: inspected */
+          }
+        ;
+
+opt_derived_column_list:
+          /* empty */
+          {
+            /*
+              Because () isn't accepted by the rule of
+              simple_ident_list, we can use an empty array to
+              designates that the parenthesised list was omitted.
+            */
+            $$.init(YYTHD->mem_root);
+          }
+        | '(' simple_ident_list ')'
+          {
+            $$= $2;
+          }
+        ;
+
+simple_ident_list:
+          ident
+          {
+            $$.init(YYTHD->mem_root);
+            if ($$.push_back(to_lex_cstring($1)))
+              MYSQL_YYABORT; /* purecov: inspected */
+          }
+        | simple_ident_list ',' ident
+          {
+            $$= $1;
+            if ($$.push_back(to_lex_cstring($3)))
+              MYSQL_YYABORT; /* purecov: inspected */
           }
         ;
 
@@ -11375,6 +11539,7 @@ opt_insert_update_list:
 /* Update rows in a table */
 
 update_stmt:
+          opt_with_clause
           UPDATE_SYM            /* #1 */
           opt_low_priority      /* #2 */
           opt_ignore            /* #3 */
@@ -11385,9 +11550,14 @@ update_stmt:
           opt_order_clause      /* #8 */
           opt_simple_limit      /* #9 */
           {
-            $$= NEW_PTN PT_update($1, $2, $3, $4, $6.column_list, $6.value_list,
-                                  $7, $8, $9);
+            $$= NEW_PTN PT_update($1, $2, $3, $4, $5, $7.column_list, $7.value_list,
+                                  $8, $9, $10);
           }
+        ;
+
+opt_with_clause:
+          /* empty */ { $$= NULL; }
+        | with_clause { $$= $1; }
         ;
 
 update_list:
@@ -11425,6 +11595,7 @@ opt_low_priority:
 /* Delete rows from a table */
 
 delete_stmt:
+          opt_with_clause
           DELETE_SYM
           opt_delete_options
           FROM
@@ -11434,18 +11605,20 @@ delete_stmt:
           opt_order_clause
           opt_simple_limit
           {
-            $$= NEW_PTN PT_delete($1, $2, $4, $5, $6, $7, $8);
+            $$= NEW_PTN PT_delete($1, $2, $3, $5, $6, $7, $8, $9);
           }
-        | DELETE_SYM
+        | opt_with_clause
+          DELETE_SYM
           opt_delete_options
           table_alias_ref_list
           FROM
           table_reference_list
           opt_where_clause
           {
-            $$= NEW_PTN PT_delete($1, $2, $3, $5, $6);
+            $$= NEW_PTN PT_delete($1, $2, $3, $4, $6, $7);
           }
-        | DELETE_SYM
+        | opt_with_clause
+          DELETE_SYM
           opt_delete_options
           FROM
           table_alias_ref_list
@@ -11453,7 +11626,7 @@ delete_stmt:
           table_reference_list
           opt_where_clause
           {
-            $$= NEW_PTN PT_delete($1, $2, $4, $6, $7);
+            $$= NEW_PTN PT_delete($1, $2, $3, $5, $7, $8);
           }
         ;
 
@@ -12711,7 +12884,7 @@ text_string:
 param_marker:
           PARAM_MARKER
           {
-            $$= NEW_PTN Item_param(@$,
+            $$= NEW_PTN Item_param(@$, YYMEM_ROOT,
                                    (uint) (@1.raw.start - YYLIP->get_buf()));
           }
         ;
@@ -14825,7 +14998,7 @@ view_suid:
         ;
 
 view_tail:
-          view_suid VIEW_SYM table_ident
+          view_suid VIEW_SYM table_ident opt_derived_column_list
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -14838,27 +15011,21 @@ view_tail:
               MYSQL_YYABORT;
             lex->query_tables->open_strategy= TABLE_LIST::OPEN_STUB;
             thd->parsing_system_view= lex->query_tables->is_system_view;
+            if ($4.size())
+            {
+              /*
+                The $4 object is short-lived (its 'm_array' is not);
+                so we have to duplicate it, and then we can store a
+                pointer.
+              */
+              void *rawmem= thd->memdup(&($4), sizeof($4));
+              if (!rawmem)
+                MYSQL_YYABORT; /* purecov: inspected */
+              lex->query_tables->
+                set_derived_column_names(static_cast<Create_col_name_list* >(rawmem));
+            }
           }
-          view_list_opt AS view_select
-        ;
-
-view_list_opt:
-          /* empty */
-          {}
-        | '(' view_list ')'
-        ;
-
-view_list:
-          ident
-            {
-              Lex->view_list.push_back((LEX_STRING*)
-              sql_memdup(&$1, sizeof(LEX_STRING)));
-            }
-        | view_list ',' ident
-            {
-              Lex->view_list.push_back((LEX_STRING*)
-              sql_memdup(&$3, sizeof(LEX_STRING)));
-            }
+          AS view_select
         ;
 
 view_select:

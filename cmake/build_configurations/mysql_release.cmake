@@ -53,14 +53,3 @@ IF(UNIX)
   ENDIF()
 
 ENDIF()
-
-# Release builds on Solaris need to do an extra build to compile the
-# client libraries with Sun Studio. The release build script will replace
-# those libraries and the corresponding mysql_config before making the
-# final package.
-# But *this* mysql_config is still relevant for the embedded library
-# which will not be rebuilt, so we ensure we make a copy of it.
-
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
-  SET(COPY_MYSQL_CONFIG 1 CACHE BOOL "")
-ENDIF()

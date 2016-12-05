@@ -46,7 +46,6 @@
 #include "mysqld.h"              // current_thd
 #include "mysqld_error.h"
 #include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "pfs_thread_provider.h"
 #include "rwlock_scoped_lock.h"
 #include "sql_audit.h"           // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
 #include "sql_base.h"            // close_mysql_tables

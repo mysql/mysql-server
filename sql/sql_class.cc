@@ -47,7 +47,6 @@
 #include "mysqld.h"                          // global_system_variables ...
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "mysys_err.h"                       // EE_OUTOFMEMORY
-#include "pfs_statement_provider.h"
 #include "psi_memory_key.h"
 #include "query_result.h"
 #include "rpl_rli.h"                         // Relay_log_info
@@ -349,7 +348,6 @@ void Open_tables_state::set_open_tables_state(Open_tables_state *state)
   this->open_tables= state->open_tables;
 
   this->temporary_tables= state->temporary_tables;
-  this->derived_tables= state->derived_tables;
 
   this->lock= state->lock;
   this->extra_lock= state->extra_lock;
@@ -366,7 +364,6 @@ void Open_tables_state::reset_open_tables_state()
 {
   open_tables= NULL;
   temporary_tables= NULL;
-  derived_tables= NULL;
   lock= NULL;
   extra_lock= NULL;
   locked_tables_mode= LTM_NONE;
@@ -390,6 +387,8 @@ THD::THD(bool enable_plugins)
    first_query_cache_block(NULL),
    initial_status_var(NULL),
    status_var_aggregated(false),
+   m_current_query_cost(0),
+   m_current_query_partial_plans(0),
    query_plan(this),
    m_current_stage_key(0),
    current_mutex(NULL),
@@ -2149,7 +2148,6 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
     to be sure that it was properly cleaned up.
   */
   DBUG_ASSERT(open_tables == 0 && temporary_tables == 0 &&
-              derived_tables == 0 &&
               lock == 0 &&
               locked_tables_mode == LTM_NONE &&
               get_reprepare_observer() == NULL);

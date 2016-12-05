@@ -376,11 +376,12 @@ row_log_online_op(
 			goto err_exit;
 		}
 
-		err = os_file_write(
+		err = os_file_write_int_fd(
 			request,
 			"(modification log)",
-			OS_FILE_FROM_FD(log->fd),
+			log->fd,
 			log->tail.block, byte_offset, srv_sort_buf_size);
+
 		log->tail.blocks++;
 		if (err != DB_SUCCESS) {
 write_failed:
@@ -494,11 +495,12 @@ row_log_table_close_func(
 			goto err_exit;
 		}
 
-		err = os_file_write(
+		err = os_file_write_int_fd(
 			request,
 			"(modification log)",
-			OS_FILE_FROM_FD(log->fd),
+			log->fd,
 			log->tail.block, byte_offset, srv_sort_buf_size);
+
 		log->tail.blocks++;
 		if (err != DB_SUCCESS) {
 write_failed:
@@ -2768,6 +2770,7 @@ row_log_table_apply_ops(
 	const ulint	new_trx_id_col	= dict_col_get_clust_pos(
 		new_table->get_sys_col(DATA_TRX_ID), new_index);
 	trx_t*		trx		= thr_get_trx(thr);
+	dberr_t         err;
 
 	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
@@ -2872,9 +2875,9 @@ all_done:
 
 		IORequest	request;
 
-		dberr_t	err = os_file_read_no_error_handling(
+		err = os_file_read_no_error_handling_int_fd(
 			request,
-			OS_FILE_FROM_FD(index->online_log->fd),
+			index->online_log->fd,
 			index->online_log->head.block, ofs,
 			srv_sort_buf_size,
 			NULL);
@@ -3702,10 +3705,9 @@ all_done:
 		}
 
 		IORequest	request;
-
-		dberr_t	err = os_file_read_no_error_handling(
+		dberr_t	err = os_file_read_no_error_handling_int_fd(
 			request,
-			OS_FILE_FROM_FD(index->online_log->fd),
+			index->online_log->fd,
 			index->online_log->head.block, ofs,
 			srv_sort_buf_size,
 			NULL);

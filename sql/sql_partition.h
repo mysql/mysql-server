@@ -93,9 +93,7 @@ typedef struct st_lock_param_type
   KEY *key_info_buffer;
   const char *db;
   const char *table_name;
-  uchar *pack_frm_data;
   uint key_count;
-  size_t pack_frm_len;
   partition_info *part_info;
 } ALTER_PARTITION_PARAM_TYPE;
 

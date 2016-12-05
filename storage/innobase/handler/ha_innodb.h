@@ -18,6 +18,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* The InnoDB handler: the interface between MySQL and InnoDB. */
 
+#include "trx0trx.h"
+
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
 extern const char innobase_index_reserve_name[];
@@ -107,7 +109,11 @@ public:
 
 	uint max_supported_key_part_length() const;
 
-	int open(const char *name, int, uint, const dd::Table *table_def);
+	int open(
+		const char *name,
+		int,
+		uint open_flags,
+		const dd::Table *table_def);
 
 	/** Opens dictionary table object using table name. For partition, we need to
 	try alternative lower/upper case names to support moving data files across

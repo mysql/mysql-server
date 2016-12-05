@@ -22,6 +22,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define ha_innopart_h
 
 #include "partitioning/partition_handler.h"
+#include "row0mysql.h"
 
 /* Forward declarations */
 class Altered_partitions;

@@ -1514,6 +1514,10 @@ enum table_dirty_status {
 	METADATA_CLEAN
 };
 
+/** A vector to collect prebuilt from different readers working on the same
+temp table */
+typedef	std::vector<row_prebuilt_t*>		temp_prebuilt_vec;
+
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
@@ -1952,6 +1956,9 @@ public:
 
 	/** encryption iv, it's only for export/import */
 	byte*					encryption_iv;
+
+	/** multiple cursors can be active on this temporary table */
+	temp_prebuilt_vec*			temp_prebuilt;
 
 	/** @return the clustered index */
 	const dict_index_t* first_index() const

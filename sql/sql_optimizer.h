@@ -716,7 +716,7 @@ public:
 
   bool cache_const_exprs();
   bool generate_derived_keys();
-  void drop_unused_derived_keys();
+  void finalize_derived_keys();
   bool get_best_combination();
   bool attach_join_conditions(plan_idx last_tab);
   bool update_equalities_for_sjm();

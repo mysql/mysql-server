@@ -193,6 +193,13 @@ ENDIF()
 
 ### Configuration ###
 
+# Used to inhibit false posives on CLang 3.8/8.0
+IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    ADD_COMPILE_FLAGS(${XCOM_SOURCES}
+            COMPILE_FLAGS
+            "-Wno-conditional-uninitialized")
+ENDIF()
+
 # disabling warnings for generated code
 IF(MSVC)
   ADD_COMPILE_FLAGS(${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}

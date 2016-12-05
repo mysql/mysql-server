@@ -2026,8 +2026,9 @@ a	b
 drop table t1, t2;
 drop database db1;
 use test;
-create table t1(a int);
+create table t1(a int, b int);
 create view v1 as select * from t1;
+create view v2 (c, d) as select * from t1;
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -2043,7 +2044,8 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2056,7 +2058,16 @@ DROP TABLE IF EXISTS `v1`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE VIEW `v1` AS SELECT 
- 1 AS `a`*/;
+ 1 AS `a`,
+ 1 AS `b`*/;
+SET character_set_client = @saved_cs_client;
+DROP TABLE IF EXISTS `v2`;
+/*!50001 DROP VIEW IF EXISTS `v2`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+/*!50001 CREATE VIEW `v2` AS SELECT 
+ 1 AS `c`,
+ 1 AS `d`*/;
 SET character_set_client = @saved_cs_client;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
@@ -2067,7 +2078,20 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `v1` AS select `t1`.`a` AS `a` from `t1` */;
+/*!50001 VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+/*!50001 DROP VIEW IF EXISTS `v2`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = latin1 */;
+/*!50001 SET character_set_results     = latin1 */;
+/*!50001 SET collation_connection      = latin1_swedish_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v2` (`c`,`d`) AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -2081,7 +2105,7 @@ SET character_set_client = @saved_cs_client;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
-drop view v1;
+drop view v1, v2;
 drop table t1;
 #
 # Bug#10213 mysqldump crashes when dumping VIEWs(on MacOS X)
@@ -3816,7 +3840,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `v2` AS select `t1`.`id` AS `c` from `t1` */;
+/*!50001 VIEW `v2` (`c`) AS select `t1`.`id` AS `id` from `t1` */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -4330,7 +4354,7 @@ SELECT view_definition
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE table_schema = 'mysqldump_test_db' AND table_name = 'v1';
 VIEW_DEFINITION
-select 'a' AS `x`,'a' AS `y`
+select 'a' AS `a`,'a' AS `a`
 
 ---> Dumping mysqldump_test_db to bug30217.sql
 
@@ -4343,7 +4367,7 @@ SELECT view_definition
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE table_schema = 'mysqldump_test_db' AND table_name = 'v1';
 VIEW_DEFINITION
-select 'a' AS `x`,'a' AS `y`
+select 'a' AS `a`,'a' AS `a`
 
 DROP DATABASE mysqldump_test_db;
 

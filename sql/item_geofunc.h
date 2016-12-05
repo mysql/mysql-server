@@ -844,29 +844,6 @@ public:
   String *val_str(String *) override;
 };
 
-class Item_func_startpoint : public Item_func_spatial_decomp
-{
-public:
-  Item_func_startpoint(const POS &pos, Item *a)
-    : Item_func_spatial_decomp(POS(), a, Item_func::SP_STARTPOINT)
-  {}
-};
-
-class Item_func_endpoint : public Item_func_spatial_decomp
-{
-public:
-  Item_func_endpoint(const POS &pos, Item *a)
-    : Item_func_spatial_decomp(POS(), a, Item_func::SP_ENDPOINT)
-  {}
-};
-
-class Item_func_exteriorring : public Item_func_spatial_decomp
-{
-public:
-  Item_func_exteriorring(const POS &pos, Item *a)
-    : Item_func_spatial_decomp(POS(), a, Item_func::SP_EXTERIORRING)
-  {}
-};
 
 class Item_func_spatial_decomp_n: public Item_geometry_func
 {

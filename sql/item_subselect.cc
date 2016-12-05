@@ -3483,7 +3483,7 @@ bool subselect_indexsubquery_engine::exec()
   item_in->value= false;
   table->status= 0;
 
-  if (tl && tl->uses_materialization() && !tab->materialized)
+  if (tl && tl->uses_materialization() && !table->materialized)
   {
     THD *const thd= table->in_use;
     bool err= tl->create_derived(thd);
@@ -3492,8 +3492,6 @@ bool subselect_indexsubquery_engine::exec()
     err|= tl->cleanup_derived();
     if (err)
       DBUG_RETURN(true);            /* purecov: inspected */
-
-    tab->materialized= true;
   }
 
   if (check_null)
@@ -3674,7 +3672,7 @@ table_map subselect_union_engine::upper_select_const_tables() const
 void subselect_single_select_engine::print(String *str,
                                            enum_query_type query_type)
 {
-  select_lex->print(item->unit->thd, str, query_type);
+  item->unit->print(str, query_type);
 }
 
 

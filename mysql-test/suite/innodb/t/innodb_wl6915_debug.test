@@ -170,9 +170,9 @@ connection default;
 drop table t2;
 drop procedure populate_t1_t2;
 #
-# trying with value innodb_undo_logs = 10 (so only slot-0 redo rseg is active)
+# trying with value innodb_undo_logs = 1 (so only slot-0 redo rseg is active)
 #
-let $restart_parameters = restart: --innodb_undo_logs=10;
+let $restart_parameters = restart: --innodb_undo_logs=1;
 --source include/restart_mysqld.inc
 #
 create table t (i int) engine=innodb;
@@ -184,9 +184,9 @@ insert into t values (2);
 drop table t;
 drop table t2;
 #
-# trying with value innodb_undo_logs = 40 (this will make 8 redo rseg active).
+# trying with value innodb_undo_logs = 8 (this will make 8 redo rseg active).
 #
-let $restart_parameters = restart: --innodb_undo_logs=40;
+let $restart_parameters = restart: --innodb_undo_logs=8;
 --source include/restart_mysqld.inc
 #
 create table t (i int) engine=innodb;

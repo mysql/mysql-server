@@ -18,17 +18,19 @@
   Table VARIABLES_BY_THREAD (implementation).
 */
 
+#include <new>
+
+#include "current_thd.h"
+#include "field.h"
 #include "my_global.h"
-#include "table_variables_by_thread.h"
 #include "my_thread.h"
-#include "pfs_instr_class.h"
+#include "mysqld.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "pfs_global.h"
-#include "current_thd.h"
-#include "field.h"
+#include "pfs_instr_class.h"
 #include "sql_class.h"
-#include "mysqld.h"
+#include "table_variables_by_thread.h"
 
 bool PFS_index_variables_by_thread::match(PFS_thread *pfs)
 {
@@ -189,11 +191,7 @@ table_variables_by_thread::rnd_pos(const void *pos)
     const System_variable *system_var= m_sysvar_cache.get();
     if (system_var != NULL)
     {
-      if (!make_row(pfs_thread, system_var))
-      {
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
+      return make_row(pfs_thread, system_var);
     }
   }
   return HA_ERR_RECORD_DELETED;

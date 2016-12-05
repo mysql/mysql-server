@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,20 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <stddef.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_sys.h"
 
 // Ignore test on windows, as we are mocking away a unix function, see below.
 #ifndef _WIN32
+
+// For testing my_pwrite.
+extern
+ssize_t (*mock_pwrite)(int fd, const void *buf, size_t count, off_t offset);
+
 namespace mysys_my_pwrite_unittest {
 
 using ::testing::_;
@@ -33,35 +44,26 @@ class MockWrite
 public:
   virtual ~MockWrite() {}
   MOCK_METHOD4(mockwrite, ssize_t(int, const void *, size_t, off_t));
-  MOCK_METHOD3(mockseek, off_t(int, off_t, int));
 };
 
 MockWrite *mockfs= NULL;
 
-// We need to mock away pwrite(2), do it with a macro:
-#define pwrite(fd, buf, count, offset) mockfs->mockwrite(fd, buf, count, offset)
-#define lseek(fd, offset, whence) mockfs->mockseek(fd, offset, whence)
-
-/*
-  Include the source file, which will give us
-  mysys_my_pwrite_unittest::my_pwrite() for testing.
-*/
-#include "../../mysys/my_pread.cc"
-
-#undef pwrite
-#undef lseek
+ssize_t mockfs_pwrite(int fd, const void *buf, size_t count, off_t offset)
+{
+  return mockfs->mockwrite(fd, buf, count, offset);
+}
 
 class MysysMyPWriteTest : public ::testing::Test
 {
   virtual void SetUp()
   {
+    mock_pwrite= mockfs_pwrite;
     mockfs= new MockWrite;
     m_offset= 0;
-    EXPECT_CALL(*mockfs, mockseek(_, m_offset, _))
-      .WillRepeatedly(ReturnPointee(&m_offset));
   }
   virtual void TearDown()
   {
+    mock_pwrite= nullptr;
     delete mockfs;
     mockfs= NULL;
   }

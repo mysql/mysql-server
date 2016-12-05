@@ -127,6 +127,10 @@ public:
 #else
   void begin_dataset() {}
 #endif
+
+  /// @returns Pointer to count of rows retained by this result.
+  virtual const ha_rows *row_count() const      /* purecov: inspected */
+  { DBUG_ASSERT(false); return nullptr; }       /* purecov: inspected */
 };
 
 

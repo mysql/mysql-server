@@ -99,6 +99,7 @@
 
 #include <mysql/client_plugin.h>
 #include <sql_common.h>
+#include <new>
 
 #include "../libmysql/init_commands_array.h"
 #include "../libmysql/mysql_trace.h"  /* MYSQL_TRACE() instrumentation */

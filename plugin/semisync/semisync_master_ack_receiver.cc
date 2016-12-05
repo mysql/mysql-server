@@ -15,7 +15,6 @@
 
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_stage.h"
-#include "pfs_stage_provider.h"  // IWYU pragma: keep
 #include "semisync_master.h"
 #include "semisync_master_ack_receiver.h"
 #include "semisync_master_socket_listener.h"

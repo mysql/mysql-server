@@ -2791,7 +2791,8 @@ ER_STACK_OVERRUN
         spa "Sobrecarga de la pila de thread:  Usada: %ld de una %ld pila.  Use 'mysqld --thread_stack=#' para especificar una mayor pila si necesario"
         swe "Trådstacken tog slut:  Har använt %ld av %ld bytes.  Använd 'mysqld --thread_stack=#' ifall du behöver en större stack"
         ukr "Стек гілок переповнено:  Використано: %ld з %ld. Використовуйте 'mysqld --thread_stack=#' аби зазначити більший стек, якщо необхідно"
-ER_WRONG_OUTER_JOIN 42000 
+# Not used since 5.8 and probably earlier.
+ER_WRONG_OUTER_JOIN_UNUSED 42000
         cze "V OUTER JOIN byl nalezen křížový odkaz. Prověřte ON podmínky"
         dan "Krydsreferencer fundet i OUTER JOIN; check dine ON conditions"
         nla "Gekruiste afhankelijkheid gevonden in OUTER JOIN. Controleer uw ON-conditions"
@@ -7903,6 +7904,24 @@ ER_BINLOG_UNSAFE_NOWAIT
 
 ER_LOCK_NOWAIT
   eng "Do not wait for lock."
+
+ER_CTE_RECURSIVE_REQUIRES_UNION
+  eng "Recursive Common Table Expression '%s' should contain a UNION"
+
+ER_CTE_RECURSIVE_REQUIRES_NONRECURSIVE_FIRST
+  eng "Recursive Common Table Expression '%s' should have one or more non-recursive query blocks followed by one or more recursive ones"
+
+ER_CTE_RECURSIVE_FORBIDS_AGGREGATION
+  eng "Recursive Common Table Expression '%s' cannot contain aggregation in recursive query block"
+
+ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER
+  eng "In recursive query block of Recursive Common Table Expression '%s', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints"
+
+ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE
+  eng "In recursive query block of Recursive Common Table Expression '%s', the recursive table must be referenced only once, and not in any subquery"
+
+ER_SWITCH_TMP_ENGINE
+  eng "'%s' requires @@internal_tmp_disk_storage_engine=InnoDB"
 
 ER_TOO_LONG_TABLESPACE_COMMENT
   eng "Comment for tablespace '%-.64s' is too long (max = %lu)"

@@ -16,6 +16,12 @@ set tmp_table_size=1024;
 set session debug="d,raise_error";
 SELECT MAX(a) FROM t1 GROUP BY a,b;
 ERROR 23000: Can't write; duplicate key in table 'tmp_table'
+WITH qn (z) AS
+(
+SELECT 1 FROM t1, t1 t2, t1 t3, t1 t4 LIMIT 100000000
+)
+SELECT * FROM qn qn0 WHERE z = (SELECT z FROM qn qn1 LIMIT 1);
+ERROR 23000: Can't write; duplicate key in table 'tmp_table'
 set tmp_table_size=default;
 DROP TABLE t1;
 #

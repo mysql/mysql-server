@@ -31,7 +31,7 @@ bool create_view(THD *thd, TABLE_LIST *view,
                  const char *schema_name, const char *view_name);
 
 /** Read view metadata from dd.views into TABLE_LIST */
-void read_view(TABLE_LIST *view, const dd::View &view_ref,
+bool read_view(TABLE_LIST *view, const dd::View &view_ref,
                MEM_ROOT *mem_root);
 
 /**

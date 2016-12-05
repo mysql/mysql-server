@@ -24,11 +24,12 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <functional>
 #include <math.h>
-#include <limits>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <functional>
+#include <limits>
+#include <new>
 
 #include "handler.h"
 #include "hash.h"
@@ -169,6 +170,51 @@ public:
   Item *instantiate(THD *thd, PT_item_list *args)
   {
     return new (thd->mem_root) Function_class(thd, POS(), args);
+  }
+};
+
+
+template<typename Function_class, Item_func::Functype Functype,
+         uint Min_argc, uint Max_argc= Min_argc>
+class Instantiator_with_functype
+{
+public:
+  static const uint Min_argcount= Min_argc;
+  static const uint Max_argcount= Max_argc;
+
+  Item *instantiate(THD *thd, PT_item_list *args)
+  {
+    return new (thd->mem_root) Function_class(thd, POS(), args, Functype);
+  }
+};
+
+
+template<typename Function_class, Item_func::Functype Function_type>
+class Instantiator_with_functype<Function_class, Function_type, 1, 1>
+{
+public:
+  static const uint Min_argcount= 1;
+  static const uint Max_argcount= 1;
+
+  Item *instantiate(THD *thd, PT_item_list *args)
+  {
+    return new (thd->mem_root)
+      Function_class(POS(), (*args)[0], Function_type);
+  }
+};
+
+
+template<typename Function_class, Item_func::Functype Function_type>
+class Instantiator_with_functype<Function_class, Function_type, 2, 2>
+{
+public:
+  static const uint Min_argcount= 2;
+  static const uint Max_argcount= 2;
+
+  Item *instantiate(THD *thd, PT_item_list *args)
+  {
+    return new (thd->mem_root)
+      Function_class(POS(), (*args)[0], (*args)[1], Function_type);
   }
 };
 
@@ -555,32 +601,30 @@ public:
 };
 
 
-template<Item_func::Functype Function_type>
-class Mbr_rel_instantiator
-{
-public:
-  static const uint Min_argcount= 2;
-  static const uint Max_argcount= 2;
+template<Item_func::Functype Functype>
+using Mbr_rel_instantiator=
+  Instantiator_with_functype<Item_func_spatial_mbr_rel, Functype, 2>;
 
-  Item *instantiate(THD *thd, PT_item_list *args)
-  {
-    return new (thd->mem_root)
-      Item_func_spatial_mbr_rel(POS(), (*args)[0], (*args)[1], Function_type);
-  }
-};
-
-typedef Mbr_rel_instantiator<Item_func::SP_COVEREDBY_FUNC>
-Mbr_covered_by_instantiator;
-typedef Mbr_rel_instantiator<Item_func::SP_COVERS_FUNC> Mbr_covers_instantiator;
-typedef Mbr_rel_instantiator<Item_func::SP_CONTAINS_FUNC> Mbr_contains_instantiator;
-typedef Mbr_rel_instantiator<Item_func::SP_DISJOINT_FUNC> Mbr_disjoint_instantiator;
-typedef Mbr_rel_instantiator<Item_func::SP_EQUALS_FUNC> Mbr_equals_instantiator;
-typedef Mbr_rel_instantiator<Item_func::SP_INTERSECTS_FUNC>
-Mbr_intersects_instantiator;
-typedef Mbr_rel_instantiator<Item_func::SP_OVERLAPS_FUNC> Mbr_overlaps_instantiator;
-typedef Mbr_rel_instantiator<Item_func::SP_TOUCHES_FUNC> Mbr_touches_instantiator;
-typedef Mbr_rel_instantiator<Item_func::SP_WITHIN_FUNC> Mbr_within_instantiator;
-typedef Mbr_rel_instantiator<Item_func::SP_CROSSES_FUNC> Mbr_crosses_instantiator;
+using Mbr_covered_by_instantiator=
+  Mbr_rel_instantiator<Item_func::SP_COVEREDBY_FUNC>;
+using Mbr_covers_instantiator=
+  Mbr_rel_instantiator<Item_func::SP_COVERS_FUNC>;
+using Mbr_contains_instantiator=
+  Mbr_rel_instantiator<Item_func::SP_CONTAINS_FUNC>;
+using Mbr_disjoint_instantiator=
+  Mbr_rel_instantiator<Item_func::SP_DISJOINT_FUNC>;
+using Mbr_equals_instantiator=
+  Mbr_rel_instantiator<Item_func::SP_EQUALS_FUNC>;
+using Mbr_intersects_instantiator=
+  Mbr_rel_instantiator<Item_func::SP_INTERSECTS_FUNC>;
+using Mbr_overlaps_instantiator=
+  Mbr_rel_instantiator<Item_func::SP_OVERLAPS_FUNC>;
+using Mbr_touches_instantiator=
+  Mbr_rel_instantiator<Item_func::SP_TOUCHES_FUNC>;
+using Mbr_within_instantiator=
+  Mbr_rel_instantiator<Item_func::SP_WITHIN_FUNC>;
+using Mbr_crosses_instantiator=
+  Mbr_rel_instantiator<Item_func::SP_CROSSES_FUNC>;
 
 template<Item_func_spatial_operation::op_type Op_type>
 class Spatial_instantiator
@@ -596,70 +640,62 @@ public:
   }
 };
 
-typedef Spatial_instantiator<Item_func_spatial_operation::op_intersection>
-Intersection_instantiator;
-typedef Spatial_instantiator<Item_func_spatial_operation::op_difference>
-Difference_instantiator;
-typedef Spatial_instantiator<Item_func_spatial_operation::op_union>
-Union_instantiator;
-typedef Spatial_instantiator<Item_func_spatial_operation::op_symdifference>
-Symdifference_instantiator;
+using Intersection_instantiator=
+  Spatial_instantiator<Item_func_spatial_operation::op_intersection>;
+using Difference_instantiator=
+  Spatial_instantiator<Item_func_spatial_operation::op_difference>;
+using Union_instantiator=
+  Spatial_instantiator<Item_func_spatial_operation::op_union>;
+using Symdifference_instantiator=
+  Spatial_instantiator<Item_func_spatial_operation::op_symdifference>;
 
 
-template<Item_func::Functype Function_type>
-class Spatial_rel_instantiator
-{
-public:
-  static const uint Min_argcount= 2;
-  static const uint Max_argcount= 2;
+template<Item_func::Functype Functype>
+using Spatial_rel_instantiator=
+  Instantiator_with_functype<Item_func_spatial_rel, Functype, 2>;
 
-  Item *instantiate(THD *thd, PT_item_list *args)
-  {
-    return new (thd->mem_root)
-      Item_func_spatial_rel(POS(), (*args)[0], (*args)[1], Function_type);
-  }
-};
-
-typedef Spatial_rel_instantiator<Item_func::SP_CONTAINS_FUNC>
-St_contains_instantiator;
-typedef Spatial_rel_instantiator<Item_func::SP_CROSSES_FUNC>
-St_crosses_instantiator;
-typedef Spatial_rel_instantiator<Item_func::SP_DISJOINT_FUNC>
-St_disjoint_instantiator;
-typedef Spatial_rel_instantiator<Item_func::SP_EQUALS_FUNC>
-St_equals_instantiator;
-typedef Spatial_rel_instantiator<Item_func::SP_INTERSECTS_FUNC>
-St_intersects_instantiator;
-typedef Spatial_rel_instantiator<Item_func::SP_OVERLAPS_FUNC>
-St_overlaps_instantiator;
-typedef Spatial_rel_instantiator<Item_func::SP_TOUCHES_FUNC>
-St_touches_instantiator;
-typedef Spatial_rel_instantiator<Item_func::SP_WITHIN_FUNC>
-St_within_instantiator;
+using St_contains_instantiator=
+  Spatial_rel_instantiator<Item_func::SP_CONTAINS_FUNC>;
+using St_crosses_instantiator=
+  Spatial_rel_instantiator<Item_func::SP_CROSSES_FUNC>;
+using St_disjoint_instantiator=
+  Spatial_rel_instantiator<Item_func::SP_DISJOINT_FUNC>;
+using St_equals_instantiator=
+  Spatial_rel_instantiator<Item_func::SP_EQUALS_FUNC>;
+using St_intersects_instantiator=
+  Spatial_rel_instantiator<Item_func::SP_INTERSECTS_FUNC>;
+using St_overlaps_instantiator=
+  Spatial_rel_instantiator<Item_func::SP_OVERLAPS_FUNC>;
+using St_touches_instantiator=
+  Spatial_rel_instantiator<Item_func::SP_TOUCHES_FUNC>;
+using St_within_instantiator=
+  Spatial_rel_instantiator<Item_func::SP_WITHIN_FUNC>;
 
 
-template<Item_func::Functype Function_type>
-class Spatial_decomp_n_instantiator
-{
-public:
-  static const uint Min_argcount= 2;
-  static const uint Max_argcount= 2;
+template<Item_func::Functype Functype>
+using Spatial_decomp_instantiator=
+  Instantiator_with_functype<Item_func_spatial_decomp, Functype, 1>;
 
-  Item *instantiate(THD *thd, PT_item_list *args)
-  {
-    return new (thd->mem_root)
-      Item_func_spatial_decomp_n(POS(), (*args)[0], (*args)[1], Function_type);
-  }
-};
-
-typedef Spatial_decomp_n_instantiator<Item_func::SP_GEOMETRYN>
-Sp_geometryn_instantiator;
-typedef Spatial_decomp_n_instantiator<Item_func::SP_INTERIORRINGN>
-Sp_interiorringn_instantiator;
-typedef Spatial_decomp_n_instantiator<Item_func::SP_POINTN>
-Sp_pointn_instantiator;
+using Startpoint_instantiator=
+  Spatial_decomp_instantiator<Item_func::SP_STARTPOINT>;
+using Endpoint_instantiator=
+  Spatial_decomp_instantiator<Item_func::SP_ENDPOINT>;
+using Exteriorring_instantiator=
+  Spatial_decomp_instantiator<Item_func::SP_EXTERIORRING>;
 
 
+template<Item_func::Functype Functype>
+using Spatial_decomp_n_instantiator=
+  Instantiator_with_functype<Item_func_spatial_decomp_n, Functype, 2>;
+
+using Sp_geometryn_instantiator=
+  Spatial_decomp_n_instantiator<Item_func::SP_GEOMETRYN>;
+
+using Sp_interiorringn_instantiator=
+  Spatial_decomp_n_instantiator<Item_func::SP_INTERIORRINGN>;
+
+using Sp_pointn_instantiator=
+  Spatial_decomp_n_instantiator<Item_func::SP_POINTN>;
 
 
 template<typename Geometry_class, enum Geometry_class::Functype Functype>
@@ -690,47 +726,46 @@ using I_txt = Item_func_geometry_from_text;
 template<typename Geometry_class, enum Geometry_class::Functype Functype>
 using G_i = Geometry_instantiator<Geometry_class, Functype>;
 
-typedef G_i<I_txt, txt_ft::GEOMCOLLFROMTEXT> Geomcollfromtext_instantiator;
-typedef G_i<I_txt, txt_ft::GEOMCOLLFROMTXT> Geomcollfromtxt_instantiator;
-typedef G_i<I_txt, txt_ft::GEOMETRYCOLLECTIONFROMTEXT>
-Geometrycollectionfromtext_instantiator;
-typedef G_i<I_txt, txt_ft::GEOMETRYFROMTEXT> Geometryfromtext_instantiator;
-typedef G_i<I_txt, txt_ft::GEOMFROMTEXT> Geomfromtext_instantiator;
-typedef G_i<I_txt, txt_ft::LINEFROMTEXT> Linefromtext_instantiator;
-typedef G_i<I_txt, txt_ft::LINESTRINGFROMTEXT> Linestringfromtext_instantiator;
-typedef G_i<I_txt, txt_ft::MLINEFROMTEXT> Mlinefromtext_instantiator;
-typedef G_i<I_txt, txt_ft::MPOINTFROMTEXT> Mpointfromtext_instantiator;
-typedef G_i<I_txt, txt_ft::MPOLYFROMTEXT> Mpolyfromtext_instantiator;
-typedef G_i<I_txt, txt_ft::MULTILINESTRINGFROMTEXT>
-Multilinestringfromtext_instantiator;
-typedef G_i<I_txt, txt_ft::MULTIPOINTFROMTEXT> Multipointfromtext_instantiator;
-typedef G_i<I_txt, txt_ft::MULTIPOLYGONFROMTEXT>
-Multipolygonfromtext_instantiator;
-typedef G_i<I_txt, txt_ft::POINTFROMTEXT> Pointfromtext_instantiator;
-typedef G_i<I_txt, txt_ft::POLYFROMTEXT> Polyfromtext_instantiator;
-typedef G_i<I_txt, txt_ft::POLYGONFROMTEXT> Polygonfromtext_instantiator;
+using Geomcollfromtext_instantiator= G_i<I_txt, txt_ft::GEOMCOLLFROMTEXT>;
+using Geomcollfromtxt_instantiator= G_i<I_txt, txt_ft::GEOMCOLLFROMTXT>;
+using Geometrycollectionfromtext_instantiator=
+  G_i<I_txt, txt_ft::GEOMETRYCOLLECTIONFROMTEXT>;
+using Geometryfromtext_instantiator= G_i<I_txt, txt_ft::GEOMETRYFROMTEXT>;
+using Geomfromtext_instantiator= G_i<I_txt, txt_ft::GEOMFROMTEXT>;
+using Linefromtext_instantiator= G_i<I_txt, txt_ft::LINEFROMTEXT>;
+using Linestringfromtext_instantiator= G_i<I_txt, txt_ft::LINESTRINGFROMTEXT>;
+using Mlinefromtext_instantiator= G_i<I_txt, txt_ft::MLINEFROMTEXT>;
+using Mpointfromtext_instantiator= G_i<I_txt, txt_ft::MPOINTFROMTEXT>;
+using Mpolyfromtext_instantiator= G_i<I_txt, txt_ft::MPOLYFROMTEXT>;
+using Multilinestringfromtext_instantiator=
+  G_i<I_txt, txt_ft::MULTILINESTRINGFROMTEXT>;
+using Multipointfromtext_instantiator= G_i<I_txt, txt_ft::MULTIPOINTFROMTEXT>;
+using Multipolygonfromtext_instantiator=
+  G_i<I_txt, txt_ft::MULTIPOLYGONFROMTEXT>;
+using Pointfromtext_instantiator= G_i<I_txt, txt_ft::POINTFROMTEXT>;
+using Polyfromtext_instantiator= G_i<I_txt, txt_ft::POLYFROMTEXT>;
+using Polygonfromtext_instantiator= G_i<I_txt, txt_ft::POLYGONFROMTEXT>;
 
 using wkb_ft = Item_func_geometry_from_wkb::Functype;
 using I_wkb = Item_func_geometry_from_wkb;
 
-typedef G_i<I_wkb, wkb_ft::GEOMCOLLFROMWKB> Geomcollfromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::GEOMETRYCOLLECTIONFROMWKB>
-Geometrycollectionfromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::GEOMETRYFROMWKB> Geometryfromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::GEOMFROMWKB> Geomfromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::LINEFROMWKB> Linefromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::LINESTRINGFROMWKB> Linestringfromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::MLINEFROMWKB> Mlinefromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::MPOINTFROMWKB> Mpointfromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::MPOLYFROMWKB> Mpolyfromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::MULTILINESTRINGFROMWKB>
-Multilinestringfromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::MULTIPOINTFROMWKB> Multipointfromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::MULTIPOLYGONFROMWKB>
-Multipolygonfromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::POINTFROMWKB> Pointfromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::POLYFROMWKB> Polyfromwkb_instantiator;
-typedef G_i<I_wkb, wkb_ft::POLYGONFROMWKB> Polygonfromwkb_instantiator;
+using Geomcollfromwkb_instantiator= G_i<I_wkb, wkb_ft::GEOMCOLLFROMWKB>;
+using Geometrycollectionfromwkb_instantiator=
+  G_i<I_wkb, wkb_ft::GEOMETRYCOLLECTIONFROMWKB>;
+using Geometryfromwkb_instantiator= G_i<I_wkb, wkb_ft::GEOMETRYFROMWKB>;
+using Geomfromwkb_instantiator= G_i<I_wkb, wkb_ft::GEOMFROMWKB>;
+using Linefromwkb_instantiator= G_i<I_wkb, wkb_ft::LINEFROMWKB>;
+using Linestringfromwkb_instantiator= G_i<I_wkb, wkb_ft::LINESTRINGFROMWKB>;
+using Mlinefromwkb_instantiator= G_i<I_wkb, wkb_ft::MLINEFROMWKB>;
+using Mpointfromwkb_instantiator= G_i<I_wkb, wkb_ft::MPOINTFROMWKB>;
+using Mpolyfromwkb_instantiator= G_i<I_wkb, wkb_ft::MPOLYFROMWKB>;
+using Multilinestringfromwkb_instantiator=
+  G_i<I_wkb, wkb_ft::MULTILINESTRINGFROMWKB>;
+using Multipointfromwkb_instantiator= G_i<I_wkb, wkb_ft::MULTIPOINTFROMWKB>;
+using Multipolygonfromwkb_instantiator= G_i<I_wkb, wkb_ft::MULTIPOLYGONFROMWKB>;
+using Pointfromwkb_instantiator= G_i<I_wkb, wkb_ft::POINTFROMWKB>;
+using Polyfromwkb_instantiator= G_i<I_wkb, wkb_ft::POLYFROMWKB>;
+using Polygonfromwkb_instantiator= G_i<I_wkb, wkb_ft::POLYGONFROMWKB>;
 
 
 class Encrypt_instantiator
@@ -1716,10 +1751,10 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_DISJOINT") }, SQL_FACTORY(St_disjoint_instantiator) },
   { { C_STRING_WITH_LEN("ST_DISTANCE") }, SQL_FN_LIST(Item_func_distance, 2) },
   { { C_STRING_WITH_LEN("ST_DISTANCE_SPHERE") }, SQL_FN_V_LIST(Item_func_distance_sphere, 2, 3) },
-  { { C_STRING_WITH_LEN("ST_ENDPOINT") }, SQL_FN(Item_func_endpoint, 1) },
+  { { C_STRING_WITH_LEN("ST_ENDPOINT") }, SQL_FACTORY(Endpoint_instantiator) },
   { { C_STRING_WITH_LEN("ST_ENVELOPE") }, SQL_FN(Item_func_envelope, 1) },
   { { C_STRING_WITH_LEN("ST_EQUALS") }, SQL_FACTORY(St_equals_instantiator) },
-  { { C_STRING_WITH_LEN("ST_EXTERIORRING") }, SQL_FN(Item_func_exteriorring, 1) },
+  { { C_STRING_WITH_LEN("ST_EXTERIORRING") }, SQL_FACTORY(Exteriorring_instantiator) },
   { { C_STRING_WITH_LEN("ST_GEOHASH") }, SQL_FN_V(Item_func_geohash, 2, 3) },
   { { C_STRING_WITH_LEN("ST_GEOMCOLLFROMTEXT") }, SQL_FACTORY(Geomcollfromtext_instantiator) },
   { { C_STRING_WITH_LEN("ST_GEOMCOLLFROMTXT") }, SQL_FACTORY(Geomcollfromtxt_instantiator) },
@@ -1775,7 +1810,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_POLYGONFROMWKB") }, SQL_FACTORY(Polygonfromwkb_instantiator) },
   { { C_STRING_WITH_LEN("ST_SIMPLIFY") }, SQL_FN(Item_func_simplify, 2) },
   { { C_STRING_WITH_LEN("ST_SRID") }, SQL_FACTORY(Srid_instantiator) },
-  { { C_STRING_WITH_LEN("ST_STARTPOINT") }, SQL_FN(Item_func_startpoint, 1) },
+  { { C_STRING_WITH_LEN("ST_STARTPOINT") }, SQL_FACTORY(Startpoint_instantiator) },
   { { C_STRING_WITH_LEN("ST_SYMDIFFERENCE") }, SQL_FACTORY(Symdifference_instantiator) },
   { { C_STRING_WITH_LEN("ST_SWAPXY") }, SQL_FN(Item_func_swap_xy, 1) },
   { { C_STRING_WITH_LEN("ST_TOUCHES") }, SQL_FACTORY(St_touches_instantiator) },

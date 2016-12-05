@@ -3305,6 +3305,17 @@ public:
   void start_psi_batch_mode();
   /** End a batch started with @c start_psi_batch_mode. */
   void end_psi_batch_mode();
+  /**
+     If a PSI batch was started, turn if off.
+     @returns true if it was started.
+  */
+  bool end_psi_batch_mode_if_started()
+  {
+    bool rc= m_psi_batch_mode;
+    if (rc)
+      end_psi_batch_mode();
+    return rc;
+  }
 
 private:
   /**

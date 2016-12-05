@@ -3280,4 +3280,460 @@ TRACE LIKE '%"index_handles_needed_semijoin_equalities": false%'
 drop table t1;
 set optimizer_switch=@old_opt_switch;
 set optimizer_prune_level=@old_opt_prune_level;
+# Tracing of CTEs using the same tmp table: observe
+# "reusing_tmp_table" and only one "creating_tmp_table".
+with q(a) as (select 1 union all select 2)
+select * from q, q q1 where q.a=1 and q1.a=2;
+a	a
+1	2
+select TRACE from information_schema.optimizer_trace;
+TRACE
+{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select 1 AS `1`"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "join_preparation": {
+              "select#": 3,
+              "steps": [
+                {
+                  "expanded_query": "/* select#3 */ select 2 AS `2`"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "join_preparation": {
+              "select#": 4,
+              "steps": [
+                {
+                  "expanded_query": "/* select#4 */ select 1 AS `1`"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "join_preparation": {
+              "select#": 5,
+              "steps": [
+                {
+                  "expanded_query": "/* select#5 */ select 2 AS `2`"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "derived": {
+              "table": "`q`",
+              "select#": 2,
+              "materialized": true
+            } /* derived */
+          },
+          {
+            "derived": {
+              "table": "`q` `q1`",
+              "select#": 4,
+              "materialized": true,
+              "reusing_tmp_table": true
+            } /* derived */
+          },
+          {
+            "expanded_query": "/* select#1 */ select `q`.`a` AS `a`,`q1`.`a` AS `a` from `q` join `q` `q1` where ((`q`.`a` = 1) and (`q1`.`a` = 2))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_optimization": {
+              "select#": 2,
+              "steps": [
+              ] /* steps */
+            } /* join_optimization */
+          },
+          {
+            "join_optimization": {
+              "select#": 3,
+              "steps": [
+              ] /* steps */
+            } /* join_optimization */
+          },
+          {
+            "join_optimization": {
+              "select#": 4,
+              "steps": [
+              ] /* steps */
+            } /* join_optimization */
+          },
+          {
+            "join_optimization": {
+              "select#": 5,
+              "steps": [
+              ] /* steps */
+            } /* join_optimization */
+          },
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`q`.`a` = 1) and (`q1`.`a` = 2))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(multiple equal(1, `q`.`a`) and multiple equal(2, `q1`.`a`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(multiple equal(1, `q`.`a`) and multiple equal(2, `q1`.`a`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(multiple equal(1, `q`.`a`) and multiple equal(2, `q1`.`a`))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`q`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "table": "`q` `q1`",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "table": "`q`",
+                "field": "a",
+                "equals": "1",
+                "null_rejecting": false
+              },
+              {
+                "table": "`q`",
+                "field": "a",
+                "equals": "1",
+                "null_rejecting": false
+              },
+              {
+                "table": "`q` `q1`",
+                "field": "a",
+                "equals": "2",
+                "null_rejecting": false
+              },
+              {
+                "table": "`q` `q1`",
+                "field": "a",
+                "equals": "2",
+                "null_rejecting": false
+              }
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`q`"
+              },
+              {
+                "table": "`q` `q1`"
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`q`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "<auto_key0>",
+                      "rows": 1,
+                      "cost": 0.35,
+                      "chosen": true
+                    },
+                    {
+                      "access_type": "ref",
+                      "index": "<auto_key1>",
+                      "rows": 1,
+                      "cost": 0.35,
+                      "chosen": false
+                    },
+                    {
+                      "access_type": "scan",
+                      "cost": 2.725,
+                      "rows": 2,
+                      "chosen": false,
+                      "cause": "cost"
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 1,
+                "cost_for_plan": 0.35,
+                "rest_of_plan": [
+                  {
+                    "plan_prefix": [
+                      "`q`"
+                    ] /* plan_prefix */,
+                    "table": "`q` `q1`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "ref",
+                          "index": "<auto_key0>",
+                          "rows": 1,
+                          "cost": 0.35,
+                          "chosen": true
+                        },
+                        {
+                          "access_type": "ref",
+                          "index": "<auto_key1>",
+                          "rows": 1,
+                          "cost": 0.35,
+                          "chosen": false
+                        },
+                        {
+                          "access_type": "scan",
+                          "cost": 2.725,
+                          "rows": 2,
+                          "chosen": false,
+                          "cause": "cost"
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "condition_filtering_pct": 100,
+                    "rows_for_plan": 1,
+                    "cost_for_plan": 0.7,
+                    "chosen": true
+                  }
+                ] /* rest_of_plan */
+              },
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`q` `q1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "<auto_key0>",
+                      "rows": 1,
+                      "cost": 0.35,
+                      "chosen": true
+                    },
+                    {
+                      "access_type": "ref",
+                      "index": "<auto_key1>",
+                      "rows": 1,
+                      "cost": 0.35,
+                      "chosen": false
+                    },
+                    {
+                      "access_type": "scan",
+                      "cost": 2.725,
+                      "rows": 2,
+                      "chosen": false,
+                      "cause": "cost"
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 1,
+                "cost_for_plan": 0.35,
+                "pruned_by_heuristic": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "((`q1`.`a` = 2) and (`q`.`a` = 1))",
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`q`",
+                  "attached": null
+                },
+                {
+                  "table": "`q` `q1`",
+                  "attached": null
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`q`"
+              },
+              {
+                "table": "`q` `q1`"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "`q`",
+                "row_length": 9,
+                "key_length": 8,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 1864135
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
+            "join_execution": {
+              "select#": 2,
+              "steps": [
+              ] /* steps */
+            } /* join_execution */
+          },
+          {
+            "join_execution": {
+              "select#": 3,
+              "steps": [
+              ] /* steps */
+            } /* join_execution */
+          }
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}
+# Tracing of repetitions of the recursive member
+# can be silenced with repeated_subselect=off
+with recursive qn(n) as
+(select 1 union all select n+1 from qn where n<4)
+select count(*) from qn;
+count(*)
+4
+SELECT show_json_object('"join_execution": {', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+show_json_object('"join_execution": {', TRACE)
+"join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "`qn`",
+                "row_length": 9,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 1864135
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
+            "join_execution": {
+              "select#": 2,
+              "steps": [
+              ] /* steps */
+            } /* join_execution */
+          },
+          {
+            "join_execution": {
+              "select#": 3,
+              "steps": [
+              ] /* steps */
+            } /* join_execution */
+          },
+          {
+            "join_execution": {
+              "select#": 3,
+              "steps": [
+              ] /* steps */
+            } /* join_execution */
+          },
+          {
+            "join_execution": {
+              "select#": 3,
+              "steps": [
+              ] /* steps */
+            } /* join_execution */
+          }
+        ] /* steps */
+      } 
+SET @@optimizer_trace_features="repeated_subselect=off";
+with recursive qn(n) as
+(select 1 union all select n+1 from qn where n<4)
+select count(*) from qn;
+count(*)
+4
+SELECT show_json_object('"join_execution": {', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+show_json_object('"join_execution": {', TRACE)
+"join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "`qn`",
+                "row_length": 9,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 1864135
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
+            "join_execution": {
+              "select#": 2,
+              "steps": [
+              ] /* steps */
+            } /* join_execution */
+          },
+          {
+            "join_execution": {
+              "select#": 3,
+              "steps": [
+              ] /* steps */
+            } /* join_execution */
+          }
+        ] /* steps */
+      } 
+SET @@optimizer_trace_features=default;
 drop function show_json_object;

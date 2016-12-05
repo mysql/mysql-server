@@ -31,7 +31,9 @@ static handler *heap_create_handler(handlerton *hton,
                                     bool partitioned,
                                     MEM_ROOT *mem_root);
 static int
-heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
+heap_prepare_hp_create_info(TABLE *table_arg,
+                            bool single_instance,
+                            bool delete_on_close,
                             HP_CREATE_INFO *hp_create_info);
 
 
@@ -74,7 +76,7 @@ static handler *heap_create_handler(handlerton *hton,
 
 ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg), file(0), records_changed(0), key_stat_version(0), 
-  internal_table(0)
+  single_instance(0)
 {}
 
 
@@ -94,14 +96,21 @@ ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
 int ha_heap::open(const char *name, int mode, uint test_if_locked,
                   const dd::Table*)
 {
-  internal_table= MY_TEST(test_if_locked & HA_OPEN_INTERNAL_TABLE);
-  if (internal_table || (!(file= heap_open(name, mode)) && my_errno() == ENOENT))
+  const bool delete_on_close= test_if_locked & HA_OPEN_INTERNAL_TABLE;
+  single_instance= delete_on_close && table_share->ref_count == 1;
+  /*
+    (1) if single instance it cannot possibly exist, create it.
+    (2) otherwise it may exist, try to open it, if not found, create it
+  */
+  if (single_instance ||
+      (!(file= heap_open(name, mode)) && my_errno() == ENOENT))
   {
     HP_CREATE_INFO create_info;
     my_bool created_new_share;
     int rc;
     file= 0;
-    if (heap_prepare_hp_create_info(table, internal_table, &create_info))
+    if (heap_prepare_hp_create_info(table, single_instance,
+                                    delete_on_close, &create_info))
       goto end;
     create_info.pin_share= TRUE;
 
@@ -111,14 +120,14 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked,
       goto end;
 
     implicit_emptied= MY_TEST(created_new_share);
-    if (internal_table)
+    if (single_instance)
       file= heap_open_from_share(internal_share, mode);
-    else
+    else // open and register in list, so future opens can find it
       file= heap_open_from_share_and_register(internal_share, mode);
 
     if (!file)
     {
-      heap_release_share(internal_share, internal_table);
+      heap_release_share(internal_share, single_instance);
       goto end;
     }
   }
@@ -139,7 +148,9 @@ end:
 
 int ha_heap::close(void)
 {
-  return internal_table ? hp_close(file) : heap_close(file);
+  return single_instance ?
+    hp_close(file) : // close without concurrency control
+    heap_close(file);
 }
 
 
@@ -547,7 +558,7 @@ THR_LOCK_DATA **ha_heap::store_lock(THD*,
     as they don't have properly initialized THR_LOCK and THR_LOCK_DATA
     structures.
   */
-  DBUG_ASSERT(!internal_table);
+  DBUG_ASSERT(!single_instance);
   if (lock_type != TL_IGNORE && file->lock.type == TL_UNLOCK)
     file->lock.type=lock_type;
   *to++= &file->lock;
@@ -606,7 +617,9 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
 
 
 static int
-heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
+heap_prepare_hp_create_info(TABLE *table_arg,
+                            bool single_instance,
+                            bool delete_on_close,
                             HP_CREATE_INFO *hp_create_info)
 {
   uint key, parts, mem_per_row= 0, keys= table_arg->s->keys;
@@ -707,7 +720,8 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
   hp_create_info->auto_key_type= auto_key_type;
   hp_create_info->max_table_size=current_thd->variables.max_heap_table_size;
   hp_create_info->with_auto_increment= found_real_auto_increment;
-  hp_create_info->internal_table= internal_table;
+  hp_create_info->single_instance= single_instance;
+  hp_create_info->delete_on_close= delete_on_close;
 
   max_rows= (ha_rows) (hp_create_info->max_table_size / mem_per_row);
   if (share->max_rows && share->max_rows < max_rows)
@@ -728,8 +742,9 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   int error;
   my_bool created;
   HP_CREATE_INFO hp_create_info;
+  DBUG_ASSERT(!single_instance);
 
-  error= heap_prepare_hp_create_info(table_arg, internal_table,
+  error= heap_prepare_hp_create_info(table_arg, false, false,
                                      &hp_create_info);
   if (error)
     return error;

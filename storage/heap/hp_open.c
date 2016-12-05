@@ -86,13 +86,12 @@ HP_INFO *heap_open_from_share_and_register(HP_SHARE *share, int mode)
 
 /**
   Dereference a HEAP share and free it if it's not referenced.
-  We don't check open_count for internal tables since they
-  are always thread-local, i.e. referenced by a single thread.
+  We needn't check open_count for single instances.
 */
-void heap_release_share(HP_SHARE *share, my_bool internal_table)
+void heap_release_share(HP_SHARE *share, my_bool single_instance)
 {
   /* Couldn't open table; Remove the newly created table */
-  if (internal_table)
+  if (single_instance)
     hp_free(share);
   else
   {

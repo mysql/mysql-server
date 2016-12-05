@@ -5418,6 +5418,12 @@ ha_innobase::table_flags() const
 		flags &= ~(HA_INNOPART_DISABLED_TABLE_FLAGS);
 	}
 
+	/* Temporary table provides accurate record count */
+	if (table_share != NULL
+	    && table_share->table_category == TABLE_CATEGORY_TEMPORARY) {
+		flags |= HA_STATS_RECORDS_IS_EXACT;
+	}
+
 	/* Need to use tx_isolation here since table flags is (also)
 	called before prebuilt is inited. */
 
@@ -6322,11 +6328,16 @@ ha_innobase::innobase_initialize_autoinc()
 
 /** Open an InnoDB table.
 @param[in]	name	table name
+@param[in]	open_flags	flags for opening table from SQL-layer.
 @param[in]	table_def	dd::Table object describing table to be opened
 @retval 1 if error
 @retval 0 if success */
 int
-ha_innobase::open(const char* name, int, uint, const dd::Table* table_def)
+ha_innobase::open(
+	const char* name,
+	int,
+	uint open_flags,
+	const dd::Table* table_def)
 {
 	dict_table_t*		ib_table;
 	char			norm_name[FN_REFLEN];
@@ -6495,6 +6506,23 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* table_def)
 
 	m_prebuilt->m_mysql_table = table;
 	m_prebuilt->m_mysql_handler = this;
+
+	if (ib_table->is_intrinsic()) {
+		ut_ad(open_flags & HA_OPEN_INTERNAL_TABLE);
+
+		m_prebuilt->m_temp_read_shared =
+			table_share->ref_count >= 2;
+
+		if (m_prebuilt->m_temp_read_shared) {
+			if (ib_table->temp_prebuilt == NULL) {
+				ib_table->temp_prebuilt =
+					UT_NEW_NOKEY(temp_prebuilt_vec());
+			}
+
+			ib_table->temp_prebuilt->push_back(m_prebuilt);
+		}
+		m_prebuilt->m_temp_tree_modified = false;
+	}
 
 	key_used_on_scan = table_share->primary_key;
 
@@ -6863,6 +6891,12 @@ ha_innobase::close()
 /*================*/
 {
 	DBUG_ENTER("ha_innobase::close");
+
+	if (m_prebuilt->m_temp_read_shared) {
+		temp_prebuilt_vec*	vec = m_prebuilt->table->temp_prebuilt;
+		ut_ad(m_prebuilt->table->is_intrinsic());
+		vec->erase(std::remove(vec->begin(), vec->end(), m_prebuilt), vec->end());
+	}
 
 	row_prebuilt_free(m_prebuilt, FALSE);
 
@@ -7905,6 +7939,9 @@ ha_innobase::write_row(
 
 	DBUG_ENTER("ha_innobase::write_row");
 
+        /* Increase the write count of handler */
+	ha_statistic_increment(&System_status_var::ha_write_count);
+
 	if (m_prebuilt->table->is_intrinsic()) {
 		DBUG_RETURN(intrinsic_table_write_row(record));
 	}
@@ -7941,8 +7978,6 @@ ha_innobase::write_row(
 	} else if (!trx_is_started(trx)) {
 		++trx->will_lock;
 	}
-
-	ha_statistic_increment(&System_status_var::ha_write_count);
 
 	/* Handling of Auto-Increment Columns. */
 	if (table->next_number_field && record == table->record[0]) {
@@ -9669,6 +9704,8 @@ ha_innobase::rnd_pos(
 
 	if (error != 0) {
 		DBUG_PRINT("error", ("Got error: %d", error));
+	} else {
+		m_start_of_scan = false;
 	}
 
 	DBUG_RETURN(error);
@@ -10730,6 +10767,12 @@ err_col:
 		my_error(err == DB_DUPLICATE_KEY
 			 ? ER_TABLE_EXISTS_ERROR
 			 : ER_TABLESPACE_EXISTS, MYF(0), display_name);
+
+                if (err == DB_DUPLICATE_KEY) {
+			/* 'this' may not be ready for get_dup_key(), see same
+			error tweaking in rename_table(). */
+			err= DB_ERROR;
+		}
 	}
 
 	if (err == DB_SUCCESS && (m_flags2 & DICT_TF2_FTS)) {
@@ -14846,9 +14889,12 @@ ha_innobase::info_low(
 		HA_STATUS_TIME flag set, while the left join optimizer does not
 		set that flag, we add one to a zero value if the flag is not
 		set. That way SHOW TABLE STATUS will show the best estimate,
-		while the optimizer never sees the table empty. */
+		while the optimizer never sees the table empty.
+		However, if it is internal temporary table used by optimizer,
+		the count should be accurate */
 
-		if (n_rows == 0 && !(flag & HA_STATUS_TIME)) {
+		if (n_rows == 0 && !(flag & HA_STATUS_TIME)
+		    && table_share->table_category != TABLE_CATEGORY_TEMPORARY) {
 			n_rows++;
 		}
 

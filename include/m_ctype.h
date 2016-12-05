@@ -45,7 +45,12 @@ extern "C" {
 
 #define CHARSET_DIR	"charsets/"
 
-#define my_wc_t ulong
+/**
+  Our own version of wchar_t, ie., a type that holds a single Unicode code point
+  ("wide character"). ulong is always big enough to hold any character
+  in the BMP.
+*/
+typedef ulong my_wc_t;
 
 #define MY_CS_REPLACEMENT_CHARACTER 0xFFFD
 

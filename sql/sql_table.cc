@@ -70,6 +70,9 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "my_time.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/service_my_snprintf.h"
@@ -82,14 +85,12 @@
 #include "partition_element.h"
 #include "partition_info.h"           // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
-#include "pfs_table_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "psi_memory_key.h"           // key_memory_gdl
 #include "query_options.h"
 #include "records.h"                  // READ_RECORD
 #include "rpl_gtid.h"
-#include "sdi_utils.h"                // create_serialized_meta_data
 #include "session_tracker.h"
 #include "sql_alter.h"
 #include "sql_base.h"                 // lock_table_names
@@ -125,16 +126,6 @@
 #include "trigger.h"
 #include "typelib.h"
 #include "xa.h"
-
-#include "pfs_file_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_file.h"
-
-#include "pfs_stage_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_stage.h"
-
-#include "pfs_table_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_table.h"
-
 
 using std::max;
 using std::min;
@@ -2306,25 +2297,6 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       {
         DBUG_RETURN(true);
       }
-    }
-  }
-  if (flags & WSDI_COMPRESS_SDI)
-  {
-    /*
-      We need to compress the serialized dictionary information.
-      This is only used for handlers that have the main version of
-      the SDI stored in the handler.
-    */
-    uchar *data;
-    size_t length;
-    if (create_serialized_meta_data(lpt->db, shadow_name, &data, &length) ||
-        compress_serialized_meta_data(data, length, &lpt->pack_frm_data,
-                                      &lpt->pack_frm_len))
-    {
-      my_free(data);
-      my_free(lpt->pack_frm_data);
-      mem_alloc_error(length);
-      DBUG_RETURN(true);
     }
   }
 
@@ -6915,7 +6887,7 @@ bool create_table_impl(THD *thd,
     DBUG_ASSERT(! (create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
                 *tmp_table_def == NULL);
 
-    init_tmp_table_share(thd, &share, db, 0, table_name, path);
+    init_tmp_table_share(thd, &share, db, 0, table_name, path, nullptr);
 
     bool result= open_table_def(thd, &share, false, nullptr) ||
                  open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,

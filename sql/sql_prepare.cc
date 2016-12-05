@@ -843,6 +843,7 @@ bool Prepared_statement::insert_params(String *query, PS_PARAM *parameters)
       if (param->convert_str_value(thd))
         DBUG_RETURN(true);                        /* out of memory */
     }
+    param->sync_clones();
   }
   DBUG_RETURN(false);
 }
@@ -862,6 +863,7 @@ static bool setup_conversion_functions(Prepared_statement *stmt,
   {
     (**it).unsigned_flag= parameters[i].unsigned_type;
     setup_one_conversion_function(stmt->thd, *it, parameters[i].type);
+    (**it).sync_clones();
   }
   DBUG_RETURN(0);
 }
@@ -932,6 +934,7 @@ bool Prepared_statement::emb_insert_params(String *query)
       if (param->convert_str_value(thd))
         DBUG_RETURN(1);                           /* out of memory */
     }
+    param->sync_clones();
   }
   DBUG_RETURN(0);
 }
@@ -982,7 +985,11 @@ swap_parameter_array(Item_param **param_array_dst,
   Item_param **end= param_array_dst + param_count;
 
   for (; dst < end; ++src, ++dst)
+  {
     (*dst)->set_param_type_and_swap_value(*src);
+    (*dst)->sync_clones();
+    (*src)->sync_clones();
+  }
 }
 
 
@@ -1058,6 +1065,7 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
           param->convert_str_value(thd))
         goto error;
     }
+    param->sync_clones();
   }
 
   /*
@@ -1595,6 +1603,14 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   DBUG_RETURN(send_statement(thd, stmt, no_columns, result, types));
 }
 
+
+static int Item_param_comp(Item_param *e1, Item_param *e2, void *arg)
+{
+  return ((e1->pos_in_query < e2->pos_in_query) ? -1 :
+          ((e1->pos_in_query > e2->pos_in_query) ? 1 : 0));
+}
+
+
 /**
   Initialize array of parameters in statement from LEX.
   (We need to have quick access to items by number in mysql_stmt_get_longdata).
@@ -1612,6 +1628,17 @@ static bool init_param_array(Prepared_statement *stmt)
       my_error(ER_PS_MANY_PARAM, MYF(0));
       return TRUE;
     }
+    /*
+      Sort parameters by order of char position in the query, to correspond
+      with the order in which the user supplies values.
+      Parameters may have been added to param_list (by itemize()) in a
+      different order, for example a CTE is itemized when a reference
+      to it ('FROM ref') is found, and references can be in any order in the
+      FROM clause.
+    */
+    lex->param_list.sort(reinterpret_cast<Node_cmp_func>(Item_param_comp),
+                         NULL);
+
     Item_param **to;
     List_iterator<Item_param> param_iterator(lex->param_list);
     /* Use thd->mem_root as it points at statement mem_root */
@@ -2138,7 +2165,10 @@ static void reset_stmt_params(Prepared_statement *stmt)
   Item_param **item= stmt->param_array;
   Item_param **end= item + stmt->param_count;
   for (;item < end ; ++item)
+  {
     (**item).reset();
+    (**item).sync_clones();
+  }
 }
 
 

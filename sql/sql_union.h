@@ -29,13 +29,14 @@ template <class T> class List;
 class Query_result_union : public Query_result_interceptor
 {
   Temp_table_param tmp_table_param;
+  /// Count of rows successfully stored in tmp table
+  ha_rows m_rows_in_table;
 public:
   TABLE *table;
-  bool is_union_mixed_with_union_all; // Mark the mixed operation
 
   Query_result_union(THD *thd)
-    : Query_result_interceptor(thd), table(0),
-    is_union_mixed_with_union_all(false) {}
+    : Query_result_interceptor(thd), m_rows_in_table(0), table(0)
+    {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   /**
     Do prepare() and prepare2() if they have been postponed until
@@ -56,6 +57,7 @@ public:
                            const char *alias, bool bit_fields_as_long,
                            bool create_table);
   friend bool TABLE_LIST::create_derived(THD *thd);
+  virtual const ha_rows *row_count() const override { return &m_rows_in_table; }
 };
 
 #endif /* SQL_UNION_INCLUDED */

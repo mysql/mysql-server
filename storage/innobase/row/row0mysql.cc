@@ -24,20 +24,21 @@ Contains also create table and other data dictionary operations.
 Created 9/17/2000 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
 #include <debug_sync.h>
 #include <gstream.h>
 #include <spatial.h>
+#include <sql_const.h>
+#include <algorithm>
+#include <deque>
+#include <new>
+#include <vector>
 
-#include "row0mysql.h"
 #include "btr0sea.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
-#include <sql_const.h>
 #include "dict0dict.h"
-#include "dict0priv.h"
-#include "dict0crea.h"
 #include "dict0load.h"
+#include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "fil0fil.h"
@@ -45,15 +46,18 @@ Created 9/17/2000 Heikki Tuuri
 #include "fsp0sysspace.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0log.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "rem0cmp.h"
+#include "row0ext.h"
 #include "row0import.h"
 #include "row0ins.h"
 #include "row0merge.h"
+#include "row0mysql.h"
 #include "row0row.h"
 #include "row0sel.h"
 #include "row0upd.h"
@@ -61,12 +65,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0undo.h"
-#include "row0ext.h"
 #include "ut0new.h"
-
-#include <algorithm>
-#include <deque>
-#include <vector>
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.

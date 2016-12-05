@@ -57,6 +57,7 @@
 #include "mysql/mysql_lex_string.h"       // LEX_STRING
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_idle.h"
 #include "mysql/psi/psi_stage.h"
@@ -70,7 +71,6 @@
 #include "opt_costmodel.h"
 #include "opt_trace_context.h"            // Opt_trace_context
 #include "parse_location.h"
-#include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"                     // Protocol
 #include "protocol_classic.h"             // Protocol_text
@@ -98,9 +98,6 @@
 #include "thr_lock.h"
 #include "transaction_info.h"             // Ha_trx_info
 #include "violite.h"
-
-#include "pfs_statement_provider.h"       // IWYU pragma: keep
-#include "mysql/psi/mysql_statement.h"
 
 class Query_arena;
 class Relay_log_info;
@@ -445,19 +442,16 @@ public:
 
 public:
   /**
-    List of regular tables in use by this thread. Contains temporary and
-    base tables that were opened with @see open_tables().
+    List of regular tables in use by this thread. Contains persistent base
+    tables that were opened with @see open_tables().
   */
   TABLE *open_tables;
   /**
     List of temporary tables used by this thread. Contains user-level
     temporary tables, created with CREATE TEMPORARY TABLE, and
-    internal temporary tables, created, e.g., to resolve a SELECT,
-    or for an intermediate table used in ALTER.
-    XXX Why are internal temporary tables added to this list?
+    intermediate tables used in ALTER TABLE implementation.
   */
   TABLE *temporary_tables;
-  TABLE *derived_tables;
   /*
     During a MySQL session, one can lock tables in two modes: automatic
     or manual. In automatic mode all necessary tables are locked just before

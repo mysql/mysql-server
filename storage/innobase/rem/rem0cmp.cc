@@ -671,7 +671,7 @@ cmp_data_data(
 @param[in]	dtuple		data tuple
 @param[in]	rec		record
 @param[in]	index		index
-param[in]	offsets		rec_get_offsets(rec)
+@param[in]	offsets		rec_get_offsets(rec)
 @param[in]	n_cmp		number of fields to compare
 @param[in,out]	matched_fields	number of completely matched fields
 @return the comparison result of dtuple and rec

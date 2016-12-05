@@ -287,6 +287,11 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   hash_tables->table_name= name;
   hash_tables->alias= alias;
   hash_tables->set_tableno(0);
+  /*
+    The current SELECT_LEX won't exist when this TABLE_LIST is used by HANDLER
+    READ, so zero it:
+  */
+  hash_tables->select_lex= NULL;
   memcpy(const_cast<char*>(hash_tables->db), tables->db, dblen);
   memcpy(const_cast<char*>(hash_tables->table_name),
          tables->table_name, namelen);

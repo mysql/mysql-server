@@ -200,7 +200,8 @@ typedef struct st_heap_create_info
   ulonglong max_table_size;
   ulonglong auto_increment;
   my_bool with_auto_increment;
-  my_bool internal_table;
+  my_bool single_instance;
+  my_bool delete_on_close;
   /*
     TRUE if heap_create should 'pin' the created share by setting
     open_count to 1. Is only looked at if not internal_table.
@@ -213,7 +214,7 @@ typedef struct st_heap_create_info
 extern HP_INFO *heap_open(const char *name, int mode);
 extern HP_INFO *heap_open_from_share(HP_SHARE *share, int mode);
 extern HP_INFO *heap_open_from_share_and_register(HP_SHARE *share, int mode);
-extern void heap_release_share(HP_SHARE *share, my_bool internal_table);
+extern void heap_release_share(HP_SHARE *share, my_bool single_instance);
 extern int heap_close(HP_INFO *info);
 extern int heap_write(HP_INFO *info,const uchar *buff);
 extern int heap_update(HP_INFO *info,const uchar *old,const uchar *newdata);

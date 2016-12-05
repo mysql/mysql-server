@@ -96,6 +96,7 @@ SHOW_STATISTICS_DYNAMIC
 STATISTICS
 STATISTICS_BASE
 STATISTICS_DYNAMIC
+ST_GEOMETRY_COLUMNS
 ST_SPATIAL_REFERENCE_SYSTEMS
 TABLES
 TABLESPACES
@@ -524,9 +525,9 @@ create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
 select * from information_schema.views where table_schema !=
 'sys' order by table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	test	v1	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v2	select `test`.`t1`.`a` AS `c` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v3	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v1	select `test`.`t1`.`a` AS `a` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v2	select `test`.`t1`.`a` AS `a` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v3	select `test`.`t1`.`a` AS `a` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
 grant select (a) on test.t1 to joe@localhost with grant option;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
@@ -724,12 +725,12 @@ where table_schema='test' order by constraint_name;
 constraint_name
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`f1` AS `c` from `t1`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` (`c`) AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 show create table v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `sub1`(1) AS `c`	latin1	latin1_swedish_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` (`c`) AS select `sub1`(1) AS `sub1(1)`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v2;
@@ -782,6 +783,7 @@ and data_type = 'longtext' order by table_name, column_name;
 TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME
 information_schema	COLUMNS	DATA_TYPE
 information_schema	COLUMNS	GENERATION_EXPRESSION
+information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME
 information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
 where table_schema not in ('performance_schema', 'sys')
@@ -856,6 +858,7 @@ REFERENTIAL_CONSTRAINTS	TABLE_NAME	select
 STATISTICS	TABLE_NAME	select
 STATISTICS_BASE	TABLE_NAME	select
 STATISTICS_DYNAMIC	TABLE_NAME	select
+ST_GEOMETRY_COLUMNS	TABLE_NAME	select
 TABLES	TABLE_NAME	select
 TABLES_DYNAMIC	TABLE_NAME	select
 TABLE_CONSTRAINTS	TABLE_NAME	select
@@ -869,7 +872,7 @@ table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
-information_schema	37
+information_schema	38
 mysql	30
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1344,6 +1347,7 @@ SHOW_STATISTICS_DYNAMIC	information_schema.SHOW_STATISTICS_DYNAMIC	1
 STATISTICS	information_schema.STATISTICS	1
 STATISTICS_BASE	information_schema.STATISTICS_BASE	1
 STATISTICS_DYNAMIC	information_schema.STATISTICS_DYNAMIC	1
+ST_GEOMETRY_COLUMNS	information_schema.ST_GEOMETRY_COLUMNS	1
 ST_SPATIAL_REFERENCE_SYSTEMS	information_schema.ST_SPATIAL_REFERENCE_SYSTEMS	1
 TABLES	information_schema.TABLES	1
 TABLESPACES	information_schema.TABLESPACES	1
@@ -2271,3 +2275,24 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1, t2;
 DROP VIEW v1;
+#
+# WL#8582 INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS
+#
+SELECT * FROM information_schema.ST_GEOMETRY_COLUMNS
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
+CREATE TABLE t1(g GEOMETRY, pt POINT, ls LINESTRING, py POLYGON, mpt MULTIPOINT,
+mls MULTILINESTRING, mpy MULTIPOLYGON, gc GEOMETRYCOLLECTION);
+SELECT * FROM information_schema.ST_GEOMETRY_COLUMNS
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1'
+  ORDER BY COLUMN_NAME;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
+def	test	t1	g	NULL	NULL	geometry
+def	test	t1	gc	NULL	NULL	geometrycollection
+def	test	t1	ls	NULL	NULL	linestring
+def	test	t1	mls	NULL	NULL	multilinestring
+def	test	t1	mpt	NULL	NULL	multipoint
+def	test	t1	mpy	NULL	NULL	multipolygon
+def	test	t1	pt	NULL	NULL	point
+def	test	t1	py	NULL	NULL	polygon
+DROP TABLE t1;

@@ -19,6 +19,7 @@
 #include <my_global.h>
 #include <sql_class.h> // THD
 #include <stdio.h>
+#include <new>
 
 #define MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS 16384
 #define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS/8

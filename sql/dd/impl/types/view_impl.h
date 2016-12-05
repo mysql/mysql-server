@@ -184,6 +184,16 @@ public:
   }
 
   /////////////////////////////////////////////////////////////////////////
+  // Explicit list of column names.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const Properties &column_names() const
+  { return *m_column_names; }
+
+  virtual Properties &column_names()
+  { return *m_column_names; }
+
+  /////////////////////////////////////////////////////////////////////////
   // View_table collection.
   /////////////////////////////////////////////////////////////////////////
 
@@ -226,6 +236,7 @@ public:
   { return Abstract_table_impl::options(); }
   virtual bool set_options_raw(const String_type &options_raw)
   { return Abstract_table_impl::set_options_raw(options_raw); }
+  virtual bool set_column_names_raw(const String_type &column_names_raw);
   virtual ulonglong created() const
   { return Abstract_table_impl::created(); }
   virtual void set_created(ulonglong created)
@@ -258,6 +269,10 @@ private:
   String_type m_definition_utf8;
   String_type m_definer_user;
   String_type m_definer_host;
+
+  std::unique_ptr<Properties> m_column_names;
+
+  // Collections.
 
   View_tables   m_tables;
   View_routines m_routines;

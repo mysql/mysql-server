@@ -59,6 +59,7 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
@@ -85,9 +86,6 @@
 #include "template_utils.h"
 #include "transaction.h"     // trans_rollback_stmt
 #include "typelib.h"
-
-#include "pfs_file_provider.h"  // IWYU pragma:keep
-#include "mysql/psi/mysql_file.h"
 
 static const size_t MAX_DROP_TABLE_Q_LEN= 1024;
 

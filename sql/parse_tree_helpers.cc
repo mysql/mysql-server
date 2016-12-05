@@ -74,6 +74,15 @@ Item_splocal* create_item_for_sp_var(THD *thd,
 
   DBUG_ASSERT(pctx && spv);
 
+  if (lex->reparse_common_table_expr_at != 0)
+  {
+    /*
+      This variable doesn't exist in the original query: shouldn't be
+      substituted for logging.
+    */
+    query_start_ptr= NULL;
+  }
+
   if (query_start_ptr)
   {
     /* Position and length of the SP variable name in the query. */

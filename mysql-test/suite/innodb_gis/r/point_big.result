@@ -348,7 +348,7 @@ COUNT(*)	ST_AsText(p1)	ST_AsText(p2)
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1 GROUP BY p1;
 COUNT(*)	ST_AsText(p1)
 1024	POINT(5 10)
-SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1;
+SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1 ASC;
 COUNT(*)	ST_AsText(p1)
 1024	POINT(3 6)
 1024	POINT(4 8)
@@ -516,7 +516,7 @@ POINT(8 16)	POINT(0 0)
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1 GROUP BY p1;
 COUNT(*)	ST_AsText(p1)
 1024	POINT(5 10)
-SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1;
+SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1 ASC;
 COUNT(*)	ST_AsText(p1)
 1024	POINT(3 6)
 1024	POINT(4 8)

@@ -39,6 +39,13 @@
 #endif
 
 
+#ifndef _WIN32
+// Mock away pwrite() for unit testing.
+ssize_t (*mock_pwrite)(int fd, const void *buf,
+                       size_t count, off_t offset)= nullptr;
+#endif
+
+
 /*
   Read a chunk of bytes from a file from a given position
 
@@ -163,7 +170,10 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
 #if defined (_WIN32)
     writtenbytes= my_win_pwrite(Filedes, Buffer, Count, offset);
 #else
-    writtenbytes= pwrite(Filedes, Buffer, Count, offset);
+    if (mock_pwrite)
+      writtenbytes= mock_pwrite(Filedes, Buffer, Count, offset);
+    else
+      writtenbytes= pwrite(Filedes, Buffer, Count, offset);
 #endif
     if(writtenbytes == Count)
     {

@@ -132,7 +132,6 @@ enum enum_explain_filename_mode
 #define MAX_LEN_GEOM_POINT_FIELD   25
 
 #define WSDI_WRITE_SHADOW 1
-#define WSDI_COMPRESS_SDI 4
 
 /* Flags for conversion functions. */
 static const uint FN_FROM_IS_TMP=  1 << 0;

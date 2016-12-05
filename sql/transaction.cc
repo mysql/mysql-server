@@ -33,6 +33,7 @@
 #include "mysql_com.h"
 #include "mysqld.h"           // opt_readonly
 #include "mysqld_error.h"
+#include "mysql/psi/mysql_transaction.h"
 #include "query_options.h"
 #include "rpl_context.h"
 #include "rpl_gtid.h"
@@ -44,8 +45,6 @@
 #include "transaction_info.h"
 #include "xa.h"
 
-#include "pfs_transaction_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_transaction.h"
 
 /**
   Helper: Tell tracker (if any) that transaction ended.

@@ -30,8 +30,9 @@ code,
 UPPER(CONVERT(code USING utf8mb4)),
 LOWER(CONVERT(code USING utf8mb4))
 FROM fulltable
-WHERE HEX(CONVERT(code USING utf8mb4)) <> HEX(UPPER(CONVERT(code USING utf8mb4)))
-OR HEX(CONVERT(code USING utf8mb4)) <> HEX(LOWER(CONVERT(code USING utf8mb4)))
+WHERE (code < 0xD800 OR code >= 0xE000) AND
+(HEX(CONVERT(code USING utf8mb4)) <> HEX(UPPER(CONVERT(code USING utf8mb4)))
+OR HEX(CONVERT(code USING utf8mb4)) <> HEX(LOWER(CONVERT(code USING utf8mb4))))
 ORDER BY HEX(CONVERT(code USING utf8mb4));
 HEX(CONVERT(code USING utf8mb4))	HEX(UPPER(CONVERT(code USING utf8mb4)))	HEX(LOWER(CONVERT(code USING utf8mb4)))	code	UPPER(CONVERT(code USING utf8mb4))	LOWER(CONVERT(code USING utf8mb4))
 41	41	61	A	A	a

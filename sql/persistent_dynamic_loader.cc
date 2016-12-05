@@ -346,6 +346,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
 {
   try
   {
+    int res;
     THD* thd= (THD*)thd_ptr;
 
     if (!mysql_persistent_dynamic_loader_imp::initialized())
@@ -401,8 +402,14 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       component_table->field[CT_FIELD_COMPONENT_URN]->store(urns[i],
         strlen(urns[i]), system_charset);
 
-      int res=
-        component_table->file->ha_write_row(component_table->record[0]);
+     /*
+       We do not replicate the INSTALL COMPONENT statement. Disable binlogging
+       of the insert into the component table, so that it is not replicated in
+       row based mode.
+     */
+      tmp_disable_binlog(thd);
+      res= component_table->file->ha_write_row(component_table->record[0]);
+      reenable_binlog(thd);
       if (res != 0)
       {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);
@@ -528,7 +535,15 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
         return true;
       }
 
+      /*
+        We do not replicate the UNINSTALL COMPONENT statement. Disable binlogging
+        of the delete from the component table, so that it is not replicated in
+        row based mode.
+      */
+      tmp_disable_binlog(thd);
       res= component_table->file->ha_delete_row(component_table->record[0]);
+      reenable_binlog(thd);
+
       if (res != 0)
       {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);

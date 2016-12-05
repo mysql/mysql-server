@@ -932,7 +932,7 @@ bool SELECT_LEX::resolve_derived(THD *thd, bool apply_semijoin)
       if (!tl->is_view_or_derived() ||
           tl->is_merged() ||
           !tl->is_mergeable())
-      continue;
+        continue;
       if (merge_derived(thd, tl))
         DBUG_RETURN(true);        /* purecov: inspected */
     }
@@ -946,7 +946,12 @@ bool SELECT_LEX::resolve_derived(THD *thd, bool apply_semijoin)
                 tl->is_merged() || tl->uses_materialization());
     if (!tl->is_view_or_derived() || tl->is_merged())
       continue;
-    if (tl->setup_materialized_derived(thd))
+    /*
+      If tl->resolve_derived() created the tmp table, don't create it again.
+      @todo in WL#6570, eliminate tests of tl->table in this function.
+    */
+    if (tl->table == nullptr &&
+        tl->setup_materialized_derived(thd))
       DBUG_RETURN(true);
     materialized_derived_table_count++;
   }
@@ -967,7 +972,7 @@ bool SELECT_LEX::resolve_derived(THD *thd, bool apply_semijoin)
       DBUG_ASSERT(!tl->is_merged());
       if (tl->resolve_derived(thd, apply_semijoin))
         DBUG_RETURN(true);        /* purecov: inspected */
-      if (tl->setup_materialized_derived(thd))
+      if (tl->table == nullptr && tl->setup_materialized_derived(thd))
         DBUG_RETURN(true);        /* purecov: inspected */
       /*
         materialized_derived_table_count was incremented during preparation,
@@ -2110,6 +2115,13 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   uint table_no= leaf_table_count;
   for (tl= subq_select->leaf_tables; tl; tl= tl->next_leaf, table_no++)
     tl->set_tableno(table_no);
+
+  /*
+    If we leave this function in an error path before subq_select is unlinked,
+    make sure tables are not duplicated, or cleanup code could be confused:
+  */
+  subq_select->table_list.empty();
+  subq_select->leaf_tables= nullptr;
 
   // Adjust table and expression counts in parent query block:
   derived_table_count+= subq_select->derived_table_count;

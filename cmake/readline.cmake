@@ -69,22 +69,6 @@ MACRO (FIND_CURSES)
  ELSEIF(CURSES_HAVE_NCURSES_H)
    SET(HAVE_NCURSES_H 1 CACHE INTERNAL "")
  ENDIF()
- IF(CMAKE_SYSTEM_NAME MATCHES "HP")
-   # CMake uses full path to library /lib/libcurses.sl 
-   # On Itanium, it results into architecture mismatch+
-   # the library is for  PA-RISC
-   SET(CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
-   SET(CURSES_CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
- ENDIF()
- IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-   # CMake generates /lib/64/libcurses.so -R/lib/64
-   # The result is we cannot find
-   # /opt/studio12u2/lib/stlport4/v9/libstlport.so.1
-   # at runtime
-   SET(CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
-   SET(CURSES_CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
-   MESSAGE(STATUS "CURSES_LIBRARY ${CURSES_LIBRARY}")
- ENDIF()
 
  IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
    # -Wl,--as-needed breaks linking with -lcurses, e.g on Fedora 

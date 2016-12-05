@@ -23,16 +23,17 @@ SQL data field and tuple
 Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
 
-#include "ha_prototypes.h"
+#include <new>
 
 #include "data0data.h"
+#include "ha_prototypes.h"
 #ifndef UNIV_HOTBACKUP
-#include "rem0rec.h"
-#include "rem0cmp.h"
+#include "btr0cur.h"
+#include "dict0dict.h"
 #include "page0page.h"
 #include "page0zip.h"
-#include "dict0dict.h"
-#include "btr0cur.h"
+#include "rem0cmp.h"
+#include "rem0rec.h"
 #include "row0upd.h"
 
 #endif /* !UNIV_HOTBACKUP */

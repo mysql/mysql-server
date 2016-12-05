@@ -29,6 +29,7 @@
 #include "my_sys.h"
 #include "mysql/plugin.h"       // MYSQL_XIDDATASIZE
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_transaction.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/service_mysql_alloc.h"
@@ -51,9 +52,6 @@
 #include "thr_mutex.h"
 #include "transaction.h"        // trans_begin, trans_rollback
 #include "transaction_info.h"
-
-#include "pfs_transaction_provider.h"
-#include "mysql/psi/mysql_transaction.h"
 
 const char *XID_STATE::xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"

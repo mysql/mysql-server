@@ -20,19 +20,15 @@
 #include <algorithm>
 #include <functional>
 
-#include "pfs_metadata_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_mdl.h"
-
-#include "pfs_stage_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_stage.h"
-
 #include "debug_sync.h"
 #include "lf.h"
 #include "m_ctype.h"
 #include "my_atomic.h"
 #include "my_murmur3.h"
 #include "mysqld_error.h"
+#include "mysql/psi/mysql_mdl.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_memory.h"

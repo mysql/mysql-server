@@ -233,8 +233,12 @@ create table t1 (a int);
 insert into t1 values (1),(2),(3);
 update (select * from t1) as t1 set a = 5;
 ERROR HY000: The target table t1 of the UPDATE is not updatable
+update (select * from t1) as t1, t1 as t2 set t1.a = 5;
+ERROR HY000: The target table t1 of the UPDATE is not updatable
 delete from (select * from t1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1)' at line 1
+delete from (select * from t1) as t1, t1 as t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1) as t1, t1 as t2' at line 1
 insert into  (select * from t1) values (5);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1) values (5)' at line 1
 drop table t1;
@@ -1576,7 +1580,7 @@ count(*)
 1000
 show status like 'Handler_write';
 Variable_name	Value
-Handler_write	21
+Handler_write	1021
 set @@max_heap_table_size= @save_heap_size;
 SET @@optimizer_switch= @optimizer_switch_saved;
 drop table t1;

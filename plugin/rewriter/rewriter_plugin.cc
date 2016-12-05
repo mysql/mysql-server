@@ -21,6 +21,7 @@
 #include <mysql/psi/mysql_thread.h>
 #include <mysql/service_my_plugin_log.h>
 #include <algorithm>
+#include <new>
 
 #include "my_config.h"
 #include "my_psi_config.h"

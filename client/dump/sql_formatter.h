@@ -95,6 +95,9 @@ private:
   void format_sql_objects_definer(
     Abstract_plain_sql_object_dump_task* , std::string);
 
+  bool innodb_stats_tables(std::string db,
+                           std::string table);
+
   Mysql::Tools::Base::Mysql_query_runner* m_escaping_runner;
   const Sql_formatter_options* m_options;
 };

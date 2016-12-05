@@ -35,6 +35,7 @@
 
 class Query_result;
 class SELECT_LEX_UNIT;
+class Opt_trace_object;
 
 enum class enum_explain_type;
 
@@ -79,6 +80,7 @@ enum Extra_tag
   ET_PUSHED_JOIN,
   ET_FT_HINTS,
   ET_BACKWARD_SCAN,
+  ET_RECURSIVE,
   //------------------------------------
   ET_total
 };
@@ -335,6 +337,12 @@ public:
   bool using_temporary;
   enum_mod_type mod_type;
   bool is_materialized_from_subquery;
+  /**
+     If a clone of a materialized derived table, this is the ID of the first
+     underlying query block of the first materialized derived table. 0
+     otherwise.
+  */
+  uint derived_clone_id;
 
   qep_row() :
     query_block_id(0),
@@ -342,7 +350,8 @@ public:
     is_cacheable(true),
     using_temporary(false),
     mod_type(MT_NONE),
-    is_materialized_from_subquery(false)
+    is_materialized_from_subquery(false),
+    derived_clone_id(0)
   {}
 
   virtual ~qep_row() {}
@@ -401,6 +410,8 @@ public:
     @param subquery     WHERE clause subquery's unit
   */
   virtual void register_where_subquery(SELECT_LEX_UNIT *subquery) {}
+
+  void format_extra(Opt_trace_object *obj);
 };
 
 

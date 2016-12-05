@@ -23,13 +23,6 @@
 #include "mock_logger.h"
 
 #if defined(HAVE_PSI_INTERFACE)
-#if !defined(MERGE_UNITTESTS)
-namespace keyring
-{
-  PSI_memory_key key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
-  PSI_memory_key key_LOCK_keyring = PSI_NOT_INSTRUMENTED;
-}
-#endif
 namespace keyring
 {
   extern PSI_file_key keyring_file_data_key;

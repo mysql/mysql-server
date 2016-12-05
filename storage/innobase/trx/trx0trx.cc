@@ -1107,10 +1107,7 @@ static
 trx_rseg_t*
 get_next_redo_rseg()
 {
-	static ulint	redo_rseg_slot;
-	trx_rseg_t*	rseg = nullptr;
-
-	ulint	start = os_atomic_increment_ulint(&redo_rseg_slot, 1);
+	static ulint	redo_rseg_slot = 0;
 
 	/* Versions 5.6 and 5.7 of InnoDB would allow 128 as the max for
 	innodb_rollback_segments but would only use 96 since 32 slots were
@@ -1119,25 +1116,39 @@ get_next_redo_rseg()
 	have srv_available_rollback_segments=96 while srv_rollback_segments
 	is 128.  Another possibility is that srv_rollback_segments can be set
 	to a smaller number at runtime.  So use the smaller of these two. */
-	ulint	max_rollback_segments
-		= ut_min(static_cast<ulint>(srv_rollback_segments),
-			 static_cast<ulint>(trx_sys->rsegs.size()));
-	ulint	slot = start % max_rollback_segments;
-	ulint	last = (start - 1) % max_rollback_segments;
-	bool	searching = true;
+	ulint		max_rollback_segments
+			= ut_min(static_cast<ulint>(srv_rollback_segments),
+				 static_cast<ulint>(trx_sys->rsegs.size()));
+	ulint		slot = redo_rseg_slot % max_rollback_segments;
+	ulint		last = (slot == 0
+				? max_rollback_segments - 1 : slot - 1);
+	trx_rseg_t*	rseg = nullptr;
+	bool		is_last = (slot == last);
+	bool		wrapped = false;
 
-	while (searching) {
+	/* Increment the static redo_rseg_slot so the next call from any thread
+	starts with the next rseg. */
+	os_atomic_increment_ulint(&redo_rseg_slot, 1);
+
+	while (rseg == nullptr) {
+
+		/* Set wrapped == true if this is the last rseg, the next
+		time around we will be looking at where we started. */
+		wrapped = wrapped ? true : is_last;
+		is_last = (slot == last);
 
 		rseg = trx_sys->rsegs.at(slot);
 
-		if (++slot == last) {
-			searching = false;
-		}
+		/* Set the next slot to look at. */
+		slot = (slot + 1) % max_rollback_segments;
 
-		/* If --innodb-undo-tablespaces is set to > 0, do not use
-		any rseg allocated from the system-tablespace.  Try to use
-		a dedicated undo tablespace rseg. */
-		if (rseg->space_id == TRX_SYS_SPACE && srv_undo_tablespaces > 0) {
+		/* When srv_undo_tablespaces is > 0, do not use any rseg
+		allocated from the system-tablespace unless we have looked
+		at all other possible rsegs. */
+		if (!wrapped
+		    && rseg->space_id == TRX_SYS_SPACE
+		    && srv_undo_tablespaces > 0) {
+			rseg = nullptr;
 			continue;
 		}
 
@@ -1146,26 +1157,24 @@ get_next_redo_rseg()
 		are at least 2 UNDO tablespaces active with 2 redo rsegs
 		active in them. */
 		if (rseg->skip_allocation) {
+			rseg = nullptr;
 			continue;
 		}
 
-		/* By now we have only selected the rseg but not marked it
-		allocated. By marking it allocated we are ensuring that it
-		will never be selected for UNDO truncate purge. */
+		/* Try again with mutex protection. */
 		mutex_enter(&rseg->mutex);
-
-		/* Check again under mutex protection. */
 		if (rseg->skip_allocation) {
-			mutex_exit(&rseg->mutex);
-			continue;
+			rseg = nullptr;
+		} else {
+			/* We now have an rseg selected.  By marking it
+			allocated we are ensuring that it will not be
+			selected for UNDO truncation. */
+			rseg->trx_ref_count++;
 		}
-
-		rseg->trx_ref_count++;
 		mutex_exit(&rseg->mutex);
-		break;
 	}
 
-	ut_ad(rseg == nullptr || rseg->trx_ref_count > 0);
+	ut_ad(rseg->trx_ref_count > 0);
 
 	return(rseg);
 }

@@ -584,6 +584,28 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.ST_GEOMETRY_COLUMNS AS
+  SELECT TABLE_CATALOG,
+         TABLE_SCHEMA,
+         TABLE_NAME,
+         COLUMN_NAME,
+         NULL AS SRS_NAME,
+         NULL AS SRS_ID,
+	 DATA_TYPE AS GEOMETRY_TYPE_NAME
+  FROM information_schema.COLUMNS
+  WHERE DATA_TYPE IN (
+    'geometry',
+    'point',
+    'linestring',
+    'polygon',
+    'multipoint',
+    'multilinestring',
+    'multipolygon',
+    'geometrycollection');
+
+--
 -- INFORMATION_SCHEMA.STATISTICS
 --
 -- There are two definitions of information_schema.statistics.

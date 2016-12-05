@@ -55,11 +55,11 @@
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #include <algorithm>
 #include <functional>
+#include <new>
 #include <string>
 
 #include "prealloced_array.h"
 #include "template_utils.h"
-#include "typelib.h"
 
 using std::min;
 using std::max;

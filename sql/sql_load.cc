@@ -50,6 +50,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "mysqld.h"                             // mysql_real_data_home
+#include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
@@ -79,9 +80,6 @@
 #include "thr_malloc.h"
 #include "transaction_info.h"
 #include "trigger_def.h"
-
-#include "pfs_file_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_file.h"
 
 class READ_INFO;
 
