@@ -36,8 +36,8 @@ IF(DEFINED MYSQL_SYSTEM_TABLES_PATCHES)
   ADD_CUSTOM_TARGET(Check_mysql_system_tables_sql
     ALL
     patch_file ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
+               ${CMAKE_CURRENT_BINARY_DIR}/mysql_system_tables.sql.patched
                ${MYSQL_SYSTEM_TABLES_PATCHES}
-               > ${CMAKE_CURRENT_BINARY_DIR}/mysql_system_tables.sql.patched
     COMMAND ${CMAKE_COMMAND} -E compare_files
         ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
         ${CMAKE_CURRENT_BINARY_DIR}/mysql_system_tables.sql.patched
