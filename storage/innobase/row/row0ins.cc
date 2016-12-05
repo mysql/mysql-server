@@ -28,6 +28,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "row0ins.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
+#include "dict0dd.h"
 #include "trx0rec.h"
 #include "trx0undo.h"
 #include "btr0btr.h"
@@ -1940,12 +1941,13 @@ row_ins_check_foreign_constraints(
 			dict_table_t*	ref_table = NULL;
 			dict_table_t*	referenced_table
 						= foreign->referenced_table;
+			MDL_ticket*	mdl = nullptr;
 
 			if (referenced_table == NULL) {
-
-				ref_table = dict_table_open_on_name(
+				ref_table = dd_table_open_on_name(
+					trx->mysql_thd, &mdl,
 					foreign->referenced_table_name_lookup,
-					FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+					false, DICT_ERR_IGNORE_NONE);
 			}
 
 			if (0 == trx->dict_operation_lock_mode) {
@@ -1967,7 +1969,8 @@ row_ins_check_foreign_constraints(
 			}
 
 			if (ref_table != NULL) {
-				dict_table_close(ref_table, FALSE, FALSE);
+				dd_table_close(ref_table, trx->mysql_thd,
+					       &mdl, false);
 			}
 
 			if (err != DB_SUCCESS) {

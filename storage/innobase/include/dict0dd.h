@@ -200,11 +200,24 @@ dd_table_open_on_name(
 @param[in]	dict_locked	TRUE=data dictionary locked
 @param[in]	table_op	operation to perform
 @return table, NULL if does not exist */
+UNIV_INLINE
 dict_table_t*
 dd_table_open_on_id_in_mem(
 	table_id_t	table_id,
 	ibool		dict_locked,
 	dict_table_op_t	table_op);
+
+/** Returns a table object based on table id.
+@param[in]	name		table name
+@param[in]	dict_locked	TRUE=data dictionary locked
+@param[in]	table_op	operation to perform
+@return table, NULL if does not exist */
+UNIV_INLINE
+dict_table_t*
+dd_table_open_on_name_in_mem(
+	const char*	name,
+	ibool		dict_locked,
+	ulint		ignore_op);
 
 /** Open or load a table definition based on a Global DD object.
 @param[in,out]	client		data dictionary client

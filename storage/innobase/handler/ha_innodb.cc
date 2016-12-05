@@ -14849,8 +14849,8 @@ create_table_info_t::initialize_autoinc()
 		m_table_name);
 
 	if (innobase_table == NULL) {
-		innobase_table = dict_table_open_on_name(
-			m_table_name, true, false, DICT_ERR_IGNORE_NONE);
+		innobase_table = dd_table_open_on_name_in_mem(
+			m_table_name, true, DICT_ERR_IGNORE_NONE);
 	} else {
 		innobase_table->acquire();
 		ut_ad(innobase_table->is_intrinsic());
@@ -14900,7 +14900,7 @@ create_table_info_t::initialize_autoinc()
 		dict_table_autoinc_unlock(innobase_table);
 	}
 
-	dict_table_close(innobase_table, true, false);
+	dd_table_close(innobase_table, nullptr, nullptr, true);
 }
 
 /** Prepare to create a new table to an InnoDB database.
@@ -14997,8 +14997,9 @@ create_table_info_t::create_table()
 	if (m_flags2 & DICT_TF2_FTS) {
 		fts_doc_id_index_enum	ret;
 
-		innobase_table = dict_table_open_on_name(
-			m_table_name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+		/* The table object should be in memory */
+		innobase_table = dd_table_open_on_name_in_mem(
+			m_table_name, true, DICT_ERR_IGNORE_NONE);
 
 		ut_a(innobase_table);
 
@@ -15026,7 +15027,7 @@ create_table_info_t::create_table()
 				fts_free(innobase_table);
 			}
 
-			dict_table_close(innobase_table, TRUE, FALSE);
+			dd_table_close(innobase_table, NULL, NULL, true);
 			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
 				 FTS_DOC_ID_INDEX_NAME);
 			error = -1;
@@ -15042,7 +15043,7 @@ create_table_info_t::create_table()
 
 		error = convert_error_code_to_mysql(err, 0, NULL);
 
-		dict_table_close(innobase_table, TRUE, FALSE);
+		dd_table_close(innobase_table, NULL, NULL, true);
 
 		if (error) {
 			trx_rollback_to_savepoint(m_trx, NULL);
@@ -15071,9 +15072,8 @@ create_table_info_t::create_table()
 	/* Cache all the FTS indexes on this table in the FTS specific
 	structure. They are used for FTS indexed column update handling. */
 	if (m_flags2 & DICT_TF2_FTS) {
-		innobase_table = dict_table_open_on_name(
-			m_table_name, true, false,
-			DICT_ERR_IGNORE_NONE);
+		innobase_table = dd_table_open_on_name_in_mem(
+			m_table_name, true, DICT_ERR_IGNORE_NONE);
 
 		fts_t*          fts = innobase_table->fts;
 
@@ -15081,7 +15081,7 @@ create_table_info_t::create_table()
 
 		dict_table_get_all_fts_indexes(innobase_table, fts->indexes);
 
-		dict_table_close(innobase_table, true, false);
+		dd_table_close(innobase_table, NULL, NULL, true);
 	}
 
 	stmt = innobase_get_stmt_unsafe(m_thd, &stmt_len);
@@ -15147,11 +15147,11 @@ create_table_info_t::create_table()
 	}
 
 	if (!is_intrinsic_temp_table()) {
-		innobase_table = dict_table_open_on_name(
-			m_table_name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+		innobase_table = dd_table_open_on_name_in_mem(
+			m_table_name, true, DICT_ERR_IGNORE_NONE);
 
 		if (innobase_table != NULL) {
-			dict_table_close(innobase_table, TRUE, FALSE);
+			dd_table_close(innobase_table, NULL, NULL, true);
 		}
 
 	} else {
@@ -15174,8 +15174,9 @@ create_table_info_t::create_table_update_dict()
 		m_table_name);
 
 	if (innobase_table == NULL) {
-		innobase_table = dict_table_open_on_name(
-			m_table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+		innobase_table = dd_table_open_on_name_in_mem(
+			m_table_name, false, DICT_ERR_IGNORE_NONE);
+		ut_ad(innobase_table);
 	} else {
 		innobase_table->acquire();
 		ut_ad(innobase_table->is_intrinsic());
@@ -15218,7 +15219,7 @@ create_table_info_t::create_table_update_dict()
 	/* Note: We can't call update_thd() as m_prebuilt will not be
 	setup at this stage and so we use thd. */
 
-	dict_table_close(innobase_table, FALSE, FALSE);
+	dd_table_close(innobase_table, nullptr, nullptr, false);
 
 	innobase_parse_hint_from_comment(m_thd, innobase_table, m_form->s);
 
@@ -15497,10 +15498,9 @@ create_table_info_t::create_table_update_global_dd(
 			       m_create_info->auto_increment_value);
         }
 
-	/* This should be replaced by some convert function, and table
-	can be cached in this class */
-	dict_table_t*	table = dict_table_open_on_name(
-		m_table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+	/* InnoDB dict_table_t should already be created */
+	dict_table_t*	table = dd_table_open_on_name_in_mem(
+		m_table_name, false, DICT_ERR_IGNORE_NONE);
 	ut_ad(table != NULL);
 
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(m_thd);
@@ -15571,9 +15571,8 @@ create_table_info_t::create_table_update_global_dd(
 	}
 
 	innobase_write_dd_table(dd_space_id, dd_table, table);
-//	client->remove_uncommitted_objects<dd::Table>(true);
 
-	dict_table_close(table, FALSE, FALSE);
+	dd_table_close(table, nullptr, nullptr, false);
 
 	DBUG_RETURN(0);
 }
@@ -17683,8 +17682,10 @@ ha_innobase::rename_table_impl(
 	bool	rename_dd_filename = false;
 	char*	new_path = NULL;
 	if (error == DB_SUCCESS && strcmp(norm_from, norm_to) != 0) {
-		dict_table_t*	table = dict_table_open_on_name(
-			norm_to, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+		MDL_ticket*	mdl = nullptr;
+
+		dict_table_t*	table = dd_table_open_on_name(
+			thd, &mdl, norm_to, true, DICT_ERR_IGNORE_NONE);
 		ut_ad(table != NULL);
 		ut_ad(!table->ibd_file_missing);
 
@@ -17694,7 +17695,7 @@ ha_innobase::rename_table_impl(
 			new_path = fil_space_get_first_path(table->space);
 		}
 
-		dict_table_close(table, TRUE, FALSE);
+		dd_table_close(table, thd, &mdl, true);
 	}
 
 	row_mysql_unlock_data_dictionary(trx);
@@ -18939,10 +18940,6 @@ innobase_get_table_statistics(
 	char		norm_name[FN_REFLEN];
 	dict_table_t*	ib_table;
 
-
-	/* TODO-WL7141: Use se_private_id when server provides it.
-	When se_private_id is available, we can open table by
-	id. dict_table_open_on_id(). */
 	char	buf[2 * NAME_CHAR_LEN * 5 + 2 + 1];
 	bool	truncated;
 	build_table_filename(buf, sizeof(buf), db_name, table_name,
@@ -18951,8 +18948,11 @@ innobase_get_table_statistics(
 
         normalize_table_name(norm_name, buf);
 
-	ib_table = dict_table_open_on_name(
-		norm_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+	MDL_ticket*	mdl = nullptr;
+	THD*		thd = current_thd;
+
+	ib_table = dd_table_open_on_name(thd, &mdl, norm_name,
+					 false, DICT_ERR_IGNORE_NONE);
 
 	if (ib_table == NULL) {
 		return(true);
@@ -18986,7 +18986,7 @@ innobase_get_table_statistics(
 			ib_table->stat_sum_of_other_index_sizes, stats);
 	}
 
-	dict_table_close(ib_table, FALSE, FALSE);
+	dd_table_close(ib_table, thd, &mdl, false);
 
 	return(false);
 }
@@ -19016,9 +19016,6 @@ innobase_get_index_column_cardinality(
 	dict_table_t*	ib_table;
 	bool		failure = true;
 
-	/* TODO-WL7141: Use se_private_id when server provides it.
-	When se_private_id is available, we can open table by
-	id. dict_table_open_on_id(). */
 	char	buf[2 * NAME_CHAR_LEN * 5 + 2 + 1];
 	bool	truncated;
 	build_table_filename(buf, sizeof(buf), db_name, table_name,
@@ -19027,8 +19024,11 @@ innobase_get_index_column_cardinality(
 
 	normalize_table_name(norm_name, buf);
 
-	ib_table = dict_table_open_on_name(
-		norm_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+	MDL_ticket*	mdl = nullptr;
+	THD*		thd = current_thd;
+
+	ib_table = dd_table_open_on_name(thd, &mdl, norm_name,
+					 false, DICT_ERR_IGNORE_NONE);
 
 	if (ib_table == NULL) {
 		return(failure);
@@ -19064,7 +19064,7 @@ innobase_get_index_column_cardinality(
 		}
 	}
 
-	dict_table_close(ib_table, FALSE, FALSE);
+	dd_table_close(ib_table, thd, &mdl, false);
 	return(failure);
 }
 
@@ -19788,14 +19788,15 @@ ha_innobase::get_cascade_foreign_key_table_list(
 		item = table_list.back();
 		table_list.pop_back();
 		parent_table = item.table;
+		MDL_ticket*	mdl = nullptr;
 
 		if (parent_table == NULL) {
 
 			ut_ad(item.name != NULL);
 
-			parent_table = parent = dict_table_open_on_name(
-					item.name, TRUE, FALSE,
-					DICT_ERR_IGNORE_NONE);
+			parent_table = parent = dd_table_open_on_name(
+				thd, &mdl, item.name, true,
+				DICT_ERR_IGNORE_NONE);
 
 			if (parent_table == NULL) {
 				/* foreign_key_checks is or was probably
@@ -19844,7 +19845,7 @@ ha_innobase::get_cascade_foreign_key_table_list(
 		}
 
 		if (parent != NULL) {
-			dict_table_close(parent, true, false);
+			dd_table_close(parent, thd, &mdl, true);
 		}
 
 	} while(!table_list.empty());
@@ -22123,6 +22124,7 @@ innodb_internal_table_validate(
 	int		len = sizeof(buff);
 	int		ret = 1;
 	dict_table_t*	user_table;
+	MDL_ticket*	mdl = nullptr;
 
 	ut_a(save != NULL);
 	ut_a(value != NULL);
@@ -22134,8 +22136,8 @@ innodb_internal_table_validate(
 		return(0);
 	}
 
-	user_table = dict_table_open_on_name(
-		table_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+	user_table = dd_table_open_on_name(
+		thd, &mdl, table_name, false, DICT_ERR_IGNORE_NONE);
 
 	if (user_table) {
 		if (dict_table_has_fts_index(user_table)) {
@@ -22143,7 +22145,7 @@ innodb_internal_table_validate(
 			ret = 0;
 		}
 
-		dict_table_close(user_table, FALSE, TRUE);
+		dd_table_close(user_table, thd, &mdl, false);
 
 		DBUG_EXECUTE_IF("innodb_evict_autoinc_table",
 			mutex_enter(&dict_sys->mutex);

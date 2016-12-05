@@ -38,74 +38,6 @@ Data dictionary interface */
 #include "sql_table.h"
 #include "sql_base.h"
 
-/** Returns a table object based on table id.
-@param[in]	table_id	table id
-@param[in]	dict_locked	TRUE=data dictionary locked
-@param[in]	table_op	operation to perform
-@return table, NULL if does not exist */
-dict_table_t*
-dd_table_open_on_id_in_mem(
-	table_id_t	table_id,
-	ibool		dict_locked,
-	dict_table_op_t	table_op)
-{
-	dict_table_t*	table;
-
-	if (!dict_locked) {
-		mutex_enter(&dict_sys->mutex);
-	}
-
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	/* Look for the table name in the hash table */
-	ulint	fold = ut_fold_ull(table_id);
-
-	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold,
-		    dict_table_t*, table, ut_ad(table->cached),
-		    table->id == table_id);
-
-	ut_ad(!table || table->cached);
-
-	if (table != NULL) {
-
-		if (table->can_be_evicted) {
-			dict_move_to_mru(table);
-		}
-
-		table->acquire();
-
-		MONITOR_INC(MONITOR_TABLE_REFERENCE);
-	} else if (dict_table_is_sdi(table_id)) {
-
-		/* The table is SDI table */
-		space_id_t      space_id = dict_sdi_get_space_id(table_id);
-		uint32_t        copy_num = dict_sdi_get_copy_num(table_id);
-
-		/* Create in-memory table oject for SDI table */
-		dict_index_t*   sdi_index = dict_sdi_create_idx_in_mem(
-			space_id, copy_num, false, 0);
-
-		if (sdi_index == NULL) {
-			if (!dict_locked) {
-				mutex_exit(&dict_sys->mutex);
-			}
-			return(NULL);
-		}
-
-		table = sdi_index->table;
-
-		ut_ad(table != NULL);
-
-		table->acquire();
-	}
-
-	if (!dict_locked) {
-		mutex_exit(&dict_sys->mutex);
-	}
-
-        return(table);
-}
-
 /** Acquire a metadata lock.
 @param[in,out]	thd	current thread
 @param[out]	mdl	metadata lock
@@ -620,9 +552,7 @@ dd_table_open_on_id(
 
 			ut_ad(ib_table != NULL);
 			ib_table->acquire();
-			if (!dict_locked) {
-				mutex_exit(&dict_sys->mutex);
-			}
+			mutex_exit(&dict_sys->mutex);
 		} else {
 			mutex_exit(&dict_sys->mutex);
 

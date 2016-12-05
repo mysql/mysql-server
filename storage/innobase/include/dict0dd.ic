@@ -24,6 +24,7 @@ Created  10/2016 Jimmy Yamg
 *******************************************************/
 
 #include "sql_table.h"
+#include "dict0crea.h"
 
 /** Parse a table name
 @param[in]      tbl_name        table name including database and table name
@@ -134,3 +135,135 @@ dd_set_hidden_unique_index(
         return(index);
 }
 
+/** Returns a table object based on table id.
+@param[in]	table_id	table id
+@param[in]	dict_locked	TRUE=data dictionary locked
+@param[in]	table_op	operation to perform
+@return table, NULL if does not exist */
+UNIV_INLINE
+dict_table_t*
+dd_table_open_on_id_in_mem(
+	table_id_t	table_id,
+	ibool		dict_locked,
+	dict_table_op_t	table_op)
+{
+	dict_table_t*	table;
+
+	if (!dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	/* Look for the table ID in the hash table */
+	ulint	fold = ut_fold_ull(table_id);
+
+	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold,
+		    dict_table_t*, table, ut_ad(table->cached),
+		    table->id == table_id);
+
+	ut_ad(!table || table->cached);
+
+	if (table != NULL) {
+
+		if (table->can_be_evicted) {
+			dict_move_to_mru(table);
+		}
+
+		table->acquire();
+
+		MONITOR_INC(MONITOR_TABLE_REFERENCE);
+	} else if (dict_table_is_sdi(table_id)) {
+
+		/* The table is SDI table */
+		space_id_t      space_id = dict_sdi_get_space_id(table_id);
+		uint32_t        copy_num = dict_sdi_get_copy_num(table_id);
+
+		/* Create in-memory table oject for SDI table */
+		dict_index_t*   sdi_index = dict_sdi_create_idx_in_mem(
+			space_id, copy_num, false, 0);
+
+		if (sdi_index == NULL) {
+			if (!dict_locked) {
+				mutex_exit(&dict_sys->mutex);
+			}
+			return(NULL);
+		}
+
+		table = sdi_index->table;
+
+		ut_ad(table != NULL);
+
+		table->acquire();
+	}
+
+	if (!dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
+
+        return(table);
+}
+
+/** Returns a table object based on table id.
+@param[in]	table_id	table id
+@param[in]	dict_locked	TRUE=data dictionary locked
+@param[in]	table_op	operation to perform
+@return table, NULL if does not exist */
+UNIV_INLINE
+dict_table_t*
+dd_table_open_on_name_in_mem(
+	const char*	name,
+	ibool		dict_locked,
+	ulint		ignore_op)
+{
+	dict_table_t*	table = nullptr;
+
+	if (!dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	ut_ad(name);
+
+	/* Look for the table name in the hash table */
+	ulint	fold = ut_fold_string(name);
+
+	HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
+                    dict_table_t*, table, ut_ad(table->cached),
+                    !strcmp(table->name.m_name, name));
+
+	ut_ad(!table || table->cached);
+
+	if (table != NULL) {
+		 if (ignore_op == DICT_ERR_IGNORE_NONE
+		     && table->is_corrupted()) {
+			/* Make life easy for drop table. */
+			dict_table_prevent_eviction(table);
+
+			if (!dict_locked) {
+				mutex_exit(&dict_sys->mutex);
+			}
+
+			ib::info() << "Table "
+				<< table->name
+				<< " is corrupted. Please drop the table"
+				" and recreate it";
+			return(nullptr);
+		}
+
+		if (table->can_be_evicted) {
+			dict_move_to_mru(table);
+		}
+
+		table->acquire();
+
+		MONITOR_INC(MONITOR_TABLE_REFERENCE);
+	}
+
+	if (!dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	return(table);
+}

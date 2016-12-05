@@ -54,6 +54,7 @@ extern uint	ibuf_debug;
 #include "data0type.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
+#include "dict0dd.h"
 #include "dict0mem.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
@@ -7879,10 +7880,10 @@ dict_sdi_get_table(
 {
 	ut_ad(copy_num < MAX_SDI_COPIES);
 
-	dict_table_t*	table = dict_table_open_on_id(
+	dict_table_t*   table = dd_table_open_on_id(
 		dict_sdi_get_table_id(tablespace_id, copy_num),
-		dict_locked,
-		DICT_TABLE_OP_NORMAL);
+		NULL, NULL, dict_locked);
+
 	return(table);
 }
 
