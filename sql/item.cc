@@ -5743,6 +5743,7 @@ String *Item::check_well_formed_result(String *str, bool send_error)
   uint wlen= cs->cset->well_formed_len(cs,
                                        str->ptr(), str->ptr() + str->length(),
                                        str->length(), &well_formed_error);
+  null_value= false;
   if (wlen < str->length())
   {
     THD *thd= current_thd;
