@@ -4384,7 +4384,7 @@ replace_table_name(
 	char*		new_filename,
 	const char*	table_name)
 {
-	const char*	slash = strrchr(filename, '/');
+	const char*	slash = strrchr(filename, OS_PATH_SEPARATOR);
 	size_t		len = 0;
 
 	if (slash == NULL) {
