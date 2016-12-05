@@ -340,13 +340,13 @@ def	information_schema	STATISTICS_DYNAMIC	INDEX_TYPE	14		NO	varchar	11	33	NULL	N
 def	information_schema	STATISTICS_DYNAMIC	COMMENT	15		NO	varchar	8	24	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(8)					
 def	information_schema	STATISTICS_DYNAMIC	INDEX_COMMENT	16	NULL	NO	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)					
 def	information_schema	STATISTICS_DYNAMIC	IS_VISIBLE	17		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)					
-def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
-def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
-def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
-def	information_schema	ST_GEOMETRY_COLUMNS	COLUMN_NAME	4		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
-def	information_schema	ST_GEOMETRY_COLUMNS	SRS_NAME	5	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
-def	information_schema	ST_GEOMETRY_COLUMNS	SRS_ID	6	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
-def	information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME	7	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select		
+def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_CATALOG	1		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)					
+def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)					
+def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)					
+def	information_schema	ST_GEOMETRY_COLUMNS	COLUMN_NAME	4		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)					
+def	information_schema	ST_GEOMETRY_COLUMNS	SRS_NAME	5	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)					
+def	information_schema	ST_GEOMETRY_COLUMNS	SRS_ID	6	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)					
+def	information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME	7	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext					
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_NAME	1	NULL	NO	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)					
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_ID	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION	3	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_bin	varchar(256)					
