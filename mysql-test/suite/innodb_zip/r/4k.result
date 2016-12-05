@@ -24,7 +24,7 @@ mysql/catalogs	7	33	PRIMARY	5	3	1	50
 mysql/catalogs	7	33	name	6	2	1	50
 mysql/character_sets	8	33	PRIMARY	5	3	1	50
 mysql/character_sets	8	33	name	6	2	1	50
-mysql/character_sets	8	33	default_collation_id	8	2	1	50
+mysql/character_sets	8	33	default_collation_id	8	0	1	50
 mysql/collations	8	33	PRIMARY	5	3	1	50
 mysql/collations	8	33	name	6	2	1	50
 mysql/collations	8	33	character_set_id	8	0	1	50
