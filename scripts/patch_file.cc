@@ -15,7 +15,7 @@
 */
 
 /*
- * patch_file <input-file> <patch-file#1> ....
+ * patch_file <input-file> <output-file> <patch-file#1> ....
  *
  * Sections in input file are replaced by content of patch-files.
  *
@@ -26,6 +26,10 @@
  * given on command line.
  *
  * Command succeeds if each patch file are used once.
+ *
+ * Note, currently it is assumed that files uses only LF for new line.
+ *
+ * When reading files native new line are accepted but LF is used on output.
  */
 
 #include<fstream>
@@ -37,7 +41,9 @@ main(int argc, char *argv[])
 {
   const std::string input_file(argv[1]);
   std::ifstream input(input_file.c_str());
-  for (int argi = 2; argi < argc; argi ++)
+  const std::string output_file(argv[2]);
+  std::ofstream output(output_file.c_str(), std::ofstream::binary);
+  for (int argi = 3; argi < argc; argi ++)
   {
     const std::string patch_file(argv[argi]);
     std::ifstream patch(patch_file.c_str());
@@ -50,17 +56,17 @@ main(int argc, char *argv[])
     // Copy all lines before delimiter line from input file
     for (std::string line; std::getline(input, line) && line != delim; )
     {
-      std::cout << line << std::endl;
+      output << line << std::endl;
     }
     if (!input.good())
       return 2; // Bad read from input file or delimiter line not found
 
     // Copy all lines from patch file
-    std::cout << delim << std::endl;
+    output << delim << std::endl;
     delim.clear();
     for (std::string line; std::getline(patch, line); )
     {
-      std::cout << line << std::endl;
+      output << line << std::endl;
       // Remember last line as terminating delimiter
       delim = line;
     }
@@ -80,10 +86,13 @@ main(int argc, char *argv[])
   // Copy all lines from input file to the end
   for (std::string line; std::getline(input, line); )
   {
-    std::cout << line << std::endl;
+    output << line << std::endl;
   }
   if (!input.eof())
     return 6; // Bad read from input file
+
+  input.close();
+  output.close();
 
   return 0;
 }
