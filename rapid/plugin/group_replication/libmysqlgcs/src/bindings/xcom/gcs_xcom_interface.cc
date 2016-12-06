@@ -1026,7 +1026,11 @@ void cb_xcom_receive_data(synode_no message_id, node_set nodes, u_int size,
   const site_def *site= find_site_def(message_id);
 
   if (site->nodeno == VOID_NODE_NO)
+  {
+    free_node_set(&nodes);
+    free(data);
     return;
+  }
 
   Gcs_xcom_nodes *xcom_nodes= new Gcs_xcom_nodes(site, nodes);
   assert(xcom_nodes->is_valid());
@@ -1212,7 +1216,10 @@ void cb_xcom_receive_global_view(synode_no config_id, synode_no message_id, node
   const site_def *site= find_site_def(message_id);
 
   if (site->nodeno == VOID_NODE_NO)
+  {
+    free_node_set(&nodes);
     return;
+  }
 
   Gcs_xcom_nodes *xcom_nodes= new Gcs_xcom_nodes(site, nodes);
   assert(xcom_nodes->is_valid());
@@ -1340,7 +1347,10 @@ void cb_xcom_receive_local_view(synode_no message_id, node_set nodes)
 {
   const site_def *site= find_site_def(message_id);
   if (site->nodeno == VOID_NODE_NO)
+  {
+    free_node_set(&nodes);
     return;
+  }
 
   Gcs_xcom_nodes *xcom_nodes= new Gcs_xcom_nodes(site, nodes);
   assert(xcom_nodes->is_valid());
