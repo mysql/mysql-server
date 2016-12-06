@@ -1,6 +1,15 @@
 
 --source include/no_valgrind_without_big.inc
 
+# To make sure we have stable costs, set memory io cost equal to disk io cost
+UPDATE mysql.engine_cost
+SET cost_value = 1.0
+WHERE cost_name = 'memory_block_read_cost';
+FLUSH OPTIMIZER_COSTS;
+
+# Only new connections see the new cost constants
+connect (con1, localhost, root,,);
+
 --echo #
 --echo # TEST 1
 --echo # Greedy search iteration test for 16-way join: star schema
