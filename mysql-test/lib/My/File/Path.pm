@@ -197,7 +197,7 @@ sub copytree {
 # Set the path of files in case of out of source builds.
 sub get_bld_path
 {
-  my ($path)= @_;
+  my $path= shift;
   if (!(-e $path) and ($ENV{MTR_BINDIR}))
   {
     $path= "$ENV{MTR_BINDIR}/mysql-test/$path";
