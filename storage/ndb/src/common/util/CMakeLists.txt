@@ -62,6 +62,8 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             CharsetMap.cpp
             CharsetMapImpl.cpp
             parse_mask.cpp
+            ProcessInfo.cpp
+            OwnProcessInfo.cpp
 )
 SET(NDBGENERAL_LIBS ndbtrace ${ZLIB_LIBRARY} mysys mysys_ssl)
 TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
