@@ -286,6 +286,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
     /* Add event. */
     add_event(thd, buffer, event_name, data, data_length);
 
+    my_free((void *)(buffer));
 
     if (!my_charset_latin1.coll->strnncoll(&my_charset_latin1,
                                            (const uchar *)record_begin.str,
@@ -299,6 +300,8 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
   }
   else
   {
+    const char *buffer;
+
     /* We have not started recording of events yet. */
     if (my_charset_latin1.coll->strnncoll(&my_charset_latin1,
                                           (const uchar *)record_begin.str,
@@ -309,6 +312,10 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
       /* Event not matching. */
       return;
     }
+
+    buffer= THDVAR(thd, event_record);
+
+    my_free((void *)(buffer));
 
     THDVAR(thd, event_record)= 0;
 
