@@ -9433,8 +9433,10 @@ ha_innopart::prepare_inplace_alter_table(
 
 	/* Clean up all ins/upd nodes. */
 	clear_ins_upd_nodes();
-	/* Based on Sql_alloc class, return NULL for new on failure. */
-	ctx_parts = UT_NEW_NOKEY(ha_innopart_inplace_ctx(thd, m_tot_parts));
+	/* Based on Sql_alloc class, return NULL for new on failure.
+	This object will be freed by server, so always use 'new'
+	and there is no need to free on failure */
+	ctx_parts = new ha_innopart_inplace_ctx(thd, m_tot_parts);
 	if (ctx_parts == NULL) {
 		DBUG_RETURN(HA_ALTER_ERROR);
 	}
@@ -9442,7 +9444,6 @@ ha_innopart::prepare_inplace_alter_table(
 	ctx_parts->ctx_array = UT_NEW_ARRAY_NOKEY(inplace_alter_handler_ctx*,
 						  m_tot_parts + 1);
 	if (ctx_parts->ctx_array == NULL) {
-		UT_DELETE(ctx_parts);
 		DBUG_RETURN(HA_ALTER_ERROR);
 	}
 
@@ -9451,7 +9452,6 @@ ha_innopart::prepare_inplace_alter_table(
 	ctx_parts->prebuilt_array = UT_NEW_ARRAY_NOKEY(row_prebuilt_t*,
 						       m_tot_parts);
 	if (ctx_parts->prebuilt_array == NULL) {
-		UT_DELETE(ctx_parts);
 		DBUG_RETURN(HA_ALTER_ERROR);
 	}
 	/* For the first partition use the current prebuilt. */
@@ -9633,12 +9633,12 @@ ha_innopart::commit_inplace_alter_table(
 	ctx_parts = static_cast<ha_innopart_inplace_ctx*>(
 					ha_alter_info->handler_ctx);
 
-	if (ctx_parts == NULL || ctx_parts->ctx_array == NULL
-	    || ctx_parts->prebuilt_array == NULL) {
-		ut_ad(!commit);
+	if (ctx_parts == NULL) {
 		return(false);
 	}
 
+	ut_ad(ctx_parts->ctx_array != NULL);
+	ut_ad(ctx_parts->prebuilt_array != NULL);
 	ut_ad(ctx_parts->prebuilt_array[0] == m_prebuilt);
 
 	if (commit) {
