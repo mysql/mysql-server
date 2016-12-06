@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -48,6 +48,11 @@ FOREACH(inifile my-huge my-innodb-heavy-4G my-large my-medium my-small)
 ENDFOREACH()
 
 IF(UNIX)
+  IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    SET (PIDOF "pidof")
+  ELSE()
+    SET (PIDOF "pgrep -d' ' -f")
+  ENDIF()
   SET(prefix ${CMAKE_INSTALL_PREFIX})
   FOREACH(script  mysqld_multi.server mysql-log-rotate binary-configure
     config.medium.ini config.small.ini config.huge.ini ndb-config-2-node.ini)
