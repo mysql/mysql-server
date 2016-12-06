@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -79,11 +79,7 @@ int my_socketpair(ndb_socket_t s[2])
     goto err;
 
   /* get sockname */
-  /*
-    TODO: if there was a my_getsockname, this wouldnt have to use
-    definition of my_socket (i.e l.s)
-  */
-  if (getsockname(listener.s, (struct sockaddr*)&addr, &addrlen) < 0)
+  if (ndb_getsockname(listener, (struct sockaddr*)&addr, &addrlen) != 0)
     goto err;
 
   if (my_listen(listener, 1) == -1)
