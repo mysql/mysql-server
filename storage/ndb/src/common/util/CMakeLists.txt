@@ -28,6 +28,7 @@ ADD_DEFINITIONS(-DNO_DUMMY_DECL)
 ADD_CONVENIENCE_LIBRARY(ndbgeneral
             ndbzio.c
             File.cpp
+            basename.cpp
             md5_hash.cpp
             Properties.cpp
             socket_io.cpp

@@ -54,23 +54,7 @@ static void dumpJam(FILE* jamStream,
 		    Uint32 thrdTheEmulatedJamIndex, 
 		    const JamEvent thrdTheEmulatedJam[]);
 
-static
-const char *
-ndb_basename(const char * path)
-{
-  if (path == NULL)
-    return NULL;
-
-  const char separator = '/';
-  const char * p = path + strlen(path);
-  while (p > path && p[0] != separator)
-    p--;
-
-  if (p[0] == separator)
-    return p + 1;
-
-  return p;
-}
+const char * ndb_basename(const char *path);
 
 static
 const char*
