@@ -35,6 +35,7 @@ create_tablespace_debug   : WL#9525 disables it, it is related to other SEs, may
 innodb-multiple-tablespaces : WL#9525 disables it, DATA DIRECTORY should be stored properly
 
 innodb-system-table-view_cs : WL#9532 disables it, this may not be needed after WL#9535
+innodb-system-table-view_ci : WL#9532 disables it, this may not be needed after WL#9535
 
 innodb_tablespace         : WL#9525 disables it, waiting for WL#9559
 partition                 : WL#9525 disables it, waiting for WL#9559
