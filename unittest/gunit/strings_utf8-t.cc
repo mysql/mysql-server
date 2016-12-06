@@ -717,4 +717,68 @@ TEST_F(StringsUTF8mb4_900Test, MyUCA900Collate)
                                                       utf8mb4_dst, 3));
 }
 
+static bool uca_wildcmp(const CHARSET_INFO *cs, const char *str,
+                        const char *pattern)
+{
+  const char *str_end= str + strlen(str);
+  const char *pattern_end= pattern + strlen(pattern);
+  return !cs->coll->wildcmp(cs, str, str_end, pattern, pattern_end,
+                            '\\', '_', '%');
+}
+
+TEST(UCAWildCmpTest, UCA900WildCmp)
+{
+  const CHARSET_INFO *cs= &my_charset_utf8mb4_0900_ai_ci;
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "abc"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Abc", "aBc"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "_bc"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "a_c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "ab_"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "%c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "a%c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "a%"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcdef", "a%d_f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcdefg", "a%d%g"));
+  EXPECT_TRUE(uca_wildcmp(cs, "a\\", "a\\"));
+  EXPECT_TRUE(uca_wildcmp(cs, "aa\\", "a%\\"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Y", u8"\u00dd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcd", "abcde"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcde", "abcd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcde", "a%f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcdef", "a%%f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcd", "a__d"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcd", "a\\bcd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "a\\bcd", "abcd"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abdbcd", "a%cd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abecd", "a%bd"));
+
+}
+
+TEST(UCAWildCmpTest, UCA900WildCmpCaseSensitive)
+{
+  const CHARSET_INFO *cs= &my_charset_utf8mb4_0900_as_cs;
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "abc"));
+  EXPECT_FALSE(uca_wildcmp(cs, "Abc", "aBc"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "_bc"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "a_c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "ab_"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "%c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "a%c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "a%"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcdef", "a%d_f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcdefg", "a%d%g"));
+  EXPECT_TRUE(uca_wildcmp(cs, "a\\", "a\\"));
+  EXPECT_TRUE(uca_wildcmp(cs, "aa\\", "a%\\"));
+  EXPECT_FALSE(uca_wildcmp(cs, "Y", u8"\u00dd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcd", "abcde"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcde", "abcd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcde", "a%f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcdef", "a%%f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcd", "a__d"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcd", "a\\bcd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "a\\bcd", "abcd"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abdbcd", "a%cd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abecd", "a%bd"));
+
+}
 }
