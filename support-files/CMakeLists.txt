@@ -41,6 +41,11 @@ ELSE()
 ENDIF()
 
 IF(UNIX)
+  IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    SET (PIDOF "pidof")
+  ELSE()
+    SET (PIDOF "pgrep -d' ' -f")
+  ENDIF()
   SET(prefix ${CMAKE_INSTALL_PREFIX})
   FOREACH(script  mysqld_multi.server mysql-log-rotate)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${script}.sh 
