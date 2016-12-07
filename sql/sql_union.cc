@@ -59,11 +59,10 @@
 #include "sql_select.h"
 #include "sql_tmp_table.h"                      // tmp tables
 
-
-int Query_result_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+bool Query_result_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
-  return 0;
+  return false;
 }
 
 
@@ -236,10 +235,12 @@ private:
   /// The last query block of the union
   SELECT_LEX *last_select_lex;
 
-  /// Wrapped result has received metadata
-  bool done_send_result_set_metadata;
-  /// Wrapped result has initialized tables
-  bool done_initialize_tables;
+  /// Wrapped result is optimized
+  bool optimized;
+  /// Wrapped result has sent metadata
+  bool result_set_metadata_sent;
+  /// Wrapped result has started execution
+  bool execution_started;
 
   /// Accumulated current_found_rows
   ulonglong current_found_rows;
@@ -253,8 +254,8 @@ public:
   Query_result_union_direct(THD *thd, Query_result *result,
                             SELECT_LEX *last_select_lex)
     :Query_result_union(thd), result(result), last_select_lex(last_select_lex),
-    done_send_result_set_metadata(false), done_initialize_tables(false),
-    current_found_rows(0)
+    optimized(false), result_set_metadata_sent(false),
+    execution_started(false), current_found_rows(0)
   {}
   bool change_query_result(Query_result *new_result) override;
   uint field_count(List<Item> &) const override
@@ -266,7 +267,21 @@ public:
   bool postponed_prepare(List<Item> &types) override;
   bool send_result_set_metadata(List<Item> &list, uint flags) override;
   bool send_data(List<Item> &items) override;
-  bool initialize_tables (JOIN *join= NULL) override;
+  bool optimize() override
+  {
+    if (optimized)
+      return false;
+    optimized= true;
+
+    return result->optimize();
+  }
+  bool start_execution() override
+  {
+    if (execution_started)
+      return false;
+    execution_started= true;
+    return result->start_execution();
+  }
   void send_error(uint errcode, const char *err) override
   {
     result->send_error(errcode, err); /* purecov: inspected */
@@ -313,25 +328,25 @@ public:
 bool Query_result_union_direct::change_query_result(Query_result *new_result)
 {
   result= new_result;
-  return (result->prepare(unit->types, unit) || result->prepare2());
+  return result->prepare(unit->types, unit);
 }
 
 
 bool Query_result_union_direct::postponed_prepare(List<Item> &types)
 {
-  if (result != NULL)
-    return (result->prepare(types, unit) || result->prepare2());
-  else
+  if (result == NULL)
     return false;
+
+  return result->prepare(types, unit);
 }
 
 
 bool Query_result_union_direct::send_result_set_metadata(List<Item> &list,
                                                          uint flags)
 {
-  if (done_send_result_set_metadata)
+  if (result_set_metadata_sent)
     return false;
-  done_send_result_set_metadata= true;
+  result_set_metadata_sent= true;
 
   /*
     Set global offset and limit to be used in send_data(). These can
@@ -364,16 +379,6 @@ bool Query_result_union_direct::send_data(List<Item> &items)
     return true; /* purecov: inspected */
 
   return result->send_data(unit->item_list);
-}
-
-
-bool Query_result_union_direct::initialize_tables(JOIN *join)
-{
-  if (done_initialize_tables)
-    return false;
-  done_initialize_tables= true;
-
-  return result->initialize_tables(join);
 }
 
 
@@ -411,8 +416,9 @@ bool Query_result_union_direct::send_eof()
 
     // Reset and make ready for re-execution
     // @todo: Dangerous if we have an error midway?
-    done_send_result_set_metadata= false;
-    done_initialize_tables= false;
+    result_set_metadata_sent= false;
+    optimized= false;
+    execution_started= false;
 
     return result->send_eof();
   }

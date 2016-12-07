@@ -2036,14 +2036,13 @@ bool explain_single_table_modification(THD *ethd,
     For queries with top-level JOIN the caller provides pre-allocated
     Query_result_send object. Then that JOIN object prepares the
     Query_result_send object calling result->prepare() in SELECT_LEX::prepare(),
-    result->initalize_tables() in JOIN::optimize() and result->prepare2()
+    result->optimize() in JOIN::optimize() and result->start_execution()
     in JOIN::exec().
     However without the presence of the top-level JOIN we have to
     prepare/initialize Query_result_send object manually.
   */
   List<Item> dummy;
-  if (result.prepare(dummy, ethd->lex->unit) ||
-      result.prepare2())
+  if (result.prepare(dummy, ethd->lex->unit))
     DBUG_RETURN(true); /* purecov: inspected */
 
   ethd->lex->explain_format->send_headers(&result);
@@ -2242,8 +2241,7 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
     if (!((explain_result= new Query_result_send(ethd))))
       DBUG_RETURN(true); /* purecov: inspected */
     List<Item> dummy;
-    if (explain_result->prepare(dummy, ethd->lex->unit) ||
-        explain_result->prepare2())
+    if (explain_result->prepare(dummy, ethd->lex->unit))
       DBUG_RETURN(true); /* purecov: inspected */
   }
   else

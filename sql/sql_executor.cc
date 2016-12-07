@@ -2124,7 +2124,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
         it is going to be updated.
         Another case is in multi-UPDATE and multi-DELETE, when the table has a
         trigger: bits of columns needed by the trigger are turned on in
-        result->initialize_tables(), which has not yet been called when we do
+        result->optimize(), which has not yet been called when we do
         the reading now, so we must read all columns.
       */
       bitmap_set_all(table->read_set);

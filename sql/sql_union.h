@@ -37,10 +37,10 @@ public:
   Query_result_union(THD *thd)
     : Query_result_interceptor(thd), m_rows_in_table(0), table(0)
     {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   /**
-    Do prepare() and prepare2() if they have been postponed until
-    column type information is computed (used by Query_result_union_direct).
+    Do prepare() if preparation has been postponed until column type
+    information is computed (used by Query_result_union_direct).
 
     @param types Column types
 

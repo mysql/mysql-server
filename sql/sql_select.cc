@@ -1535,7 +1535,7 @@ bool JOIN::prepare_result()
     }
   }
 
-  if (select_lex->query_result()->prepare2())
+  if (select_lex->query_result()->start_execution())
     goto err;
 
   if ((select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
@@ -3996,8 +3996,7 @@ bool JOIN::clear()
   If old_result is not used, forward the call to the current
   Query_result in case it is a wrapper around old_result.
 
-  Call prepare() and prepare2() on the new Query_result if we decide
-  to use it.
+  Call prepare() on the new Query_result if we decide to use it.
 
   @param new_result New Query_result object
   @param old_result Old Query_result object (NULL to force change)
@@ -4013,8 +4012,7 @@ bool SELECT_LEX::change_query_result(Query_result_interceptor *new_result,
   if (old_result == NULL || query_result() == old_result)
   {
     set_query_result(new_result);
-    if (query_result()->prepare(fields_list, master_unit()) ||
-        query_result()->prepare2())
+    if (query_result()->prepare(fields_list, master_unit()))
       DBUG_RETURN(true); /* purecov: inspected */
     DBUG_RETURN(false);
   }

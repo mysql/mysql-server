@@ -1590,7 +1590,7 @@ bool Sql_cmd_update::execute_inner(THD *thd)
   Connect fields with tables and create list of tables that are updated
 */
 
-int Query_result_update::prepare(List<Item> &not_used_values,
+bool Query_result_update::prepare(List<Item> &not_used_values,
                                  SELECT_LEX_UNIT *u)
 {
   SQL_I_List<TABLE_LIST> update;
@@ -1627,7 +1627,7 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     // Resolving may be needed for subsequent executions
     if (tr->check_option && !tr->check_option->fixed &&
         tr->check_option->fix_fields(thd, NULL))
-      DBUG_RETURN(1);        /* purecov: inspected */
+      DBUG_RETURN(true);        /* purecov: inspected */
   }
 
   for (TABLE_LIST *tr= leaves; tr; tr= tr->next_leaf)
@@ -1655,7 +1655,7 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     {
       TABLE_LIST *dup= (TABLE_LIST*) thd->memdup(tr, sizeof(*dup));
       if (dup == NULL)
-	DBUG_RETURN(1);
+	DBUG_RETURN(true);
 
       TABLE *const table= tr->table;
 
@@ -1682,25 +1682,33 @@ int Query_result_update::prepare(List<Item> &not_used_values,
   update_tables= update.first;
 
   tmp_tables = (TABLE**) thd->mem_calloc(sizeof(TABLE *) * update_table_count);
+  if (tmp_tables == NULL)
+    DBUG_RETURN(true);
   tmp_table_param= new (thd->mem_root) Temp_table_param[update_table_count];
+  if (tmp_table_param == NULL)
+    DBUG_RETURN(true);
   fields_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
 					      update_table_count);
+  if (fields_for_table == NULL)
+    DBUG_RETURN(true);
   values_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
 					      update_table_count);
+  if (values_for_table == NULL)
+    DBUG_RETURN(true);
 
   DBUG_ASSERT(update_operations == NULL);
   update_operations= (COPY_INFO**) thd->mem_calloc(sizeof(COPY_INFO*) *
                                                update_table_count);
 
-  if (thd->is_error())
-    DBUG_RETURN(1);
+  if (update_operations == NULL)
+    DBUG_RETURN(true);
   for (uint i= 0; i < update_table_count; i++)
   {
     fields_for_table[i]= new List_item;
     values_for_table[i]= new List_item;
   }
   if (thd->is_error())
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
 
   /* Split fields into fields_for_table[] and values_by_table[] */
 
@@ -1713,8 +1721,8 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     fields_for_table[offset]->push_back(field);
     values_for_table[offset]->push_back(value);
   }
-  if (thd->is_fatal_error)
-    DBUG_RETURN(1);
+  if (thd->is_error())
+    DBUG_RETURN(true);
 
   /* Allocate copy fields */
   uint max_fields= 0;
@@ -1737,7 +1745,7 @@ int Query_result_update::prepare(List<Item> &not_used_values,
         new (thd->mem_root) COPY_INFO(COPY_INFO::UPDATE_OPERATION, cols, vals);
       if (update == NULL ||
           update->add_function_default_columns(table, table->write_set))
-        DBUG_RETURN(1);
+        DBUG_RETURN(true);
 
       update_operations[position]= update;
 
@@ -1758,7 +1766,8 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     }
   }
 
-  DBUG_RETURN(thd->is_fatal_error != 0);
+  DBUG_ASSERT(!thd->is_error());
+  DBUG_RETURN(false);
 }
 
 
@@ -1834,8 +1843,8 @@ static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
 }
 
 
-/*
-  Initialize table for multi table
+/**
+  Set up data structures for multi-table UPDATE
 
   IMPLEMENTATION
     - Update first table in join on the fly, if possible
@@ -1843,13 +1852,17 @@ static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
       that are updated (and main_table if the above doesn't hold).
 */
 
-bool Query_result_update::initialize_tables(JOIN *join)
+bool Query_result_update::optimize()
 {
   TABLE_LIST *table_ref;
-  DBUG_ENTER("initialize_tables");
+  DBUG_ENTER("Query_result_update::optimize");
+
+  SELECT_LEX *const select= unit->first_select();
+  JOIN *const join= select->join;
+
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
-  TABLE_LIST *leaves= unit->first_select()->leaf_tables;
+  TABLE_LIST *leaves= select->leaf_tables;
 
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
       error_if_full_join(join))
@@ -1932,7 +1945,7 @@ bool Query_result_update::initialize_tables(JOIN *join)
         }
       }
       if (safe_update_on_fly(thd, join->best_ref[0], table_ref,
-                             unit->first_select()->get_table_list()))
+                             select->get_table_list()))
       {
         table->mark_columns_needed_for_update(thd, true/*mark_binlog_columns=true*/);
 	table_to_update= table;			// Update table on the fly
@@ -1950,11 +1963,11 @@ bool Query_result_update::initialize_tables(JOIN *join)
       can be evaluated after the subselect was freed as independent
       (See full_local in JOIN::join_free()).
     */
-    if (table_ref->check_option && !join->select_lex->uncacheable)
+    if (table_ref->check_option && !select->uncacheable)
     {
       SELECT_LEX_UNIT *tmp_unit;
       SELECT_LEX *sl;
-      for (tmp_unit= join->select_lex->first_inner_unit();
+      for (tmp_unit= select->first_inner_unit();
            tmp_unit;
            tmp_unit= tmp_unit->next_unit())
       {
@@ -1962,7 +1975,7 @@ bool Query_result_update::initialize_tables(JOIN *join)
         {
           if (sl->master_unit()->item)
           {
-            join->select_lex->uncacheable|= UNCACHEABLE_CHECKOPTION;
+            select->uncacheable|= UNCACHEABLE_CHECKOPTION;
             goto loop_end;
           }
         }
@@ -2248,7 +2261,7 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
                                          &tmp_table_param[offset].recinfo,
                                          error, TRUE, NULL))
         {
-          do_update= false;
+          update_completed= true;
           DBUG_RETURN(true);             // Not a table_is_full error
 	}
         found_rows++;
@@ -2297,13 +2310,9 @@ void Query_result_update::abort_result_set()
   {
     DBUG_ASSERT(thd->get_transaction()->cannot_safely_rollback(
       Transaction_ctx::STMT));
-    if (do_update && update_table_count > 1)
+    if (!update_completed && update_table_count > 1)
     {
-      /* Add warning here */
-      /* 
-         todo/fixme: do_update() is never called with the arg 1.
-         should it change the signature to become argless?
-      */
+      /* @todo: Add warning here */
       (void) do_updates();
     }
   }
@@ -2345,7 +2354,7 @@ bool Query_result_update::do_updates()
 
   DBUG_ENTER("Query_result_update::do_updates");
 
-  do_update= false;                     // Don't retry this function
+  update_completed= true;                     // Don't retry this function
 
   if (found_rows == 0)
   {

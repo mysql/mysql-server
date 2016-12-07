@@ -600,7 +600,7 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 ///////////////////////////////////////////////////////////////////////////
 
 
-int sp_cursor::Query_fetch_into_spvars::prepare(List<Item> &fields,
+bool sp_cursor::Query_fetch_into_spvars::prepare(List<Item> &fields,
                                                 SELECT_LEX_UNIT *u)
 {
   /*

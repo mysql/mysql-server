@@ -522,9 +522,9 @@ JOIN::optimize()
     goto setup_subq_exit;
   }
 
-  if (select_lex->query_result()->initialize_tables(this))
+  if (select_lex->query_result()->optimize())
   {
-    DBUG_PRINT("error",("Error: initialize_tables() failed"));
+    DBUG_PRINT("error",("Error: Query_result::optimize() failed"));
     DBUG_RETURN(1);				// error == -1
   }
 
