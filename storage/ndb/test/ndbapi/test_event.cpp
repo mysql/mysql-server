@@ -1377,6 +1377,7 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
   int i = 0;
   int lastId = 0;
   bool abort = ctx->getProperty("Graceful", Uint32(0)) == 0;
+  bool crashInserted;
 
   if (restarter.getNumDbNodes() < 2){
     ctx->stopTest();
@@ -1392,13 +1393,16 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
 
     int id = lastId % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(id);
+    crashInserted = false;
     ndbout << "Restart node " << nodeId << endl; 
     if (abort == false && ((i % 3) == 0))
     {
       restarter.insertErrorInNode(nodeId, 13043);
+      crashInserted = true;
     }
 
-    if(restarter.restartOneDbNode(nodeId, false, false, abort) != 0){
+    if(restarter.restartOneDbNode(nodeId, false, false, abort) != 0
+        && !crashInserted){
       g_err << "Failed to restartNextDbNode" << endl;
       result = NDBT_FAILED;
       break;
