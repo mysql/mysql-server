@@ -4885,7 +4885,7 @@ String *udf_handler::val_str(String *str,String *save_str)
   For the moment, UDF functions are returning DECIMAL values as strings
 */
 
-my_decimal *udf_handler::val_decimal(my_bool *null_value, my_decimal *dec_buf)
+my_decimal *udf_handler::val_decimal(bool *null_value, my_decimal *dec_buf)
 {
   char buf[DECIMAL_MAX_STR_LENGTH+1], *end;
   ulong res_length= DECIMAL_MAX_STR_LENGTH;
@@ -6564,7 +6564,7 @@ Item_func_set_user_var::update_hash(const void *ptr, uint length,
 
 /** Get the value of a variable as a double. */
 
-double user_var_entry::val_real(my_bool *null_value) const
+double user_var_entry::val_real(bool *null_value) const
 {
   if ((*null_value= (m_ptr == 0)))
     return 0.0;
@@ -6593,7 +6593,7 @@ double user_var_entry::val_real(my_bool *null_value) const
 
 /** Get the value of a variable as an integer. */
 
-longlong user_var_entry::val_int(my_bool *null_value) const
+longlong user_var_entry::val_int(bool *null_value) const
 {
   if ((*null_value= (m_ptr == 0)))
     return 0LL;
@@ -6625,7 +6625,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
 
 /** Get the value of a variable as a string. */
 
-String *user_var_entry::val_str(my_bool *null_value, String *str,
+String *user_var_entry::val_str(bool *null_value, String *str,
 				uint decimals) const
 {
   if ((*null_value= (m_ptr == 0)))
@@ -6658,7 +6658,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 
 /** Get the value of a variable as a decimal. */
 
-my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val) const
+my_decimal *user_var_entry::val_decimal(bool *null_value, my_decimal *val) const
 {
   if ((*null_value= (m_ptr == 0)))
     return 0;
@@ -9498,7 +9498,7 @@ longlong Item_func_can_access_view::val_int()
 static ulonglong get_statistics_from_cache(
                    Item** args,
                    dd::info_schema::enum_statistics_type stype,
-                   my_bool *null_value)
+                   bool *null_value)
 {
   DBUG_ENTER("get_statistics_from_cache");
   *null_value= FALSE;

@@ -3919,7 +3919,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
     unsigned_flag= entry->unsigned_flag;
     if (limit_clause_param)
     {
-      my_bool unused;
+      bool unused;
       set_int(entry->val_int(&unused), MY_INT64_NUM_DECIMAL_DIGITS);
       item_type= Item::INT_ITEM;
       DBUG_RETURN(!unsigned_flag && value.integer < 0 ? 1 : 0);

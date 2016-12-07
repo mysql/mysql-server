@@ -459,7 +459,7 @@ public:
                                        Item **args,
                                        const char *func_name,
                                        THD *thd,
-                                       my_bool *error_generated)
+                                       bool *error_generated)
   {
     const unsigned char *iv_str= NULL;
 

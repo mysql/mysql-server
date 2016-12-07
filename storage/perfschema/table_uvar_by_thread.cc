@@ -103,7 +103,7 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd)
     pfs_uvar.m_name.make_row(name, name_length);
 
     /* Copy VARIABLE_VALUE */
-    my_bool null_value;
+    bool null_value;
     String *str_value;
     String str_buffer;
     uint decimals= 0;

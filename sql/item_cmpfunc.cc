@@ -3111,7 +3111,7 @@ longlong compare_between_int_result(bool compare_as_temporal_dates,
                                     bool compare_as_temporal_times,
                                     bool negated,
                                     Item **args,
-                                    my_bool *null_value)
+                                    bool *null_value)
 {
   {
     LLorULL a, b, value;

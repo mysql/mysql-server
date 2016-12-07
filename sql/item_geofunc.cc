@@ -187,7 +187,7 @@ bool is_colinear(const Point_range &ls)
   @retval false Success
 */
 static bool validate_srid_arg(Item *arg, Geometry::srid_t *srid,
-                              my_bool *null_value, const char *func_name)
+                              bool *null_value, const char *func_name)
 {
   longlong arg_srid= arg->val_int();
 
@@ -3890,7 +3890,7 @@ public:
 template <typename Coordsys>
 bool geometry_collection_centroid(const Geometry *geom,
                                   typename BG_models<Coordsys>::
-                                  Point *respt, my_bool *null_value)
+                                  Point *respt, bool *null_value)
 {
   typename BG_models<Coordsys>::Multipolygon mplgn;
   Geometry_grouper<typename BG_models<Coordsys>::Polygon>

@@ -157,7 +157,7 @@ void handle_gis_exception(const char *funcname)
  */
 template<typename Coordsys>
 void BG_geometry_collection::
-merge_components(my_bool *pnull_value)
+merge_components(bool *pnull_value)
 {
   if (is_comp_no_overlapped())
     return;
@@ -229,7 +229,7 @@ merge_components(my_bool *pnull_value)
 // Explicit template instantiation
 template
 void 
-BG_geometry_collection::merge_components<boost::geometry::cs::cartesian>(char*);
+BG_geometry_collection::merge_components<boost::geometry::cs::cartesian>(bool*);
 
 
 
@@ -248,7 +248,7 @@ linestring_overlaps_polygon_outerring(const Gis_line_string &ls,
 
 template<typename Coordsys>
 bool linear_areal_intersect_infinite(Geometry *g1, Geometry *g2,
-                                     my_bool *pnull_value)
+                                     bool *pnull_value)
 {
   bool res= false;
 
@@ -399,11 +399,11 @@ public:
  */
 template<typename Coordsys>
 bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
-                                           my_bool *pnull_value)
+                                           bool *pnull_value)
 {
   Geometry *gres= NULL;
   bool has_new= false;
-  my_bool &null_value= *pnull_value;
+  bool &null_value= *pnull_value;
   Pointer_vector<Geometry> added;
   std::vector<String> added_wkbbufs;
 
