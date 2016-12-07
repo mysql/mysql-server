@@ -263,6 +263,9 @@ public:
   {
     compute_statistics();
     truncate(0);
+    if(cache_log.file != -1)
+      my_chsize(cache_log.file, 0, 0, MYF(MY_WME));
+
     changes_to_non_trans_temp_table_flag= FALSE;
     incident= FALSE;
     before_stmt_pos= MY_OFF_T_UNDEF;
