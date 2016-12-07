@@ -485,7 +485,8 @@ dd_check_corrupted(dict_table_t*& table)
 	}
 
 	dict_index_t* index = table->first_index();
-	if (fil_space_get(index->space) == nullptr) {
+	if (!dict_table_is_sdi(table->id)
+	    && fil_space_get(index->space) == nullptr) {
 		// TODO: use index&table name
 		my_error(ER_TABLESPACE_MISSING, MYF(0), table->name.m_name);
 		table = nullptr;

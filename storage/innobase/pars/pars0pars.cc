@@ -35,6 +35,7 @@ on 1/27/1998 */
 #include "dict0dict.h"
 #include "dict0mem.h"
 #include "dict0crea.h"
+#include "dict0dd.h"
 #include "que0que.h"
 #include "pars0grm.h"
 #include "pars0opt.h"
@@ -770,8 +771,15 @@ pars_retrieve_table_def(
 		sym_node->resolved = TRUE;
 		sym_node->token_type = SYM_TABLE_REF_COUNTED;
 
-		sym_node->table = dict_table_open_on_name(
-			sym_node->name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+		if (strstr(sym_node->name, "sys") == nullptr) {
+			sym_node->table = dict_table_open_on_name(
+				sym_node->name, TRUE, FALSE,
+				DICT_ERR_IGNORE_NONE);
+		} else {
+			sym_node->table = dd_table_open_on_name(
+				nullptr, nullptr,  sym_node->name,
+				true, DICT_ERR_IGNORE_NONE);
+		}
 
 		ut_a(sym_node->table != NULL);
 	}

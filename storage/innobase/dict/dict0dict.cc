@@ -459,8 +459,13 @@ dict_table_try_drop_aborted(
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	if (table == NULL) {
-		table = dict_table_open_on_id_low(
-			table_id, DICT_ERR_IGNORE_NONE);
+		table = dd_table_open_on_id(table_id, nullptr, nullptr, false);
+
+		/* Decrement the ref count. The table is MDL locked, so should
+		not be dropped */
+		if (table) {
+			dd_table_close(table, nullptr, nullptr, false);
+		}
 	} else {
 		ut_ad(table->id == table_id);
 	}
@@ -7858,10 +7863,9 @@ dict_sdi_get_index(
 {
 	ut_ad(copy_num < MAX_SDI_COPIES);
 
-	dict_table_t*	table = dict_table_open_on_id(
-		dict_sdi_get_table_id(tablespace_id, copy_num),
-		true,
-		DICT_TABLE_OP_NORMAL);
+	dict_table_t*	table = dd_table_open_on_id(
+		dict_sdi_get_table_id(tablespace_id, copy_num), nullptr,
+		nullptr, true);
 
 	if (table != NULL) {
 		dict_sdi_close_table(table);
@@ -7914,12 +7918,17 @@ dict_sdi_remove_from_cache(
 
 		if (sdi_tables == NULL || sdi_tables[copy_num] ==  NULL) {
 			/* Remove SDI table from table cache for copy 0. */
-			sdi_table = dict_table_open_on_id_low(
+			/* TODO: newDD: Need MDL lock? */
+			sdi_table = dd_table_open_on_id_in_mem(
 				dict_sdi_get_table_id(space_id, copy_num),
-				DICT_ERR_IGNORE_NONE);
+				dict_locked, DICT_TABLE_OP_NORMAL);
+			if (sdi_table) {
+				dd_table_close(sdi_table, nullptr, nullptr,
+					       dict_locked);
+			}
 		} else {
-			dict_table_close(sdi_tables[copy_num], dict_locked,
-					 false);
+			dd_table_close(sdi_tables[copy_num], nullptr, nullptr,
+				       dict_locked);
 			sdi_table = sdi_tables[copy_num];
 		}
 

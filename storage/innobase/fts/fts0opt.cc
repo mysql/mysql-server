@@ -26,7 +26,9 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 ***********************************************************************/
 
 #include "ha_prototypes.h"
+#include "current_thd.h"
 
+#include "dict0dd.h"
 #include "fts0opt.h"
 #include "fts0fts.h"
 #include "row0sel.h"
@@ -38,6 +40,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "ut0list.h"
 #include "zlib.h"
 #include "os0thread-create.h"
+#include "sql_thd_internal_api.h"
 
 /** The FTS optimize thread's work queue. */
 static ib_wqueue_t* fts_optimize_wq;
@@ -2954,25 +2957,18 @@ fts_optimize_sync_table(
 	table_id_t	table_id)
 {
 	dict_table_t*   table = NULL;
+	MDL_ticket*	mdl = nullptr;
+	THD*		thd = current_thd;
 
-	/* Prevent DROP INDEX etc. from running when we are syncing
-	cache in background. */
-	if (!rw_lock_s_lock_nowait(dict_operation_lock, __FILE__, __LINE__)) {
-		/* Exit when fail to get dict operation lock. */
-		return;
-	}
-
-	table = dict_table_open_on_id(table_id, FALSE, DICT_TABLE_OP_NORMAL);
+	table = dd_table_open_on_id(table_id, thd, &mdl, false);
 
 	if (table) {
 		if (dict_table_has_fts_index(table) && table->fts->cache) {
 			fts_sync_table(table, true, false, true);
 		}
 
-		dict_table_close(table, FALSE, FALSE);
+		dd_table_close(table, thd, &mdl, false);
 	}
-
-	rw_lock_s_unlock(dict_operation_lock);
 }
 
 /** Optimize all FTS tables. */
@@ -2989,6 +2985,8 @@ fts_optimize_thread(ib_wqueue_t* wq)
 	ulint		n_optimize = 0;
 
 	ut_ad(!srv_read_only_mode);
+
+	THD*    thd = create_thd(false, true, true, fts_optimize_thread_key);
 
 	heap = mem_heap_create(sizeof(dict_table_t*) * 64);
 	heap_alloc = ib_heap_allocator_create(heap);
@@ -3129,6 +3127,8 @@ fts_optimize_thread(ib_wqueue_t* wq)
 	ib::info() << "FTS optimize thread exiting.";
 
 	os_event_set(fts_opt_shutdown_event);
+
+	destroy_thd(thd);
 }
 
 /**********************************************************************//**

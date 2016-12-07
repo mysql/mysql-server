@@ -173,28 +173,6 @@ dd_table_open_on_id_in_mem(
 		table->acquire();
 
 		MONITOR_INC(MONITOR_TABLE_REFERENCE);
-	} else if (dict_table_is_sdi(table_id)) {
-
-		/* The table is SDI table */
-		space_id_t      space_id = dict_sdi_get_space_id(table_id);
-		uint32_t        copy_num = dict_sdi_get_copy_num(table_id);
-
-		/* Create in-memory table oject for SDI table */
-		dict_index_t*   sdi_index = dict_sdi_create_idx_in_mem(
-			space_id, copy_num, false, 0);
-
-		if (sdi_index == NULL) {
-			if (!dict_locked) {
-				mutex_exit(&dict_sys->mutex);
-			}
-			return(NULL);
-		}
-
-		table = sdi_index->table;
-
-		ut_ad(table != NULL);
-
-		table->acquire();
 	}
 
 	if (!dict_locked) {

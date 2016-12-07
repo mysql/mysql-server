@@ -33,6 +33,7 @@ Created July 18, 2007 Vasil Dimov
 #include "btr0pcur.h"
 #include "btr0types.h"
 #include "dict0dict.h"
+#include "dict0dd.h"
 #include "dict0load.h"
 #include "buf0buddy.h"
 #include "buf0buf.h"
@@ -2519,6 +2520,7 @@ i_s_fts_deleted_generic_fill(
 	fts_table_t		fts_table;
 	fts_doc_ids_t*		deleted;
 	dict_table_t*		user_table;
+	MDL_ticket*		mdl = nullptr;
 
 	DBUG_ENTER("i_s_fts_deleted_generic_fill");
 
@@ -2534,15 +2536,15 @@ i_s_fts_deleted_generic_fill(
 	/* Prevent DDL to drop fts aux tables. */
 	rw_lock_s_lock(dict_operation_lock);
 
-	user_table = dict_table_open_on_name(
-		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+	user_table = dd_table_open_on_name(
+		thd, &mdl, fts_internal_tbl_name, false, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		rw_lock_s_unlock(dict_operation_lock);
 
 		DBUG_RETURN(0);
 	} else if (!dict_table_has_fts_index(user_table)) {
-		dict_table_close(user_table, FALSE, FALSE);
+		dd_table_close(user_table, thd, &mdl, false);
 
 		rw_lock_s_unlock(dict_operation_lock);
 
@@ -2576,7 +2578,7 @@ i_s_fts_deleted_generic_fill(
 
 	fts_doc_ids_free(deleted);
 
-	dict_table_close(user_table, FALSE, FALSE);
+	dd_table_close(user_table, thd, &mdl, false);
 
 	rw_lock_s_unlock(dict_operation_lock);
 
@@ -2942,6 +2944,7 @@ i_s_fts_index_cache_fill(
 {
 	dict_table_t*		user_table;
 	fts_cache_t*		cache;
+	MDL_ticket*		mdl = nullptr;
 
 	DBUG_ENTER("i_s_fts_index_cache_fill");
 
@@ -2954,15 +2957,15 @@ i_s_fts_index_cache_fill(
 		DBUG_RETURN(0);
 	}
 
-	user_table = dict_table_open_on_name(
-		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+	user_table = dd_table_open_on_name(
+		thd, &mdl, fts_internal_tbl_name, false, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		DBUG_RETURN(0);
 	}
 
 	if (user_table->fts == NULL || user_table->fts->cache == NULL) {
-		dict_table_close(user_table, FALSE, FALSE);
+		dd_table_close(user_table, thd, &mdl, false);
 
 		DBUG_RETURN(0);
 	}
@@ -2980,7 +2983,7 @@ i_s_fts_index_cache_fill(
 		i_s_fts_index_cache_fill_one_index(index_cache, thd, tables);
 	}
 
-	dict_table_close(user_table, FALSE, FALSE);
+	dd_table_close(user_table, thd, &mdl, false);
 
 	DBUG_RETURN(0);
 }
@@ -3390,6 +3393,7 @@ i_s_fts_index_table_fill(
 {
 	dict_table_t*		user_table;
 	dict_index_t*		index;
+	MDL_ticket*		mdl = nullptr;
 
 	DBUG_ENTER("i_s_fts_index_table_fill");
 
@@ -3405,8 +3409,8 @@ i_s_fts_index_table_fill(
 	/* Prevent DDL to drop fts aux tables. */
 	rw_lock_s_lock(dict_operation_lock);
 
-	user_table = dict_table_open_on_name(
-		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+	user_table = dd_table_open_on_name(
+		thd, &mdl, fts_internal_tbl_name, false, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		rw_lock_s_unlock(dict_operation_lock);
@@ -3421,7 +3425,7 @@ i_s_fts_index_table_fill(
 		}
 	}
 
-	dict_table_close(user_table, FALSE, FALSE);
+	dd_table_close(user_table, thd, &mdl, false);
 
 	rw_lock_s_unlock(dict_operation_lock);
 
@@ -3550,6 +3554,7 @@ i_s_fts_config_fill(
 	ulint			i = 0;
 	dict_index_t*		index = NULL;
 	unsigned char		str[FTS_MAX_CONFIG_VALUE_LEN + 1];
+	MDL_ticket*		mdl = nullptr;
 
 	DBUG_ENTER("i_s_fts_config_fill");
 
@@ -3566,18 +3571,22 @@ i_s_fts_config_fill(
 
 	fields = table->field;
 
+	if (innobase_strcasecmp(fts_internal_tbl_name, "default") == 0) {
+		DBUG_RETURN(0);
+	}
+
 	/* Prevent DDL to drop fts aux tables. */
 	rw_lock_s_lock(dict_operation_lock);
 
-	user_table = dict_table_open_on_name(
-		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+	user_table = dd_table_open_on_name(
+		thd, &mdl, fts_internal_tbl_name, false, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		rw_lock_s_unlock(dict_operation_lock);
 
 		DBUG_RETURN(0);
 	} else if (!dict_table_has_fts_index(user_table)) {
-		dict_table_close(user_table, FALSE, FALSE);
+		dd_table_close(user_table, thd, &mdl, false);
 
 		rw_lock_s_unlock(dict_operation_lock);
 
@@ -3634,7 +3643,7 @@ i_s_fts_config_fill(
 
 	trx_free_for_background(trx);
 
-	dict_table_close(user_table, FALSE, FALSE);
+	dd_table_close(user_table, thd, &mdl, false);
 
 	rw_lock_s_unlock(dict_operation_lock);
 

@@ -4957,9 +4957,9 @@ prepare_inplace_alter_table_dict(
 			dictionary cache, because we are still holding
 			the dict_sys->mutex. */
 			ut_ad(mutex_own(&dict_sys->mutex));
-			temp_table = dict_table_open_on_name(
-				ctx->new_table->name.m_name, TRUE, FALSE,
-				DICT_ERR_IGNORE_NONE);
+			temp_table = dd_table_open_on_name_in_mem(
+				ctx->new_table->name.m_name,
+				true, DICT_ERR_IGNORE_NONE);
 			ut_a(ctx->new_table == temp_table);
 			/* n_ref_count must be 1, because purge cannot
 			be executing on this very table as we are
