@@ -430,6 +430,21 @@ struct view {
     "LEFT JOIN `<NDBINFO_DB>`.config_params cp4 ON p.config_param4 = cp4.param_number"
   },
 #endif
+  { "processes",
+    "SELECT DISTINCT node_id, "
+    "CASE node_type"
+    "  WHEN 0 THEN \"NDB\""
+    "  WHEN 1 THEN \"API\""
+    "  WHEN 2 THEN \"MGM\""
+    "  ELSE NULL "
+    " END AS node_type, "
+    " host_addr, node_version, "
+    " NULLIF(process_id, 0) AS process_id, "
+    " NULLIF(angel_process_id, 0) AS angel_process_id, "
+    " process_name, connection_name, "
+    " NULLIF(application_port, 0) AS application_port "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>processes`"
+  },
   { "resources",
     "SELECT node_id, "
     " CASE resource_id"
