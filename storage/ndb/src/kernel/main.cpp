@@ -24,6 +24,7 @@
 #include "angel.hpp"
 
 #include "../common/util/parse_mask.hpp"
+#include "OwnProcessInfo.hpp"
 
 #include <EventLogger.hpp>
 
@@ -193,6 +194,11 @@ real_main(int argc, char** argv)
                            opt_nowait_nodes);
       exit(-1);
     }
+  }
+
+ if(opt_angel_pid)
+  {
+    setOwnProcessInfoAngelPid(opt_angel_pid);
   }
 
   if (opt_foreground ||
