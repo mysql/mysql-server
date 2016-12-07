@@ -40,5 +40,9 @@ SET @@GLOBAL.replicate_ignore_table="";
 SELECT @@GLOBAL.replicate_ignore_table;
 @@GLOBAL.replicate_ignore_table
 
+SET @@GLOBAL.replicate_ignore_table=null;
+SELECT @@GLOBAL.replicate_ignore_table;
+@@GLOBAL.replicate_ignore_table
+
 # Cleanup.
 SET @@GLOBAL.replicate_ignore_table = @save_replicate_ignore_table;

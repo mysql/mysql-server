@@ -33,5 +33,9 @@ SET @@GLOBAL.replicate_do_db="";
 SELECT @@GLOBAL.replicate_do_db;
 @@GLOBAL.replicate_do_db
 
+SET @@GLOBAL.replicate_do_db=null;
+SELECT @@GLOBAL.replicate_do_db;
+@@GLOBAL.replicate_do_db
+
 # Cleanup.
 SET @@GLOBAL.replicate_do_db = @save_replicate_do_db;

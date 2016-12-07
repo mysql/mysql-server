@@ -35,5 +35,8 @@ SELECT @@GLOBAL.replicate_ignore_db;
 SET @@GLOBAL.replicate_ignore_db="";
 SELECT @@GLOBAL.replicate_ignore_db;
 
+SET @@GLOBAL.replicate_ignore_db=null;
+SELECT @@GLOBAL.replicate_ignore_db;
+
 --echo # Cleanup.
 SET @@GLOBAL.replicate_ignore_db = @save_replicate_ignore_db;

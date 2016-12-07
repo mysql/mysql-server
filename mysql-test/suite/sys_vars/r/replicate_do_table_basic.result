@@ -40,5 +40,9 @@ SET @@GLOBAL.replicate_do_table="";
 SELECT @@GLOBAL.replicate_do_table;
 @@GLOBAL.replicate_do_table
 
+SET @@GLOBAL.replicate_do_table=null;
+SELECT @@GLOBAL.replicate_do_table;
+@@GLOBAL.replicate_do_table
+
 # Cleanup.
 SET @@GLOBAL.replicate_do_table = @save_replicate_do_table;

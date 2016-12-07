@@ -44,5 +44,8 @@ SELECT @@GLOBAL.replicate_wild_do_table;
 SET @@GLOBAL.replicate_wild_do_table="";
 SELECT @@GLOBAL.replicate_wild_do_table;
 
+SET @@GLOBAL.replicate_wild_do_table=null;
+SELECT @@GLOBAL.replicate_wild_do_table;
+
 --echo # Cleanup.
 SET @@GLOBAL.replicate_wild_do_table = @save_replicate_wild_do_table;
