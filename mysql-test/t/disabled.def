@@ -49,5 +49,7 @@ trigger                          : WL#9525 disables it, waiting for WL#9559
 mysqldump                        : WL#9532 disables it, because it tries to modify the DD tables.
 mysqlcheck                       : WL#9532 disables it, because it tries to modify the DD tables.
 
+invalid_collation                : disable it for waiting Sivert's fix. Because it'll report invalid collation when open table for rename.
+
 wl6443_deprecation               : WL#9532 disables it, because it creates temporary table in DD tablespaces.
 mysqld--defaults-file @darwin : Bug#24579973 2016-11-03 Anitha Test fails on Mac OS 10.12
