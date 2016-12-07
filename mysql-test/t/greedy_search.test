@@ -435,3 +435,9 @@ while ($i < 8)
 --echo #
 
 --source include/greedy_search_drop_tables.inc
+
+# To make sure we have stable costs, set memory io cost equal to disk io cost
+UPDATE mysql.engine_cost
+SET cost_value = 0.25
+WHERE cost_name = 'memory_block_read_cost';
+FLUSH OPTIMIZER_COSTS;
