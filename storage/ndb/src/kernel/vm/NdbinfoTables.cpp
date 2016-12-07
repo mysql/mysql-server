@@ -872,6 +872,21 @@ DECLARE_NDBINFO_TABLE(STORED_TABLES, 20) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(PROCESSES, 10) =
+{ { "processes", 10, 0, "Process ID and Name information for connected nodes" },
+  {
+    { "reporting_node_id",         Ndbinfo::Number,    "Reporting data node ID"},
+    { "node_id",                   Ndbinfo::Number,    "Connected node ID"},
+    { "node_type",                 Ndbinfo::Number,    "Type of node"},
+    { "host_addr",                 Ndbinfo::String,    "IPv4 address of connected node"},
+    { "node_version",              Ndbinfo::String,    "Node MySQL Cluster version string"},
+    { "process_id",                Ndbinfo::Number,    "PID of node process on host"},
+    { "angel_process_id",          Ndbinfo::Number,    "PID of node\\\'s angel process, if any"},
+    { "process_name",              Ndbinfo::String,    "Node\\\'s executable process name"},
+    { "connection_name",           Ndbinfo::String,    "Connection name of API node"},
+    { "application_port",          Ndbinfo::Number,    "Node\\\'s declared application port number"}
+  }
+};
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -918,7 +933,8 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(TABLE_DIST_STATUS_ALL),
   DBINFOTBL(TABLE_FRAGMENTS_ALL),
   DBINFOTBL(TABLE_REPLICAS_ALL),
-  DBINFOTBL(STORED_TABLES)
+  DBINFOTBL(STORED_TABLES),
+  DBINFOTBL(PROCESSES)
 };
 
 static int no_ndbinfo_tables =
