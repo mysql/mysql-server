@@ -279,7 +279,9 @@ dict_get_db_name_len(
 {
 	const char*	s;
 	s = strchr(name, '/');
-	ut_a(s);
+	if (s == nullptr) {
+		return(0);
+	}
 	return(s - name);
 }
 

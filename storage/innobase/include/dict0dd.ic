@@ -29,9 +29,11 @@ Created  10/2016 Jimmy Yamg
 /** Parse a table name
 @param[in]      tbl_name        table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
-@param[in,out]	dd_tbl_name	table name buffer to be filled */
+@param[in,out]	dd_tbl_name	table name buffer to be filled
+@return true if table name is parsed properly, false if the table name
+is invalid */
 UNIV_INLINE
-void
+bool
 innobase_parse_tbl_name(
 	const char*	tbl_name,
 	char*		dd_db_name,
@@ -40,6 +42,10 @@ innobase_parse_tbl_name(
 	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
 	ulint	db_len = dict_get_db_name_len(tbl_name);
+
+	if (db_len == 0) {
+		return(false);
+	}
 
 	ut_ad(db_len <= MAX_DATABASE_NAME_LEN);
 	memcpy(db_buf, tbl_name, db_len);
@@ -50,6 +56,8 @@ innobase_parse_tbl_name(
 
 	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1);
 	filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1);
+
+	return(true);
 }
 
 /** Look up a column in a table using the system_charset_info collation.

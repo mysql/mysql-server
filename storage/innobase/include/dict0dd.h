@@ -278,9 +278,11 @@ thd_to_innodb_session(
 /** Parse a table name
 @param[in]	tbl_name	table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
-@param[in,out]	dd_tbl_name	table name buffer to be filled */
+@param[in,out]	dd_tbl_name	table name buffer to be filled
+@return	true if table name is parsed properly, false if the table name
+is invalid */
 UNIV_INLINE
-void
+bool
 innobase_parse_tbl_name(
 	const char*	tbl_name,
 	char*		dd_db_name,

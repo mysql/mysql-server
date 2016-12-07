@@ -742,7 +742,9 @@ dd_table_open_on_name(
 		DBUG_RETURN(table);
 	}
 
-	innobase_parse_tbl_name(name, db_buf, tbl_buf);
+	if (!innobase_parse_tbl_name(name, db_buf, tbl_buf)) {
+		DBUG_RETURN(nullptr);
+	}
 
 	if (!skip_mdl && dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
 		DBUG_RETURN(nullptr);
