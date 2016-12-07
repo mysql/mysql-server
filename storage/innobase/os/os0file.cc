@@ -6988,8 +6988,6 @@ os_aio_windows_handler(
 	*type = slot->type;
 
 	BOOL	retry = FALSE;
-	retry = GetOverlappedResult(
-		slot->file.m_file, &slot->control, &slot->n_bytes, TRUE);
 
 	if (ret && slot->n_bytes == slot->len) {
 
