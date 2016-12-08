@@ -11,6 +11,9 @@
 -- source include/no_valgrind_without_big.inc
 -- source include/not_embedded.inc
 
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
+
 # Sanity check that the procedure completes two iterations with full debug,
 # raw output, and Information Schema table outputs without generating
 # any warnings.
