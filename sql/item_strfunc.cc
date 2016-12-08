@@ -2951,19 +2951,7 @@ String *Item_func_conv::val_str(String *str)
 String *Item_func_conv_charset::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  if (cached_value == CONST_WILL_BE_CACHED)
-  {
-    uint errors= 0;
-    String tmp, *str= args[0]->val_str(&tmp);
-    if (!str || str_value.copy(str->ptr(), str->length(),
-                               str->charset(), conv_charset, &errors))
-      null_value= 1;
-    cached_value= CACHED;
-    str_value.mark_as_const();
-    safe= (errors == 0);
-    is_expensive_cache= 0;
-  }
-  if (cached_value == CACHED)
+  if (use_cached_value)
     return null_value ? 0 : &str_value;
   String *arg= args[0]->val_str(str);
   uint dummy_errors;
