@@ -6778,7 +6778,8 @@ Item_func_sp::init_result_field(THD *thd)
 
 bool Item_func_sp::is_expensive()
 {
-  return !(m_sp->m_chistics->detistic);
+  return !m_sp->m_chistics->detistic ||
+          current_thd->locked_tables_mode < LTM_LOCK_TABLES;
 }
 
 

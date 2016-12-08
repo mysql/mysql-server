@@ -3294,7 +3294,7 @@ public:
     if (result_type() == ROW_RESULT)
       orig_item->bring_value();
   }
-  virtual bool is_expensive() { return orig_item->is_expensive(); }
+  bool is_expensive() { return orig_item->is_expensive(); }
   bool is_expensive_processor(uchar *arg)
   { return orig_item->is_expensive_processor(arg); }
   bool check_vcol_func_processor(uchar *arg)

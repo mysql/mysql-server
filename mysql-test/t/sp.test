@@ -9316,6 +9316,7 @@ CREATE TABLE `t1` (
 CREATE TABLE `t2` (
   `ap_close_to` varchar(8) COLLATE utf8_bin DEFAULT NULL
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_bin ;
+insert t1 values (1);
 
 
 --delimiter $$
