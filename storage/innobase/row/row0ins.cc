@@ -2578,13 +2578,10 @@ row_ins_clust_index_entry_low(
 		autoinc_mtr.get_mtr()->set_named_space(index->space);
 
 		/* We do logging first to prevent further potential deadlock.
-		Temporary tables don't require persistent counters.
-		For 'ALTER TABLE ... ALGORITHM = COPY', intermediate tables
-		need this, but we can set it only once when necessary to prevent
-		writing so many logs. This is why row_is_mysql_tmp_table_name()
-		is necessary here */
-		if (dict_table_has_autoinc_col(index->table)
-		    && !row_is_mysql_tmp_table_name(index->table->name.m_name)
+		Also, no need to write logs for all intermediate tables,
+		since we can set it at last only once */
+		if (!index->table->skip_alter_undo
+		    && dict_table_has_autoinc_col(index->table)
 		    && !srv_missing_dd_table_buffer) {
 
 			ib_uint64_t counter = row_get_autoinc_counter(

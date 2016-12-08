@@ -170,7 +170,10 @@ dd_table_open_on_dd_obj(
 	      || dd_part->parent() == nullptr
 	      || dd_part->parent()->level() == 0);
 #ifdef UNIV_DEBUG
-	if (tbl_name) {
+	/* If this is a internal temporary table, it's impossible
+	to verify the MDL against the table name, because both the
+	database name and table name may be invalid for MDL */
+	if (tbl_name && !row_is_mysql_tmp_table_name(tbl_name)) {
 		char	db_buf[NAME_LEN + 1];
 		char	tbl_buf[NAME_LEN + 1];
 
@@ -181,13 +184,14 @@ dd_table_open_on_dd_obj(
 			ut_ad(strncmp(dd_table.name().c_str(), tbl_buf,
 				      dd_table.name().size()) == 0);
 		}
+
 		ut_ad(skip_mdl
 		      || dd_mdl_verify(thd, db_buf, tbl_buf));
 	}
 #endif /* UNIV_DEBUG */
 
 	int			error		= 0;
-	const uint64		table_id	= dd_part == nullptr
+	const table_id_t	table_id	= dd_part == nullptr
 		? dd_table.se_private_id()
 		: dd_part->se_private_id();
 	const ulint		fold		= ut_fold_ull(table_id);
@@ -205,14 +209,19 @@ dd_table_open_on_dd_obj(
                     dict_table_t*, table, ut_ad(table->cached),
                     table->id == table_id);
 
+	/* TODO: Remove this once DISCARD can update se_private_id.
+	Currently, the se_private_id is incorrect, so searching by id
+	will report find nothing. One more extra check by name */
+	if (table == NULL && tbl_name != NULL) {
+		const ulint	table_fold = ut_fold_string(tbl_name);
+		HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
+			    dict_table_t*, table, ut_ad(table->cached),
+			    !strcmp(table->name.m_name, tbl_name));
+	}
 
 	if (table == nullptr) {
 		ut_ad(!is_temp);
 	} else {
-		if (uncached == nullptr) {
-			ut_ad(!table->is_corrupted());
-		}
-
 		if (table != nullptr) {
 			table->acquire();
 		}
@@ -287,9 +296,15 @@ dd_table_open_on_dd_obj(
 				tab_namep = tmp_name;
 			}
 
-			table = dd_open_table(
-				client, &td, tab_namep, uncached, table,
-				&dd_table, skip_mdl, thd);
+			if (dd_part == NULL) {
+				table = dd_open_table(
+					client, &td, tab_namep, uncached,
+					table, &dd_table, skip_mdl, thd);
+			} else {
+				table = dd_open_table(
+					client, &td, tab_namep, uncached,
+					table, dd_part, skip_mdl, thd);
+			}
 		}
 
 		closefrm(&td, false);
@@ -831,12 +846,12 @@ dd_table_close(
 	}
 }
 
-/** Update dd tablespace for rename
+/** Update filename of dd::Tablespace
 @param[in]	dd_space_id	dd tablespace id
 @param[in]	new_path	new data file path
 @retval true if fail. */
 bool
-dd_tablespace_update_for_rename(
+dd_tablespace_update_filename(
 	dd::Object_id		dd_space_id,
 	const char*		new_path)
 {

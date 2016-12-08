@@ -1583,9 +1583,11 @@ struct dict_table_t {
 	Use DICT_TF2_FLAG_IS_SET() to parse this flag. */
 	unsigned				flags2:DICT_TF2_BITS;
 
-	/** TRUE if the table is a intermediate table during copy alter
-	operation and skip the undo log for insertion of row in the table.
-	This variable will be set and unset during extra(). */
+	/** TRUE if the table is an intermediate table during copy alter
+	operation or a partition/subpartition which is required for copying
+	data and skip the undo log for insertion of row in the table.
+	This variable will be set and unset during extra(), or during the
+	process of altering partitions */
 	unsigned				skip_alter_undo:1;
 
 	/** TRUE if this is in a single-table tablespace and the .ibd file is

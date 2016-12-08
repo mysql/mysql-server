@@ -672,6 +672,8 @@ bool Sql_cmd_alter_table_exchange_partition::
     DBUG_RETURN(true);
   }
 
+  DEBUG_SYNC(thd, "swap_partition_before_exchange");
+
   int ha_error= part_handler->exchange_partition(part_file_name,
                                                  swap_file_name,
                                                  swap_part_id,
@@ -688,8 +690,6 @@ bool Sql_cmd_alter_table_exchange_partition::
   {
     // WL7743/TODO Non-native partitioning. Legacy code to be removed
     // once partitioning handler is removed.
-    DEBUG_SYNC(thd, "swap_partition_before_rename");
-
     close_all_tables_for_name(thd, swap_table->s, false, NULL);
     close_all_tables_for_name(thd, part_table->s, false, NULL);
 
@@ -1006,7 +1006,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     trans_rollback_stmt(thd);
   // QQ: Should we also rollback txn for consistency here?
 
-  thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+  thd->dd_client()->remove_uncommitted_objects<dd::Table>(!error);
 
   if ((first_table->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       first_table->table->file->ht->post_ddl)

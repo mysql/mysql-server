@@ -37,11 +37,8 @@ innodb-multiple-tablespaces : WL#9525 disables it, DATA DIRECTORY should be stor
 innodb-system-table-view_cs : WL#9532 disables it, this may not be needed after WL#9535
 innodb-system-table-view_ci : WL#9532 disables it, this may not be needed after WL#9535
 
-innodb_tablespace         : WL#9525 disables it, waiting for WL#9559
-partition                 : WL#9525 disables it, waiting for WL#9559
-tablespace_per_table      : WL#9525 disables it, waiting for WL#9559
-innodb-import-partition   : WL#9525 disables it, waiting for WL#9559
-create_tablespace_partition : WL#9525 disables it, waiting for WL#9559
+innodb-import-partition   : WL#99559 disables it, waiting for IMPORT TABLESPACE fix, update the se_private_id
+create_tablespace_partition : WL#9559 disables it, according to Dmitry, waiting for fix of Bug#18513130 STRANGE INTERACTION OF SQL_MODE=ANSI AND PARTITION BY TIMESTAMP
 
 log_file_name_debug       : Waiting for WL#9175
 log_file_size             : Waiting for WL#9175
@@ -52,5 +49,4 @@ blob-crash                : Waiting for WL#9175
 log_alter_table           : Waiting for WL#9175
 innodb_bug-13628249       : Waiting for WL#9175
 
-update_time_wl6658	  : Drop partition table failed.
 innodb-copy-alter-debug	  : Require atomic DDL, WL#9536

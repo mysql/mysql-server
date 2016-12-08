@@ -11,30 +11,5 @@
 ##############################################################################
 
 #NewDD disable some test cases for partition.
-parts.partition_special_innodb      : Waiting for wl#9559
-parts.partition_debug_sync_innodb   : Waiting for wl#9559
-parts.partition_mgm_lc1_innodb      : Waiting for wl#9559
-parts.partition_exchange_innodb     : Waiting for wl#9559
-parts.part_exch_valid_hash_innodb   : Waiting for wl#9559
-parts.part_exch_valid_key_innodb    : Waiting for wl#9559
-parts.part_exch_valid_list_innodb   : Waiting for wl#9559
-parts.part_exch_valid_range_innodb  : Waiting for wl#9559
-parts.partition_alter3_innodb       : Waiting for wl#9559
-parts.partition_exch_innodb         : Waiting for wl#9559
-parts.partition_exch_qa_10          : Waiting for wl#9559
-parts.partition_exch_qa_11          : Waiting for wl#9559
-parts.partition_exch_qa_1_innodb    : Waiting for wl#9559
-parts.partition_exch_qa_4_innodb    : Waiting for wl#9559
-parts.partition_exch_qa_5_innodb    : Waiting for wl#9559
-parts.partition_exch_qa_6           : Waiting for wl#9559
-parts.partition_exch_qa_7_innodb    : Waiting for wl#9559
-parts.partition_exch_qa_8_innodb    : Waiting for wl#9559
-parts.partition_mgm_lc0_innodb      : Waiting for wl#9559
-parts.partition_reorganize_innodb   : Waiting for wl#9559
-parts.partition_change_from_range_to_hash_key  : Waiting for wl#9559
-parts.partition_rebuild             : Waiting for wl#9559
-parts.partition_reorg_divide        : Waiting for wl#9559
-parts.partition_reorg_hash_key      : Waiting for wl#9559
-parts.partition_reorg_merge         : Waiting for wl#9559
-parts.partition_debug               : Waiting for wl#9559
-parts.partition_mgm_lc2_innodb      : Waiting for wl#9559
+parts.partition_debug               : WL#9559 disables it, waiting for crash-safe DDL from WL#9536
+parts.partition_debug_innodb        : WL#9559 disables it, waiting for crash-safe DDL from WL#9536

@@ -108,6 +108,75 @@ static const dd::String_type	index_file_name_key("index_file_name");
 /** dd::Partition::options() key for DATA DIRECTORY */
 static const dd::String_type	data_file_name_key("data_file_name");
 
+/** Get the first index of a table or partition.
+@tparam         Table   dd::Table or dd::Partition
+@tparam         Index   dd::Index or dd::Partition_index
+@param[in]      table   table containing user columns and indexes
+@return the first index
+@retval NULL    if there are no indexes */
+template<typename Table, typename Index>
+inline
+const Index*
+dd_first(const Table* table)
+{
+        return(*table->indexes().begin());
+}
+
+/** Get the first index of a table.
+@param[in]      table   table containing user columns and indexes
+@return the first index
+@retval NULL    if there are no indexes */
+inline
+const dd::Index*
+dd_first_index(const dd::Table* table)
+{
+        ut_ad(table->partitions().empty());
+        return(dd_first<dd::Table, dd::Index>(table));
+}
+
+/** Get the first index of a partition.
+@param[in]      partition       partition or subpartition
+@return the first index
+@retval NULL    if there are no indexes */
+inline
+const dd::Partition_index*
+dd_first_index(const dd::Partition* partition)
+{
+        return(dd_first<dd::Partition,dd::Partition_index>(partition));
+}
+
+#if 1 // WL#7743/runtime TODO: implement dd::Partition::is_stored()
+/** Determine if a partition is materialized.
+@param[in]      part            partition
+@return whether the partition is materialized */
+inline bool dd_part_is_stored(
+        const dd::Partition*    part)
+{
+        return(part->table().subpartition_type() == dd::Table::ST_NONE
+               || part->level() == 1);
+}
+#endif
+
+/** Get the explicit dd::Tablespace::id of a partition.
+@param[in]      table   non-partitioned table
+@return the explicit dd::Tablespace::id
+@retval dd::INVALID_OBJECT_ID   if there is no explicit tablespace */
+inline
+dd::Object_id
+dd_get_space_id(const dd::Table& table)
+{
+        ut_ad(table.partition_type() == dd::Table::PT_NONE);
+        return(table.tablespace_id());
+}
+
+/** Get the explicit dd::Tablespace::id of a partition.
+@param[in]      partition       partition or subpartition
+@return the explicit dd::Tablespace::id
+@retval dd::INVALID_OBJECT_ID   if there is no explicit tablespace */
+inline
+dd::Object_id
+dd_get_space_id(const dd::Partition& partition);
+
 /** Set the AUTO_INCREMENT attribute.
 @param[in,out]	se_private_data	dd::Table::se_private_data
 @param[in]	autoinc		the auto-increment value */
@@ -142,6 +211,31 @@ dd_mdl_release(
 @param[in,out]	se_private_data	dd::Table::se_private_data
 @param[in]	autoinc		the auto-increment value */
 void dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc);
+
+/** Instantiate an InnoDB in-memory table metadata (dict_table_t)
+based on a Global DD object.
+@param[in,out]  client          data dictionary client
+@param[in]      dd_table        Global DD table object
+@param[in]      dd_part         Global DD partition or subpartition, or NULL
+@param[in]      tbl_name        table name, or NULL if not known
+@param[in,out]  uncached        NULL if the table should be added to the cache;
+                                if not, *uncached=true will be assigned
+                                when ib_table was allocated but not cached
+                                (used during delete_table and rename_table)
+@param[out]     table           InnoDB table (NULL if not found or loadable)
+@param[in]      skip_mdl        whether meta-data locking is skipped
+@return error code
+@retval 0       on success */
+int
+dd_table_open_on_dd_obj(
+        dd::cache::Dictionary_client*   client,
+        const dd::Table&                dd_table,
+        const dd::Partition*            dd_part,
+        const char*                     tbl_name,
+        bool*                           uncached,
+        dict_table_t*&                  table,
+        bool                            skip_mdl,
+        THD*                            thd);
 
 /** Open a persistent InnoDB table based on table id.
 @param[in]	table_id	table identifier
@@ -220,6 +314,7 @@ dd_table_open_on_name_in_mem(
 	ulint		ignore_op);
 
 /** Open or load a table definition based on a Global DD object.
+@tparam[in]	Table		dd::Table or dd::Partition
 @param[in,out]	client		data dictionary client
 @param[in]	table		MySQL table definition
 @param[in]	norm_name	Table Name
@@ -234,7 +329,7 @@ dd_table_open_on_name_in_mem(
 @retval	0			on success
 @retval	HA_ERR_TABLE_CORRUPT	if the table is marked as corrupted
 @retval	HA_ERR_TABLESPACE_MISSING	if the file is not found */
-
+template<typename Table>
 dict_table_t*
 dd_open_table(
 	dd::cache::Dictionary_client*	client,
@@ -242,7 +337,7 @@ dd_open_table(
 	const char*			norm_name,
 	bool*				uncached,
 	dict_table_t*&			ib_table,
-	const dd::Table*		dd_table,
+	const Table*			dd_table,
 	bool				skip_mdl,
 	THD*				thd);
 
@@ -258,12 +353,12 @@ dd_tablespace_get_on_id(
 	dd::Object_id		dd_space_id,
 	dd::Tablespace**	dd_space);
 
-/** Update dd tablespace for rename
+/** Update filename of dd::Tablespace
 @param[in]	dd_space_id	dd tablespace id
 @param[in]	new_path	new data file path
 @retval false if fail. */
 bool
-dd_tablespace_update_for_rename(
+dd_tablespace_update_filename(
 	dd::Object_id		dd_space_id,
 	const char*		new_path);
 

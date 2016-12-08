@@ -818,6 +818,23 @@ protected:
   */
   bool set_altered_partitions();
 
+  /**
+    Copy partitions as part of ALTER TABLE of partitions.
+
+    change_partitions has done all the preparations, now it is time to
+    actually copy the data from the reorganized partitions to the new
+    partitions.
+
+    @param[out] copied   Number of records copied.
+    @param[out] deleted  Number of records deleted.
+
+    @return Operation status
+      @retval  0  Success
+      @retval >0  Error code
+  */
+  virtual int copy_partitions(ulonglong * const copied,
+                              ulonglong * const deleted);
+
 private:
   enum partition_index_scan_type
   {
@@ -1184,22 +1201,6 @@ private:
     @param[out] buf  Row returned in MySQL Row Format.
   */
   void return_top_record(uchar *buf);
-  /**
-    Copy partitions as part of ALTER TABLE of partitions.
-
-    change_partitions has done all the preparations, now it is time to
-    actually copy the data from the reorganized partitions to the new
-    partitions.
-
-    @param[out] copied   Number of records copied.
-    @param[out] deleted  Number of records deleted.
-
-    @return Operation status
-      @retval  0  Success
-      @retval >0  Error code
-  */
-  virtual int copy_partitions(ulonglong * const copied,
-                              ulonglong * const deleted);
 
   /**
     Set table->read_set taking partitioning expressions into account.

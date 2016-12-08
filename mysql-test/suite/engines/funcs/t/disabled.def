@@ -1,8 +1,2 @@
 # List of disabled tests
 # test name : comment
-
-tc_partition_rebuild                       : WL#9525 disables it, waiting for WL#9559
-tc_partition_change_from_range_to_hash_key : WL#9525 disables it, waiting for WL#9559
-tc_partition_reorg_divide                  : WL#9525 disables it, waiting for WL#9559
-tc_partition_reorg_hash_key                : WL#9525 disables it, waiting for WL#9559
-tc_partition_reorg_merge                   : WL#9525 disables it, waiting for WL#9559

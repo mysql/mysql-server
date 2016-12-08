@@ -617,7 +617,7 @@ protected:
 		const char*		from,
 		const char*		to,
 		const Table*		from_table,
-		const Table*		to_table);
+		Table*			to_table);
 
 	/** Implementation of prepare_inplace_alter_table()
 	@param[in]	altered_table	TABLE object for new version of table.
@@ -1235,8 +1235,7 @@ innobase_write_dd_index(
 	Index*			dd_index,
 	const dict_index_t*	index);
 
-template<typename Table>
 void
 innobase_adjust_fts_doc_id_index_order(
-	Table*		dd_table,
-	dict_table_t*	table);
+	const dd::Table&	dd_table,
+	dict_table_t*		table);

@@ -26,6 +26,36 @@ Created  10/2016 Jimmy Yamg
 #include "sql_table.h"
 #include "dict0crea.h"
 
+/** Get the explicit dd::Tablespace::id of a partition.
+@param[in]      partition       partition or subpartition
+@return the explicit dd::Tablespace::id
+@retval dd::INVALID_OBJECT_ID   if there is no explicit tablespace */
+inline
+dd::Object_id
+dd_get_space_id(const dd::Partition& partition)
+{
+        ut_ad(dd_part_is_stored(&partition));
+        ut_ad(partition.table().partition_type() != dd::Table::PT_NONE);
+        ut_ad((partition.table().subpartition_type() == dd::Table::ST_NONE)
+              == (partition.parent() == nullptr));
+
+        dd::Object_id   id = partition.tablespace_id();
+        if (id == dd::INVALID_OBJECT_ID) {
+                if (const dd::Partition* parent = partition.parent()) {
+                        /* If there is no explicit TABLESPACE for the
+                        subpartition, fall back to the TABLESPACE
+                        of the partition. */
+                        id = parent->tablespace_id();
+                }
+        }
+        if (id == dd::INVALID_OBJECT_ID) {
+                /* If there is no explicit TABLESPACE for the partition,
+                fall back to the TABLESPACE of the table. */
+                id = partition.table().tablespace_id();
+        }
+        return(id);
+}
+
 /** Parse a table name
 @param[in]      tbl_name        table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled

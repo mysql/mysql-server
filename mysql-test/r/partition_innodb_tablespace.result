@@ -492,7 +492,7 @@ t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 SET @@global.innodb_file_per_table = ON;
 SHOW CREATE TABLE t_file_per_table_on;
 Table	Create Table
@@ -507,7 +507,7 @@ t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 # Restart to get DATA DIRECTORY read from the engine (InnoDB dictionary)
 # restart
 ALTER TABLE t1 COALESCE PARTITION 1;
@@ -679,10 +679,10 @@ test/t_file_per_table_on	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t_file_per
 test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#p#p0.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-ts_part1	TABLESPACE	InnoDB	NORMAL	ts_part1	MYSQLD_DATADIR/ts_part1.ibd
-ts part2	TABLESPACE	InnoDB	NORMAL	ts part2	MYSQLD_DATADIR/ts_part2.ibd
-ts_part3	TABLESPACE	InnoDB	NORMAL	ts_part3	MYSQLD_DATADIR/ts_part3.ibd
-ts_part4	TABLESPACE	InnoDB	NORMAL	ts_part4	MYSQLD_DATADIR/ts_part4.ibd
+ts_part1	TABLESPACE	InnoDB	NORMAL	ts_part1	ts_part1.ibd
+ts part2	TABLESPACE	InnoDB	NORMAL	ts part2	ts_part2.ibd
+ts_part3	TABLESPACE	InnoDB	NORMAL	ts_part3	ts_part3.ibd
+ts_part4	TABLESPACE	InnoDB	NORMAL	ts_part4	ts_part4.ibd
 test/t2#p#p1#sp#sp4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#p1#sp#sp4.ibd
 test/t2#p#p3#sp#sp10	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#p3#sp#sp10.ibd
 test/t2#p#p3#sp#sp11	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#p3#sp#sp11.ibd
@@ -714,7 +714,7 @@ t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 SET @@global.innodb_file_per_table = OFF;
 SHOW CREATE TABLE t_file_per_table_on;
 Table	Create Table
@@ -729,6 +729,6 @@ t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t_file_per_table_on;
 DROP TABLE t_file_per_table_off;

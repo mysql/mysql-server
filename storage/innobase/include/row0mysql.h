@@ -521,18 +521,6 @@ row_rename_table_for_mysql(
 	bool		commit)		/*!< in: whether to commit trx */
 	MY_ATTRIBUTE((warn_unused_result));
 
-/** Renames a partitioned table for MySQL.
-@param[in]	old_name	Old table name.
-@param[in]	new_name	New table name.
-@param[in,out]	trx		Transaction.
-@return error code or DB_SUCCESS */
-dberr_t
-row_rename_partitions_for_mysql(
-	const char*	old_name,
-	const char*	new_name,
-	trx_t*		trx)
-	MY_ATTRIBUTE((warn_unused_result));
-
 /*********************************************************************//**
 Scans an index for either COOUNT(*) or CHECK TABLE.
 If CHECK TABLE; Checks that the index contains entries in an ascending order,

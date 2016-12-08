@@ -7570,10 +7570,9 @@ dd_copy_from_table_share(
 }
 
 /** Instantiate index related metadata
-@param[in]	dd_part		Global DD table metadata
+@param[in,out]	dd_table	Global DD table metadata
 @param[in]	m_form		MySQL table definition
 @param[in,out]	m_table		InnoDB table definition
-@param[in]	name		table name
 @param[in]	m_create_info	create table information
 @param[in]	zip_allowed	if compression is allowed
 @param[in]	strict		if report error in strict mode
@@ -7583,15 +7582,14 @@ dd_copy_from_table_share(
 inline
 int
 create_key_metadata(
-	const dd::Table*		dd_part,
-        const TABLE*                    m_form,
-	dict_table_t*			m_table,
-	const char*			name,
-	HA_CREATE_INFO*			m_create_info,
-	bool				zip_allowed,
-	bool				strict,
-	THD*				m_thd,
-        bool                            m_skip_mdl)
+	const dd::Table&	dd_table,
+        const TABLE*		m_form,
+	dict_table_t*		m_table,
+	HA_CREATE_INFO*		m_create_info,
+	bool			zip_allowed,
+	bool			strict,
+	THD*			m_thd,
+        bool                    m_skip_mdl)
 {
 	int		error = 0;
 
@@ -7689,7 +7687,7 @@ create_key_metadata(
 
 			/* Adjust index order */
 			innobase_adjust_fts_doc_id_index_order(
-				const_cast<dd::Table*>(dd_part), m_table);
+				dd_table, m_table);
 		}
 
 		/* Cache all the FTS indexes on this table in the FTS
@@ -7720,7 +7718,7 @@ create_key_metadata(
 	}
 
 	if (Field** autoinc_col = m_form->s->found_next_number_field) {
-		const dd::Properties& p = dd_part->se_private_data();
+		const dd::Properties& p = dd_table.se_private_data();
 		dict_table_autoinc_set_col_pos(
 			m_table, (*autoinc_col)->field_index);
 		uint64	version, autoinc = 0;
@@ -7756,13 +7754,13 @@ dd_error:
 }
 
 /** Determine if a table contains a fulltext index.
-@param[in]      table
+@param[in]      table		dd::Table
 @return whether the table contains any fulltext index */
 inline
 bool
-dd_table_contains_fulltext(const dd::Table* table)
+dd_table_contains_fulltext(const dd::Table& table)
 {
-        for (const dd::Index* index : table->indexes()) {
+        for (const dd::Index* index : table.indexes()) {
                 if (index->type() == dd::Index::IT_FULLTEXT) {
                         return(true);
                 }
@@ -7829,23 +7827,25 @@ create_table_check_doc_id_col(
 @param[in]	strict		whether to use innodb_strict_mode=ON
 @return ER_ level error
 @retval 0 on success */
+template<typename Table>
 inline
 dict_table_t*
 create_table_metadata(
-	const dd::Table*		dd_part,
-        const TABLE*                    m_form,
-	const char*			norm_name,
-	HA_CREATE_INFO*			m_create_info,
-	bool				zip_allowed,
-	bool				strict,
-	THD*				m_thd,
-        bool                            m_skip_mdl,
-	bool				m_implicit)
+	const Table*		dd_part,
+        const TABLE*            m_form,
+	const char*		norm_name,
+	HA_CREATE_INFO*		m_create_info,
+	bool			zip_allowed,
+	bool			strict,
+	THD*			m_thd,
+        bool                    m_skip_mdl,
+	bool			m_implicit)
 {
 	mem_heap_t*	heap;
 	bool		is_encrypted = false;
 	bool		is_discard = false;
 
+	ut_ad(dd_part != NULL);
 	ut_ad(m_thd != nullptr);
 	ut_ad(norm_name != nullptr);
 	ut_ad(m_create_info == nullptr
@@ -7864,35 +7864,33 @@ create_table_metadata(
 	/* TODO: these should be tablespace attributes and be used!*/
 	dd::String_type	encrypt;
 	dd::String_type	compress;
-	if (dd_part != nullptr) {
-		dd_part->table().options().get("compress", compress);
-		dd_part->table().options().get("encrypt_type", encrypt);
+	dd_part->table().options().get("compress", compress);
+	dd_part->table().options().get("encrypt_type", encrypt);
 
-		/* Check compression option. */
-		if (!Compression::is_none(compress.c_str())) {
-			/* TODO: check fil_node_t::punch_hole too, and maybe
-			issue a warning when compression is not feasible?*/
-		}
+	/* Check compression option. */
+	if (!Compression::is_none(compress.c_str())) {
+		/* TODO: check fil_node_t::punch_hole too, and maybe
+		issue a warning when compression is not feasible?*/
+	}
 
-		/* Set encryption option. */
-		if (!Encryption::is_none(encrypt.c_str())) {
-			ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0);
-			is_encrypted = true;
-		}
+	/* Set encryption option. */
+	if (!Encryption::is_none(encrypt.c_str())) {
+		ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0);
+		is_encrypted = true;
+	}
 
-		/* Check discard flag. */
-		if (dd_part->table().options().exists("discard")) {
-			dd_part->table().options().get_bool("discard", &is_discard);
-		}
+	/* Check discard flag. */
+	if (dd_part->table().options().exists("discard")) {
+		dd_part->table().options().get_bool("discard", &is_discard);
 	}
 
 	const unsigned	n_mysql_cols = m_form->s->fields;
 
 	bool	has_doc_id = !!dd_find_column(
-		const_cast<dd::Table*>(dd_part), FTS_DOC_ID_COL_NAME);
+		const_cast<dd::Table*>(&dd_part->table()), FTS_DOC_ID_COL_NAME);
 
 	const bool	fulltext = dd_part != nullptr
-		&& dd_table_contains_fulltext(dd_part);
+		&& dd_table_contains_fulltext(dd_part->table());
 
 	if (fulltext) {
 		ut_ad(has_doc_id);
@@ -7936,6 +7934,10 @@ create_table_metadata(
 		norm_name, 0, n_cols, n_v_cols, 0, 0);
 
 	m_table->id = dd_part->se_private_id();
+
+	if (dd_part->options().exists(data_file_name_key)) {
+		m_table->flags |= DICT_TF_MASK_DATA_DIR;
+	}
 
 	fts_aux_table_t aux_table;
 	if (fts_is_aux_table_name(&aux_table, norm_name, strlen(norm_name))) {
@@ -8217,18 +8219,6 @@ create_table_metadata(
 	return(m_table);
 }
 
-/** Get the first index of a table.
-@param[in]      table   table containing user columns and indexes
-@return the first index
-@retval NULL    if there are no indexes */
-inline
-const dd::Index*
-dd_first_index(const dd::Table* table)
-{
-        ut_ad(table->partitions().empty());
-	return(*table->indexes().begin());
-}
-
 /** InnoDB implicit tablespace name or prefix, which should be same to
 dict_sys_t::file_per_table_name */
 static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
@@ -8321,13 +8311,13 @@ dd_tablespace_is_implicit(
 the foreign table, if this table is referenced by the foreign table
 @param[in,out]	client		data dictionary client
 @param[in]	table		MySQL table definition
-@param[in]	norm_name	Table Name
+@param[in]	tbl_name	Table Name
 @param[in,out]	uncached	NULL if the table should be added to the cache;
 				if not, *uncached=true will be assigned
 				when ib_table was allocated but not cached
 				(used during delete_table and rename_table)
 @param[out]	m_table		InnoDB table handle
-@param[in]	dd_table	Global DD table or partition object
+@param[in]	dd_table	Global DD table
 @param[in]	thd		thread THD
 @return DB_SUCESS 	if successfully load FK constraint */
 static
@@ -8512,6 +8502,7 @@ dd_table_load_fk(
 }
 
 /** Open or load a table definition based on a Global DD object.
+@tparam		Table		dd::Table or dd::Partition
 @param[in,out]	client		data dictionary client
 @param[in]	table		MySQL table definition
 @param[in]	norm_name	Table Name
@@ -8526,7 +8517,7 @@ dd_table_load_fk(
 @retval 0                       on success
 @retval HA_ERR_TABLE_CORRUPT    if the table is marked as corrupted
 @retval HA_ERR_TABLESPACE_MISSING       if the file is not found */
-
+template<typename Table>
 dict_table_t*
 dd_open_table(
         dd::cache::Dictionary_client*   client,
@@ -8534,10 +8525,12 @@ dd_open_table(
 	const char*			norm_name,
         bool*                           uncached,
         dict_table_t*&                  ib_table,
-        const dd::Table*                dd_table,
+        const Table*	                dd_table,
         bool                            skip_mdl,
 	THD*				thd)
 {
+	ut_ad(dd_table != NULL);
+
 	bool	implicit;
 
 	if (dd_table->tablespace_id() == dict_sys_t::dd_space_id) {
@@ -8563,8 +8556,8 @@ dd_open_table(
 
 	int	ret;
 	ret = create_key_metadata(
-		dd_table, table, m_table, dd_table->name().c_str(),
-		NULL, zip_allowed, strict, thd, skip_mdl);
+		dd_table->table(), table, m_table, NULL, zip_allowed,
+		strict, thd, skip_mdl);
 
 	mutex_exit(&dict_sys->mutex);
 
@@ -8679,12 +8672,20 @@ dd_open_table(
 
 	if (exist == NULL) {
 		dd_table_load_fk(client, table, norm_name, uncached,
-				 m_table, dd_table, thd);
+				 m_table, &dd_table->table(), thd);
 	}
 	mem_heap_free(heap);
 
 	return(m_table);
 }
+
+template dict_table_t* dd_open_table<dd::Table>(
+        dd::cache::Dictionary_client*, const TABLE*, const char*,
+	bool*, dict_table_t*&, const dd::Table*, bool, THD*);
+
+template dict_table_t* dd_open_table<dd::Partition>(
+	dd::cache::Dictionary_client*, const TABLE*, const char*,
+	bool*, dict_table_t*&, const dd::Partition*, bool, THD*);
 
 /** Open an InnoDB table.
 @param[in]	name	table name
@@ -8740,12 +8741,12 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 		/* TODO: NewDD: Ignore the InnoDB system table, as they are
 		not registered with newDD */
 		if (strstr(name, "sys") == nullptr) {
-			bool	open_from_dd;
+			bool	cached = false;
 
 			mutex_enter(&dict_sys->mutex);
 			ib_table = dict_table_check_if_in_cache_low(norm_name);
-			open_from_dd = ib_table == NULL;
 			if (ib_table != NULL) {
+				cached = true;
 				if (ib_table->is_corrupted()) {
 					dict_table_remove_from_cache(ib_table);
 					ib_table = NULL;
@@ -8755,7 +8756,7 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 			}
 			mutex_exit(&dict_sys->mutex);
 
-			if (open_from_dd) {
+			if (!cached) {
 				dd::cache::Dictionary_client*	client
 					= dd::get_dd_client(thd);
 				dd::cache::Dictionary_client::Auto_releaser
@@ -15392,7 +15393,7 @@ innobase_write_dd_table(
 	dd_table->set_se_private_id(table->id);
 
 	innobase_adjust_fts_doc_id_index_order(
-		dd_table, const_cast<dict_table_t*>(table));
+		dd_table->table(), const_cast<dict_table_t*>(table));
 
 	const dict_index_t* index = table->first_index();
 
@@ -15435,48 +15436,6 @@ template void innobase_write_dd_index<dd::Index>(
 template void innobase_write_dd_index<dd::Partition_index>(
 	dd::Object_id, dd::Partition_index*, const dict_index_t*);
 
-/** Get the explicit dd::Tablespace::id of a partition.
-@param[in]      table   non-partitioned table
-@return the explicit dd::Tablespace::id
-@retval dd::INVALID_OBJECT_ID   if there is no explicit tablespace */
-inline
-dd::Object_id
-dd_get_space_id(const dd::Table& table)
-{
-        ut_ad(table.partition_type() == dd::Table::PT_NONE);
-        return(table.tablespace_id());
-}
-
-/** Get the explicit dd::Tablespace::id of a partition.
-@param[in]      partition       partition or subpartition
-@return the explicit dd::Tablespace::id
-@retval dd::INVALID_OBJECT_ID   if there is no explicit tablespace */
-inline
-dd::Object_id
-dd_get_space_id(const dd::Partition& partition)
-{
-        ut_ad(dd_part_is_stored(&partition));
-        ut_ad(partition.table().partition_type() != dd::Table::PT_NONE);
-        ut_ad((partition.table().subpartition_type() == dd::Table::ST_NONE)
-              == (partition.parent() == nullptr));
-
-        dd::Object_id   id = partition.tablespace_id();
-        if (id == dd::INVALID_OBJECT_ID) {
-                if (const dd::Partition* parent = partition.parent()) {
-                        /* If there is no explicit TABLESPACE for the
-                        subpartition, fall back to the TABLESPACE
-                        of the partition. */
-                        id = parent->tablespace_id();
-                }
-        }
-        if (id == dd::INVALID_OBJECT_ID) {
-                /* If there is no explicit TABLESPACE for the partition,
-                fall back to the TABLESPACE of the table. */
-                id = partition.table().tablespace_id();
-        }
-        return(id);
-}
-
 /** Update the global data dictionary.
 @tparam		Table	dd::Table or dd::Partition
 @param[in]	table	table object
@@ -15506,12 +15465,13 @@ create_table_info_t::create_table_update_global_dd(
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(m_thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
-	dd::Object_id	dd_space_id = dd_get_space_id(*dd_table);
+	bool		file_per_table = dict_table_is_file_per_table(table);
+	dd::Object_id	dd_space_id = file_per_table
+		? dd::INVALID_OBJECT_ID : dd_get_space_id(*dd_table);
 	bool		is_dd_table = dd_space_id == dict_sys_t::dd_space_id;
 
-	if (dict_table_is_file_per_table(table)) {
+	if (file_per_table) {
 		ut_ad(!is_dd_table);
-		ut_ad(dd_space_id == dd::INVALID_OBJECT_ID);
 
 		char* filename = fil_space_get_first_path(table->space);
 
@@ -15530,7 +15490,7 @@ create_table_info_t::create_table_update_global_dd(
 		   && table->space != srv_tmp_space.space_id()) {
 		/* This is a table in shared tablespace, which could be
 		innodb_sys, temporary tablespace or user created tablespace */
-		ut_ad(!dict_table_is_file_per_table(table));
+		ut_ad(!file_per_table);
 		ut_ad(DICT_TF_HAS_SHARED_SPACE(table->flags));
 
 		dd_space_id = dd_get_space_id(*dd_table);
@@ -15608,16 +15568,18 @@ dd_is_only_column(const dd::Index* index, const dd::Column* column)
 /** Adjust fts doc id index order in table according to dd table object.
 Note: index order can be mismatched between dict table and dd table,
 due to hidden fts doc index. */
-template<typename Table>
 void
 innobase_adjust_fts_doc_id_index_order(
-	Table*		dd_table,
-	dict_table_t*	table)
+	const dd::Table&	dd_table,
+	dict_table_t*		table)
 {
 	/* Skip non-fts table */
 	if (!dict_table_has_fts_index(table)) {
 		return;
 	}
+
+	/* Partitioned table doesn't support FTS */
+	ut_ad(dd_table.partitions().empty());
 
 	/* Find fts doc id index */
 	dict_index_t*	doc_id_index = nullptr;
@@ -15631,14 +15593,14 @@ innobase_adjust_fts_doc_id_index_order(
 		index = index->next();
 	}
 
-	ut_ad(UT_LIST_GET_LEN(table->indexes) == dd_table->indexes()->size());
+	ut_ad(UT_LIST_GET_LEN(table->indexes) == dd_table.indexes().size());
 	ut_ad(doc_id_index != nullptr);
 
 	/* Adjust index order */
 	UT_LIST_REMOVE(table->indexes, doc_id_index);
 
 	index = nullptr;
-	for (auto dd_index : *dd_table->indexes()) {
+	for (auto dd_index : dd_table.indexes()) {
 		if (strcmp(dd_index->name().c_str(),
 			   FTS_DOC_ID_INDEX_NAME) == 0) {
 			if (index == nullptr) {
@@ -15659,13 +15621,8 @@ innobase_adjust_fts_doc_id_index_order(
 		}
 	}
 
-	ut_ad(UT_LIST_GET_LEN(table->indexes) == dd_table->indexes()->size());
+	ut_ad(UT_LIST_GET_LEN(table->indexes) == dd_table.indexes().size());
 }
-
-template void innobase_adjust_fts_doc_id_index_order<dd::Table>(
-	dd::Table*, dict_table_t*);
-template void innobase_adjust_fts_doc_id_index_order<dd::Partition>(
-	dd::Partition*, dict_table_t*);
 
 /** Get dd tablespace id for fts table
 @param[in]	parent_table	parent table of fts table
@@ -17053,11 +17010,19 @@ ha_innobase::delete_table_impl(
 
 	bool	file_per_table = false;
 	bool	tmp_table = false;
-	{
-        	dict_table_t* tab = dd_table_open_on_name(
-			thd, NULL, norm_name, false, DICT_ERR_IGNORE_CORRUPT);
+	if (dd_tab != NULL) {
+		dict_table_t*	tab;
 
-		if (tab != NULL) {
+		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser releaser(client);
+		int error = dd_table_open_on_dd_obj(
+			client, dd_tab->table(),
+			(dd_tab->table().partition_type() == dd::Table::PT_NONE
+			 ? NULL
+			 : reinterpret_cast<const dd::Partition*>(dd_tab)),
+			norm_name, NULL, tab, true, thd);
+
+		if (error == 0 && tab != NULL) {
 			file_per_table = dict_table_is_file_per_table(tab);
 			tmp_table = tab->is_temporary();
 			dd_table_close(tab, thd, NULL, false);
@@ -17647,7 +17612,7 @@ ha_innobase::rename_table_impl(
 	const char*	from,
 	const char*	to,
 	const Table*	from_table,
-	const Table*	to_table)
+	Table*		to_table)
 {
 	dberr_t	error;
 	char	norm_to[FN_REFLEN];
@@ -17679,26 +17644,26 @@ ha_innobase::rename_table_impl(
 
 	error = row_rename_table_for_mysql(norm_from, norm_to, trx, TRUE);
 
-	bool	rename_dd_filename = false;
-	char*	new_path = NULL;
-	if (error == DB_SUCCESS && strcmp(norm_from, norm_to) != 0) {
-		MDL_ticket*	mdl = nullptr;
+	row_mysql_unlock_data_dictionary(trx);
 
-		dict_table_t*	table = dd_table_open_on_name(
-			thd, &mdl, norm_to, true, DICT_ERR_IGNORE_NONE);
+	bool    rename_dd_filename = false;
+        char*   new_path = NULL;
+        if (error == DB_SUCCESS && strcmp(norm_from, norm_to) != 0) {
+		dict_table_t*	table;
+		mutex_enter(&dict_sys->mutex);
+		table = dict_table_check_if_in_cache_low(norm_to);
 		ut_ad(table != NULL);
+
 		ut_ad(!table->ibd_file_missing);
 
-		rename_dd_filename = dict_table_is_file_per_table(table);
+                rename_dd_filename = dict_table_is_file_per_table(table);
 
-		if (rename_dd_filename) {
-			new_path = fil_space_get_first_path(table->space);
-		}
+                if (rename_dd_filename) {
+                        new_path = fil_space_get_first_path(table->space);
+                }
 
-		dd_table_close(table, thd, &mdl, true);
+		mutex_exit(&dict_sys->mutex);
 	}
-
-	row_mysql_unlock_data_dictionary(trx);
 
 	/* Flush the log to reduce probability that the .frm
 	files and the InnoDB data dictionary get out-of-sync
@@ -17710,9 +17675,9 @@ ha_innobase::rename_table_impl(
 		ut_ad(new_path != NULL);
 
 		dd::Object_id		dd_space_id =
-			(*to_table->indexes().begin())->tablespace_id();
+			(*to_table->indexes()->begin())->tablespace_id();
 
-		if (dd_tablespace_update_for_rename(dd_space_id, new_path)) {
+		if (dd_tablespace_update_filename(dd_space_id, new_path)) {
 			ut_a(false);
 		}
 #if 0
@@ -17749,11 +17714,11 @@ ha_innobase::rename_table_impl(
 
 template dberr_t ha_innobase::rename_table_impl<dd::Table>(
 	THD*, trx_t*, const char*, const char*,
-	const dd::Table*, const dd::Table*);
+	const dd::Table*, dd::Table*);
 
 template dberr_t ha_innobase::rename_table_impl<dd::Partition>(
 	THD*, trx_t*, const char*, const char*,
-	const dd::Partition*, const dd::Partition*);
+	const dd::Partition*, dd::Partition*);
 
 /*********************************************************************//**
 Renames an InnoDB table.

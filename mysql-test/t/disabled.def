@@ -24,27 +24,7 @@ no_binlog_gtid_next_partially_failed_stmts_error     : WL#7743 DROP TABLES seman
 index_merge_delete        :Bug#21373532 2016-07-29 Anitha Test fails very frequently on PB2
 
 # Disabled list(Due to InnoDB issues)
-partition                        : WL#9525 disables it, waiting for WL#9559
-innodb_mysql_lock2               : WL#9525 disables it, waiting for WL#9559
-partition_binlog                 : WL#9525 disables it, waiting for WL#9559
-partition_cache                  : WL#9525 disables it, waiting for WL#9559
-partition_column                 : WL#9525 disables it, waiting for WL#9559
-partition_datatype               : WL#9525 disables it, waiting for WL#9559
-partition_error                  : WL#9525 disables it, waiting for WL#9559
-partition_exchange               : WL#9525 disables it, waiting for WL#9559
-partition_explicit_prune         : WL#9525 disables it, waiting for WL#9559
-partition_grant                  : WL#9525 disables it, waiting for WL#9559
-partition_hash                   : WL#9525 disables it, waiting for WL#9559
-partition_innodb_plugin          : WL#9525 disables it, waiting for WL#9559
-partition_innodb_tablespace      : WL#9525 disables it, waiting for WL#9559
-partition_innodb                 : WL#9525 disables it, waiting for WL#9559
-partition_list                   : WL#9525 disables it, waiting for WL#9559
-partition_locking                : WL#9525 disables it, waiting for WL#9559
-partition_mgm_err                : WL#9525 disables it, waiting for WL#9559
-partition_mgm                    : WL#9525 disables it, waiting for WL#9559
-partition_pruning                : WL#9525 disables it, waiting for WL#9559
-partition_range                  : WL#9525 disables it, waiting for WL#9559
-trigger                          : WL#9525 disables it, waiting for WL#9559
+partition_exchange               : WL#9559 disables it, waiting for proper ROLLBACK implemented for ALTER PARTITION
 
 mysqldump                        : WL#9532 disables it, because it tries to modify the DD tables.
 mysqlcheck                       : WL#9532 disables it, because it tries to modify the DD tables.
