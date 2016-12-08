@@ -166,6 +166,9 @@ list(const char * tabname,
         case NdbDictionary::Object::FKChildTrigger:
             strcpy(type, "FKChildTrigger");
             break;
+        case NdbDictionary::Object::HashMap:
+            strcpy(type, "HashMap");
+            break;
         default:
 	  sprintf(type, "%d", (int)elt.type);
             break;
