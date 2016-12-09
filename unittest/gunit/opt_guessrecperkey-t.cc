@@ -264,4 +264,22 @@ TEST_F(GuessRecPerKeyTest, GuessRecPerKeySingleColumn)
   EXPECT_EQ(guess_rec_per_key(&table, &unique_key, 1), 1.0f);
 }
 
+TEST_F(GuessRecPerKeyTest, GuessRecPerKeyIndexExtension)
+{
+  const uint columns= 5;
+  const uint pk_parts= 2;
+  const uint key_parts= 2;
+
+  Fake_TABLE table(columns, false);
+  Fake_KEY key(key_parts, key_parts+pk_parts, false);
+
+  // Table is empty, records per key estimate should be 1
+  EXPECT_EQ(guess_rec_per_key(&table, &key, 1), 1.0f);
+  EXPECT_EQ(guess_rec_per_key(&table, &key, 2), 1.0f);
+  EXPECT_EQ(guess_rec_per_key(&table, &key, 3), 1.0f);
+
+}
+
+
+
 }

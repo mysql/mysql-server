@@ -2,7 +2,7 @@
 #define FAKE_KEY_INCLUDED
 
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,18 +43,60 @@ public:
     @param key_parts_arg number of key parts this index should have
     @param unique        unique or non-unique key
   */
-
   Fake_KEY(unsigned int key_parts_arg, bool unique)
   {
-    DBUG_ASSERT(key_parts_arg > 0);
+    init(key_parts_arg, key_parts_arg, unique);
+  }
+
+  /**
+    Initialize the KEY object.
+
+    Only member variables needed for the rec_per_key interface are
+    currently initialized.
+
+    @param user_defined_key_parts_arg number of key parts defined for index
+    @param actual_key_parts_arg number of additional primary key parts 
+                                included in index
+    @param unique        unique or non-unique key
+  */
+  Fake_KEY(unsigned int user_defined_parts_arg,
+           unsigned int actual_key_parts_arg, bool unique)
+  {
+    init(user_defined_parts_arg, actual_key_parts_arg, unique);
+  }
+
+  ~Fake_KEY()
+  {
+    // free the memory for the two rec_per_key arrays
+    delete [] m_rec_per_key;
+    delete [] m_rec_per_key_float;
+  }
+
+private:
+  /**
+    Initialize the KEY object.
+
+    Only member variables needed for the rec_per_key interface are
+    currently initialized.
+
+    @param user_defined_key_parts_arg number of key parts defined for index
+    @param actual_key_parts_arg number of additional primary key parts 
+                                included in index
+    @param unique        unique or non-unique key
+  */
+  void init(unsigned int user_defined_key_parts_arg,
+            unsigned int actual_key_parts_arg, bool unique)
+  {
+    DBUG_ASSERT(user_defined_key_parts_arg > 0);
+    DBUG_ASSERT(actual_key_parts_arg > 0);
 
     flags= 0;
     if (unique)
       flags|= HA_NOSAME;
     actual_flags= flags;
 
-    user_defined_key_parts= key_parts_arg;
-    actual_key_parts= key_parts_arg;
+    user_defined_key_parts= user_defined_key_parts_arg;
+    actual_key_parts= actual_key_parts_arg;
 
     // Allocate memory for the two rec_per_key arrays
     m_rec_per_key= new ulong[actual_key_parts];
@@ -69,14 +111,6 @@ public:
     } 
   }
 
-  ~Fake_KEY()
-  {
-    // free the memory for the two rec_per_key arrays
-    delete [] m_rec_per_key;
-    delete [] m_rec_per_key_float;
-  }
-
-private:
   // Storage for the two records per key arrays
   ulong *m_rec_per_key;
   rec_per_key_t *m_rec_per_key_float;
