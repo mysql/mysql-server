@@ -183,13 +183,17 @@ IF(WITH_UNIT_TESTS)
                         COMPILE_DEFINITIONS "DISABLE_ALL_PSI")
 ENDIF()
 
-### Setting some switches on ###
-
-IF(CMAKE_BUILD_TYPE MATCHES "Debug")
-  SET(WITH_DEBUG_OUTPUT ON)
-  IF(WITH_TRACE_OUTPUT)
-    ADD_DEFINITIONS(-DWITH_LOG_TRACE)
-  ENDIF()
+### Setting some switches on for Debugging ###
+IF(WITH_GCS_LOG_TRACE)
+  ADD_COMPILE_FLAGS(${XCOM_SOURCES} COMPILE_FLAGS
+                                             "-DWITH_LOG_DEBUG -DWITH_LOG_TRACE")
+  ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS
+                                             "-DWITH_LOG_DEBUG -DWITH_LOG_TRACE")
+ELSEIF(WITH_GCS_LOG_DEBUG)
+  ADD_COMPILE_FLAGS(${XCOM_SOURCES} COMPILE_FLAGS
+                                             "-DWITH_LOG_DEBUG")
+  ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS
+                                             "-DWITH_LOG_DEBUG")
 ENDIF()
 
 ### Configuration ###
