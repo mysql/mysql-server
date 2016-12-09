@@ -668,11 +668,11 @@ SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
 WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
 prefix	name
-FTS_0	test/FTS_AUX_BEING_DELETED
-FTS_0	test/FTS_AUX_BEING_DELETED_CACHE
-FTS_0	test/FTS_AUX_CONFIG
-FTS_0	test/FTS_AUX_DELETED
-FTS_0	test/FTS_AUX_DELETED_CACHE
+fts_0	test/fts_aux_being_deleted
+fts_0	test/fts_aux_being_deleted_cache
+fts_0	test/fts_aux_config
+fts_0	test/fts_aux_deleted
+fts_0	test/fts_aux_deleted_cache
 SELECT sc.pos, sc.NAME FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
 ON sc.TABLE_ID=st.TABLE_ID

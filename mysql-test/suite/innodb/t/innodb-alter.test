@@ -374,7 +374,7 @@ DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
 
 CREATE TABLE t (t TEXT, FULLTEXT(t)) ENGINE=InnoDB;
 DROP INDEX t ON t;
-LET $regexp=/FTS_([0-9a-f_]+)([A-Z_]+)/FTS_AUX_\2/;
+LET $regexp=/fts_([0-9a-f_]+)([A-Z_]+)/fts_aux\2/;
 --replace_regex $regexp
 SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES

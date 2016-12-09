@@ -30,6 +30,9 @@ Created 2007-03-27 Sunny Bains
 #include "fts0types.h"
 #include "fts0priv.h"
 
+#include <algorithm>
+#include <string>
+
 /** SQL statements for creating the ancillary FTS tables. */
 
 /** Preamble to all SQL statements. */
@@ -144,7 +147,16 @@ fts_get_table_name(
 
 	prefix_name = fts_get_table_name_prefix(fts_table);
 
-	len = sprintf(table_name, "%s_%s", prefix_name, fts_table->suffix);
+	std::string	name_str;
+	name_str.append(prefix_name);
+	name_str.append("_");
+	name_str.append(fts_table->suffix);
+
+	std::transform(name_str.begin(), name_str.end(),
+		       name_str.begin(), ::tolower);
+
+	len = name_str.size();
+	strcpy(table_name, name_str.c_str());
 
 	ut_a(len > 0);
 	ut_a(strlen(prefix_name) + 1 + strlen(fts_table->suffix)

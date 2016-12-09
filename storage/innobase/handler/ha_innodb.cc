@@ -15629,6 +15629,7 @@ innobase_fts_create_one_index_dd_table(
 	dd_table->set_name(table_name);
 	dd_table->set_engine(innobase_hton_name);
 	dd_table->set_schema_id(schema->id());
+	dd_table->set_hidden(true);
 	//dd_table->set_tablespace_id();
 	dd_table->set_collation_id(charset->number);
 

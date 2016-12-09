@@ -3021,7 +3021,7 @@ row_create_table_for_mysql(
 		/* If the transaction was previously flagged as
 		TRX_DICT_OP_INDEX, we should be creating auxiliary
 		tables for full-text indexes. */
-		ut_ad(strstr(table->name.m_name, "/FTS_") != NULL);
+		ut_ad(strstr(table->name.m_name, "/fts_") != NULL);
 	}
 
 	/* Assign talbe id and build table space. */
@@ -4567,7 +4567,7 @@ row_drop_table_for_mysql(
 		/* If the transaction was previously flagged as
 		TRX_DICT_OP_INDEX, we should be dropping auxiliary
 		tables for full-text indexes or temp tables. */
-		ut_ad(strstr(table->name.m_name, "/FTS_") != NULL
+		ut_ad(strstr(table->name.m_name, "/fts_") != NULL
 		      || strstr(table->name.m_name, TEMP_FILE_PREFIX_INNODB)
 		      != NULL);
 	}

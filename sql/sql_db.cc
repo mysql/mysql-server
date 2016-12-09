@@ -899,6 +899,9 @@ static bool find_db_tables(THD *thd, const char *db, TABLE_LIST **tables)
 
   for (const dd::Abstract_table *table : sch_tables)
   {
+    if (table->hidden())
+      continue;
+
     TABLE_LIST *table_list=(TABLE_LIST*)
       thd->mem_calloc(sizeof(*table_list));
 

@@ -127,7 +127,7 @@ TABLESPACE=innodb_temporary ROW_FORMAT=compact;
 --source suite/innodb/include/show_i_s_tables.inc
 
 --echo # list files in REMOTE_DIR
---let $regexp=/FTS_([0-9a-f_]+)([A-Z0-9_]+)\.i/FTS_AUX_\2.i/
+--let $regexp=/fts_([0-9a-f_]+)([A-Z0-9_]+)\.i/fts_aux\2.i/
 --replace_regex $regexp
 --list_files $REMOTE_DIR/test *
 
