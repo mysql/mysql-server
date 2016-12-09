@@ -984,10 +984,16 @@ runBug16772(NDBT_Context* ctx, NDBT_Step* step){
   ndbout << "Restart node " << deadNodeId << endl; 
 
   if (restarter.restartOneDbNode(deadNodeId,
-				 /** initial */ false, 
-				 /** nostart */ true,
-				 /** abort   */ true))
+				 /** initial       */ false,
+				 /** nostart       */ true,
+				 /** abort         */ true,
+				 /** force         */ false,
+				 /** capture error */ true) == 0)
+  {
+    g_err << "Restart of node " << deadNodeId << " succeeded when it should "
+          << "have failed";
     return NDBT_FAILED;
+  }
   
   // It should now be hanging since we throw away NDB_FAILCONF
   const int ret = restarter.waitNodesNoStart(&deadNodeId, 1);
@@ -7610,9 +7616,11 @@ int runArbitrationWithApiNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
    */
   if (restarter.restartOneDbNode2(master,
                                   NdbRestarter::NRRF_NOSTART |
-                                  NdbRestarter::NRRF_ABORT) != 0)
+                                  NdbRestarter::NRRF_ABORT,
+                                  true) == 0)
   {
-    g_err << "ERROR: stopping old master " << master << endl;
+    g_err << "ERROR: Old master " << master << "reached not started state "
+          << "before arbitration win" << endl;
     return NDBT_FAILED;
   }
 

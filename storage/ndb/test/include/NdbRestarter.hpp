@@ -43,12 +43,14 @@ public:
                        bool force = false,
                        bool captureError = false);
 
-  int restartOneDbNode2(int _nodeId, Uint32 flags){
+  int restartOneDbNode2(int _nodeId, Uint32 flags,
+                        bool captureError = false){
     return restartOneDbNode(_nodeId,
                             flags & NRRF_INITIAL,
                             flags & NRRF_NOSTART,
                             flags & NRRF_ABORT,
-                            flags & NRRF_FORCE);
+                            flags & NRRF_FORCE,
+                            captureError);
   }
 
   int restartAll(bool initial = false, 
