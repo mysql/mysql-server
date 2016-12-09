@@ -728,11 +728,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         // Play safe, rollback possible changes to the data-dictionary.
         trans_rollback_stmt(thd);
         trans_rollback_implicit(thd);
-        /*
-          QQ: Should we try to do statement and transaction rollback in case
-              of any error as part of WL7743 ? What about SEs which don't
-              support atomic DDL?
-        */
         result_code= HA_ADMIN_STATS_UPD_ERR;
         goto send_result;
       }

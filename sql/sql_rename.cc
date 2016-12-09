@@ -251,8 +251,11 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   }
 
   if (error)
+  {
     trans_rollback_stmt(thd);
-  // QQ: Should we play safe and rollback trx as well?
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+  }
 
   for (handlerton *hton : post_ddl_htons)
     hton->post_ddl(thd);
