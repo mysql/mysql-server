@@ -187,6 +187,9 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Boost source use auto_ptr, deprecated in C++11
   ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
                     COMPILE_FLAGS "-Wno-deprecated-declarations")
+  # Boost source has unused parameters
+  ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-unused-parameter")
 
   # Only for some versions of GCC/Clang
 

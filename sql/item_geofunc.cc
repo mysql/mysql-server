@@ -1815,9 +1815,6 @@ wkbtype_to_geojson_type(Geometry::wkbType type)
   @param calling_function Name of user-invoked function
   @param max_decimal_digits Max length of decimal numbers
   @param add_bounding_box True if a bounding box should be added
-  @param add_short_crs_urn True if we should add short format CRS URN
-  @param add_long_crs_urn True if we should add long format CRS URN
-  @param geometry_srid Spacial Reference System Identifier being used
 
   @return false on success, true otherwise.
 */
@@ -1825,10 +1822,7 @@ static bool
 append_coordinates(Geometry::wkb_parser *parser, Json_array *array, MBR *mbr,
                    const char *calling_function,
                    int max_decimal_digits,
-                   bool add_bounding_box,
-                   bool add_short_crs_urn,
-                   bool add_long_crs_urn,
-                   uint32 geometry_srid)
+                   bool add_bounding_box)
 {
   point_xy coordinates;
   if (parser->scan_xy(&coordinates))
@@ -1867,9 +1861,6 @@ append_coordinates(Geometry::wkb_parser *parser, Json_array *array, MBR *mbr,
   @param calling_function Name of user-invoked function
   @param max_decimal_digits Max length of decimal numbers
   @param add_bounding_box True if a bounding box should be added
-  @param add_short_crs_urn True if we should add short format CRS URN
-  @param add_long_crs_urn True if we should add long format CRS URN
-  @param geometry_srid Spacial Reference System Identifier being used
 
   @return false on success, true otherwise.
 */
@@ -1877,10 +1868,7 @@ static bool
 append_linestring(Geometry::wkb_parser *parser, Json_array *points, MBR *mbr,
                   const char *calling_function,
                   int max_decimal_digits,
-                  bool add_bounding_box,
-                  bool add_short_crs_urn,
-                  bool add_long_crs_urn,
-                  uint32 geometry_srid)
+                  bool add_bounding_box)
 {
   uint32 num_points= 0;
   if (parser->scan_non_zero_uint4(&num_points))
@@ -1895,10 +1883,7 @@ append_linestring(Geometry::wkb_parser *parser, Json_array *points, MBR *mbr,
     if (point == NULL || points->append_alias(point) ||
         append_coordinates(parser, point, mbr, calling_function,
                            max_decimal_digits,
-                           add_bounding_box,
-                           add_short_crs_urn,
-                           add_long_crs_urn,
-                           geometry_srid))
+                           add_bounding_box))
     {
       return true;
     }
@@ -1920,9 +1905,6 @@ append_linestring(Geometry::wkb_parser *parser, Json_array *points, MBR *mbr,
   @param calling_function Name of user-invoked function
   @param max_decimal_digits Max length of decimal numbers
   @param add_bounding_box True if a bounding box should be added
-  @param add_short_crs_urn True if we should add short format CRS URN
-  @param add_long_crs_urn True if we should add long format CRS URN
-  @param geometry_srid Spacial Reference System Identifier being used
 
   @return false on success, true otherwise.
 */
@@ -1930,10 +1912,7 @@ static
 bool append_polygon(Geometry::wkb_parser *parser,
                     Json_array *polygon_rings, MBR *mbr, const char *calling_function,
                     int max_decimal_digits,
-                    bool add_bounding_box,
-                    bool add_short_crs_urn,
-                    bool add_long_crs_urn,
-                    uint32 geometry_srid)
+                    bool add_bounding_box)
 {
   uint32 num_inner_rings= 0;
   if (parser->scan_non_zero_uint4(&num_inner_rings))
@@ -1961,10 +1940,7 @@ bool append_polygon(Geometry::wkb_parser *parser,
       if (point == NULL || polygon_ring->append_alias(point) ||
           append_coordinates(parser, point, mbr, calling_function,
                              max_decimal_digits,
-                             add_bounding_box,
-                             add_short_crs_urn,
-                             add_long_crs_urn,
-                             geometry_srid))
+                             add_bounding_box))
       {
         return true;
       }
@@ -2012,8 +1988,6 @@ static bool append_bounding_box(MBR *mbr, Json_object *geometry)
   over legacy identifiers such as "EPSG:4326""
 
   @param geometry The JSON object to append the CRS object to.
-  @param max_decimal_digits Max length of decimal numbers
-  @param add_bounding_box True if a bounding box should be added
   @param add_short_crs_urn True if we should add short format CRS URN
   @param add_long_crs_urn True if we should add long format CRS URN
   @param geometry_srid Spacial Reference System Identifier being used
@@ -2021,8 +1995,6 @@ static bool append_bounding_box(MBR *mbr, Json_object *geometry)
   @return false on success, true otherwise.
 */
 static bool append_crs(Json_object *geometry,
-                       int max_decimal_digits,
-                       bool add_bounding_box,
                        bool add_short_crs_urn,
                        bool add_long_crs_urn,
                        uint32 geometry_srid)
@@ -2124,10 +2096,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
       if (point == NULL || geometry->add_alias("coordinates", point) ||
           append_coordinates(parser, point, mbr, calling_function,
                              max_decimal_digits,
-                             add_bounding_box,
-                             add_short_crs_urn,
-                             add_long_crs_urn,
-                             geometry_srid))
+                             add_bounding_box))
       {
         return true;
       }
@@ -2139,10 +2108,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
       if (points == NULL || geometry->add_alias("coordinates", points) ||
           append_linestring(parser, points, mbr, calling_function,
                             max_decimal_digits,
-                            add_bounding_box,
-                            add_short_crs_urn,
-                            add_long_crs_urn,
-                            geometry_srid))
+                            add_bounding_box))
       {
         return true;
       }
@@ -2155,10 +2121,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
           geometry->add_alias("coordinates", polygon_rings) ||
           append_polygon(parser, polygon_rings, mbr, calling_function,
                          max_decimal_digits,
-                         add_bounding_box,
-                         add_short_crs_urn,
-                         add_long_crs_urn,
-                         geometry_srid))
+                         add_bounding_box))
       {
         return true;
       }
@@ -2196,24 +2159,15 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
           if (header.wkb_type == Geometry::wkb_multipoint)
             result= append_coordinates(parser, points, mbr, calling_function,
                                        max_decimal_digits,
-                                       add_bounding_box,
-                                       add_short_crs_urn,
-                                       add_long_crs_urn,
-                                       geometry_srid);
+                                       add_bounding_box);
           else if (header.wkb_type == Geometry::wkb_multipolygon)
             result= append_polygon(parser, points, mbr, calling_function,
                                    max_decimal_digits,
-                                   add_bounding_box,
-                                   add_short_crs_urn,
-                                   add_long_crs_urn,
-                                   geometry_srid);
+                                   add_bounding_box);
           else if (Geometry::wkb_multilinestring)
             result= append_linestring(parser, points, mbr, calling_function,
                                       max_decimal_digits,
-                                      add_bounding_box,
-                                      add_short_crs_urn,
-                                      add_long_crs_urn,
-                                      geometry_srid);
+                                      add_bounding_box);
           else
             DBUG_ASSERT(false);
 
@@ -2274,8 +2228,6 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
       geometry_srid > 0)
   {
     append_crs(geometry,
-               max_decimal_digits,
-               add_bounding_box,
                add_short_crs_urn,
                add_long_crs_urn,
                geometry_srid);
@@ -3398,7 +3350,7 @@ String *Item_func_geometry_type::val_str_ascii(String *str)
 }
 
 
-String *Item_func_validate::val_str(String *str)
+String *Item_func_validate::val_str(String*)
 {
   DBUG_ASSERT(fixed == 1);
   String *swkb= args[0]->val_str(&arg_val);
@@ -3742,9 +3694,9 @@ public:
   {
   }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *wkb, uint32 len, bool)
   {
     if (geotype == Geometry::wkb_point)
     {
@@ -3818,9 +3770,9 @@ public:
   }
 
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *wkb, uint32, bool)
   {
     m_types.push_back(geotype);
     m_ptrs.push_back(wkb);
@@ -5261,7 +5213,7 @@ public:
 
   bool is_valid() const { return m_isvalid; }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
                             const void *wkb, uint32 len, bool has_hdr)
   {
@@ -5303,7 +5255,7 @@ public:
   }
 
 
-  virtual void on_wkb_end(const void *wkb)
+  virtual void on_wkb_end(const void*)
   {
     if (types.size() > 0)
       types.pop();
@@ -6156,9 +6108,9 @@ public:
     :has_invalid(false), x_val(x_range), y_val(y_range)
   {}
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *wkb, uint32 len, bool)
   {
     if (geotype == Geometry::wkb_point)
     {
@@ -6185,7 +6137,7 @@ public:
   }
 
 
-  virtual void on_wkb_end(const void *wkb)
+  virtual void on_wkb_end(const void*)
   {
   }
 

@@ -170,7 +170,7 @@ static bool set_parameters(srid_t srid,
 namespace gis { namespace srs {
 
 
-bool Geographic_srs::init(srid_t srid, gis::srs::wkt_parser::Geographic_cs *g)
+bool Geographic_srs::init(srid_t, gis::srs::wkt_parser::Geographic_cs *g)
 {
   m_semi_major_axis= g->datum.spheroid.semi_major_axis;
   m_inverse_flattening= g->datum.spheroid.inverse_flattening;

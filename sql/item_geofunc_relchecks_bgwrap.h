@@ -111,8 +111,7 @@ public:
                                          bool *pnull_value);
   static int multilinestring_crosses_geometry(Geometry *g1, Geometry *g2,
                                               bool *pnull_value);
-  static int multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
-                                            bool *pnull_value);
+  static int multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2);
   static int point_touches_geometry(Geometry *g1, Geometry *g2,
                                     bool *pnull_value);
   static int multipoint_touches_geometry(Geometry *g1, Geometry *g2,

@@ -1215,14 +1215,12 @@ multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, a multipoint.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
  */
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
-multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
-                               bool *pnull_value)
+multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2)
 {
   int result= 0;
 
@@ -1649,8 +1647,7 @@ multilinestring_crosses_geometry(Geometry *g1, Geometry *g2,
                                  bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
-multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
-                               bool *pnull_value);
+multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 point_touches_geometry(Geometry *g1, Geometry *g2,

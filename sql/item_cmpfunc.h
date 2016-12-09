@@ -183,7 +183,7 @@ public:
   Item_bool_func(THD *thd, Item_bool_func *item) : Item_int_func(thd, item),
     m_created_by_in2exists(item->m_created_by_in2exists) {}
   bool is_bool_func() const override { return true; }
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD*) override
   {
     decimals= 0;
     max_length= 1;
@@ -1205,8 +1205,10 @@ public:
         item  Constant item to store value into. The item must be of the same
               type that create_item() returns.
   */
-  virtual void value_to_item(uint pos, Item *item) { }
-  
+  virtual void value_to_item(uint pos MY_ATTRIBUTE((unused)),
+                             Item *item MY_ATTRIBUTE((unused)))
+  { }
+
   /* Compare values number pos1 and pos2 for equality */
   virtual bool compare_elems(uint pos1, uint pos2) const = 0;
 
@@ -1421,7 +1423,7 @@ public:
   virtual int compare(const cmp_item *item) const= 0;
   static cmp_item* get_comparator(Item_result type, const CHARSET_INFO *cs);
   virtual cmp_item *make_same()= 0;
-  virtual void store_value_by_template(cmp_item *tmpl, Item *item)
+  virtual void store_value_by_template(cmp_item*, Item *item)
   {
     store_value(item);
   }

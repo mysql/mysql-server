@@ -1119,7 +1119,7 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
   if (gt1 == Geometry::wkb_multipoint && gt2 == Geometry::wkb_multipoint)
   {
     result= BG_wrap<Geom_types>::
-      multipoint_overlaps_multipoint(g1, g2, pnull_value);
+      multipoint_overlaps_multipoint(g1, g2);
     return result;
   }
 

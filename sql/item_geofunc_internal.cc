@@ -691,15 +691,15 @@ public:
   {
   }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void*, uint32, bool)
   {
     if (is_empty && geotype != Geometry::wkb_geometrycollection)
       is_empty= false;
   }
 
-  virtual void on_wkb_end(const void *wkb)
+  virtual void on_wkb_end(const void*)
   {
   }
 

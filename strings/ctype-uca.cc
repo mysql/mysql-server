@@ -5061,7 +5061,7 @@ template<class Mb_wc, int LEVELS_FOR_COMPARE>
 static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
                                       const Mb_wc mb_wc,
                                       const uchar *s, size_t slen,
-                                      ulong *n1, ulong *n2)
+                                      ulong *n1)
 {
   slen= cs->cset->lengthsp(cs, (char*) s, slen);
   uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> scanner(mb_wc, cs, s, slen);
@@ -5130,7 +5130,7 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
     }
 
     return true;
-  }, [](int num_weights) { return true; });
+  }, [](int) { return true; });
 
   *n1= static_cast<ulong>(h);
 }
@@ -5139,7 +5139,7 @@ extern "C" {
 
 static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
                                  const uchar *s, size_t slen,
-                                 ulong *n1, ulong *n2)
+                                 ulong *n1, ulong*)
 {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
   {
@@ -5147,15 +5147,15 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
     {
     case 1:
       return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 1>(
-        cs, Mb_wc_utf8mb4(), s, slen, n1, n2);
+        cs, Mb_wc_utf8mb4(), s, slen, n1);
     case 2:
       return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 2>(
-        cs, Mb_wc_utf8mb4(), s, slen, n1, n2);
+        cs, Mb_wc_utf8mb4(), s, slen, n1);
     default:
       DBUG_ASSERT(false);
     case 3:
       return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
-        cs, Mb_wc_utf8mb4(), s, slen, n1, n2);
+        cs, Mb_wc_utf8mb4(), s, slen, n1);
     }
   }
 
@@ -5164,15 +5164,15 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
   {
   case 1:
     return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 1>(
-      cs, mb_wc, s, slen, n1, n2);
+      cs, mb_wc, s, slen, n1);
   case 2:
     return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 2>(
-      cs, mb_wc, s, slen, n1, n2);
+      cs, mb_wc, s, slen, n1);
   default:
     DBUG_ASSERT(false);
   case 3:
     return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 3>(
-      cs, mb_wc, s, slen, n1, n2);
+      cs, mb_wc, s, slen, n1);
   }
 }
 
