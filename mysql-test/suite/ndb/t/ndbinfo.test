@@ -103,6 +103,7 @@ SELECT count(*) >= 20 FROM blocks;
 
 # Test incompatible table definition between NDB and MySQL Server
 # using the ndb$test table which originally looks like
+show create table ndb$test;
 # CREATE TABLE `ndb$test` (
 #   `node_id` int unsigned DEFAULT NULL,
 #   `block_number` int unsigned DEFAULT NULL,
@@ -188,6 +189,15 @@ CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
 ## 6) Table with autoincrement not supported
 --error ER_TABLE_CANT_HANDLE_AUTO_INCREMENT
 CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
+
+## Restore original allowing repeated test execution
+CREATE TABLE `ndb$test` (
+  `node_id` int unsigned DEFAULT NULL,
+  `block_number` int unsigned DEFAULT NULL,
+  `block_instance` int unsigned DEFAULT NULL,
+  `counter` int unsigned DEFAULT NULL,
+  `counter2` bigint unsigned DEFAULT NULL
+) ENGINE=NDBINFO COMMENT='for testing';
 
 # wl#5567 - exercise table...
 #   only node_id is guranteed to be same...
@@ -315,6 +325,66 @@ eval $q1;
 select table_schema, table_name, definer from information_schema.views
   where table_schema = 'ndbinfo' and
         definer != 'root@localhost';
+
+
+#
+# Test buffered joining
+#
+# BUG#20075747 RND_INIT() ON AN OPEN SCAN IS USED TO REPOSITION THE CURSOR
+# - rnd_init() on an open scan is used to reposition the "cursor"
+#   back to first row
+#
+set @@optimizer_switch='block_nested_loop=off';
+
+
+--disable_result_log
+
+select @a:=0;
+
+select
+  @a:=@a+1,
+  a.node_id, b.node_id,
+  a.block_name, b.block_name,
+  a.block_instance, b.block_instance,
+  a.counter_id, b.counter_id,
+  a.counter_name, b.counter_name,
+  a.val, b.val
+from
+  ndbinfo.counters a join
+  ndbinfo.counters b
+on
+  a.node_id = b.node_id;
+
+select @b:=0;
+
+select
+  @b:=@b+1,
+  a.node_id, b.node_id,
+  a.block_name, b.block_name,
+  a.block_instance, b.block_instance,
+  a.counter_id, b.counter_id,
+  a.counter_name, b.counter_name,
+  a.val, b.val
+from
+  ndbinfo.counters a join
+  ndbinfo.counters b
+on
+  a.node_id = b.node_id;
+
+--enable_result_log
+
+--echo Expect both joins to give same row count
+--echo (0 diff)
+select @a - @b;
+
+
+create temporary table old_count
+       select counter_name, sum(val) as val
+       from ndbinfo.counters
+       where block_name='DBSPJ'
+       group by counter_name;
+drop table old_count;
+set @@optimizer_switch=default;
 
 # ################################
 # Test memory_per_fragment table.
@@ -681,5 +751,6 @@ drop table save_counters;
 drop view frag_ops;
 drop table t1;
 drop table t2;
+
 
 --source ndbinfo_drop.inc
