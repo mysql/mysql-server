@@ -88,8 +88,6 @@ Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
-Source4:        my_config.h
-Source5:        mysql_config.sh
 %if 0%{?compatlib}
 Source7:        %{compatsrc}
 %endif
@@ -731,13 +729,13 @@ install -d -m 0750 %{buildroot}/var/lib/mysql-keyring
 cd $MBD/release
 make DESTDIR=%{buildroot} install
 
-# Install logrotate and autostart
-install -D -m 0644 $MBD/release/support-files/mysql-log-rotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
-install -D -m 0644 $MBD/release/packaging/rpm-oel/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
+# Install config and logrotate
+install -D -m 0644 packaging/rpm-common/mysql.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
+install -D -m 0644 packaging/rpm-common/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 %else
-install -D -m 0755 $MBD/release/packaging/rpm-oel/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysqld
+install -D -m 0755 packaging/rpm-oel/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysqld
 %endif
 
 # Add libdir to linker
@@ -748,9 +746,9 @@ echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}
 %ifarch %{multiarchs}
 mv %{buildroot}/%{_includedir}/mysql/my_config.h \
    %{buildroot}/%{_includedir}/mysql/my_config_%{_arch}.h
-install -p -m 0644 %{SOURCE4} %{buildroot}/%{_includedir}/mysql/my_config.h
+install -p -m 0644 packaging/rpm-common/my_config.h %{buildroot}/%{_includedir}/mysql/my_config.h
 mv %{buildroot}/%{_bindir}/mysql_config %{buildroot}/%{_bindir}/mysql_config-%{__isa_bits}
-install -p -m 0755 %{SOURCE5} %{buildroot}/%{_bindir}/mysql_config
+install -p -m 0755 packaging/rpm-common/mysql_config.sh %{buildroot}/%{_bindir}/mysql_config
 %endif
 
 
