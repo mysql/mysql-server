@@ -1735,7 +1735,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("STRCMP") }, SQL_FN(Item_func_strcmp, 2) },
   { { C_STRING_WITH_LEN("STR_TO_DATE") }, SQL_FN(Item_func_str_to_date, 2) },
   { { C_STRING_WITH_LEN("ST_AREA") }, SQL_FN(Item_func_area, 1) },
-  { { C_STRING_WITH_LEN("ST_ASBINARY") }, SQL_FN(Item_func_as_wkb, 1) },
+  { { C_STRING_WITH_LEN("ST_ASBINARY") }, SQL_FN_V(Item_func_as_wkb, 1, 2) },
   { { C_STRING_WITH_LEN("ST_ASGEOJSON") }, SQL_FN_V_THD(Item_func_as_geojson, 1, 3) },
   { { C_STRING_WITH_LEN("ST_ASTEXT") }, SQL_FN(Item_func_as_wkt, 1) },
   { { C_STRING_WITH_LEN("ST_ASWKB") }, SQL_FN_V(Item_func_as_wkb, 1, 2) },
