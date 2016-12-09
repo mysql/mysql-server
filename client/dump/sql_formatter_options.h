@@ -20,10 +20,18 @@
 
 #include "base/abstract_options_provider.h"
 #include "mysql_chain_element_options.h"
+#include <my_global.h>
+#include "typelib.h"
 
 namespace Mysql{
 namespace Tools{
 namespace Dump{
+
+enum enum_gtid_purged_mode {
+  GTID_PURGED_OFF = 0,
+  GTID_PURGED_AUTO = 1,
+  GTID_PURGED_ON = 2
+};
 
 class Sql_formatter_options
   : public Mysql::Tools::Base::Options::Abstract_options_provider
@@ -49,7 +57,17 @@ public:
   bool m_timezone_consistent;
   bool m_skip_definer;
   bool m_innodb_stats_tables_included;
+  enum enum_gtid_purged_mode m_gtid_purged;
   const Mysql_chain_element_options* m_mysql_chain_element_options;
+
+  const TYPELIB* get_gtid_purged_mode_typelib()
+  {
+    static const char *gtid_purged_mode_names[4]= {"OFF", "AUTO", "ON", NullS};
+    TYPELIB static gtid_purged_mode_typelib=
+      {array_elements(gtid_purged_mode_names) -1, "",
+        gtid_purged_mode_names, NULL};
+    return &gtid_purged_mode_typelib;
+  }
 };
 
 }

@@ -5807,7 +5807,7 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con)
       fprintf(md_result_file,
           "\n--\n-- GTID state at the beginning of the backup \n--\n\n");
 
-    fprintf(md_result_file,"SET @@GLOBAL.GTID_PURGED=/*!50800 '+'*/ '");
+    fprintf(md_result_file,"SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '");
 
     /* formatting is not required, even for multiple gtid sets */
     for (idx= 0; idx< num_sets-1; idx++)

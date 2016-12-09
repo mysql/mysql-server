@@ -32,6 +32,7 @@
 #include "table_deferred_indexes_dump_task.h"
 #include "row_group_dump_task.h"
 #include "sql_formatter_options.h"
+#include "mysqldump_tool_chain_maker_options.h"
 
 namespace Mysql{
 namespace Tools{
@@ -50,6 +51,7 @@ public:
     I_connection_provider* connection_provider,
     std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, Simple_id_generator* object_id_generator,
+      const Mysqldump_tool_chain_maker_options* mysqldump_tool_options,
       const Sql_formatter_options* options);
 
     ~Sql_formatter();
@@ -99,6 +101,7 @@ private:
                            std::string table);
 
   Mysql::Tools::Base::Mysql_query_runner* m_escaping_runner;
+  const Mysqldump_tool_chain_maker_options* m_mysqldump_tool_options;
   const Sql_formatter_options* m_options;
 };
 
