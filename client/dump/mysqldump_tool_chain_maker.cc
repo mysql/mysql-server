@@ -99,6 +99,7 @@ I_object_reader* Mysqldump_tool_chain_maker::create_chain(
     Sql_formatter* formatter= new Sql_formatter(
       this->get_connection_provider(),
       this->get_message_handler(), this->get_object_id_generator(),
+      m_options,
       m_options->m_formatter_options);
     this->register_progress_watchers_in_child(formatter);
     formatter->register_output_writer(writer);
