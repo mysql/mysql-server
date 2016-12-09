@@ -2682,8 +2682,6 @@ public:
   TABLE_LIST *embedding;             /* nested join containing the table */
   List<TABLE_LIST> *join_list;/* join list the table belongs to   */
   bool		cacheable_table;	/* stop PS caching */
-  /* used in multi-upd/views privilege check */
-  bool		table_in_first_from_clause;
   /**
      Specifies which kind of table should be open for this element
      of table list.

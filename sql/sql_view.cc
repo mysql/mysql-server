@@ -352,7 +352,7 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
   }
   for (SELECT_LEX *sl= select_lex; sl; sl= sl->next_select())
   {
-    for (TABLE_LIST *tbl= sl->get_table_list(); tbl; tbl= tbl->next_local)
+    for (TABLE_LIST *tbl= sl->get_table_list(); tbl; tbl= tbl->next_global)
     {
       /*
         Ensure that we have some privileges on this table, more strict check
@@ -365,12 +365,6 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
                  thd->security_context()->priv_host().str, tbl->table_name);
         goto err;
       }
-      /*
-        Mark this table as a table which will be checked after the prepare
-        phase
-      */
-      tbl->table_in_first_from_clause= 1;
-
       /*
         We need to check only SELECT_ACL for all normal fields, fields for
         which we need "any" (SELECT/UPDATE/INSERT/DELETE) privilege will be
@@ -388,23 +382,6 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
       else
         fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
                                         tbl->get_table_name());
-    }
-  }
-
-  if (lex->select_lex != lex->all_selects_list)
-  {
-    /* check tables of subqueries */
-    for (TABLE_LIST *tbl= tables; tbl; tbl= tbl->next_global)
-    {
-      if (!tbl->table_in_first_from_clause)
-      {
-        if (check_access(thd, SELECT_ACL, tbl->db,
-                         &tbl->grant.privilege,
-                         &tbl->grant.m_internal,
-                         0, 0) ||
-            check_grant(thd, SELECT_ACL, tbl, FALSE, 1, FALSE))
-          goto err;
-      }
     }
   }
   /*

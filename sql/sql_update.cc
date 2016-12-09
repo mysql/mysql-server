@@ -100,7 +100,7 @@ bool Sql_cmd_update::precheck(THD *thd)
       Ensure that we have UPDATE or SELECT privilege for each table
       The exact privilege is checked in mysql_multi_update()
     */
-    for (TABLE_LIST *tr= lex->query_tables; tr; tr= tr->next_local)
+    for (TABLE_LIST *tr= lex->query_tables; tr; tr= tr->next_global)
     {
       /*
         "uses_materialization()" covers the case where a prepared statement is
@@ -121,29 +121,8 @@ bool Sql_cmd_update::precheck(THD *thd)
                              0, 0) ||
                 check_grant(thd, SELECT_ACL, tr, false, 1, false)))
         DBUG_RETURN(true);
-
-      tr->table_in_first_from_clause= 1;
-    }
-
-    // Are there any tables in subqueries?
-    if (lex->select_lex == lex->all_selects_list)
-      DBUG_RETURN(false);
-
-    DBUG_PRINT("info",("Checking sub query list"));
-    for (TABLE_LIST *tr= lex->query_tables; tr; tr= tr->next_global)
-    {
-      if (!tr->table_in_first_from_clause)
-      {
-        if (check_access(thd, SELECT_ACL, tr->db,
-                         &tr->grant.privilege,
-                         &tr->grant.m_internal,
-                         0, 0) ||
-            check_grant(thd, SELECT_ACL, tr, false, 1, false))
-          DBUG_RETURN(true);
-      }
     }
   }
-
   DBUG_RETURN(false);
 }
 
