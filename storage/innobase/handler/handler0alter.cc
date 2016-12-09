@@ -4491,7 +4491,8 @@ prepare_inplace_alter_table_global_dd(
 			dd::Column* col  = dd_add_hidden_column(
 				&new_dd_tab->table(),
 				FTS_DOC_ID_COL_NAME,
-				FTS_DOC_ID_LEN);
+				FTS_DOC_ID_LEN,
+				dd::enum_column_types::LONGLONG);
 
 			dd_set_hidden_unique_index(
 				new_dd_tab->table().add_index(),
@@ -9057,15 +9058,13 @@ foreign_fail:
 
 		tb_name[strlen(m_prebuilt->table->name.m_name)] = 0;
 
-		dict_table_close(m_prebuilt->table, true, false);
-		dict_table_remove_from_cache(m_prebuilt->table);
-		m_prebuilt->table = dict_table_open_on_name(
-			tb_name, TRUE, TRUE, DICT_ERR_IGNORE_NONE);
+		/* discard this dict_table_t when we free prebuilt */
+		m_prebuilt->table->discard_after_ddl = true;
 
 		/* Drop outdated table stats. */
 		char	errstr[1024];
 		if (dict_stats_drop_table(
-			    m_prebuilt->table->name.m_name,
+			    tb_name,
 			    errstr, sizeof(errstr))
 		    != DB_SUCCESS) {
 			push_warning_printf(

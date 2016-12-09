@@ -111,33 +111,34 @@ dd_find_column(
 }
 
 /** Add a hidden column when creating a table.
-@param[in,out]  dd_table        table containing user columns and indexes
-@param[in]      name            hidden column name
-@param[in]      length          length of the column, in bytes
+@param[in,out]	dd_table	table containing user columns and indexes
+@param[in]	name		hidden column name
+@param[in]	length		length of the column, in bytes
+@param[in]	type		column type
 @return the added column, or NULL if there already was a column by that name */
 UNIV_INLINE
 dd::Column*
 dd_add_hidden_column(
-        dd::Table*      dd_table,
-        const char*     name,
-        uint            length)
+	dd::Table*		dd_table,
+	const char*		name,
+	uint			length,
+	dd::enum_column_types	type)
 {
-        if (const dd::Column* c = dd_find_column(dd_table, name)) {
-                my_error(ER_WRONG_COLUMN_NAME, MYF(0), c->name().c_str());
-                return(nullptr);
-        }
+	if (const dd::Column* c = dd_find_column(dd_table, name)) {
+		my_error(ER_WRONG_COLUMN_NAME, MYF(0), c->name().c_str());
+		return(nullptr);
+	}
 
-        dd::Column* col = dd_table->add_column();
-        col->set_hidden(true);
-        col->set_name(name);
-        col->set_type(dd::enum_column_types::STRING);
-        col->set_nullable(false);
-        col->set_char_length(length);
-        col->set_collation_id(my_charset_bin.number);
+	dd::Column* col = dd_table->add_column();
+	col->set_hidden(true);
+	col->set_name(name);
+	col->set_type(type);
+	col->set_nullable(false);
+	col->set_char_length(length);
+	col->set_collation_id(my_charset_bin.number);
 
-        return(col);
+	return(col);
 }
-
 
 /** Add a hidden index element at the end.
 @param[in,out]  index   created index metadata

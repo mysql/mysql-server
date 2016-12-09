@@ -7176,34 +7176,6 @@ format_validate(
 		}
 	}
 
-#if 0//WL#8548 TODO
-	if (const char* encryption = m_form->encrypt_type.str) {
-		if (!Encryption::is_none(encryption)) {
-			byte*			master_key = nullptr;
-			ulint			master_key_id;
-			Encryption::Version	version;
-
-			/* Check if keyring is ready. */
-			Encryption::get_master_key(&master_key_id,
-						   &master_key,
-						   &version);
-
-			if (master_key == nullptr) {
-				my_error(ER_CANNOT_FIND_KEY_IN_KEYRING,
-					 MYF(0));
-				invalid = true;
-			}
-
-			my_free(master_key);
-			// TODO: copy master_key_id to or check against
-			// dd::Tablespace::se_private_data
-		} else if (m_form->encrypt_type.length > 0) {
-			my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
-			invalid = true;
-		}
-	}
-#endif
-
 	/* Check if there are any FTS indexes defined on this table. */
 	for (uint i = 0; i < m_form->s->keys; i++) {
 		const KEY*	key = &m_form->key_info[i];
@@ -7886,8 +7858,20 @@ create_table_metadata(
 
 	const unsigned	n_mysql_cols = m_form->s->fields;
 
-	bool	has_doc_id = !!dd_find_column(
+	bool	has_doc_id = false;
+
+	/* First check if dd::Table contains the right hidden column
+	as FTS_DOC_ID */
+	const dd::Column*	doc_col = dd_find_column(
 		const_cast<dd::Table*>(&dd_part->table()), FTS_DOC_ID_COL_NAME);
+
+	/* Check whether it is of the right type */
+	if (doc_col) {
+		if (doc_col->type() == dd::enum_column_types::LONGLONG
+		    && !doc_col->is_nullable()) {
+			has_doc_id = true;
+		}
+	}
 
 	const bool	fulltext = dd_part != nullptr
 		&& dd_table_contains_fulltext(dd_part->table());
@@ -7972,6 +7956,7 @@ create_table_metadata(
 	}
 
 	if (has_doc_id) {
+		m_table->fts = NULL;
 		if (fulltext) {
 			DICT_TF2_FLAG_SET(m_table, DICT_TF2_FTS);
 		}
@@ -7980,8 +7965,10 @@ create_table_metadata(
 			DICT_TF2_FLAG_SET(m_table, DICT_TF2_FTS_HAS_DOC_ID);
 		}
 
-		m_table->fts = fts_create(m_table);
-		m_table->fts->cache = fts_cache_create(m_table);
+		if (fulltext || add_doc_id) {
+			m_table->fts = fts_create(m_table);
+			m_table->fts->cache = fts_cache_create(m_table);
+		}
 	} else {
 		m_table->fts = NULL;
 	}
@@ -8015,119 +8002,6 @@ create_table_metadata(
 		ut_ad(field->charset() == nullptr
 		      || field->charset()->number > 0);
 
-		/* TODO: Clean all these up */
-/*		if (!field->real_maybe_null()) {
-			prtype |= DATA_NOT_NULL;
-		}
-
-		if (field->binary()) {
-			prtype |= DATA_BINARY_TYPE;
-		}
-
-		switch (field->real_type()) {
-		case MYSQL_TYPE_ENUM:
-		case MYSQL_TYPE_SET:
-			// ENUM and SET have a field->type() of
-			// string, but the data is actually internally
-			// stored as INT UNSIGNED.
-		case MYSQL_TYPE_TIME:
-		case MYSQL_TYPE_DATETIME:
-		case MYSQL_TYPE_TIMESTAMP:
-			prtype |= DATA_UNSIGNED;
-			mtype = DATA_INT;
-			break;
-		default:
-			mtype = DATA_MISSING;
-
-			if (field->flags & UNSIGNED_FLAG) {
-				prtype |= DATA_UNSIGNED;
-			}
-
-			// NOTE that we only allow string
-			// types in DATA_MYSQL and DATA_VARMYSQL
-			switch (field->type()) {
-			case MYSQL_TYPE_VARCHAR:// MySQL 5.0.3 true VARCHAR
-				{
-					uint	lenlen = static_cast<
-						const Field_varstring*>(
-							field)->length_bytes;
-					col_len -= lenlen;
-					ut_ad(lenlen == 1 || lenlen == 2);
-					if (lenlen == 2) {
-						prtype |=
-							DATA_LONG_TRUE_VARCHAR;
-					}
-				}
-				// fall through
-			case MYSQL_TYPE_VAR_STRING:// old VARCHAR
-				prtype |= field->charset()->number << 16;
-				ut_ad((field->charset()
-				       == &my_charset_bin)
-				      == !!(prtype & DATA_BINARY_TYPE));
-				mtype = (prtype & DATA_BINARY_TYPE)
-					? DATA_BINARY
-					: DATA_VARMYSQL;
-				break;
-			case MYSQL_TYPE_BIT:
-			case MYSQL_TYPE_STRING:
-				if (prtype & DATA_BINARY_TYPE) {
-					mtype = DATA_FIXBINARY;
-					break;
-				}
-				mtype = DATA_MYSQL;
-				prtype |= field->charset()->number << 16;
-				break;
-			case MYSQL_TYPE_NEWDECIMAL:
-				mtype = DATA_FIXBINARY;
-				break;
-			case MYSQL_TYPE_LONG:
-			case MYSQL_TYPE_LONGLONG:
-			case MYSQL_TYPE_TINY:
-			case MYSQL_TYPE_SHORT:
-			case MYSQL_TYPE_INT24:
-			case MYSQL_TYPE_DATE:
-			case MYSQL_TYPE_YEAR:
-			case MYSQL_TYPE_NEWDATE:
-				mtype = DATA_INT;
-				break;
-			case MYSQL_TYPE_TIME:
-			case MYSQL_TYPE_DATETIME:
-			case MYSQL_TYPE_TIMESTAMP:
-				mtype = DATA_FIXBINARY;
-				break;
-			case MYSQL_TYPE_FLOAT:
-				mtype = DATA_FLOAT;
-				break;
-			case MYSQL_TYPE_DOUBLE:
-				mtype = DATA_DOUBLE;
-				break;
-			case MYSQL_TYPE_DECIMAL:
-				mtype = DATA_DECIMAL;//TODO: remove this!
-				break;
-			case MYSQL_TYPE_GEOMETRY:
-				mtype = DATA_GEOMETRY;
-				break;
-			case MYSQL_TYPE_TINY_BLOB:
-			case MYSQL_TYPE_MEDIUM_BLOB:
-			case MYSQL_TYPE_BLOB:
-			case MYSQL_TYPE_LONG_BLOB:
-			case MYSQL_TYPE_JSON:
-				mtype = DATA_BLOB;
-				prtype |= field->charset()->number << 16;
-				break;
-			case MYSQL_TYPE_NULL:
-				ut_ad(!(prtype & DATA_NOT_NULL));
-				ut_ad(mtype == DATA_MISSING);
-				break;
-			case MYSQL_TYPE_TIMESTAMP2:
-			case MYSQL_TYPE_TIME2:
-			case MYSQL_TYPE_DATETIME2:
-			case MYSQL_TYPE_ENUM:
-			case MYSQL_TYPE_SET:
-				ut_ad(!"invalid column type");
-			}
-		}
-*/
 		ulint	nulls_allowed;
 		ulint	unsigned_type;
 		ulint	binary_type;
@@ -16311,7 +16185,8 @@ ha_innobase::get_extra_columns_and_keys(
 
 	if (primary == nullptr) {
 		dd::Column* db_row_id = dd_add_hidden_column(
-			dd_table, "DB_ROW_ID", DATA_ROW_ID_LEN);
+			dd_table, "DB_ROW_ID", DATA_ROW_ID_LEN,
+			dd::enum_column_types::INT24);
 
 		if (db_row_id == nullptr) {
 			DBUG_RETURN(ER_WRONG_COLUMN_NAME);
@@ -16359,13 +16234,15 @@ ha_innobase::get_extra_columns_and_keys(
 
 	/* Add the InnoDB system columns DB_TRX_ID, DB_ROLL_PTR. */
 	dd::Column* db_trx_id = dd_add_hidden_column(
-		dd_table, "DB_TRX_ID", DATA_TRX_ID_LEN);
+		dd_table, "DB_TRX_ID", DATA_TRX_ID_LEN,
+		dd::enum_column_types::INT24);
 	if (db_trx_id == nullptr) {
 		DBUG_RETURN(ER_WRONG_COLUMN_NAME);
 	}
 
 	dd::Column* db_roll_ptr = dd_add_hidden_column(
-		dd_table, "DB_ROLL_PTR", DATA_ROLL_PTR_LEN);
+		dd_table, "DB_ROLL_PTR", DATA_ROLL_PTR_LEN,
+		dd::enum_column_types::LONGLONG);
 	if (db_roll_ptr == nullptr) {
 		DBUG_RETURN(ER_WRONG_COLUMN_NAME);
 	}

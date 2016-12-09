@@ -1053,6 +1053,12 @@ row_prebuilt_free(
 
 	if (prebuilt->table && !prebuilt->table->is_fts_aux()) {
 		dd_table_close(prebuilt->table, NULL, NULL, dict_locked);
+		if (prebuilt->table->discard_after_ddl) {
+			mutex_enter(&dict_sys->mutex);
+			ut_ad(prebuilt->table->n_ref_count == 0);
+			dict_table_remove_from_cache(prebuilt->table);
+			mutex_exit(&dict_sys->mutex);
+		}
 	}
 
 	mem_heap_free(prebuilt->heap);

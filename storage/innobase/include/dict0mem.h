@@ -1960,6 +1960,9 @@ public:
 	/** encryption iv, it's only for export/import */
 	byte*					encryption_iv;
 
+	/** remove the dict_table_t from cache after DDL operation */
+	bool					discard_after_ddl;
+
 #ifdef INNODB_DD_TABLE
 	/** Skip certain step in dict_create_table_step()
 	Note: will be removed in wl#9535 */

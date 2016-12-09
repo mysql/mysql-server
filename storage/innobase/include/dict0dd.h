@@ -398,13 +398,15 @@ dd_find_column(
 @param[in,out]  dd_table        table containing user columns and indexes
 @param[in]      name            hidden column name
 @param[in]      length          length of the column, in bytes
+@param[in]	type		column type
 @return the added column, or NULL if there already was a column by that name */
 UNIV_INLINE
 dd::Column*
 dd_add_hidden_column(
-        dd::Table*      dd_table,
-        const char*     name,
-        uint            length);
+        dd::Table*		dd_table,
+        const char*		name,
+        uint			length,
+	dd::enum_column_types	type);
 
 /** Add a hidden index element at the end.
 @param[in,out]  index   created index metadata
