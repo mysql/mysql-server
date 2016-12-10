@@ -2159,66 +2159,6 @@ c4	YES	char	latin1_swedish_ci	MUL
 c5	YES	char	latin1_swedish_ci	
 c6	NO	point	NULL	PRI
 c7	NO	geometry	NULL	MUL
-doc_count	NO		NULL	
-doc_count	NO		NULL	
-doc_count	NO		NULL	
-doc_count	NO		NULL	
-doc_count	NO		NULL	
-doc_count	NO		NULL	
-doc_count	NO		NULL	
-doc_count	NO		NULL	
-doc_count	NO		NULL	
-doc_count	NO		NULL	
-doc_count	NO		NULL	
-doc_count	NO		NULL	
-first_doc_id	NO		NULL	
-first_doc_id	NO		NULL	
-first_doc_id	NO		NULL	
-first_doc_id	NO		NULL	
-first_doc_id	NO		NULL	
-first_doc_id	NO		NULL	
-first_doc_id	NO		NULL	
-first_doc_id	NO		NULL	
-first_doc_id	NO		NULL	
-first_doc_id	NO		NULL	
-first_doc_id	NO		NULL	
-first_doc_id	NO		NULL	
-ilist	NO		NULL	
-ilist	NO		NULL	
-ilist	NO		NULL	
-ilist	NO		NULL	
-ilist	NO		NULL	
-ilist	NO		NULL	
-ilist	NO		NULL	
-ilist	NO		NULL	
-ilist	NO		NULL	
-ilist	NO		NULL	
-ilist	NO		NULL	
-ilist	NO		NULL	
-last_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-last_doc_id	NO		NULL	
-word	NO		latin1_swedish_ci	
-word	NO		latin1_swedish_ci	
-word	NO		latin1_swedish_ci	
-word	NO		latin1_swedish_ci	
-word	NO		latin1_swedish_ci	
-word	NO		latin1_swedish_ci	
-word	NO		latin1_swedish_ci	
-word	NO		latin1_swedish_ci	
-word	NO		latin1_swedish_ci	
-word	NO		latin1_swedish_ci	
-word	NO		latin1_swedish_ci	
-word	NO		latin1_swedish_ci	
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 c1	int(11)	NO	PRI	NULL	
