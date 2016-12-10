@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 
 #define QMGR_C
 #include "Qmgr.hpp"
+
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 361
 
@@ -133,6 +136,30 @@ void Qmgr::initData()
     nodePtr.p->sendPresToStatus = Q_NOT_ACTIVE;
     nodePtr.p->failState = NORMAL;
   }//for
+
+  /* Received ProcessInfo are indirectly addressed:
+     nodeId => fixed array lookup => dynamic array.
+     The dynamic array contains enough entries for all
+     configured MGM and API nodes.
+  */
+  int numOfApiAndMgmNodes = 0;
+  for (int i = 1; i < MAX_NODES; i++)
+  {
+    Uint32 type = getNodeInfo(i).m_type;
+    switch(type){
+    case NodeInfo::API:
+    case NodeInfo::MGM:
+      processInfoNodeIndex[i] = numOfApiAndMgmNodes++;
+      max_api_node_id = i;
+      break;
+    default:
+      processInfoNodeIndex[i] = -1;
+      break;
+    }
+  }
+  receivedProcessInfo = new ProcessInfo[numOfApiAndMgmNodes];
+  g_eventLogger->info("Qmgr initialized %d ProcessInfo records up to "
+                      "node id %d", numOfApiAndMgmNodes, max_api_node_id);
 }//Qmgr::initData()
 
 void Qmgr::initRecords()
@@ -228,6 +255,7 @@ Qmgr::Qmgr(Block_context& ctx)
 Qmgr::~Qmgr() 
 {
   delete []nodeRec;
+  delete []receivedProcessInfo;
 }//Qmgr::~Qmgr()
 
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <SimulatedBlock.hpp>
 #include <NodeBitmask.hpp>
 #include <SignalCounter.hpp>
+#include <ProcessInfo.hpp>
 
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ArbitSignalData.hpp>
@@ -482,6 +483,7 @@ private:
   void joinedCluster(Signal* signal, NodeRecPtr nodePtr);
   void sendCmRegReq(Signal * signal, Uint32 nodeId);
   void sendCmNodeInfoReq(Signal* signal, Uint32 nodeId, const NodeRec * self);
+  ProcessInfo * getProcessInfo(Uint32 nodeId);
 
 private:
   void sendPrepFailReqRef(Signal* signal, 
@@ -542,6 +544,9 @@ private:
   Timer hb_send_timer;
   Timer hb_api_timer;
 
+  Int16 processInfoNodeIndex[MAX_NODES];
+  ProcessInfo * receivedProcessInfo;
+  Uint16 max_api_node_id;
 
   NdbNodeBitmask cfailedNodes;
   NdbNodeBitmask cprepFailedNodes;
