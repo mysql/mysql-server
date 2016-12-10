@@ -44,6 +44,8 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/IsolateOrd.hpp>
 #include <ndb_version.h>
+#include <OwnProcessInfo.hpp>
+#include <NodeInfo.hpp>
 
 #include <TransporterRegistry.hpp> // Get connect address
 
@@ -7483,6 +7485,18 @@ Qmgr::handleFailFromSuspect(Signal* signal,
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
 
   failReportLab(signal, sourceNode, (FailRep::FailCause) reason, getOwnNodeId());
+}
+
+ProcessInfo *
+Qmgr::getProcessInfo(Uint32 nodeId)
+{
+  ProcessInfo * storedProcessInfo = 0;
+  Int16 index = processInfoNodeIndex[nodeId];
+  if(index >= 0)
+    storedProcessInfo = & receivedProcessInfo[index];
+  else if(nodeId == getOwnNodeId())
+    storedProcessInfo = getOwnProcessInfo(getOwnNodeId());
+  return storedProcessInfo;
 }
 
 void
