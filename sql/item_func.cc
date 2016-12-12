@@ -56,6 +56,7 @@
 #include "log_event.h"
 #include "m_string.h"
 #include "mdl.h"
+#include "mutex_lock.h"
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
 #include "my_psi_config.h"
@@ -7632,22 +7633,20 @@ enum_field_types Item_func_get_system_var::field_type() const
 }
 
 
-/*
-  Uses var, var_type, component, cache_present, used_query_id, thd,
-  cached_llval, null_value, cached_null_value
-*/
-#define get_sys_var_safe(type) \
-do { \
-  type value; \
-  mysql_mutex_lock(&LOCK_global_system_variables); \
-  value= *(type*) var->value_ptr(thd, var_type, &component); \
-  mysql_mutex_unlock(&LOCK_global_system_variables); \
-  cache_present |= GET_SYS_VAR_CACHE_LONG; \
-  used_query_id= thd->query_id; \
-  cached_llval= null_value ? 0 : (longlong) value; \
-  cached_null_value= null_value; \
-  return cached_llval; \
-} while (0)
+template <typename T>
+longlong Item_func_get_system_var::get_sys_var_safe(THD *thd)
+{
+  T value;
+  {
+    Mutex_lock lock(&LOCK_global_system_variables);
+    value= *pointer_cast<T *>(var->value_ptr(thd, var_type, &component));
+  }
+  cache_present|= GET_SYS_VAR_CACHE_LONG;
+  used_query_id= thd->query_id;
+  cached_llval= null_value ? 0LL : static_cast<longlong>(value);
+  cached_null_value= null_value;
+  return cached_llval;
+}
 
 
 longlong Item_func_get_system_var::val_int()
@@ -7685,46 +7684,53 @@ longlong Item_func_get_system_var::val_int()
 
   switch (var->show_type())
   {
-    case SHOW_INT:      get_sys_var_safe (uint);
-    case SHOW_LONG:     get_sys_var_safe (ulong);
-    case SHOW_SIGNED_LONG: get_sys_var_safe (long);
-    case SHOW_LONGLONG: get_sys_var_safe (ulonglong);
-    case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);
-    case SHOW_BOOL:     get_sys_var_safe (bool);
-    case SHOW_MY_BOOL:  get_sys_var_safe (my_bool);
-    case SHOW_DOUBLE:
+  case SHOW_INT:
+    return get_sys_var_safe<uint>(thd);
+  case SHOW_LONG:
+    return get_sys_var_safe<ulong>(thd);
+  case SHOW_SIGNED_LONG:
+    return get_sys_var_safe<long>(thd);
+  case SHOW_LONGLONG:
+    return get_sys_var_safe<ulonglong>(thd);
+  case SHOW_HA_ROWS:
+    return get_sys_var_safe<ha_rows>(thd);
+  case SHOW_BOOL:
+    return get_sys_var_safe<bool>(thd);
+  case SHOW_MY_BOOL:
+    return get_sys_var_safe<my_bool>(thd);
+  case SHOW_DOUBLE:
+    {
+      double dval= val_real();
+
+      used_query_id= thd->query_id;
+      cached_llval= (longlong) dval;
+      cache_present|= GET_SYS_VAR_CACHE_LONG;
+      return cached_llval;
+    }
+  case SHOW_CHAR:
+  case SHOW_CHAR_PTR:
+  case SHOW_LEX_STRING:
+    {
+      String *str_val= val_str(NULL);
+      // Treat empty strings as NULL, like val_real() does.
+      if (str_val && str_val->length())
+        cached_llval= longlong_from_string_with_check (system_charset_info,
+                                                       str_val->c_ptr(), 
+                                                       str_val->c_ptr() + 
+                                                       str_val->length());
+      else
       {
-        double dval= val_real();
-
-        used_query_id= thd->query_id;
-        cached_llval= (longlong) dval;
-        cache_present|= GET_SYS_VAR_CACHE_LONG;
-        return cached_llval;
-      }
-    case SHOW_CHAR:
-    case SHOW_CHAR_PTR:
-    case SHOW_LEX_STRING:
-      {
-        String *str_val= val_str(NULL);
-        // Treat empty strings as NULL, like val_real() does.
-        if (str_val && str_val->length())
-          cached_llval= longlong_from_string_with_check (system_charset_info,
-                                                          str_val->c_ptr(), 
-                                                          str_val->c_ptr() + 
-                                                          str_val->length());
-        else
-        {
-          null_value= TRUE;
-          cached_llval= 0;
-        }
-
-        cache_present|= GET_SYS_VAR_CACHE_LONG;
-        return cached_llval;
+        null_value= TRUE;
+        cached_llval= 0;
       }
 
-    default:            
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str); 
-      return 0;                               // keep the compiler happy
+      cache_present|= GET_SYS_VAR_CACHE_LONG;
+      return cached_llval;
+    }
+
+  default:            
+    my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str); 
+    return 0;                               // keep the compiler happy
   }
 }
 

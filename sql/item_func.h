@@ -2875,6 +2875,9 @@ class Item_func_get_system_var final : public Item_var_func
   query_id_t used_query_id;
   uchar cache_present;
 
+  template <typename T>
+  longlong get_sys_var_safe(THD *thd);
+
 public:
   Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
                            LEX_STRING *component_arg, const char *name_arg,
