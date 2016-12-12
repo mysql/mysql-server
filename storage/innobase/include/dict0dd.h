@@ -374,6 +374,7 @@ thd_to_innodb_session(
 @param[in]	tbl_name	table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
+@param[in,out]	dd_ptn_name	partition name to be filled if not NULL
 @return	true if table name is parsed properly, false if the table name
 is invalid */
 UNIV_INLINE
@@ -381,7 +382,8 @@ bool
 innobase_parse_tbl_name(
 	const char*	tbl_name,
 	char*		dd_db_name,
-	char*		dd_tbl_name);
+	char*		dd_tbl_name,
+	char*		dd_ptn_name);
 
 /** Look up a column in a table using the system_charset_info collation.
 @param[in]      dd_table        data dictionary table

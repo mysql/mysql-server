@@ -60,6 +60,7 @@ dd_get_space_id(const dd::Partition& partition)
 @param[in]      tbl_name        table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
+@param[in,out]	dd_ptn_name	partition name to be filled if not NULL
 @return true if table name is parsed properly, false if the table name
 is invalid */
 UNIV_INLINE
@@ -67,11 +68,14 @@ bool
 innobase_parse_tbl_name(
 	const char*	tbl_name,
 	char*		dd_db_name,
-	char*		dd_tbl_name)
+	char*		dd_tbl_name,
+	char*		dd_ptn_name)
 {
 	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
+	char	ptn_buf[MAX_TABLE_NAME_LEN + 1];
 	ulint	db_len = dict_get_db_name_len(tbl_name);
+	char*	is_part;
 
 	if (db_len == 0) {
 		return(false);
@@ -85,7 +89,25 @@ innobase_parse_tbl_name(
 	tbl_buf[strlen(tbl_name) - db_len - 1] = 0;
 
 	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1);
-	filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1);
+
+#ifdef _WIN32
+	is_part = strstr(tbl_buf, "#p#");
+#else
+	is_part = strstr(tbl_buf, "#P#");
+#endif /* _WIN32 */
+
+	if (is_part) {
+		filename_to_tablename(is_part + 3, ptn_buf,
+				      MAX_TABLE_NAME_LEN + 1);
+		*is_part = 0;
+	}
+
+        filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1);
+
+	if (is_part && dd_ptn_name) {
+        	filename_to_tablename((is_part + 3), dd_ptn_name,
+				      MAX_TABLE_NAME_LEN + 1);
+	}
 
 	return(true);
 }

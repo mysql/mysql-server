@@ -15512,7 +15512,8 @@ innobase_get_dd_tablespace_id(
 	char    db_name[NAME_LEN + 1];
 	char    table_name[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(parent_table->name.m_name, db_name, table_name);
+	innobase_parse_tbl_name(parent_table->name.m_name, db_name,
+				table_name, NULL);
 
 	THD*	thd = current_thd;
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
@@ -15603,7 +15604,7 @@ innobase_fts_create_one_index_dd_table(
 	char    db_name[NAME_LEN + 1];
 	char    table_name[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(table->name.m_name, db_name, table_name);
+	innobase_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -15630,7 +15631,6 @@ innobase_fts_create_one_index_dd_table(
 	dd_table->set_engine(innobase_hton_name);
 	dd_table->set_schema_id(schema->id());
 	dd_table->set_hidden(true);
-	//dd_table->set_tablespace_id();
 	dd_table->set_collation_id(charset->number);
 
 	dd::Table::enum_row_format row_format;
@@ -15663,10 +15663,10 @@ innobase_fts_create_one_index_dd_table(
 	table_options->set_uint32("stats_auto_recalc",
 				  HA_STATS_AUTO_RECALC_DEFAULT);
 	table_options->set_uint32("key_block_size", 0);
-	//table_options->set("compress", );
-	//table_options->set("encrypt_type", );
-	//table_options->set_uint32("storage", ); ?
 
+	/* FTS AUX tables are always not encrypted/compressed as it is
+	designed now. So both "compress" and "encrypt_type" option are not
+	set */
 
 	/* Fill columns */
 	/* 1st column: word */
@@ -15785,7 +15785,7 @@ innobase_fts_create_one_common_dd_table(
 	char    db_name[NAME_LEN + 1];
 	char    table_name[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(table->name.m_name, db_name, table_name);
+	innobase_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -15962,7 +15962,7 @@ innobase_fts_drop_dd_table(
 	char    db_name[NAME_LEN + 1];
 	char    table_name[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(name, db_name, table_name);
+	innobase_parse_tbl_name(name, db_name, table_name, NULL);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;

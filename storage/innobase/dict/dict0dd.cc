@@ -98,9 +98,9 @@ dd_mdl_verify(
 	acquires on its parent table name */
 	char*   is_part = NULL;
 #ifdef _WIN32
-                is_part = strstr(table, "?p?");
+                is_part = strstr(table, "#p#");
 #else
-                is_part = strstr(table, "?P?");
+                is_part = strstr(table, "#P#");
 #endif /* _WIN32 */
 
 	if (is_part) {
@@ -110,7 +110,7 @@ dd_mdl_verify(
 	ret = dd::has_shared_table_mdl(thd, db, table);
 
 	if (is_part) {
-		*is_part = '?';
+		*is_part = '#';
 	}
 
 	return(ret);
@@ -177,7 +177,7 @@ dd_table_open_on_dd_obj(
 		char	db_buf[NAME_LEN + 1];
 		char	tbl_buf[NAME_LEN + 1];
 
-		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf);
+		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf, NULL);
 		if (dd_part == NULL) {
 			ut_ad(strcmp(dd_table.name().c_str(), tbl_buf) == 0);
 		} else {
@@ -349,7 +349,7 @@ dd_table_open_on_id_low(
 	char	tbl_buf[NAME_LEN + 1];
 
 	if (tbl_name) {
-		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf);
+		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf, NULL);
 		ut_ad(dd_mdl_verify(thd, db_buf, tbl_buf));
 	}
 #endif /* UNIV_DEBUG */
@@ -491,7 +491,7 @@ dd_check_corrupted(dict_table_t*& table)
 			char	tbl_buf[NAME_LEN + 1];
 
 			innobase_parse_tbl_name(
-				table->name.m_name, db_buf, tbl_buf);
+				table->name.m_name, db_buf, tbl_buf, NULL);
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 db_buf, tbl_buf);
 		}
@@ -590,7 +590,7 @@ dd_table_open_on_id(
 
 		for (;;) {
 			innobase_parse_tbl_name(
-				ib_table->name.m_name, db_buf, tbl_buf);
+				ib_table->name.m_name, db_buf, tbl_buf, NULL);
 			strcpy(full_name, ib_table->name.m_name);
 
 			mutex_exit(&dict_sys->mutex);
@@ -679,7 +679,7 @@ dd_table_set_discard_flag(
 #endif
 	ut_ad(!srv_is_being_shutdown);
 
-	innobase_parse_tbl_name(name, db_buf, tbl_buf);
+	innobase_parse_tbl_name(name, db_buf, tbl_buf, NULL);
 
 	if (dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
 		DBUG_RETURN(false);
@@ -757,7 +757,7 @@ dd_table_open_on_name(
 		DBUG_RETURN(table);
 	}
 
-	if (!innobase_parse_tbl_name(name, db_buf, tbl_buf)) {
+	if (!innobase_parse_tbl_name(name, db_buf, tbl_buf, NULL)) {
 		DBUG_RETURN(nullptr);
 	}
 
