@@ -279,13 +279,8 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
                             table_ref->table_name, &non_tmp_table_def))
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
-    if (!non_tmp_table_def)
-    {
-      /* Impossible since table was successfully opened above. */
-      DBUG_ASSERT(0);
-      my_error(ER_NO_SUCH_TABLE, MYF(0), table_ref->db, table_ref->table_name);
-      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
-    }
+    /* Table should be present as it was successfully opened above. */
+    DBUG_ASSERT(non_tmp_table_def != nullptr);
   }
 
   error= table_ref->table->file->ha_truncate(is_tmp_table ?
@@ -316,9 +311,6 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
       /* Statement rollback will revert effect of handler::truncate() as well. */
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
     }
-
-    // WL7743/TODO/QQ: Does change of DD object means we need to invalidate
-    //                 TDC/TC too?
   }
   DBUG_RETURN(TRUNCATE_OK);
 }
@@ -556,12 +548,10 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
     if (hton->flags & HTON_CAN_RECREATE)
     {
 #ifndef EMBEDDED_LIBRARY
-      if (mysql_audit_table_access_notify(thd, table_ref))
-      {
-        DBUG_RETURN(true);
-      }
+      error= mysql_audit_table_access_notify(thd, table_ref);
+#else
+      error= 0;
 #endif /* !EMBEDDED_LIBRARY */
-
       /*
         The storage engine can truncate the table by creating an
         empty table with the same structure.
@@ -573,10 +563,8 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       */
       DBUG_ASSERT(!(hton->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
-      error= dd::recreate_table(thd, table_ref->db, table_ref->table_name);
-
-      if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
-          thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
+      if (!error)
+        error= dd::recreate_table(thd, table_ref->db, table_ref->table_name);
 
       /* No need to binlog a failed truncate-by-recreate. */
       binlog_stmt= !error;
@@ -602,6 +590,11 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       {
         binlog_stmt= true;
         binlog_is_trans= table_ref->table->file->has_transactions();
+        /*
+          Call to handler_truncate() might have updated table definition
+          in the data-dictionary, let us remove TABLE_SHARE from the TDC.
+        */
+        close_all_tables_for_name(thd, table_ref->table->s, false, NULL);
       }
       else
       {
@@ -630,8 +623,14 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
     error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 
   if (error)
+  {
     trans_rollback_stmt(thd);
-  // QQ: Should we also rollback txn for consistency here?
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+  }
+
+  if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
+    thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
 
   if (!is_temporary &&
       (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
