@@ -100,7 +100,7 @@ Sets the global variable that feeds MySQL's innodb_buffer_pool_dump_status
 to the specified string. The format and the following parameters are the
 same as the ones used for printf(3). The value of this variable can be
 retrieved by:
-SELECT variable_value FROM information_schema.global_status WHERE
+SELECT variable_value FROM performance_schema.global_status WHERE
 variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
 or by:
 SHOW STATUS LIKE 'innodb_buffer_pool_dump_status'; */
@@ -143,7 +143,7 @@ Sets the global variable that feeds MySQL's innodb_buffer_pool_load_status
 to the specified string. The format and the following parameters are the
 same as the ones used for printf(3). The value of this variable can be
 retrieved by:
-SELECT variable_value FROM information_schema.global_status WHERE
+SELECT variable_value FROM performance_schema.global_status WHERE
 variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
 or by:
 SHOW STATUS LIKE 'innodb_buffer_pool_load_status'; */

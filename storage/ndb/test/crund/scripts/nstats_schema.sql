@@ -1,4 +1,4 @@
--- Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ DROP TABLE IF EXISTS test.nstats_baseline;
 -- ndbapi slave stats in both, global_status and session_status
 CREATE OR REPLACE VIEW test.nstats_current AS
         SELECT variable_name AS name, variable_value AS value
-        FROM information_schema.global_status
+        FROM performance_schema.global_status
 --        WHERE variable_name LIKE 'ndb_api%';
         WHERE variable_name LIKE 'ndb_api%count';
 --        WHERE variable_name LIKE 'ndb_api%slave';

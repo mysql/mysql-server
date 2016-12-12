@@ -1,5 +1,3 @@
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 set @orig_sql_mode= @@sql_mode;
 set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 Warnings:
@@ -76,8 +74,6 @@ COLUMN_PRIVILEGES
 ENGINES
 EVENTS
 FILES
-GLOBAL_STATUS
-GLOBAL_VARIABLES
 KEY_COLUMN_USAGE
 OPTIMIZER_TRACE
 PARAMETERS
@@ -89,8 +85,6 @@ REFERENTIAL_CONSTRAINTS
 ROUTINES
 SCHEMATA
 SCHEMA_PRIVILEGES
-SESSION_STATUS
-SESSION_VARIABLES
 SHOW_STATISTICS
 SHOW_STATISTICS_DYNAMIC
 STATISTICS
@@ -872,7 +866,7 @@ table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
-information_schema	38
+information_schema	34
 mysql	30
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1327,8 +1321,6 @@ COLUMN_PRIVILEGES	information_schema.COLUMN_PRIVILEGES	1
 ENGINES	information_schema.ENGINES	1
 EVENTS	information_schema.EVENTS	1
 FILES	information_schema.FILES	1
-GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
-GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
 OPTIMIZER_TRACE	information_schema.OPTIMIZER_TRACE	1
 PARAMETERS	information_schema.PARAMETERS	1
@@ -1340,8 +1332,6 @@ REFERENTIAL_CONSTRAINTS	information_schema.REFERENTIAL_CONSTRAINTS	1
 ROUTINES	information_schema.ROUTINES	1
 SCHEMATA	information_schema.SCHEMATA	1
 SCHEMA_PRIVILEGES	information_schema.SCHEMA_PRIVILEGES	1
-SESSION_STATUS	information_schema.SESSION_STATUS	1
-SESSION_VARIABLES	information_schema.SESSION_VARIABLES	1
 SHOW_STATISTICS	information_schema.SHOW_STATISTICS	1
 SHOW_STATISTICS_DYNAMIC	information_schema.SHOW_STATISTICS_DYNAMIC	1
 STATISTICS	information_schema.STATISTICS	1
@@ -1466,14 +1456,14 @@ DO
 BEGIN
 CREATE TABLE server_status
 SELECT variable_name
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE variable_name LIKE 'ABORTED_CONNECTS' OR
 variable_name LIKE 'BINLOG_CACHE_DISK_USE';
 END$$
 SELECT variable_name FROM server_status;
 variable_name
-ABORTED_CONNECTS
-BINLOG_CACHE_DISK_USE
+Aborted_connects
+Binlog_cache_disk_use
 DROP TABLE server_status;
 SET GLOBAL event_scheduler=0;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
@@ -1600,9 +1590,9 @@ drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;";
-select * from information_schema.global_variables where variable_name='init_connect';
+select * from performance_schema.global_variables where variable_name='init_connect';
 VARIABLE_NAME	VARIABLE_VALUE
-INIT_CONNECT	drop table if exists t1;drop table if exists t1;
+init_connect	drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
@@ -1623,18 +1613,14 @@ drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
-Warning	1406	Data too long for column 'VARIABLE_VALUE' at row 1
 set global init_connect="";
-create table t0 select * from information_schema.global_status where VARIABLE_NAME='COM_SELECT';
+create table t0 select * from performance_schema.global_status where VARIABLE_NAME='COM_SELECT';
 SELECT 1;
 1
 1
-select a.VARIABLE_VALUE - b.VARIABLE_VALUE from t0 b, information_schema.global_status a
+select a.VARIABLE_VALUE - b.VARIABLE_VALUE from t0 b, performance_schema.global_status a
 where a.VARIABLE_NAME = b.VARIABLE_NAME;
 a.VARIABLE_VALUE - b.VARIABLE_VALUE
-2
 drop table t0;
 CREATE TABLE t1(a INT) KEY_BLOCK_SIZE=1;
 SELECT CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1';
@@ -1999,11 +1985,11 @@ use test;
 #                           CACHE; OPENED_TABLES INCREASES"
 #
 SELECT * FROM INFORMATION_SCHEMA.TABLES;
-SELECT VARIABLE_VALUE INTO @val1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
+SELECT VARIABLE_VALUE INTO @val1 FROM performance_schema.global_status WHERE
 VARIABLE_NAME LIKE 'Opened_tables';
 SELECT ENGINE FROM INFORMATION_SCHEMA.TABLES;
 # The below SELECT query should give same output as above SELECT query.
-SELECT VARIABLE_VALUE INTO @val2 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
+SELECT VARIABLE_VALUE INTO @val2 FROM performance_schema.global_status WHERE
 VARIABLE_NAME LIKE 'Opened_tables';
 # The below select should return '1'
 SELECT @val1 = @val2;
@@ -2105,7 +2091,6 @@ SET SESSION information_schema_stats=cached;
 set sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 #
 # WL#6599: New Data Dictionary and I_S Integration.
 #

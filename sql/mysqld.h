@@ -326,8 +326,6 @@ extern char *opt_log_syslog_facility;
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
 
-/** System variable show_compatibility_56. */
-extern my_bool show_compatibility_56;
 extern my_bool persisted_globals_load;
 
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];

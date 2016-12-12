@@ -75,7 +75,7 @@ commit;
 --connection master
 --echo Capturing session epoch from Master
 select @master_session_epoch:=Variable_value
-from information_schema.global_status
+from performance_schema.global_status
 where Variable_name="Ndb_last_commit_epoch_session";
 
 --enable_result_log
@@ -95,7 +95,7 @@ start slave;
 --disable_result_log
 
 select @max_replicated_epoch:=Variable_value
-from information_schema.global_status
+from performance_schema.global_status
 where Variable_name="Ndb_slave_max_replicated_epoch";
 
 --enable_result_log
@@ -105,7 +105,7 @@ select @max_replicated_epoch+0 < @master_session_epoch+0 as '@max_replicated_epo
 
 --disable_result_log
 select @conflict_detected_epoch:=Variable_value
-from information_schema.global_status
+from performance_schema.global_status
 where Variable_name="ndb_conflict_last_conflict_epoch";
 --enable_result_log
 
@@ -133,11 +133,11 @@ start slave;
 --echo on the Primary is == the last_conflict_epoch
 --disable_result_log
 select @max_replicated_epoch:=Variable_value
-from information_schema.global_status
+from performance_schema.global_status
 where Variable_name="Ndb_slave_max_replicated_epoch";
 
 select @conflict_detected_epoch:=Variable_value
-from information_schema.global_status
+from performance_schema.global_status
 where Variable_name="ndb_conflict_last_conflict_epoch";
 
 --enable_result_log

@@ -731,16 +731,6 @@ my_thread_handle shutdown_thr_handle;
 uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 
-#if MYSQL_VERSION_ID >= 80002
-#error "show_compatibility_56 is to be removed in MySQL 8.0"
-#else
-/*
-  Default value TRUE for the EMBEDDED_LIBRARY,
-  default value from Sys_show_compatibility_56 otherwise.
-*/
-my_bool show_compatibility_56= TRUE;
-#endif /* MYSQL_VERSION_ID >= 80002 */
-
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 ulong slow_start_timeout;
 #endif
@@ -9109,26 +9099,15 @@ void refresh_status(THD *thd)
 {
   mysql_mutex_lock(&LOCK_status);
 
-  if (show_compatibility_56)
-  {
-    /*
-      Add thread's status variabes to global status
-      and reset thread's status variables.
-    */
-    add_to_status(&global_status_var, &thd->status_var, true);
-  }
-  else
-  {
-    /* For all threads, add status to global status and then reset. */
-    Reset_thd_status reset_thd_status;
-    Global_THD_manager::get_instance()->do_for_all_thd_copy(&reset_thd_status);
+  /* For all threads, add status to global status and then reset. */
+  Reset_thd_status reset_thd_status;
+  Global_THD_manager::get_instance()->do_for_all_thd_copy(&reset_thd_status);
 #ifndef EMBEDDED_LIBRARY
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-    /* Reset aggregated status counters. */
-    reset_pfs_status_stats();
+  /* Reset aggregated status counters. */
+  reset_pfs_status_stats();
 #endif
 #endif
-  }
 
   /* Reset some global variables. */
   reset_status_vars();

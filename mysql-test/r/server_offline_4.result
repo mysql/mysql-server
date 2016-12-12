@@ -1,5 +1,3 @@
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 SET @global_saved_tmp =  @@global.offline_mode;
 CREATE USER 'user1'@'localhost';
 connect conu1,localhost,user1;
@@ -39,4 +37,3 @@ disconnect conu1;
 DROP USER 'user1'@'localhost';
 # Restoring the original values.
 SET @@global.offline_mode = @global_saved_tmp;
-set @@global.show_compatibility_56=@show_compatibility_56_save;

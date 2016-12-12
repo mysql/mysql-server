@@ -1,7 +1,7 @@
 set @@global.optimizer_switch='batched_key_access=on';
 drop table if exists t1,t2,t3,t4;
 create temporary table server_counts_at_startup
-select * from information_schema.global_status 
+select * from performance_schema.global_status 
 where variable_name in 
 ('Ndb_pruned_scan_count',
 'Ndb_sorted_scan_count',
@@ -5048,7 +5048,7 @@ t2.a = t1.c and t2.b = t1.c;
 a	b	c	a	b	c
 10	10	11	11	11	12
 create temporary table server_counts
-select * from information_schema.global_status 
+select * from performance_schema.global_status 
 where variable_name in 
 ('Ndb_scan_count',
 'Ndb_pruned_scan_count',
@@ -5074,7 +5074,7 @@ count(*)
 1
 select new.variable_name, new.variable_value - old.variable_value
 from server_counts as old,
-information_schema.global_status as new
+performance_schema.global_status as new
 where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
@@ -6817,14 +6817,14 @@ Note	1003	Cannot push table 'x3' as child of table 'x1'. Doing so would prevent 
 Note	1003	Cannot push table 'x3' as child of table 'x2'. Doing so would prevent using join buffer for table 'x3'.
 Note	1003	/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x1`.`c` AS `c`,`test`.`x1`.`d` AS `d`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x2`.`c` AS `c`,`test`.`x2`.`d` AS `d`,`test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b`,`test`.`x3`.`c` AS `c`,`test`.`x3`.`d` AS `d` from `test`.`t1` `x1` left join (`test`.`t1` `x2` join `test`.`t1` `x3`) on(((`test`.`x3`.`c` = `test`.`x2`.`d`) and (`test`.`x3`.`b` = `test`.`x1`.`b`))) where 1
 create temporary table scan_count
-select * from information_schema.global_status 
+select * from performance_schema.global_status 
 where variable_name = 'Ndb_scan_count';
 select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x3.b;
 a	b	c	d	a	b	c	d	a	b	c	d
 1	NULL	1	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 select scan_count.VARIABLE_NAME,
 old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE  
-from scan_count,information_schema.global_status as old 
+from scan_count, performance_schema.global_status as old 
 where old.variable_name = 'Ndb_scan_count';
 VARIABLE_NAME	old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE
 NDB_SCAN_COUNT	2
@@ -7035,7 +7035,7 @@ user_id	node_id	sort_number	name
 DROP TABLE ndb_order_test, ndb_user_test;
 select new.variable_name, new.variable_value - old.variable_value
 from server_counts_at_startup as old,
-information_schema.global_status as new
+performance_schema.global_status as new
 where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value

@@ -2058,8 +2058,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     break;
   case SCH_OPTIMIZER_TRACE:
   case SCH_OPEN_TABLES:
-  case SCH_VARIABLES:
-  case SCH_STATUS:
   case SCH_PROCEDURES:
   case SCH_ENGINES:
   case SCH_USER_PRIVILEGES:

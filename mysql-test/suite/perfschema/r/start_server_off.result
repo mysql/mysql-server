@@ -177,8 +177,6 @@ truncate performance_schema.events_statements_history_long;
 truncate performance_schema.events_waits_history_long;
 truncate performance_schema.setup_objects;
 truncate performance_schema.setup_actors;
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set global show_compatibility_56 = OFF;
 show global status like "performance_schema%_lost";
 Variable_name	Value
 Performance_schema_accounts_lost	0
@@ -243,10 +241,9 @@ Performance_schema_table_lock_stat_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
-show global variables like "show_compatibility_56";
+show global variables like "performance_schema";
 Variable_name	Value
-show_compatibility_56	OFF
-show session variables like "show_compatibility_56";
+performance_schema	OFF
+show session variables like "performance_schema";
 Variable_name	Value
-show_compatibility_56	OFF
-set @@global.show_compatibility_56 = @show_compatibility_56_save;
+performance_schema	OFF

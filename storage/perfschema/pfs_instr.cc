@@ -1678,8 +1678,7 @@ void aggregate_thread(PFS_thread *thread,
   aggregate_thread_memory(false, thread, safe_account, safe_user, safe_host);
 #endif
 
-  if (!show_compatibility_56)
-    aggregate_thread_status(thread, safe_account, safe_user, safe_host);
+  aggregate_thread_status(thread, safe_account, safe_user, safe_host);
 
   aggregate_thread_stats(thread, safe_account, safe_user, safe_host);
 }

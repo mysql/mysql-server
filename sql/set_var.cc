@@ -222,19 +222,13 @@ bool sys_var::update(THD *thd, set_var *var)
   }
   else
   {
-    bool locked= false;
-    if (!show_compatibility_56)
-    {
-      /* Block reads from other threads. */
-      mysql_mutex_lock(&thd->LOCK_thd_sysvar);
-      locked= true;
-    }
-  
+    /* Block reads from other threads. */
+    mysql_mutex_lock(&thd->LOCK_thd_sysvar);
+
     bool ret= session_update(thd, var) ||
       (on_update && on_update(this, thd, OPT_SESSION));
-  
-    if (locked)
-      mysql_mutex_unlock(&thd->LOCK_thd_sysvar);
+
+    mysql_mutex_unlock(&thd->LOCK_thd_sysvar);
 
     /*
       Make sure we don't session-track variables that are not actually

@@ -35,8 +35,6 @@ echo ok;
 
 SET @@global.general_log= @old_general_log;
 SET @@global.slow_query_log= @old_slow_query_log;
-#set @@global.show_compatibility_56=@show_compatibility_56_save;
-
 
 --echo #
 --echo # Bug#24963580 INFORMATION_SCHEMA:MDL_REQUEST::
@@ -62,4 +60,3 @@ SET @@global.slow_query_log= @old_slow_query_log;
 --exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
-

@@ -116,10 +116,6 @@ def	information_schema	FILES	CHECK_TIME	35		YES	datetime	NULL	NULL	NULL	NULL	NUL
 def	information_schema	FILES	CHECKSUM	36		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21)			select		
 def	information_schema	FILES	STATUS	37		NO	varchar	6	20	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select		
 def	information_schema	FILES	EXTRA	38		YES	varchar	85	255	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select		
-def	information_schema	GLOBAL_STATUS	VARIABLE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	GLOBAL_STATUS	VARIABLE_VALUE	2		YES	varchar	341	1024	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select		
-def	information_schema	GLOBAL_VARIABLES	VARIABLE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	GLOBAL_VARIABLES	VARIABLE_VALUE	2		YES	varchar	341	1024	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select		
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_NAME	3		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
@@ -248,10 +244,6 @@ def	information_schema	SCHEMA_PRIVILEGES	TABLE_CATALOG	2		NO	varchar	170	512	NUL
 def	information_schema	SCHEMA_PRIVILEGES	TABLE_SCHEMA	3		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	SCHEMA_PRIVILEGES	PRIVILEGE_TYPE	4		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	SCHEMA_PRIVILEGES	IS_GRANTABLE	5		NO	varchar	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select		
-def	information_schema	SESSION_STATUS	VARIABLE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	SESSION_STATUS	VARIABLE_VALUE	2		YES	varchar	341	1024	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select		
-def	information_schema	SESSION_VARIABLES	VARIABLE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	SESSION_VARIABLES	VARIABLE_VALUE	2		YES	varchar	341	1024	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select		
 def	information_schema	SHOW_STATISTICS	Database	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
 def	information_schema	SHOW_STATISTICS	Table	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
 def	information_schema	SHOW_STATISTICS	Non_unique	3		NO	varchar	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1)			select		
@@ -638,10 +630,6 @@ NULL	information_schema	FILES	CHECK_TIME	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	information_schema	FILES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21)
 3.3333	information_schema	FILES	STATUS	varchar	6	20	utf8	utf8_general_ci	varchar(20)
 3.0000	information_schema	FILES	EXTRA	varchar	85	255	utf8	utf8_general_ci	varchar(255)
-3.0476	information_schema	GLOBAL_STATUS	VARIABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0029	information_schema	GLOBAL_STATUS	VARIABLE_VALUE	varchar	341	1024	utf8	utf8_general_ci	varchar(1024)
-3.0476	information_schema	GLOBAL_VARIABLES	VARIABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0029	information_schema	GLOBAL_VARIABLES	VARIABLE_VALUE	varchar	341	1024	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -770,10 +758,6 @@ NULL	information_schema	SCHEMATA	SQL_PATH	binary	0	0	NULL	NULL	binary(0)
 3.0476	information_schema	SCHEMA_PRIVILEGES	TABLE_SCHEMA	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	SCHEMA_PRIVILEGES	PRIVILEGE_TYPE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	SCHEMA_PRIVILEGES	IS_GRANTABLE	varchar	1	3	utf8	utf8_general_ci	varchar(3)
-3.0476	information_schema	SESSION_STATUS	VARIABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0029	information_schema	SESSION_STATUS	VARIABLE_VALUE	varchar	341	1024	utf8	utf8_general_ci	varchar(1024)
-3.0476	information_schema	SESSION_VARIABLES	VARIABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0029	information_schema	SESSION_VARIABLES	VARIABLE_VALUE	varchar	341	1024	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	SHOW_STATISTICS	Database	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	SHOW_STATISTICS	Table	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	SHOW_STATISTICS	Non_unique	varchar	1	3	utf8	utf8_general_ci	varchar(1)

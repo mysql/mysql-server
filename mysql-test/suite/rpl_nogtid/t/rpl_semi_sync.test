@@ -462,8 +462,6 @@ set sql_log_bin=1;
 # Created user's privileges - REPLICATION and SLAVE -
 # alone must suffice to successful connecting even with show handler
 # not compatible to 5.6.
-SET @save_show_compatibility_56=@@global.show_compatibility_56;
-SET @@global.show_compatibility_56=OFF;
 
 source include/rpl_connection_slave.inc;
 create user rpl@127.0.0.1 identified by 'rpl';
@@ -474,7 +472,6 @@ change master to master_user='rpl',master_password='rpl';
 source include/start_slave.inc;
 show status like 'Rpl_semi_sync_slave_status';
 source include/rpl_connection_master.inc;
-SET @@global.show_compatibility_56=ON;
 
 # bug#77732 related: reconnecting to the master while the show handler
 # is compatible with 5.6
@@ -498,7 +495,6 @@ show status like 'Rpl_semi_sync_slave_status';
 
 --source include/rpl_connection_master.inc
 # bug#77732 cleanup
-SET @@global.show_compatibility_56=@save_show_compatibility_56;
 # Added for Bug#19372027:rpl_semi_sync fails sporadically on trunk
 let $status_var= Rpl_semi_sync_master_status;
 let $status_var_value= ON;
