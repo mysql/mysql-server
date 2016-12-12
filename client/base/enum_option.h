@@ -36,10 +36,10 @@ public:
   /**
     Constructs new enum option.
     @param value Pointer to enum object to receive option value.
-    @param value Pointer to enum tylelib.
+    @param type Pointer to enum tylelib.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Enum_option(T_type* value, const T_typelib* type, std::string name, std::string description)
     : Abstract_enum_option<T_type, T_typelib>(value, type, GET_ENUM, name, description, 1),
