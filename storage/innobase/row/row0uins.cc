@@ -356,14 +356,6 @@ row_undo_ins_parse_undo_rec(
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
 	if (node->table == NULL) {
-		/* Rollback should always be protected by a table
-		lock.  Tables cannot be evicted, dropped or rebuilt
-		while locks exist. However, DROP TEMPORARY TABLE is
-		allowed in the middle of a transaction, and on client
-		disconnect, temporary tables will be dropped before
-		the transaction is rolled back. */
-		ut_ad(trx_sys_is_noredo_rseg_slot(
-			(node->roll_ptr >> 48) & 0x7F));
 	} else if (node->table->ibd_file_missing) {
 close_table:
 		dict_table_close(node->table, dict_locked, FALSE);
