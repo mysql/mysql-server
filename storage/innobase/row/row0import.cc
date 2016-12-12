@@ -3134,7 +3134,7 @@ row_import_read_v1(
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 			"Tablespace to be imported has a different"
 			" page size than this server. Server page size"
-			" is " ULINTPF ", whereas tablespace page size"
+			" is %u, whereas tablespace page size"
 			" is " ULINTPF,
 			univ_page_size.logical(),
 			logical_page_size);

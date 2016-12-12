@@ -1173,7 +1173,7 @@ public:
 	/** Write one blob field data.
 	@param[in]	blob_j	the blob field number
 	@return DB_SUCCESS on success, error code on failure. */
-	dberr_t write_one_blob(ulint blob_j);
+	dberr_t write_one_blob(size_t blob_j);
 
 	/** Write one blob page.  This function will be repeatedly called
 	with an increasing nth_blob_page to completely write a BLOB.
@@ -1182,7 +1182,7 @@ public:
 	@param[in]	nth_blob_page	count of the BLOB page (starting from 1).
 	@return DB_SUCCESS or DB_FAIL. */
 	dberr_t	write_single_blob_page(
-		int			blob_j,
+		size_t			blob_j,
 		big_rec_field_t&	field,
 		ulint			nth_blob_page);
 
@@ -1236,7 +1236,7 @@ public:
 	@return DB_SUCCESS on success. */
 	dberr_t
 	write_first_page(
-		ulint			blob_j,
+		size_t			blob_j,
 		big_rec_field_t&	field);
 
 private:

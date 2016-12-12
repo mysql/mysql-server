@@ -3668,7 +3668,7 @@ void
 innodb_buffer_pool_size_init()
 {
 #ifdef UNIV_DEBUG
-	ulint	srv_buf_pool_instances_org = srv_buf_pool_instances;
+	ulong	srv_buf_pool_instances_org = srv_buf_pool_instances;
 #endif /* UNIV_DEBUG */
 
 	if (srv_buf_pool_size >= BUF_POOL_SIZE_THRESHOLD) {
@@ -11245,7 +11245,7 @@ create_table_info_t::create_option_tablespace_is_valid()
 
 	if (block_size_needed != page_size.physical()) {
 		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-			"InnoDB: Tablespace `%s` uses block size " ULINTPF
+			"InnoDB: Tablespace `%s` uses block size %u"
 			" and cannot contain a table with physical"
 			" page size " ULINTPF, MYF(0),
 			m_create_info->tablespace,
