@@ -23,6 +23,34 @@ ENDIF()
 SET(COMPILER_ID_AND_VERSION
   "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
+# Check that mysql_system_tables.sql is up-to-date
+IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
+  IF(NOT TARGET ndbinfo_sql_run)
+    MESSAGE(FATAL "TARGET ndbinfo_sql_run missing, needed to generate storage/ndb/tools/ndbinfo.sql.")
+  ENDIF()
+  SET(MYSQL_SYSTEM_TABLES_PATCHES
+      ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql)
+  SET(MYSQL_SYSTEM_TABLES_DEPENDS
+      ndbinfo_sql_run)
+ENDIF()
+
+IF(DEFINED MYSQL_SYSTEM_TABLES_PATCHES)
+  ADD_EXECUTABLE(patch_file patch_file.cc)
+  ADD_CUSTOM_TARGET(Check_mysql_system_tables_sql
+    ALL
+    patch_file ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
+               ${CMAKE_CURRENT_BINARY_DIR}/mysql_system_tables.sql.patched
+               ${MYSQL_SYSTEM_TABLES_PATCHES}
+    COMMAND ${CMAKE_COMMAND} -E compare_files
+        ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
+        ${CMAKE_CURRENT_BINARY_DIR}/mysql_system_tables.sql.patched
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
+        ${MYSQL_SYSTEM_TABLES_DEPENDS}
+  )
+ENDIF()
+
 # Build mysql_fix_privilege_tables.sql (concatenate 2 sql scripts)
 IF(NOT WIN32 OR CMAKE_CROSSCOMPILING)
   FIND_PROGRAM(CAT_EXECUTABLE cat DOC "path to the executable")

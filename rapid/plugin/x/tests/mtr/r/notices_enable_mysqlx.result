@@ -1226,13 +1226,10 @@ Got expected error: Table storage engine for 't2' doesn't have this option (code
 expect 1 warning and 2 Error
 modify the result file once Bug#21524666 is fixed
 Got expected error: Incorrect index name 'GEN_CLUST_INDEX' (code 1280)
-resetting mtr non-default value of show_compatibility_56 to OFF to check warnings returned by xplugin for below operations
-
-0 rows affected
-check with show variables like versio and expect warning related to GTID session when show_compatibility_56 OFF
+check with show variables like versio and expect warning related to GTID session
 Variable_name	Value
 0 rows affected
-check with show variables like versio and expect warning related to GTID session when show_compatibility_56 OFF
+check with show variables like versio and expect warning related to GTID session
 Variable_name	Value
 max_join_size	18446744073709551615
 0 rows affected
@@ -1242,14 +1239,11 @@ concurrent_insert	AUTO
 Variable_name	Value
 default_storage_engine	InnoDB
 0 rows affected
-resetting mtr default value of show_compatibility_56 to ON otherwise other tests might fail due to this
-
-0 rows affected
 Try to enable fixed notice, should be ok
 
 command ok
 Variable_name	Value
-Mysqlx_notice_other_sent	1233
+Mysqlx_notice_other_sent	1231
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	1
@@ -1261,7 +1255,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1234
+Mysqlx_notice_other_sent	1232
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	1
@@ -1367,7 +1361,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1305
+Mysqlx_notice_other_sent	1303
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	1
@@ -1400,7 +1394,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1307
+Mysqlx_notice_other_sent	1305
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	6
@@ -1434,7 +1428,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1309
+Mysqlx_notice_other_sent	1307
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	11
@@ -1462,7 +1456,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1311
+Mysqlx_notice_other_sent	1309
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	12
@@ -1571,12 +1565,12 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1328
+Mysqlx_notice_other_sent	1326
 Mysqlx_notice_warning_sent	550
 Mysqlx_stmt_disable_notices	1
 Mysqlx_stmt_enable_notices	14
 Mysqlx_stmt_list_notices	3
-# restart: --show_compatibility_56=OFF
+# restart: 
 1/0	1/0	password('test')	password('')
 null	null	*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29	
 0 rows affected
@@ -1609,7 +1603,7 @@ Mysqlx_notice_warning_sent	3
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	0
 Mysqlx_stmt_list_notices	0
-# restart: --show_compatibility_56=ON
+# restart: 
 create user noti@localhost identified by 'noti';
 1/0	1/0	password('test')	password('')
 null	null	*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29	

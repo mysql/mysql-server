@@ -158,10 +158,13 @@ public:
   {
     init();
   }
+
+#ifndef DBUG_OFF
   ~my_decimal()
   {
     sanity_check();
   }
+#endif // DBUG_OFF
 
   void sanity_check() const
   {

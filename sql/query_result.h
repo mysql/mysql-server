@@ -63,7 +63,7 @@ public:
     Change wrapped Query_result.
 
     Replace the wrapped query result object with new_result and call
-    prepare() and prepare2() on new_result.
+    prepare() on new_result.
 
     This base class implementation doesn't wrap other Query_results.
 
@@ -77,12 +77,36 @@ public:
   /// @return true if an interceptor object is needed for EXPLAIN
   virtual bool need_explain_interceptor() const { return false; }
 
-  virtual int prepare(List<Item>&, SELECT_LEX_UNIT *u)
+  /**
+    Perform preparation specific to the query expression or DML statement.
+
+    @returns false if success, true if error
+  */
+  virtual bool prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   {
     unit= u;
-    return 0;
+    return false;
   }
-  virtual int prepare2() { return 0; }
+
+  /**
+    Optimize the result processing of a query expression, applicable to
+    data change operation (not simple select queries).
+
+    @returns false if success, true if error
+  */
+  virtual bool optimize() { return false; }
+
+  /**
+    Prepare for execution of the query expression or DML statement.
+
+    Generally, this will have an implementation only for outer-most
+    SELECT_LEX objects, such as data change statements (for preparation
+    of the target table(s)) or dump statements (for preparation of target file).
+
+    @returns false if success, true if error
+  */
+  virtual bool start_execution() { return false; }
+
   /*
     Because of peculiarities of prepared statements protocol
     we need to know number of columns in the result set (if
@@ -92,8 +116,6 @@ public:
   { return fields.elements; }
   virtual bool send_result_set_metadata(List<Item> &list, uint flags)=0;
   virtual bool send_data(List<Item> &items)=0;
-  virtual bool initialize_tables(JOIN*)
-  { return false; }
   virtual void send_error(uint errcode,const char *err)
   { my_message(errcode, err, MYF(0)); }
   virtual bool send_eof()=0;
@@ -254,8 +276,8 @@ public:
     : Query_result_to_file(thd, ex) {}
   ~Query_result_export()
   {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
-  int prepare2() override;
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool start_execution() override;
   bool send_data(List<Item> &items) override;
   void cleanup() override;
 };
@@ -265,8 +287,8 @@ class Query_result_dump : public Query_result_to_file {
 public:
   Query_result_dump(THD *thd, sql_exchange *ex)
     : Query_result_to_file(thd, ex) {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
-  int prepare2() override;
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool start_execution() override;
   bool send_data(List<Item> &items) override;
 };
 
@@ -278,7 +300,7 @@ public:
   Query_dumpvar(THD *thd)
     : Query_result_interceptor(thd), row_count(0) { var_list.empty(); }
   ~Query_dumpvar() {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   bool send_data(List<Item> &items) override;
   bool send_eof() override;
   bool check_simple_select() const override;

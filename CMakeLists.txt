@@ -82,10 +82,19 @@ ENDIF()
 # MAX_INDEXES - Set the maximum number of indexes per table, default 64U
 IF (NOT MAX_INDEXES)
   SET(MAX_INDEXES 64U)
+ELSEIF(MAX_INDEXES MATCHES "^[0-9]+[Uu]?$")
+  # MAX_INDEXES should be unsigned, so add the U suffix if it's missing.
+  STRING(REGEX REPLACE "^([0-9]+).*$" "\\1U" MAX_INDEXES "${MAX_INDEXES}")
+ELSE()
+  MESSAGE(FATAL_ERROR "MAX_INDEXES should be an unsigned integer.")
 ENDIF(NOT MAX_INDEXES)
 
-IF (${MAX_INDEXES} GREATER 255)
+IF(MAX_INDEXES GREATER 255)
   MESSAGE(FATAL_ERROR "MAX_INDEXES values greater than 255 is not supported!")
+ELSEIF(MAX_INDEXES LESS 64)
+  # Per documentation, ignore values less than 64 and use the default instead.
+  MESSAGE(WARNING "MAX_INDEXES option ignored because it is less than 64.")
+  SET(MAX_INDEXES 64U)
 ENDIF()
 MESSAGE(STATUS "Configuring with MAX_INDEXES = ${MAX_INDEXES}")
 
@@ -693,6 +702,7 @@ IF(NOT WITHOUT_SERVER)
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
+  ADD_SUBDIRECTORY(packaging/rpm-common)
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
   ADD_SUBDIRECTORY(packaging/rpm-sles)

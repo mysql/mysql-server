@@ -193,11 +193,11 @@ public:
 
   Gis_geometry_collection *as_geometry_collection(String *geodata) const;
   template<typename Coordsys>
-  void merge_components(my_bool *pnull_value);
+  void merge_components(bool *pnull_value);
 private:
   template<typename Coordsys>
   bool merge_one_run(Item_func_spatial_operation *ifso,
-                     my_bool *pnull_value);
+                     bool *pnull_value);
   bool store_geometry(const Geometry *geo, bool break_multi_geom);
   Geometry *store(const Geometry *geo);
 };
@@ -992,7 +992,7 @@ public:
 
   template<typename CoordinateSystemType>
   static int bg_geo_relation_check(Geometry *g1, Geometry *g2,
-                                   Functype relchk_type, my_bool *);
+                                   Functype relchk_type, bool *);
 
 protected:
 
@@ -1001,25 +1001,25 @@ protected:
 
   template<typename Geotypes>
   static int within_check(Geometry *g1, Geometry *g2,
-                          my_bool *pnull_value);
+                          bool *pnull_value);
   template<typename Geotypes>
   static int equals_check(Geometry *g1, Geometry *g2,
-                          my_bool *pnull_value);
+                          bool *pnull_value);
   template<typename Geotypes>
   static int disjoint_check(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value);
+                            bool *pnull_value);
   template<typename Geotypes>
   static int intersects_check(Geometry *g1, Geometry *g2,
-                              my_bool *pnull_value);
+                              bool *pnull_value);
   template<typename Geotypes>
   static int overlaps_check(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value);
+                            bool *pnull_value);
   template<typename Geotypes>
   static int touches_check(Geometry *g1, Geometry *g2,
-                           my_bool *pnull_value);
+                           bool *pnull_value);
   template<typename Geotypes>
   static int crosses_check(Geometry *g1, Geometry *g2,
-                           my_bool *pnull_value);
+                           bool *pnull_value);
 
   template<typename Coordsys>
   int multipoint_within_geometry_collection(Gis_multi_point *mpts,

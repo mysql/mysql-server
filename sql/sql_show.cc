@@ -2180,7 +2180,7 @@ static const char *thread_state_info(THD *tmp)
   This class implements callback function used by mysqld_list_processes() to
   list all the client process information.
 */
-typedef Mem_root_array<thread_info*, true> Thread_info_array;
+typedef Mem_root_array<thread_info*> Thread_info_array;
 class List_process_list : public Do_THD_Impl
 {
 private:
@@ -6505,214 +6505,6 @@ static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   DBUG_RETURN(0);
 }
 
-#ifndef EMBEDDED_LIBRARY
-/**
-  Issue a deprecation warning for SELECT commands for status and system variables.
-*/
-static void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
-{
-  const char *old_name;
-  const char *new_name;
-  if (option_type == OPT_GLOBAL)
-  {
-    old_name= (status ? "INFORMATION_SCHEMA.GLOBAL_STATUS" : "INFORMATION_SCHEMA.GLOBAL_VARIABLES");
-    new_name= (status ? "performance_schema.global_status" : "performance_schema.global_variables");
-  }
-  else
-  {
-    old_name= (status ? "INFORMATION_SCHEMA.SESSION_STATUS" : "INFORMATION_SCHEMA.SESSION_VARIABLES");
-    new_name= (status ? "performance_schema.session_status" : "performance_schema.session_variables");
-  }
-
-  push_warning_printf(thd, Sql_condition::SL_WARNING,
-                      ER_WARN_DEPRECATED_SYNTAX,
-                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
-                      old_name, new_name);
-}
-
-/**
-  Issue an error for SELECT commands for status and system variables.
-*/
-static void push_select_error(THD *thd, enum enum_var_type option_type,
-                              bool status)
-{
-  const char *old_name;
-  const char *doc= "show_compatibility_56";
-  if (option_type == OPT_GLOBAL)
-  {
-    old_name= (status ? "INFORMATION_SCHEMA.GLOBAL_STATUS" : "INFORMATION_SCHEMA.GLOBAL_VARIABLES");
-  }
-  else
-  {
-    old_name= (status ? "INFORMATION_SCHEMA.SESSION_STATUS" : "INFORMATION_SCHEMA.SESSION_VARIABLES");
-  }
-
-  thd->raise_error_printf(ER_FEATURE_DISABLED_SEE_DOC, old_name, doc);
-}
-#endif // EMBEDDED_LIBRARY
-
-static int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
-{
-  DBUG_ENTER("fill_variables");
-  Show_var_array sys_var_array(PSI_INSTRUMENT_ME);
-  int res= 0;
-
-  LEX *lex= thd->lex;
-  const char *wild= lex->wild ? lex->wild->ptr() : NullS;
-  enum enum_schema_tables schema_table_idx=
-    get_schema_table_idx(tables->schema_table);
-  enum enum_var_type option_type;
-  bool upper_case_names= (schema_table_idx != SCH_VARIABLES);
-  bool sorted_vars= (schema_table_idx == SCH_VARIABLES);
-
-  if (schema_table_idx == SCH_VARIABLES)
-  {
-    option_type= lex->option_type;
-  }
-  else if (schema_table_idx == SCH_GLOBAL_VARIABLES)
-  {
-    option_type= OPT_GLOBAL;
-  }
-  else
-  {
-    DBUG_ASSERT(schema_table_idx == SCH_SESSION_VARIABLES);
-    option_type= OPT_SESSION;
-  }
-
-#ifndef EMBEDDED_LIBRARY
-  /* I_S: Raise error with SHOW_COMPATIBILITY_56=OFF */
-  if (! show_compatibility_56)
-  {
-    push_select_error(thd, option_type, false);
-    DBUG_RETURN(1);
-  }
-  /* I_S: Raise deprecation warning with SHOW_COMPATIBILITY_56=ON */
-  if (lex->sql_command != SQLCOM_SHOW_VARIABLES)
-  {
-    push_select_warning(thd, option_type, false);
-  }
-#endif /* EMBEDDED_LIBRARY */
-
-
-  /*
-    Some system variables, for example sql_log_bin,
-    have special behavior because of deprecation.
-    - SELECT @@global.sql_log_bin
-      MUST print a deprecation warning,
-      because such usage needs to be abandoned.
-    - SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES
-      MUST NOT print a deprecation warning,
-      since the application may not be looking for
-      the 'sql_log_bin' row anyway,
-      and we do not want to create spurious warning noise.
-  */
-  Silence_deprecation_warnings silencer;
-  thd->push_internal_handler(&silencer);
-
-  /*
-    Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
-    SHOW_VAR array and hold it until all variables are stored in the table.
-  */
-  if (thd->fill_variables_recursion_level++ == 0)
-  {
-    mysql_mutex_lock(&LOCK_plugin_delete);
-  }
-
-  // Lock LOCK_system_variables_hash to prepare SHOW_VARs array.
-  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  DEBUG_SYNC(thd, "acquired_LOCK_system_variables_hash");
-  enumerate_sys_vars(thd, &sys_var_array, sorted_vars, option_type, false);
-  mysql_rwlock_unlock(&LOCK_system_variables_hash);
-
-  res= show_status_array(thd, wild, sys_var_array.begin(), option_type, NULL, "",
-                         tables, upper_case_names, cond);
-
-  if (thd->fill_variables_recursion_level-- == 1)
-  {
-    mysql_mutex_unlock(&LOCK_plugin_delete);
-  }
-
-  thd->pop_internal_handler();
-
-  DBUG_RETURN(res);
-}
-
-
-static int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
-{
-  DBUG_ENTER("fill_status");
-  LEX *lex= thd->lex;
-  const char *wild= lex->wild ? lex->wild->ptr() : NullS;
-  int res= 0;
-
-  System_status_var *status_var_ptr;
-  System_status_var current_global_status_var;
-  enum enum_schema_tables schema_table_idx=
-    get_schema_table_idx(tables->schema_table);
-  enum enum_var_type option_type;
-  bool upper_case_names= (schema_table_idx != SCH_STATUS);
-
-  if (schema_table_idx == SCH_STATUS)
-  {
-    option_type= lex->option_type;
-    if (option_type == OPT_GLOBAL)
-      status_var_ptr= &current_global_status_var;
-    else
-      status_var_ptr= thd->initial_status_var;
-  }
-  else if (schema_table_idx == SCH_GLOBAL_STATUS)
-  {
-    option_type= OPT_GLOBAL;
-    status_var_ptr= &current_global_status_var;
-  }
-  else
-  { 
-    DBUG_ASSERT(schema_table_idx == SCH_SESSION_STATUS);
-    option_type= OPT_SESSION;
-    status_var_ptr= &thd->status_var;
-  }
-
-#ifndef EMBEDDED_LIBRARY
-  /* I_S: Raise error with SHOW_COMPATIBILITY_56=OFF */
-  if (! show_compatibility_56)
-  {
-    push_select_error(thd, option_type, true);
-    DBUG_RETURN(1);
-  }
-  /* I_S: Raise deprecation warning with SHOW_COMPATIBILITY_56=ON */
-  if (lex->sql_command != SQLCOM_SHOW_STATUS)
-  {
-    push_select_warning(thd, option_type, true);
-  }
-  if (!show_compatibility_56)
-    DBUG_RETURN(res);
-#endif /* EMBEDDED_LIBRARY */
-
-  /*
-    Avoid recursive acquisition of LOCK_status in cases when WHERE clause
-    represented by "cond" contains subquery on I_S.SESSION/GLOBAL_STATUS.
-  */
-  DEBUG_SYNC(thd, "before_preparing_global_status_array");
-
-  if (thd->fill_status_recursion_level++ == 0) 
-    mysql_mutex_lock(&LOCK_status);
-  if (option_type == OPT_GLOBAL)
-    calc_sum_of_all_status(status_var_ptr);
-  // Push an empty tail element
-  all_status_vars.push_back(st_mysql_show_var());
-  res= show_status_array(thd, wild,
-                         &all_status_vars[0],
-                         option_type, status_var_ptr, "", tables,
-                         upper_case_names, cond);
-  all_status_vars.pop_back(); // Pop the empty element.
-
-  if (thd->fill_status_recursion_level-- == 1) 
-    mysql_mutex_unlock(&LOCK_status);
-
-  DEBUG_SYNC(thd, "after_preparing_global_status_array");
-  DBUG_RETURN(res);
-}
-
 
 /*
   Fill and store records into I_S.referential_constraints table
@@ -8217,10 +8009,6 @@ ST_SCHEMA_TABLE schema_tables[]=
 #endif
   {"FILES", files_fields_info, create_schema_table,
    hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
-  {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
-   fill_status, make_old_format, 0, 0, -1, 0, 0},
-  {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
-   fill_variables, make_old_format, 0, 0, -1, 0, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
    fill_open_tables, make_old_format, 0, -1, -1, 1, 0},
 #ifdef OPTIMIZER_TRACE
@@ -8249,12 +8037,6 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
   {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
    fill_schema_schema_privileges, 0, 0, -1, -1, 0, 0},
-  {"SESSION_STATUS", variables_fields_info, create_schema_table,
-   fill_status, make_old_format, 0, 0, -1, 0, 0},
-  {"SESSION_VARIABLES", variables_fields_info, create_schema_table,
-   fill_variables, make_old_format, 0, 0, -1, 0, 0},
-  {"STATUS", variables_fields_info, create_schema_table, fill_status, 
-   make_old_format, 0, 0, -1, 1, 0},
   {"TABLESPACES", tablespaces_fields_info, create_schema_table,
    hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
   {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
@@ -8264,8 +8046,6 @@ ST_SCHEMA_TABLE schema_tables[]=
    OPEN_TRIGGER_ONLY|OPTIMIZE_I_S_TABLE},
   {"USER_PRIVILEGES", user_privileges_fields_info, create_schema_table, 
    fill_schema_user_privileges, 0, 0, -1, -1, 0, 0},
-  {"VARIABLES", variables_fields_info, create_schema_table, fill_variables,
-   make_old_format, 0, 0, -1, 1, 0},
   {"TMP_TABLE_COLUMNS", tmp_table_columns_fields_info, create_schema_table,
     get_all_tables, make_tmp_table_columns_format,
     get_schema_tmp_table_columns_record, -1, -1, 1, 0},

@@ -60,7 +60,7 @@ class Item_sum;
 typedef Bounds_checked_array<Item_null_result*> Item_null_array;
 
 // Key_use has a trivial destructor, no need to run it from Mem_root_array.
-typedef Mem_root_array<Key_use, true> Key_use_array;
+typedef Mem_root_array<Key_use> Key_use_array;
 
 class Cost_model_server;
 

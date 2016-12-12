@@ -57,8 +57,8 @@ class Query_result_delete final : public Query_result_interceptor
   table_map transactional_table_map;
   /// Map of non-transactional tables to be deleted from
   table_map non_transactional_table_map;
-  /// True if some delete operation has been performed (immediate or delayed)
-  bool do_delete;
+  /// True if the full delete operation is complete
+  bool delete_completed;
   /// True if some actual delete operation against non-transactional table done
   bool non_transactional_deleted;
   /*
@@ -74,15 +74,18 @@ public:
     delete_table_count(0), found_rows(0), deleted_rows(0), error(0),
     delete_table_map(0), delete_immediate(0),
     transactional_table_map(0), non_transactional_table_map(0),
-    do_delete(false), non_transactional_deleted(false), error_handled(false)
+    delete_completed(false), non_transactional_deleted(false),
+    error_handled(false)
   {}
   ~Query_result_delete()
   {}
   bool need_explain_interceptor() const override { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   bool send_data(List<Item> &items) override;
-  bool initialize_tables (JOIN *join) override;
   void send_error(uint errcode, const char *err) override;
+  bool optimize() override;
+  bool start_execution() override
+  { delete_completed= false; return false; }
   int do_deletes();
   int do_table_deletes(TABLE *table);
   bool send_eof() override;

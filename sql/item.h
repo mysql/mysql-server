@@ -2197,7 +2197,7 @@ public:
     could return zero rows.
   */
   bool maybe_null;
-  my_bool null_value;              ///< True if item is null
+  bool null_value;              ///< True if item is null
   bool unsigned_flag;
   bool with_sum_func;              ///< True if item is aggregated
 
@@ -3242,7 +3242,7 @@ private:
     byte position in the statement, in Item_param::itemize().
     J gets its value from I: @see Item_param::sync_clones.
   */
-  Mem_root_array<Item_param *, true> m_clones;
+  Mem_root_array<Item_param *> m_clones;
 };
 
 
@@ -4829,7 +4829,7 @@ public:
 class Cached_item :public Sql_alloc
 {
 public:
-  my_bool null_value;
+  bool null_value;
   Cached_item() :null_value(0) {}
   virtual bool cmp()= 0;
   virtual ~Cached_item(); /*line -e1509 */

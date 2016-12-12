@@ -1867,7 +1867,7 @@ static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len)
     */
     if ((entry != NULL) && entry->ptr())
     {
-      my_bool is_var_null;
+      bool is_var_null;
       var_value= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
 
       mysql_mutex_unlock(&thd->LOCK_thd_data);

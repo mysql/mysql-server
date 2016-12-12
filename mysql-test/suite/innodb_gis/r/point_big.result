@@ -520,12 +520,12 @@ SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP 
 COUNT(*)	ST_AsText(p1)
 1024	POINT(3 6)
 1024	POINT(4 8)
-SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
+SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2 ASC;
 COUNT(*)	ST_AsText(p2)
-1024	POINT(-1 -3)
 1024	POINT(-2 -6)
 1024	POINT(-3 -9)
 1024	POINT(-4 -12)
+1024	POINT(-1 -3)
 1024	POINT(-1 -1)
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1) GROUP BY p2;
 COUNT(*)	ST_AsText(p2)
@@ -534,7 +534,7 @@ SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_TOUCHES(@poly3, p1) AND M
 COUNT(*)	ST_AsText(p1)
 1024	POINT(32.1234 64.2468)
 1024	POINT(20.5 41)
-SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1, p2;
+SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1 ASC, p2 ASC;
 COUNT(*)	ST_AsText(p1)	ST_AsText(p2)
 1024	POINT(4 8)	POINT(-4 -12)
 1024	POINT(5 10)	POINT(-5 -15)

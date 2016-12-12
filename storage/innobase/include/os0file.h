@@ -1110,7 +1110,7 @@ pfs_os_file_create_simple_func(
 	bool		read_only,
 	bool*		success,
 	const char*	src_file,
-	ulint		src_line)
+	uint		src_line)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Please use the corresponding macro
@@ -1141,7 +1141,7 @@ pfs_os_file_create_simple_no_error_handling_func(
 	bool		read_only,
 	bool*		success,
 	const char*	src_file,
-	ulint		src_line)
+	uint		src_line)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Please use the corresponding macro os_file_create(), not directly
@@ -1176,7 +1176,7 @@ pfs_os_file_create_func(
 	bool		read_only,
 	bool*		success,
 	const char*	src_file,
-	ulint		src_line)
+	uint		src_line)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Please use the corresponding macro os_file_close(), not directly
@@ -1191,7 +1191,7 @@ bool
 pfs_os_file_close_func(
 	os_pfs_file_t	file,
 	const char*	src_file,
-	ulint		src_line);
+	uint		src_line);
 
 /** NOTE! Please use the corresponding macro os_file_read(), not directly
 this function!
@@ -1214,7 +1214,7 @@ pfs_os_file_read_func(
 	os_offset_t	offset,
 	ulint		n,
 	const char*	src_file,
-	ulint		src_line);
+	uint		src_line);
 
 /** NOTE! Please use the corresponding macro os_file_read_no_error_handling(),
 not directly this function!
@@ -1240,7 +1240,7 @@ pfs_os_file_read_no_error_handling_func(
 	ulint		n,
 	ulint*		o,
 	const char*	src_file,
-	ulint		src_line);
+	uint		src_line);
 
 /** NOTE! Please use the corresponding macro
 os_file_read_no_error_handling_int_fd(), not directly this function!
@@ -1305,7 +1305,7 @@ pfs_os_aio_func(
 	fil_node_t*	m1,
 	void*		m2,
 	const char*	src_file,
-	ulint		src_line);
+	uint		src_line);
 
 /** NOTE! Please use the corresponding macro os_file_write(), not directly
 this function!
@@ -1331,7 +1331,7 @@ pfs_os_file_write_func(
 	os_offset_t	offset,
 	ulint		n,
 	const char*	src_file,
-	ulint		src_line);
+	uint		src_line);
 
 /** NOTE! Please use the corresponding macro os_file_write(), not
 directly this function!
@@ -1374,7 +1374,7 @@ bool
 pfs_os_file_flush_func(
 	os_pfs_file_t	file,
 	const char*	src_file,
-	ulint		src_line);
+	uint		src_line);
 
 /** NOTE! Please use the corresponding macro os_file_rename(), not directly
 this function!
@@ -1393,7 +1393,7 @@ pfs_os_file_rename_func(
 	const char*	oldpath,
 	const char*	newpath,
 	const char*	src_file,
-	ulint		src_line);
+	uint		src_line);
 
 /**
 NOTE! Please use the corresponding macro os_file_delete(), not directly
@@ -1411,7 +1411,7 @@ pfs_os_file_delete_func(
 	mysql_pfs_key_t	key,
 	const char*	name,
 	const char*	src_file,
-	ulint		src_line);
+	uint		src_line);
 
 /**
 NOTE! Please use the corresponding macro os_file_delete_if_exists(), not
@@ -1431,7 +1431,7 @@ pfs_os_file_delete_if_exists_func(
 	const char*	name,
 	bool*		exist,
 	const char*	src_file,
-	ulint		src_line);
+	uint		src_line);
 
 #else /* UNIV_PFS_IO */
 

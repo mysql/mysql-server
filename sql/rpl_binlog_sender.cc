@@ -667,7 +667,7 @@ inline int Binlog_sender::wait_without_heartbeat()
 
 void Binlog_sender::init_heartbeat_period()
 {
-  my_bool null_value;
+  bool null_value;
   LEX_STRING name=  { C_STRING_WITH_LEN("master_heartbeat_period")};
 
   /* Protects m_thd->user_vars. */

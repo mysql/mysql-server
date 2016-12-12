@@ -2240,46 +2240,61 @@ my_strnxfrm_uca(const CHARSET_INFO *cs, Mb_wc mb_wc,
 
 static int my_uca_charcmp_900(const CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
 {
-  uint16 *weight1= my_char_weight_addr_900(cs->uca, wc1); /* W3-TODO */
-  uint16 *weight2= my_char_weight_addr_900(cs->uca, wc2);
+  uint16 *weight1_ptr= my_char_weight_addr_900(cs->uca, wc1); /* W3-TODO */
+  uint16 *weight2_ptr= my_char_weight_addr_900(cs->uca, wc2);
 
   /* Check if some of the characters does not have implicit weights */
-  if (!weight1 || !weight2)
+  if (!weight1_ptr|| !weight2_ptr)
     return wc1 != wc2;
 
-  /* Quickly compare first weights */
-  if (weight1[0] != weight2[0])
+  if (weight1_ptr[0] && weight2_ptr[0] && weight1_ptr[0] != weight2_ptr[0])
     return 1;
 
   /* Thoroughly compare all weights */
-  size_t length1= weight1[-UCA900_DISTANCE_BETWEEN_LEVELS];
-  size_t length2= weight2[-UCA900_DISTANCE_BETWEEN_LEVELS];
+  size_t length1= weight1_ptr[-UCA900_DISTANCE_BETWEEN_LEVELS];
+  size_t length2= weight2_ptr[-UCA900_DISTANCE_BETWEEN_LEVELS];
 
-  if (length1 != length2)
-    return 1;
-
-  if (cs->state & MY_CS_CSSORT)
+  for (int level= 0; level< cs->levels_for_compare; ++level)
   {
-    for (size_t weightind= 0; weightind < length1 * MY_UCA_900_CE_SIZE;
-         ++weightind)
+    size_t wt_ind1= 0;
+    size_t wt_ind2= 0;
+    uint16 *weight1= weight1_ptr + level * UCA900_DISTANCE_BETWEEN_LEVELS;
+    uint16 *weight2= weight2_ptr + level * UCA900_DISTANCE_BETWEEN_LEVELS;
+    while (wt_ind1 < length1 && wt_ind2 < length2)
     {
+      // Zero weight is ignorable.
+      for (; wt_ind1 < length1 && !*weight1; wt_ind1++)
+        weight1+= UCA900_DISTANCE_BETWEEN_WEIGHTS;
+      if (wt_ind1 == length1)
+        break;
+      for (; wt_ind2 < length2 && !*weight2; wt_ind2++)
+        weight2+= UCA900_DISTANCE_BETWEEN_WEIGHTS;
+      if (wt_ind2 == length2)
+        break;
+
+      // Check if these two non-ignorable weights are equal.
       if (*weight1 != *weight2)
         return 1;
-      weight1+= UCA900_DISTANCE_BETWEEN_LEVELS;
-      weight2+= UCA900_DISTANCE_BETWEEN_LEVELS;
-    }
-  }
-  else
-  {
-    for (size_t weightind= 0; weightind < length1; ++weightind)
-    {
-      if (*weight1 != *weight2)
-        return 1;
+      wt_ind1++;
+      wt_ind2++;
       weight1+= UCA900_DISTANCE_BETWEEN_WEIGHTS;
       weight2+= UCA900_DISTANCE_BETWEEN_WEIGHTS;
     }
+    /*
+      If either character is out of weights but we have equality so far,
+      check if the other character has any non-ignorable weights left.
+    */
+    for (; wt_ind1 < length1; wt_ind1++)
+    {
+      if (*weight1) return 1;
+      weight1+= UCA900_DISTANCE_BETWEEN_WEIGHTS;
+    }
+    for (; wt_ind2 < length2; wt_ind2++)
+    {
+      if (*weight2) return 1;
+      weight2+= UCA900_DISTANCE_BETWEEN_WEIGHTS;
+    }
   }
-
   return 0;
 }
 
@@ -2339,48 +2354,71 @@ int my_wildcmp_uca_impl(const CHARSET_INFO *cs,
                         const char *wildstr,const char *wildend,
                         int escape, int w_one, int w_many, int recurse_level)
 {
-  int result= -1;			/* Not found, using wildcards */
-  my_wc_t s_wc, w_wc;
-  int scan;
-  int (*mb_wc)(const struct charset_info_st *, my_wc_t *,
-               const uchar *, const uchar *);
-  mb_wc= cs->cset->mb_wc;
-
- if (my_string_stack_guard && my_string_stack_guard(recurse_level))
-   return 1;
+  if (my_string_stack_guard && my_string_stack_guard(recurse_level))
+    return 1;
   while (wildstr != wildend)
   {
+    int result= -1;                        /* Not found, using wildcards */
+    auto mb_wc= cs->cset->mb_wc;
+
+    /*
+      Compare the expression and pattern strings character-by-character until
+      we find a '%' (w_many) in the pattern string. Once we do, we break out
+      of the loop and try increasingly large widths for the '%' match,
+      calling ourselves recursively until we find a match. (As an
+      optimization, we test for the character immediately after '%' before we
+      recurse.) This takes exponential time in the worst case.
+
+      Example: Say we are trying to match the pattern 'ab%cd' against the
+      string 'ab..c.cd'. We first match the initial 'ab' against each other,
+      and then see the '%' in the pattern. Since the first character after
+      '%' is 'c', we skip to the first 'c' in the expression string, and try
+      to match 'c.cd' against 'cd' by a recursive call. Since this failed, we
+      scan for the next 'c', and try to match 'cd' against 'cd', which works.
+    */
+    my_wc_t w_wc;
     while (1)
     {
-      my_bool escaped= 0;
-      if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
-		       (const uchar*)wildend)) <= 0)
-	return 1;
+      int mb_len;
+      if ((mb_len= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                         (const uchar*)wildend)) <= 0)
+        return 1;
 
+      wildstr+= mb_len;
+      // If we found '%' (w_many), break out this loop.
       if (w_wc == (my_wc_t)w_many)
       {
-        result= 1;				/* Found an anchor char */
+        result= 1;
         break;
       }
 
-      wildstr+= scan;
-      if (w_wc ==  (my_wc_t)escape && wildstr < wildend)
+      /*
+        If the character we just read was an escape character, skip it and
+        read the next character instead. This character is used verbatim
+        without checking if it is a wildcard (% or _). However, as a
+        special exception, a lone escape character at the end of a string is
+        treated as itself.
+      */
+      bool escaped= false;
+      if (w_wc == (my_wc_t)escape && wildstr < wildend)
       {
-        if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
-			(const uchar*)wildend)) <= 0)
+        if ((mb_len= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                           (const uchar*)wildend)) <= 0)
           return 1;
-        wildstr+= scan;
+        wildstr+= mb_len;
         escaped= 1;
       }
-      
-      if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
-      		       (const uchar*)str_end)) <= 0)
+
+      my_wc_t s_wc;
+      if ((mb_len= mb_wc(cs, &s_wc, (const uchar*)str,
+                         (const uchar*)str_end)) <= 0)
         return 1;
-      str+= scan;
-      
+      str+= mb_len;
+
+      // If we found '_' (w_one), skip one character in expression string.
       if (!escaped && w_wc == (my_wc_t)w_one)
       {
-        result= 1;				/* Found an anchor char */
+        result= 1;
       }
       else
       {
@@ -2388,80 +2426,104 @@ int my_wildcmp_uca_impl(const CHARSET_INFO *cs,
           return 1;
       }
       if (wildstr == wildend)
-	return (str != str_end);		/* Match if both are at end */
+        return (str != str_end);                /* Match if both are at end */
     }
-    
-    
+
+
     if (w_wc == (my_wc_t)w_many)
-    {						/* Found w_many */
-    
-      /* Remove any '%' and '_' from the wild search string */
-      for ( ; wildstr != wildend ; )
+    {
+      // Remove any '%' and '_' following w_many in the pattern string.
+      for ( ;; )
       {
-        if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
-			 (const uchar*)wildend)) <= 0)
+        if (wildstr == wildend)
+        {
+          /*
+            The previous w_many (%) was the last character in the pattern
+            string, so we have a match no matter what the rest of the
+            expression string looks like (even empty).
+          */
+          return 0;
+        }
+        int mb_len= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                          (const uchar*)wildend);
+        if (mb_len <= 0)
           return 1;
-        
-	if (w_wc == (my_wc_t)w_many)
-	{
-	  wildstr+= scan;
-	  continue;
-	} 
-	
-	if (w_wc == (my_wc_t)w_one)
-	{
-	  wildstr+= scan;
-	  if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
-			   (const uchar*)str_end)) <= 0)
+        wildstr+= mb_len;
+        if (w_wc == (my_wc_t)w_many)
+          continue;
+
+        if (w_wc == (my_wc_t)w_one)
+        {
+          /*
+            Skip one character in expression string because '_' needs to
+            match one.
+          */
+          my_wc_t s_wc;
+          int mb_len= mb_wc(cs, &s_wc, (const uchar*)str,
+                            (const uchar*)str_end);
+          if (mb_len <= 0)
             return 1;
-          str+= scan;
-	  continue;
-	}
-	break;					/* Not a wild character */
+          str+= mb_len;
+          continue;
+        }
+        break;                                   /* Not a wild character */
       }
-      
-      if (wildstr == wildend)
-	return 0;				/* Ok if w_many is last */
-      
+
+      // No character in the expression string to match w_wc.
       if (str == str_end)
-	return -1;
-      
-      if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
-		       (const uchar*)wildend)) <= 0)
-        return 1;
-      
-      if (w_wc ==  (my_wc_t)escape)
+        return -1;
+
+      // Skip the escape character ('\') in the pattern if needed.
+      if (w_wc ==  (my_wc_t)escape && wildstr < wildend)
       {
-        wildstr+= scan;
-        if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
-			 (const uchar*)wildend)) <= 0)
+        int mb_len= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                          (const uchar*)wildend);
+        if (mb_len <= 0)
           return 1;
+        wildstr+= mb_len;
       }
-      
+
+      /*
+        w_wc is now the character following w_many (e.g., if the pattern is
+        "a%c", w_wc is 'c').
+      */
       while (1)
       {
-        /* Skip until the first character from wildstr is found */
+        /*
+          Skip until we find a character in the expression string that is
+          equal to w_wc.
+        */
+        int mb_len;
         while (str != str_end)
         {
-          if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
-			   (const uchar*)str_end)) <= 0)
+          my_wc_t s_wc;
+          if ((mb_len= mb_wc(cs, &s_wc, (const uchar*)str,
+                             (const uchar*)str_end)) <= 0)
             return 1;
-          
+
           if (!my_uca_charcmp(cs, s_wc, w_wc))
             break;
-          str+= scan;
+          str+= mb_len;
         }
+        // No character in the expression string is equal to w_wc.
         if (str == str_end)
           return -1;
-        
+        str+= mb_len;
+
+        /*
+          The strings match up until the first character after w_many in the
+          pattern string. For the rest part of pattern string and expression
+          string, we recursively call to get wild compare result.
+          Example, wildcmp(..., "abcdefg", "a%de%g", ...), we'll run again on
+          wildcmp(..., "efg", "e%g", ...).
+        */
         result= my_wildcmp_uca_impl(cs, str, str_end, wildstr, wildend,
                                     escape, w_one, w_many, recurse_level + 1);
-        
+
         if (result <= 0)
           return result;
-        
-        str+= scan;
-      } 
+
+      }
     }
   }
   return (str != str_end ? 1 : 0);
@@ -5061,7 +5123,7 @@ template<class Mb_wc, int LEVELS_FOR_COMPARE>
 static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
                                       const Mb_wc mb_wc,
                                       const uchar *s, size_t slen,
-                                      ulong *n1, ulong *n2)
+                                      ulong *n1)
 {
   slen= cs->cset->lengthsp(cs, (char*) s, slen);
   uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> scanner(mb_wc, cs, s, slen);
@@ -5130,7 +5192,7 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
     }
 
     return true;
-  }, [](int num_weights) { return true; });
+  }, [](int) { return true; });
 
   *n1= static_cast<ulong>(h);
 }
@@ -5139,7 +5201,7 @@ extern "C" {
 
 static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
                                  const uchar *s, size_t slen,
-                                 ulong *n1, ulong *n2)
+                                 ulong *n1, ulong*)
 {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
   {
@@ -5147,15 +5209,15 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
     {
     case 1:
       return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 1>(
-        cs, Mb_wc_utf8mb4(), s, slen, n1, n2);
+        cs, Mb_wc_utf8mb4(), s, slen, n1);
     case 2:
       return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 2>(
-        cs, Mb_wc_utf8mb4(), s, slen, n1, n2);
+        cs, Mb_wc_utf8mb4(), s, slen, n1);
     default:
       DBUG_ASSERT(false);
     case 3:
       return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
-        cs, Mb_wc_utf8mb4(), s, slen, n1, n2);
+        cs, Mb_wc_utf8mb4(), s, slen, n1);
     }
   }
 
@@ -5164,15 +5226,15 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
   {
   case 1:
     return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 1>(
-      cs, mb_wc, s, slen, n1, n2);
+      cs, mb_wc, s, slen, n1);
   case 2:
     return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 2>(
-      cs, mb_wc, s, slen, n1, n2);
+      cs, mb_wc, s, slen, n1);
   default:
     DBUG_ASSERT(false);
   case 3:
     return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 3>(
-      cs, mb_wc, s, slen, n1, n2);
+      cs, mb_wc, s, slen, n1);
   }
 }
 

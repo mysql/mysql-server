@@ -494,16 +494,20 @@ CREATE TABLE t2 (
 ) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES ('a',1),('a',2);
-INSERT INTO t2 VALUES ('a',1),('a',2);
+INSERT INTO t2 VALUES ('a',1),('a',2),('a',3),('b',1),('c',1),('c',4),('e',2);
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
 
 # Uses "access_type_changed" to use range over ref
 EXPLAIN SELECT * FROM t1 WHERE a='a' AND b in (1,2);
-SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "access_type_changed";
 
 # Uses "unreliable_ref_cost_and_range_uses_more_keyparts" to ignore ref access
 # on index with overly optimistic cost-estimate
 EXPLAIN SELECT * FROM t2 WHERE a='a' AND b in (1,2);
-SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "unreliable_ref_cost_and_range_uses_more_keyparts";
 
 DROP TABLE t1, t2;
 

@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+# Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 # Use is subject to license terms.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -34,7 +34,7 @@ use strict;
 
 use Exporter;
 use base "Exporter";
-our @EXPORT= qw / rmtree mkpath copytree /;
+our @EXPORT= qw / rmtree mkpath copytree get_bld_path /;
 
 use File::Find;
 use File::Copy;
@@ -191,6 +191,18 @@ sub copytree {
     # Set the original umask
     umask($orig_umask);
   }
+}
+
+
+# Set the path of files in case of out of source builds.
+sub get_bld_path
+{
+  my $path= shift;
+  if (!(-e $path) and ($ENV{MTR_BINDIR}))
+  {
+    $path= "$ENV{MTR_BINDIR}/mysql-test/$path";
+  }
+  return $path;
 }
 
 1;

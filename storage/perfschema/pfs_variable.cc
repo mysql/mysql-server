@@ -180,17 +180,6 @@ int PFS_system_variable_cache::do_materialize_global(void)
         - impossible to SET with SET GLOBAL (raises an error)
         - and yet can be read with @@global.sql_log_bin
 
-        When show_compatibility_56 = ON,
-        - SHOW GLOBAL VARIABLES does expose a row for SQL_LOG_BIN
-        - INFORMATION_SCHEMA.GLOBAL_VARIABLES also does expose a row,
-        both are for backward compatibility of existing applications,
-        so that no application logic change is required.
-
-        Now, with show_compatibility_56 = OFF (aka, in this code)
-        - SHOW GLOBAL VARIABLES does -- not -- expose a row for SQL_LOG_BIN
-        - PERFORMANCE_SCHEMA.GLOBAL_VARIABLES also does -- not -- expose a row
-        so that a clean interface is exposed to (upgraded and modified) applications.
-
         The assert below will fail once SQL_LOG_BIN really is defined
         as SESSION_ONLY (in 8.0), so that this special case can be removed.
       */

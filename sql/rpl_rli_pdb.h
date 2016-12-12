@@ -201,7 +201,7 @@ class circular_buffer_queue
 {
 public:
 
-  Prealloced_array<Element_type, 1, true> m_Q;
+  Prealloced_array<Element_type, 1> m_Q;
   ulong size;           // the Size of the queue in terms of element
   ulong avail;          // first Available index to append at (next to tail)
   ulong entry;          // the head index or the entry point to the queue.

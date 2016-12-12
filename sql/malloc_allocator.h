@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ public:
   ~Malloc_allocator()
   {}
 
-  pointer allocate(size_type n, const_pointer hint= 0)
+  pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused))= 0)
   {
     if (n == 0)
       return NULL;
@@ -94,7 +94,7 @@ public:
     return p;
   }
 
-  void deallocate(pointer p, size_type n) { my_free(p); }
+  void deallocate(pointer p, size_type) { my_free(p); }
 
   void construct(pointer p, const T& val)
   {

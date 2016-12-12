@@ -20775,6 +20775,31 @@ static void test_bug22559575()
   myquery(rc);
 }
 
+
+/**
+  Bug#24963580 INFORMATION_SCHEMA:MDL_REQUEST::INIT_WITH_SOURCE
+*/
+static void test_bug24963580()
+{
+  MYSQL_RES *result;
+  int rc;
+
+  myheader("test_bug24963580");
+
+  rc= mysql_query(mysql, "USE information_schema");
+  myquery(rc);
+
+  /* This call used to crash the server. */
+  result= mysql_list_fields(mysql, "CHARACTER_SETS", NULL);
+  mytest(result);
+
+  rc= my_process_result_set(result);
+  DIE_UNLESS(rc == 0);
+
+  mysql_free_result(result);
+}
+
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -21064,8 +21089,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug17883203", test_bug17883203 },
   { "test_bug22336527", test_bug22336527 },
   { "test_bug22559575", test_bug22559575 },
+  { "test_bug24963580", test_bug24963580 },
   { 0, 0 }
 };
-
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

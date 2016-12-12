@@ -2427,3 +2427,62 @@ COUNT(*)
 6
 DROP TABLE t1,t2,t3,t4,t5;
 End of 5.0 tests
+#
+# Bug#24909223: EXCESSIVE MEMORY USAGE BY QUERY
+#
+CREATE TABLE t (
+a INT,
+b CHAR(255),
+c CHAR(255),
+d INT,
+e INT,
+PRIMARY KEY (e),
+KEY (d)
+) ENGINE=InnoDB;
+INSERT INTO t VALUES
+(1, '14effca2', 'cffa3819', 98927, 8767),
+(1, '2f7cbd33', '421aff88', 87613, 70956),
+(1, '5c44507d', '05fd27d3', 36002, 5146),
+(1, '6542ee43', 'c09ee30f', 3673, 91467),
+(1, '786737dd', '6ac95ccb', 46890, 62953),
+(1, '8929d195', '64102e63', 50531, 9712),
+(1, '8cc0c106', '17283316', 16399, 26119),
+(1, '8f3063de', 'ce5d0f35', 21769, 76667),
+(1, 'c32c9202', 'c9525fe8', 12704, 43998),
+(1, 'c5567e1c', 'bc2e97e6', 85805, 84174),
+(1, 'c7acb4d4', '6d67fea7', 58347, 51235),
+(1, 'dbd66341', '03b59a03', 46577, 52495),
+(1, 'f8e0354e', '41a6e523', 36055, 32646),
+(1, 'fb66b513', '10f3de43', 41297, 74334),
+(1, 'ffec6d1b', '2fca4073', 12896, 95807),
+(1, 'aa3fcff8', 'f4981ed8', 99211, 18778);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT a.c AS c FROM (
+SELECT a.c AS c FROM (
+SELECT a.a AS c FROM t AS a
+INNER JOIN t AS b ON a.b > b.b
+) AS a
+INNER JOIN t AS b ON a.c >= b.a
+) AS a
+INNER JOIN t AS b ON a.c >= b.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	16	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	16	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	ALL	d	NULL	NULL	NULL	16	33.33	Range checked for each record (index map: 0x2)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `c` from `test`.`t` `a` join `test`.`t` `b` join `test`.`t` `b` join `test`.`t` `b` where ((`test`.`a`.`a` >= `test`.`b`.`d`) and (`test`.`a`.`a` >= `test`.`b`.`a`) and (`test`.`a`.`b` > `test`.`b`.`b`))
+TRUNCATE TABLE performance_schema.memory_summary_by_thread_by_event_name;
+SELECT a.c AS c FROM (
+SELECT a.c AS c FROM (
+SELECT a.a AS c FROM t AS a
+INNER JOIN t AS b ON a.b > b.b
+) AS a
+INNER JOIN t AS b ON a.c >= b.a
+) AS a
+INNER JOIN t AS b ON a.c >= b.d;
+c
+
+DROP TABLE t;

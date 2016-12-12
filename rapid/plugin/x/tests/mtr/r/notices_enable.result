@@ -7756,21 +7756,7 @@ Mysqlx.Error {
   sql_state: "42000"
 }
 
-resetting mtr non-default value of show_compatibility_56 to OFF to check warnings returned by xplugin for below operations
-send Mysqlx.Sql.StmtExecute {
-  stmt: "set @@global.show_compatibility_56=\'OFF\';"
-}
-
-Mysqlx.Notice.Frame {
-  type: 3
-  scope: LOCAL
-  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
-}
-
-Mysqlx.Sql.StmtExecuteOk {
-}
-
-check with show variables like versio and expect warning related to GTID session when show_compatibility_56 OFF
+check with show variables like versio and expect warning related to GTID session
 send Mysqlx.Sql.StmtExecute {
   stmt: "show variables like \'versio\';"
 }
@@ -7815,7 +7801,7 @@ Mysqlx.Notice.Frame {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-check with show variables like versio and expect warning related to GTID session when show_compatibility_56 OFF
+check with show variables like versio and expect warning related to GTID session
 send Mysqlx.Sql.StmtExecute {
   stmt: "show session variables like \'max_join_size\';"
 }
@@ -7963,20 +7949,6 @@ Mysqlx.Notice.Frame {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-resetting mtr default value of show_compatibility_56 to ON otherwise other tests might fail due to this
-send Mysqlx.Sql.StmtExecute {
-  stmt: "set @@global.show_compatibility_56=\'ON\';"
-}
-
-Mysqlx.Notice.Frame {
-  type: 3
-  scope: LOCAL
-  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
-}
-
-Mysqlx.Sql.StmtExecuteOk {
-}
-
 Try to enable fixed notice, should be ok
 send Mysqlx.Sql.StmtExecute {
   stmt: "enable_notices"
@@ -7997,7 +7969,7 @@ command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	1234
+Mysqlx_notice_other_sent	1232
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	1
@@ -8009,7 +7981,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1235
+Mysqlx_notice_other_sent	1233
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	1
@@ -8434,7 +8406,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1306
+Mysqlx_notice_other_sent	1304
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	1
@@ -8543,7 +8515,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1309
+Mysqlx_notice_other_sent	1307
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	6
@@ -8653,7 +8625,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1312
+Mysqlx_notice_other_sent	1310
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	11
@@ -8790,7 +8762,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1315
+Mysqlx_notice_other_sent	1313
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	12
@@ -9247,12 +9219,12 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1333
+Mysqlx_notice_other_sent	1331
 Mysqlx_notice_warning_sent	550
 Mysqlx_stmt_disable_notices	1
 Mysqlx_stmt_enable_notices	14
 Mysqlx_stmt_list_notices	3
-# restart: --show_compatibility_56=OFF
+# restart: 
 send Mysqlx.Sql.StmtExecute {
   stmt: "select 1/0,1/0,password(\'test\'),password(\'\')"
 }
@@ -9392,7 +9364,7 @@ Mysqlx_notice_warning_sent	3
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	0
 Mysqlx_stmt_list_notices	0
-# restart: --show_compatibility_56=ON
+# restart: 
 create user noti@localhost identified by 'noti';
 send Mysqlx.Sql.StmtExecute {
   stmt: "select 1/0,1/0,password(\'test\'),password(\'\')"

@@ -271,11 +271,11 @@ private:
   static Global_THD_manager *thd_manager;
 
   // Array of current THDs. Protected by LOCK_thd_list.
-  typedef Prealloced_array<THD*, 60, true> THD_array;
+  typedef Prealloced_array<THD*, 60> THD_array;
   THD_array thd_list[NUM_PARTITIONS];
 
   // Array of thread ID in current use. Protected by LOCK_thread_ids.
-  typedef Prealloced_array<my_thread_id, 1000, true> Thread_id_array;
+  typedef Prealloced_array<my_thread_id, 1000> Thread_id_array;
   Thread_id_array thread_ids;
 
   mysql_cond_t COND_thd_list[NUM_PARTITIONS];

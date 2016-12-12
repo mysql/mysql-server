@@ -1632,7 +1632,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     mysql_reset_thd_for_next_command(thd);
     lex_start(thd);
     /* Must be before we init the table list. */
-    if (lower_case_table_names)
+    if (lower_case_table_names && !is_infoschema_db(db.str, db.length))
       table_name.length= my_casedn_str(files_charset_info, table_name.str);
     table_list.init_one_table(db.str, db.length, table_name.str,
                               table_name.length, table_name.str, TL_READ);
@@ -2059,8 +2059,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     break;
   case SCH_OPTIMIZER_TRACE:
   case SCH_OPEN_TABLES:
-  case SCH_VARIABLES:
-  case SCH_STATUS:
   case SCH_PROCEDURES:
   case SCH_ENGINES:
   case SCH_USER_PRIVILEGES:

@@ -147,8 +147,8 @@ public:
 
 public:
   bool need_explain_interceptor() const override { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
-  int prepare2() override;
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool start_execution() override;
   bool send_data(List<Item> &items) override;
   virtual void store_values(List<Item> &values);
   void send_error(uint errcode, const char *err) override;
@@ -189,7 +189,7 @@ public:
                       enum_duplicates duplic,
                       TABLE_LIST *select_tables_arg);
 
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   int binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values) override;
   void send_error(uint errcode, const char *err) override;
@@ -198,7 +198,7 @@ public:
 
   // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
   const THD *get_thd(void) { return thd; }
-  int prepare2() override;
+  bool start_execution() override;
 
 private:
   void drop_open_table();

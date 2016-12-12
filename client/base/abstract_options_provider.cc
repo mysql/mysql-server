@@ -154,21 +154,6 @@ void Abstract_options_provider::set_option_changed_listener(I_option_changed_lis
 }
 
 
-template<typename T_type> T_type* Abstract_options_provider::attach_new_option(T_type* option)
-{
-  // Make this option reporting all name and optid changes to us.
-  option->set_option_changed_listener(this);
-
-  // Add to list of our own options.
-  this->m_options_created.push_back(option);
-
-  // Check for name and optid collision.
-  this->notify_option_name_changed(option, "");
-  this->notify_option_optid_changed(option, 0);
-
-  return option;
-}
-
 void Abstract_options_provider::notify_option_name_changed(I_option* source,
                                                             string old_name)
 {

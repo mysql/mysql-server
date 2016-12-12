@@ -1,8 +1,3 @@
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-================================================================================
-SHOW_COMPATIBILITY_56 = ON
-================================================================================
-set global show_compatibility_56 = on;
 select 1;
 1
 1
@@ -15,36 +10,7 @@ select 2;
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	0.000000
-
-================================================================================
-SHOW_COMPATIBILITY_56 = OFF
-================================================================================
-set global show_compatibility_56 = off;
-select 1;
-1
-1
-SHOW STATUS LIKE 'Last_query_partial_plans';
-Variable_name	Value
-Last_query_partial_plans	0
-select 2;
-2
-2
-SHOW STATUS LIKE 'Last_query_cost';
-Variable_name	Value
-Last_query_cost	0.000000
-================================================================================
-SHOW_COMPATIBILITY_56 = ON
-================================================================================
 flush status;
-set global show_compatibility_56 = on;
-SHOW STATUS LIKE 'Created_tmp_tables';
-Variable_name	Value
-Created_tmp_tables	0
-
-================================================================================
-SHOW_COMPATIBILITY_56 = OFF
-================================================================================
-set global show_compatibility_56 = off;
 SHOW STATUS LIKE 'Created_tmp_tables';
 Variable_name	Value
 Created_tmp_tables	0
@@ -87,8 +53,3 @@ Variable_name	Value
 
 UNLOCK TABLES;
 DROP TABLE test.t1;
-
-================================================================================
-CLEAN UP
-================================================================================
-set @@global.show_compatibility_56 = @show_compatibility_56_save;

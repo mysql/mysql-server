@@ -72,8 +72,8 @@ class Query_result_update final : public Query_result_interceptor
   List <TABLE> unupdated_check_opt_tables;
   /// ???
   Copy_field *copy_field;
-  /// Whether to perform updates or not, cleared when updates are done.
-  bool do_update;
+  /// True if the full update operation is complete
+  bool update_completed;
   /// True if all tables to be updated are transactional.
   bool trans_safe;
   /// True if the update operation has made a change in a transactional table
@@ -109,16 +109,18 @@ public:
    found_rows(0), updated_rows(0),
    fields(field_list), values(value_list),
    copy_field(NULL),
-   do_update(true), trans_safe(true),
+   update_completed(false), trans_safe(true),
    transactional_tables(false), error_handled(false),
    update_operations(NULL)
   {}
   ~Query_result_update()
   {}
   bool need_explain_interceptor() const override { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool optimize() override;
+  bool start_execution() override
+  { update_completed= false; return false; }
   bool send_data(List<Item> &items) override;
-  bool initialize_tables (JOIN *join) override;
   void send_error(uint errcode, const char *err) override;
   bool do_updates();
   bool send_eof() override;

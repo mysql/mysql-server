@@ -764,7 +764,7 @@ private:
     Array that maps SIDNO to SID; the element at index N points to a
     Node with SIDNO N-1.
   */
-  Prealloced_array<Node*, 8, true>_sidno_to_sid;
+  Prealloced_array<Node*, 8>_sidno_to_sid;
   /**
     Hash that maps SID to SIDNO.  The keys in this array are of type
     rpl_sid.
@@ -776,7 +776,7 @@ private:
 
     @see Sid_map::get_sorted_sidno.
   */
-  Prealloced_array<rpl_sidno, 8, true> _sorted;
+  Prealloced_array<rpl_sidno, 8> _sorted;
 };
 
 
@@ -936,7 +936,7 @@ private:
   }
   /// Read-write lock that protects updates to the number of elements.
   mutable Checkable_rwlock *global_lock;
-  Prealloced_array<Mutex_cond*, 8, true> m_array;
+  Prealloced_array<Mutex_cond*, 8> m_array;
 };
 
 
@@ -1948,7 +1948,7 @@ private:
     Array where the N'th element contains the head pointer to the
     intervals of SIDNO N+1.
   */
-  Prealloced_array<Interval*, 8, true> m_intervals;
+  Prealloced_array<Interval*, 8> m_intervals;
   /// Linked list of free intervals.
   Interval *free_intervals;
   /// Linked list of chunks.
@@ -2268,7 +2268,7 @@ private:
   /// Return true iff this Owned_gtids object contains the given group.
   bool contains_gtid(const Gtid &gtid) const { return get_node(gtid) != NULL; }
   /// Growable array of hashes.
-  Prealloced_array<HASH*, 8, true> sidno_to_hash;
+  Prealloced_array<HASH*, 8> sidno_to_hash;
 
 public:
   /**
@@ -3323,7 +3323,7 @@ private:
     - global_sid_lock->wrlock when growing and cleaning up;
     - MYSQL_BIN_LOG::LOCK_commit when setting true/false on array items.
   */
-  Prealloced_array<bool, 8, true> commit_group_sidnos;
+  Prealloced_array<bool, 8> commit_group_sidnos;
   /**
     Ensure that commit_group_sidnos have room for the SIDNO passed as
     parameter.

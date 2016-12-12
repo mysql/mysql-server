@@ -380,7 +380,7 @@ static bool mysql_prepare_blob_values(THD *thd, List<Item> &fields,
   // This 'set' helps decide if we need to make copy of BLOB value
   // or not.
 
-  Prealloced_array<Field_blob *, 16, true>
+  Prealloced_array<Field_blob *, 16>
     blob_update_field_set(PSI_NOT_INSTRUMENTED);
   if (blob_update_field_set.reserve(fields.elements))
     DBUG_RETURN(true);
@@ -2050,7 +2050,7 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
 }
 
 
-int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+bool Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("Query_result_insert::prepare");
 
@@ -2062,10 +2062,10 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   table= lex->insert_table_leaf->table;
 
   if (info.add_function_default_columns(table, table->write_set))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   if ((duplicate_handling == DUP_UPDATE) &&
       update.add_function_default_columns(table, table->write_set))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
 
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
@@ -2079,7 +2079,7 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     if (duplicate_handling == DUP_UPDATE &&
         table->next_number_field != NULL &&
         rpl_master_has_bug(c_rli, 24432, TRUE, NULL, NULL))
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
   }
 #endif
 
@@ -2100,23 +2100,23 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     (*next_field)->reset_tmp_null();
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
 /**
-  Finish the preparation of the result table.
+  Set up the target table for execution.
 
-  If the result table is the same as one of the source tables (INSERT SELECT),
-  the result table is not finally prepared at the join prepair phase.
+  If the target table is the same as one of the source tables (INSERT SELECT),
+  the target table is not finally prepared in the join optimization phase.
   Do the final preparation now.
 
-  @returns 0 always
+  @returns false always
 */
 
-int Query_result_insert::prepare2()
+bool Query_result_insert::start_execution()
 {
-  DBUG_ENTER("Query_result_insert::prepare2");
+  DBUG_ENTER("Query_result_insert::start_execution");
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
       !thd->lex->describe)
   {
@@ -2125,7 +2125,7 @@ int Query_result_insert::prepare2()
     table->file->ha_start_bulk_insert((ha_rows) 0);
     bulk_insert_started= true;
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
@@ -2343,7 +2343,7 @@ bool Query_result_insert::send_eof()
     thd->first_successful_insert_id_in_cur_stmt=
       thd->first_successful_insert_id_in_prev_stmt;
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
@@ -2668,12 +2668,10 @@ Query_result_create::Query_result_create(THD *thd,
   @param values  List of items to be used as new columns
   @param u       Select
 
-  @return Operation status.
-    @retval 0   Success
-    @retval !=0 Failure
+  @returns false if success, true if error.
 */
 
-int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+bool Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("Query_result_create::prepare");
 
@@ -2688,12 +2686,12 @@ int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values, &m_post_ddl_ht)))
     /* abort() deletes table */
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
 
   if (table->s->fields < values.elements)
   {
     my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
   }
   /* First field to copy */
   field= table->field+table->s->fields - values.elements;
@@ -2772,14 +2770,12 @@ private:
 /**
   Lock the newly created table and prepare it for insertion.
 
-  @return Operation status.
-    @retval 0   Success
-    @retval !=0 Failure
+  @returns false if success, true if error
 */
 
-int Query_result_create::prepare2()
+bool Query_result_create::start_execution()
 {
-  DBUG_ENTER("Query_result_create::prepare2");
+  DBUG_ENTER("Query_result_create::start_execution");
   DEBUG_SYNC(thd,"create_table_select_before_lock");
 
   MYSQL_LOCK *extra_lock= NULL;
@@ -2859,8 +2855,8 @@ int Query_result_create::prepare2()
       extra_lock= 0;
     }
     drop_open_table();
-    table= 0;
-    DBUG_RETURN(1);
+    table= NULL;
+    DBUG_RETURN(true);
   }
   if (extra_lock)
   {
@@ -2882,11 +2878,11 @@ int Query_result_create::prepare2()
 
   // Set up an empty bitmap of function defaults
   if (info.add_function_default_columns(table, table->write_set))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
 
   if (info.add_function_default_columns(table,
                                         table->fields_set_during_insert))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
 
   table->next_number_field=table->found_next_number_field;
 
@@ -2912,13 +2908,13 @@ int Query_result_create::prepare2()
   thd->count_cuted_fields= CHECK_FIELD_WARN;
 
   if (check_that_all_fields_are_given_values(thd, table, table_list))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
 
   thd->count_cuted_fields= save_count_cuted_fields;
 
   table->mark_columns_needed_for_insert(thd);
   table->file->extra(HA_EXTRA_WRITE_CACHE);
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 

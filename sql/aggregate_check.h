@@ -645,11 +645,11 @@ private:
      - if is_child(), columns of the result of the query expression under
      'table' which are themselves part of 'fd' of the parent Group_check.
   */
-  Mem_root_array<Item_ident *, true> fd;
+  Mem_root_array<Item_ident *> fd;
   /// Map of tables for which all columns can be considered part of 'fd'.
   table_map whole_tables_fd;
   /// Children Group_checks of 'this'
-  Mem_root_array<Group_check *, true> mat_tables;
+  Mem_root_array<Group_check *> mat_tables;
   /// Identifier which triggered an error
   Item_ident *failed_ident;
 

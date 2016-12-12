@@ -4513,6 +4513,7 @@ void TABLE_LIST::reset()
   table->possible_quick_keys.clear_all();
   table->set_keyread(false);
   table->reginfo.not_exists_optimize= false;
+  table->m_record_buffer= Record_buffer{0, 0, nullptr};
   memset(table->const_key_parts, 0, sizeof(key_part_map)*table->s->keys);
 }
 

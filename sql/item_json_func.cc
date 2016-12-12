@@ -2929,7 +2929,7 @@ void Item_func_json_search::cleanup()
   m_cached_ooa= ooa_uninitialized;
 }
 
-typedef Prealloced_array<std::string, 16, false> String_set;
+typedef Prealloced_array<std::string, 16> String_set;
 
 /**
    Recursive function to find the string values, nested inside

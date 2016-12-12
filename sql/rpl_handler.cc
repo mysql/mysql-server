@@ -90,7 +90,7 @@ typedef struct Trans_binlog_info {
 int get_user_var_int(const char *name,
                      long long int *value, int *null_value)
 {
-  my_bool null_val;
+  bool null_val;
   THD *thd= current_thd;
 
   /* Protects thd->user_vars. */
@@ -114,7 +114,7 @@ int get_user_var_int(const char *name,
 int get_user_var_real(const char *name,
                       double *value, int *null_value)
 {
-  my_bool null_val;
+  bool null_val;
   THD *thd= current_thd;
 
   /* Protects thd->user_vars. */
@@ -139,7 +139,7 @@ int get_user_var_str(const char *name, char *value,
                      size_t len, unsigned int precision, int *null_value)
 {
   String str;
-  my_bool null_val;
+  bool null_val;
   THD *thd= current_thd;
 
   /* Protects thd->user_vars. */

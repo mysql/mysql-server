@@ -133,9 +133,6 @@ void table_status_by_host::reset_position(void)
 
 int table_status_by_host::rnd_init(bool scan)
 {
-  if (show_compatibility_56)
-    return 0;
-
   /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_client_session();
 
@@ -148,9 +145,6 @@ int table_status_by_host::rnd_init(bool scan)
 
 int table_status_by_host::rnd_next(void)
 {
-  if (show_compatibility_56)
-    return HA_ERR_END_OF_FILE;
-
   if (m_context && !m_context->versions_match())
   {
     status_variable_warning();
@@ -189,9 +183,6 @@ int table_status_by_host::rnd_next(void)
 int
 table_status_by_host::rnd_pos(const void *pos)
 {
-  if (show_compatibility_56)
-    return 0;
-
   if (m_context && !m_context->versions_match())
   {
     status_variable_warning();
@@ -216,9 +207,6 @@ table_status_by_host::rnd_pos(const void *pos)
 
 int table_status_by_host::index_init(uint idx, bool)
 {
-  if (show_compatibility_56)
-    return 0;
-
   /* Build array of SHOW_VARs from the global status array prior to materializing. */
   m_status_cache.initialize_client_session();
 
@@ -237,9 +225,6 @@ int table_status_by_host::index_init(uint idx, bool)
 
 int table_status_by_host::index_next(void)
 {
-  if (show_compatibility_56)
-    return HA_ERR_END_OF_FILE;
-
   if (m_context && !m_context->versions_match())
   {
     status_variable_warning();

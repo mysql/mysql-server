@@ -257,7 +257,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 }
 
 
-int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+bool Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   bool blob_flag= false;
   bool string_results= false, non_string_results= false;
@@ -347,15 +347,15 @@ int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   else
     is_ambiguous_field_term= false;
 
-  return 0;
+  return false;
 }
 
 
-int Query_result_export::prepare2()
+bool Query_result_export::start_execution()
 {
   if ((file= create_file(thd, path, exchange, &cache)) < 0)
-    return 1;
-  return 0;
+    return true;
+  return false;
 }
 
 #define NEED_ESCAPING(x) ((int) (uchar) (x) == escape_char    || \
@@ -705,13 +705,13 @@ void Query_result_export::cleanup()
 ***************************************************************************/
 
 
-int Query_result_dump::prepare(List<Item> &, SELECT_LEX_UNIT *u)
+bool Query_result_dump::prepare(List<Item> &, SELECT_LEX_UNIT *u)
 {
   unit= u;
-  return 0;
+  return false;
 }
 
-int Query_result_dump::prepare2()
+bool Query_result_dump::start_execution()
 {
   if ((file= create_file(thd, path, exchange, &cache)) < 0)
     return true;
@@ -764,17 +764,17 @@ err:
   Dump of select to variables
 ***************************************************************************/
 
-int Query_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+bool Query_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
 
   if (var_list.elements != list.elements)
   {
     my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
-    return 1;
+    return true;
   }
 
-  return 0;
+  return false;
 }
 
 

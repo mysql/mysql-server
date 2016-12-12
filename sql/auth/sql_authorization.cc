@@ -4820,21 +4820,13 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   if (!(combo=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
     DBUG_RETURN(TRUE);
 
-  combo->user.str= (char *) sctx->user().str;
+  combo->user.str= (char *) sctx->priv_user().str;
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock())
     DBUG_RETURN(TRUE);
 
-  if ((au= find_acl_user(combo->host.str= (char *) sctx->host_or_ip().str,
+  if ((au= find_acl_user(combo->host.str= (char *) sctx->priv_host().str,
                          combo->user.str, false)))
-    goto found_acl;
-  if ((au= find_acl_user(combo->host.str= (char *) sctx->host().str,
-                         combo->user.str, false)))
-    goto found_acl;
-  if ((au= find_acl_user(combo->host.str= (char*) sctx->ip().str,
-                         combo->user.str, false)))
-    goto found_acl;
-  if((au= find_acl_user(combo->host.str=(char*)"%", combo->user.str, FALSE)))
     goto found_acl;
   acl_cache_lock.unlock();
   DBUG_RETURN(TRUE);

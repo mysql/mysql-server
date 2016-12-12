@@ -11982,31 +11982,18 @@ show_param:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            if (show_compatibility_56)
+            Item *where_cond= Select->where_cond();
+            Select->set_where_cond(NULL);
+
+            if ($1 == OPT_SESSION)
             {
-              /* 5.6, DEPRECATED */
-              lex->sql_command= SQLCOM_SHOW_STATUS;
-              lex->option_type= $1;
-              if (prepare_schema_table(YYTHD, lex, 0, SCH_STATUS))
+              if (build_show_session_status(@$, thd, lex->wild, where_cond) == NULL)
                 MYSQL_YYABORT;
             }
             else
             {
-              Item *where_cond= Select->where_cond();
-              Select->set_where_cond(NULL);
-
-              if ($1 == OPT_SESSION)
-              {
-                /* 5.7, SUPPORTED */
-                if (build_show_session_status(@$, thd, lex->wild, where_cond) == NULL)
-                  MYSQL_YYABORT;
-              }
-              else
-              {
-                /* 5.7, SUPPORTED */
-                if (build_show_global_status(@$, thd, lex->wild, where_cond) == NULL)
-                  MYSQL_YYABORT;
-              }
+              if (build_show_global_status(@$, thd, lex->wild, where_cond) == NULL)
+                MYSQL_YYABORT;
             }
           }
         | opt_full PROCESSLIST_SYM
@@ -12019,30 +12006,18 @@ show_param:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            if (show_compatibility_56)
+            Item *where_cond= Select->where_cond();
+            Select->set_where_cond(NULL);
+
+            if ($1 == OPT_SESSION)
             {
-              /* 5.6, DEPRECATED */
-              lex->option_type= $1;
-              if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
+              if (build_show_session_variables(@$, thd, lex->wild, where_cond) == NULL)
                 MYSQL_YYABORT;
             }
             else
             {
-              Item *where_cond= Select->where_cond();
-              Select->set_where_cond(NULL);
-
-              if ($1 == OPT_SESSION)
-              {
-                /* 5.7, SUPPORTED */
-                if (build_show_session_variables(@$, thd, lex->wild, where_cond) == NULL)
-                  MYSQL_YYABORT;
-              }
-              else
-              {
-                /* 5.7, SUPPORTED */
-                if (build_show_global_variables(@$, thd, lex->wild, where_cond) == NULL)
-                  MYSQL_YYABORT;
-              }
+              if (build_show_global_variables(@$, thd, lex->wild, where_cond) == NULL)
+                MYSQL_YYABORT;
             }
           }
         | charset opt_wild_or_where_for_show
@@ -12248,28 +12223,11 @@ opt_wild_or_where_for_show:
           }
         | WHERE expr
           {
-            if (show_compatibility_56 &&
-                (Lex->sql_command == SQLCOM_SHOW_STATUS ||
-                 Lex->sql_command == SQLCOM_SHOW_VARIABLES))
-            {
-              /*
-                This parsed tree fragment is added as part of a
-                SQLCOM_SHOW_STATUS or SQLCOM_SHOW_VARIABLES command.
-              */
-              ITEMIZE($2, &$2);
-
-              Select->set_where_cond($2);
-              if ($2)
-                $2->top_level_item();
-            }
-            else
-            {
-              /*
-                This parsed tree fragment is used to build a
-                SQLCOM_SELECT statement, see sql/sql_show_status.cc
-              */
-              Select->set_where_cond($2);
-            }
+            /*
+              This parsed tree fragment is used to build a
+              SQLCOM_SELECT statement, see sql/sql_show_status.cc
+            */
+            Select->set_where_cond($2);
           }
         ;
 

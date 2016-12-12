@@ -69,6 +69,7 @@ sub collect_option {
 
 use File::Basename;
 use File::Spec::Functions qw / splitdir /;
+use My::File::Path qw / get_bld_path /;
 use IO::File();
 use My::Config;
 use My::Platform;
@@ -440,6 +441,10 @@ sub collect_one_suite($)
   # Build a hash of disabled testcases for this suite
   # ----------------------------------------------------------------------
   my %disabled;
+  foreach my $skip_file(@{$opt_skip_test_list})
+  {
+    $skip_file= get_bld_path($skip_file);
+  }
   my @disabled_collection= @{$opt_skip_test_list} if $opt_skip_test_list;
   unshift (@disabled_collection, "$testdir/disabled.def");
   for my $skip (@disabled_collection)
@@ -1212,6 +1217,7 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   if (defined $defaults_file) {
     # Using same config file for all tests
+    $defaults_file= get_bld_path($defaults_file);
     $tinfo->{template_path}= $defaults_file;
   }
   elsif (! $tinfo->{template_path} )
@@ -1241,6 +1247,7 @@ sub collect_one_test_case {
 
   # Set extra config file to use
   if (defined $defaults_extra_file) {
+    $defaults_extra_file= get_bld_path($defaults_extra_file);
     $tinfo->{extra_template_path}= $defaults_extra_file;
   }
 

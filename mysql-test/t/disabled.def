@@ -22,3 +22,4 @@ no_binlog_gtid_next_partially_failed_stmts           : WL#7743 DROP TABLES seman
 no_binlog_gtid_next_partially_failed_stmts_anonymous : WL#7743 DROP TABLES semantics change issue
 no_binlog_gtid_next_partially_failed_stmts_error     : WL#7743 DROP TABLES semantics change issue
 index_merge_delete        :Bug#21373532 2016-07-29 Anitha Test fails very frequently on PB2
+audit_plugin_2           : Bug#24970428 2016-10-28 Marc TEST AUDIT_PLUGIN_2 USES DEPRECATED FEATURE SHOW_COMPATIBILITY_56

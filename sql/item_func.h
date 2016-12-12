@@ -2668,10 +2668,10 @@ public:
   size_t length() const { return m_length; }
   Item_result type() const { return m_type; }
   /* Item-alike routines to access the value */
-  double val_real(my_bool *null_value) const;
-  longlong val_int(my_bool *null_value) const;
-  String *val_str(my_bool *null_value, String *str, uint decimals) const;
-  my_decimal *val_decimal(my_bool *null_value, my_decimal *result) const;
+  double val_real(bool *null_value) const;
+  longlong val_int(bool *null_value) const;
+  String *val_str(bool *null_value, String *str, uint decimals) const;
+  my_decimal *val_decimal(bool *null_value, my_decimal *result) const;
 };
 
 
@@ -2871,7 +2871,7 @@ class Item_func_get_system_var final : public Item_var_func
   longlong cached_llval;
   double cached_dval;
   String cached_strval;
-  my_bool cached_null_value;
+  bool cached_null_value;
   query_id_t used_query_id;
   uchar cache_present;
 

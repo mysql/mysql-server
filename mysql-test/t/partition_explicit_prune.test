@@ -3,16 +3,28 @@
 # increase when binary logging is enabled.
 --source include/not_log_bin.inc
 
---source include/have_innodb.inc
-
-# Test is temporarily run with show_compatibility_56=ON until Bug#21789221 is fixed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
+# Test uses performance_schema.status_by_thread, not available in embedded
+--source include/not_embedded.inc
 
 # Helper statement
-# Not using P_S tables until Bug#21789221 is fixed.
-let $get_handler_status_counts= SELECT * FROM information_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+
+create table thread_to_monitor(thread_id int);
+
+insert into thread_to_monitor(thread_id)
+  SELECT THREAD_ID FROM performance_schema.threads
+    WHERE PROCESSLIST_ID=CONNECTION_ID();
+
+connect (monitor, localhost, root);
+
+# This query needs to be in a separate monitoring session,
+# so we do not polute the test session statistics.
+
+let $get_handler_status_counts= SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.status_by_thread
+  WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0
+    AND THREAD_ID IN (SELECT thread_id from test.thread_to_monitor);
+
+connection default;
 
 --echo #
 --echo # Bug#13559657: PARTITION SELECTION DOES NOT WORK WITH VIEWS
@@ -26,38 +38,71 @@ SHOW CREATE VIEW v1;
 FLUSH STATUS;
 --sorted_result
 SELECT * FROM v1;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 --sorted_result
 SELECT a FROM t1 PARTITION (p0);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 INSERT INTO v1 VALUES (10);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 INSERT INTO v1 VALUES (11);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 --sorted_result
 SELECT * FROM v1;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 --sorted_result
 SELECT a FROM t1 PARTITION (p0);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --sorted_result
 SELECT * FROM t1;
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a FROM t1 PARTITION (p0) WITH CHECK OPTION;
 SHOW CREATE VIEW v1;
+
 FLUSH STATUS;
 INSERT INTO v1 VALUES (20);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 INSERT INTO v1 VALUES (21);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --sorted_result
 SELECT * FROM v1;
 --sorted_result
@@ -66,17 +111,30 @@ DROP VIEW v1;
 CREATE VIEW v1 AS
 SELECT a FROM t1 PARTITION (p0) WHERE a = 30 WITH CHECK OPTION;
 SHOW CREATE VIEW v1;
+
 FLUSH STATUS;
 INSERT INTO v1 VALUES (30);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 --error ER_VIEW_CHECK_FAILED
 INSERT INTO v1 VALUES (31);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 --error ER_VIEW_CHECK_FAILED
 INSERT INTO v1 VALUES (32);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --sorted_result
 SELECT * FROM v1;
 --sorted_result
@@ -95,8 +153,12 @@ SET @@default_storage_engine = 'InnoDB';
 
 --echo # Test to show if I_S affects HANDLER_ counts
 FLUSH STATUS;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # OK, seems to add number of variables processed before HANDLER_WRITE
 --echo # and number of variables + 1 evaluated in the previous call in RND_NEXT
 
@@ -135,7 +197,11 @@ INSERT INTO t1 PARTITION (pNeg, pNonExisting) VALUES (1, "error");
 --echo # Duplicate partitions and overlapping partitions and subpartitios is OK
 FLUSH STATUS;
 INSERT INTO t1 PARTITION (pNeg, pNeg) VALUES (-1, "pNeg(-subp1)");
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # Should be 1 commit
 --echo # and 18 write (1 ha_innobase + 17 internal I_S write)
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, "pNeg(-subp1)");
@@ -146,22 +212,38 @@ INSERT INTO t1 PARTITION (`p100-99999`) VALUES (100, "`p100-99999`(-subp6)"), (1
 INSERT INTO t1 PARTITION(`p10-99`,subp3) VALUES (1, "subp3"), (10, "p10-99");
 FLUSH STATUS;
 INSERT INTO t1 PARTITION(subp3) VALUES (3, "subp3");
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # Should be 1 commit
 --echo # (1 ha_partition + 1 ha_innobase) x 2 (lock + unlock)
 --echo # and 18 write (1 ha_innobase + 17 internal I_S write)
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # should be 1 commit
 --echo # 17 writes (internal I_S)
 INSERT INTO t1 PARTITION(`p0-9`) VALUES (5, "p0-9:subp3");
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 1 commit
 --echo # + 19 rnd next (internal I_S)
 --echo # + 19 write (18 internal I_S + 1 insert)
 UNLOCK TABLES;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 19 rnd next (internal I_S)
 --echo # + 18 write (internal I_S)
 
@@ -193,18 +275,30 @@ SET @@global.innodb_stats_on_metadata=@save_innodb_stats_on_metadata;
 FLUSH STATUS;
 --error ER_UNKNOWN_PARTITION
 SELECT * FROM t1 PARTITION (pNonexistent);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # should have failed before locking (only 17 internal I_S writes)
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (subp2);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # Should be 1 commit
 --echo # 1 read first (also calls index_read)
 --echo # 2 read key (first from innobase_get_index and second from index first)
 --echo # 17 writes (internal I_S)
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (subp2,pNeg) AS TableAlias;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # Should be 1 commit
 --echo # 3 read first (one for each partition)
 --echo # 6 read key (3 from read first and 3 from innobase_get_index)
@@ -212,7 +306,11 @@ SELECT * FROM t1 PARTITION (subp2,pNeg) AS TableAlias;
 --echo # 17 writes (internal I_S)
 FLUSH STATUS;
 LOCK TABLE t1 READ, t1 as TableAlias READ;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 commit
 --echo # 18 READ KEY from opening a new partition table instance,
 --echo # (1 innobase_get_index for each index, per partition, 1 x 2 x 8 = 16
@@ -220,7 +318,11 @@ LOCK TABLE t1 READ, t1 as TableAlias READ;
 --echo #  of rows, 2 innobase_get_index for updating both index statistics)
 --echo # 17 writes (internal I_S)
 SELECT * FROM t1 PARTITION (subp3) AS TableAlias;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 1 commit
 --echo # + 1 read first (read first key from index in one partition)
 --echo # + 2 read key (innobase_get_index from index_init + from index_first)
@@ -228,7 +330,11 @@ SELECT * FROM t1 PARTITION (subp3) AS TableAlias;
 --echo # + 19 rnd next (from the last I_S query)
 --echo # + 18 write (internal I_S)
 SELECT COUNT(*) FROM t1 PARTITION (`p10-99`);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 1 commit
 --echo # + 2 read first (one for each subpart)
 --echo # + 4 read key (innobase_get_index from index_init + from index_first)
@@ -236,11 +342,19 @@ SELECT COUNT(*) FROM t1 PARTITION (`p10-99`);
 --echo # + 19 rnd next (from the last I_S query)
 --echo # + 18 write (internal I_S)
 SELECT * FROM t1 WHERE a = 1000000;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # No matching partition, only internal I_S.
 SELECT * FROM t1 PARTITION (pNeg) WHERE a = 100;
 UNLOCK TABLES;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 18 for unlock (same as lock above) (100 is not in pNeg, no match)
 
 --echo # Test that EXPLAIN PARTITION works
@@ -249,7 +363,11 @@ EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (pNonexistent);
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2);
 FLUSH STATUS;
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2,pNeg) AS tablealias;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp3) AS tablealias;
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 PARTITION (`p10-99`);
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 1000000;
@@ -269,20 +387,32 @@ SELECT * FROM t1 AS `PARTITION`;
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 REPLACE INTO t1 PARTITION (subp0) VALUES (-21, 'Should fail!');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # explicit pruning says part_id 0 and implicit pruning says part_id 1
 --echo # so no partition will be locked!
 --echo # 0 rollback (since no locked partition)
 --echo # 17 writes (I_S internal)
 FLUSH STATUS;
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'Insert by REPLACE');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 commit
 --echo # 18 writes (17 I_S internal, 1 ha_innobase)
 SELECT * FROM t1 PARTITION (pNeg);
 FLUSH STATUS;
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'REPLACEd by REPLACE');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 commit
 --echo # 2 read key (1 innobase_get_index when init the index + 1 index read
 --echo # to get the position to update)
@@ -292,11 +422,19 @@ REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'REPLACEd by REPLACE');
 SELECT * FROM t1 PARTITION (pNeg);
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 commit
 --echo # 17 write (internal I_S)
 DELETE FROM t1 PARTITION(subp1) WHERE b = "REPLACEd by REPLACE";
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 1 commit
 --echo # + 1 delete (one row deleted)
 --echo # + 3 read key (1 innodb_get_index in records_in_range,
@@ -306,25 +444,41 @@ DELETE FROM t1 PARTITION(subp1) WHERE b = "REPLACEd by REPLACE";
 --echo # + 18 write (internal I_S)
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 REPLACE INTO t1 PARTITION (subp0) VALUES (-21, 'Should fail!');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # Failed before start_stmt/execution.
 --echo # + 19 rnd next (internal I_S)
 --echo #   0 rollback (No partition had called start_stmt, all parts pruned)
 --echo # + 18 write (internal I_S)
 REPLACE INTO t1 PARTITION (pNeg) VALUES (-21, 'Insert by REPLACE');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 1 commit
 --echo # + 19 rnd next (internal I_S)
 --echo # + 19 write (18 internal I_S + 1 real write)
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'REPLACEd by REPLACE');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 1 commit
 --echo # + 2 read key (see non locked query)
 --echo # + 19 rnd next (internal I_S)
 --echo # + 1 update (see non locked query)
 --echo # + 19 write (18 internal I_S + 1 failed write)
 SELECT * FROM t1 PARTITION (subp1);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 1 commit
 --echo # + 1 read first 
 --echo # + 2 read key 
@@ -332,7 +486,11 @@ SELECT * FROM t1 PARTITION (subp1);
 --echo # + 19 rnd next (internal I_S)
 --echo # + 18 write (internal I_S)
 UNLOCK TABLES;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 19 rnd next (internal I_S)
 --echo # + 18 write (internal I_S)
 
@@ -342,7 +500,11 @@ UNLOCK TABLES;
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`) INTO OUTFILE 'loadtest.txt';
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 2 commit (1 because ALTER TABLE temporarily disables auto-commit)
 --echo # 4 read first (for reading the first row in 4 partitions)
 --echo # 8 read key (4 from read first + 4 for index init)
@@ -350,29 +512,53 @@ SELECT * FROM t1 PARTITION (pNeg, `p10-99`) INTO OUTFILE 'loadtest.txt';
 --echo # 17 write (internal I_S)
 FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 rollback
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 FLUSH STATUS;
 LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, subp4, subp5);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 10 lock (1 ha_partition + 4 ha_innobase) x 2 (lock + unlock)
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
 SHOW CREATE TABLE t1;
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 18 read key (ALTER forces table to be closed, see above for open)
 LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, `p10-99`);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 23 write (18 internal I_S + 5 rows)
 UNLOCK TABLES;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --remove_file $MYSQLD_DATADIR/test/loadtest.txt
 
 --echo #
@@ -380,7 +566,11 @@ UNLOCK TABLES;
 --echo #
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 commit
 --echo # 4 lock (1 ha_partition + 1 ha_innobase) x 2 (lock + unlock)
 --echo # 1 read first (read first row, called from first rnd_next)
@@ -391,7 +581,11 @@ EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated');
 SELECT * FROM t1 PARTITION (subp0) ORDER BY a;
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = -2;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 commit
 --echo # 4 lock
 --echo # 1 read key
@@ -400,7 +594,11 @@ EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WH
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2')
 WHERE a = -2;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 commit
 --echo # 4 lock
 --echo # 2 read key - (2 index read)
@@ -409,13 +607,21 @@ WHERE a = -2;
 EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2');
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # Nothing, since impossible PARTITION+WHERE clause.
 EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -2, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # Nothing, since impossible PARTITION+WHERE clause.
 EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0)
 SET a = -2, b = concat(b, ', Updated from a = 100') WHERE a = 100;
@@ -423,7 +629,11 @@ FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 UPDATE t1 PARTITION(`p100-99999`) SET a = -2, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 6 lock
 --echo # 4 read key (1 index init + 1 index read + 1 rnd init + 1 rnd pos)
 --echo # 1 read rnd (rnd pos)
@@ -432,7 +642,11 @@ FLUSH STATUS;
 --error ER_DUP_ENTRY,ER_DUP_KEY
 UPDATE t1 PARTITION(`p100-99999`, pNeg) SET a = -4, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 4 read key
 --echo # 1 read rnd
 --echo # 1 rollback
@@ -440,7 +654,11 @@ WHERE a = 100;
 FLUSH STATUS;
 UPDATE t1 PARTITION(`p100-99999`, pNeg) SET a = -222, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 commit
 --echo # 1 delete
 --echo # 4 read key
@@ -451,28 +669,51 @@ SELECT * FROM t1 ORDER BY a;
 --echo # Test of non matching partition (i.e ER_NO_PARTITION_FOUND)
 FLUSH STATUS;
 UPDATE t1 SET b = concat(b, ', Updated2') WHERE a = 1000000;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # Nothing (no matching partition found)
 FLUSH STATUS;
 UPDATE t1 PARTITION (pNeg) SET b = concat(b, ', Updated2') WHERE a = 1000000;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # Nothing (no matching partition found)
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 UPDATE t1 PARTITION (subp7) SET b = concat(b, ', Updated to 103'), a = 103 WHERE a = 101;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 4 read key
 --echo # + 1 read rnd
 --echo # + 1 update
 UPDATE t1 PARTITION (`p100-99999`) SET b = concat(b, ', Updated to 110'), a = 110 WHERE a = 103;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 1 delete
 --echo # + 4 read key
 --echo # + 1 read rnd
 --echo # + 19 write (18 internal I_S + 1 insert)
 UNLOCK TABLES;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
 
 --echo #
 --echo # Test DELETE
@@ -480,30 +721,53 @@ UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY b, a;
 FLUSH STATUS;
 DELETE FROM t1 PARTITION (pNeg) WHERE a = -1;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 delete
 --echo # 1 read key (index read)
 FLUSH STATUS;
 DELETE FROM t1 PARTITION (subp1) WHERE b like '%subp1%';
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 delete
 --echo # 1 read first
 --echo # 2 read key
 --echo # 3 read rnd
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 DELETE FROM t1 PARTITION (subp1) WHERE b = 'p0-9:subp3';
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 3 read key (1 innodb_get_index in records_in_range
 --echo #               + 1 innobase_get_index in index_init + 1 index read)
 DELETE FROM t1 PARTITION (`p0-9`) WHERE b = 'p0-9:subp3';
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # + 1 delete
 --echo # + 6 read key (same as above, but for two subpartitions)
 --echo # + 1 read next (read next after found row)
 UNLOCK TABLES;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
 
 --echo # Test multi-table DELETE
 --echo # Can be expressed in two different ways.
@@ -511,10 +775,18 @@ CREATE TABLE t2 LIKE t1;
 SHOW CREATE TABLE t2;
 FLUSH STATUS;
 INSERT INTO t2 PARTITION (`p10-99`, subp3, `p100-99999`) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION `p10-99`, `p0-9`, `p100-99999`;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # Warm-up data-dictionary cache
 --disable_query_log
 --disable_result_log
@@ -524,31 +796,39 @@ SHOW CREATE TABLE t2;
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 INSERT INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 INSERT IGNORE INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 TRUNCATE TABLE t2;
 FLUSH STATUS;
 INSERT INTO t2 SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 # Under ps protocol HANDLER_COMMIT, HANDLER_READ_KEY, HANDLER_EXTERNAL_LOCK
 # has greater counts.
 
-## Need to change the query so that the variable name and value are
-## combined in a single column in order to do the necessary regexp
-## manipulations.
-let $get_handler_status_counts_save= $get_handler_status_counts;
-let $get_handler_status_counts= SELECT CONCAT(VARIABLE_NAME, ' ', VARIABLE_VALUE) AS 'VARIABLE_NAME  VARIABLE_VALUE' FROM information_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
-
 CREATE TABLE t3 SELECT * FROM t1 PARTITION (pNeg,subp3,`p100-99999`);
---replace_regex /^HANDLER_COMMIT [0-9]+$/HANDLER_COMMIT <handler_commit_count>/ /^HANDLER_READ_FIRST [0-9]+/HANDLER_READ_FIRST <handler_read_first_count>/ /^HANDLER_READ_KEY [0-9]+$/HANDLER_READ_KEY <handler_read_key_count>/ /^HANDLER_EXTERNAL_LOCK [0-9]+$/HANDLER_EXTERNAL_LOCK <handler_external_lock_count>/
---source include/get_handler_status_counts.inc
 
-## Restore the original query
-let $get_handler_status_counts= $get_handler_status_counts_save;
+connection monitor;
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.status_by_thread
+  WHERE VARIABLE_NAME IN ('Handler_read_first', 'Handler_read_next', 'Handler_write')
+    AND VARIABLE_VALUE > 0
+    AND THREAD_ID IN (SELECT thread_id from test.thread_to_monitor);
+connection default;
 
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
@@ -560,12 +840,20 @@ FLUSH STATUS;
 --error ER_PARSE_ERROR
 DELETE t1 PARTITION (pNeg), t3 FROM t1, t3
 WHERE t1.a = t3.a AND t3.b = 'subp3';
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # Multi table delete without any matching rows
 FLUSH STATUS;
 DELETE t1, t2 FROM t1 PARTITION (pNeg), t3, t2 PARTITION (subp3)
 WHERE t1.a = t3.a AND t3.b = 'subp3' AND t3.a = t2.a;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 read first (first rnd_next in t2)
 --echo # 4 read key (1 innodb_get_index in rnd_init in t2 + index read in t2
 --echo #             + 2 innodb_get_index in index_init in t1)
@@ -574,7 +862,11 @@ WHERE t1.a = t3.a AND t3.b = 'subp3' AND t3.a = t2.a;
 FLUSH STATUS;
 DELETE FROM t2, t3 USING t2 PARTITION (`p0-9`), t3, t1 PARTITION (subp3)
 WHERE t1.a = t3.a AND t3.b = 'subp3' AND t2.a = t1.a;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 4 delete (2 in t2 + 2 in t3)
 --echo # 3 read first (1 in t1 + 1 in t3 + 1 in t3, for second row in t1)
 --echo # 17 read key (1 index_init in t1 + 1 read first in t1 + 
@@ -601,7 +893,10 @@ TRUNCATE TABLE t1 PARTITION(`p10-99`);
 --echo # Note that it does not support truncating subpartitions
 FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg;
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
 --echo # Lots of extra lock acquisitions, reads and etc due to
 --echo # data-dictionary update.
 
@@ -847,5 +1142,6 @@ CREATE TABLE t1 (a INT) PARTITION BY HASH (a) PARTITIONS 3;
 CREATE TABLE t2 LIKE t1 PARTITION (p0, p2);
 DROP TABLE t1;
 
+DROP TABLE test.thread_to_monitor;
+
 SET @@default_storage_engine = @old_default_storage_engine;
-set @@global.show_compatibility_56=@show_compatibility_56_save;

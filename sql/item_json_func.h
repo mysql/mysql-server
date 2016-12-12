@@ -66,7 +66,7 @@ private:
   String m_path_value;
 
   /// List of paths.
-  Prealloced_array<Json_path, 8, false> m_paths;
+  Prealloced_array<Json_path, 8> m_paths;
 
   /// Enum that tells the status of a cell in m_paths.
   enum class enum_path_status : uint8
@@ -80,7 +80,7 @@ private:
   };
 
   /// Map argument indexes to indexes into m_paths.
-  Mem_root_array<Path_cell, true> m_arg_idx_to_vector_idx;
+  Mem_root_array<Path_cell> m_arg_idx_to_vector_idx;
 
 public:
   Json_path_cache(THD *thd, uint size);

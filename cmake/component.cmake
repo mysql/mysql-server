@@ -120,11 +120,6 @@ MACRO(MYSQL_ADD_COMPONENT)
       INSTALL_DEBUG_TARGET(${target}
       DESTINATION ${INSTALL_PLUGINDIR}/debug
       COMPONENT ${INSTALL_COMPONENT})
-
-      # Add installed files to list for RPMs
-      FILE(APPEND ${CMAKE_BINARY_DIR}/support-files/plugins.files
-      "%attr(755, root, root) %{_prefix}/${INSTALL_COMPONENTDIR}/${target}.so\n"
-      "%attr(755, root, root) %{_prefix}/${INSTALL_COMPONENTDIR}/debug/${target}.so\n")
     ENDIF()
     ENDIF()
   ENDIF()

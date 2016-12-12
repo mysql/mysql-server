@@ -57,7 +57,6 @@ class THD;
 
 extern PFS_single_stat *thread_instr_class_waits_array_start;
 extern PFS_single_stat *thread_instr_class_waits_array_end;
-extern my_bool show_compatibility_56;
 
 /**
   @addtogroup performance_schema_buffers

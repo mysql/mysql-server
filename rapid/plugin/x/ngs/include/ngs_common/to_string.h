@@ -21,10 +21,35 @@
 #define NGS_TO_STRING_H_
 
 #include <string>
+#include "m_string.h"
+
 
 namespace ngs
 {
-using std::to_string;
+namespace detail {
+
+template <typename T>
+inline std::string to_string(const my_gcvt_arg_type arg_type, T value) {
+  char buffer[100];
+  my_gcvt(value, arg_type, sizeof(buffer)-1, buffer, NULL);
+  return buffer;
+}
+
+}  // namespace detail
+
+template <typename T>
+inline std::string to_string(T value) { return std::to_string(value); }
+
+template <>
+inline std::string to_string<double>(double value) {
+  return detail::to_string(MY_GCVT_ARG_DOUBLE, value);
+}
+
+template <>
+inline std::string to_string<float>(float value) {
+  return detail::to_string(MY_GCVT_ARG_FLOAT, value);
+}
+
 using std::stoi;
 using std::stod;
 }  // namespace ngs

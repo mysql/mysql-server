@@ -354,7 +354,7 @@ public:
 
 
 typedef List<Item> List_item;
-typedef Mem_root_array<ORDER*, true> Group_list_ptrs;
+typedef Mem_root_array<ORDER*> Group_list_ptrs;
 
 
 /**
@@ -400,7 +400,7 @@ typedef struct st_lex_master_info
   char *ssl_crl, *ssl_crlpath, *tls_version;
   char *relay_log_name;
   ulong relay_log_pos;
-  Prealloced_array<ulong, 2, true> repl_ignore_server_ids;
+  Prealloced_array<ulong, 2> repl_ignore_server_ids;
 
   /// Initializes everything to zero/NULL/empty.
   void initialize();
@@ -1558,7 +1558,7 @@ private:
   bool change_group_ref(THD *thd, Item_func *expr, bool *changed);
 public:
   bool flatten_subqueries();
-  void set_sj_candidates(Mem_root_array<Item_exists_subselect*, true> *sj_cand)
+  void set_sj_candidates(Mem_root_array<Item_exists_subselect*> *sj_cand)
   { sj_candidates= sj_cand; }
 
   bool has_sj_candidates() const
@@ -1583,7 +1583,7 @@ private:
     conversion.
     Template parameter is "true": no need to run DTORs on pointers.
   */
-  Mem_root_array<Item_exists_subselect*, true> *sj_candidates;
+  Mem_root_array<Item_exists_subselect*> *sj_candidates;
 public:
   bool fix_inner_refs(THD *thd);
   bool setup_conds(THD *thd);
@@ -1793,7 +1793,7 @@ enum PT_joined_table_type
   JTT_NATURAL_RIGHT     = JTT_NATURAL | JTT_RIGHT
 };
 
-typedef Mem_root_array_YY<LEX_CSTRING, true> Create_col_name_list;
+typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 
 enum class Ternary_option { DEFAULT, ON, OFF };
 
@@ -3371,7 +3371,7 @@ public:
 
   /* maintain a list of used plugins for this LEX */
   typedef Prealloced_array<plugin_ref,
-    INITIAL_LEX_PLUGIN_LIST_SIZE, true> Plugins_array;
+    INITIAL_LEX_PLUGIN_LIST_SIZE> Plugins_array;
   Plugins_array plugins;
 
   /// Table being inserted into (may be a view)

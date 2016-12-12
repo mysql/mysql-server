@@ -4,13 +4,6 @@ SETUP
 ================================================================================
 # Save the initial number of concurrent sessions
 
-# Save current SHOW_COMPATIBILITY_56 setting
-SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
-
 # Verify EXAMPLE plugin is not loaded
 SELECT COUNT(*) = 0 AS "Expect 1" FROM information_schema.plugins WHERE plugin_name = "EXAMPLE";
 Expect 1
@@ -924,9 +917,6 @@ TEST 5 - BUG#22225549 MYSQL_CHANGE_USER/MYSQL_RESET_CONNECTION + SET INNODB...
 Update to plugin-defined session variable triggers resync with global
 variables and deadlocks on THD::LOCK_thd_sysvar.
 ================================================================================
-SELECT @@global.show_compatibility_56;
-@@global.show_compatibility_56
-0
 select @@session.innodb_strict_mode;
 @@session.innodb_strict_mode
 1
@@ -957,8 +947,5 @@ SET DEBUG_SYNC='RESET';
 
 disconnect con1;
 disconnect con2;
-
-# Restore SHOW_COMPATIBILITY_56 setting
-SET @@global.show_compatibility_56 = @show_compatibility_56_save;
 
 # Wait till we reached the initial number of concurrent sessions

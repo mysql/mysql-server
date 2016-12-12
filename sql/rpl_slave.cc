@@ -6341,8 +6341,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
     Gathers information on valuable workers and stores it in 
     above_lwm_jobs in asc ordered by the master binlog coordinates.
   */
-  Prealloced_array<Slave_job_group, 16, true>
-    above_lwm_jobs(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<Slave_job_group, 16> above_lwm_jobs(PSI_NOT_INSTRUMENTED);
   above_lwm_jobs.reserve(rli->recovery_parallel_workers);
 
   /*
