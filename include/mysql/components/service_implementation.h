@@ -24,6 +24,27 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 */
 
 /**
+  Reference to the name of the service implementation variable
+
+  @ref BEGIN_SERVICE_IMPLEMENTATION defines a local variable of
+  the structure type for the service (see @ref SERVICE_TYPE).
+  The variable is then used by the @ref PROVIDES_SERVICE macro to
+  construct the list of service provided by the component.
+  This macro allows one to use @ref BEGIN_SERVICE_IMPLEMENTATION ,
+  @ref DEFINE_METHOD and @ref END_SERVICE_IMPLEMENTATION macros to build
+  a service defintion structure and variable to be used outside of the
+  component definition context.
+
+  @param component Name of the implementation of the service.
+    Usually a component name.
+  @param service  Name of the service to create the implementation for.
+
+*/
+#define SERVICE_IMPLEMENTATION(component, service) \
+  imp_ ## component ## _ ## service
+
+
+/**
   Declares a Service Implementation. It builds standard implementation
   info structure. Only a series of pointers to methods the Service
   Implementation implements as respective Service methods are expected to be
@@ -33,7 +54,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   @param service Name of the Service to create implementation for.
 */
 #define BEGIN_SERVICE_IMPLEMENTATION(component, service) \
-  SERVICE_TYPE(service) imp_ ## component ## _ ## service = {
+  SERVICE_TYPE(service) SERVICE_IMPLEMENTATION(component, service) = {
 
 /**
   A macro to end the last declaration of a Service Implementation.
