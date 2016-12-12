@@ -43,6 +43,7 @@
 #include <signaldata/DihRestart.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/IsolateOrd.hpp>
+#include <signaldata/ProcessInfoRep.hpp>
 #include <ndb_version.h>
 #include <OwnProcessInfo.hpp>
 #include <NodeInfo.hpp>
@@ -3653,6 +3654,8 @@ Qmgr::api_failed(Signal* signal, Uint32 nodeId)
   closeCom->requestType = CloseComReqConf::RT_API_FAILURE;
   closeCom->failNo      = 0;
   closeCom->noOfNodes   = 1;
+  ProcessInfo * processInfo = getProcessInfo(nodeId);
+  if(processInfo) processInfo->invalidate();
   NodeBitmask::clear(closeCom->theNodes);
   NodeBitmask::set(closeCom->theNodes, failedNodePtr.i);
   sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
@@ -7594,12 +7597,104 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
     ndbinfo_send_row(signal, req, row, rl);
     break;
   }
+  case Ndbinfo::PROCESSES_TABLEID:
+  {
+    jam();
+    for(int i = 1 ; i <= max_api_node_id ; i++)
+    {
+      NodeInfo nodeInfo = getNodeInfo(i);
+      if(nodeInfo.m_connected)
+      {
+        char version_buffer[NDB_VERSION_STRING_BUF_SZ];
+        ndbGetVersionString(nodeInfo.m_version, nodeInfo.m_mysql_version,
+                            0, version_buffer, NDB_VERSION_STRING_BUF_SZ);
+
+        ProcessInfo *processInfo = getProcessInfo(i);
+        if(processInfo && processInfo->isValid())
+        {
+          Ndbinfo::Row row(signal, req);
+          row.write_uint32(getOwnNodeId());                 // reporting_node_id
+          row.write_uint32(i);                              // node_id
+          row.write_uint32(nodeInfo.getType());             // node_type
+          row.write_string(processInfo->getHostAddress());  // host_addr
+          row.write_string(version_buffer);                 // node_version
+          row.write_uint32(processInfo->getPid());          // process_id
+          row.write_uint32(processInfo->getAngelPid());     // angel_process_id
+          row.write_string(processInfo->getProcessName());  // process_name
+          row.write_string(processInfo->getConnectionName());  // conn_name
+          row.write_uint32(processInfo->getPort());         // application_port
+          ndbinfo_send_row(signal, req, row, rl);
+        }
+        else if(nodeInfo.m_type != NodeInfo::DB)
+        {
+          /* MGM/API node is < version 7.5.5 or has not sent ProcessInfoRep */
+
+          struct in_addr addr= globalTransporterRegistry.get_connect_address(i);
+          char address_buffer[16];
+          Ndb_inet_ntop(AF_INET, & addr, address_buffer, 16);
+
+          Ndbinfo::Row row(signal, req);
+          row.write_uint32(getOwnNodeId());                 // reporting_node_id
+          row.write_uint32(i);                              // node_id
+          row.write_uint32(nodeInfo.getType());             // node_type
+          row.write_string(address_buffer);                 // host_addr
+          row.write_string(version_buffer);                 // node_version
+          row.write_uint32(0);                              // process_id
+          row.write_uint32(0);                              // angel_process_id
+          row.write_string("");                             // process_name
+          row.write_string("");                             // conn_name
+          row.write_uint32(0);                              // application_port
+          ndbinfo_send_row(signal, req, row, rl);
+        }
+      }
+    }
+    break;
+  }
   default:
     break;
   }
   ndbinfo_send_scan_conf(signal, req, rl);
 }
 
+
+void
+Qmgr::execPROCESSINFO_REP(Signal *signal)
+{
+  jamEntry();
+  ProcessInfoRep * report = (ProcessInfoRep *) signal->theData;
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr connNamePtr, hostAddrPtr;
+
+  ProcessInfo * processInfo = getProcessInfo(report->node_id);
+  if(processInfo)
+  {
+    /* Set everything except the connection name and host address */
+    processInfo->initializeFromProcessInfoRep(report);
+
+    /* Set the connection name */
+    handle.getSection(connNamePtr, ProcessInfoRep::ConnNameSectionNum);
+    processInfo->setConnectionName(connNamePtr.p->theData);
+
+    /* Set the host address */
+    if(handle.getSection(hostAddrPtr, ProcessInfoRep::HostAddrSectionNum))
+    {
+      processInfo->setHostAddress(hostAddrPtr.p->theData);
+    }
+    else
+    {
+      /* Use the address from the transporter registry.
+         As implemented below we use setHostAddress() with struct in_addr
+         to set an IPv4 address.  An alternate more abstract version
+         of ProcessInfo::setHostAddress() is also available, which
+         takes a struct sockaddr * and length.
+      */
+      struct in_addr addr=
+        globalTransporterRegistry.get_connect_address(report->node_id);
+      processInfo->setHostAddress(& addr);
+    }
+  }
+  releaseSections(handle);
+}
 
 void
 Qmgr::execISOLATE_ORD(Signal* signal)

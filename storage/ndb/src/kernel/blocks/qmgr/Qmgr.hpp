@@ -372,6 +372,9 @@ private:
   // Ndbinfo signal
   void execDBINFO_SCANREQ(Signal *signal);
 
+  // ProcessInfo Report signal
+  void execPROCESSINFO_REP(Signal *signal);
+
   // NDBCNTR informing us our node is fully started
   void execNODE_STARTED_REP(Signal *signal);
 

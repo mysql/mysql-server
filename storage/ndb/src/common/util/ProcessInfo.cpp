@@ -20,7 +20,7 @@
 #include "NdbHost.h"
 #include "ProcessInfo.hpp"
 #include "OwnProcessInfo.hpp"
-// #include "signaldata/ProcessInfoRep.hpp"
+#include "signaldata/ProcessInfoRep.hpp"
 #include "EventLogger.hpp"
 #include "ndb_net.h"
 #include "ndb_socket.h"
@@ -162,7 +162,6 @@ void ProcessInfo::setNodeId(Uint16 nodeId) {
   node_id = nodeId;
 }
 
-#ifdef FOR_LATER
 void ProcessInfo::initializeFromProcessInfoRep(ProcessInfoRep * signal) {
   g_eventLogger->info("Received ProcessInfoRep. "
     "Node: %d, Port: %d, Name: %s, Pid: %d",
@@ -188,4 +187,3 @@ void ProcessInfo::buildProcessInfoReport(ProcessInfoRep *signal) {
     signal->node_id, signal->application_port,
     signal->process_name, signal->process_id);
 }
-#endif
