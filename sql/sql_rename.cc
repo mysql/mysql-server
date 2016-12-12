@@ -66,12 +66,7 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 {
-  bool error= 1;
   TABLE_LIST *ren_table= 0;
-  int to_table;
-  char *rename_log_table[2]= {NULL, NULL};
-  bool int_commit_done= false;
-  std::set<handlerton*> post_ddl_htons;
   DBUG_ENTER("mysql_rename_tables");
 
   /*
@@ -97,6 +92,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   if (query_logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
       query_logger.is_log_table_enabled(QUERY_LOG_SLOW))
   {
+    int to_table;
+    const char *rename_log_table[2]= {NULL, NULL};
 
     /*
       Rules for rename of a log table:
@@ -133,7 +130,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
             */
             my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), ren_table->table_name,
                      ren_table->table_name);
-            goto err;
+            DBUG_RETURN(true);
           }
         }
         else
@@ -146,13 +143,12 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
             */
             my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), ren_table->table_name,
                      ren_table->table_name);
-            goto err;
+            DBUG_RETURN(true);
           }
           else
           {
             /* save the name of the log table to report an error */
-            rename_log_table[log_table_rename]=
-              const_cast<char*>(ren_table->table_name);
+            rename_log_table[log_table_rename]= ren_table->table_name;
           }
         }
       }
@@ -165,19 +161,21 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
       else
         my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), rename_log_table[1],
                  rename_log_table[1]);
-      goto err;
+      DBUG_RETURN(true);
     }
   }
 
   if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout, 0)
       || lock_trigger_names(thd, table_list))
-    goto err;
+    DBUG_RETURN(true);
 
   for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, ren_table->db,
                      ren_table->table_name, FALSE);
 
-  error=0;
+  bool error= false;
+  bool int_commit_done= false;
+  std::set<handlerton*> post_ddl_htons;
   /*
     An exclusive lock on table names is satisfactory to ensure
     no other thread accesses this table.
@@ -220,7 +218,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
       table_list= reverse_table_list(table_list);
     }
 
-    error= 1;
+    error= true;
   }
 
   if (!error)
@@ -246,7 +244,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
       if ((error= update_referencing_views_metadata(thd, ren_table,
                                                     new_table->db,
                                                     new_table->table_name)))
-        goto err;
+        DBUG_RETURN(true);
     }
   }
 
@@ -263,7 +261,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   if (!error)
     my_ok(thd);
 
-err:
   DBUG_RETURN(error);
 }
 
