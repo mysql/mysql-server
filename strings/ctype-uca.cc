@@ -2493,7 +2493,7 @@ int my_wildcmp_uca_impl(const CHARSET_INFO *cs,
           Skip until we find a character in the expression string that is
           equal to w_wc.
         */
-        int mb_len;
+        int mb_len= 0;
         while (str != str_end)
         {
           my_wc_t s_wc;
