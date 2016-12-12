@@ -956,87 +956,6 @@ public:
     min_value to range start_key. In case of descending indexes, it's
     called for storing min_value to range end_key.
   */
-//  int store_min_key(KEY_PART *key,
-//                    uchar **range_key,
-//                    uint *range_key_flag,
-//                    uint last_part,
-//                    bool start_key)
-//  {
-//
-//    SEL_ARG *key_tree= first();
-//    uint res= key_tree->store_min_value(key[key_tree->part].store_length,
-//                                        range_key, *range_key_flag);
-//    // We've stored min_value, so append min_flag
-//    *range_key_flag|= key_tree->min_flag;
-//    if (key_tree->next_key_part &&
-//	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
-//        key_tree->part != last_part &&
-//	key_tree->next_key_part->part == key_tree->part+1 &&
-//	!(*range_key_flag & (NO_MIN_RANGE | NEAR_MIN)))
-//    {
-//      const bool asc= key_tree->next_key_part->is_ascending;
-//      if ((start_key && asc) || (!start_key && !asc))
-//        res+= key_tree->next_key_part->store_min_key(key,
-//                                                     range_key,
-//                                                     range_key_flag,
-//                                                     last_part, start_key);
-//      else
-//      {
-//        uint tmp_flag= invert_min_flag(*range_key_flag);
-//        res+= key_tree->next_key_part->store_max_key(key,
-//                                                     range_key,
-//                                                     &tmp_flag,
-//                                                     last_part, start_key);
-//        *range_key_flag= invert_max_flag(tmp_flag);
-//      }
-//    }
-//    return res;
-//  }
-//
-//  /*
-//    Returns the number of keypart values appended to the key buffer.
-//
-//    Note: Caller of this function should take care of sending the
-//    correct flags and correct key to be stored into.  In case of
-//    ascending indexes, store_max_key() gets called while storing the
-//    max_value into range end_key. In case of descending indexes,
-//    its max_value to range start_key.
-//  */
-//  int store_max_key(KEY_PART *key,
-//                    uchar **range_key,
-//                    uint *range_key_flag,
-//                    uint last_part,
-//                    bool start_key)
-//  {
-//    SEL_ARG *key_tree= last();
-//    uint res=key_tree->store_max_value(key[key_tree->part].store_length,
-//                                       range_key, *range_key_flag);
-//    // We've stored max value, so return max_flag
-//    (*range_key_flag)|= key_tree->max_flag;
-//    if (key_tree->next_key_part &&
-//	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
-//        key_tree->part != last_part &&
-//	key_tree->next_key_part->part == key_tree->part+1 &&
-//	!(*range_key_flag & (NO_MAX_RANGE | NEAR_MAX)))
-//    {
-//      const bool asc= key_tree->next_key_part->is_ascending;
-//      if ((!start_key && asc) || (start_key && !asc))
-//        res+= key_tree->next_key_part->store_max_key(key,
-//                                                     range_key,
-//                                                     range_key_flag,
-//                                                     last_part, start_key);
-//      else
-//      {
-//        uint tmp_flag= invert_max_flag(*range_key_flag);
-//        res+= key_tree->next_key_part->store_min_key(key,
-//                                                     range_key,
-//                                                     &tmp_flag,
-//                                                     last_part, start_key);
-//        *range_key_flag= invert_min_flag(tmp_flag);
-//      }
-//    }
-//    return res;
-//  }
   /**
     Helper function for storing min/max values of SEL_ARG taking into account
     key part's order.
@@ -1184,6 +1103,7 @@ public:
   }
 };
 
+
 /*
   Returns a number of keypart values appended to the key buffer
   for min key and max key. This function is used by both Range
@@ -1192,50 +1112,14 @@ public:
   we have to stop at the last partition part and not step into
   the subpartition fields. For Range Analysis we set last_part
   to MAX_KEY which we should never reach.
-*/
-//int SEL_ROOT::store_min_key(KEY_PART *key,
-//                            uchar **range_key,
-//                            uint *range_key_flag,
-//                            uint last_part)
-//{
-//  SEL_ARG *key_tree= root->first();
-//  uint res= key_tree->store_min(key[key_tree->part].store_length,
-//                                range_key, *range_key_flag);
-//  *range_key_flag|= key_tree->min_flag;
-//
-//  if (key_tree->next_key_part &&
-//      key_tree->next_key_part->type == SEL_ROOT::Type::KEY_RANGE &&
-//      key_tree->part != last_part &&
-//      key_tree->next_key_part->root->part == key_tree->part+1 &&
-//      !(*range_key_flag & (NO_MIN_RANGE | NEAR_MIN)))
-//    res+= key_tree->next_key_part->store_min_key(key,
-//                                                 range_key,
-//                                                 range_key_flag,
-//                                                 last_part);
-//  return res;
-//}
 
-/* returns a number of keypart values appended to the key buffer */
-//int SEL_ROOT::store_max_key(KEY_PART *key,
-//                            uchar **range_key,
-//                            uint *range_key_flag,
-//                            uint last_part)
-//{
-//  SEL_ARG *key_tree= root->last();
-//  uint res=key_tree->store_max(key[key_tree->part].store_length,
-//                               range_key, *range_key_flag);
-//  (*range_key_flag)|= key_tree->max_flag;
-//  if (key_tree->next_key_part &&
-//      key_tree->next_key_part->type == SEL_ROOT::Type::KEY_RANGE &&
-//      key_tree->part != last_part &&
-//      key_tree->next_key_part->root->part == key_tree->part+1 &&
-//      !(*range_key_flag & (NO_MAX_RANGE | NEAR_MAX)))
-//    res+= key_tree->next_key_part->store_max_key(key,
-//                                                 range_key,
-//                                                 range_key_flag,
-//                                                 last_part);
-//  return res;
-//}
+  Note: Caller of this function should take care of sending the
+  correct flags and correct key to be stored into.  In case of
+  ascending indexes, store_min_key() gets called to store the
+  min_value to range start_key. In case of descending indexes, it's
+  called for storing min_value to range end_key.
+*/
+
 int SEL_ROOT::store_min_key(KEY_PART *key,
                   uchar **range_key,
                   uint *range_key_flag,
@@ -1273,6 +1157,7 @@ int SEL_ROOT::store_min_key(KEY_PART *key,
   return res;
 }
 
+
 /*
   Returns the number of keypart values appended to the key buffer.
 
@@ -1282,6 +1167,7 @@ int SEL_ROOT::store_min_key(KEY_PART *key,
   max_value into range end_key. In case of descending indexes,
   its max_value to range start_key.
 */
+
 int SEL_ROOT::store_max_key(KEY_PART *key,
                   uchar **range_key,
                   uint *range_key_flag,
