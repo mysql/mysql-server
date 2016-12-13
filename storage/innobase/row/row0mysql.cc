@@ -3010,8 +3010,6 @@ row_create_table_for_mysql(
 
 	trx_start_if_not_started_xa(trx, true);
 
-	heap = mem_heap_create(512);
-
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
 		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
@@ -3024,12 +3022,14 @@ row_create_table_for_mysql(
 		ut_ad(strstr(table->name.m_name, "/fts_") != NULL);
 	}
 
-	/* Assign talbe id and build table space. */
+	/* Assign table id and build table space. */
 	err = dict_build_table_def(table, trx);
 	if (err != DB_SUCCESS) {
 		trx->error_state = err;
 		goto error_handling;
 	}
+
+	heap = mem_heap_create(512);
 
 #ifdef INNODB_DD_TABLE
 	table->skip_step = true;
