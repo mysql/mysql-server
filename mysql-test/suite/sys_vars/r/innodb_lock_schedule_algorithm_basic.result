@@ -1,0 +1,12 @@
+SELECT @@global.innodb_lock_schedule_algorithm;
+@@global.innodb_lock_schedule_algorithm
+fcfs
+SET GLOBAL innodb_lock_schedule_algorithm = 'FCFS';
+SELECT @@global.innodb_lock_schedule_algorithm;
+@@global.innodb_lock_schedule_algorithm
+fcfs
+SET GLOBAL innodb_lock_schedule_algorithm = 'VATS';
+SELECT @@global.innodb_lock_schedule_algorithm;
+@@global.innodb_lock_schedule_algorithm
+vats
+SET GLOBAL innodb_lock_schedule_algorithm = 'FCFS';
