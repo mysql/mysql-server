@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -218,28 +218,28 @@ PgmanProxy::drop_page(Page_cache_client& caller,
  */
 
 Uint32
-PgmanProxy::create_data_file(Signal* signal)
+PgmanProxy::create_data_file(Signal* signal, Uint32 version)
 {
   Pgman* worker = (Pgman*)workerBlock(c_workers - 1); // extraWorkerBlock();
-  Uint32 ret = worker->create_data_file();
+  Uint32 ret = worker->create_data_file(version);
   Uint32 i;
   for (i = 0; i < c_workers - 1; i++) {
     jam();
-    send_data_file_ord(signal, i, ret,
+    send_data_file_ord(signal, i, ret, version,
                        DataFileOrd::CreateDataFile);
   }
   return ret;
 }
 
 Uint32
-PgmanProxy::alloc_data_file(Signal* signal, Uint32 file_no)
+PgmanProxy::alloc_data_file(Signal* signal, Uint32 file_no, Uint32 version)
 {
   Pgman* worker = (Pgman*)workerBlock(c_workers - 1); // extraWorkerBlock();
-  Uint32 ret = worker->alloc_data_file(file_no);
+  Uint32 ret = worker->alloc_data_file(file_no, version);
   Uint32 i;
   for (i = 0; i < c_workers - 1; i++) {
     jam();
-    send_data_file_ord(signal, i, ret,
+    send_data_file_ord(signal, i, ret, version,
                        DataFileOrd::AllocDataFile, file_no);
   }
   return ret;
@@ -253,7 +253,7 @@ PgmanProxy::map_file_no(Signal* signal, Uint32 file_no, Uint32 fd)
   Uint32 i;
   for (i = 0; i < c_workers - 1; i++) {
     jam();
-    send_data_file_ord(signal, i, ~(Uint32)0,
+    send_data_file_ord(signal, i, ~(Uint32)0, 0,
                        DataFileOrd::MapFileNo, file_no, fd);
   }
 }
@@ -266,17 +266,23 @@ PgmanProxy::free_data_file(Signal* signal, Uint32 file_no, Uint32 fd)
   Uint32 i;
   for (i = 0; i < c_workers - 1; i++) {
     jam();
-    send_data_file_ord(signal, i, ~(Uint32)0,
+    send_data_file_ord(signal, i, ~(Uint32)0, 0,
                        DataFileOrd::FreeDataFile, file_no, fd);
   }
 }
 
 void
-PgmanProxy::send_data_file_ord(Signal* signal, Uint32 i, Uint32 ret,
-                               Uint32 cmd, Uint32 file_no, Uint32 fd)
+PgmanProxy::send_data_file_ord(Signal* signal,
+                               Uint32 i,
+                               Uint32 ret,
+                               Uint32 version,
+                               Uint32 cmd,
+                               Uint32 file_no,
+                               Uint32 fd)
 {
   DataFileOrd* ord = (DataFileOrd*)signal->getDataPtrSend();
   ord->ret = ret;
+  ord->version = version;
   ord->cmd = cmd;
   ord->file_no = file_no;
   ord->fd = fd;

@@ -38,6 +38,7 @@
 #include <my_sys.h>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/AttrInfo.hpp>
+#include "../dblqh/Dblqh.hpp"
 
 #include <EventLogger.hpp>
 
@@ -806,7 +807,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->fragmentId= fragId;
   regFragPtr.p->partitionId= partitionId;
   regFragPtr.p->m_tablespace_id= tablespace_id;
-  regFragPtr.p->m_undo_complete= false;
+  regFragPtr.p->m_undo_complete= 0;
   regFragPtr.p->m_lcp_scan_op = RNIL;
   regFragPtr.p->m_lcp_keep_list_head.setNull();
   regFragPtr.p->m_lcp_keep_list_tail.setNull();
@@ -827,7 +828,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   if(regTabPtr.p->m_no_of_disk_attributes)
   {
     D("Tablespace_client - execTUPFRAGREQ");
-    Tablespace_client tsman(0, this, c_tsman, 0, 0,
+    Tablespace_client tsman(0, this, c_tsman, 0, 0, 0,
                             regFragPtr.p->m_tablespace_id);
     ndbrequire(tsman.get_tablespace_info(&rep) == 0);
     regFragPtr.p->m_logfile_group_id= rep.tablespace.logfile_group_id;
@@ -2346,6 +2347,7 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
       D("Tablespace_client - drop_fragment_free_extent_log_buffer_callback");
       Tablespace_client tsman(signal, this, c_tsman, tabPtr.i, 
 			      fragPtr.p->fragmentId,
+                              c_lqh->getCreateSchemaVersion(tabPtr.i),
 			      fragPtr.p->m_tablespace_id);
       
       tsman.free_extent(&ext_ptr.p->m_key, lsn);

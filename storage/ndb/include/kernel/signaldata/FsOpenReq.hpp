@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,6 +98,7 @@ private:
   STATIC_CONST( OM_GZ             = 0x8000 );
   STATIC_CONST( OM_THREAD_POOL    = 0x10000 );
   STATIC_CONST( OM_WRITE_BUFFER   = 0x20000 );
+  STATIC_CONST( OM_READ_SIZE      = 0x40000 );
   
   enum Suffixes {
     S_DATA = 0,

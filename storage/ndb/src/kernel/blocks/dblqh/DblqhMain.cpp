@@ -682,9 +682,9 @@ void Dblqh::execSTTOR(Signal* signal)
   tstartPhase = signal->theData[1];
                                                   /* SYSTEM RESTART RANK */
   csignalKey = signal->theData[6];
-#if defined VM_TRACE || defined ERROR_INSERT || defined NDBD_TRACENR
-  char *name;
+#if defined NDBD_TRACENR
   FILE *out = 0;
+  char *name;
 #endif
   switch (tstartPhase) {
   case ZSTART_PHASE1:
@@ -1955,6 +1955,23 @@ Dblqh::sendAddAttrReq(Signal* signal)
   }
   ndbrequire(false);
 }//Dblqh::sendAddAttrReq
+
+/**
+ * Return the schemaVersion-part that changes when table is created.
+ */
+Uint32 Dblqh::getCreateSchemaVersion(Uint32 tableId)
+{
+  tabptr.i = tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+  if (tabptr.p->tableStatus == Tablerec::TABLE_DEFINED)
+  {
+    return (tabptr.p->schemaVersion & 0xFFFFFF);
+  }
+  else
+  {
+    return 0;
+  }
+}
 
 void Dblqh::execLQHFRAGREQ(Signal* signal)
 {

@@ -676,7 +676,13 @@ struct Fragrecord {
   
   ScanOp_list::Head m_scanList;
 
-  enum { UC_LCP = 1, UC_CREATE = 2, UC_SET_LCP = 3 };
+  enum
+  {
+    UC_LCP = 1,
+    UC_CREATE = 2,
+    UC_SET_LCP = 3,
+    UC_DROP = 4
+  };
   Uint32 m_restore_lcp_id;
   Uint32 m_undo_complete;
   Uint32 m_tablespace_id;
@@ -3404,7 +3410,10 @@ private:
   void drop_table_logsync_callback(Signal*, Uint32, Uint32);
 
   void disk_page_set_dirty(Ptr<Page>);
-  void restart_setup_page(Disk_alloc_info&, Ptr<Page>, Int32 estimate);
+  void restart_setup_page(Ptr<Fragrecord> fragPtr,
+                          Disk_alloc_info&,
+                          Ptr<Page>,
+                          Int32 estimate);
   void update_extent_pos(EmulatedJamBuffer* jamBuf, Disk_alloc_info&, 
                          Ptr<Extent_info>, Int32 delta);
 
@@ -3429,8 +3438,11 @@ public:
   void disk_page_unmap_callback(Uint32 when, Uint32 page, Uint32 dirty_count);
   
   int disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf, 
-                                Uint32 tableId, Uint32 fragId, 
-				const Local_key* key, Uint32 pages);
+                                Uint32 tableId,
+                                Uint32 fragId,
+                                Uint32 create_table_version,
+				const Local_key* key,
+                                Uint32 pages);
   void disk_restart_page_bits(EmulatedJamBuffer* jamBuf,
                               Uint32 tableId, Uint32 fragId,
 			      const Local_key*, Uint32 bits);
@@ -3819,8 +3831,11 @@ public:
 
   // TSMAN
 
-  int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
-				const Local_key* key, Uint32 pages);
+  int disk_restart_alloc_extent(Uint32 tableId,
+                                Uint32 fragId,
+                                Uint32 create_table_version,
+				const Local_key* key,
+                                Uint32 pages);
 
   void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
 			      const Local_key* key, Uint32 bits);

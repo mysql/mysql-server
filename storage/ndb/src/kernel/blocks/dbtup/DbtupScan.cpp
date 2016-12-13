@@ -1036,9 +1036,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	{
           D("Tablespace_client - scanNext");
 	  Tablespace_client tsman(signal, this, c_tsman,
-				  frag.fragTableId, 
-				  frag.fragmentId, 
-				  frag.m_tablespace_id);
+                         frag.fragTableId, 
+                         frag.fragmentId,
+                         c_lqh->getCreateSchemaVersion(frag.fragTableId),
+                         frag.m_tablespace_id);
 	  unsigned uncommitted, committed;
 	  uncommitted = committed = ~(unsigned)0;
 	  int ret = tsman.get_page_free_bits(&key, &uncommitted, &committed);
