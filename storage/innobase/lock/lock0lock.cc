@@ -4605,7 +4605,7 @@ released:
 
 				/* Grant the lock */
 				ut_ad(trx != lock->trx);
-				lock_grant(lock, false);
+				lock_grant(lock);
 			}
 		}
 	} else {
