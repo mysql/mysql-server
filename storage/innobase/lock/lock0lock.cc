@@ -1496,9 +1496,11 @@ RecLock::lock_alloc(
 /*********************************************************************//**
 Check if lock1 has higher priority than lock2.
 NULL has lowest priority.
-If either is a high priority transaction, the lock has higher priority.
 If neither of them is wait lock, the first one has higher priority.
 If only one of them is a wait lock, it has lower priority.
+If both are high priority transactions, the one with a lower seq
+number has higher priority.
+High priority transaction has higher priority.
 Otherwise, the one with an older transaction has higher priority.
 @returns true if lock1 has higher priority, false otherwise. */
 static
@@ -1516,6 +1518,10 @@ has_higher_priority(
 		return true;
 	} else if (!lock_get_wait(lock2)) {
 		return false;
+	}
+	if (trx_is_high_priority(lock1->trx)
+			&& trx_is_high_priority(lock2->trx)) {
+		return lock1->trx->seq < lock2->trx->seq;
 	}
 	if (trx_is_high_priority(lock1->trx)) {
 		return true;
@@ -2674,6 +2680,7 @@ vats_grant(
 	std::vector<lock_t *> granted_locks;
 	std::vector<lock_t *> new_granted;
 
+	i = 0;
 	sub_dep_size_total = 0;
 	add_dep_size_total = 0;
 	space = released_lock->un_member.rec_lock.space;
@@ -2685,6 +2692,7 @@ vats_grant(
 		if (!lock_get_wait(lock)) {
 			granted_locks.push_back(lock);
 		} else {
+			lock->trx->seq = i++;
 			wait_locks.push_back(lock);
 		}
 	}

@@ -1091,6 +1091,7 @@ struct trx_t {
 					TRX_STATE_ACTIVE */
 	long			dep_size;
 	bool			size_updated;
+	long			seq;
 	lsn_t		commit_lsn;	/*!< lsn at the time of the commit */
 	table_id_t	table_id;	/*!< Table to drop iff dict_operation
 					== TRX_DICT_OP_TABLE, or 0. */
