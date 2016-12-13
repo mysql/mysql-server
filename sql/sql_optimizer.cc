@@ -100,6 +100,7 @@ only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
                    table_map *cached_eq_ref_tables, table_map
                    *eq_ref_tables);
 
+static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab);
 
 /**
   global select optimisation.
@@ -1655,6 +1656,9 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
   Item_equal *item_equal;
   COND_EQUAL cond_equal;
   cond_equal.upper_levels= inherited;
+
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, NULL))
+    return cond;
 
   if (cond->type() == Item::COND_ITEM)
   {
@@ -7669,45 +7673,8 @@ static bool make_join_select(JOIN *join, Item *cond)
       bool use_quick_range=0;
       Item *tmp;
 
-      /*
-        Heuristic: Switch from 'ref' to 'range' access if 'range'
-        access can utilize more keyparts than 'ref' access. Conditions
-        for doing switching:
-
-        1) Current decision is to use 'ref' access
-        2) 'ref' access depends on a constant, not a value read from a
-           table earlier in the join sequence.
-
-           Rationale: if 'ref' depends on a value from another table,
-           the join condition is not used to limit the rows read by
-           'range' access (that would require dynamic range - 'Range
-           checked for each record'). In other words, if 'ref' depends
-           on a value from another table, we have a query with
-           conditions of the form
-
-            this_table.idx_col1 = other_table.col AND   <<- used by 'ref'
-            this_table.idx_col1 OP <const> AND          <<- used by 'range'
-            this_table.idx_col2 OP <const> AND ...      <<- used by 'range'
-
-           and an index on (idx_col1,idx_col2,...). But the fact that
-           'range' access uses more keyparts does not mean that it is
-           more selective than 'ref' access because these access types
-           utilize different parts of the query condition. We
-           therefore trust the cost based choice made by
-           best_access_path() instead of forcing a heuristic choice
-           here.
-        3) Range access is possible, and it is less costly than
-           table/index scan
-        4) 'ref' access and 'range' access uses the same index
-        5) 'range' access uses more keyparts than 'ref' access
-
-        @todo: This decision should rather be made in best_access_path()
-       */
-      if (tab->type == JT_REF &&                                  // 1)
-          !tab->ref.depend_map &&                                 // 2)
-          tab->quick &&                                           // 3)
-          (uint) tab->ref.key == tab->quick->index &&             // 4)
-          tab->ref.key_length < tab->quick->max_used_key_length)  // 5)
+      /// See if you need to switch to range access
+      if (tab->type == JT_REF && can_switch_from_ref_to_range(thd, tab))
       {
         Opt_trace_object wrapper(trace);
         Opt_trace_object (trace, "access_type_changed").
@@ -8210,6 +8177,99 @@ only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
   return true;
 }
 
+/**
+  Heuristic: Switch from 'ref' to 'range' access if 'range' access can utilize
+  more keyparts than 'ref' access. Conditions for doing switching:
+
+  1) 'ref' access depends on a constant, not a value read from a table earlier
+      in the join sequence.
+
+  Rationale: if 'ref' depends on a value from another table, the join condition
+  is not used to limit the rows read by 'range' access (that would require
+  dynamic range - 'Range checked for each record'). In other words, if 'ref'
+  depends on a value from another table, we have a query with conditions of
+  the form
+    this_table.idx_col1 = other_table.col AND   <<- used by 'ref'
+    this_table.idx_col1 OP <const> AND          <<- used by 'range'
+    this_table.idx_col2 OP <const> AND ...      <<- used by 'range'
+
+  and an index on (idx_col1,idx_col2,...). But the fact that 'range' access
+  uses more keyparts does not mean that it is more selective than 'ref' access
+  because these access types utilize different parts of the query condition. We
+  therefore trust the cost based choice made by best_access_path() instead of
+  forcing a heuristic choice here.
+
+  2) Range access is possible, and it is less costly than table/index scan.
+
+    3a) 'ref' access and 'range' access uses the same index.
+    3b) 'range' access uses more keyparts than 'ref' access
+
+    OR
+
+    4) Ref has borrowed the index estimate from range and created a cost
+       estimate (See Optimize_table_order::find_best_ref). This will be a
+       problem if range built it's row estimate using a larger number of key
+       parts than ref. In such a case, shift to range access over the same
+       index. So run the range optimizer with that index as the only choice.
+       (Condition 5 is not relevant here since it has been tested in
+       find_best_ref.)
+
+  @param thd THD      To re-run range optimizer.
+  @param tab JOIN_TAB To check the above conditions.
+
+  @return true   Range is better than ref
+  @return false  Ref is better or switch isn't possible
+
+  @todo: This decision should rather be made in best_access_path()
+*/
+static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab)
+{
+  if (!tab->ref.depend_map &&                                          // 1)
+      tab->quick)                                                      // 2)
+  {
+    if ((uint) tab->ref.key == tab->quick->index &&                    // 3a)
+        tab->ref.key_length < tab->quick->max_used_key_length)         // 3b)
+      return true;
+    else if (tab->dodgy_ref_cost)                                      // 4)
+    {
+      int error;
+      SQL_SELECT *select;
+      JOIN *join= tab->join;
+      select= make_select(tab->table, join->found_const_table_map,
+                          join->found_const_table_map,
+                          *tab->on_expr_ref ? *tab->on_expr_ref : join->conds,
+                          1, &error);
+
+      if (select)
+      {
+        Opt_trace_context * const trace= &thd->opt_trace;
+        Opt_trace_object trace_wrapper(trace);
+        Opt_trace_array
+          trace_setup_cond(trace,
+                           "rerunning_range_optimizer_for_single_index");
+
+        key_map new_ref_key_map;
+        new_ref_key_map.set_bit(tab->position->key->key);
+        bool retcode= false;
+        if (select->test_quick_select(thd, new_ref_key_map, 0,
+                                      (join->select_options &
+                                       OPTION_FOUND_ROWS ? HA_POS_ERROR :
+                                       join->unit->select_limit_cnt),
+                                      false,  // don't force quick range
+                                      ORDER::ORDER_NOT_RELEVANT) > 0)
+        {
+          delete tab->quick;
+          tab->quick= select->quick;
+          retcode= true;
+        }
+        select->quick= 0;
+        delete select;
+        return retcode;
+      }
+    }
+  }
+  return false;
+}
 
 /**
   Check if an expression in ORDER BY or GROUP BY is a duplicate of a

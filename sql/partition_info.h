@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -403,5 +403,16 @@ void init_all_partitions_iterator(partition_info *part_info,
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
   part_iter->get_next= get_next_partition_id_range;
 }
+
+/**
+  Predicate which returns true if any partition or subpartition uses
+  an external data directory or external index directory.
+
+  @param pi partitioning information
+  @retval true if any partition or subpartition has an external
+  data directory or external index directory.
+  @retval false otherwise
+ */
+bool has_external_data_or_index_dir(partition_info &pi);
 
 #endif /* PARTITION_INFO_INCLUDED */

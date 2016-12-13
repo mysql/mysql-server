@@ -1,4 +1,4 @@
-#!/bin/sh
+#!@SHELL_PATH@
 # Copyright Abandoned 1996 TCX DataKonsult AB & Monty Program KB & Detron HB
 # This file is public domain and comes with NO WARRANTY of any kind
 #
@@ -126,7 +126,13 @@ log_generic () {
   echo "$msg"
   case $logging in
     init) ;;  # Just echo the message, don't save it anywhere
-    file) echo "$msg" >> "$err_log" ;;
+    file)
+      if [ -w / -o "$USER" = "root" ]; then
+        true
+      else
+        echo "$msg" >> "$err_log"
+      fi
+      ;;
     syslog) logger -t "$syslog_tag_mysqld_safe" -p "$priority" "$*" ;;
     *)
       echo "Internal program error (non-fatal):" \
@@ -146,7 +152,13 @@ log_notice () {
 eval_log_error () {
   cmd="$1"
   case $logging in
-    file) cmd="$cmd >> "`shell_quote_string "$err_log"`" 2>&1" ;;
+    file)
+      if [ -w / -o "$USER" = "root" ]; then
+        cmd="$cmd > /dev/null 2>&1"
+      else
+        cmd="$cmd >> "`shell_quote_string "$err_log"`" 2>&1"
+      fi
+      ;;
     syslog)
       # mysqld often prefixes its messages with a timestamp, which is
       # redundant when logging to syslog (which adds its own timestamp)
@@ -207,7 +219,13 @@ parse_arguments() {
 
       # mysqld_safe-specific options - must be set in my.cnf ([mysqld_safe])!
       --core-file-size=*) core_file_size="$val" ;;
-      --ledir=*) ledir="$val" ;;
+      --ledir=*)
+        if [ -z "$pick_args" ]; then
+          log_error "--ledir option can only be used as command line option, found in config file"
+          exit 1
+        fi
+        ledir="$val"
+        ;;
       --malloc-lib=*) set_malloc_lib "$val" ;;
       --mysqld=*)
         if [ -z "$pick_args" ]; then
@@ -383,7 +401,15 @@ else
   relpkgdata='@pkgdatadir@'
 fi
 
-MY_PWD=`pwd`
+case "$0" in
+  /*)
+  MY_PWD='@prefix@'
+  ;;
+  *)
+  MY_PWD=`dirname $0`
+  MY_PWD=`dirname $MY_PWD`
+  ;;
+esac
 # Check for the directories we would expect from a binary release install
 if test -n "$MY_BASEDIR_VERSION" -a -d "$MY_BASEDIR_VERSION"
 then
@@ -571,14 +597,7 @@ then
   fi
 
   # Log to err_log file
-  log_notice "Logging to '$err_log'."
   logging=file
-
-  if [ ! -f "$err_log" -a ! -h "$err_log" ]; then # if error log already exists,
-    touch "$err_log"                            # we just append. otherwise,
-    chmod "$fmode" "$err_log"                   # fix the permissions here!
-  fi
-
 else
   if [ -n "$syslog_tag" ]
   then
@@ -591,17 +610,54 @@ else
   logging=syslog
 fi
 
+logdir=`dirname "$err_log"`
+# Change the err log to the right user, if possible and it is in use
+if [ $logging = "file" -o $logging = "both" ]; then
+  if [ ! -f "$err_log" -a ! -h "$err_log" ]; then
+    if test -w / -o "$USER" = "root"; then
+      case $logdir in
+        /var/log)
+          (
+            umask 0137
+            set -o noclobber
+            > "$err_log" && chown $user "$err_log"
+          ) ;;
+        *) ;;
+      esac
+    else
+      (
+        umask 0137
+        set -o noclobber
+        > "$err_log"
+      )
+    fi
+  fi
+
+  if [ -f "$err_log" ]; then        # Log to err_log file
+    log_notice "Logging to '$err_log'."
+  elif [ "x$user" = "xroot" ]; then # running as root, mysqld can create log file; continue
+    echo "Logging to '$err_log'." >&2
+  else
+    case $logdir in
+      # We can't create $err_log, however mysqld can; continue
+      /tmp|/var/tmp|/var/log/mysql|$DATADIR)
+        echo "Logging to '$err_log'." >&2
+        ;;
+      # We can't create $err_log and don't know if mysqld can; error out
+      *)
+        log_error "error: log-error set to '$err_log', however file don't exists. Create writable for user '$user'."
+        exit 1
+        ;;
+    esac
+  fi
+fi
+
 USER_OPTION=""
 if test -w / -o "$USER" = "root"
 then
   if test "$user" != "root" -o $SET_USER = 1
   then
     USER_OPTION="--user=$user"
-  fi
-  # Change the err log to the right user, if it is in use
-  if [ $want_syslog -eq 0 -a ! -h "$err_log" ]; then
-    touch "$err_log"
-    chown $user "$err_log"
   fi
   if test -n "$open_files"
   then
@@ -615,15 +671,12 @@ then
 fi
 
 safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
-# Make sure that directory for $safe_mysql_unix_port exists
+# Check that directory for $safe_mysql_unix_port exists
 mysql_unix_port_dir=`dirname $safe_mysql_unix_port`
 if [ ! -d $mysql_unix_port_dir ]
 then
-  if [ ! -h $mysql_unix_port_dir ]; then
-    mkdir $mysql_unix_port_dir
-    chown $user $mysql_unix_port_dir
-    chmod 755 $mysql_unix_port_dir
-  fi
+  log_error "Directory '$mysql_unix_port_dir' for UNIX socket file don't exists."
+  exit 1
 fi
 
 # If the user doesn't specify a binary, we assume name "mysqld"
@@ -800,11 +853,31 @@ do
 
   eval_log_error "$cmd"
 
+  # hypothetical: log was renamed but not
+  # flushed yet. we'd recreate it with
+  # wrong owner next time we log, so set
+  # it up correctly while we can!
+
   if [ $want_syslog -eq 0 -a ! -f "$err_log" -a ! -h "$err_log" ]; then
-    touch "$err_log"                    # hypothetical: log was renamed but not
-    chown $user "$err_log"              # flushed yet. we'd recreate it with
-    chmod "$fmode" "$err_log"           # wrong owner next time we log, so set
-  fi                                    # it up correctly while we can!
+    if test -w / -o "$USER" = "root"; then
+      logdir=`dirname "$err_log"`
+      case $logdir in
+        /var/log)
+          (
+            umask 0137
+            set -o noclobber
+            > "$err_log" && chown $user "$err_log"
+          ) ;;
+        *) ;;
+      esac
+    else
+      (
+        umask 0137
+        set -o noclobber
+        > "$err_log"
+      )
+    fi
+  fi
 
   end_time=`date +%M%S`
 
