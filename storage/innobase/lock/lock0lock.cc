@@ -57,7 +57,7 @@ Created 5/7/1996 Heikki Tuuri
 my_bool	innobase_deadlock_detect = TRUE;
 
 /** Lock scheduling algorithm */
-ulong innodb_lock_schedule_algorithm = INNODB_LOCK_SCHEDULE_ALGORITHM_VATS;
+ulong innodb_lock_schedule_algorithm = INNODB_LOCK_SCHEDULE_ALGORITHM_FCFS;
 
 /** Total number of cached record locks */
 static const ulint	REC_LOCK_CACHE = 8;
