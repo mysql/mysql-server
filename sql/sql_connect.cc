@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -431,6 +431,14 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
                      global_system_variables.character_set_client->name,
                      cs->name))
   {
+    if (!is_supported_parser_charset(
+         global_system_variables.character_set_client))
+    {
+      /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+               global_system_variables.character_set_client->csname);
+      return true;
+    }
     thd->variables.character_set_client=
       global_system_variables.character_set_client;
     thd->variables.collation_connection=

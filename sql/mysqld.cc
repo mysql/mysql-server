@@ -3491,9 +3491,24 @@ static int init_common_variables()
   /* Set collactions that depends on the default collation */
   global_system_variables.collation_server=	 default_charset_info;
   global_system_variables.collation_database=	 default_charset_info;
-  global_system_variables.collation_connection=  default_charset_info;
-  global_system_variables.character_set_results= default_charset_info;
-  global_system_variables.character_set_client=  default_charset_info;
+
+  if (is_supported_parser_charset(default_charset_info))
+  {
+    global_system_variables.collation_connection= default_charset_info;
+    global_system_variables.character_set_results= default_charset_info;
+    global_system_variables.character_set_client= default_charset_info;
+  }
+  else
+  {
+    sql_print_information("'%s' can not be used as client character set. "
+                          "'%s' will be used as default client character set.",
+                          default_charset_info->csname,
+                          my_charset_latin1.csname);
+    global_system_variables.collation_connection= &my_charset_latin1;
+    global_system_variables.character_set_results= &my_charset_latin1;
+    global_system_variables.character_set_client= &my_charset_latin1;
+  }
+
   if (!(character_set_filesystem= 
         get_charset_by_csname(character_set_filesystem_name,
                               MY_CS_PRIMARY, MYF(MY_WME))))

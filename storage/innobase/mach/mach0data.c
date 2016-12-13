@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -55,8 +55,22 @@ mach_parse_compressed(
 	if (flag < 0x80UL) {
 		*val = flag;
 		return(ptr + 1);
+	}
 
-	} else if (flag < 0xC0UL) {
+	/* Workaround GCC bug
+	https://gcc.gnu.org/bugzilla/show_bug.cgi?id=77673:
+	the compiler moves mach_read_from_4 right to the beginning of the
+	function, causing and out-of-bounds read if we are reading a short
+	integer close to the end of buffer. */
+#if defined(__GNUC__) && (__GNUC__ >= 5) && !defined(__clang__)
+#define DEPLOY_FENCE
+#endif
+
+#ifdef DEPLOY_FENCE
+	__atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+	if (flag < 0xC0UL) {
 		if (end_ptr < ptr + 2) {
 			return(NULL);
 		}
@@ -64,8 +78,13 @@ mach_parse_compressed(
 		*val = mach_read_from_2(ptr) & 0x7FFFUL;
 
 		return(ptr + 2);
+	}
 
-	} else if (flag < 0xE0UL) {
+#ifdef DEPLOY_FENCE
+	__atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+	if (flag < 0xE0UL) {
 		if (end_ptr < ptr + 3) {
 			return(NULL);
 		}
@@ -73,7 +92,13 @@ mach_parse_compressed(
 		*val = mach_read_from_3(ptr) & 0x3FFFFFUL;
 
 		return(ptr + 3);
-	} else if (flag < 0xF0UL) {
+	}
+
+#ifdef DEPLOY_FENCE
+	__atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+	if (flag < 0xF0UL) {
 		if (end_ptr < ptr + 4) {
 			return(NULL);
 		}
@@ -81,14 +106,20 @@ mach_parse_compressed(
 		*val = mach_read_from_4(ptr) & 0x1FFFFFFFUL;
 
 		return(ptr + 4);
-	} else {
-		ut_ad(flag == 0xF0UL);
-
-		if (end_ptr < ptr + 5) {
-			return(NULL);
-		}
-
-		*val = mach_read_from_4(ptr + 1);
-		return(ptr + 5);
 	}
+
+#ifdef DEPLOY_FENCE
+	__atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+#undef DEPLOY_FENCE
+
+	ut_ad(flag == 0xF0UL);
+
+	if (end_ptr < ptr + 5) {
+		return(NULL);
+	}
+
+	*val = mach_read_from_4(ptr + 1);
+	return(ptr + 5);
 }
