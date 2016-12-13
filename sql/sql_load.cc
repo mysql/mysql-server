@@ -307,6 +307,24 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                      set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
         check_that_all_fields_are_given_values(thd, table, table_list))
       DBUG_RETURN(TRUE);
+
+    /*
+      Special updatability test is needed because fields_vars may contain
+      a mix of column references and user variables.
+    */
+    Item *item;
+    List_iterator<Item> it(fields_vars);
+    while ((item= it++))
+    {
+      if ((item->type() == Item::FIELD_ITEM ||
+           item->type() == Item::REF_ITEM) &&
+          item->field_for_view_update() == NULL)
+      {
+        my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
+        DBUG_RETURN(true);
+      }
+    }
+
     /* Fix the expressions in SET clause */
     if (setup_fields(thd, Ref_ptr_array(), set_values, MARK_COLUMNS_READ, 0, 0))
       DBUG_RETURN(TRUE);
