@@ -165,9 +165,13 @@ SELECT * FROM t1;
 id	b1	vc	bc	d	f	total	y	t
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	2009-05-15
 ALTER TABLE t1 ENGINE=MYISAM;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 id	b1	vc	bc	d	f	total	y	t
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	2009-05-15
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
@@ -258,7 +262,11 @@ partition by list(a)
 partitions 2
 (partition x123 values in (1,5,6),
 partition x234 values in (4,7,8));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT into t1 VALUES (5,1,1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select * from t1;
 a	b	c
 5	1	1
