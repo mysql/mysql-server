@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -44,6 +44,9 @@ struct PFS_digest_key
 /** A statement digest stat record. */
 struct PFS_ALIGNED PFS_statements_digest_stat
 {
+  /** Internal lock. */
+  pfs_lock m_lock;
+
   /** Digest Schema + MD5 Hash. */
   PFS_digest_key m_digest_key;
 

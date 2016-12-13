@@ -1788,8 +1788,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   /* Fix key->name and key_part->field */
   if (key_parts)
   {
-    uint primary_key=(uint) (find_type(primary_key_name, &share->keynames,
-                                       FIND_TYPE_NO_PREFIX) - 1);
+    const int pk_off= find_type(primary_key_name, &share->keynames,
+                                  FIND_TYPE_NO_PREFIX);
+    uint primary_key= (pk_off > 0 ? pk_off-1 : MAX_KEY);
+
     longlong ha_option= handler_file->ha_table_flags();
     keyinfo= share->key_info;
     key_part= keyinfo->key_part;

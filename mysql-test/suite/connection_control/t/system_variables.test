@@ -1,0 +1,281 @@
+# Skip the test in embedded mode
+--source include/not_embedded.inc
+
+# Make sure that connection_control plugin can be loaded
+--source ../inc/have_connection_control_plugin.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #-----------------------------------------------------------------------
+--echo # Setup
+--echo # Install connection_control plugin
+--source ../inc/install_connection_control_plugin.inc
+CREATE USER no_privs@localhost IDENTIFIED BY 'abcd';
+connect(conn_no_privs, localhost, no_privs, abcd,,,,);
+connection default;
+--echo #-----------------------------------------------------------------------
+
+--echo # Case 1 : connection_control_failed_connections_threshold
+SHOW GRANTS;
+SET @saved_value = @@global.connection_control_failed_connections_threshold;
+SELECT @saved_value;
+SET @@global.connection_control_failed_connections_threshold = @saved_value;
+
+--echo # 1.1 : Setting connection_control_failed_connections_threshold to valid
+--echo #       value
+
+SET @@global.connection_control_failed_connections_threshold = 20;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+SET @@global.connection_control_failed_connections_threshold = 2000;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+SET @@global.connection_control_failed_connections_threshold = 2147483647;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+SET @@global.connection_control_failed_connections_threshold = DEFAULT;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+--echo # 1.2 : Setting connection_control_failed_connections_threshold to
+--echo #       invalid value
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.connection_control_failed_connections_threshold = NULL;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.connection_control_failed_connections_threshold = `SELECT * FROM mysql.user`;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.connection_control_failed_connections_threshold = -20;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.connection_control_failed_connections_threshold = 9223372036854775808;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.connection_control_failed_connections_threshold = -9223372036854775808;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+--echo # Switch to conn_no_privs
+connection conn_no_privs;
+--echo # 1.3 : Use no_privs@localhost to set
+--echo #       connection_control_failed_connections_threshold to valid value
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.connection_control_failed_connections_threshold = 2147483647;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.connection_control_failed_connections_threshold = DEFAULT;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+--echo # 1.4 : Use no_privs@localhost to set
+--echo #       connection_control_failed_connections_threshold to invalid value
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.connection_control_failed_connections_threshold = NULL;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.connection_control_failed_connections_threshold = 9223372036854775808;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+connection default;
+
+SET @@global.connection_control_failed_connections_threshold = @saved_value;
+SELECT @@global.connection_control_failed_connections_threshold;
+
+--echo #-----------------------------------------------------------------------
+
+--echo # Case 2 : connection_control_min_connection_delay
+
+SET @saved_value= @@global.connection_control_min_connection_delay;
+SELECT @saved_value;
+
+--echo # 2.1 : Setting connection_control_min_connection_delay to valid
+--echo #       value
+
+SET @@global.connection_control_min_connection_delay = 20000;
+SELECT @@global.connection_control_min_connection_delay;
+
+SET @@global.connection_control_min_connection_delay = 2000;
+SELECT @@global.connection_control_min_connection_delay;
+
+SET @@global.connection_control_min_connection_delay = 2147483647;
+SELECT @@global.connection_control_min_connection_delay;
+
+SET @@global.connection_control_min_connection_delay = DEFAULT;
+SELECT @@global.connection_control_min_connection_delay;
+
+--echo # 2.2 : Setting connection_control_min_connection_delay to
+--echo #       invalid value
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.connection_control_min_connection_delay = NULL;
+SELECT @@global.connection_control_min_connection_delay;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.connection_control_min_connection_delay = `SELECT * FROM mysql.user`;
+SELECT @@global.connection_control_min_connection_delay;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.connection_control_min_connection_delay = -20;
+SELECT @@global.connection_control_min_connection_delay;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.connection_control_min_connection_delay = 9223372036854775808;
+SELECT @@global.connection_control_min_connection_delay;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.connection_control_min_connection_delay = -9223372036854775808;
+SELECT @@global.connection_control_min_connection_delay;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET@@global.connection_control_min_connection_delay = 20;
+SELECT @@global.connection_control_min_connection_delay;
+
+--echo # Switch to conn_no_privs
+connection conn_no_privs;
+--echo # 2.3 : Use no_privs@localhost to set
+--echo #       connection_control_min_connection_delay to valid value
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.connection_control_min_connection_delay = 2147483647;
+SELECT @@global.connection_control_min_connection_delay;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.connection_control_min_connection_delay = DEFAULT;
+SELECT @@global.connection_control_min_connection_delay;
+
+--echo # 2.4 : Use no_privs@localhost to set
+--echo #       connection_control_min_connection_delay to invalid value
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.connection_control_min_connection_delay = NULL;
+SELECT @@global.connection_control_min_connection_delay;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.connection_control_min_connection_delay = 9223372036854775808;
+SELECT @@global.connection_control_min_connection_delay;
+
+--echo # Switch to default connection
+connection default;
+--echo # 2.5 : Setting connection_control_min_connection_delay to a value
+--echo #       greater than connection_control_max_connection_delay
+
+SET @saved_max_delay= @@global.connection_control_max_connection_delay;
+SET @@global.connection_control_max_connection_delay= 10000;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.connection_control_min_connection_delay= 11000;
+SELECT @@global.connection_control_min_connection_delay;
+
+SET @@global.connection_control_max_connection_delay= @saved_max_delay;
+
+SET @@global.connection_control_min_connection_delay = @saved_value;
+SELECT @@global.connection_control_min_connection_delay;
+
+--echo #-----------------------------------------------------------------------
+
+--echo # Case 3 : connection_control_max_connection_delay
+
+SET @saved_value= @@global.connection_control_max_connection_delay;
+SELECT @saved_value;
+
+--echo # 3.1 : Setting connection_control_max_connection_delay to valid
+--echo #       value
+
+SET @@global.connection_control_max_connection_delay = 20000;
+SELECT @@global.connection_control_max_connection_delay;
+
+SET @@global.connection_control_max_connection_delay = 2000;
+SELECT @@global.connection_control_max_connection_delay;
+
+SET @@global.connection_control_max_connection_delay = 2147483647;
+SELECT @@global.connection_control_max_connection_delay;
+
+SET @@global.connection_control_max_connection_delay = DEFAULT;
+SELECT @@global.connection_control_max_connection_delay;
+
+--echo # 3.2 : Setting connection_control_max_connection_delay to
+--echo #       invalid value
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.connection_control_max_connection_delay = NULL;
+SELECT @@global.connection_control_max_connection_delay;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.connection_control_max_connection_delay = `SELECT * FROM mysql.user`;
+SELECT @@global.connection_control_max_connection_delay;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.connection_control_max_connection_delay = -20;
+SELECT @@global.connection_control_max_connection_delay;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.connection_control_max_connection_delay = 9223372036854775808;
+SELECT @@global.connection_control_max_connection_delay;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.connection_control_max_connection_delay = -9223372036854775808;
+SELECT @@global.connection_control_max_connection_delay;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.connection_control_max_connection_delay = 20;
+SELECT @@global.connection_control_max_connection_delay;
+
+--echo # Switch to conn_no_privs
+connection conn_no_privs;
+--echo # 3.3 : Use no_privs@localhost to set
+--echo #       connection_control_max_connection_delay to valid value
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.connection_control_max_connection_delay = 2147483647;
+SELECT @@global.connection_control_max_connection_delay;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.connection_control_max_connection_delay = DEFAULT;
+SELECT @@global.connection_control_max_connection_delay;
+
+--echo # 3.4 : Use no_privs@localhost to set
+--echo #       connection_control_max_connection_delay to invalid value
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.connection_control_max_connection_delay = NULL;
+SELECT @@global.connection_control_max_connection_delay;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.connection_control_max_connection_delay = 9223372036854775808;
+SELECT @@global.connection_control_max_connection_delay;
+
+--echo # Switch to default connection
+connection default;
+--echo # 3.5 : Setting connection_control_min_connection_delay to a value
+--echo #       greater than connection_control_max_connection_delay
+
+SET @saved_min_delay= @@global.connection_control_min_connection_delay;
+SET @@global.connection_control_min_connection_delay= 11000;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.connection_control_max_connection_delay= 10000;
+SELECT @@global.connection_control_max_connection_delay;
+
+SET @@global.connection_control_min_connection_delay= @saved_min_delay;
+
+SET @@global.connection_control_max_connection_delay = @saved_value;
+SELECT @@global.connection_control_max_connection_delay;
+
+--echo #-----------------------------------------------------------------------
+--echo # Cleanup
+disconnect conn_no_privs;
+DROP USER no_privs@localhost;
+--echo # Uninstall connection_control plugin
+--source ../inc/uninstall_connection_control_plugin.inc
+
+# Wait till all disconnects are completed.
+--source include/wait_until_count_sessions.inc
+--echo #-----------------------------------------------------------------------

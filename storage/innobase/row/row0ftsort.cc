@@ -957,7 +957,7 @@ fts_parallel_merge(
 	CloseHandle(psort_info->thread_hdl);
 #endif /*__WIN__ */
 
-	os_thread_exit(NULL);
+	os_thread_exit(NULL, false);
 
 	OS_THREAD_DUMMY_RETURN;
 }

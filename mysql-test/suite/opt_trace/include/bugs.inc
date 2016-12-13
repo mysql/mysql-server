@@ -335,3 +335,34 @@ WHERE
 HAVING  alias1.col_int_nokey  IN ( SELECT 2 FROM DUAL ) ;
 
 DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug #23259872: OPTIMIZER CHOOSES TO USE NON PRIMARY
+--echo #                INDEX, EVEN THOUGH COST IS HIGHER
+--echo #
+
+CREATE TABLE t1 (
+  a TINYTEXT NOT NULL,
+  b TINYINT(3) UNSIGNED NOT NULL,
+  PRIMARY KEY (a(32),b),
+  KEY b_idx(b)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES ('a',1),('a',2),('a',3),('b',1),('b',4),('c',1),('d',1),
+                      ('c',4),('d',3),('e',2),('f',2);
+
+SET @optimizer_switch_saved=@@session.optimizer_switch;
+SET @@session.optimizer_switch=default;
+SET optimizer_trace="enabled=on";
+
+# Uses "access_type_changed" to use range over ref despite b_idx not being the
+# cheapest in range.
+EXPLAIN SELECT * FROM t1 WHERE a IN ('a', 'b') AND b = 2;
+
+# Output of table_scan in test_quick_select is not always reliable.
+--replace_regex /"rows": 12/"rows": 11/ /"cost": 5.5/"cost": 5.3/
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SET optimizer_trace="enabled=off";
+SET @@session.optimizer_switch=@optimizer_switch_saved;
+
+DROP TABLE t1;
