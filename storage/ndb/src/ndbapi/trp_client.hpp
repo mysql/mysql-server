@@ -153,9 +153,10 @@ private:
    * m_send_nodes_* are the nodes we have pending unflushed
    * messages to
    */
+  NodeBitmask m_send_nodes_mask;
   Uint32 m_send_nodes_cnt;
   NodeId m_send_nodes_list[MAX_NODES];
-  NodeBitmask m_send_nodes_mask;
+
   TFBuffer* m_send_buffers;
 
   /**
