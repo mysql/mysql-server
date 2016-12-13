@@ -537,6 +537,9 @@ dd_table_open_on_id(
 {
 	dict_table_t*   ib_table;
 	const ulint     fold = ut_fold_ull(table_id);
+	char		db_buf[NAME_LEN + 1];
+	char		tbl_buf[NAME_LEN + 1];
+	char		full_name[2 * (NAME_LEN + 1)];
 
 	if (!dict_locked) {
 		mutex_enter(&dict_sys->mutex);
@@ -545,6 +548,7 @@ dd_table_open_on_id(
 	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold,
 		    dict_table_t*, ib_table, ut_ad(ib_table->cached),
 		    ib_table->id == table_id);
+
 	if (ib_table == NULL) {
 		if (dict_table_is_sdi(table_id)) {
 			/* The table is SDI table */
@@ -584,10 +588,6 @@ dd_table_open_on_id(
 		}
 		mutex_exit(&dict_sys->mutex);
 	} else {
-		char	db_buf[NAME_LEN + 1];
-		char	tbl_buf[NAME_LEN + 1];
-		char	full_name[2 * (NAME_LEN + 1)];
-
 		for (;;) {
 			innobase_parse_tbl_name(
 				ib_table->name.m_name, db_buf, tbl_buf, NULL);
@@ -609,10 +609,19 @@ dd_table_open_on_id(
 				dict_table_t*, ib_table,
 				ut_ad(ib_table->cached),
 				ib_table->id == table_id);
+
+
 			if (ib_table != nullptr) {
-				if (dd_check_corrupted(ib_table)) {
-                                        ut_ad(ib_table == nullptr);
-                                } else {
+				ulint	namelen = strlen(ib_table->name.m_name);
+
+                                if (namelen != strlen(full_name)
+				    || memcmp(ib_table->name.m_name,
+					      full_name, namelen)) {
+					dd_mdl_release(thd, mdl);
+					continue;
+				} else if (dd_check_corrupted(ib_table)) {
+					ut_ad(ib_table == nullptr);
+				} else {
 					ib_table->acquire();
 				}
 			}
@@ -632,7 +641,6 @@ dd_table_open_on_id(
 			}
 		}
 	}
-
 
 	if (ib_table != nullptr) {
 		if (table_id > 16 && !dict_table_is_sdi(table_id)

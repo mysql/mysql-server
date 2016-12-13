@@ -73,7 +73,6 @@ innobase_parse_tbl_name(
 {
 	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
-	char	ptn_buf[MAX_TABLE_NAME_LEN + 1];
 	ulint	db_len = dict_get_db_name_len(tbl_name);
 	char*	is_part;
 
@@ -97,8 +96,6 @@ innobase_parse_tbl_name(
 #endif /* _WIN32 */
 
 	if (is_part) {
-		filename_to_tablename(is_part + 3, ptn_buf,
-				      MAX_TABLE_NAME_LEN + 1);
 		*is_part = 0;
 	}
 
