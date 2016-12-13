@@ -28,17 +28,14 @@
 #endif
 
 #include "ngs_common/protocol_protobuf.h"
-#include <boost/scoped_ptr.hpp>
 #include "mysqlx_protocol.h"
-#include "mysqlx_crud.h"
 #include "mysqlx_resultset.h"
 #include "mysqlx_row.h"
 #include "mysqlx_error.h"
 #include "mysqlx_version.h"
 
 #include "my_config.h"
-
-#include <boost/bind.hpp>
+#include "ngs_common/bind.h"
 
 #ifdef MYSQLXTEST_STANDALONE
 #include "mysqlx/auth_mysql41.h"
@@ -168,12 +165,16 @@ static void throw_server_error(const Mysqlx::Error &error)
 }
 
 
-XProtocol::XProtocol(const Ssl_config &ssl_config, const std::size_t timeout, const bool dont_wait_for_disconnect)
+XProtocol::XProtocol(const Ssl_config &ssl_config,
+                     const std::size_t timeout,
+                     const bool dont_wait_for_disconnect,
+                     const Internet_protocol ip_mode)
 : m_sync_connection(ssl_config.key, ssl_config.ca, ssl_config.ca_path,
                     ssl_config.cert, ssl_config.cipher, ssl_config.tls_version, timeout),
   m_client_id(0),
   m_trace_packets(false), m_closed(true),
-  m_dont_wait_for_disconnect(dont_wait_for_disconnect)
+  m_dont_wait_for_disconnect(dont_wait_for_disconnect),
+  m_ip_mode(ip_mode)
 {
   if (getenv("MYSQLX_TRACE_CONNECTION"))
     m_trace_packets = true;
@@ -227,7 +228,12 @@ void XProtocol::connect(const std::string &host, int port)
   memset(&hints, 0, sizeof(hints));
   hints.ai_socktype= SOCK_STREAM;
   hints.ai_protocol= IPPROTO_TCP;
-  hints.ai_family= AF_INET;
+  hints.ai_family= AF_UNSPEC;
+
+  if (IPv6 == m_ip_mode)
+    hints.ai_family = AF_INET6;
+  else if (IPv4 == m_ip_mode)
+    hints.ai_family = AF_INET;
 
   gai_errno= getaddrinfo(host.c_str(), port_buf, &hints, &res_lst);
   if (gai_errno != 0)
@@ -235,7 +241,7 @@ void XProtocol::connect(const std::string &host, int port)
 
   for (t_res= res_lst; t_res; t_res= t_res->ai_next)
   {
-    error = m_sync_connection.connect((sockaddr_in*)t_res->ai_addr, t_res->ai_addrlen);
+    error = m_sync_connection.connect((sockaddr*)t_res->ai_addr, t_res->ai_addrlen);
 
     if (!error)
       break;
@@ -283,7 +289,7 @@ void XProtocol::fetch_capabilities()
 {
   send(Mysqlx::Connection::CapabilitiesGet());
   int mid;
-  boost::scoped_ptr<Message> message(recv_raw(mid));
+  ngs::unique_ptr<Message> message(recv_raw(mid));
   if (mid != Mysqlx::ServerMessages::CONN_CAPABILITIES)
     throw Error(CR_COMMANDS_OUT_OF_SYNC, "Unexpected response received from server");
   m_capabilities = *static_cast<Mysqlx::Connection::Capabilities*>(message.get());
@@ -322,7 +328,7 @@ void XProtocol::close()
     int mid;
     try
     {
-      boost::scoped_ptr<Message> message(recv_raw(mid));
+      ngs::unique_ptr<Message> message(recv_raw(mid));
       if (mid != Mysqlx::ServerMessages::OK)
         throw Error(CR_COMMANDS_OUT_OF_SYNC, "Unexpected message received in response to Session.Close");
 
@@ -345,7 +351,7 @@ void XProtocol::perform_close()
   }
 
   int mid;
-  boost::scoped_ptr<Message> message(recv_raw(mid));
+  ngs::unique_ptr<Message> message(recv_raw(mid));
   std::stringstream s;
 
   s << "Unexpected message received with id:" << mid << " while waiting for disconnection";
@@ -353,19 +359,19 @@ void XProtocol::perform_close()
   throw Error(CR_COMMANDS_OUT_OF_SYNC, s.str());
 }
 
-boost::shared_ptr<Result> XProtocol::recv_result()
+ngs::shared_ptr<Result> XProtocol::recv_result()
 {
   return new_result(true);
 }
 
-boost::shared_ptr<Result> XProtocol::new_empty_result()
+ngs::shared_ptr<Result> XProtocol::new_empty_result()
 {
-  boost::shared_ptr<Result> empty_result(new Result(shared_from_this(), false, false));
+  ngs::shared_ptr<Result> empty_result(new Result(shared_from_this(), false, false));
 
   return empty_result;
 }
 
-boost::shared_ptr<Result> XProtocol::execute_sql(const std::string &sql)
+ngs::shared_ptr<Result> XProtocol::execute_sql(const std::string &sql)
 {
   {
     Mysqlx::Sql::StmtExecute exec;
@@ -377,7 +383,7 @@ boost::shared_ptr<Result> XProtocol::execute_sql(const std::string &sql)
   return new_result(true);
 }
 
-boost::shared_ptr<Result> XProtocol::execute_stmt(const std::string &ns, const std::string &sql, const std::vector<ArgumentValue> &args)
+ngs::shared_ptr<Result> XProtocol::execute_stmt(const std::string &ns, const std::string &sql, const std::vector<ArgumentValue> &args)
 {
   {
     Mysqlx::Sql::StmtExecute exec;
@@ -431,28 +437,28 @@ boost::shared_ptr<Result> XProtocol::execute_stmt(const std::string &ns, const s
   return new_result(true);
 }
 
-boost::shared_ptr<Result> XProtocol::execute_find(const Mysqlx::Crud::Find &m)
+ngs::shared_ptr<Result> XProtocol::execute_find(const Mysqlx::Crud::Find &m)
 {
   send(m);
 
   return new_result(true);
 }
 
-boost::shared_ptr<Result> XProtocol::execute_update(const Mysqlx::Crud::Update &m)
+ngs::shared_ptr<Result> XProtocol::execute_update(const Mysqlx::Crud::Update &m)
 {
   send(m);
 
   return new_result(false);
 }
 
-boost::shared_ptr<Result> XProtocol::execute_insert(const Mysqlx::Crud::Insert &m)
+ngs::shared_ptr<Result> XProtocol::execute_insert(const Mysqlx::Crud::Insert &m)
 {
   send(m);
 
   return new_result(false);
 }
 
-boost::shared_ptr<Result> XProtocol::execute_delete(const Mysqlx::Crud::Delete &m)
+ngs::shared_ptr<Result> XProtocol::execute_delete(const Mysqlx::Crud::Delete &m)
 {
   send(m);
 
@@ -475,7 +481,7 @@ void XProtocol::setup_capability(const std::string &name, const bool value)
     m_last_result->buffer();
 
   int mid;
-  boost::scoped_ptr<Message> msg(recv_raw(mid));
+  ngs::unique_ptr<Message> msg(recv_raw(mid));
 
   if (Mysqlx::ServerMessages::ERROR == mid)
     throw_server_error(*(Mysqlx::Error*)msg.get());
@@ -503,7 +509,7 @@ void XProtocol::authenticate_mysql41(const std::string &user, const std::string 
 
   {
     int mid;
-    boost::scoped_ptr<Message> message(recv_raw(mid));
+    ngs::unique_ptr<Message> message(recv_raw(mid));
     switch (mid)
     {
       case Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE:
@@ -555,7 +561,7 @@ void XProtocol::authenticate_mysql41(const std::string &user, const std::string 
   while (!done)
   {
     int mid;
-    boost::scoped_ptr<Message> message(recv_raw(mid));
+    ngs::unique_ptr<Message> message(recv_raw(mid));
     switch (mid)
     {
       case Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK:
@@ -596,7 +602,7 @@ void XProtocol::authenticate_plain(const std::string &user, const std::string &p
   while (!done)
   {
     int mid;
-    boost::scoped_ptr<Message> message(recv_raw(mid));
+    ngs::unique_ptr<Message> message(recv_raw(mid));
     switch (mid)
     {
       case Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK:
@@ -891,7 +897,7 @@ void XProtocol::throw_mysqlx_error(const Error &error)
   throw error;
 }
 
-boost::shared_ptr<Result> XProtocol::new_result(bool expect_data)
+ngs::shared_ptr<Result> XProtocol::new_result(bool expect_data)
 {
   if (m_last_result)
     m_last_result->buffer();

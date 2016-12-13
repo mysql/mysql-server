@@ -26,10 +26,6 @@
 namespace xpl
 {
 
-
-class Server;
-
-
 class Global_status_variables : public Common_status_variables
 {
 public:
@@ -40,238 +36,26 @@ public:
     return singleton;
   }
 
-
-  void reset()
-  {
-    Common_status_variables::reset();
-
-    my_atomic_store64(&m_sessions_count, 0);
-    my_atomic_store64(&m_worker_thread_count, 0);
-    my_atomic_store64(&m_active_worker_thread_count, 0);
-    my_atomic_store64(&m_closed_sessions_count, 0);
-    my_atomic_store64(&m_sessions_fatal_errors_count, 0);
-    my_atomic_store64(&m_init_errors_count, 0);
-    my_atomic_store64(&m_accepted_connections_count, 0);
-    my_atomic_store64(&m_closed_connections_count, 0);
-    my_atomic_store64(&m_connection_errors_count, 0);
-    my_atomic_store64(&m_connection_reject_count, 0);
-    my_atomic_store64(&m_connection_accept_errors_count, 0);
-    my_atomic_store64(&m_accepted_sessions_count, 0);
-    my_atomic_store64(&m_rejected_sessions_count, 0);
-    my_atomic_store64(&m_killed_sessions_count, 0);
-  }
-
-
-  void increment_sessions_count()
-  {
-    my_atomic_add64(&m_sessions_count, 1);
-  }
-
-
-  void decrement_sessions_count()
-  {
-    my_atomic_add64(&m_sessions_count, -1);
-  }
-
-
-  long long get_sessions_count()
-  {
-    return my_atomic_load64(&m_sessions_count);
-  }
-
-
-  void increment_worker_thread_count()
-  {
-    my_atomic_add64(&m_worker_thread_count, 1);
-  }
-
-
-  void decrement_worker_thread_count()
-  {
-    my_atomic_add64(&m_worker_thread_count, -1);
-  }
-
-
-  long long get_worker_thread_count()
-  {
-    return my_atomic_load64(&m_worker_thread_count);
-  }
-
-
-  void increment_active_worker_thread_count()
-  {
-    my_atomic_add64(&m_active_worker_thread_count, 1);
-  }
-
-
-  void decrement_active_worker_thread_count()
-  {
-    my_atomic_add64(&m_active_worker_thread_count, -1);
-  }
-
-
-  long long get_active_worker_thread_count()
-  {
-    return my_atomic_load64(&m_active_worker_thread_count);
-  }
-
-
-  void increment_closed_sessions_count()
-  {
-    my_atomic_add64(&m_closed_sessions_count, 1);
-  }
-
-
-  long long get_closed_sessions_count()
-  {
-    return my_atomic_load64(&m_closed_sessions_count);
-  }
-
-
-  void increment_sessions_fatal_errors_count()
-  {
-    my_atomic_add64(&m_sessions_fatal_errors_count, 1);
-  }
-
-
-  long long get_sessions_fatal_errors_count()
-  {
-    return my_atomic_load64(&m_sessions_fatal_errors_count);
-  }
-
-
-  void increment_init_errors_count()
-  {
-    my_atomic_add64(&m_init_errors_count, 1);
-  }
-
-
-  long long get_init_errors_count()
-  {
-    return my_atomic_load64(&m_init_errors_count);
-  }
-
-
-  void increment_closed_connections_count()
-  {
-    my_atomic_add64(&m_closed_connections_count, 1);
-  }
-
-
-  long long get_closed_connections_count()
-  {
-    return my_atomic_load64(&m_closed_connections_count);
-  }
-
-
-  void increment_accepted_connections_count()
-  {
-    my_atomic_add64(&m_accepted_connections_count, 1);
-  }
-
-
-  long long get_accepted_connections_count()
-  {
-    return my_atomic_load64(&m_accepted_connections_count);
-  }
-
-
-  void increment_connection_errors_count()
-  {
-    my_atomic_add64(&m_connection_errors_count, 1);
-  }
-
-
-  long long get_connection_errors_count()
-  {
-    return my_atomic_load64(&m_connection_errors_count);
-  }
-
-
-  void increment_connection_accept_errors_count()
-  {
-    my_atomic_add64(&m_connection_accept_errors_count, 1);
-  }
-
-
-  long long get_connection_accept_errors_count()
-  {
-    return my_atomic_load64(&m_connection_accept_errors_count);
-  }
-
-
-  void increment_connection_reject_count()
-  {
-    my_atomic_add64(&m_connection_reject_count, 1);
-  }
-
-
-  long long get_rejected_connections_count()
-  {
-    return my_atomic_load64(&m_connection_reject_count);
-  }
-
-
-  void increment_accepted_sessions_count()
-  {
-    my_atomic_add64(&m_accepted_sessions_count, 1);
-  }
-
-
-  long long get_accepted_sessions_count()
-  {
-    return my_atomic_load64(&m_accepted_sessions_count);
-  }
-
-
-  void increment_rejected_sessions_count()
-  {
-    my_atomic_add64(&m_rejected_sessions_count, 1);
-  }
-
-
-  long long get_rejected_sessions_count()
-  {
-    return my_atomic_load64(&m_rejected_sessions_count);
-  }
-
-
-  void increment_killed_sessions_count()
-  {
-    my_atomic_add64(&m_killed_sessions_count, 1);
-  }
-
-
-  long long get_killed_sessions_count()
-  {
-    return my_atomic_load64(&m_killed_sessions_count);
-  }
-
+  void reset() { *this = Global_status_variables(); }
+
+  Variable m_sessions_count;
+  Variable m_worker_thread_count;
+  Variable m_active_worker_thread_count;
+  Variable m_closed_sessions_count;
+  Variable m_sessions_fatal_errors_count;
+  Variable m_init_errors_count;
+  Variable m_closed_connections_count;
+  Variable m_accepted_connections_count;
+  Variable m_rejected_connections_count;
+  Variable m_connection_errors_count;
+  Variable m_connection_accept_errors_count;
+  Variable m_accepted_sessions_count;
+  Variable m_rejected_sessions_count;
+  Variable m_killed_sessions_count;
 
 private:
-  Global_status_variables()
-  {
-    reset();
-  }
-
-
+  Global_status_variables() {}
   Global_status_variables(const Global_status_variables &);
-  Global_status_variables &operator=(const Global_status_variables &);
-
-  volatile int64 m_sessions_count;
-  volatile int64 m_worker_thread_count;
-  volatile int64 m_active_worker_thread_count;
-  volatile int64 m_closed_sessions_count;
-  volatile int64 m_sessions_fatal_errors_count;
-  volatile int64 m_init_errors_count;
-  volatile int64 m_accepted_connections_count;
-  volatile int64 m_closed_connections_count;
-  volatile int64 m_connection_errors_count;
-  volatile int64 m_connection_reject_count;
-  volatile int64 m_connection_accept_errors_count;
-  volatile int64 m_accepted_sessions_count;
-  volatile int64 m_rejected_sessions_count;
-  volatile int64 m_killed_sessions_count;
 };
 
 

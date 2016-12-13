@@ -1,0 +1,125 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+See for existence of required events in the tables
+event_name
+memory/mysqlx/objects
+memory/mysqlx/recv_buffer
+memory/mysqlx/send_buffer
+0 rows affected
+memory_summary_global_by_event_name 'memory/mysqlx/objects'
+
+0 rows affected
+
+0 rows affected
+IF(@MY_COUNT_ALLOC1 > 0, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC1 > 0, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 > 0, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_HIGH_NUMBER_OF_BYTES_USED1 > 0, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_COUNT_ALLOC1 >= @MY_COUNT_FREE1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC1 >= @MY_SUM_NUMBER_OF_BYTES_FREE1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 <= @MY_HIGH_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 >= @MY_LOW_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+second query, more allocations and memory used expected
+
+0 rows affected
+IF(@MY_COUNT_ALLOC2 >= @MY_COUNT_FREE2, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC2 >= @MY_SUM_NUMBER_OF_BYTES_FREE2, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_COUNT_ALLOC2 > @MY_COUNT_ALLOC1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_COUNT_FREE2 > @MY_COUNT_FREE1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC2 > @MY_SUM_NUMBER_OF_BYTES_ALLOC1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_SUM_NUMBER_OF_BYTES_FREE2 > @MY_SUM_NUMBER_OF_BYTES_FREE1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_HIGH_NUMBER_OF_BYTES_USED2 >= @MY_HIGH_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+memory_summary_global_by_event_name 'memory/mysqlx/recv_buffer'
+
+0 rows affected
+
+0 rows affected
+IF(@MY_COUNT_ALLOC1 > 0, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC1 > 0, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 > 0, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_HIGH_NUMBER_OF_BYTES_USED1 > 0, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_COUNT_ALLOC1 >= @MY_COUNT_FREE1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC1 >= @MY_SUM_NUMBER_OF_BYTES_FREE1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 <= @MY_HIGH_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 >= @MY_LOW_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+memory_summary_global_by_event_name 'memory/mysqlx/send_buffer'
+
+0 rows affected
+
+0 rows affected
+IF(@MY_COUNT_ALLOC1 > 0, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC1 > 0, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 > 0, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_HIGH_NUMBER_OF_BYTES_USED1 > 0, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_COUNT_ALLOC1 >= @MY_COUNT_FREE1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC1 >= @MY_SUM_NUMBER_OF_BYTES_FREE1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 <= @MY_HIGH_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 >= @MY_LOW_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR")
+SUCCESS
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+UNINSTALL PLUGIN mysqlx;

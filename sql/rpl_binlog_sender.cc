@@ -1048,9 +1048,10 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
   DBUG_ENTER("Binlog_sender::read_event");
 
   size_t event_offset;
+  char header[LOG_EVENT_MINIMAL_HEADER_LEN];
   int error= 0;
 
-  if ((error= Log_event::peek_event_length(event_len, log_cache)))
+  if ((error= Log_event::peek_event_length(event_len, log_cache, header)))
     goto read_error;
 
   if (reset_transmit_packet(0, *event_len))
@@ -1069,7 +1070,8 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
     packet is big enough to read the event, since we have reallocated based
     on the length stated in the event header.
   */
-  if ((error= Log_event::read_log_event(log_cache, &m_packet, NULL, checksum_alg)))
+  if ((error= Log_event::read_log_event(log_cache, &m_packet, NULL, checksum_alg,
+                                        NULL, NULL, header)))
     goto read_error;
 
   set_last_pos(my_b_tell(log_cache));

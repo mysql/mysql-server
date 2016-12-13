@@ -747,6 +747,18 @@ SELECT c2,RIGHT(c3,20),c4 FROM tde_db.t_encrypt WHERE c2 > 500 AND c2 < 600;
 SELECT c2,RIGHT(c3,20),c4 FROM tde_db.t_encrypt ORDER BY c2 DESC LIMIT 10;
 DROP DATABASE tde_db;
 
+--echo #
+--echo # Bug#24404091 FAILING ASSERTION: !SRV_READ_ONLY_MODE ||
+--echo # M_IMPL.M_LOG_MODE == MTR_LOG_NO_REDO
+--echo #
+let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_read_only=1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--replace_regex /.dll/.so/
+--source include/restart_mysqld.inc
+
+--error ER_INNODB_READ_ONLY
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
 # Normal restart
 --disable_query_log
 let $restart_parameters = restart:;

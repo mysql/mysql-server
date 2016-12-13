@@ -62,6 +62,7 @@ int Streaming_command_delegate::start_result_metadata(uint num_cols, uint flags,
   return false;
 }
 
+
 int Streaming_command_delegate::field_metadata(struct st_send_field *field,
                                                    const CHARSET_INFO *charset)
 {
@@ -204,23 +205,19 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
   }
   DBUG_ASSERT(xtype != (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
 
-  if (compact_metadata())
-    m_proto->send_column_metadata(xcollation, xtype, field->decimals, xflags, field->length, ctype);
-  else
-    m_proto->send_column_metadata("def", field->db_name,
-      field->table_name, field->org_table_name,
-      field->col_name, field->org_col_name,
-      xcollation, xtype, field->decimals, xflags, field->length, ctype);
 
-  return false;
+  if (send_column_metadata(xcollation, xtype, xflags, ctype, field))
+    return false;
+
+  my_message(ER_IO_WRITE_ERROR, "Connection reset by peer", MYF(0));
+  return true;
 }
 
 
 int Streaming_command_delegate::end_result_metadata(uint server_status,
-                                                        uint warn_count)
+                                                    uint warn_count)
 {
   Command_delegate::end_result_metadata(server_status, warn_count);
-
   return false;
 }
 
@@ -233,9 +230,14 @@ int Streaming_command_delegate::start_row()
 
 int Streaming_command_delegate::end_row()
 {
-  if (!m_streaming_metadata)
-    m_proto->send_row();
-  return false;
+  if (m_streaming_metadata)
+    return false;
+
+  if (m_proto->send_row())
+    return false;
+
+  my_message(ER_IO_WRITE_ERROR, "Connection reset by peer", MYF(0));
+  return true;
 }
 
 void Streaming_command_delegate::abort_row()
@@ -369,4 +371,15 @@ void Streaming_command_delegate::handle_ok(uint server_status, uint statement_wa
       m_proto->send_result_fetch_done();
   }
   Command_delegate::handle_ok(server_status, statement_warn_count, affected_rows, last_insert_id, message);
+}
+
+
+bool Streaming_command_delegate::send_column_metadata(uint64_t xcollation, const Mysqlx::Resultset::ColumnMetaData::FieldType &xtype,
+                                                      uint32_t xflags, uint32_t ctype, const st_send_field *field)
+{
+  if (compact_metadata())
+    return m_proto->send_column_metadata(xcollation, xtype, field->decimals, xflags, field->length, ctype);
+  return m_proto->send_column_metadata("def", field->db_name, field->table_name, field->org_table_name,
+                                       field->col_name, field->org_col_name, xcollation, xtype, field->decimals,
+                                       xflags, field->length, ctype);
 }

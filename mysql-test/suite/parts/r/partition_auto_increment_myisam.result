@@ -186,7 +186,11 @@ PRIMARY KEY (c1))
 ENGINE='MyISAM'
 PARTITION BY HASH(c1)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -195,6 +199,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 c1
 1
@@ -207,7 +213,11 @@ PRIMARY KEY (c2))
 ENGINE='MyISAM'
 PARTITION BY HASH(c2)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, NULL);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, 1), (99, 99);
 INSERT INTO t1 VALUES (1, NULL);
 SET @@session.sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
@@ -227,7 +237,11 @@ PRIMARY KEY (c2))
 ENGINE='MyISAM'
 PARTITION BY HASH(c2)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, 0);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, 1), (1, NULL);
 INSERT INTO t1 VALUES (2, NULL), (4, 7);
 INSERT INTO t1 VALUES (1, NULL);
@@ -250,7 +264,11 @@ PRIMARY KEY (c1))
 ENGINE='MyISAM'
 PARTITION BY HASH(c1)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (2), (4), (NULL);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0);
 INSERT INTO t1 VALUES (5), (16);
 INSERT INTO t1 VALUES (17), (19), (NULL);
@@ -263,10 +281,14 @@ UPDATE t1 SET c1 = 150 WHERE c1 = 17;
 UPDATE t1 SET c1 = 151 WHERE c1 = 19;
 FLUSH TABLES;
 UPDATE t1 SET c1 = 140 WHERE c1 = 150;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
   AND TABLE_NAME='t1';
 AUTO_INCREMENT
 152
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UPDATE IGNORE t1 SET c1 = NULL WHERE c1 = 4;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
@@ -301,9 +323,13 @@ PRIMARY KEY (c1))
 ENGINE='MyISAM'
 PARTITION BY HASH(c1)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET @@session.auto_increment_increment = 10;
 SET @@session.auto_increment_offset = 5;
 INSERT INTO t1 VALUES (1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
 SET @@session.auto_increment_increment = 5;
 SET @@session.auto_increment_offset = 3;
@@ -349,21 +375,29 @@ PRIMARY KEY (c1))
 ENGINE='MyISAM'
 PARTITION BY HASH (c1)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
 AND TABLE_NAME='t1';
 AUTO_INCREMENT
 1
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (2);
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
 AND TABLE_NAME='t1';
 AUTO_INCREMENT
 3
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (4);
 INSERT INTO t1 VALUES (NULL);
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
 AND TABLE_NAME='t1';
 AUTO_INCREMENT
 6
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL);
 INSERT INTO t1 VALUES (17);
 INSERT INTO t1 VALUES (19);
@@ -373,10 +407,14 @@ SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
 AND TABLE_NAME='t1';
 AUTO_INCREMENT
 22
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
 AND TABLE_NAME='t1';
 AUTO_INCREMENT
 22
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (10);
 SELECT * FROM t1 ORDER BY c1;
 c1
@@ -394,6 +432,8 @@ SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
 AND TABLE_NAME='t1';
 AUTO_INCREMENT
 23
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL);
 INSERT INTO t1 VALUES (15);
 INSERT INTO t1 VALUES (NULL);
@@ -423,10 +463,14 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=27 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY c1;
 c1
 26
 TRUNCATE TABLE t1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -436,6 +480,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY c1;
 c1
 1
@@ -445,6 +491,7 @@ DELETE FROM t1 WHERE c1 >= 100;
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
+test.t1	optimize	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -453,6 +500,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=102 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 # Test with two threads
 # con default
@@ -460,7 +509,11 @@ CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (c1))
 ENGINE = 'MyISAM'
 PARTITION BY HASH(c1)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (c1) VALUES (2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (c1) VALUES (4);
 # con1
 INSERT INTO t1 (c1) VALUES (NULL);
@@ -580,8 +633,12 @@ CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (c1))
 ENGINE = 'MyISAM'
 PARTITION BY HASH(c1)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 START TRANSACTION;
 INSERT INTO t1 (c1) VALUES (2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (c1) VALUES (4);
 # con1
 START TRANSACTION;
@@ -662,7 +719,11 @@ PRIMARY KEY (c1,c2))
 ENGINE = 'MyISAM'
 PARTITION BY HASH(c2)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, 0);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, 1);
 INSERT INTO t1 VALUES (NULL, 1), (NULL, 2), (NULL, 3);
 INSERT INTO t1 VALUES (NULL, 3);
@@ -692,7 +753,11 @@ PRIMARY KEY (c2))
 ENGINE = 'MyISAM'
 PARTITION BY HASH(c2)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, 0);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, 1);
 INSERT INTO t1 VALUES (1, NULL);
 INSERT INTO t1 VALUES (2, NULL), (3, 11), (3, NULL), (2, 0);
@@ -720,7 +785,11 @@ PRIMARY KEY (c1,c2))
 ENGINE = 'MyISAM'
 PARTITION BY HASH(c2)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, 0);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, 1);
 INSERT INTO t1 VALUES (1, NULL);
 INSERT INTO t1 VALUES (2, NULL);
@@ -746,6 +815,8 @@ ENGINE = 'MyISAM'
 AUTO_INCREMENT = 15
 PARTITION BY HASH(c1)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -754,6 +825,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=15 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (c1) VALUES (4);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -763,6 +836,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=15 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (c1) VALUES (0);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -772,6 +847,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=16 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (c1) VALUES (NULL);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -781,6 +858,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=17 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY c1;
 c1
 4
@@ -799,6 +878,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=301 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (c1) VALUES (0);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -808,6 +889,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=301 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (c1) VALUES (NULL);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -817,6 +900,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=302 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY c1;
 c1
 0
@@ -834,6 +919,8 @@ CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (c1))
 ENGINE = 'MyISAM'
 PARTITION BY HASH(c1)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -842,6 +929,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (c1) VALUES (NULL);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -851,6 +940,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 c1
 1
@@ -863,6 +954,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (c1) VALUES (NULL);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -872,6 +965,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=24 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET INSERT_ID = 22;
 INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
 INSERT INTO t1 VALUES (NULL);
@@ -889,6 +984,8 @@ PRIMARY KEY (c1))
 ENGINE='MyISAM'
 PARTITION BY HASH(c1)
 PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -897,6 +994,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 FLUSH TABLE;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -906,6 +1005,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (4);
 FLUSH TABLE;
 SHOW CREATE TABLE t1;
@@ -916,6 +1017,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=5 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL);
 FLUSH TABLE;
 SHOW CREATE TABLE t1;
@@ -926,6 +1029,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=6 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY c1;
 c1
 4
@@ -938,7 +1043,11 @@ DROP TABLE t1;
 # Inserting negative autoincrement values into a partition table (partitions >= 4)
 CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
 c2 INT) ENGINE='MyISAM' PARTITION BY HASH(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (10);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (20);
 INSERT INTO t VALUES (-1,-10);
 INSERT INTO t(c2) VALUES (30);
@@ -955,7 +1064,11 @@ DROP TABLE t;
 # value into the auto increment column
 CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
 c2 INT) ENGINE='MyISAM' PARTITION BY HASH(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t VALUES (-2,-20);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (30);
 SELECT * FROM t ORDER BY c1 ASC;
 c1	c2
@@ -966,7 +1079,11 @@ DROP TABLE t;
 # auto increment value > 2.
 CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
 c2 INT) ENGINE='MyISAM' PARTITION BY HASH(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t VALUES (-4,-20);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (30);
 INSERT INTO t(c2) VALUES (40);
 SELECT * FROM t ORDER BY c1 ASC;
@@ -978,7 +1095,11 @@ DROP TABLE t;
 # Inserting -1 into autoincrement column of a partition table (partition >= 4)
 CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
 c2 INT) ENGINE='MyISAM' PARTITION BY HASH(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (10);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (20);
 INSERT INTO t VALUES (-1,-10);
 SELECT * FROM t ORDER BY c1 ASC;
@@ -997,7 +1118,11 @@ DROP TABLE t;
 # Deleting from an auto increment table after inserting negative values
 CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
 c2 INT) ENGINE='MyISAM' PARTITION BY HASH(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (10);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (20);
 INSERT INTO t VALUES (-1,-10);
 INSERT INTO t(c2) VALUES (30);
@@ -1022,7 +1147,11 @@ DROP TABLE t;
 # Auto Increment column (positive maximum)
 CREATE TABLE t (c1 TINYINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
 c2 INT) ENGINE='MyISAM' PARTITION BY HASH(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (10);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (20);
 INSERT INTO t VALUES (126,30);
 INSERT INTO t VALUES (127,40);
@@ -1042,7 +1171,11 @@ DROP TABLE t;
 # Auto Increment column (negative minimum)
 CREATE TABLE t (c1 TINYINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
 c2 INT) ENGINE='MyISAM' PARTITION BY HASH(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (10);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (20);
 INSERT INTO t VALUES (-127,30);
 INSERT INTO t VALUES (-128,40);
@@ -1058,7 +1191,11 @@ DROP TABLE t;
 # Updating the partition table with a negative Auto Increment value
 CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
 c2 INT) ENGINE='MyISAM' PARTITION BY HASH(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (10);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (20);
 INSERT INTO t VALUES (-1,-10);
 INSERT INTO t(c2) VALUES (30);
@@ -1092,7 +1229,11 @@ SET sql_mode = default;
 # on both the positive and the negative side.
 CREATE TABLE t (c1 TINYINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
 c2 INT) ENGINE='MyISAM' PARTITION BY HASH(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (10);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t(c2) VALUES (20);
 INSERT INTO t VALUES (126,30);
 INSERT INTO t VALUES (127,40);
@@ -1126,8 +1267,12 @@ CREATE TABLE t1
 UNIQUE KEY (a))
 ENGINE='MyISAM'
 PARTITION BY KEY(a) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET LAST_INSERT_ID = 999;
 INSERT INTO t1 SET a = 1 ON DUPLICATE KEY UPDATE a = NULL;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT LAST_INSERT_ID();
 LAST_INSERT_ID()
 999
@@ -1165,7 +1310,11 @@ CREATE TABLE t1
 (a int not null auto_increment primary key, b varchar(64))
 ENGINE = 'MyISAM'
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0x7FFFFFFD, "2");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "1");
 INSERT INTO t1 VALUES (NULL, "0");
 INSERT INTO t1 VALUES (NULL, "Overflow");
@@ -1184,6 +1333,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=2147483648 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 3 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 2147483645	2
@@ -1198,6 +1349,8 @@ PRIMARY KEY (`a`)
 ) ENGINE='MyISAM'
 AUTO_INCREMENT=2147483648 DEFAULT CHARSET=latin1
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "Overflow");
 # mysql_errno: 1264
 INSERT INTO t1 VALUES (NULL, "Overflow");
@@ -1208,7 +1361,11 @@ CREATE TABLE t1
 (a int not null auto_increment primary key, b varchar(64))
 ENGINE = 'MyISAM'
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0x7FFFFFFD, "2");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "1"), (NULL, "0"), (NULL, "Overflow");
 ERROR HY000: Failed to read auto-increment value from storage engine
 INSERT INTO t1 VALUES (NULL, "1");
@@ -1228,6 +1385,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=2147483648 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 3 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 2147483645	2
@@ -1240,7 +1399,11 @@ CREATE TABLE t1
 (a int unsigned not null auto_increment primary key, b varchar(64))
 ENGINE = 'MyISAM'
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0xFFFFFFFD, "2");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "1");
 INSERT INTO t1 VALUES (NULL, "0");
 INSERT INTO t1 VALUES (NULL, "Overflow");
@@ -1256,6 +1419,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=4294967296 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 3 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 4294967293	2
@@ -1269,6 +1434,8 @@ CREATE TABLE `t1` (
 PRIMARY KEY (`a`)
 ) ENGINE='MyISAM' AUTO_INCREMENT=4294967296 DEFAULT CHARSET=latin1
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "Overflow");
 # mysql_errno: 1264
 DROP TABLE t1;
@@ -1277,7 +1444,11 @@ CREATE TABLE t1
 (a int unsigned not null auto_increment primary key, b varchar(64))
 ENGINE = 'MyISAM'
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0xFFFFFFFD, "2");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "1"), (NULL, "0"), (NULL, "Overflow");
 ERROR HY000: Failed to read auto-increment value from storage engine
 INSERT INTO t1 VALUES (NULL, "1");
@@ -1297,6 +1468,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=4294967296 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 3 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 4294967293	2
@@ -1309,7 +1482,11 @@ CREATE TABLE t1
 (a bigint not null auto_increment primary key, b varchar(64))
 ENGINE = 'MyISAM'
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, "2");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "1");
 INSERT INTO t1 VALUES (NULL, "0");
 INSERT INTO t1 VALUES (NULL, "Overflow");
@@ -1325,6 +1502,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=9223372036854775808 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 3 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 5	non-generated number
@@ -1339,6 +1518,8 @@ PRIMARY KEY (`a`)
 ) ENGINE='MyISAM' AUTO_INCREMENT=9223372036854775808 DEFAULT CHARSET=latin1
 PARTITION BY HASH (a)
 PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "Overflow");
 # mysql_errno: 1264
 DROP TABLE t1;
@@ -1347,7 +1528,11 @@ CREATE TABLE t1
 (a bigint not null auto_increment primary key, b varchar(64))
 ENGINE = 'MyISAM'
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, "2");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "1"), (NULL, "0"), (NULL, "Overflow");
 ERROR HY000: Failed to read auto-increment value from storage engine
 INSERT INTO t1 VALUES (NULL, "1");
@@ -1367,6 +1552,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=9223372036854775808 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 3 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 5	non-generated number
@@ -1379,7 +1566,11 @@ CREATE TABLE t1
 (a bigint unsigned not null auto_increment primary key, b varchar(64))
 ENGINE = 'MyISAM'
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0xFFFFFFFFFFFFFFFD, "2");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "1");
 INSERT INTO t1 VALUES (NULL, "0");
 ERROR HY000: Failed to read auto-increment value from storage engine
@@ -1396,6 +1587,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 3 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 18446744073709551613	2
@@ -1409,6 +1602,8 @@ PRIMARY KEY (`a`)
 ) ENGINE='MyISAM' AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
 PARTITION BY HASH (a)
 PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "Overflow");
 # mysql_errno: 1467
 DROP TABLE t1;
@@ -1417,7 +1612,11 @@ CREATE TABLE t1
 (a bigint unsigned not null auto_increment primary key, b varchar(64))
 ENGINE = 'MyISAM'
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0xFFFFFFFFFFFFFFFD, "2");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "1"), (NULL, "0"), (NULL, "Overflow");
 ERROR HY000: Failed to read auto-increment value from storage engine
 INSERT INTO t1 VALUES (NULL, "1");
@@ -1438,6 +1637,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 3 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 18446744073709551613	2

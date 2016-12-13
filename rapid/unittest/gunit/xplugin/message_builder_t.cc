@@ -15,7 +15,6 @@
 
 
 #include <gtest/gtest.h>
-#include <boost/scoped_ptr.hpp>
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs/protocol/message_builder.h"
 #include "ngs/protocol/metadata_builder.h"
@@ -34,18 +33,17 @@ typedef ngs::Message_builder Message_builder;
 typedef ngs::Metadata_builder Metadata_builder;
 typedef ngs::Notice_builder Notice_builder;
 typedef ngs::Page_pool Page_pool;
-#define unique_ptr boost::scoped_ptr
 
 const ngs::Pool_config default_pool_config = { 0, 0, BUFFER_PAGE_SIZE };
 
 TEST(message_builder, encode_resultset_fetch_done)
 {
   Message_builder mb;
-  unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
+  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
 
   mb.encode_empty_message(obuffer.get(), Mysqlx::ServerMessages::RESULTSET_FETCH_DONE);
-  unique_ptr<Mysqlx::Resultset::FetchDone> msg (message_from_buffer<Mysqlx::Resultset::FetchDone>(obuffer.get()));
+  ngs::unique_ptr<Mysqlx::Resultset::FetchDone> msg (message_from_buffer<Mysqlx::Resultset::FetchDone>(obuffer.get()));
 
   ASSERT_TRUE(NULL != msg);
   ASSERT_TRUE(msg->IsInitialized());
@@ -54,11 +52,11 @@ TEST(message_builder, encode_resultset_fetch_done)
 TEST(message_builder, encode_resultset_fetch_done_more_resultsets)
 {
   Message_builder mb;
-  unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
+  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
 
   mb.encode_empty_message(obuffer.get(), Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS);
-  unique_ptr<Mysqlx::Resultset::FetchDoneMoreResultsets> msg(message_from_buffer<Mysqlx::Resultset::FetchDoneMoreResultsets>(obuffer.get()));
+  ngs::unique_ptr<Mysqlx::Resultset::FetchDoneMoreResultsets> msg(message_from_buffer<Mysqlx::Resultset::FetchDoneMoreResultsets>(obuffer.get()));
 
   ASSERT_TRUE(NULL != msg);
   ASSERT_TRUE(msg->IsInitialized());
@@ -67,11 +65,11 @@ TEST(message_builder, encode_resultset_fetch_done_more_resultsets)
 TEST(message_builder, encode_stmt_execute_ok)
 {
   Message_builder mb;
-  unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
+  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
 
   mb.encode_empty_message(obuffer.get(), Mysqlx::ServerMessages::OK);
-  unique_ptr<Mysqlx::Sql::StmtExecuteOk> msg(message_from_buffer<Mysqlx::Sql::StmtExecuteOk>(obuffer.get()));
+  ngs::unique_ptr<Mysqlx::Sql::StmtExecuteOk> msg(message_from_buffer<Mysqlx::Sql::StmtExecuteOk>(obuffer.get()));
 
   ASSERT_TRUE(NULL != msg);
   ASSERT_TRUE(msg->IsInitialized());
@@ -80,8 +78,8 @@ TEST(message_builder, encode_stmt_execute_ok)
 TEST(message_builder, encode_compact_metadata)
 {
   Metadata_builder mb;
-  unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
+  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
 
   const uint64 COLLATION = 1u;
   const int TYPE = Mysqlx::Resultset::ColumnMetaData::SINT;
@@ -92,7 +90,7 @@ TEST(message_builder, encode_compact_metadata)
 
   mb.encode_metadata(obuffer.get(), COLLATION, TYPE, DECIMALS, FLAGS, LENGTH, CONTENT_TYPE);
 
-  unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(message_from_buffer<Mysqlx::Resultset::ColumnMetaData>(obuffer.get()));
+  ngs::unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(message_from_buffer<Mysqlx::Resultset::ColumnMetaData>(obuffer.get()));
 
   ASSERT_TRUE(NULL != msg);
 
@@ -120,8 +118,8 @@ TEST(message_builder, encode_compact_metadata)
 TEST(message_builder, encode_full_metadata)
 {
   Metadata_builder mb;
-  unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
+  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
 
   const uint64 COLLATION = 2u;
   const int TYPE = Mysqlx::Resultset::ColumnMetaData::BYTES;
@@ -139,7 +137,7 @@ TEST(message_builder, encode_full_metadata)
   mb.encode_metadata(obuffer.get(), CATALOG, SCHEMA, TABLE_NAME, ORG_TABLE_NAME,
     COLUM_NAME, ORG_COLUM_NAME, COLLATION, TYPE, DECIMALS, FLAGS, LENGTH, CONTENT_TYPE);
 
-  unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(message_from_buffer<Mysqlx::Resultset::ColumnMetaData>(obuffer.get()));
+  ngs::unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(message_from_buffer<Mysqlx::Resultset::ColumnMetaData>(obuffer.get()));
 
   ASSERT_TRUE(NULL != msg);
 
@@ -172,8 +170,8 @@ TEST(message_builder, encode_full_metadata)
 TEST(message_builder, encode_notice_frame)
 {
   Notice_builder mb;
-  unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
+  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
 
   const uint32 TYPE = 2;
   const int SCOPE = Mysqlx::Notice::Frame_Scope_GLOBAL;
@@ -181,7 +179,7 @@ TEST(message_builder, encode_notice_frame)
 
   mb.encode_frame(obuffer.get(), TYPE, DATA, SCOPE);
 
-  unique_ptr<Mysqlx::Notice::Frame> msg(message_from_buffer<Mysqlx::Notice::Frame>(obuffer.get()));
+  ngs::unique_ptr<Mysqlx::Notice::Frame> msg(message_from_buffer<Mysqlx::Notice::Frame>(obuffer.get()));
 
   ASSERT_TRUE(NULL != msg);
 
@@ -196,14 +194,14 @@ TEST(message_builder, encode_notice_frame)
 TEST(message_builder, encode_notice_rows_affected)
 {
   Notice_builder mb;
-  unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
+  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
 
   const uint64 ROWS_AFFECTED = 10001u;
 
   mb.encode_rows_affected(obuffer.get(), ROWS_AFFECTED);
 
-  unique_ptr<Mysqlx::Notice::Frame> msg(message_from_buffer<Mysqlx::Notice::Frame>(obuffer.get()));
+  ngs::unique_ptr<Mysqlx::Notice::Frame> msg(message_from_buffer<Mysqlx::Notice::Frame>(obuffer.get()));
 
   ASSERT_TRUE(NULL != msg);
 

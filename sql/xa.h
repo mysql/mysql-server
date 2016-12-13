@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -710,10 +710,24 @@ my_bool detach_native_trx(THD *thd, plugin_ref plugin,
 
 
 /**
-  The function restores previously saved storage engine transaction context.
+  Reset some transaction state information and delete corresponding
+  Transaction_ctx object from cache.
 
-  @param     thd     Thread context
+  @param thd    Current thread
 */
 
-void attach_native_trx(THD *thd);
+void cleanup_trans_state(THD *thd);
+
+
+/**
+  Rollback the active XA transaction.
+
+  @note Resets rm_error before calling ha_rollback(), so
+        the thd->transaction.xid structure gets reset
+        by ha_rollback() / THD::transaction::cleanup().
+
+  @return true if the rollback failed, false otherwise.
+*/
+
+bool xa_trans_force_rollback(THD *thd);
 #endif

@@ -1,0 +1,91 @@
+################################################################################
+# Base test to verify the basic SSL support on Group replication recovery
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Setup the first member (M1) with a recovery user that requires SSL.
+# 2. Add some data and bootstrap start a group on M1.
+# 3. Configure joining member (M2) to use SSL options on recovery. Start GR on
+#    M2. Check the data is there.
+# 4. Clean up.
+################################################################################
+
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Setup the first member with a recovery user that requires SSL
+--echo #
+
+--connection server1
+--echo server1
+
+# create a user for replication that requires ssl encryption
+set session sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+set session sql_log_bin=1;
+
+--echo #
+--echo # Add some data and start the member
+--echo #
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--echo #
+--echo # Configure a joining member to use SSL options on recovery and start it
+--echo #
+
+--connection server2
+--echo server2
+
+--let $conf_rec_use_ssl= `SELECT @@GLOBAL.group_replication_recovery_use_ssl;`
+--let $conf_rec_ssl_ca= `SELECT @@GLOBAL.group_replication_recovery_ssl_ca;`
+--let $conf_rec_ssl_cert= `SELECT @@GLOBAL.group_replication_recovery_ssl_cert;`
+--let $conf_rec_ssl_key= `SELECT @@GLOBAL.group_replication_recovery_ssl_key;`
+
+--disable_warnings
+CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+--enable_warnings
+
+--eval SET GLOBAL group_replication_recovery_use_ssl=1
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET GLOBAL group_replication_recovery_ssl_ca= '$MYSQL_TEST_DIR/std_data/cacert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET GLOBAL group_replication_recovery_ssl_cert= '$MYSQL_TEST_DIR/std_data/client-cert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET GLOBAL group_replication_recovery_ssl_key= '$MYSQL_TEST_DIR/std_data/client-key.pem'
+
+--source include/start_group_replication.inc
+
+--echo #
+--echo # Check the data is there
+--echo #
+
+--let $assert_text= On the recovered member, the table should exist and have 1 elements;
+--let $assert_cond= [select count(*) from t1] = 1;
+--source include/assert.inc
+
+--echo #
+--echo # Clean up
+--echo #
+
+--eval SET @@GLOBAL.group_replication_recovery_use_ssl= $conf_rec_use_ssl
+--eval SET @@GLOBAL.group_replication_recovery_ssl_ca= "$conf_rec_ssl_ca"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_cert= "$conf_rec_ssl_cert"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_key= "$conf_rec_ssl_key"
+
+--connection server1
+--echo server1
+
+set session sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+set session sql_log_bin=1;
+
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

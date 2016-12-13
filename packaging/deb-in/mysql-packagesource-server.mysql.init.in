@@ -38,10 +38,32 @@ umask 077
 STARTTIMEOUT=180
 STOPTIMEOUT=60
 
-VERSION=$(mysqld --version | grep mysqld | cut -d' ' -f4)
+# To avoid having hardcoded paths in the script, we do a search on the path, as suggested at:
+# https://www.debian.org/doc/manuals/developers-reference/ch06.en.html#bpp-debian-maint-scripts
+pathfind() {
+	OLDIFS="$IFS"
+	IFS=:
+	for p in $PATH; do
+		if [ -x "$p/$*" ]; then
+			IFS="$OLDIFS"
+			return 0
+		fi
+	done
+	IFS="$OLDIFS"
+	return 1
+}
+
+# We need to check that the binaries exist; When upgrading from community to commercial this
+# script will be run after community is removed but before commercial is installed
+VERSION="unknown"
+if pathfind mysqld; then
+	VERSION=$(mysqld --version | grep mysqld | cut -d' ' -f4)
+fi
 
 get_mysql_option() {
-	RESULT=$(my_print_defaults "$1" | sed -n "s/^--$2=//p" | tail -n 1)
+	if pathfind my_print_defaults; then
+		RESULT=$(my_print_defaults "$1" | sed -n "s/^--$2=//p" | tail -n 1)
+	fi
 	if [ -z "$RESULT" ];
 	then
 		RESULT="$3"
@@ -152,9 +174,7 @@ case "$1" in
 			mkdir ${MYSQLLOG}
 			chown mysql:adm ${MYSQLLOG}
 			chmod 750 ${MYSQLLOG}
-			touch ${MYSQLLOG}/error.log
-			chmod 640 ${MYSQLLOG}/error.log
-			chown mysql:adm ${MYSQLLOG}/error.log
+			install /dev/null -m0640 -omysql -gadm ${MYSQLLOG}/error.log
 		fi
 
 		if [ ! -d "${MYSQLRUN}" -a ! -L "${MYSQLRUN}" ];

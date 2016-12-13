@@ -1,0 +1,1 @@
+perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication-debug --vardir=var-group_replication-debug --suite=group_replication --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list

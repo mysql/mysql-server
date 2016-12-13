@@ -14,9 +14,11 @@ EOF
 -->newsession idle_session	-
 -->measure
 -->sleep 2
+-->noquery_result
 Mysqlx.Connection.CapabilitiesGet {
 }
--->recv
+-->recvtype Mysqlx.Connection.Capabilities
+-->query_result
 
 # lets give maximum tolerance for disconnecting 
 # this is going to be verified at endmesasure !

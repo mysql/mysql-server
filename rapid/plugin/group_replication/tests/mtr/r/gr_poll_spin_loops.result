@@ -1,0 +1,51 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET @group_replication_poll_spin_loops_save= @@GLOBAL.group_replication_poll_spin_loops;
+
+############################################################
+# 1. Set invalid values to group_replication_poll_spin_loops.
+SET GLOBAL group_replication_poll_spin_loops= ON;
+ERROR 42000: Incorrect argument type to variable 'group_replication_poll_spin_loops'
+SET GLOBAL group_replication_poll_spin_loops= OFF;
+ERROR 42000: Incorrect argument type to variable 'group_replication_poll_spin_loops'
+SET GLOBAL group_replication_poll_spin_loops= " ";
+ERROR 42000: Incorrect argument type to variable 'group_replication_poll_spin_loops'
+SET GLOBAL group_replication_poll_spin_loops= "a";
+ERROR 42000: Incorrect argument type to variable 'group_replication_poll_spin_loops'
+SET GLOBAL group_replication_poll_spin_loops= 1.0;
+ERROR 42000: Incorrect argument type to variable 'group_replication_poll_spin_loops'
+
+############################################################
+# 2. Set invalid values to group_replication_poll_spin_loops
+#    that will be truncated.
+SET GLOBAL group_replication_poll_spin_loops= -1;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_poll_spin_loop value: '-1'
+include/assert.inc [group_replication_poll_spin_loops is correct]
+SET GLOBAL group_replication_poll_spin_loops= 4294967296;
+SELECT @@GLOBAL.group_replication_poll_spin_loops IN (4294967296,4294967295);
+@@GLOBAL.group_replication_poll_spin_loops IN (4294967296,4294967295)
+1
+SET GLOBAL group_replication_poll_spin_loops= 12345678901;
+SELECT @@GLOBAL.group_replication_poll_spin_loops IN (12345678901,4294967295);
+@@GLOBAL.group_replication_poll_spin_loops IN (12345678901,4294967295)
+1
+
+############################################################
+# 3. Set valid values to group_replication_poll_spin_loops.
+SET GLOBAL group_replication_poll_spin_loops= 0;
+include/assert.inc [group_replication_poll_spin_loops is correct]
+SET GLOBAL group_replication_poll_spin_loops= 1;
+include/assert.inc [group_replication_poll_spin_loops is correct]
+SET GLOBAL group_replication_poll_spin_loops= 65535;
+include/assert.inc [group_replication_poll_spin_loops is correct]
+SET GLOBAL group_replication_poll_spin_loops= 4294967295;
+include/assert.inc [group_replication_poll_spin_loops is correct]
+
+############################################################
+# 4. Clean up.
+SET GLOBAL group_replication_poll_spin_loops= @group_replication_poll_spin_loops_save;
+include/group_replication_end.inc

@@ -2251,7 +2251,6 @@ check_reverse_order:
         DBUG_ASSERT(tab->quick() == save_quick || tab->quick() == NULL);
         tab->set_quick(NULL);
         tab->set_index(best_key);
-        tab->reversed_access= order_direction < 0;
         tab->set_type(JT_INDEX_SCAN);       // Read with index_first(), index_next()
         /*
           There is a bug. When we change here, e.g. from group_min_max to
@@ -2316,7 +2315,7 @@ check_reverse_order:
         tab->set_type(calc_join_type(tmp->get_type()));
         tab->position()->filter_effect= COND_FILTER_STALE;
       }
-      else if ((tab->type() == JT_REF || tab->type() == JT_INDEX_SCAN) &&
+      else if (tab->type() == JT_REF &&
                tab->ref().key_parts <= used_key_parts)
       {
         /*
@@ -2336,6 +2335,8 @@ check_reverse_order:
         */
         changed_key= tab->ref().key;
       }
+      else if (tab->type() == JT_INDEX_SCAN)
+        tab->reversed_access= true;
     }
     else if (tab->quick())
       tab->quick()->need_sorted_output();
@@ -2446,8 +2447,9 @@ bool JOIN::prune_table_partitions()
   access can utilize more keyparts than 'ref' access. Conditions
   for doing switching:
 
-  1) Range access is possible
-  2) 'ref' access and 'range' access uses the same index
+  1) Range access is possible.
+  2) This function is not relevant for FT, since there is no range access for
+     that type of index.
   3) Used parts of key shouldn't have nullable parts, i.e we're
      going to use 'ref' access, not ref_or_null.
   4) 'ref' access depends on a constant, not a value read from a
@@ -2471,9 +2473,21 @@ bool JOIN::prune_table_partitions()
      therefore trust the cost based choice made by
      best_access_path() instead of forcing a heuristic choice
      here.
-  5) 'range' access uses more keyparts than 'ref' access
+     5a) 'ref' access and 'range' access uses the same index.
+     5b) 'range' access uses more keyparts than 'ref' access.
 
-  @param tab JOIN_TAB to check
+     OR
+
+     6) Ref has borrowed the index estimate from range and created a cost
+        estimate (See Optimize_table_order::find_best_ref). This will be a
+        problem if range built it's row estimate using a larger number of key
+        parts than ref. In such a case, shift to range access over the same
+        index. So run the range optimizer with that index as the only choice.
+        (Condition 5 is not relevant here since it has been tested in
+        find_best_ref.)
+
+  @param thd THD      To re-run range optimizer.
+  @param tab JOIN_TAB To check the above conditions.
 
   @return true   Range is better than ref
   @return false  Ref is better or switch isn't possible
@@ -2481,10 +2495,11 @@ bool JOIN::prune_table_partitions()
   @todo: This decision should rather be made in best_access_path()
 */
 
-static bool can_switch_from_ref_to_range(JOIN_TAB *tab)
+static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab)
 {
-  if (tab->quick() &&                                           // 1)
-      tab->position()->key->key == tab->quick()->index)           // 2)
+
+  if (tab->quick() &&                                        // 1)
+      tab->position()->key->keypart != FT_KEYPART)           // 2)
   {
     uint keyparts= 0, length= 0;
     table_map dep_map= 0;
@@ -2494,10 +2509,40 @@ static bool can_switch_from_ref_to_range(JOIN_TAB *tab)
                              tab->position()->key->key,
                              tab->prefix_tables(), NULL, &length, &keyparts,
                              &dep_map, &maybe_null);
-    if (!maybe_null &&                                        // 3)
-        !dep_map &&                                           // 4)
-        length < tab->quick()->max_used_key_length)             // 5)
+    if (maybe_null ||                                        // 3)
+        dep_map)                                             // 4)
+      return false;
+
+    if (tab->position()->key->key == tab->quick()->index &&  // 5a)
+        length < tab->quick()->max_used_key_length)          // 5b)
       return true;
+    else if (tab->dodgy_ref_cost)                            // 6)
+    {
+      key_map new_ref_key_map;
+      new_ref_key_map.set_bit(tab->position()->key->key);
+
+      Opt_trace_context * const trace= &thd->opt_trace;
+      Opt_trace_object trace_wrapper(trace);
+      Opt_trace_array
+        trace_setup_cond(trace, "rerunning_range_optimizer_for_single_index");
+
+      QUICK_SELECT_I *qck;
+      if (test_quick_select(thd, new_ref_key_map,
+                            0,       // empty table_map
+                            tab->join()->row_limit,
+                            false,   // don't force quick range
+                            ORDER::ORDER_NOT_RELEVANT,
+                            tab,
+                            tab->join_cond() ? tab->join_cond() :
+                            tab->join()->where_cond,
+                            &tab->needed_reg,
+                            &qck) > 0)
+      {
+        delete tab->quick();
+        tab->set_quick(qck);
+        return true;
+      }
+    }
   }
   return false;
 }
@@ -2554,7 +2599,7 @@ void JOIN::adjust_access_methods()
     }
     else if (tab->type() == JT_REF)
     {
-      if (can_switch_from_ref_to_range(tab))
+      if (can_switch_from_ref_to_range(thd, tab))
       {
         tab->set_type(JT_RANGE);
 
@@ -3794,6 +3839,9 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
   Item_equal *item_equal;
   COND_EQUAL cond_equal;
   cond_equal.upper_levels= inherited;
+
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, NULL))
+    return true;                          // Fatal error flag is set!
 
   const enum Item::Type cond_type= cond->type();
   if (cond_type == Item::COND_ITEM)

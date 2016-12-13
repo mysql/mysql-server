@@ -213,6 +213,7 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
     }
 
     /* For public key, read key file content into a char buffer. */
+    bool read_error= false;
     if (!is_priv_key)
     {
       int filesize;
@@ -220,10 +221,18 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
       filesize= ftell(key_file);
       fseek(key_file, 0, SEEK_SET);
       *key_text_buffer= new char[filesize+1];
-      (void) fread(*key_text_buffer, filesize, 1, key_file);
+      int items_read= fread(*key_text_buffer, filesize, 1, key_file);
+      read_error= items_read != 1;
+      if (read_error)
+      {
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        sql_print_error("Failure to read key file: %s",
+                        my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+      }
       (*key_text_buffer)[filesize]= '\0';
     }
     fclose(key_file);
+    return read_error;
   }
   return false;
 }

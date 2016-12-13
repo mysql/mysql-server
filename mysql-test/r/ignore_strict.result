@@ -632,7 +632,11 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 # Part 5 : Test cases for the non transactional (MyIsam) engine.
 #
 CREATE TABLE t1 (a int) ENGINE = MyISAM PARTITION BY HASH (a) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0), (1), (2), (3);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE VIEW v1 AS SELECT a FROM t1 PARTITION (p0);
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -680,7 +684,11 @@ DROP TABLE t1;
 DROP VIEW v1;
 CREATE TABLE t1 (a int) ENGINE = MyISAM PARTITION BY LIST (a)
 (PARTITION x1 VALUES IN (2,5), PARTITION x2 VALUES IN (3));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (2), (3),(5);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (2),(4);
 ERROR HY000: Table has no partition for value 4
 INSERT IGNORE INTO t1 VALUES (2),(4);

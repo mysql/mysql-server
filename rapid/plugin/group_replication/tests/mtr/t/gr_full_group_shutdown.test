@@ -1,0 +1,160 @@
+################################################################################
+# Multi Master full group shutdown
+#
+# This test aims to validate that if all members in the group go down and up
+# again, Distributed Recovery will work and all member will contain the same
+# data in the end, regardless of operations that happened in between.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Bootstrap group with M1. Add some data for recovery.
+# 2. Add two more members M2 and M3.
+# 3. After recovery all members must see 3 members.
+# 4. After recovery all members must have the data present in the donor.
+# 5. Shut down all members until 0. Stop M3.
+# 6. Add some data in M2. Stop M2.
+# 7. Add some data to future recoveries in M1. Stop M1.
+# 8. Bring up the group back to life. At the end, all data must be in all three
+#    members.
+# 9. Bootstrap group with M1. Start M2. Start M3.
+# 10. After recovery all members must see 3 members.
+# 11. After recovery all members must have the data present in the donor.
+# 12. Clean up.
+################################################################################
+
+--source include/big_test.inc
+--let $group_replication_group_name= 48530170-7407-11e4-82f8-0800200c9a66
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Setup a new group
+--echo #
+
+--connection server1
+--echo server1
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--echo # Add some data for recovery
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+COMMIT;
+INSERT INTO t1 VALUES (3);
+
+--echo #
+--echo # 1) Create a 3 member group and verify that it is functional
+--echo #
+
+--echo #Add 2 more members
+--connection server2
+--echo server2
+--source include/start_group_replication.inc
+
+--connection server3
+--echo server3
+--source include/start_group_replication.inc
+
+--echo #After recovery all members must see 3 other members
+--let $server_count=3
+while ($server_count)
+{
+  --connection server$server_count
+  --let $group_replication_number_of_members= 3
+  --source ../inc/gr_wait_for_number_of_members.inc
+
+  --dec $server_count
+}
+
+--echo #After recovery all members must have the data present in the donor.
+--let $server_count=3
+while ($server_count)
+{
+  --connection server$server_count
+  --let $assert_text= On all members, the table should exist and have 3 elements
+  --let $assert_cond= [select count(*) from t1] = 3;
+  --source include/assert.inc
+  --dec $server_count
+}
+
+--echo #
+--echo # 2) Shut down all members until 0. Add some data in the process.
+--echo #
+
+--echo #Stop the member 3
+--connection server3
+--echo server3
+
+--source include/stop_group_replication.inc
+
+--echo #Add some data to future recoveries and ensure that every member has it
+--connection server2
+--echo server2
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+
+--source include/rpl_sync.inc
+
+--echo #Stop the member 2
+--source include/stop_group_replication.inc
+
+--echo #Add some data to future recoveries
+--connection server1
+--echo server1
+
+INSERT INTO t1 VALUES (6);
+INSERT INTO t1 VALUES (7);
+
+--echo #Stop the member 1
+--source include/stop_group_replication.inc
+
+--echo #
+--echo # 3) Bring up the group back to life. At the end, all data must be in
+--echo #    all three members.
+--echo #
+
+--connection server1
+--echo server1
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--connection server2
+--echo server2
+--source include/start_group_replication.inc
+
+--connection server3
+--echo server3
+--source include/start_group_replication.inc
+
+--echo #After recovery all members must see 3 other members
+--let $server_count=3
+while ($server_count)
+{
+  --connection server$server_count
+  --let $group_replication_number_of_members= 3
+  --source ../inc/gr_wait_for_number_of_members.inc
+
+  --dec $server_count
+}
+
+--echo #After recovery all members must have the data present in the donor.
+--let $server_count=3
+while ($server_count)
+{
+  --connection server$server_count
+  --let $assert_text= On all members, the table should exist and have 7 elements
+  --let $assert_cond= [select count(*) from t1] = 7;
+  --source include/assert.inc
+  --dec $server_count
+}
+
+--echo #
+--echo # Cleaning up
+--echo #
+
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

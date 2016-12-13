@@ -251,6 +251,36 @@ select vbcol from ibstd_14;
 
 drop table ibstd_14;
 
+--echo #
+--echo # Bug#22018745 CORRUPTION IN ONLINE TABLE REBUILD
+--echo # (ROW_FORMAT=REDUNDANT, INDEXED VIRTUAL COLUMN)
+--echo #
+
+CREATE TABLE t (
+  b char(5) PRIMARY KEY,
+  v char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL, KEY(v)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT;
+
+connection con1;
+SET DEBUG_SYNC='row_log_table_apply1_before SIGNAL prepared WAIT_FOR apply';
+--send OPTIMIZE TABLE t
+connection default;
+
+SET DEBUG_SYNC='now WAIT_FOR prepared';
+INSERT INTO t SET b='fubar';
+BEGIN;
+DELETE FROM t;
+ROLLBACK;
+SET DEBUG_SYNC='now SIGNAL apply';
+
+connection con1;
+reap;
+
+connection default;
+CHECK TABLE t;
+SELECT * FROM t;
+DROP TABLE t;
+
 disconnect con1;
 
 SET DEBUG_SYNC = 'RESET';

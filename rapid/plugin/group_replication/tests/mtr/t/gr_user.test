@@ -1,0 +1,95 @@
+################################################################################
+# This test checks the basics about the lifetime of the group replication user.
+#
+# Test:
+# 0. The test requires one server.
+#  - Install plugin at startup.
+# 1. On server assert check the GR user '_gr_user' exists after install.
+# 2. Bootstrap start a group. Assert check the GR user '_gr_user' exists.
+# 3. Uninstall GR plugin. Assert check the GR user '_gr_user' is removed.
+# 4. Install GR plugin. Assert check the GR user '_gr_user' exists.
+# 5. Drop the user. Bootstrap start GR and check that user gets created again.
+#    Check that a warning is logged.
+# 6. Clean up.
+################################################################################
+
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/have_group_replication_plugin.inc
+--source include/force_restart.inc
+--source ../inc/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression(".*The group replication user is not present in the server *.*");
+SET SESSION sql_log_bin= 1;
+
+--echo #
+--echo # Assert the user exist after install
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= The group replication user should exist in this member
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 1;
+--source include/assert.inc
+
+--echo #
+--echo # Start and check all is OK
+--echo #
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $assert_text= The group replication user should exist in this member
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 1;
+--source include/assert.inc
+
+--echo #
+--echo # Assert the user disappears on uninstall
+--echo #
+
+#Backup the Xcom address vars
+SET @local_address= @@GLOBAL.group_replication_local_address;
+SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+
+UNINSTALL PLUGIN group_replication;
+
+--let $assert_text= The group replication user should have been removed
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 0;
+--source include/assert.inc
+
+--echo #
+--echo # Check after install
+--echo #
+
+--replace_result $GROUP_REPLICATION GROUP_REPLICATION
+--eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+
+--let $assert_text= The group replication user should exist in this member
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 1;
+--source include/assert.inc
+
+--echo #
+--echo # Delete the user and watch GR create it again at start.
+--echo # Check that a warning is logged.
+--echo #
+
+DROP USER "_gr_user"@"localhost";
+
+SET GLOBAL group_replication_local_address= @local_address;
+SET GLOBAL group_replication_group_seeds= @group_seeds;
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_user.err
+--let $grep_pattern=The group replication user is not present in the server. The user will be recreated
+--source include/grep_pattern.inc
+
+--echo #
+--echo # Cleaning
+--echo #
+
+--source ../inc/group_replication_end.inc

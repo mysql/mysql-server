@@ -2012,7 +2012,7 @@ show status like 'Mysqlx%client%';
 
 ##verify Mysqlx_stmt_kill_client and Mysqlx_stmt_list_clients with show_compatibility_56=OFF which is default in 5.7
 let $restart_parameters = restart: --show_compatibility_56=OFF; 
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 drop user abc@localhost;
 drop user xplugin@localhost;
 drop user process@localhost;

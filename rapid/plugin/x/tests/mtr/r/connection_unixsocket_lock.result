@@ -1,6 +1,7 @@
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 CONNECTION_TYPE
 Socket
 0 rows affected
@@ -9,38 +10,14 @@ Mysqlx.Ok {
 }
 ok
 Test lock file issue
-call mtr.add_suppression("Plugin mysqlx reported: .X Plugin failed to setup UNIX socket ..+/mysqlx.custom., with:");
-call mtr.add_suppression("Plugin mysqlx reported: .UNIX socket lock file is empty ");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.custom. failed, lock file is empty");
 # restart: --loose-mysqlx-socket=SOCKET
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Check if mysqlx_socket is empty
-result
-1
 ERROR: No such file or directory connecting to SOCKET
-call mtr.add_suppression("Plugin mysqlx reported: .X Plugin failed to setup UNIX socket ..+/mysqlx.dir.socket., with:");
-call mtr.add_suppression("Plugin mysqlx reported: .could not read UNIX socket lock file");
-call mtr.add_suppression("Plugin mysqlx reported: .UNIX socket lock file wasn't allocated by X Plugin ..+/mysqlx.dir.socket.lock");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.dir.socket. failed, can't read lock file");
+call mtr.add_suppression("Plugin mysqlx reported: .* wasn't allocated by X Plugin ..+/mysqlx.dir.socket.lock");
 # restart: --loose-mysqlx-socket=SOCKET
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Check if mysqlx_socket is empty
-result
-1
 ERROR: No such file or directory connecting to SOCKET
-call mtr.add_suppression("Plugin mysqlx reported: .X Plugin failed to setup UNIX socket ..+/mysqlx.custom., with:");
-call mtr.add_suppression("Plugin mysqlx reported: .invalid PID in UNIX socket lock file ");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.custom. failed, invalid PID in UNIX socket lock file ");
 # restart: --loose-mysqlx-socket=SOCKET
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Check if mysqlx_socket is empty
-result
-1
 ERROR: No such file or directory connecting to SOCKET
 UNINSTALL PLUGIN mysqlx;

@@ -1421,6 +1421,8 @@ DROP TABLE t1;
 DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1 CHARACTER SET utf8;
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(100)));
+ERROR 42000: Specified key was too long; max key length is 255 bytes
+CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(85)));
 ALTER TABLE db1.t1 ADD baz INT;
 DROP DATABASE db1;
 # Additional coverage for refactoring which is made as part
@@ -3496,4 +3498,82 @@ t1	CREATE TABLE `t1` (
   `fld2` char(10) CHARACTER SET gbk DEFAULT NULL,
   PRIMARY KEY (`fld1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
+DROP TABLE t1;
+#
+# Bug#22740093: ERROR 1071 (42000): SPECIFIED KEY WAS TOO LONG
+#               ERROR WHILE DROPPING INDEX IN 5.7
+#
+CREATE TABLE t1(id INT PRIMARY KEY,
+name TINYTEXT,
+KEY nameloc (name(64))
+) DEFAULT CHARSET=utf8mb4;
+ERROR 42000: Specified key was too long; max key length is 255 bytes
+CREATE TABLE t1(id INT PRIMARY KEY,
+name TINYTEXT,
+KEY nameloc (name(63))
+) DEFAULT CHARSET=utf8mb4;
+ALTER TABLE t1 FORCE;
+ALTER TABLE t1 ADD INDEX idx (name(64), id);
+ERROR 42000: Specified key was too long; max key length is 255 bytes
+ALTER TABLE t1 ADD INDEX idx (name(63), id);
+DROP TABLE t1;
+CREATE TABLE t1(id INT PRIMARY KEY,
+name TEXT,
+KEY nameloc (name(64))
+) DEFAULT CHARSET=utf8mb4;
+ALTER TABLE t1 MODIFY COLUMN name TINYTEXT;
+ERROR 42000: Specified key was too long; max key length is 255 bytes
+DROP TABLE t1;
+#
+# BUG#16888677: OUT OF RANGE VALUE ACCEPTED FOR DATETIME COLUMN IN
+#               ALTER TABLE...ADD COLUMN
+SET @saved_sql_mode = @@session.sql_mode;
+# Test case with no SQL_MODE enabled.
+SET SESSION sql_mode= '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1(fld1 DATE NOT NULL) ENGINE= INNODB;
+INSERT INTO t1 VALUES('2000-01-01');
+# No warnings or error is reported
+ALTER TABLE t1 ADD COLUMN fld2 DATETIME NOT NULL, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN fld3 DATETIME NOT NULL, ALGORITHM=COPY;
+DROP TABLE t1;
+# Test case with strict mode enabled.
+SET SESSION sql_mode= 'STRICT_ALL_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t1(fld1 DATE NOT NULL) ENGINE= INNODB;
+INSERT INTO t1 VALUES('2000-01-01');
+# No warnings or error is reported
+ALTER TABLE t1 ADD COLUMN fld2 DATETIME NOT NULL, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN fld3 DATETIME NOT NULL, ALGORITHM=COPY;
+DROP TABLE t1;
+# Test case with 'NO_ZERO_DATE' enabled.
+SET SESSION sql_mode= 'NO_ZERO_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t1(fld1 DATE NOT NULL) ENGINE= INNODB;
+INSERT INTO t1 VALUES('2000-01-01');
+# Warnings are reported after patch.
+ALTER TABLE t1 ADD COLUMN fld2 DATETIME NOT NULL, ALGORITHM=INPLACE;
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'fld2' at row 1
+ALTER TABLE t1 ADD COLUMN fld3 DATETIME NOT NULL, ALGORITHM=COPY;
+Warnings:
+Warning	1264	Out of range value for column 'fld2' at row 1
+DROP TABLE t1;
+# Test case with both 'NO_ZERO_DATE and strict mode' enabled.
+SET SESSION sql_mode= @saved_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1(fld1 DATE NOT NULL) ENGINE= INNODB;
+INSERT INTO t1 VALUES('2000-01-01');
+# Without patch, the following statement succeeds.
+ALTER TABLE t1 ADD COLUMN fld2 DATETIME NOT NULL, ALGORITHM=INPLACE;
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'fld2' at row 1
+ALTER TABLE t1 ADD COLUMN fld2 DATETIME NOT NULL, ALGORITHM=COPY;
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'fld2' at row 1
+TRUNCATE TABLE t1;
+# Operation below succeeds, since the table has no records.
+ALTER TABLE t1 ADD COLUMN fld4 DATETIME NOT NULL, ALGORITHM=INPLACE;
 DROP TABLE t1;

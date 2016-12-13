@@ -51,8 +51,8 @@ SELECT @@pid_file, @@datadir;
 **** Relay log variables
 SELECT @@relay_log, @@relay_log_index, @@relay_log_basename;
 @@relay_log	NULL
-@@relay_log_index	NULL
-@@relay_log_basename	NULL
+@@relay_log_index	MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin.index
+@@relay_log_basename	MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin
 **** Binary log variables
 SELECT @@log_bin, @@log_bin_index, @@log_bin_basename;
 @@log_bin	1

@@ -1,0 +1,29 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Start a group and set super_read_only mode.
+include/start_and_bootstrap_group_replication.inc
+SET @saved_super_read_only= @@GLOBAL.super_read_only;
+SET @saved_read_only= @@GLOBAL.read_only;
+SET GLOBAL super_read_only = 1;
+include/assert.inc [The super_read_only mode must be 1]
+include/assert.inc [The read_only mode must be 1]
+
+############################################################
+# 2. Leave the group and validate that super_read_only mode
+#    is still enabled.
+include/stop_group_replication.inc
+include/assert.inc [The super_read_only mode must be 1]
+include/assert.inc [The read_only mode must be 1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+
+############################################################
+# 3. Clean up.
+SET GLOBAL super_read_only= @saved_super_read_only;
+SET GLOBAL read_only= @saved_read_only;
+include/group_replication_end.inc

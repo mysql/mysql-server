@@ -4098,7 +4098,11 @@ PARTITION p4093 VALUES IN (16372,16373,16374,16375),
 PARTITION p4094 VALUES IN (16376,16377,16378,16379),
 PARTITION p4095 VALUES IN (16380,16381,16382,16383)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 16383 inserts;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select count(*) from t2;
 count(*)
 16383

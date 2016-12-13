@@ -40,7 +40,7 @@ using namespace ngs;
   google::protobuf::internal::WireFormatLite::WriteTag( \
     1, \
     google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, \
-    m_out_stream \
+    m_out_stream.get() \
   ); \
   ++m_num_fields;
 
@@ -58,7 +58,7 @@ void Row_builder::abort_row()
 {
   if (m_row_processing)
   {
-    delete m_out_stream;
+    m_out_stream.reset();
     m_out_buffer->rollback();
     m_row_processing = false;
   }
@@ -395,7 +395,7 @@ void Row_builder::add_time_field(const MYSQL_TIME * value, uint decimals)
   google::protobuf::uint8 neg = (value->neg) ? 0x01 : 0x00;
   m_out_stream->WriteRaw(&neg, 1);
 
-  append_time_values(value, m_out_stream);
+  append_time_values(value, m_out_stream.get());
 }
 
 void Row_builder::add_datetime_field(const MYSQL_TIME * value, uint decimals)
@@ -413,7 +413,7 @@ void Row_builder::add_datetime_field(const MYSQL_TIME * value, uint decimals)
   m_out_stream->WriteVarint64(value->month);
   m_out_stream->WriteVarint64(value->day);
 
-  append_time_values(value, m_out_stream);
+  append_time_values(value, m_out_stream.get());
 }
 
 void Row_builder::add_string_field(const char * const value, size_t length,
