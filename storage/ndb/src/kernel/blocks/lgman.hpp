@@ -113,6 +113,8 @@ public:
     Uint32 m_state;
     Uint32 m_fd; // When speaking to NDBFS
     Uint64 m_start_lsn;
+    Uint32 m_zero_page_i; //Page to read zero page
+    Uint32 m_requestInfo;
     
     enum FileState 
     {
@@ -128,6 +130,7 @@ public:
       ,FS_MOVE_NEXT   = 0x200 // When receiving reply move to next file
       ,FS_SEARCHING_END   = 0x400  // Searched for end of log, scan
       ,FS_SEARCHING_FINAL_READ   = 0x800 //Searched for log end, read last page
+      ,FS_READ_ZERO_PAGE = 0x1000 // Reading zero page
     };
     
     union {
@@ -178,6 +181,7 @@ public:
       Uint32 m_logfile_group_id;
     };
     Uint32 m_version;
+    Uint32 m_ndb_version;
     Uint16 m_state;
     Uint16 m_outstanding_fs;
     Uint32 m_next_reply_ptr_i;
@@ -295,8 +299,8 @@ private:
   Uint64 m_records_applied; // Track number of records applied
   Uint64 m_pages_applied; // Track number of pages applied
   SafeMutex m_client_mutex;
-  void client_lock(BlockNumber block, int line);
-  void client_unlock(BlockNumber block, int line);
+  void client_lock(BlockNumber block, int line, SimulatedBlock*);
+  void client_unlock(BlockNumber block, int line, SimulatedBlock*);
 
   bool alloc_logbuffer_memory(Ptr<Logfile_group>, Uint32 pages);
   void init_logbuffer_pointers(Ptr<Logfile_group>);
@@ -356,6 +360,41 @@ private:
 
   void drop_filegroup_drop_files(Signal*, Ptr<Logfile_group>, 
 				 Uint32 ref, Uint32 data);
+
+  Uint32* get_undo_data_ptr(Uint32 *page,
+                            Ptr<Logfile_group> lg_ptr,
+                            EmulatedJamBuffer *jamBuf)
+  {
+    if (lg_ptr.p->m_ndb_version >= NDB_DISK_V2)
+    {
+      thrjam(jamBuf);
+      const File_formats::Undofile::Undo_page_v2 *page_v2 =
+        (const File_formats::Undofile::Undo_page_v2*)page;
+      return (Uint32*)(&page_v2->m_data);
+    }
+    else
+    {
+      thrjam(jamBuf);
+      const File_formats::Undofile::Undo_page *page_v1 =
+        (const File_formats::Undofile::Undo_page*)page;
+      return (Uint32*)(&page_v1->m_data);
+    }
+  }
+  Uint32 get_undo_page_words(Ptr<Logfile_group> lg_ptr)
+  {
+    if (lg_ptr.p->m_ndb_version >= NDB_DISK_V2)
+    {
+      return File_formats::UNDO_PAGE_WORDS_v2;
+    }
+    else
+    {
+      return File_formats::UNDO_PAGE_WORDS;
+    }
+  }
+  void reinit_logbuffer_words(Ptr<Logfile_group> lg_ptr);
+  void completed_zero_page_read(Signal *signal, Ptr<Undofile> lg_ptr);
+  void sendCREATE_FILE_IMPL_CONF(Signal *signal,
+                                 Ptr<Undofile> file_ptr);
 };
 
 class Logfile_client {

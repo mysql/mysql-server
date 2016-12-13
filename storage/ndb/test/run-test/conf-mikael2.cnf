@@ -19,7 +19,7 @@ baseport = 14000
 #clusters = .4node
 clusters = .2node
 fix-nodeid=1
-mt = 0
+mt = 2
 
 [ndb_mgmd]
 
@@ -58,9 +58,3 @@ DiskPageBufferMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
-
-[cluster_config.ndbd.1.2node]
-TwoPassInitialNodeRestartCopy=1
-
-[cluster_config.ndbd.3.2node]
-TwoPassInitialNodeRestartCopy=1

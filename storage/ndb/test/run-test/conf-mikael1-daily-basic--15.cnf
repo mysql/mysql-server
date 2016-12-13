@@ -52,6 +52,7 @@ FragmentLogFileSize = 64M
 ODirect=1
 MaxNoOfAttributes=2000
 Checksum=1
+__disk_data_format=0
 
 SharedGlobalMemory=256M
 DiskPageBufferMemory=256M

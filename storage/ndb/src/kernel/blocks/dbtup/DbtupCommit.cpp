@@ -649,7 +649,7 @@ Dbtup::commit_operation(Signal* signal,
     
     memcpy(dst, disk_ptr, 4*sz);
     memcpy(tuple_ptr->get_disk_ref_ptr(regTabPtr), &key, sizeof(Local_key));
-    
+
     ndbassert(! (disk_ptr->m_header_bits & Tuple_header::FREE));
     copy_bits |= Tuple_header::DISK_PART;
   }

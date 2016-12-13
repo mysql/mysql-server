@@ -275,6 +275,14 @@ SimulatedBlock::assignToThread(ThreadContext ctx)
 }
 
 Uint32
+SimulatedBlock::getInstanceKeyCanFail(Uint32 tabId, Uint32 fragId)
+{
+  Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);
+  Uint32 instanceKey = dbdih->dihGetInstanceKeyCanFail(tabId, fragId);
+  return instanceKey;
+}
+
+Uint32
 SimulatedBlock::getInstanceKey(Uint32 tabId, Uint32 fragId)
 {
   Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);

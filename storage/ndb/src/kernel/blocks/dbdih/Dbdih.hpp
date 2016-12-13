@@ -1712,6 +1712,9 @@ private:
   void allocFragments(Uint32 noOfFragments, TabRecordPtr regTabPtr);
   void releaseFragments(TabRecordPtr regTabPtr);
   void getFragstore(const TabRecord *, Uint32 fragNo, FragmentstorePtr & ptr);
+  void getFragstoreCanFail(const TabRecord *,
+                           Uint32 fragNo,
+                           FragmentstorePtr & ptr);
   void initialiseFragstore();
 
   void wait_old_scan(Signal*);
@@ -2717,6 +2720,7 @@ private:
     return 1 + log_part_id;
   }
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
+  Uint32 dihGetInstanceKeyCanFail(Uint32 tabId, Uint32 fragId);
 
   /**
    * Get minimum version of nodes in alive-list

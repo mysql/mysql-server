@@ -2206,7 +2206,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     regOperPtr.p->op_struct.bit_field.m_disk_preallocated= 1;
     tmp.m_page_idx= size;
     memcpy(tuple_ptr->get_disk_ref_ptr(regTabPtr), &tmp, sizeof(tmp));
-    
+
     /**
      * Set ref from disk to mm
      */

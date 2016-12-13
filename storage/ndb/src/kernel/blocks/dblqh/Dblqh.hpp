@@ -2403,6 +2403,7 @@ public:
   Uint32 get_scan_api_op_ptr(Uint32 scan_ptr_i);
 
   Uint32 get_is_scan_prioritised(Uint32 scan_ptr_i);
+  Uint32 getCreateSchemaVersion(Uint32 tableId);
 private:
 
   BLOCK_DEFINES(Dblqh);

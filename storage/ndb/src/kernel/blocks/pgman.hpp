@@ -251,6 +251,19 @@ private:
   struct Page_entry; // CC
   friend struct Page_entry;
 
+  struct File_entry
+  {
+    File_entry(){}
+
+    Uint32 m_magic;
+    Uint32 m_fd;
+    Uint32 m_ndb_version;
+    Uint32 m_file_no;
+    Uint32 nextPool;
+  };
+  typedef RecordPool<File_entry, RWPool<File_entry> > File_entry_pool;
+  File_entry_pool m_file_entry_pool;
+
   struct Page_request {
     enum Flags {
       OP_MASK       = 0x000F // 4 bits for TUP operation
@@ -498,32 +511,32 @@ private:
   Uint32 seize_page_entry(Ptr<Page_entry>&, Uint32 file_no, Uint32 page_no);
   bool get_page_entry(EmulatedJamBuffer* jamBuf, Ptr<Page_entry>&, 
                       Uint32 file_no, Uint32 page_no);
-  void release_page_entry(Ptr<Page_entry>&);
+  void release_page_entry(Ptr<Page_entry>&, EmulatedJamBuffer *jamBuf);
 
-  void lirs_stack_prune();
-  void lirs_stack_pop();
-  void lirs_reference(Ptr<Page_entry> ptr);
+  void lirs_stack_prune(EmulatedJamBuffer*);
+  void lirs_stack_pop(EmulatedJamBuffer*);
+  void lirs_reference(EmulatedJamBuffer* jamBuf, Ptr<Page_entry> ptr);
 
   void do_stats_loop(Signal*);
   void do_busy_loop(Signal*, bool direct, EmulatedJamBuffer *jamBuf);
   void do_cleanup_loop(Signal*);
   void do_lcp_loop(Signal*);
 
-  bool process_bind(Signal*);
-  bool process_bind(Signal*, Ptr<Page_entry> ptr);
-  bool process_map(Signal*);
-  bool process_map(Signal*, Ptr<Page_entry> ptr);
-  bool process_callback(Signal*);
-  bool process_callback(Signal*, Ptr<Page_entry> ptr);
+  bool process_bind(Signal*, EmulatedJamBuffer*);
+  bool process_bind(Signal*, Ptr<Page_entry> ptr, EmulatedJamBuffer*);
+  bool process_map(Signal*, EmulatedJamBuffer*);
+  bool process_map(Signal*, Ptr<Page_entry> ptr, EmulatedJamBuffer*);
+  bool process_callback(Signal*, EmulatedJamBuffer*);
+  bool process_callback(Signal*, Ptr<Page_entry> ptr, EmulatedJamBuffer*);
 
   bool process_cleanup(Signal*);
-  void move_cleanup_ptr(Ptr<Page_entry> ptr);
+  void move_cleanup_ptr(Ptr<Page_entry> ptr, EmulatedJamBuffer*);
 
   LCP_STATE process_lcp(Signal*);
   void process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr);
   void process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr);
 
-  void pagein(Signal*, Ptr<Page_entry>);
+  void pagein(Signal*, Ptr<Page_entry>, EmulatedJamBuffer *jamBuf);
   void fsreadreq(Signal*, Ptr<Page_entry>);
   void fsreadconf(Signal*, Ptr<Page_entry>);
   void pageout(Signal*, Ptr<Page_entry>);
@@ -537,11 +550,11 @@ private:
                Page_request page_req);
   void update_lsn(EmulatedJamBuffer* jamBuf, Ptr<Page_entry>, Uint32 block, 
                   Uint64 lsn);
-  Uint32 create_data_file();
-  Uint32 alloc_data_file(Uint32 file_no);
+  Uint32 create_data_file(Uint32 version);
+  Uint32 alloc_data_file(Uint32 file_no, Uint32 version);
   void map_file_no(Uint32 file_no, Uint32 fd);
   void free_data_file(Uint32 file_no, Uint32 fd = RNIL);
-  int drop_page(Ptr<Page_entry>);
+  int drop_page(Ptr<Page_entry>, EmulatedJamBuffer *jamBuf);
   
 #ifdef VM_TRACE
   bool debugFlag;        // not yet in use in 7.0
@@ -619,12 +632,12 @@ public:
   /**
    * Create file record
    */
-  Uint32 create_data_file(Signal*);
+  Uint32 create_data_file(Signal*, Uint32 version);
 
   /**
    * Alloc datafile record
    */
-  Uint32 alloc_data_file(Signal*, Uint32 file_no);
+  Uint32 alloc_data_file(Signal*, Uint32 file_no, Uint32 version);
 
   /**
    * Map file_no to m_fd
