@@ -66,7 +66,8 @@ void Sql_formatter_options::create_options()
     "used, this option does nothing. If AUTO is used and GTIDs are enabled "
     "on the server, 'SET @@GLOBAL.GTID_PURGED' is added to the output. "
     "If GTIDs are disabled, AUTO does nothing. If no value is supplied "
-    "then the default (AUTO) value will be considered.");
+    "then the default (AUTO) value will be considered.")
+    ->set_value(GTID_PURGED_AUTO);
 }
 
 Sql_formatter_options::Sql_formatter_options(
