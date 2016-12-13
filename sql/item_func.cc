@@ -3477,8 +3477,7 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
 
   if (dec_negative && std::isinf(tmp))
     tmp2= 0.0;
-  else if (!dec_negative &&
-           (std::isinf(value_mul_tmp) || std::isnan(value_mul_tmp)))
+  else if (!dec_negative && !std::isfinite(value_mul_tmp))
     tmp2= value;
   else if (truncate)
   {

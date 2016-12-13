@@ -31,7 +31,6 @@
 #include "sha2.h"
 
 #include <algorithm>
-#include <cmath>                     // isnan
 
 #include "auth_acls.h"
 #include "auth_common.h"             // check_password_policy
@@ -88,7 +87,7 @@
 #endif
 
 #include <atomic>
-#include <cmath>                     // isnan
+#include <cmath>                     // std::isfinite
 #include <memory>
 #include <ostream>
 #include <string>
@@ -2692,7 +2691,7 @@ String *Item_func_format::val_str_ascii(String *str)
       return 0; /* purecov: inspected */
     nr= my_double_round(nr, (longlong) dec, FALSE, FALSE);
     str->set_real(nr, dec, &my_charset_numeric);
-    if (std::isnan(nr) || std::isinf(nr))
+    if (!std::isfinite(nr))
       return str;
     str_length=str->length();
   }

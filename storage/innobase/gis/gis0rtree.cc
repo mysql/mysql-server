@@ -1991,7 +1991,7 @@ rtr_estimate_n_rows_in_range(
 	mtr_commit(&mtr);
 	mem_heap_free(heap);
 
-	if (std::isinf(area) || std::isnan(area)) {
+	if (!std::isfinite(area)) {
 		return(HA_POS_ERROR);
 	}
 
