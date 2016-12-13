@@ -22,6 +22,7 @@ no_binlog_gtid_next_partially_failed_stmts           : WL#7743 DROP TABLES seman
 no_binlog_gtid_next_partially_failed_stmts_anonymous : WL#7743 DROP TABLES semantics change issue
 no_binlog_gtid_next_partially_failed_stmts_error     : WL#7743 DROP TABLES semantics change issue
 index_merge_delete        :Bug#21373532 2016-07-29 Anitha Test fails very frequently on PB2
+mysqld--defaults-file @darwin : Bug#24579973 2016-11-03 Anitha Test fails on Mac OS 10.12
 
 # Disabled list(Due to InnoDB issues)
 partition_exchange               : WL#9559 disables it, waiting for proper ROLLBACK implemented for ALTER PARTITION
@@ -32,4 +33,9 @@ mysqlcheck                       : WL#9532 disables it, because it tries to modi
 invalid_collation                : disable it for waiting Sivert's fix. Because it'll report invalid collation when open table for rename.
 
 wl6443_deprecation               : WL#9532 disables it, because it creates temporary table in DD tablespaces.
-mysqld--defaults-file @darwin : Bug#24579973 2016-11-03 Anitha Test fails on Mac OS 10.12
+
+dd_upgrade_error                 : WL#9532 disables it, waiting for WL#9357 to do a proper upgrade, currently it reports mysql.ibd is not found
+dd_upgrade_test                  : WL#9532 disables it, waiting for WL#9357 to do a proper upgrade, currently it reports mysql.ibd is not found
+
+dd_table_access                  : disables it because we are now disabling access to mysql.* tables, see is_dd_table_access_allowed
+commit_1innodb                   : disables it temporarily until WL#7743 fixes it
