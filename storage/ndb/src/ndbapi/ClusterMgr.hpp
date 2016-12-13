@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@
 
 extern "C" void* runClusterMgr_C(void * me);
 
-
 /**
   @class ClusterMgr
   This class runs a heartbeat protocol between nodes, to detect if remote
@@ -58,7 +57,10 @@ public:
   
   void reportConnected(NodeId nodeId);
   void reportDisconnected(NodeId nodeId);
-  
+  void setProcessInfo(const char * connection_name,
+                      const char * application_address,
+                      int application_port);
+  void sendProcessInfoReport(NodeId nodeId);
   void doStop();
   void startThread();
 
@@ -129,6 +131,8 @@ public:
     Uint32 hbFrequency; // Heartbeat frequence 
     Uint32 hbCounter;   // # milliseconds passed since last hb sent
     Uint32 hbMissed;    // # missed heartbeats
+
+    bool processInfoSent;  // ProcessInfo Report has been sent to node
   };
   
   const trp_node & getNodeInfo(NodeId) const;
@@ -141,6 +145,7 @@ public:
    */
   int m_auto_reconnect;
   Uint32        m_connect_count;
+
 private:
   Uint32        m_max_api_reg_req_interval;
   Uint32        noOfAliveNodes;
@@ -151,6 +156,7 @@ private:
   NdbThread*    theClusterMgrThread;
 
   NdbCondition* waitForHBCond;
+  class ProcessInfo * m_process_info;
 
   enum Cluster_state m_cluster_state;
   /**

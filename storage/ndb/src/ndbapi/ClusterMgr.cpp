@@ -28,13 +28,15 @@
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
-
+#include <ProcessInfo.hpp>
+#include <OwnProcessInfo.hpp>
 
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/ApiRegSignalData.hpp>
 #include <signaldata/AlterTable.hpp>
 #include <signaldata/SumaImpl.hpp>
+#include <signaldata/ProcessInfoRep.hpp>
 
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
@@ -66,6 +68,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   noOfConnectedDBNodes(0),
   minDbVersion(0),
   theClusterMgrThread(NULL),
+  m_process_info(NULL),
   m_cluster_state(CS_waiting_for_clean_cache),
   m_hbFrequency(0)
 {
@@ -94,6 +97,7 @@ ClusterMgr::~ClusterMgr()
   }
   NdbCondition_Destroy(waitForHBCond);
   NdbMutex_Destroy(clusterMgrThreadMutex);
+  ProcessInfo::release(m_process_info);
   DBUG_VOID_RETURN;
 }
 
@@ -195,6 +199,8 @@ ClusterMgr::configure(Uint32 nodeId,
 
   theFacade.get_registry()->set_connect_backoff_max_time_in_ms(
     start_connect_backoff_max_time);
+
+  m_process_info = ProcessInfo::forNodeId(nodeId);
 }
 
 void
@@ -587,7 +593,7 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
 }
 
 ClusterMgr::Node::Node()
-  : hbFrequency(0), hbCounter(0)
+  : hbFrequency(0), hbCounter(0), processInfoSent(0)
 {
 }
 
@@ -655,6 +661,39 @@ ClusterMgr::recalcMinDbVersion()
 
   minDbVersion = newMinDbVersion;
 }
+
+/******************************************************************************
+ * Send PROCESSINFO_REP
+ ******************************************************************************/
+void
+ClusterMgr::sendProcessInfoReport(NodeId nodeId)
+{
+  LinearSectionPtr ptr[3];
+  LinearSectionPtr & nameSection = ptr[ProcessInfoRep::ConnNameSectionNum];
+  LinearSectionPtr & addrSection = ptr[ProcessInfoRep::HostAddrSectionNum];
+  BlockReference ownRef = numberToRef(API_CLUSTERMGR, theFacade.ownId());
+  NdbApiSignal signal(ownRef);
+  int nsections = 1;
+  signal.theVerId_signalNumber = GSN_PROCESSINFO_REP;
+  signal.theReceiversBlockNumber = QMGR;
+  signal.theTrace  = 0;
+  signal.theLength = ProcessInfoRep::SignalLength;
+
+  ProcessInfoRep * report = CAST_PTR(ProcessInfoRep, signal.getDataPtrSend());
+  m_process_info->buildProcessInfoReport(report);
+  nameSection.p = (Uint32 *) m_process_info->getConnectionName();
+  nameSection.sz = ProcessInfo::ConnectionNameLengthInWords;
+  const char * hostAddress = m_process_info->getHostAddress();
+  if(hostAddress[0])
+  {
+    // report->flags = ProcessInfoRep::HostAddressFlag;
+    nsections = 2;
+    addrSection.p = (Uint32 *) hostAddress;
+    addrSection.sz = ProcessInfo::AddressStringLengthInWords;
+  }
+  raw_sendSignal(&signal, nodeId, ptr, nsections);
+}
+
 
 /******************************************************************************
  * API_REGREQ and friends
@@ -833,6 +872,15 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
     }
   }
 
+  /* Send ProcessInfo Report to a newly connected DB node */
+  if ( cm_node.m_info.m_type == NodeInfo::DB &&
+       cm_node.m_info.m_version >= NDBD_PROCESSINFO_VERSION &&
+       (! cm_node.processInfoSent) )
+  {
+    sendProcessInfoReport(nodeId);
+    cm_node.processInfoSent = true;
+  }
+
   // Distribute signal to all threads/blocks
   // TODO only if state changed...
   theFacade.for_each(this, signal, ptr);
@@ -923,6 +971,7 @@ ClusterMgr::reportConnected(NodeId nodeId)
   cm_node.hbMissed = 0;
   cm_node.hbCounter = 0;
   cm_node.hbFrequency = 0;
+  cm_node.processInfoSent = false;
 
   assert(theNode.is_connected() == false);
 
@@ -1245,6 +1294,14 @@ ClusterMgr::print_nodes(const char* where, NdbOut& out)
   out << "<<" << endl;
 }
 
+void
+ClusterMgr::setProcessInfo(const char * connection_name,
+                           const char * address_string, int port)
+{
+  m_process_info->setConnectionName(connection_name);
+  m_process_info->setHostAddress(address_string);
+  m_process_info->setPort(port);
+}
 
 /******************************************************************************
  * Arbitrator

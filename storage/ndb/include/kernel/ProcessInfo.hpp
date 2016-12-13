@@ -50,7 +50,7 @@ public:
   void setNodeId(Uint16);
   const char * getConnectionName() const { return connection_name;   };
   const char * getProcessName() const    { return process_name;      };
-  const char * getHostAddress() const;
+  const char * getHostAddress() const    { return host_address;      };
   int getPid() const;
   int getAngelPid() const                { return angel_process_id;  };
   int getPort() const                    { return application_port;  };
@@ -67,9 +67,9 @@ public:
   STATIC_CONST( AddressStringLength = 48 );  // Long enough for IPv6
   STATIC_CONST( AddressStringLengthInWords = 12);
 
-//  /* Interface for ClusterManager to create signal */
-//  void buildProcessInfoReport(ProcessInfoRep *);
-//
+  /* Interface for ClusterManager to create signal */
+  void buildProcessInfoReport(ProcessInfoRep *);
+
 
 private:              /* Data Members */
   char connection_name[ConnectionNameLength];
@@ -85,10 +85,5 @@ private:              /* Data Members */
 inline bool ProcessInfo::isValid() const {
   return process_id;
 }
-
-inline const char * ProcessInfo::getHostAddress() const {
-  return host_address[0] ? host_address : 0;
-}
-
 
 #endif
