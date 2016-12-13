@@ -1,6 +1,7 @@
 ## Test cases for mysqlx plugin TLS versions
 
 --source include/have_ssl.inc
+--source ../include/have_performance_schema_threads.inc
 --source ../include/xplugin_preamble.inc
 
 call mtr.add_suppression("Plugin mysqlx reported: 'Error during SSL handshake for client connection \\([0-9]*\\)'");
@@ -44,7 +45,7 @@ EOF
 
 
 --let $restart_parameters = restart: --tls-version=TLSv1
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --exec $MYSQLXTEST                                     $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1
@@ -62,7 +63,7 @@ EOF
 
 
 --let $restart_parameters = restart: --tls-version=TLSv1.1
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --exec $MYSQLXTEST                                     $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1

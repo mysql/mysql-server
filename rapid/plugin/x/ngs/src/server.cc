@@ -37,11 +37,11 @@
 
 using namespace ngs;
 
-Server::Server(boost::shared_ptr<Server_acceptors>  acceptors,
-               boost::shared_ptr<Scheduler_dynamic> accept_scheduler,
-               boost::shared_ptr<Scheduler_dynamic> work_scheduler,
+Server::Server(ngs::shared_ptr<Server_acceptors>  acceptors,
+               ngs::shared_ptr<Scheduler_dynamic> accept_scheduler,
+               ngs::shared_ptr<Scheduler_dynamic> work_scheduler,
                Server_delegate *delegate,
-               boost::shared_ptr<Protocol_config> config)
+               ngs::shared_ptr<Protocol_config> config)
 : m_timer_running(false),
   m_skip_name_resolve(false),
   m_errors_while_accepting(0),
@@ -54,20 +54,20 @@ Server::Server(boost::shared_ptr<Server_acceptors>  acceptors,
 {
 }
 
-bool Server::prepare(Ssl_context_unique_ptr ssl_context, const bool skip_networking, const bool skip_name_resolve, const bool use_named_pipes)
+bool Server::prepare(Ssl_context_unique_ptr ssl_context, const bool skip_networking, const bool skip_name_resolve, const bool use_unix_sockets)
 {
-  Listener_interface::On_connection on_connection = boost::bind(&Server::on_accept, this, _1);
+  Listener_interface::On_connection on_connection = ngs::bind(&Server::on_accept, this, ngs::placeholders::_1);
 
   m_skip_name_resolve = skip_name_resolve;
-  m_ssl_context = boost::move(ssl_context);
+  m_ssl_context = ngs::move(ssl_context);
 
-  const bool result = m_acceptors->prepare(on_connection, skip_networking, use_named_pipes);
+  const bool result = m_acceptors->prepare(on_connection, skip_networking, use_unix_sockets);
 
   if (result)
   {
     m_state.set(State_running);
 
-    m_acceptors->add_timer(1000, boost::bind(&Server::on_check_terminated_workers, this));
+    m_acceptors->add_timer(1000, ngs::bind(&Server::on_check_terminated_workers, this));
 
     return true;
   }
@@ -75,7 +75,7 @@ bool Server::prepare(Ssl_context_unique_ptr ssl_context, const bool skip_network
   return false;
 }
 
-void Server::run_task(boost::shared_ptr<Server_task_interface> handler)
+void Server::run_task(ngs::shared_ptr<Server_task_interface> handler)
 {
   handler->pre_loop();
 
@@ -100,7 +100,7 @@ bool Server::is_running()
 
 bool Server::is_terminating()
 {
-  return m_state.is(State_terminating) || m_delegate->is_terminating();
+  return m_state.is(State_failure) || m_state.is(State_terminating) || m_delegate->is_terminating();
 }
 
 void Server::start()
@@ -111,11 +111,11 @@ void Server::start()
   if (handler_iterator == handlers.end())
     return;
 
-  boost::shared_ptr<Server_task_interface> handler_to_run_in_current_thread = *(handler_iterator++);
+  ngs::shared_ptr<Server_task_interface> handler_to_run_in_current_thread = *(handler_iterator++);
 
   while(handlers.end() != handler_iterator)
   {
-    m_accept_scheduler->post(boost::bind(&Server::run_task, this, (*handler_iterator)));
+    m_accept_scheduler->post(ngs::bind(&Server::run_task, this, (*handler_iterator)));
 
     ++handler_iterator;
   }
@@ -164,7 +164,7 @@ struct Copy_client_not_closed
   std::vector<ngs::Client_ptr> &m_client_list;
 };
 
-void Server::go_through_all_clients(boost::function<void (Client_ptr)> callback)
+void Server::go_through_all_clients(ngs::function<void (Client_ptr)> callback)
 {
   Mutex_lock lock_client_exit(m_client_exit_mutex);
   std::vector<ngs::Client_ptr> client_list;
@@ -180,7 +180,7 @@ void Server::go_through_all_clients(boost::function<void (Client_ptr)> callback)
 
 void Server::close_all_clients()
 {
-  go_through_all_clients(boost::bind(&Client_interface::on_server_shutdown, _1));
+  go_through_all_clients(ngs::bind(&Client_interface::on_server_shutdown, ngs::placeholders::_1));
 }
 
 void Server::wait_for_clients_closure()
@@ -202,9 +202,9 @@ void Server::wait_for_clients_closure()
   }
 }
 
-void Server::validate_client_state(ptime &oldest_client_time, const ptime& time_of_release, Client_ptr client)
+void Server::validate_client_state(chrono::time_point &oldest_client_time, const chrono::time_point& time_of_release, Client_ptr client)
 {
-  const ptime                client_time = client->get_accept_time();
+  const chrono::time_point client_time = client->get_accept_time();
   const Client_interface::Client_state state = client->get_state();
 
   if (Client_interface::Client_accepted_with_session != state &&
@@ -218,7 +218,7 @@ void Server::validate_client_state(ptime &oldest_client_time, const ptime& time_
       return;
     }
 
-    if (oldest_client_time.is_not_a_date_time() ||
+    if (!chrono::is_valid(oldest_client_time) ||
         oldest_client_time > client_time)
     {
       oldest_client_time = client_time;
@@ -226,14 +226,14 @@ void Server::validate_client_state(ptime &oldest_client_time, const ptime& time_
   }
 }
 
-void Server::start_client_supervision_timer(const time_duration &oldest_object_time_ms)
+void Server::start_client_supervision_timer(const chrono::duration &oldest_object_time_ms)
 {
-  log_debug("Supervision timer started %i ms", oldest_object_time_ms.total_milliseconds());
+  log_debug("Supervision timer started %i ms", (int)chrono::to_milliseconds(oldest_object_time_ms));
 
   m_timer_running = true;
 
-  m_acceptors->add_timer(static_cast<size_t>(oldest_object_time_ms.total_milliseconds()),
-            boost::bind(&Server::timeout_for_clients_validation, this));
+  m_acceptors->add_timer(static_cast<size_t>(chrono::to_milliseconds(oldest_object_time_ms)),
+            ngs::bind(&Server::timeout_for_clients_validation, this));
 }
 
 void Server::restart_client_supervision_timer()
@@ -248,16 +248,16 @@ bool Server::timeout_for_clients_validation()
 {
   m_timer_running = false;
 
-  ptime oldest_object_time(not_a_date_time);
+  chrono::time_point oldest_object_time;
 
   log_info("Supervision timeout - started client state verification");
 
-  ptime time_oldest = microsec_clock::universal_time() - get_config()->connect_timeout;
-  ptime time_to_release = time_oldest + get_config()->connect_timeout_hysteresis;
+  chrono::time_point time_oldest = chrono::now() - get_config()->connect_timeout;
+  chrono::time_point time_to_release = time_oldest + get_config()->connect_timeout_hysteresis;
 
-  go_through_all_clients(boost::bind(&Server::validate_client_state, this, boost::ref(oldest_object_time), time_to_release, _1));
+  go_through_all_clients(ngs::bind(&Server::validate_client_state, this, ngs::ref(oldest_object_time), time_to_release, ngs::placeholders::_1));
 
-  if (!oldest_object_time.is_not_a_date_time())
+  if (chrono::is_valid(oldest_object_time))
   {
     start_client_supervision_timer(oldest_object_time - time_oldest);
   }
@@ -289,8 +289,8 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
     return;
   }
 
-  Connection_ptr connection(new ngs::Connection_vio(*m_ssl_context, vio));
-  boost::shared_ptr<Client_interface> client(m_delegate->create_client(connection));
+  Connection_ptr connection(ngs::allocate_shared<ngs::Connection_vio>(ngs::ref(*m_ssl_context), vio));
+  ngs::shared_ptr<Client_interface> client(m_delegate->create_client(connection));
 
   if (m_delegate->will_accept_client(*client))
   {
@@ -299,7 +299,7 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
     // connection accepted, add to client list and start handshake etc
     m_client_list.add(client);
 
-    Scheduler_dynamic::Task *task = new Scheduler_dynamic::Task(boost::bind(&ngs::Client_interface::run, client,
+    Scheduler_dynamic::Task *task = ngs::allocate_object<Scheduler_dynamic::Task>(ngs::bind(&ngs::Client_interface::run, client,
                     m_skip_name_resolve));
 
     const uint64_t client_id = client->client_id_num();
@@ -309,7 +309,7 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
     if (!m_worker_scheduler->post(task))
     {
       log_error("Internal error scheduling client for execution");
-      delete task;
+      ngs::free_object(task);
       m_client_list.remove(client_id);
     }
 
@@ -332,12 +332,12 @@ bool Server::on_check_terminated_workers()
   return false;
 }
 
-boost::shared_ptr<Session_interface> Server::create_session(Client_interface &client,
+ngs::shared_ptr<Session_interface> Server::create_session(Client_interface &client,
                                                   Protocol_encoder &proto,
                                                   int session_id)
 {
   if (is_terminating())
-    return boost::shared_ptr<Session_interface>();
+    return ngs::shared_ptr<Session_interface>();
 
   return m_delegate->create_session(client, proto, session_id);
 }
@@ -392,7 +392,7 @@ void Server::get_authentication_mechanisms(std::vector<std::string> &auth_mech, 
   }
 }
 
-void Server::add_timer(const std::size_t delay_ms, boost::function<bool ()> callback)
+void Server::add_timer(const std::size_t delay_ms, ngs::function<bool ()> callback)
 {
   m_acceptors->add_timer(delay_ms, callback);
 }

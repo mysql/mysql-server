@@ -45,7 +45,7 @@ xpl::Session::Session(ngs::Client_interface &client, ngs::Protocol_encoder *prot
 xpl::Session::~Session()
 {
   if (m_was_authenticated)
-    Global_status_variables::instance().decrement_sessions_count();
+    --Global_status_variables::instance().m_sessions_count;
 
   m_sql.deinit();
 }
@@ -113,8 +113,8 @@ void xpl::Session::on_auth_success(const ngs::Authentication_handler::Response &
   xpl::notices::send_client_id(proto(), m_client.client_id_num());
   ngs::Session::on_auth_success(response);
 
-  Global_status_variables::instance().increment_accepted_sessions_count();
-  Global_status_variables::instance().increment_sessions_count();
+  ++Global_status_variables::instance().m_accepted_sessions_count;
+  ++Global_status_variables::instance().m_sessions_count;
 
   m_was_authenticated = true;
 }
@@ -130,7 +130,7 @@ void xpl::Session::on_auth_failure(const ngs::Authentication_handler::Response &
   else
     ngs::Session::on_auth_failure(response);
 
-  Global_status_variables::instance().increment_rejected_sessions_count();
+  ++Global_status_variables::instance().m_rejected_sessions_count;
 }
 
 
@@ -150,45 +150,23 @@ bool xpl::Session::is_handled_by(const void *handler) const
  Returns true if we're SUPER or the same user as the given one.
  If user is NULL, then it's only visible for SUPER users.
  */
-bool xpl::Session::can_see_user(const char *user) const
+bool xpl::Session::can_see_user(const std::string &user) const
 {
-  const char *owner;
-  if (is_ready() && (owner = m_sql.authenticated_user()))
+  const std::string owner = m_sql.get_authenticated_user_name();
+
+  if (is_ready() && !owner.empty())
   {
-    if (m_sql.authenticated_user_is_super()
-        || (user && owner && strcmp(owner, user) == 0))
+    if (m_sql.has_authenticated_user_a_super_priv()
+        || (owner == user))
       return true;
   }
   return false;
 }
 
 
-template<void (xpl::Common_status_variables::*method)()>
-void xpl::Session::update_status()
+void xpl::Session::update_status(Common_status_variables::Variable
+                                 Common_status_variables::*variable)
 {
-  xpl::Server::update_status_variable<method>(m_status_variables);
+  ++(m_status_variables.*variable);
+  ++(Global_status_variables::instance().*variable);
 }
-
-
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_execute_sql>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_execute_xplugin>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_execute_mysqlx>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_expect_open>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_expect_close>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_ping>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_list_clients>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_kill_client>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_create_collection>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_create_collection_index>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_drop_collection>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_drop_collection_index>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_enable_notices>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_disable_notices>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_list_notices>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_list_objects>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_crud_insert>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_crud_update>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_crud_delete>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_crud_find>();
-template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_ensure_collection>();
-

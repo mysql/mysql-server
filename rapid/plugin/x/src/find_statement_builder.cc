@@ -18,34 +18,32 @@
 #include "find_statement_builder.h"
 #include "ngs_common/protocol_protobuf.h"
 #include "xpl_error.h"
+#include <algorithm>
 
 
-xpl::Find_statement_builder::Find_statement_builder(const Find &msg, Query_string_builder &qb)
-: Statement_builder(qb, msg.args(), msg.collection().schema(), msg.data_model() == Mysqlx::Crud::TABLE),
-  m_msg(msg)
-{}
-
-
-void xpl::Find_statement_builder::add_statement() const
+void xpl::Find_statement_builder::build(const Find &msg) const
 {
-  if (!m_is_relational && m_msg.grouping_size() > 0)
-    add_document_statement_with_grouping();
+  if (!is_table_data_model(msg) && msg.grouping_size() > 0)
+    add_document_statement_with_grouping(msg);
   else
-    add_statement_common();
+    add_statement_common(msg);
 }
 
 
-void xpl::Find_statement_builder::add_statement_common() const
+void xpl::Find_statement_builder::add_statement_common(const Find &msg) const
 {
   m_builder.put("SELECT ");
-  add_projection(m_msg.projection());
+  if (is_table_data_model(msg))
+    add_table_projection(msg.projection());
+  else
+    add_document_projection(msg.projection());
   m_builder.put(" FROM ");
-  add_table(m_msg.collection());
-  add_filter(m_msg.criteria());
-  add_grouping(m_msg.grouping());
-  add_grouping_criteria(m_msg.grouping_criteria());
-  add_order(m_msg.order());
-  add_limit(m_msg.limit(), false);
+  add_collection(msg.collection());
+  add_filter(msg.criteria());
+  add_grouping(msg.grouping());
+  add_grouping_criteria(msg.grouping_criteria());
+  add_order(msg.order());
+  add_limit(msg.limit(), false);
 }
 
 
@@ -55,63 +53,58 @@ const char* const DERIVED_TABLE_NAME = "`_DERIVED_TABLE_`";
 } // namespace
 
 
-void xpl::Find_statement_builder::add_document_statement_with_grouping() const
+void xpl::Find_statement_builder::add_document_statement_with_grouping(const Find &msg) const
 {
-  if (m_msg.projection_size() == 0)
+  if (msg.projection_size() == 0)
     throw ngs::Error_code(ER_X_BAD_PROJECTION, "Invalid empty projection list for grouping");
 
   m_builder.put("SELECT ");
-  add_document_object(m_msg.projection(), &Find_statement_builder::add_document_primary_projection_item);
+  add_document_object(msg.projection(), &Find_statement_builder::add_document_primary_projection_item);
   m_builder.put(" FROM (");
   m_builder.put("SELECT ");
-  add_table_projection(m_msg.projection());
+  add_table_projection(msg.projection());
   m_builder.put(" FROM ");
-  add_table(m_msg.collection());
-  add_filter(m_msg.criteria());
-  add_grouping(m_msg.grouping());
-  add_order(m_msg.order());
-  add_limit(m_msg.limit(), false);
+  add_collection(msg.collection());
+  add_filter(msg.criteria());
+  add_grouping(msg.grouping());
+  add_order(msg.order());
+  add_limit(msg.limit(), false);
   m_builder.put(") AS ").put(DERIVED_TABLE_NAME);
-  add_grouping_criteria(m_msg.grouping_criteria());
-}
-
-
-void xpl::Find_statement_builder::add_projection(const Projection_list &projection) const
-{
-  if (projection.size() == 0)
-  {
-    m_builder.put(m_is_relational ? "*" : "doc");
-    return;
-  }
-
-  if (m_is_relational)
-    add_table_projection(projection);
-  else
-    add_document_projection(projection);
+  add_grouping_criteria(msg.grouping_criteria());
 }
 
 
 void xpl::Find_statement_builder::add_table_projection(const Projection_list &projection) const
 {
-  m_builder.put_list(projection, boost::bind(&Find_statement_builder::add_table_projection_item, this, _1));
+  if (projection.size() == 0)
+  {
+    m_builder.put("*");
+    return;
+  }
+  m_builder.put_list(projection, ngs::bind(&Find_statement_builder::add_table_projection_item, this, ngs::placeholders::_1));
 }
 
 
 void xpl::Find_statement_builder::add_table_projection_item(const Projection &item) const
 {
-  m_builder.gen(item.source());
-  if (item.has_alias())
-    m_builder.put(" AS ").put_identifier(item.alias());
+  m_builder.put_expr(item.source());
+  add_alias(item);
 }
 
 
 void xpl::Find_statement_builder::add_document_projection(const Projection_list &projection) const
 {
+  if (projection.size() == 0)
+  {
+    m_builder.put("doc");
+    return;
+  }
+
   if (projection.size() == 1 &&
       !projection.Get(0).has_alias() &&
       projection.Get(0).source().type() == Mysqlx::Expr::Expr::OBJECT)
   {
-    m_builder.gen(projection.Get(0).source()).put(" AS doc");
+    m_builder.put_expr(projection.Get(0).source()).put(" AS doc");
     return;
   }
 
@@ -123,7 +116,7 @@ void xpl::Find_statement_builder::add_document_object(const Projection_list &pro
                                                       const Object_item_adder &adder) const
 {
   m_builder.put("JSON_OBJECT(")
-      .put_list(projection, boost::bind(adder, this, _1))
+      .put_list(projection, ngs::bind(adder, this, ngs::placeholders::_1))
       .put(") AS doc");
 }
 
@@ -131,16 +124,18 @@ void xpl::Find_statement_builder::add_document_object(const Projection_list &pro
 void xpl::Find_statement_builder::add_document_projection_item(const Projection &item) const
 {
   if (!item.has_alias())
-    throw ngs::Error_code(ER_X_PROJ_BAD_KEY_NAME, "Invalid projection target name");
+    throw ngs::Error(ER_X_PROJ_BAD_KEY_NAME,
+                     "Invalid projection target name");
 
-  m_builder.put_quote(item.alias()).put(", ").gen(item.source());
+  m_builder.put_quote(item.alias()).put(", ").put_expr(item.source());
 }
 
 
 void xpl::Find_statement_builder::add_document_primary_projection_item(const Projection &item) const
 {
   if (!item.has_alias())
-    throw ngs::Error_code(ER_X_PROJ_BAD_KEY_NAME, "Invalid projection target name");
+    throw ngs::Error(ER_X_PROJ_BAD_KEY_NAME,
+                     "Invalid projection target name");
 
   m_builder.put_quote(item.alias()).put(", ")
       .put(DERIVED_TABLE_NAME).dot().put_identifier(item.alias());
@@ -150,12 +145,12 @@ void xpl::Find_statement_builder::add_document_primary_projection_item(const Pro
 void xpl::Find_statement_builder::add_grouping(const Grouping_list &group) const
 {
   if (group.size() > 0)
-    m_builder.put(" GROUP BY ").put_list(group);
+    m_builder.put(" GROUP BY ").put_list(group, &Generator::put_expr);
 }
 
 
 void xpl::Find_statement_builder::add_grouping_criteria(const Grouping_criteria &criteria) const
 {
   if (criteria.IsInitialized())
-    m_builder.put(" HAVING ").gen(criteria);
+    m_builder.put(" HAVING ").put_expr(criteria);
 }

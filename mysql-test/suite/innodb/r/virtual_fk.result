@@ -717,3 +717,115 @@ SELECT * FROM t2;
 fld1	fld2
 1	1
 DROP TABLE t2, t1;
+CREATE TABLE t1 (f1 INT NOT NULL PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT AS (f1) VIRTUAL,
+KEY (f1, f2), FOREIGN KEY(f1) REFERENCES t1(f1))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+EXPLAIN SELECT f1, f2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2`
+SELECT f1, f2 FROM t2;
+f1	f2
+1	1
+INSERT INTO t2(f1) VALUES(2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t1` (`f1`))
+DROP TABLE t2, t1;
+CREATE TABLE t1 (f1 INT NOT NULL PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT AS (f1) VIRTUAL,
+KEY (f1, f2), FOREIGN KEY(f1) REFERENCES t1(f1)
+ON UPDATE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+EXPLAIN SELECT f1, f2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2`
+SELECT f1, f2 FROM t2;
+f1	f2
+1	1
+UPDATE t1 SET f1 = 2 WHERE f1 = 1;
+EXPLAIN SELECT f1, f2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2`
+SELECT f1, f2 FROM t2;
+f1	f2
+2	2
+DROP TABLE t2, t1;
+CREATE TABLE t1 (f1 INT NOT NULL PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT AS (f1) VIRTUAL,
+KEY (f1, f2))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE t2 ADD FOREIGN KEY (f1) REFERENCES t1(f1)
+ON UPDATE CASCADE, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 1;
+UPDATE t1 SET f1 = 3;
+EXPLAIN SELECT f1, f2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2`
+SELECT f1, f2 FROM t2;
+f1	f2
+3	3
+DROP TABLE t2, t1;
+CREATE TABLE t1 (f1 INT NOT NULL PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT AS (f1) VIRTUAL,
+KEY (f1, f2))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+ALTER TABLE t2 ADD FOREIGN KEY (f1) REFERENCES t1(f1)
+ON UPDATE CASCADE, ALGORITHM=COPY;
+UPDATE t1 SET f1 = 3;
+EXPLAIN SELECT f1, f2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2`
+SELECT f1, f2 FROM t2;
+f1	f2
+3	3
+DROP TABLE t2, t1;
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f1 INT NOT NULL, f2 INT AS (1) VIRTUAL,
+f3 INT AS (2) VIRTUAL,
+FOREIGN KEY idx (f1) REFERENCES t1(f1) ON UPDATE CASCADE,
+KEY idx1 (f2, f1, f3))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+ALTER TABLE t2 DROP COLUMN f2, ALGORITHM=INPLACE;
+UPDATE t1 SET f1 = 3;
+EXPLAIN SELECT f1, f3 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	idx1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f3` AS `f3` from `test`.`t2`
+SELECT f1, f3 FROM t2;
+f1	f3
+3	2
+DROP TABLE t2, t1;
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f1 INT NOT NULL, f2 INT AS (1) VIRTUAL,
+f3 INT AS (2) VIRTUAL,
+FOREIGN KEY idx (f1) REFERENCES t1(f1) ON UPDATE CASCADE,
+KEY idx1 (f2, f1, f3))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+ALTER TABLE t2 DROP COLUMN f2, ALGORITHM=COPY;
+UPDATE t1 SET f1 = 3;
+EXPLAIN SELECT f1, f3 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	idx1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f3` AS `f3` from `test`.`t2`
+SELECT f1, f3 FROM t2;
+f1	f3
+3	2
+DROP TABLE t2, t1;

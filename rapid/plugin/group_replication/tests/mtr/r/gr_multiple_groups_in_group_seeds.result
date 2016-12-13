@@ -1,0 +1,72 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# 1. Bootstrap start GR on M1 and M2.
+#
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_and_bootstrap_group_replication.inc
+#
+# GROUP#1 is b0000000-7fb8-11e6-9f35-ac56a84b7f00
+# GROUP#2 is b1111111-7fb8-11e6-9f35-ac56a84b7f11
+#
+#
+# 2. Test new server (M3) may or may not join the group.
+# a) Have group_seeds as 'M1_LA, M2_LA' and group_name: GROUP#1.
+#    Expect SUCCESS.
+[connection server3]
+SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "M1_LA, M2_LA";
+SET GLOBAL GROUP_REPLICATION_GROUP_NAME= "b0000000-7fb8-11e6-9f35-ac56a84b7f00";
+START GROUP_REPLICATION;
+include/gr_wait_for_member_state.inc
+include/assert.inc [b0000000-7fb8-11e6-9f35-ac56a84b7f00: There are two members in the group.]
+include/stop_group_replication.inc
+RESET MASTER;
+#
+# b) Have group_seeds as 'M1_LA, M2_LA' and group_name: GROUP#2.
+#    Expect ER_GROUP_REPLICATION_CONFIGURATION.
+#
+SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "M1_LA, M2_LA";
+SET GLOBAL GROUP_REPLICATION_GROUP_NAME= "b1111111-7fb8-11e6-9f35-ac56a84b7f11";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+#
+# c) Have group_seeds as 'M2_LA, M1_LA' and group_name: GROUP#1.
+#    Expect ER_GROUP_REPLICATION_CONFIGURATION.
+#
+SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "M2_LA, M1_LA";
+SET GLOBAL GROUP_REPLICATION_GROUP_NAME= "b0000000-7fb8-11e6-9f35-ac56a84b7f00";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+#
+# d) Have group_seeds as 'M2_LA, M1_LA' and group_name: GROUP#2.
+#    Expect SUCCESS.
+#
+SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "M2_LA, M1_LA";
+SET GLOBAL GROUP_REPLICATION_GROUP_NAME= "b1111111-7fb8-11e6-9f35-ac56a84b7f11";
+START GROUP_REPLICATION;
+include/gr_wait_for_member_state.inc
+include/assert.inc [b1111111-7fb8-11e6-9f35-ac56a84b7f11: There are two members in the group.]
+include/stop_group_replication.inc
+RESET MASTER;
+#
+# 3. Clean up.
+#
+set session sql_log_bin=0;
+call mtr.add_suppression("Timeout while waiting for the group communication engine to be ready!");
+call mtr.add_suppression("The group communication engine is not ready for the member to join. Local port: *.*");
+call mtr.add_suppression("read failed");
+call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
+call mtr.add_suppression("Timeout on wait for view after joining group");
+set session sql_log_bin=1;
+[connection server2]
+include/stop_group_replication.inc
+RESET MASTER;
+[connection server1]
+include/stop_group_replication.inc
+RESET MASTER;
+include/group_replication_end.inc

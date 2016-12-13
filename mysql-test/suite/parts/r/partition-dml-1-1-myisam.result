@@ -27,7 +27,11 @@ PARTITION `p3000-299999` VALUES LESS THAN (300000)
 (SUBPARTITION subp12  ,
 SUBPARTITION subp13  ,
 SUBPARTITION subp14  ));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-4, '(pNeg-)subp0');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, '(pNeg-)subp0');
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-2, '(pNeg-)subp0');
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-1, '(pNeg-)subp0');
@@ -226,8 +230,12 @@ PARTITION `p3000-299999` VALUES LESS THAN (300000)
 (SUBPARTITION subp12  ,
 SUBPARTITION subp13  ,
 SUBPARTITION subp14  ));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t2 PARTITION (`p30-299`);
 a	b
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UPDATE t2 PARTITION (`p30-299`) SET b='p30-299-upd' WHERE a BETWEEN 30 AND 39;
 DELETE FROM t2 PARTITION (`p30-299`) WHERE a BETWEEN 30 AND 39;
 SELECT * FROM t2 PARTITION (`p300-2999`);

@@ -811,7 +811,8 @@ ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd';
 connection default;
 SELECT object_type, object_name, lock_type, lock_duration, lock_status
 FROM performance_schema.metadata_locks
-WHERE object_type LIKE 'TABLESPACE';
+WHERE object_type LIKE 'TABLESPACE'
+  ORDER BY lock_status;
 object_type	object_name	lock_type	lock_duration	lock_status
 TABLESPACE	ts1	EXCLUSIVE	TRANSACTION	GRANTED
 TABLESPACE	ts1	EXCLUSIVE	TRANSACTION	PENDING

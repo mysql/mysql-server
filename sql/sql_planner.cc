@@ -124,7 +124,7 @@ cache_record_length(JOIN *join,uint idx)
   @return pointer to Key_use for the index with best 'ref' access, NULL if
           no 'ref' access method is found.
 */
-Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
+Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
                                              const table_map remaining_tables,
                                              const uint idx,
                                              const double prefix_rowcount,
@@ -186,6 +186,8 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
       type will be used.
     */
     key_part_map ref_or_null_part= 0;
+    /// Set dodgy_ref_cost only if that index is chosen for ref access.
+    bool is_dodgy= false;
 
     DBUG_PRINT("info", ("Considering ref access on key %s", keyinfo->name));
     Opt_trace_object trace_access_idx(trace);
@@ -514,7 +516,10 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
             if (!table_deps && table->quick_keys.is_set(key) &&     // (1)
                 table->quick_key_parts[key] > cur_used_keyparts &&  // (2)
                 cur_fanout < (double)table->quick_rows[key])        // (3)
-              cur_fanout= (double)table->quick_rows[key];
+                {
+                  cur_fanout= (double)table->quick_rows[key];
+                  is_dodgy= true;
+                }
 
             tmp_fanout= cur_fanout;
           }
@@ -681,7 +686,11 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
       best_found_keytype= cur_keytype;
     }
 
-    trace_access_idx.add("chosen", best_ref == start_key);
+    bool chosen= (best_ref == start_key);
+    trace_access_idx.add("chosen", chosen);
+    if (chosen)
+      tab->dodgy_ref_cost= is_dodgy;
+
 
     if (best_found_keytype == CLUSTERED_PK)
     {

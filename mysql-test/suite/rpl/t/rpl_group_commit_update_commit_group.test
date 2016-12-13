@@ -1,0 +1,108 @@
+# ==== Purpose ====
+#
+# This test will make many transactions to be grouped when binary logged
+# and will assert that they used the lock_sidno less times than the amount
+# of transactions * 2.
+#
+# Previous to BUG#24398760 fix, every transaction being committed would
+# take the lock_sidno twice inside ordered_commit function:
+# a) At the flush stage, to be assigned with a new GTID and take the ownership
+#    of the GTID;
+# b) At the commit stage, to release the ownership of the GTID and to add the
+#    gtid to the GTID_EXECUTED set.
+#
+# So, a group committing 10 transactions would take the sidno_lock 20 times.
+#
+# According to the bug report, having about 300 threads committing small
+# transactions would lead to groups of up to 90 transactions on high performance
+# environments. This would mean that the system would have about 180 threads
+# trying to lock the sidno_lock (90 at the flush stage, 90 at the commit stage).
+#
+# Even knowing that the threads would acquire the lock one by one at each stage,
+# this might generate unnecessary overhead when the system is loaded.
+#
+# As the bug fix makes a group of transactions to acquire the sidno_lock only
+# once at the flush stage and only once at the commit stage, this test case will
+# create a group of 10 transactions to commit and will observe the performance
+# schema data about the sidno_lock, asserting that the amount of "hits" on
+# COUNT_STAR is 2:
+# - 1 for the whole group on FLUSH stage;
+# - 1 for the whole group on COMMIT stage.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#24398760 GTIDS REDUCE PERFORMANCE ON WORKLOADS WITH MANY SMALL
+#              TRANSACTIONS
+#
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_mixed.inc
+--source include/have_binlog_order_commits.test
+--source include/have_perfschema.inc
+--source include/have_debug_sync.inc
+--source include/have_gtid.inc
+# The amount of transactions that will be part of the commit group
+--let $group_size= 10
+--let $rpl_extra_connections_per_server= $group_size
+--source include/master-slave.inc
+
+--let $sync_point_timeout= 100
+
+CREATE TABLE t1 (a INT);
+
+# Cleanup performance schema table about locks
+TRUNCATE performance_schema.events_waits_summary_by_instance;
+
+# Execute the transactions up to the FLUSH stage
+--let $i= 1
+while ($i <= $group_size)
+{
+  --let $statement_connection= server_1_$i
+  --let $sync_point= bgc_after_enrolling_for_flush_stage
+  --let $statement= INSERT INTO t1 VALUES ($i)
+  --let $auxiliary_connection= master
+  --source include/execute_to_sync_point.inc
+
+  --inc $i
+}
+
+# Let the transactions to execute from the FLUSH stage
+--let $skip_reap= 1
+
+--let $i= 1
+while ($i <= $group_size)
+{
+  --let $statement_connection= server_1_$i
+  --let $sync_point= bgc_after_enrolling_for_flush_stage
+  --let $statement= INSERT INTO t1 VALUES ($i)
+  --let $auxiliary_connection= master
+  --source include/execute_from_sync_point.inc
+
+  --inc $i
+}
+
+# Reap all the transactions
+--let $i= 1
+while ($i <= $group_size)
+{
+  --let $rpl_connection_name= server_1_$i
+  --source include/rpl_connection.inc
+  --reap
+
+  --inc $i
+}
+
+# There will be one "hit" per transaction on FLUSH stage
+--let $sidno_lock_count_star= 1
+# There will be one "hit" per commit group on COMMIT stage
+--inc $sidno_lock_count_star
+
+--let $assert_text= The group commit should acquire sidno_lock for $sidno_lock_count_star times
+--let $assert_cond= [ SELECT COUNT_STAR = $sidno_lock_count_star FROM performance_schema.events_waits_summary_by_instance WHERE EVENT_NAME = "wait/synch/mutex/sql/Gtid_state" AND COUNT_STAR > 0 ]
+--let $extra_debug_info= Current COUNT_STAR for wait/synch/mutex/sql/Gtid_state
+--let $extra_debug_eval= COUNT_STAR FROM performance_schema.events_waits_summary_by_instance WHERE EVENT_NAME = "wait/synch/mutex/sql/Gtid_state" AND COUNT_STAR > 0
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t1;
+--source include/rpl_end.inc

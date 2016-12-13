@@ -22,12 +22,12 @@
 
 #include <string>
 #include <vector>
-#include <boost/atomic.hpp>
 
 #include "ngs/server.h"
 #include "ngs/memory.h"
 #include "ngs/scheduler.h"
 #include "ngs_common/connection_vio.h"
+#include "ngs_common/atomic.h"
 #include "xpl_session.h"
 #include "mysql_show_variable_wrapper.h"
 #include "xpl_global_status_variables.h"
@@ -44,15 +44,14 @@ class Sql_data_context;
 class Server;
 struct Ssl_config;
 
-typedef boost::shared_ptr<Server> Server_ptr;
+typedef ngs::shared_ptr<Server> Server_ptr;
 
 class Server : public ngs::Server_delegate
 {
 public:
-  Server(boost::shared_ptr<ngs::Server_acceptors> acceptors,
-         boost::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-         boost::shared_ptr<ngs::Protocol_config> config,
-         const std::string &unix_socket_or_named_pipe);
+  Server(ngs::shared_ptr<ngs::Server_acceptors> acceptors,
+         ngs::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
+         ngs::shared_ptr<ngs::Protocol_config> config);
 
   static int main(MYSQL_PLUGIN p);
   static int exit(MYSQL_PLUGIN p);
@@ -69,30 +68,30 @@ public:
   template <void (Server::*method)(st_mysql_show_var *)>
   static void global_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
 
-  template <typename ReturnType, ReturnType (xpl::Global_status_variables::*method)()>
+  template <typename ReturnType, xpl::Global_status_variables::Variable xpl::Global_status_variables::*variable>
   static void global_status_variable_server(THD *thd, st_mysql_show_var *var, char *buff);
 
-  template <typename ReturnType, ReturnType (xpl::Common_status_variables::*method)() const>
+  template <typename ReturnType, xpl::Common_status_variables::Variable xpl::Common_status_variables::*variable>
   static void common_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
 
   template <typename ReturnType, ReturnType (ngs::IOptions_context::*method)()>
   static void global_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
 
-  template<void (Common_status_variables::*method)()>
-  static void update_status_variable(xpl::Common_status_variables &status_variables);
-
   ngs::Server &server() { return m_server; }
 
   ngs::Error_code kill_client(uint64_t client_id, Session &requester);
+
   std::string get_socket_file();
+  std::string get_tcp_bind_address();
+  std::string get_tcp_port();
 
   typedef ngs::Locked_container<Server, ngs::RWLock_readlock, ngs::RWLock> Server_with_lock;
-  typedef Memory_new<Server_with_lock>::Unique_ptr Server_ref;
+  typedef ngs::Memory_instrumented<Server_with_lock>::Unique_ptr Server_ref;
 
   static Server_ref get_instance()
   {
     //TODO: ngs::Locked_container add container that supports shared_ptrs
-    return instance ? Server_ref(new Server_with_lock(*instance, instance_rwl)) : Server_ref();
+    return instance ? Server_ref(ngs::allocate_object<Server_with_lock>(ngs::ref(*instance), ngs::ref(instance_rwl))) : Server_ref();
   }
 
 private:
@@ -111,8 +110,8 @@ private:
 
   void plugin_system_variables_changed();
 
-  virtual boost::shared_ptr<ngs::Client_interface>  create_client(ngs::Connection_ptr connection);
-  virtual boost::shared_ptr<ngs::Session_interface> create_session(ngs::Client_interface &client,
+  virtual ngs::shared_ptr<ngs::Client_interface>  create_client(ngs::Connection_ptr connection);
+  virtual ngs::shared_ptr<ngs::Session_interface> create_session(ngs::Client_interface &client,
                                                                    ngs::Protocol_encoder &proto,
                                                                    ngs::Session_interface::Session_id session_id);
 
@@ -127,19 +126,19 @@ private:
   static ngs::RWLock  instance_rwl;
   static MYSQL_PLUGIN plugin_ref;
 
-  ngs::Client_interface::Client_id          m_client_id;
-  boost::atomics::atomic<int>               m_num_of_connections;
-  boost::shared_ptr<ngs::Protocol_config>   m_config;
-  boost::shared_ptr<ngs::Server_acceptors>  m_acceptors;
-  boost::shared_ptr<ngs::Scheduler_dynamic> m_wscheduler;
-  boost::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
+  ngs::Client_interface::Client_id        m_client_id;
+  ngs::atomic<int>                        m_num_of_connections;
+  ngs::shared_ptr<ngs::Protocol_config>   m_config;
+  ngs::shared_ptr<ngs::Server_acceptors>  m_acceptors;
+  ngs::shared_ptr<ngs::Scheduler_dynamic> m_wscheduler;
+  ngs::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
   ngs::Mutex  m_accepting_mutex;
   ngs::Server m_server;
-  std::string m_unix_socket_or_named_pipe;
 
   static bool exiting;
   static bool is_exiting();
 };
+
 
 template <void (Client::*method)(st_mysql_show_var *)>
 void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
@@ -150,13 +149,14 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
   Server_ref server(get_instance());
   if (server)
   {
-    boost::scoped_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
+    ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client)
       ((*client).*method)(var);
   }
 }
+
 
 template <typename ReturnType, ReturnType (ngs::IOptions_session::*method)()>
 void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
@@ -167,7 +167,7 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
   Server_ref server(get_instance());
   if (server)
   {
-    boost::scoped_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
+    ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client)
@@ -177,6 +177,7 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
     }
   }
 }
+
 
 template <void (Server::*method)(st_mysql_show_var *)>
 void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
@@ -203,40 +204,42 @@ void Server::global_status_variable_server_with_return(THD *thd, st_mysql_show_v
   {
     Server* server_ptr = server->container();
     ReturnType result = (server_ptr->*method)();
+
     mysqld::xpl_show_var(var).assign(result);
   }
 }
 
-template <typename ReturnType, ReturnType (xpl::Global_status_variables::*method)()>
+
+template <typename ReturnType, xpl::Global_status_variables::Variable xpl::Global_status_variables::*variable>
 void Server::global_status_variable_server(THD *thd, st_mysql_show_var *var, char *buff)
 {
   var->type= SHOW_UNDEF;
   var->value= buff;
 
-  ReturnType result = (Global_status_variables::instance().*method)();
+  ReturnType result = (Global_status_variables::instance().*variable).load();
   mysqld::xpl_show_var(var).assign(result);
 }
 
-template <typename ReturnType, ReturnType (xpl::Common_status_variables::*method)() const>
+
+template <typename ReturnType, xpl::Common_status_variables::Variable xpl::Common_status_variables::*variable>
 void Server::common_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
 {
   var->type = SHOW_UNDEF;
   var->value = buff;
 
-
   Server_ref server(get_instance());
   if (server)
   {
-    boost::scoped_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
+    ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client)
     {
-      boost::shared_ptr<xpl::Session> client_session(client->get_session());
+      ngs::shared_ptr<xpl::Session> client_session(client->get_session());
       if (client_session)
       {
         Common_status_variables &common_status = client_session->get_status_variables();
-        ReturnType result = (common_status.*method)();
+        ReturnType result = (common_status.*variable).load();
         mysqld::xpl_show_var(var).assign(result);
       }
       return;
@@ -244,9 +247,10 @@ void Server::common_status_variable(THD *thd, st_mysql_show_var *var, char *buff
   }
 
   Common_status_variables &common_status = Global_status_variables::instance();
-  ReturnType result = (common_status.*method)();
+  ReturnType result = (common_status.*variable).load();
   mysqld::xpl_show_var(var).assign(result);
 }
+
 
 template <typename ReturnType, ReturnType (ngs::IOptions_context::*method)()>
 void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
@@ -265,16 +269,6 @@ void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff
 
   mysqld::xpl_show_var(var).assign(result);
 }
-
-template<void (Common_status_variables::*method)()>
-void Server::update_status_variable(xpl::Common_status_variables &status_variables)
-{
-  (status_variables.*method)();
-
-  Common_status_variables &common_status = Global_status_variables::instance();
-  (common_status.*method)();
-}
-
 
 } // namespace xpl
 

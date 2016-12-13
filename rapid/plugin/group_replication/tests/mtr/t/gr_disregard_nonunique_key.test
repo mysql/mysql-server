@@ -1,0 +1,65 @@
+################################################################################
+#
+# BUG#20975167 - --TRANSACTION-WRITE-SET-EXTRACTION IS CONSIDERING NON UNIQUE
+#                  AND NULL KEYS
+#
+# This bug verified that a non unique key or a key with non unique null value
+# should not be considered to check conflict between incoming transactions.
+# **The above line is no longer true, GR behaviour is changed after fixing
+#  Bug#24479782**
+#
+# CASE I - One of the column of the table is a non unique key. So it should not
+# be considered as a part of the conflict detection.
+#
+# Table t1 has a primary key and a key. For two transactions which have
+# different primary key value, both should succeed and the table should
+# finally have two rows.
+#
+# T1: WS={t1.(a)=(1,2)}
+# T2: WS={t1.(a)=(3,2)}
+#
+# Outcome: T1 and T2 must commit.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both members ONLINE. Create a table on M1.
+# 2. Set a debug sync before broadcast message to group on connection M1.
+#    Commit a transaction that will be blocked before broadcast.
+# 3. Wait until M1 connection reaches the debug sync point.
+# 4. Execute a transaction on M2, that will reach certification first, since M1
+#    is blocked before broadcast.
+# 5. Signal the waiting thread on M1 to resume.
+# 6. Must not error out since c2 column allows duplicate keys values.
+# 7. Clean up.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # Create a table on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, KEY `c2` (`c2`));
+--source include/rpl_sync.inc
+
+--let $local_server_connection1=server_1
+--let $local_server_connection2=server1
+--let $remote_server_connection=server2
+--let $local_transaction=INSERT INTO t1 VALUES (1, 2)
+--let $remote_transaction=INSERT INTO t1 VALUES (3, 2)
+--let $conflict_test=0
+--source ../inc/gr_parallel_local_and_remote_transactions.inc
+
+--echo
+--echo ############################################################
+--echo # Check data sanity.
+--let $assert_text= The table should have two rows due to the two successful inserts
+--let $assert_cond= `SELECT COUNT(*) = 2 FROM t1`
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t1;
+--source ../inc/group_replication_end.inc

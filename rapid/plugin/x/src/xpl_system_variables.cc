@@ -28,7 +28,8 @@ unsigned int Plugin_system_variables::idle_worker_thread_timeout;
 unsigned int Plugin_system_variables::max_allowed_packet;
 unsigned int Plugin_system_variables::connect_timeout;
 char        *Plugin_system_variables::socket;
-my_bool      Plugin_system_variables::named_pipe;
+unsigned int Plugin_system_variables::port_open_timeout;
+char        *Plugin_system_variables::bind_address;
 
 Ssl_config Plugin_system_variables::ssl_config;
 

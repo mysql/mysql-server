@@ -86,25 +86,17 @@ Error Connection::connect_to_localhost(const std::string &named_pipe_or_unix_soc
   strncpy(addr.sun_path, named_pipe_or_unix_socket.c_str(), sizeof(addr.sun_path)-1);
   addr.sun_path[sizeof(addr.sun_path)-1] = 0;
 
-  return connect(&addr, sizeof(addr));
+  return connect((sockaddr*)&addr, sizeof(addr));
 #else
   return Error(CR_SOCKET_CREATE_ERROR, "Named pipes aren't supported on current OS");
 #endif // defined(HAVE_SYS_UN_H)
 }
 
-Error Connection::connect(sockaddr_un *addr, const std::size_t addr_size)
+Error Connection::connect(sockaddr *addr, const std::size_t addr_size)
 {
-#if defined(HAVE_SYS_UN_H)
-  my_socket s = socket(AF_UNIX, SOCK_STREAM, 0);
-  return connect(s, (sockaddr*)addr, addr_size);
-#else
-  return Error(CR_SOCKET_CREATE_ERROR, "Unix socket aren't supported on current OS");
-#endif // defined(HAVE_SYS_UN_H)
-}
-
-Error Connection::connect(sockaddr_in *addr, const std::size_t addr_size)
-{
-  my_socket s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  my_socket s = ::socket(addr->sa_family,
+                         SOCK_STREAM,
+                         addr->sa_family == AF_UNIX ? 0: IPPROTO_TCP);
 
   return connect(s, (sockaddr*)addr, addr_size);
 }

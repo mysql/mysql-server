@@ -1347,8 +1347,12 @@ PARTITION p0 VALUES LESS THAN (6) ENGINE = MyISAM,
 PARTITION p1 VALUES LESS THAN (11) ENGINE = MyISAM,
 PARTITION p2 VALUES LESS THAN (16) ENGINE = MyISAM,
 PARTITION p3 VALUES LESS THAN (21) ENGINE = MyISAM);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO `t1` VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
 (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 id
 1
@@ -1412,8 +1416,12 @@ PARTITION p0 VALUES LESS THAN (6) ENGINE = MyISAM,
 PARTITION p1 VALUES LESS THAN (11) ENGINE = MyISAM,
 PARTITION p2 VALUES LESS THAN (16) ENGINE = MyISAM,
 PARTITION p3 VALUES LESS THAN (21) ENGINE = MyISAM);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO `t2` VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
 (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t2;
 id
 1
@@ -1484,7 +1492,11 @@ PARTITION p0 VALUES IN (1,3,5,7),
 PARTITION p1 VALUES IN (0,2,4,6,8),
 PARTITION p2 VALUES IN (9,10,11,12,13)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t3', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO `t3` VALUES (1,'first'), (3,'third'),(5,'fifth'),(7,'seventh'),(0,'zilch'),(2,'second'),(4,'fourth'),(6,'sixth'),(8,'eighth'),(9,'ninth'),(10,'tenth'),(11,'eleventh'),(12,'twelfth'),(13,'thirteenth');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t3', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM `t3`;
 id	name
 1	first
@@ -1534,7 +1546,11 @@ Note	1051	Unknown table 'test.t4'
 CREATE TABLE `t4` (
 `id` int(32) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY HASH (id) ;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO `t4` SELECT * FROM `t2`;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO `t4` SELECT * FROM `t2` ORDER BY id;
 CREATE TABLE `t5` (
 id int(32),

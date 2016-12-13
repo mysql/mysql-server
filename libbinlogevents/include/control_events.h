@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1106,7 +1106,7 @@ protected:
 
   <tr>
     <td>thread_id</td>
-    <td>long long type variable</td>
+    <td>4 byte integer</td>
     <td>The identifier for the thread executing the transaction.</td>
   </tr>
 
@@ -1178,7 +1178,7 @@ public:
 
   virtual ~Transaction_context_event();
 
-  static const char *read_data_set(const char *pos, uint16_t set_len,
+  static const char *read_data_set(const char *pos, uint32_t set_len,
                                    std::list<const char*> *set);
 
   static void clear_set(std::list<const char*> *set);
@@ -1190,7 +1190,7 @@ public:
 
 protected:
   const char *server_uuid;
-  long long int thread_id;
+  uint32_t thread_id;
   bool gtid_specified;
   const unsigned char *encoded_snapshot_version;
   uint32_t encoded_snapshot_version_length;
@@ -1202,16 +1202,16 @@ protected:
 
   // 1 byte length.
   static const int ENCODED_SERVER_UUID_LEN_OFFSET= 0;
-  // 8 bytes length.
+  // 4 bytes length.
   static const int ENCODED_THREAD_ID_OFFSET= 1;
   // 1 byte length.
-  static const int ENCODED_GTID_SPECIFIED_OFFSET= 9;
+  static const int ENCODED_GTID_SPECIFIED_OFFSET= 5;
   // 4 bytes length
-  static const int ENCODED_SNAPSHOT_VERSION_LEN_OFFSET= 10;
-  // 2 bytes length.
-  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 14;
-  // 2 bytes length.
-  static const int ENCODED_READ_SET_ITEMS_OFFSET=  16;
+  static const int ENCODED_SNAPSHOT_VERSION_LEN_OFFSET= 6;
+  // 4 bytes length.
+  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 10;
+  // 4 bytes length.
+  static const int ENCODED_READ_SET_ITEMS_OFFSET=  14;
 
   // The values mentioned on the next class's constants is the length of the
   // data that will be copied in the buffer.

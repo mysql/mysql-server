@@ -15,8 +15,8 @@
 
 #include <ngs/scheduler.h>
 #include <gtest/gtest.h>
-#include <boost/bind.hpp>
 #include <vector>
+#include <algorithm>
 
 
 namespace xpl
@@ -43,7 +43,7 @@ struct Result_collector
   ngs::Scheduler_dynamic::Task* new_task(const T& value)
   {
     return new ngs::Scheduler_dynamic::Task(
-      boost::bind(&Result_collector::task, this, value)
+      ngs::bind(&Result_collector::task, this, value)
     );
   }
 

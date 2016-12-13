@@ -22,7 +22,7 @@
 
 #include <string>
 #include <vector>
-#include <boost/make_shared.hpp>
+#include "ngs_common/smart_ptr.h"
 
 
 namespace ngs
@@ -120,8 +120,8 @@ namespace ngs
     virtual long ssl_used_session_cache_entries() { return 0; }
   };
 
-  typedef boost::shared_ptr<IOptions_session> IOptions_session_ptr;
-  typedef boost::shared_ptr<IOptions_context> IOptions_context_ptr;
+  typedef ngs::shared_ptr<IOptions_session> IOptions_session_ptr;
+  typedef ngs::shared_ptr<IOptions_context> IOptions_context_ptr;
 
 } // namespace ngs
 

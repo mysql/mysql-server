@@ -4,6 +4,8 @@ partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,
 partition pa3 max_rows=30 min_rows=4,
 partition pa4 max_rows=40 min_rows=2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -15,6 +17,8 @@ t1	CREATE TABLE `t1` (
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM,
  PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM,
  PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (999999.9999), (-999999.9999), (123456.7899), (-123456.7899), (-1.5), (1), (0), (-1), (1.5), (1234.567), (-1234.567);
 select * from t1;
 a
@@ -48,6 +52,8 @@ a
 drop table t1;
 create table t2 (a decimal(18,9) not null, primary key(a)) engine='MYISAM' 
 partition by key (a) partitions 10;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -56,6 +62,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 10 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t2 values (999999999.999999999), (-999999999.999999999), (-1.5), (-1), (0), (1.5), (1234.567), (-1234.567);
 select * from t2;
 a
@@ -94,6 +102,8 @@ partition pa6 values less than (6),
 partition pa8 values less than (8),
 partition pa10 values less than (10)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t3', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -108,6 +118,8 @@ SUBPARTITIONS 2
  PARTITION pa6 VALUES LESS THAN (6) ENGINE = MyISAM,
  PARTITION pa8 VALUES LESS THAN (8) ENGINE = MyISAM,
  PARTITION pa10 VALUES LESS THAN (10) ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t3', is deprecated and will be removed in a future release. Please use native partitioning instead.
 9*3 inserts;
 insert into t3 values (9);
 insert into t3 values (9+0.333333333);
@@ -148,6 +160,8 @@ partition pa6 values in (5,6),
 partition pa8 values in (7,8),
 partition pa10 values in (9,10)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
@@ -162,6 +176,8 @@ SUBPARTITIONS 2
  PARTITION pa6 VALUES IN (5,6) ENGINE = MyISAM,
  PARTITION pa8 VALUES IN (7,8) ENGINE = MyISAM,
  PARTITION pa10 VALUES IN (9,10) ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 9*3 inserts;
 insert into t4 values (9);
 insert into t4 values (9+0.333333333);

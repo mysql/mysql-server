@@ -1177,7 +1177,9 @@ DROP DATABASE IF EXISTS db1;
 --enable_warnings
 
 CREATE DATABASE db1 CHARACTER SET utf8;
+--error ER_TOO_LONG_KEY
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(100)));
+CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(85)));
 ALTER TABLE db1.t1 ADD baz INT;
 
 DROP DATABASE db1;
@@ -2803,4 +2805,109 @@ let $test_dir =
 
 --list_files $test_dir `#sql-*.frm`
 
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#22740093: ERROR 1071 (42000): SPECIFIED KEY WAS TOO LONG
+--echo #               ERROR WHILE DROPPING INDEX IN 5.7
+--echo #
+
+# Before you were allowed to create a prefix key for TEXT columns
+# which were larger than the column length. The column length
+# for TINYBLOB is 255 bytes, while prefix length is in characters.
+--error ER_TOO_LONG_KEY
+CREATE TABLE t1(id INT PRIMARY KEY,
+                name TINYTEXT,
+                KEY nameloc (name(64))
+) DEFAULT CHARSET=utf8mb4;
+
+# 63 characters of 4 bytes each fit in 255 bytes.
+CREATE TABLE t1(id INT PRIMARY KEY,
+                name TINYTEXT,
+                KEY nameloc (name(63))
+) DEFAULT CHARSET=utf8mb4;
+
+# Check that we can rebuild the table without issue
+ALTER TABLE t1 FORCE;
+
+# Also check ALTER TABLE
+--error ER_TOO_LONG_KEY
+ALTER TABLE t1 ADD INDEX idx (name(64), id);
+ALTER TABLE t1 ADD INDEX idx (name(63), id);
+DROP TABLE t1;
+
+# Check that we can create a table with a prefix index of
+# 64 4-byte characters for a TEXT column.
+
+# 64 characters of 4 bytes each fit in 65535 bytes.
+CREATE TABLE t1(id INT PRIMARY KEY,
+                name TEXT,
+                KEY nameloc (name(64))
+) DEFAULT CHARSET=utf8mb4;
+
+# Check ALTER TABLE where we change the type of the
+# base column, reducing max field length, keeping the
+# length of the prefix key the same.
+--error ER_TOO_LONG_KEY
+ALTER TABLE t1 MODIFY COLUMN name TINYTEXT;
+DROP TABLE t1;
+
+
+--echo #
+--echo # BUG#16888677: OUT OF RANGE VALUE ACCEPTED FOR DATETIME COLUMN IN
+--echo #               ALTER TABLE...ADD COLUMN
+
+SET @saved_sql_mode = @@session.sql_mode;
+
+--echo # Test case with no SQL_MODE enabled.
+SET SESSION sql_mode= '';
+CREATE TABLE t1(fld1 DATE NOT NULL) ENGINE= INNODB;
+INSERT INTO t1 VALUES('2000-01-01');
+
+--echo # No warnings or error is reported
+ALTER TABLE t1 ADD COLUMN fld2 DATETIME NOT NULL, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN fld3 DATETIME NOT NULL, ALGORITHM=COPY;
+
+DROP TABLE t1;
+
+--echo # Test case with strict mode enabled.
+
+SET SESSION sql_mode= 'STRICT_ALL_TABLES';
+CREATE TABLE t1(fld1 DATE NOT NULL) ENGINE= INNODB;
+INSERT INTO t1 VALUES('2000-01-01');
+
+--echo # No warnings or error is reported
+ALTER TABLE t1 ADD COLUMN fld2 DATETIME NOT NULL, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN fld3 DATETIME NOT NULL, ALGORITHM=COPY;
+
+DROP TABLE t1;
+
+--echo # Test case with 'NO_ZERO_DATE' enabled.
+
+SET SESSION sql_mode= 'NO_ZERO_DATE';
+CREATE TABLE t1(fld1 DATE NOT NULL) ENGINE= INNODB;
+INSERT INTO t1 VALUES('2000-01-01');
+
+--echo # Warnings are reported after patch.
+ALTER TABLE t1 ADD COLUMN fld2 DATETIME NOT NULL, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN fld3 DATETIME NOT NULL, ALGORITHM=COPY;
+
+DROP TABLE t1;
+
+--echo # Test case with both 'NO_ZERO_DATE and strict mode' enabled.
+
+SET SESSION sql_mode= @saved_sql_mode;
+
+CREATE TABLE t1(fld1 DATE NOT NULL) ENGINE= INNODB;
+INSERT INTO t1 VALUES('2000-01-01');
+
+--echo # Without patch, the following statement succeeds.
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE t1 ADD COLUMN fld2 DATETIME NOT NULL, ALGORITHM=INPLACE;
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE t1 ADD COLUMN fld2 DATETIME NOT NULL, ALGORITHM=COPY;
+
+TRUNCATE TABLE t1;
+--echo # Operation below succeeds, since the table has no records.
+ALTER TABLE t1 ADD COLUMN fld4 DATETIME NOT NULL, ALGORITHM=INPLACE;
 DROP TABLE t1;

@@ -23,6 +23,7 @@ MYSQL_ADD_PLUGIN(keyring_file
                  keyring.cc
                  hash_to_buffer_serializer.cc
                  buffered_file_io.cc
+                 file_io.cc
                  buffer.cc
                  MODULE_ONLY
                  MODULE_OUTPUT_NAME "keyring_file")

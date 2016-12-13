@@ -26,7 +26,7 @@
 #include "xpl_client.h"
 #include "xpl_session.h"
 #include "xpl_system_variables.h"
-#include "xpl_listener_factory.h"
+#include "io/xpl_listener_factory.h"
 #include "mysql_variables.h"
 #include "mysql_show_variable_wrapper.h"
 #include "sql_data_result.h"
@@ -39,7 +39,6 @@
 #include "ngs/interface/listener_interface.h"
 #include "ngs/server_acceptors.h"
 #include <mysql/plugin.h>
-#include "my_atomic.h"
 #include "my_thread_local.h"
 #include "mysql/service_ssl_wrapper.h"
 #include "mysqlx_version.h"
@@ -63,6 +62,14 @@ public:
       log_error("srv_session_init_thread returned error");
       return false;
     }
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    // Reset user name and hostname stored in PFS_thread
+    // which were copied from parent thread
+    PSI_THREAD_CALL(set_thread_account) (
+        "", 0, "", 0);
+#endif // HAVE_PSI_THREAD_INTERFACE
+
     ngs::Scheduler_dynamic::thread_init();
 
 #if defined(__APPLE__) || defined(HAVE_PTHREAD_SETNAME_NP)
@@ -96,48 +103,54 @@ class Worker_scheduler_monitor : public ngs::Scheduler_dynamic::Monitor_interfac
 public:
   virtual void on_worker_thread_create()
   {
-    xpl::Global_status_variables::instance().increment_worker_thread_count();
+    ++xpl::Global_status_variables::instance().m_worker_thread_count;
   }
 
   virtual void on_worker_thread_destroy()
   {
-    xpl::Global_status_variables::instance().decrement_worker_thread_count();
+    --xpl::Global_status_variables::instance().m_worker_thread_count;
   }
 
   virtual void on_task_start()
   {
-    xpl::Global_status_variables::instance().increment_active_worker_thread_count();
+    ++xpl::Global_status_variables::instance().m_active_worker_thread_count;
   }
 
   virtual void on_task_end()
   {
-    xpl::Global_status_variables::instance().decrement_active_worker_thread_count();
+    --xpl::Global_status_variables::instance().m_active_worker_thread_count;
   }
 };
 
+
+namespace
+{
+
+const char *STATUS_VALUE_FOR_NOT_CONFIGURED_INTERFACE = "UNDEFINED";
+
+} // namespace
 
 xpl::Server* xpl::Server::instance;
 ngs::RWLock  xpl::Server::instance_rwl;
 bool         xpl::Server::exiting = false;
 
-xpl::Server::Server(boost::shared_ptr<ngs::Server_acceptors> acceptors, boost::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-                    boost::shared_ptr<ngs::Protocol_config> config,
-                    const std::string &unix_socket_or_named_pipe)
+xpl::Server::Server(ngs::shared_ptr<ngs::Server_acceptors> acceptors,
+                    ngs::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
+                    ngs::shared_ptr<ngs::Protocol_config> config)
 : m_client_id(0),
   m_num_of_connections(0),
   m_config(config),
   m_acceptors(acceptors),
   m_wscheduler(wscheduler),
-  m_nscheduler(new ngs::Scheduler_dynamic("network", KEY_thread_x_acceptor)),
-  m_server(acceptors, m_nscheduler, wscheduler, this, config),
-  m_unix_socket_or_named_pipe(unix_socket_or_named_pipe)
+  m_nscheduler(ngs::allocate_shared<ngs::Scheduler_dynamic>("network", KEY_thread_x_acceptor)),
+  m_server(acceptors, m_nscheduler, wscheduler, this, config)
 {
 }
 
 
 void xpl::Server::start_verify_server_state_timer()
 {
-  m_server.add_timer(1000, boost::bind(&Server::on_verify_server_state, this));
+  m_server.add_timer(1000, ngs::bind(&Server::on_verify_server_state, this));
 }
 
 
@@ -162,11 +175,11 @@ bool xpl::Server::on_verify_server_state()
     if (m_wscheduler->is_running())
     {
       typedef ngs::Scheduler_dynamic::Task Task;
-      Task *task = new Task(boost::bind(&ngs::Server::close_all_clients, &m_server));
+      Task *task = ngs::allocate_object<Task>(ngs::bind(&ngs::Server::close_all_clients, &m_server));
       if (!m_wscheduler->post(task))
       {
         log_debug("Unable to schedule closing all clients ");
-        delete task;
+        ngs::free_object(task);
       }
     }
 
@@ -179,23 +192,27 @@ bool xpl::Server::on_verify_server_state()
 }
 
 
-boost::shared_ptr<ngs::Client_interface> xpl::Server::create_client(ngs::Connection_ptr connection)
+ngs::shared_ptr<ngs::Client_interface> xpl::Server::create_client(ngs::Connection_ptr connection)
 {
-  return boost::make_shared<xpl::Client>(connection, boost::ref(m_server), ++m_client_id, new xpl::Protocol_monitor());
+  ngs::shared_ptr<ngs::Client_interface> result;
+  result = ngs::allocate_shared<xpl::Client>(connection, ngs::ref(m_server), ++m_client_id,
+                                             ngs::allocate_object<xpl::Protocol_monitor>());
+  return result;
 }
 
 
-boost::shared_ptr<ngs::Session_interface> xpl::Server::create_session(ngs::Client_interface &client,
+ngs::shared_ptr<ngs::Session_interface> xpl::Server::create_session(ngs::Client_interface &client,
                                                             ngs::Protocol_encoder &proto,
                                                             Session::Session_id session_id)
 {
-  return boost::make_shared<xpl::Session>(boost::ref(client), &proto, session_id);
+  return ngs::shared_ptr<ngs::Session>(
+           ngs::allocate_shared<xpl::Session>(ngs::ref(client), &proto, session_id));
 }
 
 
 void xpl::Server::on_client_closed(const ngs::Client_interface &client)
 {
-  Global_status_variables::instance().increment_closed_connections_count();
+  ++Global_status_variables::instance().m_closed_connections_count;
 
   // Only accepted clients are calling on_client_closed
   --m_num_of_connections;
@@ -223,7 +240,7 @@ bool xpl::Server::will_accept_client(const ngs::Client_interface &client)
 
 void xpl::Server::did_accept_client(const ngs::Client_interface &client)
 {
-  Global_status_variables::instance().increment_accepted_connections_count();
+  ++Global_status_variables::instance().m_accepted_connections_count;
 }
 
 
@@ -232,11 +249,11 @@ void xpl::Server::did_reject_client(ngs::Server_delegate::Reject_reason reason)
   switch (reason)
   {
     case ngs::Server_delegate::AcceptError:
-      Global_status_variables::instance().increment_connection_errors_count();
-      Global_status_variables::instance().increment_connection_accept_errors_count();
+      ++Global_status_variables::instance().m_connection_errors_count;
+      ++Global_status_variables::instance().m_connection_accept_errors_count;
       break;
     case ngs::Server_delegate::TooManyConnections:
-      Global_status_variables::instance().increment_connection_reject_count();
+      ++Global_status_variables::instance().m_rejected_connections_count;
       break;
   }
 }
@@ -251,7 +268,7 @@ void xpl::Server::plugin_system_variables_changed()
   m_wscheduler->set_idle_worker_timeout(Plugin_system_variables::idle_worker_thread_timeout * 1000);
 
   m_config->max_message_size = Plugin_system_variables::max_allowed_packet;
-  m_config->connect_timeout = ngs::seconds(Plugin_system_variables::connect_timeout);
+  m_config->connect_timeout = ngs::chrono::seconds(Plugin_system_variables::connect_timeout);
 }
 
 
@@ -279,21 +296,26 @@ int xpl::Server::main(MYSQL_PLUGIN p)
   {
     Global_status_variables::instance().reset();
 
-    boost::shared_ptr<ngs::Scheduler_dynamic> thd_scheduler(new Session_scheduler("work", p));
+    ngs::shared_ptr<ngs::Scheduler_dynamic> thd_scheduler(ngs::allocate_shared<Session_scheduler>("work", p));
 
     Plugin_system_variables::setup_system_variable_from_env_or_compile_opt(
         Plugin_system_variables::socket,
         "MYSQLX_UNIX_PORT",
-        WIN32_OR_UNIX(MYSQLX_NAMEDPIPE, MYSQLX_UNIX_ADDR));
+        MYSQLX_UNIX_ADDR);
 
     Listener_factory listener_factory;
-    boost::shared_ptr<ngs::Server_acceptors> acceptors(
-        new ngs::Server_acceptors(listener_factory, Plugin_system_variables::port, Plugin_system_variables::socket, listen_backlog));
+    ngs::shared_ptr<ngs::Server_acceptors> acceptors(ngs::allocate_shared<ngs::Server_acceptors>(
+         ngs::ref(listener_factory),
+         Plugin_system_variables::bind_address,
+         Plugin_system_variables::port,
+         Plugin_system_variables::port_open_timeout,
+         Plugin_system_variables::socket,
+         listen_backlog));
 
     instance_rwl.wlock();
 
     exiting = false;
-    instance = new Server(acceptors, thd_scheduler, boost::make_shared<ngs::Protocol_config>(), Plugin_system_variables::socket);
+    instance = ngs::allocate_object<Server>(acceptors, thd_scheduler, ngs::allocate_shared<ngs::Protocol_config>());
 
     const bool use_only_through_secure_connection = true, use_only_in_non_secure_connection = false;
 
@@ -303,13 +325,13 @@ int xpl::Server::main(MYSQL_PLUGIN p)
 
     instance->plugin_system_variables_changed();
 
-    thd_scheduler->set_monitor(new Worker_scheduler_monitor);
+    thd_scheduler->set_monitor(ngs::allocate_object<Worker_scheduler_monitor>());
     thd_scheduler->launch();
     instance->m_nscheduler->launch();
 
-    xpl::Plugin_system_variables::registry_callback(boost::bind(&Server::plugin_system_variables_changed, instance));
+    xpl::Plugin_system_variables::registry_callback(ngs::bind(&Server::plugin_system_variables_changed, instance));
 
-    instance->m_nscheduler->post(boost::bind(&Server::net_thread, instance));
+    instance->m_nscheduler->post(ngs::bind(&Server::net_thread, instance));
 
     instance_rwl.unlock();
   }
@@ -353,7 +375,7 @@ int xpl::Server::exit(MYSQL_PLUGIN p)
 
   {
     ngs::RWLock_writelock slock(instance_rwl);
-    delete instance;
+    ngs::free_object(instance);
     instance = NULL;
   }
 
@@ -596,7 +618,7 @@ bool xpl::Server::on_net_startup()
 
     instance->start_verify_server_state_timer();
 
-    ngs::Ssl_context_unique_ptr ssl_ctx(new ngs::Ssl_context());
+    ngs::Ssl_context_unique_ptr ssl_ctx(ngs::allocate_object<ngs::Ssl_context>());
 
     ssl_config = choose_ssl_config(mysqld_have_ssl,
                                    ssl_config,
@@ -624,7 +646,7 @@ bool xpl::Server::on_net_startup()
           "For more information, please see the Using Secure Connections with X Plugin section in the MySQL documentation.");
     }
 
-    if (instance->server().prepare(boost::move(ssl_ctx), skip_networking, skip_name_resolve, true))
+    if (instance->server().prepare(ngs::move(ssl_ctx), skip_networking, skip_name_resolve, true))
         return true;
   }
   catch (const ngs::Error_code &e)
@@ -688,7 +710,7 @@ void xpl::Server::on_net_shutdown()
 
 ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
 {
-  boost::scoped_ptr<Mutex_lock> lock(new Mutex_lock(server().get_client_exit_mutex()));
+  ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock(server().get_client_exit_mutex()));
   ngs::Client_ptr found_client = server().get_client_list().find(client_id);
 
   // Locking exit mutex of ensures that the client wont exit Client::run until
@@ -699,7 +721,7 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
   if (found_client &&
       ngs::Client_interface::Client_closed != found_client->get_state())
   {
-    xpl::Client_ptr xpl_client =  boost::static_pointer_cast<xpl::Client>(found_client);
+    xpl::Client_ptr xpl_client =  ngs::static_pointer_cast<xpl::Client>(found_client);
 
     if (client_id == requester.client().client_id_num())
     {
@@ -713,7 +735,7 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
 
     {
       Mutex_lock lock_session_exit(xpl_client->get_session_exit_mutex());
-      boost::shared_ptr<xpl::Session> session = xpl_client->get_session();
+      ngs::shared_ptr<xpl::Session> session = xpl_client->get_session();
 
       is_session = NULL != session.get();
       if (is_session)
@@ -730,7 +752,7 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
       bool is_killed = false;
       {
         Mutex_lock lock_session_exit(xpl_client->get_session_exit_mutex());
-        boost::shared_ptr<xpl::Session> session = xpl_client->get_session();
+        ngs::shared_ptr<xpl::Session> session = xpl_client->get_session();
 
         if (session)
           is_killed = session->data_context().is_killed();
@@ -749,12 +771,58 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
 
 std::string xpl::Server::get_socket_file()
 {
-  if (m_acceptors->was_unix_socket_or_named_pipe_configured())
+  if (!m_server.is_terminating())
   {
-    return m_unix_socket_or_named_pipe;
+    if (!m_acceptors->was_prepared())
+      return "";
+
+    if (m_acceptors->was_unix_socket_configured())
+    {
+      return Plugin_system_variables::socket;
+    }
   }
 
-  return "";
+  return ::STATUS_VALUE_FOR_NOT_CONFIGURED_INTERFACE;
+}
+
+std::string xpl::Server::get_tcp_port()
+{
+  if (!m_server.is_terminating())
+  {
+    if (!m_acceptors->was_prepared())
+      return "";
+
+    std::string bind_address;
+
+    if (m_acceptors->was_tcp_server_configured(bind_address))
+    {
+      char buffer[100];
+
+      sprintf(buffer, "%u",Plugin_system_variables::port);
+
+      return buffer;
+    }
+  }
+
+  return ::STATUS_VALUE_FOR_NOT_CONFIGURED_INTERFACE;
+}
+
+std::string xpl::Server::get_tcp_bind_address()
+{
+  if (!m_server.is_terminating())
+  {
+    if (!m_acceptors->was_prepared())
+      return "";
+
+    std::string bind_address;
+
+    if (m_acceptors->was_tcp_server_configured(bind_address))
+    {
+      return bind_address;
+    }
+  }
+
+  return ::STATUS_VALUE_FOR_NOT_CONFIGURED_INTERFACE;
 }
 
 struct Client_check_handler_thd
@@ -784,7 +852,7 @@ xpl::Client_ptr xpl::Server::get_client_by_thd(Server_ref &server, THD *thd)
 
   std::vector<ngs::Client_ptr>::iterator i = std::find_if(clients.begin(), clients.end(), client_check_thd);
   if (clients.end() != i)
-    return boost::dynamic_pointer_cast<Client>(*i);
+    return ngs::dynamic_pointer_cast<Client>(*i);
 
   return Client_ptr();
 }

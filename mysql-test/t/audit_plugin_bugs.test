@@ -2,6 +2,8 @@
 --source include/not_embedded.inc
 --source include/have_debug.inc
 
+call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_ERROR' cannot be aborted.");
+
 let $expected_extension= so;
 if(`SELECT CONVERT(@@version_compile_os USING latin1)
            IN ("Win32","Win64","Windows")`)
@@ -68,19 +70,21 @@ eval INSTALL PLUGIN null_audit SONAME '$AUDIT_NULL';
 SET @@GLOBAL.null_audit_event_order_check= "MYSQL_AUDIT_GENERAL_ERROR;;ABORT_RET";
 SET @@GLOBAL.null_audit_abort_message= "Abort message.";
 
-# 3 recursive my_message calls should not cause stack overrun
+--echo # Try to enter error state recursively 2 times.
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 2;
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error ER_AUDIT_API_ABORT
+--error ER_ACCESS_DENIED_ERROR
 connect(user1_con,localhost,wrong_root,);
+SELECT @@null_audit_event_order_check_consume_ignore_count;
 
-# Infinite my_message calls cause stack overrun
+--echo # Try to enter error state infinitely. my_message calls cause stack overrun.
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 10000;
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --disable_result_log
---error ER_STACK_OVERRUN_NEED_MORE
+--error ER_ACCESS_DENIED_ERROR
 connect(user1_con,localhost,wrong_root,);
 --enable_result_log
+SELECT @@null_audit_event_order_check_consume_ignore_count;
 
 # Clean up global variables
 SET @@GLOBAL.null_audit_event_order_check= NULL;
@@ -93,13 +97,14 @@ connect(user1_con,localhost,root,);
 
 SET @@null_audit_event_order_check= "MYSQL_AUDIT_GENERAL_ERROR;;ABORT_RET";
 SET @@null_audit_abort_message= "Abort message.";
-# Let's hope 10000 calls will overrun the stack frame
+--echo # Try to enter error state infinitely. my_message calls will overrun the stack frame.
 SET @@null_audit_event_order_check_consume_ignore_count= 10000;
 
 --echo # Must not crash
 --replace_regex /[0-9]+ byte[s]?/<NUMBER>/
---error ER_STACK_OVERRUN_NEED_MORE
+--error ER_NO_SUCH_TABLE
 SELECT 1 FROM mysql.fictional_table;
+SELECT @@null_audit_event_order_check_consume_ignore_count;
 
 --echo # Clean up
 connection default;

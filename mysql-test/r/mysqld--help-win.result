@@ -213,6 +213,10 @@ The following options may be given as the first argument:
  client that does INSERT DELAYED will wait until there is
  room in the queue again. This variable is deprecated
  along with INSERT DELAYED.
+ --disable-partition-engine-check 
+ Skip the check for non-natively partitioned tables during
+ bootstrap. This option is deprecated along with the
+ partition engine.
  --disabled-storage-engines=name 
  Limit CREATE TABLE for the storage engines listed
  --disconnect-on-expired-password 
@@ -1279,6 +1283,7 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
+disable-partition-engine-check FALSE
 disabled-storage-engines 
 disconnect-on-expired-password TRUE
 disconnect-slave-event-count 0

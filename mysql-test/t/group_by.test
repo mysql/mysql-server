@@ -2463,3 +2463,27 @@ WHERE t1.f3 IN (SELECT t2.f1 FROM t2 WHERE NOT t1.f2 IS NOT NULL) AND t1.f1 IS N
 
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#22275357 ORDER BY DOES NOT WORK CORRECTLY WITH GROUPED AVG()
+--echo #              VALUES EXTRACTED FROM JSON
+--echo #
+
+# The bug was only seen when grouping on a BLOB-based column type
+# (such as TEXT and JSON), and using an aggregate function based on
+# Item_sum_num_field class (AVG, VAR_*, STDEV_*), and the grouping
+# operation used a temporary table.
+
+CREATE TABLE t(txt TEXT, i INT);
+INSERT INTO t VALUES ('a', 2), ('b', 8), ('b', 0), ('c', 2);
+SELECT txt, AVG(i) a FROM t GROUP BY txt ORDER BY a, txt;
+SELECT txt, VAR_POP(i) v FROM t GROUP BY txt ORDER BY v, txt;
+SELECT txt, STDDEV_POP(i) s FROM t GROUP BY txt ORDER BY s, txt;
+# SQL_BUFFER_RESULT forces the use of a temporary table in the
+# grouping operation, in case that strategy is not chosen in the
+# queries above.
+SELECT SQL_BUFFER_RESULT txt, AVG(i) a FROM t GROUP BY txt ORDER BY a, txt;
+SELECT SQL_BUFFER_RESULT txt, VAR_POP(i) v FROM t GROUP BY txt ORDER BY v, txt;
+SELECT SQL_BUFFER_RESULT txt, STDDEV_POP(i) s FROM t
+GROUP BY txt ORDER BY s, txt;
+DROP TABLE t;

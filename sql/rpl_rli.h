@@ -1292,14 +1292,15 @@ private:
 
 public:
   /*
-    The boolean is set to true when the binlog applier (rli_fake) thread
-    detaches any "native" engine transactions it has dealt with
-    at time of XA START processing.
-    The boolean is reset to false at the end of XA PREPARE
-    and XA COMMIT ONE PHASE, at the same time with the native transactions
-    re-attachment.
+    The boolean is set to true when the binlog (rli_fake) or slave
+    (rli_slave) applier thread detaches any engine ha_data
+    it has dealt with at time of XA START processing.
+    The boolean is reset to false at the end of XA PREPARE,
+    XA COMMIT ONE PHASE for the binlog applier, and
+    at internal rollback of the slave applier at the same time with
+    the engine ha_data re-attachment.
   */
-  bool is_native_trx_detached;
+  bool is_engine_ha_data_detached;
 
   void set_thd_tx_priority(int priority)
   {
@@ -1309,6 +1310,30 @@ public:
   int get_thd_tx_priority()
   {
     return thd_tx_priority;
+  }
+  /**
+    Detaches the engine ha_data from THD. The fact
+    is memorized in @c is_engine_ha_detached flag.
+
+    @param  thd a reference to THD
+  */
+  void detach_engine_ha_data(THD *thd);
+  /**
+    Drops the engine ha_data flag when it is up.
+    The method is run at execution points of the engine ha_data
+    re-attachment.
+
+    @return true   when THD has detached the engine ha_data,
+            false  otherwise
+  */
+  bool unflag_detached_engine_ha_data()
+  {
+    bool rc= false;
+
+    if (is_engine_ha_data_detached)
+      rc= !(is_engine_ha_data_detached= false); // return the old value
+
+    return rc;
   }
 };
 

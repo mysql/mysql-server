@@ -1,0 +1,74 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 1. Start a group with two members on which server 1 is the
+#    bootstrap member.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 2. Stop applier channel in order to delay the execution of
+#    remote transactions on member 1.
+[connection server1]
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+############################################################
+# 3. Create a table on member 2 with a specified GTID.
+#    This statement will not be applied on member 1.
+[connection server2]
+include/assert.inc [GTID_EXECUTED must contain two transactions from the members join]
+SET GTID_NEXT= "GROUP_REPLICATION_GROUP_NAME:4";
+CREATE TABLE t1 (i INT PRIMARY KEY);
+SET GTID_NEXT="AUTOMATIC";
+include/assert.inc [GTID_EXECUTED must contain a hole]
+[connection server1]
+
+############################################################
+# 4. Shutdown the group.
+[connection server1]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+DROP TABLE t1;
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET MASTER;
+
+############################################################
+# 5. Bootstrap the group again.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [GTID_EXECUTED must contain no holes]
+include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/assert.inc [gtid received set must contain no holes]
+[connection server2]
+include/assert.inc [GTID_EXECUTED must be empty]
+include/start_group_replication.inc
+include/assert.inc [GTID_EXECUTED must contain no holes]
+include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+
+############################################################
+# 6. Cleanup.
+DROP TABLE t1;
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+include/group_replication_end.inc

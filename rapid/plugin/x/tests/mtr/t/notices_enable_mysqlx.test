@@ -908,7 +908,7 @@ show status like 'Mysqlx%notice%';
 
 ##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT with show_compatibility_56=OFF which is default in 5.7
 let $restart_parameters = restart: --show_compatibility_56=OFF;
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 ##expect MYSQLX_NOTICE_OTHER_SENT=8,MYSQLX_NOTICE_WARNING_SENT=3 with both native and xconnection
 ##change result file once Bug#21777465 is fixed
 --exec $MYSQLXTEST -uroot --password='' --file=$xtest_stats_noti_no_err 2>&1
@@ -916,7 +916,7 @@ show status like 'Mysqlx%notice%';
 
 ##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT with show_compatibility_56=ON with unprivileged user
 let $restart_parameters = restart: --show_compatibility_56=ON;
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 create user noti@localhost identified by 'noti';
 ##expect MYSQLX_NOTICE_OTHER_SENT=2,MYSQLX_NOTICE_WARNING_SENT=3 with both native and xconnection
 ##change result file once Bug#21777465 is fixed
