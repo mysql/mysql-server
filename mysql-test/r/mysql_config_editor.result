@@ -267,3 +267,9 @@ mysqld is alive
 # normally.
 mysqld is alive
 #### End of test ####
+#
+# Bug #24557925: MYSQL_CONFIG_EDITOR CAN MAKE SERVER UNBOOTABLE
+#
+# Restarting the server. Should work
+# Cleanup
+# End of 5.6 tests

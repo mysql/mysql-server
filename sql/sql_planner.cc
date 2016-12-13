@@ -482,6 +482,8 @@ void Optimize_table_order::best_access_path(
       key_part_map const_part= 0;
       /* The or-null keypart in ref-or-null access: */
       key_part_map ref_or_null_part= 0;
+      /// Set dodgy_ref_cost only if that index is chosen for ref access.
+      bool is_dodgy= false;
 
       /* Calculate how many key segments of the current key we can use */
       Key_use *const start_key= keyuse;
@@ -747,7 +749,10 @@ void Optimize_table_order::best_access_path(
                 if (!found_ref && table->quick_keys.is_set(key) &&    // (1)
                     table->quick_key_parts[key] > max_key_part &&     // (2)
                     records < (double)table->quick_rows[key])         // (3)
+                {
                   records= (double)table->quick_rows[key];
+                  is_dodgy= true;
+                }
 
                 tmp= records;
               }
@@ -855,7 +860,10 @@ void Optimize_table_order::best_access_path(
         }
       }
   done_with_index:
-      trace_access_idx.add("chosen", best_key == start_key);
+      bool chosen= (best_key == start_key);
+      trace_access_idx.add("chosen", chosen);
+      if (chosen)
+        s->dodgy_ref_cost= is_dodgy;
     } /* for each key */
     records= best_records;
   }

@@ -47,3 +47,4 @@ innodb_engine      plugin/innodb_memcached/innodb_memcache INNODB_ENGINE
 validate_password  plugin/password_validation VALIDATE_PASSWORD validate_password
 mysql_no_login     plugin/mysql_no_login      MYSQL_NO_LOGIN    mysql_no_login
 test_udf_services  plugin/udf_services TESTUDFSERVICES
+connection_control  plugin/connection_control   CONNECTION_CONTROL_PLUGIN    connection_control
