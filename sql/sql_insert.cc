@@ -2673,57 +2673,6 @@ bool Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 }
 
 
-/*
-  Class for maintaining hooks used inside operations on tables such
-  as: create table functions, delete table functions, and alter table
-  functions.
-
-  Class is using the Template Method pattern to separate the public
-  usage interface from the private inheritance interface.  This
-  imposes no overhead, since the public non-virtual function is small
-  enough to be inlined.
-
-  The hooks are usually used for functions that does several things,
-  e.g., create_table_from_items(), which both create a table and lock
-  it.
- */
-class TABLEOP_HOOKS
-{
-public:
-  TABLEOP_HOOKS() {}
-  virtual ~TABLEOP_HOOKS() {}
-
-  inline void prelock(TABLE **tables, uint count)
-  {
-    do_prelock(tables, count);
-  }
-
-  inline int postlock(TABLE **tables, uint count)
-  {
-    return do_postlock(tables, count);
-  }
-private:
-  /* Function primitive that is called prior to locking tables */
-  virtual void do_prelock(TABLE **tables, uint count)
-  {
-    /* Default is to do nothing */
-  }
-
-  /**
-     Primitive called after tables are locked.
-
-     If an error is returned, the tables will be unlocked and error
-     handling start.
-
-     @return Error code or zero.
-   */
-  virtual int do_postlock(TABLE **tables, uint count)
-  {
-    return 0;                           /* Default is to do nothing */
-  }
-};
-
-
 /**
   Lock the newly created table and prepare it for insertion.
 
@@ -2736,83 +2685,22 @@ bool Query_result_create::start_execution()
   DEBUG_SYNC(thd,"create_table_select_before_lock");
 
   MYSQL_LOCK *extra_lock= NULL;
-  /*
-    For row-based replication, the CREATE-SELECT statement is written
-    in two pieces: the first one contain the CREATE TABLE statement
-    necessary to create the table and the second part contain the rows
-    that should go into the table.
 
-    For non-temporary tables, the start of the CREATE-SELECT
-    implicitly commits the previous transaction, and all events
-    forming the statement will be stored the transaction cache. At end
-    of the statement, the entire statement is committed as a
-    transaction, and all events are written to the binary log.
-
-    On the master, the table is locked for the duration of the
-    statement, but since the CREATE part is replicated as a simple
-    statement, there is no way to lock the table for accesses on the
-    slave.  Hence, we have to hold on to the CREATE part of the
-    statement until the statement has finished.
-   */
-  class MY_HOOKS : public TABLEOP_HOOKS {
-  public:
-    MY_HOOKS(Query_result_create *x, TABLE_LIST *create_table_arg,
-             TABLE_LIST *select_tables_arg)
-      : ptr(x),
-        create_table(create_table_arg),
-        select_tables(select_tables_arg)
-      {
-      }
-
-  private:
-    virtual int do_postlock(TABLE **tables, uint count)
-    {
-      int error;
-      THD *thd= const_cast<THD*>(ptr->get_thd());
-      TABLE_LIST *save_next_global= create_table->next_global;
-
-      create_table->next_global= select_tables;
-
-      error= thd->decide_logging_format(create_table);
-
-      create_table->next_global= save_next_global;
-
-      if (error)
-        return error;
-
-      TABLE const *const table = *tables;
-      if (thd->is_current_stmt_binlog_format_row()  &&
-          !table->s->tmp_table)
-      {
-        if (int error= ptr->binlog_show_create_table(tables, count))
-          return error;
-      }
-      return 0;
-    }
-    Query_result_create *ptr;
-    TABLE_LIST *create_table;
-    TABLE_LIST *select_tables;
-  };
-
-  MY_HOOKS hooks(this, create_table, select_tables);
- 
   table->reginfo.lock_type=TL_WRITE;
-  hooks.prelock(&table, 1);                    // Call prelock hooks
+
   /*
     mysql_lock_tables() below should never fail with request to reopen table
     since it won't wait for the table lock (we have exclusive metadata lock on
     the table) and thus can't get aborted.
   */
   if (! (extra_lock= mysql_lock_tables(thd, &table, 1, 0)) ||
-        hooks.postlock(&table, 1))
+      binlog_show_create_table())
   {
     if (extra_lock)
     {
       mysql_unlock_tables(thd, extra_lock);
       extra_lock= 0;
     }
-    drop_open_table(thd, table, create_table->db, create_table->table_name);
-    table= NULL;
     DBUG_RETURN(true);
   }
   if (extra_lock)
@@ -2875,9 +2763,41 @@ bool Query_result_create::start_execution()
 }
 
 
-int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
+/*
+  For row-based replication, the CREATE-SELECT statement is written
+  in two pieces: the first one contain the CREATE TABLE statement
+  necessary to create the table and the second part contain the rows
+  that should go into the table.
+
+  For non-temporary tables, the start of the CREATE-SELECT
+  implicitly commits the previous transaction, and all events
+  forming the statement will be stored the transaction cache. At end
+  of the statement, the entire statement is committed as a
+  transaction, and all events are written to the binary log.
+
+  On the master, the table is locked for the duration of the
+  statement, but since the CREATE part is replicated as a simple
+  statement, there is no way to lock the table for accesses on the
+  slave.  Hence, we have to hold on to the CREATE part of the
+  statement until the statement has finished.
+*/
+
+int Query_result_create::binlog_show_create_table()
 {
-  DBUG_ENTER("select_create::binlog_show_create_table");
+  DBUG_ENTER("Query_result_create::binlog_show_create_table");
+
+  TABLE_LIST *save_next_global= create_table->next_global;
+  create_table->next_global= select_tables;
+  int error= thd->decide_logging_format(create_table);
+  create_table->next_global= save_next_global;
+
+  if (error)
+    DBUG_RETURN(error);
+
+  if (!thd->is_current_stmt_binlog_format_row() ||
+      table->s->tmp_table)
+    DBUG_RETURN(0);
+
   /*
     Note 1: In RBR mode, we generate a CREATE TABLE statement for the
     created table by calling store_create_info() (behaves as SHOW
@@ -2899,8 +2819,6 @@ int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
     schema that will do a close_thread_tables(), destroying the
     statement transaction cache.
   */
-  DBUG_ASSERT(thd->is_current_stmt_binlog_format_row());
-  DBUG_ASSERT(tables && *tables && count > 0);
 
   char buf[2048];
   String query(buf, sizeof(buf), system_charset_info);
@@ -2908,7 +2826,7 @@ int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
   TABLE_LIST tmp_table_list;
 
   memset(&tmp_table_list, 0, sizeof(tmp_table_list));
-  tmp_table_list.table = *tables;
+  tmp_table_list.table= table;
   query.length(0);      // Have to zero it since constructor doesn't
 
   result= store_create_info(thd, &tmp_table_list, &query, create_info,
