@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -296,9 +296,6 @@ my_bool my_thread_init(void)
   tmp->pthread_self= pthread_self();
   mysql_mutex_init(key_my_thread_var_mutex, &tmp->mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend, NULL);
-
-  tmp->stack_ends_here= (char*)&tmp +
-                         STACK_DIRECTION * (long)my_thread_stack_size;
 
   mysql_mutex_lock(&THR_LOCK_threads);
   tmp->id= ++thread_id;

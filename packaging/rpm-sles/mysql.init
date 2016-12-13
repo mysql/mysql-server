@@ -65,7 +65,6 @@ get_option () {
 datadir=$(get_option mysqld datadir "/var/lib/mysql")
 socket=$(get_option  mysqld socket "$datadir/mysql.sock")
 pidfile=$(get_option mysqld_safe pid-file "/var/run/mysql/mysqld.pid")
-logfile=$(get_option mysqld_safe log-error "/var/log/mysql/mysqld.log")
 
 install_db () {
     # Note: something different than datadir=/var/lib/mysql requires 
@@ -74,14 +73,16 @@ install_db () {
     logfile=$(get_option mysqld_safe log-error "/var/log/mysql/mysqld.log")
 
     # Restore log, dir, perms and SELinux contexts
-    [ -d "$datadir" ] || install -d -m 0755 -omysql -gmysql "$datadir" || return 1
+    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
+	install -d -m 0755 -omysql -gmysql "$datadir" || return 1
+    fi
 
-    [ -e $logfile ] || touch $logfile || return 1
-    chmod 0640 $logfile
-    chown mysql:mysql $logfile || return 1
+    if [ ! -e "$logfile" -a ! -h "$logfile" -a "x$(dirname "$logfile")" = "x/var/log/mysql" ]; then
+	install /dev/null -omysql -gmysql "$logfile" || return 1
+    fi
     if [ -x /usr/sbin/restorecon ]; then
         /usr/sbin/restorecon "$datadir"
-        /usr/sbin/restorecon $logfile
+        /usr/sbin/restorecon "$logfile"
     fi
 
     # If special mysql dir is in place, skip db install 

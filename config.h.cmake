@@ -31,7 +31,6 @@
 #cmakedefine HAVE_CXXABI_H 1
 #cmakedefine HAVE_NCURSES_H 1
 #cmakedefine HAVE_NDIR_H 1
-#cmakedefine HAVE_DIRENT_H 1
 #cmakedefine HAVE_DLFCN_H 1
 #cmakedefine HAVE_EXECINFO_H 1
 #cmakedefine HAVE_FCNTL_H 1
@@ -233,7 +232,6 @@
 #cmakedefine HAVE_PUTENV 1
 #cmakedefine HAVE_RE_COMP 1
 #cmakedefine HAVE_REGCOMP 1
-#cmakedefine HAVE_READDIR_R 1
 #cmakedefine HAVE_READLINK 1
 #cmakedefine HAVE_REALPATH 1
 #cmakedefine HAVE_RENAME 1
@@ -290,7 +288,6 @@
 #cmakedefine HAVE_AIO_READ 1
 /* Symbols we may use */
 /* used by stacktrace functions */
-#cmakedefine HAVE_BSS_START 1
 #cmakedefine HAVE_BACKTRACE 1
 #cmakedefine HAVE_BACKTRACE_SYMBOLS 1
 #cmakedefine HAVE_BACKTRACE_SYMBOLS_FD 1
