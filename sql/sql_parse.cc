@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,9 @@
 #include "sql_insert.h"       // mysql_insert
 #include "sql_update.h"       // mysql_update, mysql_multi_update
 #include "sql_partition.h"    // struct partition_info
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "partition_info.h"   // has_external_data_or_index_dir
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 #include "sql_db.h"           // mysql_change_db, mysql_create_db,
                               // mysql_rm_db, mysql_upgrade_db,
                               // mysql_alter_db,
@@ -889,17 +892,47 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
-  if (!thd->is_valid_time())
+  if (thd->is_valid_time() == false)
   {
     /*
-     If the time has got past 2038 we need to shut this server down
-     We do this by making sure every command is a shutdown and we 
-     have enough privileges to shut the server down
-
-     TODO: remove this when we have full 64 bit my_time_t support
+      If the time has gone past 2038 we need to shutdown the server. But
+      there is possibility of getting invalid time value on some platforms.
+      For example, gettimeofday() might return incorrect value on solaris
+      platform. Hence validating the current time with 5 iterations before
+      initiating the normal server shutdown process because of time getting
+      past 2038.
     */
-    thd->security_ctx->master_access|= SHUTDOWN_ACL;
-    command= COM_SHUTDOWN;
+    const int max_tries= 5;
+    sql_print_warning("Current time has got past year 2038. Validating current "
+                      "time with %d iterations before initiating the normal "
+                      "server shutdown process.", max_tries);
+
+    int tries= 0;
+    while (++tries <= max_tries)
+    {
+      thd->set_time();
+      if (thd->is_valid_time() == true)
+      {
+        sql_print_warning("Iteration %d: Obtained valid current time from "
+                           "system", tries);
+        break;
+      }
+      sql_print_warning("Iteration %d: Current time obtained from system is "
+                        "greater than 2038", tries);
+    }
+    if (tries > max_tries)
+    {
+      /*
+        If the time has got past 2038 we need to shut this server down.
+        We do this by making sure every command is a shutdown and we
+        have enough privileges to shut the server down
+
+        TODO: remove this when we have full 64 bit my_time_t support
+      */
+      sql_print_error("This MySQL server doesn't support dates later than 2038");
+      thd->security_ctx->master_access|= SHUTDOWN_ACL;
+      command= COM_SHUTDOWN;
+    }
   }
   thd->set_query_id(next_query_id());
   inc_thread_running();
@@ -2383,11 +2416,19 @@ case SQLCOM_PREPARE:
       copy.
     */
     Alter_info alter_info(lex->alter_info, thd->mem_root);
-
     if (thd->is_fatal_error)
     {
       /* If out of memory when creating a copy of alter_info. */
       res= 1;
+      goto end_with_restore_list;
+    }
+
+    if (((lex->create_info.used_fields & HA_CREATE_USED_DATADIR) != 0 ||
+         (lex->create_info.used_fields & HA_CREATE_USED_INDEXDIR) != 0) &&
+        check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+    {
+      res= 1;
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "FILE");
       goto end_with_restore_list;
     }
 
@@ -2428,6 +2469,12 @@ case SQLCOM_PREPARE:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     {
       partition_info *part_info= thd->lex->part_info;
+      if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
+          check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+      {
+        res= -1;
+        goto end_with_restore_list;
+      }
       if (part_info && !(part_info= thd->lex->part_info->get_clone(true)))
       {
         res= -1;
