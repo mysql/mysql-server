@@ -46,6 +46,10 @@ public:
       m_value(value)
   {}
 
+  void set_value(T_type value)
+  {
+    *m_value= value;
+  }
 private:
   T_type* m_value;
 };
