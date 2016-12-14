@@ -19,7 +19,6 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
 #include "handler.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -179,7 +178,6 @@ class Query_result_create final : public Query_result_insert {
     otherwise.
   */
   handlerton *m_post_ddl_ht;
-  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> m_releaser;
 public:
   Query_result_create(THD *thd,
                       TABLE_LIST *table_arg,
