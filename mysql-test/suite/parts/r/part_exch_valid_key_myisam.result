@@ -84,6 +84,8 @@ PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10)  ,
 PARTITION p1 VALUES LESS THAN (100)  ,
 PARTITION p2 VALUES LESS THAN (1000)  );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_r', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tsp_r (a INT,
 b VARCHAR(25),
 c DATE,
@@ -109,13 +111,19 @@ SUBPARTITION sp21,
 SUBPARTITION sp22,
 SUBPARTITION sp23,
 SUBPARTITION sp24));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp_r', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO tp_r VALUES (2, "Two", '2002-01-01'), (4, "Four", '2004-01-01'), (6, "Six", '2006-01-01'), (8, "Eight", '2008-01-01');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_r', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO tp_r VALUES (12, "twelve", '2012-01-01'), (14, "Fourteen", '2014-01-01'), (16, "Sixteen", '2016-01-01'), (18, "Eightteen", '2018-01-01');
 INSERT INTO tp_r VALUES (112, "Hundred twelve", '2112-01-01'), (114, "Hundred fourteen", '2114-01-01'), (116, "Hundred sixteen", '2116-01-01'), (118, "Hundred eightteen", '2118-01-01');
 INSERT INTO tp_r VALUES (122, "Hundred twenty-two", '2122-01-01'), (124, "Hundred twenty-four", '2124-01-01'), (126, "Hundred twenty-six", '2126-01-01'), (128, "Hundred twenty-eight", '2128-01-01');
 INSERT INTO tp_r VALUES (162, "Hundred sixty-two", '2162-01-01'), (164, "Hundred sixty-four", '2164-01-01'), (166, "Hundred sixty-six", '2166-01-01'), (168, "Hundred sixty-eight", '2168-01-01');
 INSERT INTO tp_r VALUES (182, "Hundred eighty-two", '2182-01-01'), (184, "Hundred eighty-four", '2184-01-01'), (186, "Hundred eighty-six", '2186-01-01'), (188, "Hundred eighty-eight", '2188-01-01');
 INSERT INTO tsp_r VALUES (2, "Two", '2002-01-01'), (4, "Four", '2004-01-01'), (6, "Six", '2006-01-01'), (8, "Eight", '2008-01-01');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp_r', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO tsp_r VALUES (12, "twelve", '2012-01-01'), (14, "Fourteen", '2014-01-01'), (16, "Sixteen", '2016-01-01'), (18, "Eightteen", '2018-01-01');
 INSERT INTO tsp_r VALUES (112, "Hundred twelve", '2112-01-01'), (114, "Hundred fourteen", '2114-01-01'), (116, "Hundred sixteen", '2116-01-01'), (118, "Hundred eightteen", '2118-01-01');
 INSERT INTO tsp_r VALUES (122, "Hundred twenty-two", '2122-01-01'), (124, "Hundred twenty-four", '2124-01-01'), (126, "Hundred twenty-six", '2126-01-01'), (128, "Hundred twenty-eight", '2128-01-01');
@@ -139,6 +147,9 @@ PARTITION p1 VALUES LESS THAN (100,'PPPPPPPPPPPPPPPPPPPPPPPPP'),
 PARTITION p2 VALUES LESS THAN (1000,'WWWWWWWWWWWWWWWWWWWWWWWWW'),
 PARTITION p3 VALUES LESS THAN (MAXVALUE,MAXVALUE))
 AS SELECT a, b, c FROM tp_r;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_rintvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.tp_rintvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tp_rvar(a INT,b VARCHAR(25),c DATE) 
 ENGINE = MyISAM  
 PARTITION BY RANGE COLUMNS (b)
@@ -147,6 +158,9 @@ PARTITION p1 VALUES LESS THAN ('PPPPPPPPPPPPPPPPPPPPPPPPP'),
 PARTITION p2 VALUES LESS THAN ('WWWWWWWWWWWWWWWWWWWWWWWWW'),
 PARTITION p3 VALUES LESS THAN (MAXVALUE))
 AS SELECT a, b, c FROM tp_r;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_rvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.tp_rvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tp_rintdate(a INT,b VARCHAR(25),c DATE, 
 PRIMARY KEY (a,c))
 ENGINE = MyISAM  
@@ -156,6 +170,9 @@ PARTITION p1 VALUES LESS THAN (100,'2200-01-01'),
 PARTITION p2 VALUES LESS THAN (1000,'2300-01-01'),
 PARTITION p3 VALUES LESS THAN (MAXVALUE,MAXVALUE))
 AS SELECT a, b, c FROM t_10;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_rintdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.tp_rintdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT tp_rintdate SELECT * FROM t_100;
 INSERT tp_rintdate SELECT * FROM t_1000;
 CREATE TABLE tp_rdate(a INT,b VARCHAR(25),c DATE,
@@ -167,6 +184,9 @@ PARTITION p1 VALUES LESS THAN ('2200-01-01'),
 PARTITION p2 VALUES LESS THAN ('2300-01-01'),
 PARTITION p3 VALUES LESS THAN (MAXVALUE))
 AS SELECT a, b, c FROM tp_r;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_rdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.tp_rdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tsp_rvar(a INT,b VARCHAR(25),c DATE) 
 ENGINE = MyISAM  
 PARTITION BY RANGE COLUMNS (b)
@@ -191,6 +211,9 @@ SUBPARTITION sp22,
 SUBPARTITION sp23,
 SUBPARTITION sp24))
 AS SELECT a, b, c FROM tsp_r;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp_rvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.tsp_rvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tsp_rvar1(a INT,b VARCHAR(25),c DATE) 
 ENGINE = MyISAM  
 PARTITION BY RANGE COLUMNS (b)
@@ -200,6 +223,9 @@ SUBPARTITIONS 5
 PARTITION p1 VALUES LESS THAN ('PPPPPPPPPPPPPPPPPPPPPPPPP'),
 PARTITION p2 VALUES LESS THAN ('WWWWWWWWWWWWWWWWWWWWWWWWW'))
 AS SELECT a, b, c FROM tsp_r;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp_rvar1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.tsp_rvar1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tp_l (a INT,
 b VARCHAR(25),
 c DATE,
@@ -216,6 +242,9 @@ PARTITION p2 VALUES IN (110,111,112,113,114,115,116,117,118,119,
 180,181,182,183,184,185,186,187,188,189,
 190,191,192,193,194,195,196,197,198,199))
 AS SELECT a, b, c FROM tp_r;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_l', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.tp_l', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tsp_l (a INT,
 b VARCHAR(25),
 c DATE,
@@ -248,6 +277,9 @@ SUBPARTITION sp22,
 SUBPARTITION sp23,
 SUBPARTITION sp24))
 AS SELECT a, b, c FROM tsp_r;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp_l', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.tsp_l', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tp_k (a INT,
 b VARCHAR(25),
 c DATE,
@@ -256,6 +288,9 @@ ENGINE = MyISAM
 PARTITION BY KEY (a)
 PARTITIONS 3
 AS SELECT a, b, c FROM tp_r;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tp_kvar (a INT,
 b VARCHAR(25),
 c DATE,
@@ -264,6 +299,9 @@ ENGINE = MyISAM
 PARTITION BY KEY (b)
 PARTITIONS 3
 AS SELECT a, b, c FROM tp_r;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tp_kdate (a INT,
 b VARCHAR(25),
 c DATE,
@@ -272,6 +310,9 @@ ENGINE = MyISAM
 PARTITION BY KEY (c)
 PARTITIONS 3
 AS SELECT a, b, c FROM tp_r;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tp_h (a INT,
 b VARCHAR(25),
 c DATE,
@@ -280,6 +321,9 @@ ENGINE = MyISAM
 PARTITION BY HASH (a)
 PARTITIONS 3
 AS SELECT a, b, c FROM tp_r;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_h', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.tp_h', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ######################################################################
 ### Key partitioned tables with/out validation
 ALTER TABLE tp_k EXCHANGE PARTITION p0 WITH TABLE t_10 WITH VALIDATION;
@@ -327,6 +371,8 @@ a	b	c
 93	Ninety-three	2093-01-01
 95	Ninety-five	2095-01-01
 99	Ninety-nine	2099-01-01
+Warning	1287	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 SELECT * FROM tp_k PARTITION (p1);
 a	b	c
 112	Hundred twelve	2112-01-01
@@ -349,6 +395,8 @@ a	b	c
 2	Two	2002-01-01
 8	Eight	2008-01-01
 ALTER TABLE tp_k COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tp_k PARTITION (p0);
 a	b	c
 11	Eleven	2011-01-01
@@ -359,6 +407,8 @@ a	b	c
 93	Ninety-three	2093-01-01
 95	Ninety-five	2095-01-01
 99	Ninety-nine	2099-01-01
+Warning	1287	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 SELECT * FROM tp_k PARTITION (p1);
 a	b	c
 112	Hundred twelve	2112-01-01
@@ -379,7 +429,11 @@ a	b	c
 6	Six	2006-01-01
 8	Eight	2008-01-01
 ALTER TABLE tp_k ADD PARTITION PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp_k EXCHANGE PARTITION p2 WITH TABLE t_100 WITHOUT VALIDATION;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tp_k PARTITION (p2);
 a	b	c
 116	Hundred sixteen	2116-01-01
@@ -389,12 +443,16 @@ a	b	c
 166	Hundred sixty-six	2166-01-01
 184	Hundred eighty-four	2184-01-01
 4	Four	2004-01-01
+Warning	1287	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tp_k ANALYZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.tp_k	analyze	status	OK
+test.tp_k	analyze	warning	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp_k OPTIMIZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.tp_k	optimize	status	OK
+test.tp_k	optimize	warning	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp_k EXCHANGE PARTITION p0 WITH TABLE t_10 WITH VALIDATION;
 ERROR HY000: Found a row that does not match the partition
 SELECT * FROM tp_k PARTITION (p0);
@@ -423,6 +481,8 @@ a	b	c
 184	Hundred eighty-four	2184-01-01
 4	Four	2004-01-01
 CREATE TABLE t_11 LIKE tp_k;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t_11', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t_11 REMOVE PARTITIONING;
 INSERT INTO t_11 SELECT * FROM t_10;
 INSERT INTO t_11 SELECT * FROM t_100;
@@ -435,6 +495,8 @@ a	b	c
 5	Five	2005-01-01
 9	Nine	2009-01-01
 95	Ninety-five	2095-01-01
+Warning	1287	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 DELETE FROM tp_k PARTITION (p1);
 SELECT * FROM tp_k PARTITION (p1);
 a	b	c
@@ -444,13 +506,17 @@ test.tp_k	check	error	Found a misplaced row in part 0 should be in part 4:
  a:1
 test.tp_k	check	error	Partition p0 returned error
 test.tp_k	check	error	Table upgrade required. Please do "REPAIR TABLE `tp_k`" or dump/reload to fix it!
+test.tp_k	check	warning	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp_k REPAIR PARTITION p0 ;
 Table	Op	Msg_type	Msg_text
 test.tp_k	repair	warning	Moved 5 misplaced rows
 test.tp_k	repair	status	OK
+test.tp_k	repair	warning	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tp_k PARTITION (p0);
 a	b	c
 5	Five	2005-01-01
+Warning	1287	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 SELECT * FROM tp_k PARTITION (p1);
 a	b	c
 SELECT * FROM tp_k PARTITION (p2);
@@ -485,6 +551,8 @@ a	b	c
 2	Two	2002-01-01
 8	Eight	2008-01-01
 ALTER TABLE tp_k COALESCE PARTITION 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tp_k PARTITION (p0);
 a	b	c
 1	One	2001-01-01
@@ -492,6 +560,8 @@ a	b	c
 5	Five	2005-01-01
 9	Nine	2009-01-01
 93	Ninety-three	2093-01-01
+Warning	1287	The partition engine, used by table 'test.tp_k', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 SELECT * FROM tp_k PARTITION (p1);
 a	b	c
 116	Hundred sixteen	2116-01-01
@@ -524,6 +594,8 @@ DELETE FROM t_100;
 INSERT INTO t_100 VALUES (11, "Eleven", '2011-01-01'), (13, "Thirdteen", '2013-01-01'), (15, "Fifeteen", '2015-01-01'), (19, "Nineteen", '2019-01-01');
 INSERT INTO t_100 VALUES (91, "Ninety-one", '2091-01-01'), (93, "Ninety-three", '2093-01-01'), (95, "Ninety-five", '2095-01-01'), (99, "Ninety-nine", '2099-01-01');
 ALTER TABLE tp_kvar COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tp_kvar PARTITION (p0);
 a	b	c
 114	Hundred fourteen	2114-01-01
@@ -536,6 +608,8 @@ a	b	c
 2	Two	2002-01-01
 4	Four	2004-01-01
 8	Eight	2008-01-01
+Warning	1287	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 SELECT * FROM tp_kvar PARTITION (p1);
 a	b	c
 112	Hundred twelve	2112-01-01
@@ -553,10 +627,14 @@ a	b	c
 188	Hundred eighty-eight	2188-01-01
 6	Six	2006-01-01
 ALTER TABLE tp_kvar ADD PARTITION PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tp_kvar PARTITION (p2);
 a	b	c
 162	Hundred sixty-two	2162-01-01
 164	Hundred sixty-four	2164-01-01
+Warning	1287	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 SELECT * FROM tp_kvar PARTITION (p5);
 a	b	c
 112	Hundred twelve	2112-01-01
@@ -565,6 +643,8 @@ a	b	c
 184	Hundred eighty-four	2184-01-01
 6	Six	2006-01-01
 CREATE TABLE t_11 LIKE tp_kvar;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t_11', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t_11 REMOVE PARTITIONING;
 INSERT INTO t_11 SELECT * FROM t_10;
 INSERT INTO t_11 SELECT * FROM t_100;
@@ -583,28 +663,36 @@ a	b	c
 93	Ninety-three	2093-01-01
 95	Ninety-five	2095-01-01
 99	Ninety-nine	2099-01-01
+Warning	1287	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 DELETE FROM tp_kvar PARTITION (p1);
 SELECT * FROM tp_kvar PARTITION (p1);
 a	b	c
 ALTER TABLE tp_kvar ANALYZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.tp_kvar	analyze	status	OK
+test.tp_kvar	analyze	warning	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp_kvar OPTIMIZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.tp_kvar	optimize	status	OK
+test.tp_kvar	optimize	warning	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp_kvar CHECK PARTITION p0 ;
 Table	Op	Msg_type	Msg_text
 test.tp_kvar	check	error	Found a misplaced row in part 0 should be in part 4:
  b:One
 test.tp_kvar	check	error	Partition p0 returned error
 test.tp_kvar	check	error	Table upgrade required. Please do "REPAIR TABLE `tp_kvar`" or dump/reload to fix it!
+test.tp_kvar	check	warning	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp_kvar REPAIR PARTITION p0 ;
 Table	Op	Msg_type	Msg_text
 test.tp_kvar	repair	warning	Moved 11 misplaced rows
 test.tp_kvar	repair	status	OK
+test.tp_kvar	repair	warning	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tp_kvar PARTITION (p0);
 a	b	c
 3	Three	2003-01-01
+Warning	1287	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 SELECT * FROM tp_kvar PARTITION (p1);
 a	b	c
 93	Ninety-three	2093-01-01
@@ -617,12 +705,16 @@ a	b	c
 95	Ninety-five	2095-01-01
 99	Ninety-nine	2099-01-01
 ALTER TABLE tp_kvar COALESCE PARTITION 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tp_kvar PARTITION (p0);
 a	b	c
 114	Hundred fourteen	2114-01-01
 15	Fifeteen	2015-01-01
 19	Nineteen	2019-01-01
 3	Three	2003-01-01
+Warning	1287	The partition engine, used by table 'test.tp_kvar', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 SELECT * FROM tp_kvar PARTITION (p1);
 a	b	c
 122	Hundred twenty-two	2122-01-01
@@ -658,6 +750,8 @@ DELETE FROM t_100;
 INSERT INTO t_100 VALUES (11, "Eleven", '2011-01-01'), (13, "Thirdteen", '2013-01-01'), (15, "Fifeteen", '2015-01-01'), (19, "Nineteen", '2019-01-01');
 INSERT INTO t_100 VALUES (91, "Ninety-one", '2091-01-01'), (93, "Ninety-three", '2093-01-01'), (95, "Ninety-five", '2095-01-01'), (99, "Ninety-nine", '2099-01-01');
 ALTER TABLE tp_kdate COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tp_kdate PARTITION (p0);
 a	b	c
 112	Hundred twelve	2112-01-01
@@ -682,12 +776,19 @@ a	b	c
 4	Four	2004-01-01
 6	Six	2006-01-01
 8	Eight	2008-01-01
+Warning	1287	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 SELECT * FROM tp_kdate PARTITION (p1);
 a	b	c
 164	Hundred sixty-four	2164-01-01
 166	Hundred sixty-six	2166-01-01
 ALTER TABLE tp_kdate ADD PARTITION PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE t_11 LIKE tp_kdate;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1287	The partition engine, used by table 'test.t_11', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t_11 REMOVE PARTITIONING;
 INSERT INTO t_11 SELECT * FROM t_10;
 INSERT INTO t_11 SELECT * FROM t_100;
@@ -706,31 +807,39 @@ a	b	c
 93	Ninety-three	2093-01-01
 95	Ninety-five	2095-01-01
 99	Ninety-nine	2099-01-01
+Warning	1287	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 DELETE FROM tp_kdate PARTITION (p1);
 SELECT * FROM tp_kdate PARTITION (p1);
 a	b	c
 ALTER TABLE tp_kdate ANALYZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.tp_kdate	analyze	status	OK
+test.tp_kdate	analyze	warning	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp_kdate OPTIMIZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.tp_kdate	optimize	status	OK
+test.tp_kdate	optimize	warning	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp_kdate CHECK PARTITION p0 ;
 Table	Op	Msg_type	Msg_text
 test.tp_kdate	check	error	Found a misplaced row in part 0 should be in part 4:
  c:2003-01-01
 test.tp_kdate	check	error	Partition p0 returned error
 test.tp_kdate	check	error	Table upgrade required. Please do "REPAIR TABLE `tp_kdate`" or dump/reload to fix it!
+test.tp_kdate	check	warning	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp_kdate REPAIR PARTITION p0 ;
 Table	Op	Msg_type	Msg_text
 test.tp_kdate	repair	warning	Moved 8 misplaced rows
 test.tp_kdate	repair	status	OK
+test.tp_kdate	repair	warning	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tp_kdate PARTITION (p0);
 a	b	c
 1	One	2001-01-01
 15	Fifeteen	2015-01-01
 9	Nine	2009-01-01
 99	Ninety-nine	2099-01-01
+Warning	1287	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 SELECT * FROM tp_kdate PARTITION (p1);
 a	b	c
 SELECT * FROM tp_kdate PARTITION (p2);
@@ -766,6 +875,8 @@ SELECT * FROM tp_kdate PARTITION (p5);
 a	b	c
 166	Hundred sixty-six	2166-01-01
 ALTER TABLE tp_kdate COALESCE PARTITION 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tp_kdate PARTITION (p0);
 a	b	c
 116	Hundred sixteen	2116-01-01
@@ -773,6 +884,8 @@ a	b	c
 124	Hundred twenty-four	2124-01-01
 162	Hundred sixty-two	2162-01-01
 168	Hundred sixty-eight	2168-01-01
+Warning	1287	The partition engine, used by table 'test.tp_kdate', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 SELECT * FROM tp_kdate PARTITION (p1);
 a	b	c
 SELECT * FROM tp_kdate PARTITION (p2);

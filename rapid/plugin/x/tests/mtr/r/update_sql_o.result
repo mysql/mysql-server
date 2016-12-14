@@ -13,16 +13,16 @@ grant all on *.* to user2@localhost;
 ================================================================================
 TEST START
 ================================================================================
-RUN DROP SCHEMA if EXISTS MySQLXplugin
+RUN DROP SCHEMA if EXISTS mysqlxplugin
 
 0 rows affected
-RUN CREATE SCHEMA MySQLXplugin DEFAULT CHARSET='utf8'
+RUN CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8'
 
 1 rows affected
-RUN USE MySQLXplugin
+RUN USE mysqlxplugin
 
 0 rows affected
-RUN CREATE TABLE Categories (
+RUN CREATE TABLE categories (
  CategoryID int NOT NULL AUTO_INCREMENT,
  CategoryName varchar(100),
  CategoryDescription varchar(200),
@@ -32,7 +32,7 @@ RUN CREATE TABLE Categories (
  )
 
 0 rows affected
-RUN INSERT INTO Categories(CategoryID, CategoryName, CategoryDescription, CategoryIMEI, CategoryDecimal)
+RUN INSERT INTO categories(CategoryID, CategoryName, CategoryDescription, CategoryIMEI, CategoryDecimal)
  VALUES
  (1,'Sports','Sports related category',1,235.15),
  (2,'Entertaiment','Entertaiment related category',2,235.15),
@@ -42,19 +42,19 @@ RUN INSERT INTO Categories(CategoryID, CategoryName, CategoryDescription, Catego
 4 rows affected
 last insert id: 4
 Records: 4  Duplicates: 0  Warnings: 0
-RUN UPDATE Categories SET CategoryName = 'Sports Update' where CategoryID =1
+RUN UPDATE categories SET CategoryName = 'Sports Update' where CategoryID =1
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN UPDATE Categories SET CategoryIMEI = 110 where CategoryID = 1
+RUN UPDATE categories SET CategoryIMEI = 110 where CategoryID = 1
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN UPDATE Categories SET CategoryDecimal = 613.47 where CategoryID =1
+RUN UPDATE categories SET CategoryDecimal = 613.47 where CategoryID =1
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN UPDATE Categories SET 
+RUN UPDATE categories SET 
  CategoryName='"Quotes"', 
  CategoryDescription='Quote Categories', 
  CategoryIMEI = 3, 
@@ -63,7 +63,7 @@ RUN UPDATE Categories SET
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN UPDATE Categories SET 
+RUN UPDATE categories SET 
  CategoryName=NULL, 
  CategoryDescription=NULL, 
  CategoryIMEI = NULL, 
@@ -72,22 +72,22 @@ RUN UPDATE Categories SET
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN UPDATE Categories SET CategoryDecimal = 999.99
+RUN UPDATE categories SET CategoryDecimal = 999.99
  WHERE CategoryID = 3
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN UPDATE Categories SET CategoryDecimal = -999.99
+RUN UPDATE categories SET CategoryDecimal = -999.99
  WHERE CategoryID = 3
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN UPDATE Categories SET CategoryIMEI = 127
+RUN UPDATE categories SET CategoryIMEI = 127
  WHERE CategoryID = 4
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN UPDATE Categories SET CategoryIMEI = -128
+RUN UPDATE categories SET CategoryIMEI = -128
  WHERE CategoryID = 4
 
 1 rows affected
@@ -99,37 +99,37 @@ ok
 .
 #---------- START NEGATIVE TEST ----------#
 .
-RUN USE MySQLXplugin
+RUN USE mysqlxplugin
 
 0 rows affected
-RUN UPDATE Categories SET CategoryNoExist = 2 where CategoryID =1
-While executing UPDATE Categories SET CategoryNoExist = 2 where CategoryID =1:
+RUN UPDATE categories SET CategoryNoExist = 2 where CategoryID =1
+While executing UPDATE categories SET CategoryNoExist = 2 where CategoryID =1:
 Got expected error: Unknown column 'CategoryNoExist' in 'field list' (code 1054)
-RUN UPDATE Categories set CategoryIMEI = 'TinyInt' WHERE CategoryID = 2
-While executing UPDATE Categories set CategoryIMEI = 'TinyInt' WHERE CategoryID = 2:
+RUN UPDATE categories set CategoryIMEI = 'TinyInt' WHERE CategoryID = 2
+While executing UPDATE categories set CategoryIMEI = 'TinyInt' WHERE CategoryID = 2:
 Got expected error: Incorrect integer value: 'TinyInt' for column 'CategoryIMEI' at row 1 (code 1366)
-RUN UPDATE Categories set CategoryDecimal = 'Decimal' WHERE CategoryID = 2
-While executing UPDATE Categories set CategoryDecimal = 'Decimal' WHERE CategoryID = 2:
+RUN UPDATE categories set CategoryDecimal = 'Decimal' WHERE CategoryID = 2
+While executing UPDATE categories set CategoryDecimal = 'Decimal' WHERE CategoryID = 2:
 Got expected error: Incorrect decimal value: 'Decimal' for column 'CategoryDecimal' at row 1 (code 1366)
-RUN UPDATE Categories SET CategoryDecimal = 1000.00 WHERE CategoryID = 3
-While executing UPDATE Categories SET CategoryDecimal = 1000.00 WHERE CategoryID = 3:
+RUN UPDATE categories SET CategoryDecimal = 1000.00 WHERE CategoryID = 3
+While executing UPDATE categories SET CategoryDecimal = 1000.00 WHERE CategoryID = 3:
 Got expected error: Out of range value for column 'CategoryDecimal' at row 1 (code 1264)
-RUN UPDATE Categories SET CategoryDecimal = -1000.00 WHERE CategoryID = 3
-While executing UPDATE Categories SET CategoryDecimal = -1000.00 WHERE CategoryID = 3:
+RUN UPDATE categories SET CategoryDecimal = -1000.00 WHERE CategoryID = 3
+While executing UPDATE categories SET CategoryDecimal = -1000.00 WHERE CategoryID = 3:
 Got expected error: Out of range value for column 'CategoryDecimal' at row 1 (code 1264)
-RUN UPDATE Categories SET CategoryIMEI = 128 WHERE CategoryID = 4
-While executing UPDATE Categories SET CategoryIMEI = 128 WHERE CategoryID = 4:
+RUN UPDATE categories SET CategoryIMEI = 128 WHERE CategoryID = 4
+While executing UPDATE categories SET CategoryIMEI = 128 WHERE CategoryID = 4:
 Got expected error: Out of range value for column 'CategoryIMEI' at row 1 (code 1264)
-RUN UPDATE Categories SET CategoryIMEI = -129 WHERE CategoryID = 4
-While executing UPDATE Categories SET CategoryIMEI = -129 WHERE CategoryID = 4:
+RUN UPDATE categories SET CategoryIMEI = -129 WHERE CategoryID = 4
+While executing UPDATE categories SET CategoryIMEI = -129 WHERE CategoryID = 4:
 Got expected error: Out of range value for column 'CategoryIMEI' at row 1 (code 1264)
-RUN UPDATE CategoriesNoExist set CategoryIMEI = 'TinyInt' WHERE CategoryID = 2
-While executing UPDATE CategoriesNoExist set CategoryIMEI = 'TinyInt' WHERE CategoryID = 2:
-Got expected error: Table 'mysqlxplugin.categoriesnoexist' doesn't exist (code 1146)
+RUN UPDATE categories_no_exist set CategoryIMEI = 'TinyInt' WHERE CategoryID = 2
+While executing UPDATE categories_no_exist set CategoryIMEI = 'TinyInt' WHERE CategoryID = 2:
+Got expected error: Table 'mysqlxplugin.categories_no_exist' doesn't exist (code 1146)
 ================================================================================
 CLEAN UP
 ================================================================================
-RUN DROP SCHEMA if EXISTS MySQLXplugin
+RUN DROP SCHEMA if EXISTS mysqlxplugin
 
 1 rows affected
 RUN DROP USER user2@localhost

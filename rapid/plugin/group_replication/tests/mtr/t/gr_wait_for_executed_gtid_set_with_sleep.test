@@ -1,0 +1,99 @@
+################################################################################
+# BUG#24357947 - MOVE TESTS THAT NEED GR PLUGIN TO GROUP REPLICATION TREE
+#
+# This test waits for a transaction that has not been committed, sleeps
+# for a second and verifies that the wait function is still waiting. Then
+# executes a statement which fulfils the waiting condition. That would
+# verify that the wait function does not return immediately.
+#
+# Test:
+#   0. Test requires two servers
+#   1. To run this test you need to define
+#       $gtid_not_committed_wait_set           The set used to check the
+#                                              functions wait for transaction
+#                                              not committed
+#
+#       $gtid_committed_and_not_committed_set  The set used to verify the
+#                                              function waits for a set of
+#                                              committed and not committed
+#                                              transactions
+#
+# Phase 1: Verify wait condition is waiting
+#   1. Define waiting conditions variables
+#   2. Create table
+#   3. Wait for GTID
+#   4. Create more transactions
+#   5. Check waited thread condition
+#
+#Phase 2: Checks wait work for committed as well uncommitted
+#   1. Define waiting condition
+#   2. Insert and drop table
+#   3. Check waiting worked
+
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+# Define waiting conditions variables
+--let $gtid_not_committed_wait_set= 5-6
+--let $gtid_committed_and_not_committed_set= 1-8
+
+
+--connection slave
+--let $gtid_not_committed_wait_set= $group_replication_group_name:$gtid_not_committed_wait_set
+--let $gtid_committed_and_not_committed_set= $group_replication_group_name:$gtid_committed_and_not_committed_set
+
+--connection master
+# Create table
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--connection master1
+# Wait for GTID
+--let $connection_id= `SELECT CONNECTION_ID()`
+--send
+--replace_result $group_replication_group_name GROUP_NAME
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$gtid_not_committed_wait_set', 10000)
+sleep 2;
+
+--connection default
+# Now executing the next transaction.
+INSERT INTO t1 VALUES (2);
+# Checking the waiting thread condition.
+--echo The connection master1 should be waiting for the WAIT_FOR_EXECUTED_GTID_SET here
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE Id='$connection_id' AND Info Like 'SELECT WAIT_FOR_EXECUTED_GTID_SET%'
+--source include/wait_condition.inc
+
+INSERT INTO t1 VALUES (3);
+
+--connection master1
+--replace_result $group_replication_group_name GROUP_NAME
+--reap
+
+# This part of the test checks for the validity of the
+# wait_for_executed_gtid_set function which has a set of GTID which is
+# committed as well as uncommitted. It should wait for the entire set to be
+# executed.
+
+--connection master1
+
+--send
+--replace_result $group_replication_group_name GROUP_NAME
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$gtid_committed_and_not_committed_set', 10000)
+
+# Define waiting condition
+--connection default
+--echo The connection master1 should be waiting for the WAIT_FOR_EXECUTED_GTID_SET here
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE Id='$connection_id' AND Info Like 'SELECT WAIT_FOR_EXECUTED_GTID_SET%'
+--source include/wait_condition.inc
+
+INSERT INTO t1 VALUES (4);
+DROP TABLE t1;
+
+--connection master1
+--replace_result $group_replication_group_name GROUP_NAME
+--reap
+
+--let $wait_for_gtid_executed_set=1
+--source include/sync_slave_sql_with_master.inc
+
+--source ../inc/group_replication_end.inc

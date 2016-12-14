@@ -349,3 +349,63 @@ def	test	t1	t1	ts0	ts0	7	19	0	N	129	0	63
 t6	t5	t4	t3	t2	t1	t0	dt6	dt5	dt4	dt3	dt2	dt1	dt0	ts6	ts5	ts4	ts3	ts2	ts1	ts0
 DROP TABLE t1;
 SET sql_mode = default;
+#
+# Bug#22364401: COM_QUERY RESPONSE METADATA WITH '*' IN FIELD ORG_TABLE
+#
+CREATE TABLE t1 (f1 INTEGER, f2 CHAR(1));
+INSERT INTO t1 VALUES (10, 'A');
+CREATE VIEW v1 AS SELECT f1, f2 FROM t1;
+CREATE VIEW v2 AS SELECT DISTINCT f1 FROM t1;
+SELECT * FROM (SELECT f1 FROM t1) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	dt	f1	f1	3	11	2	Y	32768	0	63
+f1
+10
+SELECT * FROM (SELECT f1 FROM (SELECT f1 FROM t1) AS dt1) AS dt2;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	dt2	f1	f1	3	11	2	Y	32768	0	63
+f1
+10
+SELECT *
+FROM (SELECT t1.f1 AS a, t2.f1 AS b, t1.f1+t2.f1 AS d FROM t1 JOIN t1 AS t2) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	dt	a	a	3	11	2	Y	32768	0	63
+def	test	t2	dt	b	b	3	11	2	Y	32768	0	63
+def			dt	d	d	8	12	2	Y	32896	0	63
+a	b	d
+10	10	20
+SELECT * FROM (SELECT DISTINCT f1 FROM t1) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		t1	dt	f1	f1	3	11	2	Y	32768	0	63
+f1
+10
+SELECT * FROM (SELECT DISTINCT t1.f1+t2.f1 AS d FROM t1 JOIN t1 AS t2) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			dt	d	d	8	12	2	Y	32768	0	63
+d
+20
+SELECT * FROM v1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	v1	v1	f1	f1	3	11	2	Y	32768	0	63
+def	test	v1	v1	f2	f2	254	1	1	Y	0	0	8
+f1	f2
+10	A
+SELECT * FROM v2;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		t1	v2	f1	f1	3	11	2	Y	32768	0	63
+f1
+10
+SELECT * FROM (SELECT * FROM v1) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	dt	f1	f1	3	11	2	Y	32768	0	63
+def	test	t1	dt	f2	f2	254	1	1	Y	0	0	8
+f1	f2
+10	A
+SELECT * FROM (SELECT * FROM v2) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		v2	dt	f1	f1	3	11	2	Y	32768	0	63
+f1
+10
+DROP VIEW v1,v2;
+DROP TABLE t1;
+# End of test for Bug#22364401

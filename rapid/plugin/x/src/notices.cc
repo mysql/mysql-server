@@ -23,8 +23,8 @@
 #include "protocol.h"
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs/protocol_monitor.h"
+#include "ngs_common/bind.h"
 
-#include <boost/bind.hpp>
 #include <vector>
 
 static xpl::Callback_command_delegate::Row_data *start_warning_row(xpl::Callback_command_delegate::Row_data *row_data)
@@ -89,9 +89,9 @@ ngs::Error_code xpl::notices::send_warnings(Sql_data_context &da, ngs::Protocol_
   unsigned int num_errors = 0u;
 
   // send warnings as notices
-  return da.execute_sql_and_process_results(q,
-              boost::bind(start_warning_row, &row_data),
-              boost::bind(end_warning_row, _1, boost::ref(proto), skip_single_error, last_error, num_errors),
+  return da.execute_sql_and_process_results(q.data(), q.length(),
+              ngs::bind(start_warning_row, &row_data),
+              ngs::bind(end_warning_row, ngs::placeholders::_1, ngs::ref(proto), skip_single_error, last_error, num_errors),
               winfo);
 }
 

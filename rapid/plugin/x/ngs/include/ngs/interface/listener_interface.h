@@ -17,39 +17,36 @@
  * 02110-1301  USA
  */
 
-#ifndef _NGS_LISTENER_INTERFACE_H_
-#define _NGS_LISTENER_INTERFACE_H_
+#ifndef NGS_LISTENER_INTERFACE_H_
+#define NGS_LISTENER_INTERFACE_H_
 
 #include "violite.h"
 #include "ngs/thread.h"
-#include <boost/function.hpp>
-
-#if defined(WIN32)
-#define WIN32_OR_UNIX(W,L) W
-#else
-#define WIN32_OR_UNIX(W,L) L
-#endif // defined(WIN32)
+#include <vector>
 
 
-namespace ngs
-{
+namespace ngs {
 
 class Connection_acceptor_interface;
 
-enum State_listener {State_listener_initializing, State_listener_prepared, State_listener_running, State_listener_stopped};
+enum State_listener {
+  State_listener_initializing,
+  State_listener_prepared,
+  State_listener_running,
+  State_listener_stopped
+};
 
-class Listener_interface
-{
+class Listener_interface {
 public:
   typedef Sync_variable<State_listener> Sync_variable_state;
-  typedef boost::function<void(Connection_acceptor_interface &)> On_connection;
+  typedef ngs::function<void(Connection_acceptor_interface &)> On_connection;
 
   virtual ~Listener_interface() {};
 
   virtual Sync_variable_state &get_state() = 0;
   virtual std::string get_last_error() = 0;
   virtual std::string get_name_and_configuration() const = 0;
-  virtual std::string get_configuration_variable() const = 0;
+  virtual std::vector<std::string> get_configuration_variables() const = 0;
   virtual bool is_handled_by_socket_event() = 0;
 
   virtual bool setup_listener(On_connection) = 0;
@@ -60,4 +57,4 @@ public:
 
 } // namespace ngs
 
-#endif // _NGS_LISTENER_INTERFACE_H_
+#endif // NGS_LISTENER_INTERFACE_H_

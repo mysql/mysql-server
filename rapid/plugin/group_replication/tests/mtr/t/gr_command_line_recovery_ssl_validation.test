@@ -1,0 +1,29 @@
+################################################################################
+# BUG#20693364 - MAKE GROUP REPLICATION PLUGIN SYSTEM VARIABLES ALWAYS GO
+# THROUGH CHECK FUNCTION
+#
+# Test:
+# 0. The test requires one server: M1.
+# 1. This test verifies that a group_replication_recovery_ssl_ca variable is
+#    validated when passed through a configuration file. The validation is done
+#    during the start of group_replication. Other recovery ssl option also go
+#    through the same check function. So they will also fail with the value
+#    being passed exceeds the length of the field.
+################################################################################
+
+--let $group_replication_group_name= 8a94f357-ee93-11df-8654-c80aa9821323
+--source ../inc/have_group_replication_plugin.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The given value for recovery ssl option*");
+SET SESSION sql_log_bin= 1;
+
+# Setting the group name value to a valid UUID.
+--eval SET GLOBAL group_replication_group_name="$group_replication_group_name"
+
+# Starting the group. This should fail as the group_replication_recovery_user
+# is set to a invalid value in the configuration file.
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--source ../inc/gr_clear_configuration.inc

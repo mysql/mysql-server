@@ -286,7 +286,7 @@ row_merge_insert_index_tuples(
 
 /******************************************************//**
 Encode an index record. */
-static MY_ATTRIBUTE((nonnull))
+static
 void
 row_merge_buf_encode(
 /*=================*/
@@ -323,7 +323,7 @@ row_merge_buf_encode(
 /******************************************************//**
 Allocate a sort buffer.
 @return own: sort buffer */
-static MY_ATTRIBUTE((malloc, nonnull))
+static MY_ATTRIBUTE((malloc))
 row_merge_buf_t*
 row_merge_buf_create_low(
 /*=====================*/
@@ -936,7 +936,7 @@ respectively */
 
 /**********************************************************************//**
 Merge sort the tuple buffer in main memory. */
-static MY_ATTRIBUTE((nonnull(4,5)))
+static
 void
 row_merge_tuple_sort(
 /*=================*/
@@ -4063,7 +4063,7 @@ row_merge_rename_tables_dict(
 @param[in,out]	index	index
 @param[in]	add_v	new virtual columns added along with add index call
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_merge_create_index_graph(
 	trx_t*			trx,
@@ -4486,6 +4486,13 @@ wait_again:
 						" threads exited when creating"
 						" FTS index '"
 						<< indexes[i]->name << "'";
+				} else {
+					for (j = 0; j < FTS_NUM_AUX_INDEX;
+					     j++) {
+
+						os_thread_join(merge_info[j]
+							       .thread_hdl);
+					}
 				}
 			} else {
 				/* This cannot report duplicates; an

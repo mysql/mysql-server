@@ -72,8 +72,7 @@ public:
   ~Connection();
 
   Error connect_to_localhost(const std::string &named_pipe_or_unix_socket);
-  Error connect(sockaddr_in *sockaddr, const std::size_t addr_size);
-  Error connect(sockaddr_un *sockaddr, const std::size_t addr_size);
+  Error connect(sockaddr *sockaddr, const std::size_t addr_size);
   Error connect(my_socket s, sockaddr *sockaddr, const std::size_t addr_size);
 
   Error activate_tls();

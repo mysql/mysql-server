@@ -456,6 +456,8 @@ int channel_stop(const char* channel,
 
   int thread_mask= 0;
   int server_thd_mask= 0;
+  int error= 0;
+  bool thd_init= false;
   lock_slave_threads(mi);
 
   init_thread_mask(&server_thd_mask, mi, 0 /* not inverse*/);
@@ -473,16 +475,15 @@ int channel_stop(const char* channel,
 
   if (thread_mask == 0)
   {
-    mi->channel_unlock();
-    channel_map.unlock();
-    DBUG_RETURN(0);
+    goto end;
   }
 
-  bool thd_init= init_thread_context();
+  thd_init= init_thread_context();
 
-  int error= terminate_slave_threads(mi, thread_mask, timeout, false);
+  error= terminate_slave_threads(mi, thread_mask, timeout, false);
+
+end:
   unlock_slave_threads(mi);
-
   mi->channel_unlock();
   channel_map.unlock();
 
@@ -952,5 +953,22 @@ bool channel_is_stopping(const char* channel,
   channel_map.unlock();
 
   DBUG_RETURN(is_stopping);
+}
+
+bool is_partial_transaction_on_channel_relay_log(const char *channel)
+{
+  DBUG_ENTER("is_partial_transaction_on_channel_relay_log(channel)");
+  channel_map.rdlock();
+  Master_info *mi= channel_map.get_mi(channel);
+  if (mi == NULL)
+  {
+    channel_map.unlock();
+    DBUG_RETURN(false);
+  }
+  mi->channel_rdlock();
+  bool ret= mi->transaction_parser.is_inside_transaction();
+  mi->channel_unlock();
+  channel_map.unlock();
+  DBUG_RETURN(ret);
 }
 #endif /* HAVE_REPLICATION */

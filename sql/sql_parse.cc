@@ -49,6 +49,7 @@
 #include "sql_insert.h"       // Query_result_create
 #include "sql_load.h"         // mysql_load
 #include "sql_prepare.h"      // mysql_stmt_execute
+#include "partition_info.h"   // has_external_data_or_index_dir
 #include "sql_reload.h"       // reload_acl_and_cache
 #include "sql_rename.h"       // mysql_rename_tables
 #include "sql_select.h"       // handle_query
@@ -216,7 +217,12 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
   for (TABLE_LIST *table= tables; table; table= table->next_global)
   {
     DBUG_ASSERT(table->db && table->table_name);
-    if (table->updating && !find_temporary_table(thd, table))
+    /*
+      Update on performance_schema and temp tables are allowed
+      in readonly mode.
+    */
+    if (table->updating && !find_temporary_table(thd, table) &&
+        !is_perfschema_db(table->db, table->db_length))
       return 1;
   }
   return 0;
@@ -664,8 +670,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_RELEASE_SAVEPOINT]|=       CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SLAVE_START]|=             CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SLAVE_STOP]|=              CF_ALLOW_PROTOCOL_PLUGIN;
-  sql_command_flags[SQLCOM_START_GROUP_REPLICATION]|= CF_ALLOW_PROTOCOL_PLUGIN;
-  sql_command_flags[SQLCOM_STOP_GROUP_REPLICATION]|=  CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_BEGIN]|=                   CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_CHANGE_MASTER]|=           CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_CHANGE_REPLICATION_FILTER]|= CF_ALLOW_PROTOCOL_PLUGIN;
@@ -1209,18 +1213,48 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
-  if (!thd->is_valid_time())
+  if (thd->is_valid_time() == false)
   {
     /*
-     If the time has got past 2038 we need to shut this server down
-     We do this by making sure every command is a shutdown and we 
-     have enough privileges to shut the server down
-
-     TODO: remove this when we have full 64 bit my_time_t support
+      If the time has gone past 2038 we need to shutdown the server. But
+      there is possibility of getting invalid time value on some platforms.
+      For example, gettimeofday() might return incorrect value on solaris
+      platform. Hence validating the current time with 5 iterations before
+      initiating the normal server shutdown process because of time getting
+      past 2038.
     */
-    ulong master_access= thd->security_context()->master_access();
-    thd->security_context()->set_master_access(master_access | SHUTDOWN_ACL);
-    command= COM_SHUTDOWN;
+    const int max_tries= 5;
+    sql_print_warning("Current time has got past year 2038. Validating current "
+                      "time with %d iterations before initiating the normal "
+                      "server shutdown process.", max_tries);
+
+    int tries= 0;
+    while (++tries <= max_tries)
+    {
+      thd->set_time();
+      if (thd->is_valid_time() == true)
+      {
+        sql_print_warning("Iteration %d: Obtained valid current time from "
+                           "system", tries);
+        break;
+      }
+      sql_print_warning("Iteration %d: Current time obtained from system is "
+                        "greater than 2038", tries);
+    }
+    if (tries > max_tries)
+    {
+      /*
+        If the time has got past 2038 we need to shut this server down.
+        We do this by making sure every command is a shutdown and we
+        have enough privileges to shut the server down
+
+        TODO: remove this when we have full 64 bit my_time_t support
+      */
+      sql_print_error("This MySQL server doesn't support dates later then 2038");
+      ulong master_access= thd->security_context()->master_access();
+      thd->security_context()->set_master_access(master_access | SHUTDOWN_ACL);
+      command= COM_SHUTDOWN;
+    }
   }
   thd->set_query_id(next_query_id());
   thd->rewritten_query.mem_free();
@@ -1440,10 +1474,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       query_cache.end_of_result(thd);
 
 #ifndef EMBEDDED_LIBRARY
-      mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
-                          thd->get_stmt_da()->is_error() ?
-                          thd->get_stmt_da()->mysql_errno() : 0,
-                          command_name[command].str);
+      mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
+                         thd->get_stmt_da()->is_error() ?
+                         thd->get_stmt_da()->mysql_errno() : 0,
+                         command_name[command].str,
+                         command_name[command].length);
 #endif
 
       size_t length= static_cast<size_t>(packet_end - beginning_of_next_stmt);
@@ -1846,17 +1881,19 @@ done:
 
 #ifndef EMBEDDED_LIBRARY
   if (!thd->is_error() && !thd->killed_errno())
-    mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
+    mysql_audit_notify(thd,
+                       AUDIT_EVENT(MYSQL_AUDIT_GENERAL_RESULT), 0, NULL, 0);
 
-  mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
-                      thd->get_stmt_da()->is_error() ?
-                      thd->get_stmt_da()->mysql_errno() : 0,
-                      command_name[command].str);
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
+                     thd->get_stmt_da()->is_error() ?
+                     thd->get_stmt_da()->mysql_errno() : 0,
+                     command_name[command].str,
+                     command_name[command].length);
 
   /* command_end is informational only. The plugin cannot abort
      execution of the command at thie point. */
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END),
-                     command, command_name[command].str);
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END), command,
+                     command_name[command].str);
 #endif
 
   log_slow_statement(thd);
@@ -1865,6 +1902,7 @@ done:
 
   thd->reset_query();
   thd->set_command(COM_SLEEP);
+  thd->proc_info= 0;
 
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
@@ -2962,11 +3000,19 @@ case SQLCOM_PREPARE:
       copy.
     */
     Alter_info alter_info(lex->alter_info, thd->mem_root);
-
     if (thd->is_fatal_error)
     {
       /* If out of memory when creating a copy of alter_info. */
       res= 1;
+      goto end_with_restore_list;
+    }
+
+    if (((lex->create_info.used_fields & HA_CREATE_USED_DATADIR) != 0 ||
+         (lex->create_info.used_fields & HA_CREATE_USED_INDEXDIR) != 0) &&
+        check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+    {
+      res= 1;
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "FILE");
       goto end_with_restore_list;
     }
 
@@ -3028,6 +3074,12 @@ case SQLCOM_PREPARE:
 
     {
       partition_info *part_info= thd->lex->part_info;
+      if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
+          check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+      {
+        res= -1;
+        goto end_with_restore_list;
+      }
       if (part_info && !(part_info= thd->lex->part_info->get_clone(true)))
       {
         res= -1;

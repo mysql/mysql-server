@@ -1,0 +1,41 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+#
+# Crash the primary server
+[connection server1]
+include/gr_wait_primary_member_uuid.inc
+include/rpl_reconnect.inc
+[connection server_2]
+# wait for number of alive members to be 2
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server_3]
+# wait for number of alive members to be 2
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server_1]
+SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER1";
+SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER1";
+SET @@global.group_replication_group_name="GROUP_REPLICATION_GROUP_NAME";
+SET @@global.group_replication_enforce_update_everywhere_checks=0;
+SET @@global.group_replication_single_primary_mode=1;
+[connection server2]
+include/stop_group_replication.inc
+[connection server3]
+include/gr_wait_primary_member_uuid.inc
+CREATE TABLE test.t1 ( a int primary key);
+INSERT INTO test.t1 VALUES(1);
+[connection server2]
+include/start_group_replication.inc
+[connection server1]
+include/start_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+[connection server3]
+DROP TABLE test.t1;
+include/group_replication_end.inc

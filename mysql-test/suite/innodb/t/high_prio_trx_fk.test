@@ -1,0 +1,66 @@
+# Scenario:
+# T1=({R(PARENT), W(PARENT)})
+# T2=({R(CHILD), W(CHILD), C}, HIGH_PRIORITY).
+#
+# Outcome: T1 must abort, T2 must commit.
+
+--source include/have_innodb.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (c2 INT PRIMARY KEY,
+		 FOREIGN KEY (c2) REFERENCES t1(c1))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+
+--connect(con1, localhost, root,,test)
+--connect(con2, localhost, root,,test)
+
+--echo # On Connection 1
+--connection con1
+START TRANSACTION;
+DELETE FROM t1 WHERE c1 = 1;
+
+--echo # On Connection 2
+--connection con2
+--source include/start_transaction_high_prio.inc
+INSERT INTO t2 VALUES(1);
+COMMIT;
+
+--echo # On connection 1
+--connection con1
+--error ER_ERROR_DURING_COMMIT
+COMMIT;
+connection default;
+
+DROP TABLE t2, t1;
+
+# UPDATE CASCADE FOREIGN KEY CONSTRAINT
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (c2 INT PRIMARY KEY,
+		 FOREIGN KEY (c2) REFERENCES t1(c1)
+		 ON UPDATE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+
+--echo # On Connection 1
+--connection con1
+START TRANSACTION;
+UPDATE t1 SET C1=2 where C1 = 1;
+
+--echo # On Connection 2
+--connection con2
+--source include/start_transaction_high_prio.inc
+INSERT INTO t2 VALUES (1);
+COMMIT;
+--disconnect con2
+
+--echo
+--echo # On connection 1
+--connection con1
+--error ER_ERROR_DURING_COMMIT
+COMMIT;
+--disconnect con1
+connection default;
+
+DROP TABLE t2, t1;
+--source include/wait_until_count_sessions.inc

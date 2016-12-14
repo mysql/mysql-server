@@ -129,7 +129,7 @@ struct LatchDebug {
 		os_thread_id_t,
 		Latches*,
 		os_thread_id_less,
-		ut_allocator<std::pair<const std::string, latch_meta_t> > >
+		ut_allocator<std::pair<const os_thread_id_t, Latches*> > >
 		ThreadMap;
 
 	/** Constructor */
@@ -424,7 +424,7 @@ private:
 		latch_level_t,
 		std::string,
 		latch_level_less,
-		ut_allocator<std::pair<latch_level_t, std::string> > >
+		ut_allocator<std::pair<const latch_level_t, std::string> > >
 		Levels;
 
 	/** Mutex protecting the deadlock detector data structures. */
@@ -1706,7 +1706,7 @@ private:
 		const void*,
 		File,
 		std::less<const void*>,
-		ut_allocator<std::pair<const void*, File> > >
+		ut_allocator<std::pair<const void* const, File> > >
 		Files;
 
 	typedef OSMutex	Mutex;

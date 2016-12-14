@@ -1,0 +1,14 @@
+CREATE TABLE t(id INT PRIMARY KEY, v INT NOT NULL) ENGINE INNODB;
+INSERT INTO t VALUES(1, 100), (2, 100), (3, 100), (4, 100);
+SET GLOBAL binlog_group_commit_sync_delay = 8;
+SET GLOBAL binlog_group_commit_sync_no_delay_count = 2;
+BEGIN;
+UPDATE t set v = v + 100 WHERE id = 1;
+COMMIT;
+SET GLOBAL binlog_group_commit_sync_delay = 8;
+SET GLOBAL binlog_group_commit_sync_no_delay_count = 0;
+BEGIN;
+UPDATE t set v = v + 100 WHERE id = 3;
+COMMIT;
+SET GLOBAL binlog_group_commit_sync_delay=0;
+DROP TABLE t;

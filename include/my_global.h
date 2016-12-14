@@ -281,12 +281,23 @@ typedef socket_len_t SOCKET_SIZE_TYPE; /* Used by NDB */
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
 #else
 #define FN_LIBCHAR	'/'
-#define FN_LIBCHAR2	'/'
+/*
+  FN_LIBCHAR2 is not defined on !Windows. Use is_directory_separator().
+*/
 #define FN_DIRSEP       "/"     /* Valid directory separators */
 #define FN_EXEEXT   ""
 #define FN_SOEXT    ".so"
 #define FN_ROOTDIR	"/"
 #endif
+
+static inline int is_directory_separator(char c)
+{
+#ifdef _WIN32
+  return c == FN_LIBCHAR || c == FN_LIBCHAR2;
+#else
+  return c == FN_LIBCHAR;
+#endif
+}
 
 /* 
   MY_FILE_MIN is  Windows speciality and is used to quickly detect

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -922,6 +922,17 @@ trx_sys_create_rsegs(
 			if (trx_rseg_create(space, 0) != NULL) {
 				++n_used;
 				++n_redo_active;
+
+				/* Increase the number of active undo
+				tablespace in case new rollback segment
+				assigned to new undo tablespace. */
+				if (space > srv_undo_tablespaces_active) {
+					srv_undo_tablespaces_active++;
+
+					ut_ad(srv_undo_tablespaces_active
+					      == space);
+
+				}
 			} else {
 				break;
 			}

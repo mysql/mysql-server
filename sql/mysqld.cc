@@ -348,6 +348,7 @@ ulong slow_start_timeout;
 
 my_bool opt_bootstrap= 0;
 my_bool opt_initialize= 0;
+my_bool opt_disable_partition_check= FALSE;
 my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
 my_bool opt_enable_named_pipe= 0;
@@ -1051,6 +1052,9 @@ static void close_connections(void)
 
   Call_close_conn call_close_conn(true);
   thd_manager->do_for_all_thd(&call_close_conn);
+
+  (void) RUN_HOOK(server_state, after_server_shutdown, (NULL));
+
   /*
     All threads have now been aborted. Stop event scheduler thread
     after aborting all client connections, otherwise user may
@@ -1070,8 +1074,6 @@ static void close_connections(void)
 
   delete_slave_info_objects();
   DBUG_PRINT("quit",("close_connections thread"));
-
-  (void) RUN_HOOK(server_state, after_server_shutdown, (NULL));
 
   DBUG_VOID_RETURN;
 }
@@ -2219,19 +2221,38 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
     error= ER_UNKNOWN_ERROR;
   }
 
-#ifndef EMBEDDED_LIBRARY
-  if (error != ER_STACK_OVERRUN_NEED_MORE)
-    mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_ERROR, error, str);
-#endif
-
   if (thd)
   {
+    Sql_condition::enum_severity_level level= Sql_condition::SL_ERROR;
+
+    /**
+      Reporting an error invokes audit API call that notifies the error
+      to the plugin. Audit API that generate the error adds a protection
+      (condition handler) that prevents entering infinite recursion, when
+      a plugin signals error, when already handling the error.
+
+      handle_condition is normally invoked from within raise_condition,
+      but we need to prevent recursion befere notifying error to the plugin.
+
+      Additionaly, handle_condition must be called once during reporting
+      an error, so the raise_condition is called depending on the result of
+      the handle_condition call.
+    */
+    bool handle= thd->handle_condition(error,
+                                       mysql_errno_to_sqlstate(error),
+                                       &level,
+                                       str ? str : ER(error));
+#ifndef EMBEDDED_LIBRARY
+    if (!handle)
+      mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_ERROR),
+                         error, str, strlen(str));
+#endif
+
     if (MyFlags & ME_FATALERROR)
       thd->is_fatal_error= 1;
-    (void) thd->raise_condition(error,
-                                NULL,
-                                Sql_condition::SL_ERROR,
-                                str);
+
+    if (!handle)
+      (void) thd->raise_condition(error, NULL, level, str, false);
   }
 
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
@@ -2527,6 +2548,7 @@ static void init_sql_statement_names()
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 PSI_statement_info sql_statement_info[(uint) SQLCOM_END + 1];
 PSI_statement_info com_statement_info[(uint) COM_END + 1];
+PSI_statement_info stmt_info_new_packet;
 
 /**
   Initialize the command names array.
@@ -2581,7 +2603,7 @@ rpl_make_log_name(PSI_memory_key key,
                   const char *ext)
 {
   DBUG_ENTER("rpl_make_log_name");
-  DBUG_PRINT("enter", ("opt: %s, def: %s, ext: %s", opt, def, ext));
+  DBUG_PRINT("enter", ("opt: %s, def: %s, ext: %s", (opt && opt[0])? opt : "", def, ext));
   char buff[FN_REFLEN];
   /*
     opt[0] needs to be checked to make sure opt name is not an empty
@@ -3952,31 +3974,28 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   DBUG_PRINT("debug",
              ("opt_bin_logname: %s, opt_relay_logname: %s, pidfile_name: %s",
               opt_bin_logname, opt_relay_logname, pidfile_name));
-  if (opt_relay_logname)
+  /*
+    opt_relay_logname[0] needs to be checked to make sure opt relaylog name is
+    not an empty string, incase it is an empty string default file
+    extension will be passed
+   */
+  relay_log_basename=
+    rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_basename,
+                      opt_relay_logname, default_logfile_name,
+                      (opt_relay_logname && opt_relay_logname[0]) ? "" : "-relay-bin");
+
+  if (relay_log_basename != NULL)
+    relay_log_index=
+      rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_index,
+                        opt_relaylog_index_name, relay_log_basename, ".index");
+
+  if (relay_log_basename == NULL || relay_log_index == NULL)
   {
-    /*
-      opt_relay_logname[0] needs to be checked to make sure opt relaylog name is
-      not an empty string, incase it is an empty string default file
-      extension will be passed
-     */
-    relay_log_basename=
-      rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_basename,
-                        opt_relay_logname, default_logfile_name,
-                        (opt_relay_logname && opt_relay_logname[0]) ? "" : "-relay-bin");
-
-    if (relay_log_basename != NULL)
-      relay_log_index=
-        rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_index,
-                          opt_relaylog_index_name, relay_log_basename, ".index");
-
-    if (relay_log_basename == NULL || relay_log_index == NULL)
-    {
-      sql_print_error("Unable to create replication path names:"
-                      " out of memory or path names too long"
-                      " (path name exceeds " STRINGIFY_ARG(FN_REFLEN)
-                      " or file name exceeds " STRINGIFY_ARG(FN_LEN) ").");
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    }
+    sql_print_error("Unable to create replication path names:"
+                    " out of memory or path names too long"
+                    " (path name exceeds " STRINGIFY_ARG(FN_REFLEN)
+                    " or file name exceeds " STRINGIFY_ARG(FN_LEN) ").");
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 #endif /* !EMBEDDED_LIBRARY */
 
@@ -4367,6 +4386,7 @@ int mysqld_main(int argc, char **argv)
   orig_argc= argc;
   orig_argv= argv;
   my_getopt_use_args_separator= TRUE;
+  my_defaults_read_login_file= FALSE;
   if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv))
   {
     flush_error_log_messages();
@@ -4403,10 +4423,12 @@ int mysqld_main(int argc, char **argv)
     exit(MYSQLD_ABORT_EXIT);
   }
 
-  if (opt_daemonize && (isatty(STDOUT_FILENO) || isatty(STDERR_FILENO)))
+  if (opt_daemonize && log_error_dest == disabled_my_option &&
+      (isatty(STDOUT_FILENO) || isatty(STDERR_FILENO)))
   {
-    fprintf(stderr, "Please set appopriate redirections for "
-                    "standard output and/or standard error in daemon mode.\n");
+    fprintf(stderr, "Please enable --log-error option or set appropriate "
+                    "redirections for standard output and/or standard error "
+                    "in daemon mode.\n");
     exit(MYSQLD_ABORT_EXIT);
   }
 
@@ -4678,7 +4700,7 @@ int mysqld_main(int argc, char **argv)
     regardless to avoid possible future bugs if gtid_state ever
     needs to do anything else.
   */
-  global_sid_lock->rdlock();
+  global_sid_lock->wrlock();
   int gtid_ret= gtid_state->init();
   global_sid_lock->unlock();
 
@@ -4923,6 +4945,29 @@ int mysqld_main(int argc, char **argv)
     int error= bootstrap(mysql_stdin);
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
   }
+  else
+  {
+    /*
+      Execute an I_S query to implicitly check for tables using the deprecated
+      partition engine. No need to do this during bootstrap. We ignore the
+      return value from the query execution.
+    */
+    if (!opt_disable_partition_check)
+    {
+      sql_print_information(
+              "Executing 'SELECT * FROM INFORMATION_SCHEMA.TABLES;' "
+              "to get a list of tables using the deprecated partition "
+              "engine. You may use the startup option "
+              "'--disable-partition-engine-check' to skip this check. ");
+
+      sql_print_information("Beginning of list of non-natively partitioned tables");
+      (void) bootstrap_single_query(
+              "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES "
+              "WHERE CREATE_OPTIONS LIKE '%partitioned%';");
+      sql_print_information("End of list of non-natively partitioned tables");
+    }
+  }
+
   if (opt_init_file && *opt_init_file)
   {
     if (read_init_file(opt_init_file))
@@ -5514,6 +5559,11 @@ struct my_option my_long_early_options[]=
    " Create a super user with empty password.",
    &opt_initialize_insecure, &opt_initialize_insecure, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
+  {"disable-partition-engine-check", 0,
+   "Skip the check for non-natively partitioned tables during bootstrap. "
+   "This option is deprecated along with the partition engine.",
+   &opt_disable_partition_check, &opt_disable_partition_check, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
@@ -7827,7 +7877,7 @@ static char *get_relative_path(const char *path)
       strcmp(DEFAULT_MYSQL_HOME,FN_ROOTDIR))
   {
     path+= strlen(DEFAULT_MYSQL_HOME);
-    while (*path == FN_LIBCHAR || *path == FN_LIBCHAR2)
+    while (is_directory_separator(*path))
       path++;
   }
   return (char*) path;
@@ -9178,6 +9228,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Gtid_set_Interval_chunk, "Gtid_set::Interval_chunk", 0},
   { &key_memory_Owned_gtids_sidno_to_hash, "Owned_gtids::sidno_to_hash", 0},
   { &key_memory_Sid_map_Node, "Sid_map::Node", 0},
+  { &key_memory_Gtid_state_group_commit_sidno, "Gtid_state::group_commit_sidno_locks", 0},
   { &key_memory_Mutex_cond_array_Mutex_cond, "Mutex_cond_array::Mutex_cond", 0},
   { &key_memory_TABLE_RULE_ENT, "TABLE_RULE_ENT", 0},
 

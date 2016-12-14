@@ -13,6 +13,8 @@ insert into marker set a = 1;
 create table test.no_index_tab
 ( a varchar(255) not null, b int not null) engine = MyISAM
 PARTITION BY KEY (b) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.no_index_tab', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into marker set a = 1;
 show create table test.no_index_tab;
 Table	Create Table
@@ -22,6 +24,8 @@ no_index_tab	CREATE TABLE `no_index_tab` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (b)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.no_index_tab', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into marker set a = 1;
 insert into test.no_index_tab set a = 'foo', b = 1;
 insert into marker set a = 1;
@@ -52,13 +56,18 @@ insert into marker set a = 1;
 optimize table test.no_index_tab;
 Table	Op	Msg_type	Msg_text
 test.no_index_tab	optimize	status	OK
+test.no_index_tab	optimize	warning	The partition engine, used by table 'test.no_index_tab', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into marker set a = 1;
 select * from test.no_index_tab;
 a	b
 bar	1
 bar	2
+Warnings:
+Warning	1287	The partition engine, used by table 'test.no_index_tab', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into marker set a = 1;
 truncate table test.no_index_tab;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.no_index_tab', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into marker set a = 1;
 drop table test.no_index_tab;
 update performance_schema.setup_consumers set enabled='NO';

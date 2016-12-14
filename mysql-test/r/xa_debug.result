@@ -89,3 +89,18 @@ XA ROLLBACK 'xid1';
 ERROR XAE04: XAER_NOTA: Unknown XID
 XA START 'trx_another_one';
 DROP TABLE t1;
+#
+# Bug#23264552 - XA: ASSERT `m_status == da_error' IN mysql_errno:sql_error.h:385
+#
+CREATE TABLE t1 (a INT);
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+SET @@session.debug = '+d,simulate_xa_failure_prepare_in_engine';
+XA PREPARE 'xid1';
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+SET @@session.debug = '-d,simulate_xa_failure_prepare_in_engine';
+XA ROLLBACK 'xid1';
+ERROR XAE04: XAER_NOTA: Unknown XID
+XA START 'trx_another_one';
+DROP TABLE t1;
