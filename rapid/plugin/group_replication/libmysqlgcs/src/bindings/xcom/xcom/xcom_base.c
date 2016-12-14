@@ -360,7 +360,7 @@ static int use_buffered_read = 1;
 
 long	get_unique_long(void);
 unsigned long	msg_count(app_data_ptr a);
-void	get_host_name(char *a, char name[MAXHOSTNAMELEN+1]);
+void	get_host_name(char *a, char *name);
 
 static double	wakeup_delay(double old);
 
