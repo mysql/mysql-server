@@ -30,13 +30,13 @@ table7, table8, table9, table10, table11, table12, table13,
 table14, table15, table16, table17, table18, table19, table20,
 table21, table22, table23, table24, table25, table26, table27,
 table28;
-ERROR 42S02: Unknown table 'mysqltest.table1,mysqltest.table2,mysqltest.table3,mysqltest.table4,mysqltest.table5,mysqltest.table'
+ERROR 42S02: Unknown table 'mysqltest.table1,mysqltest.table2,mysqltest.table3,mysqltest.table4,mysqltest.table5,mysqltest.table6,mysqltest.table7,mysqltest.'
 drop table table1, table2, table3, table4, table5, table6,
 table7, table8, table9, table10, table11, table12, table13,
 table14, table15, table16, table17, table18, table19, table20,
 table21, table22, table23, table24, table25, table26, table27,
 table28, table29, table30;
-ERROR 42S02: Unknown table 'mysqltest.table1,mysqltest.table2,mysqltest.table3,mysqltest.table4,mysqltest.table5,mysqltest.table'
+ERROR 42S02: Unknown table 'mysqltest.table1,mysqltest.table2,mysqltest.table3,mysqltest.table4,mysqltest.table5,mysqltest.table6,mysqltest.table7,mysqltest.'
 use test;
 drop database mysqltest;
 flush tables with read lock;

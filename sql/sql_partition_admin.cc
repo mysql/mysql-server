@@ -881,6 +881,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   Alter_info *alter_info= &thd->lex->alter_info;
   uint table_counter;
   Partition_handler *part_handler;
+  handlerton *hton;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
 
   /*
@@ -914,6 +915,8 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(true);
   }
+
+  hton= first_table->table->file->ht;
 
   /*
     Prune all, but named partitions,
@@ -961,7 +964,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     first_table->table->file->print_error(error, MYF(0));
   }
 
-  if (first_table->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL)
+  if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL)
   {
     /*
       Storage engine supporting atomic DDL can fully rollback truncate
@@ -997,6 +1000,12 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     }
   }
 
+  /*
+    Since we have updated table definition in the data-dictionary above
+    we need to remove its TABLE/TABLE_SHARE from TDC now.
+  */
+  close_all_tables_for_name(thd, first_table->table->s, false, NULL);
+
   if (!error)
     error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 
@@ -1004,9 +1013,10 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     trans_rollback_stmt(thd);
   // QQ: Should we also rollback txn for consistency here?
 
-  if ((first_table->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
-      first_table->table->file->ht->post_ddl)
-    first_table->table->file->ht->post_ddl(thd);
+  if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) && hton->post_ddl)
+    hton->post_ddl(thd);
+
+  (void) thd->locked_tables_list.reopen_tables(thd);
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the
