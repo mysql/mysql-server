@@ -24,8 +24,8 @@ trp_client::trp_client()
     m_locked_for_poll(false),
     m_mutex(NULL),
     m_poll(),
-    m_send_nodes_cnt(0),
     m_send_nodes_mask(),
+    m_send_nodes_cnt(0),
     m_send_buffers(NULL),
     m_flushed_nodes_mask()
 {
