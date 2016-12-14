@@ -63,6 +63,7 @@
 
 using std::min;
 using std::max;
+using std::string;
 
 #ifdef _WIN32
 #include <crtdbg.h>
@@ -4777,7 +4778,11 @@ static void do_perl(struct st_command *command)
       die("Failed to create temporary file for perl command");
     my_close(fd, MYF(0));
 
-    str_to_file(temp_file_path, ds_script.str, ds_script.length);
+    /* Compatibility for Perl 5.24 and newer. */
+    string script = "push @INC, \".\";\n";
+    script.append(ds_script.str, ds_script.length);
+
+    str_to_file(temp_file_path, &script[0], script.size());
 
     /* Format the "perl <filename>" command */
     my_snprintf(buf, sizeof(buf), "perl %s", temp_file_path);
