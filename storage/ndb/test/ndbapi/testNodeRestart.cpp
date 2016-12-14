@@ -7583,6 +7583,20 @@ int runArbitrationWithApiNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
    */
 
   /**
+   * This test case has been designed to work with only 1 nodegroup.
+   * With multiple nodegroups, a single node failure is not enough to
+   * force arbitration. Since the single node which failed does not
+   * form a viable community by itself, arbitration (and thus the error
+   * insert) is skipped. Thus, this test case should be skipped for
+   * clusters with more than 1 nodegroup.
+   */
+  if (restarter.getNumDbNodes() != 2)
+  {
+    g_err << "[SKIPPED] Test skipped.  Needs 1 nodegroup" << endl;
+    return NDBT_OK;
+  }
+
+  /**
    * 1. connect new api node
    */
   Ndb_cluster_connection* cluster_connection = new Ndb_cluster_connection();
@@ -7619,7 +7633,7 @@ int runArbitrationWithApiNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
                                   NdbRestarter::NRRF_ABORT,
                                   true) == 0)
   {
-    g_err << "ERROR: Old master " << master << "reached not started state "
+    g_err << "ERROR: Old master " << master << " reached not started state "
           << "before arbitration win" << endl;
     return NDBT_FAILED;
   }
