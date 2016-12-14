@@ -1848,6 +1848,8 @@ do_possible_lock_wait:
 		os_atomic_increment_ulint(
 			&check_table->n_foreign_key_checks_running, 1);
 
+		trx_kill_blocking(trx);
+
 		lock_wait_suspend_thread(thr);
 
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;

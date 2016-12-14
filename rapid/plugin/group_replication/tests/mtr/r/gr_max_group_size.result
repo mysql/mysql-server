@@ -1,0 +1,34 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap a group.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Fake that group size will be 10 when server 2 joins.
+#    Server 2 will be unable to join.
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The START GROUP_REPLICATION command failed since the group already has 9 members");
+SET SESSION sql_log_bin= 1;
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_set_number_of_members_on_view_changed_to_10';
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed since the group already has 9 members.
+include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG= @debug_save;
+
+############################################################
+# 3. Group will remain with only server 1 (and 8 more fake
+#    members).
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+
+############################################################
+# 4. Cleanup.
+include/group_replication_end.inc

@@ -12,6 +12,7 @@ GRANT ALL ON *.* TO user_8_8_8_8@8.8.8.8;
 GRANT ALL ON *.* TO user_all@'%';
 GRANT ALL ON *.* TO user_localhost@localhost;
 GRANT ALL ON *.* TO user_localhost_8_8_8_8@8.8.8.8;
+GRANT ALL ON *.* TO user_localhost_8_8_8_8@localhost;
 CREATE TABLE `city` (
 `ID` int(11) NOT NULL auto_increment,
 `Name` char(35) NOT NULL default '',
@@ -39,6 +40,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 CONNECTION_TYPE
 Socket
 0 rows affected
@@ -85,6 +87,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 CONNECTION_TYPE
 Socket
 0 rows affected
@@ -131,7 +134,10 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
-in main, line 13:ERROR: SELECT command denied to user 'user_localhost_8_8_8_8'@'localhost' for table 'threads' (code 1142)
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+CONNECTION_TYPE
+Socket
+0 rows affected
 send Mysqlx.Crud.Find {
   collection {
     name: "city"
@@ -171,22 +177,28 @@ ok
 Check if mysqlx_socket has correct value
 result
 1
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 CONNECTION_TYPE
 Socket
 0 rows affected
 connecting...
 active session is now 'session2'
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 CONNECTION_TYPE
 Socket
 0 rows affected
 connecting...
 active session is now 'session3'
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 CONNECTION_TYPE
 Socket
 0 rows affected
 switched to session session3
+RUN select '3_1';
 switched to session session2
+RUN select '2_1';
 switched to session default
+RUN select '1_1';
 switched to session session2
 2_1
 2_1
@@ -216,6 +228,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 CONNECTION_TYPE
 Socket
 0 rows affected
@@ -262,6 +275,7 @@ Mysqlx.Session.AuthenticateOk {
 ok
 SET GLOBAL require_secure_transport:=0;
 # restart: --mysqlx-socket=SOCKET
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 CONNECTION_TYPE
 Socket
 0 rows affected

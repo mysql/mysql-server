@@ -25,6 +25,7 @@
 
 namespace xpl
 {
+class PFS_string;
 
 class Sql_data_result
 {
@@ -34,7 +35,7 @@ public:
   void disable_binlog();
   void restore_binlog();
 
-  void query(const std::string &query);
+  void query(const ngs::PFS_string &query);
 
   void get_next_field(long &value);
   void get_next_field(bool &value);

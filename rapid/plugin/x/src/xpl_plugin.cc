@@ -89,8 +89,6 @@ int xpl_plugin_init(MYSQL_PLUGIN p)
 
   xpl_init_performance_schema();
 
-  ngs::Connection_vio::init();
-
   if (xpl::xpl_register_server_observers(p) != 0)
   {
     xpl::plugin_log_message(&p, MY_WARNING_LEVEL, "Error registering server observers");
@@ -128,8 +126,8 @@ static struct st_mysql_daemon xpl_plugin_info ={
 
 static MYSQL_SYSVAR_UINT(port, xpl::Plugin_system_variables::port,
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-    "Port on which xplugin is going to accept incoming connections.",
-    NULL, NULL, MYSQLX_TCP_PORT, 1, std::numeric_limits<unsigned short>::max(), 0);
+    "Port on which X Plugin is going to accept incoming connections.",
+    NULL, NULL, MYSQLX_TCP_PORT, 1, std::numeric_limits<uint16>::max(), 0);
 
 static MYSQL_SYSVAR_INT(max_connections, xpl::Plugin_system_variables::max_connections,
     PLUGIN_VAR_OPCMDARG,
@@ -186,13 +184,16 @@ static MYSQL_SYSVAR_STR(ssl_crlpath, xpl::Plugin_system_variables::ssl_config.ss
 
 static MYSQL_SYSVAR_STR(socket, xpl::Plugin_system_variables::socket,
       PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
-      "X Plugins unix socket for local connection.", NULL, NULL, NULL);
+      "X Plugin's unix socket for local connection.", NULL, NULL, NULL);
 
-#ifdef _WIN32
-static MYSQL_SYSVAR_BOOL(named_pipe, xpl::Plugin_system_variables::named_pipe,
-      PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG,
-      "X Plugins named pipes for local connection.", NULL, NULL, FALSE);
-#endif // _WIN32
+static MYSQL_SYSVAR_STR(bind_address, xpl::Plugin_system_variables::bind_address,
+      PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
+      "Address to which X Plugin should bind the TCP socket.", NULL, NULL, "0.0.0.0");
+
+static MYSQL_SYSVAR_UINT(port_open_timeout, xpl::Plugin_system_variables::port_open_timeout,
+      PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG ,
+      "How long X Plugin is going to retry binding of server socket (in case of failure)",
+      NULL, &xpl::Plugin_system_variables::update_func<unsigned int>, 0, 0, 120, 0);
 
 static struct st_mysql_sys_var* xpl_plugin_system_variables[]= {
   MYSQL_SYSVAR(port),
@@ -209,78 +210,112 @@ static struct st_mysql_sys_var* xpl_plugin_system_variables[]= {
   MYSQL_SYSVAR(ssl_crl),
   MYSQL_SYSVAR(ssl_crlpath),
   MYSQL_SYSVAR(socket),
-#ifdef _WIN32
-  MYSQL_SYSVAR(named_pipe),
-#endif // _WIN32
+  MYSQL_SYSVAR(bind_address),
+  MYSQL_SYSVAR(port_open_timeout),
   NULL
 };
 
+#define SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)                 \
+    { MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                   \
+      xpl_func_ptr(xpl::Server::common_status_variable<long long, &METHOD>), \
+      SHOW_FUNC,                                                             \
+      SHOW_SCOPE_GLOBAL }
+
+#define GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)                         \
+    { MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                          \
+      xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &METHOD>), \
+      SHOW_FUNC,                                                                    \
+      SHOW_SCOPE_GLOBAL }
+
+#define GLOBAL_SSL_STATUS_VARIABLE_ENTRY(NAME, TYPE, METHOD)            \
+    { MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                              \
+      xpl_func_ptr(xpl::Server::global_status_variable<TYPE, &METHOD>), \
+      SHOW_FUNC,                                                        \
+      SHOW_SCOPE_GLOBAL }
+
+#define SESSION_SSL_STATUS_VARIABLE_ENTRY(NAME, TYPE, METHOD)            \
+    { MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                               \
+      xpl_func_ptr(xpl::Server::session_status_variable<TYPE, &METHOD>), \
+      SHOW_FUNC,                                                         \
+      SHOW_SCOPE_GLOBAL }
+
+#define SESSION_SSL_STATUS_VARIABLE_ENTRY_ARRAY(NAME, METHOD)      \
+    { MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                         \
+      xpl_func_ptr(xpl::Server::session_status_variable<&METHOD>), \
+      SHOW_FUNC,                                                   \
+      SHOW_SCOPE_GLOBAL }
+
+#define GLOBAL_CUSTOM_STATUS_VARIABLE_ENTRY(NAME, TYPE, METHOD)                            \
+    { MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                                 \
+      xpl_func_ptr(xpl::Server::global_status_variable_server_with_return<TYPE, &METHOD>), \
+      SHOW_FUNC,                                                                           \
+      SHOW_SCOPE_GLOBAL }
 
 static struct st_mysql_show_var xpl_plugin_status[]=
 {
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_execute_sql"),               xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_execute_sql>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_execute_xplugin"),           xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_execute_xplugin>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_execute_mysqlx"),            xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_execute_mysqlx>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("crud_update"),                    xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_crud_update>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("crud_delete"),                    xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_crud_delete>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("crud_find"),                      xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_crud_find>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("crud_insert"),                    xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_crud_insert>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("expect_open"),                    xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_expect_open>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("expect_close"),                   xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_expect_close>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_create_collection"),         xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_create_collection>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_create_collection_index"),   xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_create_collection_index>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_drop_collection"),           xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_drop_collection>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_ensure_collection"),         xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_ensure_collection>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_drop_collection_index"),     xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_drop_collection_index>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_list_objects"),              xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_list_objects>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_enable_notices"),            xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_enable_notices>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_disable_notices"),           xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_disable_notices>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_list_notices"),              xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_list_notices>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_list_clients"),              xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_list_clients>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_kill_client"),               xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_kill_client>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("stmt_ping"),                      xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_ping>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("bytes_sent"),                     xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_bytes_sent>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("bytes_received"),                 xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_bytes_received>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("errors_sent"),                    xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_errors_sent>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("rows_sent"),                      xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_rows_sent>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("notice_warning_sent"),            xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_notice_warning_sent>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("notice_other_sent"),              xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_notice_other_sent>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("sessions"),                       xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_sessions_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("sessions_closed"),                xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_closed_sessions_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("sessions_fatal_error"),           xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_sessions_fatal_errors_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("init_error"),                     xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_init_errors_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("sessions_accepted"),              xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_accepted_sessions_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("sessions_rejected"),              xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_rejected_sessions_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("sessions_killed"),                xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_killed_sessions_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("connections_closed"),             xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_closed_connections_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("connections_accepted"),           xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_accepted_connections_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("connections_rejected"),           xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_rejected_connections_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("connection_accept_errors"),       xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_connection_accept_errors_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("connection_errors"),              xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_connection_errors_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("worker_threads"),                 xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_worker_thread_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("worker_threads_active"),          xpl_func_ptr(xpl::Server::global_status_variable_server<long long, &xpl::Global_status_variables::get_active_worker_thread_count>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_active"),                     xpl_func_ptr(xpl::Server::session_status_variable<bool, &ngs::IOptions_session::active_tls>),              SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_cipher_list"),                xpl_func_ptr(xpl::Server::session_status_variable<&xpl::Client::get_status_ssl_cipher_list>),                    SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_cipher"),                     xpl_func_ptr(xpl::Server::session_status_variable<std::string, &ngs::IOptions_session::ssl_cipher>),              SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_version"),                    xpl_func_ptr(xpl::Server::session_status_variable<std::string, &ngs::IOptions_session::ssl_version>),             SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_verify_depth"),               xpl_func_ptr(xpl::Server::session_status_variable<long, &ngs::IOptions_session::ssl_verify_depth>),               SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_verify_mode"),                xpl_func_ptr(xpl::Server::session_status_variable<long, &ngs::IOptions_session::ssl_verify_mode>),                SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-//  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_sessions_reused"),            xpl_func_ptr(xpl::Server::session_status_variable<long, &ngs::IOptions_session::ssl_sessions_reused>),            SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_ctx_verify_depth"),           xpl_func_ptr(xpl::Server::global_status_variable<long, &ngs::IOptions_context::ssl_ctx_verify_depth>),            SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_ctx_verify_mode"),            xpl_func_ptr(xpl::Server::global_status_variable<long, &ngs::IOptions_context::ssl_ctx_verify_mode>),             SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_finished_accepts"),           xpl_func_ptr(xpl::Server::global_status_variable<long, &ngs::IOptions_context::ssl_sess_accept_good>),            SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_accepts"),                    xpl_func_ptr(xpl::Server::global_status_variable<long, &ngs::IOptions_context::ssl_sess_accept>),                 SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_server_not_after"),           xpl_func_ptr(xpl::Server::global_status_variable<std::string, &ngs::IOptions_context::ssl_server_not_after>),     SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_server_not_before"),          xpl_func_ptr(xpl::Server::global_status_variable<std::string, &ngs::IOptions_context::ssl_server_not_before>),    SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-  { MYSQLX_STATUS_VARIABLE_PREFIX("socket"),                         xpl_func_ptr(xpl::Server::global_status_variable_server_with_return<std::string, &xpl::Server::get_socket_file>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-//  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_accept_renegotiates"),        xpl_func_ptr(xpl::Server::global_status_variable<long, &ngs::IOptions_context::ssl_accept_renegotiates>),         SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-//  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_session_cache_hits"),         xpl_func_ptr(xpl::Server::global_status_variable<long, &ngs::IOptions_context::ssl_session_cache_hits>),          SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-//  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_session_cache_misses"),       xpl_func_ptr(xpl::Server::global_status_variable<long, &ngs::IOptions_context::ssl_session_cache_misses>),        SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-//  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_session_cache_mode"),         xpl_func_ptr(xpl::Server::global_status_variable<std::string, &ngs::IOptions_context::ssl_session_cache_mode>),   SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-//  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_session_cache_size"),         xpl_func_ptr(xpl::Server::global_status_variable<long, &ngs::IOptions_context::ssl_session_cache_size>),          SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-//  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_session_cache_timeouts"),     xpl_func_ptr(xpl::Server::global_status_variable<long, &ngs::IOptions_context::ssl_session_cache_timeouts>),      SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-//  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_session_cache_overflows"),    xpl_func_ptr(xpl::Server::global_status_variable<long, &ngs::IOptions_context::ssl_session_cache_overflows>),     SHOW_FUNC, SHOW_SCOPE_GLOBAL },
-//  { MYSQLX_STATUS_VARIABLE_PREFIX("ssl_used_session_cache_entries"), xpl_func_ptr(xpl::Server::global_status_variable<long, &ngs::IOptions_context::ssl_used_session_cache_entries>),  SHOW_FUNC, SHOW_SCOPE_GLOBAL },
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_execute_sql",        xpl::Common_status_variables::m_stmt_execute_sql),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_execute_xplugin",    xpl::Common_status_variables::m_stmt_execute_xplugin),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_execute_mysqlx",     xpl::Common_status_variables::m_stmt_execute_mysqlx),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("crud_update",             xpl::Common_status_variables::m_crud_update),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("crud_delete",             xpl::Common_status_variables::m_crud_delete),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("crud_find",               xpl::Common_status_variables::m_crud_find),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("crud_insert",             xpl::Common_status_variables::m_crud_insert),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("crud_create_view",        xpl::Common_status_variables::m_crud_create_view),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("crud_modify_view",        xpl::Common_status_variables::m_crud_modify_view),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("crud_drop_view",          xpl::Common_status_variables::m_crud_drop_view),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("expect_open",             xpl::Common_status_variables::m_expect_open),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("expect_close",            xpl::Common_status_variables::m_expect_close),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_create_collection",       xpl::Common_status_variables::m_stmt_create_collection),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_create_collection_index", xpl::Common_status_variables::m_stmt_create_collection_index),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_drop_collection",         xpl::Common_status_variables::m_stmt_drop_collection),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_ensure_collection",       xpl::Common_status_variables::m_stmt_ensure_collection),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_drop_collection_index",   xpl::Common_status_variables::m_stmt_drop_collection_index),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_list_objects",       xpl::Common_status_variables::m_stmt_list_objects),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_enable_notices",     xpl::Common_status_variables::m_stmt_enable_notices),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_disable_notices",    xpl::Common_status_variables::m_stmt_disable_notices),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_list_notices",       xpl::Common_status_variables::m_stmt_list_notices),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_list_clients",       xpl::Common_status_variables::m_stmt_list_clients),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_kill_client",        xpl::Common_status_variables::m_stmt_kill_client),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_ping",               xpl::Common_status_variables::m_stmt_ping),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("bytes_sent",              xpl::Common_status_variables::m_bytes_sent),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("bytes_received",          xpl::Common_status_variables::m_bytes_received),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("errors_sent",             xpl::Common_status_variables::m_errors_sent),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("rows_sent",               xpl::Common_status_variables::m_rows_sent),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("notice_warning_sent",     xpl::Common_status_variables::m_notice_warning_sent),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("notice_other_sent",       xpl::Common_status_variables::m_notice_other_sent),
+  SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("errors_unknown_message_type",    xpl::Common_status_variables::m_errors_unknown_message_type),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("sessions",                 xpl::Global_status_variables::m_sessions_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("sessions_closed",          xpl::Global_status_variables::m_closed_sessions_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("sessions_fatal_error",     xpl::Global_status_variables::m_sessions_fatal_errors_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("init_error",               xpl::Global_status_variables::m_init_errors_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("sessions_accepted",        xpl::Global_status_variables::m_accepted_sessions_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("sessions_rejected",        xpl::Global_status_variables::m_rejected_sessions_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("sessions_killed",          xpl::Global_status_variables::m_killed_sessions_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("connections_closed",       xpl::Global_status_variables::m_closed_connections_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("connections_accepted",     xpl::Global_status_variables::m_accepted_connections_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("connections_rejected",     xpl::Global_status_variables::m_rejected_connections_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("connection_accept_errors", xpl::Global_status_variables::m_connection_accept_errors_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("connection_errors",        xpl::Global_status_variables::m_connection_errors_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("worker_threads",           xpl::Global_status_variables::m_worker_thread_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("worker_threads_active",    xpl::Global_status_variables::m_active_worker_thread_count),
+
+  SESSION_SSL_STATUS_VARIABLE_ENTRY_ARRAY("ssl_cipher_list", xpl::Client::get_status_ssl_cipher_list),
+  SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_active",       bool,        ngs::IOptions_session::active_tls),
+  SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_cipher",       std::string, ngs::IOptions_session::ssl_cipher),
+  SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_version",      std::string, ngs::IOptions_session::ssl_version),
+  SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_verify_depth", long,        ngs::IOptions_session::ssl_verify_depth),
+  SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_verify_mode",  long,        ngs::IOptions_session::ssl_verify_mode),
+  GLOBAL_SSL_STATUS_VARIABLE_ENTRY("ssl_ctx_verify_depth",  long,        ngs::IOptions_context::ssl_ctx_verify_depth),
+  GLOBAL_SSL_STATUS_VARIABLE_ENTRY("ssl_ctx_verify_mode",   long,        ngs::IOptions_context::ssl_ctx_verify_mode),
+  GLOBAL_SSL_STATUS_VARIABLE_ENTRY("ssl_finished_accepts",  long,        ngs::IOptions_context::ssl_sess_accept_good),
+  GLOBAL_SSL_STATUS_VARIABLE_ENTRY("ssl_accepts",           long,        ngs::IOptions_context::ssl_sess_accept),
+  GLOBAL_SSL_STATUS_VARIABLE_ENTRY("ssl_server_not_after",  std::string, ngs::IOptions_context::ssl_server_not_after),
+  GLOBAL_SSL_STATUS_VARIABLE_ENTRY("ssl_server_not_before", std::string, ngs::IOptions_context::ssl_server_not_before),
+
+  GLOBAL_CUSTOM_STATUS_VARIABLE_ENTRY("socket",  std::string, xpl::Server::get_socket_file),
+  GLOBAL_CUSTOM_STATUS_VARIABLE_ENTRY("port",    std::string, xpl::Server::get_tcp_port),
+  GLOBAL_CUSTOM_STATUS_VARIABLE_ENTRY("address", std::string, xpl::Server::get_tcp_bind_address),
+
   { NULL, NULL, SHOW_BOOL, SHOW_SCOPE_GLOBAL}
 };
 
@@ -295,10 +330,10 @@ mysql_declare_plugin(xpl)
   PLUGIN_LICENSE_GPL,
   xpl_plugin_init,              /* init       */
   xpl_plugin_deinit,            /* deinit     */
-  MYSQLX_PLUGIN_VERSION,           /* version    */
+  MYSQLX_PLUGIN_VERSION,        /* version    */
   xpl_plugin_status,            /* status var */
   xpl_plugin_system_variables,  /* system var */
-  NULL,                        /* options    */
-  0                            /* flags      */
+  NULL,                         /* options    */
+  0                             /* flags      */
 }
 mysql_declare_plugin_end;

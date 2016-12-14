@@ -11,6 +11,8 @@ partition pa2);
 ERROR HY000: Invalid size for column 'a'.
 create table t1 (a bit(64), primary key (a)) engine='MyISAM' 
 partition by key (a) partitions 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -19,6 +21,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values 
 (b'1111111111111111111111111111111111111111111111111111111111111111'),
 (b'1000000000000000000000000000000000000000000000000000000000000000'),
@@ -39,6 +43,8 @@ partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,
 partition pa3 max_rows=30 min_rows=4,
 partition pa4 max_rows=40 min_rows=2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -50,6 +56,8 @@ t1	CREATE TABLE `t1` (
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM,
  PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM,
  PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values 
 (b'1111111111111111111111111111111111111111111111111111111111111111'),
 (b'1000000000000000000000000000000000000000000000000000000000000000'),
@@ -69,6 +77,8 @@ FFFFFFFFFFFFFFFF
 drop table t1;
 create table t2 (a bit, primary key (a)) engine='MyISAM' 
 partition by key (a) partitions 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -77,12 +87,16 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t2 values (b'0'), (b'1');
 select hex(a) from t2;
 hex(a)
 0
 1
 alter table t2 drop primary key;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -90,11 +104,15 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select hex(a) from t2;
 hex(a)
 0
 1
 alter table t2 add primary key (a);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -103,6 +121,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select hex(a) from t2;
 hex(a)
 0
@@ -114,6 +134,8 @@ partition pa1 values less than (3),
 partition pa2 values less than (16),
 partition pa3 values less than (64),
 partition pa4 values less than (256));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t3', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -127,6 +149,8 @@ SUBPARTITIONS 2
  PARTITION pa2 VALUES LESS THAN (16) ENGINE = MyISAM,
  PARTITION pa3 VALUES LESS THAN (64) ENGINE = MyISAM,
  PARTITION pa4 VALUES LESS THAN (256) ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t3', is deprecated and will be removed in a future release. Please use native partitioning instead.
 255 inserts;
 select hex(a) from t3 where a=b'01010101';
 hex(a)
@@ -397,6 +421,8 @@ partition by list (a) subpartition by key (a) subpartitions 2 (
 partition pa1 values in (0,1,2,3),
 partition pa2 values in (4,5,6,7,8,9,10,11,12,13,14,15,16),
 partition pa3 values in (17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
@@ -409,6 +435,8 @@ SUBPARTITIONS 2
 (PARTITION pa1 VALUES IN (0,1,2,3) ENGINE = MyISAM,
  PARTITION pa2 VALUES IN (4,5,6,7,8,9,10,11,12,13,14,15,16) ENGINE = MyISAM,
  PARTITION pa3 VALUES IN (17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32) ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 32 inserts;
 select hex(a) from t4 where a=b'00000001';
 hex(a)

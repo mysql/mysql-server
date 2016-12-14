@@ -87,6 +87,7 @@ struct fts_psort_t {
 	ulint			state;		/*!< parent thread state */
 	fts_doc_list_t		fts_doc_list;	/*!< doc list to process */
 	fts_psort_common_t*	psort_common;	/*!< ptr to all psort info */
+	os_thread_id_t		thread_hdl;	/*!< thread handle */
 	dberr_t			error;		/*!< db error during psort */
 	ulint			memory_used;	/*!< memory used by fts_doc_list */
 	ib_mutex_t		mutex;		/*!< mutex for fts_doc_list */

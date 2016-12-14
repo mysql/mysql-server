@@ -1,0 +1,216 @@
+################################################################################
+# Test case to verify that concurrent transactions with intersecting
+# write set, on table with multiple primary.
+#
+# Scenario 8.2: on WL#6834 page
+#
+# T1: WS={t1.(a,b)=(1,2)}
+#       {t1.(a,b)=(3,2)}
+#
+# T2: WS={t1.(a,b)=(1,2)}
+#       {t1.(a,b)=(4,2)}
+#
+# Outcome: T1 must abort, T2 must commit.
+#
+# Full details on WL#6834 QA notes.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both the members ONLINE. Create a table on M1.
+# 2. Set a DEBUG sync before broadcast message to group on connection M1.
+#    Commit a transaction that will be block before broadcast.
+# 3. Wait until connection reaches DEBUG sync point.
+# 4. Execute a transaction on M2, that will reach first certification,
+#    since M1 is blocked before broadcast.
+# 5. Signal the waiting thread on M1 to resume.
+# 6. It will end up in an error stating that it was aborted, since
+#    transactions are conflicting and M2 was ordered first.
+# 7. Assert that number of certified transactions are the expected one.
+#
+# Checking the positive case in which there is no conflict.
+# 8. Set a DEBUG sync before broadcast message to group on connection M1.
+#    Commit a transaction that will be block before broadcast.
+# 9. Wait until connection reaches DEBUG sync point.
+# 10. Execute a transaction on M2, that will reach first certification,
+#    since M1 is blocked before broadcast.
+# 11. Signal the waiting thread on M1 to resume.
+# 12. It will execute without error as the conflicting transactions have been
+#     removed.
+# 13. Assert that number of certified transactions are the expected one.
+# 14. Clean up.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Create a table on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a, b));
+INSERT INTO t1 VALUE(1, 2);
+--source include/rpl_sync.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Set a debug sync before broadcast message to group on
+--echo #    connection server_1.
+--echo #    Commit a transaction that will be block before broadcast.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+BEGIN;
+UPDATE t1 SET a=3 AND b=5 WHERE a=1;
+--send COMMIT
+
+--echo
+--echo ############################################################
+--echo # 3. Wait until server_1 connection reaches the
+--echo # group_replication_before_message_broadcast debug sync point.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Execute a transaction on server2, that will reach first
+--echo #    certification, since server_1 is blocked before broadcast.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+UPDATE t1 SET a=4 AND b=5 WHERE b=2;
+
+--echo
+--echo ############################################################
+--echo # 5. Signal the waiting thread on server_1 to resume.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+--echo
+--echo ############################################################
+--echo # 6. It will end up in an error stating that it was aborted,
+--echo #    since transactions are conflicting and server2 was
+--echo #    ordered first.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+--reap
+
+--echo
+--echo ############################################################
+--echo # 7. Assert that number of certified transactions are the
+--echo #    expected ones.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats, Count_Transactions_Checked, 1)
+--let $assert_text= The value of Count_Transactions_Checked should be 4 after starting group replication
+--let $assert_cond= "$certified_transactions" = 4
+--source include/assert.inc
+
+--let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats, Count_Conflicts_Detected, 1)
+--let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting group replication
+--let $assert_cond= "$negatively_certified" = 1
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # Checking the positive case in which there is no conflict.
+--echo ############################################################
+--echo
+--echo ############################################################
+--echo # 1. Set a debug sync before broadcast message to group on
+--echo #    connection server_1.
+--echo #    Commit a transaction that will be block before broadcast.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+BEGIN;
+INSERT INTO t1 VALUE(10, 11);
+--send COMMIT
+
+--echo
+--echo ############################################################
+--echo # 2. Wait until server_1 connection reaches the
+--echo # group_replication_before_message_broadcast debug sync point.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Execute a transaction on server2, that will reach first
+--echo #    certification, since server_1 is blocked before broadcast.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUE(12, 13);
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Signal the waiting thread on server_1 to resume.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+--echo
+--echo ########################################################################
+--echo # 5. It will execute without error as the conflicting transactions have
+--echo #    been removed.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+
+--source include/rpl_sync.inc
+--echo
+--echo ############################################################
+--echo # 6. Assert that number of certified transactions are the
+--echo #    expected ones.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 0 AND t1.b = 2, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 10 AND t1.b = 11, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 12 AND t1.b = 13, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain 3 rows after the above execution
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "3"
+--source include/assert.inc
+
+--let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats, Count_Transactions_Checked, 1)
+--let $assert_text= The value of Count_Transactions_Checked should be 6 after starting group replication
+--let $assert_cond= "$certified_transactions" = 6
+--source include/assert.inc
+
+--let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats, Count_Conflicts_Detected, 1)
+--let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting group replication
+--let $assert_cond= "$negatively_certified" = 1
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # Clean up.
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

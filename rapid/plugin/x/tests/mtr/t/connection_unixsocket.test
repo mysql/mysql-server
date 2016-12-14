@@ -17,6 +17,7 @@ GRANT ALL ON *.* TO user_8_8_8_8@8.8.8.8;
 GRANT ALL ON *.* TO user_all@'%';
 GRANT ALL ON *.* TO user_localhost@localhost;
 GRANT ALL ON *.* TO user_localhost_8_8_8_8@8.8.8.8;
+GRANT ALL ON *.* TO user_localhost_8_8_8_8@localhost;
 
 CREATE TABLE `city` (
   `ID` int(11) NOT NULL auto_increment,
@@ -148,7 +149,7 @@ Mysqlx.Session.AuthenticateStart {
     mech_name: "PLAIN"
     auth_data: "\0root\0"
 }
--->recvuntil Mysqlx.Session.AuthenticateOk 0
+-->recvuntil Mysqlx.Session.AuthenticateOk do_not_show_intermediate
 EOF
 
 --exec $MYSQLXTEST -q -n --socket=$MASTER_X_MYSOCK -uroot --password='' --file=$MYSQL_TMP_DIR/plain_connection.tmp 2>&1
@@ -169,7 +170,7 @@ EOF
 # Command line option --mysqlx-socket
 --replace_regex /mysqlx-socket=.*sock/mysqlx-socket=SOCKET/
 let $restart_parameters = restart: --mysqlx-socket=$MYSQL_TMP_DIR/valid_mysqlx.sock;
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 # MySQL Server was started with new UNIX socket file for X Plugin
 # Check if old UNIX socket file was removed and lockfile

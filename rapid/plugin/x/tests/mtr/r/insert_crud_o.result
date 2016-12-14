@@ -13,16 +13,16 @@ grant all on *.* to insertcruduser@localhost;
 ================================================================================
 TEST START
 ================================================================================
-RUN DROP SCHEMA if EXISTS MySQLXplugin
+RUN DROP SCHEMA if EXISTS mysqlxplugin
 
 0 rows affected
-RUN CREATE SCHEMA MySQLXplugin DEFAULT CHARSET='utf8'
+RUN CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8'
 
 1 rows affected
-RUN USE MySQLXplugin
+RUN USE mysqlxplugin
 
 0 rows affected
-RUN CREATE TABLE Categories (
+RUN CREATE TABLE categories (
    CategoryID int NOT NULL AUTO_INCREMENT,
    CategoryName varchar(100),
 	CategoryDescription varchar(200),
@@ -40,8 +40,8 @@ Mysqlx_crud_insert	0
 Insert multiple rows
 send Mysqlx.Crud.Insert {
   collection {
-    name: "Categories"
-    schema: "MySQLXplugin"
+    name: "categories"
+    schema: "mysqlxplugin"
   }
   data_model: TABLE
   projection {
@@ -225,8 +225,8 @@ Mysqlx_crud_insert	1
 Insert Quotes with scape character
 send Mysqlx.Crud.Insert {
   collection {
-    name: "Categories"
-    schema: "MySQLXplugin"
+    name: "categories"
+    schema: "mysqlxplugin"
   }
   data_model: TABLE
   projection {
@@ -314,8 +314,8 @@ Mysqlx_crud_insert	2
 Insert NULL values
 send Mysqlx.Crud.Insert {
   collection {
-    name: "Categories"
-    schema: "MySQLXplugin"
+    name: "categories"
+    schema: "mysqlxplugin"
   }
   data_model: TABLE
   projection {
@@ -394,8 +394,8 @@ Mysqlx_crud_insert	3
 Insert Corner decimal value
 send Mysqlx.Crud.Insert {
   collection {
-    name: "Categories"
-    schema: "MySQLXplugin"
+    name: "categories"
+    schema: "mysqlxplugin"
   }
   data_model: TABLE
   projection {
@@ -535,8 +535,8 @@ Mysqlx_crud_insert	4
 Insert Corner tiny int value
 send Mysqlx.Crud.Insert {
   collection {
-    name: "Categories"
-    schema: "MySQLXplugin"
+    name: "categories"
+    schema: "mysqlxplugin"
   }
   data_model: TABLE
   projection {
@@ -682,14 +682,14 @@ ok
 .
 #---------- START NEGATIVE TABLE TESTING----------#
 .
-RUN USE MySQLXplugin
+RUN USE mysqlxplugin
 
 0 rows affected
 Repeat key column ID
 send Mysqlx.Crud.Insert {
   collection {
-    name: "Categories"
-    schema: "MySQLXplugin"
+    name: "categories"
+    schema: "mysqlxplugin"
   }
   data_model: TABLE
   projection {
@@ -764,8 +764,8 @@ Got expected error: Duplicate entry '1' for key 'PRIMARY' (code 1062)
 Data types corner value plus 1
 send Mysqlx.Crud.Insert {
   collection {
-    name: "Categories"
-    schema: "MySQLXplugin"
+    name: "categories"
+    schema: "mysqlxplugin"
   }
   data_model: TABLE
   projection {
@@ -888,8 +888,8 @@ Got expected error: Out of range value for column 'CategoryDecimal' at row 1 (co
 String value in tiny int data type column 
 send Mysqlx.Crud.Insert {
   collection {
-    name: "Categories"
-    schema: "MySQLXplugin"
+    name: "categories"
+    schema: "mysqlxplugin"
   }
   data_model: TABLE
   projection {
@@ -966,8 +966,8 @@ Got expected error: Incorrect integer value: 'TinyInt' for column 'CategoryIMEI'
 String value in decimal data type column
 send Mysqlx.Crud.Insert {
   collection {
-    name: "Categories"
-    schema: "MySQLXplugin"
+    name: "categories"
+    schema: "mysqlxplugin"
   }
   data_model: TABLE
   projection {
@@ -1044,8 +1044,8 @@ Got expected error: Incorrect decimal value: 'Decimal' for column 'CategoryDecim
 Invalid Schema name
 send Mysqlx.Crud.Insert {
   collection {
-    name: "Categories"
-    schema: "SchemaNoExist"
+    name: "categories"
+    schema: "schema_no_exist"
   }
   data_model: TABLE
   projection {
@@ -1116,12 +1116,12 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Got expected error: Table 'schemanoexist.categories' doesn't exist (code 1146)
+Got expected error: Table 'schema_no_exist.categories' doesn't exist (code 1146)
 Invalid Table name
 send Mysqlx.Crud.Insert {
   collection {
-    name: "TableNoExist"
-    schema: "MySQLXplugin"
+    name: "table_no_exist"
+    schema: "mysqlxplugin"
   }
   data_model: TABLE
   projection {
@@ -1194,12 +1194,12 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Got expected error: Table 'mysqlxplugin.tablenoexist' doesn't exist (code 1146)
+Got expected error: Table 'mysqlxplugin.table_no_exist' doesn't exist (code 1146)
 Invalid Column name
 send Mysqlx.Crud.Insert {
   collection {
-    name: "CategoriesNoExist"
-    schema: "MySQLXplugin"
+    name: "categories_no_exist"
+    schema: "mysqlxplugin"
   }
   data_model: TABLE
   projection {
@@ -1272,11 +1272,11 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Got expected error: Table 'mysqlxplugin.categoriesnoexist' doesn't exist (code 1146)
+Got expected error: Table 'mysqlxplugin.categories_no_exist' doesn't exist (code 1146)
 send Mysqlx.Crud.Insert {
   collection {
-    name: "Categories"
-    schema: "MySQLXplugin"
+    name: "categories"
+    schema: "mysqlxplugin"
   }
   data_model: TABLE
   projection {
@@ -1350,7 +1350,7 @@ send Mysqlx.Crud.Insert {
 }
 
 Got expected error: Data too long for column 'CategoryBool' at row 1 (code 1406)
-RUN select * from Categories order by CategoryID asc
+RUN select * from categories order by CategoryID asc
 CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal	CategoryBool
 1	Sports	Sports related category	1	235.15	0
 2	Entertaiment	Entertaiment related category	2	156.17	1
@@ -1369,23 +1369,23 @@ ok
 .
 #---------- START COLLECTION TESTING----------#
 .
-RUN DROP SCHEMA if EXISTS MySQLXpluginColl
+RUN DROP SCHEMA if EXISTS mysqlxplugin_coll
 
 0 rows affected
-RUN CREATE SCHEMA MySQLXpluginColl
+RUN CREATE SCHEMA mysqlxplugin_coll
 
 1 rows affected
-RUN USE MySQLXpluginColl
+RUN USE mysqlxplugin_coll
 
 0 rows affected
-RUN CREATE TABLE MySQLXpluginColl.MainCollection (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY)
+RUN CREATE TABLE mysqlxplugin_coll.main_collection (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY)
 
 0 rows affected
 Insert a row into a Document column
 send Mysqlx.Crud.Insert {
   collection {
-    name: "MainCollection"
-    schema: "MySQLXpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   row {
@@ -1403,15 +1403,15 @@ send Mysqlx.Crud.Insert {
 
 
 1 rows affected
-RUN select * from MainCollection
+RUN select * from main_collection
 doc	_id
 {"id": "1", "_id": "1", "name": "Omar Port"}	1
 0 rows affected
 Insert multiple rows into a Document column
 send Mysqlx.Crud.Insert {
   collection {
-    name: "MainCollection"
-    schema: "MySQLXpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   row {
@@ -1441,7 +1441,7 @@ send Mysqlx.Crud.Insert {
 
 2 rows affected
 Records: 2  Duplicates: 0  Warnings: 0
-RUN select * from MainCollection
+RUN select * from main_collection
 doc	_id
 {"id": "1", "_id": "1", "name": "Omar Port"}	1
 {"id": "2", "_id": "2", "name": "Omar Bras"}	2
@@ -1450,8 +1450,8 @@ doc	_id
 Insert malformed JSON into Document column
 send Mysqlx.Crud.Insert {
   collection {
-    name: "MainCollection"
-    schema: "MySQLXpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   row {
@@ -1467,20 +1467,20 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Got expected error: Invalid JSON text: "Missing a comma or '}' after an object member." at position 99 in value for column 'MainCollection.doc'. (code 3140)
+Got expected error: Invalid JSON text: "Missing a comma or '}' after an object member." at position 99 in value for column 'main_collection.doc'. (code 3140)
 ================================================================================
 CLEAN UP
 ================================================================================
-RUN SELECT * FROM MainCollection
+RUN SELECT * FROM main_collection
 doc	_id
 {"id": "1", "_id": "1", "name": "Omar Port"}	1
 {"id": "2", "_id": "2", "name": "Omar Bras"}	2
 {"id": "3", "_id": "3", "name": "Omar Mex"}	3
 0 rows affected
-RUN DROP SCHEMA if EXISTS MySQLXplugin
+RUN DROP SCHEMA if EXISTS mysqlxplugin
 
 1 rows affected
-RUN DROP SCHEMA if EXISTS MySQLXpluginColl
+RUN DROP SCHEMA if EXISTS mysqlxplugin_coll
 
 1 rows affected
 RUN DROP USER insertcruduser@localhost

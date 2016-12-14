@@ -1366,11 +1366,14 @@ void Field_num::prepend_zeros(String *value)
   int diff;
   if ((diff= (int) (field_length - value->length())) > 0)
   {
-    memmove(const_cast<char*>(value->ptr()) + field_length - value->length(),
+    const bool error= value->mem_realloc(field_length);
+    if (!error)
+    {
+      memmove(const_cast<char*>(value->ptr()) + field_length - value->length(),
             value->ptr(), value->length());
-    memset(const_cast<char*>(value->ptr()), '0', diff);
-    value->length(field_length);
-    (void) value->c_ptr_quick();		// Avoid warnings in purify
+      memset(const_cast<char*>(value->ptr()), '0', diff);
+      value->length(field_length);
+    }
   }
 }
 
@@ -6950,7 +6953,7 @@ type_conversion_status Field_datetimef::store_packed(longlong nr)
   @param  cs                         character set of the string
 
   @return TYPE_OK, TYPE_NOTE_TRUNCATED, TYPE_WARN_TRUNCATED,
-          TYPE_WARN_ALL_TRUNCATED
+          TYPE_WARN_INVALID_STRING
 
 */
 
@@ -6980,8 +6983,8 @@ Field_longstr::check_string_copy_error(const char *original_string,
                       "string", tmp, field_name,
                       thd->get_stmt_da()->current_row_for_condition());
 
-  if (well_formed_error_pos == original_string)
-    return TYPE_WARN_ALL_TRUNCATED;
+  if (well_formed_error_pos != NULL)
+    return TYPE_WARN_INVALID_STRING;
 
   return TYPE_WARN_TRUNCATED;
 }

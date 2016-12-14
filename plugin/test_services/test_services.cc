@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,9 +48,16 @@ static int     with_log_message_val= 0;
 static MYSQL_SYSVAR_INT  (with_log_message, with_log_message_val, PLUGIN_VAR_RQCMDARG, 
 		"Switch on/off test of log message service", NULL, NULL, 1, 0, 1, 0);
 
+static int non_default_variable_value= 0;
+static MYSQL_SYSVAR_INT(non_default_variable, non_default_variable_value,
+                        PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_NODEFAULT,
+                        "A variable that won't accept SET DEFAULT", NULL, NULL,
+                        1, 0, 100, 0);
+
 static struct st_mysql_sys_var *test_services_sysvars[]= {
   MYSQL_SYSVAR(with_snprintf),
   MYSQL_SYSVAR(with_log_message),
+  MYSQL_SYSVAR(non_default_variable),
   NULL
 };
 

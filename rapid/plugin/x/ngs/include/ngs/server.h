@@ -26,22 +26,19 @@
 #include <vector>
 #include <memory>
 
-#include <boost/bind.hpp>
-#include <boost/atomic.hpp>
-#include <boost/smart_ptr.hpp>
-
+#include "ngs_common/chrono.h"
 #include "my_global.h"
 
 #include "ngs_common/connection_vio.h"
 #include "ngs/interface/server_interface.h"
 #include "ngs/interface/server_delegate.h"
-#include "ngs/ngs_types.h"
 #include "ngs/protocol/protocol_config.h"
 #include "ngs/protocol_encoder.h"
 #include "ngs/protocol_authentication.h"
-#include "ngs/time_socket_events.h"
 #include "ngs/client_list.h"
 #include "ngs/thread.h"
+#include "ngs_common/bind.h"
+#include "socket_events.h"
 
 
 namespace ngs
@@ -61,15 +58,15 @@ class Server: public Server_interface
 public:
   enum State {State_initializing, State_running, State_failure, State_terminating};
 
-  Server(boost::shared_ptr<Server_acceptors> acceptors,
-         boost::shared_ptr<Scheduler_dynamic> accept_scheduler,
-         boost::shared_ptr<Scheduler_dynamic> work_scheduler,
+  Server(ngs::shared_ptr<Server_acceptors> acceptors,
+         ngs::shared_ptr<Scheduler_dynamic> accept_scheduler,
+         ngs::shared_ptr<Scheduler_dynamic> work_scheduler,
          Server_delegate *delegate,
-         boost::shared_ptr<Protocol_config> config);
+         ngs::shared_ptr<Protocol_config> config);
 
   virtual Ssl_context *ssl_context() const { return m_ssl_context.get(); }
 
-  bool prepare(Ssl_context_unique_ptr ssl_context, const bool skip_networking, const bool skip_name_resolve, const bool use_named_pipes);
+  bool prepare(Ssl_context_unique_ptr ssl_context, const bool skip_networking, const bool skip_name_resolve, const bool use_unix_sockets);
 
   void start();
   void start_failed();
@@ -80,12 +77,12 @@ public:
   bool is_terminating();
   bool is_running();
 
-  virtual boost::shared_ptr<Protocol_config> get_config() const { return m_config; }
-  boost::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const { return m_worker_scheduler; }
+  virtual ngs::shared_ptr<Protocol_config> get_config() const { return m_config; }
+  ngs::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const { return m_worker_scheduler; }
   Client_list &get_client_list() { return m_client_list; }
   Mutex &get_client_exit_mutex() { return m_client_exit_mutex; }
 
-  virtual boost::shared_ptr<Session_interface> create_session(Client_interface &client,
+  virtual ngs::shared_ptr<Session_interface> create_session(Client_interface &client,
                                                               Protocol_encoder &proto,
                                                               int session_id);
 
@@ -97,23 +94,23 @@ public:
                                     Authentication_handler::create initiator,
                                     const bool allowed_only_with_secure_connection);
 
-  void add_timer(const std::size_t delay_ms, boost::function<bool ()> callback);
+  void add_timer(const std::size_t delay_ms, ngs::function<bool ()> callback);
 
 private:
   Server(const Server&);
   Server& operator=(const Server&);
 
-  void run_task(boost::shared_ptr<Server_task_interface> handler);
+  void run_task(ngs::shared_ptr<Server_task_interface> handler);
   void wait_for_clients_closure();
-  void go_through_all_clients(boost::function<void (Client_ptr)> callback);
+  void go_through_all_clients(ngs::function<void (Client_ptr)> callback);
   bool timeout_for_clients_validation();
-  void validate_client_state(ptime &oldest_object_time_of_life, const ptime& time_of_release, Client_ptr);
+  void validate_client_state(chrono::time_point &oldest_object_time_of_life, const chrono::time_point& time_of_release, Client_ptr);
   void wait_for_next_client();
 
   // accept one connection, create a connection object for the client and tell it to
   // start reading input
   void on_accept(Connection_acceptor_interface &acceptor);
-  void start_client_supervision_timer(const time_duration &oldest_object_time_ms);
+  void start_client_supervision_timer(const chrono::duration &oldest_object_time_ms);
   void restart_client_supervision_timer();
 
   bool on_check_terminated_workers();
@@ -149,10 +146,10 @@ private:
   bool m_skip_name_resolve;
   uint32 m_errors_while_accepting;
 
-  boost::shared_ptr<Server_acceptors> m_acceptors;
-  boost::shared_ptr<Scheduler_dynamic> m_accept_scheduler;
-  boost::shared_ptr<Scheduler_dynamic> m_worker_scheduler;
-  boost::shared_ptr<Protocol_config> m_config;
+  ngs::shared_ptr<Server_acceptors> m_acceptors;
+  ngs::shared_ptr<Scheduler_dynamic> m_accept_scheduler;
+  ngs::shared_ptr<Scheduler_dynamic> m_worker_scheduler;
+  ngs::shared_ptr<Protocol_config> m_config;
 
   Ssl_context_unique_ptr m_ssl_context;
   Sync_variable<State> m_state;

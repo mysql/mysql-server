@@ -22,9 +22,7 @@
 #define MYSQL_DYNAMIC_PLUGIN 1
 #endif // WIN32
 
-#include <boost/bind.hpp>
-#include <boost/make_shared.hpp>
-
+#include "ngs_common/bind.h"
 #include "ngs/scheduler.h"
 #include "ngs/memory.h"
 #include "ngs/log.h"
@@ -63,7 +61,7 @@ Scheduler_dynamic::~Scheduler_dynamic()
 void Scheduler_dynamic::launch()
 {
   int32 int_0 = 0;
-  if (my_atomic_cas32(&m_is_running, &int_0, 1))
+  if (m_is_running.compare_exchange_strong(int_0, 1))
   {
     create_min_num_workers();
     log_info("Scheduler \"%s\" started.", m_name.c_str());
@@ -76,7 +74,7 @@ void Scheduler_dynamic::create_min_num_workers()
   Mutex_lock lock(m_worker_pending_mutex);
 
   while (is_running() &&
-         my_atomic_load32(&m_workers_count) < my_atomic_load32(&m_min_workers_count))
+         m_workers_count.load() < m_min_workers_count.load())
   {
     create_thread();
   }
@@ -85,7 +83,7 @@ void Scheduler_dynamic::create_min_num_workers()
 
 unsigned int Scheduler_dynamic::set_num_workers(unsigned int n)
 {
-  my_atomic_store32(&m_min_workers_count, n);
+  m_min_workers_count.store(n);
   try
   {
     create_min_num_workers();
@@ -93,9 +91,9 @@ unsigned int Scheduler_dynamic::set_num_workers(unsigned int n)
   catch (std::exception &e)
   {
     log_debug("Exception in set minimal number of workers \"%s\"", e.what());
-    const int32 m = my_atomic_load32(&m_workers_count);
+    const int32 m = m_workers_count.load();
     log_warning("Unable to set minimal number of workers to %u; actual value is %i", n, m);
-    my_atomic_store32(&m_min_workers_count, m);
+    m_min_workers_count.store(m);
     return m;
   }
   return n;
@@ -104,7 +102,7 @@ unsigned int Scheduler_dynamic::set_num_workers(unsigned int n)
 
 void Scheduler_dynamic::set_idle_worker_timeout(unsigned long long milliseconds)
 {
-  my_atomic_store64(&m_idle_worker_timeout, milliseconds);
+  m_idle_worker_timeout.store(milliseconds);
   m_worker_pending_cond.broadcast(m_worker_pending_mutex);
 }
 
@@ -112,21 +110,21 @@ void Scheduler_dynamic::set_idle_worker_timeout(unsigned long long milliseconds)
 void Scheduler_dynamic::stop()
 {
   int32 int_1 = 1;
-  if (my_atomic_cas32(&m_is_running, &int_1, 0))
+  if (m_is_running.compare_exchange_strong(int_1, 0))
   {
     while (m_tasks.empty() == false)
     {
       Task* task = NULL;
 
       if (m_tasks.pop(task))
-        delete task;
+        ngs::free_object(task);
     }
 
     m_worker_pending_cond.broadcast(m_worker_pending_mutex);
 
     {
       Mutex_lock lock(m_thread_exit_mutex);
-      while (my_atomic_load32(&m_workers_count))
+      while (m_workers_count.load())
         m_thread_exit_cond.wait(m_thread_exit_mutex);
     }
 
@@ -151,7 +149,7 @@ bool Scheduler_dynamic::post(Task* task)
   {
     Mutex_lock lock(m_worker_pending_mutex);
 
-    if (increase_tasks_count() >= my_atomic_load32(&m_workers_count))
+    if (increase_tasks_count() >= m_workers_count.load())
     {
       try { create_thread(); }
       catch (std::exception &e)
@@ -172,12 +170,13 @@ bool Scheduler_dynamic::post(Task* task)
 
 bool Scheduler_dynamic::post(const Task& task)
 {
-  Task *copy_task = new (std::nothrow) Task(task);
+  Task *copy_task = ngs::allocate_object<Task>(task);
 
   if (post(copy_task))
     return true;
 
-  delete copy_task;
+  ngs::free_object(copy_task);
+
   return false;
 }
 
@@ -187,8 +186,8 @@ bool Scheduler_dynamic::post_and_wait(const Task& task_to_be_posted)
   Wait_for_signal future;
 
   {
-    ngs::Scheduler_dynamic::Task task = boost::bind(&Wait_for_signal::Signal_when_done::execute,
-                                                    boost::make_shared<ngs::Wait_for_signal::Signal_when_done>(boost::ref(future), task_to_be_posted));
+    ngs::Scheduler_dynamic::Task task = ngs::bind(&Wait_for_signal::Signal_when_done::execute,
+            ngs::allocate_shared<ngs::Wait_for_signal::Signal_when_done>(ngs::ref(future), task_to_be_posted));
 
     if (!post(task))
     {
@@ -261,8 +260,7 @@ bool Scheduler_dynamic::wait_if_idle_then_delete_worker(ulonglong &thread_waitin
     thread_waiting_started = TIME_VALUE_NOT_VALID;
   }
 
-  if (my_atomic_load32(&m_workers_count) >
-      my_atomic_load32(&m_min_workers_count))
+  if (m_workers_count.load() > m_min_workers_count.load())
   {
     decrease_workers_count();
     return true;
@@ -293,7 +291,7 @@ void *Scheduler_dynamic::worker()
 
         if (task_available && task)
         {
-          Memory_new<Task>::Unique_ptr task_ptr(task);
+          ngs::Memory_instrumented<Task>::Unique_ptr task_ptr(task);
           thread_waiting_time = TIME_VALUE_NOT_VALID;
 
           (*task_ptr)();
@@ -341,7 +339,7 @@ void Scheduler_dynamic::join_terminating_workers()
   while (m_terminating_workers.pop(tid))
   {
     Thread_t thread;
-    if (m_threads.remove_if(thread, boost::bind(Scheduler_dynamic::thread_id_matches, _1, tid)))
+    if (m_threads.remove_if(thread, ngs::bind(Scheduler_dynamic::thread_id_matches, ngs::placeholders::_1, tid)))
     {
       ngs::thread_join(&thread, NULL);
     }
@@ -362,7 +360,7 @@ void Scheduler_dynamic::create_thread()
 
 bool Scheduler_dynamic::is_running()
 {
-  return my_atomic_load32(&m_is_running) != 0;
+  return m_is_running.load() != 0;
 }
 
 
@@ -371,7 +369,7 @@ int32 Scheduler_dynamic::increase_workers_count()
   if (m_monitor)
     m_monitor->on_worker_thread_create();
 
-  return my_atomic_add32(&m_workers_count, 1);
+  return ++m_workers_count;
 }
 
 
@@ -380,7 +378,7 @@ int32 Scheduler_dynamic::decrease_workers_count()
   if (m_monitor)
     m_monitor->on_worker_thread_destroy();
 
-  return my_atomic_add32(&m_workers_count, -1);
+  return --m_workers_count;
 }
 
 
@@ -389,7 +387,7 @@ int32 Scheduler_dynamic::increase_tasks_count()
   if (m_monitor)
     m_monitor->on_task_start();
 
-  return my_atomic_add32(&m_tasks_count, 1);
+  return ++m_tasks_count;
 }
 
 
@@ -398,5 +396,5 @@ int32 Scheduler_dynamic::decrease_tasks_count()
   if (m_monitor)
     m_monitor->on_task_end();
 
-  return my_atomic_add32(&m_tasks_count, -1);
+  return --m_tasks_count;
 }

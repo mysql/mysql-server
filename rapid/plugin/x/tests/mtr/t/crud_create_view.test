@@ -1,0 +1,242 @@
+## Create view; insert, update, delete on view
+
+## Preamble
+--source ../include/xplugin_preamble.inc
+
+## Test data
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/create_view.tmp
+--write_file $xtest_file
+-->quiet
+
+-->title -Create view (bad select)
+Mysqlx.Crud.CreateView {
+  collection { name: "xxx" schema: "xtest" }
+  stmt: {
+    collection { name: "xtable" schema: "xtest" }
+    projection {
+      source { type: IDENT identifier { name: "first" } }
+    }
+    data_model: DOCUMENT
+  }
+}
+-->recverror 5120
+
+
+-->macro Create_view	%NAME% %FIELD% %FIELD_ALIAS% %OPTION% %ERROR%
+Mysqlx.Crud.CreateView {
+  collection { name: "%NAME%" schema: "xtest" }
+  %OPTION%
+  stmt: {
+    collection { name: "xtable" schema: "xtest" }
+    projection {
+      alias: "%FIELD_ALIAS%"
+      source { type: IDENT identifier { name: "%FIELD%" } }
+    }
+    data_model: TABLE
+  }
+}
+-->recvuntil %ERROR%
+-->endmacro
+
+
+-->macro Show_view	%NAME%
+-->sql
+SHOW CREATE VIEW xtest.%NAME%
+-->endsql
+-->endmacro
+
+
+-->title -Create view (default)
+-->callmacro Create_view	xview	first	one	#	Mysqlx.Ok
+-->callmacro Show_view	xview
+
+
+-->title -Create view (collection)
+-->callmacro Create_view	xdoc	second	doc	#	Mysqlx.Ok
+-->callmacro Show_view	xdoc
+
+
+-->title -List objects
+-->stmtadmin list_objects	{"schema":"xtest"}
+-->recvresult
+
+
+-->title -Create view (algorithm=undefined)
+-->callmacro Create_view	au	second	doc	algorithm: UNDEFINED	Mysqlx.Ok
+-->callmacro Show_view	au
+
+
+-->title -Create view (algorithm=merge)
+-->callmacro Create_view	am	second	doc	algorithm: MERGE	Mysqlx.Ok
+-->callmacro Show_view	am
+
+
+-->title -Create view (algorithm=temptable)
+-->callmacro Create_view	at	second	doc	algorithm: TEMPTABLE	Mysqlx.Ok
+-->callmacro Show_view	at
+
+
+-->title -Create view (definer=xuser)
+-->callmacro Create_view	du	second	doc	definer: "xuser"	Mysqlx.Ok
+-->callmacro Show_view	du
+
+
+-->title -Create view (security=invoker)
+-->callmacro Create_view	si	second	doc	security: INVOKER	Mysqlx.Ok
+-->callmacro Show_view	si
+
+
+-->title -Create view (security=definer)
+-->callmacro Create_view	sd	second	doc	security: DEFINER	Mysqlx.Ok
+-->callmacro Show_view	sd
+
+
+-->title -Create view (check=local)
+-->callmacro Create_view	cl	second	doc	check: LOCAL	Mysqlx.Ok
+-->callmacro Show_view	cl
+
+-->title -Create view (check=cascaded)
+-->callmacro Create_view	cc	second	doc	check: CASCADED	Mysqlx.Ok
+-->callmacro Show_view	cc
+
+-->title -Create view (column)
+-->callmacro Create_view	co	second	doc	column: "third"	Mysqlx.Ok
+-->callmacro Show_view	co
+
+-->title -Create view (too many columns)
+-->callmacro Create_view	ct	second	doc	column: "third" column: "fourth"	Mysqlx.Error
+
+
+-->title -Replace view (already exists)
+-->callmacro Create_view	co	second	fifth	#	Mysqlx.Error
+-->callmacro Show_view	co
+
+-->title -Replace view
+-->callmacro Create_view	co	second	fifth	replace_existing: true	Mysqlx.Ok
+-->callmacro Show_view	co
+
+
+-->title -Inserting data to collection_view
+Mysqlx.Crud.Insert {
+  collection { name: "xdoc" schema: "xtest" }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL literal {
+        type: V_STRING v_string { value: '{"_id":"one", "name":"Adam"}' }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL literal {
+        type: V_STRING v_string { value: '{"_id":"two", "name":"Barnaba"}' }
+      }
+    }
+  }
+}
+-->recvresult
+
+
+-->title -Selecting all data from collection_view
+Mysqlx.Crud.Find {
+  collection { name: "xdoc" schema: "xtest"}
+  data_model: DOCUMENT
+}
+-->recvresult
+
+
+-->title -Updating one member of collection_view
+Mysqlx.Crud.Update {
+  collection { name: "xdoc" schema: "xtest" }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR operator {
+      name: "=="
+      param {
+        type: IDENT identifier { document_path { type: MEMBER value: "_id" } }
+      }
+      param {
+        type: LITERAL literal { type: V_OCTETS v_octets { value: "one" } }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path { type: MEMBER value: "name" }
+    }
+    operation: ITEM_REPLACE
+    value {
+      type: LITERAL literal { type: V_STRING v_string { value: "Charles" } }
+    }
+  }
+}
+-->recvresult
+-->stmtsql SELECT * FROM xtest.xdoc;
+-->recvresult
+
+
+-->title -Deleting one row of collection_view
+Mysqlx.Crud.Delete {
+  collection { name: "xdoc" schema: "xtest"}
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR operator {
+      name: "=="
+      param {
+        type: IDENT identifier { document_path { type: MEMBER value: "_id" } }
+      }
+      param {
+        type: LITERAL literal { type: V_OCTETS v_octets { value: "two" } }
+      }
+    }
+  }
+}
+-->recvresult
+-->stmtsql SELECT * FROM xtest.xdoc;
+-->recvresult
+
+
+-->title -Updating whole doc of collection_view
+Mysqlx.Crud.Update {
+  collection { name: "xdoc" schema: "xtest" }
+  data_model: DOCUMENT
+  operation {
+    source {
+      document_path { type: MEMBER value: "" }
+    }
+    operation: ITEM_REPLACE
+    value {
+      type: LITERAL literal { type: V_STRING v_string { value: '{"_id":"three", "name":"David"}' } }
+    }
+  }
+}
+-->recvresult
+-->stmtsql SELECT * FROM xtest.xdoc;
+-->recvresult
+
+-->stmtsql SHOW STATUS LIKE 'Mysqlx_crud_create_view'
+-->recvresult
+
+EOF
+
+
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (first INT, second JSON);
+CREATE USER xuser;
+
+
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+
+--let $assert_text= Global status of 'Mysqlx_crud_create_view'
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE \'Mysqlx_crud_create_view\', Value, 1] = 15
+--source include/assert.inc
+
+--remove_file $xtest_file
+
+
+## Postamble
+DROP SCHEMA IF EXISTS xtest;
+DROP USER xuser;
+UNINSTALL PLUGIN mysqlx;

@@ -53,9 +53,9 @@ RUN show variables like 'mysqlx_min_worker_threads%'
 Variable_name	Value
 mysqlx_min_worker_threads	2
 0 rows affected
-RUN SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_LIBRARY_VERSION,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%'
-PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_LIBRARY_VERSION	LOAD_OPTION
-mysqlx	1.0	ACTIVE	DAEMON	1.6	ON
+RUN SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%'
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	LOAD_OPTION
+mysqlx	1.0	ACTIVE	DAEMON	ON
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -63,7 +63,7 @@ Mysqlx.Ok {
 ok
 uninstall plugin mysqlx;
 ERROR: Connection refused connecting to HOST:PORT
-INSTALL PLUGIN mysqlx soname "mysqlx.so";
+install plugin mysqlx soname "mysqlx.so";
 show variables like 'mysqlx_idle_worker_thread_timeout%';
 Variable_name	Value
 mysqlx_idle_worker_thread_timeout	60
@@ -93,7 +93,7 @@ show variables like 'mysqlx_min_worker_threads%';
 Variable_name	Value
 mysqlx_min_worker_threads	50
 uninstall plugin mysqlx;
-INSTALL PLUGIN mysqlx soname "mysqlx.so";
+install plugin mysqlx soname "mysqlx.so";
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
 session@localhost	session@localhost	*
@@ -138,7 +138,7 @@ show variables like 'mysqlx_max_connections%';
 Variable_name	Value
 show variables like 'mysqlx_min_worker_threads%';
 Variable_name	Value
-INSTALL PLUGIN mysqlx soname "mysqlx.so";
+install plugin mysqlx soname "mysqlx.so";
 show variables like 'mysqlx_idle_worker_thread_timeout%';
 Variable_name	Value
 mysqlx_idle_worker_thread_timeout	70
@@ -151,9 +151,9 @@ mysqlx_max_connections	500
 show variables like 'mysqlx_min_worker_threads%';
 Variable_name	Value
 mysqlx_min_worker_threads	50
-SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_LIBRARY_VERSION,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%';
-PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_LIBRARY_VERSION	LOAD_OPTION
-mysqlx	1.0	ACTIVE	DAEMON	1.6	ON
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%';
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	LOAD_OPTION
+mysqlx	1.0	ACTIVE	DAEMON	ON
 uninstall plugin mysqlx;
 # restart: --plugin-load=mysqlx.so --mysqlx_idle_worker_thread_timeout=70 --mysqlx_max_allowed_packet=4048576 --mysqlx_max_connections=500 --mysqlx_min_worker_threads=50
 show variables like 'mysqlx_idle_worker_thread_timeout%';
@@ -177,12 +177,12 @@ show variables like 'mysqlx_max_connections%';
 Variable_name	Value
 show variables like 'mysqlx_min_worker_threads%';
 Variable_name	Value
-SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_LIBRARY_VERSION,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%';
-PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_LIBRARY_VERSION	LOAD_OPTION
-INSTALL PLUGIN mysqlx soname "mysqlx.so";
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%';
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	LOAD_OPTION
+install plugin mysqlx soname "mysqlx.so";
 uninstall plugin mysqlx;
 # restart: --max_connections=151
-INSTALL PLUGIN mysqlx soname "mysqlx.so";
+install plugin mysqlx soname "mysqlx.so";
 # restart: --max_connections=151
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
@@ -194,7 +194,7 @@ Mysqlx.Ok {
 ok
 uninstall plugin mysqlx;
 # restart: --max_connections=151
-INSTALL PLUGIN mysqlx soname "mysqlx.so";
+install plugin mysqlx soname "mysqlx.so";
 # restart: --max_connections=151 --mysqlx_idle_worker_thread_timeout=70 --mysqlx_max_allowed_packet=4048576 --mysqlx_max_connections=500 --mysqlx_min_worker_threads=50
 RUN show variables like 'mysqlx_idle_worker_thread_timeout%'
 Variable_name	Value
@@ -221,7 +221,7 @@ uninstall plugin mysqlx;
 INSTALL PLUGIN mysqlx soname "mysqlx.so";
 ERROR HY000: Can't open shared library
 # restart: 
-INSTALL PLUGIN mysqlx soname "mysqlx.so";
+install plugin mysqlx soname "mysqlx.so";
 uninstall plugin mysqlx;
 # restart: --plugin-load=mysqlx.so --mysqlx_idle_worker_thread_timeout=70 --mysqlx_max_allowed_packet=4048576 --mysqlx_max_connections=500 --mysqlx_min_worker_threads=50
 RUN show variables like 'mysqlx_idle_worker_thread_timeout%'
@@ -259,9 +259,9 @@ RUN show variables like 'mysqlx_min_worker_threads%'
 Variable_name	Value
 mysqlx_min_worker_threads	50
 0 rows affected
-RUN SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_LIBRARY_VERSION,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%'
-PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_LIBRARY_VERSION	LOAD_OPTION
-mysqlx	1.0	ACTIVE	DAEMON	1.6	ON
+RUN SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%'
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	LOAD_OPTION
+mysqlx	1.0	ACTIVE	DAEMON	ON
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -356,9 +356,9 @@ RUN show variables like 'mysqlx_min_worker_threads%'
 Variable_name	Value
 mysqlx_min_worker_threads	50
 0 rows affected
-RUN SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_LIBRARY_VERSION,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%'
-PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_LIBRARY_VERSION	LOAD_OPTION
-mysqlx	1.0	ACTIVE	DAEMON	1.6	ON
+RUN SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%'
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	LOAD_OPTION
+mysqlx	1.0	ACTIVE	DAEMON	ON
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

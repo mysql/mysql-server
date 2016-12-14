@@ -8193,7 +8193,11 @@ PARTITION p8189 VALUES IN (32756,32757,32758,32759),
 PARTITION p8190 VALUES IN (32760,32761,32762,32763),
 PARTITION p8191 VALUES IN (32764,32765,32766,32767)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 32767 inserts;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select count(*) from t2;
 count(*)
 32767

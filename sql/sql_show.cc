@@ -857,6 +857,23 @@ public:
 };
 
 
+class Silence_deprecation_warnings : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX)
+      return true;
+
+    return false;
+  }
+};
+
+
 bool
 mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 {
@@ -892,6 +909,15 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
 
+    /*
+      Filter out deprecation warnings caused by deprecation of
+      the partition engine. The presence of these depend on TDC
+      cache behavior. Instead, push a warning later to get
+      deterministic and repeatable behavior.
+    */
+    Silence_deprecation_warnings deprecation_silencer;
+    thd->push_internal_handler(&deprecation_silencer);
+
     uint counter;
     bool open_error= open_tables(thd, &table_list, &counter,
                                  MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
@@ -904,6 +930,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
       */
       open_error= table_list->resolve_derived(thd, true);
     }
+    thd->pop_internal_handler();
     thd->pop_internal_handler();
     if (open_error && (thd->killed || thd->is_error()))
       goto exit;
@@ -921,6 +948,19 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   if (table_list->is_view())
     buffer.set_charset(table_list->view_creation_ctx->get_client_cs());
+
+  /*
+    Push deprecation warnings for non-natively partitioned tables. Done here
+    instead of in open_binary_frm (silenced by error handler) to get
+    predictable and repeatable results without having to flush tables.
+  */
+  if (!table_list->is_view() && table_list->table->s->db_type() &&
+      is_ha_partition_handlerton(table_list->table->s->db_type()))
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd,
+                               ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                        table_list->db, table_list->table_name);
 
   if ((table_list->is_view() ?
        view_store_create_info(thd, table_list, &buffer) :
@@ -2785,6 +2825,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
                                  size_t *length)
 {
   const char *value;
+  const CHARSET_INFO *value_charset;
 
   if (show_type == SHOW_SYS)
   {
@@ -2794,11 +2835,12 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     sys_var *var= ((sys_var *) variable->value);
     show_type= var->show_type();
     value= (char*) var->value_ptr(running_thd, target_thd, value_type, &null_lex_str);
-    *charset= var->charset(running_thd);
+    value_charset= var->charset(target_thd);
   }
   else
   {
     value= variable->value;
+    value_charset= system_charset_info;
   }
 
   const char *pos= buff;
@@ -2816,6 +2858,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     case SHOW_DOUBLE:
       /* 6 is the default precision for '%f' in sprintf() */
       end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_LONG_STATUS:
@@ -2826,10 +2869,12 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
      /* the difference lies in refresh_status() */
     case SHOW_LONG_NOFLUSH:
       end= int10_to_str(*(long*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_SIGNED_LONG:
       end= int10_to_str(*(long*) value, buff, -10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_LONGLONG_STATUS:
@@ -2838,22 +2883,27 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_LONGLONG:
       end= longlong10_to_str(*(longlong*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_HA_ROWS:
       end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_BOOL:
       end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
+      value_charset= system_charset_info;
       break;
 
     case SHOW_MY_BOOL:
       end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
+      value_charset= system_charset_info;
       break;
 
     case SHOW_INT:
       end= int10_to_str((long) *(uint32*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_HAVE:
@@ -2861,6 +2911,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
       SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
       pos= show_comp_option_name[(int) tmp];
       end= strend(pos);
+      value_charset= system_charset_info;
       break;
     }
 
@@ -2894,11 +2945,13 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     case SHOW_KEY_CACHE_LONG:
       value= (char*) dflt_key_cache + (ulong)value;
       end= int10_to_str(*(long*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_KEY_CACHE_LONGLONG:
       value= (char*) dflt_key_cache + (ulong)value;
       end= longlong10_to_str(*(longlong*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_UNDEF:
@@ -2912,6 +2965,12 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
   }
 
   *length= (size_t) (end - pos);
+  /* Some callers do not use the result. */
+  if (charset != NULL)
+  {
+    DBUG_ASSERT(value_charset != NULL);
+    *charset= value_charset;
+  }
   return pos;
 }
 
@@ -3863,14 +3922,28 @@ fill_schema_table_by_open(THD *thd, MEM_ROOT *mem_root,
   */
   lex->sql_command= SQLCOM_SHOW_FIELDS;
 
-  result= open_temporary_tables(thd, table_list);
+  /*
+    Filter out deprecation warnings caused by deprecation of
+    the partition engine. The presence of these depend on TDC
+    cache behavior. Instead, push a warning later to get
+    deterministic and repeatable behavior.
+  */
+  {
+    // Put in separate scope due to gotos crossing the initialization.
+    Silence_deprecation_warnings deprecation_silencer;
+    thd->push_internal_handler(&deprecation_silencer);
 
-  if (!result)
-    result= open_tables_for_query(thd, table_list,
-                                  MYSQL_OPEN_IGNORE_FLUSH |
-                                  MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
-                                  (can_deadlock ?
-                                   MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0));
+    result= open_temporary_tables(thd, table_list);
+
+    if (!result)
+      result= open_tables_for_query(thd, table_list,
+                                    MYSQL_OPEN_IGNORE_FLUSH |
+                                    MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
+                                    (can_deadlock ?
+                                     MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0));
+    thd->pop_internal_handler();
+  }
+
   if (!result && table_list->is_view_or_derived())
   {
     result= table_list->resolve_derived(thd, false);
@@ -4245,8 +4318,24 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   key_length= get_table_def_key(&table_list, &key);
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
   mysql_mutex_lock(&LOCK_open);
-  share= get_table_share(thd, &table_list, key,
-                         key_length, OPEN_VIEW, &not_used, hash_value);
+
+  /*
+    Filter out deprecation warnings caused by deprecation of
+    the partition engine. The presence of these depend on TDC
+    cache behavior. Instead, push a warning later to get
+    deterministic and repeatable behavior.
+  */
+  {
+    // Put in separate scope due to gotos crossing the initialization.
+    Silence_deprecation_warnings deprecation_silencer;
+    thd->push_internal_handler(&deprecation_silencer);
+
+    share= get_table_share(thd, &table_list, key,
+                           key_length, OPEN_VIEW, &not_used, hash_value);
+
+    thd->pop_internal_handler();
+  }
+
   if (!share)
   {
     res= 0;
@@ -4376,23 +4465,8 @@ public:
   }
 };
 
-class Silence_deprecation_warnings : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
-  {
-    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX)
-      return true;
 
-    return false;
-  }
-};
-
-class Silence_deprecation_no_replacement_warnings : public Internal_error_handler
+class Silence_deprecation_no_replacement_warnings: public Internal_error_handler
 {
 public:
   virtual bool handle_condition(THD *thd,
@@ -4407,8 +4481,6 @@ public:
     return false;
   }
 };
-
-
 
 
 /**
@@ -4923,7 +4995,20 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     }
 
     if (is_partitioned)
+    {
       ptr= my_stpcpy(ptr, " partitioned");
+      /*
+        Push deprecation warnings for non-natively partitioned tables. Done here
+        instead of in open_binary_frm (silenced by error handler) to get
+        predictable and repeatable results without having to flush tables.
+      */
+      if (share->db_type() && is_ha_partition_handlerton(share->db_type()))
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_WARN_DEPRECATED_SYNTAX,
+                            ER_THD(thd,
+                                   ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                            share->db.str, share->table_name.str);
+    }
 
     table->field[19]->store(option_buff+1,
                             (ptr == option_buff ? 0 : 

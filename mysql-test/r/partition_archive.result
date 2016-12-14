@@ -2,13 +2,21 @@ CREATE TABLE t1 (f1 DATE NOT NULL)
 ENGINE = ARCHIVE PARTITION BY RANGE (TO_DAYS(f1)) 
 (partition p1 values less than (733751), 
 partition p2 values less than MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES(CURRENT_DATE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT DATA_LENGTH, INDEX_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
 DATA_LENGTH	INDEX_LENGTH
 190	0
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT DATA_LENGTH, INDEX_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
 DATA_LENGTH	INDEX_LENGTH
 190	0
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 CREATE TABLE t1 (f1 DATE NOT NULL) 
 ENGINE = ARCHIVE;
@@ -28,10 +36,18 @@ create table t1 (a int not null)
 engine=archive
 partition by list (a)
 (partition p0 values in (1), partition p1 values in (2));
+Warnings:
+Warning	1287	The partition engine, used by table 'db99.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1), (2);
+Warnings:
+Warning	1287	The partition engine, used by table 'db99.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create index inx on t1 (a);
 alter table t1 add partition (partition p2 values in (3));
+Warnings:
+Warning	1287	The partition engine, used by table 'db99.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 drop partition p2;
+Warnings:
+Warning	1287	The partition engine, used by table 'db99.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 use test;
 drop database db99;
 create table t1 (f1 integer) engine= ARCHIVE partition by list(f1)
@@ -42,7 +58,11 @@ partition p3 values in (2),
 partition p4 values in (3),
 partition p5 values in (4)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1),(2),(3),(4),(null);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select * from t1;
 f1
 1
@@ -64,7 +84,11 @@ partitions 3
 (partition x1 tablespace ts1,
 partition x2 tablespace ts2,
 partition x3 tablespace ts3);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1,1,1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (2,1,1);
 insert into t1 values (3,1,1);
 insert into t1 values (4,1,1);
@@ -78,12 +102,16 @@ a	b	c
 3	1	1
 drop table t1;
 create table t1 (a int) engine=archive partition by hash(a);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
 f1 VARCHAR(25),
@@ -101,6 +129,10 @@ PARTITION pa8 values less than (80),
 PARTITION pa9 values less than (90),
 PARTITION pa10 values less than (100),
 PARTITION pa11 values less than MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -122,6 +154,8 @@ SUBPARTITIONS 2
  PARTITION pa9 VALUES LESS THAN (90) ENGINE = ARCHIVE,
  PARTITION pa10 VALUES LESS THAN (100) ENGINE = ARCHIVE,
  PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = ARCHIVE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select count(*) from t1;
 count(*)
 100
@@ -131,6 +165,8 @@ drop table t1;
 #              CORRUPTS FRM
 CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE= MYISAM PARTITION BY HASH(fld1)
 PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -139,6 +175,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (fld1)
 PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 ENGINE= ARCHIVE;
 ERROR HY000: Got error -1 from storage engine
 #After the patch, the ENGINE is correctly displayed as MyISAM
@@ -150,5 +188,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (fld1)
 PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 #Cleanup.
 DROP TABLE t1;

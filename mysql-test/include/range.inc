@@ -2398,4 +2398,64 @@ SET range_optimizer_max_mem_size= @orig_range_optimizer_max_mem_size;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug #23259872: OPTIMIZER CHOOSES TO USE NON PRIMARY
+--echo #                INDEX, EVEN THOUGH COST IS HIGHER
+--echo #
 
+CREATE TABLE `giant_table` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `one_id` int(11) NOT NULL,
+  `other_id` bigint(20) NOT NULL DEFAULT '0',
+  `some_other_id` int(11) DEFAULT 0 NOT NULL,
+  `something` double NOT NULL DEFAULT '0',
+  `comment` text COLLATE utf8_unicode_ci,
+  `flags` int(11) NOT NULL DEFAULT '0',
+  `time_created` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `time_created` (`time_created`),
+  KEY `some_other_id` (`some_other_id`),
+  KEY `one_other_idx` (`one_id`,`other_id`),
+  KEY `other_id` (`other_id`,`time_created`)
+) ENGINE=InnoDB AUTO_INCREMENT=101651329
+DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci ;
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (66136540), (68983250), (89627210), (77869520),
+                      (82543190), (67538270), (77282760), (77908170),
+                      (70923370), (68066360);
+DELIMITER $;
+CREATE PROCEDURE p()
+BEGIN
+SET @x = 1;
+REPEAT
+
+INSERT INTO giant_table(id,one_id)
+  SELECT c1 + @x, 0
+  FROM t1
+  WHERE c1 IN (66136540, 68985250, 89627210, 77869520 , 82543190, 67538270,
+               77282760, 77908170, 70923370, 68066360);
+SET @x =  @x + 1;
+
+UNTIL @x > 30 END REPEAT;
+END $
+DELIMITER ;$
+
+CALL p();
+SELECT count(*) FROM giant_table;
+
+INSERT INTO giant_table (id,one_id) VALUES (66136539, 0), (68983258,1),
+                                           (89628210,1), (77869520,2);
+INSERT INTO giant_table (id,one_id, some_other_id) VALUES(84673401, 0, 1),
+                                                         (61069031, 1, 1);
+
+EXPLAIN SELECT id, something, comment, time_created, one_id, other_id,
+               some_other_id, flags
+FROM giant_table
+WHERE id IN (66136539, 68983258, 89628210, 77869520, 82543198, 67538272,
+             84673401, 61069031, 68214385, 77282865, 76991297, 64569216,
+             89481638, 74534074, 70396537, 80076375, 63308530, 77908270,
+             70923271, 68066180)
+  AND (giant_table.flags & 0x01) = 0 AND giant_table.some_other_id = 0;
+
+DROP PROCEDURE p;
+DROP TABLE giant_table, t1;

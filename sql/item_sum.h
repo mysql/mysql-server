@@ -855,6 +855,14 @@ public:
   }
   enum Item_result result_type () const { return hybrid_type; }
   bool is_null() { update_null_value(); return null_value; }
+  bool mark_field_in_map(uchar *arg)
+  {
+    /*
+      Filesort (find_all_keys) over a temporary table collects the columns it
+      needs.
+    */
+    return Item::mark_field_in_map(pointer_cast<Mark_field *>(arg), field);
+  }
 };
 
 

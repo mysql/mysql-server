@@ -1,0 +1,26 @@
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("The group name option is mandatory");
+CALL mtr.add_suppression("Unable to start Group Replication on boot");
+SET SESSION sql_log_bin= 1;
+
+###########################################################
+# 1. Assert the failed startup messages on server error log
+include/assert_grep.inc [The GR plug-in reported an error on group name option being mandatory]
+include/assert_grep.inc [The GR plug-in reported an error stating it was unable to start Group Replication on boot]
+
+####################################################################
+# 2. Assert global group_replication_start_on_boot variable behavior
+include/assert.inc [group_replication_start_on_boot is true by default on startup]
+SET @@GLOBAL.group_replication_start_on_boot = FALSE;
+include/assert.inc [group_replication_start_on_boot can be turned off]
+SET GLOBAL group_replication_start_on_boot= NULL;
+ERROR 42000: Variable 'group_replication_start_on_boot' can't be set to the value of 'NULL'
+SET GLOBAL group_replication_start_on_boot= "a";
+ERROR 42000: Variable 'group_replication_start_on_boot' can't be set to the value of 'a'
+SET GLOBAL group_replication_start_on_boot= 1.2;
+ERROR 42000: Incorrect argument type to variable 'group_replication_start_on_boot'
+SET @@GLOBAL.group_replication_start_on_boot = DEFAULT;
+include/assert.inc [group_replication_start_on_boot is true when default value is set]
+
+############
+# 3. Cleanup

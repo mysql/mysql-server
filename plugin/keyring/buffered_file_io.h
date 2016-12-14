@@ -23,6 +23,8 @@
 #include "keyring_memory.h"
 #include "buffer.h"
 #include "hash_to_buffer_serializer.h"
+#include "keyring_stat.h"
+#include "file_io.h"
 
 namespace keyring {
 
@@ -35,7 +37,10 @@ public:
     , logger(logger)
     , backup_exists(FALSE)
     , memory_needed_for_buffer(0)
-  {}
+    , file_io(logger)
+  {
+    memset(&saved_keyring_stat, 0, sizeof(MY_STAT));
+  }
 
   my_bool init(std::string *keyring_filename);
 
@@ -46,20 +51,23 @@ public:
   my_bool get_serialized_object(ISerialized_object **serialized_object);
   my_bool has_next_serialized_object();
 protected:
-  virtual my_bool remove_backup();
+  virtual my_bool remove_backup(myf myFlags);
+  virtual my_bool read_keyring_stat(File file);
+  virtual my_bool check_keyring_file_stat(File file);
 private:
   my_bool recreate_keyring_from_backup_if_backup_exists();
 
   std::string* get_backup_filename();
   my_bool open_backup_file(File *backup_file);
   my_bool load_file_into_buffer(File file, Buffer *buffer);
-  my_bool flush_buffer_to_storage(Buffer *buffer);
-  my_bool flush_buffer_to_file(Buffer *buffer, PSI_file_key *file_key,
-                               const std::string* filename);
+  my_bool flush_buffer_to_storage(Buffer *buffer, File file);
+  my_bool flush_buffer_to_file(Buffer *buffer, File file);
   inline my_bool check_file_structure(File file, size_t file_size);
+  my_bool check_if_keyring_file_can_be_opened_or_created();
   my_bool is_file_tag_correct(File file);
   my_bool is_file_version_correct(File file);
 
+  Keyring_stat saved_keyring_stat;
   std::string keyring_filename;
   std::string backup_filename;
   const std::string eofTAG;
@@ -68,6 +76,7 @@ private:
   my_bool backup_exists;
   Hash_to_buffer_serializer hash_to_buffer_serializer;
   size_t memory_needed_for_buffer;
+  File_io file_io;
 };
 
 }//namespace keyring

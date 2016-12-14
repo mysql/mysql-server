@@ -255,6 +255,7 @@ static SHOW_TYPE pluginvar_show_type(st_mysql_sys_var *plugin_var);
 */
 class sys_var_pluginvar: public sys_var
 {
+  static bool on_check_pluginvar(sys_var *self, THD *thd, set_var *var);
 public:
   st_plugin_int *plugin;
   st_mysql_sys_var *plugin_var;
@@ -278,7 +279,10 @@ public:
              (plugin_var_arg->flags & PLUGIN_VAR_THDLOCAL ? SESSION : GLOBAL) |
              (plugin_var_arg->flags & PLUGIN_VAR_READONLY ? READONLY : 0),
              0, -1, NO_ARG, pluginvar_show_type(plugin_var_arg), 0, 0,
-             VARIABLE_NOT_IN_BINLOG, NULL, NULL, NULL, PARSE_NORMAL),
+             VARIABLE_NOT_IN_BINLOG,
+             (plugin_var_arg->flags & PLUGIN_VAR_NODEFAULT) ?
+               on_check_pluginvar : NULL,
+             NULL, NULL, PARSE_NORMAL),
     plugin_var(plugin_var_arg), orig_pluginvar_name(plugin_var_arg->name)
   { plugin_var->name= name_arg; }
   sys_var_pluginvar *cast_pluginvar() { return this; }
@@ -3090,6 +3094,9 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
 {
   if (thd)
   {
+    /* Block the Performance Schema from accessing THD::variables. */
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    
     plugin_var_memalloc_free(&thd->variables);
     thd->session_sysvar_res_mgr.deinit();
   }
@@ -3100,6 +3107,9 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
   vars->dynamic_variables_ptr= NULL;
   vars->dynamic_variables_size= 0;
   vars->dynamic_variables_version= 0;
+
+  if (thd)
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
 }
 
 
@@ -3501,6 +3511,42 @@ bool sys_var_pluginvar::global_update(THD *thd, set_var *var)
 
   return rc;
 }
+
+
+/**
+  Enforce the NO DEFAULT policy for plugin system variables
+
+  A plugin variable does not explicitly call the plugin supplied check function
+  when setting the default value, e.g. SET <plugin_var> = DEFAULT.
+
+  But when the PLUGIN_VAR_NODEFAULT is set setting the default value is
+  prohibited.
+  This function gets called after the actual check done by
+  sys_var_pluginvar::do_check() so it does not need to check again.
+
+  it only needs to enforce the PLUGIN_VAR_NODEFAULT flag.
+
+  There's no need for special error hence just returning true is enough.
+
+  @sa sys_var::on_check_function, sys_var::check,
+    sys_var_pluginvar::do_check(), PLUGIN_VAR_NODEFAULT
+
+  @param self   the sys_var structure for the variable being set
+  @param THD    the current thread
+  @param var    the data about the value being set
+  @return is the setting valid
+  @retval true not valid
+  @retval false valid
+*/
+bool sys_var_pluginvar::on_check_pluginvar(sys_var *self, THD *thd, set_var *var)
+{
+  /* This handler is installed only if NO_DEFAULT is specified */
+  DBUG_ASSERT(((sys_var_pluginvar *) self)->plugin_var->flags &
+              PLUGIN_VAR_NODEFAULT);
+
+  return (!var->value);
+}
+
 
 
 #define OPTION_SET_LIMITS(type, options, opt) \

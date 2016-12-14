@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5180,5 +5180,7 @@ template
 Gis_wkb_vector<Gis_point>&
 Gis_wkb_vector<Gis_point>::operator=(Gis_wkb_vector<Gis_point> const&);
 
+template
+Gis_wkb_vector<Gis_point>::Gis_wkb_vector(Gis_wkb_vector<Gis_point> const&);
 template
 Gis_wkb_vector<Gis_polygon>::Gis_wkb_vector(Gis_wkb_vector<Gis_polygon> const&);

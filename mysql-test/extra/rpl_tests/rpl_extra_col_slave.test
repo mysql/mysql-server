@@ -430,7 +430,15 @@ if (`SELECT UPPER(LEFT($engine_type, 3)) != 'NDB'`)
   # they are declared without DEFAULT clause.
 
   sync_slave_with_master;
+  --replace_column 4 CURRENT_TIMESTAMP
   select * from t9;
+
+  # Bug #22916743 RBR DOES NOT USE DEFAULT CURRENT_TIMESTAMP FOR EXTRA COLUMN
+  # ON SLAVE
+  --let $assert_text= The values of column 'd' should have non-zero timetsamp.
+  --let $assert_cond= [SELECT COUNT(*) AS Val FROM t9 WHERE d = "0000-00-00 00:00:00", Val, 1] = 0
+  --source include/assert.inc
+  # End of test for Bug #22916743
 
   # todo: fix Bug #43992 slave sql thread can't tune own sql_mode ...
   # and add/restore waiting for stop test
