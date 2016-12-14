@@ -156,6 +156,7 @@ dd_table_open_on_dd_obj(
 	bool				skip_mdl,
 	THD*				thd)
 {
+	ut_ad(dd_table.is_persistent());
 	ut_ad(dd_part == nullptr || &dd_part->table() == &dd_table);
 	ut_ad(dd_part == nullptr
 	      || dd_table.se_private_id() == dd::INVALID_OBJECT_ID);
@@ -195,11 +196,6 @@ dd_table_open_on_dd_obj(
 		? dd_table.se_private_id()
 		: dd_part->se_private_id();
 	const ulint		fold		= ut_fold_ull(table_id);
-#ifdef UNIV_DEBUG
-	const bool		is_temp
-		= (table_id > dict_sys_t::NUM_HARD_CODED_TABLES)
-		&& !dd_table.is_persistent();
-#endif
 
 	ut_ad(table_id != dd::INVALID_OBJECT_ID);
 
@@ -220,7 +216,6 @@ dd_table_open_on_dd_obj(
 	}
 
 	if (table == nullptr) {
-		ut_ad(!is_temp);
 	} else {
 		if (table != nullptr) {
 			table->acquire();

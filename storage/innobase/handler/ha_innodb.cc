@@ -15331,6 +15331,13 @@ create_table_info_t::create_table_update_global_dd(
 			       m_create_info->auto_increment_value);
         }
 
+	if (m_flags2 & DICT_TF2_TEMPORARY) {
+		/* No need to fill in metadata to dd::Table for temporary
+		tables, because the object is fake one which would not
+		be written back */
+		DBUG_RETURN(0);
+	}
+
 	/* InnoDB dict_table_t should already be created */
 	dict_table_t*	table = dd_table_open_on_name_in_mem(
 		m_table_name, false, DICT_ERR_IGNORE_NONE);
@@ -15363,7 +15370,7 @@ create_table_info_t::create_table_update_global_dd(
 		   && table->space != TRX_SYS_SPACE
 		   && table->space != srv_tmp_space.space_id()) {
 		/* This is a table in shared tablespace, which could be
-		innodb_sys, temporary tablespace or user created tablespace */
+		innodb_sys or user created tablespace */
 		ut_ad(!file_per_table);
 		ut_ad(DICT_TF_HAS_SHARED_SPACE(table->flags));
 
@@ -15392,17 +15399,13 @@ create_table_info_t::create_table_update_global_dd(
 	} else if (!is_dd_table) {
 		if (table->space == TRX_SYS_SPACE) {
 			dd_space_id = dict_sys_t::dd_sys_space_id;
-		} else if (table->space == dict_sys_t::temp_space_id) {
-			dd_space_id = dict_sys_t::dd_temp_space_id;
 		}
 	} else {
 		/* This is a data dictionary table, nothing to do */
 		ut_ad(is_dd_table);
 	}
 
-	if (!table->is_temporary()) {
-		set_table_options(dd_table->table(), table);
-	}
+	set_table_options(dd_table->table(), table);
 
 	innobase_write_dd_table(dd_space_id, dd_table, table);
 
@@ -16888,7 +16891,7 @@ ha_innobase::delete_table_impl(
 
 	bool	file_per_table = false;
 	bool	tmp_table = false;
-	if (dd_tab != NULL) {
+	if (dd_tab != NULL && dd_tab->is_persistent()) {
 		dict_table_t*	tab;
 
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
@@ -17526,7 +17529,8 @@ ha_innobase::rename_table_impl(
 
 	bool    rename_dd_filename = false;
         char*   new_path = NULL;
-        if (error == DB_SUCCESS && strcmp(norm_from, norm_to) != 0) {
+        if (error == DB_SUCCESS && to_table->is_persistent()
+	    && strcmp(norm_from, norm_to) != 0) {
 		dict_table_t*	table;
 		mutex_enter(&dict_sys->mutex);
 		table = dict_table_check_if_in_cache_low(norm_to);

@@ -4418,6 +4418,12 @@ prepare_inplace_alter_table_global_dd(
 	Table*			new_dd_tab,
 	bool			need_rebuild)
 {
+	if (new_table->is_temporary()) {
+		/* No need to fill in metadata for temporary tables,
+		which would not be stored in Global DD */
+		return(false);
+	}
+
 	ha_innobase_inplace_ctx*ctx = static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 	THD*			thd = ctx->prebuilt->trx->mysql_thd;
