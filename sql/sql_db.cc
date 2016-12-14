@@ -474,9 +474,7 @@ public:
       push_warning_printf(thd, Sql_condition::SL_WARNING,
 			  ER_DB_DROP_RMDIR2,
                           ER_THD(thd, ER_DB_DROP_RMDIR2), msg);
-      sql_print_warning("Problem while dropping database. Can't remove "
-                        "database directory (%s). Please remove it manually.",
-                        msg);
+      sql_print_warning(ER_DEFAULT(ER_DB_DROP_RMDIR2), msg);
       m_is_active= false;
       return true;
     }
