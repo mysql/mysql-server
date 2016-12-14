@@ -31,6 +31,7 @@
 #include "my_sys.h"
 #include "mysqld.h"           // lower_case_table_names
 #include "mysqld_error.h"
+#include "sp_cache.h"         // sp_cache_invalidate
 #include "sql_base.h"         // tdc_remove_table,
                               // lock_table_names,
 #include "sql_cache.h"        // query_cache
@@ -403,9 +404,16 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
         my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, new_db);
         DBUG_RETURN(!skip_error);
       }
-      else if (mysql_rename_view(thd, new_db, new_alias, ren_table,
-                                 *int_commit_done))
+
+      /* Rename view in the data-dictionary. */
+      if (dd::rename_table<dd::View>(thd,
+                                     ren_table->db, ren_table->table_name,
+                                     new_db, new_alias, false, *int_commit_done))
+      {
         DBUG_RETURN(!skip_error);
+      }
+
+      sp_cache_invalidate();
       break;
     }
   default:

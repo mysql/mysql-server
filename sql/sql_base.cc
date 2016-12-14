@@ -2310,51 +2310,7 @@ static TABLE *find_temporary_table(THD *thd,
 
 
 /**
-  Prepare for dropping temporary table.
-
-  This function assumes that table to be dropped was pre-opened
-  using table list provided.
-
-  - If there is no temporary table associated with table list
-    element, report that table is not found.
-  - If the table is being used by some outer statement, fail.
-
-  In is_trans out-parameter, we return the type of the table:
-  either transactional (e.g. innodb) as TRUE or non-transactional
-  (e.g. myisam) as FALSE.
-
-  @retval  0  the table was found and and can be dropped successfully.
-  @retval  1  the table was not found/properly pre-opened.
-  @retval -1  the table is in use by a outer query
-*/
-
-int prepare_drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans)
-{
-  DBUG_ENTER("prepare_drop_temporary_table");
-
-  if (!is_temporary_table(table_list))
-    DBUG_RETURN(1);
-
-  TABLE *table= table_list->table;
-
-  /* Table might be in use by some outer statement. */
-  if (table->query_id && table->query_id != thd->query_id)
-  {
-    my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
-    DBUG_RETURN(-1);
-  }
-
-  *is_trans= table->file->has_transactions();
-
-  DBUG_RETURN(0);
-}
-
-
-/**
   Drop a temporary table.
-
-  This function assumes that necessary checks were done by calling
-  prepare_drop_temporary_table().
 
   - If the table is locked with LOCK TABLES or by prelocking,
     unlock it and remove it from the list of locked tables

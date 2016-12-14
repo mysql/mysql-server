@@ -320,8 +320,6 @@ void close_thread_table(THD *thd, TABLE **table_ptr);
 bool close_temporary_tables(THD *thd);
 TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
                          TABLE_LIST *table_list, bool check_alias);
-int prepare_drop_temporary_table(THD *thd, TABLE_LIST *table_list,
-                                 bool *is_trans);
 void drop_temporary_table(THD *thd, TABLE_LIST *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);

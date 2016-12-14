@@ -2812,44 +2812,37 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
     if (table->open_type != OT_BASE_ONLY)
     {
-      bool is_trans;
-
       /* DROP DATABASE doesn't deal with temporary tables. */
       DBUG_ASSERT(!drop_database);
 
-      /*
-        prepare_drop_temporary_table may return one of the following error
-        codes:
-        .  0 - a temporary table was found and can be successfully dropped.
-        .  1 - a temporary table was not found.
-        . -1 - a temporary table is used by an outer statement.
-      */
-      int error= prepare_drop_temporary_table(thd, table, &is_trans);
-
-      if (error < 0)
+      if (!is_temporary_table(table))
       {
-        /* Error was reported already. */
-        DBUG_RETURN(1);
-      }
-      else if (!error)
-      {
-        if (is_trans)
-          tmp_trans_tables.push_back(table);
-        else
-          tmp_non_trans_tables.push_back(table);
-        continue;
-      }
-      else if (drop_temporary)
-      {
-        nonexistent_tables.push_back(table);
-        continue;
-      }
-      else
-      {
+        // A temporary table was not found.
+        if (drop_temporary)
+        {
+          nonexistent_tables.push_back(table);
+          continue;
+        }
         /*
           Not DROP TEMPORARY and no matching temporary table.
           Continue with base tables.
         */
+      }
+      else if (table->table->query_id &&
+               table->table->query_id != thd->query_id)
+      {
+        // A temporary table is used by an outer statement.
+        my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->table->alias);
+        DBUG_RETURN(1);
+      }
+      else
+      {
+        // A temporary table was found and can be successfully dropped.
+        if (table->table->file->has_transactions())
+          tmp_trans_tables.push_back(table);
+        else
+          tmp_non_trans_tables.push_back(table);
+        continue;
       }
     }
 

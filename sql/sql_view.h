@@ -47,9 +47,6 @@ typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 bool check_duplicate_names(const Create_col_name_list *column_names,
                            List<Item>& item_list, bool gen_unique_view_names);
 
-bool mysql_rename_view(THD *thd, const char *new_db, const char *new_name,
-                       TABLE_LIST *view, bool do_commit);
-
 bool open_and_read_view(THD *thd, TABLE_SHARE *share,
                         TABLE_LIST *view_ref);
 
