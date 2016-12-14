@@ -211,6 +211,8 @@ COMMIT;
 
 echo "---- Marker 5 ----";
 
+# sleep for waiting purge to release mdl locks on dict tables.
+--sleep 1
 --vertical_results
 execute dump_metadata_locks;
 execute dump_table_handles;
