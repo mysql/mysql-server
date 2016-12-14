@@ -2018,10 +2018,11 @@ void release_ddl_log()
 
 
 /**
-  For a regular table: create table definition in the Data Dictionary.
-  For a temporary table: create a dd::Table-object specifying the table
+  Create a dd::Table-object specifying the temporary table
   definition, but do not put it into the Data Dictionary. The created
   dd::Table-instance is returned via tmp_table_def out-parameter.
+  The temporary table is also created in the storage engine, depending
+  on the 'no_ha_table' argument.
 
   @param thd           Thread handler
   @param path          Name of file (including database)
@@ -2031,15 +2032,103 @@ void release_ddl_log()
   @param create_fields Fields to create
   @param keys          number of keys to create
   @param key_info      Keys to create
+  @param keys_onoff    Enable or disable keys.
+  @param file          Handler to use
+  @param no_ha_table   Indicates that only definitions needs to be created
+                       and not a table in the storage engine.
+  @param[out] binlog_to_trx_cache
+                       Which binlog cache should be used?
+                       If true => trx cache
+                       If false => stmt cache
+  @param[out] tmp_table_def  Placeholder for data-dictionary object for
+                             temporary table which was created. It will
+                             contain nullptr if no_ha_table was false.
+
+  @retval false  ok
+  @retval true   error
+*/
+
+static bool rea_create_tmp_table(THD *thd, const char *path,
+                                 const char *db, const char *table_name,
+                                 HA_CREATE_INFO *create_info,
+                                 List<Create_field> &create_fields,
+                                 uint keys, KEY *key_info,
+                                 Alter_info::enum_enable_or_disable keys_onoff,
+                                 handler *file, bool no_ha_table,
+                                 bool *binlog_to_trx_cache,
+                                 dd::Table **tmp_table_def)
+{
+  DBUG_ENTER("rea_create_tmp_table");
+
+  *tmp_table_def= NULL;
+
+  std::unique_ptr<dd::Table> tmp_table_ptr=
+    dd::create_tmp_table(thd, db, table_name, create_info, create_fields,
+                         key_info, keys, keys_onoff, file);
+  if (!tmp_table_ptr)
+    DBUG_RETURN(true);
+
+  if (no_ha_table)
+  {
+    *tmp_table_def= tmp_table_ptr.release();
+    DBUG_RETURN(false);
+  }
+
+  // Create the table in the storage engine.
+  if (ha_create_table(thd, path, db, table_name, create_info,
+                      false, false, tmp_table_ptr.get()))
+  {
+    DBUG_RETURN(true);
+  }
+
+  /*
+    Open a table (skipping table cache) and add it into
+    THD::temporary_tables list.
+  */
+  TABLE *table= open_table_uncached(thd, path, db, table_name, true, true,
+                                    tmp_table_ptr.get());
+
+  if (!table)
+  {
+    (void) rm_temporary_table(thd, create_info->db_type, path,
+                              tmp_table_ptr.get());
+    DBUG_RETURN(true);
+  }
+
+  // Transfer ownership of dd::Table object to TABLE_SHARE.
+  table->s->tmp_table_def= tmp_table_ptr.release();
+
+  thd->thread_specific_used= TRUE;
+
+  if (binlog_to_trx_cache != NULL)
+    *binlog_to_trx_cache= table->file->has_transactions();
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Create table definition in the Data Dictionary. The table is also
+  created in the storage engine, depending on the 'no_ha_table' argument.
+
+  @param thd           Thread handler
+  @param path          Name of file (including database)
+  @param db            Data base name
+  @param table_name    Table name
+  @param create_info   create info parameters
+  @param create_fields Fields to create
+  @param keys          number of keys to create
+  @param key_info      Keys to create
+  @param keys_onoff    Enable or disable keys.
   @param fk_keys       Number of foreign keys to create
   @param fk_key_info   Foreign keys to create
   @param file          Handler to use
   @param no_ha_table   Indicates that only definitions needs to be created
                        and not a table in the storage engine.
-  @param keys_onoff    Enable or disable keys.
-  @param[out] tmp_table_def  Placeholder for data-dictionary object for
-                             temporary table which was created. It will
-                             contain NULL for regular tables.
+  @param part_info     Reference to partitioning data structure.
+  @param[out] binlog_to_trx_cache
+                       Which binlog cache should be used?
+                       If true => trx cache
+                       If false => stmt cache
   @param[out] post_ddl_ht    Set to handlerton for table's SE, if this SE
                              supports atomic DDL, so caller can call SE
                              post DDL hook after committing transaction.
@@ -2052,79 +2141,112 @@ void release_ddl_log()
   @retval true   error
 */
 
-static bool rea_create_table(THD *thd, const char *path,
-                             const char *db, const char *table_name,
-                             HA_CREATE_INFO *create_info,
-                             List<Create_field> &create_fields,
-                             uint keys, KEY *key_info,
-                             Alter_info::enum_enable_or_disable keys_onoff,
-                             uint fk_keys, FOREIGN_KEY *fk_key_info,
-                             handler *file, bool no_ha_table,
-                             dd::Table **tmp_table_def,
-                             handlerton **post_ddl_ht)
+static bool rea_create_base_table(THD *thd, const char *path,
+                                  const char *db, const char *table_name,
+                                  HA_CREATE_INFO *create_info,
+                                  List<Create_field> &create_fields,
+                                  uint keys, KEY *key_info,
+                                  Alter_info::enum_enable_or_disable keys_onoff,
+                                  uint fk_keys, FOREIGN_KEY *fk_key_info,
+                                  handler *file, bool no_ha_table,
+                                  partition_info *part_info,
+                                  bool *binlog_to_trx_cache,
+                                  handlerton **post_ddl_ht)
 {
-  DBUG_ENTER("rea_create_table");
+  DBUG_ENTER("rea_create_base_table");
 
-  std::unique_ptr<dd::Table> tmp_table_ptr(nullptr);
+  if (dd::create_table(thd, db, table_name,
+                       create_info,
+                       create_fields,
+                       key_info,
+                       keys,
+                       keys_onoff,
+                       fk_key_info,
+                       fk_keys,
+                       file,
+                       !(create_info->db_type->flags &
+                         HTON_SUPPORTS_ATOMIC_DDL)))
+    DBUG_RETURN(true);
 
-  *tmp_table_def= NULL;
-
-  // Add table details into new DD, both for user tables and dd tables
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  if (no_ha_table)
   {
-    tmp_table_ptr= dd::create_tmp_table(thd, db, table_name,
-                                        create_info, create_fields,
-                                        key_info, keys, keys_onoff, file);
-    if (!tmp_table_ptr)
-      DBUG_RETURN(true);
-  }
-  else
-  {
-    if (dd::create_table(thd, db, table_name,
-                         create_info,
-                         create_fields,
-                         key_info,
-                         keys,
-                         keys_onoff,
-                         fk_key_info,
-                         fk_keys,
-                         file,
-                         !(create_info->db_type->flags &
-                           HTON_SUPPORTS_ATOMIC_DDL)))
-      DBUG_RETURN(true);
-  }
-
-  if (thd->variables.keep_files_on_create)
-    create_info->options|= HA_CREATE_KEEP_FILES;
-
-  if (!no_ha_table)
-  {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    dd::Table *table_def= tmp_table_ptr.get();
-
-    if (!table_def)
+    if (part_info)
     {
-      if (thd->dd_client()->acquire_for_modification(db, table_name,
-                                                     &table_def))
-        goto err;
+      /*
+        For partitioned tables we can't find some problems with table
+        until table is opened. Therefore in order to disallow creation
+        of corrupted tables we have to try to open table as the part
+        of its creation process.
+        In cases when both .FRM and SE part of table are created table
+        is implicitly open in ha_create_table() call.
+        In cases when we create .FRM without SE part we have to open
+        table explicitly.
+      */
+      TABLE table;
+      TABLE_SHARE share;
 
-      // Table just has been created in DD.
-      DBUG_ASSERT(table_def);
+      init_tmp_table_share(thd, &share, db, 0, table_name, path, nullptr);
+
+      bool result= open_table_def(thd, &share, false, nullptr) ||
+        open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
+                              0, &table, true, nullptr);
+
+      /*
+        Assert that the change list is empty as no partition function currently
+        needs to modify item tree. May need call THD::rollback_item_tree_changes
+        later before calling closefrm if the change list is not empty.
+      */
+      DBUG_ASSERT(thd->change_list.is_empty());
+      if (!result)
+        (void) closefrm(&table, 0);
+
+      free_table_share(&share);
+
+      if (result)
+      {
+        /*
+          If changes were committed remove table from DD.
+          We ignore the errors returned from there functions
+          as we anyway report error.
+        */
+        if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+          (void) dd::drop_table<dd::Table>(thd, db, table_name, true);
+
+        DBUG_RETURN(true);
+      }
     }
 
-    if ((create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
-        create_info->db_type->post_ddl)
-      *post_ddl_ht= create_info->db_type;
-
-    if(ha_create_table(thd, path, db, table_name, create_info,
-                       false, false, table_def))
-    {
-      goto err;
-    }
+    DBUG_RETURN(false);
   }
 
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-    *tmp_table_def= tmp_table_ptr.release();
+  // Create the table in the storage engine.
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *table_def= nullptr;
+
+  if (thd->dd_client()->acquire_for_modification(db, table_name,
+                                                 &table_def))
+    goto err;
+
+  // Table just has been created in DD.
+  DBUG_ASSERT(table_def);
+
+  if ((create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      create_info->db_type->post_ddl)
+    *post_ddl_ht= create_info->db_type;
+
+  if (ha_create_table(thd, path, db, table_name, create_info,
+                      false, false, table_def))
+  {
+    goto err;
+  }
+
+  /*
+    If the SE supports atomic DDL, we can use the trx binlog cache.
+    Otherwise we must use the statement cache.
+  */
+  if (binlog_to_trx_cache != NULL)
+    *binlog_to_trx_cache=
+      (create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
 
   DBUG_RETURN(false);
 
@@ -2133,8 +2255,7 @@ err:
     Remove table from data-dictionary if it was added and rollback
     won't do this automatically.
   */
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE ||
-        create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+  if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
   {
     /*
       Creation of Dictionary tables may fail inside SE if there is
@@ -2159,7 +2280,7 @@ err:
   }
 
   DBUG_RETURN(true);
-} /* rea_create_table */
+}
 
 
 /**
@@ -6889,109 +7010,31 @@ bool create_table_impl(THD *thd,
     create_info->data_file_name= create_info->index_file_name= 0;
   }
 
+  if (thd->variables.keep_files_on_create)
+    create_info->options|= HA_CREATE_KEEP_FILES;
+
   /*
     Create table definitions.
     If "no_ha_table" is false also create table in storage engine.
   */
-  if (rea_create_table(thd, path, db, table_name,
-                       create_info, alter_info->create_list,
-                       *key_count, *key_info, keys_onoff, *fk_key_count,
-                       *fk_key_info, file, no_ha_table,
-                       tmp_table_def, post_ddl_ht))
-    goto err;
-
-  if (!no_ha_table && create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    /*
-      Open a table (skipping table cache) and add it into
-      THD::temporary_tables list.
-    */
-
-    TABLE *table= open_table_uncached(thd, path, db, table_name, true, true,
-                                      *tmp_table_def);
-
-    if (!table)
-    {
-      (void) rm_temporary_table(thd, create_info->db_type, path,
-                                *tmp_table_def);
-      delete *tmp_table_def;
-      *tmp_table_def= NULL;
+    if (rea_create_tmp_table(thd, path, db, table_name,
+                             create_info, alter_info->create_list,
+                             *key_count, *key_info, keys_onoff,
+                             file, no_ha_table, is_trans,
+                             tmp_table_def))
       goto err;
-    }
-
-    /*
-      Transfer ownership of dd::Table object to TABLE_SHARE.
-      Reset own reference for extra safety.
-    */
-    table->s->tmp_table_def= *tmp_table_def;
-    *tmp_table_def= NULL;
-
-    if (is_trans != NULL)
-      *is_trans= table->file->has_transactions();
-
-    thd->thread_specific_used= TRUE;
   }
-  else if (part_info && no_ha_table)
+  else
   {
-    /*
-      For partitioned tables we can't find some problems with table
-      until table is opened. Therefore in order to disallow creation
-      of corrupted tables we have to try to open table as the part
-      of its creation process.
-      In cases when both .FRM and SE part of table are created table
-      is implicitly open in ha_create_table() call.
-      In cases when we create .FRM without SE part we have to open
-      table explicitly.
-    */
-    TABLE table;
-    TABLE_SHARE share;
-
-    /*
-      We don't support partitioned temporary tables at the moment.
-      Supporting them in the code below will require more careful
-      error handling.
-    */
-    DBUG_ASSERT(! (create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-                *tmp_table_def == NULL);
-
-    init_tmp_table_share(thd, &share, db, 0, table_name, path, nullptr);
-
-    bool result= open_table_def(thd, &share, false, nullptr) ||
-                 open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
-                                        0, &table, true, nullptr);
-
-    /*
-      Assert that the change list is empty as no partition function currently
-      needs to modify item tree. May need call THD::rollback_item_tree_changes
-      later before calling closefrm if the change list is not empty.
-    */
-    DBUG_ASSERT(thd->change_list.is_empty());
-    if (!result)
-      (void) closefrm(&table, 0);
-
-    free_table_share(&share);
-
-    if (result)
-    {
-      /*
-        If changes were committed remove table from DD.
-        We ignore the errors returned from there functions
-        as we anyway report error.
-      */
-      if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-        (void) dd::drop_table<dd::Table>(thd, db, table_name, true);
-
+    if (rea_create_base_table(thd, path, db, table_name,
+                              create_info, alter_info->create_list,
+                              *key_count, *key_info, keys_onoff, *fk_key_count,
+                              *fk_key_info, file, no_ha_table, part_info,
+                              is_trans, post_ddl_ht))
       goto err;
-    }
   }
-
-  /*
-    Mark statement as be able to rollback if we have not done
-    intermediate commits and are not creating temporary table.
-  */
-  if (!((create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
-        is_trans == NULL))
-    *is_trans= (create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
 
   error= FALSE;
 err:
