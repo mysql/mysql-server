@@ -707,15 +707,15 @@ Transaction_context_event(const char *buffer, unsigned int event_len,
   uint8_t server_uuid_len= (static_cast<unsigned int>
                            (data_head[ENCODED_SERVER_UUID_LEN_OFFSET]));
 
-  uint16_t write_set_len= 0;
+  uint32_t write_set_len= 0;
   memcpy(&write_set_len, data_head + ENCODED_WRITE_SET_ITEMS_OFFSET,
          sizeof(write_set_len));
-  write_set_len= le16toh(write_set_len);
+  write_set_len= le32toh(write_set_len);
 
-  uint16_t read_set_len= 0;
+  uint32_t read_set_len= 0;
   memcpy(&read_set_len, data_head + ENCODED_READ_SET_ITEMS_OFFSET,
          sizeof(read_set_len));
-  read_set_len= le16toh(read_set_len);
+  read_set_len= le32toh(read_set_len);
 
   encoded_snapshot_version_length= 0;
   memcpy(&encoded_snapshot_version_length,
@@ -724,7 +724,7 @@ Transaction_context_event(const char *buffer, unsigned int event_len,
   encoded_snapshot_version_length= le32toh(encoded_snapshot_version_length);
 
   memcpy(&thread_id, data_head + ENCODED_THREAD_ID_OFFSET, sizeof(thread_id));
-  thread_id= (uint64_t) le64toh(thread_id);
+  thread_id= (uint32_t) le32toh(thread_id);
   gtid_specified= (int8_t) data_head[ENCODED_GTID_SPECIFIED_OFFSET];
 
   const char *pos = data_head + TRANSACTION_CONTEXT_HEADER_LEN;
@@ -766,11 +766,11 @@ err:
             value.
 */
 const char* Transaction_context_event::read_data_set(const char *pos,
-                                                     uint16_t set_len,
+                                                     uint32_t set_len,
                                                      std::list<const char*> *set)
 {
   uint16_t len= 0;
-  for (int i= 0; i < set_len; i++)
+  for (uint32_t i= 0; i < set_len; i++)
   {
     memcpy(&len, pos, 2);
     len= le16toh(len);

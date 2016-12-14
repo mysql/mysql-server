@@ -1,0 +1,15 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET GLOBAL super_read_only= TRUE;
+include/assert.inc [Assert that server is running in super RO.]
+include/start_and_bootstrap_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+include/assert.inc [Assert that PRIMARY switches out of super RO.]
+include/stop_group_replication.inc
+SET GLOBAL super_read_only= SAVED_SUPER_READ_ONLY;
+SET GLOBAL read_only= SAVED_READ_ONLY;
+include/group_replication_end.inc

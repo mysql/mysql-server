@@ -13,7 +13,7 @@ LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
 101raker202raker-r-raker=raker=
 
 CREATE TABLE t2 SELECT * FROM t1;
-LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 FIELDS TERMINATED BY 'raker';
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' IGNORE INTO TABLE t2 FIELDS TERMINATED BY 'raker';
 Warnings:
 Warning	1262	Row 1 was truncated; it contained more data than there were input columns
 SELECT * FROM t2;
@@ -43,7 +43,7 @@ LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
 10102020-r-0=raker=
 
 CREATE TABLE t2 SELECT * FROM t1;
-LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 FIELDS TERMINATED BY '0';
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' IGNORE INTO TABLE t2 FIELDS TERMINATED BY '0';
 Warnings:
 Warning	1262	Row 1 was truncated; it contained more data than there were input columns
 SELECT * FROM t2;
@@ -60,7 +60,7 @@ LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
 10102020"-r-"0"=raker="
 
 CREATE TABLE t2 SELECT * FROM t1;
-LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0';
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' IGNORE INTO TABLE t2 FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0';
 Warnings:
 Warning	1262	Row 1 was truncated; it contained more data than there were input columns
 SELECT * FROM t2;
@@ -75,7 +75,7 @@ LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
 "-r-"0"=raker="
 
 CREATE TABLE t2 SELECT c1, c2 FROM t1;
-LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0';
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' IGNORE INTO TABLE t2 FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0';
 SELECT c1, c2 FROM t2;
 c1	c2
 -r-	=raker=
@@ -268,3 +268,19 @@ LENGTH(a)
 800
 DROP TABLE t1, t2;
 # End of 5.1 tests.
+#
+# Bug#24577194 - LOAD DATA ERROR 1262 BEHAVIOUR DIFFERENT
+#                 BETWEEN 5.6 AND 5.7 UNDER STRICT SQLMOD
+#
+CREATE TABLE t1(c1 VARCHAR(10), c2 VARCHAR(10));
+INSERT INTO t1 VALUES('aaaaa', 'bbbbb');
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug24577194.txt' FIELDS TERMINATED BY ',';
+CREATE TABLE t2(c1 VARCHAR(10));
+SET sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug24577194.txt' INTO TABLE t2 FIELDS TERMINATED BY ',';
+ERROR 01000: Row 1 was truncated; it contained more data than there were input columns
+DROP TABLE t1,t2;
+SET sql_mode=default;

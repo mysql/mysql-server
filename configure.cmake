@@ -345,10 +345,11 @@ IF(UNIX)
   ENDIF()
   MY_SEARCH_LIBS(timer_create rt LIBRT)
   MY_SEARCH_LIBS(atomic_thread_fence atomic LIBATOMIC)
+  MY_SEARCH_LIBS(backtrace execinfo LIBEXECINFO)
 
   SET(CMAKE_REQUIRED_LIBRARIES 
     ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL}
-    ${CMAKE_THREAD_LIBS_INIT} ${LIBRT} ${LIBATOMIC}
+    ${CMAKE_THREAD_LIBS_INIT} ${LIBRT} ${LIBATOMIC} ${LIBEXECINFO}
   )
   # Need explicit pthread for gcc -fsanitize=address
   IF(CMAKE_C_FLAGS MATCHES "-fsanitize=")
@@ -714,14 +715,6 @@ CHECK_CXX_SOURCE_COMPILES("
 ENDIF()
 
 CHECK_C_SOURCE_COMPILES("
-  int main(int argc, char **argv) 
-  {
-    extern char *__bss_start;
-    return __bss_start ? 1 : 0;
-  }"
-HAVE_BSS_START)
-
-CHECK_C_SOURCE_COMPILES("
 int main()
 {
   __builtin_unreachable();
@@ -887,9 +880,11 @@ CHECK_CXX_SOURCE_COMPILES(
 SET(CMAKE_EXTRA_INCLUDE_FILES)
 
 CHECK_FUNCTION_EXISTS(chown HAVE_CHOWN)
-CHECK_INCLUDE_FILES (numaif.h HAVE_NUMAIF_H)
-OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
-IF(HAVE_NUMAIF_H AND WITH_NUMA)
+
+CHECK_INCLUDE_FILES(numa.h HAVE_NUMA_H)
+CHECK_INCLUDE_FILES(numaif.h HAVE_NUMAIF_H)
+
+IF(HAVE_NUMA_H AND HAVE_NUMAIF_H)
     SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
     SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
     CHECK_C_SOURCE_COMPILES(
@@ -904,6 +899,29 @@ IF(HAVE_NUMAIF_H AND WITH_NUMA)
     }"
     HAVE_LIBNUMA)
     SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
+ELSE()
+    SET(HAVE_LIBNUMA 0)
+ENDIF()
+
+IF(NOT HAVE_LIBNUMA)
+   MESSAGE(STATUS "NUMA library missing or required version not available")
+ENDIF()
+
+IF(HAVE_LIBNUMA AND HAVE_NUMA_H AND HAVE_NUMAIF_H)
+  OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
+ELSE()
+  OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" OFF)
+ENDIF()
+
+IF(WITH_NUMA AND NOT HAVE_LIBNUMA)
+  # Forget it in cache, abort the build.
+  UNSET(WITH_NUMA CACHE)
+  MESSAGE(FATAL_ERROR "NUMA library missing or required version not available")
+ENDIF()
+
+IF(HAVE_LIBNUMA AND NOT WITH_NUMA)
+   SET(HAVE_LIBNUMA 0)
+   MESSAGE(STATUS "Disabling NUMA on user's request")
 ENDIF()
 
 # needed for libevent

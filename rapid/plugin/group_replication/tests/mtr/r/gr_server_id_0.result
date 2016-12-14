@@ -1,0 +1,52 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("For the creation of replication channels the server id must be different from 0");
+call mtr.add_suppression("Failure during Group Replication handler initialization");
+call mtr.add_suppression("Plugin 'group_replication' init function returned error.");
+call mtr.add_suppression("Couldn't load plugin named 'group_replication' with soname 'group_replication.*'");
+call mtr.add_suppression("Failure when cleaning Group Replication server state");
+call mtr.add_suppression("Failure when unregistering the server state observers");
+call mtr.add_suppression("Failure when unregistering the transactions state observers");
+call mtr.add_suppression("Failure when unregistering the binlog state observers");
+call mtr.add_suppression("Group Replication plugin is not installed");
+call mtr.add_suppression("For the creation of replication channels the server id must be different from 0");
+call mtr.add_suppression("Unable to start Group Replication. Replication applier infrastructure is not initialized since the server was started with server_id=0. Please, restart the server with server_id larger than 0.");
+call mtr.add_suppression("Function 'group_replication' already exists");
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 1. Restart server with server_id=0, slave infrastructure
+#    will not be initialized.
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --server_id=0
+include/rpl_reconnect.inc
+
+############################################################
+# 2. Both start and install plugin must fail.
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+ERROR HY000: Can't initialize function 'group_replication'; Plugin initialization function failed.
+
+############################################################
+# 3. Even after set server_id to different from 0, start
+#    must fail.
+#    Install plugin will succeed.
+SET GLOBAL server_id= 1;
+INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+############################################################
+# 4. Cleanup.
+#    Restart server with server_id different from 0, so that
+#    slave infrastructure will be initialized, and RESET
+#    SLAVE operations on group_replication_end.inc do work.
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --server_id=1
+include/rpl_reconnect.inc
+include/group_replication_end.inc

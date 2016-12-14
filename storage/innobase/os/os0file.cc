@@ -116,9 +116,6 @@ static const size_t	MAX_BLOCKS = 128;
 /** Block buffer size */
 #define BUFFER_BLOCK_SIZE ((ulint)(UNIV_PAGE_SIZE * 1.3))
 
-/** Max disk sector size */
-static const ulint	MAX_SECTOR_SIZE = 4096;
-
 /** Disk sector size of aligning write buffer for DIRECT_IO */
 static ulint	os_io_ptr_align = UNIV_SECTOR_SIZE;
 
@@ -4070,7 +4067,7 @@ SyncFileIO::execute(Slot* slot)
 
 	}
 
-	return(ret ? slot->n_bytes : -1);
+	return(ret ? static_cast<ssize_t>(slot->n_bytes) : -1);
 }
 
 /** Check if the file system supports sparse files.
@@ -6601,6 +6598,10 @@ AIO::shutdown()
 }
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+
+/** Max disk sector size */
+static const ulint	MAX_SECTOR_SIZE = 4096;
+
 /**
 Try and get the FusionIO sector size. */
 void
@@ -9287,14 +9288,16 @@ Encryption::decrypt(
 	}
 
 	default:
+		if (!type.is_dblwr_recover()) {
 #if !defined(UNIV_INNOCHECKSUM)
-		ib::error()
-			<< "Encryption algorithm support missing: "
-			<< Encryption::to_string(m_type);
+			ib::error()
+				<< "Encryption algorithm support missing: "
+				<< Encryption::to_string(m_type);
 #else
-		fprintf(stderr, "Encryption algorithm support missing: %s\n",
-			Encryption::to_string(m_type));
+			fprintf(stderr, "Encryption algorithm support missing: %s\n",
+				Encryption::to_string(m_type));
 #endif /* !UNIV_INNOCHECKSUM */
+		}
 
 		if (block != NULL) {
 			os_free_block(block);

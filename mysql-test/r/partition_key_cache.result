@@ -20,6 +20,8 @@ SUBPARTITION sp1),
 PARTITION p1 VALUES LESS THAN MAXVALUE
 (SUBPARTITION sp2,
 SUBPARTITION sp3));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE t2 (
 a INT,
 b INT,
@@ -33,6 +35,8 @@ CREATE VIEW v AS SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4;
 CREATE VIEW x AS SELECT 1 FROM v,v a,v b;
 FLUSH STATUS;
 INSERT t1 SELECT @a, @a * (1 - ((@a % 2) * 2)) , 1167612400 - (@a:=@a+1) FROM x, x y;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 reads vs requests
 reads == requests
 writes vs requests
@@ -51,6 +55,8 @@ FLUSH STATUS;
 SELECT COUNT(b) FROM t1 WHERE b >= 0;
 COUNT(b)
 2048
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Zero key reads?
 No!
 INSERT t2 SELECT a,b,c FROM t1;
@@ -72,6 +78,7 @@ FLUSH STATUS;
 LOAD INDEX INTO CACHE t1 PARTITION (p1);
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Zero key reads?
 No!
 SELECT COUNT(b) FROM t1 WHERE b >= 0;
@@ -99,6 +106,7 @@ FLUSH TABLES;
 LOAD INDEX INTO CACHE t1 PARTITION (p1,p0);
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Zero key reads?
 No!
 # should not be zero
@@ -122,6 +130,7 @@ FLUSH TABLES;
 LOAD INDEX INTO CACHE t1 PARTITION (p1,p0) IGNORE LEAVES;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Zero key reads?
 No!
 # should not be zero
@@ -178,6 +187,8 @@ SUBPARTITION sp1),
 PARTITION p1 VALUES LESS THAN MAXVALUE
 (SUBPARTITION sp2,
 SUBPARTITION sp3));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE t2 (
 a INT,
 b VARCHAR(257),
@@ -189,6 +200,8 @@ SET @a:=1167602400;
 CREATE VIEW v AS SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4;
 CREATE VIEW x AS SELECT 1 FROM v,v a,v b;
 INSERT t1 SELECT @a, CONCAT('X_', @a, ' MySQL'), 1167612400 - (@a:=@a+1) FROM x, x a;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP VIEW x;
 DROP VIEW v;
 INSERT t2 SELECT a, b, c FROM t1;
@@ -238,6 +251,7 @@ test.t2	assign_to_keycache	status	OK
 CACHE INDEX t1 PARTITION (p0) KEY (`inx_b`) IN cold_cache;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CACHE INDEX t1 PARTITIONS (p0) KEY (`inx_b`) IN cold_cache;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARTITIONS (p0) KEY (`inx_b`) IN cold_cache' at line 1
 # only one table at a time if specifying partitions
@@ -246,30 +260,39 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CACHE INDEX t1 PARTITION (`p0`,p1) INDEX (`PRIMARY`) IN warm_cache;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CACHE INDEX t1 PARTITION (`p1`) INDEX (`PRIMARY`,inx_b) IN hot_cache;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CACHE INDEX t1 PARTITION (ALL) KEY (`inx_b`,`PRIMARY`) IN default;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CACHE INDEX t1 PARTITION (ALL) IN hot_cache;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CACHE INDEX t1 INDEX (`inx_b`) IN default;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CACHE INDEX t1 KEY (`PRIMARY`) IN hot_cache;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CACHE INDEX t1 KEY (`PRIMARY`,`inx_b`) IN warm_cache;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CACHE INDEX t1 INDEX (`inx_b`,`PRIMARY`) IN cold_cache;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CACHE INDEX t1 IN hot_cache;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of non existent key cache:
 CACHE INDEX t1 IN non_existent_key_cache;
 ERROR HY000: Unknown key cache 'non_existent_key_cache'
@@ -299,6 +322,7 @@ test.t2	assign_to_keycache	status	OK
 CACHE INDEX t1 IN cold_cache;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOAD INDEX INTO CACHE t2 KEY (`PRIMARY`) IGNORE LEAVES;
 Table	Op	Msg_type	Msg_text
 test.t2	preload_keys	error	Indexes use different block sizes
@@ -340,6 +364,7 @@ test.t2	preload_keys	status	Operation failed
 LOAD INDEX INTO CACHE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 test.t2	preload_keys	status	OK
 # only one table at a time if specifying partitions
 LOAD INDEX INTO CACHE t1 PARTITION (p0), t2;
@@ -349,38 +374,47 @@ Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	error	Indexes use different block sizes
 test.t1	preload_keys	error	Subpartition sp2 returned error
 test.t1	preload_keys	status	Operation failed
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOAD INDEX INTO CACHE t1 INDEX (`PRIMARY`);
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOAD INDEX INTO CACHE t1 INDEX (`PRIMARY`,`inx_b`) IGNORE LEAVES;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	error	Indexes use different block sizes
 test.t1	preload_keys	error	Subpartition sp2 returned error
 test.t1	preload_keys	status	Operation failed
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOAD INDEX INTO CACHE t1 INDEX (`inx_b`) IGNORE LEAVES;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	error	Indexes use different block sizes
 test.t1	preload_keys	error	Subpartition sp2 returned error
 test.t1	preload_keys	status	Operation failed
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOAD INDEX INTO CACHE t1 INDEX (`PRIMARY`) IGNORE LEAVES;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	error	Indexes use different block sizes
 test.t1	preload_keys	error	Subpartition sp2 returned error
 test.t1	preload_keys	status	Operation failed
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOAD INDEX INTO CACHE t1 INDEX (`PRIMARY`,`inx_b`);
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOAD INDEX INTO CACHE t1 PARTITION (p1) INDEX (`PRIMARY`);
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOAD INDEX INTO CACHE t1 PARTITION (`p1`,p0) KEY (`PRIMARY`) IGNORE LEAVES;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	error	Indexes use different block sizes
 test.t1	preload_keys	error	Subpartition sp2 returned error
 test.t1	preload_keys	status	Operation failed
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOAD INDEX INTO CACHE t1 PARTITION (ALL);
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOAD INDEX INTO CACHE t1 PARTITIONS ALL;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARTITIONS ALL' at line 1
 LOAD INDEX INTO CACHE t1 PARTITION (p1,`p0`) IGNORE LEAVES;
@@ -388,7 +422,10 @@ Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	error	Indexes use different block sizes
 test.t1	preload_keys	error	Subpartition sp2 returned error
 test.t1	preload_keys	status	Operation failed
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP INDEX `inx_b` on t1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP INDEX `inx_b` on t2;
 CACHE INDEX t2 PARTITION (p0) KEY (`inx_b`) IN hot_cache;
 Table	Op	Msg_type	Msg_text
@@ -403,11 +440,13 @@ Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	error	Subpartition sp0 returned error
 test.t1	assign_to_keycache	Error	Key 'inx_b' doesn't exist in table 't1'
 test.t1	assign_to_keycache	status	Operation failed
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CACHE INDEX t1 INDEX (`inx_b`) IN hot_cache;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	error	Subpartition sp0 returned error
 test.t1	assign_to_keycache	Error	Key 'inx_b' doesn't exist in table 't1'
 test.t1	assign_to_keycache	status	Operation failed
+test.t1	assign_to_keycache	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1,t2;
 #
 # Bug#12361113: crash when load index into cache
@@ -417,7 +456,11 @@ SET GLOBAL key_cache_none.key_cache_block_size = 1024;
 CREATE TABLE t1 (a INT, b INTEGER NOT NULL, KEY (b) )
 ENGINE = MYISAM
 PARTITION BY HASH(a) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, 1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CACHE INDEX t1 IN key_cache_none;
 ERROR HY000: Unknown key cache 'key_cache_none'
 CACHE INDEX t1 PARTITION (p0) IN key_cache_none;
@@ -434,6 +477,7 @@ ERROR HY000: Unknown key cache 'key_cache_none'
 LOAD INDEX INTO CACHE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
+test.t1	preload_keys	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 # Clean up
 SET GLOBAL hot_cache.key_buffer_size = 0;

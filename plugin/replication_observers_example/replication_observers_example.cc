@@ -704,6 +704,11 @@ int test_channel_service_interface()
                         3,
                         10000);
     DBUG_ASSERT(!error);
+    //Repeat the stop to check it goes ok
+    error= channel_stop(interface_channel,
+                        3,
+                        10000);
+    DBUG_ASSERT(!error);
 
     DBUG_ASSERT(binlog_relay_applier_stop_call>0);
     DBUG_ASSERT(!thread_aborted);

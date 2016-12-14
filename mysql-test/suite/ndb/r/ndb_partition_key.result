@@ -108,6 +108,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = ndbcluster,
  PARTITION p1 ENGINE = ndbcluster) */
 alter table t1 engine=heap;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -117,6 +119,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = MEMORY,
  PARTITION p1 ENGINE = MEMORY) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 engine=ndb;
 show create table t1;
 Table	Create Table

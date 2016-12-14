@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -19,25 +19,16 @@
 
 #include "expr_generator.h"
 
+#include <algorithm>
 #include "json_utils.h"
-#include <boost/bind.hpp>
-#include <boost/function.hpp>
-
+#include "ngs_common/bind.h"
+#include "ngs_common/to_string.h"
 #include "xpl_error.h"
-#include "mysql/service_my_snprintf.h"
 #include "xpl_regex.h"
+#include "mysql_function_names.h"
 
 namespace xpl
 {
-
-
-static std::string to_string(int value)
-{
-  char buffer[32];
-  (void)my_snprintf(buffer, sizeof(buffer), "%d", value);
-  return buffer;
-}
-
 
 Expression_generator::Error::Error(int error_code, const std::string& message)
 : std::invalid_argument(message), m_error(error_code)
@@ -84,17 +75,9 @@ void Expression_generator::generate(const Mysqlx::Expr::Expr &arg) const
 
   default:
     throw Error(ER_X_EXPR_BAD_TYPE_VALUE,
-                "Invalid value for Mysqlx::Expr::Expr_Type "+to_string(arg.type()));
+                "Invalid value for Mysqlx::Expr::Expr_Type "+ngs::to_string(arg.type()));
   }
 }
-
-
-namespace mysqld
-{
-
-bool is_native_mysql_function(const std::string &name);
-
-}  // namespace mysqld
 
 
 void Expression_generator::generate(const Mysqlx::Expr::Identifier& arg, bool is_function) const
@@ -103,7 +86,7 @@ void Expression_generator::generate(const Mysqlx::Expr::Identifier& arg, bool is
       (!arg.has_schema_name() || arg.schema_name().empty()))
   {
     // automatically prefix with the schema name
-    if (!is_function || !mysqld::is_native_mysql_function(arg.name()))
+    if (!is_function || !is_native_mysql_function(arg.name()))
       m_qb.quote_identifier_if_needed(m_default_schema).dot();
   }
 
@@ -114,60 +97,34 @@ void Expression_generator::generate(const Mysqlx::Expr::Identifier& arg, bool is
 }
 
 
-namespace
-{
-typedef ::google::protobuf::RepeatedPtrField< ::Mysqlx::Expr::DocumentPathItem > Document_path;
-
-const char* const DOC_ID = "_id";
-
-inline bool is_doc_id(const Document_path &arg)
-{
-  return arg.size() == 1 &&
-      arg.Get(0).type() == Document_path::value_type::MEMBER &&
-      arg.Get(0).value() == DOC_ID;
-}
-
-} // namespace
-
-
 void Expression_generator::generate(const Mysqlx::Expr::ColumnIdentifier &arg) const
 {
   bool has_schema_name = arg.has_schema_name() && !arg.schema_name().empty();
 
-  if (has_schema_name &&
-      arg.has_table_name() == false)
-  {
+  if (has_schema_name && arg.has_table_name() == false)
     throw Error(ER_X_EXPR_MISSING_ARG,
                 "Table name is required if schema name is specified in ColumnIdentifier.");
-  }
 
-  if (arg.has_table_name() &&
-      arg.has_name() == false)
-  {
+  const bool has_docpath = arg.document_path_size() > 0;
+
+  if (arg.has_table_name() && arg.has_name() == false &&
+      (m_is_relational || !has_docpath))
     throw Error(ER_X_EXPR_MISSING_ARG,
                 "Column name is required if table name is specified in ColumnIdentifier.");
-  }
 
-  if (!m_is_relational && is_doc_id(arg.document_path()))
-  {
-    m_qb.quote_identifier_if_needed(DOC_ID);
-    return;
-  }
-
-  bool has_docpath = arg.document_path_size() > 0;
   if (has_docpath)
     m_qb.put("JSON_EXTRACT(");
 
   if (has_schema_name)
     m_qb.quote_identifier(arg.schema_name()).dot();
 
-  if(arg.has_table_name())
+  if (arg.has_table_name())
     m_qb.quote_identifier(arg.table_name()).dot();
 
-  if(arg.has_name())
+  if (arg.has_name())
     m_qb.quote_identifier(arg.name());
 
-  if(has_docpath)
+  if (has_docpath)
   {
     if(arg.has_name() == false)
       m_qb.put("doc");
@@ -183,9 +140,11 @@ void Expression_generator::generate(const Document_path &arg) const
 {
   using ::Mysqlx::Expr::DocumentPathItem;
 
-  if (arg.size() == 1 && arg.Get(0).type() == DocumentPathItem::MEMBER && arg.Get(0).value().empty())
+  if (arg.size() == 1 &&
+      arg.Get(0).type() == DocumentPathItem::MEMBER &&
+      arg.Get(0).value().empty())
   {
-    m_qb.bquote().put("$.").equote();
+    m_qb.quote_string("$");
     return;
   }
 
@@ -214,14 +173,15 @@ void Expression_generator::generate(const Document_path &arg) const
       break;
     default:
       throw Error(ER_X_EXPR_BAD_TYPE_VALUE,
-                  "Invalid value for Mysqlx::Expr::DocumentPathItem::Type "+to_string(item->type()));
+                  "Invalid value for Mysqlx::Expr::DocumentPathItem::Type " +
+                  ngs::to_string(item->type()));
     }
   }
   m_qb.equote();
 }
 
 
-void Expression_generator::generate(const Mysqlx::Expr::FunctionCall& arg) const
+void Expression_generator::generate(const Mysqlx::Expr::FunctionCall &arg) const
 {
   generate(arg.name(), true);
   m_qb.put("(");
@@ -230,7 +190,7 @@ void Expression_generator::generate(const Mysqlx::Expr::FunctionCall& arg) const
 }
 
 
-void Expression_generator::generate(const Mysqlx::Datatypes::Any& arg) const
+void Expression_generator::generate(const Mysqlx::Datatypes::Any &arg) const
 {
   switch(arg.type())
   {
@@ -239,12 +199,13 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Any& arg) const
     break;
   default:
     throw Error(ER_X_EXPR_BAD_TYPE_VALUE,
-                "Invalid value for Mysqlx::Datatypes::Any::Type " + to_string(arg.type()));
+                "Invalid value for Mysqlx::Datatypes::Any::Type " +
+                ngs::to_string(arg.type()));
   }
 }
 
 
-void Expression_generator::generate(const Mysqlx::Datatypes::Scalar& arg) const
+void Expression_generator::generate(const Mysqlx::Datatypes::Scalar &arg) const
 {
   switch(arg.type())
   {
@@ -286,12 +247,14 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Scalar& arg) const
     break;
 
   default:
-    throw Error(ER_X_EXPR_BAD_TYPE_VALUE, "Invalid value for Mysqlx::Datatypes::Scalar::Type " + to_string(arg.type()));
+    throw Error(ER_X_EXPR_BAD_TYPE_VALUE,
+                "Invalid value for Mysqlx::Datatypes::Scalar::Type " +
+                ngs::to_string(arg.type()));
   }
 }
 
 
-void Expression_generator::generate(const Mysqlx::Datatypes::Scalar::Octets& arg) const
+void Expression_generator::generate(const Mysqlx::Datatypes::Scalar::Octets &arg) const
 {
   switch (arg.content_type())
   {
@@ -313,7 +276,8 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Scalar::Octets& arg
 
   default:
     throw Error(ER_X_EXPR_BAD_TYPE_VALUE,
-                "Invalid content type for Mysqlx::Datatypes::Scalar::Octets " + to_string(arg.content_type()));
+                "Invalid content type for Mysqlx::Datatypes::Scalar::Octets " +
+                ngs::to_string(arg.content_type()));
   }
 }
 
@@ -441,7 +405,7 @@ inline bool is_plain_octets(const Mysqlx::Expr::Expr &arg)
 }  // namespace
 
 
-void Expression_generator::in_expression(const Mysqlx::Expr::Operator &arg, const char* str) const
+void Expression_generator::in_expression(const Mysqlx::Expr::Operator &arg, const char *str) const
 {
   switch (arg.param_size())
   {
@@ -482,7 +446,7 @@ void Expression_generator::in_expression(const Mysqlx::Expr::Operator &arg, cons
 }
 
 
-void Expression_generator::like_expression(const Mysqlx::Expr::Operator &arg, const char* str) const
+void Expression_generator::like_expression(const Mysqlx::Expr::Operator &arg, const char *str) const
 {
   int paramSize = arg.param_size();
 
@@ -505,7 +469,7 @@ void Expression_generator::like_expression(const Mysqlx::Expr::Operator &arg, co
 }
 
 
-void Expression_generator::between_expression(const Mysqlx::Expr::Operator &arg, const char* str) const
+void Expression_generator::between_expression(const Mysqlx::Expr::Operator &arg, const char *str) const
 {
   if(arg.param_size() != 3)
   {
@@ -525,15 +489,6 @@ void Expression_generator::between_expression(const Mysqlx::Expr::Operator &arg,
 
 namespace
 {
-
-struct Is_less
-{
-  bool operator() (const char* const pattern, const char* const source) const
-  {
-    return std::strcmp(pattern, source) < 0;
-  }
-};
-
 
 struct Interval_unit_validator
 {
@@ -564,9 +519,9 @@ struct Interval_unit_validator
         "SECOND_MICROSECOND",
         "WEEK",
         "YEAR",
-        "YEAR_MONTH",
+        "YEAR_MONTH"
     };
-    static const char* const *patterns_end = patterns + sizeof(patterns)/sizeof(*patterns);
+    static const char* const *patterns_end = get_array_end(patterns);
 
     return std::binary_search(patterns, patterns_end, source, Is_less());
   }
@@ -661,8 +616,8 @@ void Expression_generator::binary_expression(const Mysqlx::Expr::Operator &arg, 
 
 namespace
 {
-typedef boost::function<void (const Expression_generator*,
-                              const Mysqlx::Expr::Operator&)> Operator_ptr;
+typedef ngs::function<void (const Expression_generator*,
+                            const Mysqlx::Expr::Operator&)> Operator_ptr;
 
 typedef std::pair<const char* const, Operator_ptr> Operator_bind;
 
@@ -681,49 +636,50 @@ void Expression_generator::generate(const Mysqlx::Expr::Operator &arg) const
 {
   // keep binding in asc order
   static const Operator_bind operators[] = {
-      std::make_pair("!", boost::bind(&Expression_generator::unary_operator, _1, _2,  "!")),
-      std::make_pair("!=", boost::bind(&Expression_generator::binary_operator, _1, _2, " != ")),
-      std::make_pair("%", boost::bind(&Expression_generator::binary_operator, _1, _2, " % ")),
-      std::make_pair("&", boost::bind(&Expression_generator::binary_operator, _1, _2, " & ")),
-      std::make_pair("&&", boost::bind(&Expression_generator::binary_operator, _1, _2, " AND ")),
-      std::make_pair("*", boost::bind(&Expression_generator::asterisk_operator, _1, _2)),
-      std::make_pair("+", boost::bind(&Expression_generator::binary_operator, _1, _2, " + ")),
-      std::make_pair("-", boost::bind(&Expression_generator::binary_operator, _1, _2, " - ")),
-      std::make_pair("/", boost::bind(&Expression_generator::binary_operator, _1, _2, " / ")),
-      std::make_pair("<", boost::bind(&Expression_generator::binary_operator, _1, _2, " < ")),
-      std::make_pair("<<", boost::bind(&Expression_generator::binary_operator, _1, _2, " << ")),
-      std::make_pair("<=", boost::bind(&Expression_generator::binary_operator, _1, _2, " <= ")),
-      std::make_pair("==", boost::bind(&Expression_generator::binary_operator, _1, _2, " = ")),
-      std::make_pair(">", boost::bind(&Expression_generator::binary_operator, _1, _2, " > ")),
-      std::make_pair(">=", boost::bind(&Expression_generator::binary_operator, _1, _2, " >= ")),
-      std::make_pair(">>", boost::bind(&Expression_generator::binary_operator, _1, _2, " >> ")),
-      std::make_pair("^", boost::bind(&Expression_generator::binary_operator, _1, _2, " ^ ")),
-      std::make_pair("between", boost::bind(&Expression_generator::between_expression, _1, _2, " BETWEEN ")),
-      std::make_pair("cast", boost::bind(&Expression_generator::cast_expression, _1, _2)),
-      std::make_pair("date_add", boost::bind(&Expression_generator::date_expression, _1, _2, "DATE_ADD")),
-      std::make_pair("date_sub", boost::bind(&Expression_generator::date_expression, _1, _2, "DATE_SUB")),
-      std::make_pair("default", boost::bind(&Expression_generator::nullary_operator, _1, _2, "DEFAULT")),
-      std::make_pair("div", boost::bind(&Expression_generator::binary_operator, _1, _2, " DIV ")),
-      std::make_pair("in", boost::bind(&Expression_generator::in_expression, _1, _2, "")),
-      std::make_pair("is", boost::bind(&Expression_generator::binary_operator, _1, _2, " IS ")),
-      std::make_pair("is_not", boost::bind(&Expression_generator::binary_operator, _1, _2, " IS NOT ")),
-      std::make_pair("like", boost::bind(&Expression_generator::like_expression, _1, _2, " LIKE ")),
-      std::make_pair("not", boost::bind(&Expression_generator::unary_operator, _1, _2, "NOT ")),
-      std::make_pair("not_between", boost::bind(&Expression_generator::between_expression, _1, _2, " NOT BETWEEN ")),
-      std::make_pair("not_in", boost::bind(&Expression_generator::in_expression, _1, _2, "NOT ")),
-      std::make_pair("not_like", boost::bind(&Expression_generator::like_expression, _1, _2, " NOT LIKE ")),
-      std::make_pair("not_regexp", boost::bind(&Expression_generator::binary_expression, _1, _2, " NOT REGEXP ")),
-      std::make_pair("regexp", boost::bind(&Expression_generator::binary_expression, _1, _2, " REGEXP ")),
-      std::make_pair("sign_minus", boost::bind(&Expression_generator::unary_operator, _1, _2, "-")),
-      std::make_pair("sign_plus", boost::bind(&Expression_generator::unary_operator, _1, _2, "+")),
-      std::make_pair("xor",boost::bind(&Expression_generator::binary_operator, _1, _2, " XOR ")),
-      std::make_pair("|", boost::bind(&Expression_generator::binary_operator, _1, _2, " | ")),
-      std::make_pair("||", boost::bind(&Expression_generator::binary_operator, _1, _2, " OR ")),
-      std::make_pair("~", boost::bind(&Expression_generator::unary_operator, _1, _2, "~"))
+      std::make_pair("!", ngs::bind(&Expression_generator::unary_operator, ngs::placeholders::_1, ngs::placeholders::_2,  "!")),
+      std::make_pair("!=", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " != ")),
+      std::make_pair("%", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " % ")),
+      std::make_pair("&", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " & ")),
+      std::make_pair("&&", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " AND ")),
+      std::make_pair("*", ngs::bind(&Expression_generator::asterisk_operator, ngs::placeholders::_1, ngs::placeholders::_2)),
+      std::make_pair("+", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " + ")),
+      std::make_pair("-", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " - ")),
+      std::make_pair("/", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " / ")),
+      std::make_pair("<", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " < ")),
+      std::make_pair("<<", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " << ")),
+      std::make_pair("<=", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " <= ")),
+      std::make_pair("==", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " = ")),
+      std::make_pair(">", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " > ")),
+      std::make_pair(">=", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " >= ")),
+      std::make_pair(">>", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " >> ")),
+      std::make_pair("^", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " ^ ")),
+      std::make_pair("between", ngs::bind(&Expression_generator::between_expression, ngs::placeholders::_1, ngs::placeholders::_2, " BETWEEN ")),
+      std::make_pair("cast", ngs::bind(&Expression_generator::cast_expression, ngs::placeholders::_1, ngs::placeholders::_2)),
+      std::make_pair("date_add", ngs::bind(&Expression_generator::date_expression, ngs::placeholders::_1, ngs::placeholders::_2, "DATE_ADD")),
+      std::make_pair("date_sub", ngs::bind(&Expression_generator::date_expression, ngs::placeholders::_1, ngs::placeholders::_2, "DATE_SUB")),
+      std::make_pair("default", ngs::bind(&Expression_generator::nullary_operator, ngs::placeholders::_1, ngs::placeholders::_2, "DEFAULT")),
+      std::make_pair("div", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " DIV ")),
+      std::make_pair("in", ngs::bind(&Expression_generator::in_expression, ngs::placeholders::_1, ngs::placeholders::_2, "")),
+      std::make_pair("is", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " IS ")),
+      std::make_pair("is_not", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " IS NOT ")),
+      std::make_pair("like", ngs::bind(&Expression_generator::like_expression, ngs::placeholders::_1, ngs::placeholders::_2, " LIKE ")),
+      std::make_pair("not", ngs::bind(&Expression_generator::unary_operator, ngs::placeholders::_1, ngs::placeholders::_2, "NOT ")),
+      std::make_pair("not_between", ngs::bind(&Expression_generator::between_expression, ngs::placeholders::_1, ngs::placeholders::_2, " NOT BETWEEN ")),
+      std::make_pair("not_in", ngs::bind(&Expression_generator::in_expression, ngs::placeholders::_1, ngs::placeholders::_2, "NOT ")),
+      std::make_pair("not_like", ngs::bind(&Expression_generator::like_expression, ngs::placeholders::_1, ngs::placeholders::_2, " NOT LIKE ")),
+      std::make_pair("not_regexp", ngs::bind(&Expression_generator::binary_expression, ngs::placeholders::_1, ngs::placeholders::_2, " NOT REGEXP ")),
+      std::make_pair("regexp", ngs::bind(&Expression_generator::binary_expression, ngs::placeholders::_1, ngs::placeholders::_2, " REGEXP ")),
+      std::make_pair("sign_minus", ngs::bind(&Expression_generator::unary_operator, ngs::placeholders::_1, ngs::placeholders::_2, "-")),
+      std::make_pair("sign_plus", ngs::bind(&Expression_generator::unary_operator, ngs::placeholders::_1, ngs::placeholders::_2, "+")),
+      std::make_pair("xor",ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " XOR ")),
+      std::make_pair("|", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " | ")),
+      std::make_pair("||", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " OR ")),
+      std::make_pair("~", ngs::bind(&Expression_generator::unary_operator, ngs::placeholders::_1, ngs::placeholders::_2, "~"))
   };
-  static const Operator_bind *operators_end = operators + sizeof(operators)/sizeof(*operators);
+  static const Operator_bind *operators_end = get_array_end(operators);
 
-  const Operator_bind *op = std::lower_bound(operators, operators_end, arg.name(), Is_operator_less());
+  const Operator_bind *op = std::lower_bound(operators, operators_end,
+                                             arg.name(), Is_operator_less());
 
   if (op == operators_end || std::strcmp(arg.name().c_str(), op->first) != 0)
     throw Error(ER_X_EXPR_BAD_OPERATOR, "Invalid operator " + arg.name());
@@ -761,6 +717,11 @@ void Expression_generator::nullary_operator(const Mysqlx::Expr::Operator &arg, c
                 "Nullary operator require no operands in expression");
 
   m_qb.put(str);
+}
+
+Expression_generator Expression_generator::clone(Query_string_builder &qb) const
+{
+  return Expression_generator(qb, m_args, m_default_schema, m_is_relational);
 }
 
 } // namespace xpl

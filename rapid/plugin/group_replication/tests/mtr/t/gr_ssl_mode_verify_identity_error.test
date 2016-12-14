@@ -1,0 +1,82 @@
+#
+# Validate that Group Replication ssl mode works properly.
+#
+# Steps:
+#   1. Start one member with GCS SSL enabled with ssl mode
+#      VERIFY_IDENTITY.
+#   2. Start the second member with GCS SSL enabled and
+#      validating server certificate against the CA plus
+#      validating that server hostname matches server
+#      certificate hostname, the member will not be able to
+#      join the group, since the certificate does contain the
+#      hostname 'localhost' and the hostname is '127.0.0.1'.
+#   3. Clean up.
+#
+--source include/big_test.inc
+--source include/have_ssl.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Start one member with GCS SSL enabled.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode_verify_identity_error.1.err
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_IDENTITY"
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Start the second member with GCS SSL enabled and
+--echo #    validating server certificate against the CA plus
+--echo #    validating that server hostname matches server
+--echo #    certificate hostname, the member will not be able to
+--echo #    join the group, since the certificate does contain the
+--echo #    hostname 'localhost' and the hostname is '127.0.0.1'.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+
+--let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_replication_local_address= `SELECT REPLACE('$group_replication_local_address', 'localhost', '127.0.0.1')`
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name= '$group_replication_group_name'
+--eval SET GLOBAL group_replication_local_address= '$group_replication_local_address'
+--enable_query_log
+SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode_verify_identity_error.2.err
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_IDENTITY"
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode_verify_identity_error.2.err
+--let $grep_pattern= Expected hostname is 'localhost' but found the name '127.0.0.1' in the server certificate
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+
+--source ../inc/group_replication_end.inc

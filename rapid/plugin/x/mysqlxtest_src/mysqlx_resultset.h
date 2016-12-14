@@ -109,27 +109,27 @@ namespace mysqlx
 
   private:
     friend class Result;
-    Row(boost::shared_ptr<std::vector<ColumnMetadata> > columns, Mysqlx::Resultset::Row *data);
+    Row(ngs::shared_ptr<std::vector<ColumnMetadata> > columns, Mysqlx::Resultset::Row *data);
 
     void check_field(int field, FieldType type) const;
 
-    boost::shared_ptr<std::vector<ColumnMetadata> > m_columns;
+    ngs::shared_ptr<std::vector<ColumnMetadata> > m_columns;
     Mysqlx::Resultset::Row *m_data;
   };
 
   class MYSQLXTEST_PUBLIC ResultData
   {
   public:
-    ResultData(boost::shared_ptr<std::vector<ColumnMetadata> > columns);
-    boost::shared_ptr<std::vector<ColumnMetadata> > columnMetadata(){ return m_columns; }
-    void add_row(boost::shared_ptr<Row> row);
+    ResultData(ngs::shared_ptr<std::vector<ColumnMetadata> > columns);
+    ngs::shared_ptr<std::vector<ColumnMetadata> > columnMetadata(){ return m_columns; }
+    void add_row(ngs::shared_ptr<Row> row);
     void rewind();
     void tell(size_t &record);
     void seek(size_t record);
-    boost::shared_ptr<Row> next();
+    ngs::shared_ptr<Row> next();
   private:
-    boost::shared_ptr<std::vector<ColumnMetadata> > m_columns;
-    std::vector<boost::shared_ptr<Row> > m_rows;
+    ngs::shared_ptr<std::vector<ColumnMetadata> > m_columns;
+    std::vector<ngs::shared_ptr<Row> > m_rows;
     size_t m_row_index;
   };
 
@@ -138,7 +138,7 @@ namespace mysqlx
   public:
     ~Result();
 
-    boost::shared_ptr<std::vector<ColumnMetadata> > columnMetadata();
+    ngs::shared_ptr<std::vector<ColumnMetadata> > columnMetadata();
     int64_t lastInsertId() const { return m_last_insert_id; }
     std::string lastDocumentId();
     const std::vector<std::string>& lastDocumentIds();
@@ -148,7 +148,7 @@ namespace mysqlx
     bool ready();
     void wait();
 
-    boost::shared_ptr<Row> next();
+    ngs::shared_ptr<Row> next();
     bool nextDataSet();
     void flush();
 
@@ -174,10 +174,10 @@ namespace mysqlx
   private:
     Result();
     Result(const Result &o);
-    Result(boost::shared_ptr<XProtocol>owner, bool expect_data, bool expect_ok = true);
+    Result(ngs::shared_ptr<XProtocol>owner, bool expect_data, bool expect_ok = true);
 
     void read_metadata();
-    boost::shared_ptr<Row> read_row();
+    ngs::shared_ptr<Row> read_row();
     void read_stmt_ok();
 
     bool handle_notice(int32_t type, const std::string &data);
@@ -189,8 +189,8 @@ namespace mysqlx
     int              current_message_id;
 
     friend class XProtocol;
-    boost::weak_ptr<XProtocol>m_owner;
-    boost::shared_ptr<std::vector<ColumnMetadata> > m_columns;
+    ngs::weak_ptr<XProtocol>m_owner;
+    ngs::shared_ptr<std::vector<ColumnMetadata> > m_columns;
     int64_t m_last_insert_id;
     std::vector<std::string> m_last_document_ids;
     int64_t m_affected_rows;
@@ -198,8 +198,8 @@ namespace mysqlx
 
     std::vector<Warning> m_warnings;
 
-    std::vector<boost::shared_ptr<ResultData> > m_result_cache;
-    boost::shared_ptr<ResultData> m_current_result;
+    std::vector<ngs::shared_ptr<ResultData> > m_result_cache;
+    ngs::shared_ptr<ResultData> m_current_result;
     size_t m_result_index;
 
     enum {

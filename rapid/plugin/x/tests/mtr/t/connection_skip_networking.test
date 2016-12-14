@@ -26,7 +26,8 @@ if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Wind
 }
 
 --replace_regex /restart: .+$XPLUGIN_SOCKE/restart: --skip-networking/
---source ../include/restart_mysqld_pipe.inc
+--let $wait_for_tcpsocket_status = no_wait
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --enable_query_log
 --enable_result_log
@@ -51,7 +52,9 @@ if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Wind
  call mtr.add_suppression("Plugin mysqlx reported: .+ is set to empty text");
  let $restart_parameters = $restart_parameters --loose-mysqlx-socket=;
 --replace_regex /restart: .+--loose-mysqlx-socket=/restart: --skip-networking --loose-mysqlx-socket=/
---source ../include/restart_mysqld_pipe.inc
+--let $wait_for_tcpsocket_status = no_wait
+--let $wait_for_unixsocket_status = no_wait
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --disable_result_log
 --echo Following commands should fail
@@ -64,7 +67,7 @@ if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Wind
 
 --disable_query_log
 let $restart_parameters = restart: $restart_parameters_restore;
---source ../include/restart_mysqld_pipe.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --enable_query_log
 --enable_result_log
 

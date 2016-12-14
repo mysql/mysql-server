@@ -164,7 +164,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -266,6 +266,10 @@ my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
 my $build_thread= 0;
 
+my $ports_per_thread= 10;
+our $group_replication= 0;
+our $xplugin= 0;
+
 my $opt_record;
 my $opt_report_features;
 
@@ -306,7 +310,6 @@ our $opt_valgrind= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_clients= 0;
 my $opt_valgrind_mysqltest= 0;
-my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
 my $opt_valgrind_path;
 my $valgrind_reports= 0;
@@ -483,6 +486,16 @@ sub main {
   }
   else {
     $ENV{'PLUGIN_SUFFIX'}= "so";
+  }
+
+  if ($group_replication)
+  {
+    $ports_per_thread= $ports_per_thread + 10;
+  }
+
+  if ($xplugin)
+  {
+    $ports_per_thread= $ports_per_thread + 10;
   }
 
   # Create child processes
@@ -1744,6 +1757,16 @@ sub command_line_setup {
     if ($opt_suite_timeout <= 0);
 
   # --------------------------------------------------------------------------
+  # Check trace protocol option
+  # --------------------------------------------------------------------------
+  if ( $opt_trace_protocol )
+  {
+    push(@opt_extra_mysqld_opt, "--optimizer_trace=enabled=on,one_line=off");
+    # Some queries yield big traces:
+    push(@opt_extra_mysqld_opt, "--optimizer-trace-max-mem-size=1000000");
+  }
+
+  # --------------------------------------------------------------------------
   # Check valgrind arguments
   # --------------------------------------------------------------------------
   if ( $opt_valgrind or $opt_valgrind_path or @valgrind_args)
@@ -1783,32 +1806,40 @@ sub command_line_setup {
     $opt_valgrind= 1;
     $opt_valgrind_mysqld= 1;
 
-    # Set special valgrind options unless options passed on command line
-    push(@valgrind_args, "--trace-children=yes")
-      unless @valgrind_args;
+    push(@valgrind_args, "--tool=callgrind", "--trace-children=yes");
+
+    # Increase the timeouts when running with callgrind
+    $opt_testcase_timeout*= 10;
+    $opt_suite_timeout*= 6;
+    $opt_start_timeout*= 10;
+    $opt_debug_sync_timeout*= 10;
   }
 
-  if ( $opt_trace_protocol )
+  if ($opt_valgrind)
   {
-    push(@opt_extra_mysqld_opt, "--optimizer_trace=enabled=on,one_line=off");
-    # some queries yield big traces:
-    push(@opt_extra_mysqld_opt, "--optimizer-trace-max-mem-size=1000000");
-  }
+    # Default to --tool=memcheck if no other tool has been explicitly
+    # specified. From >= 2.1.2, this option is needed
+    if (!@valgrind_args or !grep(/^--tool=/, @valgrind_args))
+    {
+      # Set default valgrind options for memcheck, can be overriden by user
+      unshift(@valgrind_args, ("--tool=memcheck", "--num-callers=16",
+                               "--show-reachable=yes"));
+    }
 
-  if ( $opt_valgrind )
-  {
-    # Set valgrind_options to default unless already defined
-    push(@valgrind_args, @default_valgrind_args)
-      unless @valgrind_args;
+    # Add suppression file if not specified
+    if (!grep(/^--suppressions=/, @valgrind_args))
+    {
+      push(@valgrind_args,"--suppressions=${glob_mysql_test_dir}/valgrind.supp")
+           if -f "$glob_mysql_test_dir/valgrind.supp";
+    }
 
     # Don't add --quiet; you will loose the summary reports.
-
     mtr_report("Running valgrind with options \"",
-	       join(" ", @valgrind_args), "\"");
-    
+               join(" ", @valgrind_args), "\"");
+
     # Turn off check testcases to save time
     mtr_report("Turning off --check-testcases to save time when valgrinding");
-    $opt_check_testcases = 0; 
+    $opt_check_testcases = 0;
   }
 
   if ($opt_debug_common)
@@ -1858,22 +1889,39 @@ sub command_line_setup {
 sub set_build_thread_ports($) {
   my $thread= shift || 0;
 
-  if ( lc($opt_build_thread) eq 'auto' ) {
-    my $found_free = 0;
-    $build_thread = 300;	# Start attempts from here
+  # Number of unique build threads needed per MTR thread.
+  my $build_threads_per_thread= int($ports_per_thread / 10);
 
-    my $build_thread_upper = $build_thread + ($opt_parallel > 39
-                             ? $opt_parallel + int($opt_parallel / 4)
+  if ( lc($opt_build_thread) eq 'auto' )
+  {
+    my $found_free = 0;
+    # Start attempts from here
+    $build_thread = 300;
+
+    my $max_parallel= $opt_parallel * $build_threads_per_thread;
+    my $build_thread_upper = $build_thread + ($max_parallel > 39
+                             ? $max_parallel + int($max_parallel / 4)
                              : 49);
-    while (! $found_free)
+
+    while (!$found_free)
     {
-      $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper);
-      if ( !defined $build_thread ) {
+      $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper,
+                                       $build_threads_per_thread);
+
+      if (!defined $build_thread)
+      {
         mtr_error("Could not get a unique build thread id");
       }
-      $found_free= check_ports_free($build_thread);
+
+      for(my $i= 0; $i < $build_threads_per_thread; $i++)
+      {
+        $found_free= check_ports_free($build_thread + $i);
+        last if !$found_free;
+      }
+
       # If not free, release and try from next number
-      if (! $found_free) {
+      if (!$found_free)
+      {
         mtr_release_unique_id();
         $build_thread++;
       }
@@ -1881,30 +1929,49 @@ sub set_build_thread_ports($) {
   }
   else
   {
-    $build_thread = $opt_build_thread + $thread - 1;
-    if (! check_ports_free($build_thread)) {
-      # Some port was not free(which one has already been printed)
-      mtr_error("Some port(s) was not free")
+    $build_thread = $opt_build_thread + ($thread - 1) * $build_threads_per_thread;
+    for (my $i= 0; $i < $build_threads_per_thread; $i++)
+    {
+      if (!check_ports_free($build_thread + $i))
+      {
+        # Some port was not free(which one has already been printed)
+        mtr_error("Some port(s) was not free")
+      }
     }
   }
+
   $ENV{MTR_BUILD_THREAD}= $build_thread;
 
   # Calculate baseport
   $baseport= $build_thread * 10 + 10000;
 
-  my $should_generate_value= $opt_mysqlx_baseport eq "auto";
+  if (lc($opt_mysqlx_baseport) eq "auto")
+  {
+    if ($ports_per_thread > 10)
+    {
+      # Reserving last 10 ports in the current port range for X plugin.
+      $mysqlx_baseport= $baseport + $ports_per_thread - 10;
+    }
+    else
+    {
+      # Reserving the last port in the range for X plugin
+      $mysqlx_baseport= $baseport + 9;
+    }
+  }
+  else
+  {
+    $mysqlx_baseport= $opt_mysqlx_baseport;
+  }
 
-  $mysqlx_baseport= $should_generate_value ? $baseport + 9 : $opt_mysqlx_baseport;
-  
-  if ( $baseport < 5001 or $baseport + 9 >= 32767)
+  if ($baseport < 5001 or $baseport + $ports_per_thread - 1 >= 32767)
   {
     mtr_error("MTR_BUILD_THREAD number results in a port",
               "outside 5001 - 32767",
-              "($baseport - $baseport + 9)");
+              "($baseport - $baseport + $ports_per_thread - 1)");
   }
 
   mtr_report("Using MTR_BUILD_THREAD $build_thread,",
-	     "with reserved ports $baseport..".($baseport+9));
+	     "with reserved ports $baseport..".($baseport + $ports_per_thread - 1));
 }
 
 
@@ -3637,14 +3704,19 @@ sub check_ports_free ($)
 {
   my $bthread= shift;
   my $portbase = $bthread * 10 + 10000;
-  for ($portbase..$portbase+9){
-    if (mtr_ping_port($_)){
+
+  for ($portbase..$portbase + 9)
+  {
+    if (mtr_ping_port($_))
+    {
       mtr_report(" - 'localhost:$_' was not free");
-      return 0; # One port was not free
+      # One port was not free
+      return 0;
     }
   }
 
-  return 1; # All ports free
+  # All ports free
+  return 1;
 }
 
 
@@ -4445,6 +4517,7 @@ sub run_testcase ($) {
 	   vardir          => $opt_vardir,
 	   tmpdir          => $opt_tmpdir,
 	   baseport        => $baseport,
+           mysqlxbaseport  => $mysqlx_baseport,
 	   #hosts          => [ 'host1', 'host2' ],
 	   user            => $opt_user,
 	   password        => '',
@@ -5699,17 +5772,18 @@ sub mysqld_arguments ($$$) {
       mtr_add_arg($args, "%s", $arg);
     }
   }
+
   $opt_skip_core = $found_skip_core;
   if (IS_WINDOWS && !$found_no_console && !$found_log_error)
   {
     # Trick the server to send output to stderr, with --console
     mtr_add_arg($args, "--console");
   }
+
   if ( !$found_skip_core && !$opt_user_args )
   {
     mtr_add_arg($args, "%s", "--core-file");
   }
-  mtr_add_arg($args, "--loose-mysqlx-port=%d",$mysqlx_baseport);
 
   return $args;
 }
@@ -5746,7 +5820,7 @@ sub mysqld_start ($$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    valgrind_arguments($args, \$exe);
+    valgrind_arguments($args, \$exe, $mysqld->name());
   }
 
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
@@ -6182,9 +6256,31 @@ sub start_servers($) {
     ndbcluster_start($cluster);
   }
 
+  my $server_id= 0;
+
   # Start mysqlds
   foreach my $mysqld ( mysqlds() )
   {
+    # Group Replication requires a local port to be open on
+    # each server in order to receive messages from the group,
+    # Store the reserved port in an environment variable
+    # SERVER_GR_PORT_X(where X is the server number).
+    $server_id++;
+    my $xcom_server= "SERVER_GR_PORT_".$server_id;
+
+    if (!$group_replication)
+    {
+      # Assigning error value '-1' to SERVER_GR_PORT_X environment variable,
+      # since the number of ports reserved per thread is not enough for
+      # allocating extra Group replication ports.
+      $ENV{$xcom_server}= -1;
+    }
+    else
+    {
+      my $xcom_port= $baseport + 9 + $server_id;
+      $ENV{$xcom_server}= $xcom_port;
+    }
+
     if ( $mysqld->{proc} )
     {
       # Already started
@@ -6864,26 +6960,24 @@ sub valgrind_client_arguments {
 sub valgrind_arguments {
   my $args= shift;
   my $exe=  shift;
+  my $report_prefix= shift;
 
-  if ( $opt_callgrind)
+  if (my @tool_list= grep(/^--tool=(memcheck|callgrind|massif)/, @valgrind_args))
   {
-    mtr_add_arg($args, "--tool=callgrind");
-    mtr_add_arg($args, "--base=$opt_vardir/log");
-  }
-  else
-  {
-    mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    if($daemonize_mysqld)
+    # Get the value of the last specified --tool=<> argument to valgrind
+    my ($tool_name)= $tool_list[-1] =~ /(memcheck|callgrind|massif)$/;
+    if ($tool_name=~ /memcheck/)
     {
-      mtr_add_arg($args, "--leak-check=no");
+      $daemonize_mysqld ? mtr_add_arg($args, "--leak-check=no") :
+                          mtr_add_arg($args, "--leak-check=yes") ;
     }
     else
     {
-      mtr_add_arg($args, "--leak-check=yes");
+      $$exe=~ /.*[\/](.*)$/;
+      my $report_prefix= defined $report_prefix ? $report_prefix : $1;
+      mtr_add_arg($args, "--$tool_name-out-file=$opt_vardir/log/".
+                         "$report_prefix"."_$tool_name.out.%%p");
     }
-    mtr_add_arg($args, "--num-callers=16");
-    mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
-      if -f "$glob_mysql_test_dir/valgrind.supp";
   }
 
   # Add valgrind options, can be overriden by user

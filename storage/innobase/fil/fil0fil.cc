@@ -3715,6 +3715,8 @@ fil_ibd_create(
 	space = fil_space_create(name, space_id, flags, is_temp
 				 ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 
+	DEBUG_SYNC_C("fil_ibd_created_space");
+
 	if (!fil_node_create_low(
 			path, size, space, false, punch_hole, atomic_write)) {
 
@@ -6728,9 +6730,12 @@ fil_node_next(
 			space->n_pending_ops--;
 			space = UT_LIST_GET_NEXT(space_list, space);
 
-			/* Skip spaces that are being dropped or truncated. */
+			/* Skip spaces that are being
+			created by fil_ibd_create(),
+			or dropped or truncated. */
 			while (space != NULL
-			       && (space->stop_new_ops
+			       && (UT_LIST_GET_LEN(space->chain) == 0
+				   || space->stop_new_ops
 				   || space->is_being_truncated)) {
 				space = UT_LIST_GET_NEXT(space_list, space);
 			}

@@ -1,0 +1,45 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#########################################################################
+# 1. Disable foreign key checks
+SET foreign_key_checks=0;
+#########################################################################
+# 2.1. Should be able to create a table with a foreign key
+#      which refers a table which does not exist.
+CREATE TABLE child_table (c1 INT PRIMARY KEY,
+FOREIGN KEY (c1) REFERENCES parent_table(c1));
+#########################################################################
+# 2.2. Should be able to insert a value in child table even
+#      when the parent table does not exists because foreign
+#      key checks are disabled.
+INSERT INTO child_table VALUES(1);
+#########################################################################
+# 3. Create parent table.
+CREATE TABLE parent_table (c1 INT PRIMARY KEY);
+#########################################################################
+# 4. Should be able to insert a value into child table even
+#    when that value is not there in the parent table
+#    because foreign key checks are disabled.
+INSERT INTO child_table VALUES(2);
+#########################################################################
+# 5. Enable foreign_key_checks
+SET foreign_key_checks=1;
+#########################################################################
+# 6.1. Foreign key checks are enabled. Now inserting a value into
+# child table that does not exists in parent table should
+# throw error.
+INSERT INTO child_table VALUES(3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child_table`, CONSTRAINT `child_table_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `parent_table` (`c1`))
+#########################################################################
+# 6.2. Insert a tuple into parent_table. Inserting that value
+# into child table should be allowed now.
+INSERT INTO parent_table VALUES(3);
+INSERT INTO child_table VALUES(3);
+#########################################################################
+# 7. Clean up.
+DROP TABLE child_table;
+DROP TABLE parent_table;
+include/group_replication_end.inc

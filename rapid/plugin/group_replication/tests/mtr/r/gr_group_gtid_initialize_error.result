@@ -1,0 +1,24 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup a new group
+#
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET GLOBAL group_replication_group_name= "32e181b1-01d2-11e6-a992-02420ef39c5b";
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,gr_server_gtid_executed_extraction_error';
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as the applier module failed to start.
+# Asserting that the warning was indeed thrown.
+Occurrences of 'Error when extracting this member GTID executed set. Certification module can't be properly initialized' in the input file: 1
+# Asserting that the warning was indeed thrown.
+Occurrences of 'Error during Certification module initialization.' in the input file: 1
+SET @@GLOBAL.DEBUG= @debug_save;
+[connection server1]
+STOP GROUP_REPLICATION;
+include/group_replication_end.inc

@@ -182,6 +182,7 @@ bool Session::handle_auth_message(ngs::Request &command)
   }
   else
   {
+    m_encoder->get_protocol_monitor().on_error_unknown_msg_type();
     log_info("%s: Unexpected message of type %i received during authentication", m_client.client_id(), type);
     m_encoder->send_init_error(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
     stop_auth();

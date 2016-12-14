@@ -29,7 +29,6 @@
 
 #include "mysqlx_session.h"
 #include "mysqlx_protocol.h"
-#include "mysqlx_crud.h"
 #include "mysqlx_error.h"
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
@@ -64,23 +63,23 @@ Session::~Session()
   m_connection.reset();
 }
 
-boost::shared_ptr<Session> mysqlx::openSession(const std::string &uri, const std::string &pass, const mysqlx::Ssl_config &ssl_config,
+ngs::shared_ptr<Session> mysqlx::openSession(const std::string &uri, const std::string &pass, const mysqlx::Ssl_config &ssl_config,
                                                const bool cap_expired_password, const std::size_t timeout, const bool get_caps)
 {
-  boost::shared_ptr<Session> session(new Session(ssl_config, timeout));
+  ngs::shared_ptr<Session> session(new Session(ssl_config, timeout));
   session->protocol()->connect(uri, pass, cap_expired_password);
   if (get_caps)
     session->protocol()->fetch_capabilities();
   return session;
 }
 
-boost::shared_ptr<Session> mysqlx::openSession(const std::string &host, int port, const std::string &schema,
+ngs::shared_ptr<Session> mysqlx::openSession(const std::string &host, int port, const std::string &schema,
                                                const std::string &user, const std::string &pass,
                                                const mysqlx::Ssl_config &ssl_config, const std::size_t timeout,
                                                const std::string &auth_method,
                                                const bool get_caps)
 {
-  boost::shared_ptr<Session> session(new Session(ssl_config, timeout));
+  ngs::shared_ptr<Session> session(new Session(ssl_config, timeout));
   session->protocol()->connect(host, port);
   if (get_caps)
     session->protocol()->fetch_capabilities();
@@ -98,21 +97,12 @@ boost::shared_ptr<Session> mysqlx::openSession(const std::string &host, int port
   return session;
 }
 
-boost::shared_ptr<Schema> Session::getSchema(const std::string &name)
-{
-  std::map<std::string, boost::shared_ptr<Schema> >::const_iterator iter = m_schemas.find(name);
-  if (iter != m_schemas.end())
-    return iter->second;
-
-  return m_schemas[name] = boost::shared_ptr<Schema>(new Schema(shared_from_this(), name));
-}
-
-boost::shared_ptr<Result> Session::executeSql(const std::string &sql)
+ngs::shared_ptr<Result> Session::executeSql(const std::string &sql)
 {
   return m_connection->execute_sql(sql);
 }
 
-boost::shared_ptr<Result> Session::executeStmt(const std::string &ns, const std::string &stmt,
+ngs::shared_ptr<Result> Session::executeStmt(const std::string &ns, const std::string &stmt,
                              const std::vector<ArgumentValue> &args)
 {
   return m_connection->execute_stmt(ns, stmt, args);

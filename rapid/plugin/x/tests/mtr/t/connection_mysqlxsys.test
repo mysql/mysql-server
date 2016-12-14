@@ -10,7 +10,7 @@ call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations
 
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysqlxsys'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch security context to root'");
-call mtr.add_suppression("Plugin mysqlx reported: 'DROP USER mysqlxsys@localhost: Operation DROP USER failed for 'mysqlxsys'@'localhost''");
+call mtr.add_suppression("Plugin mysqlx reported: 'Operation DROP USER failed for 'mysqlxsys'@'localhost''");
 call mtr.add_suppression("Plugin mysqlx reported: 'mysqlxsys@localhost account already exists but does not have the expected grants'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Authentication account could not be created, mysqlx plugin will be inaccessible.'");
 call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt");
@@ -25,19 +25,12 @@ call mtr.add_suppression("Can't setup mysqlxsys@localhost account - root passwor
 select current_user();
 EOF
 
---write_file $MYSQL_TMP_DIR/connection_sync.tmp
-EOF
-
 --echo ============================================
 --echo check that the mysqlxsys@localhost account does not exist initially
 select if(count(*)=0, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and host='localhost';
 
 --echo Install plugin, ensure that account got created
---replace_regex /\.dll/.so/
---eval install plugin mysqlx soname "$MYSQLXPLUGIN"
-
-# wait a little for the account to get created
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_sync.tmp 2>&1
+--source ../include/xplugin_install_and_wait.inc
 
 select if(count(*)=1, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and host='localhost';
 show grants for mysqlxsys@localhost;
@@ -47,10 +40,7 @@ uninstall plugin mysqlx;
 select if(count(*)=0, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and host='localhost';
 
 --echo Delete our account by hand and try to login (should fail but not crash)
---replace_regex /\.dll/.so/
---eval install plugin mysqlx soname "$MYSQLXPLUGIN"
-# wait a little for the account to get created
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_sync.tmp 2>&1
+--source ../include/xplugin_install_and_wait.inc
 
 drop user mysqlxsys@localhost;
 --error 1
@@ -62,8 +52,9 @@ uninstall plugin mysqlx;
 --echo With plugin uninstalled, create a bogus account with same name and see what happens after reinstall (plugin should error out)
 create user mysqlxsys@localhost;
 grant insert on mysql.user to mysqlxsys@localhost;
---replace_regex /\.dll/.so/
---eval install plugin mysqlx soname "$MYSQLXPLUGIN"
+--let $wait_for_tcpsocket_status = no_wait
+--let $wait_for_unixsocket_status = no_wait
+--source ../include/xplugin_install_and_wait.inc
 # wait a little for the account to get created
 select sleep(1);
 
@@ -84,8 +75,9 @@ drop user mysqlxsys@localhost;
 create user mysqlxsys@localhost;
 grant ALL on *.* to mysqlxsys@localhost;
 grant SUPER on *.* to mysqlxsys@localhost;
---replace_regex /\.dll/.so/
---eval install plugin mysqlx soname "$MYSQLXPLUGIN"
+--let $wait_for_tcpsocket_status = no_wait
+--let $wait_for_unixsocket_status = no_wait
+--source ../include/xplugin_install_and_wait.inc
 # wait a little for the account to get created
 select sleep(1);
 
@@ -98,10 +90,7 @@ select if(count(*)=1, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and h
 
 
 --echo Expire our account and see what happens (login should fail)
---replace_regex /\.dll/.so/
---eval install plugin mysqlx soname "$MYSQLXPLUGIN"
-# wait a little for the account to get created
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_sync.tmp 2>&1
+--source ../include/xplugin_install_and_wait.inc
 
 alter user mysqlxsys@localhost password expire;
 
@@ -115,8 +104,7 @@ CREATE USER mysqlxsys@localhost;
 GRANT SELECT ON mysql.user TO mysqlxsys@localhost;
 GRANT SUPER ON *.* TO mysqlxsys@localhost;
 ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
---replace_regex /\.dll/.so/
---eval install plugin mysqlx soname "$MYSQLXPLUGIN"
+--source ../include/xplugin_install_and_wait.inc
 --error 1
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
 UNINSTALL PLUGIN mysqlx;
@@ -124,8 +112,7 @@ UNINSTALL PLUGIN mysqlx;
 --echo Start mysqlxplugin with existing mysqlxsys account with expired password and no priv
 CREATE USER mysqlxsys@localhost;
 ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
---replace_regex /\.dll/.so/
---eval install plugin mysqlx soname "$MYSQLXPLUGIN"
+--source ../include/xplugin_install_and_wait.inc
 --error 1
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
 UNINSTALL PLUGIN mysqlx;
@@ -135,8 +122,8 @@ UNINSTALL PLUGIN mysqlx;
 --echo it is required because in prevous ran the creation of mysqlxsys could be stopped
 --echo in middle leaving the account without permissions
 CREATE USER mysqlxsys@localhost;
---replace_regex /\.dll/.so/
---eval install plugin mysqlx soname "$MYSQLXPLUGIN"
+--source ../include/xplugin_install_and_wait.inc
+
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
 UNINSTALL PLUGIN mysqlx;
 
@@ -150,9 +137,9 @@ GRANT SUPER ON *.* TO mysqlxsys@localhost;
 --connect (con1, localhost, super_user)
 ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
 ALTER USER root@localhost PASSWORD EXPIRE;
---replace_regex /\.dll/.so/
---eval INSTALL PLUGIN mysqlx SONAME "$MYSQLXPLUGIN"
---sleep 2
+--let $wait_for_tcpsocket_status = undefined_value
+--let $wait_for_unixsocket_status = undefined_value
+--source ../include/xplugin_install_and_wait.inc
 --replace_regex /ERROR.*(No connection could be made because the target machine actively refused it connecting to*| *Connection refused connecting to*) .*:[0-9]*/ERROR: Connection refused connecting to HOST:PORT/
 --error 1
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
@@ -161,7 +148,6 @@ UNINSTALL PLUGIN mysqlx;
 --connection default
 SET PASSWORD FOR root@localhost = '';
 --remove_file $MYSQL_TMP_DIR/connection_mysqlxsys.tmp
---remove_file $MYSQL_TMP_DIR/connection_sync.tmp
 
 UPDATE mysql.user SET password_last_changed = @passwordchanged where host='localhost' and user='root';
 FLUSH PRIVILEGES;

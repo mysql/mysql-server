@@ -259,7 +259,9 @@ void Sql_formatter::format_dump_end(Dump_end_dump_task* dump_start_dump_task)
     "SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS;\n"
     "SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION;\n";
   out << "SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;\n"
-    "SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;\n";
+    "SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;\n"
+    "SET SQL_MODE=@OLD_SQL_MODE;\n";
+
   out << "-- Dump end time: " << time_string << "\n";
 
   this->append_output(out.str());
@@ -283,7 +285,9 @@ void Sql_formatter::format_dump_start(
     << "-- Server version: " << this->get_server_version_string() << "\n\n"
     << "SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;\n"
     "SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, "
-    "FOREIGN_KEY_CHECKS=0;\n";
+    "FOREIGN_KEY_CHECKS=0;\n" << "SET @OLD_SQL_MODE=@@SQL_MODE;\n"
+    "SET SQL_MODE=\"NO_AUTO_VALUE_ON_ZERO\";\n";
+
 
   if (m_options->m_timezone_consistent)
     out << "SET @OLD_TIME_ZONE=@@TIME_ZONE;\n"

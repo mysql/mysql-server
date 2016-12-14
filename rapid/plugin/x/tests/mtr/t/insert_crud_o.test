@@ -32,10 +32,10 @@ grant all on *.* to insertcruduser@localhost;
 
 --write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD.tmp
 -->sql
- DROP SCHEMA if EXISTS MySQLXplugin;
- CREATE SCHEMA MySQLXplugin DEFAULT CHARSET='utf8';
- USE MySQLXplugin;
- CREATE TABLE Categories (
+ DROP SCHEMA if EXISTS mysqlxplugin;
+ CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8';
+ USE mysqlxplugin;
+ CREATE TABLE categories (
    CategoryID int NOT NULL AUTO_INCREMENT,
    CategoryName varchar(100),
 	CategoryDescription varchar(200),
@@ -51,8 +51,8 @@ grant all on *.* to insertcruduser@localhost;
 -->echo Insert multiple rows
 Mysqlx.Crud.Insert {
   collection {
-		name: "Categories"
-    		schema: "MySQLXplugin"
+		name: "categories"
+    		schema: "mysqlxplugin"
   	     }
   data_model: TABLE
   	projection {
@@ -230,8 +230,8 @@ SHOW STATUS like 'Mysqlx_crud_insert';
 -->echo Insert Quotes with scape character
 Mysqlx.Crud.Insert {
   collection {
-		name: "Categories"
-    		schema: "MySQLXplugin"
+		name: "categories"
+    		schema: "mysqlxplugin"
   	     }
   data_model: TABLE
   	projection {
@@ -312,8 +312,8 @@ SHOW STATUS like 'Mysqlx_crud_insert';
 -->echo Insert NULL values
 Mysqlx.Crud.Insert {
   collection {
-		name: "Categories"
-    		schema: "MySQLXplugin"
+		name: "categories"
+    		schema: "mysqlxplugin"
   	     }
   data_model: TABLE
   	projection {
@@ -384,8 +384,8 @@ SHOW STATUS like 'Mysqlx_crud_insert';
 -->echo Insert Corner decimal value
 Mysqlx.Crud.Insert {
   collection {
-		name: "Categories"
-    		schema: "MySQLXplugin"
+		name: "categories"
+    		schema: "mysqlxplugin"
   	     }
   data_model: TABLE
   	projection {
@@ -514,8 +514,8 @@ SHOW STATUS like 'Mysqlx_crud_insert';
 -->echo Insert Corner tiny int value
 Mysqlx.Crud.Insert {
   collection {
-		name: "Categories"
-    		schema: "MySQLXplugin"
+		name: "categories"
+    		schema: "mysqlxplugin"
   	     }
   data_model: TABLE
   	projection {
@@ -651,7 +651,7 @@ EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-insert_Negative_CRUD.tmp
 -->sql
- USE MySQLXplugin;
+ USE mysqlxplugin;
 -->endsql
 
 ## ******************************************
@@ -663,8 +663,8 @@ EOF
 ##Error Code: 1062
 Mysqlx.Crud.Insert {
   collection {
-		name: "Categories"
-        schema: "MySQLXplugin"
+		name: "categories"
+        schema: "mysqlxplugin"
   }
   data_model: TABLE
   	projection {
@@ -741,8 +741,8 @@ Mysqlx.Crud.Insert {
 ## Error Code: 1264
 Mysqlx.Crud.Insert {
   collection {
-		name: "Categories"
-    		schema: "MySQLXplugin"
+		name: "categories"
+    		schema: "mysqlxplugin"
   	     }
   data_model: TABLE
   	projection {
@@ -868,8 +868,8 @@ Mysqlx.Crud.Insert {
 ## Error Code: 1366
 Mysqlx.Crud.Insert {
   collection {
-		name: "Categories"
-    		schema: "MySQLXplugin"
+		name: "categories"
+    		schema: "mysqlxplugin"
   	     }
   data_model: TABLE
   	projection {
@@ -947,8 +947,8 @@ Mysqlx.Crud.Insert {
 -->echo String value in decimal data type column
 Mysqlx.Crud.Insert {
   collection {
-		name: "Categories"
-    		schema: "MySQLXplugin"
+		name: "categories"
+    		schema: "mysqlxplugin"
   	     }
   data_model: TABLE
   	projection {
@@ -1026,28 +1026,28 @@ Mysqlx.Crud.Insert {
 -->echo Invalid Schema name
 Mysqlx.Crud.Insert {
   collection {
-		name: "Categories"
-        schema: "SchemaNoExist"
+        name: "categories"
+        schema: "schema_no_exist"
   }
   data_model: TABLE
-  	projection {
-    	name: "CategoryID"
-	}
-	projection {
-	    name: "CategoryName"
-	}
-	projection {
-	    name: "CategoryDescription"
-	}
-	projection {
-	    name: "CategoryIMEI"
-	}
-	projection {
-	    name: "CategoryDecimal"
-	}
-	projection {
-	    name: "CategoryBool"
-	}
+    projection {
+        name: "CategoryID"
+    }
+    projection {
+        name: "CategoryName"
+    }
+    projection {
+        name: "CategoryDescription"
+    }
+    projection {
+        name: "CategoryIMEI"
+    }
+    projection {
+        name: "CategoryDecimal"
+    }
+    projection {
+        name: "CategoryBool"
+    }
   row {
     field {
       type: LITERAL
@@ -1103,8 +1103,8 @@ Mysqlx.Crud.Insert {
 -->echo Invalid Table name
 Mysqlx.Crud.Insert {
   collection {
-		name: "TableNoExist"
-    		schema: "MySQLXplugin"
+		name: "table_no_exist"
+    		schema: "mysqlxplugin"
   	     }
   data_model: TABLE
   	projection {
@@ -1182,8 +1182,8 @@ Mysqlx.Crud.Insert {
 -->echo Invalid Column name
 Mysqlx.Crud.Insert {
   collection {
-		name: "CategoriesNoExist"
-    		schema: "MySQLXplugin"
+		name: "categories_no_exist"
+    		schema: "mysqlxplugin"
   	     }
   data_model: TABLE
   	projection {
@@ -1261,8 +1261,8 @@ Mysqlx.Crud.Insert {
 ## string value different from true or false in V_BOOL data type
 Mysqlx.Crud.Insert {
   collection {
-		name: "Categories"
-    		schema: "MySQLXplugin"
+		name: "categories"
+    		schema: "mysqlxplugin"
   	     }
   data_model: TABLE
   	projection {
@@ -1338,7 +1338,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 
 -->sql
-select * from Categories order by CategoryID asc;
+select * from categories order by CategoryID asc;
 -->endsql
 EOF
 
@@ -1356,17 +1356,17 @@ EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-insert_collection_CRUD.tmp
 -->sql
-DROP SCHEMA if EXISTS MySQLXpluginColl;
-CREATE SCHEMA MySQLXpluginColl;
-USE MySQLXpluginColl;
-CREATE TABLE MySQLXpluginColl.MainCollection (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY);
+DROP SCHEMA if EXISTS mysqlxplugin_coll;
+CREATE SCHEMA mysqlxplugin_coll;
+USE mysqlxplugin_coll;
+CREATE TABLE mysqlxplugin_coll.main_collection (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY);
 -->endsql
 
 -->echo Insert a row into a Document column
 Mysqlx.Crud.Insert {
   collection {
-    name: "MainCollection"
-    schema: "MySQLXpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   row {
@@ -1385,14 +1385,14 @@ Mysqlx.Crud.Insert {
 -->recvresult
 
 -->sql
-select * from MainCollection;
+select * from main_collection;
 -->endsql
 
 -->echo Insert multiple rows into a Document column
 Mysqlx.Crud.Insert {
   collection {
-    name: "MainCollection"
-    schema: "MySQLXpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   row {
@@ -1422,14 +1422,14 @@ Mysqlx.Crud.Insert {
 -->recvresult
 
 -->sql
-select * from MainCollection;
+select * from main_collection;
 -->endsql
 
 -->echo Insert malformed JSON into Document column
 Mysqlx.Crud.Insert {
   collection {
-    name: "MainCollection"
-    schema: "MySQLXpluginColl"
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
   }
   data_model: DOCUMENT
   row {
@@ -1452,9 +1452,9 @@ Mysqlx.Crud.Insert {
 -->echo CLEAN UP
 -->echo ================================================================================
 -->sql
- SELECT * FROM MainCollection;
- DROP SCHEMA if EXISTS MySQLXplugin;
- DROP SCHEMA if EXISTS MySQLXpluginColl;
+ SELECT * FROM main_collection;
+ DROP SCHEMA if EXISTS mysqlxplugin;
+ DROP SCHEMA if EXISTS mysqlxplugin_coll;
  DROP USER insertcruduser@localhost;
 -->endsql
 EOF

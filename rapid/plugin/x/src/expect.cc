@@ -224,7 +224,7 @@ ngs::Error_code Expectation::set(uint32_t key, const std::string &value)
       break;
     }
     case EXPECT_GTID_WAIT_LESS_THAN:
-      m_gtid_wait_less_than = atoi(value.c_str());
+      m_gtid_wait_less_than = ngs::stoi(value);
       for (std::list<Expect_condition*>::iterator cond = m_conditions.begin();
            cond != m_conditions.end(); ++cond)
       {

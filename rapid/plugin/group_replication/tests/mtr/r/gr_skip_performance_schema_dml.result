@@ -1,0 +1,9 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+# This should not error out as performance schema tables are not used in the before dml hook process.
+UPDATE performance_schema.setup_instruments SET ENABLED='YES', TIMED='YES' WHERE name='wait/lock/metadata/sql/mdl';
+include/group_replication_end.inc

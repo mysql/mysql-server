@@ -32,31 +32,31 @@ Message *Message_decoder::alloc_message(int8_t type, Error_code &ret_error, bool
     switch ((Mysqlx::ClientMessages::Type)type)
     {
       case Mysqlx::ClientMessages::CON_CAPABILITIES_GET:
-        msg = new Mysqlx::Connection::CapabilitiesGet();
+        msg = ngs::allocate_object<Mysqlx::Connection::CapabilitiesGet>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::CON_CAPABILITIES_SET:
-        msg = new Mysqlx::Connection::CapabilitiesSet();
+        msg = ngs::allocate_object<Mysqlx::Connection::CapabilitiesSet>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::CON_CLOSE:
-        msg = new Mysqlx::Connection::Close();
+        msg = ngs::allocate_object<Mysqlx::Connection::Close>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::SESS_CLOSE:
-        msg = new Mysqlx::Session::Close();
+        msg = ngs::allocate_object<Mysqlx::Session::Close>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::SESS_RESET:
-        msg = new Mysqlx::Session::Reset();
+        msg = ngs::allocate_object<Mysqlx::Session::Reset>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::SESS_AUTHENTICATE_START:
-        msg = new Mysqlx::Session::AuthenticateStart();
+        msg = ngs::allocate_object<Mysqlx::Session::AuthenticateStart>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::SESS_AUTHENTICATE_CONTINUE:
-        msg = new Mysqlx::Session::AuthenticateContinue();
+        msg = ngs::allocate_object<Mysqlx::Session::AuthenticateContinue>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::SQL_STMT_EXECUTE:
@@ -79,6 +79,15 @@ Message *Message_decoder::alloc_message(int8_t type, Error_code &ret_error, bool
         break;
       case Mysqlx::ClientMessages::EXPECT_CLOSE:
         msg = &m_expect_close;
+        break;
+      case Mysqlx::ClientMessages::CRUD_CREATE_VIEW:
+        msg = &m_crud_create_view;
+        break;
+      case Mysqlx::ClientMessages::CRUD_MODIFY_VIEW:
+        msg = &m_crud_modify_view;
+        break;
+      case Mysqlx::ClientMessages::CRUD_DROP_VIEW:
+        msg = &m_crud_drop_view;
         break;
 
       default:
@@ -104,12 +113,11 @@ Error_code Message_decoder::parse(Request &request)
   Message *message = alloc_message(request.get_type(), ret_error, msg_is_shared);
   if (message)
   {
-    std::string &buffer(request.buffer());
     // feed the data to the command (up to the specified boundary)
-    google::protobuf::io::CodedInputStream stream(reinterpret_cast<const uint8_t*>(buffer.data()),
-                                                  static_cast<int>(buffer.length()));
+    google::protobuf::io::CodedInputStream stream(reinterpret_cast<const uint8_t*>(request.buffer()),
+                                                  static_cast<int>(request.buffer_size()));
     // variable 'mysqlx_max_allowed_packet' has been checked when buffer was filling by data
-    stream.SetTotalBytesLimit(static_cast<int>(buffer.length()), -1 /*no warnings*/);
+    stream.SetTotalBytesLimit(static_cast<int>(request.buffer_size()), -1 /*no warnings*/);
     // Protobuf limits the number of nested objects when decoding messages
     // lets set the value in explicit way (to ensure that is set accordingly with
     // out stack size)
@@ -134,7 +142,8 @@ Error_code Message_decoder::parse(Request &request)
       }
 
       if (!msg_is_shared)
-        delete message;
+        ngs::free_object(message);
+
       message = NULL;
       return Error_code(ER_X_BAD_MESSAGE, "Parse error unserializing protobuf message");
     }

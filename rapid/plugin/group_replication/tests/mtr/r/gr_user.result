@@ -1,0 +1,46 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression(".*The group replication user is not present in the server *.*");
+SET SESSION sql_log_bin= 1;
+#
+# Assert the user exist after install
+#
+[connection server1]
+include/assert.inc [The group replication user should exist in this member]
+#
+# Start and check all is OK
+#
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [The group replication user should exist in this member]
+#
+# Assert the user disappears on uninstall
+#
+SET @local_address= @@GLOBAL.group_replication_local_address;
+SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+UNINSTALL PLUGIN group_replication;
+include/assert.inc [The group replication user should have been removed]
+#
+# Check after install
+#
+INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+include/assert.inc [The group replication user should exist in this member]
+#
+# Delete the user and watch GR create it again at start.
+# Check that a warning is logged.
+#
+DROP USER "_gr_user"@"localhost";
+SET GLOBAL group_replication_local_address= @local_address;
+SET GLOBAL group_replication_group_seeds= @group_seeds;
+include/start_and_bootstrap_group_replication.inc
+Matching lines are:
+DATE_TIME [Warning] Plugin group_replication reported: 'The group replication user is not present in the server. The user will be recreated, please do not remove it'
+Occurrences of 'The group replication user is not present in the server. The user will be recreated' in the input file: 1
+#
+# Cleaning
+#
+include/group_replication_end.inc

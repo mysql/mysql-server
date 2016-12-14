@@ -1,0 +1,67 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Create a table on the group.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+
+############################################################
+# 2. Execute a XA transaction that does commit.
+[connection server1]
+XA START 'trx1';
+INSERT INTO t1 VALUES (1);
+XA END 'trx1';
+XA PREPARE 'trx1';
+XA COMMIT 'trx1';
+include/rpl_sync.inc
+
+# Check that GTID_EXECUTED on server 1 contains all
+# transactions.
+# Also check that data is on tables.
+[connection server1]
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 1 in table t1']
+
+# Check that GTID_EXECUTED on server 2 contains all
+# transactions.
+# Also check that data is on tables.
+[connection server2]
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 1 in table t1']
+
+############################################################
+# 3. Execute a XA transaction that does rollback.
+[connection server1]
+XA START 'trx2';
+INSERT INTO t1 VALUES (2);
+XA END 'trx2';
+XA PREPARE 'trx2';
+XA ROLLBACK 'trx2';
+include/rpl_sync.inc
+
+# Check that GTID_EXECUTED on server 1 contains all
+# transactions.
+# Also check that data is on tables.
+[connection server1]
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is no value 2 in table t1']
+
+# Check that GTID_EXECUTED on server 2 contains all
+# transactions.
+# Also check that data is on tables.
+[connection server2]
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is no value 2 in table t1']
+
+############################################################
+# 4. Clean up.
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

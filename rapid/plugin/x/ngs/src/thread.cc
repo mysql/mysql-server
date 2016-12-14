@@ -23,6 +23,7 @@
 #endif // WIN32
 
 #include "ngs/thread.h"
+#include "ngs/memory.h"
 #include "my_thread.h"
 #include "my_sys.h"                             // my_thread_stack_size
 
@@ -135,3 +136,6 @@ void ngs::Cond::broadcast(Mutex& mutex)
 
   broadcast();
 }
+
+unsigned int ngs::x_psf_objects_key = 0;
+

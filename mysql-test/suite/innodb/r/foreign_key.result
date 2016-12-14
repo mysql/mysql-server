@@ -124,3 +124,29 @@ a	b
 54	4
 55	50
 DROP TABLE t2, t1;
+#
+# bug#25126722 FOREIGN KEY CONSTRAINT NAME IS NULL AFTER RESTART
+# base bug#24818604 [GR]
+#
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+CREATE TABLE t2 (c1 INT PRIMARY KEY, FOREIGN KEY (c1) REFERENCES t1(c1));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+SELECT unique_constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2';
+unique_constraint_name
+PRIMARY
+# restart
+SELECT unique_constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2';
+unique_constraint_name
+PRIMARY
+SELECT * FROM t1;
+c1
+1
+SELECT unique_constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2';
+unique_constraint_name
+PRIMARY
+DROP TABLE t2;
+DROP TABLE t1;

@@ -1,0 +1,21 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#######################################################
+# Bootstrap group with two members on server1.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+#######################################################
+# Leave and rejoin the group on the member that did
+# bootstrap the group.
+[connection server1]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+include/group_replication_end.inc
