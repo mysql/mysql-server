@@ -3673,7 +3673,8 @@ void SELECT_LEX::delete_unused_merged_columns(List<TABLE_LIST> *tables)
         */
         if (!item->is_derived_used() &&
             item->walk(&Item::propagate_derived_used, Item::WALK_POSTFIX, NULL))
-          item->set_derived_used();
+          item->walk(&Item::propagate_set_derived_used,
+                     Item::WALK_POSTFIX, NULL);
 
         if (!item->is_derived_used())
         {
