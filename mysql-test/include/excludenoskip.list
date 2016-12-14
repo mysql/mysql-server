@@ -32,6 +32,10 @@ have_posix_locale.inc
 have_mysqld_safe.inc
 # Native partitioning is supported by Innodb but not supported by MyISAM.
 support_native_partitioning.inc
+# Checks if server is started with MET timezone. Including the below inc file until Bug#25188655 is fixed.
+have_met_timezone.inc
+# Checks if server is started with Moscow leap timezone. Including the below inc file until Bug#25188986 is fixed.
+have_moscow_leap_timezone.inc
 
 # 2.0 Binlog formats
 # Below files are included because rpl suite runs each test with 3 different
@@ -80,8 +84,9 @@ fix_priv_tables.test
 have_yassl.inc
 have_openssl.inc
 have_openssl_binary.inc
-have_ssl_communication.inc
+have_ssl.inc
 have_ssl_crypto_functs.inc
+not_openssl.inc
 
 # 4.5 Reason for inclusion: Tests should run only with supported innodb page
 # sizes and skip on others. However, this can be handled using a custom
@@ -118,10 +123,12 @@ no_explain_protocol.inc
 no_cursor_protocol.inc
 
 # 6.0 Different builds
-have_embedded.inc
+is_embedded.inc
 not_embedded.inc
 have_valgrind.inc
+not_valgrind.inc
 not_ubsan.inc
+not_asan.inc
 
 # 7.0 Few skipped test-cases
 mysql_embedded.test

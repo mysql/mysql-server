@@ -1,4 +1,5 @@
---require r/have_ndbapi_examples.require
-disable_query_log;
-eval select LENGTH('$NDB_EXAMPLES_BINARY') > 0 as 'have_ndb_example';
-enable_query_log;
+let $have_ndb_example= `SELECT LENGTH('$NDB_EXAMPLES_BINARY') > 0`;
+if (!$have_ndb_example)
+{
+  --skip Test requires ndbapi examples binaries
+}

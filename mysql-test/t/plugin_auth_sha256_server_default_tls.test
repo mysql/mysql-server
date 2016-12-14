@@ -1,5 +1,5 @@
 --source include/not_embedded.inc
---source include/have_ssl_communication.inc
+--source include/have_ssl.inc
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;

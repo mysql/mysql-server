@@ -1,5 +1,5 @@
 
---source include/have_ssl_communication.inc
+--source include/have_ssl.inc
 --source include/have_openssl.inc
 
 ## Result files for openssl and yassl are different

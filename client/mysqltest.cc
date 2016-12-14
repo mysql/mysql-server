@@ -581,7 +581,6 @@ struct st_command
   size_t first_word_len, query_len;
   my_bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
-  char require_file[FN_REFLEN];
   char output_file[FN_REFLEN];
   enum enum_commands type;
 };
@@ -2052,53 +2051,6 @@ static int compare_files(const char* filename1, const char* filename2)
 
 
 /*
-  Compare content of the string in ds to content of file fname
-
-  SYNOPSIS
-  dyn_string_cmp
-  ds - Dynamic string containing the string o be compared
-  fname - Name of file to compare with
-
-  RETURN VALUES
-  See 'compare_files2'
-*/
-
-static int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
-{
-  int error;
-  File fd;
-  char temp_file_path[FN_REFLEN];
-
-  DBUG_ENTER("dyn_string_cmp");
-  DBUG_PRINT("enter", ("fname: %s", fname));
-
-  if ((fd= create_temp_file(temp_file_path, TMPDIR,
-                            "tmp", O_CREAT | O_RDWR,
-                            MYF(MY_WME))) < 0)
-    die("Failed to create temporary file for ds");
-
-  /* Write ds to temporary file and set file pos to beginning*/
-  if (my_write(fd, (uchar *) ds->str, ds->length,
-               MYF(MY_FNABP | MY_WME)) ||
-      my_seek(fd, 0, SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR)
-  {
-    my_close(fd, MYF(0));
-    /* Remove the temporary file */
-    my_delete(temp_file_path, MYF(0));
-    die("Failed to write file '%s'", temp_file_path);
-  }
-
-  error= compare_files2(fd, fname);
-
-  my_close(fd, MYF(0));
-  /* Remove the temporary file */
-  my_delete(temp_file_path, MYF(0));
-
-  DBUG_RETURN(error);
-}
-
-
-/*
   Check the content of log against result file
 
   SYNOPSIS
@@ -2160,35 +2112,6 @@ static void check_result()
     die("Unknown error code from dyn_string_cmp()");
   }
 
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Check the content of ds against a require file
-  If match fails, abort the test with special error code
-  indicating that test is not supported
-
-  SYNOPSIS
-  check_require
-  ds - content to be checked
-  fname - name of file to check against
-
-  RETURN VALUES
-  error - the function will not return
-
-*/
-
-static void check_require(DYNAMIC_STRING* ds, const char *fname)
-{
-  DBUG_ENTER("check_require");
-
-  if (dyn_string_cmp(ds, fname))
-  {
-    char reason[FN_REFLEN];
-    fn_format(reason, fname, "", "", MY_REPLACE_EXT | MY_REPLACE_DIR);
-    abort_not_supported_test("Test requires: '%s'", reason);
-  }
   DBUG_VOID_RETURN;
 }
 
@@ -5339,22 +5262,6 @@ static int do_sleep(struct st_command *command, my_bool real_sleep)
   if (sleep_val)
     my_sleep((ulong) (sleep_val * 1000000L));
   return 0;
-}
-
-
-static void do_get_file_name(struct st_command *command,
-                             char* dest, uint dest_max_len)
-{
-  char *p= command->first_argument, *name;
-  if (!*p)
-    die("Missing file name argument");
-  name= p;
-  while (*p && !my_isspace(charset_info,*p))
-    p++;
-  if (*p)
-    *p++= 0;
-  command->last_argument= p;
-  strmake(dest, name, dest_max_len - 1);
 }
 
 
@@ -8538,23 +8445,6 @@ void handle_error(struct st_command *command,
 
   DBUG_ENTER("handle_error");
 
-  if (command->require_file[0])
-  {
-    /*
-      The query after a "--require" failed. This is fine as long the server
-      returned a valid reponse. Don't allow 2013 or 2006 to trigger an
-      abort_not_supported_test
-    */
-    if (err_errno == CR_SERVER_LOST ||
-        err_errno == CR_SERVER_GONE_ERROR)
-      die("require query '%s' failed: %d: %s", command->query,
-          err_errno, err_error);
-
-    /* Abort the run of this test, pass the failed query as reason */
-    abort_not_supported_test("Query '%s' failed, required functionality " \
-                             "not supported", command->query);
-  }
-
   if (command->abort_on_error)
     die("query '%s' failed: %d: %s", command->query, err_errno, err_error);
 
@@ -8980,15 +8870,11 @@ static void run_query(struct st_connection *cn, struct st_command *command, int 
   }
 
   /*
-    When command->require_file is set the output of _this_ query
-    should be compared with an already existing file
-    Create a temporary dynamic string to contain the output from
-    this query.
+    Create a temporary dynamic string to contain the
+    output from this query.
   */
-  if (command->require_file[0] || command->output_file[0])
-  {
+  if (command->output_file[0])
     ds= &ds_result;
-  }
   else
     ds= &ds_res;
 
@@ -9142,15 +9028,6 @@ static void run_query(struct st_connection *cn, struct st_command *command, int 
     if (util_query(mysql, "DROP VIEW mysqltest_tmp_v "))
       die("Failed to drop view: %d: %s",
 	  mysql_errno(mysql), mysql_error(mysql));
-  }
-
-  if (command->require_file[0])
-  {
-    /* A result file was specified for _this_ query
-       and the output should be checked against an already
-       existing file which has been specified using --require or --result
-    */
-    check_require(ds, command->require_file);
   }
 
   if (command->output_file[0])
@@ -9620,11 +9497,9 @@ int main(int argc, char **argv)
   struct st_command *command;
   my_bool q_send_flag= 0, abort_flag= 0;
   uint command_executed= 0, last_command_executed= 0;
-  char save_file[FN_REFLEN];
   char output_file[FN_REFLEN];
   MY_INIT(argv[0]);
 
-  save_file[0]= 0;
   output_file[0]= 0;
   TMPDIR[0]= 0;
 
@@ -10059,12 +9934,7 @@ int main(int argc, char **argv)
           run_explain(cur_con, command, flags, 0);
         if (json_explain_protocol_enabled)
           run_explain(cur_con, command, flags, 1);
-	/* Check for 'require' */
-	if (*save_file)
-	{
-	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
-	  *save_file= 0;
-	}
+
 	if (*output_file)
 	{
 	  strmake(command->output_file, output_file, sizeof(output_file) - 1);
@@ -10107,8 +9977,7 @@ int main(int argc, char **argv)
         command->last_argument= command->end;
 	break;
       case Q_REQUIRE:
-	do_get_file_name(command, save_file, sizeof(save_file));
-	break;
+        die("'require' command  is deprecated.");
       case Q_ERROR:
         do_get_errcodes(command);
 	break;
