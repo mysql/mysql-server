@@ -18,8 +18,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 02110-1301  USA
 */
 
-// ****** SOURCES FILES TO CHECK ********** //
-
 "use strict";
 
 var harness = require("jones-test");

@@ -289,7 +289,7 @@ FilterSpec.prototype.getScanFilterCode = function(params) {
 
 
 function prepareFilterSpec(queryHandler) {
-  if(! queryHandler.ndbFilterSpec) {
+  if(queryHandler.predicate && !queryHandler.ndbFilterSpec) {
     queryHandler.ndbFilterSpec = new FilterSpec(queryHandler);
   }
 }
