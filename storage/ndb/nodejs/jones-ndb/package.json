@@ -2,7 +2,7 @@
 {
   "name"            : "jones-ndb"
   ,
-  "version"         : "1.0.3"
+  "version"         : "1.0.9"
   ,  
   "description"     : "Native NDB (MySQL Cluster) Service Provider for Database Jones"
   ,

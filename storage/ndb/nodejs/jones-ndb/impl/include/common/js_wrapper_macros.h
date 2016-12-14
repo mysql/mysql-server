@@ -18,6 +18,8 @@
  02110-1301  USA
  */
 
+#include <node.h>
+
 #define STRING(I, S) v8::String::NewFromUtf8(I, S)
 
 #define NEW_STRING(S) STRING(v8::Isolate::GetCurrent(), S)
@@ -81,10 +83,18 @@
 #define DEFINE_JS_ACCESSOR(TARGET, property, getter)                 \
   (TARGET)->SetAccessor(NEW_SYMBOL(property), getter)
 
+/* Some compatibility */
+#if NODE_MAJOR_VERSION > 3
+#define DEFINE_JS_INT(TARGET, name, value) \
+  (TARGET)->CreateDataProperty((TARGET)->CreationContext(), \
+                NEW_SYMBOL(name), \
+                Integer::New(v8::Isolate::GetCurrent(), value))
+#else
 #define DEFINE_JS_INT(TARGET, name, value) \
   (TARGET)->ForceSet(NEW_SYMBOL(name), \
                 Integer::New(v8::Isolate::GetCurrent(), value), \
                 static_cast<PropertyAttribute>(ReadOnly|DontDelete))
+#endif
 
 #define DEFINE_JS_CONSTANT(TARGET, constant) \
    DEFINE_JS_INT(TARGET, #constant, constant)
