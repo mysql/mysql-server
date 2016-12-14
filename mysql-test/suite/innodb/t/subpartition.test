@@ -25,28 +25,20 @@ SUBPARTITION BY HASH (a) SUBPARTITIONS 2
 --echo # Subpartitions show the inherited TABLESPACE.
 --echo # Bug#23219564 FIXME: the TABLESPACE of PARTITION should be shown!
 SHOW CREATE TABLE subpartitioned;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
 
 --echo # The TABLESPACE of PARTITION/TABLE should be inherited for subpartitions
 
 ALTER TABLE subpartitioned ADD PARTITION (PARTITION p3 VALUES LESS THAN (65536) (SUBPARTITION sp6 TABLESPACE innodb_file_per_table, SUBPARTITION sp7 TABLESPACE innodb_system));
 
 SHOW CREATE TABLE subpartitioned;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
 
 ALTER TABLE subpartitioned REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN(65536) (SUBPARTITION sp6, SUBPARTITION sp7 TABLESPACE subpartition_level));
 
 SHOW CREATE TABLE subpartitioned;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
 
 ALTER TABLE subpartitioned DROP PARTITION p3;
 
 SHOW CREATE TABLE subpartitioned;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
 
 DROP TABLE subpartitioned;
 
@@ -59,8 +51,6 @@ PARTITION BY RANGE (a)
 
 --echo # Bug#23219685 FIXME: PARTITION should show inherited TABLESPACE!
 SHOW CREATE TABLE partitioned;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
 
 DROP TABLE partitioned;
 
@@ -85,10 +75,6 @@ SUBPARTITION BY HASH (a) SUBPARTITIONS 2
 --echo # Bug#23219564 FIXME: the DATA DIRECTORY of PARTITION should be shown!
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE subpartitioned;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
 
 DROP TABLE subpartitioned;
 
@@ -115,10 +101,6 @@ SET innodb_strict_mode=ON;
 --echo # Bug#23219564 FIXME: the DATA DIRECTORY of PARTITION should be shown!
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE subpartitioned;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
 
 --echo # The DATA DIRECTORY of PARTITION/TABLE should be inherited for subpartitions
 SET GLOBAL innodb_file_per_table=ON;
@@ -128,30 +110,18 @@ eval ALTER TABLE subpartitioned ADD PARTITION (PARTITION p3 VALUES LESS THAN (65
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE subpartitioned;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval ALTER TABLE subpartitioned REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN(65536) (SUBPARTITION sp6, SUBPARTITION sp7 DATA DIRECTORY '$MYSQL_TMP_DIR/subpartition'));
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE subpartitioned;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 ALTER TABLE subpartitioned DROP PARTITION p3;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE subpartitioned;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
 
 DROP TABLE subpartitioned;
 
@@ -167,10 +137,6 @@ PARTITION BY RANGE (a)
 --echo # Bug#23219685 FIXME: PARTITION should show inherited DATA DIRECTORY!
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE partitioned;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
 
 DROP TABLE partitioned;
 
@@ -189,10 +155,6 @@ SET innodb_strict_mode=ON;
 --echo # Bug#23219685 FIXME: PARTITION should show inherited DATA DIRECTORY!
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE partitioned;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
 
 DROP TABLE partitioned;
 

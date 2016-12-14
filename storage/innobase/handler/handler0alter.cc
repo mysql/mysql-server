@@ -12218,7 +12218,8 @@ ha_innopart::exchange_partition_low(
 	ut_ad(m_part_share != nullptr);
 	ut_ad(part_table->partition_type() != dd::Table::PT_NONE);
 	ut_ad(swap_table->partition_type() == dd::Table::PT_NONE);
-	ut_ad(part_table->name() == table_share->table_name.str);
+	ut_ad(innobase_strcasecmp(part_table->name().c_str(),
+				  table_share->table_name.str) == 0);
 	ut_ad(part_id < m_tot_parts);
 
 	if (high_level_read_only) {

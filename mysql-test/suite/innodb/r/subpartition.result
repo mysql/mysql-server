@@ -34,19 +34,6 @@ SUBPARTITION BY HASH (a)
  PARTITION p2 VALUES LESS THAN (256)
  (SUBPARTITION sp4 TABLESPACE = `subpartition_level` ENGINE = InnoDB,
   SUBPARTITION sp5 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-name	level	options
-p1	0	NULL
-p2	0	tablespace=innodb_file_per_table;
-sp2	1	NULL
-sp3	1	tablespace=innodb_file_per_table;
-sp5	1	tablespace=innodb_file_per_table;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
-name	level	options
-p0	0	NULL
-sp0	1	NULL
-sp1	1	NULL
-sp4	1	NULL
 # The TABLESPACE of PARTITION/TABLE should be inherited for subpartitions
 ALTER TABLE subpartitioned ADD PARTITION (PARTITION p3 VALUES LESS THAN (65536) (SUBPARTITION sp6 TABLESPACE innodb_file_per_table, SUBPARTITION sp7 TABLESPACE innodb_system));
 SHOW CREATE TABLE subpartitioned;
@@ -69,22 +56,6 @@ SUBPARTITION BY HASH (a)
  PARTITION p3 VALUES LESS THAN (65536)
  (SUBPARTITION sp6 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
   SUBPARTITION sp7 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-name	level	options
-p0	0	NULL
-p1	0	NULL
-p2	0	NULL
-p3	0	NULL
-sp3	1	tablespace=innodb_file_per_table;
-sp5	1	tablespace=innodb_file_per_table;
-sp6	1	tablespace=innodb_file_per_table;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
-name	level	options
-sp0	1	NULL
-sp1	1	NULL
-sp2	1	NULL
-sp4	1	NULL
-sp7	1	tablespace=innodb_system;
 ALTER TABLE subpartitioned REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN(65536) (SUBPARTITION sp6, SUBPARTITION sp7 TABLESPACE subpartition_level));
 SHOW CREATE TABLE subpartitioned;
 Table	Create Table
@@ -106,22 +77,6 @@ SUBPARTITION BY HASH (a)
  PARTITION p3 VALUES LESS THAN (65536)
  (SUBPARTITION sp6 TABLESPACE = `table_level` ENGINE = InnoDB,
   SUBPARTITION sp7 TABLESPACE = `subpartition_level` ENGINE = InnoDB)) */
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-name	level	options
-p0	0	NULL
-p1	0	NULL
-p2	0	NULL
-p3	0	NULL
-sp3	1	tablespace=innodb_file_per_table;
-sp5	1	tablespace=innodb_file_per_table;
-sp6	1	NULL
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
-name	level	options
-sp0	1	NULL
-sp1	1	NULL
-sp2	1	NULL
-sp4	1	NULL
-sp7	1	NULL
 ALTER TABLE subpartitioned DROP PARTITION p3;
 SHOW CREATE TABLE subpartitioned;
 Table	Create Table
@@ -140,19 +95,6 @@ SUBPARTITION BY HASH (a)
  PARTITION p2 VALUES LESS THAN (256)
  (SUBPARTITION sp4 TABLESPACE = `subpartition_level` ENGINE = InnoDB,
   SUBPARTITION sp5 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-name	level	options
-p0	0	NULL
-p1	0	NULL
-p2	0	NULL
-sp3	1	tablespace=innodb_file_per_table;
-sp5	1	tablespace=innodb_file_per_table;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
-name	level	options
-sp0	1	NULL
-sp1	1	NULL
-sp2	1	NULL
-sp4	1	NULL
 DROP TABLE subpartitioned;
 CREATE TABLE partitioned(a int auto_increment primary key)
 TABLESPACE table_level
@@ -171,13 +113,6 @@ partitioned	CREATE TABLE `partitioned` (
 (PARTITION p0 VALUES LESS THAN (0) TABLESPACE = `partition_level` ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (16) TABLESPACE = `table_level` ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (256) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-name	level	options
-p1	0	NULL
-p2	0	tablespace=innodb_file_per_table;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
-name	level	options
-p0	0	NULL
 DROP TABLE partitioned;
 SET GLOBAL innodb_file_per_table=ON;
 CREATE TABLE subpartitioned(a int auto_increment primary key)
@@ -213,19 +148,6 @@ SUBPARTITION BY HASH (a)
  PARTITION p2 VALUES LESS THAN (256)
  (SUBPARTITION sp4 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/subpartition/' ENGINE = InnoDB,
   SUBPARTITION sp5 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/table/' ENGINE = InnoDB)) */
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-name	level	options
-p0	0	data_file_name=MYSQL_TMP_DIR/partition;
-p1	0	data_file_name=MYSQL_TMP_DIR/partition;tablespace=innodb_file_per_table;
-p2	0	NULL
-sp0	1	data_file_name=MYSQL_TMP_DIR/subpartition;
-sp1	1	data_file_name=MYSQL_TMP_DIR/partition;
-sp2	1	data_file_name=MYSQL_TMP_DIR/partition;tablespace=innodb_file_per_table;
-sp3	1	data_file_name=MYSQL_TMP_DIR/subpartition;tablespace=innodb_file_per_table;
-sp4	1	data_file_name=MYSQL_TMP_DIR/subpartition;
-sp5	1	NULL
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
-name	level	options
 DROP TABLE subpartitioned;
 SET GLOBAL innodb_file_per_table=OFF;
 SET innodb_strict_mode=OFF;
@@ -274,19 +196,6 @@ SUBPARTITION BY HASH (a)
  PARTITION p2 VALUES LESS THAN (256)
  (SUBPARTITION sp4 TABLESPACE = `innodb_system` ENGINE = InnoDB,
   SUBPARTITION sp5 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-name	level	options
-p0	0	data_file_name=MYSQL_TMP_DIR/partition;
-p1	0	data_file_name=MYSQL_TMP_DIR/partition;tablespace=innodb_file_per_table;
-p2	0	NULL
-sp2	1	data_file_name=MYSQL_TMP_DIR/partition;tablespace=innodb_file_per_table;
-sp3	1	data_file_name=MYSQL_TMP_DIR/subpartition;tablespace=innodb_file_per_table;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
-name	level	options
-sp0	1	data_file_name=MYSQL_TMP_DIR/subpartition;
-sp1	1	data_file_name=MYSQL_TMP_DIR/partition;
-sp4	1	data_file_name=MYSQL_TMP_DIR/subpartition;
-sp5	1	NULL
 # The DATA DIRECTORY of PARTITION/TABLE should be inherited for subpartitions
 SET GLOBAL innodb_file_per_table=ON;
 ALTER TABLE subpartitioned ADD PARTITION (PARTITION p3 VALUES LESS THAN (65536) TABLESPACE innodb_file_per_table DATA DIRECTORY 'MYSQL_TMP_DIR/partition' (SUBPARTITION sp6, SUBPARTITION sp7));
@@ -310,22 +219,6 @@ SUBPARTITION BY HASH (a)
  PARTITION p3 VALUES LESS THAN (65536)
  (SUBPARTITION sp6 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition' ENGINE = InnoDB,
   SUBPARTITION sp7 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition' ENGINE = InnoDB)) */
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-name	level	options
-p0	0	NULL
-p1	0	NULL
-p2	0	NULL
-p3	0	data_file_name=MYSQL_TMP_DIR/partition;tablespace=innodb_file_per_table;
-sp0	1	tablespace=innodb_system;
-sp1	1	tablespace=innodb_system;
-sp2	1	data_file_name=MYSQL_TMP_DIR/partition/;tablespace=innodb_file_per_table;
-sp3	1	data_file_name=MYSQL_TMP_DIR/subpartition/;tablespace=innodb_file_per_table;
-sp4	1	tablespace=innodb_system;
-sp5	1	tablespace=innodb_system;
-sp6	1	data_file_name=MYSQL_TMP_DIR/partition;tablespace=innodb_file_per_table;
-sp7	1	data_file_name=MYSQL_TMP_DIR/partition;tablespace=innodb_file_per_table;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
-name	level	options
 ALTER TABLE subpartitioned REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN(65536) (SUBPARTITION sp6, SUBPARTITION sp7 DATA DIRECTORY 'MYSQL_TMP_DIR/subpartition'));
 SHOW CREATE TABLE subpartitioned;
 Table	Create Table
@@ -347,22 +240,6 @@ SUBPARTITION BY HASH (a)
  PARTITION p3 VALUES LESS THAN (65536)
  (SUBPARTITION sp6 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
   SUBPARTITION sp7 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/subpartition' ENGINE = InnoDB)) */
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-name	level	options
-p0	0	NULL
-p1	0	NULL
-p2	0	NULL
-p3	0	NULL
-sp0	1	tablespace=innodb_system;
-sp1	1	tablespace=innodb_system;
-sp2	1	data_file_name=MYSQL_TMP_DIR/partition/subpartitioned#P#p1#SP#sp2;tablespace=innodb_file_per_table;
-sp3	1	data_file_name=MYSQL_TMP_DIR/subpartition/subpartitioned#P#p1#SP#sp3;tablespace=innodb_file_per_table;
-sp4	1	tablespace=innodb_system;
-sp5	1	tablespace=innodb_system;
-sp6	1	NULL
-sp7	1	data_file_name=MYSQL_TMP_DIR/subpartition;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
-name	level	options
 ALTER TABLE subpartitioned DROP PARTITION p3;
 SHOW CREATE TABLE subpartitioned;
 Table	Create Table
@@ -381,19 +258,6 @@ SUBPARTITION BY HASH (a)
  PARTITION p2 VALUES LESS THAN (256)
  (SUBPARTITION sp4 TABLESPACE = `innodb_system` ENGINE = InnoDB,
   SUBPARTITION sp5 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-name	level	options
-p0	0	NULL
-p1	0	NULL
-p2	0	NULL
-sp0	1	tablespace=innodb_system;
-sp1	1	tablespace=innodb_system;
-sp2	1	data_file_name=MYSQL_TMP_DIR/partition/subpartitioned#P#p1#SP#sp2;tablespace=innodb_file_per_table;
-sp3	1	data_file_name=MYSQL_TMP_DIR/subpartition/subpartitioned#P#p1#SP#sp3;tablespace=innodb_file_per_table;
-sp4	1	tablespace=innodb_system;
-sp5	1	tablespace=innodb_system;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
-name	level	options
 DROP TABLE subpartitioned;
 CREATE TABLE partitioned(a int auto_increment primary key)
 DATA DIRECTORY 'MYSQL_TMP_DIR/table'
@@ -413,13 +277,6 @@ partitioned	CREATE TABLE `partitioned` (
 (PARTITION p0 VALUES LESS THAN (0) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/table/' ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (16) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition/' ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (256) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/table/' ENGINE = InnoDB) */
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-name	level	options
-p0	0	tablespace=innodb_file_per_table;
-p1	0	data_file_name=MYSQL_TMP_DIR/partition;tablespace=innodb_file_per_table;
-p2	0	NULL
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
-name	level	options
 DROP TABLE partitioned;
 SET GLOBAL innodb_file_per_table=OFF;
 SET innodb_strict_mode=OFF;
@@ -447,13 +304,6 @@ partitioned	CREATE TABLE `partitioned` (
 (PARTITION p0 VALUES LESS THAN (0) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/table/' ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (16) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition/' ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (256) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NULL ORDER BY name;
-name	level	options
-p0	0	tablespace=innodb_file_per_table;
-p1	0	data_file_name=MYSQL_TMP_DIR/partition;tablespace=innodb_file_per_table;
-SELECT name, level, options FROM mysql.table_partitions WHERE tablespace_id IS NOT NULL ORDER BY name;
-name	level	options
-p2	0	NULL
 DROP TABLE partitioned;
 DROP TABLESPACE table_level;
 DROP TABLESPACE partition_level;
