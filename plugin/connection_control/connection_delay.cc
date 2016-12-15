@@ -527,7 +527,6 @@ namespace connection_control
                                             ulonglong wait_time)
   {
     DBUG_ENTER("Connection_delay_action::conditional_wait");
-    const char * category= "connection_delay";
 
     /** mysql_cond_timedwait requires wait time in timespec format */
     struct timespec abstime;
@@ -541,6 +540,7 @@ namespace connection_control
 
     /** Initialize mutex required for mysql_cond_timedwait */
     mysql_mutex_t connection_delay_mutex;
+    const char * category= "conn_delay";
     PSI_mutex_key key_connection_delay_mutex;
     PSI_mutex_info connection_delay_mutex_info[]=
     {
