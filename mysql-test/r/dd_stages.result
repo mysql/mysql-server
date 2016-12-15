@@ -7,11 +7,16 @@ connect  con1, localhost, root, , ;
 connection default;
 # Reduce noise from the default connection.
 update performance_schema.threads set instrumented = 'NO' where processlist_id = connection_id();
-truncate table performance_schema.events_stages_history_long;
+connection con1;
 # Create and drop a basic table to populate the DD cache with
-# the DD table objects.
+# the DD table objects. This also populates global Table
+# Definition Cache with TABLE_SHARE objects and con1-specific
+# Table Cache with TABLE objects for system tables.
 create table t1(a int);
 drop table t1;
+connection default;
+# Reset history table.
+truncate table performance_schema.events_stages_history_long;
 connection con1;
 # Run some statements and see that we have different stage names for
 # opening and locking system and user tables.
