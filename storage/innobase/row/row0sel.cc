@@ -2870,21 +2870,24 @@ row_sel_field_store_in_mysql_format_func(
 	ulint				field_no,
 #endif /* UNIV_DEBUG */
 	const byte*			data,
-	ulint				len,
-	ulint				sec_field)
+	ulint				len
+#ifdef UNIV_DEBUG
+	,ulint				sec_field
+#endif /* UNIV_DEBUG */
+	)
 {
 	byte*			ptr;
 #ifdef UNIV_DEBUG
 	const dict_field_t*	field
 		= templ->is_virtual
 			 ? NULL : dict_index_get_nth_field(index, field_no);
+	bool	clust_templ_for_sec = (sec_field != ULINT_UNDEFINED);
 #endif /* UNIV_DEBUG */
 
 	ut_ad(len != UNIV_SQL_NULL);
 	UNIV_MEM_ASSERT_RW(data, len);
 	UNIV_MEM_ASSERT_W(dest, templ->mysql_col_len);
 	UNIV_MEM_INVALID(dest, templ->mysql_col_len);
-	bool	clust_templ_for_sec = (sec_field != ULINT_UNDEFINED);
 
 	switch (templ->type) {
 		const byte*	field_end;
