@@ -13883,9 +13883,12 @@ ha_innobase::info_low(
 		HA_STATUS_TIME flag set, while the left join optimizer does not
 		set that flag, we add one to a zero value if the flag is not
 		set. That way SHOW TABLE STATUS will show the best estimate,
-		while the optimizer never sees the table empty. */
+		while the optimizer never sees the table empty.
+		However, if it is internal temporary table used by optimizer,
+		the count should be accurate */
 
-		if (n_rows == 0 && !(flag & HA_STATUS_TIME)) {
+		if (n_rows == 0 && !(flag & HA_STATUS_TIME)
+                  && table_share->table_category != TABLE_CATEGORY_TEMPORARY) {
 			n_rows++;
 		}
 
