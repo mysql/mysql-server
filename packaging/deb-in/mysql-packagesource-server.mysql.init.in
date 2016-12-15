@@ -135,23 +135,17 @@ case "$1" in
 	else
 		if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
 		then
-			mkdir ${MYSQLDATA}
-			chown mysql:mysql ${MYSQLDATA}
-			chmod 750 ${MYSQLDATA}
+			install -d -m0750 -omysql -gmysql ${MYSQLDATA}
 		fi
 
 		if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ];
 		then
-			mkdir ${MYSQLFILES}
-			chown mysql:mysql ${MYSQLFILES}
-			chmod 770 ${MYSQLFILES}
+			install -d -m0770 -omysql -gmysql ${MYSQLFILES}
 		fi
 
 		if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
 		then
-			mkdir ${MYSQLKEYRING}
-			chown mysql:mysql ${MYSQLKEYRING}
-			chmod 750 ${MYSQLKEYRING}
+			install -d -m0750 -omysql -gmysql ${MYSQLKEYRING}
 		fi
 
 		if [ ! "$(ls -A ${MYSQLDATA})" ];
@@ -171,17 +165,13 @@ case "$1" in
 
 		if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];
 		then
-			mkdir ${MYSQLLOG}
-			chown mysql:adm ${MYSQLLOG}
-			chmod 750 ${MYSQLLOG}
+			install -d -m0750 -omysql -gadm ${MYSQLLOG}
 			install /dev/null -m0640 -omysql -gadm ${MYSQLLOG}/error.log
 		fi
 
 		if [ ! -d "${MYSQLRUN}" -a ! -L "${MYSQLRUN}" ];
 		then
-			mkdir ${MYSQLRUN}
-			chown mysql:mysql ${MYSQLRUN}
-			chmod 755 ${MYSQLRUN}
+			install -d -m0755 -omysql -gmysql ${MYSQLRUN}
 		fi
 
 		@DEB_INIT_APPARMOR@
