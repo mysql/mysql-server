@@ -1,0 +1,28 @@
+--source include/not_embedded.inc
+#
+# MDEV-11552 Queries executed by event scheduler are written to slow log incorrectly or not written at all
+#
+set @event_scheduler_save= @@global.event_scheduler;
+set @slow_query_log_save= @@global.slow_query_log;
+
+set global event_scheduler= on;
+set global slow_query_log= on;
+set global long_query_time=0.2;
+
+create table t1 (i int);
+insert into t1 values (0);
+create event ev on schedule at CURRENT_TIMESTAMP + INTERVAL 1 second do update t1 set i=1+sleep(0.5);
+
+--let wait_condition= select i from t1 where i > 0
+--source include/wait_condition.inc
+
+--let SEARCH_FILE = `SELECT @@slow_query_log_file`
+--let SEARCH_PATTERN= update t1 set i=1
+--let SEARCH_RANGE= -1000
+--source include/search_pattern_in_file.inc
+
+drop table t1;
+
+set global event_scheduler= @event_scheduler_save;
+set global slow_query_log= @slow_query_log_save;
+set global long_query_time= @@session.long_query_time;
