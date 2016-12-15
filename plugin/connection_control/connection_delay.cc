@@ -57,11 +57,14 @@ namespace connection_control
 
   /** variables used by connection_delay.cc */
   static mysql_rwlock_t connection_event_delay_lock;
+
+#ifdef HAVE_PSI_INTERFACE
   static PSI_rwlock_key key_connection_event_delay_lock;
   static PSI_rwlock_info all_rwlocks[]=
   {
     {&key_connection_event_delay_lock, "connection_event_delay_lock", 0}
   };
+#endif /* HAVE_PSI_INTERFACE */
 
   static opt_connection_control opt_enums[]=
   {
@@ -518,7 +521,6 @@ namespace connection_control
                                             ulonglong wait_time)
   {
     DBUG_ENTER("Connection_delay_action::conditional_wait");
-    const char * category= "connection_delay";
 
     /** mysql_cond_timedwait requires wait time in timespec format */
     struct timespec abstime;
@@ -532,6 +534,8 @@ namespace connection_control
 
     /** Initialize mutex required for mysql_cond_timedwait */
     mysql_mutex_t connection_delay_mutex;
+#ifdef HAVE_PSI_INTERFACE
+    const char * category= "conn_delay";
     PSI_mutex_key key_connection_delay_mutex;
     PSI_mutex_info connection_delay_mutex_info[]=
     {
@@ -539,11 +543,13 @@ namespace connection_control
     };
     int count_mutex= array_elements(connection_delay_mutex_info);
     PSI_server->register_mutex(category, connection_delay_mutex_info, count_mutex);
+#endif /* HAVE_PSI_INTERFACE */
     mysql_mutex_init(key_connection_delay_mutex, &connection_delay_mutex,
                      MY_MUTEX_INIT_FAST);
 
     /* Initialize condition to wait for */
     mysql_cond_t connection_delay_wait_condition;
+#ifdef HAVE_PSI_INTERFACE
     PSI_cond_key key_connection_delay_wait;
     PSI_cond_info connection_delay_wait_info[]=
     {
@@ -551,6 +557,7 @@ namespace connection_control
     };
     int count_cond= array_elements(connection_delay_wait_info);
     PSI_server->register_cond(category, connection_delay_wait_info, count_cond);
+#endif /* HAVE_PSI_INTERFACE */
     mysql_cond_init(key_connection_delay_wait, &connection_delay_wait_condition, NULL);
 
     /** Register wait condition with THD */
@@ -917,9 +924,11 @@ namespace connection_control
     /*
       1. Initialize lock(s)
     */
+#ifdef HAVE_PSI_INTERFACE
     const char *category= "conn_control";
     int count= array_elements(all_rwlocks);
     mysql_rwlock_register(category, all_rwlocks, count);
+#endif /* HAVE_PSI_INTERFACE */
     mysql_rwlock_init(key_connection_event_delay_lock,
                       &connection_event_delay_lock);
     g_max_failed_connection_handler= new Connection_delay_action(g_variables.failed_connections_threshold,
