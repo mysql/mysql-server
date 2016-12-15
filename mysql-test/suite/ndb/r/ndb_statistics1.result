@@ -31,8 +31,12 @@ INSERT INTO t100(I,J)
 SELECT X.J, X.J+(10*Y.J) FROM t10 AS X,t10 AS Y;
 CREATE TABLE t10000 LIKE t10;
 ALTER TABLE t10000 ENGINE=MYISAM;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t10000', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t10000(I,J)
 SELECT X.J, X.J+(100*Y.J) FROM t100 AS X,t100 AS Y;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t10000', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t10000 ENGINE=NDBCLUSTER;
 ANALYZE TABLE t10,t100,t10000;
 Table	Op	Msg_type	Msg_text
@@ -185,7 +189,7 @@ Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` A
 EXPLAIN
 SELECT * FROM t10000 WHERE J = 0 AND K < 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t10000	p0	ref	PRIMARY,J	J	5	const	2	2.50	Using where with pushed condition (`test`.`t10000`.`K` < 1)
+1	SIMPLE	t10000	p0	range	PRIMARY,J	J	9	NULL	2	100.00	Using where with pushed condition ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`K` < 1)); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`K` < 1))
 EXPLAIN
