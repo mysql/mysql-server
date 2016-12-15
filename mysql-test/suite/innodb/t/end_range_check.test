@@ -106,6 +106,31 @@ SELECT /*+ NO_ICP(t1) */ * FROM t1 WHERE f4 = 10000
         AND f5 BETWEEN 9999 AND 10000;
 connection default;
 COMMIT;
-disconnect con1;
 DROP TABLE t1;
 DROP PROCEDURE populate_t1;
+
+CREATE TABLE t2(f1 int not null, f2 char(100), f3 INT,
+		KEY(f2(20), f3))ENGINE=INNODB;
+DELIMITER |;
+CREATE PROCEDURE populate_t2(IN BASE INT, IN SIZE INT)
+BEGIN
+	DECLARE i INT DEFAULT BASE;
+	WHILE (i <= SIZE) DO
+		INSERT INTO t2(f1, f2, f3) values (i, repeat('a', 100), i);
+		SET i = i + 1;
+	END WHILE;
+END|
+DELIMITER ;|
+
+CALL populate_t2(1, 10000);
+
+BEGIN;
+CALL populate_t2(10001, 20000);
+
+connection con1;
+SELECT /*+ NO_ICP(t2) */ f1 FROM t2 WHERE f2 = repeat('a', 100)
+                and f3 BETWEEN 10000 and 10001;
+disconnect con1;
+connection default;
+DROP PROCEDURE populate_t2;
+DROP TABLE t2;
