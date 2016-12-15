@@ -4,14 +4,57 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 [connection server1]
-include/start_and_bootstrap_group_replication.inc
-INSTALL PLUGIN mysqlx SONAME 'mysqlx.so';
+install plugin mysqlx soname "mysqlx.so";
 [connection server2]
-include/start_group_replication.inc
-INSTALL PLUGIN mysqlx SONAME 'mysqlx.so';
+install plugin mysqlx soname "mysqlx.so";
 [connection server3]
-include/start_group_replication.inc
-INSTALL PLUGIN mysqlx SONAME 'mysqlx.so';
+install plugin mysqlx soname "mysqlx.so";
+Starting GR on server 1
+RUN SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-dddd-aaaa-aaaa-aaaaaaaaaaaa'
+
+0 rows affected
+RUN SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=1
+
+0 rows affected
+RUN START GROUP_REPLICATION
+
+0 rows affected
+RUN SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=0
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Starting GR on server 2
+RUN SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-dddd-aaaa-aaaa-aaaaaaaaaaaa'
+
+0 rows affected
+RUN CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery'
+
+0 rows affected
+RUN START GROUP_REPLICATION
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Starting GR on server 3
+RUN SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-dddd-aaaa-aaaa-aaaaaaaaaaaa'
+
+0 rows affected
+RUN CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery'
+
+0 rows affected
+RUN START GROUP_REPLICATION
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Waiting for GR members to come online.
 RUN USE test
 
 0 rows affected
@@ -138,14 +181,35 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Stopping GR on all the servers
+include/rpl_sync.inc
+Stopping GR on server 1
+RUN STOP GROUP_REPLICATION;
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Stopping GR on server 2
+RUN STOP GROUP_REPLICATION;
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Stopping GR on server 3
+RUN STOP GROUP_REPLICATION;
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 [connection server1]
 UNINSTALL PLUGIN mysqlx;
-include/stop_group_replication.inc
 [connection server2]
 UNINSTALL PLUGIN mysqlx;
-include/stop_group_replication.inc
 [connection server3]
 UNINSTALL PLUGIN mysqlx;
-include/stop_group_replication.inc
 include/group_replication_end.inc
