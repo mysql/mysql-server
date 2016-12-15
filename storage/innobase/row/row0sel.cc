@@ -2762,7 +2762,7 @@ row_sel_store_row_id_to_prebuilt(
 #else /* UNIV_DEBUG */
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
 # define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len,sec) \
-	row_sel_field_store_in_mysql_format_func(dest,templ,src,len,sec)
+	row_sel_field_store_in_mysql_format_func(dest,templ,src,len)
 #endif /* UNIV_DEBUG */
 
 /** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
@@ -2793,20 +2793,24 @@ row_sel_field_store_in_mysql_format_func(
 	ulint				field_no,
 #endif /* UNIV_DEBUG */
 	const byte*			data,
-	ulint				len,
-	ulint				sec_field)
+	ulint				len
+#ifdef UNIV_DEBUG
+	,ulint				sec_field
+#endif /* UNIV_DEBUG */
+	)
 {
 	byte*			ptr;
 #ifdef UNIV_DEBUG
 	const dict_field_t*	field
 		= templ->is_virtual ? NULL : index->get_field(field_no);
+
+	bool	clust_templ_for_sec = (sec_field != ULINT_UNDEFINED);
 #endif /* UNIV_DEBUG */
 
 	ut_ad(len != UNIV_SQL_NULL);
 	UNIV_MEM_ASSERT_RW(data, len);
 	UNIV_MEM_ASSERT_W(dest, templ->mysql_col_len);
 	UNIV_MEM_INVALID(dest, templ->mysql_col_len);
-	bool	clust_templ_for_sec = (sec_field != ULINT_UNDEFINED);
 
 	switch (templ->type) {
 		const byte*	field_end;
@@ -2986,9 +2990,10 @@ row_sel_field_store_in_mysql_format_func(
 					or sec field no if clust_templ_for_sec
 					is TRUE
 @param[in]	templ			row template
-@param[in]	clust_templ_for_sec	TRUE if rec belongs to secondary index
-					but prebuilt template is in clustered
-					index format and used only for end
+@param[in]	sec_field_no		secondary index field no if the
+					secondary index record but the
+					prebuilt template is in clustered index
+					format and used only for end
 					range comparison. */
 static MY_ATTRIBUTE((warn_unused_result))
 ibool
