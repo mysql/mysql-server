@@ -77,7 +77,7 @@ max-time: 1800
 #cmd: testSpj
 #args: -n bug#23048816
 #max-time: 180
-
+#
 cmd: testSpj
 args: -n ScanJoinError
 max-time: 600
