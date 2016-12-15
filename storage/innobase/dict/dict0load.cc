@@ -25,6 +25,7 @@ Created 4/24/1996 Heikki Tuuri
 *******************************************************/
 
 #include "ha_prototypes.h"
+#include "current_thd.h"
 
 #include "dict0load.h"
 
@@ -34,6 +35,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dict.h"
+#include "dict0dd.h"
 #include "dict0mem.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
@@ -325,14 +327,24 @@ dict_process_sys_tables_rec_and_mtr_commit(
 	/* If DICT_TABLE_LOAD_FROM_CACHE is set, first check
 	whether there is cached dict_table_t struct */
 	if (status & DICT_TABLE_LOAD_FROM_CACHE) {
-
 		/* Commit before load the table again */
 		mtr_commit(mtr);
+		THD*		thd = current_thd;
+		MDL_ticket*	mdl = nullptr;
 
-		*table = dict_table_get_low(table_name.m_name);
+		if (strstr(table_name.m_name, "sys")
+		    || strstr(table_name.m_name, "SYS")) {
+			*table = dict_table_get_low(table_name.m_name);
+		} else {
+			*table = dd_table_open_on_name(
+				thd, &mdl, table_name.m_name, true,
+				DICT_ERR_IGNORE_NONE);
+		}
 
 		if (!(*table)) {
 			err_msg = "Table not found in cache";
+		} else if (mdl) {
+			dd_table_close(*table, thd, &mdl, true);
 		}
 	} else {
 		err_msg = dict_load_table_low(table_name, rec, table);
@@ -1586,7 +1598,6 @@ dict_replace_tablespace_and_filepath(
 	DBUG_EXECUTE_IF("innodb_fail_to_update_tablespace_dict",
 			return(DB_INTERRUPTED););
 
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(filepath);
 
@@ -1756,7 +1767,6 @@ dict_check_sys_tablespaces(
 
 	DBUG_ENTER("dict_check_sys_tablespaces");
 
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* Before traversing it, let's make sure we have
@@ -1923,7 +1933,6 @@ dict_check_sys_tables(
 
 	DBUG_ENTER("dict_check_sys_tables");
 
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
@@ -2054,58 +2063,6 @@ dict_check_sys_tables(
 	mtr_commit(&mtr);
 
 	DBUG_RETURN(max_space_id);
-}
-
-/** Check each tablespace found in the data dictionary.
-Look at each general tablespace found in SYS_TABLESPACES.
-Then look at each table defined in SYS_TABLES that has a space_id > 0
-to find all the file-per-table tablespaces.
-
-In a crash recovery we already have some tablespace objects created from
-processing the REDO log.  Any other tablespace in SYS_TABLESPACES not
-previously used in recovery will be opened here.  We will compare the
-space_id information in the data dictionary to what we find in the
-tablespace file. In addition, more validation will be done if recovery
-was needed and force_recovery is not set.
-
-We also scan the biggest space id, and store it to fil_system.
-@param[in]	validate	true if recovery was needed */
-void
-dict_check_tablespaces_and_store_max_id(
-	bool	validate)
-{
-	mtr_t	mtr;
-
-	DBUG_ENTER("dict_check_tablespaces_and_store_max_id");
-
-	rw_lock_x_lock(dict_operation_lock);
-	mutex_enter(&dict_sys->mutex);
-
-	/* Initialize the max space_id from sys header */
-	mtr_start(&mtr);
-	space_id_t	max_space_id = mtr_read_ulint(
-		dict_hdr_get(&mtr) + DICT_HDR_MAX_SPACE_ID,
-		MLOG_4BYTES, &mtr);
-	mtr_commit(&mtr);
-
-	fil_set_max_space_id_if_bigger(max_space_id);
-
-	/* Open all general tablespaces found in SYS_TABLESPACES. */
-	space_id_t	max1 = dict_check_sys_tablespaces(validate);
-
-	/* Open all tablespaces referenced in SYS_TABLES.
-	This will update SYS_TABLESPACES and SYS_DATAFILES if it
-	finds any file-per-table tablespaces not already there. */
-	space_id_t	max2 = dict_check_sys_tables(validate);
-
-	/* Store the max space_id found */
-	max_space_id = ut_max(max1, max2);
-	fil_set_max_space_id_if_bigger(max_space_id);
-
-	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(dict_operation_lock);
-
-	DBUG_VOID_RETURN;
 }
 
 /********************************************************************//**

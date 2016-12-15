@@ -65,24 +65,6 @@ enum dict_table_info_t {
 					is in the cache, if so, return it */
 };
 
-/** Check each tablespace found in the data dictionary.
-Look at each table defined in SYS_TABLES that has a space_id > 0.
-If the tablespace is not yet in the fil_system cache, look up the
-tablespace in SYS_DATAFILES to ensure the correct path.
-
-In a crash recovery we already have some tablespace objects created from
-processing the REDO log.  Any other tablespace in SYS_TABLESPACES not
-previously used in recovery will be opened here.  We will compare the
-space_id information in the data dictionary to what we find in the
-tablespace file. In addition, more validation will be done if recovery
-was needed and force_recovery is not set.
-
-We also scan the biggest space id, and store it to fil_system.
-@param[in]	validate	true if recovery was needed */
-void
-dict_check_tablespaces_and_store_max_id(
-	bool		validate);
-
 /********************************************************************//**
 Finds the first table name in the given database.
 @return own: table name, NULL if does not exist; the caller must free

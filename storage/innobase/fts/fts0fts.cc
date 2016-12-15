@@ -2197,6 +2197,12 @@ fts_create_index_tables(
 	dberr_t		err;
 	dict_table_t*	table;
 
+	table = dd_table_open_on_name_in_mem(index->table_name, true,
+					     DICT_ERR_IGNORE_NONE);
+	ut_a(table != NULL);
+	ut_ad(table->get_ref_count() > 1);
+
+
 	table = dict_table_get_low(index->table_name);
 	ut_a(table != NULL);
 
@@ -2206,6 +2212,8 @@ fts_create_index_tables(
 	if (err == DB_SUCCESS) {
 		trx_commit(trx);
 	}
+
+	dd_table_close(table, nullptr, nullptr, true);
 
 	return(err);
 }
@@ -7425,7 +7433,10 @@ fts_valid_stopword_table(
 		return(NULL);
 	}
 
-	table = dict_table_get_low(stopword_table_name);
+	MDL_ticket*     mdl = nullptr;
+	THD*            thd = current_thd;
+	table = dd_table_open_on_name(
+		thd, &mdl, stopword_table_name, true, DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		ib::error() << "User stopword table " << stopword_table_name
@@ -7434,6 +7445,8 @@ fts_valid_stopword_table(
 		return(NULL);
 	} else {
 		const char*     col_name;
+
+		dd_table_close(table, thd, &mdl, true);
 
 		col_name = table->get_col_name(0);
 

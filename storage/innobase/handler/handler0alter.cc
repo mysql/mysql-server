@@ -4568,6 +4568,10 @@ prepare_inplace_alter_table_dict(
 	const char*		punch_hole_warning = NULL;
 	ulint			num_fts_index;
 	dict_add_v_col_t*	add_v = NULL;
+	dict_table_t*		table;
+	MDL_ticket*		mdl = nullptr;
+	THD*			thd = current_thd;
+
 	ha_innobase_inplace_ctx*ctx;
 
 	DBUG_ENTER("prepare_inplace_alter_table_dict");
@@ -4769,9 +4773,14 @@ prepare_inplace_alter_table_dict(
 		/* Create the table. */
 		trx_set_dict_operation(ctx->trx, TRX_DICT_OP_TABLE);
 
-		if (dict_table_get_low(new_table_name)) {
+		table = dd_table_open_on_name(
+			thd, &mdl, new_table_name,
+			true, DICT_ERR_IGNORE_NONE);
+
+		if (table) {
 			my_error(ER_TABLE_EXISTS_ERROR, MYF(0),
 				 new_table_name);
+			dd_table_close(table, thd, &mdl, true);
 			goto new_clustered_failed;
 		}
 
