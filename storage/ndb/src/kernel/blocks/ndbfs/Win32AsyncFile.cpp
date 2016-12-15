@@ -134,7 +134,7 @@ void Win32AsyncFile::openReq(Request* request)
       (void)CloseHandle(hFile);
       return;
     }
-    if (Uint64(size) != request->par.open.file_size)
+    if (Uint64(size.QuadPart) != request->par.open.file_size)
     {
       request->error = FsRef::fsErrInvalidFileSize;
       (void)CloseHandle(hFile);
@@ -250,8 +250,8 @@ void Win32AsyncFile::openReq(Request* request)
       (void)CloseHandle(hFile);
       return;
     }
-    request->m_file_size_hi = Uint32(Uint64(size) >> 32);
-    request->m_file_size_lo = Uint32(Uint64(size) & 0xFFFFFFFF);
+    request->m_file_size_hi = Uint32(Uint64(size.QuadPart) >> 32);
+    request->m_file_size_lo = Uint32(Uint64(size.QuadPart) & 0xFFFFFFFF);
   }
 
   return;
