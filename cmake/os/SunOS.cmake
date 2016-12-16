@@ -27,6 +27,9 @@ IF(NOT FORCE_UNSUPPORTED_COMPILER)
       MESSAGE(FATAL_ERROR "GCC 4.8 or newer is required!")
     ENDIF()
   ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+    IF(SIZEOF_VOIDP MATCHES 4)
+      MESSAGE(FATAL_ERROR "32 bit Solaris builds are not supported. ")
+    ENDIF()
     # CC -V yields
     # CC: Studio 12.5 Sun C++ 5.14 SunOS_sparc Dodona 2016/04/04
     # CC: Sun C++ 5.13 SunOS_sparc Beta 2014/03/11
