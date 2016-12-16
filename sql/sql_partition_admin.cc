@@ -1005,6 +1005,8 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     we need to remove its TABLE/TABLE_SHARE from TDC now.
   */
   close_all_tables_for_name(thd, first_table->table->s, false, NULL);
+  /* Query Cache invalidation should not access freed TABLE instance. */
+  first_table->table= NULL;
 
   if (!error)
     error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
