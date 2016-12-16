@@ -1168,8 +1168,8 @@ TRACE
             ] /* filesort_execution */,
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 10,
-              "row_size": 10,
+              "key_size": "XXX",
+              "row_size": "XXX",
               "max_rows_per_buffer": 15,
               "num_rows_estimate": 15,
               "num_rows_found": 4,
@@ -5099,8 +5099,8 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
             ] /* filesort_execution */,
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 13,
-              "row_size": 13,
+              "key_size": "XXX",
+              "row_size": "XXX",
               "max_rows_per_buffer": 18,
               "num_rows_estimate": 18,
               "num_rows_found": 8,
