@@ -2845,6 +2845,7 @@ void __attribute__ ((constructor)) audit_plugin_so_init(void)
       _mysql_plugin_declarations_[0].info= mysql_v4_descriptor;
       use_event_data_for_disconnect= 1;
     }
+    MYSQL_SYSVAR_NAME(loc_info).flags= PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC;
   }
 
   memset(locinfo_ini_value, 'O', sizeof(locinfo_ini_value)-1);
