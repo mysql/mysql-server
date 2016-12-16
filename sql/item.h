@@ -1827,15 +1827,6 @@ public:
   */
   bool propagate_derived_used(uchar *) { return is_derived_used(); }
 
-  /**
-    Called by Item::walk() to set all the referenced items' derived_used flag.
-  */
-  bool propagate_set_derived_used(uchar *)
-  {
-    set_derived_used();
-    return false;
-  }
-
   /// @see Distinct_check::check_query()
   virtual bool aggregate_check_distinct(uchar *) { return false; }
   /// @see Group_check::check_query()
@@ -2112,6 +2103,9 @@ public:
   // @return true if an expression in select list of derived table is used
   bool is_derived_used() const { return derived_used; }
 
+  // Set an expression from select list of derived table as used
+  void set_derived_used() { derived_used= true; }
+
   void mark_subqueries_optimized_away()
   {
     if (has_subquery())
@@ -2147,9 +2141,6 @@ public:
   { return false; }
 private:
   virtual bool subq_opt_away_processor(uchar*) { return false; }
-
-  // Set an expression from select list of derived table as used
-  void set_derived_used() { derived_used= true; }
 
 public:                            // Start of data fields
   /**
@@ -4314,11 +4305,8 @@ public:
       selected item from a derived table/view as used.
     */
     Mark_field *mark_field= (Mark_field *)arg;
-   if (mark_field->mark != MARK_COLUMNS_NONE)
-     // Set the same flag for all the objects that *ref depends on.
-     (*ref)->walk(&Item::propagate_set_derived_used,
-                  Item::WALK_POSTFIX, NULL);
-
+    if (mark_field->mark != MARK_COLUMNS_NONE)
+      (*ref)->set_derived_used();
     return false;
   }
   longlong val_int() override;
