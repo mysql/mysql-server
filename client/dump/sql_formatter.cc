@@ -302,7 +302,7 @@ void Sql_formatter::format_dump_start(
     << this->get_charset()->csname
     << ";\n";
   if (dump_start_dump_task->m_gtid_mode == "OFF" &&
-      m_options->m_gtid_purged == GTID_PURGED_ON)
+      *((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_ON))
   {
     m_options->m_mysql_chain_element_options->get_program()->error(
       Mysql::Tools::Base::Message_data(1, "Server has GTIDs disabled.\n",
@@ -311,8 +311,14 @@ void Sql_formatter::format_dump_start(
   }
   if (dump_start_dump_task->m_gtid_mode != "OFF")
   {
-    if (m_options->m_gtid_purged == GTID_PURGED_ON ||
-        m_options->m_gtid_purged == GTID_PURGED_AUTO)
+    /*
+     value for m_gtid_purged is set by typecasting its address to ulong*
+     however below conditions fails if we do direct comparison without
+     typecasting on solaris sparc. Guessing that this is due to differnt
+     endianess.
+    */
+    if (*((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_ON) ||
+        *((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_AUTO))
     {
       if (!m_mysqldump_tool_options->m_dump_all_databases)
       {
