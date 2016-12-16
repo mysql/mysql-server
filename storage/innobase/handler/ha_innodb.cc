@@ -8193,6 +8193,8 @@ the foreign table, if this table is referenced by the foreign table
 @param[out]	m_table		InnoDB table handle
 @param[in]	dd_table	Global DD table
 @param[in]	thd		thread THD
+@param[in]	dict_locked	True if dict_sys->mutex is already held,
+				otherwise false
 @return DB_SUCESS 	if successfully load FK constraint */
 static
 dberr_t
@@ -8203,7 +8205,8 @@ dd_table_load_fk(
 	bool*				uncached,
 	dict_table_t*			m_table,
 	const dd::Table*		dd_table,
-	THD*				thd)
+	THD*				thd,
+	bool				dict_locked)
 {
 	dberr_t	err = DB_SUCCESS;
 
@@ -8232,8 +8235,13 @@ dd_table_load_fk(
 			foreign->heap, norm_name);
 		dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
 
+		build_table_filename(buf, sizeof(buf),
+				     db_name.c_str(), key->name().c_str(),
+				     NULL, 0, &truncated);
+		ut_ad(!truncated);
+		normalize_table_name(norm_name, buf);
 		foreign->id = mem_heap_strdup(
-			foreign->heap, key->name().c_str());
+			foreign->heap, norm_name);
 
 		switch (key->update_rule()) {
 		case dd::Foreign_key::RULE_NO_ACTION:
@@ -8295,7 +8303,9 @@ dd_table_load_fk(
 			num_ref++;
 		}
 
-		mutex_enter(&dict_sys->mutex);
+		if (!dict_locked) {
+			mutex_enter(&dict_sys->mutex);
+		}
 #ifdef UNIV_DEBUG
 		dict_table_t*   for_table;
 
@@ -8310,7 +8320,9 @@ dd_table_load_fk(
 		err = dict_foreign_add_to_cache(
 			foreign, NULL, FALSE, DICT_ERR_IGNORE_NONE);	
 		ut_ad(err == DB_SUCCESS);
-		mutex_exit(&dict_sys->mutex);
+		if (!dict_locked) {
+			mutex_exit(&dict_sys->mutex);
+		}
 
 		/* Set up the FK virtual column info */
 		dict_mem_table_free_foreign_vcol_set(m_table);
@@ -8318,7 +8330,9 @@ dd_table_load_fk(
 	}
 
 	/* TODO: NewDD: Temporary ignore system table until WL#6049 inplace */
-	if (!strstr(tbl_name, "mysql")) {
+	/* TODO: NewDD: Temporarily use dict_locked to check if it's during
+	create table */
+	if (!strstr(tbl_name, "mysql") && !dict_locked) {
 		std::vector<dd::String_type>	child_schema;
 		std::vector<dd::String_type>	child_name;
 		client->fetch_fk_children_uncached(table->s->db.str,
@@ -8336,6 +8350,7 @@ dd_table_load_fk(
 			normalize_table_name(full_name, buf);
 			MDL_ticket*	mdl = nullptr;
 
+			ut_ad(!dict_locked);
 			/* Load the foreign table first */
 			dict_table_t*	foreign_table =
 				dd_table_open_on_name(
@@ -8546,7 +8561,7 @@ dd_open_table(
 
 	if (exist == NULL) {
 		dd_table_load_fk(client, table, norm_name, uncached,
-				 m_table, &dd_table->table(), thd);
+				 m_table, &dd_table->table(), thd, false);
 	}
 	mem_heap_free(heap);
 
@@ -14817,10 +14832,12 @@ create_table_info_t::prepare_create_table(
 	DBUG_RETURN(parse_table_name(name));
 }
 
-/** Create a new table to an InnoDB database.
-@return error number */
+/** Create the internal innodb table.
+@param[in]	dd_table	dd::Table
+@return 0 or error number */
 int
-create_table_info_t::create_table()
+create_table_info_t::create_table(
+	const dd::Table*	dd_table)
 {
 	int		error;
 	uint		primary_key_no;
@@ -14970,12 +14987,38 @@ create_table_info_t::create_table()
 	ut_ad(handler == NULL || is_intrinsic_temp_table());
 
 	/* There is no concept of foreign key for intrinsic tables. */
-	if (handler == NULL && stmt != NULL) {
-
-		dberr_t	err = row_table_add_foreign_constraints(
+	if (handler == NULL
+#if 1
+	    && stmt != NULL
+#endif
+#if 0	/* NewDD TODO: Enable this once Bug#25252847 is fixed,
+	also remove above #if 1 */
+	    && !dd_table->foreign_keys().empty()
+#endif
+	) {
+		dberr_t	err = DB_SUCCESS;
+#if 1
+		err = row_table_add_foreign_constraints(
 			m_trx, stmt, stmt_len, m_table_name,
 			m_create_info->options & HA_LEX_CREATE_TMP_TABLE);
-
+#endif
+#if 0	/* New DD TODO: Enable this after WL#6049 and Bug#25252847,
+	also remove above #if 1 */
+		if (err == DB_SUCCESS) {
+			/* Load in-memory foreign keys */
+			dd::cache::Dictionary_client*	client =
+				dd::get_dd_client(m_thd);
+			dd::cache::Dictionary_client::Auto_releaser releaser(
+				client);
+			bool	uncached;
+			innobase_table = dd_table_open_on_name_in_mem(
+				m_table_name, true, DICT_ERR_IGNORE_NONE);
+			err = dd_table_load_fk(
+				client, m_form, m_table_name, &uncached,
+				innobase_table, dd_table, m_thd, true);
+			dd_table_close(innobase_table, NULL, NULL, true);
+		}
+#endif
 		switch (err) {
 
 		case DB_PARENT_NO_INDEX:
@@ -16419,7 +16462,7 @@ ha_innobase::create_table_impl(
 		row_mysql_lock_data_dictionary(trx);
 	}
 
-	if ((error = info.create_table())) {
+	if ((error = info.create_table(&dd_tab->table()))) {
 		goto cleanup;
 	}
 

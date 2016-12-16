@@ -9814,7 +9814,7 @@ alter_part::create_table(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	if ((error = info.create_table())) {
+	if ((error = info.create_table(&dd_part->table()))) {
 		trx_rollback_for_mysql(trx);
 		row_mysql_unlock_data_dictionary(trx);
 		trx_free_for_mysql(trx);

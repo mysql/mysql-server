@@ -2647,8 +2647,6 @@ ha_innopart::create(
 		table_level_tablespace_name[0] = '\0';
 	}
 
-	info.allocate_trx();
-
 	/* TODO: These tablespace names can be got by dd::Tablespace::name
 	according to dd_part->tablespace_id(). This work-around can prevent
 	accessing DD tables after holding InnoDB DD locks/mutexes. */
@@ -2680,13 +2678,15 @@ ha_innopart::create(
 	or lock waits can happen in it during a table create operation.
 	Drop table etc. do this latching in row0mysql.cc. */
 
-	row_mysql_lock_data_dictionary(info.trx());
-
 	ulint	i = 0;
 	for (const auto dd_part : *table_def->partitions()) {
 		if (!dd_part_is_stored(dd_part)) {
 			continue;
 		}
+
+		info.allocate_trx();
+
+		row_mysql_lock_data_dictionary(info.trx());
 
 		size_t	len = Ha_innopart_share::create_partition_postfix(
 			partition_name_start, FN_REFLEN - table_name_len,
@@ -2732,7 +2732,7 @@ ha_innopart::create(
 
 		info.set_remote_path_flags();
 
-		error = info.create_table();
+		error = info.create_table(&dd_part->table());
 		if (error != 0) {
 			goto cleanup;
 		}
@@ -2740,11 +2740,11 @@ ha_innopart::create(
 		create_info->data_file_name = table_data_file_name;
 		create_info->index_file_name = table_index_file_name;
 		create_info->tablespace = table_level_tablespace_name;
+
+		innobase_commit_low(info.trx());
+
+		row_mysql_unlock_data_dictionary(info.trx());
 	}
-
-	innobase_commit_low(info.trx());
-
-	row_mysql_unlock_data_dictionary(info.trx());
 
 	/* No need to use these now, only table_name will be used. */
 	create_info->data_file_name = NULL;

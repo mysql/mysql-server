@@ -868,8 +868,10 @@ public:
 	/** Set m_tablespace_type. */
 	void set_tablespace_type(bool table_being_altered_is_file_per_table);
 
-	/** Create the internal innodb table. */
-	int create_table();
+	/** Create the internal innodb table.
+	@param[in]	dd_table	dd::Table
+	@return 0 or error number */
+	int create_table(const dd::Table*	dd_table);
 
 	/** Update the internal data dictionary. */
 	int create_table_update_dict();
