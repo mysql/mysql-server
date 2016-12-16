@@ -73,6 +73,10 @@ Created 10/8/1995 Heikki Tuuri
 #include "ut0crc32.h"
 #include "ut0mem.h"
 
+#ifndef UNIV_PFS_THREAD
+#define create_thd(x,y,z,PFS_KEY)	create_thd(x,y,z,PFS_NOT_INSTRUMENTED)
+#endif /* UNIV_PFS_THREAD */
+
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
 
