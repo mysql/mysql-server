@@ -122,7 +122,12 @@ instrumentation in each of five InnoDB modules if
 HAVE_PSI_INTERFACE is defined. */
 #if defined(HAVE_PSI_INTERFACE) && !defined(UNIV_HOTBACKUP)
 # define UNIV_PFS_MUTEX
+
+#ifdef UNIV_PFS_MUTEX
+/* For the rwlocks to be tracked UNIV_PFS_MUTEX has to be defined. If not
+defined, the rwlocks are simply not tracked. */
 # define UNIV_PFS_RWLOCK
+#endif /* UNIV_PFS_MUTEX */
 
 #  define UNIV_PFS_IO
 # define UNIV_PFS_THREAD
