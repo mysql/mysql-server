@@ -1462,7 +1462,7 @@ static void close_connections(void)
   end_slave();
 
   /* Give threads time to die. */
-  for (int i= 0; thread_count && i < 100; i++)
+  for (int i= 0; thread_count && i < 200; i++)
     my_sleep(20000);
 
   /*
