@@ -45,7 +45,6 @@ Data dictionary interface */
 @param[in]	table	table name
 @retval	false if acquired
 @retval	true if failed (my_error() will have been called) */
-static
 bool
 dd_mdl_acquire(
 	THD*			thd,

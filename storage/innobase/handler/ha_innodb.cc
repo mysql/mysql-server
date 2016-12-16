@@ -8206,7 +8206,8 @@ dd_table_load_fk(
 	dict_table_t*			m_table,
 	const dd::Table*		dd_table,
 	THD*				thd,
-	bool				dict_locked)
+	bool				dict_locked,
+	dict_names_t&			fk_tables)
 {
 	dberr_t	err = DB_SUCCESS;
 
@@ -8335,8 +8336,15 @@ dd_table_load_fk(
 	if (!strstr(tbl_name, "mysql") && !dict_locked) {
 		std::vector<dd::String_type>	child_schema;
 		std::vector<dd::String_type>	child_name;
-		client->fetch_fk_children_uncached(table->s->db.str,
-			table->s->table_name.str, &child_schema, &child_name);
+
+		char    name_buf1[NAME_LEN + 1];
+                char    name_buf2[NAME_LEN + 1];
+
+		innobase_parse_tbl_name(m_table->name.m_name,
+					name_buf1, name_buf2, NULL);
+
+		client->fetch_fk_children_uncached(name_buf1, name_buf2,
+						   &child_schema, &child_name);
 		std::vector<dd::String_type>::iterator it = child_name.begin();
 		for (auto& db_name : child_schema) {
 			dd::String_type	tb_name = *it;
@@ -8348,42 +8356,61 @@ dd_table_load_fk(
 			ut_ad(!truncated);
 			char            full_name[FN_REFLEN];
 			normalize_table_name(full_name, buf);
-			MDL_ticket*	mdl = nullptr;
+
+			mutex_enter(&dict_sys->mutex);
 
 			ut_ad(!dict_locked);
 			/* Load the foreign table first */
 			dict_table_t*	foreign_table =
-				dd_table_open_on_name(
-					thd, &mdl, full_name,
-					false, DICT_ERR_IGNORE_NONE);
+				dd_table_open_on_name_in_mem(
+					full_name, true,
+					DICT_ERR_IGNORE_NONE);
 
 #ifdef UNIV_DEBUG
 			bool found = false;
 #endif
-			for (auto &fk : foreign_table->foreign_set) {
-				if (strcmp(fk->referenced_table_name,
-					   tbl_name) != 0) {
-					continue;
-				}
+			if (foreign_table) {
+				for (auto &fk : foreign_table->foreign_set) {
+					if (strcmp(fk->referenced_table_name,
+						   tbl_name) != 0) {
+						continue;
+					}
 
-				if (fk->referenced_table) {
-					ut_ad(fk->referenced_table == m_table);
-					ut_d(found = true);
-				} else {
-					mutex_enter(&dict_sys->mutex);
-					err = dict_foreign_add_to_cache(
-						fk, NULL, FALSE,
-						DICT_ERR_IGNORE_NONE);
-					mutex_exit(&dict_sys->mutex);
-					ut_d(found = true);
+					if (fk->referenced_table) {
+						ut_ad(fk->referenced_table == m_table);
+						ut_d(found = true);
+					} else {
+						err = dict_foreign_add_to_cache(
+							fk, NULL, FALSE,
+							DICT_ERR_IGNORE_NONE);
+						ut_d(found = true);
+					}
 				}
-			}
+				ut_ad(found);
+				foreign_table->release();
+			} else {
+				/* To avoid recursively loading the tables
+				related through the foreign key constraints,
+				the child table name is saved here. The child
+				table will be loaded later, along with its
+                                foreign key constraint. */
+                                lint    old_size = mem_heap_get_size(
+					m_table->heap);
 
-			ut_ad(found);
+                                fk_tables.push_back(
+                                        mem_heap_strdupl(m_table->heap,
+                                                full_name,
+                                                strlen(full_name)));
+
+                                lint    new_size = mem_heap_get_size(
+					m_table->heap);
+                                dict_sys->size += new_size - old_size;
+                        }
+
+			mutex_exit(&dict_sys->mutex);
 
 			ut_ad(it != child_name.end());
 			++it;
-			dd_table_close(foreign_table, thd, &mdl, false);
 		}
 	}
 
@@ -8403,12 +8430,13 @@ dd_table_load_fk(
 @param[in]	dd_table	Global DD table or partition object
 @param[in]	skip_mdl	whether meta-data locking is skipped
 @param[in]	thd		thread THD
+@param[in,out]	fk_list		stack of table names which neet to load
 @retval 0                       on success
 @retval HA_ERR_TABLE_CORRUPT    if the table is marked as corrupted
 @retval HA_ERR_TABLESPACE_MISSING       if the file is not found */
 template<typename Table>
 dict_table_t*
-dd_open_table(
+dd_open_table_one(
         dd::cache::Dictionary_client*   client,
         const TABLE*                    table,
 	const char*			norm_name,
@@ -8416,7 +8444,8 @@ dd_open_table(
         dict_table_t*&                  ib_table,
         const Table*	                dd_table,
         bool                            skip_mdl,
-	THD*				thd)
+	THD*				thd,
+	dict_names_t&			fk_list)
 {
 	ut_ad(dd_table != NULL);
 
@@ -8561,9 +8590,130 @@ dd_open_table(
 
 	if (exist == NULL) {
 		dd_table_load_fk(client, table, norm_name, uncached,
-				 m_table, &dd_table->table(), thd, false);
+				 m_table, &dd_table->table(), thd, false,
+				 fk_list);
 	}
 	mem_heap_free(heap);
+
+	return(m_table);
+}
+
+
+/** Open or load a table definition based on a Global DD object.
+@tparam		Table		dd::Table or dd::Partition
+@param[in,out]	client		data dictionary client
+@param[in]	table		MySQL table definition
+@param[in]	norm_name	Table Name
+@param[in,out]	uncached	NULL if the table should be added to the cache;
+				if not, *uncached=true will be assigned
+				when ib_table was allocated but not cached
+				(used during delete_table and rename_table)
+@param[out]	ib_table	InnoDB table handle
+@param[in]	dd_table	Global DD table or partition object
+@param[in]	skip_mdl	whether meta-data locking is skipped
+@param[in]	thd		thread THD
+@retval 0                       on success
+@retval HA_ERR_TABLE_CORRUPT    if the table is marked as corrupted
+@retval HA_ERR_TABLESPACE_MISSING       if the file is not found */
+template<typename Table>
+dict_table_t*
+dd_open_table(
+        dd::cache::Dictionary_client*   client,
+        const TABLE*                    table,
+	const char*			norm_name,
+        bool*                           uncached,
+        dict_table_t*&                  ib_table,
+        const Table*	                dd_table,
+        bool                            skip_mdl,
+	THD*				thd)
+{
+	dict_table_t*                   m_table = NULL;
+	dict_names_t                    fk_list;
+
+	m_table = dd_open_table_one(client, table, norm_name, uncached,
+		ib_table, dd_table, skip_mdl, thd, fk_list);
+
+	if (m_table != NULL) {
+		dd::cache::Dictionary_client*	client
+			= dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser
+			releaser(client);
+
+
+		while (!fk_list.empty()) {
+			table_name_t		fk_table_name;
+			dict_table_t*		fk_table;
+			const dd::Table*	dd_table = nullptr;
+
+			fk_table_name.m_name =
+				const_cast<char*>(fk_list.front());
+			mutex_enter(&dict_sys->mutex);
+			fk_table = dict_table_check_if_in_cache_low(
+				fk_table_name.m_name);
+			mutex_exit(&dict_sys->mutex);
+			if (!fk_table) {
+				MDL_ticket*     fk_mdl = nullptr;
+				char		db_buf[NAME_LEN + 1];
+				char		tbl_buf[NAME_LEN + 1];
+
+				if (!innobase_parse_tbl_name(
+					fk_table_name.m_name,
+					db_buf, tbl_buf, NULL)) {
+					goto next;
+				}
+
+				dd_mdl_acquire(thd, &fk_mdl, db_buf, tbl_buf);
+
+				if (client->acquire(db_buf, tbl_buf, &dd_table)
+				    || dd_table == nullptr) {
+					dd_mdl_release(thd, &fk_mdl);
+					goto next;
+				}
+
+				ut_ad(dd_table->se_private_id()
+				      != dd::INVALID_OBJECT_ID);
+
+				TABLE_SHARE	ts;
+
+				init_tmp_table_share(thd,
+					&ts, db_buf, strlen(db_buf),
+					dd_table->name().c_str(),
+					""/* file name */);
+
+				ulint error = open_table_def(thd, &ts, false,
+							     dd_table);
+
+				if (error) {
+					dd_mdl_release(thd, &fk_mdl);
+					goto next;
+				}
+
+				TABLE	td;
+
+				error = open_table_from_share(thd, &ts,
+					dd_table->name().c_str(),
+					0, OPEN_FRM_FILE_ONLY, 0,
+					&td, false, dd_table);
+
+				if (error) {
+					free_table_share(&ts);
+					dd_mdl_release(thd, &fk_mdl);
+					goto next;
+				}
+
+				fk_table = dd_open_table_one(
+					client, &td, fk_table_name.m_name,
+					nullptr, fk_table, dd_table,
+					false, thd, fk_list);
+
+				closefrm(&td, false);
+				free_table_share(&ts);
+				dd_table_close(fk_table, thd, &fk_mdl, false);
+			}
+next:
+			fk_list.pop_front();
+		}
+	}
 
 	return(m_table);
 }

@@ -188,16 +188,16 @@ dd_set_autoinc(
 /** Acquire a metadata lock.
 @param[in,out]	thd	current thread
 @param[out]	mdl	metadata lock
-@param[in]	name	table name
-@param[in]	trylock	whether to skip the normal MDL timeout
+@param[in]	db	schema name
+@param[in]	table	table name
 @retval false if acquired, or trylock timed out
 @retval true if failed (my_error() will have been called) */
 bool
 dd_mdl_acquire(
 	THD*			thd,
 	MDL_ticket**		mdl,
-	const table_name_t&	name,
-	bool			trylock);
+	const char*		db,
+	char*			table);
 
 /** Release a metadata lock.
 @param[in,out]	thd	current thread
