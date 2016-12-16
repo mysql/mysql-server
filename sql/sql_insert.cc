@@ -2570,7 +2570,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 #ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
         /*
           InnoDB might add tablespace objects to the DD during table creation.
-          If this changes are not committed here it will have problems dropping
+          If these changes are not committed here it will have problems dropping
           table on error.
 
           The problem will be solved once InnoDB implements support for atomic
@@ -3098,7 +3098,7 @@ void Query_result_create::drop_open_table()
     close_thread_table(thd, &thd->open_tables);
     /*
       Remove TABLE and TABLE_SHARE objects for the table we have failed
-      to create from the caches. This also nicely covers the case then
+      to create from the caches. This also nicely covers the case when
       addition of table to data-dictionary was not even committed.
     */
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, create_table->db,
