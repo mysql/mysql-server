@@ -131,7 +131,9 @@ HAVE_PSI_INTERFACE is defined. */
 # define UNIV_PFS_MUTEX
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
+#if defined HAVE_PSI_RWLOCK_INTERFACE && defined UNIV_PFS_MUTEX
+/* For the rwlocks to be tracked UNIV_PFS_MUTEX has to be defined. If not
+defined, the rwlocks are simply not tracked. */
 # define UNIV_PFS_RWLOCK
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
