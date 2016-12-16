@@ -359,5 +359,42 @@ where t1.a = t2.a and ( t1.a = ( select min(a) from t1 ) or 0 );
 
 drop table t1,t2,t3;
 
+--echo #
+--echo # MDEV-10148: Database crashes in the query to the View
+--echo #
+CREATE TABLE t1 (
+	key_code INT(11) NOT NULL,
+	value_string VARCHAR(50) NULL DEFAULT NULL,
+	PRIMARY KEY (key_code)
+) COLLATE='utf8_general_ci' ENGINE=InnoDB ;
+ 
+CREATE TABLE t2 (
+	key_code INT(11) NOT NULL,
+	target_date DATE NULL DEFAULT NULL,
+	PRIMARY KEY (key_code)
+) COLLATE='utf8_general_ci' ENGINE=InnoDB ;
+ 
+CREATE TABLE t3 (
+	now_date DATE NOT NULL,
+	PRIMARY KEY (now_date)
+) COLLATE='utf8_general_ci' ENGINE=InnoDB ;
+ 
+CREATE VIEW v1
+AS
+SELECT
+	B.key_code,
+	B.target_date
+FROM
+	t2 B INNER JOIN t3 C ON
+	B.target_date = C.now_date
+;
+SET @s = 'SELECT A.* FROM t1 A WHERE A.key_code IN (SELECT key_code FROM v1)';
+PREPARE stmt FROM @s;
+EXECUTE stmt;                                   #1st time -> success
+EXECUTE stmt;                                   #2nd time -> crash
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
 set optimizer_switch=@subselect2_test_tmp;
 

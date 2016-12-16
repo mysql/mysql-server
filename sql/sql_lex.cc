@@ -4247,6 +4247,12 @@ bool st_select_lex::is_merged_child_of(st_select_lex *ancestor)
     {
       continue;
     }
+
+    if (sl->master_unit()->derived &&
+      sl->master_unit()->derived->is_merged_derived())
+    {
+      continue;
+    }
     all_merged= FALSE;
     break;
   }
