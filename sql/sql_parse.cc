@@ -1430,6 +1430,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 /* PSI begin */
       thd->m_digest= & thd->m_digest_state;
+      thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   com_statement_info[command].m_key,
