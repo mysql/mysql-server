@@ -4352,9 +4352,9 @@ bool subselect_hash_sj_engine::init(List<Item> *tmp_columns, uint subquery_id)
   result= result_sink;
 
   /*
-    If the subquery has blobs, or the total key lenght is bigger than
+    If the subquery has blobs, or the total key length is bigger than
     some length, or the total number of key parts is more than the
-    allowed maximum (currently MAX_REF_PARTS == 16), then the created
+    allowed maximum (currently MAX_REF_PARTS == 32), then the created
     index cannot be used for lookups and we can't use hash semi
     join. If this is the case, delete the temporary table since it
     will not be used, and tell the caller we failed to initialize the
