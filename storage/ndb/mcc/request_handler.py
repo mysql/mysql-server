@@ -477,12 +477,14 @@ class ConfiguratorServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer)
 configdir = None
 basedir = None
 deathkey = None
-        
+from util import is_port_available
+
 def main(prefix, cfgdir):
     """Server's main-function which parses the command line and starts up the server accordingly.
     """
     global configdir 
     global basedir 
+    true_port_val = 0
     configdir = cfgdir
     basedir = prefix
     frontend = os.path.join(cfgdir, 'frontend')
@@ -532,6 +534,17 @@ def main(prefix, cfgdir):
         logging.basicConfig(level=dbglvl, format=fmt)
     else:
         logging.basicConfig(level=dbglvl, format=fmt, filename=options.server_log_file)
+
+    for port_val in range(options.port, options.port + 20):
+        if is_port_available(options.server_name, port_val):
+            true_port_val = port_val
+            break
+    if true_port_val == 0:
+        # no available port in range :-/
+        print("No available port in range[{},{}]!".format(options.port, options.port + 20))
+        sys.exit()
+
+    options.port = true_port_val
 
     srvopts = { 'server' : options.server_name,
                'port': options.port,
