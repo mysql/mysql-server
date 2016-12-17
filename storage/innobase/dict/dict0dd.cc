@@ -179,7 +179,7 @@ dd_table_open_on_dd_obj(
 
 		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf, NULL);
 		if (dd_part == NULL) {
-			ut_ad(strcmp(dd_table.name().c_str(), tbl_buf) == 0);
+			ut_ad(innobase_strcasecmp(dd_table.name().c_str(), tbl_buf) == 0);
 		} else {
 			ut_ad(strncmp(dd_table.name().c_str(), tbl_buf,
 				      dd_table.name().size()) == 0);
