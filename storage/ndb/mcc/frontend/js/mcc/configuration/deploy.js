@@ -1348,7 +1348,7 @@ function startCluster() {
 	}
 	  
 	function onError(errMsg) {
-          alert(errMgs);
+          alert(errMsg);
 	  removeProgressDialog();
 	  waitCondition.resolve();
 	}
