@@ -557,6 +557,7 @@ def main(prefix, cfgdir):
     global deathkey
     deathkey = random.randint(100000, 1000000)
     print 'deathkey='+str(deathkey)
+    print 'Press CTRL+C to stop web server.'
 #    dkf = open('deathkey.txt','w')
 #    dkf.write(str(deathkey))
 #    dkf.close()
