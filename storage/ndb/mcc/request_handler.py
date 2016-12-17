@@ -543,7 +543,23 @@ def main(prefix, cfgdir):
         srvopts['certfile'] = options.cert_file
         srvopts['keyfile'] = options.key_file
         srvopts['ca_certs'] = options.ca_certs_file
-        
+
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    try:
+        file_handle = os.open('mcc.pid', flags)
+    except OSError as e:
+        if e.errno == errno.EEXIST:  # Failed as the file already exists.
+            sys.exit("Web server already running!")
+        else:  # Something unexpected went wrong so reraise the exception.
+            raise
+    else:  # No exception, so the file must have been created successfully.
+        with os.fdopen(file_handle, 'w') as file_obj:
+            # Using `os.fdopen` converts the handle to an object that acts like a
+            # regular Python file object, and the `with` context manager means the
+            # file will be automatically closed when we're done with it.
+            file_obj.write("MCC running.")
+            file_obj.close()
+
     print 'Starting web server on port ' + repr(options.port)
     url_host = options.server_name
     if url_host == '':
