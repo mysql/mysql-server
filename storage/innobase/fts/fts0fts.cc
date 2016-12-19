@@ -7283,6 +7283,11 @@ table_exit:
 	}
 }
 
+/* NewDD(WL#9536) TODO: Once we support crash-safe DDL, this checking for
+orphaned aux tables should be unnecessary. Please also note that the renaming
+aux tables from DEC format to HEX format is also unnecessary. We suppose
+this rename is done by 5.7 server, and upgrade from 5.7 to 8.0 should not
+affected by this issue any more. We don't support N+2 upgrade */
 /**********************************************************************//**
 Drop all orphaned FTS auxiliary tables, those that don't have a parent
 table or FTS index defined on them. */
