@@ -613,4 +613,4 @@ def main(prefix, cfgdir):
         if httpsrv:
             httpsrv.socket.close()
         #os.remove('deathkey.txt')
-
+        os.remove('mcc.pid')
