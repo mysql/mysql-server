@@ -3433,7 +3433,7 @@ row_table_add_foreign_constraints(
 			err = DB_DUPLICATE_KEY;);
 
 	DEBUG_SYNC_C("table_add_foreign_constraints");
-
+#ifndef NEW_DD_FK
 	/* Check like this shouldn't be done for table that doesn't
 	have foreign keys but code still continues to run with void action.
 	Disable it for intrinsic table at-least */
@@ -3449,7 +3449,7 @@ row_table_add_foreign_constraints(
 			fk_tables.pop_front();
 		}
 	}
-
+#endif /* NEW_DD_FK */
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
 

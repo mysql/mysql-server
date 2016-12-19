@@ -15138,37 +15138,41 @@ create_table_info_t::create_table(
 
 	/* There is no concept of foreign key for intrinsic tables. */
 	if (handler == NULL
-#if 1
+#ifndef NEW_DD_FK
 	    && stmt != NULL
-#endif
-#if 0	/* NewDD TODO: Enable this once Bug#25252847 is fixed,
-	also remove above #if 1 */
+#endif /* NEW_DD_FK */
+#ifdef NEW_DD_FK
+	/* NewDD TODO: Enable this once Bug#25252847 is fixed */
 	    && !dd_table->foreign_keys().empty()
-#endif
+#endif /* NEW_DD_FK */
 	) {
 		dberr_t	err = DB_SUCCESS;
-#if 1
 		err = row_table_add_foreign_constraints(
 			m_trx, stmt, stmt_len, m_table_name,
 			m_create_info->options & HA_LEX_CREATE_TMP_TABLE);
-#endif
-#if 0	/* New DD TODO: Enable this after WL#6049 and Bug#25252847,
-	also remove above #if 1 */
+#ifdef NEW_DD_FK
+		/* New DD TODO: Enable this after WL#6049 and Bug#25252847 */
 		if (err == DB_SUCCESS) {
 			/* Load in-memory foreign keys */
 			dd::cache::Dictionary_client*	client =
 				dd::get_dd_client(m_thd);
 			dd::cache::Dictionary_client::Auto_releaser releaser(
 				client);
-			bool	uncached;
+			bool		uncached;
+			dict_names_t	fk_list;
 			innobase_table = dd_table_open_on_name_in_mem(
 				m_table_name, true, DICT_ERR_IGNORE_NONE);
 			err = dd_table_load_fk(
 				client, m_form, m_table_name, &uncached,
-				innobase_table, dd_table, m_thd, true);
+				innobase_table, dd_table, m_thd, true, fk_list);
 			dd_table_close(innobase_table, NULL, NULL, true);
 		}
-#endif
+
+		if (trx_is_started(m_trx)) {
+			trx_commit(m_trx);
+			m_trx->op_info = "";
+		}
+#endif /* NEW_DD_FK */
 		switch (err) {
 
 		case DB_PARENT_NO_INDEX:
@@ -15225,6 +15229,13 @@ create_table_info_t::create_table(
 	} else {
 		innobase_table = NULL;
 	}
+
+#ifndef NEW_DD_FK
+	if (trx_is_started(m_trx)) {
+		trx_commit(m_trx);
+		m_trx->op_info = "";
+	}
+#endif /* NEW_DD_FK */
 
 	DBUG_RETURN(0);
 }
