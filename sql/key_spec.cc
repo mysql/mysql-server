@@ -88,7 +88,8 @@ bool foreign_key_prefix(const Key_spec *a, const Key_spec *b)
 }
 
 
-bool Foreign_key_spec::validate(THD *thd, List<Create_field> &table_fields) const
+bool Foreign_key_spec::validate(THD *thd, const char *table_name,
+                                List<Create_field> &table_fields) const
 {
   DBUG_ENTER("Foreign_key_spec::validate");
 
@@ -126,6 +127,13 @@ bool Foreign_key_spec::validate(THD *thd, List<Create_field> &table_fields) cons
   }
   for (const Key_part_spec *column : columns)
   {
+    // Index prefixes on foreign keys columns are not supported.
+    if (column->length > 0)
+    {
+      my_error(ER_CANNOT_ADD_FOREIGN, MYF(0), table_name);
+      DBUG_RETURN(true);
+    }
+
     it.rewind();
     while ((sql_field= it++) &&
            my_strcasecmp(system_charset_info,
