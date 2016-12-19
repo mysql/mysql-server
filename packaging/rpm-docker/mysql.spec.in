@@ -187,7 +187,7 @@ for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack mysql
          mysqlbinlog mysqlcheck mysql_client_test mysql_config_editor \
          mysqld_multi mysqld_safe mysqldumpslow mysql_embedded mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqlxtest \
-         perror replace  resolveip  resolve_stack_dump lz4_decompress \
+         perror resolveip  resolve_stack_dump lz4_decompress \
          zlib_decompress; do
     rm -f %{buildroot}%{_bindir}/$f
 done

@@ -78,7 +78,6 @@ LIST(APPEND EXCLUDE_FILES
      bin/mysql_client_test_embedded.exe
      bin/mysqld-debug.exe
      bin/mysqltest_embedded.exe
-     bin/replace.exe
      lib/debug/mysqlserver.lib
      lib/libmysqld.dll
      lib/libmysqld.lib

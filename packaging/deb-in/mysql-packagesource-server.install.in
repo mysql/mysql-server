@@ -24,7 +24,6 @@ usr/bin/mysqlbinlog
 usr/bin/mysqld_multi
 usr/bin/mysqld_safe
 usr/bin/perror
-usr/bin/replace
 usr/bin/resolveip
 usr/bin/resolve_stack_dump
 usr/bin/lz4_decompress
@@ -45,7 +44,6 @@ usr/share/man/man1/mysqlbinlog.1
 usr/share/man/man1/mysqld_multi.1
 usr/share/man/man1/mysqld_safe.1
 usr/share/man/man1/perror.1
-usr/share/man/man1/replace.1
 usr/share/man/man1/resolveip.1
 usr/share/man/man1/resolve_stack_dump.1
 usr/share/man/man1/zlib_decompress.1
