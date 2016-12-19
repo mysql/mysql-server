@@ -3169,6 +3169,13 @@ DROP TABLE t1;
 SELECT @@collation_connection, @@character_set_results;
 @@collation_connection	@@character_set_results
 cp1251_general_ci	cp1251
+SELECT
+CHARSET(DATE_SUB('2007-08-03', INTERVAL 1 MINUTE)) AS field_str1,
+CHARSET(DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE)) AS field_str2,
+CHARSET(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
+CHARSET(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
+field_str1	field_str2	field_date	field_datetime
+cp1251	cp1251	binary	binary
 CREATE TABLE t1 AS
 SELECT
 DATE_SUB('2007-08-03', INTERVAL 1 MINUTE) AS field_str1,
@@ -3178,8 +3185,8 @@ DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_da
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `field_str1` varchar(19) DEFAULT NULL,
-  `field1_str2` varchar(19) DEFAULT NULL,
+  `field_str1` varchar(19) CHARACTER SET cp1251 DEFAULT NULL,
+  `field1_str2` varchar(19) CHARACTER SET cp1251 DEFAULT NULL,
   `field_date` date DEFAULT NULL,
   `field_datetime` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -3190,8 +3197,8 @@ DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
 DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
 DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					field_str1	254	19	10	Y	128	0	63
-def					field1_str2	254	19	19	Y	128	0	63
+def					field_str1	254	19	10	Y	0	0	51
+def					field1_str2	254	19	19	Y	0	0	51
 def					field_date	10	10	10	Y	128	0	63
 def					field_datetime	12	19	19	Y	128	0	63
 field_str1	field1_str2	field_date	field_datetime
@@ -3203,6 +3210,37 @@ HEX(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
 HEX(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
 field_str1	field1_str2	field_date	field_datetime
 323030372D30382D30322032333A35393A3030	323030372D30382D30332031373A33323A3030	323030372D30382D3032	323030372D30382D30332031373A33323A3030
+#
+# MDEV-4841 Wrong character set of ADDTIME() and DATE_ADD()
+#
+SELECT @@collation_connection, @@character_set_results;
+@@collation_connection	@@character_set_results
+cp1251_general_ci	cp1251
+SELECT
+CHARSET(ADDTIME(_latin1'10:01:01',_latin1'10:00:00')) AS addtime1,
+CHARSET(ADDTIME('10:01:01','10:00:00')) AS addtime2,
+CHARSET(DATE_ADD(_latin1'2001-01-01 10:01:01',interval 10 second)) AS date_add1,
+CHARSET(DATE_ADD('2001-01-01 10:01:01',interval 10 second)) AS date_add2;
+addtime1	addtime2	date_add1	date_add2
+cp1251	cp1251	cp1251	cp1251
+CREATE TABLE t1 AS
+SELECT
+ADDTIME(_latin1'10:01:01',_latin1'10:00:00') AS addtime1,
+ADDTIME('10:01:01','10:00:00') AS addtime2,
+DATE_ADD(_latin1'2001-01-01 10:01:01',interval 10 second) AS date_add1,
+DATE_ADD('2001-01-01 10:01:01',interval 10 second) AS date_add2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `addtime1` varchar(26) CHARACTER SET cp1251 DEFAULT NULL,
+  `addtime2` varchar(26) CHARACTER SET cp1251 DEFAULT NULL,
+  `date_add1` varchar(19) CHARACTER SET cp1251 DEFAULT NULL,
+  `date_add2` varchar(19) CHARACTER SET cp1251 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+addtime1	addtime2	date_add1	date_add2
+20:01:01	20:01:01	2001-01-01 10:01:11	2001-01-01 10:01:11
+DROP TABLE t1;
 #
 # Bug#11926811 / Bug#60625 Illegal mix of collations
 #

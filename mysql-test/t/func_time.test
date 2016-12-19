@@ -1597,3 +1597,8 @@ INSERT INTO t1 VALUES (17, NULL);
 INSERT INTO t1 VALUES (18, '2010-10-13');
 SELECT a.id,a.date1,FROM_DAYS(TO_DAYS(a.date1)-10) as date2, DATE_ADD(a.date1,INTERVAL -10 DAY),TO_DAYS(a.date1)-10 FROM t1 a ORDER BY a.id;
 DROP TABLE t1;
+
+--echo #
+--echo # MDEV-10524 Assertion `arg1_int >= 0' failed in Item_func_additive_op::result_precision()
+--echo #
+SELECT 1 MOD ADDTIME( '13:58:57', '00:00:01' ) + 2;

@@ -2620,3 +2620,9 @@ id	date1	date2	DATE_ADD(a.date1,INTERVAL -10 DAY)	TO_DAYS(a.date1)-10
 17	NULL	NULL	NULL	NULL
 18	2010-10-13	2010-10-03	2010-10-03	734413
 DROP TABLE t1;
+#
+# MDEV-10524 Assertion `arg1_int >= 0' failed in Item_func_additive_op::result_precision()
+#
+SELECT 1 MOD ADDTIME( '13:58:57', '00:00:01' ) + 2;
+1 MOD ADDTIME( '13:58:57', '00:00:01' ) + 2
+3

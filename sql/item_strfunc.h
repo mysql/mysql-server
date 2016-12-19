@@ -62,7 +62,6 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
   bool fix_fields(THD *thd, Item **ref);
-  String *val_str_from_val_str_ascii(String *str, String *str2);
 };
 
 

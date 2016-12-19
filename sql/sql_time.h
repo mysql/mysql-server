@@ -74,6 +74,8 @@ extern DATE_TIME_FORMAT *date_time_format_copy(THD *thd,
 					       DATE_TIME_FORMAT *format);
 const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 				     timestamp_type type);
+bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec);
+
 /* MYSQL_TIME operations */
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
                        INTERVAL interval);

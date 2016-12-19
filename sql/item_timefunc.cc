@@ -1455,31 +1455,52 @@ bool get_interval_value(Item *args,interval_type int_type, INTERVAL *interval)
 
 void Item_temporal_func::fix_length_and_dec()
 { 
+  uint char_length= mysql_temporal_int_part_length(field_type());
   /*
     We set maybe_null to 1 as default as any bad argument with date or
     time can get us to return NULL.
   */ 
   maybe_null= 1;
-  max_length= mysql_temporal_int_part_length(field_type());
+
   if (decimals)
   {
     if (decimals == NOT_FIXED_DEC)
-      max_length+= TIME_SECOND_PART_DIGITS + 1;
+      char_length+= TIME_SECOND_PART_DIGITS + 1;
     else
     {
       set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
-      max_length+= decimals + 1;
+      char_length+= decimals + 1;
     }
   }
   sql_mode= current_thd->variables.sql_mode &
                  (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
-  collation.set(&my_charset_numeric, DERIVATION_NUMERIC, MY_REPERTOIRE_ASCII);
+  collation.set(field_type() == MYSQL_TYPE_STRING ?
+                default_charset() : &my_charset_numeric,
+                DERIVATION_NUMERIC, MY_REPERTOIRE_ASCII);
+  fix_char_length(char_length);
 }
 
 String *Item_temporal_func::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   return val_string_from_date(str);
+}
+
+
+String *Item_temporal_hybrid_func::val_str_ascii(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+
+  if (get_date(&ltime, 0) ||
+      (null_value= my_TIME_to_str(&ltime, str, decimals)))
+    return (String *) 0;
+
+  /* Check that the returned timestamp type matches to the function type */
+  DBUG_ASSERT(cached_field_type == MYSQL_TYPE_STRING ||
+              ltime.time_type == MYSQL_TIMESTAMP_NONE ||
+              mysql_type_to_time_type(cached_field_type) == ltime.time_type);
+  return str;
 }
 
 

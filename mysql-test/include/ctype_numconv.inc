@@ -1743,6 +1743,11 @@ DROP TABLE t1;
 --echo # Bug #31384 	DATE_ADD() and DATE_SUB() return binary data
 --echo #
 SELECT @@collation_connection, @@character_set_results;
+SELECT
+  CHARSET(DATE_SUB('2007-08-03', INTERVAL 1 MINUTE)) AS field_str1,
+  CHARSET(DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE)) AS field_str2,
+  CHARSET(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
+  CHARSET(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
 CREATE TABLE t1 AS
 SELECT
   DATE_SUB('2007-08-03', INTERVAL 1 MINUTE) AS field_str1,
@@ -1766,7 +1771,26 @@ SELECT
   HEX(DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE)) AS field1_str2,
   HEX(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
   HEX(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
- 
+
+--echo #
+--echo # MDEV-4841 Wrong character set of ADDTIME() and DATE_ADD()
+--echo #
+SELECT @@collation_connection, @@character_set_results;
+SELECT
+  CHARSET(ADDTIME(_latin1'10:01:01',_latin1'10:00:00')) AS addtime1,
+  CHARSET(ADDTIME('10:01:01','10:00:00')) AS addtime2,
+  CHARSET(DATE_ADD(_latin1'2001-01-01 10:01:01',interval 10 second)) AS date_add1,
+  CHARSET(DATE_ADD('2001-01-01 10:01:01',interval 10 second)) AS date_add2;
+CREATE TABLE t1 AS
+SELECT
+  ADDTIME(_latin1'10:01:01',_latin1'10:00:00') AS addtime1,
+  ADDTIME('10:01:01','10:00:00') AS addtime2,
+  DATE_ADD(_latin1'2001-01-01 10:01:01',interval 10 second) AS date_add1,
+  DATE_ADD('2001-01-01 10:01:01',interval 10 second) AS date_add2;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
 --echo #
 --echo # Bug#11926811 / Bug#60625 Illegal mix of collations
 --echo #
