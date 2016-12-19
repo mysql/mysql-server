@@ -1713,14 +1713,16 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   {
     char coordinator_errmsg[MAX_SLAVE_ERRMSG];
 
-    sprintf(coordinator_errmsg,
-            "Coordinator stopped because there were error(s) in the worker(s). "
-            "The most recent failure being: Worker %lu failed executing "
-            "transaction '%s' at master log %s, end_log_pos %llu. "
-            "See error log and/or "
-            "performance_schema.replication_applier_status_by_worker table for "
-            "more details about this failure or others, if any.",
-            id, buff_gtid, log_name, log_pos);
+    my_snprintf(coordinator_errmsg, MAX_SLAVE_ERRMSG,
+                "Coordinator stopped because there were error(s) in the "
+                "worker(s). "
+                "The most recent failure being: Worker %u failed executing "
+                "transaction '%s' at master log %s, end_log_pos %llu. "
+                "See error log and/or "
+                "performance_schema.replication_applier_status_by_worker "
+                "table for "
+                "more details about this failure or others, if any.",
+                internal_id, buff_gtid, log_name, log_pos);
 
     /*
       We want to update the errors in coordinator as well as worker.
@@ -1734,9 +1736,9 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   }
 
   my_snprintf(buff_coord, sizeof(buff_coord),
-          "Worker %lu failed executing transaction '%s' at "
-          "master log %s, end_log_pos %llu",
-          id, buff_gtid, log_name, log_pos);
+              "Worker %u failed executing transaction '%s' at "
+              "master log %s, end_log_pos %llu",
+              internal_id, buff_gtid, log_name, log_pos);
 
   /*
     Error reporting by the worker. The worker updates its error fields as well
