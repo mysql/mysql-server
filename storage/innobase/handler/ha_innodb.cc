@@ -8588,6 +8588,8 @@ dd_open_table_one(
 
 	mutex_exit(&dict_sys->mutex);
 
+	/* Load foreign key info. It could also register child table(s) that
+	refers to current table */
 	if (exist == NULL) {
 		dd_table_load_fk(client, table, norm_name, uncached,
 				 m_table, &dd_table->table(), thd, false,

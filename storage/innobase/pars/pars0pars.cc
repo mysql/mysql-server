@@ -27,6 +27,7 @@ Created 11/19/1996 Heikki Tuuri
 on 1/27/1998 */
 
 #include "ha_prototypes.h"
+#include "current_thd.h"
 
 #include "pars0pars.h"
 #include "row0sel.h"
@@ -771,13 +772,17 @@ pars_retrieve_table_def(
 		sym_node->resolved = TRUE;
 		sym_node->token_type = SYM_TABLE_REF_COUNTED;
 
-		if (strstr(sym_node->name, "sys") == nullptr) {
+		if (strstr(sym_node->name, "sys") != nullptr
+		    || strstr(sym_node->name, "SYS") != nullptr) {
 			sym_node->table = dict_table_open_on_name(
 				sym_node->name, TRUE, FALSE,
 				DICT_ERR_IGNORE_NONE);
 		} else {
+			THD*		thd = current_thd;
+
+			sym_node->mdl = nullptr;
 			sym_node->table = dd_table_open_on_name(
-				nullptr, nullptr,  sym_node->name,
+				thd, &sym_node->mdl,  sym_node->name,
 				true, DICT_ERR_IGNORE_NONE);
 		}
 

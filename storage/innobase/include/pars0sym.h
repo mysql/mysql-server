@@ -215,6 +215,8 @@ struct sym_node_t{
 	UT_LIST_NODE_T(sym_node_t)	sym_list;	/*!< list of symbol
 							nodes */
 	sym_node_t*			like_node;	/* LIKE operator node*/
+
+	MDL_ticket*			mdl;		/* MDL placed on table */
 };
 
 /** Symbol table */
