@@ -2928,7 +2928,7 @@ public:
     This list is later iterated to invoke release_thd() on those
     plugins.
   */
-  Prealloced_array<plugin_ref, 2> audit_class_plugins;
+  Plugin_array audit_class_plugins;
   /**
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.
