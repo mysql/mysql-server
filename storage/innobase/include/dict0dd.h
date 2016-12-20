@@ -56,19 +56,11 @@ class MDL_ticket;
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
 
-/** InnoDB private keys for dd::Tablespace */
-enum dd_space_keys {
-	/** Tablespace flags */
-	DD_SPACE_FLAGS,
-	/** Tablespace identifier */
-	DD_SPACE_ID,
-	/** Sentinel */
-	DD_SPACE__LAST
-};
+static const char innobase_hton_name[]= "InnoDB";
 
 /** InnoDB private key strings for dd::Tablespace.
 @see dd_space_keys */
-extern const char* const	dd_space_key_strings[DD_SPACE__LAST];
+//extern const char* const	dd_space_key_strings[DD_SPACE__LAST];
 
 /** InnoDB private keys for dd::Table */
 enum dd_table_keys {
@@ -82,8 +74,35 @@ enum dd_table_keys {
 	DD_TABLE__LAST
 };
 
+/** InnoDB private keys for dd::Tablespace */
+enum dd_space_keys {
+	/** Tablespace flags */
+	DD_SPACE_FLAGS,
+	/** Tablespace identifier */
+	DD_SPACE_ID,
+	/** Sentinel */
+	DD_SPACE__LAST
+};
+
+/** InnoDB implicit tablespace name or prefix, which should be same to
+dict_sys_t::file_per_table_name */
+static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
+
+/** InnoDB private key strings for dd::Tablespace.
+@see dd_space_keys */
+const char* const dd_space_key_strings[DD_SPACE__LAST] = {
+        "flags",
+        "id"
+};
+
 /** InnoDB private key strings for dd::Table. @see dd_table_keys */
-extern const char* const	dd_table_key_strings[DD_TABLE__LAST];
+const char* const dd_table_key_strings[DD_TABLE__LAST] = {
+        "autoinc",
+        "data_directory",
+        "version"
+};
+/** InnoDB private key strings for dd::Table. @see dd_table_keys */
+//extern const char* const	dd_table_key_strings[DD_TABLE__LAST];
 
 /** InnoDB private keys for dd::Index or dd::Partition_index */
 enum dd_index_keys {
@@ -97,7 +116,15 @@ enum dd_index_keys {
 	DD_INDEX__LAST
 };
 
-static const char innobase_hton_name[]= "InnoDB";
+
+
+/** InnoDB private key strings for dd::Index or dd::Partition_index.
+@see dd_index_keys */
+const char* const dd_index_key_strings[DD_INDEX__LAST] = {
+        "id",
+        "root",
+        "trx_id"
+};
 
 /** InnoDB private key strings for dd::Index or dd::Partition_index.
 @see dd_index_keys */
@@ -341,6 +368,16 @@ dd_open_table(
 	bool				skip_mdl,
 	THD*				thd);
 
+#if 0
+template dict_table_t* dd_open_table<dd::Table>(
+        dd::cache::Dictionary_client*, const TABLE*, const char*,
+        bool*, dict_table_t*&, const dd::Table*, bool, THD*);
+
+template dict_table_t* dd_open_table<dd::Partition>(
+        dd::cache::Dictionary_client*, const TABLE*, const char*,
+        bool*, dict_table_t*&, const dd::Partition*, bool, THD*);
+#endif
+
 /** Get dd tablespace by dd space id
 Note: It'll get an uncached dd space obj
 @param[in]	dd client	dd client
@@ -428,6 +465,30 @@ dd_set_hidden_unique_index(
         dd::Index*              index,
         const char*             name,
         const dd::Column*       column);
+
+/** Check whether there exist a column named as "FTS_DOC_ID", which is
+reserved for InnoDB FTS Doc ID
+@param[in]      thd             MySQL thread handle
+@param[in]      form            information on table
+                                columns and indexes
+@param[out]     doc_id_col      Doc ID column number if
+                                there exist a FTS_DOC_ID column,
+                                ULINT_UNDEFINED if column is of the
+                                wrong type/name/size
+@return true if there exist a "FTS_DOC_ID" column */
+UNIV_INLINE
+bool
+create_table_check_doc_id_col(
+        THD*            thd,   
+        const TABLE*    form,  
+        ulint*          doc_id_col);
+
+/** Return a display name for the row format
+@param[in]      row_format      Row Format
+@return row format name */
+UNIV_INLINE
+const char*
+get_row_format_name(enum row_type row_format);
 
 #include "dict0dd.ic"
 #endif
