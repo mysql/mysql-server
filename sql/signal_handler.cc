@@ -143,7 +143,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
 
   if (opt_stack_trace)
   {
-    my_safe_printf_stderr("Thread pointer: 0x%p\n", thd);
+    my_safe_printf_stderr("Thread pointer: %p\n", thd);
     my_safe_printf_stderr("%s",
       "Attempting backtrace. You can use the following "
       "information to find out\n"
