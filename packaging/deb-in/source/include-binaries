@@ -13,9 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-# obscured filename for mysqld-debug, libmysqld-debug.a
+# obscured filename for mysqld-debug
 debian/extra/server-binary
-debian/extra/embedded-server
 # obscured filenames for debug plugins
 debian/extra/adt_null-plugin
 debian/extra/auth-plugin

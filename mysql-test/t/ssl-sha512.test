@@ -1,5 +1,5 @@
 --source include/not_embedded.inc
---source include/have_ssl_communication.inc
+--source include/have_ssl.inc
 --source include/have_64bit.inc
 
 CREATE USER u1@localhost IDENTIFIED BY 'secret';

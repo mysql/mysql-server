@@ -134,7 +134,7 @@ sub collect_test_cases ($$$$) {
 		  "ha_innodb_plugin.sl"],
 		 NOT_REQUIRED);
   $do_innodb_plugin= ($::mysql_version_id >= 50100 &&
-		      !(IS_WINDOWS && $::opt_embedded_server) &&
+		      !(IS_WINDOWS) &&
 		      $lib_innodb_plugin);
 
   # If not reordering, we also shouldn't group by suites, unless
@@ -1170,24 +1170,6 @@ sub collect_one_test_case {
     }
   }
 
-  if ( $::opt_embedded_server )
-  {
-    if ( $tinfo->{'not_embedded'} )
-    {
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Not run for embedded server";
-      return $tinfo;
-    }
-#Setting the default storage engine to InnoDB for embedded tests as the default
-#storage engine for mysqld in embedded mode is still MyISAM.
-#To be removed after completion of WL #6911.
-    if ( !$tinfo->{'myisam_test'} && !defined $default_storage_engine)
-    {
-      push(@{$tinfo->{'master_opt'}}, "--default-storage-engine=InnoDB");
-      push(@{$tinfo->{'master_opt'}}, "--default-tmp-storage-engine=InnoDB");
-    }
-  }
-
   if ( $tinfo->{'need_ssl'} )
   {
     # This is a test that needs ssl
@@ -1306,9 +1288,7 @@ my @tags=
 
 ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["federated.inc", "federated_test", 1],
- ["include/not_embedded.inc", "not_embedded", 1],
  ["include/have_ssl.inc", "need_ssl", 1],
- ["include/have_ssl_communication.inc", "need_ssl", 1],
  ["include/not_windows.inc", "not_windows", 1],
  ["include/not_parallel.inc", "not_parallel", 1],
 

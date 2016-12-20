@@ -240,9 +240,10 @@ size_t try_reserve(std::pair<type*, ptrdiff_t> *buf, ptrdiff_t size)
 
 } // namespace
 
-void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
+void Filesort_buffer::sort_buffer(Sort_param *param, uint count)
 {
   m_sort_keys= get_sort_keys();
+  param->m_sort_algorithm= Sort_param::FILESORT_ALG_NONE;
 
   if (count <= 1)
     return;
@@ -257,6 +258,7 @@ void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
 
   if (param->using_varlen_keys())
   {
+    param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_SORT;
     std::sort(m_sort_keys, m_sort_keys + count,
               Mem_compare_varlen_key(param->local_sortorder));
     return;
@@ -266,6 +268,7 @@ void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
   if (radixsort_is_appliccable(count, param->max_compare_length()) &&
       try_reserve(&buffer, count))
   {
+    param->m_sort_algorithm= Sort_param::FILESORT_ALG_RADIX;
     radixsort_for_str_ptr(m_sort_keys, count,
                           param->max_compare_length(), buffer.first);
     std::return_temporary_buffer(buffer.first);
@@ -281,21 +284,27 @@ void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
   {
     if (param->max_compare_length() < 10)
     {
+      param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_SORT;
       std::sort(m_sort_keys, m_sort_keys + count,
                 Mem_compare(param->max_compare_length()));
       return;
     }
+    param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_SORT;
     std::sort(m_sort_keys, m_sort_keys + count,
               Mem_compare_longkey(param->max_compare_length()));
     return;
   }
+
   // Heuristics here: avoid function overhead call for short keys.
   if (param->max_compare_length() < 10)
   {
+    param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_STABLE;
     std::stable_sort(m_sort_keys, m_sort_keys + count,
                      Mem_compare(param->max_compare_length()));
     return;
   }
+
+  param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_STABLE;
   std::stable_sort(m_sort_keys, m_sort_keys + count,
                    Mem_compare_longkey(param->max_compare_length()));
 }

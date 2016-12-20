@@ -2,8 +2,8 @@
 # builds previously disabled symlink support;
 # Some partition functionality depends on symlink support.
 
--- require r/have_symlink.require
-
-disable_query_log;
-show variables like 'have_symlink';
-enable_query_log;
+let $have_symlink= query_get_value(SHOW VARIABLES LIKE 'have_symlink', Value, 1);
+if ($have_symlink != YES)
+{
+  --skip Test requires 'have_symlink'
+}

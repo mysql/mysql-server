@@ -1137,10 +1137,16 @@ ORDER BY cc	{
             "filesort_execution": [
             ] /* filesort_execution */,
             "filesort_summary": {
-              "rows": 132,
-              "examined_rows": 132,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 4,
+              "row_size": 763,
+              "max_rows_per_buffer": 340,
+              "num_rows_estimate": 1365,
+              "num_rows_found": 132,
+              "num_examined_rows": 132,
+              "num_tmp_files": 0,
               "sort_buffer_size": 262144,
+              "sort_algorithm": "std::stable_sort",
               "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             } /* filesort_summary */
           },
@@ -1184,10 +1190,17 @@ ORDER BY cc	{
             "filesort_execution": [
             ] /* filesort_execution */,
             "filesort_summary": {
-              "rows": 66,
-              "examined_rows": 66,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 1007,
+              "row_size": 1007,
+              "max_rows_per_buffer": 258,
+              "num_rows_estimate": 1365,
+              "num_rows_found": 66,
+              "num_examined_rows": 66,
+              "num_tmp_files": 0,
               "sort_buffer_size": 261872,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "max_length_for_sort_data",
               "sort_mode": "<fixed_sort_key, rowid>"
             } /* filesort_summary */
           }

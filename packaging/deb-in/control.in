@@ -195,7 +195,7 @@ Description: MySQL Common
  is intended for mission-critical, heavy-load production systems as well
  as for embedding into mass-deployed software. MySQL is a trademark of
  Oracle. This package contains common files needed by MySQL client
- library, MySQL database server, and MySQL embedded server.
+ library and MySQL database server.
 
 Package: libmysqlclient-dev
 Architecture: any
@@ -211,18 +211,6 @@ Description: MySQL development headers
  as for embedding into mass-deployed software. MySQL is a trademark of
  Oracle. This package contains the development header files necessary
  to develop MySQL client applications.
-
-Package: libmysqld-dev
-Architecture: any
-Section: libdevel
-Depends: libmysqlclient-dev (= ${binary:Version}),
- ${shlibs:Depends}, ${misc:Depends}
-Description: MySQL embedded server library
- The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
- and robust SQL (Structured Query Language) database server. MySQL Server
- is intended for mission-critical, heavy-load production systems as well
- as for embedding into mass-deployed software. MySQL is a trademark of
- Oracle. This package contains the MySQL server as an embedded library.
 
 Package: mysql-testsuite
 Architecture: any

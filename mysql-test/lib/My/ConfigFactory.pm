@@ -433,19 +433,6 @@ sub post_check_client_group {
     }
     $config->insert($client_group_name, $name_to, $option->value())
   }
-  
-  if (IS_WINDOWS)
-  {
-    if (! $self->{ARGS}->{embedded})
-    {
-      # Shared memory base may or may not be defined (e.g not defined in embedded)
-      my $shm = $group_to_copy_from->option("shared-memory-base-name");
-      if (defined $shm)
-      {
-        $config->insert($client_group_name,"shared-memory-base-name", $shm->value());
-      }
-    }
-  }
 }
 
 
@@ -468,39 +455,6 @@ sub post_check_client_groups {
 				  'client'.$mysqld->after('mysqld'),
 				  $mysqld->name())
  }
-
-}
-
-
-#
-# Generate [embedded] by copying the values
-# needed from the default [mysqld] section
-# and from first [mysqld.<suffix>]
-#
-sub post_check_embedded_group {
-  my ($self, $config)= @_;
-
-  return unless $self->{ARGS}->{embedded};
-
-  my $mysqld= $config->group('mysqld') or
-    croak "Can't run with embedded, config has no default mysqld section";
-
-  my $first_mysqld= $config->first_like('mysqld.') or
-    croak "Can't run with embedded, config has no mysqld";
-
-  my @no_copy =
-    (
-     '#log-error', # Embedded server writes stderr to mysqltest's log file
-     'slave-net-timeout', # Embedded server are not build with replication
-     'shared-memory-base-name', # No shared memory for embedded
-    );
-
-  foreach my $option ( $mysqld->options(), $first_mysqld->options() ) {
-    # Don't copy options whose name is in "no_copy" list
-    next if grep ( $option->name() eq $_, @no_copy);
-
-    $config->insert('embedded', $option->name(), $option->value())
-  }
 
 }
 
@@ -590,7 +544,6 @@ my @post_rules=
  \&post_check_client_groups,
  \&post_fix_mysql_cluster_section,
  \&post_fix_resolve_at_variables,
- \&post_check_embedded_group,
 );
 
 

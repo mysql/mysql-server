@@ -84,6 +84,8 @@
 using std::min;
 using std::max;
 
+extern CHARSET_INFO my_charset_utf16le_bin;
+
 const char *VER= "14.14";
 
 /* Don't try to make a nice table if the data is too big */

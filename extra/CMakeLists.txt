@@ -109,11 +109,6 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
 ENDIF()
 
 
-MYSQL_ADD_EXECUTABLE(replace replace.c ../storage/myisam/my_redel.cc)
-TARGET_INCLUDE_DIRECTORIES(replace PUBLIC
-  ${CMAKE_SOURCE_DIR}/storage/myisam)
-TARGET_LINK_LIBRARIES(replace mysys)
-
 IF (BUILD_BUNDLED_LZ4)
   MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
   TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY})

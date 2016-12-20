@@ -5564,6 +5564,7 @@ static const char* generate_fk_name(const char *table_name,
   Prepare FOREIGN_KEY struct with info about a foreign key.
 
   @param thd                 Thread handle.
+  @param create_info         Create info from parser.
   @param table_name          Table name.
   @param create_list         New columns.
   @param existing_fks        Array of pre-existing FKs.
@@ -5577,6 +5578,7 @@ static const char* generate_fk_name(const char *table_name,
 */
 
 static bool prepare_foreign_key(THD *thd,
+                                HA_CREATE_INFO *create_info,
                                 const char *table_name,
                                 List<Create_field> *create_list,
                                 FOREIGN_KEY *existing_fks,
@@ -5588,7 +5590,14 @@ static bool prepare_foreign_key(THD *thd,
 {
   DBUG_ENTER("prepare_foreign_key");
 
-  if (fk_key->validate(thd, *create_list))
+  // FKs are not supported for temporary tables.
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
+    my_error(ER_CANNOT_ADD_FOREIGN, MYF(0), table_name);
+    DBUG_RETURN(true);
+  }
+
+  if (fk_key->validate(thd, table_name, *create_list))
     DBUG_RETURN(true);
 
   if (fk_key->name.str)
@@ -6169,7 +6178,7 @@ bool mysql_prepare_create_table(THD *thd,
 
     if (key->type == KEYTYPE_FOREIGN)
     {
-      if (prepare_foreign_key(thd, error_table_name,
+      if (prepare_foreign_key(thd, create_info, error_table_name,
                               &alter_info->create_list,
                               existing_fks, existing_fks_count,
                               fk_key_info_buffer, fk_number,

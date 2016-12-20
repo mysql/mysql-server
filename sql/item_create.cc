@@ -22,17 +22,18 @@
 
 #include "item_create.h"
 
+#include <cctype>
 #include <errno.h>
+#include <functional>
+#include <iterator>
 #include <limits.h>
 #include <math.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <functional>
-#include <limits>
 #include <new>
+#include <stdlib.h>
+#include <string>
+#include <sys/types.h>
+#include <unordered_map>
 
-#include "handler.h"
-#include "hash.h"
 #include "item.h"
 #include "item_cmpfunc.h"        // Item_func_any_value
 #include "item_func.h"           // Item_func_udf_str
@@ -43,7 +44,6 @@
 #include "item_sum.h"            // Item_sum_udf_str
 #include "item_timefunc.h"       // Item_func_add_time
 #include "item_xmlfunc.h"        // Item_func_xml_extractvalue
-#include "m_string.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_global.h"
@@ -64,7 +64,7 @@
 #include "sql_string.h"
 #include "sql_time.h"            // str_to_datetime
 #include "sql_udf.h"
-#include "system_variables.h"
+
 
 /**
   @addtogroup GROUP_PARSER
@@ -1441,13 +1441,6 @@ Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
 }
 
 
-struct Native_func_registry
-{
-  LEX_STRING name;
-  Create_func *builder;
-};
-
-
 /**
   Shorthand macro to reference the singleton instance. This also instantiates
   the Function_factory and Instantiator templates.
@@ -1563,392 +1556,360 @@ struct Native_func_registry
   &Internal_function_factory<List_instantiator<F, N>>::s_singleton
 
 
-/*
+/**
   MySQL native functions.
   MAINTAINER:
   - Keep sorted for human lookup. At runtime, a hash table is used.
-  - do **NOT** conditionally (#ifdef, #ifndef) define a function *NAME*:
-    doing so will cause user code that works against a --without-XYZ binary
-    to fail with name collisions against a --with-XYZ binary.
-  - keep 1 line per entry, it makes grep | sort easier
-*/
+  - do **NOT** conditionally (\#ifdef, \#ifndef) define a function *NAME*:
+    doing so will cause user code that works against a `--without-XYZ` binary
+    to fail with name collisions against a `--with-XYZ` binary.
+  - keep 1 line per entry, it makes `grep | sort` easier
+  - Use uppercase (tokens are converted to uppercase before lookup.)
 
-static Native_func_registry func_array[] =
+  This can't be constexpr because
+  - std::pair does not have a constexpr constructor in C++11, not until C++14.
+  - Sun Studio does not allow the Create_func pointer to be constexpr.
+*/
+static const std::pair<const char *, Create_func *> func_array[]=
 {
-  { { C_STRING_WITH_LEN("ABS") }, SQL_FN(Item_func_abs, 1) },
-  { { C_STRING_WITH_LEN("ACOS") }, SQL_FN(Item_func_acos, 1) },
-  { { C_STRING_WITH_LEN("ADDTIME") }, SQL_FN(Item_func_add_time, 2) },
-  { { C_STRING_WITH_LEN("AES_DECRYPT") }, SQL_FN_V(Item_func_aes_decrypt, 2, 3)},
-  { { C_STRING_WITH_LEN("AES_ENCRYPT") }, SQL_FN_V(Item_func_aes_encrypt, 2, 3)},
-  { { C_STRING_WITH_LEN("ANY_VALUE") }, SQL_FN(Item_func_any_value, 1) },
-  { { C_STRING_WITH_LEN("ASIN") }, SQL_FN(Item_func_asin, 1) },
-  { { C_STRING_WITH_LEN("ATAN") }, SQL_FN_V(Item_func_atan, 1, 2)},
-  { { C_STRING_WITH_LEN("ATAN2") }, SQL_FN_V(Item_func_atan, 1, 2) },
-  { { C_STRING_WITH_LEN("BENCHMARK") }, SQL_FN(Item_func_benchmark, 2) },
-  { { C_STRING_WITH_LEN("BIN") }, SQL_FACTORY(Bin_instantiator) },
-  { { C_STRING_WITH_LEN("BIN_TO_UUID") }, SQL_FN_V(Item_func_bin_to_uuid, 1, 2) },
-  { { C_STRING_WITH_LEN("BIT_COUNT") }, SQL_FN(Item_func_bit_count, 1) },
-  { { C_STRING_WITH_LEN("BIT_LENGTH") }, SQL_FN(Item_func_bit_length, 1) },
-  { { C_STRING_WITH_LEN("CEIL") }, SQL_FN(Item_func_ceiling, 1) },
-  { { C_STRING_WITH_LEN("CEILING") }, SQL_FN(Item_func_ceiling, 1) },
-  { { C_STRING_WITH_LEN("CHARACTER_LENGTH") }, SQL_FN(Item_func_char_length, 1) },
-  { { C_STRING_WITH_LEN("CHAR_LENGTH") }, SQL_FN(Item_func_char_length, 1) },
-  { { C_STRING_WITH_LEN("COERCIBILITY") }, SQL_FN(Item_func_coercibility, 1) },
-  { { C_STRING_WITH_LEN("COMPRESS") }, SQL_FN(Item_func_compress, 1) },
-  { { C_STRING_WITH_LEN("CONCAT") }, SQL_FN_V(Item_func_concat, 1, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("CONCAT_WS") }, SQL_FN_V(Item_func_concat_ws, 2, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("CONNECTION_ID") }, SQL_FN(Item_func_connection_id, 0) },
-  { { C_STRING_WITH_LEN("CONV") }, SQL_FN(Item_func_conv, 3) },
-  { { C_STRING_WITH_LEN("CONVERT_TZ") }, SQL_FN(Item_func_convert_tz, 3) },
-  { { C_STRING_WITH_LEN("COS") }, SQL_FN(Item_func_cos, 1) },
-  { { C_STRING_WITH_LEN("COT") }, SQL_FN(Item_func_cot, 1) },
-  { { C_STRING_WITH_LEN("CRC32") }, SQL_FN(Item_func_crc32, 1) },
-  { { C_STRING_WITH_LEN("CURRENT_ROLE") }, SQL_FN(Item_func_current_role, 0) },
-  { { C_STRING_WITH_LEN("DATEDIFF") }, SQL_FACTORY(Datediff_instantiator) },
-  { { C_STRING_WITH_LEN("DATE_FORMAT") }, SQL_FN(Item_func_date_format, 2) },
-  { { C_STRING_WITH_LEN("DAYNAME") }, SQL_FN(Item_func_dayname, 1) },
-  { { C_STRING_WITH_LEN("DAYOFMONTH") }, SQL_FN(Item_func_dayofmonth, 1) },
-  { { C_STRING_WITH_LEN("DAYOFWEEK") }, SQL_FACTORY(Dayofweek_instantiator) },
-  { { C_STRING_WITH_LEN("DAYOFYEAR") }, SQL_FN(Item_func_dayofyear, 1) },
-  { { C_STRING_WITH_LEN("DECODE") }, SQL_FN(Item_func_decode, 2) },
-  { { C_STRING_WITH_LEN("DEGREES") }, SQL_FACTORY(Degrees_instantiator) },
-  { { C_STRING_WITH_LEN("DES_DECRYPT") }, SQL_FACTORY(Des_decrypt_instantiator) },
-  { { C_STRING_WITH_LEN("DES_ENCRYPT") }, SQL_FACTORY(Des_encrypt_instantiator) },
-  { { C_STRING_WITH_LEN("ELT") }, SQL_FN_V(Item_func_elt, 2, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("ENCODE") }, SQL_FN(Item_func_encode, 2) },
-  { { C_STRING_WITH_LEN("ENCRYPT") }, SQL_FACTORY(Encrypt_instantiator) },
-  { { C_STRING_WITH_LEN("EXP") }, SQL_FN(Item_func_exp, 1) },
-  { { C_STRING_WITH_LEN("EXPORT_SET") }, SQL_FN_V(Item_func_export_set, 3, 5) },
-  { { C_STRING_WITH_LEN("EXTRACTVALUE") }, SQL_FN(Item_func_xml_extractvalue, 2) },
-  { { C_STRING_WITH_LEN("FIELD") }, SQL_FN_V(Item_func_field, 2, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("FIND_IN_SET") }, SQL_FN(Item_func_find_in_set, 2) },
-  { { C_STRING_WITH_LEN("FLOOR") }, SQL_FN(Item_func_floor, 1) },
-  { { C_STRING_WITH_LEN("FOUND_ROWS") }, SQL_FN(Item_func_found_rows, 0) },
-  { { C_STRING_WITH_LEN("FROM_BASE64") }, SQL_FN(Item_func_from_base64, 1) },
-  { { C_STRING_WITH_LEN("FROM_DAYS") }, SQL_FN(Item_func_from_days, 1) },
-  { { C_STRING_WITH_LEN("FROM_UNIXTIME") }, SQL_FACTORY(From_unixtime_instantiator) },
-  { { C_STRING_WITH_LEN("GET_LOCK") }, SQL_FN(Item_func_get_lock, 2) },
-  { { C_STRING_WITH_LEN("GREATEST") }, SQL_FN_V(Item_func_max, 2, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("GTID_SUBTRACT") }, SQL_FN(Item_func_gtid_subtract, 2) },
-  { { C_STRING_WITH_LEN("GTID_SUBSET") }, SQL_FN(Item_func_gtid_subset, 2) },
-  { { C_STRING_WITH_LEN("HEX") }, SQL_FN(Item_func_hex, 1) },
-  { { C_STRING_WITH_LEN("IFNULL") }, SQL_FN(Item_func_ifnull, 2) },
-  { { C_STRING_WITH_LEN("INET_ATON") }, SQL_FN(Item_func_inet_aton, 1) },
-  { { C_STRING_WITH_LEN("INET_NTOA") }, SQL_FN(Item_func_inet_ntoa, 1) },
-  { { C_STRING_WITH_LEN("INET6_ATON") }, SQL_FN(Item_func_inet6_aton, 1) },
-  { { C_STRING_WITH_LEN("INET6_NTOA") }, SQL_FN(Item_func_inet6_ntoa, 1)},
-  { { C_STRING_WITH_LEN("IS_IPV4") }, SQL_FN(Item_func_is_ipv4, 1)},
-  { { C_STRING_WITH_LEN("IS_IPV6") }, SQL_FN(Item_func_is_ipv6, 1)},
-  { { C_STRING_WITH_LEN("IS_IPV4_COMPAT") }, SQL_FN(Item_func_is_ipv4_compat, 1)},
-  { { C_STRING_WITH_LEN("IS_IPV4_MAPPED") }, SQL_FN(Item_func_is_ipv4_mapped, 1)},
-  { { C_STRING_WITH_LEN("IS_UUID") }, SQL_FN(Item_func_is_uuid, 1) },
-  { { C_STRING_WITH_LEN("INSTR") }, SQL_FN(Item_func_instr, 2) },
-  { { C_STRING_WITH_LEN("ISNULL") }, SQL_FN(Item_func_isnull, 1) },
-  { { C_STRING_WITH_LEN("JSON_VALID") }, SQL_FN(Item_func_json_valid, 1) },
-  { { C_STRING_WITH_LEN("JSON_CONTAINS") }, SQL_FN_V_LIST_THD(Item_func_json_contains, 2, 3) },
-  { { C_STRING_WITH_LEN("JSON_CONTAINS_PATH") }, SQL_FN_V_THD(Item_func_json_contains_path, 3, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("JSON_LENGTH") }, SQL_FN_V_THD(Item_func_json_length, 1, 2) },
-  { { C_STRING_WITH_LEN("JSON_DEPTH") }, SQL_FN(Item_func_json_depth, 1) },
-  { { C_STRING_WITH_LEN("JSON_TYPE") }, SQL_FN(Item_func_json_type, 1) },
-  { { C_STRING_WITH_LEN("JSON_KEYS") }, SQL_FN_V_THD(Item_func_json_keys, 1, 2) },
-  { { C_STRING_WITH_LEN("JSON_EXTRACT") }, SQL_FN_V_THD(Item_func_json_extract, 2, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("JSON_ARRAY_APPEND") }, SQL_FN_ODD(Item_func_json_array_append, 3, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("JSON_INSERT") }, SQL_FN_ODD(Item_func_json_insert, 3, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("JSON_ARRAY_INSERT") }, SQL_FN_ODD(Item_func_json_array_insert, 3, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("JSON_OBJECT") }, SQL_FN_EVEN(Item_func_json_row_object, 0, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("JSON_SEARCH") }, SQL_FN_V_THD(Item_func_json_search, 3, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("JSON_SET") }, SQL_FN_ODD(Item_func_json_set, 3, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("JSON_REPLACE") }, SQL_FN_ODD(Item_func_json_replace, 3, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("JSON_ARRAY") }, SQL_FN_V_LIST_THD(Item_func_json_array, 0, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("JSON_REMOVE") }, SQL_FN_V_LIST_THD(Item_func_json_remove, 2, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("JSON_MERGE") }, SQL_FN_V_LIST_THD(Item_func_json_merge, 2, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("JSON_QUOTE") }, SQL_FN_LIST(Item_func_json_quote, 1) },
-  { { C_STRING_WITH_LEN("JSON_UNQUOTE") }, SQL_FN_LIST(Item_func_json_unquote, 1) },
-  { { C_STRING_WITH_LEN("IS_FREE_LOCK") }, SQL_FN(Item_func_is_free_lock, 1) },
-  { { C_STRING_WITH_LEN("IS_USED_LOCK") }, SQL_FN(Item_func_is_used_lock, 1) },
-  { { C_STRING_WITH_LEN("LAST_DAY") }, SQL_FN(Item_func_last_day, 1) },
-  { { C_STRING_WITH_LEN("LAST_INSERT_ID") }, SQL_FN_V(Item_func_last_insert_id, 0, 1) },
-  { { C_STRING_WITH_LEN("LCASE") }, SQL_FN(Item_func_lower, 1) },
-  { { C_STRING_WITH_LEN("LEAST") }, SQL_FN_V_LIST(Item_func_min, 2, MAX_ARGLIST_SIZE) },
-  { { C_STRING_WITH_LEN("LENGTH") }, SQL_FN(Item_func_length, 1) },
+  { "ABS", SQL_FN(Item_func_abs, 1) },
+  { "ACOS", SQL_FN(Item_func_acos, 1) },
+  { "ADDTIME", SQL_FN(Item_func_add_time, 2) },
+  { "AES_DECRYPT", SQL_FN_V(Item_func_aes_decrypt, 2, 3) },
+  { "AES_ENCRYPT", SQL_FN_V(Item_func_aes_encrypt, 2, 3) },
+  { "ANY_VALUE", SQL_FN(Item_func_any_value, 1) },
+  { "ASIN", SQL_FN(Item_func_asin, 1) },
+  { "ATAN", SQL_FN_V(Item_func_atan, 1, 2) },
+  { "ATAN2", SQL_FN_V(Item_func_atan, 1, 2) },
+  { "BENCHMARK", SQL_FN(Item_func_benchmark, 2) },
+  { "BIN", SQL_FACTORY(Bin_instantiator) },
+  { "BIN_TO_UUID", SQL_FN_V(Item_func_bin_to_uuid, 1, 2) },
+  { "BIT_COUNT", SQL_FN(Item_func_bit_count, 1) },
+  { "BIT_LENGTH", SQL_FN(Item_func_bit_length, 1) },
+  { "CEIL", SQL_FN(Item_func_ceiling, 1) },
+  { "CEILING", SQL_FN(Item_func_ceiling, 1) },
+  { "CHARACTER_LENGTH", SQL_FN(Item_func_char_length, 1) },
+  { "CHAR_LENGTH", SQL_FN(Item_func_char_length, 1) },
+  { "COERCIBILITY", SQL_FN(Item_func_coercibility, 1) },
+  { "COMPRESS", SQL_FN(Item_func_compress, 1) },
+  { "CONCAT", SQL_FN_V(Item_func_concat, 1, MAX_ARGLIST_SIZE) },
+  { "CONCAT_WS", SQL_FN_V(Item_func_concat_ws, 2, MAX_ARGLIST_SIZE) },
+  { "CONNECTION_ID", SQL_FN(Item_func_connection_id, 0) },
+  { "CONV", SQL_FN(Item_func_conv, 3) },
+  { "CONVERT_TZ", SQL_FN(Item_func_convert_tz, 3) },
+  { "COS", SQL_FN(Item_func_cos, 1) },
+  { "COT", SQL_FN(Item_func_cot, 1) },
+  { "CRC32", SQL_FN(Item_func_crc32, 1) },
+  { "CURRENT_ROLE", SQL_FN(Item_func_current_role, 0) },
+  { "DATEDIFF", SQL_FACTORY(Datediff_instantiator) },
+  { "DATE_FORMAT", SQL_FN(Item_func_date_format, 2) },
+  { "DAYNAME", SQL_FN(Item_func_dayname, 1) },
+  { "DAYOFMONTH", SQL_FN(Item_func_dayofmonth, 1) },
+  { "DAYOFWEEK", SQL_FACTORY(Dayofweek_instantiator) },
+  { "DAYOFYEAR", SQL_FN(Item_func_dayofyear, 1) },
+  { "DECODE", SQL_FN(Item_func_decode, 2) },
+  { "DEGREES", SQL_FACTORY(Degrees_instantiator) },
+  { "DES_DECRYPT", SQL_FACTORY(Des_decrypt_instantiator) },
+  { "DES_ENCRYPT", SQL_FACTORY(Des_encrypt_instantiator) },
+  { "ELT", SQL_FN_V(Item_func_elt, 2, MAX_ARGLIST_SIZE) },
+  { "ENCODE", SQL_FN(Item_func_encode, 2) },
+  { "ENCRYPT", SQL_FACTORY(Encrypt_instantiator) },
+  { "EXP", SQL_FN(Item_func_exp, 1) },
+  { "EXPORT_SET", SQL_FN_V(Item_func_export_set, 3, 5) },
+  { "EXTRACTVALUE", SQL_FN(Item_func_xml_extractvalue, 2) },
+  { "FIELD", SQL_FN_V(Item_func_field, 2, MAX_ARGLIST_SIZE) },
+  { "FIND_IN_SET", SQL_FN(Item_func_find_in_set, 2) },
+  { "FLOOR", SQL_FN(Item_func_floor, 1) },
+  { "FOUND_ROWS", SQL_FN(Item_func_found_rows, 0) },
+  { "FROM_BASE64", SQL_FN(Item_func_from_base64, 1) },
+  { "FROM_DAYS", SQL_FN(Item_func_from_days, 1) },
+  { "FROM_UNIXTIME", SQL_FACTORY(From_unixtime_instantiator) },
+  { "GET_LOCK", SQL_FN(Item_func_get_lock, 2) },
+  { "GREATEST", SQL_FN_V(Item_func_max, 2, MAX_ARGLIST_SIZE) },
+  { "GTID_SUBTRACT", SQL_FN(Item_func_gtid_subtract, 2) },
+  { "GTID_SUBSET", SQL_FN(Item_func_gtid_subset, 2) },
+  { "HEX", SQL_FN(Item_func_hex, 1) },
+  { "IFNULL", SQL_FN(Item_func_ifnull, 2) },
+  { "INET_ATON", SQL_FN(Item_func_inet_aton, 1) },
+  { "INET_NTOA", SQL_FN(Item_func_inet_ntoa, 1) },
+  { "INET6_ATON", SQL_FN(Item_func_inet6_aton, 1) },
+  { "INET6_NTOA", SQL_FN(Item_func_inet6_ntoa, 1) },
+  { "IS_IPV4", SQL_FN(Item_func_is_ipv4, 1) },
+  { "IS_IPV6", SQL_FN(Item_func_is_ipv6, 1) },
+  { "IS_IPV4_COMPAT", SQL_FN(Item_func_is_ipv4_compat, 1) },
+  { "IS_IPV4_MAPPED", SQL_FN(Item_func_is_ipv4_mapped, 1) },
+  { "IS_UUID", SQL_FN(Item_func_is_uuid, 1) },
+  { "INSTR", SQL_FN(Item_func_instr, 2) },
+  { "ISNULL", SQL_FN(Item_func_isnull, 1) },
+  { "JSON_VALID", SQL_FN(Item_func_json_valid, 1) },
+  { "JSON_CONTAINS", SQL_FN_V_LIST_THD(Item_func_json_contains, 2, 3) },
+  { "JSON_CONTAINS_PATH", SQL_FN_V_THD(Item_func_json_contains_path, 3, MAX_ARGLIST_SIZE) },
+  { "JSON_LENGTH", SQL_FN_V_THD(Item_func_json_length, 1, 2) },
+  { "JSON_DEPTH", SQL_FN(Item_func_json_depth, 1) },
+  { "JSON_TYPE", SQL_FN(Item_func_json_type, 1) },
+  { "JSON_KEYS", SQL_FN_V_THD(Item_func_json_keys, 1, 2) },
+  { "JSON_EXTRACT", SQL_FN_V_THD(Item_func_json_extract, 2, MAX_ARGLIST_SIZE) },
+  { "JSON_ARRAY_APPEND", SQL_FN_ODD(Item_func_json_array_append, 3, MAX_ARGLIST_SIZE) },
+  { "JSON_INSERT", SQL_FN_ODD(Item_func_json_insert, 3, MAX_ARGLIST_SIZE) },
+  { "JSON_ARRAY_INSERT", SQL_FN_ODD(Item_func_json_array_insert, 3, MAX_ARGLIST_SIZE) },
+  { "JSON_OBJECT", SQL_FN_EVEN(Item_func_json_row_object, 0, MAX_ARGLIST_SIZE) },
+  { "JSON_SEARCH", SQL_FN_V_THD(Item_func_json_search, 3, MAX_ARGLIST_SIZE) },
+  { "JSON_SET", SQL_FN_ODD(Item_func_json_set, 3, MAX_ARGLIST_SIZE) },
+  { "JSON_REPLACE", SQL_FN_ODD(Item_func_json_replace, 3, MAX_ARGLIST_SIZE) },
+  { "JSON_ARRAY", SQL_FN_V_LIST_THD(Item_func_json_array, 0, MAX_ARGLIST_SIZE) },
+  { "JSON_REMOVE", SQL_FN_V_LIST_THD(Item_func_json_remove, 2, MAX_ARGLIST_SIZE) },
+  { "JSON_MERGE", SQL_FN_V_LIST_THD(Item_func_json_merge, 2, MAX_ARGLIST_SIZE) },
+  { "JSON_QUOTE", SQL_FN_LIST(Item_func_json_quote, 1) },
+  { "JSON_UNQUOTE", SQL_FN_LIST(Item_func_json_unquote, 1) },
+  { "IS_FREE_LOCK", SQL_FN(Item_func_is_free_lock, 1) },
+  { "IS_USED_LOCK", SQL_FN(Item_func_is_used_lock, 1) },
+  { "LAST_DAY", SQL_FN(Item_func_last_day, 1) },
+  { "LAST_INSERT_ID", SQL_FN_V(Item_func_last_insert_id, 0, 1) },
+  { "LCASE", SQL_FN(Item_func_lower, 1) },
+  { "LEAST", SQL_FN_V_LIST(Item_func_min, 2, MAX_ARGLIST_SIZE) },
+  { "LENGTH", SQL_FN(Item_func_length, 1) },
 #ifndef DBUG_OFF
-  { { C_STRING_WITH_LEN("LIKE_RANGE_MIN") }, SQL_FN(Item_func_like_range_min, 2) },
-  { { C_STRING_WITH_LEN("LIKE_RANGE_MAX") }, SQL_FN(Item_func_like_range_max, 2) },
+  { "LIKE_RANGE_MIN", SQL_FN(Item_func_like_range_min, 2) },
+  { "LIKE_RANGE_MAX", SQL_FN(Item_func_like_range_max, 2) },
 #endif
-  { { C_STRING_WITH_LEN("LN") }, SQL_FN(Item_func_ln, 1) },
-  { { C_STRING_WITH_LEN("LOAD_FILE") }, SQL_FN(Item_load_file, 1) },
-  { { C_STRING_WITH_LEN("LOCATE") }, SQL_FACTORY(Locate_instantiator) },
-  { { C_STRING_WITH_LEN("LOG") }, SQL_FN_V(Item_func_log, 1, 2) },
-  { { C_STRING_WITH_LEN("LOG10") }, SQL_FN(Item_func_log10, 1)},
-  { { C_STRING_WITH_LEN("LOG2") }, SQL_FN(Item_func_log2, 1)},
-  { { C_STRING_WITH_LEN("LOWER") }, SQL_FN(Item_func_lower, 1) },
-  { { C_STRING_WITH_LEN("LPAD") }, SQL_FN(Item_func_lpad, 3) },
-  { { C_STRING_WITH_LEN("LTRIM") }, SQL_FN(Item_func_ltrim, 1) },
-  { { C_STRING_WITH_LEN("MAKEDATE") }, SQL_FN(Item_func_makedate, 2) },
-  { { C_STRING_WITH_LEN("MAKETIME") }, SQL_FN(Item_func_maketime, 3) },
-  { { C_STRING_WITH_LEN("MAKE_SET") }, SQL_FACTORY(Make_set_instantiator)},
-  { { C_STRING_WITH_LEN("MASTER_POS_WAIT") }, SQL_FN_V(Item_master_pos_wait, 2, 4) },
-  { { C_STRING_WITH_LEN("MBRCONTAINS") }, SQL_FACTORY(Mbr_contains_instantiator) },
-  { { C_STRING_WITH_LEN("MBRCOVEREDBY") }, SQL_FACTORY(Mbr_covered_by_instantiator) },
-  { { C_STRING_WITH_LEN("MBRCOVERS") }, SQL_FACTORY(Mbr_covers_instantiator) },
-  { { C_STRING_WITH_LEN("MBRDISJOINT") }, SQL_FACTORY(Mbr_disjoint_instantiator) },
-  { { C_STRING_WITH_LEN("MBREQUALS") }, SQL_FACTORY(Mbr_equals_instantiator) },
-  { { C_STRING_WITH_LEN("MBRINTERSECTS") }, SQL_FACTORY(Mbr_intersects_instantiator) },
-  { { C_STRING_WITH_LEN("MBROVERLAPS") }, SQL_FACTORY(Mbr_overlaps_instantiator) },
-  { { C_STRING_WITH_LEN("MBRTOUCHES") }, SQL_FACTORY(Mbr_touches_instantiator) },
-  { { C_STRING_WITH_LEN("MBRWITHIN") }, SQL_FACTORY(Mbr_within_instantiator) },
-  { { C_STRING_WITH_LEN("MD5") }, SQL_FN(Item_func_md5, 1) },
-  { { C_STRING_WITH_LEN("MONTHNAME") }, SQL_FN(Item_func_monthname, 1) },
-  { { C_STRING_WITH_LEN("NAME_CONST") }, SQL_FN(Item_name_const, 2) },
-  { { C_STRING_WITH_LEN("NULLIF") }, SQL_FN(Item_func_nullif, 2) },
-  { { C_STRING_WITH_LEN("OCT") }, SQL_FACTORY(Oct_instantiator) },
-  { { C_STRING_WITH_LEN("OCTET_LENGTH") }, SQL_FN(Item_func_length, 1) },
-  { { C_STRING_WITH_LEN("ORD") }, SQL_FN(Item_func_ord, 1) },
-  { { C_STRING_WITH_LEN("PERIOD_ADD") }, SQL_FN(Item_func_period_add, 2) },
-  { { C_STRING_WITH_LEN("PERIOD_DIFF") }, SQL_FN(Item_func_period_diff, 2) },
-  { { C_STRING_WITH_LEN("PI") }, SQL_FN(Item_func_pi, 0) },
-  { { C_STRING_WITH_LEN("POW") }, SQL_FN(Item_func_pow, 2) },
-  { { C_STRING_WITH_LEN("POWER") }, SQL_FN(Item_func_pow, 2) },
-  { { C_STRING_WITH_LEN("QUOTE") }, SQL_FN(Item_func_quote, 1) },
-  { { C_STRING_WITH_LEN("RADIANS") }, SQL_FACTORY(Radians_instantiator) },
-  { { C_STRING_WITH_LEN("RAND") }, SQL_FN_V(Item_func_rand, 0, 1) },
-  { { C_STRING_WITH_LEN("RANDOM_BYTES") }, SQL_FN(Item_func_random_bytes, 1) },
-  { { C_STRING_WITH_LEN("RELEASE_ALL_LOCKS") }, SQL_FN(Item_func_release_all_locks, 0) },
-  { { C_STRING_WITH_LEN("RELEASE_LOCK") }, SQL_FN(Item_func_release_lock, 1) },
-  { { C_STRING_WITH_LEN("REVERSE") }, SQL_FN(Item_func_reverse, 1) },
-  { { C_STRING_WITH_LEN("ROLES_GRAPHML") }, SQL_FN(Item_func_roles_graphml, 0) },
-  { { C_STRING_WITH_LEN("ROUND") }, SQL_FACTORY(Round_instantiator) },
-  { { C_STRING_WITH_LEN("RPAD") }, SQL_FN(Item_func_rpad, 3) },
-  { { C_STRING_WITH_LEN("RTRIM") }, SQL_FN(Item_func_rtrim, 1) },
-  { { C_STRING_WITH_LEN("SEC_TO_TIME") }, SQL_FN(Item_func_sec_to_time, 1) },
-  { { C_STRING_WITH_LEN("SHA") }, SQL_FN(Item_func_sha, 1) },
-  { { C_STRING_WITH_LEN("SHA1") }, SQL_FN(Item_func_sha, 1) },
-  { { C_STRING_WITH_LEN("SHA2") }, SQL_FN(Item_func_sha2, 2) },
-  { { C_STRING_WITH_LEN("SIGN") }, SQL_FN(Item_func_sign, 1) },
-  { { C_STRING_WITH_LEN("SIN") }, SQL_FN(Item_func_sin, 1) },
-  { { C_STRING_WITH_LEN("SLEEP") }, SQL_FN(Item_func_sleep, 1) },
-  { { C_STRING_WITH_LEN("SOUNDEX") }, SQL_FN(Item_func_soundex, 1) },
-  { { C_STRING_WITH_LEN("SPACE") }, SQL_FN(Item_func_space, 1) },
-  { { C_STRING_WITH_LEN("WAIT_FOR_EXECUTED_GTID_SET") }, SQL_FN_V(Item_wait_for_executed_gtid_set, 1, 2) },
-  { { C_STRING_WITH_LEN("WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS") }, SQL_FN_V(Item_master_gtid_set_wait, 1, 3) },
-  { { C_STRING_WITH_LEN("SQRT") }, SQL_FN(Item_func_sqrt, 1) },
-  { { C_STRING_WITH_LEN("STRCMP") }, SQL_FN(Item_func_strcmp, 2) },
-  { { C_STRING_WITH_LEN("STR_TO_DATE") }, SQL_FN(Item_func_str_to_date, 2) },
-  { { C_STRING_WITH_LEN("ST_AREA") }, SQL_FN(Item_func_area, 1) },
-  { { C_STRING_WITH_LEN("ST_ASBINARY") }, SQL_FN_V(Item_func_as_wkb, 1, 2) },
-  { { C_STRING_WITH_LEN("ST_ASGEOJSON") }, SQL_FN_V_THD(Item_func_as_geojson, 1, 3) },
-  { { C_STRING_WITH_LEN("ST_ASTEXT") }, SQL_FN(Item_func_as_wkt, 1) },
-  { { C_STRING_WITH_LEN("ST_ASWKB") }, SQL_FN_V(Item_func_as_wkb, 1, 2) },
-  { { C_STRING_WITH_LEN("ST_ASWKT") }, SQL_FN(Item_func_as_wkt, 1) },
-  { { C_STRING_WITH_LEN("ST_BUFFER") }, SQL_FN_V_LIST(Item_func_buffer, 2, 5) },
-  { { C_STRING_WITH_LEN("ST_BUFFER_STRATEGY") }, SQL_FN_V_LIST(Item_func_buffer_strategy, 1, 2) },
-  { { C_STRING_WITH_LEN("ST_CENTROID") }, SQL_FN(Item_func_centroid, 1) },
-  { { C_STRING_WITH_LEN("ST_CONTAINS") }, SQL_FACTORY(St_contains_instantiator) },
-  { { C_STRING_WITH_LEN("ST_CONVEXHULL") }, SQL_FN(Item_func_convex_hull, 1) },
-  { { C_STRING_WITH_LEN("ST_CROSSES") }, SQL_FACTORY(St_crosses_instantiator) },
-  { { C_STRING_WITH_LEN("ST_DIFFERENCE") }, SQL_FACTORY(Difference_instantiator) },
-  { { C_STRING_WITH_LEN("ST_DIMENSION") }, SQL_FN(Item_func_dimension, 1) },
-  { { C_STRING_WITH_LEN("ST_DISJOINT") }, SQL_FACTORY(St_disjoint_instantiator) },
-  { { C_STRING_WITH_LEN("ST_DISTANCE") }, SQL_FN_LIST(Item_func_distance, 2) },
-  { { C_STRING_WITH_LEN("ST_DISTANCE_SPHERE") }, SQL_FN_V_LIST(Item_func_distance_sphere, 2, 3) },
-  { { C_STRING_WITH_LEN("ST_ENDPOINT") }, SQL_FACTORY(Endpoint_instantiator) },
-  { { C_STRING_WITH_LEN("ST_ENVELOPE") }, SQL_FN(Item_func_envelope, 1) },
-  { { C_STRING_WITH_LEN("ST_EQUALS") }, SQL_FACTORY(St_equals_instantiator) },
-  { { C_STRING_WITH_LEN("ST_EXTERIORRING") }, SQL_FACTORY(Exteriorring_instantiator) },
-  { { C_STRING_WITH_LEN("ST_GEOHASH") }, SQL_FN_V(Item_func_geohash, 2, 3) },
-  { { C_STRING_WITH_LEN("ST_GEOMCOLLFROMTEXT") }, SQL_FACTORY(Geomcollfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_GEOMCOLLFROMTXT") }, SQL_FACTORY(Geomcollfromtxt_instantiator) },
-  { { C_STRING_WITH_LEN("ST_GEOMCOLLFROMWKB") }, SQL_FACTORY(Geomcollfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_GEOMETRYCOLLECTIONFROMTEXT") }, SQL_FACTORY(Geometrycollectionfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_GEOMETRYCOLLECTIONFROMWKB") }, SQL_FACTORY(Geometrycollectionfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_GEOMETRYFROMTEXT") }, SQL_FACTORY(Geometryfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_GEOMETRYFROMWKB") }, SQL_FACTORY(Geometryfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_GEOMETRYN") }, SQL_FACTORY(Sp_geometryn_instantiator) },
-  { { C_STRING_WITH_LEN("ST_GEOMETRYTYPE") }, SQL_FN(Item_func_geometry_type, 1) },
-  { { C_STRING_WITH_LEN("ST_GEOMFROMGEOJSON") }, SQL_FN_V(Item_func_geomfromgeojson, 1, 3) },
-  { { C_STRING_WITH_LEN("ST_GEOMFROMTEXT") }, SQL_FACTORY(Geomfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_GEOMFROMWKB") }, SQL_FACTORY(Geomfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_INTERIORRINGN") }, SQL_FACTORY(Sp_interiorringn_instantiator) },
-  { { C_STRING_WITH_LEN("ST_INTERSECTS") }, SQL_FACTORY(St_intersects_instantiator) },
-  { { C_STRING_WITH_LEN("ST_INTERSECTION") }, SQL_FACTORY(Intersection_instantiator) },
-  { { C_STRING_WITH_LEN("ST_ISCLOSED") }, SQL_FN(Item_func_isclosed, 1) },
-  { { C_STRING_WITH_LEN("ST_ISEMPTY") }, SQL_FN(Item_func_isempty, 1) },
-  { { C_STRING_WITH_LEN("ST_ISSIMPLE") }, SQL_FN(Item_func_issimple, 1) },
-  { { C_STRING_WITH_LEN("ST_ISVALID") }, SQL_FN(Item_func_isvalid, 1) },
-  { { C_STRING_WITH_LEN("ST_LATFROMGEOHASH") }, SQL_FN(Item_func_latfromgeohash, 1) },
-  { { C_STRING_WITH_LEN("ST_LENGTH") }, SQL_FN(Item_func_glength, 1) },
-  { { C_STRING_WITH_LEN("ST_LINEFROMTEXT") }, SQL_FACTORY(Linefromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_LINEFROMWKB") }, SQL_FACTORY(Linefromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_LINESTRINGFROMTEXT") }, SQL_FACTORY(Linestringfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_LINESTRINGFROMWKB") }, SQL_FACTORY(Linestringfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_LONGFROMGEOHASH") }, SQL_FN(Item_func_longfromgeohash, 1) },
-  { { C_STRING_WITH_LEN("ST_MAKEENVELOPE") }, SQL_FN(Item_func_make_envelope, 2) },
-  { { C_STRING_WITH_LEN("ST_MLINEFROMTEXT") }, SQL_FACTORY(Mlinefromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_MLINEFROMWKB") }, SQL_FACTORY(Mlinefromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_MPOINTFROMTEXT") }, SQL_FACTORY(Mpointfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_MPOINTFROMWKB") }, SQL_FACTORY(Mpointfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_MPOLYFROMTEXT") }, SQL_FACTORY(Mpolyfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_MPOLYFROMWKB") }, SQL_FACTORY(Mpolyfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_MULTILINESTRINGFROMTEXT") }, SQL_FACTORY(Multilinestringfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_MULTILINESTRINGFROMWKB") }, SQL_FACTORY(Multilinestringfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_MULTIPOINTFROMTEXT") }, SQL_FACTORY(Multipointfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_MULTIPOINTFROMWKB") }, SQL_FACTORY(Multipointfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_MULTIPOLYGONFROMTEXT") }, SQL_FACTORY(Multipolygonfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_MULTIPOLYGONFROMWKB") }, SQL_FACTORY(Multipolygonfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_NUMGEOMETRIES") }, SQL_FN(Item_func_numgeometries, 1) },
-  { { C_STRING_WITH_LEN("ST_NUMINTERIORRING") }, SQL_FN(Item_func_numinteriorring, 1) },
-  { { C_STRING_WITH_LEN("ST_NUMINTERIORRINGS") }, SQL_FN(Item_func_numinteriorring, 1) },
-  { { C_STRING_WITH_LEN("ST_NUMPOINTS") }, SQL_FN(Item_func_numpoints, 1) },
-  { { C_STRING_WITH_LEN("ST_OVERLAPS") }, SQL_FACTORY(St_overlaps_instantiator) },
-  { { C_STRING_WITH_LEN("ST_POINTFROMGEOHASH") }, SQL_FN(Item_func_pointfromgeohash, 2) },
-  { { C_STRING_WITH_LEN("ST_POINTFROMTEXT") }, SQL_FACTORY(Pointfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_POINTFROMWKB") }, SQL_FACTORY(Pointfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_POINTN") }, SQL_FACTORY(Sp_pointn_instantiator) },
-  { { C_STRING_WITH_LEN("ST_POLYFROMTEXT") }, SQL_FACTORY(Polyfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_POLYFROMWKB") }, SQL_FACTORY(Polyfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_POLYGONFROMTEXT") }, SQL_FACTORY(Polygonfromtext_instantiator) },
-  { { C_STRING_WITH_LEN("ST_POLYGONFROMWKB") }, SQL_FACTORY(Polygonfromwkb_instantiator) },
-  { { C_STRING_WITH_LEN("ST_SIMPLIFY") }, SQL_FN(Item_func_simplify, 2) },
-  { { C_STRING_WITH_LEN("ST_SRID") }, SQL_FACTORY(Srid_instantiator) },
-  { { C_STRING_WITH_LEN("ST_STARTPOINT") }, SQL_FACTORY(Startpoint_instantiator) },
-  { { C_STRING_WITH_LEN("ST_SYMDIFFERENCE") }, SQL_FACTORY(Symdifference_instantiator) },
-  { { C_STRING_WITH_LEN("ST_SWAPXY") }, SQL_FN(Item_func_swap_xy, 1) },
-  { { C_STRING_WITH_LEN("ST_TOUCHES") }, SQL_FACTORY(St_touches_instantiator) },
-  { { C_STRING_WITH_LEN("ST_UNION") }, SQL_FACTORY(Union_instantiator) },
-  { { C_STRING_WITH_LEN("ST_VALIDATE") }, SQL_FN(Item_func_validate, 1) },
-  { { C_STRING_WITH_LEN("ST_WITHIN") }, SQL_FACTORY(St_within_instantiator) },
-  { { C_STRING_WITH_LEN("ST_X") }, SQL_FACTORY(X_instantiator) },
-  { { C_STRING_WITH_LEN("ST_Y") }, SQL_FACTORY(Y_instantiator) },
-  { { C_STRING_WITH_LEN("SUBSTRING_INDEX") }, SQL_FN(Item_func_substr_index, 3) },
-  { { C_STRING_WITH_LEN("SUBTIME") }, SQL_FACTORY(Subtime_instantiator) },
-  { { C_STRING_WITH_LEN("TAN") }, SQL_FN(Item_func_tan, 1) },
-  { { C_STRING_WITH_LEN("TIMEDIFF") }, SQL_FN(Item_func_timediff, 2) },
-  { { C_STRING_WITH_LEN("TIME_FORMAT") }, SQL_FACTORY(Time_format_instantiator) },
-  { { C_STRING_WITH_LEN("TIME_TO_SEC") }, SQL_FN(Item_func_time_to_sec, 1) },
-  { { C_STRING_WITH_LEN("TO_BASE64") }, SQL_FN(Item_func_to_base64, 1) },
-  { { C_STRING_WITH_LEN("TO_DAYS") }, SQL_FN(Item_func_to_days, 1) },
-  { { C_STRING_WITH_LEN("TO_SECONDS") }, SQL_FN(Item_func_to_seconds, 1) },
-  { { C_STRING_WITH_LEN("UCASE") }, SQL_FN(Item_func_upper, 1) },
-  { { C_STRING_WITH_LEN("UNCOMPRESS") }, SQL_FN(Item_func_uncompress, 1) },
-  { { C_STRING_WITH_LEN("UNCOMPRESSED_LENGTH") }, SQL_FN(Item_func_uncompressed_length, 1) },
-  { { C_STRING_WITH_LEN("UNHEX") }, SQL_FN(Item_func_unhex, 1) },
-  { { C_STRING_WITH_LEN("UNIX_TIMESTAMP") }, SQL_FN_V(Item_func_unix_timestamp, 0, 1) },
-  { { C_STRING_WITH_LEN("UPDATEXML") }, SQL_FN(Item_func_xml_update, 3) },
-  { { C_STRING_WITH_LEN("UPPER") }, SQL_FN(Item_func_upper, 1) },
-  { { C_STRING_WITH_LEN("UUID") }, SQL_FN(Item_func_uuid, 0) },
-  { { C_STRING_WITH_LEN("UUID_SHORT") }, SQL_FN(Item_func_uuid_short, 0) },
-  { { C_STRING_WITH_LEN("UUID_TO_BIN") }, SQL_FN_V(Item_func_uuid_to_bin, 1, 2) },
-  { { C_STRING_WITH_LEN("VALIDATE_PASSWORD_STRENGTH") }, SQL_FN(Item_func_validate_password_strength, 1) },
-  { { C_STRING_WITH_LEN("VERSION") }, SQL_FN(Item_func_version, 0) },
-  { { C_STRING_WITH_LEN("WEEKDAY") }, SQL_FACTORY(Weekday_instantiator) },
-  { { C_STRING_WITH_LEN("WEEKOFYEAR") }, SQL_FACTORY(Weekofyear_instantiator) },
-  { { C_STRING_WITH_LEN("YEARWEEK") }, SQL_FACTORY(Yearweek_instantiator) },
-  { { C_STRING_WITH_LEN("GET_DD_COLUMN_PRIVILEGES") }, SQL_FN_INTERNAL(Item_func_get_dd_column_privileges, 3) },
-  { { C_STRING_WITH_LEN("GET_DD_INDEX_SUB_PART_LENGTH") }, SQL_FN_INTERNAL(Item_func_get_dd_index_sub_part_length, 5) },
-  { { C_STRING_WITH_LEN("GET_DD_CREATE_OPTIONS") }, SQL_FN_INTERNAL(Item_func_get_dd_create_options, 2) },
-  { { C_STRING_WITH_LEN("internal_dd_char_length") }, SQL_FN_INTERNAL(Item_func_internal_dd_char_length, 4) },
-  { { C_STRING_WITH_LEN("can_access_database") }, SQL_FN_INTERNAL(Item_func_can_access_database, 1) },
-  { { C_STRING_WITH_LEN("can_access_table") }, SQL_FN_INTERNAL(Item_func_can_access_table, 2) },
-  { { C_STRING_WITH_LEN("can_access_column") }, SQL_FN_INTERNAL(Item_func_can_access_column, 3) },
-  { { C_STRING_WITH_LEN("can_access_view") }, SQL_FN_INTERNAL(Item_func_can_access_view, 4) },
-  { { C_STRING_WITH_LEN("internal_table_rows") }, SQL_FN_INTERNAL(Item_func_internal_table_rows, 4) },
-  { { C_STRING_WITH_LEN("internal_avg_row_length") }, SQL_FN_INTERNAL(Item_func_internal_avg_row_length, 4) },
-  { { C_STRING_WITH_LEN("internal_data_length") }, SQL_FN_INTERNAL(Item_func_internal_data_length, 4) },
-  { { C_STRING_WITH_LEN("internal_max_data_length") }, SQL_FN_INTERNAL(Item_func_internal_max_data_length, 4) },
-  { { C_STRING_WITH_LEN("internal_index_length") }, SQL_FN_INTERNAL(Item_func_internal_index_length, 4) },
-  { { C_STRING_WITH_LEN("internal_data_free") }, SQL_FN_INTERNAL(Item_func_internal_data_free, 4) },
-  { { C_STRING_WITH_LEN("internal_auto_increment") }, SQL_FN_INTERNAL(Item_func_internal_auto_increment, 4) },
-  { { C_STRING_WITH_LEN("internal_checksum") }, SQL_FN_INTERNAL(Item_func_internal_checksum, 4) },
-  { { C_STRING_WITH_LEN("internal_update_time") }, SQL_FN_INTERNAL(Item_func_internal_update_time, 4) },
-  { { C_STRING_WITH_LEN("internal_check_time") }, SQL_FN_INTERNAL(Item_func_internal_check_time, 4) },
-  { { C_STRING_WITH_LEN("internal_keys_disabled") }, SQL_FN_INTERNAL(Item_func_internal_keys_disabled, 1) },
-  { { C_STRING_WITH_LEN("internal_index_column_cardinality") }, SQL_FN_LIST_INTERNAL(Item_func_internal_index_column_cardinality, 7) },
-  { { C_STRING_WITH_LEN("internal_get_comment_or_error") }, SQL_FN_LIST_INTERNAL(Item_func_internal_get_comment_or_error, 5) },
-  { { C_STRING_WITH_LEN("internal_get_view_warning_or_error") }, SQL_FN_LIST_INTERNAL(Item_func_internal_get_view_warning_or_error, 4) }
+  { "LN", SQL_FN(Item_func_ln, 1) },
+  { "LOAD_FILE", SQL_FN(Item_load_file, 1) },
+  { "LOCATE", SQL_FACTORY(Locate_instantiator) },
+  { "LOG", SQL_FN_V(Item_func_log, 1, 2) },
+  { "LOG10", SQL_FN(Item_func_log10, 1) },
+  { "LOG2", SQL_FN(Item_func_log2, 1) },
+  { "LOWER", SQL_FN(Item_func_lower, 1) },
+  { "LPAD", SQL_FN(Item_func_lpad, 3) },
+  { "LTRIM", SQL_FN(Item_func_ltrim, 1) },
+  { "MAKEDATE", SQL_FN(Item_func_makedate, 2) },
+  { "MAKETIME", SQL_FN(Item_func_maketime, 3) },
+  { "MAKE_SET", SQL_FACTORY(Make_set_instantiator) },
+  { "MASTER_POS_WAIT", SQL_FN_V(Item_master_pos_wait, 2, 4) },
+  { "MBRCONTAINS", SQL_FACTORY(Mbr_contains_instantiator) },
+  { "MBRCOVEREDBY", SQL_FACTORY(Mbr_covered_by_instantiator) },
+  { "MBRCOVERS", SQL_FACTORY(Mbr_covers_instantiator) },
+  { "MBRDISJOINT", SQL_FACTORY(Mbr_disjoint_instantiator) },
+  { "MBREQUALS", SQL_FACTORY(Mbr_equals_instantiator) },
+  { "MBRINTERSECTS", SQL_FACTORY(Mbr_intersects_instantiator) },
+  { "MBROVERLAPS", SQL_FACTORY(Mbr_overlaps_instantiator) },
+  { "MBRTOUCHES", SQL_FACTORY(Mbr_touches_instantiator) },
+  { "MBRWITHIN", SQL_FACTORY(Mbr_within_instantiator) },
+  { "MD5", SQL_FN(Item_func_md5, 1) },
+  { "MONTHNAME", SQL_FN(Item_func_monthname, 1) },
+  { "NAME_CONST", SQL_FN(Item_name_const, 2) },
+  { "NULLIF", SQL_FN(Item_func_nullif, 2) },
+  { "OCT", SQL_FACTORY(Oct_instantiator) },
+  { "OCTET_LENGTH", SQL_FN(Item_func_length, 1) },
+  { "ORD", SQL_FN(Item_func_ord, 1) },
+  { "PERIOD_ADD", SQL_FN(Item_func_period_add, 2) },
+  { "PERIOD_DIFF", SQL_FN(Item_func_period_diff, 2) },
+  { "PI", SQL_FN(Item_func_pi, 0) },
+  { "POW", SQL_FN(Item_func_pow, 2) },
+  { "POWER", SQL_FN(Item_func_pow, 2) },
+  { "QUOTE", SQL_FN(Item_func_quote, 1) },
+  { "RADIANS", SQL_FACTORY(Radians_instantiator) },
+  { "RAND", SQL_FN_V(Item_func_rand, 0, 1) },
+  { "RANDOM_BYTES", SQL_FN(Item_func_random_bytes, 1) },
+  { "RELEASE_ALL_LOCKS", SQL_FN(Item_func_release_all_locks, 0) },
+  { "RELEASE_LOCK", SQL_FN(Item_func_release_lock, 1) },
+  { "REVERSE", SQL_FN(Item_func_reverse, 1) },
+  { "ROLES_GRAPHML", SQL_FN(Item_func_roles_graphml, 0) },
+  { "ROUND", SQL_FACTORY(Round_instantiator) },
+  { "RPAD", SQL_FN(Item_func_rpad, 3) },
+  { "RTRIM", SQL_FN(Item_func_rtrim, 1) },
+  { "SEC_TO_TIME", SQL_FN(Item_func_sec_to_time, 1) },
+  { "SHA", SQL_FN(Item_func_sha, 1) },
+  { "SHA1", SQL_FN(Item_func_sha, 1) },
+  { "SHA2", SQL_FN(Item_func_sha2, 2) },
+  { "SIGN", SQL_FN(Item_func_sign, 1) },
+  { "SIN", SQL_FN(Item_func_sin, 1) },
+  { "SLEEP", SQL_FN(Item_func_sleep, 1) },
+  { "SOUNDEX", SQL_FN(Item_func_soundex, 1) },
+  { "SPACE", SQL_FN(Item_func_space, 1) },
+  { "WAIT_FOR_EXECUTED_GTID_SET", SQL_FN_V(Item_wait_for_executed_gtid_set, 1, 2) },
+  { "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS", SQL_FN_V(Item_master_gtid_set_wait, 1, 3) },
+  { "SQRT", SQL_FN(Item_func_sqrt, 1) },
+  { "STRCMP", SQL_FN(Item_func_strcmp, 2) },
+  { "STR_TO_DATE", SQL_FN(Item_func_str_to_date, 2) },
+  { "ST_AREA", SQL_FN(Item_func_area, 1) },
+  { "ST_ASBINARY", SQL_FN_V(Item_func_as_wkb, 1, 2) },
+  { "ST_ASGEOJSON", SQL_FN_V_THD(Item_func_as_geojson, 1, 3) },
+  { "ST_ASTEXT", SQL_FN(Item_func_as_wkt, 1) },
+  { "ST_ASWKB", SQL_FN_V(Item_func_as_wkb, 1, 2) },
+  { "ST_ASWKT", SQL_FN(Item_func_as_wkt, 1) },
+  { "ST_BUFFER", SQL_FN_V_LIST(Item_func_buffer, 2, 5) },
+  { "ST_BUFFER_STRATEGY", SQL_FN_V_LIST(Item_func_buffer_strategy, 1, 2) },
+  { "ST_CENTROID", SQL_FN(Item_func_centroid, 1) },
+  { "ST_CONTAINS", SQL_FACTORY(St_contains_instantiator) },
+  { "ST_CONVEXHULL", SQL_FN(Item_func_convex_hull, 1) },
+  { "ST_CROSSES", SQL_FACTORY(St_crosses_instantiator) },
+  { "ST_DIFFERENCE", SQL_FACTORY(Difference_instantiator) },
+  { "ST_DIMENSION", SQL_FN(Item_func_dimension, 1) },
+  { "ST_DISJOINT", SQL_FACTORY(St_disjoint_instantiator) },
+  { "ST_DISTANCE", SQL_FN_LIST(Item_func_distance, 2) },
+  { "ST_DISTANCE_SPHERE", SQL_FN_V_LIST(Item_func_distance_sphere, 2, 3) },
+  { "ST_ENDPOINT", SQL_FACTORY(Endpoint_instantiator) },
+  { "ST_ENVELOPE", SQL_FN(Item_func_envelope, 1) },
+  { "ST_EQUALS", SQL_FACTORY(St_equals_instantiator) },
+  { "ST_EXTERIORRING", SQL_FACTORY(Exteriorring_instantiator) },
+  { "ST_GEOHASH", SQL_FN_V(Item_func_geohash, 2, 3) },
+  { "ST_GEOMCOLLFROMTEXT", SQL_FACTORY(Geomcollfromtext_instantiator) },
+  { "ST_GEOMCOLLFROMTXT", SQL_FACTORY(Geomcollfromtxt_instantiator) },
+  { "ST_GEOMCOLLFROMWKB", SQL_FACTORY(Geomcollfromwkb_instantiator) },
+  { "ST_GEOMETRYCOLLECTIONFROMTEXT", SQL_FACTORY(Geometrycollectionfromtext_instantiator) },
+  { "ST_GEOMETRYCOLLECTIONFROMWKB", SQL_FACTORY(Geometrycollectionfromwkb_instantiator) },
+  { "ST_GEOMETRYFROMTEXT", SQL_FACTORY(Geometryfromtext_instantiator) },
+  { "ST_GEOMETRYFROMWKB", SQL_FACTORY(Geometryfromwkb_instantiator) },
+  { "ST_GEOMETRYN", SQL_FACTORY(Sp_geometryn_instantiator) },
+  { "ST_GEOMETRYTYPE", SQL_FN(Item_func_geometry_type, 1) },
+  { "ST_GEOMFROMGEOJSON", SQL_FN_V(Item_func_geomfromgeojson, 1, 3) },
+  { "ST_GEOMFROMTEXT", SQL_FACTORY(Geomfromtext_instantiator) },
+  { "ST_GEOMFROMWKB", SQL_FACTORY(Geomfromwkb_instantiator) },
+  { "ST_INTERIORRINGN", SQL_FACTORY(Sp_interiorringn_instantiator) },
+  { "ST_INTERSECTS", SQL_FACTORY(St_intersects_instantiator) },
+  { "ST_INTERSECTION", SQL_FACTORY(Intersection_instantiator) },
+  { "ST_ISCLOSED", SQL_FN(Item_func_isclosed, 1) },
+  { "ST_ISEMPTY", SQL_FN(Item_func_isempty, 1) },
+  { "ST_ISSIMPLE", SQL_FN(Item_func_issimple, 1) },
+  { "ST_ISVALID", SQL_FN(Item_func_isvalid, 1) },
+  { "ST_LATFROMGEOHASH", SQL_FN(Item_func_latfromgeohash, 1) },
+  { "ST_LENGTH", SQL_FN(Item_func_glength, 1) },
+  { "ST_LINEFROMTEXT", SQL_FACTORY(Linefromtext_instantiator) },
+  { "ST_LINEFROMWKB", SQL_FACTORY(Linefromwkb_instantiator) },
+  { "ST_LINESTRINGFROMTEXT", SQL_FACTORY(Linestringfromtext_instantiator) },
+  { "ST_LINESTRINGFROMWKB", SQL_FACTORY(Linestringfromwkb_instantiator) },
+  { "ST_LONGFROMGEOHASH", SQL_FN(Item_func_longfromgeohash, 1) },
+  { "ST_MAKEENVELOPE", SQL_FN(Item_func_make_envelope, 2) },
+  { "ST_MLINEFROMTEXT", SQL_FACTORY(Mlinefromtext_instantiator) },
+  { "ST_MLINEFROMWKB", SQL_FACTORY(Mlinefromwkb_instantiator) },
+  { "ST_MPOINTFROMTEXT", SQL_FACTORY(Mpointfromtext_instantiator) },
+  { "ST_MPOINTFROMWKB", SQL_FACTORY(Mpointfromwkb_instantiator) },
+  { "ST_MPOLYFROMTEXT", SQL_FACTORY(Mpolyfromtext_instantiator) },
+  { "ST_MPOLYFROMWKB", SQL_FACTORY(Mpolyfromwkb_instantiator) },
+  { "ST_MULTILINESTRINGFROMTEXT", SQL_FACTORY(Multilinestringfromtext_instantiator) },
+  { "ST_MULTILINESTRINGFROMWKB", SQL_FACTORY(Multilinestringfromwkb_instantiator) },
+  { "ST_MULTIPOINTFROMTEXT", SQL_FACTORY(Multipointfromtext_instantiator) },
+  { "ST_MULTIPOINTFROMWKB", SQL_FACTORY(Multipointfromwkb_instantiator) },
+  { "ST_MULTIPOLYGONFROMTEXT", SQL_FACTORY(Multipolygonfromtext_instantiator) },
+  { "ST_MULTIPOLYGONFROMWKB", SQL_FACTORY(Multipolygonfromwkb_instantiator) },
+  { "ST_NUMGEOMETRIES", SQL_FN(Item_func_numgeometries, 1) },
+  { "ST_NUMINTERIORRING", SQL_FN(Item_func_numinteriorring, 1) },
+  { "ST_NUMINTERIORRINGS", SQL_FN(Item_func_numinteriorring, 1) },
+  { "ST_NUMPOINTS", SQL_FN(Item_func_numpoints, 1) },
+  { "ST_OVERLAPS", SQL_FACTORY(St_overlaps_instantiator) },
+  { "ST_POINTFROMGEOHASH", SQL_FN(Item_func_pointfromgeohash, 2) },
+  { "ST_POINTFROMTEXT", SQL_FACTORY(Pointfromtext_instantiator) },
+  { "ST_POINTFROMWKB", SQL_FACTORY(Pointfromwkb_instantiator) },
+  { "ST_POINTN", SQL_FACTORY(Sp_pointn_instantiator) },
+  { "ST_POLYFROMTEXT", SQL_FACTORY(Polyfromtext_instantiator) },
+  { "ST_POLYFROMWKB", SQL_FACTORY(Polyfromwkb_instantiator) },
+  { "ST_POLYGONFROMTEXT", SQL_FACTORY(Polygonfromtext_instantiator) },
+  { "ST_POLYGONFROMWKB", SQL_FACTORY(Polygonfromwkb_instantiator) },
+  { "ST_SIMPLIFY", SQL_FN(Item_func_simplify, 2) },
+  { "ST_SRID", SQL_FACTORY(Srid_instantiator) },
+  { "ST_STARTPOINT", SQL_FACTORY(Startpoint_instantiator) },
+  { "ST_SYMDIFFERENCE", SQL_FACTORY(Symdifference_instantiator) },
+  { "ST_SWAPXY", SQL_FN(Item_func_swap_xy, 1) },
+  { "ST_TOUCHES", SQL_FACTORY(St_touches_instantiator) },
+  { "ST_UNION", SQL_FACTORY(Union_instantiator) },
+  { "ST_VALIDATE", SQL_FN(Item_func_validate, 1) },
+  { "ST_WITHIN", SQL_FACTORY(St_within_instantiator) },
+  { "ST_X", SQL_FACTORY(X_instantiator) },
+  { "ST_Y", SQL_FACTORY(Y_instantiator) },
+  { "SUBSTRING_INDEX", SQL_FN(Item_func_substr_index, 3) },
+  { "SUBTIME", SQL_FACTORY(Subtime_instantiator) },
+  { "TAN", SQL_FN(Item_func_tan, 1) },
+  { "TIMEDIFF", SQL_FN(Item_func_timediff, 2) },
+  { "TIME_FORMAT", SQL_FACTORY(Time_format_instantiator) },
+  { "TIME_TO_SEC", SQL_FN(Item_func_time_to_sec, 1) },
+  { "TO_BASE64", SQL_FN(Item_func_to_base64, 1) },
+  { "TO_DAYS", SQL_FN(Item_func_to_days, 1) },
+  { "TO_SECONDS", SQL_FN(Item_func_to_seconds, 1) },
+  { "UCASE", SQL_FN(Item_func_upper, 1) },
+  { "UNCOMPRESS", SQL_FN(Item_func_uncompress, 1) },
+  { "UNCOMPRESSED_LENGTH", SQL_FN(Item_func_uncompressed_length, 1) },
+  { "UNHEX", SQL_FN(Item_func_unhex, 1) },
+  { "UNIX_TIMESTAMP", SQL_FN_V(Item_func_unix_timestamp, 0, 1) },
+  { "UPDATEXML", SQL_FN(Item_func_xml_update, 3) },
+  { "UPPER", SQL_FN(Item_func_upper, 1) },
+  { "UUID", SQL_FN(Item_func_uuid, 0) },
+  { "UUID_SHORT", SQL_FN(Item_func_uuid_short, 0) },
+  { "UUID_TO_BIN", SQL_FN_V(Item_func_uuid_to_bin, 1, 2) },
+  { "VALIDATE_PASSWORD_STRENGTH", SQL_FN(Item_func_validate_password_strength, 1) },
+  { "VERSION", SQL_FN(Item_func_version, 0) },
+  { "WEEKDAY", SQL_FACTORY(Weekday_instantiator) },
+  { "WEEKOFYEAR", SQL_FACTORY(Weekofyear_instantiator) },
+  { "YEARWEEK", SQL_FACTORY(Yearweek_instantiator) },
+  { "GET_DD_COLUMN_PRIVILEGES", SQL_FN_INTERNAL(Item_func_get_dd_column_privileges, 3) },
+  { "GET_DD_INDEX_SUB_PART_LENGTH", SQL_FN_INTERNAL(Item_func_get_dd_index_sub_part_length, 5) },
+  { "GET_DD_CREATE_OPTIONS", SQL_FN_INTERNAL(Item_func_get_dd_create_options, 2) },
+  { "INTERNAL_DD_CHAR_LENGTH", SQL_FN_INTERNAL(Item_func_internal_dd_char_length, 4) },
+  { "CAN_ACCESS_DATABASE", SQL_FN_INTERNAL(Item_func_can_access_database, 1) },
+  { "CAN_ACCESS_TABLE", SQL_FN_INTERNAL(Item_func_can_access_table, 2) },
+  { "CAN_ACCESS_COLUMN", SQL_FN_INTERNAL(Item_func_can_access_column, 3) },
+  { "CAN_ACCESS_VIEW", SQL_FN_INTERNAL(Item_func_can_access_view, 4) },
+  { "INTERNAL_TABLE_ROWS", SQL_FN_INTERNAL(Item_func_internal_table_rows, 4) },
+  { "INTERNAL_AVG_ROW_LENGTH", SQL_FN_INTERNAL(Item_func_internal_avg_row_length, 4) },
+  { "INTERNAL_DATA_LENGTH", SQL_FN_INTERNAL(Item_func_internal_data_length, 4) },
+  { "INTERNAL_MAX_DATA_LENGTH", SQL_FN_INTERNAL(Item_func_internal_max_data_length, 4) },
+  { "INTERNAL_INDEX_LENGTH", SQL_FN_INTERNAL(Item_func_internal_index_length, 4) },
+  { "INTERNAL_DATA_FREE", SQL_FN_INTERNAL(Item_func_internal_data_free, 4) },
+  { "INTERNAL_AUTO_INCREMENT", SQL_FN_INTERNAL(Item_func_internal_auto_increment, 4) },
+  { "INTERNAL_CHECKSUM", SQL_FN_INTERNAL(Item_func_internal_checksum, 4) },
+  { "INTERNAL_UPDATE_TIME", SQL_FN_INTERNAL(Item_func_internal_update_time, 4) },
+  { "INTERNAL_CHECK_TIME", SQL_FN_INTERNAL(Item_func_internal_check_time, 4) },
+  { "INTERNAL_KEYS_DISABLED", SQL_FN_INTERNAL(Item_func_internal_keys_disabled, 1) },
+  { "INTERNAL_INDEX_COLUMN_CARDINALITY", SQL_FN_LIST_INTERNAL(Item_func_internal_index_column_cardinality, 7) },
+  { "INTERNAL_GET_COMMENT_OR_ERROR", SQL_FN_LIST_INTERNAL(Item_func_internal_get_comment_or_error, 5) },
+  { "INTERNAL_GET_VIEW_WARNING_OR_ERROR", SQL_FN_LIST_INTERNAL(Item_func_internal_get_view_warning_or_error, 4) }
 };
 
-static HASH native_functions_hash;
+using Native_functions_hash= std::unordered_map<std::string, Create_func*>;
+static const Native_functions_hash *native_functions_hash;
 
-static const uchar*
-get_native_fct_hash_key(const uchar *buff, size_t *length)
+
+bool item_create_init()
 {
-  Native_func_registry *func= (Native_func_registry*) buff;
-  *length= func->name.length;
-  return (uchar*) func->name.str;
+  try
+  {
+    native_functions_hash=
+      new Native_functions_hash(std::begin(func_array), std::end(func_array));
+  }
+  catch (...)
+  {
+    handle_std_exception("item_create_init");
+    return true;
+  }
+  return false;
 }
 
-
-/*
-  Load the hash table for native functions.
-  Note: this code is not thread safe, and is intended to be used at server
-  startup only (before going multi-threaded)
-*/
-
-int item_create_init()
-{
-  DBUG_ENTER("item_create_init");
-
-  if (my_hash_init(& native_functions_hash,
-                   system_charset_info,
-                   array_elements(func_array),
-                   0,
-                   get_native_fct_hash_key,
-                   nullptr,                          /* Nothing to free */
-                   MYF(0),
-                   key_memory_native_functions))
-    DBUG_RETURN(1);
-
-  for (const Native_func_registry &func : func_array)
-  {
-    if (my_hash_insert(& native_functions_hash,
-                       reinterpret_cast<const uchar*>(&func)))
-      DBUG_RETURN(1);
-  }
-
-#ifndef DBUG_OFF
-  for (uint i=0 ; i < native_functions_hash.records ; i++)
-  {
-    Native_func_registry *func=
-      (Native_func_registry*) my_hash_element(& native_functions_hash, i);
-    DBUG_PRINT("info", ("native function: %s  length: %u",
-                        func->name.str, (uint) func->name.length));
-  }
-#endif
-
-  DBUG_RETURN(0);
-}
-
-/*
-  Empty the hash table for native functions.
-  Note: this code is not thread safe, and is intended to be used at server
-  shutdown only (after thread requests have been executed).
-*/
 
 void item_create_cleanup()
 {
-  DBUG_ENTER("item_create_cleanup");
-  my_hash_free(& native_functions_hash);
-  DBUG_VOID_RETURN;
+  delete native_functions_hash;
 }
 
-Create_func *
-find_native_function_builder(THD *thd, LEX_STRING name)
+
+Create_func *find_native_function_builder(const LEX_STRING &lex_name)
 {
-  Native_func_registry *func;
-  Create_func *builder= NULL;
-
-  /* Thread safe */
-  func= (Native_func_registry*) my_hash_search(& native_functions_hash,
-                                               (uchar*) name.str,
-                                               name.length);
-
-  if (func)
+  try
   {
-    builder= func->builder;
-  }
+    std::string name(lex_name.str, lex_name.length);
+    for (auto & it : name)
+      it= std::toupper(it);
 
-  return builder;
+    auto entry= native_functions_hash->find(name);
+    if (entry == native_functions_hash->end())
+      return nullptr;
+    return entry->second;
+  }
+  catch (...)
+  {
+    handle_std_exception("find_native_function_builder");
+    return nullptr;
+  }
 }
+
 
 Create_qfunc *
 find_qualified_function_builder(THD *thd)

@@ -382,8 +382,6 @@ SET(SQL_SHARED_SOURCES
   ${DD_SOURCES}
 )
 
-SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} ${SQL_GIS_SOURCES} PARENT_SCOPE)
-
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
@@ -433,21 +431,15 @@ ENDIF()
 # Source files that use Boost
 SET(SQL_BOOST_SOURCES
   debug_sync.cc
-  auth/auth_common.cc
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc
   auth/sql_user_table.cc
   auth/sql_user.cc
-  auth/password.c
-  auth/password_policy_service.cc
   auth/sql_security_ctx.cc
-  auth/service_security_context.cc
   auth/role_tables.cc
-  sql_reload.cc
   handler.cc
   ${SQL_GIS_SOURCES}
-  item_json_func.cc
   spatial.cc
 )
 SET(SQL_EXPORTED_BOOST_SOURCES ${SQL_BOOST_SOURCES} PARENT_SCOPE)

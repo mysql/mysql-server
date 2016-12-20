@@ -941,7 +941,6 @@ EXCLUDE                = cmd-line-utils \
                          libevent \
                          libmysql \
                          libmysql_r \
-                         libmysqld \
                          mysql-test \
                          plugin \
                          source_downloads \

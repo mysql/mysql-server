@@ -173,7 +173,6 @@ our $exe_mysql;
 our $exe_mysqladmin;
 our $exe_mysqltest;
 our $exe_libtool;
-our $exe_mysql_embedded;
 our $exe_mysql_ssl_rsa_setup;
 
 our $opt_big_test= 0;
@@ -209,7 +208,6 @@ my $debug_d= "d";
 my $opt_debug_common;
 our $opt_debug_server;
 our @opt_cases;                  # The test cases names in argv
-our $opt_embedded_server;
 # -1 indicates use default, override with env.var.
 our $opt_ctest= env_or_val(MTR_UNIT_TESTS => -1);
 our $opt_ctest_report;
@@ -1106,7 +1104,6 @@ sub set_vardir {
 sub print_global_resfile {
   resfile_global("start_time", isotime $^T);
   resfile_global("user_id", $<);
-  resfile_global("embedded-server", $opt_embedded_server ? 1 : 0);
   resfile_global("ps-protocol", $opt_ps_protocol ? 1 : 0);
   resfile_global("sp-protocol", $opt_sp_protocol ? 1 : 0);
   resfile_global("view-protocol", $opt_view_protocol ? 1 : 0);
@@ -1167,7 +1164,6 @@ sub command_line_setup {
   Getopt::Long::Configure("pass_through");
   my %options=(
              # Control what engine/variation to run
-             'embedded-server'          => \$opt_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
              'sp-protocol'              => \$opt_sp_protocol,
              'view-protocol'            => \$opt_view_protocol,
@@ -1709,78 +1705,6 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
-  # Embedded server flag
-  # --------------------------------------------------------------------------
-  if ( $opt_embedded_server )
-  {
-    if ( IS_WINDOWS )
-    {
-      # Add the location for libmysqld.dll to the path.
-      my $separator= ";";
-      my $lib_mysqld=
-        mtr_path_exists("$bindir/lib", vs_config_dirs('libmysqld',''));
-      if ( IS_CYGWIN )
-      {
-	$lib_mysqld= posix_path($lib_mysqld);
-	$separator= ":";
-      }
-      $ENV{'PATH'}= "$ENV{'PATH'}".$separator.$lib_mysqld;
-    }
-    $opt_skip_ssl= 1;              # Turn off use of SSL
-
-    # Turn off use of bin log
-    push(@opt_extra_mysqld_opt, "--skip-log-bin");
-
-    if ( using_extern() )
-    {
-      mtr_error("Can't use --extern with --embedded-server");
-    }
-
-
-    if ($opt_gdb)
-    {
-      mtr_warning("Silently converting --gdb to --client-gdb in embedded mode");
-      $opt_client_gdb= $opt_gdb;
-      $opt_gdb= undef;
-    }
-
-    if ($opt_lldb)
-    {
-      mtr_warning("Silently converting --lldb to --client-lldb in embedded mode");
-      $opt_client_lldb= $opt_lldb;
-      $opt_lldb= undef;
-    }
-
-    if ($opt_ddd)
-    {
-      mtr_warning("Silently converting --ddd to --client-ddd in embedded mode");
-      $opt_client_ddd= $opt_ddd;
-      $opt_ddd= undef;
-    }
-
-    if ($opt_dbx) {
-      mtr_warning("Silently converting --dbx to --client-dbx in embedded mode");
-      $opt_client_dbx= $opt_dbx;
-      $opt_dbx= undef;
-    }
-
-    if ($opt_debugger)
-    {
-      mtr_warning("Silently converting --debugger to --client-debugger in embedded mode");
-      $opt_client_debugger= $opt_debugger;
-      $opt_debugger= undef;
-    }
-
-    if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_lldb || 
-         $opt_manual_ddd || $opt_manual_debug || $opt_debugger || $opt_dbx || 
-         $opt_lldb || $opt_manual_dbx || $opt_manual_boot_gdb )
-    {
-      mtr_error("You need to use the client debug options for the",
-		"embedded server. Ex: --client-gdb");
-    }
-  }
-
-  # --------------------------------------------------------------------------
   # Big test flags
   # --------------------------------------------------------------------------
    if ( $opt_big_test )
@@ -2317,11 +2241,6 @@ sub executable_setup () {
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
   $exe_mysql_ssl_rsa_setup= mtr_exe_exists("$path_client_bindir/mysql_ssl_rsa_setup");
 
-  $exe_mysql_embedded=
-    mtr_exe_maybe_exists(vs_config_dirs('libmysqld/examples','mysql_embedded'),
-                         "$bindir/libmysqld/examples/mysql_embedded",
-                         "$bindir/bin/mysql_embedded");
-
   if ( $ndbcluster_enabled )
   {
     # Look for single threaded NDB
@@ -2367,27 +2286,16 @@ sub executable_setup () {
 
   }
 
-  # Look for mysqltest executable
-  if ( $opt_embedded_server )
+  if ( defined $ENV{'MYSQL_TEST'} )
   {
-    $exe_mysqltest=
-      mtr_exe_exists(vs_config_dirs('libmysqld/examples','mysqltest_embedded'),
-                     "$basedir/libmysqld/examples/mysqltest_embedded",
-                     "$path_client_bindir/mysqltest_embedded");
+    $exe_mysqltest=$ENV{'MYSQL_TEST'};
+    print "===========================================================\n";
+    print "WARNING:The mysqltest binary is fetched from $exe_mysqltest\n";
+    print "===========================================================\n";
   }
   else
   {
-    if ( defined $ENV{'MYSQL_TEST'} )
-    {
-      $exe_mysqltest=$ENV{'MYSQL_TEST'};
-      print "===========================================================\n";
-      print "WARNING:The mysqltest binary is fetched from $exe_mysqltest\n";
-      print "===========================================================\n";
-    }
-    else
-    {
-      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
-    }
+    $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
   }
 
 }
@@ -2796,7 +2704,6 @@ sub environment_setup {
   $ENV{'MYSQL_CLIENT_TEST'}=           mysql_client_test_arguments();
   $ENV{'MYSQLXTEST'}=                  mysqlxtest_arguments();
   $ENV{'EXE_MYSQL'}=                   $exe_mysql;
-  $ENV{'MYSQL_EMBEDDED'}=              $exe_mysql_embedded;
   $ENV{'PATH_CONFIG_FILE'}=            $path_config_file;
   $ENV{'MYSQL_SSL_RSA_SETUP'}=         $exe_mysql_ssl_rsa_setup;
 
@@ -2920,14 +2827,6 @@ sub environment_setup {
                    "$basedir/bin/mysql_tzinfo_to_sql");
   $ENV{'MYSQL_TZINFO_TO_SQL'}= native_path($exe_mysql_tzinfo_to_sql);
 
-
-  # ----------------------------------------------------
-  # replace
-  # ----------------------------------------------------
-  my $exe_replace= mtr_exe_exists(vs_config_dirs('extra', 'replace'),
-                                 "$basedir/extra/replace",
-                                 "$path_client_bindir/replace");
-  $ENV{'REPLACE'}= native_path($exe_replace);
 
   # ----------------------------------------------------
   # lz4_decompress
@@ -3995,11 +3894,6 @@ sub mysql_install_db {
   mtr_add_arg($args, "--innodb-log-file-size=5M");
   # overwrite innodb_autoextend_increment to 8 for reducing the ibdata1 file size
   mtr_add_arg($args, "--innodb_autoextend_increment=8");
-  if ( $opt_embedded_server )
-  {
-    # Do not create performance_schema tables for embedded
-    mtr_add_arg($args, "--loose-performance_schema=OFF");
-  }
 
   if ( $opt_debug )
   {
@@ -4102,10 +3996,8 @@ sub mysql_install_db {
               "in working directory.");
   }
 
-  if ( $opt_skip_sys_schema || $opt_embedded_server )
+  if ( $opt_skip_sys_schema )
   {
-    # initialize creates sys schema in embedded mode
-    # which it should not, hence dropping it.
     mtr_tofile($bootstrap_sql_file, "DROP DATABASE sys;\n");
   }
 
@@ -4707,7 +4599,6 @@ sub run_testcase ($) {
 	   user            => $opt_user,
 	   password        => '',
 	   ssl             => $opt_ssl_supported,
-	   embedded        => 1, # Always print out embedded section.
 	  }
 	);
 
@@ -5453,23 +5344,6 @@ sub start_check_warnings ($$) {
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
   mtr_add_arg($args, "--logdir=%s/tmp", $opt_vardir);
 
-  if ( $opt_embedded_server )
-  {
-
-    # Get the args needed for the embedded server
-    # and append them to args prefixed
-    # with --sever-arg=
-
-    my $mysqld=  $config->group('embedded')
-      or mtr_error("Could not get [embedded] section");
-
-    my $mysqld_args;
-    mtr_init_args(\$mysqld_args);
-    my $extra_opts= get_extra_opts($mysqld, $tinfo);
-    mysqld_arguments($mysqld_args, $mysqld, $extra_opts);
-    mtr_add_arg($args, "--server-arg=%s", $_) for @$mysqld_args;
-  }
-
   my $errfile= "$opt_vardir/tmp/$name.err";
   my $proc= My::SafeProcess->new
     (
@@ -6067,9 +5941,6 @@ sub mysqld_start ($$) {
   my $exe= find_mysqld($mysqld->value('basedir'));
   my $wait_for_pid_file= 1;
 
-  mtr_error("Internal error: mysqld should never be started for embedded")
-    if $opt_embedded_server;
-
   my $args;
   mtr_init_args(\$args);
 # implementation for strace-server
@@ -6656,15 +6527,11 @@ sub start_servers($) {
       return 1;
     }
 
-    if (!$opt_embedded_server)
-    {
-      my $extra_opts= get_extra_opts($mysqld, $tinfo);
-      mysqld_start($mysqld,$extra_opts);
+    my $extra_opts= get_extra_opts($mysqld, $tinfo);
+    mysqld_start($mysqld,$extra_opts);
 
-      # Save this test case information, so next can examine it
-      $mysqld->{'started_tinfo'}= $tinfo;
-
-    }
+    # Save this test case information, so next can examine it
+    $mysqld->{'started_tinfo'}= $tinfo;
 
   }
 
@@ -6887,23 +6754,6 @@ sub start_mysqltest ($) {
 
   if ( $opt_max_connections ) {
     mtr_add_arg($args, "--max-connections=%d", $opt_max_connections);
-  }
-
-  if ( $opt_embedded_server )
-  {
-
-    # Get the args needed for the embedded server
-    # and append them to args prefixed
-    # with --sever-arg=
-
-    my $mysqld=  $config->group('embedded')
-      or mtr_error("Could not get [embedded] section");
-
-    my $mysqld_args;
-    mtr_init_args(\$mysqld_args);
-    my $extra_opts= get_extra_opts($mysqld, $tinfo);
-    mysqld_arguments($mysqld_args, $mysqld, $extra_opts);
-    mtr_add_arg($args, "--server-arg=%s", $_) for @$mysqld_args;
   }
 
   foreach my $arg ( @opt_extra_mysqltest_opt ) {
@@ -7484,7 +7334,6 @@ $0 [ OPTIONS ] [ TESTCASE ]
 
 Options to control what engine/variation to run
 
-  embedded-server       Use the embedded server, i.e. no mysqld daemons
   ps-protocol           Use the binary protocol between client and server
   cursor-protocol       Use the cursor protocol between client and server
                         (implies --ps-protocol)

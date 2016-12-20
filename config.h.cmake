@@ -365,7 +365,6 @@
 
 /* For --secure-file-priv */
 #cmakedefine DEFAULT_SECURE_FILE_PRIV_DIR @DEFAULT_SECURE_FILE_PRIV_DIR@
-#cmakedefine DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR @DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR@
 #cmakedefine HAVE_LIBNUMA 1
 
 /* For default value of --early_plugin_load */

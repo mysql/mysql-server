@@ -21,8 +21,7 @@ let $engines_table= query_get_value(SHOW TABLES FROM information_schema LIKE 'EN
 disable_query_log;
 if (`SELECT 1 FROM dual WHERE '$engines_table' = 'engines'`)
 {
---require r/true.require
-SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
+  --source include/have_ndb.inc
 }
 enable_query_log;
 
@@ -34,8 +33,7 @@ let $engines_table= query_get_value(SHOW TABLES FROM information_schema LIKE 'EN
 disable_query_log;
 if (`SELECT 1 FROM dual WHERE '$engines_table' = 'engines'`)
 {
---require r/true.require
-SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
+  --source include/have_ndb.inc
 }
 enable_query_log;
 }

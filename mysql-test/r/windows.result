@@ -62,8 +62,3 @@ SELECT VARIABLE_NAME FROM performance_schema.global_variables
 WHERE VARIABLE_NAME = 'socket';
 VARIABLE_NAME
 socket
-#
-# Bug#16581605: REPLACE.EXE UTILITY IS BROKEN IN 5.5
-#
-xyz
-def

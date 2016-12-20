@@ -16,7 +16,9 @@
 #    b) server2 : Create table T2 and perform ddl on T1 & T2.
 #    c) server3 : Create table T3 and perform ddl on T1,T2 & T3.
 # 6. Assert for values on three tables from different servers.
-# 7. Stop group replication on all the servers.
+# 7. Stop group replication on all the servers through mysqlx.
+# 8. uninstall mysqlx plugin on all servers.
+# 9. clean-up
 ##############################################################################
 
 --source include/have_mysqlx_plugin.inc
@@ -33,29 +35,54 @@
 --let $rpl_server_count= 3
 --source ../inc/group_replication.inc
 
-# Install Mysqlx plugin on all servers and fetch the mysqlx_port to the local
-# variables
+# Install Mysqlx plugin on all servers.
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---source ../inc/start_and_bootstrap_group_replication.inc
 --replace_regex /\.dll/.so/
---eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'
---let $mysqlx_port1= `Select @@Global.mysqlx_port`
+--source suite/x/include/xplugin_install_and_wait.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---source include/start_group_replication.inc
 --replace_regex /\.dll/.so/
---eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'
---let $mysqlx_port2= `Select @@Global.mysqlx_port`
+--source suite/x/include/xplugin_install_and_wait.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
---source include/start_group_replication.inc
 --replace_regex /\.dll/.so/
---eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'
---let $mysqlx_port3= `Select @@Global.mysqlx_port`
+--source suite/x/include/xplugin_install_and_wait.inc
+
+# File for starting GR through X-protocol
+# Bootstrap-server
+--write_file $MYSQL_TMP_DIR/bootstrap_server.tmp
+-->sql
+SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-dddd-aaaa-aaaa-aaaaaaaaaaaa';
+SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=1;
+START GROUP_REPLICATION;
+SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=0;
+-->endsql
+EOF
+
+# Temp file for starting group replication as non bootstrap server.
+--write_file $MYSQL_TMP_DIR/non_bootstrap_server.tmp
+-->sql
+SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-dddd-aaaa-aaaa-aaaaaaaaaaaa';
+CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery';
+START GROUP_REPLICATION;
+-->endsql
+EOF
+
+# Starting GR on all the servers through mysqlx
+--echo Starting GR on server 1
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
+--echo Starting GR on server 2
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/non_bootstrap_server.tmp 2>&1
+--echo Starting GR on server 3
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/non_bootstrap_server.tmp 2>&1
+
+--echo Waiting for GR members to come online.
+--let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
 
 # Temp file for performing ddl and dml on server1
 
@@ -71,7 +98,7 @@ DELETE FROM T1 WHERE C2 = 0;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/ddl_dml_on_server1.tmp 2>&1
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/ddl_dml_on_server1.tmp 2>&1
 
 # Wait for synchronization between the nodes.
 
@@ -93,7 +120,7 @@ DELETE FROM T2 WHERE C1 = 'ABC';
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --port=$mysqlx_port2 --file=$MYSQL_TMP_DIR/ddl_dml_on_server2.tmp 2>&1
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/ddl_dml_on_server2.tmp 2>&1
 
 # Wait for synchronization between the nodes.
 
@@ -118,7 +145,7 @@ DELETE FROM T3 WHERE C1 > 0;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --port=$mysqlx_port3 --file=$MYSQL_TMP_DIR/ddl_dml_on_server3.tmp 2>&1
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/ddl_dml_on_server3.tmp 2>&1
 
 # Wait for synchronization between the nodes.
 
@@ -135,13 +162,12 @@ EOF
 -->wait_for 23	SELECT C2 FROM test.T2 WHERE C1="ABC"
 EOF
 
---exec $MYSQLXTEST -u root --port=$mysqlx_port3 --file=$MYSQL_TMP_DIR/assert.tmp 2>&1
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/assert.tmp 2>&1
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM test.T3
 --source include/wait_condition.inc
 
 # Temp for droping tables in a group.
-
 --write_file $MYSQL_TMP_DIR/delete_tables.tmp
 -->sql
 USE test;
@@ -151,28 +177,45 @@ DROP TABLE T3;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --port=$mysqlx_port3 --file=$MYSQL_TMP_DIR/delete_tables.tmp 2>&1
+# Deleting tables.
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/delete_tables.tmp 2>&1
+--source include/rpl_sync.inc
 
---echo Stopping GR on all the servers
+# Creating temp file to stop GR.
+--write_file $MYSQL_TMP_DIR/stop_group_replication.tmp
+-->stmtsql STOP GROUP_REPLICATION;
+-->recvresult
+EOF
 
+# Stopping GR on all the servers
+--echo Stopping GR on server 1
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+--echo Stopping GR on server 2
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+--echo Stopping GR on server 3
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+
+# Uninstall mysqlx on all servers
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 UNINSTALL PLUGIN mysqlx;
---source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 UNINSTALL PLUGIN mysqlx;
---source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 UNINSTALL PLUGIN mysqlx;
---source include/stop_group_replication.inc
 
+# clean-up
+--remove_file $MYSQL_TMP_DIR/bootstrap_server.tmp
+--remove_file $MYSQL_TMP_DIR/non_bootstrap_server.tmp
 --remove_file $MYSQL_TMP_DIR/ddl_dml_on_server1.tmp
 --remove_file $MYSQL_TMP_DIR/ddl_dml_on_server2.tmp
 --remove_file $MYSQL_TMP_DIR/ddl_dml_on_server3.tmp
 --remove_file $MYSQL_TMP_DIR/delete_tables.tmp
 --remove_file $MYSQL_TMP_DIR/assert.tmp
+--remove_file $MYSQL_TMP_DIR/stop_group_replication.tmp
+
 --source ../inc/group_replication_end.inc

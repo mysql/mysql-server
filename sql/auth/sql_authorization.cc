@@ -3364,7 +3364,6 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   want_privilege&= ~grant->privilege;
   if (!want_privilege)
     DBUG_RETURN(false);                             // Already checked
-
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock())
     DBUG_RETURN(true);
@@ -3469,7 +3468,15 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
 
   DBUG_ASSERT(want_privilege);
 
-  if (table_ref->is_view() || table_ref->field_translation)
+  if (table_ref->is_derived())
+  {
+    /*
+      If this is a derived table there's no need to evaluate the required
+      privileges at all.
+    */
+    DBUG_RETURN(false);
+  }
+  else if (table_ref->is_view() || table_ref->field_translation)
   {
     /* View or derived information schema table. */
     ulong view_privs;

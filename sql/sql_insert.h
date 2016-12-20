@@ -188,17 +188,14 @@ public:
                       TABLE_LIST *select_tables_arg);
 
   bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
-  int binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values) override;
   void send_error(uint errcode, const char *err) override;
   bool send_eof() override;
   void abort_result_set() override;
-
-  // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
-  const THD *get_thd(void) { return thd; }
   bool start_execution() override;
 
 private:
+  int binlog_show_create_table();
   void drop_open_table();
 };
 

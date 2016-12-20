@@ -148,8 +148,6 @@ mkdir release
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
-           -DWITH_EMBEDDED_SERVER=0 \
-           -DWITH_EMBEDDED_SHARED_LIBRARY=0 \
            -DWITH_NUMA=ON \
            %{?mecab_option} \
            -DWITH_SSL=system \
@@ -185,9 +183,9 @@ rm -rf %{buildroot}%{_libdir}/mysql/libmysql*
 # Removing some tools
 for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack mysqladmin \
          mysqlbinlog mysqlcheck mysql_client_test mysql_config_editor \
-         mysqld_multi mysqld_safe mysqldumpslow mysql_embedded mysqlimport \
+         mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqlxtest \
-         perror replace  resolveip  resolve_stack_dump lz4_decompress \
+         perror resolveip  resolve_stack_dump lz4_decompress \
          zlib_decompress; do
     rm -f %{buildroot}%{_bindir}/$f
 done

@@ -25,7 +25,7 @@
 #include <float.h>
 #include <string.h>
 #include <algorithm>
-#include <cmath>          // isfinite
+#include <cmath>          // std::isfinite, std::isnan
 #include <map>
 #include <new>
 #include <stack>
@@ -42,7 +42,6 @@
 #include <boost/geometry/core/cs.hpp>
 #include <boost/geometry/strategies/spherical/distance_haversine.hpp>
 #include <boost/iterator/iterator_facade.hpp>
-#include <boost/math/special_functions/fpclassify.hpp>
 #include <boost/move/utility_core.hpp>
 
 #include "binlog_config.h"
@@ -4247,7 +4246,7 @@ String *Item_func_simplify::val_str(String *str)
     }
   }
 
-  if (max_dist <= 0 || boost::math::isnan(max_dist))
+  if (max_dist <= 0 || std::isnan(max_dist))
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_str();
@@ -5523,7 +5522,7 @@ String *Item_func_set_x::val_str(String *str)
     return error_str();
   }
 
-  if (std::isnan(x_coordinate) || std::isinf(x_coordinate))
+  if (!std::isfinite(x_coordinate))
   {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), func_name());
     return error_str();
@@ -5571,7 +5570,7 @@ String *Item_func_set_y::val_str(String *str)
     return error_str();
   }
 
-  if (std::isnan(y_coordinate) || std::isinf(y_coordinate))
+  if (!std::isfinite(y_coordinate))
   {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), func_name());
     return error_str();
@@ -6275,7 +6274,7 @@ geometry_collection_distance(const Geometry *g1, const Geometry *g2)
       dist= bg_distance<bgcs::cartesian>(*i, *j);
       if (null_value)
         return error_real();
-      if (dist < 0 || boost::math::isnan(dist))
+      if (dist < 0 || std::isnan(dist))
         return dist;
 
       if (!initialized)

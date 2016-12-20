@@ -486,57 +486,26 @@ typedef struct charset_info_st
 #define ILLEGAL_CHARSET_INFO_NUMBER (~0U)
 
 
+/*
+  NOTE: You cannot use a CHARSET_INFO without it having been initialized first.
+  In particular, they are not initialized when a unit test starts; do not use
+  these globals indiscriminately from there, and do not add more. Instead,
+  load them through a MY_CHARSET_LOADER, using my_collation_get_by_name().
+*/
+
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_bin;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_latin1;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
 
-extern CHARSET_INFO my_charset_big5_chinese_ci;
-extern CHARSET_INFO my_charset_big5_bin;
-extern CHARSET_INFO my_charset_cp932_japanese_ci;
-extern CHARSET_INFO my_charset_cp932_bin;
-extern CHARSET_INFO my_charset_cp1250_czech_ci;
-extern CHARSET_INFO my_charset_eucjpms_japanese_ci;
-extern CHARSET_INFO my_charset_eucjpms_bin;
-extern CHARSET_INFO my_charset_euckr_korean_ci;
-extern CHARSET_INFO my_charset_euckr_bin;
-extern CHARSET_INFO my_charset_gb2312_chinese_ci;
-extern CHARSET_INFO my_charset_gb2312_bin;
-extern CHARSET_INFO my_charset_gbk_chinese_ci;
-extern CHARSET_INFO my_charset_gbk_bin;
-extern CHARSET_INFO my_charset_gb18030_chinese_ci;
-extern CHARSET_INFO my_charset_gb18030_bin;
-extern CHARSET_INFO my_charset_latin1_german2_ci;
 extern CHARSET_INFO my_charset_latin1_bin;
-extern CHARSET_INFO my_charset_latin2_czech_ci;
-extern CHARSET_INFO my_charset_sjis_japanese_ci;
-extern CHARSET_INFO my_charset_sjis_bin;
-extern CHARSET_INFO my_charset_tis620_thai_ci;
-extern CHARSET_INFO my_charset_tis620_bin;
-extern CHARSET_INFO my_charset_ucs2_general_ci;
-extern CHARSET_INFO my_charset_ucs2_bin;
-extern CHARSET_INFO my_charset_ucs2_unicode_ci;
-extern CHARSET_INFO my_charset_ucs2_general_mysql500_ci;
-extern CHARSET_INFO my_charset_ujis_japanese_ci;
-extern CHARSET_INFO my_charset_ujis_bin;
-extern CHARSET_INFO my_charset_utf16_bin;
-extern CHARSET_INFO my_charset_utf16_general_ci;
-extern CHARSET_INFO my_charset_utf16_unicode_ci;
-extern CHARSET_INFO my_charset_utf16le_bin;
-extern CHARSET_INFO my_charset_utf16le_general_ci;
-extern CHARSET_INFO my_charset_utf32_bin;
-extern CHARSET_INFO my_charset_utf32_general_ci;
 extern CHARSET_INFO my_charset_utf32_unicode_ci;
-
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8_general_ci;
 extern CHARSET_INFO my_charset_utf8_tolower_ci;
 extern CHARSET_INFO my_charset_utf8_unicode_ci;
 extern CHARSET_INFO my_charset_utf8_bin;
-extern CHARSET_INFO my_charset_utf8_general_mysql500_ci;
 extern CHARSET_INFO my_charset_utf8mb4_bin;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_general_ci;
-extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
-extern CHARSET_INFO my_charset_utf8mb4_0900_ai_ci;
-extern CHARSET_INFO my_charset_utf8mb4_0900_as_cs;
+
 #define MY_UTF8MB3                 "utf8"
 #define MY_UTF8MB4                 "utf8mb4"
 

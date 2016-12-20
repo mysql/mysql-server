@@ -20,13 +20,6 @@ IF(SSL_DEFINES)
   ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
-# Note that no COMPONENTS option is to be used for header only components,
-# it would try to find a library
-SET(Boost_USE_STATIC_LIBS OFF)
-ADD_DEFINITIONS(-DBOOST_ALL_NO_LIB -DBOOST_NO_AUTO_PTR)
-
-MESSAGE(STATUS "Using Boost headers from ${BOOST_INCLUDE_DIR}")
-
 SET(XPLUGIN_LOG_PROTOBUF 1 CACHE STRING "Enable logging of protobuf messages")
 
 INCLUDE_DIRECTORIES(${PROTOBUF_INCLUDE_DIRS})
@@ -83,8 +76,6 @@ ELSE()
   )
 
   INCLUDE_DIRECTORIES(SYSTEM
-    ${BOOST_PATCHES_DIR}
-    ${BOOST_INCLUDE_DIR}
     ${PROTOBUF_INCLUDE_DIRS}
     ${LIBEVENT_INCLUDE_DIR}
   )

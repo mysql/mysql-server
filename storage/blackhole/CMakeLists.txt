@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,5 +14,4 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 SET(BLACKHOLE_SOURCES  ha_blackhole.cc ha_blackhole.h)
-MYSQL_ADD_PLUGIN(blackhole ${BLACKHOLE_SOURCES} STORAGE_ENGINE
-RECOMPILE_FOR_EMBEDDED)
+MYSQL_ADD_PLUGIN(blackhole ${BLACKHOLE_SOURCES} STORAGE_ENGINE)

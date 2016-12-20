@@ -32,10 +32,27 @@
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---source ../inc/start_and_bootstrap_group_replication.inc
 --replace_regex /\.dll/.so/
---eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'
+--source suite/x/include/xplugin_install_and_wait.inc
 --let $mysqlx_port1= `Select @@Global.mysqlx_port`
+
+# File for starting GR through X-protocol
+# Bootstrap-server
+--write_file $MYSQL_TMP_DIR/bootstrap_server.tmp
+-->sql
+SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-eeee-aaaa-aaaa-aaaaaaaaaaaa';
+SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=1;
+START GROUP_REPLICATION;
+SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=0;
+-->endsql
+EOF
+
+--echo Starting GR on server 1
+--exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
+
+# Wait for member state to be ONLINE
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
 
 --let $group_replication_group_seeds=`SELECT @@GLOBAL.group_replication_group_seeds`
 --let $group_replication_local_address=`SELECT @@GLOBAL.group_replication_local_address`
@@ -328,7 +345,19 @@ EOF
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_ssl_mode]" = "VERIFY_CA"
 --source include/assert.inc
 
---source include/stop_group_replication.inc
+# Creating temp file to stop GR.
+--write_file $MYSQL_TMP_DIR/stop_group_replication.tmp
+-->stmtsql STOP GROUP_REPLICATION;
+-->recvresult
+EOF
+
+## Stop GR on Server1
+--echo Stopping GR on server 1
+--exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+
+## Wait for member state to be OFFLINE.
+--let $group_replication_member_state= OFFLINE
+--source ../inc/gr_wait_for_member_state.inc
 
 ## Modify the GLOBAL variables to its original value
 
@@ -363,17 +392,22 @@ SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET GLOBAL group_replication_start_on_boot= @group_replication_start_on_boot_save;
 SET GLOBAL group_replication_enforce_update_everywhere_checks= @group_replication_enforce_update_everywhere_checks_save;
 
-## Start GR
-
 ## See if GR is able to start after resetting the values.
---source ../inc/start_and_bootstrap_group_replication.inc
---source include/stop_group_replication.inc
+--exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
 
+## Stop GR
+--exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+
+## Uninstall mysqlx plugin.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 UNINSTALL PLUGIN mysqlx;
 
 ## Clean-up
-
+--remove_file $MYSQL_TMP_DIR/bootstrap_server.tmp
 --remove_file $MYSQL_TMP_DIR/set_variables.tmp
+--remove_file $MYSQL_TMP_DIR/stop_group_replication.tmp
+
 --source ../inc/group_replication_end.inc

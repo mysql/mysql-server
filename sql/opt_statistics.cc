@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "opt_statistics.h"
+
 #include <algorithm>
 
 #include "handler.h"
@@ -21,7 +23,6 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_global.h"
-#include "opt_statistics.h"
 #include "table.h"                              // TABLE
 
 using std::max;
@@ -52,7 +53,7 @@ rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
                                 uint used_keyparts)
 {
   DBUG_ASSERT(used_keyparts >= 1);
-  DBUG_ASSERT(used_keyparts <= key->user_defined_key_parts);
+  DBUG_ASSERT(used_keyparts <= key->actual_key_parts);
   DBUG_ASSERT(!key->has_records_per_key(used_keyparts - 1));
 
   const ha_rows table_rows= table->file->stats.records;

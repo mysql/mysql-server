@@ -258,19 +258,22 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 100,
-              "rows_estimate": 110,
-              "row_size": 219,
-              "memory_available": 262144,
               "chosen": false,
-              "cause": "quicksort_is_cheaper"
+              "cause": "sort_is_cheaper"
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 100,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 9,
+              "row_size": 221,
+              "max_rows_per_buffer": 110,
+              "num_rows_estimate": 110,
+              "num_rows_found": 100,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 25192,
+              "sort_algorithm": "std::sort",
               "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
@@ -437,18 +440,22 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 219,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 9,
+              "row_size": 219,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 7040,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -650,18 +657,22 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 13120,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -877,18 +888,22 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 20,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 21,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 21,
+              "num_rows_estimate": 110,
+              "num_rows_found": 21,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 8888,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -1094,18 +1109,22 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 20,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 21,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 21,
+              "num_rows_estimate": 110,
+              "num_rows_found": 21,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 8888,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -1266,18 +1285,22 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 10,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 11,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 11,
+              "num_rows_estimate": 110,
+              "num_rows_found": 11,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 4656,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -1407,18 +1430,22 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 2,
-              "rows_estimate": 110,
-              "row_size": 409,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 3,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 207,
+              "row_size": 409,
+              "max_rows_per_buffer": 3,
+              "num_rows_estimate": 110,
+              "num_rows_found": 3,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 1256,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -1558,18 +1585,22 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 2,
-              "rows_estimate": 110,
-              "row_size": 16,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 3,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 16,
+              "row_size": 16,
+              "max_rows_per_buffer": 3,
+              "num_rows_estimate": 110,
+              "num_rows_found": 3,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 72,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -1737,18 +1768,22 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 219,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 9,
+              "row_size": 219,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 7040,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -1950,18 +1985,22 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 13120,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -2177,18 +2216,22 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 20,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 21,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 21,
+              "num_rows_estimate": 110,
+              "num_rows_found": 21,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 8888,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -2394,18 +2437,22 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 20,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 21,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 21,
+              "num_rows_estimate": 110,
+              "num_rows_found": 21,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 8888,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -2566,18 +2613,22 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 10,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 11,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 11,
+              "num_rows_estimate": 110,
+              "num_rows_found": 11,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 4656,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -2752,18 +2803,22 @@ ORDER BY f1, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 219,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 9,
+              "row_size": 219,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 7040,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -2905,18 +2960,22 @@ ORDER BY f1, f0 LIMIT 0	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 0,
-              "rows_estimate": 110,
-              "row_size": 219,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 1,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 9,
+              "row_size": 219,
+              "max_rows_per_buffer": 1,
+              "num_rows_estimate": 110,
+              "num_rows_found": 1,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 232,
+              "sort_algorithm": "none",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -3102,18 +3161,22 @@ ORDER BY f2, f0 LIMIT 20	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 20,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 21,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 21,
+              "num_rows_estimate": 110,
+              "num_rows_found": 21,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 8888,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -3279,18 +3342,22 @@ ORDER BY f2, f0 LIMIT 0	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 0,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 1,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 1,
+              "num_rows_estimate": 110,
+              "num_rows_found": 1,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 424,
+              "sort_algorithm": "none",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -3466,18 +3533,22 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 20,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 21,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 21,
+              "num_rows_estimate": 110,
+              "num_rows_found": 21,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 8888,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -3643,18 +3714,22 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 10,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 11,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 11,
+              "num_rows_estimate": 110,
+              "num_rows_found": 11,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 4656,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -3941,18 +4016,22 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 1510,
-              "row_size": 17,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 1500,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 17,
+              "row_size": 17,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 1510,
+              "num_rows_found": 31,
+              "num_examined_rows": 1500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 776,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -4231,18 +4310,22 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 60,
-              "rows_estimate": 1510,
-              "row_size": 17,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 61,
-              "examined_rows": 1500,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 17,
+              "row_size": 17,
+              "max_rows_per_buffer": 61,
+              "num_rows_estimate": 1510,
+              "num_rows_found": 61,
+              "num_examined_rows": 1500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 1528,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -4526,18 +4609,22 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 60,
-              "rows_estimate": 1510,
-              "row_size": 17,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 61,
-              "examined_rows": 1500,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 17,
+              "row_size": 17,
+              "max_rows_per_buffer": 61,
+              "num_rows_estimate": 1510,
+              "num_rows_found": 61,
+              "num_examined_rows": 1500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 1528,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -4873,18 +4960,22 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 60,
-              "rows_estimate": 1195,
-              "row_size": 17,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 61,
-              "examined_rows": 1185,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 17,
+              "row_size": 17,
+              "max_rows_per_buffer": 61,
+              "num_rows_estimate": 1195,
+              "num_rows_found": 61,
+              "num_examined_rows": 1185,
+              "num_tmp_files": 0,
               "sort_buffer_size": 1528,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -5189,18 +5280,22 @@ SELECT * FROM v1	{
                   ],
                   "filesort_priority_queue_optimization": {
                     "limit": 30,
-                    "rows_estimate": 510,
-                    "row_size": 219,
-                    "memory_available": 327680,
                     "chosen": true
                   },
                   "filesort_execution": [
                   ],
                   "filesort_summary": {
-                    "rows": 31,
-                    "examined_rows": 500,
-                    "number_of_tmp_files": 0,
+                    "memory_available": 327680,
+                    "key_size": 9,
+                    "row_size": 219,
+                    "max_rows_per_buffer": 31,
+                    "num_rows_estimate": 510,
+                    "num_rows_found": 31,
+                    "num_examined_rows": 500,
+                    "num_tmp_files": 0,
                     "sort_buffer_size": 7040,
+                    "sort_algorithm": "std::sort",
+                    "unpacked_addon_fields": "using_priority_queue",
                     "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
@@ -5498,18 +5593,22 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   ],
                   "filesort_priority_queue_optimization": {
                     "limit": 100,
-                    "rows_estimate": 510,
-                    "row_size": 219,
-                    "memory_available": 327680,
                     "chosen": true
                   },
                   "filesort_execution": [
                   ],
                   "filesort_summary": {
-                    "rows": 101,
-                    "examined_rows": 500,
-                    "number_of_tmp_files": 0,
+                    "memory_available": 327680,
+                    "key_size": 9,
+                    "row_size": 219,
+                    "max_rows_per_buffer": 101,
+                    "num_rows_estimate": 510,
+                    "num_rows_found": 101,
+                    "num_examined_rows": 500,
+                    "num_tmp_files": 0,
                     "sort_buffer_size": 22928,
+                    "sort_algorithm": "std::stable_sort",
+                    "unpacked_addon_fields": "using_priority_queue",
                     "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
@@ -5531,18 +5630,22 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 213,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 213,
+              "row_size": 213,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 6856,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -6161,18 +6264,22 @@ LIMIT 30	{
                   ],
                   "filesort_priority_queue_optimization": {
                     "limit": 100,
-                    "rows_estimate": 510,
-                    "row_size": 219,
-                    "memory_available": 327680,
                     "chosen": true
                   },
                   "filesort_execution": [
                   ],
                   "filesort_summary": {
-                    "rows": 101,
-                    "examined_rows": 500,
-                    "number_of_tmp_files": 0,
+                    "memory_available": 327680,
+                    "key_size": 9,
+                    "row_size": 219,
+                    "max_rows_per_buffer": 101,
+                    "num_rows_estimate": 510,
+                    "num_rows_found": 101,
+                    "num_examined_rows": 500,
+                    "num_tmp_files": 0,
                     "sort_buffer_size": 22928,
+                    "sort_algorithm": "std::stable_sort",
+                    "unpacked_addon_fields": "using_priority_queue",
                     "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
@@ -6198,18 +6305,22 @@ LIMIT 30	{
                   ],
                   "filesort_priority_queue_optimization": {
                     "limit": 100,
-                    "rows_estimate": 510,
-                    "row_size": 415,
-                    "memory_available": 327680,
                     "chosen": true
                   },
                   "filesort_execution": [
                   ],
                   "filesort_summary": {
-                    "rows": 101,
-                    "examined_rows": 500,
-                    "number_of_tmp_files": 0,
+                    "memory_available": 327680,
+                    "key_size": 205,
+                    "row_size": 415,
+                    "max_rows_per_buffer": 101,
+                    "num_rows_estimate": 510,
+                    "num_rows_found": 101,
+                    "num_examined_rows": 500,
+                    "num_tmp_files": 0,
                     "sort_buffer_size": 42728,
+                    "sort_algorithm": "std::stable_sort",
+                    "unpacked_addon_fields": "using_priority_queue",
                     "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
@@ -6248,18 +6359,22 @@ LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 335,
-              "row_size": 217,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 325,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 217,
+              "row_size": 217,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 335,
+              "num_rows_found": 31,
+              "num_examined_rows": 325,
+              "num_tmp_files": 0,
               "sort_buffer_size": 6976,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -6428,18 +6543,22 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 5,
-              "rows_estimate": 20,
-              "row_size": 25,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 6,
-              "examined_rows": 10,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 25,
+              "row_size": 25,
+              "max_rows_per_buffer": 6,
+              "num_rows_estimate": 20,
+              "num_rows_found": 6,
+              "num_examined_rows": 10,
+              "num_tmp_files": 0,
               "sort_buffer_size": 200,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -6679,18 +6798,22 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 510,
-              "row_size": 415,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 500,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 510,
+              "num_rows_found": 31,
+              "num_examined_rows": 500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 13120,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -6864,18 +6987,22 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 510,
-              "row_size": 415,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 500,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 510,
+              "num_rows_found": 31,
+              "num_examined_rows": 500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 13120,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -7050,18 +7177,22 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 510,
-              "row_size": 415,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 500,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 510,
+              "num_rows_found": 31,
+              "num_examined_rows": 500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 13120,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -7354,18 +7485,22 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   ],
                   "filesort_priority_queue_optimization": {
                     "limit": 100,
-                    "rows_estimate": 510,
-                    "row_size": 219,
-                    "memory_available": 327680,
                     "chosen": true
                   },
                   "filesort_execution": [
                   ],
                   "filesort_summary": {
-                    "rows": 101,
-                    "examined_rows": 500,
-                    "number_of_tmp_files": 0,
+                    "memory_available": 327680,
+                    "key_size": 9,
+                    "row_size": 219,
+                    "max_rows_per_buffer": 101,
+                    "num_rows_estimate": 510,
+                    "num_rows_found": 101,
+                    "num_examined_rows": 500,
+                    "num_tmp_files": 0,
                     "sort_buffer_size": 22928,
+                    "sort_algorithm": "std::stable_sort",
+                    "unpacked_addon_fields": "using_priority_queue",
                     "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
@@ -7387,18 +7522,22 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 213,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 213,
+              "row_size": 213,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 6856,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -7787,18 +7926,22 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                   ],
                   "filesort_priority_queue_optimization": {
                     "limit": 30,
-                    "rows_estimate": 510,
-                    "row_size": 215,
-                    "memory_available": 327680,
                     "chosen": true
                   },
                   "filesort_execution": [
                   ],
                   "filesort_summary": {
-                    "rows": 31,
-                    "examined_rows": 500,
-                    "number_of_tmp_files": 0,
+                    "memory_available": 327680,
+                    "key_size": 5,
+                    "row_size": 215,
+                    "max_rows_per_buffer": 31,
+                    "num_rows_estimate": 510,
+                    "num_rows_found": 31,
+                    "num_examined_rows": 500,
+                    "num_tmp_files": 0,
                     "sort_buffer_size": 6920,
+                    "sort_algorithm": "std::sort",
+                    "unpacked_addon_fields": "using_priority_queue",
                     "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
@@ -7827,18 +7970,22 @@ ORDER BY d1.f2 DESC LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 630,
-              "row_size": 209,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 620,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 209,
+              "row_size": 209,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 630,
+              "num_rows_found": 31,
+              "num_examined_rows": 620,
+              "num_tmp_files": 0,
               "sort_buffer_size": 6728,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -8093,18 +8240,22 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                         ],
                         "filesort_priority_queue_optimization": {
                           "limit": 1,
-                          "rows_estimate": 510,
-                          "row_size": 10,
-                          "memory_available": 327680,
                           "chosen": true
                         },
                         "filesort_execution": [
                         ],
                         "filesort_summary": {
-                          "rows": 2,
-                          "examined_rows": 500,
-                          "number_of_tmp_files": 0,
+                          "memory_available": 327680,
+                          "key_size": 5,
+                          "row_size": 10,
+                          "max_rows_per_buffer": 2,
+                          "num_rows_estimate": 510,
+                          "num_rows_found": 2,
+                          "num_examined_rows": 500,
+                          "num_tmp_files": 0,
                           "sort_buffer_size": 40,
+                          "sort_algorithm": "std::sort",
+                          "unpacked_addon_fields": "using_priority_queue",
                           "sort_mode": "<fixed_sort_key, additional_fields>"
                         }
                       }
@@ -11853,18 +12004,22 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                         ],
                         "filesort_priority_queue_optimization": {
                           "limit": 2,
-                          "rows_estimate": 510,
-                          "row_size": 10,
-                          "memory_available": 327680,
                           "chosen": true
                         },
                         "filesort_execution": [
                         ],
                         "filesort_summary": {
-                          "rows": 3,
-                          "examined_rows": 500,
-                          "number_of_tmp_files": 0,
+                          "memory_available": 327680,
+                          "key_size": 5,
+                          "row_size": 10,
+                          "max_rows_per_buffer": 3,
+                          "num_rows_estimate": 510,
+                          "num_rows_found": 3,
+                          "num_examined_rows": 500,
+                          "num_tmp_files": 0,
                           "sort_buffer_size": 56,
+                          "sort_algorithm": "std::sort",
+                          "unpacked_addon_fields": "using_priority_queue",
                           "sort_mode": "<fixed_sort_key, additional_fields>"
                         }
                       }
@@ -12116,9 +12271,6 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 100,
-              "rows_estimate": 438510,
-              "row_size": 411,
-              "memory_available": 32768,
               "strip_additional_fields": {
                 "row_size": 215,
                 "sort_merge_cost": 546700,
@@ -12129,10 +12281,17 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 101,
-              "examined_rows": 438500,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 207,
+              "row_size": 207,
+              "max_rows_per_buffer": 101,
+              "num_rows_estimate": 438510,
+              "num_rows_found": 101,
+              "num_examined_rows": 438500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 21720,
+              "sort_algorithm": "std::stable_sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -12301,18 +12460,22 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 4,
-              "rows_estimate": 24,
-              "row_size": 1047,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 5,
-              "examined_rows": 14,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 1047,
+              "row_size": 1047,
+              "max_rows_per_buffer": 5,
+              "num_rows_estimate": 24,
+              "num_rows_found": 5,
+              "num_examined_rows": 14,
+              "num_tmp_files": 0,
               "sort_buffer_size": 5280,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<varlen_sort_key, rowid>"
             }
           }
@@ -12467,18 +12630,22 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 4,
-              "rows_estimate": 24,
-              "row_size": 1047,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 5,
-              "examined_rows": 14,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 1047,
+              "row_size": 1047,
+              "max_rows_per_buffer": 5,
+              "num_rows_estimate": 24,
+              "num_rows_found": 5,
+              "num_examined_rows": 14,
+              "num_tmp_files": 0,
               "sort_buffer_size": 5280,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<varlen_sort_key, rowid>"
             }
           }
@@ -12634,18 +12801,22 @@ limit 2 offset 2	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 4,
-              "rows_estimate": 24,
-              "row_size": 791,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 5,
-              "examined_rows": 14,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 791,
+              "row_size": 791,
+              "max_rows_per_buffer": 5,
+              "num_rows_estimate": 24,
+              "num_rows_found": 5,
+              "num_examined_rows": 14,
+              "num_tmp_files": 0,
               "sort_buffer_size": 4000,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<varlen_sort_key, rowid>"
             }
           }

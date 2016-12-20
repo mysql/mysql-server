@@ -3,9 +3,6 @@
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=normal-big  --vardir=var-normal-big  --report-features --skip-test-list=collections/disabled-daily.list --unit-tests-report
 
 
-# Run all default suites with embedded server
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=embedded-big  --vardir=var-embedded-big  --embedded-server
-
 # Run default suites with ps protocol
 perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=ps-big  --vardir=var-ps-big  --ps-protocol --skip-test-list=collections/disabled-daily.list
 
