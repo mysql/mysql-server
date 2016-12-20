@@ -117,6 +117,7 @@ private:
   int configure(Uint32 nodeid, const ndb_mgm_configuration &config);
   void connect_thread();
   void set_name(const char *name);
+  void set_application_address(const char *, int);
   void set_data_node_neighbour(Uint32 neighbour_node);
   void adjust_node_proximity(Uint32 node_id, Int32 adjustment);
   Uint32 get_db_nodes(Uint8 nodesarray[MAX_NDB_NODES]) const;
@@ -168,6 +169,10 @@ private:
   Uint64 globalApiStatsBaseline[ Ndb::NumClientStatistics ];
 
   NdbWaitGroup *m_multi_wait_group;
+
+  // Data for ndbinfo.processes
+  const char * m_application_addr;
+  int m_application_port;
 };
 
 #endif

@@ -96,11 +96,26 @@ public:
 
   /**
    * Set a name on the connection, which will be reported in cluster log
+   * and in ndbinfo.processes.
+   * For the name to be visible, this must be called prior to connect().
    *
    * @param name
    *
    */
   void set_name(const char *name);
+
+  /**
+   * Set an application host network address and port number on the connection,
+   * which will be reported in ndbinfo.processes.
+   * This must be called prior to connect() for the information to be visible.
+   * If address_string is null, the network address used by the NDBAPI
+   * connection will be reported.
+   *
+   * @param address_string
+   * @param port
+   *
+   */
+  void set_application_address(const char * address_string, int port);
 
   /**
    * Set timeout
