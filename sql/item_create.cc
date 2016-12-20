@@ -153,7 +153,7 @@ class Instantiator<Function_class, 0>
 public:
   static const uint Min_argcount= 0;
   static const uint Max_argcount= 0;
-  Item *instantiate(THD *thd, PT_item_list *args)
+  Item *instantiate(THD *thd, PT_item_list*)
   {
     return new (thd->mem_root) Function_class(POS());
   }
@@ -1186,7 +1186,7 @@ uint arglist_length(const PT_item_list *args)
   return args->elements();
 }
 
-bool check_argcount_bounds(THD *thd, LEX_STRING function_name,
+bool check_argcount_bounds(THD*, LEX_STRING function_name,
                            PT_item_list *item_list,
                            uint min_argcount,
                            uint max_argcount)
@@ -1912,7 +1912,7 @@ Create_func *find_native_function_builder(const LEX_STRING &lex_name)
 
 
 Create_qfunc *
-find_qualified_function_builder(THD *thd)
+find_qualified_function_builder(THD*)
 {
   return & Create_sp_func::s_singleton;
 }

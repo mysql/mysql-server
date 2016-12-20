@@ -3445,7 +3445,7 @@ public:
                const my_decimal *val_arg, uint decimal_par, uint length);
   Item_decimal(my_decimal *value_par);
   Item_decimal(longlong val, bool unsig);
-  Item_decimal(double val, int precision, int scale);
+  Item_decimal(double val);
   Item_decimal(const uchar *bin, int precision, int scale);
 
   enum Type type() const override { return DECIMAL_ITEM; }

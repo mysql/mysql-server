@@ -82,7 +82,7 @@ public:
 
     @returns false if success, true if error
   */
-  virtual bool prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+  virtual bool prepare(List<Item>&, SELECT_LEX_UNIT *u)
   {
     unit= u;
     return false;

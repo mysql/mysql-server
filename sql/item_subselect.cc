@@ -1429,7 +1429,7 @@ public:
 };
 
 
-bool Query_result_exists_subquery::send_data(List<Item> &items)
+bool Query_result_exists_subquery::send_data(List<Item>&)
 {
   DBUG_ENTER("Query_result_exists_subquery::send_data");
   Item_exists_subselect *it= (Item_exists_subselect *)item;
@@ -2839,7 +2839,7 @@ bool Item_subselect::inform_item_in_cond_of_tab(uchar *arg)
   Mark the subquery as optimized away, for EXPLAIN.
 */
 
-bool Item_subselect::subq_opt_away_processor(uchar *arg)
+bool Item_subselect::subq_opt_away_processor(uchar*)
 {
   unit->set_explain_marker(CTX_OPTIMIZED_AWAY_SUBQUERY);
   // Return false to continue marking all subqueries in the expression.
@@ -3123,7 +3123,7 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
     item->collation.set(row[0]->collation);
 }
 
-void subselect_indexsubquery_engine::fix_length_and_dec(Item_cache **row)
+void subselect_indexsubquery_engine::fix_length_and_dec(Item_cache**)
 {
   //this never should be called
   DBUG_ASSERT(0);
@@ -3801,17 +3801,14 @@ bool subselect_union_engine::change_query_result(Item_subselect *si,
 /**
   change query result emulation, never should be called.
 
-  @param si		new subselect Item
-  @param res		new Query_result object
-
   @retval
     FALSE OK
   @retval
     TRUE  error
 */
 
-bool subselect_indexsubquery_engine::change_query_result(Item_subselect *si,
-                                                   Query_result_subquery *res)
+bool subselect_indexsubquery_engine::change_query_result(Item_subselect*,
+                                                         Query_result_subquery*)
 {
   DBUG_ASSERT(0);
   return TRUE;

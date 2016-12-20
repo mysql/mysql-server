@@ -409,7 +409,8 @@ public:
 
     @param subquery     WHERE clause subquery's unit
   */
-  virtual void register_where_subquery(SELECT_LEX_UNIT *subquery) {}
+  virtual void
+    register_where_subquery(SELECT_LEX_UNIT *subquery MY_ATTRIBUTE((unused))) {}
 
   void format_extra(Opt_trace_object *obj);
 };

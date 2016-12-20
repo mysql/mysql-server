@@ -934,11 +934,11 @@ public:
     for. It is sufficient for the higher layers to report this warning
     only once per sort.
   */
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
+                                const char*,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*)
   {
     if (*level == Sql_condition::SL_WARNING &&
         sql_errno == ER_NOT_SUPPORTED_YET)

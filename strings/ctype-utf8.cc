@@ -5846,7 +5846,7 @@ size_t my_strnxfrmlen_utf8(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 extern "C" {
 static size_t
-my_well_formed_len_utf8(const CHARSET_INFO *cs, const char *b, const char *e,
+my_well_formed_len_utf8(const CHARSET_INFO*, const char *b, const char *e,
                         size_t pos, int *error)
 {
   const char *b_start= b;
@@ -5866,7 +5866,7 @@ my_well_formed_len_utf8(const CHARSET_INFO *cs, const char *b, const char *e,
   return (size_t) (b - b_start);
 }
 
-static uint my_ismbchar_utf8(const CHARSET_INFO *cs,const char *b,
+static uint my_ismbchar_utf8(const CHARSET_INFO*, const char *b,
                              const char *e)
 {
   int  res= my_valid_mbcharlen_utf8mb3((const uchar*)b, (const uchar*)e);

@@ -468,7 +468,7 @@ public:
   bool itemize(Parse_context *pc, Item **res) override;
   Type type() const override { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func() const= 0;
-  virtual void fix_after_pullout(SELECT_LEX *parent_select,
+  virtual void fix_after_pullout(SELECT_LEX*,
                                  SELECT_LEX *removed_select) override
   {
     // Just make sure we are not aggregating into a context that is merged up.
@@ -594,7 +594,7 @@ public:
 
   virtual void clear()= 0;
   virtual bool add()= 0;
-  virtual bool setup(THD *thd) { return false; }
+  virtual bool setup(THD*) { return false; }
 
   void cleanup() override;
 };
@@ -1116,7 +1116,7 @@ public:
   String *val_str(String *str) override;
   void reset_field() override;
   void update_field() override;
-  Item *result_item(Field *field) override
+  Item *result_item(Field*) override
   { return new Item_avg_field(hybrid_type, this); }
   void no_rows_in_result() override {}
   const char *func_name() const override
@@ -1244,7 +1244,7 @@ class Item_sum_std : public Item_sum_variance
     {}
   enum Sumfunctype sum_func() const override { return STD_FUNC; }
   double val_real() override;
-  Item *result_item(Field *field) override
+  Item *result_item(Field*) override
     { return new Item_std_field(this); }
   const char *func_name() const override { return "std("; }
   Item *copy_or_same(THD* thd) override;

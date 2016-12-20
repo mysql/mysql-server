@@ -341,7 +341,7 @@ public:
       0     Ok
       other Error
   */
-  virtual int init_ror_merged_scan(bool reuse_handler)
+  virtual int init_ror_merged_scan(bool reuse_handler MY_ATTRIBUTE((unused)))
   { DBUG_ASSERT(0); return 1; }
 
   /*
@@ -363,7 +363,7 @@ public:
     This function is implemented only by quick selects that merge other quick
     selects output and/or can produce output suitable for merging.
   */
-  virtual void add_info_string(String *str) {};
+  virtual void add_info_string(String *str MY_ATTRIBUTE((unused))) {};
   /*
     Return 1 if any index used by this quick select
     uses field which is marked in passed bitmap.
@@ -398,8 +398,10 @@ public:
   /*
     Returns a QUICK_SELECT with reverse order of to the index.
   */
-  virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) { return NULL; }
-  virtual void set_handler(handler *file_arg) {}
+  virtual QUICK_SELECT_I*
+    make_reverse(uint used_key_parts_arg MY_ATTRIBUTE((unused)))
+  { return NULL; }
+  virtual void set_handler(handler *file_arg MY_ATTRIBUTE((unused))) {}
 
   /**
     Get the fields used by the range access method.
@@ -1010,7 +1012,7 @@ public:
   int get_type() const { return QS_TYPE_RANGE_DESC; }
   virtual bool is_loose_index_scan() const { return false; }
   virtual bool is_agg_loose_index_scan() const { return false; }
-  QUICK_SELECT_I *make_reverse(uint used_key_parts_arg)
+  QUICK_SELECT_I *make_reverse(uint)
   {
     return this; // is already reverse sorted
   }

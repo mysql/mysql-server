@@ -238,9 +238,6 @@ bool Item_func::itemize(Parse_context *pc, Item **res)
   SYNOPSIS:
   fix_fields()
   thd		Thread object
-  ref		Pointer to where this object is used.  This reference
-		is used if we want to replace this object with another
-		one (for example in the summary functions).
 
   DESCRIPTION
     Call fix_fields() for all arguments to the function.  The main intention
@@ -265,7 +262,7 @@ bool Item_func::itemize(Parse_context *pc, Item **res)
 */
 
 bool
-Item_func::fix_fields(THD *thd, Item **ref)
+Item_func::fix_fields(THD *thd, Item**)
 {
   DBUG_ASSERT(fixed == 0 || basic_const_item());
 
@@ -2964,9 +2961,8 @@ template longlong Item_func_shift::eval_int_op<false>();
   Template function that evaluates the bitwise shift operation over binary
   string arguments.
   @tparam to_left True if left-shift, false if right-shift
-  @param str      String usable as scratch buffer
 */
-template<bool to_left> String *Item_func_shift::eval_str_op(String *str)
+template<bool to_left> String *Item_func_shift::eval_str_op(String*)
 {
   DBUG_ASSERT(fixed);
 
@@ -3119,12 +3115,11 @@ template longlong Item_func_bit_two_param::eval_int_op
   Template function that evaluates the bitwise operation over binary arguments.
   Checks that both arguments have same length and applies the bitwise operation
 
-   @param str        Buffer
    @param char_func  The Bitwise function used to evaluate unsigned chars.
    @param int_func   The Bitwise function used to evaluate unsigned long longs.
 */
 template<class Char_func, class Int_func> String *
-Item_func_bit_two_param::eval_str_op(String *str, Char_func char_func,
+Item_func_bit_two_param::eval_str_op(String*, Char_func char_func,
                                      Int_func int_func)
 {
   DBUG_ASSERT(fixed);
@@ -3700,7 +3695,7 @@ double Item_func_units::val_real()
 }
 
 
-bool Item_func_min_max::resolve_type(THD *thd)
+bool Item_func_min_max::resolve_type(THD*)
 {
   uint string_arg_count= 0;
   uint unsigned_arg_count= 0;
@@ -5543,11 +5538,11 @@ public:
 
   bool got_timeout() const { return m_lock_wait_timeout; }
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char *msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_LOCK_WAIT_TIMEOUT)
     {
@@ -6337,7 +6332,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
 }
 
 
-bool Item_func_set_user_var::resolve_type(THD *thd)
+bool Item_func_set_user_var::resolve_type(THD*)
 {
   maybe_null=args[0]->maybe_null;
   decimals=args[0]->decimals;
@@ -7353,7 +7348,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 }
 
 
-void Item_func_get_user_var::print(String *str, enum_query_type query_type)
+void Item_func_get_user_var::print(String *str, enum_query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
   append_identifier(current_thd, str, name);
@@ -7361,7 +7356,7 @@ void Item_func_get_user_var::print(String *str, enum_query_type query_type)
 }
 
 
-bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
+bool Item_func_get_user_var::eq(const Item *item, bool) const
 {
   /* Assume we don't have rtti */
   if (this == item)
@@ -7419,7 +7414,7 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_user_var_as_out_param::set_null_value(const CHARSET_INFO* cs)
+void Item_user_var_as_out_param::set_null_value(const CHARSET_INFO*)
 {
   entry->lock();
   entry->set_null_value(STRING_RESULT);
@@ -7451,21 +7446,21 @@ longlong Item_user_var_as_out_param::val_int()
 }
 
 
-String* Item_user_var_as_out_param::val_str(String *str)
+String* Item_user_var_as_out_param::val_str(String*)
 {
   DBUG_ASSERT(0);
   return 0;
 }
 
 
-my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
+my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal*)
 {
   DBUG_ASSERT(0);
   return 0;
 }
 
 
-void Item_user_var_as_out_param::print(String *str, enum_query_type query_type)
+void Item_user_var_as_out_param::print(String *str, enum_query_type)
 {
   str->append('@');
   append_identifier(current_thd, str, name);
@@ -7908,7 +7903,7 @@ double Item_func_get_system_var::val_real()
 }
 
 
-bool Item_func_get_system_var::eq(const Item *item, bool binary_cmp) const
+bool Item_func_get_system_var::eq(const Item *item, bool) const
 {
   /* Assume we don't have rtti */
   if (this == item)
@@ -8432,11 +8427,11 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag,
 class Silence_deprecation_warnings : public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     return sql_errno == ER_WARN_DEPRECATED_SYNTAX;
   }
@@ -8937,7 +8932,7 @@ longlong Item_func_found_rows::val_int()
 
 
 Field *
-Item_func_sp::tmp_table_field(TABLE *t_arg)
+Item_func_sp::tmp_table_field(TABLE*)
 {
   DBUG_ENTER("Item_func_sp::tmp_table_field");
 

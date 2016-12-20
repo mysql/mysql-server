@@ -672,7 +672,7 @@ bool Item_func_random_bytes::resolve_type(THD *)
 }
 
 
-String *Item_func_random_bytes::val_str(String *a)
+String *Item_func_random_bytes::val_str(String*)
 {
   DBUG_ASSERT(fixed == 1);
   longlong n_bytes= args[0]->val_int();
@@ -2612,7 +2612,7 @@ String *Item_func_soundex::val_str(String *str)
 const int FORMAT_MAX_DECIMALS= 30;
 
 
-MY_LOCALE *Item_func_format::get_locale(Item *item)
+MY_LOCALE *Item_func_format::get_locale(Item*)
 {
   DBUG_ASSERT(arg_count == 3);
   THD *thd= current_thd;
@@ -3559,7 +3559,7 @@ err:
 }
 
 
-bool Item_func_conv::resolve_type(THD *thd)
+bool Item_func_conv::resolve_type(THD*)
 {
   collation.set(default_charset());
   max_length=64;

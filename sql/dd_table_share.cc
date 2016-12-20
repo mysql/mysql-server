@@ -1202,8 +1202,7 @@ static void fill_index_element_from_dd(TABLE_SHARE *share,
 /** Fill KEY::key_part array according to metadata from dd::Index object. */
 static void fill_index_elements_from_dd(TABLE_SHARE *share,
                                         const dd::Index *idx_obj,
-                                        int key_nr,
-                                        bool use_extended_sk)
+                                        int key_nr)
 {
   //
   // Iterate through all index elements
@@ -1517,8 +1516,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
 
       fill_index_elements_from_dd(share,
                                   index_at_pos[key_nr],
-                                  key_nr,
-                                  use_extended_sk);
+                                  key_nr);
 
       key_part+=keyinfo->user_defined_key_parts;
       rec_per_key+=keyinfo->user_defined_key_parts;

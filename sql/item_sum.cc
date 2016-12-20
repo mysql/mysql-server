@@ -463,7 +463,7 @@ bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument)
   @see Item_sum::check_sum_func()
   @see remove_redundant_subquery_clauses()
  */
-bool Item_sum::clean_up_after_removal(uchar *arg)
+bool Item_sum::clean_up_after_removal(uchar*)
 {
   /*
     Don't do anything if
@@ -582,7 +582,7 @@ bool Item_sum::aggregate_check_group(uchar *arg)
 }
 
 
-Field *Item_sum::create_tmp_field(bool group, TABLE *table)
+Field *Item_sum::create_tmp_field(bool, TABLE *table)
 {
   Field *field;
   switch (result_type()) {
@@ -791,7 +791,7 @@ static int simple_raw_key_cmp(const void* arg,
 }
 
 
-static int item_sum_distinct_walk(void *element, element_count num_of_dups,
+static int item_sum_distinct_walk(void *element, element_count,
                                   void *item)
 {
   return ((Aggregator_distinct*) (item))->unique_walk_function(element);
@@ -4114,7 +4114,7 @@ void Item_func_group_concat::make_unique()
 }
 
 
-String* Item_func_group_concat::val_str(String* str)
+String* Item_func_group_concat::val_str(String*)
 {
   DBUG_ASSERT(fixed == 1);
   if (null_value)
@@ -4282,7 +4282,7 @@ my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_sum_json::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+bool Item_sum_json::get_date(MYSQL_TIME *ltime, my_time_flags_t)
 {
   if (null_value || m_wrapper.empty())
     return true;
@@ -4444,7 +4444,7 @@ bool Item_sum_json_object::add()
     size_t safe_length;        // length of safep
 
     if (get_json_string(key_item, &m_tmp_key_value, &m_conversion_buffer,
-                        func_name(), &safep, &safe_length))
+                        &safep, &safe_length))
     {
       my_error(ER_JSON_DOCUMENT_NULL_KEY, MYF(0));
       return error_json();
