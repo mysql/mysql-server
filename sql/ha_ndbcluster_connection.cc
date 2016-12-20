@@ -26,6 +26,8 @@
 #include <util/Vector.hpp>
 #include <util/BaseString.hpp>
 
+extern char *my_bind_addr_str;
+
 Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
 static Ndb_cluster_connection **g_pool= NULL;
@@ -133,6 +135,44 @@ bool parse_pool_nodeids(const char* opt_str,
   return true;
 }
 
+/* Get the port number for processinfo.
+   NDB is being initialized before server networking, so mysqld_port
+   may not yet have been set, and we are forced to duplicate some
+   code from mysqld.cc here to calculate the port number.
+*/
+static int
+get_processinfo_port()
+{
+  int port = mysqld_port;
+  if(port == 0)
+  {
+    const char * env = getenv("MYSQL_TCP_PORT");
+    if(MYSQL_PORT_DEFAULT == 0)
+    {
+      struct servent *serv_ptr = getservbyname("mysql", "tcp");
+      if (serv_ptr)
+        port = ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
+    }
+    else if(env)
+      port = atoi(env);
+    else
+      port = MYSQL_PORT;
+  }
+  return port;
+}
+
+static const char *
+get_processinfo_host()
+{
+  const char * host = my_bind_addr_str;
+  if(! ( strcmp(host, "*") &&          // If bind_address matches any of
+         strcmp(host, "0.0.0.0") &&    // these strings, let ProcessInfo
+         strcmp(host, "::")))          // use the NDB transporter address.
+  {
+    host = 0;
+  }
+  return host;
+}
 
 /*
   Global flag in ndbapi to specify if api should wait to connect
@@ -159,6 +199,8 @@ ndbcluster_connect(int (*connect_callback)(void),
 #else
   const char mysqld_name[]= "libmysqld";
 #endif
+  const int processinfo_port = get_processinfo_port();
+  const char * processinfo_host = get_processinfo_host();
   int res;
   DBUG_ENTER("ndbcluster_connect");
   DBUG_PRINT("enter", ("connect_string: %s, force_nodeid: %d",
@@ -199,7 +241,9 @@ ndbcluster_connect(int (*connect_callback)(void),
     my_snprintf(buf, sizeof(buf), "%s --server-id=%lu",
                 mysqld_name, server_id);
     g_ndb_cluster_connection->set_name(buf);
+    g_ndb_cluster_connection->set_application_address(processinfo_host, processinfo_port);
   }
+
   g_ndb_cluster_connection->set_optimized_node_selection(optimized_node_select);
   g_ndb_cluster_connection->set_recv_thread_activation_threshold(
                                       recv_thread_activation_threshold);
@@ -271,6 +315,7 @@ ndbcluster_connect(int (*connect_callback)(void),
         my_snprintf(buf, sizeof(buf), "%s --server-id=%lu (connection %u)",
                     mysqld_name, server_id, i+1);
         g_pool[i]->set_name(buf);
+        g_pool[i]->set_application_address(processinfo_host, processinfo_port);
       }
       g_pool[i]->set_optimized_node_selection(optimized_node_select);
       g_pool[i]->set_recv_thread_activation_threshold(recv_thread_activation_threshold);
