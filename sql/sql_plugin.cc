@@ -2266,8 +2266,7 @@ err:
   DBUG_RETURN(true);
 }
 
-
-bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
+bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
                               int type, uint state_mask, void *arg)
 {
   size_t idx, total;
@@ -2307,20 +2306,23 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
   }
   mysql_mutex_unlock(&LOCK_plugin);
 
-  for (idx= 0; idx < total; idx++)
+  for (;*funcs != NULL; ++funcs)
   {
-    if (unlikely(version != plugin_array_version))
+    for (idx= 0; idx < total; idx++)
     {
-      mysql_mutex_lock(&LOCK_plugin);
-      for (size_t i=idx; i < total; i++)
-        if (plugins[i] && plugins[i]->state & state_mask)
-          plugins[i]=0;
-      mysql_mutex_unlock(&LOCK_plugin);
+      if (unlikely(version != plugin_array_version))
+      {
+        mysql_mutex_lock(&LOCK_plugin);
+        for (size_t i=idx; i < total; i++)
+          if (plugins[i] && plugins[i]->state & state_mask)
+            plugins[i]=0;
+        mysql_mutex_unlock(&LOCK_plugin);
+      }
+      plugin= plugins[idx];
+      /* It will stop iterating on first engine error when "func" returns TRUE */
+      if (plugin && (*funcs)(thd, plugin_int_to_ref(plugin), arg))
+          goto err;
     }
-    plugin= plugins[idx];
-    /* It will stop iterating on first engine error when "func" returns TRUE */
-    if (plugin && func(thd, plugin_int_to_ref(plugin), arg))
-        goto err;
   }
 
   DBUG_RETURN(FALSE);
@@ -2328,6 +2330,13 @@ err:
   DBUG_RETURN(TRUE);
 }
 
+bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
+                              int type, uint state_mask, void *arg)
+{
+  plugin_foreach_func *funcs[]= { func, NULL };
+
+  return plugin_foreach_with_mask(thd, funcs, type, state_mask, arg);
+}
 
 /****************************************************************************
   Internal type declarations for variables support
