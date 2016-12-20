@@ -151,3 +151,11 @@ select create_options from information_schema.tables where table_schema="test";
 create_options
 partitioned
 drop table t1;
+#
+# MDEV-11353 - Identical logical conditions
+#
+CREATE TABLE t1(a INT) CHECKSUM=1 SELECT 1;
+SELECT CHECKSUM FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+CHECKSUM
+3036305396
+DROP TABLE t1;
