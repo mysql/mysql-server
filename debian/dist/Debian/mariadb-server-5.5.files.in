@@ -32,6 +32,7 @@ usr/bin/mysql_zap
 usr/bin/mysqlbinlog
 usr/bin/mysqld_multi
 usr/bin/mysqld_safe
+usr/bin/mysqld_safe_helper
 usr/bin/mysqlhotcopy
 usr/bin/perror
 usr/bin/replace

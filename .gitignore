@@ -49,6 +49,7 @@ extra/jemalloc/build/
 extra/jemalloc/tmp/
 extra/my_print_defaults
 extra/mysql_waitpid
+extra/mysqld_safe_helper
 extra/perror
 extra/replace
 extra/resolve_stack_dump

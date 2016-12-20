@@ -82,4 +82,7 @@ IF(UNIX)
 
   MYSQL_ADD_EXECUTABLE(mysql_waitpid mysql_waitpid.c COMPONENT Client)
   TARGET_LINK_LIBRARIES(mysql_waitpid mysys)
+
+  MYSQL_ADD_EXECUTABLE(mysqld_safe_helper mysqld_safe_helper.c COMPONENT Server)
+  TARGET_LINK_LIBRARIES(mysqld_safe_helper mysys)
 ENDIF()
