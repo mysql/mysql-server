@@ -19,13 +19,13 @@
 #include <set>
 #include <stddef.h>
 #include <sys/types.h>
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-#include <vector>
-#endif
 
 #include "binary_log_types.h"  // enum_field_types
 #include "my_global.h"
 #include "mysql/psi/mysql_mutex.h"
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+#include "prealloced_array.h"
+#endif
 
 class Alter_info;
 class Alter_table_ctx;
@@ -251,7 +251,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                             bool *dropped_non_atomic,
                             std::set<handlerton*> *post_ddl_htons
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-                            , std::vector<TABLE_LIST*> *dropped_atomic
+                            , Prealloced_array<TABLE_LIST*, 1> *dropped_atomic
 #endif
                             );
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,

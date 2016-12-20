@@ -518,7 +518,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   TABLE_LIST *table;
   Drop_table_error_handler err_handler;
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-  std::vector<TABLE_LIST*> dropped_atomic;
+  Prealloced_array<TABLE_LIST*, 1> dropped_atomic(PSI_INSTRUMENT_ME);
 #endif
   bool dropped_non_atomic= false;
   std::set<handlerton*> post_ddl_htons;

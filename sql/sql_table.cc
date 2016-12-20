@@ -1469,7 +1469,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
                                             db,
                                             table_name,
                                             false,
-                                            true /* WL7743/TODO to be removed with partitioning SE */))
+                                            true))
               break;
           }
         }
@@ -2411,13 +2411,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   bool error;
   Drop_table_error_handler err_handler;
   TABLE_LIST *table;
-  /*
-    The following flags will be used to check if this statement will be split
-  */
   uint have_non_tmp_table= 0;
-  uint have_trans_tmp_table= 0;
-  uint have_non_trans_tmp_table= 0;
-  bool not_used;
 
   DBUG_ENTER("mysql_rm_table");
 
@@ -2434,17 +2428,6 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     {
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
       DBUG_RETURN(true);
-    }
-    /*
-      Here we are sure that the tmp table exists and will set the flag based on
-      table transactional type.
-    */
-    if (is_temporary_table(table))
-    {
-      if (table->table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
-        have_trans_tmp_table= 1;
-      else if (table->table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
-        have_non_trans_tmp_table= 1;
     }
   }
 
@@ -2510,28 +2493,10 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     }
   }
 
-  /*
-    DROP TABLE statements mixing non-temporary and temporary tables or
-    transactional and non-transactional temporary tables are unsafe to execute
-    if GTID_NEXT is set to GTID_GROUP because these statements will be split to
-    be sent to binlog and there is only one GTID is available to log multiple
-    statements.
-    See comments in the beginning of mysql_rm_table_no_locks() for more info.
-  */
-  if (thd->variables.gtid_next.type == GTID_GROUP &&
-      (have_non_tmp_table + have_trans_tmp_table +
-       have_non_trans_tmp_table > 1))
-  {
-    DBUG_PRINT("err",("have_non_tmp_table: %d, have_trans_tmp_table: %d, "
-                      "have_non_trans_tmp_table: %d", have_non_tmp_table,
-                      have_trans_tmp_table, have_non_trans_tmp_table));
-    my_error(ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP, MYF(0));
-    DBUG_RETURN(true);
-  }
-
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   std::set<handlerton*> post_ddl_htons;
+  bool not_used;
 
   /* mark for close and remove all cached entries */
   thd->push_internal_handler(&err_handler);
@@ -2548,10 +2513,6 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
       Leave LOCK TABLES mode if we managed to drop all tables which were
       locked. Additional check for 'non_temp_tables_count' is to avoid
       leaving LOCK TABLES mode if we have dropped only temporary tables.
-
-      WL7743/TODO/QQ: What if we have failed to drop some table in SE
-                      supporting atomic DDL? Should not we wait with
-                      releasing locks until stmt rollback?
     */
     if (thd->locked_tables_mode)
     {
@@ -2675,18 +2636,16 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                             bool *dropped_non_atomic,
                             std::set<handlerton*> *post_ddl_htons
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-                            , std::vector<TABLE_LIST*> *dropped_atomic
+                            , Prealloced_array<TABLE_LIST*, 1> *dropped_atomic
 #endif
                             )
 {
-  std::vector<TABLE_LIST*> base_atomic_tables;
-  std::vector<TABLE_LIST*> base_non_atomic_tables;
-  std::vector<TABLE_LIST*> tmp_trans_tables;
-  std::vector<TABLE_LIST*> tmp_non_trans_tables;
-  std::vector<TABLE_LIST*> nonexistent_tables;
-  std::vector<TABLE_LIST*> views;
-  bool gtid_group_many_table_groups= false;
-  bool gtid_group_single_table_group= false;
+  Prealloced_array<TABLE_LIST*, 1> base_atomic_tables(PSI_INSTRUMENT_ME);
+  Prealloced_array<TABLE_LIST*, 1> base_non_atomic_tables(PSI_INSTRUMENT_ME);
+  Prealloced_array<TABLE_LIST*, 1> tmp_trans_tables(PSI_INSTRUMENT_ME);
+  Prealloced_array<TABLE_LIST*, 1> tmp_non_trans_tables(PSI_INSTRUMENT_ME);
+  Prealloced_array<TABLE_LIST*, 1> nonexistent_tables(PSI_INSTRUMENT_ME);
+  Prealloced_array<TABLE_LIST*, 1> views(PSI_INSTRUMENT_ME);
   bool default_db_doesnt_exist= false;
 
   DBUG_ENTER("mysql_rm_table_no_locks");
@@ -2913,7 +2872,177 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
   }
 
-  if (!if_exists && nonexistent_tables.size())
+  /*
+    The below variable indicates in which of three situations regarding
+    GTID mode and different types of tables to be dropped we are.
+  */
+  enum { NO_GTID,
+         GTID_MANY_TABLE_GROUPS,
+         GTID_SINGLE_TABLE_GROUP } gtid_and_table_groups_state= NO_GTID;
+
+  if (thd->variables.gtid_next.type == GTID_GROUP)
+  {
+    /*
+      This statement has been assigned GTID.
+
+      In this case we need to take special care about group handling
+      and commits, as statement can't be logged/split into several
+      statements in this case.
+
+      Three different situations are possible in this case:
+      - "normal" when we have one GTID assigned and one group
+        to go as single statement to binary logs
+      - "prohibited" when we have one GTID assigned and two
+        kinds of temporary tables or mix of temporary and
+        base tables
+      - "awkward" when we have one GTID but several groups or
+        several tables in non-atomic base group (1.a).
+    */
+
+    if (drop_database)
+    {
+      /* DROP DATABASE doesn't drop any temporary tables. */
+      DBUG_ASSERT(tmp_trans_tables.size() == 0);
+      DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
+
+      if (base_non_atomic_tables.size() == 0)
+      {
+        /*
+          Normal case. This is DROP DATABASE and we don't have any tables in
+          SEs which don't support atomic DDL. Remaining tables, views,
+          routines and events can be dropped atomically and atomically logged
+          as a single DROP DATABASE statement by the caller.
+        */
+        gtid_and_table_groups_state= GTID_SINGLE_TABLE_GROUP;
+      }
+      else
+      {
+        /*
+          Awkward case. We have GTID assigned for DROP DATABASE and it needs
+          to drop table in SE which doesn't support atomic DDL.
+
+          Most probably we are replicating from older (pre-5.8) master or tables
+          on master and slave have different SEs.
+          We try to handle situation in the following way - if the whole statement
+          succeeds caller will log all changes as a single DROP DATABASE under
+          GTID provided. In case of failure we will emit special error saying
+          that statement can't be logged correctly and manual intervention is
+          required.
+        */
+        gtid_and_table_groups_state= GTID_MANY_TABLE_GROUPS;
+      }
+    }
+    else
+    {
+      /* Only DROP DATABASE drops views. */
+      DBUG_ASSERT(views.size() == 0);
+
+      if ((tmp_trans_tables.size() != 0 &&
+           tmp_non_trans_tables.size() != 0) ||
+          ((base_non_atomic_tables.size() != 0 ||
+            base_atomic_tables.size() != 0 ||
+            (!drop_temporary && nonexistent_tables.size() != 0)) &&
+           (tmp_trans_tables.size() != 0 ||
+            tmp_non_trans_tables.size() != 0)))
+      {
+        /*
+          Prohibited case. We have either both kinds of temporary tables or
+          mix of non-temporary and temporary tables.
+
+          Normally, such DROP TEMPORARY TABLES or DROP TABLES statements are
+          written into the binary log at least in two pieces. This is, of
+          course, impossible with a single GTID assigned.
+
+          Executing such statements with a GTID assigned is prohibited at
+          least since 5.7, so should not create new problems with backward
+          compatibility and cross-version replication.
+
+          (Writing deletion of different kinds of temporary and/or base tables
+           as single multi-table DROP TABLES under single GTID might be
+           theoretically possible in some cases, but has its own problems).
+        */
+        my_error(ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP, MYF(0));
+        DBUG_RETURN(1);
+      }
+      else if (base_non_atomic_tables.size() == 1 &&
+               base_atomic_tables.size() == 0 &&
+                nonexistent_tables.size() == 0)
+      {
+        /*
+          Normal case. Single base table in SE which don't support atomic DDL
+          so it will be logged as a single-table DROP TABLES statement.
+          Other groups are empty.
+        */
+        DBUG_ASSERT(tmp_trans_tables.size() == 0);
+        DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
+        gtid_and_table_groups_state= GTID_SINGLE_TABLE_GROUP;
+      }
+      else if ((base_atomic_tables.size() != 0 ||
+                (!drop_temporary && nonexistent_tables.size() != 0)) &&
+               base_non_atomic_tables.size() == 0)
+      {
+        /*
+          Normal case. Several base tables which can be dropped atomically.
+          Can be logged as one atomic multi-table DROP TABLES statement.
+          Other groups are empty.
+        */
+        DBUG_ASSERT(tmp_trans_tables.size() == 0);
+        DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
+        gtid_and_table_groups_state= GTID_SINGLE_TABLE_GROUP;
+      }
+      else if (tmp_trans_tables.size() != 0 ||
+               (drop_temporary && tmp_non_trans_tables.size() == 0 &&
+                nonexistent_tables.size() != 0))
+      {
+        /*
+          Normal case. Some temporary transactional tables (and/or possibly
+          some non-existent temporary tables) to be logged as one multi-table
+          DROP TEMPORARY TABLES statement.
+          Other groups are empty.
+        */
+        DBUG_ASSERT(base_non_atomic_tables.size() == 0);
+        DBUG_ASSERT(base_atomic_tables.size() == 0 &&
+                    (drop_temporary || nonexistent_tables.size() == 0));
+        DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
+        gtid_and_table_groups_state= GTID_SINGLE_TABLE_GROUP;
+      }
+      else if (tmp_non_trans_tables.size() != 0)
+      {
+        /*
+          Normal case. Some temporary non-transactional tables (and possibly
+          some non-existent temporary tables) to be logged as one multi-table
+          DROP TEMPORARY TABLES statement.
+          Other groups are empty.
+        */
+        DBUG_ASSERT(base_non_atomic_tables.size() == 0);
+        DBUG_ASSERT(base_atomic_tables.size() == 0 &&
+                  (drop_temporary || nonexistent_tables.size() == 0));
+        DBUG_ASSERT(tmp_trans_tables.size() == 0);
+        gtid_and_table_groups_state= GTID_SINGLE_TABLE_GROUP;
+      }
+      else
+      {
+        /*
+          Awkward case. We have several tables from non-atomic group 1.a, or
+          tables from both atomic (1.b, 1.c, 1.d) and non-atomic groups.
+
+          Most probably we are replicating from older (pre-5.8) master or tables
+          on master and slave have different SEs.
+          We try to handle this situation gracefully by writing single multi-table
+          DROP TABLES statement including tables from all groups under GTID provided.
+          Of course this means that we are not crash-safe in this case. But we can't
+          be fully crash-safe in cases when non-atomic tables are involved anyway.
+
+          Note that temporary tables groups still should be empty in this case.
+        */
+        DBUG_ASSERT(tmp_trans_tables.size() == 0);
+        DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
+        gtid_and_table_groups_state= GTID_MANY_TABLE_GROUPS;
+      }
+    }
+  }
+
+  if (!if_exists && nonexistent_tables.size() != 0)
   {
     /*
       No IF EXISTS clause and some non-existing tables.
@@ -2951,7 +3080,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     default_db_doesnt_exist= !exists;
   }
 
-  if (if_exists && nonexistent_tables.size())
+  if (if_exists && nonexistent_tables.size() != 0)
   {
     for (TABLE_LIST *table : nonexistent_tables)
     {
@@ -2964,136 +3093,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
   }
 
-  if (thd->variables.gtid_next.type == GTID_GROUP)
-  {
-    /*
-      This statement has been assigned GTID.
-
-      In this case we need to take special care about group handling
-      and commits, as statement can't be logged/split into several
-      statements in this case.
-
-      Two different situations are possible in this case:
-      - "normal" when we have one GTID assigned and one group
-        to go as single statement to binary logs
-      - "awkward" when we have one GTID but several groups or
-        several tables in non-atomic base group (1.a).
-
-      Note that when GTID is assigned caller blocks statements which try
-      to drop both base and temporary, or different kinds of temporary
-      tables.
-
-      WL7743/TODO/QQ: Move this check here?
-    */
-    if (drop_database)
-    {
-      if (!base_non_atomic_tables.size())
-      {
-        /*
-          Normal case. This is DROP DATABASE and we don't any tables in SEs
-          which don't support atomic DDL. Remaining tables, views, routines
-          and events can be dropped atomically and atomically logged as a
-          single DROP DATABASE statement by the caller.
-        */
-        gtid_group_single_table_group= true;
-      }
-      else
-      {
-        /*
-          Awkward case. We have GTID assigned for DROP DATABASE and it needs
-          to drop table in SE which doesn't support atomic DDL.
-
-          Most probably we are replicating from older (pre-5.8) master or tables
-          on master and slave have different SEs.
-          We try to handle situation in the following way - if the whole statement
-          succeeds caller will log all changes as a single DROP DATABASE under
-          GTID provided. In case of failure we will emit special error saying
-          that statement can't be logged correctly and manual intervention is
-          required.
-        */
-        gtid_group_many_table_groups= true;
-      }
-    }
-    else if (base_non_atomic_tables.size() == 1 &&
-             !base_atomic_tables.size() && !views.size() &&
-             !nonexistent_tables.size())
-    {
-      /*
-        Normal case. Single base table in SE which don't support atomic DDL
-        so it will be logged as a single-table DROP TABLES statement.
-        Other groups are empty.
-      */
-      DBUG_ASSERT(tmp_trans_tables.size() == 0);
-      DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
-      gtid_group_single_table_group= true;
-    }
-    else if ((base_atomic_tables.size() || views.size() ||
-              (!drop_temporary && nonexistent_tables.size())) &&
-             !base_non_atomic_tables.size())
-
-    {
-      /*
-        Normal case. Several base tables which can be dropped atomically.
-        Can be logged as one atomic multi-table DROP TABLES statement.
-        Other groups are empty.
-      */
-      DBUG_ASSERT(tmp_trans_tables.size() == 0);
-      DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
-      gtid_group_single_table_group= true;
-    }
-    else if (tmp_trans_tables.size() ||
-             (drop_temporary && !tmp_non_trans_tables.size() &&
-              nonexistent_tables.size()))
-    {
-      /*
-        Normal case. Some temporary transactional tables (and/or possibly
-        some non-existent temporary tables) to be logged as one multi-table
-        DROP TEMPORARY TABLES statement.
-        Other groups are empty.
-      */
-      DBUG_ASSERT(!base_non_atomic_tables.size());
-      DBUG_ASSERT(!base_atomic_tables.size() && !views.size() &&
-                  (drop_temporary || !nonexistent_tables.size()));
-      DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
-      gtid_group_single_table_group= true;
-    }
-    else if (tmp_non_trans_tables.size())
-    {
-      /*
-        Normal case. Some temporary non-transactional tables (and possibly
-        some non-existent temporary tables) to be logged as one multi-table
-        DROP TEMPORARY TABLES statement.
-        Other groups are empty.
-      */
-      DBUG_ASSERT(!base_non_atomic_tables.size());
-      DBUG_ASSERT(!base_atomic_tables.size() && !views.size() &&
-                  (drop_temporary || !nonexistent_tables.size()));
-      DBUG_ASSERT(tmp_trans_tables.size() == 0);
-      gtid_group_single_table_group= true;
-    }
-    else
-    {
-      /*
-        Awkward case. We have several tables from non-atomic group 1.a, or
-        tables from both atomic (1.b, 1.c, 1.d) and non-atomic groups.
-
-        Most probably we are replicating from older (pre-5.8) master or tables
-        on master and slave have different SEs.
-        We try to handle this situation gracefully by writing single multi-table
-        DROP TABLES statement including tables from all groups under GTID provided.
-        Of course this means that we are not crash-safe in this case. But we can't
-        be fully crash-safe in cases when non-atomic tables are involved anyway.
-
-        Note that temporary tables groups still should be empty in this case.
-      */
-      DBUG_ASSERT(tmp_trans_tables.size() == 0);
-      DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
-      gtid_group_many_table_groups= true;
-    }
-
-  }
-
-  if (base_non_atomic_tables.size())
+  if (base_non_atomic_tables.size() != 0)
   {
     /*
       Handle base tables in storage engines which don't support atomic DDL.
@@ -3127,7 +3127,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         corresponding DROP TABLE statements are written to binary log.
         We didn't do anything for the current table yet.
 
-        WL#7743/TODO/QQ: What if we are in gtid_group_many_table_groups mode
+        WL#7743/TODO/QQ: What if we are in gtid_and_table_groups_state == GTID_MANY_TABLE_GROUPS mode
                          should we be immune to kill in this case? Or flush
                          out all tables we have dropped so far. Or report
                          consitency violation?
@@ -3266,7 +3266,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       *dropped_non_atomic= true;
 
 
-      if (!gtid_group_many_table_groups)
+      if (gtid_and_table_groups_state != GTID_MANY_TABLE_GROUPS)
       {
         /*
           We don't have GTID assigned, or we have GTID assigned and this is
@@ -3313,7 +3313,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
             DBUG_RETURN(1);
         }
 
-        if (!gtid_group_single_table_group)
+        if (gtid_and_table_groups_state != GTID_SINGLE_TABLE_GROUP)
         {
           /*
             We don't have GTID assigned. Commit change to binary log (if
@@ -3353,8 +3353,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
      }
   }
 
-  if (base_atomic_tables.size() || views.size() ||
-      (!drop_temporary && nonexistent_tables.size()))
+  if (base_atomic_tables.size() != 0 || views.size() != 0 ||
+      (!drop_temporary && nonexistent_tables.size() != 0))
   {
     /*
       Handle base tables in SEs which support atomic DDL, as well as views
@@ -3368,7 +3368,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
     bool table_dropped= false;
 #endif
-    if (!drop_database && !gtid_group_many_table_groups)
+    if (!drop_database && gtid_and_table_groups_state != GTID_MANY_TABLE_GROUPS)
     {
       built_query.set_charset(system_charset_info);
       if (if_exists)
@@ -3395,7 +3395,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         where this is done should not matter. Still let us be consistent
         with non-atomic case.
 
-        WL#7743/TODO/QQ: What if we are in !gtid_group_many_table_groups mode
+        WL#7743/TODO/QQ: What if we are in gtid_and_table_groups_state != GTID_MANY_TABLE_GROUPS mode
                          should we be immune to kill in this case? Or flush
                          out all tables we have dropped so far.
       */
@@ -3570,7 +3570,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
 #endif
 
-      if (!drop_database && !gtid_group_many_table_groups)
+      if (!drop_database && gtid_and_table_groups_state != GTID_MANY_TABLE_GROUPS)
       {
         append_table_ident(thd, &built_query, table, false);
         built_query.append(",");
@@ -3618,7 +3618,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
       thd->add_to_binlog_accessed_dbs(table->db);
 
-      if (!drop_database && !gtid_group_many_table_groups)
+      if (!drop_database && gtid_and_table_groups_state != GTID_MANY_TABLE_GROUPS)
       {
         append_table_ident(thd, &built_query, table, false);
         built_query.append(",");
@@ -3655,7 +3655,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 #endif
     }
-    else if (!gtid_group_many_table_groups)
+    else if (gtid_and_table_groups_state != GTID_MANY_TABLE_GROUPS)
     {
       /*
         We don't have GTID assigned, or we have GTID assigned and our DROP
@@ -3670,7 +3670,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                         built_query.length(), true /*is_trans*/))
         goto err_with_rollback;
 
-      if (!gtid_group_single_table_group)
+      if (gtid_and_table_groups_state != GTID_SINGLE_TABLE_GROUP)
       {
         /*
           We don't have GTID assigned. Commit changes to SE, data-dictionary
@@ -3713,7 +3713,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       goto err_with_rollback;
   }
 
-  if (!drop_database && gtid_group_many_table_groups)
+  if (!drop_database && gtid_and_table_groups_state == GTID_MANY_TABLE_GROUPS)
   {
     /*
       We DROP TABLES statement with GTID assigned and either several tables
@@ -3778,7 +3778,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
     WL7743/TODO/QQ: Move below code to helper function?
   */
-  if (tmp_non_trans_tables.size())
+  if (tmp_non_trans_tables.size() != 0)
   {
     /*
       Handle non-transactional temporary tables.
@@ -3837,7 +3837,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       slave we won't split DROP TEMPORARY TABLES even if some tables
       are missing on it (which is no-no for GTID mode).
     */
-    if (drop_temporary && !tmp_trans_tables.size())
+    if (drop_temporary && tmp_trans_tables.size() == 0)
     {
       for (TABLE_LIST *table : nonexistent_tables)
       {
@@ -3873,7 +3873,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
         Discuss with Runtime and Replication if things can be improved.
       */
-      if (!gtid_group_single_table_group)
+      if (gtid_and_table_groups_state != GTID_SINGLE_TABLE_GROUP)
       {
         /*
           We don't have GTID assigned. If we are not inside of transaction
@@ -3900,8 +3900,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
   }
 
-  if (tmp_trans_tables.size() ||
-      (drop_temporary && !tmp_non_trans_tables.size() && nonexistent_tables.size()))
+  if (tmp_trans_tables.size() != 0 ||
+      (drop_temporary && tmp_non_trans_tables.size() == 0 &&
+       nonexistent_tables.size() != 0))
   {
     /*
       Handle transactional temporary tables (and possibly non-existent
@@ -3990,7 +3991,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         WL7743/TODO/QQ: The below looks like horrible hack - see questions
                         to discuss above.
       */
-      if (!gtid_group_single_table_group)
+      if (gtid_and_table_groups_state != GTID_SINGLE_TABLE_GROUP)
       {
         /*
           We don't have GTID assigned. If we are not inside of transaction
