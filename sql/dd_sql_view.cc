@@ -546,11 +546,18 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
 /**
   Helper method to update referencing view's metadata.
 
-  @tparam     T               Type of object (View_table/View_routine) to fetch
-                              referencing view names.
-  @param      thd             Current thread.
-  @param      db              Database name.
-  @param      tbl_or_sf_name  Base table/ View/ Stored function name.
+  @tparam         T                   Type of object (View_table/View_routine)
+                                      to fetch referencing view names.
+  @param          thd                 Current thread.
+  @param          db                  Database name.
+  @param          tbl_or_sf_name      Base table/ View/ Stored function name.
+  @param          commit_dd_changes   Indicates whether changes to DD need
+                                      to be committed.
+  @param[in,out]  uncommitted_tables  Helper class to store list of views
+                                      which shares need to be removed from
+                                      TDC if we fail to commit changes to
+                                      DD. Only used if commit_dd_changes
+                                      is false.
 
   @retval     false           Success.
   @retval     true            Failure.

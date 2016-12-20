@@ -11863,6 +11863,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   /* Remember that we have not created table in storage engine yet. */
   bool no_ha_table= true;
 
+  /* Indicates special case when we do ALTER TABLE which is really no-op. */
   bool is_noop= false;
 
   if (alter_info->requested_algorithm != Alter_info::ALTER_TABLE_ALGORITHM_COPY)
