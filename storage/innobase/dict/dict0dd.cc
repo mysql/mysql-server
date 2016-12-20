@@ -1451,7 +1451,6 @@ dd_parse_merge_threshold(THD* thd, const char* str)
         return(DICT_INDEX_MERGE_THRESHOLD_DEFAULT);
 }
 
-
 /** Copy attributes from MySQL TABLE_SHARE into an InnoDB table object.
 @param[in,out]	thd		thread context
 @param[in,out]	table		InnoDB table
@@ -1845,12 +1844,10 @@ create_table_metadata(
 	const dd::Column*	doc_col = dd_find_column(
 		const_cast<dd::Table*>(&dd_part->table()), FTS_DOC_ID_COL_NAME);
 
-	/* Check whether it is of the right type */
-	if (doc_col) {
-		if (doc_col->type() == dd::enum_column_types::LONGLONG
-		    && !doc_col->is_nullable()) {
-			has_doc_id = true;
-		}
+	/* Check weather there is a proper typed FTS_DOC_ID */
+	if (doc_col && doc_col->type() == dd::enum_column_types::LONGLONG
+	    && !doc_col->is_nullable()) {
+		has_doc_id = true;
 	}
 
 	const bool	fulltext = dd_part != nullptr
@@ -1865,10 +1862,12 @@ create_table_metadata(
 
 	/* Need to add FTS_DOC_ID column if it is not defined by user,
 	since TABLE_SHARE::fields does not contain it if it is a hidden col */
-	if (has_doc_id
-	    && !create_table_check_doc_id_col(m_thd, m_form, &doc_id_col)) {
+	if (has_doc_id && doc_col->is_hidden()) {
+		ut_ad(!create_table_check_doc_id_col(
+			m_thd, m_form, &doc_id_col));
 		add_doc_id = true;
 	}
+
 	const unsigned	n_cols = n_mysql_cols + add_doc_id;
 
 	bool		is_redundant;
@@ -1971,12 +1970,11 @@ create_table_metadata(
 	for (unsigned i = 0; i < n_mysql_cols; i++) {
 		const Field*	field = m_form->field[i];
 		unsigned	mtype;
-		unsigned	prtype;
+		unsigned	prtype = 0;
 		unsigned	col_len = field->pack_length();
 
 		/* The MySQL type code has to fit in 8 bits
 		in the metadata stored in the InnoDB change buffer. */
-		//ut_ad(prtype < DATA_NOT_NULL);
 		ut_ad(field->charset() == nullptr
 		      || field->charset()->number <= MAX_CHAR_COLL_NUM);
 		ut_ad(field->charset() == nullptr
@@ -2391,13 +2389,13 @@ dd_table_load_fk(
 template<typename Table>
 dict_table_t*
 dd_open_table_one(
-        dd::cache::Dictionary_client*   client,
-        const TABLE*                    table,
+	dd::cache::Dictionary_client*	client,
+	const TABLE*			table,
 	const char*			norm_name,
-        bool*                           uncached,
-        dict_table_t*&                  ib_table,
-        const Table*	                dd_table,
-        bool                            skip_mdl,
+	bool*				uncached,
+	dict_table_t*&			ib_table,
+	const Table*			dd_table,
+	bool				skip_mdl,
 	THD*				thd,
 	dict_names_t&			fk_list)
 {
@@ -2568,26 +2566,27 @@ dd_open_table_one(
 @param[in]	dd_table	Global DD table or partition object
 @param[in]	skip_mdl	whether meta-data locking is skipped
 @param[in]	thd		thread THD
-@retval 0                       on success
+@retval 0			on success
 @retval HA_ERR_TABLE_CORRUPT    if the table is marked as corrupted
 @retval HA_ERR_TABLESPACE_MISSING       if the file is not found */
 template<typename Table>
 dict_table_t*
 dd_open_table(
-        dd::cache::Dictionary_client*   client,
-        const TABLE*                    table,
+	dd::cache::Dictionary_client*	client,
+	const TABLE*			table,
 	const char*			norm_name,
-        bool*                           uncached,
-        dict_table_t*&                  ib_table,
-        const Table*	                dd_table,
-        bool                            skip_mdl,
+	bool*				uncached,
+	dict_table_t*&			ib_table,
+	const Table*			dd_table,
+	bool				skip_mdl,
 	THD*				thd)
 {
-	dict_table_t*                   m_table = NULL;
-	dict_names_t                    fk_list;
+	dict_table_t*			m_table = NULL;
+	dict_names_t			fk_list;
 
 	m_table = dd_open_table_one(client, table, norm_name, uncached,
-		ib_table, dd_table, skip_mdl, thd, fk_list);
+				    ib_table, dd_table, skip_mdl, thd,
+				    fk_list);
 
 	if (m_table != NULL) {
 		dd::cache::Dictionary_client*	client

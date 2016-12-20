@@ -241,28 +241,28 @@ void dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc);
 
 /** Instantiate an InnoDB in-memory table metadata (dict_table_t)
 based on a Global DD object.
-@param[in,out]  client          data dictionary client
-@param[in]      dd_table        Global DD table object
-@param[in]      dd_part         Global DD partition or subpartition, or NULL
-@param[in]      tbl_name        table name, or NULL if not known
-@param[in,out]  uncached        NULL if the table should be added to the cache;
-                                if not, *uncached=true will be assigned
-                                when ib_table was allocated but not cached
-                                (used during delete_table and rename_table)
-@param[out]     table           InnoDB table (NULL if not found or loadable)
-@param[in]      skip_mdl        whether meta-data locking is skipped
+@param[in,out]	client		data dictionary client
+@param[in]	dd_table	Global DD table object
+@param[in]	dd_part		Global DD partition or subpartition, or NULL
+@param[in]	tbl_name	table name, or NULL if not known
+@param[in,out]	uncached	NULL if the table should be added to the cache;
+				if not, *uncached=true will be assigned
+				when ib_table was allocated but not cached
+				(used during delete_table and rename_table)
+@param[out]	table		InnoDB table (NULL if not found or loadable)
+@param[in]	skip_mdl	whether meta-data locking is skipped
 @return error code
-@retval 0       on success */
+@retval 0	on success */
 int
 dd_table_open_on_dd_obj(
-        dd::cache::Dictionary_client*   client,
-        const dd::Table&                dd_table,
-        const dd::Partition*            dd_part,
-        const char*                     tbl_name,
-        bool*                           uncached,
-        dict_table_t*&                  table,
-        bool                            skip_mdl,
-        THD*                            thd);
+	dd::cache::Dictionary_client*	client,
+	const dd::Table&		dd_table,
+	const dd::Partition*		dd_part,
+	const char*			tbl_name,
+	bool*				uncached,
+	dict_table_t*&			table,
+	bool				skip_mdl,
+	THD*				thd);
 
 /** Open a persistent InnoDB table based on table id.
 @param[in]	table_id	table identifier
@@ -368,16 +368,6 @@ dd_open_table(
 	bool				skip_mdl,
 	THD*				thd);
 
-#if 0
-template dict_table_t* dd_open_table<dd::Table>(
-        dd::cache::Dictionary_client*, const TABLE*, const char*,
-        bool*, dict_table_t*&, const dd::Table*, bool, THD*);
-
-template dict_table_t* dd_open_table<dd::Partition>(
-        dd::cache::Dictionary_client*, const TABLE*, const char*,
-        bool*, dict_table_t*&, const dd::Partition*, bool, THD*);
-#endif
-
 /** Get dd tablespace by dd space id
 Note: It'll get an uncached dd space obj
 @param[in]	dd client	dd client
@@ -466,6 +456,7 @@ dd_set_hidden_unique_index(
         const char*             name,
         const dd::Column*       column);
 
+#ifdef UNIV_DEBUG
 /** Check whether there exist a column named as "FTS_DOC_ID", which is
 reserved for InnoDB FTS Doc ID
 @param[in]      thd             MySQL thread handle
@@ -479,16 +470,18 @@ reserved for InnoDB FTS Doc ID
 UNIV_INLINE
 bool
 create_table_check_doc_id_col(
-        THD*            thd,   
-        const TABLE*    form,  
-        ulint*          doc_id_col);
+	THD*		thd,   
+	const TABLE*	form,  
+	ulint*		doc_id_col);
+#endif /* UNIV_DEBUG */
 
 /** Return a display name for the row format
 @param[in]      row_format      Row Format
 @return row format name */
 UNIV_INLINE
 const char*
-get_row_format_name(enum row_type row_format);
+get_row_format_name(
+	enum row_type row_format);
 
 #include "dict0dd.ic"
 #endif

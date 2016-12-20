@@ -127,7 +127,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0priv.h"
 #include "i_s.h"
 #include "sync0sync.h"
-#include <bitset>
 #include "sql_base.h" // OPEN_FRM_FILE_ONLY
 
 /** fil_space_t::flags for hard-coded tablespaces */
@@ -10727,69 +10726,6 @@ ha_innobase::position(
 
 	DBUG_VOID_RETURN;
 }
-
-#if 0
-/*****************************************************************//**
-Check whether there exist a column named as "FTS_DOC_ID", which is
-reserved for InnoDB FTS Doc ID
-@return true if there exist a "FTS_DOC_ID" column */
-bool
-create_table_check_doc_id_col(
-/*==========================*/
-	THD*		thd,		/*!< in: MySQL thread handle */
-	const TABLE*	form,		/*!< in: information on table
-					columns and indexes */
-	ulint*		doc_id_col)	/*!< out: Doc ID column number if
-					there exist a FTS_DOC_ID column,
-					ULINT_UNDEFINED if column is of the
-					wrong type/name/size */
-{
-	for (ulint i = 0; i < form->s->fields; i++) {
-		const Field*	field;
-		ulint		col_type;
-		ulint		col_len;
-		ulint		unsigned_type;
-
-		field = form->field[i];
-		if (!field->stored_in_db)
-		  continue;
-
-		col_type = get_innobase_type_from_mysql_type(
-			&unsigned_type, field);
-
-		col_len = field->pack_length();
-
-		if (innobase_strcasecmp(field->field_name,
-					FTS_DOC_ID_COL_NAME) == 0) {
-
-			/* Note the name is case sensitive due to
-			our internal query parser */
-			if (col_type == DATA_INT
-			    && !field->real_maybe_null()
-			    && col_len == sizeof(doc_id_t)
-			    && (strcmp(field->field_name,
-				      FTS_DOC_ID_COL_NAME) == 0)) {
-				*doc_id_col = i;
-			} else {
-				push_warning_printf(
-					thd,
-					Sql_condition::SL_WARNING,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: FTS_DOC_ID column must be"
-					" of BIGINT NOT NULL type, and named"
-					" in all capitalized characters");
-				my_error(ER_WRONG_COLUMN_NAME, MYF(0),
-					 field->field_name);
-				*doc_id_col = ULINT_UNDEFINED;
-			}
-
-			return(true);
-		}
-	}
-
-	return(false);
-}
-#endif
 
 /** Set up base columns for virtual column
 @param[in]	table		InnoDB table

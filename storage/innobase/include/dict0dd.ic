@@ -306,21 +306,23 @@ dd_table_open_on_name_in_mem(
 	return(table);
 }
 
-/*****************************************************************//**
-Check whether there exist a column named as "FTS_DOC_ID", which is
+#ifdef UNIV_DEBUG
+/** Check whether there exist a column named as "FTS_DOC_ID", which is
 reserved for InnoDB FTS Doc ID
+@param[in]	thd		MySQL thread handle
+@param[in]	form		information on table
+				columns and indexes
+@param[out]	doc_id_col	Doc ID column number if
+				there exist a FTS_DOC_ID column,
+				ULINT_UNDEFINED if column is of the
+				wrong type/name/size
 @return true if there exist a "FTS_DOC_ID" column */
 UNIV_INLINE
 bool
 create_table_check_doc_id_col(
-/*==========================*/
-	THD*		thd,		/*!< in: MySQL thread handle */
-	const TABLE*	form,		/*!< in: information on table
-					columns and indexes */
-	ulint*		doc_id_col)	/*!< out: Doc ID column number if
-					there exist a FTS_DOC_ID column,
-					ULINT_UNDEFINED if column is of the
-					wrong type/name/size */
+	THD*		thd,
+	const TABLE*	form,
+	ulint*		doc_id_col)
 {
 	for (ulint i = 0; i < form->s->fields; i++) {
 		const Field*	field;
@@ -367,6 +369,7 @@ create_table_check_doc_id_col(
 
 	return(false);
 }
+#endif /* UNIV_DEBUG */
 
 /** Return a display name for the row format
 @param[in]      row_format      Row Format
@@ -395,4 +398,3 @@ get_row_format_name(enum row_type row_format)
         }
         return("ROW_FORMAT");
 }
-
